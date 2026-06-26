@@ -58,7 +58,8 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             PROVISIONING_PROFILE_SPECIFIER="JPEL Manager Distribution" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM=9B2R9YPV5B
+            DEVELOPMENT_TEAM=9B2R9YPV5B \
+            -destination "generic/platform=iOS"
 
       - name: Export IPA
         run: |
