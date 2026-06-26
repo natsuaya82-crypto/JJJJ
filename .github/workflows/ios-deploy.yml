@@ -72,6 +72,13 @@ jobs:
             <string>app-store-connect</string>
             <key>teamID</key>
             <string>9B2R9YPV5B</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.tokinets.jpelmanager</key>
+              <string>JPEL Manager Distribution</string>
+            </dict>
           </dict>
           </plist>
           EOF
