@@ -87,15 +87,10 @@ jobs:
             -exportPath build/ipa \
             -exportOptionsPlist ExportOptions.plist
 
-      - name: Install Fastlane
-        run: gem install fastlane --no-document
-
       - name: Upload to App Store Connect
-        env:
-          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
-        run: |
-          fastlane pilot upload \
-            --ipa build/ipa/App.ipa \
-            --username "t.ihira@tokinets.com" \
-            --app_specific_password "$APP_SPECIFIC_PASSWORD" \
-            --skip_waiting_for_build_processing true
+        uses: apple-actions/upload-testflight-build@v4
+        with:
+          app-path: build/ipa/App.ipa
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          api-key-id: ${{ secrets.IOS_KEY_ID }}
+          api-private-key: ${{ secrets.IOS_API_KEY }}
