@@ -87,12 +87,15 @@ jobs:
             -exportPath build/ipa \
             -exportOptionsPlist ExportOptions.plist
 
+      - name: Install Fastlane
+        run: gem install fastlane --no-document
+
       - name: Upload to App Store Connect
         env:
           APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
         run: |
-          xcrun altool --upload-app \
-            --type ios \
-            --file build/ipa/App.ipa \
-            --apple-id "t.ihira@tokinets.com" \
-            --password "$APP_SPECIFIC_PASSWORD"
+          fastlane pilot upload \
+            --ipa build/ipa/App.ipa \
+            --username "t.ihira@tokinets.com" \
+            --app_specific_password "$APP_SPECIFIC_PASSWORD" \
+            --skip_waiting_for_build_processing true
