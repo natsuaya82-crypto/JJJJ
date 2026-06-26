@@ -91,9 +91,8 @@ jobs:
         env:
           APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
         run: |
-          echo "PASSWORD_LENGTH=${#APP_SPECIFIC_PASSWORD}"
           xcrun altool --upload-app \
             --type ios \
             --file build/ipa/App.ipa \
             --apple-id "t.ihira@tokinets.com" \
-            --password "@env:APP_SPECIFIC_PASSWORD"
+            --password "$APP_SPECIFIC_PASSWORD"
