@@ -89,18 +89,12 @@ jobs:
 
       - name: Upload to App Store Connect
         env:
-          API_PRIVATE_KEY: ${{ secrets.IOS_API_KEY }}
+          API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           API_KEY_ID: ${{ secrets.IOS_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           mkdir -p ~/.private_keys
-          printenv API_PRIVATE_KEY > "$HOME/.private_keys/AuthKey_${API_KEY_ID}.p8"
-          echo "=== file size ==="
-          wc -c < "$HOME/.private_keys/AuthKey_${API_KEY_ID}.p8"
-          echo "=== line count ==="
-          wc -l < "$HOME/.private_keys/AuthKey_${API_KEY_ID}.p8"
-          echo "=== first line ==="
-          head -1 "$HOME/.private_keys/AuthKey_${API_KEY_ID}.p8"
+          echo "$API_KEY_BASE64" | base64 --decode > "$HOME/.private_keys/AuthKey_${API_KEY_ID}.p8"
           xcrun altool --upload-app \
             --type ios \
             --file build/ipa/App.ipa \
