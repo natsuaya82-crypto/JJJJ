@@ -1,0 +1,468 @@
+@import "tailwindcss";
+
+/* ── Design Tokens ────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg:          #0a1729;
+  --bg-deep:     #050d1c;
+  --bg-card:     #1a2c47;
+  --bg-card-lt:  #243a5a;
+  --surface:     #0f1f38;
+  --surface2:    #1a2c47;
+  --surface3:    #243a5a;
+
+  /* Borders */
+  --border:    #1a3252;
+  --border2:   #1e3a5c;
+  --border3:   #2a4a6a;
+
+  /* Text */
+  --text:       #ffffff;
+  --text-sub:   #c8d4e3;
+  --text-dim:   #8c9aaf;
+  --text-ghost: #4a6080;
+
+  /* Brand */
+  --gold:         #f5c842;
+  --gold-hi:      #ffe082;
+  --gold-lo:      rgba(245,200,66,0.15);
+  --gold-dark:    #b8860b;
+  --gold-darker:  #8b6914;
+  --accent-cyan:  #5ed4ff;
+  --accent-cyan-dk: #2596be;
+
+  /* Status */
+  --red:       #ff4757;
+  --green:     #2ecc71;
+  --blue:      #7986CB;
+  --orange:    #FF9800;
+  --pink:      #EC407A;
+
+  /* Radius */
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-xl:  20px;
+
+  /* Nav */
+  --nav-h:     64px;
+  --ad-h:      50px;
+
+  /* Fonts */
+  --font-saira:   'Saira Condensed', system-ui, sans-serif;
+  --font-zen:     'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif;
+  --font-mincho:  'Shippori Mincho', serif;
+
+  /* Frame / game chrome */
+  --frame-gold:        #f5c842;
+  --frame-gold-hi:     #ffe082;
+  --frame-gold-dark:   #b8860b;
+  --frame-gold-darker: #8b6914;
+  --stroke-dark:       #061224;
+}
+
+/* ── Reset ────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  overflow-x: hidden;
+}
+
+body {
+  /* 駅伝の襷モチーフ + 斜めストライプ+菱形+スポットライト */
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(94,212,255,0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(245,200,66,0.06) 0%, transparent 70%),
+    repeating-linear-gradient(
+      135deg,
+      transparent 0px, transparent 28px,
+      rgba(94,212,255,0.022) 28px, rgba(94,212,255,0.022) 30px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px,
+      transparent 1px, transparent 22px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px,
+      transparent 1px, transparent 22px
+    ),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+  background-attachment: fixed;
+}
+
+#root { min-height: 100dvh; min-height: 100vh; }
+
+::-webkit-scrollbar { display: none; }
+button { font-family: inherit; }
+
+/* ── Page Transitions ─────────────────────── */
+@keyframes page-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-from-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-from-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(201,168,76,0.3); }
+  50%       { box-shadow: 0 0 20px rgba(201,168,76,0.6); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+
+@keyframes race-event-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes race-result-in {
+  from { opacity: 0; transform: translateY(32px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes race-choice-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  40%  { box-shadow: 0 0 0 6px rgba(255,255,255,0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+
+@keyframes race-rank-pop {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes race-timedelta-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.page-enter {
+  animation: page-in 0.18s ease-out;
+}
+
+.slide-in-right {
+  animation: slide-from-right 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.page-slide-left  { animation: slide-from-right 0.18s ease-out; }
+.page-slide-right { animation: slide-from-left  0.18s ease-out; }
+
+.slide-in-left {
+  animation: slide-from-left 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Interactive States ───────────────────── */
+.pressable {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+  cursor: pointer;
+}
+.pressable:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+/* ── Card Utilities ───────────────────────── */
+.card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.card-gold {
+  background: linear-gradient(135deg, rgba(201,168,76,0.1), var(--surface));
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: var(--r-lg);
+}
+
+/* ── Typography Utilities ─────────────────── */
+.label-caps {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  color: var(--text-dim);
+}
+
+.mono { font-family: ui-monospace, 'SF Mono', monospace; }
+
+/* ── Gradient Text ────────────────────────── */
+.text-gold-gradient {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Scrollable Row ───────────────────────── */
+.scroll-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x mandatory;
+}
+.scroll-row > * { scroll-snap-align: start; }
+
+/* ── Section Divider ──────────────────────── */
+.section-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.section-bar::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--gold), rgba(201,168,76,0.4));
+  flex-shrink: 0;
+}
+
+/* ── Status Dot ───────────────────────────── */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Text Stroke Utilities ────────────────── */
+.stroke {
+  text-shadow:
+    -2px -2px 0 var(--stroke-dark),
+     2px -2px 0 var(--stroke-dark),
+    -2px  2px 0 var(--stroke-dark),
+     2px  2px 0 var(--stroke-dark),
+     0    2px 0 var(--stroke-dark),
+     2px  0   0 var(--stroke-dark),
+     0   -2px 0 var(--stroke-dark),
+    -2px  0   0 var(--stroke-dark);
+}
+.stroke-thin {
+  text-shadow:
+    -1px -1px 0 var(--stroke-dark),
+     1px -1px 0 var(--stroke-dark),
+    -1px  1px 0 var(--stroke-dark),
+     1px  1px 0 var(--stroke-dark);
+}
+
+/* ── Game Button (ソシャゲ風 立体ボタン) ────── */
+/*
+  Usage:
+  <button class="btn-game btn-game--gold">ラベル</button>
+  <button class="btn-game btn-game--blue">ラベル</button>
+*/
+.btn-game {
+  position: relative;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-zen);
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  padding: 0;
+  background: none;
+  color: #fff;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-game__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 20px;
+  border-radius: 14px;
+  position: relative;
+  transition: transform 0.08s ease;
+  text-shadow:
+    -1.5px -1.5px 0 var(--stroke-dark),
+     1.5px -1.5px 0 var(--stroke-dark),
+    -1.5px  1.5px 0 var(--stroke-dark),
+     1.5px  1.5px 0 var(--stroke-dark),
+     0       3px 4px rgba(0,0,0,0.6);
+}
+.btn-game__inner::after {
+  content: '';
+  position: absolute;
+  top: 4px; left: 8px; right: 8px;
+  height: 36%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 100%);
+  border-radius: 8px 8px 50% 50%;
+  pointer-events: none;
+}
+.btn-game:active .btn-game__inner { transform: translateY(4px); }
+
+.btn-game--gold .btn-game__inner {
+  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+  border: 2px solid var(--gold-darker);
+  box-shadow:
+    0 6px 0 #5a3500,
+    0 8px 20px rgba(245,200,66,0.3),
+    inset 0 2px 0 rgba(255,255,255,0.4),
+    inset 0 -3px 0 rgba(0,0,0,0.2);
+}
+.btn-game--blue .btn-game__inner {
+  background: linear-gradient(180deg, #7fd8ff 0%, var(--accent-cyan) 50%, var(--accent-cyan-dk) 100%);
+  border: 2px solid #1a6b8f;
+  box-shadow:
+    0 6px 0 #0e3f5a,
+    0 8px 20px rgba(94,212,255,0.25),
+    inset 0 2px 0 rgba(255,255,255,0.35),
+    inset 0 -3px 0 rgba(0,0,0,0.2);
+}
+.btn-game--green .btn-game__inner {
+  background: linear-gradient(180deg, #52e27a 0%, #2ecc71 50%, #1da056 100%);
+  border: 2px solid #166038;
+  box-shadow:
+    0 6px 0 #0d3d22,
+    0 8px 20px rgba(46,204,113,0.25),
+    inset 0 2px 0 rgba(255,255,255,0.3),
+    inset 0 -3px 0 rgba(0,0,0,0.2);
+}
+.btn-game--red .btn-game__inner {
+  background: linear-gradient(180deg, #ff7080 0%, #ff4757 50%, #cc2030 100%);
+  border: 2px solid #992018;
+  box-shadow:
+    0 6px 0 #660e10,
+    0 8px 20px rgba(255,71,87,0.25),
+    inset 0 2px 0 rgba(255,255,255,0.3),
+    inset 0 -3px 0 rgba(0,0,0,0.2);
+}
+
+/* ── Progress Bar ─────────────────────────── */
+.progress-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border2);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Card Frame (ソシャゲ風金枠カード) ────── */
+.card-frame {
+  background: linear-gradient(180deg, var(--bg-card-lt) 0%, var(--bg-card) 100%);
+  border: 2px solid var(--gold-dark);
+  border-radius: var(--r-lg);
+  position: relative;
+  box-shadow:
+    0 4px 0 #5a3500,
+    0 6px 20px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.card-frame::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(245,200,66,0.2);
+  border-radius: calc(var(--r-lg) - 4px);
+  pointer-events: none;
+}
+.card-frame.hero {
+  border-color: var(--frame-gold);
+  box-shadow:
+    0 8px 0 var(--gold-darker),
+    0 12px 30px rgba(0,0,0,0.6),
+    inset 0 2px 0 rgba(255,255,255,0.15);
+}
+
+/* ── Section Header (金縦バー付き) ────────── */
+.section-h2 {
+  font-family: var(--font-zen);
+  font-weight: 900;
+  font-size: 16px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow:
+    -1.5px -1.5px 0 var(--stroke-dark),
+     1.5px -1.5px 0 var(--stroke-dark),
+    -1.5px  1.5px 0 var(--stroke-dark),
+     1.5px  1.5px 0 var(--stroke-dark);
+}
+.section-h2::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold-dark));
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--frame-gold);
+  flex-shrink: 0;
+}
+
+/* ── Standings Card ───────────────────────── */
+.standings-card {
+  background: linear-gradient(180deg, var(--bg-card-lt) 0%, var(--bg-card) 100%);
+  border: 2px solid var(--gold-dark);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  position: relative;
+  box-shadow:
+    0 4px 0 #5a3500,
+    0 6px 16px rgba(0,0,0,0.4);
+}
+.standings-card::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(245,200,66,0.15);
+  border-radius: calc(var(--r-lg) - 4px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Season Tag ───────────────────────────── */
+.season-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  background: linear-gradient(180deg, #1a3a5c 0%, #0f2440 100%);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 12px;
+  color: var(--accent-cyan);
+  font-family: var(--font-saira);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  box-shadow: 0 0 12px rgba(94,212,255,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.season-tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--green);
+}

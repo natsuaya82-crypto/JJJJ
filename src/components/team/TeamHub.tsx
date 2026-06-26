@@ -1,0 +1,325 @@
+import { useNavigate } from 'react-router-dom'
+import { useGameStore } from '../../store/gameStore'
+import { ovr } from '../../utils/playerUtils'
+import { TeamLogoSVG } from '../icons/Icons'
+import { C, alpha } from '../../styles/tokens'
+
+const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+
+export default function TeamHub() {
+  const navigate = useNavigate()
+  const { teams, players, playerTeamId, currentSeason } = useGameStore()
+  const trainingCards = useGameStore(s => s.trainingCards ?? [])
+  const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
+  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
+  const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
+  const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
+  const avgOvr = myPlayers.length > 0 ? Math.round(myPlayers.reduce((s, p) => s + ovr(p), 0) / myPlayers.length) : 0
+
+  const teamPrimary = myTeam?.colors.primary ?? C.blue
+
+  const rankBg = myRank === 1
+    ? `linear-gradient(135deg, ${C.gold}, ${C.goldHi})`
+    : myRank <= 3
+    ? `linear-gradient(135deg, ${alpha(C.green, 0.2)}, ${alpha(C.green, 0.1)})`
+    : `linear-gradient(135deg, ${alpha('#fff', 0.06)}, ${alpha('#fff', 0.02)})`
+  const rankText = myRank === 1 ? C.bg : myRank <= 3 ? C.green : C.textSub
+
+  const SECTIONS = [
+    {
+      key: '/team/roster',
+      label: 'ロスター',
+      desc: '1軍・リザーブ・ユースの選手管理、背番号、放出',
+      countLabel: expiringCount > 0 ? `FA間近 ${expiringCount}名` : `${myPlayers.length}名在籍`,
+      badge: expiringCount,
+      color: C.blue,
+      shadow: '#1a2050',
+      urgent: expiringCount > 0,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M7 9h10M7 13h7M7 17h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/cards',
+      label: 'カード特訓',
+      desc: 'カード合成で選手を育成・スキル付与',
+      countLabel: trainingCards.length > 0
+        ? `手持ち${trainingCards.length}枚${raceDroppedCards.length > 0 ? ` / NEW+${raceDroppedCards.length}` : ''}`
+        : 'カードなし',
+      badge: raceDroppedCards.length,
+      color: '#A855F7',
+      shadow: '#3b0071',
+      urgent: raceDroppedCards.length > 0,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="12" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+          <rect x="9" y="4" width="12" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M13 9h4M13 12h4M13 15h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/sponsors',
+      label: 'スポンサー',
+      desc: 'チーム・個人スポンサー契約管理',
+      countLabel: (() => {
+        const team = teams.find(t => t.id === playerTeamId)
+        const cnt = (team?.sponsors ?? []).length
+        const myPl = players.filter(p => p.teamId === playerTeamId)
+        const personal = myPl.reduce((s, p) => s + (p.personalSponsors?.length ?? 0), 0)
+        const total = cnt + personal
+        return total > 0 ? `契約中 ${total}件` : '契約なし'
+      })(),
+      badge: 0,
+      color: C.green,
+      shadow: '#0a4020',
+      urgent: false,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/team/chat',
+      label: 'チャット',
+      desc: '選手との契約交渉・不満対応・引退・移籍希望',
+      countLabel: (() => {
+        const active = (currentSeason.contractRequests ?? []).filter(r => r.status !== 'accepted' && r.status !== 'rejected').length
+        const expiring = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
+        const retirement = (currentSeason.retirementRequests ?? []).length
+        const transfer = (currentSeason.transferRequests ?? []).length
+        const total = active + expiring + retirement + transfer
+        if (total > 0) return `対応待ち ${total}件`
+        return `${myPlayers.length}名在籍`
+      })(),
+      badge: (() => {
+        const active = (currentSeason.contractRequests ?? []).filter(r => r.status !== 'accepted' && r.status !== 'rejected').length
+        const expiring = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
+        const retirement = (currentSeason.retirementRequests ?? []).length
+        const transfer = (currentSeason.transferRequests ?? []).length
+        return active + expiring + retirement + transfer
+      })(),
+      color: C.blue,
+      shadow: '#1a2050',
+      urgent: (() => {
+        const active = (currentSeason.contractRequests ?? []).filter(r => r.status !== 'accepted' && r.status !== 'rejected').length
+        const expiring = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
+        const retirement = (currentSeason.retirementRequests ?? []).length
+        const transfer = (currentSeason.transferRequests ?? []).length
+        return active + expiring + retirement + transfer > 0
+      })(),
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/team/contracts',
+      label: '契約確認',
+      desc: '選手の契約状況・残年数・年俸の一覧',
+      countLabel: `${myPlayers.length}名在籍`,
+      badge: 0,
+      color: C.textSub,
+      shadow: '#1a2030',
+      urgent: false,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M9 12h6M9 16h4M6 3h12a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M9 7h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/team/facilities',
+      label: '施設強化',
+      desc: '合宿・医療・スカウト・戦術分析施設のアップグレード',
+      countLabel: (() => {
+        const team = teams.find(t => t.id === playerTeamId)
+        const total = Object.values(team?.facilities ?? {}).reduce((s, v) => s + (v ?? 0), 0)
+        return total > 0 ? `施設合計Lv${total}` : '未建設'
+      })(),
+      badge: 0,
+      color: C.textSub,
+      shadow: '#1a2030',
+      urgent: false,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M12 12v4M10 14h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+  ]
+
+  return (
+    <div style={{
+      fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif",
+      paddingBottom: 80,
+      background: C.bg, minHeight: '100%',
+    }}>
+
+
+      {/* Team hero card */}
+      <div style={{
+        position: 'relative', overflow: 'hidden',
+        margin: '12px 12px 16px',
+        borderRadius: 20,
+        background: `linear-gradient(135deg, ${teamPrimary} 0%, ${C.surface} 55%, ${C.bg} 100%)`,
+        border: `3px solid ${C.gold}`,
+        padding: '16px 16px 14px',
+        boxShadow: `0 8px 0 #8b6914, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
+      }}>
+        {/* Inner frame */}
+        <div style={{ position: 'absolute', inset: 5, border: '1px solid rgba(245,200,66,0.28)', borderRadius: 14, pointerEvents: 'none', zIndex: 0 }}/>
+
+        {/* Tasuki diagonal */}
+        <div style={{
+          position: 'absolute', top: '-40%', right: '-20%', width: 200, height: 200,
+          background: `linear-gradient(135deg, transparent 45%, ${alpha(myTeam?.colors.secondary ?? C.gold, 0.15)} 50%, transparent 55%)`,
+          transform: 'rotate(15deg)', pointerEvents: 'none', zIndex: 0,
+        }}/>
+
+        {/* Background glow */}
+        <div style={{
+          position: 'absolute', right: 16, top: 8, width: 100, height: 100, borderRadius: '50%',
+          background: `radial-gradient(circle, ${alpha(teamPrimary, 0.25)} 0%, transparent 70%)`,
+          filter: 'blur(20px)', pointerEvents: 'none', zIndex: 0,
+        }}/>
+
+        {/* Team row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, position: 'relative', zIndex: 2, marginBottom: 14 }}>
+          {myTeam && (
+            <TeamLogoSVG
+              primary={myTeam.colors.primary}
+              secondary={myTeam.colors.secondary}
+              shortName={myTeam.shortName}
+              teamId={myTeam.id}
+              size={56}
+            />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', marginBottom: 2, fontWeight: 700 }}>
+              {currentSeason.year} TEAM
+            </div>
+            <div style={{
+              fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.1, letterSpacing: '-0.5px',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224`,
+            }}>
+              {myTeam?.name ?? '—'}
+            </div>
+            <div style={{ fontSize: 11, color: C.textSub, marginTop: 2 }}>{myTeam?.city} · GM: {myTeam?.gmName}</div>
+          </div>
+
+          {/* Rank badge */}
+          {myRank > 0 && (
+            <div style={{
+              flexShrink: 0, width: 52, height: 52, borderRadius: 14,
+              background: rankBg,
+              border: myRank === 1 ? 'none' : `1px solid ${alpha('#fff', 0.15)}`,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(8px)',
+              boxShadow: myRank === 1 ? `0 4px 0 #5a3500, 0 0 16px ${alpha(C.gold, 0.4)}` : '0 3px 0 rgba(0,0,0,0.4)',
+            }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, lineHeight: 1, color: rankText }}>{myRank}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 700, color: rankText, opacity: 0.8 }}>位</div>
+            </div>
+          )}
+        </div>
+
+        {/* Stat bar */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1px 1fr 1px 1fr',
+          gap: 0, position: 'relative', zIndex: 2,
+          background: `linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.3) 100%)`,
+          borderRadius: 12, overflow: 'hidden',
+          border: `1px solid rgba(245,200,66,0.22)`,
+          boxShadow: `inset 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
+        }}>
+          {[
+            { label: '順位', value: myRank > 0 ? `${myRank}位` : '—', color: myRank === 1 ? C.gold : myRank <= 3 ? C.green : C.textSub, glow: myRank === 1 ? C.gold : null },
+            null,
+            { label: 'AVG OVR', value: `${avgOvr}`, color: avgOvr >= 80 ? C.gold : C.textSub, glow: avgOvr >= 80 ? C.gold : null },
+            null,
+            { label: 'FA間近', value: `${expiringCount}名`, color: expiringCount > 0 ? C.red : C.textDim, glow: expiringCount > 0 ? C.red : null },
+          ].map((item, i) => {
+            if (item === null) {
+              return (
+                <div key={i} style={{
+                  width: 1,
+                  background: `linear-gradient(180deg, transparent 0%, ${C.goldDark} 50%, transparent 100%)`,
+                  alignSelf: 'center', height: 28,
+                }}/>
+              )
+            }
+            return (
+              <div key={i} style={{ textAlign: 'center', padding: '9px 4px' }}>
+                <div style={{
+                  fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: item.color, lineHeight: 1,
+                  textShadow: item.glow ? `0 0 10px ${alpha(item.glow, 0.55)}` : 'none',
+                }}>{item.value}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: 9, color: 'rgba(140,154,175,0.75)', marginTop: 2, letterSpacing: '0.1em' }}>{item.label}</div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+
+      {/* Section cards */}
+      <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {SECTIONS.map(s => (
+          <button
+            key={s.key}
+            onClick={() => navigate(s.key)}
+            className="btn-press"
+            style={{
+              width: '100%', padding: '12px 14px',
+              borderRadius: 14,
+              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+              border: `2px solid ${C.goldDark}`,
+              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)`,
+              display: 'flex', alignItems: 'center', gap: 12,
+              fontFamily: 'inherit', cursor: 'pointer',
+              position: 'relative', overflow: 'hidden',
+            } as React.CSSProperties}
+          >
+            <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.2)', borderRadius: 10, pointerEvents: 'none' }}/>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10, flexShrink: 0, position: 'relative', zIndex: 1,
+              background: `linear-gradient(180deg, #2a4060 0%, #122440 100%)`,
+              border: `2px solid ${C.bg}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: s.color,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3)`,
+            }}>
+              {s.icon}
+            </div>
+            <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1 }}>
+              <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{s.label}</span>
+              {s.badge > 0 && (
+                <span style={{
+                  marginLeft: 7, padding: '1px 7px', borderRadius: 6,
+                  background: s.color, color: C.bg,
+                  fontSize: 10, fontWeight: 900,
+                }}>{s.badge}</span>
+              )}
+            </div>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        ))}
+      </div>
+
+    </div>
+  )
+}

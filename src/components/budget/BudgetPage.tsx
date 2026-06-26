@@ -1,0 +1,328 @@
+import { useNavigate } from 'react-router-dom'
+import BackButton from '../ui/BackButton'
+import { useGameStore } from '../../store/gameStore'
+import { C, alpha } from '../../styles/tokens'
+
+const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
+
+function fmt(yen: number, showSign = false) {
+  const sign = showSign && yen >= 0 ? '+' : ''
+  if (Math.abs(yen) >= 100000000) return `${sign}${(yen / 100000000).toFixed(1)}億`
+  if (Math.abs(yen) >= 10000) return `${sign}${Math.round(yen / 10000)}万`
+  return `${sign}${yen.toLocaleString()}`
+}
+
+function Row({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center',
+      padding: '10px 0',
+      borderBottom: `1px solid ${C.border}`,
+    }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12, color: C.textSub }}>{label}</div>
+        {sub && <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{sub}</div>}
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: color ?? C.text, fontFamily: SAIRA }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+export default function BudgetPage() {
+  const navigate = useNavigate()
+  const { teams, players, playerTeamId, currentSeason, sponsors } = useGameStore()
+
+  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myPlayers = players.filter(p => p.teamId === playerTeamId)
+  const mainPlayers = myPlayers.filter(p => p.rosterTier === 'main')
+
+  const budget = myTeam?.finance.budget ?? 0
+  const salaryTotal = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
+
+  const myTeamSponsorIds = myTeam?.sponsors ?? []
+  const myPersonalSponsorIds = mainPlayers.flatMap(p => p.personalSponsors ?? [])
+  const allSponsorIds = [...myTeamSponsorIds, ...myPersonalSponsorIds]
+  const sponsorList = allSponsorIds
+    .map(id => (sponsors ?? []).find(s => s.id === id))
+    .filter((s): s is NonNullable<typeof s> => s != null)
+  const sponsorAnnual = sponsorList.reduce((s, sp) => s + sp.annualPayment, 0)
+
+  const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
+  const PRIZE_TABLE = [300, 180, 120, 80, 80, 40, 40, 40, 40, 40]
+  const prizePerRace = (PRIZE_TABLE[Math.min(myRank - 1, PRIZE_TABLE.length - 1)] ?? 20) * 10000
+  const racesLeft = Math.max(0, (currentSeason.races?.length ?? 10) - currentSeason.currentRaceIndex)
+  const racesTotal = currentSeason.races?.length ?? 10
+
+  const estimatedSeasonPrize = (() => {
+    const SEASON_PRIZE: Record<number, number> = { 1: 50000000, 2: 30000000, 3: 20000000, 4: 10000000, 5: 10000000 }
+    return SEASON_PRIZE[myRank] ?? 5000000
+  })()
+  const estimatedRemainingRacePrize = prizePerRace * racesLeft
+  const estimatedRemainingAttendance = (
+    myRank === 1 ? 1800000 : myRank <= 3 ? 1100000 : myRank <= 6 ? 600000 : myRank <= 10 ? 400000 : 300000
+  ) * racesLeft
+  const estimatedSponsorRemaining = racesLeft > 0 ? Math.round(sponsorAnnual / racesTotal) * racesLeft : 0
+
+  const estimatedNextSalary = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
+
+  const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
+
+  const topSalaries = [...mainPlayers]
+    .sort((a, b) => b.contract.annualSalary - a.contract.annualSalary)
+    .slice(0, 5)
+
+  return (
+    <div style={{
+      minHeight: '100dvh', background: C.bg,
+      fontFamily: font, color: C.text, paddingBottom: 80,
+    }}>
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: `linear-gradient(180deg, ${C.bg} 60%, transparent)`,
+        padding: '14px 16px 10px',
+        display: 'flex', alignItems: 'center', gap: 12,
+      }}>
+        <BackButton/>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.5 }}>財務・予算管理</div>
+          <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
+            {currentSeason.year}シーズン
+          </div>
+        </div>
+      </div>
+
+      <div style={{ margin: '4px 14px 14px' }}>
+        <div style={{
+          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          border: `3px solid ${C.gold}`,
+          borderRadius: 16, padding: '20px 18px', position: 'relative', overflow: 'hidden',
+          boxShadow: `0 8px 0 #8b6914, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15)`,
+        }}>
+          <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 12, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{
+            position: 'absolute', top: -30, right: -30, width: 120, height: 120,
+            background: `linear-gradient(135deg, ${alpha(budgetColor, 0.08)}, transparent)`,
+            transform: 'rotate(45deg)', pointerEvents: 'none', zIndex: 0,
+          }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 6 }}>
+              移籍予算（現在）
+            </div>
+            <div style={{ fontFamily: SAIRA, fontSize: 42, fontWeight: 900, color: budgetColor, lineHeight: 1, textShadow: budgetColor === C.green ? '0 0 10px rgba(46,204,113,0.4)' : budgetColor === C.red ? '0 0 10px rgba(255,71,87,0.4)' : '0 0 10px rgba(255,152,0,0.4)' }}>
+              {fmt(budget)}
+            </div>
+            <div style={{ fontSize: 11, color: C.textDim, marginTop: 6 }}>
+              {budget >= 0 ? '補強に使える資金' : '予算不足 — 選手放出を検討してください'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ margin: '0 14px 14px' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+          シーズン終了時の支出見込み
+        </div>
+        <div style={{
+          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          border: `2px solid ${C.goldDark}`,
+          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
+          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+          marginBottom: 14,
+        }}>
+          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <Row label="年俸総額（来季支払い）" value={`-${fmt(estimatedNextSalary)}`} color={C.red} sub={`1軍${mainPlayers.length}名分`} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>差引後予算見込み</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: (budget - estimatedNextSalary) >= 0 ? C.green : C.red }}>
+                {fmt(budget - estimatedNextSalary)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ margin: '0 14px 14px' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+          残り{racesLeft}戦の収入見込み
+        </div>
+        <div style={{
+          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          border: `2px solid ${C.goldDark}`,
+          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
+          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        }}>
+          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <Row
+              label={`レース賞金 (残${racesLeft}戦 × ${fmt(prizePerRace)})`}
+              value={fmt(estimatedRemainingRacePrize)}
+              color={C.green}
+              sub={`現在${myRank}位基準`}
+            />
+            <Row
+              label="観客収入見込み"
+              value={fmt(estimatedRemainingAttendance)}
+              color={C.textSub}
+            />
+            <Row
+              label="スポンサー収入見込み"
+              value={fmt(estimatedSponsorRemaining)}
+              color={C.green}
+            />
+            {racesLeft > 0 && (
+              <Row
+                label="シーズン終了賞金（現順位基準）"
+                value={fmt(estimatedSeasonPrize)}
+                color={C.gold}
+                sub="最終順位確定後に付与"
+              />
+            )}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '12px 0 4px',
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>合計見込み</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green, textShadow: '0 0 10px rgba(46,204,113,0.4)' }}>
+                {fmt(estimatedRemainingRacePrize + estimatedRemainingAttendance + estimatedSponsorRemaining + (racesLeft > 0 ? estimatedSeasonPrize : 0), true)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ margin: '0 14px 14px' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+          スポンサー契約 ({sponsorList.length}件)
+        </div>
+        <div style={{
+          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          border: `2px solid ${C.goldDark}`,
+          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
+          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        }}>
+          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            {sponsorList.length === 0 ? (
+              <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 12, color: C.textDim }}>
+                スポンサーなし
+              </div>
+            ) : (
+              <>
+                {sponsorList.slice(0, 6).map(sp => (
+                  <Row
+                    key={sp.id}
+                    label={sp.name}
+                    value={fmt(sp.annualPayment) + '/年'}
+                    color={C.green}
+                    sub={`残り${sp.yearsLeft}年`}
+                  />
+                ))}
+                <Row
+                  label="年間スポンサー収入合計"
+                  value={fmt(sponsorAnnual)}
+                  color={C.green}
+                />
+              </>
+            )}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', marginTop: 6 }}>
+          <button onClick={() => navigate('/sponsors')} style={{
+            background: 'none', border: 'none', color: C.gold,
+            fontSize: 11, cursor: 'pointer', fontFamily: font, padding: '2px 0',
+          }}>スポンサー管理 →</button>
+        </div>
+      </div>
+
+      <div style={{ margin: '0 14px 14px' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+          高額給与 TOP5
+        </div>
+        <div style={{
+          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          border: `2px solid ${C.goldDark}`,
+          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
+          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        }}>
+          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            {topSalaries.map((p, i) => (
+              <div
+                key={p.id}
+                onClick={() => navigate(`/player/${p.id}`)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 0',
+                  borderBottom: i < topSalaries.length - 1 ? `1px solid ${C.border}` : 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{
+                  width: 26, height: 26, borderRadius: 6,
+                  background: `linear-gradient(180deg, ${C.surface2}, ${C.surface})`,
+                  border: `1px solid ${C.border2}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: C.textSub, flexShrink: 0,
+                }}>#{p.jerseyNumber}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</div>
+                  <div style={{ fontSize: 10, color: C.textDim }}>残{p.contract.yearsLeft}年</div>
+                </div>
+                <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 800, color: C.textSub }}>
+                  {fmt(p.contract.annualSalary)}
+                </div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0 4px' }}>
+              <div style={{ fontSize: 11, color: C.textDim }}>1軍総年俸</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>
+                {fmt(salaryTotal)}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', marginTop: 6 }}>
+          <button onClick={() => navigate('/team/roster')} style={{
+            background: 'none', border: 'none', color: C.gold,
+            fontSize: 11, cursor: 'pointer', fontFamily: font, padding: '2px 0',
+          }}>ロスター →</button>
+        </div>
+      </div>
+
+      {(() => {
+        const pastBudgets = myTeam?.history.seasonResults ?? []
+        if (pastBudgets.length === 0) return null
+        return (
+          <div style={{ margin: '0 14px' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+              過去シーズン成績
+            </div>
+            <div style={{
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `2px solid ${C.goldDark}`,
+              borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
+              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+            }}>
+              <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                {pastBudgets.slice(-5).reverse().map((r, i) => (
+                  <Row
+                    key={i}
+                    label={`${r.year}シーズン`}
+                    value={`${r.rank}位 / ${r.points}pt`}
+                    color={r.rank === 1 ? C.gold : r.rank <= 3 ? C.green : C.textSub}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+    </div>
+  )
+}

@@ -1,0 +1,331 @@
+import { useState, useEffect, useRef } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { audio } from '../../utils/audio'
+import { useGameStore } from '../../store/gameStore'
+import { TeamLogoSVG } from '../icons/Icons'
+import { useNotifCount } from '../notifications/NotificationPanel'
+import { C, alpha } from '../../styles/tokens'
+
+type MenuAction = { label: string; path?: string; action?: () => void; color?: string }
+type NavItem = { to: string; label: string; icon: () => React.ReactElement }
+
+const NAV: NavItem[] = [
+  {
+    to: '/', label: 'ホーム',
+    icon: () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+        <path d="M9 21V12h6v9" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    to: '/team', label: 'チーム',
+    icon: () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="9" cy="7" r="3" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <circle cx="17" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M14 20c0-2.8 1.5-5 3-5s3 2.2 3 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    to: '/transfer', label: '移籍',
+    icon: () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M7 16l-4-4 4-4M17 8l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M3 12h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    to: '/teams', label: '他チーム',
+    icon: () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
+        <rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
+        <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
+        <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
+      </svg>
+    ),
+  },
+  {
+    to: '/records', label: '記録室',
+    icon: () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2l2.5 7.5H22l-6.5 4.7 2.5 7.5L12 17.5l-6 4.2 2.5-7.5L2 9.5h7.5L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+]
+
+const AD_H = 50
+const NAV_H = 64
+
+/* ── Animated page wrapper ─────────────────── */
+function PageWrapper({ children, locationKey }: { children: React.ReactNode; locationKey: string }) {
+  const [key, setKey] = useState(locationKey)
+  const [animating, setAnimating] = useState(false)
+  const prevKey = useRef(locationKey)
+
+  useEffect(() => {
+    if (locationKey !== prevKey.current) {
+      prevKey.current = locationKey
+      setKey(locationKey)
+      setAnimating(true)
+      const t = setTimeout(() => setAnimating(false), 220)
+      return () => clearTimeout(t)
+    }
+  }, [locationKey])
+
+  return (
+    <div
+      key={key}
+      style={{
+        animation: animating ? 'page-in 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : undefined,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const { teams, playerTeamId, currentSeason, jewels, activeRacePhase } = useGameStore()
+  const team = teams.find(t => t.id === playerTeamId)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const notifCount = useNotifCount()
+  const mainRef = useRef<HTMLElement>(null)
+
+  const raceInProgress = activeRacePhase === 'simulating' && location.pathname === '/race'
+
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0)
+  }, [location.pathname])
+
+  const MENU_ITEMS: MenuAction[] = [
+    { label: 'ログインボーナス', path: '/login-bonus', color: '#6dd5fa' },
+    { label: '設定', path: '/more', color: C.textSub },
+  ]
+
+  const isActive = (to: string) => location.pathname === to
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100dvh',
+      backgroundColor: C.bg, maxWidth: '480px', margin: '0 auto', position: 'relative',
+    }}>
+
+      {/* ── Header ── */}
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 40,
+        background: `linear-gradient(180deg, ${C.bg}f5 0%, ${C.bg}a0 100%)`,
+        backdropFilter: 'blur(12px)',
+        padding: 'calc(10px + env(safe-area-inset-top)) 16px 8px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        borderBottom: `1px solid ${alpha(C.gold, 0.1)}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {team && (
+            <>
+              <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={32}/>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, lineHeight: 1.2 }}>{team.shortName}</div>
+                <div className="season-tag" style={{ marginTop: 3 }}>
+                  {currentSeason.year} SEASON
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          {/* Jewel display */}
+          {raceInProgress ? null : (<>
+          <button
+            onClick={() => navigate('/jewels')}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.3)}`, borderRadius: '20px', padding: '5px 6px 5px 7px', margin: '0 4px', cursor: 'pointer' }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#jg)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
+              <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="none" stroke="#a8e4ff" strokeWidth="0.6" strokeLinejoin="round" opacity="0.5" transform="scale(0.55) translate(10.9 10.9)"/>
+              <defs>
+                <linearGradient id="jg" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#a8e4ff"/>
+                  <stop offset="100%" stopColor="#3b9fd4"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: '#6dd5fa', letterSpacing: '0.3px', minWidth: '24px', textAlign: 'right' }}>
+              {jewels.toLocaleString()}
+            </span>
+            <span style={{ fontSize: '14px', fontWeight: '900', color: alpha('#6dd5fa', 0.7), lineHeight: 1, paddingLeft: '2px' }}>+</span>
+          </button>
+
+          {/* Notification bell */}
+          <button
+            onClick={() => navigate('/notifications')}
+            style={{
+              position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
+              color: notifCount > 0 ? C.gold : C.border2, padding: '10px',
+              display: 'flex', alignItems: 'center', minHeight: '44px', minWidth: '44px', justifyContent: 'center',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {notifCount > 0 && (
+              <div style={{
+                position: 'absolute', top: 6, right: 6,
+                width: '16px', height: '16px', borderRadius: '50%',
+                backgroundColor: C.red,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '9px', fontWeight: '800', color: '#fff',
+                border: `1.5px solid ${C.bg}`,
+              }}>
+                {notifCount > 9 ? '9+' : notifCount}
+              </div>
+            )}
+          </button>
+
+          {/* Hamburger */}
+          <button
+            onClick={() => setMenuOpen(v => !v)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: menuOpen ? C.gold : C.border2, padding: '10px',
+              display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center',
+              minHeight: '44px', minWidth: '44px',
+              transition: 'color 0.15s ease',
+            }}
+          >
+            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor', borderRadius: '1px', transition: 'transform 0.15s ease', transform: menuOpen ? 'rotate(45deg) translate(4px, 4px)' : 'none' }}/>
+            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor', borderRadius: '1px', transition: 'opacity 0.15s ease', opacity: menuOpen ? 0 : 1 }}/>
+            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor', borderRadius: '1px', transition: 'transform 0.15s ease', transform: menuOpen ? 'rotate(-45deg) translate(4px, -4px)' : 'none' }}/>
+          </button>
+          </>)}
+        </div>
+      </header>
+
+      {/* ── Hamburger Menu Dropdown ── */}
+      {menuOpen && (
+        <>
+          <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 45 }}/>
+          <div style={{
+            position: 'fixed', top: '54px', right: 'calc(50% - 232px)', zIndex: 46,
+            backgroundColor: C.surface, border: `1px solid ${C.border2}`, borderRadius: '14px',
+            minWidth: '180px', overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+          }}>
+            {MENU_ITEMS.map((item, i) => (
+              <button key={i} onClick={() => { setMenuOpen(false); if (item.path) navigate(item.path); item.action?.() }} style={{
+                width: '100%', padding: '14px 16px', background: 'none', border: 'none',
+                borderBottom: i < MENU_ITEMS.length - 1 ? `1px solid ${C.border}` : 'none',
+                color: item.color ?? C.textSub, fontSize: '13px', fontWeight: '600',
+                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                minHeight: '48px',
+              }}>
+                {item.label}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Content ── */}
+      <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: `calc(${NAV_H + AD_H + 12}px + env(safe-area-inset-bottom))` }}>
+        <PageWrapper locationKey={location.pathname}>
+          {children}
+        </PageWrapper>
+      </main>
+
+      {/* ── Bottom Nav ── */}
+      {raceInProgress ? null : <nav style={{
+        position: 'fixed', bottom: `${AD_H}px`, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: '480px',
+        height: `${NAV_H}px`,
+        background: `linear-gradient(180deg, #1a2c47 0%, #0a1729 100%)`,
+        backdropFilter: 'blur(20px)',
+        borderTop: `1px solid ${alpha(C.gold, 0.12)}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+        zIndex: 50,
+        boxShadow: `0 -8px 24px rgba(0,0,0,0.8), 0 -1px 0 rgba(245,200,66,0.08)`,
+      }}>
+        {NAV.map(({ to, label, icon: Icon }) => {
+          const active = isActive(to)
+          return (
+            <button key={to}
+              data-se="transition"
+              onClick={() => { audio.playSe('transition'); navigate(to) }}
+              style={{
+                flex: 1, height: '100%', border: 'none', background: 'none',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: '3px', cursor: 'pointer',
+                transition: 'color 0.15s ease',
+                position: 'relative',
+                minHeight: '44px',
+                color: active ? '#fff' : C.textDim,
+              }}
+            >
+              <div style={{
+                width: 44, height: 38, borderRadius: 11,
+                background: active
+                  ? `linear-gradient(180deg, ${C.cyan}30 0%, ${C.cyan}18 100%)`
+                  : `linear-gradient(180deg, #1e3a5c 0%, #0f2440 100%)`,
+                border: active ? `2px solid ${C.cyan}` : `2px solid #1e3a5c`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: active
+                  ? `0 0 14px ${alpha(C.cyan, 0.5)}, inset 0 1px 0 rgba(255,255,255,0.2)`
+                  : `inset 0 1px 0 rgba(255,255,255,0.07), 0 2px 4px rgba(0,0,0,0.4)`,
+                transform: active ? 'translateY(-3px)' : 'none',
+                transition: 'all 0.18s ease',
+                flexShrink: 0,
+                color: active ? C.cyan : C.textDim,
+              }}>
+                <Icon/>
+              </div>
+              <span style={{
+                fontSize: '10px',
+                fontWeight: active ? '700' : '400',
+                letterSpacing: '0.3px',
+                color: active ? C.cyan : C.textDim,
+                textShadow: active ? `0 0 8px ${alpha(C.cyan, 0.6)}` : 'none',
+                transition: 'color 0.18s ease',
+              }}>
+                {label}
+              </span>
+            </button>
+          )
+        })}
+      </nav>}
+
+
+      {/* ── Ad Space ── */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: '480px',
+        height: `calc(${AD_H}px + env(safe-area-inset-bottom))`,
+        backgroundColor: '#070610',
+        borderTop: `1px solid ${C.border}`,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '7px',
+        zIndex: 60,
+      }}>
+        <div style={{
+          width: '320px', height: '36px', borderRadius: '4px',
+          border: `1px dashed ${C.border2}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '10px', color: C.border3, letterSpacing: '2px',
+        }}>
+          ADVERTISEMENT
+        </div>
+      </div>
+    </div>
+  )
+}
