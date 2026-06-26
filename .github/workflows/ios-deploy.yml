@@ -89,11 +89,10 @@ jobs:
 
       - name: Upload to App Store Connect
         env:
-          APPLE_ID: t.ihira@tokinets.com
-          APP_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
         run: |
           xcrun altool --upload-app \
             --type ios \
             --file build/ipa/App.ipa \
-            --apple-id "$APPLE_ID" \
-            --password "$APP_PASSWORD"
+            --apple-id "t.ihira@tokinets.com" \
+            --password "@env:APP_SPECIFIC_PASSWORD"
