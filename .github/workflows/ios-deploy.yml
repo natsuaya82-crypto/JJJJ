@@ -35,6 +35,11 @@ jobs:
           p12-file-base64: ${{ secrets.DISTRIBUTION_P12_BASE64 }}
           p12-password: ${{ secrets.DISTRIBUTION_P12_PASSWORD }}
 
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install
+
       - name: Install Provisioning Profile
         env:
           PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
