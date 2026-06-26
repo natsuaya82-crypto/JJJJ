@@ -5,7 +5,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: macos-latest
+    runs-on: macos-14
 
     steps:
       - name: Checkout
@@ -95,9 +95,6 @@ jobs:
         run: |
           mkdir -p ~/.private_keys
           echo "$API_KEY_BASE64" | base64 --decode > ~/.private_keys/AuthKey_${API_KEY_ID}.p8
-          echo "KEY_ID=[${API_KEY_ID}]"
-          echo "ISSUER=[${ISSUER_ID}]"
-          ls -la ~/.private_keys/
           xcrun altool --upload-app \
             --type ios \
             --file build/ipa/App.ipa \
