@@ -32,13 +32,12 @@ jobs:
       - name: Install Apple Distribution Certificate
         env:
           P12_BASE64: ${{ secrets.DISTRIBUTION_P12_BASE64 }}
-          P12_PASSWORD: ${{ secrets.DISTRIBUTION_P12_PASSWORD }}
         run: |
           echo "$P12_BASE64" | base64 --decode > distribution.p12
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
-          security import distribution.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security import distribution.p12 -k build.keychain -P "" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
 
       - name: Install Provisioning Profile
