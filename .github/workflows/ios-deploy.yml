@@ -87,22 +87,10 @@ jobs:
             -exportPath build/ipa \
             -exportOptionsPlist ExportOptions.plist
 
-      - name: Prepare API Key
-        id: api_key
-        env:
-          API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-        run: |
-          DELIM=$(openssl rand -hex 16)
-          {
-            echo "content<<${DELIM}"
-            echo "$API_KEY_BASE64" | base64 --decode
-            echo "${DELIM}"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Upload to App Store Connect
         uses: apple-actions/upload-testflight-build@v3
         with:
           app-path: build/ipa/App.ipa
           issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           api-key-id: ${{ secrets.IOS_KEY_ID }}
-          api-private-key: ${{ steps.api_key.outputs.content }}
+          api-private-key: ${{ secrets.IOS_API_KEY }}
