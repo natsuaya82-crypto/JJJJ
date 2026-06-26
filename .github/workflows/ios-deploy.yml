@@ -87,16 +87,21 @@ jobs:
             -exportPath build/ipa \
             -exportOptionsPlist ExportOptions.plist
 
-      - name: Upload to App Store Connect
+      - name: Prepare API Key
+        id: api_key
         env:
           API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          API_KEY_ID: ${{ secrets.IOS_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          mkdir -p ~/.private_keys
-          echo "$API_KEY_BASE64" | base64 --decode > "$HOME/.private_keys/AuthKey_${API_KEY_ID}.p8"
-          xcrun altool --upload-app \
-            --type ios \
-            --file build/ipa/App.ipa \
-            --apiKey "${API_KEY_ID}" \
-            --apiIssuer "${ISSUER_ID}"
+          {
+            echo 'content<<PEMEOF'
+            echo "$API_KEY_BASE64" | base64 --decode
+            echo 'PEMEOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload to App Store Connect
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: build/ipa/App.ipa
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          api-key-id: ${{ secrets.IOS_KEY_ID }}
+          api-private-key: ${{ steps.api_key.outputs.content }}
