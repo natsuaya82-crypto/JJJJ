@@ -92,10 +92,11 @@ jobs:
         env:
           API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
         run: |
+          DELIM=$(openssl rand -hex 16)
           {
-            echo 'content<<PEMEOF'
+            echo "content<<${DELIM}"
             echo "$API_KEY_BASE64" | base64 --decode
-            echo 'PEMEOF'
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload to App Store Connect
