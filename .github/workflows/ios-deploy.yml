@@ -94,7 +94,7 @@ jobs:
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           mkdir -p ~/.private_keys
-          printf '%s' "$API_PRIVATE_KEY" > ~/.private_keys/AuthKey_${API_KEY_ID}.p8
+          printf '%s' "$API_PRIVATE_KEY" > "$HOME/.private_keys/AuthKey_${API_KEY_ID}.p8"
           xcrun altool --upload-app \
             --type ios \
             --file build/ipa/App.ipa \
