@@ -2,6 +2,7 @@ import { MemoryRouter as BrowserRouter, Routes, Route, useLocation } from 'react
 import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from './store/gameStore'
 import { audio } from './utils/audio'
+import { initAds } from './utils/ads'
 import TitleScreen from './components/title/TitleScreen'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
@@ -182,6 +183,8 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
 export default function App() {
   const { isInitialized, draftState, resetGame } = useGameStore()
   const [titleShown, setTitleShown] = useState(false)
+
+  useEffect(() => { initAds() }, [])
 
   if (!titleShown) {
     return <TitleScreen onStart={() => { audio.unlock(); audio.playSe('title'); setTitleShown(true) }} />
