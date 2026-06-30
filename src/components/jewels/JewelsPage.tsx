@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
+import { showRewardAd } from '../../utils/ads'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 
@@ -73,7 +74,10 @@ export default function JewelsPage() {
   const today = new Date().toDateString()
   const sameDay = lastAdDate === today
   const adsLeft = 3 - (sameDay ? (adsWatchedToday ?? 0) : 0)
-  const handleWatchAd = () => {
+  const handleWatchAd = async () => {
+    if (adsLeft <= 0) return
+    const ok = await showRewardAd()
+    if (!ok) return
     const gained = watchAd()
     setAdResult(gained)
   }

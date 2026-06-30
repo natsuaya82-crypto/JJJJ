@@ -13,6 +13,7 @@ import { C, alpha } from '../../styles/tokens'
 import { CardTrainingHeaderSVG, STAT_ICON_MAP } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import { audio } from '../../utils/audio'
+import { showRewardAd } from '../../utils/ads'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const PURPLE = '#A855F7'
@@ -383,7 +384,7 @@ export default function CardTrainingPage() {
           <div style={{ marginBottom: 8, textAlign: 'center' }}>
             {!adWatched ? (
               <button
-                onClick={() => setAdWatched(true)}
+                onClick={async () => { if (await showRewardAd()) setAdWatched(true) }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 6,

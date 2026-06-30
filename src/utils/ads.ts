@@ -4,6 +4,7 @@
 import { Capacitor } from '@capacitor/core'
 
 const BANNER_AD_ID = 'ca-app-pub-7463045893100088/8946193510'
+const REWARD_AD_ID = 'ca-app-pub-7463045893100088/5817804007'
 
 let started = false
 
@@ -36,5 +37,32 @@ export async function initAds(): Promise<void> {
     })
   } catch (e) {
     console.warn('[ads] init failed', e)
+  }
+}
+
+// リワード動画を表示する。
+// 最後まで見て報酬を得たら true、途中で閉じた/失敗したら false を返す。
+// iOS以外（ブラウザ開発時）は実広告が無いので true を返す（従来のモック挙動を維持）。
+export async function showRewardAd(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== 'ios') return true
+
+  try {
+    const { AdMob, RewardAdPluginEvents } = await import('@capacitor-community/admob')
+    await AdMob.prepareRewardVideoAd({ adId: REWARD_AD_ID })
+
+    return await new Promise<boolean>((resolve) => {
+      let rewarded = false
+      const handles: Array<Promise<{ remove: () => void }>> = []
+      const cleanup = () => handles.forEach(h => h.then(l => l.remove()))
+
+      handles.push(AdMob.addListener(RewardAdPluginEvents.Rewarded, () => { rewarded = true }))
+      handles.push(AdMob.addListener(RewardAdPluginEvents.Dismissed, () => { cleanup(); resolve(rewarded) }))
+      handles.push(AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => { cleanup(); resolve(false) }))
+
+      AdMob.showRewardVideoAd().catch(() => { cleanup(); resolve(false) })
+    })
+  } catch (e) {
+    console.warn('[ads] reward failed', e)
+    return false
   }
 }
