@@ -5,6 +5,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { audio } from '../../utils/audio'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -238,6 +239,7 @@ export default function DraftRoom() {
 
   function handlePlayerPick(playerId: string) {
     playerPick(playerId)
+    audio.playSe('great_success')
     const state = useGameStore.getState()
     const ds = state.draftState
     if (ds && ds.picks.length > 0) {

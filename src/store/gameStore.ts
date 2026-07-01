@@ -1979,7 +1979,7 @@ export const useGameStore = create<GameStore>()(
             ? state.players.filter(p => p.teamId === state.playerTeamId && p.rosterTier === 'second' && p.age < 28)
             : []
           const existTran = new Set((state.currentSeason.transferRequests ?? []).map(r => r.playerId))
-          const newTran = tranPlayers.filter(p => !existTran.has(p.id) && Math.random() < 0.25).map(p => ({ playerId: p.id, reason: 'playing_time' as const }))
+          const newTran = tranPlayers.filter(p => !existTran.has(p.id) && Math.random() < 0.08).slice(0, 2).map(p => ({ playerId: p.id, reason: 'playing_time' as const }))
           if (newReqs.length === 0 && newRet.length === 0 && newTran.length === 0) return state
           return {
             currentSeason: {

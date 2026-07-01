@@ -194,6 +194,10 @@ export function generateSegmentEvents(params: {
 }): RaceSegmentEvent[] {
   const { seg, playerBaseTime, cpuTimesForSeg, cumulativeTimes, isFirstSeg, player, totalSegs, players, cpuLineups, teams } = params
 
+  // 1区はスタートダッシュ演出で必ずイベント。それ以降は毎回出すとテンポが悪く、
+  // 区間スキップ後にも必ず発生してストレスになるため、一定確率で「イベントなし」にする。
+  if (!isFirstSeg && Math.random() < 0.5) return []
+
   const maxEvents = seg.distanceKm < 5 ? 1 : 2
   const events: RaceSegmentEvent[] = []
 

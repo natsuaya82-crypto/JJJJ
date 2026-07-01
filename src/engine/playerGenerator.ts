@@ -352,13 +352,13 @@ function clamp(v: number, min: number, max: number) {
 
 function tierRange(rank: Rank): { min: number; max: number } {
   const ranges: Record<Rank, [number, number]> = {
-    'D':   [42, 49],
-    'C':   [46, 53],
-    'B':   [50, 57],
-    'A':   [54, 61],
-    'S':   [58, 65],
-    'SS':  [63, 70],
-    'SSS': [70, 78],
+    'D':   [48, 55],
+    'C':   [52, 59],
+    'B':   [57, 64],
+    'A':   [61, 68],
+    'S':   [65, 72],
+    'SS':  [70, 77],
+    'SSS': [76, 84],
   }
   const [min, max] = ranges[rank] ?? ranges['A']
   return { min, max }
@@ -758,7 +758,7 @@ export function generateCpuRosters(
 
     // 経験年数に応じて各能力値を底上げ
     if (yearsPro > 0) {
-      const bonus = Math.floor(yearsPro * 2.5)
+      const bonus = Math.floor(yearsPro * 1.6)
       ;(Object.keys(ratings) as Array<keyof typeof ratings>).forEach(key => {
         ratings[key] = Math.min(potentialVal, Math.min(99, ratings[key] + bonus + rng(-3, 5)))
       })

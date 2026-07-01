@@ -237,9 +237,7 @@ function ChatView({
       }},
     ]
 
-    if (contractReq?.status === 'accepted') return [
-      { label: '閉じる', color: C.green, action: onClose },
-    ]
+    if (contractReq?.status === 'accepted') return []
 
     if (contractReq?.status === 'rejected') return [
       { label: '条件を変えて提示する', color: C.blue, action: openCompose },

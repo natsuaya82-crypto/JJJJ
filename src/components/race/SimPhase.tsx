@@ -448,9 +448,6 @@ export function SimPhase({
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: 3, color: segCol, textShadow: `0 0 8px ${alpha(segCol, 0.5)}` }}>{pendingEvent.type}</span>
                 <span style={{ fontSize: 10, color: C.textDim }}>{currentSegIdx}区</span>
-                {pendingEvent.opponentOvr != null && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim }}>相手OVR {pendingEvent.opponentOvr}</span>
-                )}
                 {lowStaminaHint && (
                   <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.red }}>スタミナ低下</span>
                 )}

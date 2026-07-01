@@ -156,36 +156,6 @@ export default function RosterSelectPage() {
                   <PlayerFace playerId={p.id} nationality={p.nationality} size={56} />
                 </div>
 
-                {isSelected ? (
-                  <input
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={jerseyMap[p.id] ?? p.jerseyNumber}
-                    onClick={e => e.stopPropagation()}
-                    onChange={e => {
-                      const raw = e.target.value.replace(/\D/g, '')
-                      const v = Math.min(99, Math.max(1, parseInt(raw) || 1))
-                      setJerseyMap(prev => ({ ...prev, [p.id]: v }))
-                    }}
-                    style={{
-                      width: 38, height: 36, borderRadius: 8, flexShrink: 0,
-                      background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`,
-                      color: C.gold, fontSize: 13, fontWeight: 800,
-                      textAlign: 'center', fontFamily: SAIRA,
-                      outline: 'none', appearance: 'none' as const,
-                    }}
-                  />
-                ) : (
-                  <div style={{
-                    width: 38, height: 36, borderRadius: 8, flexShrink: 0,
-                    background: C.surface, border: `1px solid ${C.border}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: C.textDim, fontSize: 13, fontWeight: 800, fontFamily: SAIRA,
-                  }}>
-                    {jerseyMap[p.id] ?? p.jerseyNumber}
-                  </div>
-                )}
-
                 <span style={{ padding: '2px 6px', borderRadius: 7, flexShrink: 0, background: alpha(specCol, 0.15), color: specCol, fontSize: 9, fontWeight: 700 }}>
                   {SPECIALTY_LABELS[p.specialty]}
                 </span>

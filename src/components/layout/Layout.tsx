@@ -215,7 +215,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <>
           <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 45 }}/>
           <div style={{
-            position: 'fixed', top: '54px', right: 'calc(50% - 232px)', zIndex: 46,
+            position: 'fixed', top: 'calc(54px + env(safe-area-inset-top))', right: 'max(8px, calc(50% - 232px))', zIndex: 46,
             backgroundColor: C.surface, border: `1px solid ${C.border2}`, borderRadius: '14px',
             minWidth: '180px', overflow: 'hidden',
             boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
@@ -248,7 +248,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Bottom Nav ── */}
       {raceInProgress ? null : <nav style={{
-        position: 'fixed', bottom: `${AD_H}px`, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: `calc(${AD_H}px + env(safe-area-inset-bottom))`, left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: '480px',
         height: `${NAV_H}px`,
         background: `linear-gradient(180deg, #1a2c47 0%, #0a1729 100%)`,

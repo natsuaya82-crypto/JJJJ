@@ -57,7 +57,7 @@ export function generateRaceEvents(params: {
 
   // Low morale
   const lowMoralePlayers = mainPlayers.filter(p => p.morale < 45 && !recentPlayerIds.has(p.id))
-  if (lowMoralePlayers.length > 0 && !recentTypes.has('player_morale_low')) {
+  if (lowMoralePlayers.length > 0 && !recentTypes.has('player_morale_low') && Math.random() < 0.55) {
     const p = pickRandom(lowMoralePlayers)
     candidates.push({
       id: uid(), raceIndex, type: 'player_morale_low', playerId: p.id,
@@ -154,8 +154,8 @@ export function generateRaceEvents(params: {
   }
 
   // Playing time demand
-  const benchPlayers = mainPlayers.filter(p => p.morale < 60 && p.age <= 28 && !recentPlayerIds.has(p.id))
-  if (benchPlayers.length > 0 && !recentTypes.has('playing_time_demand') && Math.random() < 0.45) {
+  const benchPlayers = mainPlayers.filter(p => p.morale < 55 && p.age <= 28 && !recentPlayerIds.has(p.id))
+  if (raceIndex >= 3 && benchPlayers.length > 0 && !recentTypes.has('playing_time_demand') && Math.random() < 0.25) {
     const p = pickRandom(benchPlayers)
     candidates.push({
       id: uid(), raceIndex, type: 'playing_time_demand', playerId: p.id,

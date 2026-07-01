@@ -262,13 +262,9 @@ export default function BudgetPage() {
                   cursor: 'pointer',
                 }}
               >
-                <div style={{
-                  width: 26, height: 26, borderRadius: 6,
-                  background: `linear-gradient(180deg, ${C.surface2}, ${C.surface})`,
-                  border: `1px solid ${C.border2}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: C.textSub, flexShrink: 0,
-                }}>#{p.jerseyNumber}</div>
+                <div style={{ width: 30, height: 30, borderRadius: 7, overflow: 'hidden', border: `1px solid ${C.border2}`, flexShrink: 0 }}>
+                  <PlayerFace playerId={p.id} nationality={p.nationality} size={30} />
+                </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</div>
                   <div style={{ fontSize: 10, color: C.textDim }}>残{p.contract.yearsLeft}年</div>
