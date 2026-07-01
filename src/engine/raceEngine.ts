@@ -77,7 +77,8 @@ export function calcAffinity(
       mult += (flatPct >= 50 ? 0.03 : 0)
       break
   }
-  return Math.max(0.80, Math.min(1.20, mult))
+  // 補正の効きを抑える：OVRが素直にタイムへ反映されるよう振れ幅を約6割に圧縮
+  return Math.max(0.90, Math.min(1.12, 1.0 + (mult - 1.0) * 0.6))
 }
 
 export function calcClubModifier(team: Pick<Team, 'city'>, raceLocation: string): number {
@@ -87,9 +88,9 @@ export function calcClubModifier(team: Pick<Team, 'city'>, raceLocation: string)
 }
 
 export function calcConditionModifier(fatigue: number, morale: number, form: number): number {
-  const fatigueMod = 1.0 - Math.max(0, (fatigue - 30) / 70) * 0.18
-  const moraleMod = morale <= 70 ? 0.92 + (morale / 70) * 0.08 : 1.0 + ((morale - 70) / 30) * 0.05
-  const formMod = 1.0 + form * 0.05
+  const fatigueMod = 1.0 - Math.max(0, (fatigue - 30) / 70) * 0.11
+  const moraleMod = morale <= 70 ? 0.95 + (morale / 70) * 0.05 : 1.0 + ((morale - 70) / 30) * 0.03
+  const formMod = 1.0 + form * 0.03
   return fatigueMod * moraleMod * formMod
 }
 
@@ -123,20 +124,19 @@ export function calcTraitModifier(
 }
 
 // score → 平地基準ペース(秒/km) の対応表
-// 10点ごとの時間差がほぼ均等になるよう設計
-// score=85 ≈ 日本記録(27:20/10km), score=99 ≈ 世界記録(26:18/10km)
+// OVR95前後で世界記録級ペースになるよう設計。補正は控えめにしてOVRが素直に出るようにする。
 const PACE_TABLE: [number, number][] = [
-  [0,   210],
-  [30,  195],
-  [40,  185],
-  [50,  175],
-  [60,  169],
-  [70,  164],
-  [80,  160],
-  [85,  158],
-  [90,  156],
-  [95,  154],
-  [99,  152],
+  [0,   252],
+  [30,  230],
+  [40,  218],
+  [50,  206],
+  [60,  194],
+  [70,  184],
+  [80,  174],
+  [85,  168],
+  [90,  163],
+  [95,  158],
+  [99,  154],
 ]
 
 function scoreToBasePace(score: number): number {

@@ -89,7 +89,7 @@ export function calcFinalSegTime(
   const weatherMod = race.conditions
     ? calcWeatherModifier(race.conditions.weather, player.specialty, player.ratings.stamina, player.ratings.mental)
     : 1.0
-  const STRATEGY_MODS = { aggressive: 1.05, balanced: 1.0, conservative: 0.96 } as const
+  const STRATEGY_MODS = { aggressive: 1.03, balanced: 1.0, conservative: 0.98 } as const
   const stratMod = STRATEGY_MODS[raceStrategy]
 
   const score = segStamina * aff * clubMod * condMod * traitMod * weatherMod * stratMod
@@ -114,7 +114,7 @@ export function calcPlayerBaseTime(
 ): number {
   const traits = player.traits ?? []
   const effectiveRatings = player.ratings
-  const STRATEGY_MODS = { aggressive: 1.05, balanced: 1.0, conservative: 0.96 }
+  const STRATEGY_MODS = { aggressive: 1.03, balanced: 1.0, conservative: 0.98 }
   const stratMod = STRATEGY_MODS[raceStrategy]
   const base = calcBaseAbility(effectiveRatings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
   const aff = calcAffinity(player.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
