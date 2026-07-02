@@ -166,6 +166,7 @@ export type Player = {
   nationality: Nationality
   origin: string
   jerseyNumber: number
+  acquiredRaceIndex?: number  // 移籍/トレードで加入したレース番号。加入後2戦は出走不可の判定に使う
   status: PlayerStatus
   fatigue: number
   morale: number

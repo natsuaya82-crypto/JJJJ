@@ -7,7 +7,7 @@ import { ResultsPhase } from './ResultsPhase'
 import { buildAILineup } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import {
-  calcPlayerBaseTime, calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
+  calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
   generateSegmentEvents, resolveChoice, finalizeSegment,
 } from '../../engine/interactiveRace'
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
@@ -75,6 +75,7 @@ export default function RacePage() {
 
   const mainPlayers = players.filter(
     p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired'
+      && (p.acquiredRaceIndex == null || raceIndex - p.acquiredRaceIndex >= 2)
   )
   const assignedIds = new Set(Object.values(raceLineup))
   const allSegsFilled = (race?.segments ?? []).every(s => !!raceLineup[s.index])
@@ -113,13 +114,15 @@ export default function RacePage() {
       activeRace, seasonProgress, totalSegs,
     )
 
-    const playerBaseTime = playerObj
-      ? calcPlayerBaseTime(playerObj, seg, playerTeam, activeRace, seasonProgress, raceStrategy, totalSegs)
-      : 9999
-
     const segOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
     const naturalDrain = calcNaturalDrain(segOvr, seg.distanceKm)
     const segStamina = Math.max(1, segOvr - naturalDrain)
+
+    // プレイヤーの区間タイムも CPU と同じ計算方式（消耗込み calcFinalSegTime）で見積もる。
+    // イベント予測順位・ライブ表示・確定フォールバックの基準を CPU と揃える。
+    const playerBaseTime = playerObj
+      ? calcFinalSegTime(segStamina, segOvr, 0, playerObj, seg, playerTeam, activeRace, seasonProgress, raceStrategy, totalSegs)
+      : 9999
 
     // Build cumulative times for event context (keyed by teamId, player as '__player__')
     const cumulativeTimes: Record<string, number> = { '__player__': sim.cumulativeTime[playerTeamId] ?? 0 }
@@ -362,8 +365,11 @@ export default function RacePage() {
       const playerTeam = teams.find(t => t.id === playerTeamId)
 
       const cpuTimes = calcCpuTimesForSeg(seg, teams, sim.cpuLineups, players, playerTeamId, race, seasonProgress, totalSegs)
+      // スキップ区間もCPUと同じ消耗込み計算で見積もる
+      const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
+      const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
       const pBase = playerObj
-        ? calcPlayerBaseTime(playerObj, seg, playerTeam, race, seasonProgress, raceStrategy, totalSegs)
+        ? calcFinalSegTime(skSegStamina, skSegOvr, 0, playerObj, seg, playerTeam, race, seasonProgress, raceStrategy, totalSegs)
         : 9999
 
       const skippedResult = finalizeSegment({

@@ -2436,13 +2436,11 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const myMainAfterTrade = state.teams.find(t => t.id === state.playerTeamId)?.roster.main.filter(id => !offeredIds.includes(id)) ?? []
           const incomingIds = requestedIds.filter(id => !myMainAfterTrade.includes(id))
-          const overflowIds = incomingIds.slice(Math.max(0, 20 - myMainAfterTrade.length))
-          const mainIncomingIds = incomingIds.slice(0, Math.max(0, 20 - myMainAfterTrade.length))
 
+          // 獲得選手は即1軍にせず必ず2軍で加入し、加入レースを記録（加入後2戦は出走不可）。1軍昇格はロスター管理で行う。
           const players = state.players.map(p => {
             if (offeredIds.includes(p.id)) return { ...p, teamId: targetTeamId, rosterTier: 'main' as const }
-            if (mainIncomingIds.includes(p.id)) return { ...p, teamId: state.playerTeamId, rosterTier: 'main' as const }
-            if (overflowIds.includes(p.id)) return { ...p, teamId: state.playerTeamId, rosterTier: 'second' as const }
+            if (incomingIds.includes(p.id)) return { ...p, teamId: state.playerTeamId, rosterTier: 'second' as const, acquiredRaceIndex: state.currentSeason.currentRaceIndex }
             return p
           })
           const myTeamPicks = state.teams.find(t => t.id === state.playerTeamId)?.draftPicks ?? []
@@ -2453,7 +2451,7 @@ export const useGameStore = create<GameStore>()(
           const teams = state.teams.map(t => {
             if (t.id === state.playerTeamId) return {
               ...t,
-              roster: { main: [...myMainAfterTrade, ...mainIncomingIds], second: [...t.roster.second.filter(id => !offeredIds.includes(id)), ...overflowIds] },
+              roster: { main: myMainAfterTrade, second: [...t.roster.second.filter(id => !offeredIds.includes(id)), ...incomingIds] },
               finance: { ...t.finance, budget: (t.finance.budget ?? 0) - transferFee },
               draftPicks: [...(t.draftPicks ?? []).filter(pk => !offeredPicks.includes(pk)), ...requestedPicks],
             }
