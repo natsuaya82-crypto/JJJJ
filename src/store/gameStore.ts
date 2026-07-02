@@ -1120,14 +1120,30 @@ export const useGameStore = create<GameStore>()(
 
           // Update all-time segment records
           const updatedSegmentRecords = { ...(state.segmentRecords ?? {}) }
+          // 区間新記録が出たらニュースにする（過去記録がある区間で更新された場合のみ）
+          const segRecordNewsItems: typeof newsItems = []
           for (const sr of results.segmentResults) {
             const key = `${race.name}-${sr.segmentIndex}`
             const existing = updatedSegmentRecords[key] ?? []
+            const prevBest = existing[0]?.timeSec ?? null
             const newEntries = sr.runners.map(r => {
               const pl = state.players.find(x => x.id === r.playerId)
               const tm = state.teams.find(x => x.id === r.teamId)
               return { playerName: pl?.name ?? '不明', teamShort: tm?.shortName ?? '?', timeSec: r.timeSec, year: state.currentSeason.year }
             })
+            const fastestNew = newEntries.length > 0
+              ? newEntries.reduce((min, e) => e.timeSec < min.timeSec ? e : min, newEntries[0])
+              : null
+            if (prevBest != null && fastestNew && fastestNew.timeSec < prevBest) {
+              const fastestRunner = sr.runners.find(r => r.timeSec === fastestNew.timeSec)
+              const isMine = fastestRunner?.teamId === playerTeamId
+              segRecordNewsItems.push({
+                date: race.date,
+                headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${fastestNew.playerName}（${fastestNew.teamShort}）${fmtTime(fastestNew.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
+                category: 'race' as const,
+                relatedIds: fastestRunner ? [fastestRunner.playerId] : [],
+              })
+            }
             updatedSegmentRecords[key] = [...existing, ...newEntries]
               .sort((a, b) => a.timeSec - b.timeSec)
               .slice(0, 10)
@@ -1175,7 +1191,7 @@ export const useGameStore = create<GameStore>()(
               objectives: updatedObjectives,
               scoutMissions: activeMissions,
               scoutProspects: updatedScoutProspects,
-              newsFeed: [...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
+              newsFeed: [...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
               events: [...(state.currentSeason.events ?? []), ...newEvents],
               pendingTradeOffers: existingTrades,
               transferListings: transferData.listings,

@@ -115,9 +115,31 @@ function PreseasonHub({
           </div>
         </div>
 
-        {/* ① スカッド提出 */}
+        {/* ① ドラフト — 2年目以降のみ（先にドラフトで新人を獲得してからスカッド提出） */}
+        {!isFirstSeason && (
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
+            <StepBadge n={1} done={draftDone} color={draftDone ? C.green : C.gold}/>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: draftDone ? C.textDim : C.text }}>新人ドラフト</div>
+              <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
+                {draftDone ? '指名完了' : '今年の新入団選手を指名する'}
+              </div>
+            </div>
+            {!draftDone && (
+              <button onClick={onDraft} className="btn-press" style={{
+                padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0,
+                fontSize: 12, fontWeight: 900,
+                background: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
+                border: `2px solid #8b6914`, color: C.bg,
+                boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.4)`,
+              }}>開催 →</button>
+            )}
+          </div>
+        )}
+
+        {/* ② スカッド提出 */}
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
-          <StepBadge n={1} done={rosterDone} color={rosterDone ? C.green : C.gold}/>
+          <StepBadge n={isFirstSeason ? 1 : 2} done={rosterDone} color={rosterDone ? C.green : C.gold}/>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: rosterDone ? C.textDim : C.text }}>
               {rosterDone ? 'スカッド提出完了' : 'スカッド提出'}
@@ -137,28 +159,6 @@ function PreseasonHub({
             {rosterDone ? '再編集' : '編成する →'}
           </button>
         </div>
-
-        {/* ② ドラフト — 2年目以降のみ */}
-        {!isFirstSeason && (
-          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
-            <StepBadge n={2} done={draftDone} color={draftDone ? C.green : C.gold}/>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: draftDone ? C.textDim : C.text }}>新人ドラフト</div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
-                {draftDone ? '指名完了' : '今年の新入団選手を指名する'}
-              </div>
-            </div>
-            {!draftDone && (
-              <button onClick={onDraft} className="btn-press" style={{
-                padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0,
-                fontSize: 12, fontWeight: 900,
-                background: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
-                border: `2px solid #8b6914`, color: C.bg,
-                boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.4)`,
-              }}>開催 →</button>
-            )}
-          </div>
-        )}
 
         {/* ③ シーズン前カード */}
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>

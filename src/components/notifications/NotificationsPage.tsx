@@ -234,13 +234,18 @@ export default function NotificationsPage() {
 
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races?.length ?? 1
-  const renewalNeeded = players.filter(p => {
-    if (p.teamId !== playerTeamId || p.status !== 'active') return false
-    const remaining = Math.max(0, totalRaces - raceIndex)
-    const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
-    if (months >= 12) return false
-    return !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
-  }).length
+  // 契約満了までの残り月数を推定（最終年 yearsLeft=1 でシーズン開始時=12ヶ月、消化で減少）。
+  // 6ヶ月を切った選手を個別に通知する。
+  const renewalPlayers = players
+    .filter(p => p.teamId === playerTeamId && p.status === 'active')
+    .map(p => {
+      const remaining = Math.max(0, totalRaces - raceIndex)
+      const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
+      return { p, months }
+    })
+    .filter(({ p, months }) => months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
+    .sort((a, b) => a.months - b.months)
+  const renewalNeeded = renewalPlayers.length
 
   const now = new Date()
   const base = new Date(now)
@@ -313,23 +318,36 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 契約更新リマインダー */}
+          {/* 契約更新リマインダー（6ヶ月を切った選手を個別通知） */}
           {renewalNeeded > 0 && (
             <section>
-              <SectionHead label="契約更新" color={C.orange} count={renewalNeeded}/>
-              <div style={{ padding: '0 16px' }}>
-                <div style={cardStyle(alpha(C.orange, 0.45), '#5a2800')}>
-                  <div style={inset}/>
-                  <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '14px', fontWeight: '800', color: C.text, marginBottom: 6 }}>
-                      契約更新が必要 {renewalNeeded}名
+              <SectionHead label="契約満了間近" color={C.orange} count={renewalNeeded}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {renewalPlayers.map(({ p, months }) => {
+                  const pOvr = ovr(p)
+                  const urgent = months < 3
+                  const accent = urgent ? C.red : C.orange
+                  const shadow = urgent ? '#660e10' : '#5a2800'
+                  return (
+                    <div key={p.id} style={cardStyle(alpha(accent, 0.45), shadow)}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                          <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={accent} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>#{p.jerseyNumber} · {p.age}歳</div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>残り{Math.max(0, months)}ヶ月</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: urgent ? C.red : C.textDim }}>{urgent ? '早急に対応を' : '契約満了が近い'}</div>
+                          </div>
+                        </div>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${urgent ? '#FF6B6B' : '#FFA726'})`, color: C.bg }} onClick={() => navigate(`/player/${p.id}`)}>契約を交渉する</Btn>
+                      </div>
                     </div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub, lineHeight: 1.6, marginBottom: 12 }}>
-                      決定しないと次シーズン開始まで選手が未定状態になります
-                    </div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.orange}, #FFA726)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットで対応する</Btn>
-                  </div>
-                </div>
+                  )
+                })}
               </div>
             </section>
           )}
