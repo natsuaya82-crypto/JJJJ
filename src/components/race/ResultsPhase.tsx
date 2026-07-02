@@ -107,8 +107,9 @@ export function ResultsPhase({
   })()
 
   const finish = () => {
-    // 契約満了間近の選手がいる場合は先に対応させる（シーズン終了時は除く：更新フローが別途走る）
-    if (urgentRenewalExists && !isLastRace) { navigate('/notifications'); return }
+    // 契約満了間近の選手がいる場合は先に対応させる。
+    // シーズン最終戦・リザーブリーグ（reserveStandings/onContinue経由）では誘導しない。
+    if (urgentRenewalExists && !isLastRace && !reserveStandings && !onContinue) { navigate('/notifications'); return }
     onContinue ? onContinue() : navigate('/')
   }
 
