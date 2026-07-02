@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_STAT_LABELS, RARITY_COLORS, RARITY_LABELS } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
+import { STAT_ICON_MAP } from '../icons/StatIcons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -56,6 +57,18 @@ export default function CardInventoryPage() {
     for (const c of trainingCards) m[c.statKey] = (m[c.statKey] ?? 0) + 1
     return m
   }, [trainingCards])
+
+  // 合成画面と同じく、同じカードは1つにまとめて×Nで表示
+  const cardGroups = useMemo(() => {
+    const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; count: number }>()
+    for (const c of filtered) {
+      const k = `${c.statKey}_${c.rarity}`
+      const g = map.get(k)
+      if (g) g.count++
+      else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, count: 1 })
+    }
+    return [...map.values()]
+  }, [filtered])
 
   return (
     <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: SAIRA, color: C.text, paddingBottom: 80 }}>
@@ -159,34 +172,35 @@ export default function CardInventoryPage() {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-            gap: 8,
+            gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+            gap: 7,
           }}>
-            {filtered.map(card => (
+            {cardGroups.map(group => (
               <div
-                key={card.id}
+                key={group.key}
                 style={{
                   position: 'relative', overflow: 'hidden',
                   background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `2px solid ${alpha(RARITY_COLORS[card.rarity], 0.5)}`,
-                  boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-                  borderRadius: 12,
-                  padding: '10px 8px 10px',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                  marginBottom: '8px',
+                  border: `2px solid ${alpha(RARITY_COLORS[group.rarity], 0.4)}`,
+                  boxShadow: `0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
+                  borderRadius: 10,
+                  padding: '10px 6px 8px',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
                 }}
               >
-                <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 9, pointerEvents: 'none' }}/>
+                {group.count > 1 && (
+                  <div style={{ position: 'absolute', top: 4, right: 4, fontSize: 9, fontWeight: 900, color: '#fff', background: RARITY_COLORS[group.rarity], borderRadius: 6, padding: '1px 5px', fontFamily: SAIRA, lineHeight: 1.3 }}>×{group.count}</div>
+                )}
                 <div style={{
-                  fontFamily: SAIRA, fontSize: 8, fontWeight: 800,
-                  color: RARITY_COLORS[card.rarity],
-                  background: alpha(RARITY_COLORS[card.rarity], 0.18),
-                  padding: '2px 6px', borderRadius: 4, letterSpacing: 0.5,
-                }}>
-                  {RARITY_LABELS[card.rarity]}
-                </div>
-                <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: C.textSub, textAlign: 'center', lineHeight: 1.2 }}>
-                  {CARD_STAT_LABELS[card.statKey]}
+                  fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
+                  color: RARITY_COLORS[group.rarity],
+                  background: `${RARITY_COLORS[group.rarity]}22`,
+                  padding: '2px 5px', borderRadius: 4,
+                  fontFamily: SAIRA,
+                }}>{RARITY_LABELS[group.rarity]}</div>
+                {STAT_ICON_MAP[group.statKey]({ size: 20, color: RARITY_COLORS[group.rarity] })}
+                <div style={{ fontSize: 10, color: C.textSub, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>
+                  {CARD_STAT_LABELS[group.statKey]}
                 </div>
               </div>
             ))}
