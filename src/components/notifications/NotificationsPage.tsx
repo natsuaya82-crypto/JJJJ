@@ -230,6 +230,7 @@ export default function NotificationsPage() {
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
+  const sponsorOffers = currentSeason.sponsorOffers ?? []
 
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races?.length ?? 1
@@ -251,6 +252,7 @@ export default function NotificationsPage() {
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
     + (renewalNeeded > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
+    + (sponsorOffers.length > 0 ? 1 : 0)
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -434,6 +436,23 @@ export default function NotificationsPage() {
                     <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{pendingContracts.length}人が契約更新を要求</div>
                     <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, marginBottom: '14px' }}>チャットで対応してください</div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, color: '#111' }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* スポンサーオファー */}
+          {sponsorOffers.length > 0 && (
+            <section style={{ marginTop: '20px' }}>
+              <SectionHead label="スポンサーオファー" color={C.green} count={sponsorOffers.length}/>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{sponsorOffers.length}社からスポンサーオファー</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.green, marginBottom: '14px' }}>契約内容を確認してください</div>
+                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate('/sponsors')}>スポンサーページへ</Btn>
                   </div>
                 </div>
               </div>

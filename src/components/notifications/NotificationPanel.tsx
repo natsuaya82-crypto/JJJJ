@@ -335,5 +335,6 @@ export function useNotifCount() {
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length > 0 ? 1 : 0
   const needsRoster = currentSeason.phase === 'preseason' && !currentSeason.rosterSubmitted ? 1 : 0
-  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + needsRoster
+  const sponsorOffers = (currentSeason.sponsorOffers ?? []).length > 0 ? 1 : 0
+  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + needsRoster + sponsorOffers
 }
