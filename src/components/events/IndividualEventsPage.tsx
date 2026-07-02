@@ -4,6 +4,7 @@ import { useGameStore, fmtTime } from '../../store/gameStore'
 import { SPEC_COLOR } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
+import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -120,13 +121,14 @@ export default function IndividualEventsPage() {
                       const specCol = SPEC_COLOR[p.specialty]
                       return (
                         <div key={r.playerId} style={{
-                          display: 'grid', gridTemplateColumns: '28px 1fr 60px 56px', gap: 4,
+                          display: 'grid', gridTemplateColumns: '24px 32px 1fr 60px 56px', gap: 4,
                           padding: '6px 14px',
                           background: isMyTeam ? alpha(C.gold, 0.03) : 'transparent',
                           borderBottom: `1px solid ${alpha(C.border, 0.5)}`,
                           alignItems: 'center',
                         }}>
                           <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: rankColor, textAlign: 'center' }}>{r.rank}</div>
+                          <div style={{ width: 30, height: 30, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}><PlayerFace playerId={p.id} nationality={p.nationality} size={30} /></div>
                           <div>
                             <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: isMyTeam ? 700 : 400, color: isMyTeam ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {p.name}
