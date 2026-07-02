@@ -669,7 +669,6 @@ export function resolveChoice(
   event: RaceSegmentEvent,
   choiceIdx: number,
   segStamina: number,
-  _player: Player,
 ): { staminaDelta: number; timeDelta: number; newStamina: number; success: boolean } {
   const effect = event._effects[choiceIdx]
   if (!effect) return { staminaDelta: 0, timeDelta: 0, newStamina: segStamina, success: true }

@@ -204,7 +204,7 @@ export default function RacePage() {
     const playerObj = players.find(p => p.id === playerPlayerId)
     if (!playerObj) return
 
-    const { staminaDelta: _sd, timeDelta, newStamina } = resolveChoice(event, choiceIdx, iSim.segStamina, playerObj)
+    const { staminaDelta: _sd, timeDelta, newStamina } = resolveChoice(event, choiceIdx, iSim.segStamina)
     void _sd
 
     const remainingEvents = iSim.pendingEvents.slice(1)
@@ -319,7 +319,7 @@ export default function RacePage() {
     if (!iSim || !race) return
 
     // Simulate remaining segments instantly (without events)
-    let sim = { ...iSim }
+    const sim = { ...iSim }
 
     // If currently mid-segment, finalize it first
     const playerPlayerId = raceLineup[sim.currentSegIdx]
@@ -337,7 +337,7 @@ export default function RacePage() {
       ? sim.completedSegs
       : [...sim.completedSegs, currentSegResult]
 
-    let cumTime = { ...sim.cumulativeTime }
+    const cumTime = { ...sim.cumulativeTime }
     if (!sim.showingSegResult) {
       cumTime[playerTeamId] = (cumTime[playerTeamId] ?? 0) + playerFinalTime
       for (const [tid, t] of Object.entries(sim.cpuTimesForSeg)) {
