@@ -594,9 +594,12 @@ function makeFinalPushEvent(
   ctx: RaceContext,
 ): RaceSegmentEvent {
   const isKicker = player.specialty === 'kick'
-  const isWinning = projectedRank === 1
-  const isClose = projectedRank <= 3
+  // 実況の「首位/上位」判定は総合順位で行う（区間内の見かけ順位が総合と食い違い、
+  // 16位なのに「首位を走る」等の矛盾した文言が出るのを防ぐ）
+  const isWinning = ctx.overallRank === 1
+  const isClose = ctx.overallRank <= 3
   void seg
+  void projectedRank
 
   const situation = isWinning
     ? pick([
@@ -633,7 +636,7 @@ function makeFinalPushEvent(
           : '逃げ切ればこの区間の主役。最後まで攻めの姿勢を。',
       ])
     : pick([
-        `現在${projectedRank}位 / ${totalTeams}チーム中。残り2kmで何位まで上がれるか。`,
+        `総合${ctx.overallRank}位 / ${totalTeams}チーム中。残り2kmで何位まで上がれるか。`,
         ctx.gapBehindSec != null && ctx.behindName
           ? `総合${ctx.overallRank}位。${ctx.behindName}が${Math.round(ctx.gapBehindSec)}秒後ろ。順位を守りつつ前を追う。`
           : `総合${ctx.overallRank}位 / ${ctx.totalTeams}チーム。最後の2kmが順位を決める。`,

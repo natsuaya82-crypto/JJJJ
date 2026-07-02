@@ -318,6 +318,10 @@ export function SimPhase({
   const [peekRace, setPeekRace] = useState(false)
   const [animKmRatio, setAnimKmRatio] = useState(0)
   const [animDone, setAnimDone] = useState(false)
+  // 区間結果を出す前に必ず最終ストレートを見せるための最小表示時間。
+  // ラスト勝負イベントが終盤で発火すると選択直後に区間結果へ飛んでしまう（押した瞬間終了）ため、
+  // 選択後は最低でも少しの間トラックを見せてから結果を表示する。
+  const [resultDwellDone, setResultDwellDone] = useState(false)
   const rafRef = useRef<number>(0)
   const segDurationRef = useRef(25000)
   const animSegRef = useRef(-1)
@@ -398,8 +402,16 @@ export function SimPhase({
   // 表示用kmRatio（区間切替直後の漏れ防止）
   const kmRatio = effectiveRatio
 
-  // アニメーション完了後にのみ区間結果を表示する
-  const showResult = showingSegResult && animDone
+  // 区間結果表示に入ったら、最終ストレートを見せる最小時間を確保する
+  useEffect(() => {
+    if (!showingSegResult) { setResultDwellDone(false); return }
+    setResultDwellDone(false)
+    const t = setTimeout(() => setResultDwellDone(true), 850)
+    return () => clearTimeout(t)
+  }, [showingSegResult, currentSegIdx])
+
+  // アニメーション完了 かつ 最小表示時間経過後にのみ区間結果を表示する
+  const showResult = showingSegResult && animDone && resultDwellDone
   const showTrack = !showResult
 
   const sortedStandings = Object.entries(cumulativeTime)
