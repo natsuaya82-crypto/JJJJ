@@ -410,9 +410,12 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const baseIds = BASE_PLAYERS.map(p => p.id)
           const baseSalary = BASE_PLAYERS.reduce((s, p) => s + p.contract.annualSalary, 0)
-          const players = state.players.map(p =>
-            baseIds.includes(p.id) ? { ...p, teamId: setup.teamId } : p
-          )
+          const players = state.players.map(p => {
+            if (!baseIds.includes(p.id)) return p
+            const bi = baseIds.indexOf(p.id)
+            // 契約年数を3〜5年にばらけさせ、更新が一斉に来ないようにする
+            return { ...p, teamId: setup.teamId, contract: { ...p.contract, yearsLeft: 3 + (bi % 3) } }
+          })
           const teams = state.teams.map(t => {
             if (t.id === setup.teamId) {
               return {
