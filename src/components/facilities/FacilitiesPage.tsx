@@ -112,13 +112,15 @@ export default function FacilitiesPage() {
 
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
-      <div style={{ padding: '10px 16px 4px' }}>
+      <div style={{ padding: '10px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton onClick={() => navigate('/team')}/>
+        <div>
+          <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>FACILITIES</div>
+          <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>施設強化</div>
+        </div>
       </div>
 
-      <div style={{ padding: '10px 16px 16px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>FACILITIES</div>
-        <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text, marginBottom: '4px' }}>施設強化</div>
+      <div style={{ padding: '4px 16px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ fontSize: '11px', color: C.textDim }}>所持ジュエル:</div>
           <JewelIcon size={14} />

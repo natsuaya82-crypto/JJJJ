@@ -63,19 +63,19 @@ export default function RosterSelectPage() {
       paddingBottom: `${FOOTER_BOTTOM + 80}px`,
       background: C.bg, minHeight: '100%',
     }}>
-      <div style={{ padding: '8px 16px 0' }}>
+      <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton onClick={() => navigate('/')}/>
+        <div>
+          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 700 }}>
+            {currentSeason.year} PRE-SEASON
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>スカッド編成・提出</div>
+        </div>
       </div>
 
       <div style={{ padding: '4px 16px 12px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', marginBottom: 4, fontWeight: 700 }}>
-          {currentSeason.year} PRE-SEASON
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 4 }}>
-          スカッド編成・提出
-        </div>
         <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
-          1軍 {MIN_MAIN}〜{MAX_MAIN}名を選出して提出。背番号も設定できます。
+          1軍 {MIN_MAIN}〜{MAX_MAIN}名を選出して提出してください。
         </div>
       </div>
 

@@ -18,8 +18,9 @@ export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
 
   return (
     <div style={{ padding: '0 0 16px', fontFamily: SAIRA, background: C.bg, minHeight: '100dvh' }}>
-      <div style={{ padding: '8px 16px 4px' }}>
+      <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton onClick={() => navigate('/records')}/>
+        <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.text }}>記録室</div>
       </div>
       <div style={{ padding: '16px 16px 0' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '12px' }}>
