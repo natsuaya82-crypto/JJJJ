@@ -3165,10 +3165,15 @@ export const useGameStore = create<GameStore>()(
             .filter(Boolean)
             .reduce((s, sp) => s + sp!.annualPayment, 0)
           const prevRaceIncome = state.currentSeason.seasonRaceIncome ?? 0
-          // 予算の下限（ベース）を昨年の順位に応じて変える。1位=5億 〜 15位以下=2億で線形補間。
-          const rankFloor = finalRank >= 15
-            ? 200_000_000
-            : Math.round((500_000_000 - (finalRank - 1) / 14 * 300_000_000) / 10_000_000) * 10_000_000
+          // 予算の下限（ベース）を昨年の順位に応じて変える。上位ほど救済ラインが手厚い。
+          // アンカー: 1位5億/2位4.5億/3位4億/5位3.5億/8位3億/10位2.7億/14位2.3億/15位以下2億（間は補間）
+          const RANK_FLOOR: Record<number, number> = {
+            1: 500_000_000, 2: 450_000_000, 3: 400_000_000, 4: 375_000_000,
+            5: 350_000_000, 6: 335_000_000, 7: 315_000_000, 8: 300_000_000,
+            9: 285_000_000, 10: 270_000_000, 11: 260_000_000, 12: 250_000_000,
+            13: 240_000_000, 14: 230_000_000,
+          }
+          const rankFloor = RANK_FLOOR[finalRank] ?? 200_000_000
           const newBudget = Math.max(
             rankFloor,
             rankBonus + sponsorAnnual + prevRaceIncome + objBudgetBonus - bonusTotalPayout - playerSalaryTotal

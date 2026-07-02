@@ -1355,6 +1355,7 @@ export default function TransferPage() {
                           {!isForeignTrade && theirPicks.map(pk => pickCard(pk, requestPickKeys.includes(pickKey(pk)), C.green, () => { const k = pickKey(pk); setRequestPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
                           <button onClick={() => setTradeStep(2)} style={{
                             width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
+                            position: 'sticky', bottom: '12px', zIndex: 5,
                             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                             border: `2px solid ${alpha(C.green, 0.5)}`,
                             color: C.green, fontSize: '13px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
@@ -1375,6 +1376,7 @@ export default function TransferPage() {
                           {!isForeignTrade && myPicks.map(pk => pickCard(pk, offerPickKeys.includes(pickKey(pk)), C.red, () => { const k = pickKey(pk); setOfferPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
                           <button disabled={offerIds.length === 0 && offerPickKeys.length === 0} onClick={() => setTradeStep(3)} style={{
                             width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
+                            position: 'sticky', bottom: '12px', zIndex: 5,
                             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                             border: `2px solid ${offerIds.length > 0 || offerPickKeys.length > 0 ? alpha(C.gold, 0.5) : C.border2}`,
                             color: offerIds.length > 0 || offerPickKeys.length > 0 ? C.gold : C.textGhost,
