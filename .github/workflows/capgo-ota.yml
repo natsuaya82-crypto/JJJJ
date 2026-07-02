@@ -1,0 +1,43 @@
+name: Capgo OTA Update
+
+# JS/CSS/画面・ゲームバランスの修正を審査なしで即時配信する。
+# ネイティブ変更（プラグイン追加・権限・capacitor.config）はこれでは配信できないので通常の iOS Deploy を使うこと。
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: '配信チャンネル'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - beta
+
+jobs:
+  ota:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build
+
+      - name: Upload bundle to Capgo
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+        run: |
+          npx @capgo/cli@latest bundle upload \
+            --apikey "$CAPGO_TOKEN" \
+            --channel "${{ inputs.channel }}"
