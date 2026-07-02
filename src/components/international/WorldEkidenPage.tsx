@@ -6,6 +6,7 @@ import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player, WECRacePlan } from '../../types'
 import { C, alpha } from '../../styles/tokens'
+import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -167,6 +168,7 @@ function RaceCard({ raceIdx, interactive, racePlan, racePlayerIds, players, squa
                 <div style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }} />
               )}
               <div style={{ width: 3, height: 26, borderRadius: 2, background: SPEC_COLOR[p.specialty], flexShrink: 0 }} />
+              <div style={{ width: 28, height: 28, borderRadius: 7, flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
               <div style={{ flex: 1, textAlign: 'left' }}>
                 <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: isSelected ? 700 : 400, color: isSelected ? C.text : C.textSub }}>{p.name}</div>
                 <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim }}>{SPECIALTY_LABELS[p.specialty]}</div>
@@ -330,8 +332,13 @@ export default function WorldEkidenPage() {
                       }}>
                         <div style={{ width: '100%', height: 3, background: `linear-gradient(90deg, ${specColor}, ${alpha(specColor, 0.3)})` }} />
                         <div style={{ padding: '10px 12px' }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '2px', marginBottom: 3 }}>No.{i + 1}</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>{p.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={32} /></div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '2px', marginBottom: 3 }}>No.{i + 1}</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                            </div>
+                          </div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div>
                               <span style={{ fontFamily: SAIRA, fontSize: 9, padding: '1px 5px', borderRadius: 4, background: alpha(specColor, 0.15), color: specColor, border: `1px solid ${alpha(specColor, 0.3)}`, fontWeight: 700 }}>

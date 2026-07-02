@@ -6,6 +6,7 @@ import type { GameStore } from '../../store/gameStore'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
+import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -428,6 +429,7 @@ function PlayersTab({ players, teams, currentSeason }: {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
         <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
+        <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</span>
@@ -493,6 +495,7 @@ function PlayersTab({ players, teams, currentSeason }: {
                 <div style={{ fontFamily: SAIRA, width: '48px', fontSize: '9px', color: C.gold, fontWeight: '700', letterSpacing: '0.5px', lineHeight: 1.3, flexShrink: 0 }}>
                   {SPECIALTY_LABELS[spec]}
                 </div>
+                <div style={{ width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={player.id} nationality={player.nationality} size={30} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{player.name}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>

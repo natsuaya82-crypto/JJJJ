@@ -5,6 +5,7 @@ import { useGameStore, calcTransferValue } from '../../store/gameStore'
 import type { Player } from '../../types'
 import { ovr, faMarketSalary } from '../../utils/playerUtils'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
+import PlayerFace from '../player/PlayerFace'
 
 const NAT_FLAG: Record<string, string> = {
   KOR: '🇰🇷', CHN: '🇨🇳', TWN: '🇹🇼',
@@ -213,6 +214,7 @@ export default function ForeignTransferPage() {
                   <div style={{ fontSize: '20px', fontWeight: '900', color: pOvr >= 80 ? '#C9A84C' : '#9B97A8', fontFamily: 'monospace', lineHeight: 1 }}>{pOvr}</div>
                   <div style={{ fontSize: '7px', color: '#5C5870' }}>OVR</div>
                 </div>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={32} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#F0EDE8' }}>{p.name}</span>
