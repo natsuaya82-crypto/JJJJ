@@ -343,7 +343,7 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: urgent ? C.red : C.textDim }}>{urgent ? '早急に対応を' : '契約満了が近い'}</div>
                           </div>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${urgent ? '#FF6B6B' : '#FFA726'})`, color: C.bg }} onClick={() => navigate(`/player/${p.id}`)}>契約を交渉する</Btn>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${urgent ? '#FF6B6B' : '#FFA726'})`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
                       </div>
                     </div>
                   )

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import PlayerFace from '../player/PlayerFace'
@@ -441,8 +441,10 @@ function getPlayerStatus(
 
 export default function ChatPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { players, playerTeamId, currentSeason, generateContractRequests } = useGameStore()
-  const [chatPlayerId, setChatPlayerId] = useState<string | null>(null)
+  // 通知などから ?player=<id> で来た場合は直接その選手のチャットを開く
+  const [chatPlayerId, setChatPlayerId] = useState<string | null>(() => searchParams.get('player'))
   const [messageCache, setMessageCache] = useState<Record<string, ChatMessage[]>>({})
 
   useEffect(() => { generateContractRequests() }, [])

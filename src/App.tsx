@@ -33,6 +33,7 @@ import AchievementsPage from './components/records/AchievementsPage'
 import ReserveLeaguePage from './components/reserve/ReserveLeaguePage'
 import PlayerSheet from './components/shared/PlayerSheet'
 import NotificationsPage from './components/notifications/NotificationsPage'
+import HelpPage from './components/help/HelpPage'
 import SchedulePage from './components/schedule/SchedulePage'
 import RosterSelectPage from './components/roster/RosterSelectPage'
 import ShopPage from './components/shop/ShopPage'
@@ -153,6 +154,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/sponsors" element={<SponsorPage />} />
           <Route path="/reserve" element={<ReserveLeaguePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/help" element={<HelpPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/cards" element={<CardTrainingPage />} />
           <Route path="/cards/list" element={<CardInventoryPage />} />

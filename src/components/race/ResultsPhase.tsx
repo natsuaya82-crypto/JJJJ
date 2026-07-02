@@ -93,7 +93,24 @@ export function ResultsPhase({
     return myRacerIds.map(id => playerMap.get(id)).filter((p): p is Player => !!p && !!raceExpGains[p.id])
   })()
   const hasExp = expRacers.length > 0
-  const finish = () => onContinue ? onContinue() : navigate('/')
+
+  // 契約満了3ヶ月未満の選手がいれば、レース後に契約対応（通知）へ強制遷移する
+  const urgentRenewalExists = (() => {
+    const raceIndex = currentSeason.currentRaceIndex ?? 0
+    const totalRaces = currentSeason.races?.length ?? 1
+    return players.some(p => {
+      if (p.teamId !== playerTeamId || p.status !== 'active') return false
+      const remaining = Math.max(0, totalRaces - raceIndex)
+      const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
+      return months < 3 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
+    })
+  })()
+
+  const finish = () => {
+    // 契約満了間近の選手がいる場合は先に対応させる（シーズン終了時は除く：更新フローが別途走る）
+    if (urgentRenewalExists && !isLastRace) { navigate('/notifications'); return }
+    onContinue ? onContinue() : navigate('/')
+  }
 
   const teamPopularity = (() => {
     const sorted = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
