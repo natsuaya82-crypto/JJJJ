@@ -40,7 +40,7 @@ export function generateRaceEvents(params: {
 
   // Player fatigue warning
   const tiredPlayers = mainPlayers.filter(p => p.fatigue >= 72 && !recentPlayerIds.has(p.id))
-  if (tiredPlayers.length > 0 && !recentTypes.has('player_fatigue')) {
+  if (tiredPlayers.length > 0 && !recentTypes.has('player_fatigue') && Math.random() < 0.55) {
     const p = pickRandom(tiredPlayers)
     candidates.push({
       id: uid(), raceIndex, type: 'player_fatigue', playerId: p.id,
@@ -57,7 +57,7 @@ export function generateRaceEvents(params: {
 
   // Low morale
   const lowMoralePlayers = mainPlayers.filter(p => p.morale < 45 && !recentPlayerIds.has(p.id))
-  if (lowMoralePlayers.length > 0 && !recentTypes.has('player_morale_low') && Math.random() < 0.55) {
+  if (lowMoralePlayers.length > 0 && !recentTypes.has('player_morale_low') && Math.random() < 0.35) {
     const p = pickRandom(lowMoralePlayers)
     candidates.push({
       id: uid(), raceIndex, type: 'player_morale_low', playerId: p.id,

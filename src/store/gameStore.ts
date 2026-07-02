@@ -1034,8 +1034,8 @@ export const useGameStore = create<GameStore>()(
           })
           const pressRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? 10
           const pressSegWins = results.segmentResults.filter(sr => sr.runners[0]?.teamId === playerTeamId).length
-          const pressNotable = pressRank <= 2 || pressRank >= state.teams.length - 1 || pressSegWins >= 2 || raceIndex + 1 >= state.currentSeason.races.length - 1
-          if (pressNotable) {
+          const pressNotable = pressRank === 1 || pressRank >= state.teams.length - 1 || raceIndex + 1 >= state.currentSeason.races.length - 1
+          if (pressNotable && Math.random() < 0.5) {
             const pressConf = generatePressConference({
               playerTeamId,
               raceIndex: raceIndex + 1,

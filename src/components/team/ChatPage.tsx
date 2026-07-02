@@ -397,10 +397,10 @@ function ChatView({
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 12px 12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 16px 16px' }}>
             {replyButtons.map((btn, i) => (
               <button key={i} onClick={btn.action}
-                style={{ width: '100%', padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(btn.color, 0.45)}`, backgroundColor: alpha(btn.color, 0.08), color: btn.color, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ width: '100%', padding: '15px 14px', borderRadius: 12, border: `1.5px solid ${alpha(btn.color, 0.5)}`, backgroundColor: alpha(btn.color, 0.1), color: btn.color, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
                 {btn.label}
               </button>
             ))}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import PlayerFace from '../player/PlayerFace'
 import { C } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -59,10 +60,12 @@ export default function HistoryPage() {
     .flatMap(r => {
       const seg = r.results!.segmentResults.find(s => s.segmentIndex === selectedSegIdx)
       if (!seg) return []
+      const dist = r.segments?.find(sg => sg.index === selectedSegIdx)?.distanceKm
       return seg.runners.map(runner => ({
         ...runner,
         year: r.year,
         raceName: r.name,
+        distanceKm: dist,
       }))
     })
     .sort((a, b) => a.timeSec - b.timeSec)
@@ -183,9 +186,10 @@ export default function HistoryPage() {
                     return (
                       <div key={`${entry.playerId}-${entry.year}-${entry.raceName}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
                         <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${rankCol}60` : 'none' }}>{i + 1}</span>
+                        {player && <div style={{ width: 30, height: 30, borderRadius: 7, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.border2}` }}><PlayerFace playerId={player.id} nationality={player.nationality} size={30} /></div>}
                         <div style={{ flex: 1 }}>
                           <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{player?.name ?? '—'}</div>
-                          <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>{team?.shortName ?? '—'} / {entry.year} {entry.raceName}</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>{team?.shortName ?? '—'} / {entry.year} {entry.raceName}{entry.distanceKm ? ` · ${entry.distanceKm}km` : ''}</div>
                         </div>
                         <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '900', color: rankCol }}>{fmtTime(entry.timeSec)}</span>
                       </div>

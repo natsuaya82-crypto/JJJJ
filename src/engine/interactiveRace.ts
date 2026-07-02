@@ -277,7 +277,7 @@ export function generateSegmentEvents(params: {
     events.push(makePackRaceEvent(player, nearCpuCum.length, avgNearbyOvr, ctx))
   } else if (closeFasterCpus.length > 0 && closeFasterCpus.length <= 2) {
     events.push(makeCatchingUpEvent(player, closeFasterCpus.length, nearestFasterOvr, ctx))
-  } else if (projectedRank === 1) {
+  } else if (overallRank === 1) {
     events.push(makeFrontPressureEvent(player, nearestChaserOvr, ctx))
   } else {
     events.push(makeWaterStationEvent(player, ctx))

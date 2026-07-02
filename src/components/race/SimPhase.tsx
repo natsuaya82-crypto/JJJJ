@@ -160,11 +160,13 @@ export function RaceTrack({
   const overtakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [overtakeKey, setOvertakeKey] = useState(0)
   const [showOvertake, setShowOvertake] = useState(false)
+  const [overtakeCount, setOvertakeCount] = useState(0)
 
   useEffect(() => {
     const prev = prevRankRef.current
     prevRankRef.current = myRank
     if (prev > 0 && myRank > 0 && myRank < prev) {
+      setOvertakeCount(prev - myRank)
       setOvertakeKey(k => k + 1)
       setShowOvertake(true)
       if (overtakeTimerRef.current) clearTimeout(overtakeTimerRef.current)
@@ -251,7 +253,7 @@ export function RaceTrack({
                       fontSize: 11, fontWeight: 900, color: C.green, fontFamily: SAIRA,
                       animation: 'overtake-arrow 1.8s ease forwards',
                       whiteSpace: 'nowrap',
-                    }}>↑</div>
+                    }}>↑{overtakeCount > 1 ? overtakeCount : ''}</div>
                   )}
                 </div>
 

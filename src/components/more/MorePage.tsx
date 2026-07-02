@@ -203,7 +203,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px', fontFamily: SAIRA }}>バージョン情報</div>
-          <div style={{ fontSize: '14px', color: C.textSub, fontFamily: SAIRA }}>JPEL Manager v0.1.0</div>
+          <div style={{ fontSize: '14px', color: C.textSub, fontFamily: SAIRA }}>JPEL Manager v1.0.2</div>
           <div style={{ fontSize: '12px', color: C.textGhost, marginTop: '4px', fontFamily: SAIRA }}>Japan Pro Ekiden League — GM Simulation</div>
         </div>
       </div>

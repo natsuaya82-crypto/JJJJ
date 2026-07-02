@@ -111,7 +111,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { label: '設定', path: '/more', color: C.textSub },
   ]
 
-  const isActive = (to: string) => location.pathname === to
+  const isActive = (to: string) => to === '/' ? location.pathname === '/' : (location.pathname === to || location.pathname.startsWith(to + '/'))
 
   return (
     <div style={{
