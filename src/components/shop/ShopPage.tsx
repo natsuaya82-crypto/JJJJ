@@ -8,11 +8,11 @@ import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS } from '../../utils/card
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-const CARD_SHOP: { rarity: CardRarity; labelJP: string; desc: string; price: number }[] = [
-  { rarity: 'normal',    labelJP: 'ノーマルパック',   desc: 'ランダムなステータス強化カードを1枚獲得',    price: 30   },
-  { rarity: 'rare',      labelJP: 'レアパック',       desc: 'コンボ倍率アップ・希少度の高いカードを獲得', price: 120  },
-  { rarity: 'epic',      labelJP: 'エピックパック',   desc: '高コンボ倍率カードを確定獲得',              price: 500  },
-  { rarity: 'legendary', labelJP: 'レジェンドパック', desc: '最高レアリティのカードを確定獲得',          price: 1500 },
+const CARD_SHOP: { rarity: CardRarity; labelJP: string; desc: string; price: number; cards: number }[] = [
+  { rarity: 'normal',    labelJP: 'ノーマルパック',   desc: '強化カードを5枚獲得',         price: 150,  cards: 5 },
+  { rarity: 'rare',      labelJP: 'レアパック',       desc: 'レア以上を含む4枚を獲得',     price: 480,  cards: 4 },
+  { rarity: 'epic',      labelJP: 'エピックパック',   desc: '高コンボ倍率カードを3枚獲得', price: 1500, cards: 3 },
+  { rarity: 'legendary', labelJP: 'レジェンドパック', desc: '最高レアを2枚確定獲得',       price: 3000, cards: 2 },
 ]
 
 const QTY_OPTIONS = [1, 3, 5, 10] as const
@@ -241,7 +241,7 @@ export default function ShopPage() {
 
   const handleConfirm = (qty: number) => {
     if (!pendingItem) return
-    const cards = buyTrainingCard(pendingItem.rarity, qty)
+    const cards = buyTrainingCard(pendingItem.rarity, qty * pendingItem.cards)
     setPendingItem(null)
     if (cards) setResultCards(cards)
   }
