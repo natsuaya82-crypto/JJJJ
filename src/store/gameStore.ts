@@ -1607,7 +1607,7 @@ export const useGameStore = create<GameStore>()(
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 25) } : p)
             } else if (choiceIndex === 1) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 2000000) } } : t)
             } else {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 15) } : p)
             }
@@ -1666,7 +1666,7 @@ export const useGameStore = create<GameStore>()(
             const reqPlayer = players.find(p => p.id === pid)
             if (choiceIndex === 0) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 3000000) } } : t)
             } else if (choiceIndex === 2 && reqPlayer) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 25) } : p)
               const escalation = {
@@ -1713,7 +1713,7 @@ export const useGameStore = create<GameStore>()(
           } else if (event.type === 'ai_poaching' && pid) {
             if (choiceIndex === 0) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 3000000) } } : t)
             } else if (choiceIndex === 1) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 5) } : p)
             } else {
@@ -1724,13 +1724,13 @@ export const useGameStore = create<GameStore>()(
               players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 10), fatigue: Math.min(100, p.fatigue + 3) } : p)
             } else if (choiceIndex === 1) {
               players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 20), fatigue: Math.min(100, p.fatigue + 8) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 2000000) } } : t)
             }
           } else if (event.type === 'player_retirement' && pid) {
             if (choiceIndex === 0) {
               // Stay bonus — pay 20M, player morale up
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 20000000 } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 20000000) } } : t)
             } else {
               // Accept retirement — mark player as retired, gmRep up
               const retPlayer = players.find(p => p.id === pid)
@@ -3154,8 +3154,9 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
+          // 1軍・2軍とも年俸を予算から控除（以前は main のみで二軍が実質無料だった）
           const playerSalaryTotal = playersAfterMorale
-            .filter(p => p.teamId === state.playerTeamId && p.rosterTier === 'main')
+            .filter(p => p.teamId === state.playerTeamId && (p.rosterTier === 'main' || p.rosterTier === 'second'))
             .reduce((s, p) => s + p.contract.annualSalary, 0)
 
           const playerTeamObj = teamsWithFA.find(t => t.id === state.playerTeamId)

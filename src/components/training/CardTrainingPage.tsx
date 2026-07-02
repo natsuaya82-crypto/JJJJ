@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import BackButton from '../ui/BackButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import type { CardStatKey } from '../../types'
+import type { CardStatKey, CardRarity } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import {
@@ -59,6 +59,18 @@ export default function CardTrainingPage() {
     [trainingCards, selectedCardIds]
   )
 
+  // 同じ種類（能力×レア度）のカードは1つにまとめて表示する
+  const cardGroups = useMemo(() => {
+    const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; cards: typeof filteredCards }>()
+    for (const c of filteredCards) {
+      const k = `${c.statKey}_${c.rarity}`
+      const g = map.get(k)
+      if (g) g.cards.push(c)
+      else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, cards: [c] })
+    }
+    return [...map.values()]
+  }, [filteredCards])
+
   const combo = useMemo(() => detectCombo(selectedCards), [selectedCards])
   const targetPlayer = useMemo(() => players.find(p => p.id === targetPlayerId), [players, targetPlayerId])
 
@@ -68,9 +80,17 @@ export default function CardTrainingPage() {
     setStep('cards')
   }
 
-  function toggleCard(id: string) {
+  // グループをタップ：未選択があれば1枚追加、全部選択済みなら全解除
+  function toggleGroup(cards: typeof filteredCards) {
     setApplied(null)
-    setSelectedCardIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    const selected = cards.filter(c => selectedCardIds.includes(c.id))
+    if (selected.length < cards.length) {
+      const next = cards.find(c => !selectedCardIds.includes(c.id))
+      if (next) setSelectedCardIds(prev => [...prev, next.id])
+    } else {
+      const ids = new Set(cards.map(c => c.id))
+      setSelectedCardIds(prev => prev.filter(id => !ids.has(id)))
+    }
   }
 
   function handleApply() {
@@ -294,37 +314,46 @@ export default function CardTrainingPage() {
           <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '32px 0' }}>カードがありません</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 7, marginBottom: 12 }}>
-            {filteredCards.map(card => {
-              const sel = selectedCardIds.includes(card.id)
+            {cardGroups.map(group => {
+              const rarity = group.rarity
+              const total = group.cards.length
+              const selCount = group.cards.filter(c => selectedCardIds.includes(c.id)).length
+              const sel = selCount > 0
               return (
                 <button
-                  key={card.id}
-                  onClick={() => toggleCard(card.id)}
+                  key={group.key}
+                  onClick={() => toggleGroup(group.cards)}
                   style={{
-                    background: sel ? RARITY_BG[card.rarity] : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                    border: `2px solid ${sel ? RARITY_COLORS[card.rarity] : alpha(RARITY_COLORS[card.rarity], 0.35)}`,
+                    background: sel ? RARITY_BG[rarity] : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                    border: `2px solid ${sel ? RARITY_COLORS[rarity] : alpha(RARITY_COLORS[rarity], 0.35)}`,
                     borderRadius: 10, padding: '10px 6px 8px',
                     cursor: 'pointer',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
                     outline: 'none',
                     boxShadow: sel
-                      ? `0 4px 0 ${alpha(RARITY_COLORS[card.rarity], 0.5)}, 0 6px 14px ${alpha(RARITY_COLORS[card.rarity], 0.25)}, inset 0 1px 0 rgba(255,255,255,0.1)`
+                      ? `0 4px 0 ${alpha(RARITY_COLORS[rarity], 0.5)}, 0 6px 14px ${alpha(RARITY_COLORS[rarity], 0.25)}, inset 0 1px 0 rgba(255,255,255,0.1)`
                       : `0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
                     position: 'relative', overflow: 'hidden',
                   }}
                 >
-                  {sel && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(RARITY_COLORS[card.rarity], 0.4)}, transparent)`, pointerEvents: 'none' }}/>}
+                  {sel && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(RARITY_COLORS[rarity], 0.4)}, transparent)`, pointerEvents: 'none' }}/>}
+                  {total > 1 && (
+                    <div style={{ position: 'absolute', top: 4, right: 4, fontSize: 9, fontWeight: 900, color: '#fff', background: RARITY_COLORS[rarity], borderRadius: 6, padding: '1px 5px', fontFamily: SAIRA, lineHeight: 1.3 }}>×{total}</div>
+                  )}
                   <div style={{
                     fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
-                    color: RARITY_COLORS[card.rarity],
-                    background: `${RARITY_COLORS[card.rarity]}22`,
+                    color: RARITY_COLORS[rarity],
+                    background: `${RARITY_COLORS[rarity]}22`,
                     padding: '2px 5px', borderRadius: 4,
                     fontFamily: SAIRA,
-                  }}>{RARITY_LABELS[card.rarity]}</div>
-                  {STAT_ICON_MAP[card.statKey]({ size: 20, color: RARITY_COLORS[card.rarity] })}
+                  }}>{RARITY_LABELS[rarity]}</div>
+                  {STAT_ICON_MAP[group.statKey]({ size: 20, color: RARITY_COLORS[rarity] })}
                   <div style={{ fontSize: 10, color: sel ? C.text : C.textSub, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>
-                    {CARD_STAT_LABELS[card.statKey]}
+                    {CARD_STAT_LABELS[group.statKey]}
                   </div>
+                  {selCount > 0 && (
+                    <div style={{ fontSize: 9, fontWeight: 800, color: RARITY_COLORS[rarity], fontFamily: SAIRA }}>{selCount}枚選択中</div>
+                  )}
                 </button>
               )
             })}
