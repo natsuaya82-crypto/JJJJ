@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, calcTransferValue, buildScoutReport } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
+import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -77,13 +78,9 @@ export default function ContractRenewalPage() {
                   }}>
                     <div style={{ position: 'absolute', inset: 3, border: `1px solid ${alpha(C.red, 0.2)}`, borderRadius: 10, pointerEvents: 'none' }}/>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, position: 'relative', zIndex: 1 }}>
-                      <div style={{
-                        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                        background: 'linear-gradient(180deg, #2a4060 0%, #122440 100%)',
-                        border: `2px solid ${C.bg}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.gold,
-                      }}>{player.jerseyNumber}</div>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, overflow: 'hidden', border: `2px solid ${C.bg}` }}>
+                        <PlayerFace playerId={player.id} nationality={player.nationality} size={40} />
+                      </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                           <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{player.name}</span>
