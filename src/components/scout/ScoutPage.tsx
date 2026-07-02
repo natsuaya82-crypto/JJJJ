@@ -99,8 +99,10 @@ export default function ScoutPage() {
       minHeight: '100dvh',
     }}>
       <div style={{ padding: '8px 16px 8px' }}>
-        <BackButton onClick={() => navigate('/transfer')}/>
-        <div style={{ fontSize: '22px', fontWeight: '900', color: C.text, marginBottom: '8px' }}>スカウト</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px' }}>
+          <BackButton onClick={() => navigate('/transfer')}/>
+          <div style={{ fontSize: '22px', fontWeight: '900', color: C.text }}>スカウト</div>
+        </div>
 
         <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
           {([
