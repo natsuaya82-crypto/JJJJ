@@ -1348,10 +1348,18 @@ export default function TransferPage() {
 
                       if (tradeStep === 1) return (
                         <div>
-                          <div style={{ fontSize: '10px', color: C.green, letterSpacing: '2px', marginBottom: '8px', fontFamily: SAIRA }}>
-                            STEP 1 — {targetShortName}から欲しい選手・指名権を選ぶ
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: 8 }}>
+                            <div style={{ fontSize: '10px', color: C.green, letterSpacing: '2px', fontFamily: SAIRA }}>
+                              STEP 1 — {targetShortName}から選ぶ
+                            </div>
+                            <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
+                              <option value="all">全タイプ</option>
+                              {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
+                                <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
+                              ))}
+                            </select>
                           </div>
-                          {theirPlayers.map(p => playerCard(p, requestIds.includes(p.id), C.green, () => { setRequestIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
+                          {theirPlayers.filter(p => filterSpec === 'all' || p.specialty === filterSpec).map(p => playerCard(p, requestIds.includes(p.id), C.green, () => { setRequestIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
                           {!isForeignTrade && theirPicks.map(pk => pickCard(pk, requestPickKeys.includes(pickKey(pk)), C.green, () => { const k = pickKey(pk); setRequestPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
                           <button onClick={() => setTradeStep(2)} style={{
                             width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
@@ -1369,10 +1377,18 @@ export default function TransferPage() {
 
                       if (tradeStep === 2) return (
                         <div>
-                          <div style={{ fontSize: '10px', color: C.red, letterSpacing: '2px', marginBottom: '8px', fontFamily: SAIRA }}>
-                            STEP 2 — 自チームから提供する選手・指名権を選ぶ
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: 8 }}>
+                            <div style={{ fontSize: '10px', color: C.red, letterSpacing: '2px', fontFamily: SAIRA }}>
+                              STEP 2 — 自チームから選ぶ
+                            </div>
+                            <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
+                              <option value="all">全タイプ</option>
+                              {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
+                                <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
+                              ))}
+                            </select>
                           </div>
-                          {myPlayers.map(p => playerCard(p, offerIds.includes(p.id), C.red, () => { setOfferIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
+                          {myPlayers.filter(p => filterSpec === 'all' || p.specialty === filterSpec).map(p => playerCard(p, offerIds.includes(p.id), C.red, () => { setOfferIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
                           {!isForeignTrade && myPicks.map(pk => pickCard(pk, offerPickKeys.includes(pickKey(pk)), C.red, () => { const k = pickKey(pk); setOfferPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
                           <button disabled={offerIds.length === 0 && offerPickKeys.length === 0} onClick={() => setTradeStep(3)} style={{
                             width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
