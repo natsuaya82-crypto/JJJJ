@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
+import PlayerFace from '../player/PlayerFace'
 
 function RecentForm({ raceResults }: { raceResults: { rank: number }[] }) {
   const last5 = raceResults.slice(-5)
@@ -190,14 +191,8 @@ export default function TeamsPage() {
                           borderBottom: i < teamPlayers.length - 1 ? '1px solid #1A1828' : 'none',
                         }}>
                           {/* Jersey */}
-                          <div style={{
-                            width: '26px', height: '26px', borderRadius: '6px', flexShrink: 0,
-                            background: `linear-gradient(135deg, ${team.colors.primary}30, ${team.colors.primary}15)`,
-                            border: `1px solid ${team.colors.primary}40`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', fontWeight: '800', color: '#C9A84C', fontFamily: 'monospace',
-                          }}>
-                            {p.jerseyNumber}
+                          <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden', border: `1px solid ${team.colors.primary}40` }}>
+                            <PlayerFace playerId={p.id} nationality={p.nationality} size={28} />
                           </div>
 
                           {/* Specialty (visible at level 0) */}
