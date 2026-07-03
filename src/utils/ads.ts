@@ -6,6 +6,16 @@ import { Capacitor } from '@capacitor/core'
 const BANNER_AD_ID = 'ca-app-pub-7463045893100088/8946193510'
 const REWARD_AD_ID = 'ca-app-pub-7463045893100088/5817804007'
 
+// 広告の「1日」の区切り（朝10時締め）。store と画面表示で同じ日付を使うために共通化する。
+export function getAdDay(): string {
+  const now = new Date()
+  const base = new Date(now)
+  if (base.getHours() < 10) base.setDate(base.getDate() - 1)
+  return base.toISOString().slice(0, 10)
+}
+
+export const ADS_PER_DAY = 3
+
 let started = false
 
 export async function initAds(): Promise<void> {

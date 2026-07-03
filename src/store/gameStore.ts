@@ -10,6 +10,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup } from '../engine/raceEngine'
 import { generateRaceEvents, generatePressConference } from '../engine/eventEngine'
 import { ovr } from '../utils/playerUtils'
+import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { generateDropCards, detectCombo } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
@@ -3952,13 +3953,10 @@ export const useGameStore = create<GameStore>()(
 
       watchAd: () => {
         const state = get()
-        const now = new Date()
-        const base = new Date(now)
-        if (base.getHours() < 10) base.setDate(base.getDate() - 1)
-        const today = base.toISOString().slice(0, 10)
+        const today = getAdDay()
         const sameDay = state.lastAdDate === today
         const watched = sameDay ? (state.adsWatchedToday ?? 0) : 0
-        if (watched >= 3) return null
+        if (watched >= ADS_PER_DAY) return null
         set({ jewels: state.jewels + 100, lastAdDate: today, adsWatchedToday: watched + 1 })
         return 100
       },

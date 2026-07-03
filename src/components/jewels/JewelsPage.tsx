@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { showRewardAd } from '../../utils/ads'
+import { showRewardAd, getAdDay, ADS_PER_DAY } from '../../utils/ads'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 
@@ -71,15 +71,22 @@ function LinkCard({ label, sub, path, onClick }: { label: string; sub: string; p
 export default function JewelsPage() {
   const { jewels, watchAd, lastAdDate, adsWatchedToday } = useGameStore()
   const [adResult, setAdResult] = useState<number | null>(null)
-  const today = new Date().toDateString()
-  const sameDay = lastAdDate === today
-  const adsLeft = 3 - (sameDay ? (adsWatchedToday ?? 0) : 0)
+  const [watching, setWatching] = useState(false)
+  const sameDay = lastAdDate === getAdDay()
+  const adsLeft = ADS_PER_DAY - (sameDay ? (adsWatchedToday ?? 0) : 0)
   const handleWatchAd = async () => {
-    if (adsLeft <= 0) return
-    const ok = await showRewardAd()
-    if (!ok) return
-    const gained = watchAd()
-    setAdResult(gained)
+    if (adsLeft <= 0 || watching) return
+    // 「+100J のあと動画を見ますか？」確認
+    if (!window.confirm(`動画を見ると +100J 受け取れます（残り ${adsLeft}/${ADS_PER_DAY} 回）。動画を見ますか？`)) return
+    setWatching(true)
+    try {
+      const ok = await showRewardAd()
+      if (!ok) return
+      const gained = watchAd()
+      setAdResult(gained)
+    } finally {
+      setWatching(false)
+    }
   }
 
   return (
