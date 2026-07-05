@@ -56,15 +56,14 @@ jobs:
 
       - name: Build & Archive iOS
         run: |
+          # 署名設定は App ターゲットの build settings 側に持たせる（project.pbxproj）。
+          # ここでコマンドラインに渡すと SPM 依存(Alamofire/ZIPFoundation 等)にも波及して
+          # 「does not support provisioning profiles」で archive が失敗するため、渡さない。
           xcodebuild -workspace ios/App/App.xcworkspace \
             -scheme App \
             -configuration Release \
             -archivePath build/App.xcarchive \
             archive \
-            CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE_SPECIFIER="JPEL Manager Distribution" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM=9B2R9YPV5B \
             -destination "generic/platform=iOS"
 
       - name: Export IPA
