@@ -76,7 +76,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 70, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }} />
 
       <div style={{
-        position: 'fixed', bottom: 114, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: 114, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', maxHeight: '68svh',
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
         border: `2px solid ${C.border2}`,
@@ -327,7 +327,7 @@ const SKIP_EVENT_TYPES = [
 ]
 
 export function useNotifCount() {
-  const { currentSeason, players, playerTeamId } = useGameStore()
+  const { currentSeason, players, playerTeamId, lastLoginDate } = useGameStore()
   const events = (currentSeason.events ?? []).filter(e => !e.resolved && !SKIP_EVENT_TYPES.includes(e.type)).length
   const offers = (currentSeason.incomingOffers ?? []).length
   const retirements = (currentSeason.retirementRequests ?? []).length
@@ -336,6 +336,8 @@ export function useNotifCount() {
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length > 0 ? 1 : 0
   const needsRoster = currentSeason.phase === 'preseason' && !currentSeason.rosterSubmitted ? 1 : 0
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length > 0 ? 1 : 0
+  const today = new Date().toDateString()
+  const loginUnclaimed = lastLoginDate !== today ? 1 : 0
   // 契約満了6ヶ月以内の選手（NotificationsPage と同じ基準）
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races?.length ?? 1
@@ -345,5 +347,5 @@ export function useNotifCount() {
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
     return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
   }).length
-  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + needsRoster + sponsorOffers + renewals
+  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + needsRoster + sponsorOffers + loginUnclaimed + renewals
 }

@@ -37,7 +37,7 @@ export default function StarredPlayersPage() {
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100%' }}>
       <div style={{ padding: '10px 16px 4px' }}>
-        <BackButton onClick={() => navigate('/transfer')}/>
+        <BackButton/>
       </div>
 
       <div style={{ padding: '8px 16px 16px' }}>

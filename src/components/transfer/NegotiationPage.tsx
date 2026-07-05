@@ -293,6 +293,7 @@ export default function NegotiationPage() {
     ? players.find(p => p.id === id)
     : bid ? players.find(p => p.id === bid.playerId) : undefined
 
+  const [signFailed, setSignFailed] = useState(false)
   const [negState, setNegState] = useState<NegState>(() => {
     const market = player ? faMarketSalary(player) : 0
     return {
@@ -350,9 +351,11 @@ export default function NegotiationPage() {
 
   function handleConfirm() {
     if (typedMode === 'fa') {
-      signFAPlayer(player!.id, negState.finalSalary, negState.finalYears, negState.finalContractType)
+      const ok = signFAPlayer(player!.id, negState.finalSalary, negState.finalYears, negState.finalContractType)
+      if (!ok) { setSignFailed(true); return }
     } else if (bid) {
-      finalizeTransfer(bid.id, negState.finalSalary, negState.finalYears)
+      const ok = finalizeTransfer(bid.id, negState.finalSalary, negState.finalYears)
+      if (!ok) { setSignFailed(true); return }
     }
     navigate(-1)
   }
@@ -450,20 +453,30 @@ export default function NegotiationPage() {
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '11px', color: C.textDim, fontFamily: SAIRA }}>年俸</span>
-                <span style={{ fontSize: '14px', fontWeight: '700', color: C.gold, fontFamily: SAIRA }}>{fmt(negState.finalSalary)} / 年</span>
+                <span style={{ fontSize: '11px', color: C.textDim, fontFamily: SAIRA }}>年俸{typedMode === 'transfer' ? '（契約継承）' : ''}</span>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: C.gold, fontFamily: SAIRA }}>{fmt(typedMode === 'transfer' ? player.contract.annualSalary : negState.finalSalary)} / 年</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '11px', color: C.textDim, fontFamily: SAIRA }}>契約年数</span>
-                <span style={{ fontSize: '14px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{negState.finalYears} 年</span>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{typedMode === 'transfer' ? player.contract.yearsLeft : negState.finalYears} 年</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '11px', color: C.textDim, fontFamily: SAIRA }}>契約種別</span>
                 <span style={{ fontSize: '12px', color: C.textSub, fontFamily: SAIRA }}>
-                  {negState.finalContractType === 'standard' ? '1軍契約' : negState.finalContractType === 'development' ? '2軍契約' : '2way契約'}
+                  {negState.finalContractType === 'standard' ? '本契約' : negState.finalContractType === 'development' ? '育成契約' : '2way契約'}
                 </span>
               </div>
             </div>
+            {signFailed && (
+              <div style={{
+                padding: '12px 14px', borderRadius: '10px', textAlign: 'center',
+                background: alpha(C.red, 0.1), border: `1px solid ${alpha(C.red, 0.4)}`,
+                color: C.red, fontSize: '12px', fontWeight: '700', fontFamily: SAIRA, lineHeight: 1.5,
+              }}>
+                {negState.finalContractType === 'standard' ? '1軍' : '2軍'}のロスターが上限です。<br/>
+                枠を空けてから再度お試しください。
+              </div>
+            )}
             <button onClick={handleConfirm} style={{
               width: '100%', padding: '16px', borderRadius: '12px',
               border: `2px solid ${C.green}`,

@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { RaceResults, Race, Team, Player } from '../../types'
+import type { InteractiveSegResult } from '../../engine/interactiveRace'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
-import { RaceTrack } from '../race/SimPhase'
-import { terrainColor } from '../race/raceUtils'
+import { SimPhase } from '../race/SimPhase'
+import { isSecondMember } from '../../data/rosterRules'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -17,9 +18,15 @@ const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り'
 
 export default function ReserveLeaguePage() {
   const navigate = useNavigate()
-  const { teams, players, playerTeamId, currentSeason, runSecondTeamRace } = useGameStore()
+  const { teams, players, playerTeamId, currentSeason, runSecondTeamRace, setActiveRacePhase } = useGameStore()
 
-  const [phase, setPhase] = useState<Phase>('lineup')
+  const [phase, setPhaseLocal] = useState<Phase>('lineup')
+  // 1軍レースと同様に、編成〜進行中は下ナビを隠す
+  const setPhase = (p: Phase) => { setPhaseLocal(p); setActiveRacePhase(p === 'done' ? null : p) }
+  useEffect(() => {
+    setActiveRacePhase('lineup')
+    return () => { setActiveRacePhase(null) }
+  }, [])
   const [lineup, setLineupState] = useState<Record<number, string>>({})
   const [results, setResults] = useState<RaceResults | null>(null)
   const [lockedRace, setLockedRace] = useState<Race | null>(null)
@@ -36,9 +43,9 @@ export default function ReserveLeaguePage() {
   const nextRace = stRaces[stRaceIndex] ?? null
   const activeRace = (phase !== 'lineup' && lockedRace) ? lockedRace : nextRace
 
-  // 2軍選手（セカンドチーム）
+  // 2軍選手（2軍契約 ＋ 2way ＋ レンタル枠）。レンタルは1軍/2軍どちらのレースにも出場可。
   const secondPlayers = players.filter(
-    p => p.teamId === playerTeamId && p.rosterTier === 'second' && p.status !== 'retired'
+    p => p.teamId === playerTeamId && (isSecondMember(p) || !!p.loan) && p.status !== 'retired'
   )
 
   // Lineup helpers
@@ -71,7 +78,7 @@ export default function ReserveLeaguePage() {
     return (
       <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40, background: C.bg, minHeight: '100dvh' }}>
         <div style={{ padding: '12px 16px 14px', borderBottom: `1px solid ${C.border}` }}>
-          <BackButton onClick={() => navigate('/')}/>
+          <BackButton/>
           <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '2px', marginBottom: 2 }}>2軍リーグ 全試合完了</div>
           <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>リザーブシーズン終了</div>
         </div>
@@ -96,7 +103,7 @@ export default function ReserveLeaguePage() {
           })}
         </div>
         <div style={{ padding: '24px 16px 8px' }}>
-          <button onClick={() => navigate('/')} style={{ width: '100%', padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, color: C.textSub, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer' }}>
+          <button style={{ width: '100%', padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, color: C.textSub, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer' }}>
             ホームへ戻る
           </button>
         </div>
@@ -109,7 +116,7 @@ export default function ReserveLeaguePage() {
     return (
       <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", background: C.bg, minHeight: '100dvh' }}>
         <div style={{ padding: '12px 16px 14px', borderBottom: `1px solid ${C.border}` }}>
-          <BackButton onClick={() => navigate('/')}/>
+          <BackButton/>
           <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>２軍リーグ</div>
         </div>
         <div style={{ padding: '60px 20px', textAlign: 'center', fontFamily: SAIRA, color: C.textDim, fontSize: 13 }}>
@@ -171,7 +178,8 @@ export default function ReserveLeaguePage() {
   return null
 }
 
-// リザーブ用 自動再生（区間アニメを順に流して結果へ。プレイヤー操作なし）
+// リザーブ用シミュ：1軍と同じ SimPhase を「選択肢なし」で駆動する。
+// 区間アニメ→区間結果カード→暫定順位→「次の区間へ」まで通常リーグと同構成。イベント選択のみ無し。
 function ReserveSimPhase({ race, results, teams, players, playerTeamId, onDone }: {
   race: Race
   results: RaceResults
@@ -181,87 +189,69 @@ function ReserveSimPhase({ race, results, teams, players, playerTeamId, onDone }
   onDone: () => void
 }) {
   const segs = [...race.segments].sort((a, b) => a.index - b.index)
-  const [segPos, setSegPos] = useState(0)
-  const [kmRatio, setKmRatio] = useState(0)
-  const rafRef = useRef<number>(0)
-  const seg = segs[segPos]
+  const orderedResults = segs
+    .map(s => results.segmentResults.find(r => r.segmentIndex === s.index))
+    .filter((r): r is InteractiveSegResult => !!r)
+  const totalSegs = orderedResults.length
 
-  useEffect(() => {
-    if (!seg) return
-    setKmRatio(0)
-    const duration = Math.max(5000, Math.min(12000, seg.distanceKm * 600))
-    const start = performance.now()
-    let advTimer: ReturnType<typeof setTimeout> | null = null
-    function tick(now: number) {
-      const t = Math.min((now - start) / duration, 1)
-      setKmRatio(t)
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick)
-      } else {
-        advTimer = setTimeout(() => {
-          if (segPos < segs.length - 1) setSegPos(p => p + 1)
-          else onDone()
-        }, 500)
-      }
+  const [segStep, setSegStep] = useState(0)
+  const step = Math.min(Math.max(0, segStep), Math.max(0, totalSegs - 1))
+  const currentSeg = segs[step]
+  const currentResult = orderedResults[step] ?? null
+
+  if (!currentSeg || !currentResult) return null
+
+  // 現区間までの累積タイム・区間ポイント（現区間を含む＝SimPhase 側で現区間分を差し引いて基準線を作る）
+  const cumulativeTime: Record<string, number> = {}
+  const segPts: Record<string, number> = {}
+  for (let i = 0; i <= step; i++) {
+    const sr = orderedResults[i]
+    if (!sr) continue
+    for (const r of sr.runners) {
+      cumulativeTime[r.teamId] = (cumulativeTime[r.teamId] ?? 0) + r.timeSec
+      if (r.rank >= 1 && r.rank <= 3) segPts[r.teamId] = (segPts[r.teamId] ?? 0) + [3, 2, 1][r.rank - 1]
     }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => { cancelAnimationFrame(rafRef.current); if (advTimer) clearTimeout(advTimer) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segPos])
-
-  if (!seg) return null
-  const sr = results.segmentResults.find(s => s.segmentIndex === seg.index)
-  const segRunnerIds: Record<string, string> = {}
-  const cpuTimesForSeg: Record<string, number> = {}
-  const baselineCumulative: Record<string, number> = {}
-  let playerBaseTime = 0
-  for (let i = 0; i < segPos; i++) {
-    const psr = results.segmentResults.find(s => s.segmentIndex === segs[i].index)
-    if (psr) for (const r of psr.runners) baselineCumulative[r.teamId] = (baselineCumulative[r.teamId] ?? 0) + r.timeSec
   }
-  if (sr) for (const r of sr.runners) {
+
+  // 現区間の走者・タイム（トラックアニメのタイム差計算用）
+  const cpuTimesForSeg: Record<string, number> = {}
+  const segRunnerIds: Record<string, string> = {}
+  let playerBaseTime = 0
+  for (const r of currentResult.runners) {
     segRunnerIds[r.teamId] = r.playerId
     if (r.teamId === playerTeamId) playerBaseTime = r.timeSec
     else cpuTimesForSeg[r.teamId] = r.timeSec
   }
-  const segCol = terrainColor(seg.uphillPct, seg.downhillPct)
-  const totalSegs = segs.length
+
+  const completedSegs = orderedResults.slice(0, step + 1)
+
+  function advance() {
+    if (step < totalSegs - 1) setSegStep(step + 1)
+    else onDone()
+  }
 
   return (
-    <div style={{ fontFamily: SAIRA, minHeight: '100svh', background: C.bg, paddingBottom: 40 }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: C.surface2, borderBottom: `1px solid ${C.border}`, padding: '8px 16px 6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.red, boxShadow: `0 0 5px ${C.red}` }}/>
-          <span style={{ fontSize: 9, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
-          <span style={{ fontSize: 10, color: C.textDim }}>2軍 · {seg.index}/{totalSegs}区</span>
-        </div>
-        <div style={{ height: 3, background: C.border2, borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${(segPos / totalSegs) * 100}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`, borderRadius: 2 }}/>
-        </div>
-      </div>
-
-      <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={onDone} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, cursor: 'pointer', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, color: C.textSub, fontFamily: SAIRA, fontSize: 12, fontWeight: 700 }}>
-          結果へスキップ
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 4l9 8-9 8V4zM17 4h2v16h-2z" fill="currentColor"/></svg>
-        </button>
-      </div>
-
-      <RaceTrack
-        teams={teams}
-        players={players}
-        segRunnerIds={segRunnerIds}
-        playerTeamId={playerTeamId}
-        playerBaseTime={playerBaseTime}
-        cpuTimesForSeg={cpuTimesForSeg}
-        baselineCumulative={baselineCumulative}
-        kmRatio={kmRatio}
-        distanceKm={seg.distanceKm}
-        segCol={segCol}
-        currentSegIdx={seg.index}
-        race={race}
-      />
-    </div>
+    <SimPhase
+      race={race}
+      teams={teams}
+      players={players}
+      playerTeamId={playerTeamId}
+      pendingEvent={null}
+      pendingEventsCount={0}
+      lowStaminaHint={false}
+      currentSegIdx={currentSeg.index}
+      completedSegResults={completedSegs}
+      cumulativeTime={cumulativeTime}
+      cpuTimesForSeg={cpuTimesForSeg}
+      playerBaseTime={playerBaseTime}
+      segPts={segPts}
+      showingSegResult={true}
+      lastSegResult={currentResult}
+      segRunnerIds={segRunnerIds}
+      onChoiceMade={() => {}}
+      onAdvance={advance}
+      onSkip={onDone}
+      onSkipSegment={() => {}}
+    />
   )
 }

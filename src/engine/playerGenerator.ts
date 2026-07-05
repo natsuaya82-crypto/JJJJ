@@ -744,7 +744,7 @@ export function generateCpuRosters(
 
   function makePlayer(
     baseRank: Rank, i: number, teamId: string, tier: 'main' | 'second',
-    isForeign: boolean,
+    isForeign: boolean, contractType: 'standard' | 'development' | 'dual' = tier === 'main' ? 'standard' : 'development',
   ): Player {
     cpuIdCounter++
     const rank: Rank = baseRank
@@ -796,6 +796,7 @@ export function generateCpuRosters(
         yearsLeft: rng(1, 3),
         annualSalary: calculateRookieSalary(rank),
         faEligibleYear: year + rng(1, 3),
+        contractType,
       },
       nationality, origin,
       jerseyNumber: tier === 'main' ? i + 1 : i + 21,
@@ -811,26 +812,38 @@ export function generateCpuRosters(
     const mainPool = teamTier === 'elite' ? AI_GRADE_POOL_ELITE : teamTier === 'weak' ? AI_GRADE_POOL_WEAK : AI_GRADE_POOL_MID
     const secondPool = teamTier === 'elite' ? AI_SECOND_POOL_ELITE : teamTier === 'weak' ? AI_SECOND_POOL_WEAK : AI_SECOND_POOL_MID
 
-    const mainIds: string[] = []
-    const secondIds: string[] = []
+    const mainIds: string[] = []   // 1軍契約(standard) 18
+    const dualIds: string[] = []   // 2way(dual) 5（1軍/2軍共通）
+    const secondIds: string[] = [] // 2軍契約(development) 15
 
-    // Main team — foreign players capped at 3 (roster limit)
+    const mainGrades = [...mainPool].sort(() => Math.random() - 0.5)
+    const secondGrades = [...secondPool].sort(() => Math.random() - 0.5)
+
+    // 1軍契約(standard) 18人 — 外国人は3人まで
     let teamForeignCount = 0
-    ;[...mainPool].sort(() => Math.random() - 0.5).forEach((grade, i) => {
+    for (let i = 0; i < 18; i++) {
+      const grade = mainGrades[i % mainGrades.length]
       const canBeForeign = teamForeignCount < 3
       const isForeign = canBeForeign && (i < 2 ? Math.random() < 0.55 : Math.random() < 0.08)
       if (isForeign) teamForeignCount++
-      const p = makePlayer(grade, i, team.id, 'main', isForeign)
+      const p = makePlayer(grade, i, team.id, 'main', isForeign, 'standard')
       cpuPlayers.push(p); mainIds.push(p.id)
-    })
-
-    // Second team (domestic only)
-    ;[...secondPool].sort(() => Math.random() - 0.5).forEach((grade, i) => {
-      const p = makePlayer(grade, i, team.id, 'second', false)
+    }
+    // 2way(dual) 5人 — 1軍側で保持し2軍にも登録（国内）
+    for (let i = 0; i < 5; i++) {
+      const grade = secondGrades[i % secondGrades.length]
+      const p = makePlayer(grade, 18 + i, team.id, 'main', false, 'dual')
+      cpuPlayers.push(p); dualIds.push(p.id)
+    }
+    // 2軍契約(development) 15人（国内）
+    for (let i = 0; i < 15; i++) {
+      const grade = secondGrades[(i + 5) % secondGrades.length]
+      const p = makePlayer(grade, i, team.id, 'second', false, 'development')
       cpuPlayers.push(p); secondIds.push(p.id)
-    })
+    }
 
-    teamRosters[team.id] = { main: mainIds, second: secondIds }
+    // 2way は1軍・2軍の両方に登録
+    teamRosters[team.id] = { main: [...mainIds, ...dualIds], second: [...secondIds, ...dualIds] }
   }
 
   return { cpuPlayers, teamRosters }
@@ -873,6 +886,7 @@ export function generatePlayerSecondTeam(year: number): Player[] {
         yearsLeft: rng(2, 3),
         annualSalary: calculateRookieSalary(rank),
         faEligibleYear: year + rng(2, 4),
+        contractType: 'development',
       },
       nationality: 'JPN', origin,
       jerseyNumber: i + 21,
@@ -883,6 +897,51 @@ export function generatePlayerSecondTeam(year: number): Player[] {
     })
   })
 
+  return players
+}
+
+// CPUチームの2軍を補充するための若手選手を生成する（teamId付き）。
+export function generateCpuSecondPlayers(teamId: string, count: number, year: number): Player[] {
+  const POOL: Rank[] = ['B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D']
+  const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+  const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
+  const usedNames = new Set<string>()
+  const players: Player[] = []
+  for (let i = 0; i < count; i++) {
+    idCounter++
+    const rank = POOL[rng(0, POOL.length - 1)]
+    const specialty = specialties[rng(0, specialties.length - 1)]
+    const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
+    const ratings = generateRatings(rank, specialty)
+    const { potential } = rankToBaseRange(rank, growthCurve)
+    const age = rng(19, 24)
+    const yearsPro = Math.max(0, age - 22)
+    const origin = Math.random() < 0.6
+      ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
+      : HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
+    let name: string, attempts = 0
+    do {
+      name = `${FAMILY_NAMES[rng(0, FAMILY_NAMES.length - 1)]} ${GIVEN_NAMES_MALE[rng(0, GIVEN_NAMES_MALE.length - 1)]}`
+      attempts++
+    } while (usedNames.has(name) && attempts < 60)
+    usedNames.add(name)
+    players.push({
+      id: `ai2gen-${teamId}-${year}-${idCounter}`,
+      name, nameKana: '', age, yearsPro,
+      draftYear: year - yearsPro, draftRound: null, draftPick: null,
+      ratings, specialty,
+      potential: Math.min(90, rng(potential[0], potential[1])),
+      growthCurve,
+      teamId, rosterTier: 'second',
+      contract: { yearsLeft: rng(1, 3), annualSalary: calculateRookieSalary(rank), faEligibleYear: year + rng(1, 3) },
+      nationality: 'JPN', origin,
+      jerseyNumber: 21 + i,
+      status: 'active', fatigue: 0, morale: rng(65, 85), form: 0,
+      career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
+      traits: assignTraits(rank, specialty, age),
+      personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
+    })
+  }
   return players
 }
 
@@ -965,6 +1024,32 @@ export function buildDraftOrder(
 }
 
 let foreignIdCounter = 9000
+
+// 年1回、海外クラブに動きをつける：引退等（removedIds）を外し、若手を1〜2人ずつ新加入。
+export function refreshForeignLeagues(
+  leagues: ForeignLeague[],
+  removedIds: Set<string>,
+  year: number,
+): { newPlayers: Player[]; updatedLeagues: ForeignLeague[] } {
+  const fresh = generateForeignLeaguePlayers(leagues, year)
+  const byId = new Map(fresh.players.map(p => [p.id, p]))
+  const newPlayers: Player[] = []
+  const updatedLeagues = leagues.map(l => {
+    const freshL = fresh.updatedLeagues.find(fl => fl.id === l.id)
+    return {
+      ...l,
+      clubs: l.clubs.map(club => {
+        const kept = club.playerIds.filter(id => !removedIds.has(id))
+        const freshClub = freshL?.clubs.find(fc => fc.id === club.id)
+        const addN = 1 + (Math.random() < 0.5 ? 1 : 0)
+        const adds = (freshClub?.playerIds ?? []).slice(0, addN)
+        for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
+        return { ...club, playerIds: [...kept, ...adds] }
+      }),
+    }
+  })
+  return { newPlayers, updatedLeagues }
+}
 
 export function generateForeignLeaguePlayers(
   leagues: ForeignLeague[],

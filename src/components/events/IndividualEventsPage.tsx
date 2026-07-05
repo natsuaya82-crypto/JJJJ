@@ -24,7 +24,7 @@ export default function IndividualEventsPage() {
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <BackButton onClick={() => navigate('/more')}/>
+          <BackButton/>
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900 }}>INDIVIDUAL EVENTS</div>
             <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>個人種目</div>

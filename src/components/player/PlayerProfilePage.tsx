@@ -1,9 +1,12 @@
-import { useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import NumberDial from '../ui/NumberDial'
 import { useGameStore } from '../../store/gameStore'
 import { ovr, ratingColor, SPEC_COLOR, FORM_LABELS, FORM_COLORS, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, buildScoutReport } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
+import { playerStatusLabel } from '../../data/rosterRules'
 import { formatTime } from '../../engine/raceEngine'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from './PlayerFace'
@@ -86,10 +89,14 @@ function RadarChart({ ratings, color }: { ratings: Player['ratings']; color: str
 
 export default function PlayerProfilePage() {
   const { playerId } = useParams<{ playerId: string }>()
+  const navigate = useNavigate()
   const { players, teams, currentSeason, pastSeasons, foreignLeagues, playerTeamId } = useGameStore()
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const scoutOpponentPlayer = useGameStore(s => s.scoutOpponentPlayer)
+  const submitTransferBid = useGameStore(s => s.submitTransferBid)
+  const loanOutPlayer = useGameStore(s => s.loanOutPlayer)
+  const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
 
   const player = players.find(p => p.id === playerId)
   if (!player) {
@@ -107,6 +114,20 @@ export default function PlayerProfilePage() {
   const isScouted = isMyPlayer || (scoutEntry != null && currentSeason.year - scoutEntry.year <= 1)
   const isStarred = starredOpponents.includes(player.id)
   const scoutPoints = currentSeason.scoutPoints ?? 0
+
+  // 他チーム選手の獲得：視察なしでもオファー可。まず相手クラブへ移籍金オファー（チーム合意）→ 合意後に選手と契約交渉
+  const isFA = player.teamId === ''
+  const canSendOffer = !isMyPlayer && !isFA
+  const existingBid = (currentSeason.transferBids ?? []).find(
+    b => b.playerId === player.id && ['pending', 'fee_accepted', 'countered', 'player_neg'].includes(b.status)
+  )
+  const marketFee = Math.max(1_000_000, Math.round(calcTransferValue(player) / 1_000_000) * 1_000_000)
+  const [offerFee, setOfferFee] = useState(marketFee)
+  const myBudget = teams.find(t => t.id === playerTeamId)?.finance.budget ?? 0
+  const sendOffer = () => {
+    submitTransferBid(player.id, offerFee)
+    navigate('/transfer/offers')
+  }
 
   const playerOvr = ovr(player)
   const specCol = SPEC_COLOR[player.specialty] ?? C.textSub
@@ -233,6 +254,7 @@ export default function PlayerProfilePage() {
                 { label: '所属', value: team ? team.shortName : foreignClub ? foreignClub.clubName : 'FA', color: team ? team.colors.primary : C.textDim },
                 { label: '年齢', value: `${player.age}歳`, color: C.textSub },
                 { label: '年俸', value: fmt(player.contract.annualSalary), color: C.gold },
+                { label: '契約', value: playerStatusLabel(player).label, color: player.transferListed ? C.orange : player.teamId === '' ? C.green : C.textSub },
                 { label: '契約残', value: `${player.contract.yearsLeft}年`, color: player.contract.yearsLeft <= 1 ? C.red : C.textSub },
                 { label: 'ポテ', value: isScouted ? `${player.potential}` : '?', color: (isScouted && player.potential >= 85) ? C.gold : isScouted ? C.textSub : C.textGhost },
                 { label: '市場価値', value: fmt(calcTransferValue(player)), color: C.green },
@@ -310,6 +332,112 @@ export default function PlayerProfilePage() {
                   <div style={{ fontSize: '7px', color: C.textGhost, marginBottom: '3px' }}>成長見通し</div>
                   <div style={{ fontSize: '10px', color: C.textSub, lineHeight: 1.6 }}>{report.growthOutlook}</div>
                 </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* レンタルに出す（自チームの選手を他チームへ貸し出し＝出場機会で成長） */}
+        {isMyPlayer && !player.loan && (
+          <div style={card}>
+            <div style={cardInset}/>
+            <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900 }}>レンタル移籍に出す</div>
+              <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>他クラブに貸し出して出場機会を与えます（給与は借り手負担・期間後に自動復帰）。</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[1, 2].map(y => (
+                  <button key={y} onClick={() => {
+                    const others = teams.filter(t => t.id !== playerTeamId)
+                    const target = others[Math.floor((ovr(player) + y) % Math.max(1, others.length))]
+                    if (target && loanOutPlayer(player.id, target.id, y)) navigate('/team')
+                  }}
+                    style={{ flex: 1, padding: 11, borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.12), color: C.blue, fontSize: 13, fontWeight: 800, fontFamily: 'inherit' }}>
+                    {y}シーズン貸す
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* レンタル中の表示 */}
+        {player.loan && (
+          <div style={card}>
+            <div style={cardInset}/>
+            <div style={{ ...cardBody }}>
+              <div style={{ fontSize: 12, color: C.blue, fontWeight: 700 }}>
+                {player.loan.ownerTeamId === playerTeamId ? 'この選手を他クラブへレンタル中' : 'レンタルで加入中（保有元へ返却予定）'}
+                <span style={{ color: C.textDim, marginLeft: 6 }}>〜{player.loan.untilYear}年</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 獲得オファー（他チーム選手／FA選手・視察不要） */}
+        {canSendOffer && (
+          <div style={card}>
+            <div style={cardInset}/>
+            <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900 }}>移籍金オファー（チーム合意）</div>
+              {existingBid ? (
+                <>
+                  <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>
+                    {existingBid.status === 'fee_accepted' ? 'クラブが移籍金に合意しました。次は選手と契約交渉です。' : existingBid.status === 'countered' ? 'クラブが対抗の移籍金を提示しています。' : 'クラブに移籍金を打診中です。'}
+                  </div>
+                  <button onClick={() => navigate(existingBid.status === 'fee_accepted' ? `/transfer/negotiate/transfer/${existingBid.id}` : '/transfer/offers')}
+                    style={{ padding: '11px', borderRadius: 10, cursor: 'pointer', backgroundColor: alpha(C.blue, 0.12), border: `1.5px solid ${alpha(C.blue, 0.5)}`, color: C.blue, fontSize: 13, fontWeight: 800, fontFamily: 'inherit' }}>
+                    {existingBid.status === 'fee_accepted' ? '選手と契約交渉へ →' : 'オファー一覧で確認 →'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+                    まず相手クラブへ<b>移籍金</b>を提示してチーム合意を得ます。合意後に選手と契約交渉します。
+                    {(player.teamRole === 'ace' || player.teamRole === 'sub_ace') && (
+                      <span style={{ color: C.red }}>（主力級のためクラブが手放さない可能性が高い）</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 10, color: C.textDim }}>
+                    <span>市場価値 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(marketFee)}</span></span>
+                    <span>予算 <span style={{ color: offerFee > myBudget ? C.red : C.textSub, fontFamily: SAIRA }}>{fmt(myBudget)}</span></span>
+                  </div>
+                  <div style={{ padding: '6px 0' }}>
+                    <NumberDial value={offerFee} onChange={setOfferFee} min={1_000_000} max={myBudget} />
+                  </div>
+                  <button onClick={sendOffer} disabled={offerFee > myBudget}
+                    style={{ padding: '12px', borderRadius: 10, cursor: offerFee > myBudget ? 'not-allowed' : 'pointer', opacity: offerFee > myBudget ? 0.5 : 1, background: `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${alpha(C.gold, 0.06)})`, border: `1.5px solid ${alpha(C.gold, 0.5)}`, color: C.gold, fontSize: 14, fontWeight: 900, fontFamily: 'inherit' }}>
+                    {offerFee > myBudget ? '予算不足' : `${fmt(offerFee)}を移籍金としてオファー`}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* レンタル要請（他チーム選手・視察不要） */}
+        {canSendOffer && !player.loan && (() => {
+          const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+          const reqPending = (currentSeason.loanRequests ?? []).some(r => r.playerId === player.id)
+          return (
+            <div style={card}>
+              <div style={cardInset}/>
+              <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900 }}>レンタル要請</div>
+                <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>買わずに1〜2年借りる要請。相手が次レースで回答します（枠 {slots}/3）。</div>
+                {reqPending ? (
+                  <div style={{ fontSize: 12, color: C.blue, fontWeight: 700 }}>レンタル要請中 — 次レースで回答</div>
+                ) : slots >= 3 ? (
+                  <div style={{ fontSize: 12, color: C.red, fontWeight: 700 }}>レンタル枠が満杯です（3/3）</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[1, 2].map(y => (
+                      <button key={y} onClick={() => submitLoanRequest(player.id, y)}
+                        style={{ flex: 1, padding: 11, borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.12), color: C.blue, fontSize: 13, fontWeight: 800, fontFamily: 'inherit' }}>
+                        {y}年レンタルで要請
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )

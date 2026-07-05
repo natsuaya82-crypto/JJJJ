@@ -58,7 +58,7 @@ export default function SponsorPage() {
   return (
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, padding: '12px 16px 10px', borderBottom: `1px solid ${C.border2}` }}>
-        <BackButton onClick={() => navigate('/team')}/>
+        <BackButton/>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>SPONSORS</div>

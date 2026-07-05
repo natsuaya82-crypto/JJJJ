@@ -5,7 +5,9 @@ import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
+import { isSecondMember } from '../../data/rosterRules'
 import PlayerFace from '../player/PlayerFace'
+import { useOpponentMenu } from './opponentMenu'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -17,8 +19,7 @@ function fmt(yen: number) {
 export default function TeamDetailPage() {
   const { teamId } = useParams<{ teamId: string }>()
   const navigate = useNavigate()
-  const { teams, players, currentSeason, playerTeamId } = useGameStore()
-  const scoutOpponentPlayer = useGameStore(s => s.scoutOpponentPlayer)
+  const { teams, players, currentSeason, playerTeamId, pastSeasons } = useGameStore()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activePage, setActivePage] = useState(0)
 
@@ -37,16 +38,26 @@ export default function TeamDetailPage() {
   const scoutedOpponents = currentSeason.scoutedOpponents ?? []
   const scoutPoints = currentSeason.scoutPoints ?? 0
 
+  // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細（共有フック）
+  const { rowHandlers, overlay } = useOpponentMenu()
+
   const mainPlayers = players
     .filter(p => p.teamId === teamId && p.rosterTier === 'main')
     .sort((a, b) => ovr(b) - ovr(a))
 
   const secondPlayers = players
-    .filter(p => p.teamId === teamId && p.rosterTier === 'second')
+    .filter(p => p.teamId === teamId && isSecondMember(p))
     .sort((a, b) => ovr(b) - ovr(a))
 
   const completedRaces = currentSeason.races.filter(r => r.results)
   const recentForm = (standing?.raceResults ?? []).slice(-4)
+
+  // 歴代成績（過去シーズンの最終順位）
+  const historyRanks = (pastSeasons ?? []).map(s => {
+    const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const r = sorted.findIndex(x => x.teamId === teamId) + 1
+    return { year: s.year, rank: r, total: sorted.length }
+  }).filter(h => h.rank > 0).slice(-8)
 
   const handleScroll = () => {
     if (!scrollRef.current) return
@@ -57,7 +68,7 @@ export default function TeamDetailPage() {
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
       <div style={{ padding: '10px 16px 4px' }}>
-        <BackButton onClick={() => navigate('/teams')}/>
+        <BackButton/>
       </div>
 
       <div style={{
@@ -156,21 +167,49 @@ export default function TeamDetailPage() {
 
             <div>
               <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>TEAM INFO</div>
-              <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828', display: 'flex', gap: '8px' }}>
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#C9A84C' }}>{team.founded}</div>
-                  <div style={{ fontSize: '8px', color: '#3A3758' }}>創設年</div>
+              <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
+                  <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>本拠地</span>
+                  <span style={{ fontSize: '14px', fontWeight: '800', color: '#F0EDE8' }}>{team.region} · {team.city}</span>
                 </div>
-                <div style={{ width: '1px', background: '#1A1828' }} />
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#F0EDE8' }}>{team.history.championships}</div>
-                  <div style={{ fontSize: '8px', color: '#3A3758' }}>優勝回数</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#C9A84C' }}>{team.founded}</div>
+                    <div style={{ fontSize: '8px', color: '#3A3758' }}>創設年</div>
+                  </div>
+                  <div style={{ width: '1px', background: '#1A1828' }} />
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#F0EDE8' }}>{team.history.championships}</div>
+                    <div style={{ fontSize: '8px', color: '#3A3758' }}>優勝回数</div>
+                  </div>
+                  <div style={{ width: '1px', background: '#1A1828' }} />
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#9B97A8' }}>{historyRanks.length > 0 ? Math.min(...historyRanks.map(h => h.rank)) : '—'}<span style={{ fontSize: 11, color: '#3A3758' }}>位</span></div>
+                    <div style={{ fontSize: '8px', color: '#3A3758' }}>最高順位</div>
+                  </div>
                 </div>
-                <div style={{ width: '1px', background: '#1A1828' }} />
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: '#9B97A8', lineHeight: 1.4 }}>{team.region}</div>
-                  <div style={{ fontSize: '8px', color: '#3A3758' }}>地域</div>
-                </div>
+              </div>
+            </div>
+
+            {/* 歴代成績 */}
+            <div>
+              <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>歴代成績</div>
+              <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px', border: '1px solid #1A1828' }}>
+                {historyRanks.length === 0 ? (
+                  <div style={{ fontSize: '11px', color: '#3A3758', textAlign: 'center', padding: '4px' }}>まだ過去シーズンの記録がありません</div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {historyRanks.map(h => {
+                      const col = h.rank === 1 ? '#C9A84C' : h.rank <= 3 ? '#4CAF50' : '#9B97A8'
+                      return (
+                        <div key={h.year} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '5px 9px', borderRadius: 8, background: '#141221', border: `1px solid ${col}30`, minWidth: 46 }}>
+                          <span style={{ fontFamily: SAIRA, fontSize: 9, color: '#3A3758' }}>{h.year}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: col }}>{h.rank}<span style={{ fontSize: 9 }}>位</span></span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -184,7 +223,7 @@ export default function TeamDetailPage() {
                 <div>
                   <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>ACE</div>
                   <div
-                    onClick={() => navigate('/player/' + ace.id)}
+                    {...rowHandlers(ace.id)}
                     style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px', border: '1px solid #1A1828', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
                   >
                     <PlayerFace playerId={ace.id} nationality={ace.nationality} size={44} />
@@ -224,7 +263,7 @@ export default function TeamDetailPage() {
                     backgroundColor: '#0E0D17', border: '1px solid #1A1828',
                     padding: '10px 12px', cursor: 'pointer',
                   }}
-                    onClick={() => navigate('/player/' + p.id)}
+                    {...rowHandlers(p.id)}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={40} />
@@ -234,6 +273,7 @@ export default function TeamDetailPage() {
                           <span style={{ padding: '1px 5px', borderRadius: '8px', backgroundColor: `${specCol}15`, color: specCol, fontSize: '8px', fontWeight: '700', flexShrink: 0 }}>
                             {SPECIALTY_LABELS[p.specialty]}
                           </span>
+                          {!isMyTeam && <span style={{ fontSize: '8px', color: '#5C5870', marginLeft: 'auto', flexShrink: 0 }}>タップ=交渉 / 長押し=詳細</span>}
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <span style={{ fontSize: '9px', color: '#5C5870' }}>
@@ -248,27 +288,6 @@ export default function TeamDetailPage() {
                         {isScouted ? rating : '?'}
                       </div>
                     </div>
-                    {!isMyTeam && !isScouted && (
-                      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={e => {
-                            e.stopPropagation()
-                            if (scoutPoints < 1) return
-                            scoutOpponentPlayer(p.id, 1)
-                          }}
-                          style={{
-                            padding: '4px 12px', borderRadius: '8px',
-                            cursor: scoutPoints >= 1 ? 'pointer' : 'not-allowed',
-                            backgroundColor: scoutPoints >= 1 ? '#7986CB18' : '#1A1828',
-                            border: `1px solid ${scoutPoints >= 1 ? '#7986CB40' : '#252236'}`,
-                            color: scoutPoints >= 1 ? '#7986CB' : '#3A3758',
-                            fontSize: '9px', fontWeight: '700', fontFamily: 'inherit',
-                          }}
-                        >
-                          視察 -1PT
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )
               }
@@ -295,6 +314,8 @@ export default function TeamDetailPage() {
           </div>
         </div>
       </div>
+
+      {overlay}
     </div>
   )
 }

@@ -43,6 +43,51 @@ export function faMarketSalary(p: Player): number {
   return Math.round(base * ageFactor / 500000) * 500000
 }
 
+// 選手がそのシーズンに何レース出場したか（データ判定用）
+type RaceLike = { results?: { segmentResults: { runners: { playerId: string }[] }[] } }
+export function seasonAppearances(playerId: string, races: readonly RaceLike[]): number {
+  let c = 0
+  for (const r of races) {
+    if (r.results?.segmentResults.some(s => s.runners.some(rn => rn.playerId === playerId))) c++
+  }
+  return c
+}
+
+// 主力かどうかを「データ」で判定（年俸ではなく、よく出場しているか）。
+// playFraction=そのチームの消化レースに対する出場割合(0..1), teamRaces=消化レース数。
+export function isDataKeyPlayer(p: Player, playFraction: number, teamRaces: number): boolean {
+  return p.rosterTier === 'main' && teamRaces >= 3 && playFraction >= 0.6
+}
+
+// 移籍・トレードで動く選手本人が「移籍先チームに行くことに納得するか」。
+// チーム同士が合意しても、選手が納得しなければ成立しない。年俸ではなく出場データ・順位で判断。
+// destRank=移籍先の現順位, totalTeams=全チーム数, playFraction=現チームでの出場割合, teamRaces=消化レース数。
+export function playerConsentToMove(
+  p: Player, destRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0,
+): { ok: boolean; reason: string } {
+  const appeal = destRank > 0 ? (totalTeams - destRank + 1) / totalTeams : 0.5 // 1.0=首位級
+  const personality = p.personality ?? 'salary'
+  const morale = p.morale ?? 60
+  let score: number
+  if (personality === 'winning') score = appeal * 1.1
+  else if (personality === 'loyalty') score = appeal * 0.65 + 0.05
+  else score = 0.5 + appeal * 0.35
+  if (morale < 40) score += 0.2
+  else if (morale >= 75) score -= 0.1
+  // 出場データによる移籍意欲：2軍・出場が少ない選手は出たがる。主力は残りたい。
+  const key = isDataKeyPlayer(p, playFraction, teamRaces)
+  if (p.rosterTier === 'second') score += 0.35
+  else if (teamRaces >= 3 && playFraction < 0.4) score += 0.25   // 1軍でもほぼ出ていない＝出場機会を求める
+  else if (key) score -= 0.3                                     // 主力（よく出ている）は動きにくい
+  const ok = score >= 0.5
+  const reason = ok ? ''
+    : key ? `${p.name}は主力として起用されており、移籍を望んでいない`
+    : personality === 'loyalty' ? `${p.name}は今のチームへの愛着が強く移籍を望んでいない`
+    : appeal < 0.5 ? `${p.name}はチームの現状に不安があり移籍に前向きでない`
+    : `${p.name}は移籍に納得していない`
+  return { ok, reason }
+}
+
 export function calcTransferValue(p: Player): number {
   const o = ovr(p)
   const age = p.age

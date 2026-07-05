@@ -82,7 +82,7 @@ export default function Onboarding() {
 
       {/* Ad banner */}
       <div style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', height: '50px',
         backgroundColor: '#070610', borderTop: '1px solid #1E1B2E',
         display: 'flex', alignItems: 'center', justifyContent: 'center',

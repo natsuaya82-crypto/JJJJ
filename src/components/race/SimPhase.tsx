@@ -322,6 +322,7 @@ export function SimPhase({
   // ラスト勝負イベントが終盤で発火すると選択直後に区間結果へ飛んでしまう（押した瞬間終了）ため、
   // 選択後は最低でも少しの間トラックを見せてから結果を表示する。
   const [resultDwellDone, setResultDwellDone] = useState(false)
+  const [skipped, setSkipped] = useState(false)  // 「この区間をスキップ」押下：待ち時間なしで即結果へ
   const rafRef = useRef<number>(0)
   const segDurationRef = useRef(25000)
   const animSegRef = useRef(-1)
@@ -359,6 +360,7 @@ export function SimPhase({
     animSegRef.current = currentSegIdx
     setAnimKmRatio(0)
     setAnimDone(false)
+    setSkipped(false)
     const duration = segDurationRef.current
     let elapsed = 0
     let lastTs = performance.now()
@@ -410,8 +412,8 @@ export function SimPhase({
     return () => clearTimeout(t)
   }, [showingSegResult, currentSegIdx])
 
-  // アニメーション完了 かつ 最小表示時間経過後にのみ区間結果を表示する
-  const showResult = showingSegResult && animDone && resultDwellDone
+  // アニメーション完了 かつ 最小表示時間経過後に区間結果を表示。スキップ押下時は待たずに即表示。
+  const showResult = showingSegResult && (skipped || (animDone && resultDwellDone))
   const showTrack = !showResult
 
   const sortedStandings = Object.entries(cumulativeTime)
@@ -432,7 +434,7 @@ export function SimPhase({
     return (
       <div style={{
         fontFamily: SAIRA,
-        position: 'fixed', top: 52, bottom: 50, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', top: 52, bottom: 50, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: 480, zIndex: 30, overflow: 'hidden',
         background: `radial-gradient(ellipse at 50% 30%, ${alpha(segCol, 0.22)} 0%, ${C.bg} 65%)`,
         display: 'flex', flexDirection: 'column',
@@ -527,7 +529,7 @@ export function SimPhase({
       {/* レース状況の覗き見中：イベントに戻る（広告枠50pxの上に配置） */}
       {atEvent && peekRace && (
         <div style={{
-          position: 'fixed', bottom: 50, left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: 50, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: 480, zIndex: 55,
           padding: '14px 12px', background: `linear-gradient(0deg, ${C.bg} 70%, transparent)`,
         }}>
@@ -559,7 +561,7 @@ export function SimPhase({
       {currentSeg && showTrack && (
         <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
           <button
-            onClick={() => { setAnimKmRatio(1); setAnimDone(true); onSkipSegment?.() }}
+            onClick={() => { cancelAnimationFrame(rafRef.current); setAnimKmRatio(1); setAnimDone(true); setSkipped(true); onSkipSegment?.() }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 10, cursor: 'pointer',

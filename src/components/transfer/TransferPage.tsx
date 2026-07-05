@@ -4,9 +4,10 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
+import NumberDial from '../ui/NumberDial'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -72,14 +73,15 @@ type Negotiation = {
   counterYears: number
   demandSalary: number
   contractType: 'standard' | 'development' | 'dual'
+  rosterFull?: boolean   // 合意したがロスター枠が満杯で契約できなかった
 }
 
 
 export default function TransferPage() {
   const {
     teams, players, playerTeamId, currentSeason, gmRep, foreignLeagues,
-    signFAPlayer, tradePlayer, getTransferWindow, ensureFuturePicks,
-    submitTransferBid, acceptFeeCounter, rejectTransferBid,
+    signFAPlayer, tradePlayer, getTransferWindow, ensureFuturePicks, startAcquisitionOffer,
+    submitTransferBid, submitLoanRequest,
     acceptIncomingOffer, declineIncomingOffer,
     counterIncomingOffer,
     listMyPlayerForSale, delistMyPlayer, sellDraftPick,
@@ -96,7 +98,7 @@ export default function TransferPage() {
   const [mktSearch, setMktSearch] = useState('')
   const [mktSpec, setMktSpec] = useState<Specialty | 'all'>('all')
   const [mktNat, setMktNat] = useState<Nationality | 'all'>('all')
-  const [mktAvail, setMktAvail] = useState<'all' | 'listed' | 'expiring'>('all')
+  const [mktAvail, setMktAvail] = useState<'all' | 'listed' | 'expiring' | 'fa'>('all')
   const [mktTeam, setMktTeam] = useState<string>('all')
   const [mktAge, setMktAge] = useState<string>('all')
   const [mktLeague, setMktLeague] = useState<string>('all')
@@ -124,9 +126,9 @@ export default function TransferPage() {
   const [mktSortDir, setMktSortDir] = useState<'desc' | 'asc'>('desc')
   const [bidTarget, setBidTarget] = useState<string | null>(null)
   const [bidFee, setBidFee] = useState(0)
-  const [bidOpen] = useState<string | null>(null)
 
   const [filterSpec, setFilterSpec] = useState<Specialty | 'all'>('all')
+  const [tradeTier, setTradeTier] = useState<'all' | 'main' | 'second'>('all')
   const [neg, setNeg] = useState<Negotiation | null>(null)
 
   const [tradeTarget, setTradeTarget] = useState<string | null>(null)
@@ -251,8 +253,9 @@ export default function TransferPage() {
       : 0.74
 
     if (ratio >= acceptThresh) {
-      signFAPlayer(n.playerId, n.offerSalary, n.offerYears, n.contractType)
-      setNeg({ ...n, status: 'accepted' })
+      const ok = signFAPlayer(n.playerId, n.offerSalary, n.offerYears, n.contractType)
+      if (ok) setNeg({ ...n, status: 'accepted', rosterFull: false })
+      else setNeg({ ...n, rosterFull: true })
     } else if (ratio >= counterThresh && !isLastRound) {
       const cSalary = Math.round(demand * 1.03 / SALARY_STEP) * SALARY_STEP
       const cYears  = Math.max(n.offerYears, 2)
@@ -263,8 +266,9 @@ export default function TransferPage() {
   }
 
   function acceptCounter(n: Negotiation) {
-    signFAPlayer(n.playerId, n.counterSalary, n.counterYears, n.contractType)
-    setNeg({ ...n, offerSalary: n.counterSalary, offerYears: n.counterYears, status: 'accepted' })
+    const ok = signFAPlayer(n.playerId, n.counterSalary, n.counterYears, n.contractType)
+    if (ok) setNeg({ ...n, offerSalary: n.counterSalary, offerYears: n.counterYears, status: 'accepted', rosterFull: false })
+    else setNeg({ ...n, rosterFull: true })
   }
 
   function reNegotiate(n: Negotiation) {
@@ -332,8 +336,6 @@ export default function TransferPage() {
       </div>
 
       {tab === 'market' && (() => {
-        const allBids = currentSeason.transferBids ?? []
-        const activeBids = allBids.filter(b => ['pending','fee_accepted','countered'].includes(b.status))
         const allLeagues = foreignLeagues ?? []
 
         const leagueOptions = [
@@ -366,65 +368,6 @@ export default function TransferPage() {
 
         return (
           <div style={{ padding: '0 12px' }}>
-            {activeBids.length > 0 && (
-              <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px', fontFamily: SAIRA }}>交渉中 ({activeBids.length})</div>
-                {activeBids.map(bid => {
-                  const p = players.find(x => x.id === bid.playerId)
-                  const t = teams.find(x => x.id === bid.targetTeamId)
-                  if (!p || !t) return null
-                  const sc = { pending: C.textSub, fee_accepted: C.green, countered: C.orange } as Record<string, string>
-                  const sl = { pending: '審査中...', fee_accepted: 'クラブ合意 — 契約交渉へ', countered: 'カウンター提示' } as Record<string, string>
-                  const col = sc[bid.status] ?? C.textSub
-                  const isNegPending = bid.status === 'fee_accepted' && bidOpen === bid.id
-                  return (
-                    <div key={bid.id} style={{ marginBottom: '6px' }}>
-                      <div style={{
-                        position: 'relative', overflow: 'hidden',
-                        padding: '10px 13px',
-                        borderRadius: isNegPending ? '14px 14px 0 0' : '14px',
-                        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                        border: `2px solid ${C.goldDark}`,
-                        boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                      }}>
-                        <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
-                        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0, backgroundColor: alpha(ratingColor(ovr(p)), 0.08), border: `1px solid ${alpha(ratingColor(ovr(p)), 0.25)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: ratingColor(ovr(p)), fontFamily: SAIRA }}>
-                            {ovr(p)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, marginBottom: '2px', fontFamily: SAIRA }}>{p.name}</div>
-                            <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>
-                              {t.shortName} — 入札: {fmt(bid.offeredFee)}
-                              {bid.status === 'countered' && bid.counterFee != null && ` → 要求: ${fmt(bid.counterFee)}`}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                            <span style={{ fontSize: '9px', fontWeight: '700', color: col, fontFamily: SAIRA }}>{sl[bid.status]}</span>
-                            {bid.status === 'pending' && (
-                              <button onClick={() => rejectTransferBid(bid.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: `1px solid ${alpha(C.red, 0.18)}`, background: 'transparent', color: C.red, fontSize: '10px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
-                            )}
-                            {bid.status === 'countered' && bid.counterFee != null && (
-                              <>
-                                <button onClick={() => acceptFeeCounter(bid.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: 'none', background: C.green, color: '#fff', fontSize: '10px', cursor: 'pointer', fontFamily: SAIRA }}>受諾 {fmt(bid.counterFee)}</button>
-                                <button onClick={() => rejectTransferBid(bid.id)} style={{ padding: '4px 8px', borderRadius: '6px', border: `1px solid ${alpha(C.red, 0.18)}`, background: 'transparent', color: C.red, fontSize: '10px', cursor: 'pointer', fontFamily: SAIRA }}>拒否</button>
-                              </>
-                            )}
-                            {bid.status === 'fee_accepted' && (
-                              <button onClick={() => navigate('/transfer/negotiate/transfer/' + bid.id)} style={{ padding: '6px 11px', borderRadius: '8px', border: 'none', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: '#fff', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA }}>
-                                契約交渉 →
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
             <div style={{ marginBottom: '12px' }}>
               <div style={{ ...cell, marginBottom: 8 }}>
                 <span style={lbl}>選手名</span>
@@ -437,8 +380,9 @@ export default function TransferPage() {
                   <span style={lbl}>移籍状況</span>
                   <select value={mktAvail} onChange={e => setMktAvail(e.target.value as typeof mktAvail)} style={sel}>
                     <option value="all">全員</option>
-                    <option value="listed">リスト登録</option>
-                    <option value="expiring">契約切れ</option>
+                    <option value="fa">契約満了（FA）</option>
+                    <option value="listed">移籍リスト入り</option>
+                    <option value="expiring">契約切れ間近</option>
                   </select>
                 </div>
                 <div style={cell}>
@@ -497,7 +441,7 @@ export default function TransferPage() {
       })()}
 
       {tab === 'market-results' && (() => {
-        const f = location.state as { search: string; spec: Specialty | 'all'; nat: Nationality | 'all'; avail: 'all' | 'listed' | 'expiring'; team: string; age: string; league: string } | null
+        const f = location.state as { search: string; spec: Specialty | 'all'; nat: Nationality | 'all'; avail: 'all' | 'listed' | 'expiring' | 'fa'; team: string; age: string; league: string } | null
         if (!f) { navigate('/transfer/market'); return null }
 
         const allBids = currentSeason.transferBids ?? []
@@ -513,13 +457,23 @@ export default function TransferPage() {
         const allForeignPlayerIds = new Set(allLeagues.flatMap(l => l.clubs.flatMap(c => c.playerIds)))
 
         const marketPlayers = players
-          .filter(p => p.teamId !== playerTeamId && p.teamId !== '' && p.status === 'active' && (p.rosterTier === 'main' || allForeignPlayerIds.has(p.id)))
+          .filter(p => p.teamId !== playerTeamId && p.status === 'active' && (p.teamId === '' || p.rosterTier === 'main' || allForeignPlayerIds.has(p.id)))
           .filter(p => f.search === '' || p.name.includes(f.search))
           .filter(p => f.spec === 'all' || p.specialty === f.spec)
           .filter(p => f.nat === 'all' || p.nationality === f.nat)
           .filter(p => {
+            const isFA = p.teamId === ''
+            if (f.avail === 'fa') return isFA
+            if (isFA) return f.avail === 'all'   // FAは「全員」か「契約満了(FA)」のときのみ表示
             if (f.avail === 'listed') return listedIds.has(p.id)
-            if (f.avail === 'expiring') return p.contract.yearsLeft <= 1
+            if (f.avail === 'expiring') {
+              if (p.contract.yearsLeft > 1) return false
+              // 主力（データ上よく出場）は自チームが更新するので「契約切れ」候補から除外（移籍リスト入りは対象）
+              const tr = currentSeason.currentRaceIndex
+              const apps = seasonAppearances(p.id, currentSeason.races)
+              const frac = tr > 0 ? apps / tr : (p.rosterTier === 'main' ? 0.5 : 0)
+              return !!p.transferListed || !isDataKeyPlayer(p, frac, tr)
+            }
             return true
           })
           .filter(p => {
@@ -635,7 +589,12 @@ export default function TransferPage() {
                           >
                             {isStarred ? '★' : '☆'}
                           </button>
-                          {hasBid ? (
+                          {p.teamId === '' ? (
+                            <button onClick={() => { startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
+                              style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: '#0A0912', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA }}>
+                              契約オファー
+                            </button>
+                          ) : hasBid ? (
                             <span style={{ fontSize: '10px', color: C.gold, fontWeight: '700', fontFamily: SAIRA }}>入札中</span>
                           ) : (
                             <button disabled={!window.open}
@@ -654,14 +613,9 @@ export default function TransferPage() {
                         入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(val)}</span>
                         {listing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmt(listing.askingPrice)}</span>}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <button onClick={() => setBidFee(Math.max(500000, bidFee - 5000000))} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
-                        <div style={{ flex: 1, textAlign: 'center', padding: '6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px' }}>
-                          <span style={{ fontSize: '17px', fontWeight: '900', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 12px ${alpha(C.gold, 0.25)}` }}>{fmt(bidFee)}</span>
-                        </div>
-                        <button onClick={() => setBidFee(bidFee + 5000000)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
+                      <div style={{ padding: '4px 0 10px' }}>
+                        <NumberDial value={bidFee} onChange={v => setBidFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
                       </div>
-                      <input type="range" min={500000} max={Math.round(val * 1.5)} step={500000} value={bidFee} onChange={e => setBidFee(Number(e.target.value))} style={{ width: '100%', accentColor: C.gold, marginBottom: '6px' }}/>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', marginBottom: '10px', fontFamily: SAIRA }}>
                         <span style={{ color: C.textGhost }}>低い</span>
                         <span style={{ fontWeight: '700', color: bidFee >= val ? C.green : bidFee >= val * 0.75 ? C.gold : C.red }}>
@@ -683,6 +637,23 @@ export default function TransferPage() {
                           {bidFee > myTeam.finance.budget ? '予算不足' : '入札する（次レース回答）'}
                         </button>
                         <button onClick={() => setBidTarget(null)} style={{ padding: '11px 14px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
+                      </div>
+                      {/* レンタル要請（買わずに借りる） */}
+                      <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 2, paddingTop: 10 }}>
+                        {(() => {
+                          const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+                          const reqPending = (currentSeason.loanRequests ?? []).some(r => r.playerId === p.id)
+                          if (reqPending) return <div style={{ fontSize: 10, color: C.blue, fontFamily: SAIRA }}>レンタル要請中 — 次レースで回答</div>
+                          if (slots >= 3) return <div style={{ fontSize: 10, color: C.red, fontFamily: SAIRA }}>レンタル枠が満杯（3/3）</div>
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, marginRight: 'auto' }}>買わずにレンタルで要請</span>
+                              {[1, 2].map(y => (
+                                <button key={y} onClick={() => { submitLoanRequest(p.id, y); setBidTarget(null) }} style={{ padding: '7px 13px', borderRadius: 8, border: `1.5px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.12), color: C.blue, fontSize: 11, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>{y}年</button>
+                              ))}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   )}
@@ -1352,14 +1323,21 @@ export default function TransferPage() {
                             <div style={{ fontSize: '10px', color: C.green, letterSpacing: '2px', fontFamily: SAIRA }}>
                               STEP 1 — {targetShortName}から選ぶ
                             </div>
-                            <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
-                              <option value="all">全タイプ</option>
-                              {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
-                                <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
-                              ))}
-                            </select>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <select value={tradeTier} onChange={e => setTradeTier(e.target.value as typeof tradeTier)} style={{ ...selectStyle }}>
+                                <option value="all">全登録</option>
+                                <option value="main">1軍</option>
+                                <option value="second">2軍</option>
+                              </select>
+                              <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
+                                <option value="all">全タイプ</option>
+                                {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
+                                  <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                          {theirPlayers.filter(p => filterSpec === 'all' || p.specialty === filterSpec).map(p => playerCard(p, requestIds.includes(p.id), C.green, () => { setRequestIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
+                          {theirPlayers.filter(p => (filterSpec === 'all' || p.specialty === filterSpec) && (tradeTier === 'all' || p.rosterTier === tradeTier)).map(p => playerCard(p, requestIds.includes(p.id), C.green, () => { setRequestIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
                           {!isForeignTrade && theirPicks.map(pk => pickCard(pk, requestPickKeys.includes(pickKey(pk)), C.green, () => { const k = pickKey(pk); setRequestPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
                           <button onClick={() => setTradeStep(2)} style={{
                             width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
@@ -1381,14 +1359,21 @@ export default function TransferPage() {
                             <div style={{ fontSize: '10px', color: C.red, letterSpacing: '2px', fontFamily: SAIRA }}>
                               STEP 2 — 自チームから選ぶ
                             </div>
-                            <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
-                              <option value="all">全タイプ</option>
-                              {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
-                                <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
-                              ))}
-                            </select>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <select value={tradeTier} onChange={e => setTradeTier(e.target.value as typeof tradeTier)} style={{ ...selectStyle }}>
+                                <option value="all">全登録</option>
+                                <option value="main">1軍</option>
+                                <option value="second">2軍</option>
+                              </select>
+                              <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
+                                <option value="all">全タイプ</option>
+                                {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
+                                  <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                          {myPlayers.filter(p => filterSpec === 'all' || p.specialty === filterSpec).map(p => playerCard(p, offerIds.includes(p.id), C.red, () => { setOfferIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
+                          {myPlayers.filter(p => (filterSpec === 'all' || p.specialty === filterSpec) && (tradeTier === 'all' || p.rosterTier === tradeTier)).map(p => playerCard(p, offerIds.includes(p.id), C.red, () => { setOfferIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
                           {!isForeignTrade && myPicks.map(pk => pickCard(pk, offerPickKeys.includes(pickKey(pk)), C.red, () => { const k = pickKey(pk); setOfferPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
                           <button disabled={offerIds.length === 0 && offerPickKeys.length === 0} onClick={() => setTradeStep(3)} style={{
                             width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
@@ -1532,6 +1517,16 @@ function NegotiationPanel({ neg, player, onChange, onSubmit, onAcceptCounter, on
           </div>
         </div>
 
+        {neg.rosterFull && (
+          <div style={{
+            padding: '10px 12px', borderRadius: '10px', marginBottom: '10px', textAlign: 'center',
+            background: alpha(C.red, 0.1), border: `1px solid ${alpha(C.red, 0.4)}`,
+            color: C.red, fontSize: '11px', fontWeight: '700', fontFamily: SAIRA, lineHeight: 1.5,
+          }}>
+            {neg.contractType === 'standard' ? '1軍' : '2軍'}のロスターが上限です。枠を空けてから契約してください。
+          </div>
+        )}
+
         {isOffering && (
           <>
             <div style={{ marginBottom: '12px' }}>
@@ -1569,9 +1564,9 @@ function NegotiationPanel({ neg, player, onChange, onSubmit, onAcceptCounter, on
               <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>契約種別</div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {([
-                  { key: 'standard', label: '1軍契約', desc: 'CAP全額計上' },
+                  { key: 'standard', label: '本契約', desc: 'CAP全額計上' },
                   { key: 'dual', label: '2way契約', desc: 'CAP50%計上' },
-                  { key: 'development', label: '2軍契約', desc: 'CAP対象外' },
+                  { key: 'development', label: '育成契約', desc: 'CAP対象外' },
                 ] as { key: 'standard' | 'development' | 'dual'; label: string; desc: string }[]).map(({ key, label, desc }) => {
                   const sel = neg.contractType === key
                   return (

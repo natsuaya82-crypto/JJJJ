@@ -24,6 +24,8 @@ function JewelIcon({ size = 14 }: { size?: number }) {
 export default function LoginBonusPage() {
   const navigate = useNavigate()
   const { loginStreak, totalLoginDays, lastLoginDate, claimLoginBonus } = useGameStore()
+  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
+  const mult = adsRemoved ? 2 : 1
   const [claimResult, setClaimResult] = useState<{ gained: number; streak: number } | null>(null)
 
   const now = new Date()
@@ -49,20 +51,20 @@ export default function LoginBonusPage() {
   }
 
   const days = [
-    { day: 1, reward: 100, isBonus: false },
-    { day: 2, reward: 100, isBonus: false },
-    { day: 3, reward: 100, isBonus: false },
-    { day: 4, reward: 100, isBonus: false },
-    { day: 5, reward: 100, isBonus: false },
-    { day: 6, reward: 100, isBonus: false },
-    { day: 7, reward: 1100, isBonus: true },
+    { day: 1, reward: 100 * mult, isBonus: false },
+    { day: 2, reward: 100 * mult, isBonus: false },
+    { day: 3, reward: 100 * mult, isBonus: false },
+    { day: 4, reward: 100 * mult, isBonus: false },
+    { day: 5, reward: 100 * mult, isBonus: false },
+    { day: 6, reward: 100 * mult, isBonus: false },
+    { day: 7, reward: 1100 * mult, isBonus: true },
   ]
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '20px' }}>
-          <BackButton onClick={() => navigate('/')} />
+          <BackButton />
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: '#6dd5fa', letterSpacing: '3px', fontWeight: '900' }}>LOGIN BONUS</div>
             <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>ログインボーナス</div>
@@ -190,7 +192,7 @@ export default function LoginBonusPage() {
                   </div>
                   {isBonus && (
                     <div style={{ fontFamily: SAIRA, fontSize: 7, color: claimed ? alpha(accent, 0.7) : C.textGhost, letterSpacing: '0.3px' }}>
-                      100+1000
+                      {100 * mult}+{1000 * mult}
                     </div>
                   )}
                 </div>
@@ -230,10 +232,10 @@ export default function LoginBonusPage() {
             REWARD DETAILS
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, color: C.textSub }}>毎日ログイン</span>
+            <span style={{ fontSize: 12, color: C.textSub }}>毎日ログイン{adsRemoved ? '（2倍中）' : ''}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={13} />
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: '#6dd5fa' }}>+100</span>
+              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: '#6dd5fa' }}>+{100 * mult}</span>
             </div>
           </div>
           <div style={{ height: 1, background: C.border }} />
@@ -241,7 +243,7 @@ export default function LoginBonusPage() {
             <span style={{ fontSize: 12, color: C.textSub }}>7日連続ボーナス</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={13} />
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: '#ffd700' }}>+1000</span>
+              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: '#ffd700' }}>+{1000 * mult}</span>
             </div>
           </div>
         </div>

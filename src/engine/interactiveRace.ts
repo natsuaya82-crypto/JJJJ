@@ -275,9 +275,11 @@ export function generateSegmentEvents(params: {
     events.push(makeMountainDescentEvent(player, ctx))
   } else if (nearCpuCum.length >= 2) {
     events.push(makePackRaceEvent(player, nearCpuCum.length, avgNearbyOvr, ctx))
-  } else if (closeFasterCpus.length > 0 && closeFasterCpus.length <= 2) {
+  } else if (overallRank > 1 && closeFasterCpus.length > 0 && closeFasterCpus.length <= 2) {
+    // 「追い上げ（前を追う）」は自分が1位でない時だけ。首位で誤って出さない
     events.push(makeCatchingUpEvent(player, closeFasterCpus.length, nearestFasterOvr, ctx))
-  } else if (overallRank === 1) {
+  } else if (overallRank === 1 && ctx.gapBehindSec != null && ctx.gapBehindSec <= 30) {
+    // 首位でも、後続が30秒以内に迫っている時だけ「先頭プレッシャー」。独走中は誤った“追いつかれる”演出を出さない
     events.push(makeFrontPressureEvent(player, nearestChaserOvr, ctx))
   } else {
     events.push(makeWaterStationEvent(player, ctx))

@@ -86,41 +86,6 @@ export default function TeamHub() {
       ),
     },
     {
-      key: '/team/chat',
-      label: 'チャット',
-      desc: '選手との契約交渉・不満対応・引退・移籍希望',
-      countLabel: (() => {
-        const active = (currentSeason.contractRequests ?? []).filter(r => r.status !== 'accepted' && r.status !== 'rejected').length
-        const expiring = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
-        const retirement = (currentSeason.retirementRequests ?? []).length
-        const transfer = (currentSeason.transferRequests ?? []).length
-        const total = active + expiring + retirement + transfer
-        if (total > 0) return `対応待ち ${total}件`
-        return `${myPlayers.length}名在籍`
-      })(),
-      badge: (() => {
-        const active = (currentSeason.contractRequests ?? []).filter(r => r.status !== 'accepted' && r.status !== 'rejected').length
-        const expiring = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
-        const retirement = (currentSeason.retirementRequests ?? []).length
-        const transfer = (currentSeason.transferRequests ?? []).length
-        return active + expiring + retirement + transfer
-      })(),
-      color: C.blue,
-      shadow: '#1a2050',
-      urgent: (() => {
-        const active = (currentSeason.contractRequests ?? []).filter(r => r.status !== 'accepted' && r.status !== 'rejected').length
-        const expiring = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
-        const retirement = (currentSeason.retirementRequests ?? []).length
-        const transfer = (currentSeason.transferRequests ?? []).length
-        return active + expiring + retirement + transfer > 0
-      })(),
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      ),
-    },
-    {
       key: '/team/contracts',
       label: '契約確認',
       desc: '選手の契約状況・残年数・年俸の一覧',
@@ -154,6 +119,26 @@ export default function TeamHub() {
           <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8"/>
           <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" strokeWidth="1.8"/>
           <path d="M12 12v4M10 14h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/budget',
+      label: '財務・予算',
+      desc: '予算・収支・年俸・スポンサー収入の管理',
+      countLabel: (() => {
+        const team = teams.find(t => t.id === playerTeamId)
+        const b = team?.finance.budget ?? 0
+        return b >= 100000000 ? `予算 ${(b / 100000000).toFixed(1)}億` : `予算 ${Math.round(b / 10000)}万`
+      })(),
+      badge: 0,
+      color: C.green,
+      shadow: '#0d3d22',
+      urgent: false,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M12 7v1.5M12 15.5V17M9.5 9.5C9.5 8.1 10.6 7 12 7s2.5 1.1 2.5 2.5c0 2.5-2.5 2.5-2.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
         </svg>
       ),
     },

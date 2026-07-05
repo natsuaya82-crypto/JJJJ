@@ -68,7 +68,7 @@ function OfferChatView({
   const [done, setDone] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'instant' }) })
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'instant' }) }, [chatMessages])
   useEffect(() => { onMessagesChange(chatMessages) }, [chatMessages])
 
   const append = (...msgs: OfferChatMsg[]) => setChatMessages(prev => [...prev, ...msgs])

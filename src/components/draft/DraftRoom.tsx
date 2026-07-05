@@ -1,10 +1,11 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from '../../store/gameStore'
-import type { Player, Specialty, Team, GrowthCurve } from '../../types'
+import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import NumberDial from '../ui/NumberDial'
 import { audio } from '../../utils/audio'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -18,6 +19,28 @@ type PickLog = {
 
 const GROWTH_LABEL: Record<GrowthCurve, string> = { early: '早熟', normal: '標準', late_bloomer: '晩成' }
 const GROWTH_COLOR: Record<GrowthCurve, string> = { early: C.orange, normal: C.blue, late_bloomer: C.green }
+
+// ドラフト後の契約設定用
+const DC_CONTRACT_OPTS = [
+  { key: 'standard' as const, label: '本契約' },
+  { key: 'dual' as const, label: '2way契約' },
+  { key: 'development' as const, label: '育成契約' },
+]
+const DC_ROLE_OPTS: { key: TeamRole; label: string }[] = [
+  { key: 'ace', label: 'エース' },
+  { key: 'sub_ace', label: 'サブ' },
+  { key: 'key_player', label: '主力' },
+  { key: 'rotation', label: 'ローテ' },
+  { key: 'development', label: '育成' },
+]
+const DC_SALARY_STEP = 1000000
+const DC_SALARY_MIN = 3000000
+const DC_SALARY_MAX = 60000000
+function dcFmt(yen: number) {
+  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
+  return `${Math.round(yen / 10000)}万`
+}
+type DraftContract = { salary: number; years: number; contractType: 'standard' | 'development' | 'dual'; teamRole: TeamRole | null }
 const PERSONALITY_LABEL: Record<string, string> = { salary: '年俸重視', winning: '勝利志向', loyalty: 'チーム愛' }
 const PERSONALITY_ICON: Record<string, string>  = { salary: '¥', winning: '★', loyalty: '♡' }
 const PERSONALITY_COLOR: Record<string, string> = { salary: C.orange, winning: C.gold, loyalty: C.pink }
@@ -69,7 +92,7 @@ function PickedPlayerSheet({ playerId, players, onClose }: {
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 180 }}/>
       <div style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', zIndex: 190,
         background: C.surface, borderRadius: '20px 20px 0 0',
         border: `1px solid ${C.border2}`, borderBottom: 'none',
@@ -655,7 +678,7 @@ export default function DraftRoom() {
       </div>
 
       <div style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', height: '50px',
         backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
@@ -890,17 +913,44 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
 }) {
   const myPicks    = picks.filter(p => p.teamId === playerTeamId)
   const playerTeam = teams.find(t => t.id === playerTeamId)
-  const { players } = useGameStore()
+  const { players, setDraftContract } = useGameStore()
+
+  const myDrafted = myPicks
+    .map(pk => players.find(pl => pl.id === pk.playerId))
+    .filter((p): p is Player => !!p)
+
+  const [contracts, setContracts] = useState<Record<string, DraftContract>>(() => {
+    const init: Record<string, DraftContract> = {}
+    for (const p of myDrafted) {
+      const o = ovr(p)
+      init[p.id] = {
+        salary: Math.max(DC_SALARY_MIN, Math.min(DC_SALARY_MAX, Math.round(p.contract.annualSalary / DC_SALARY_STEP) * DC_SALARY_STEP)),
+        years: 3,
+        contractType: 'standard',
+        teamRole: o >= 82 ? 'ace' : o >= 75 ? 'key_player' : o >= 68 ? 'rotation' : 'development',
+      }
+    }
+    return init
+  })
+  const upd = (id: string, patch: Partial<DraftContract>) => setContracts(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
+
+  const handleFinish = () => {
+    for (const p of myDrafted) {
+      const c = contracts[p.id]
+      if (c) setDraftContract(p.id, c.salary, c.years, c.contractType, c.teamRole ?? undefined)
+    }
+    onFinish()
+  }
 
   return (
     <div style={{
       minHeight: '100svh', backgroundColor: C.bg,
       maxWidth: '480px', margin: '0 auto',
-      display: 'flex', flexDirection: 'column', padding: '0 0 90px',
+      display: 'flex', flexDirection: 'column', padding: '0 0 130px',
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
     }}>
       <div style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', height: '50px',
         backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
@@ -920,52 +970,75 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
       </div>
 
       <div style={{ padding: '0 16px 24px' }}>
-        <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '12px', padding: '0 2px', fontFamily: SAIRA }}>SELECTED PLAYERS</div>
-        {myPicks.map(pk => {
-          const p        = players.find(pl => pl.id === pk.playerId) as Player | undefined
-          const rating   = p ? ovr(p) : 0
-          const isElite  = rating >= 80
-          const ovrCol   = p ? ratingColor(rating) : C.textDim
-          const growthColor = p ? GROWTH_COLOR[p.growthCurve] : C.textDim
-          const growthLabel = p ? GROWTH_LABEL[p.growthCurve] : ''
+        <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '12px', padding: '0 2px', fontFamily: SAIRA }}>契約を決める（年俸・役割・契約形態・年数）</div>
+        {myDrafted.map(p => {
+          const rating = ovr(p)
+          const ovrCol = ratingColor(rating)
+          const c = contracts[p.id]
+          if (!c) return null
+          const btn = (active: boolean): React.CSSProperties => ({
+            flex: 1, padding: '5px 2px', borderRadius: 6, border: 'none', cursor: 'pointer',
+            backgroundColor: active ? C.blue : C.surface, color: active ? '#fff' : C.textDim,
+            fontSize: 10, fontWeight: active ? 800 : 500, fontFamily: 'inherit',
+          })
           return (
-            <div key={pk.pickNumber} style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              padding: '12px 14px', borderRadius: '14px', marginBottom: '8px',
+            <div key={p.id} style={{
+              padding: '12px 14px', borderRadius: '14px', marginBottom: '10px',
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `2px solid ${C.goldDark ?? '#b8860b'}`,
-              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-              position: 'relative', overflow: 'hidden',
+              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4)`,
+              display: 'flex', flexDirection: 'column', gap: 8,
             }}>
-              <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>
-              {p && <PlayerFaceCard playerId={p.id} nationality={p.nationality} color={ovrCol} size={36}/>}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{pk.playerName}</div>
-                {p && (
-                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '10px', color: C.textDim }}>{SPECIALTY_LABELS[p.specialty]} / {p.age}歳</span>
-                    <span style={{ fontSize: '9px', color: growthColor, fontWeight: '700' }}>{growthLabel}</span>
-                  </div>
-                )}
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  fontSize: '24px', fontWeight: '900', lineHeight: 1, fontFamily: SAIRA,
-                  background: isElite ? 'linear-gradient(180deg, #FFD700, #C9A84C)' : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                }}>
-                  {rating}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <PlayerFaceCard playerId={p.id} nationality={p.nationality} color={ovrCol} size={34}/>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: C.text }}>{p.name}</div>
+                  <div style={{ fontSize: '10px', color: C.textDim }}>{SPECIALTY_LABELS[p.specialty]} / {p.age}歳 · {GROWTH_LABEL[p.growthCurve]}</div>
                 </div>
-                <div style={{ fontSize: '8px', color: C.textDim }}>OVR</div>
+                <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: ovrCol }}>{rating}</div>
+              </div>
+
+              {/* 年俸 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>年俸</span>
+                <div style={{ flex: 1 }}>
+                  <NumberDial value={c.salary} onChange={v => upd(p.id, { salary: Math.max(DC_SALARY_MIN, Math.min(DC_SALARY_MAX, v)) })} min={DC_SALARY_MIN} max={DC_SALARY_MAX} accent={C.gold} />
+                </div>
+              </div>
+              {/* 契約年数 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>年数</span>
+                {[1, 2, 3, 4].map(y => (
+                  <button key={y} onClick={() => upd(p.id, { years: y })} style={btn(c.years === y)}>{y}年</button>
+                ))}
+              </div>
+              {/* 契約形態 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>形態</span>
+                {DC_CONTRACT_OPTS.map(o => (
+                  <button key={o.key} onClick={() => upd(p.id, { contractType: o.key })} style={btn(c.contractType === o.key)}>{o.label}</button>
+                ))}
+              </div>
+              {/* 役割 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>役割</span>
+                {DC_ROLE_OPTS.map(o => (
+                  <button key={o.key} onClick={() => upd(p.id, { teamRole: o.key })} style={btn(c.teamRole === o.key)}>{o.label}</button>
+                ))}
               </div>
             </div>
           )
         })}
       </div>
 
-      <div style={{ padding: '0 16px' }}>
-        <button className="btn-game btn-game--gold" onClick={onFinish} style={{ width: '100%' }}>
-          <span className="btn-game__inner">シーズン開幕へ！</span>
+      <div style={{
+        position: 'fixed', bottom: '50px', left: 0, right: 0, margin: '0 auto',
+        width: '100%', maxWidth: '480px', zIndex: 61,
+        padding: '10px 16px 12px',
+        background: `linear-gradient(180deg, transparent, ${C.bg} 28%)`,
+      }}>
+        <button className="btn-game btn-game--gold" onClick={handleFinish} style={{ width: '100%' }}>
+          <span className="btn-game__inner">契約を確定してシーズン開幕へ！</span>
         </button>
       </div>
     </div>

@@ -93,6 +93,9 @@ function PageWrapper({ children, locationKey }: { children: React.ReactNode; loc
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { teams, playerTeamId, currentSeason, jewels, activeRacePhase } = useGameStore()
+  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
+  // 買い切り版は下部広告なし。確保していた高さ(50px)を詰めてタブ・本文を下まで広げる。
+  const adH = adsRemoved ? 0 : AD_H
   const team = teams.find(t => t.id === playerTeamId)
   const location = useLocation()
   const navigate = useNavigate()
@@ -100,7 +103,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const notifCount = useNotifCount()
   const mainRef = useRef<HTMLElement>(null)
 
-  const raceInProgress = activeRacePhase === 'simulating' && location.pathname === '/race'
+  // レース準備(lineup)〜進行(simulating)中は下ナビを隠して集中させる（ボトムバーとの被り防止）
+  const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup') && (location.pathname === '/race' || location.pathname === '/reserve')
 
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
@@ -241,7 +245,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* ── Content ── */}
-      <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: `calc(${NAV_H + AD_H + 12}px + env(safe-area-inset-bottom))` }}>
+      <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: `calc(${NAV_H + adH + 12}px + env(safe-area-inset-bottom))` }}>
         <PageWrapper locationKey={location.pathname}>
           {children}
         </PageWrapper>
@@ -249,7 +253,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Bottom Nav ── */}
       {raceInProgress ? null : <nav style={{
-        position: 'fixed', bottom: `calc(${AD_H}px + env(safe-area-inset-bottom))`, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
         height: `${NAV_H}px`,
         background: `linear-gradient(180deg, #1a2c47 0%, #0a1729 100%)`,
@@ -308,25 +312,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </nav>}
 
 
-      {/* ── Ad Space ── */}
-      <div style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: '480px',
-        height: `calc(${AD_H}px + env(safe-area-inset-bottom))`,
-        backgroundColor: '#070610',
-        borderTop: `1px solid ${C.border}`,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '7px',
-        zIndex: 60,
-      }}>
+      {/* ── Ad Space（買い切り版では非表示） ── */}
+      {!adsRemoved && (
         <div style={{
-          width: '320px', height: '36px', borderRadius: '4px',
-          border: `1px dashed ${C.border2}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '10px', color: C.border3, letterSpacing: '2px',
+          position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px',
+          height: `calc(${AD_H}px + env(safe-area-inset-bottom))`,
+          backgroundColor: '#070610',
+          borderTop: `1px solid ${C.border}`,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '7px',
+          zIndex: 60,
         }}>
-          ADVERTISEMENT
+          <div style={{
+            width: '320px', height: '36px', borderRadius: '4px',
+            border: `1px dashed ${C.border2}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '10px', color: C.border3, letterSpacing: '2px',
+          }}>
+            ADVERTISEMENT
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

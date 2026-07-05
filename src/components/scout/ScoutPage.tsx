@@ -100,7 +100,7 @@ export default function ScoutPage() {
     }}>
       <div style={{ padding: '8px 16px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px' }}>
-          <BackButton onClick={() => navigate('/transfer')}/>
+          <BackButton/>
           <div style={{ fontSize: '22px', fontWeight: '900', color: C.text }}>スカウト</div>
         </div>
 
@@ -199,7 +199,7 @@ export default function ScoutPage() {
           {devProspects.map(p => {
             const specCol = SPEC_COLOR[p.specialty]
             const canAfford = myBudget >= p.signingFee
-            const canSign = (myTeam?.roster.second.length ?? 0) < 18
+            const canSign = (myTeam?.roster.second.length ?? 0) < 20
             const devScore = p.trueRatings.speed * 0.3 + p.trueRatings.stamina * 0.3 + p.trueRatings.pacing * 0.2 + p.trueRatings.mental * 0.2
             return (
               <div key={p.id} style={{ marginBottom: '8px' }}>

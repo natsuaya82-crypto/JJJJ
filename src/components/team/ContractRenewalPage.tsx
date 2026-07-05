@@ -36,7 +36,7 @@ export default function ContractRenewalPage() {
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <BackButton onClick={() => navigate('/team')}/>
+          <BackButton/>
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.red, letterSpacing: '3px', fontWeight: 900 }}>CONTRACT RENEWAL</div>
             <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>契約更新</div>

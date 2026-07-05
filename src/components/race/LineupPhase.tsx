@@ -14,7 +14,8 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 
-const BOTTOM_OFFSET = 114
+// 下ナビは lineup 中は非表示なので、広告(50px)の上にボトムバーを置く
+const BOTTOM_OFFSET = 50
 
 function autoFill(
   segments: import('../../types').Segment[],
@@ -423,7 +424,7 @@ export function LineupPhase({
 
       {/* ボトムバー */}
       <div style={{
-        position: 'fixed', bottom: BOTTOM_OFFSET, left: '50%', transform: 'translateX(-50%)',
+        position: 'fixed', bottom: BOTTOM_OFFSET, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
         padding: '8px 14px 12px',
         background: `linear-gradient(to top, ${C.bg} 80%, transparent)`,

@@ -3,6 +3,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { computeNextSeasonBudget, rankBudgetGrant } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -39,9 +40,12 @@ export default function BudgetPage() {
   const myTeam = teams.find(t => t.id === playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   const mainPlayers = myPlayers.filter(p => p.rosterTier === 'main')
+  const secondPlayers = myPlayers.filter(p => p.rosterTier === 'second')
 
   const budget = myTeam?.finance.budget ?? 0
   const salaryTotal = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
+  const secondSalaryTotal = secondPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
+  const squadSalaryTotal = salaryTotal + secondSalaryTotal
 
   const myTeamSponsorIds = myTeam?.sponsors ?? []
   const myPersonalSponsorIds = mainPlayers.flatMap(p => p.personalSponsors ?? [])
@@ -68,7 +72,20 @@ export default function BudgetPage() {
   ) * racesLeft
   const estimatedSponsorRemaining = racesLeft > 0 ? Math.round(sponsorAnnual / racesTotal) * racesLeft : 0
 
-  const estimatedNextSalary = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
+  // 来季予算の見込み（現順位を最終順位と仮定・実モデルと同じ計算）
+  const seasonRaceIncomeSoFar = currentSeason.seasonRaceIncome ?? 0
+  const projectedSeasonRaceIncome = seasonRaceIncomeSoFar + estimatedRemainingRacePrize + estimatedRemainingAttendance
+  const projectedNextBudget = computeNextSeasonBudget({
+    finalRank: myRank || teams.length,
+    prevBalance: budget,
+    deficitStreak: myTeam?.finance.deficitStreak ?? 0,
+    sponsorAnnual,
+    seasonRaceIncome: projectedSeasonRaceIncome,
+    objBudgetBonus: 0,
+    bonusPayout: 0,
+    salaryTotal: squadSalaryTotal,
+  })
+  const nextGrant = rankBudgetGrant(myRank || teams.length)
 
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 
@@ -125,30 +142,6 @@ export default function BudgetPage() {
 
       <div style={{ margin: '0 14px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
-          シーズン終了時の支出見込み
-        </div>
-        <div style={{
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark}`,
-          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-          marginBottom: 14,
-        }}>
-          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <Row label="年俸総額（来季支払い）" value={`-${fmt(estimatedNextSalary)}`} color={C.red} sub={`1軍${mainPlayers.length}名分`} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>差引後予算見込み</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: (budget - estimatedNextSalary) >= 0 ? C.green : C.red }}>
-                {fmt(budget - estimatedNextSalary)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ margin: '0 14px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           残り{racesLeft}戦の収入見込み
         </div>
         <div style={{
@@ -190,6 +183,36 @@ export default function BudgetPage() {
               <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>合計見込み</div>
               <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green, textShadow: '0 0 10px rgba(46,204,113,0.4)' }}>
                 {fmt(estimatedRemainingRacePrize + estimatedRemainingAttendance + estimatedSponsorRemaining + (racesLeft > 0 ? estimatedSeasonPrize : 0), true)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ margin: '0 14px 14px' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+          来季予算 見込み（現在{myRank || '—'}位基準）
+        </div>
+        <div style={{
+          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          border: `2px solid ${C.goldDark}`,
+          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
+          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+          marginBottom: 14,
+        }}>
+          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <Row label="順位グラント" value={`+${fmt(nextGrant)}`} color={C.gold} sub={`最終${myRank || '—'}位で確定`} />
+            <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
+            <Row label="賞金・観客収入（今季累計＋残り）" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
+            <Row label="年俸総額（1軍+2軍）" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`1軍${mainPlayers.length}名・2軍${secondPlayers.length}名`} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>来季予算 見込み</div>
+                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>前季残高 {fmt(budget)} を繰り越し（赤字は-1億まで）</div>
+              </div>
+              <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.gold, textShadow: '0 0 10px rgba(245,200,66,0.4)' }}>
+                {fmt(projectedNextBudget)}
               </div>
             </div>
           </div>
@@ -275,11 +298,13 @@ export default function BudgetPage() {
                 </div>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0 4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 2px' }}>
               <div style={{ fontSize: 11, color: C.textDim }}>1軍総年俸</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>
-                {fmt(salaryTotal)}
-              </div>
+              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>{fmt(salaryTotal)}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0 4px' }}>
+              <div style={{ fontSize: 11, color: C.textDim }}>2軍総年俸（{secondPlayers.length}名）</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub }}>{fmt(secondSalaryTotal)}</div>
             </div>
           </div>
         </div>

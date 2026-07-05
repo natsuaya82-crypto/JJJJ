@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { showRewardAd, getAdDay, ADS_PER_DAY } from '../../utils/ads'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -70,27 +71,42 @@ function LinkCard({ label, sub, path, onClick }: { label: string; sub: string; p
 
 export default function JewelsPage() {
   const { jewels, watchAd, lastAdDate, adsWatchedToday } = useGameStore()
-  const [adResult, setAdResult] = useState<number | null>(null)
+  const [adResult, setAdResult] = useState<{ before: number; after: number } | null>(null)
   const [watching, setWatching] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const sameDay = lastAdDate === getAdDay()
   const adsLeft = ADS_PER_DAY - (sameDay ? (adsWatchedToday ?? 0) : 0)
-  const handleWatchAd = async () => {
+  const runWatchAd = async () => {
+    setConfirmOpen(false)
     if (adsLeft <= 0 || watching) return
-    // 「+100J のあと動画を見ますか？」確認
-    if (!window.confirm(`動画を見ると +100J 受け取れます（残り ${adsLeft}/${ADS_PER_DAY} 回）。動画を見ますか？`)) return
     setWatching(true)
     try {
       const ok = await showRewardAd()
       if (!ok) return
+      const before = jewels
       const gained = watchAd()
-      setAdResult(gained)
+      if (gained) setAdResult({ before, after: before + gained })
     } finally {
       setWatching(false)
     }
   }
+  const handleWatchAd = () => {
+    if (adsLeft <= 0 || watching) return
+    setConfirmOpen(true)
+  }
 
   return (
     <div style={{ minHeight: '100%', background: C.bg }}>
+      {confirmOpen && (
+        <ConfirmDialog
+          title="動画を見ますか？"
+          message={`動画を最後まで見ると +100J 受け取れます（残り ${adsLeft}/${ADS_PER_DAY} 回）。`}
+          confirmLabel="動画を見る"
+          accent="#6dd5fa"
+          onConfirm={runWatchAd}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px 12px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
         <BackButton />
         <div style={{ flex: 1 }}>
@@ -115,7 +131,9 @@ export default function JewelsPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: adsLeft > 0 ? '#6dd5fa' : C.textDim }}>広告を見る</div>
             <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / 3 回 · 1日3回まで</div>
             {adResult !== null && (
-              <div style={{ fontFamily: SAIRA, fontSize: 12, color: '#6dd5fa', marginTop: 4, fontWeight: 700 }}>+{adResult}J 受け取り済み</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 12, color: '#6dd5fa', marginTop: 4, fontWeight: 700 }}>
+                {adResult.before.toLocaleString()} → {adResult.after.toLocaleString()} J（+{adResult.after - adResult.before}）
+              </div>
             )}
           </div>
           <button

@@ -6,6 +6,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
+import { useOpponentMenu } from './opponentMenu'
 
 function RecentForm({ raceResults }: { raceResults: { rank: number }[] }) {
   const last5 = raceResults.slice(-5)
@@ -23,6 +24,7 @@ function RecentForm({ raceResults }: { raceResults: { rank: number }[] }) {
 export default function TeamsPage() {
   const { teams, players, playerTeamId, currentSeason, openPlayerSheet, scoutOpponentPlayer } = useGameStore()
   const navigate = useNavigate()
+  const { rowHandlers, overlay } = useOpponentMenu()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'rank' | 'name'>('rank')
   const [showDraftOrder, setShowDraftOrder] = useState(false)
@@ -48,7 +50,7 @@ export default function TeamsPage() {
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
     }}>
       <div style={{ padding: '8px 16px 4px' }}>
-        <BackButton onClick={() => navigate('/teams')}/>
+        <BackButton/>
       </div>
       {/* Header */}
       <div style={{ padding: '12px 16px 8px' }}>
@@ -202,8 +204,8 @@ export default function TeamsPage() {
 
                           {/* Name + age */}
                           <div
-                            onClick={() => scoutLevel >= 1 ? openPlayerSheet(p.id) : undefined}
-                            style={{ flex: 1, cursor: scoutLevel >= 1 ? 'pointer' : 'default' }}
+                            {...(isMyTeam ? { onClick: () => openPlayerSheet(p.id) } : rowHandlers(p.id))}
+                            style={{ flex: 1, cursor: 'pointer' }}
                           >
                             <div style={{ fontSize: '13px', fontWeight: '600', color: scoutLevel >= 1 ? '#F0EDE8' : '#5C5870' }}>
                               {p.name}
@@ -232,27 +234,7 @@ export default function TeamsPage() {
                                 </div>
                               ))}
                             </div>
-                          ) : (
-                            /* Scout button - level 0 */
-                            !isMyTeam && (
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  if (scoutPoints < 1) return
-                                  scoutOpponentPlayer(p.id, 1)
-                                }}
-                                style={{
-                                  padding: '4px 10px', borderRadius: '8px', cursor: scoutPoints >= 1 ? 'pointer' : 'not-allowed',
-                                  backgroundColor: scoutPoints >= 1 ? '#7986CB18' : '#1A1828',
-                                  border: `1px solid ${scoutPoints >= 1 ? '#7986CB40' : '#252236'}`,
-                                  color: scoutPoints >= 1 ? '#7986CB' : '#3A3758',
-                                  fontSize: '9px', fontWeight: '700', fontFamily: 'inherit', flexShrink: 0,
-                                }}
-                              >
-                                視察 -1PT
-                              </button>
-                            )
-                          )}
+                          ) : null}
 
                           {/* OVR (always visible) */}
                           <div style={{
@@ -291,6 +273,7 @@ export default function TeamsPage() {
           )
         })}
       </div>
+      {overlay}
     </div>
   )
 }

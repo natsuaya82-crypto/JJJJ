@@ -223,7 +223,7 @@ export default function WorldEkidenPage() {
       <div style={{ padding: '12px 16px 0' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <BackButton onClick={() => navigate('/')} />
+          <BackButton />
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900 }}>INTERNATIONAL</div>
             <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>世界駅伝選手権</div>

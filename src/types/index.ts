@@ -69,6 +69,42 @@ export type IncomingOffer = {
   offeredPrice: number
   expiresAtRace: number
   round: number
+  fromForeign?: boolean   // 海外クラブからのオファー
+}
+
+// トレードのチャット交渉。提案→相手が承諾/カウンター/拒否→往復（最大3回）。
+export type TradeNegotiation = {
+  id: string
+  targetTeamId: string
+  giveIds: string[]        // 自チームが出す選手
+  givePickKeys: string[]   // 自チームが出す指名権
+  getIds: string[]         // 相手から獲得する選手
+  getPickKeys: string[]    // 相手から獲得する指名権
+  round: number
+  status: 'countered' | 'accepted' | 'rejected'
+  message: string          // 相手GMのメッセージ
+  demandAddIds?: string[]      // カウンター：追加で出してほしい自チーム選手
+  demandAddPickKeys?: string[] // カウンター：追加で出してほしい指名権
+}
+
+// 自チームから出すレンタル要請（移籍市場から）。相手が次レースで応答。
+export type LoanRequest = {
+  id: string
+  playerId: string
+  targetTeamId: string
+  years: number
+  submittedAtRace: number
+}
+
+// 相手チームから来るレンタル打診（チャットで対応）
+export type IncomingLoanOffer = {
+  id: string
+  fromTeamId: string
+  playerId: string
+  direction: 'lend_out' | 'borrow_in'   // lend_out=自チームの若手を貸してほしい / borrow_in=相手の選手を借りませんか
+  years: number
+  expiresAtRace: number
+  fromForeign?: boolean
 }
 
 export type TransferBidStatus = 'pending' | 'fee_accepted' | 'countered' | 'rejected' | 'player_neg' | 'complete' | 'failed'
@@ -102,6 +138,22 @@ export type ContractRequest = {
   counterYears?: number
   offerContractType?: 'standard' | 'development' | 'dual'
   offerTeamRole?: TeamRole
+}
+
+// 他チーム選手（視察）・FA選手への獲得オファー交渉。チャットで交渉する。
+export type AcquisitionOffer = {
+  id: string
+  playerId: string
+  source: 'fa' | 'scout'   // fa=フリー選手, scout=他チーム選手の引き抜き
+  round: number
+  status: 'pending' | 'countered' | 'accepted' | 'rejected'
+  offerSalary: number
+  offerYears: number
+  offerContractType: 'standard' | 'development' | 'dual'
+  counterSalary?: number
+  counterYears?: number
+  offerTeamRole?: TeamRole
+  rejectReason?: 'team_refused' | 'low_offer' | 'demotion'   // team_refused=主力で放出拒否, low_offer=条件不足, demotion=2軍契約を拒否
 }
 
 export type TraitId =
@@ -167,6 +219,11 @@ export type Player = {
   origin: string
   jerseyNumber: number
   acquiredRaceIndex?: number  // 移籍/トレードで加入したレース番号。加入後2戦は出走不可の判定に使う
+  joinedYear?: number         // このチームに加入したシーズン年。当該シーズン中は「NEW」表示
+  renewalLockedUntilYear?: number  // 更新交渉を最終拒否 → この年まで自チームは更新オファー不可
+  transferListed?: boolean    // 「移籍を認める」で移籍リスト入り（他チームのオファー対象・シーズン内に決まらなければFA）
+  // レンタル移籍：ownerTeamId が保有元、teamId は現在プレー中（借り手）。untilYear シーズン終了で自動返却。
+  loan?: { ownerTeamId: string; untilYear: number }
   status: PlayerStatus
   fatigue: number
   morale: number
@@ -359,6 +416,7 @@ export type Team = {
   finance: {
     salaryTotal: number
     budget: number
+    deficitStreak?: number  // 連続赤字シーズン数（0=黒字）。赤字ペナルティの段階判定に使う
   }
   draftPicks: {
     year: number
@@ -476,9 +534,13 @@ export type Season = {
   secondTeamStandings?: { teamId: string; totalPoints: number; raceResults: { raceId: string; rank: number; points: number }[] }[]
   transferListings?: TransferListing[]
   incomingOffers?: IncomingOffer[]
+  incomingLoanOffers?: IncomingLoanOffer[]
+  loanRequests?: LoanRequest[]
+  tradeNegotiations?: TradeNegotiation[]
   transferBids?: TransferBid[]
   reserveLeagueJoined?: boolean
   contractRequests?: ContractRequest[]
+  acquisitionOffers?: AcquisitionOffer[]
   retirementRequests?: { playerId: string; age: number }[]
   transferRequests?: { playerId: string; reason: 'playing_time' | 'team_performance' }[]
   pendingRenewalDecisions?: string[]
@@ -567,6 +629,7 @@ export type GameState = {
   lastAdDate?: string
   adsWatchedToday?: number
   segmentRecords?: Record<string, SegmentRecord[]>
+  adsRemoved?: boolean   // 買い切り版（広告なし・ログインボーナス常時2倍）を購入済みか
 }
 
 export const SPECIALTY_LABELS: Record<Specialty, string> = {

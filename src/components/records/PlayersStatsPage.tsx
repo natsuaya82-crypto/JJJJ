@@ -47,7 +47,7 @@ export default function PlayersStatsPage() {
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '8px 16px 4px' }}>
-        <BackButton onClick={() => navigate('/records')} />
+        <BackButton />
       </div>
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.blue, letterSpacing: '3px', fontWeight: '900', marginBottom: '2px' }}>RECORDS</div>

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useGameStore } from '../../store/gameStore'
+import { runWithLoading } from '../../store/loadingStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
@@ -60,7 +61,7 @@ function preseasonCardDist(rank: number) {
 
 function PreseasonHub({
   year, isFirstSeason, campBonus, reserveLeagueJoined, draftState,
-  rosterSubmitted, mainCount, secondCount, lastRank,
+  rosterSubmitted, mainCount, secondCount, lastRank, objectivesCount,
   onClaimCards, onReserve, onDraft, onStart, navigate,
 }: {
   year: number
@@ -72,6 +73,7 @@ function PreseasonHub({
   mainCount: number
   secondCount: number
   lastRank: number
+  objectivesCount: number
   onClaimCards: () => void
   onReserve: (v: boolean) => void
   onDraft: () => void
@@ -160,10 +162,60 @@ function PreseasonHub({
           </button>
         </div>
 
-        {/* ③ シーズン前カード */}
+        {/* ③ リザーブリーグ — 2年目以降のみ */}
+        {!isFirstSeason && (
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: reserveDone ? 0 : 10 }}>
+              <StepBadge n={3} done={reserveDone} color={reserveDone ? C.green : C.cyan}/>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: reserveDone ? C.textDim : C.text }}>
+                  {reserveDone ? `リザーブリーグ — ${reserveLeagueJoined ? '参加' : '不参加'}` : 'リザーブリーグ参加'}
+                </div>
+                {!reserveDone && <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>若手の実戦経験（疲労増加あり）</div>}
+              </div>
+            </div>
+            {!reserveDone && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => onReserve(true)} className="btn-press" style={{
+                  flex: 1, padding: '11px 4px', borderRadius: 11, cursor: 'pointer',
+                  fontFamily: SAIRA, fontSize: 12, fontWeight: 900,
+                  background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+                  border: `2px solid ${C.cyan}`, color: C.cyan,
+                  boxShadow: `0 4px 0 #0e3f5a, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)`,
+                }}>参加する</button>
+                <button onClick={() => onReserve(false)} className="btn-press" style={{
+                  flex: 1, padding: '11px 4px', borderRadius: 11, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+                  background: C.surface, border: `1px solid ${C.border2}`, color: C.textDim,
+                  boxShadow: `0 2px 0 rgba(0,0,0,0.4)`,
+                }}>見送る</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ④ シーズン目標の確認 */}
+        <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
+          <StepBadge n={isFirstSeason ? 2 : 4} done color={C.green}/>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>今シーズンの目標</div>
+            <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
+              {objectivesCount > 0 ? `${objectivesCount}件の目標を確認（達成で報酬）` : '目標を確認する'}
+            </div>
+          </div>
+          <button onClick={() => navigate('/objectives')} className="btn-press" style={{
+            padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0,
+            fontSize: 12, fontWeight: 900,
+            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+            border: `2px solid ${C.blue}`, color: C.blue,
+            boxShadow: `0 3px 0 #2a3580, inset 0 1px 0 rgba(255,255,255,0.08)`,
+          }}>確認 →</button>
+        </div>
+
+        {/* ⑤ シーズン前カード */}
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: campDone ? 0 : 10 }}>
-            <StepBadge n={isFirstSeason ? 2 : 3} done={campDone} color={campDone ? C.green : C.cyan}/>
+            <StepBadge n={isFirstSeason ? 3 : 5} done={campDone} color={campDone ? C.green : C.cyan}/>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: campDone ? C.textDim : C.text }}>
                 {campDone ? 'カード受取完了' : 'シーズン前カード'}
@@ -200,38 +252,6 @@ function PreseasonHub({
             </div>
           )}
         </div>
-
-        {/* ④ リザーブリーグ — 2年目以降のみ */}
-        {!isFirstSeason && (
-          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: reserveDone ? 0 : 10 }}>
-              <StepBadge n={4} done={reserveDone} color={reserveDone ? C.green : C.cyan}/>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: reserveDone ? C.textDim : C.text }}>
-                  {reserveDone ? `リザーブリーグ — ${reserveLeagueJoined ? '参加' : '不参加'}` : 'リザーブリーグ参加'}
-                </div>
-                {!reserveDone && <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>若手の実戦経験（疲労増加あり）</div>}
-              </div>
-            </div>
-            {!reserveDone && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => onReserve(true)} className="btn-press" style={{
-                  flex: 1, padding: '11px 4px', borderRadius: 11, cursor: 'pointer',
-                  fontFamily: SAIRA, fontSize: 12, fontWeight: 900,
-                  background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                  border: `2px solid ${C.cyan}`, color: C.cyan,
-                  boxShadow: `0 4px 0 #0e3f5a, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)`,
-                }}>参加する</button>
-                <button onClick={() => onReserve(false)} className="btn-press" style={{
-                  flex: 1, padding: '11px 4px', borderRadius: 11, cursor: 'pointer',
-                  fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
-                  background: C.surface, border: `1px solid ${C.border2}`, color: C.textDim,
-                  boxShadow: `0 2px 0 rgba(0,0,0,0.4)`,
-                }}>見送る</button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* 開幕ボタン */}
         <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1,
@@ -360,8 +380,8 @@ export default function Dashboard() {
             label: 'シーズン目標', path: '/objectives', color: C.blue, shadow: '#2a3580',
           },
           {
-            icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7v1.5M12 15.5V17M9.5 9.5C9.5 8.1 10.6 7 12 7s2.5 1.1 2.5 2.5c0 2.5-2.5 2.5-2.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-            label: '財務・予算', path: '/budget', color: C.green, shadow: '#0d3d22',
+            icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+            label: 'チャット', path: '/team/chat', color: C.green, shadow: '#0d3d22',
           },
         ] as const).map(({ icon, label, path, color, shadow }) => (
           <button
@@ -398,6 +418,7 @@ export default function Dashboard() {
           mainCount={mainPlayers.length}
           secondCount={players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'second').length}
           lastRank={lastRank}
+          objectivesCount={currentSeason.objectives.length}
           onClaimCards={claimPreseasonCards}
           onReserve={setReserveLeagueJoined}
           onDraft={beginSeasonDraft}
@@ -467,7 +488,7 @@ export default function Dashboard() {
               )}
               <button
                 className="btn-game btn-game--gold"
-                onClick={endSeason}
+                onClick={() => runWithLoading('シーズンを更新中…', endSeason, 800)}
                 style={{ width: '100%' }}
               >
                 <span className="btn-game__inner">{currentSeason.year + 1}シーズン開幕へ →</span>

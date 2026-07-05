@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import type { Player, RosterTier } from '../../types'
+import type { Player, RosterTier, Team } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, formColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import NewBadge from '../ui/NewBadge'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -73,7 +74,7 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
 }
 
 
-const TIER_MAX: Record<RosterTier, number> = { main: 20, second: 18 }
+const TIER_MAX: Record<RosterTier, number> = { main: 23, second: 20 }
 
 function StatNum({ label, value }: { label: string; value: number }) {
   const col = ratingColor(value)
@@ -85,7 +86,7 @@ function StatNum({ label, value }: { label: string; value: number }) {
   )
 }
 
-function PlayerRow({ player, onDetail }: { player: Player; onDetail: (id: string) => void }) {
+function PlayerRow({ player, onDetail, loanOwner }: { player: Player; onDetail: (id: string) => void; loanOwner?: Team }) {
   const rating = ovr(player)
   const specColor = SPEC_COLOR[player.specialty]
   const fatigue = player.fatigue ?? 0
@@ -125,6 +126,7 @@ function PlayerRow({ player, onDetail }: { player: Player; onDetail: (id: string
               {player.status === 'injured' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.09), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>負傷</span>}
               {player.dualRegistered && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.25)}`, color: C.green, fontWeight: 700, flexShrink: 0 }}>両方</span>}
               {ctType === 'development' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.cyan, 0.08), border: `1px solid ${alpha(C.cyan, 0.25)}`, color: C.cyan, fontWeight: 700, flexShrink: 0 }}>育成</span>}
+              {loanOwner && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px 1px 3px', borderRadius: 3, backgroundColor: alpha('#AB8ED6', 0.14), border: `1px solid ${alpha('#AB8ED6', 0.45)}`, color: '#C4AEE8', fontWeight: 700, flexShrink: 0 }}><TeamLogoSVG primary={loanOwner.colors.primary} secondary={loanOwner.colors.secondary} shortName={loanOwner.shortName} teamId={loanOwner.id} size={11} />レンタル</span>}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(specColor, 0.08), border: `1px solid ${alpha(specColor, 0.25)}`, color: specColor, fontWeight: 700, flexShrink: 0 }}>
@@ -167,7 +169,7 @@ export default function TeamManagement() {
   const { teams, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
-  const [activeTab, setActiveTab] = useState<RosterTier>('main')
+  const [activeTab, setActiveTab] = useState<RosterTier | 'loan'>('main')
   const [sortKey, setSortKey] = useState<SortKey>('ovr')
   const [searchQuery, setSearchQuery] = useState('')
   const [specFilter, setSpecFilter] = useState<string>('all')
@@ -175,8 +177,10 @@ export default function TeamManagement() {
   const team = teams.find(t => t.id === playerTeamId)
   if (!team) return null
 
-  const activeTier: RosterTier = activeTab
-  const rawPlayers = getTeamPlayers(playerTeamId, activeTier)
+  const activeTier: RosterTier = activeTab === 'loan' ? 'main' : activeTab
+  // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
+  const loanedIn = allPlayers.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId && p.status !== 'retired')
+  const rawPlayers = activeTab === 'loan' ? loanedIn : getTeamPlayers(playerTeamId, activeTier)
   const players = [...rawPlayers]
     .filter(p => searchQuery === '' || p.name.includes(searchQuery) || p.nameKana.includes(searchQuery))
     .filter(p => specFilter === 'all' || p.specialty === specFilter)
@@ -190,7 +194,7 @@ export default function TeamManagement() {
   return (
     <div style={{ paddingTop: '4px', fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif" }}>
       <div style={{ padding: '8px 16px 4px' }}>
-        <BackButton onClick={() => navigate('/team')}/>
+        <BackButton/>
       </div>
 
       <div style={{
@@ -325,7 +329,10 @@ export default function TeamManagement() {
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${alpha(fatColor, 0.18)}` }}>
                       <div style={{ width: '4px', height: '32px', borderRadius: '2px', background: `linear-gradient(180deg, ${fatColor}, ${alpha(fatColor, 0.6)})`, flexShrink: 0 }}/>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                          <NewBadge joinedYear={p.joinedYear} currentYear={currentSeason.year} size={7} />
+                        </div>
                         <div style={{ height: '4px', borderRadius: '2px', backgroundColor: C.border, marginTop: '4px', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${fat}%`, backgroundColor: fatColor, borderRadius: '2px' }}/>
                         </div>
@@ -348,7 +355,10 @@ export default function TeamManagement() {
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${C.border}` }}>
                       <div style={{ width: '3px', alignSelf: 'stretch', borderRadius: '2px', backgroundColor: specCol, flexShrink: 0 }}/>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                          <NewBadge joinedYear={p.joinedYear} currentYear={currentSeason.year} size={7} />
+                        </div>
                         <div style={{ fontSize: '9px', color: C.textDim }}>{p.age}歳 · OVR {ovr(p)}</div>
                       </div>
                       <select
@@ -379,7 +389,8 @@ export default function TeamManagement() {
         {([
           { key: 'main' as const, label: '1軍', count: team.roster.main.length, max: TIER_MAX.main },
           { key: 'second' as const, label: 'リザーブ', count: team.roster.second.length, max: TIER_MAX.second },
-        ] as { key: RosterTier; label: string; count: number; max?: number }[]).map(tab => {
+          ...(loanedIn.length > 0 ? [{ key: 'loan' as const, label: 'レンタル', count: loanedIn.length }] : []),
+        ] as { key: RosterTier | 'loan'; label: string; count: number; max?: number }[]).map(tab => {
           const active = activeTab === tab.key
           const alertColor = C.gold
           const isAlert = false
@@ -445,7 +456,7 @@ export default function TeamManagement() {
           {players.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: '14px' }}>登録選手なし</div>
           ) : (
-            players.map(p => <PlayerRow key={p.id} player={p} onDetail={openPlayerSheet}/>)
+            players.map(p => <PlayerRow key={p.id} player={p} onDetail={openPlayerSheet} loanOwner={p.loan ? teams.find(t => t.id === p.loan!.ownerTeamId) : undefined}/>)
           )}
         </div>
       </>}

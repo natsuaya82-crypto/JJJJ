@@ -1,27 +1,29 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { C, alpha } from '../../styles/tokens'
 import { audio } from '../../utils/audio'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function TitleScreen({ onStart }: { onStart: () => void }) {
-  const [pressing, setPressing] = useState(false)
-
   // unlock済み（ゲームから戻った場合）なら開いた瞬間にBGMを再開
   useEffect(() => {
     audio.playBgm('home')
   }, [])
 
+  const start = () => { audio.unlock(); audio.playBgm('home'); audio.playSe('title'); onStart() }
+
   return (
-    <div style={{
-      height: '100svh', maxWidth: '480px', margin: '0 auto',
-      background: `radial-gradient(ellipse at 30% 35%, #0b2550 0%, #040c1a 70%)`,
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      position: 'relative', overflow: 'hidden',
-      fontFamily: "'Noto Sans JP', system-ui, sans-serif",
-      userSelect: 'none',
-    }}>
+    <div
+      onClick={start}
+      style={{
+        height: '100svh', maxWidth: '480px', margin: '0 auto',
+        background: `radial-gradient(ellipse at 30% 35%, #0b2550 0%, #040c1a 70%)`,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        position: 'relative', overflow: 'hidden', cursor: 'pointer',
+        fontFamily: "'Noto Sans JP', system-ui, sans-serif",
+        userSelect: 'none',
+      }}>
       <style>{`
         @keyframes em-glow   { 0%,100%{opacity:.6} 50%{opacity:1} }
         @keyframes em-fadeup { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
@@ -115,30 +117,19 @@ export default function TitleScreen({ onStart }: { onStart: () => void }) {
         {/* Tagline */}
         <div style={{
           fontSize: '11px', color: C.textDim, letterSpacing: '2px',
-          marginBottom: '52px', lineHeight: 1.8,
+          marginBottom: '44px', lineHeight: 1.8,
         }}>
           プロ駅伝リーグの総監督になれ
         </div>
 
-        {/* START button */}
-        <button
-          className="btn-game btn-game--gold"
-          onPointerDown={() => { setPressing(true); audio.unlock(); audio.playBgm('home') }}
-          onPointerUp={() => { setPressing(false); onStart() }}
-          onPointerLeave={() => setPressing(false)}
-          style={{
-            width: '220px',
-            transform: pressing ? 'scale(0.97)' : 'scale(1)',
-            transition: 'transform 0.08s ease',
-          }}
-        >
-          <span className="btn-game__inner" style={{
-            fontSize: '16px', letterSpacing: '6px',
-            fontFamily: SAIRA, fontWeight: '900',
-          }}>
-            START
-          </span>
-        </button>
+        {/* TAP TO START */}
+        <div style={{
+          fontSize: '13px', letterSpacing: '5px', color: alpha(C.gold, 0.85),
+          fontFamily: SAIRA, fontWeight: '900',
+          animation: 'em-glow 1.8s ease infinite',
+        }}>
+          TAP TO START
+        </div>
       </div>
 
       {/* Bottom */}
@@ -147,7 +138,7 @@ export default function TitleScreen({ onStart }: { onStart: () => void }) {
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
       }}>
         <div style={{ fontSize: '8px', color: C.textGhost, letterSpacing: '3px', fontFamily: SAIRA }}>
-          EKIDEN MANAGER — BETA
+          EKIDEN MANAGER
         </div>
       </div>
     </div>

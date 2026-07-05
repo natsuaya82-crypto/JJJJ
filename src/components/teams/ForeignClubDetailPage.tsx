@@ -5,6 +5,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
+import { useOpponentMenu } from './opponentMenu'
 
 function fmt(yen: number) {
   if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
@@ -18,6 +19,7 @@ export default function ForeignClubDetailPage() {
   const players = useGameStore(s => s.players)
   const currentSeason = useGameStore(s => s.currentSeason)
   const scoutOpponentPlayer = useGameStore(s => s.scoutOpponentPlayer)
+  const { rowHandlers, overlay } = useOpponentMenu()
 
   const league = foreignLeagues.find(l => l.id === leagueId)
   const club = league?.clubs.find(c => c.id === clubId)
@@ -38,7 +40,7 @@ export default function ForeignClubDetailPage() {
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
       <div style={{ padding: '10px 16px 4px' }}>
-        <BackButton onClick={() => navigate(`/teams/foreign/${leagueId}`)}/>
+        <BackButton/>
       </div>
 
       <div style={{
@@ -83,7 +85,7 @@ export default function ForeignClubDetailPage() {
               padding: '10px 12px',
               cursor: 'pointer',
             }}
-              onClick={() => navigate('/player/' + p.id)}
+              {...rowHandlers(p.id)}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <PlayerFace playerId={p.id} nationality={p.nationality} size={40} />
@@ -110,31 +112,11 @@ export default function ForeignClubDetailPage() {
                 </div>
               </div>
 
-              {!isScouted && (
-                <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation()
-                      if (scoutPoints < 1) return
-                      scoutOpponentPlayer(p.id, 1)
-                    }}
-                    style={{
-                      padding: '4px 12px', borderRadius: '8px',
-                      cursor: scoutPoints >= 1 ? 'pointer' : 'not-allowed',
-                      backgroundColor: scoutPoints >= 1 ? '#7986CB18' : '#1A1828',
-                      border: `1px solid ${scoutPoints >= 1 ? '#7986CB40' : '#252236'}`,
-                      color: scoutPoints >= 1 ? '#7986CB' : '#3A3378',
-                      fontSize: '9px', fontWeight: '700', fontFamily: 'inherit',
-                    }}
-                  >
-                    視察 -1PT
-                  </button>
-                </div>
-              )}
             </div>
           )
         })}
       </div>
+      {overlay}
     </div>
   )
 }

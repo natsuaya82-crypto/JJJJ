@@ -1,16 +1,20 @@
-import { useState, useMemo } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
+import type { Player } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 
 const MIN_MAIN = 16
-const MAX_MAIN = 20
+const MAX_MAIN = 23  // 1軍登録上限（本契約18＋2way5）
+const MAX_SECOND = 20  // リザーブ登録上限（育成15＋2way5）
 const FOOTER_BOTTOM = 114
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+
+type Tier = 'main' | 'second'
 
 export default function RosterSelectPage() {
   const navigate = useNavigate()
@@ -24,206 +28,281 @@ export default function RosterSelectPage() {
     [players, playerTeamId]
   )
 
-  const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(eligible.filter(p => p.rosterTier === 'main').map(p => p.id))
-  )
-  const [jerseyMap, setJerseyMap] = useState<Record<string, number>>(
+  const [assign, setAssign] = useState<Record<string, Tier>>({})
+  const [checked, setChecked] = useState<Set<string>>(new Set())  // まとめて選択中
+  const [sortKey, setSortKey] = useState<'ovr_desc' | 'ovr_asc' | 'age_asc' | 'age_desc' | 'name'>('ovr_desc')
+  const [filterKey, setFilterKey] = useState<'all' | 'main' | 'second' | 'undecided'>('all')
+  const [jerseyMap] = useState<Record<string, number>>(
     () => Object.fromEntries(eligible.map(p => [p.id, p.jerseyNumber]))
   )
 
-  const selectedCount = selected.size
-  const secondCount = eligible.length - selectedCount
-  const canSubmit = rosterWindow.open && selectedCount >= MIN_MAIN && selectedCount <= MAX_MAIN && secondCount <= 18
+  const displayed = useMemo(() => {
+    let list = eligible.slice()
+    if (filterKey === 'main') list = list.filter(p => assign[p.id] === 'main')
+    else if (filterKey === 'second') list = list.filter(p => assign[p.id] === 'second')
+    else if (filterKey === 'undecided') list = list.filter(p => !assign[p.id])
+    list.sort((a, b) =>
+      sortKey === 'ovr_asc' ? ovr(a) - ovr(b)
+      : sortKey === 'age_asc' ? a.age - b.age
+      : sortKey === 'age_desc' ? b.age - a.age
+      : sortKey === 'name' ? a.name.localeCompare(b.name)
+      : ovr(b) - ovr(a))
+    return list
+  }, [eligible, filterKey, sortKey, assign])
 
-  function togglePlayer(id: string) {
-    setSelected(prev => {
+  const mainCount = eligible.filter(p => assign[p.id] === 'main').length
+  const reserveCount = eligible.filter(p => assign[p.id] === 'second').length
+  const undecided = eligible.length - mainCount - reserveCount
+  const canSubmit = rosterWindow.open && undecided === 0 && mainCount >= MIN_MAIN && mainCount <= MAX_MAIN && reserveCount <= MAX_SECOND
+
+  function toggleCheck(id: string) {
+    setChecked(prev => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        if (next.size <= MIN_MAIN) return prev
-        next.delete(id)
-      } else {
-        if (next.size >= MAX_MAIN) return prev
-        next.add(id)
-      }
+      next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
   }
+  // 選択中の選手をまとめて配置
+  function applyTier(tier: Tier) {
+    setAssign(prev => {
+      const next = { ...prev }
+      checked.forEach(id => { next[id] = tier })
+      return next
+    })
+    setChecked(new Set())
+  }
+  function clearCheck() { setChecked(new Set()) }
+  // おまかせ配置：去年1軍優先＋OVR上位で1軍を埋め、残りは2軍
+  function autofill() {
+    const order = [
+      ...eligible.filter(p => p.rosterTier === 'main').map(p => p.id),
+      ...eligible.filter(p => p.rosterTier !== 'main').map(p => p.id),
+    ]
+    const mainIds = new Set(order.slice(0, MAX_MAIN))
+    const next: Record<string, Tier> = {}
+    for (const p of eligible) next[p.id] = mainIds.has(p.id) ? 'main' : 'second'
+    setAssign(next)
+    setChecked(new Set())
+  }
+  function clearAll() { setAssign({}); setChecked(new Set()) }
 
   function handleSubmit() {
     if (!canSubmit) return
-    submitRoster(Array.from(selected), jerseyMap)
+    submitRoster(eligible.filter(p => assign[p.id] === 'main').map(p => p.id), jerseyMap)
     navigate('/')
   }
 
-  const countColor = selectedCount >= MIN_MAIN && selectedCount <= MAX_MAIN ? C.green : C.red
+  const statusOf = (id: string): { label: string; color: string } => {
+    const t = assign[id]
+    if (t === 'main') return { label: '1軍', color: C.gold }
+    if (t === 'second') return { label: '2軍', color: C.blue }
+    return { label: '未定', color: C.textGhost }
+  }
+
+  const hasCheck = checked.size > 0
 
   return (
     <div style={{
       fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif",
-      paddingBottom: `${FOOTER_BOTTOM + 80}px`,
+      paddingBottom: `${FOOTER_BOTTOM + (hasCheck ? 150 : 80)}px`,
       background: C.bg, minHeight: '100%',
     }}>
       <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BackButton onClick={() => navigate('/')}/>
+        <BackButton/>
         <div>
           <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 700 }}>
             {currentSeason.year} PRE-SEASON
           </div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>スカッド編成・提出</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>スカッド編成</div>
         </div>
       </div>
 
-      <div style={{ padding: '4px 16px 12px' }}>
-        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
-          1軍 {MIN_MAIN}〜{MAX_MAIN}名を選出して提出してください。
-        </div>
+      {/* 人数サマリー */}
+      <div style={{ padding: '0 12px 8px', display: 'flex', gap: 8 }}>
+        {[
+          { label: '1軍', count: mainCount, max: MAX_MAIN, color: mainCount >= MIN_MAIN && mainCount <= MAX_MAIN ? C.gold : C.red },
+          { label: '2軍', count: reserveCount, max: MAX_SECOND, color: reserveCount > MAX_SECOND ? C.red : C.blue },
+        ].map(s => (
+          <div key={s.label} style={{
+            flex: 1, textAlign: 'center', padding: '9px 4px', borderRadius: 12,
+            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+            border: `1px solid ${C.border2}`,
+          }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: '0.1em', marginBottom: 2 }}>{s.label}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: s.color, lineHeight: 1 }}>
+              {s.count}{s.max != null && <span style={{ fontSize: 11, color: C.textDim }}>/{s.max}</span>}
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div style={{ padding: '0 12px 12px' }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1px 1fr',
-          background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-          border: `2px solid ${C.goldDark}`,
-          borderRadius: 14,
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)`,
-          padding: '12px 4px',
-          position: 'relative',
+      {/* おまかせ / クリア */}
+      <div style={{ padding: '0 12px 10px', display: 'flex', gap: 8 }}>
+        <button onClick={autofill} style={{
+          flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+          background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.06)})`,
+          border: `1.5px solid ${alpha(C.gold, 0.5)}`, color: C.gold, fontSize: 12, fontWeight: 800,
+        }}>おまかせ配置</button>
+        <button onClick={clearAll} disabled={mainCount === 0 && reserveCount === 0} style={{
+          padding: '10px 18px', borderRadius: 10, fontFamily: 'inherit',
+          cursor: mainCount === 0 && reserveCount === 0 ? 'not-allowed' : 'pointer',
+          background: C.surface2, border: `1px solid ${C.border}`, color: C.textDim, fontSize: 12, fontWeight: 700,
+          opacity: mainCount === 0 && reserveCount === 0 ? 0.5 : 1,
+        }}>クリア</button>
+      </div>
+
+      {/* 絞り込み / 並び替え（プルダウン） */}
+      <div style={{ padding: '0 12px 12px', display: 'flex', gap: 8 }}>
+        <select value={filterKey} onChange={e => setFilterKey(e.target.value as typeof filterKey)} style={{
+          flex: 1, padding: '9px 10px', borderRadius: 10, fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+          background: C.surface2, border: `1px solid ${C.border2}`, color: C.textSub, cursor: 'pointer',
         }}>
-          <div style={{ position: 'absolute', inset: 3, border: `1px solid rgba(245,200,66,0.2)`, borderRadius: 10, pointerEvents: 'none' }}/>
-          <div style={{ textAlign: 'center', padding: '4px 0', position: 'relative', zIndex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: '0.12em', marginBottom: 2 }}>1軍</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 28, fontWeight: 900, color: countColor, lineHeight: 1, textShadow: `0 0 10px ${alpha(countColor, 0.5)}` }}>
-              {selectedCount}
-              <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, marginLeft: 2 }}>/{MAX_MAIN}</span>
-            </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: selectedCount < MIN_MAIN ? C.red : C.green, marginTop: 3 }}>
-              {selectedCount < MIN_MAIN ? `あと${MIN_MAIN - selectedCount}名` : '選出OK'}
-            </div>
-          </div>
-          <div style={{ width: 1, background: `linear-gradient(180deg, transparent, ${C.goldDark}, transparent)`, alignSelf: 'stretch', margin: '6px 0' }}/>
-          <div style={{ textAlign: 'center', padding: '4px 0', position: 'relative', zIndex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: '0.12em', marginBottom: 2 }}>リザーブ</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 28, fontWeight: 900, color: secondCount > 18 ? C.red : C.textSub, lineHeight: 1 }}>
-              {secondCount}
-              <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, marginLeft: 2 }}>/18</span>
-            </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: secondCount > 18 ? C.red : C.textDim, marginTop: 3 }}>
-              {secondCount > 18 ? '上限超過' : '問題なし'}
-            </div>
-          </div>
-        </div>
+          <option value="all">絞り込み: 全員</option>
+          <option value="main">1軍のみ</option>
+          <option value="second">2軍のみ</option>
+          <option value="undecided">未定のみ</option>
+        </select>
+        <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)} style={{
+          flex: 1, padding: '9px 10px', borderRadius: 10, fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+          background: C.surface2, border: `1px solid ${C.border2}`, color: C.textSub, cursor: 'pointer',
+        }}>
+          <option value="ovr_desc">OVR 高い順</option>
+          <option value="ovr_asc">OVR 低い順</option>
+          <option value="age_asc">年齢 若い順</option>
+          <option value="age_desc">年齢 高い順</option>
+          <option value="name">名前順</option>
+        </select>
       </div>
 
+      {/* 選手一覧 */}
       <div style={{ padding: '0 12px' }}>
         {eligible.length === 0 && (
-          <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: C.textDim }}>
-            選手がいません
-          </div>
+          <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: C.textDim }}>選手がいません</div>
         )}
-        {eligible.map(p => {
-          const isSelected = selected.has(p.id)
-          const rating = ovr(p)
-          const specCol = SPEC_COLOR[p.specialty]
-          const atMax = selected.size >= MAX_MAIN && !isSelected
-
-          return (
-            <div
-              key={p.id}
-              onClick={() => togglePlayer(p.id)}
-              style={{
-                marginBottom: 6, borderRadius: 14, overflow: 'hidden',
-                background: isSelected
-                  ? `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`
-                  : `linear-gradient(180deg, ${C.surface} 0%, ${C.bg} 100%)`,
-                border: isSelected ? `2px solid ${C.goldDark}` : `1px solid ${C.border2}`,
-                boxShadow: isSelected
-                  ? `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1)`
-                  : `0 1px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)`,
-                opacity: atMax ? 0.4 : 1,
-                cursor: atMax ? 'not-allowed' : 'pointer',
-                padding: '10px 12px 7px',
-                position: 'relative',
-              }}
-            >
-              {isSelected && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(C.gold, 0.3)}, transparent)`, pointerEvents: 'none' }}/>}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <div style={{
-                  flexShrink: 0, borderRadius: 8, overflow: 'hidden',
-                  border: isSelected ? `1.5px solid ${alpha(C.gold, 0.5)}` : `1px solid ${C.border2}`,
-                  boxShadow: isSelected ? `0 0 8px ${alpha(C.gold, 0.3)}` : 'none',
-                  opacity: atMax ? 0.5 : 1,
-                }}>
-                  <PlayerFace playerId={p.id} nationality={p.nationality} size={56} />
-                </div>
-
-                <span style={{ padding: '2px 6px', borderRadius: 7, flexShrink: 0, background: alpha(specCol, 0.15), color: specCol, fontSize: 9, fontWeight: 700 }}>
-                  {SPECIALTY_LABELS[p.specialty]}
-                </span>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? C.text : C.textSub, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                    {p.name}
-                  </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginTop: 1 }}>{p.age}歳</div>
-                </div>
-
-                <span style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 700, flexShrink: 0, color: isSelected ? C.gold : C.textDim, minWidth: 42, textAlign: 'right' }}>
-                  {isSelected ? '1軍' : 'リザーブ'}
-                </span>
-
-                <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(rating), minWidth: 32, textAlign: 'right', flexShrink: 0 }}>
-                  {rating}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', paddingLeft: 34, paddingBottom: 2, gap: 0 }}>
-                {([
-                  ['速', p.ratings.speed],
-                  ['持', p.ratings.stamina],
-                  ['登', p.ratings.mountainUp],
-                  ['下', p.ratings.mountainDown],
-                  ['ペ', p.ratings.pacing],
-                  ['精', p.ratings.mental],
-                  ['回', p.ratings.recovery],
-                ] as [string, number][]).map(([label, val]) => (
-                  <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim }}>{label}</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: ratingColor(val), lineHeight: 1.2 }}>{val}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
+        {displayed.map(p => (
+          <PlayerRow
+            key={p.id}
+            p={p}
+            status={statusOf(p.id)}
+            checked={checked.has(p.id)}
+            onTap={() => toggleCheck(p.id)}
+            onLong={() => navigate(`/player/${p.id}`)}
+          />
+        ))}
       </div>
 
-      <div style={{
-        position: 'fixed', bottom: FOOTER_BOTTOM, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: '480px',
-        padding: '10px 16px 12px',
-        background: `linear-gradient(180deg, rgba(10,23,41,0.0) 0%, rgba(10,23,41,0.97) 30%)`,
-        zIndex: 45,
-      }}>
-        {canSubmit ? (
-          <button className="btn-game btn-game--gold" onClick={handleSubmit} style={{ width: '100%' }}>
-            <span className="btn-game__inner">
-              1軍{selectedCount}名 · リザーブ{secondCount}名で提出
-            </span>
-          </button>
-        ) : (
-          <button disabled style={{
-            width: '100%', padding: 15, borderRadius: 14,
-            background: C.surface2, color: C.textDim, border: `1px solid ${C.border}`,
-            fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: 'not-allowed',
+      {/* まとめて配置バー（選択中のみ） */}
+      {hasCheck && (
+        <div style={{
+          position: 'fixed', bottom: canSubmit ? FOOTER_BOTTOM + 66 : FOOTER_BOTTOM + 8, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: 480, padding: '0 12px', zIndex: 46,
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 14,
+            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+            border: `2px solid ${C.goldDark}`, boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
           }}>
-            {selectedCount < MIN_MAIN
-              ? `1軍をあと${MIN_MAIN - selectedCount}名選んでください`
-              : secondCount > 18
-              ? 'リザーブが18名を超えています'
-              : '選出数を確認してください'
-            }
+            <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.text, flexShrink: 0 }}>{checked.size}名</span>
+            <button onClick={() => applyTier('main')} style={{
+              flex: 1, padding: '11px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+              background: `linear-gradient(180deg, ${alpha(C.gold, 0.2)}, ${alpha(C.gold, 0.08)})`,
+              border: `1.5px solid ${C.gold}`, color: C.gold, fontSize: 14, fontWeight: 900,
+            }}>1軍へ</button>
+            <button onClick={() => applyTier('second')} style={{
+              flex: 1, padding: '11px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+              background: `linear-gradient(180deg, ${alpha(C.blue, 0.2)}, ${alpha(C.blue, 0.08)})`,
+              border: `1.5px solid ${C.blue}`, color: C.blue, fontSize: 14, fontWeight: 900,
+            }}>2軍へ</button>
+            <button onClick={clearCheck} style={{
+              padding: '11px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+              background: 'transparent', border: `1px solid ${C.border}`, color: C.textDim, fontSize: 12, fontWeight: 700,
+            }}>解除</button>
+          </div>
+        </div>
+      )}
+
+      {/* フッター：全員配置し終わったら決定ボタンが出る */}
+      {canSubmit && (
+        <div style={{
+          position: 'fixed', bottom: FOOTER_BOTTOM, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px',
+          padding: '10px 16px 12px',
+          background: `linear-gradient(180deg, rgba(10,23,41,0.0) 0%, rgba(10,23,41,0.97) 30%)`,
+          zIndex: 45,
+        }}>
+          <button className="btn-game btn-game--gold" onClick={handleSubmit} style={{ width: '100%' }}>
+            <span className="btn-game__inner">決定</span>
           </button>
-        )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 一覧の1行：タップで選択トグル、長押しで詳細
+function PlayerRow({ p, status, checked, onTap, onLong }: {
+  p: Player
+  status: { label: string; color: string }
+  checked: boolean
+  onTap: () => void
+  onLong: () => void
+}) {
+  const rating = ovr(p)
+  const specCol = SPEC_COLOR[p.specialty]
+  const lp = useRef<{ t?: number; long: boolean }>({ long: false })
+  const start = () => { lp.current.long = false; lp.current.t = window.setTimeout(() => { lp.current.long = true; onLong() }, 450) }
+  const cancel = () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } }
+  const click = () => { if (lp.current.long) { lp.current.long = false; return } onTap() }
+
+  return (
+    <div
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerMove={cancel}
+      onClick={click}
+      style={{
+        marginBottom: 6, borderRadius: 12, cursor: 'pointer',
+        background: checked
+          ? `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${alpha(C.gold, 0.05)})`
+          : `linear-gradient(180deg, ${C.surface} 0%, ${C.bg} 100%)`,
+        border: checked ? `2px solid ${C.gold}` : `1px solid ${C.border2}`,
+        padding: '9px 12px',
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}
+    >
+      {/* チェック */}
+      <div style={{
+        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+        border: `2px solid ${checked ? C.gold : C.border2}`,
+        background: checked ? C.gold : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#1a0d00', fontSize: 13, fontWeight: 900,
+      }}>{checked ? '✓' : ''}</div>
+
+      <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border2}` }}>
+        <PlayerFace playerId={p.id} nationality={p.nationality} size={44} />
+      </div>
+
+      <span style={{ padding: '2px 6px', borderRadius: 7, flexShrink: 0, background: alpha(specCol, 0.15), color: specCol, fontSize: 9, fontWeight: 700 }}>
+        {SPECIALTY_LABELS[p.specialty]}
+      </span>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginTop: 1 }}>{p.age}歳</div>
+      </div>
+
+      <span style={{
+        flexShrink: 0, minWidth: 46, textAlign: 'center', padding: '3px 0', borderRadius: 8,
+        background: alpha(status.color, 0.12), border: `1px solid ${alpha(status.color, 0.4)}`,
+        color: status.color, fontSize: 10, fontWeight: 800, fontFamily: SAIRA,
+      }}>
+        {status.label}
+      </span>
+
+      <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(rating), minWidth: 30, textAlign: 'right', flexShrink: 0 }}>
+        {rating}
       </div>
     </div>
   )

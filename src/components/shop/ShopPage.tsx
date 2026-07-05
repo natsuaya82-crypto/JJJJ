@@ -268,7 +268,7 @@ export default function ShopPage() {
       <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, padding: '12px 16px 10px', borderBottom: `1px solid ${C.border2}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <BackButton onClick={() => navigate('/')}/>
+            <BackButton/>
             <div>
               <div style={{ fontSize: 9, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 2 }}>SHOP</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>ショップ</div>

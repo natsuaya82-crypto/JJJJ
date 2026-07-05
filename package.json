@@ -1,7 +1,7 @@
 {
   "name": "jpel-manager",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
+    "@capacitor/local-notifications": "^8.2.0",
     "@capgo/capacitor-updater": "^8.50.2",
     "@types/react-router-dom": "^5.3.3",
     "react": "^19.2.6",

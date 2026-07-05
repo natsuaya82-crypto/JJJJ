@@ -74,7 +74,7 @@ export default function ContractPage() {
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <BackButton onClick={() => navigate('/team')} />
+            <BackButton />
             <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>契約確認</div>
           </div>
           <select

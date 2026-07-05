@@ -2,6 +2,7 @@
 // iOS（Capacitorネイティブ）でのみ動作。Web/ブラウザでは何もしない。
 
 import { Capacitor } from '@capacitor/core'
+import { useLoadingStore } from '../store/loadingStore'
 
 const BANNER_AD_ID = 'ca-app-pub-7463045893100088/8946193510'
 const REWARD_AD_ID = 'ca-app-pub-7463045893100088/5817804007'
@@ -17,14 +18,46 @@ export function getAdDay(): string {
 export const ADS_PER_DAY = 3
 
 let started = false
+let bannerShown = false
 
-export async function initAds(): Promise<void> {
+// バナーを表示する（買い切り版では呼ばない）。
+export async function showBanner(): Promise<void> {
+  if (Capacitor.getPlatform() !== 'ios') return
+  if (bannerShown) return
+  try {
+    const { AdMob, BannerAdSize, BannerAdPosition } = await import('@capacitor-community/admob')
+    await AdMob.showBanner({
+      adId: BANNER_AD_ID,
+      adSize: BannerAdSize.BANNER,
+      position: BannerAdPosition.BOTTOM_CENTER,
+      margin: 0,
+    })
+    bannerShown = true
+  } catch (e) {
+    console.warn('[ads] showBanner failed', e)
+  }
+}
+
+// バナーを消す（買い切り購入時）。
+export async function removeBanner(): Promise<void> {
+  if (Capacitor.getPlatform() !== 'ios') return
+  try {
+    const { AdMob } = await import('@capacitor-community/admob')
+    await AdMob.removeBanner()
+    bannerShown = false
+  } catch (e) {
+    console.warn('[ads] removeBanner failed', e)
+  }
+}
+
+// adsRemoved=true（買い切り版）のときはバナーを出さない。
+export async function initAds(adsRemoved: boolean): Promise<void> {
   if (started) return
   if (Capacitor.getPlatform() !== 'ios') return
   started = true
 
   try {
-    const { AdMob, BannerAdSize, BannerAdPosition } = await import('@capacitor-community/admob')
+    const { AdMob } = await import('@capacitor-community/admob')
 
     await AdMob.initialize()
 
@@ -39,12 +72,7 @@ export async function initAds(): Promise<void> {
       // ATT非対応端末などは無視
     }
 
-    await AdMob.showBanner({
-      adId: BANNER_AD_ID,
-      adSize: BannerAdSize.BANNER,
-      position: BannerAdPosition.BOTTOM_CENTER,
-      margin: 0,
-    })
+    if (!adsRemoved) await showBanner()
   } catch (e) {
     console.warn('[ads] init failed', e)
   }
@@ -56,9 +84,11 @@ export async function initAds(): Promise<void> {
 export async function showRewardAd(): Promise<boolean> {
   if (Capacitor.getPlatform() !== 'ios') return true
 
+  useLoadingStore.getState().show('広告を読み込み中…')
   try {
     const { AdMob, RewardAdPluginEvents } = await import('@capacitor-community/admob')
     await AdMob.prepareRewardVideoAd({ adId: REWARD_AD_ID })
+    useLoadingStore.getState().hide()  // 準備完了→動画表示へ
 
     return await new Promise<boolean>((resolve) => {
       let rewarded = false
@@ -72,6 +102,7 @@ export async function showRewardAd(): Promise<boolean> {
       AdMob.showRewardVideoAd().catch(() => { cleanup(); resolve(false) })
     })
   } catch (e) {
+    useLoadingStore.getState().hide()
     console.warn('[ads] reward failed', e)
     return false
   }

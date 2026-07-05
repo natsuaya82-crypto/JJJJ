@@ -2,7 +2,11 @@ import { MemoryRouter as BrowserRouter, Routes, Route, useLocation } from 'react
 import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from './store/gameStore'
 import { audio } from './utils/audio'
-import { initAds } from './utils/ads'
+import { initAds, removeBanner, showBanner } from './utils/ads'
+import { initLocalNotifications } from './utils/notifications'
+import LoadingOverlay from './components/ui/LoadingOverlay'
+import ForceUpdateModal from './components/ui/ForceUpdateModal'
+import { runWithLoading } from './store/loadingStore'
 import TitleScreen from './components/title/TitleScreen'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
@@ -38,9 +42,10 @@ import SchedulePage from './components/schedule/SchedulePage'
 import RosterSelectPage from './components/roster/RosterSelectPage'
 import ShopPage from './components/shop/ShopPage'
 import SponsorPage from './components/sponsors/SponsorPage'
-import ForeignTransferPage from './components/transfer/ForeignTransferPage'
 import StarredPlayersPage from './components/transfer/StarredPlayersPage'
 import NegotiationPage from './components/transfer/NegotiationPage'
+import OfferListPage from './components/transfer/OfferListPage'
+import RentalPage from './components/transfer/RentalPage'
 import PlayerProfilePage from './components/player/PlayerProfilePage'
 import FacilitiesPage from './components/facilities/FacilitiesPage'
 import IndividualEventsPage from './components/events/IndividualEventsPage'
@@ -120,6 +125,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/team/renewals" element={<ContractRenewalPage />} />
           <Route path="/team/contracts" element={<ContractPage />} />
           <Route path="/team/chat" element={<ChatPage />} />
+          <Route path="/team/facilities" element={<FacilitiesPage />} />
           <Route path="/team/:section" element={<TeamManagement />} />
           <Route path="/race" element={<RacePage />} />
           <Route path="/acquire" element={<AcquisitionPage />} />
@@ -133,12 +139,12 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/teams/list" element={<TeamsPage />} />
           <Route path="/teams/:section" element={<Placeholder title="coming soon" />} />
           <Route path="/transfer" element={<TransferHub />} />
-          <Route path="/transfer/foreign" element={<ForeignTransferPage />} />
           <Route path="/transfer/starred" element={<StarredPlayersPage />} />
+          <Route path="/transfer/offers" element={<OfferListPage />} />
+          <Route path="/transfer/rental" element={<RentalPage />} />
           <Route path="/transfer/negotiate/:mode/:id" element={<NegotiationPage />} />
           <Route path="/transfer/:section" element={<TransferPage />} />
           <Route path="/player/:playerId" element={<PlayerProfilePage />} />
-          <Route path="/team/facilities" element={<FacilitiesPage />} />
           <Route path="/events" element={<IndividualEventsPage />} />
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />
@@ -163,50 +169,76 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/news" element={<NewsPage />} />
           <Route path="/more" element={<MorePage onBackToTitle={onBackToTitle} />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
-          <Route path="/settings" element={
-            <div style={{ padding: '28px 20px' }}>
-              <div style={{ fontSize: '11px', color: '#5C5870', letterSpacing: '3px', marginBottom: '20px' }}>SETTINGS</div>
-              <button onClick={resetGame} style={{
-                width: '100%', padding: '14px', borderRadius: '12px',
-                backgroundColor: '#E8462A15', border: '1px solid #E8462A40',
-                color: '#E8462A', fontSize: '14px', fontWeight: '600',
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>
-                ゲームをリセット
-              </button>
-            </div>
-          } />
         </Routes>
       </Layout>
     </>
   )
 }
 
+const BUNDLE_ID = 'com.tokinets.jpelmanager'
+const APP_VERSION = '1.0.3'
+
+function compareVersions(a: string, b: string): number {
+  const toArr = (v: string) => v.split('.').map(Number)
+  const [a1, a2, a3] = toArr(a)
+  const [b1, b2, b3] = toArr(b)
+  if (a1 !== b1) return a1 - b1
+  if (a2 !== b2) return a2 - b2
+  return a3 - b3
+}
+
 export default function App() {
   const { isInitialized, draftState, resetGame } = useGameStore()
+  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const [titleShown, setTitleShown] = useState(false)
+  const [forceUpdate, setForceUpdate] = useState(false)
 
-  useEffect(() => { initAds() }, [])
+  useEffect(() => {
+    fetch(`https://itunes.apple.com/jp/lookup?bundleId=${BUNDLE_ID}`)
+      .then(r => r.json())
+      .then(data => {
+        const storeVersion: string | undefined = data.results?.[0]?.version
+        if (storeVersion && compareVersions(storeVersion, APP_VERSION) > 0) {
+          setForceUpdate(true)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
+  useEffect(() => { initAds(adsRemoved) }, [])
+  // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
+  useEffect(() => { initLocalNotifications() }, [])
+  // 買い切りの購入/復元でフラグが変わったらバナー表示を切り替える（初回マウントは initAds が担当）
+  const adsRemovedInit = useRef(adsRemoved)
+  useEffect(() => {
+    if (adsRemoved === adsRemovedInit.current) return
+    adsRemovedInit.current = adsRemoved
+    if (adsRemoved) removeBanner()
+    else showBanner()
+  }, [adsRemoved])
+
+  let content
   if (!titleShown) {
-    return <TitleScreen onStart={() => { audio.unlock(); audio.playSe('title'); setTitleShown(true) }} />
-  }
-
-  if (!isInitialized && !draftState) {
-    return <Onboarding />
-  }
-
-  if (!isInitialized && draftState && !draftState.isComplete) {
-    return <DraftRoom />
-  }
-
-  if (!isInitialized && draftState?.isComplete) {
-    return <DraftRoom />
+    content = <TitleScreen onStart={() => { audio.unlock(); audio.playSe('title'); runWithLoading('ゲームを準備中…', () => setTitleShown(true), 800) }} />
+  } else if (!isInitialized && !draftState) {
+    content = <Onboarding />
+  } else if (!isInitialized && draftState && !draftState.isComplete) {
+    content = <DraftRoom />
+  } else if (!isInitialized && draftState?.isComplete) {
+    content = <DraftRoom />
+  } else {
+    content = (
+      <BrowserRouter>
+        <AppRoutes resetGame={resetGame} onBackToTitle={() => setTitleShown(false)} />
+      </BrowserRouter>
+    )
   }
 
   return (
-    <BrowserRouter>
-      <AppRoutes resetGame={resetGame} onBackToTitle={() => setTitleShown(false)} />
-    </BrowserRouter>
+    <>
+      <LoadingOverlay />
+      {content}
+      {forceUpdate && <ForceUpdateModal />}
+    </>
   )
 }

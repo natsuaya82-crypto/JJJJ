@@ -113,7 +113,7 @@ export default function FacilitiesPage() {
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '10px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BackButton onClick={() => navigate('/team')}/>
+        <BackButton/>
         <div>
           <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>FACILITIES</div>
           <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>施設強化</div>

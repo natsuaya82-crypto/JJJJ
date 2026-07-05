@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGameStore } from '../../store/gameStore'
+import { runWithLoading } from '../../store/loadingStore'
 import type { RaceResults } from '../../types'
 import { LineupPhase } from './LineupPhase'
 import { SimPhase } from './SimPhase'
@@ -62,7 +63,8 @@ export default function RacePage() {
   }
 
   useEffect(() => {
-    // マウント時は編成画面（lineup）なのでホームBGM。simulating/results 切替は setPhase が制御。
+    // マウント時は編成画面（lineup）。下ナビを隠してボトムバー(クリア/自動配置)と被らないようにする。
+    setActiveRacePhase('lineup')
     audio.playBgm('home')
     return () => { setActiveRacePhase(null) }
   }, [])
@@ -74,8 +76,11 @@ export default function RacePage() {
   const activeRaceIndex = (phase !== 'lineup' && lockedRace) ? lockedRaceIndex : raceIndex
 
   const mainPlayers = players.filter(
-    p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired'
-      && (p.acquiredRaceIndex == null || raceIndex - p.acquiredRaceIndex >= 2)
+    p => p.teamId === playerTeamId && p.status !== 'retired'
+      // 1軍契約(main) or レンタル枠（1軍・2軍どちらのレースにも出場制限なし）
+      && (p.rosterTier === 'main' || !!p.loan)
+      // レンタル選手は加入後2戦の出走制限を受けない
+      && (!!p.loan || p.acquiredRaceIndex == null || raceIndex - p.acquiredRaceIndex >= 2)
   )
   const assignedIds = new Set(Object.values(raceLineup))
   const allSegsFilled = (race?.segments ?? []).every(s => !!raceLineup[s.index])
@@ -416,7 +421,7 @@ export default function RacePage() {
       setPickerSeg={setPickerSeg}
       setRaceLineup={setRaceLineup}
       clearRaceLineup={clearRaceLineup}
-      onStart={(tactics) => startInteractiveSim(tactics)}
+      onStart={(tactics) => runWithLoading('レース準備中…', () => startInteractiveSim(tactics), 500)}
       weatherLabel={weatherLabel}
       raceStrategy={raceStrategy}
       setRaceStrategy={setRaceStrategy}

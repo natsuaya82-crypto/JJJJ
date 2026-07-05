@@ -9,9 +9,9 @@ import { formatTime } from '../../engine/raceEngine'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 
 const CONTRACT_TYPE_LABEL: Record<string, string> = {
-  standard: '1軍契約',
+  standard: '本契約',
   dual: '2way契約',
-  development: '2軍契約',
+  development: '育成契約',
 }
 
 const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
@@ -199,7 +199,7 @@ export default function PlayerSheet() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
-          position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', top: 0, bottom: 0, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
           overflowY: 'auto',
           backgroundColor: '#0A1729',
@@ -287,7 +287,7 @@ export default function PlayerSheet() {
                   { label: 'ポテンシャル', val: String(player.potential) },
                   { label: '契約残', val: `${player.contract.yearsLeft}年` },
                   { label: '年俸', val: fmt(player.contract.annualSalary) },
-                  { label: '契約体系', val: CONTRACT_TYPE_LABEL[player.contract.contractType ?? 'standard'] ?? '1軍契約' },
+                  { label: '契約体系', val: CONTRACT_TYPE_LABEL[player.contract.contractType ?? 'standard'] ?? '本契約' },
                   { label: '立ち位置', val: player.teamRole ? TEAM_ROLE_LABEL[player.teamRole] : '—' },
                 ].map(({ label, val }) => (
                   <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>

@@ -73,7 +73,19 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
-  overflow-x: hidden;
+  /* iOSのラバーバンド（ヘッダーごと動く現象）を防止：body自体はスクロールさせず、
+     アプリ内の <main> だけをスクロールさせる。 */
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -109,6 +121,10 @@ button { font-family: inherit; }
 @keyframes page-in {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+@keyframes jpel-spin {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes slide-from-right {

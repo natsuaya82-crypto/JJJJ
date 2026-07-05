@@ -117,7 +117,7 @@ export default function AchievementsPage() {
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '14px' }}>
-          <BackButton onClick={() => navigate('/records')}/>
+          <BackButton/>
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>ACHIEVEMENTS</div>
             <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>実績 / トロフィー</div>

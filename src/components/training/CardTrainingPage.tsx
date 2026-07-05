@@ -14,6 +14,7 @@ import { CardTrainingHeaderSVG, STAT_ICON_MAP } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import { audio } from '../../utils/audio'
 import { showRewardAd } from '../../utils/ads'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const PURPLE = '#A855F7'
@@ -36,6 +37,7 @@ export default function CardTrainingPage() {
   const [targetPlayerId, setTargetPlayerId] = useState<string>('')
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; traitGranted: boolean; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
   const [adWatched, setAdWatched] = useState(false)
+  const [adConfirmOpen, setAdConfirmOpen] = useState(false)
   const [barAnimated, setBarAnimated] = useState(false)
 
   useEffect(() => {
@@ -45,7 +47,8 @@ export default function CardTrainingPage() {
   }, [applied])
 
   const mainPlayers = useMemo(
-    () => players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a)),
+    // レンタル加入選手(loan付き＝他チーム所有)は育成対象外。カード合成できないように除外する。
+    () => players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired' && !p.loan).sort((a, b) => ovr(b) - ovr(a)),
     [players, playerTeamId]
   )
 
@@ -224,6 +227,16 @@ export default function CardTrainingPage() {
   // ── STEP 2: Card selection ────────────────────────────────────
   return (
     <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text, paddingBottom: 80 }}>
+      {adConfirmOpen && (
+        <ConfirmDialog
+          title="動画を見ますか？"
+          message="動画を最後まで見ると、今回の合成が必ず大成功になります（通常5%）。"
+          confirmLabel="動画を見る"
+          accent={PURPLE}
+          onConfirm={async () => { setAdConfirmOpen(false); if (await showRewardAd()) setAdWatched(true) }}
+          onCancel={() => setAdConfirmOpen(false)}
+        />
+      )}
       {sharedHeader(() => setStep('player'), '選手変更')}
 
       {/* Selected player banner */}
@@ -413,7 +426,7 @@ export default function CardTrainingPage() {
           <div style={{ marginBottom: 8, textAlign: 'center' }}>
             {!adWatched ? (
               <button
-                onClick={async () => { if (await showRewardAd()) setAdWatched(true) }}
+                onClick={() => setAdConfirmOpen(true)}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 6,

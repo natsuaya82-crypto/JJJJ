@@ -8,16 +8,36 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // BGMを「音楽」ではなく「ゲーム音」として扱う。
-        // .ambient + .mixWithOthers により、ユーザーの音楽(Spotify等)を止めず、
-        // ミュートスイッチに従い、コントロールセンターの再生中(now-playing)にも表示されなくなる。
+        configureAudioSession()
+        // 電話などの割り込み終了後にゲーム音セッションを再適用するため通知を監視
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
+        return true
+    }
+
+    // BGMを「音楽」ではなく「ゲーム音」として扱う。
+    // .ambient + .mixWithOthers により、ユーザーの音楽(Spotify等)を止めず、
+    // ミュートスイッチに従い、コントロールセンターの再生中(now-playing)にも表示されなくなる。
+    // WKWebViewが音声再生時にカテゴリを playback に戻すことがあるため、
+    // 起動時・フォアグラウンド復帰時・割り込み終了時に繰り返し再適用する。
+    private func configureAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("AVAudioSession setup failed: \(error)")
         }
-        return true
+    }
+
+    @objc private func handleAudioInterruption(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+        if type == .ended { configureAudioSession() }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -35,7 +55,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // フォアグラウンド復帰時にゲーム音セッションを再適用（他アプリから戻った際の乗っ取り防止）
+        configureAudioSession()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

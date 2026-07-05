@@ -30,7 +30,7 @@ export default function ForeignLeagueDetailPage() {
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
       <div style={{ padding: '10px 16px 4px' }}>
-        <BackButton onClick={() => navigate('/teams/foreign')}/>
+        <BackButton/>
       </div>
 
       <div style={{ padding: '10px 16px 16px' }}>
