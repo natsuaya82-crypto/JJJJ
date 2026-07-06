@@ -29,7 +29,13 @@ export default function RosterSelectPage() {
     [players, playerTeamId]
   )
 
-  const [assign, setAssign] = useState<Record<string, Tier>>({})
+  const [assign, setAssign] = useState<Record<string, Tier>>(() =>
+    Object.fromEntries(
+      eligible
+        .filter(p => p.rosterTier === 'main' || p.rosterTier === 'second')
+        .map(p => [p.id, p.rosterTier as Tier])
+    )
+  )
   const [checked, setChecked] = useState<Set<string>>(new Set())  // まとめて選択中
   const [sortKey, setSortKey] = useState<'ovr_desc' | 'ovr_asc' | 'age_asc' | 'age_desc' | 'name'>('ovr_desc')
   const [filterKey, setFilterKey] = useState<'all' | 'main' | 'second' | 'undecided'>('all')
