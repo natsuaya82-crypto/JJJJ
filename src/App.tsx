@@ -176,7 +176,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
 }
 
 const BUNDLE_ID = 'com.tokinets.jpelmanager'
-const APP_VERSION = '1.0.3'
+const APP_VERSION = '1.0.4'
 
 function compareVersions(a: string, b: string): number {
   const toArr = (v: string) => v.split('.').map(Number)
