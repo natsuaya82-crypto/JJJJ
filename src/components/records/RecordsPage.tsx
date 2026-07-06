@@ -7,6 +7,7 @@ import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { TeamLogoSVG } from '../icons/Icons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -251,7 +252,8 @@ function LeagueTab({ teams, pastSeasons, currentSeason }: {
               <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>
                 {i + 1}
               </span>
-              <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{team?.shortName ?? s.teamId}</span>
+              {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={20}/>}
+              <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{team?.name ?? s.teamId}</span>
               <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub }}>{s.totalPoints}pt</span>
             </div>
           )
@@ -277,7 +279,8 @@ function LeagueTab({ teams, pastSeasons, currentSeason }: {
                 <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>
                   {i + 1}
                 </span>
-                <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{team?.shortName ?? s.teamId}</span>
+                {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={20}/>}
+                <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{team?.name ?? s.teamId}</span>
                 <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub }}>{s.totalPoints}pt</span>
               </div>
             )

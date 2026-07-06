@@ -7,6 +7,7 @@ import { ovr, ratingColor, calcTransferValue } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NumberDial from '../ui/NumberDial'
+import ActionSheet from '../ui/ActionSheet'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 function fmt(yen: number) { return yen >= 100000000 ? `${(yen / 100000000).toFixed(1)}億` : `${Math.round(yen / 10000)}万` }
@@ -88,7 +89,7 @@ export function useOpponentMenu() {
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
 
-  const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null)
+  const [menuId, setMenuId] = useState<string | null>(null)
   const [offerId, setOfferId] = useState<string | null>(null)
   const [loanId, setLoanId] = useState<string | null>(null)
   const lp = useRef<{ t?: number; long: boolean }>({ long: false })
@@ -98,43 +99,37 @@ export function useOpponentMenu() {
     onPointerUp: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
     onPointerLeave: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
     onPointerMove: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
-    onClick: (e: React.MouseEvent) => {
+    onClick: () => {
       if (lp.current.long) { lp.current.long = false; return }
       const tp = players.find(x => x.id === pid)
       if (tp && tp.teamId === playerTeamId) { openPlayerSheet(pid); return }  // 自チーム選手は詳細へ
-      const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-      const top = r.bottom + 210 > window.innerHeight ? Math.max(8, r.top - 210) : r.bottom + 4
-      const left = Math.min(Math.max(8, r.left + 28), window.innerWidth - 202)
-      setMenu({ id: pid, top, left })
+      setMenuId(pid)
     },
   })
 
+  const menuPlayer = menuId ? players.find(x => x.id === menuId) : undefined
+  const menuItems = (() => {
+    if (!menuPlayer) return []
+    const isForeign = !teams.some(t => t.id === menuPlayer.teamId)
+    const scouted = !!(currentSeason.scoutedOpponents ?? []).find(s => s.playerId === menuPlayer.id && currentSeason.year - s.year <= 1)
+    const scoutPoints = currentSeason.scoutPoints ?? 0
+    const items = [
+      { label: '移籍オファーを出す', color: C.gold, onClick: () => setOfferId(menuPlayer.id) },
+      { label: 'レンタルのオファー', color: C.blue, onClick: () => setLoanId(menuPlayer.id) },
+      // トレードは国内チームのみ（海外クラブとはトレード不可）
+      ...(!isForeign ? [{ label: 'トレードを提案', color: C.orange, onClick: () => navigate(`/team/chat?trade=${menuPlayer.teamId}&want=${menuPlayer.id}`) }] : []),
+      { label: scouted ? '視察済み' : '視察する（-1PT）', color: C.green, disabled: scouted || scoutPoints < 1, onClick: () => scoutOpponentPlayer(menuPlayer.id, 1) },
+    ]
+    return items
+  })()
+
   const overlay = (
     <>
-      {menu && (() => {
-        const p = players.find(x => x.id === menu.id); if (!p) return null
-        const isForeign = !teams.some(t => t.id === p.teamId)
-        const scouted = !!(currentSeason.scoutedOpponents ?? []).find(s => s.playerId === menu.id && currentSeason.year - s.year <= 1)
-        const scoutPoints = currentSeason.scoutPoints ?? 0
-        const item = (label: string, onClick: () => void, disabled = false, color: string = C.text) => (
-          <button onClick={() => { if (disabled) return; onClick(); setMenu(null) }} disabled={disabled}
-            style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: `1px solid ${C.border}`, color: disabled ? C.textGhost : color, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: disabled ? 'not-allowed' : 'pointer' }}>
-            {label}
-          </button>
-        )
-        return (
-          <>
-            <div onClick={() => setMenu(null)} style={{ position: 'fixed', inset: 0, zIndex: 100 }} />
-            <div style={{ position: 'fixed', top: menu.top, left: menu.left, width: 194, zIndex: 101, background: C.surface, borderRadius: 12, border: `1px solid ${C.border2}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}>
-              {item('移籍オファーを出す', () => setOfferId(menu.id), false, C.gold)}
-              {item('レンタルのオファー', () => setLoanId(menu.id), false, C.blue)}
-              {/* トレードは国内チームのみ（海外クラブとはトレード不可） */}
-              {!isForeign && item('トレードを提案', () => navigate(`/team/chat?trade=${p.teamId}&want=${menu.id}`), false, C.orange)}
-              {item(scouted ? '視察済み' : '視察する（-1PT）', () => scoutOpponentPlayer(menu.id, 1), scouted || scoutPoints < 1, C.green)}
-            </div>
-          </>
-        )
-      })()}
+      <ActionSheet
+        open={!!menuPlayer}
+        onClose={() => setMenuId(null)}
+        items={menuItems.map(it => ({ ...it, onClick: () => { it.onClick(); setMenuId(null) } }))}
+      />
 
       {offerId && (() => {
         const p = players.find(x => x.id === offerId); if (!p) return null

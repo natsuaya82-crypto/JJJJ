@@ -37,6 +37,7 @@ import HistoryPage from './components/records/HistoryPage'
 import AchievementsPage from './components/records/AchievementsPage'
 import ReserveLeaguePage from './components/reserve/ReserveLeaguePage'
 import PlayerSheet from './components/shared/PlayerSheet'
+import ContractInfoModal from './components/shared/ContractInfoModal'
 import NotificationsPage from './components/notifications/NotificationsPage'
 import HelpPage from './components/help/HelpPage'
 import SchedulePage from './components/schedule/SchedulePage'
@@ -120,6 +121,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
   return (
     <>
       <PlayerSheet />
+      <ContractInfoModal />
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />

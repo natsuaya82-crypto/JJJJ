@@ -208,6 +208,11 @@ export type GameStore = GameState & {
   openPlayerId: string | null
   openPlayerSheet: (id: string | null) => void
 
+  // 個別契約情報モーダル
+  contractInfoPlayerId: string | null
+  openContractInfo: (id: string) => void
+  closeContractInfo: () => void
+
   // Card fusion (練習) UI state
   fusionPlayerId: string | null
   fusionCardIds: string[]
@@ -341,6 +346,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     raceLineup: {},
     lastRaceLineup: {},
     openPlayerId: null,
+    contractInfoPlayerId: null,
     fusionPlayerId: null,
     fusionCardIds: [],
     raceStrategy: 'balanced',
@@ -1745,6 +1751,9 @@ export const useGameStore = create<GameStore>()(
       },
 
       openPlayerSheet: (id) => set({ openPlayerId: id }),
+
+      openContractInfo: (id) => set({ contractInfoPlayerId: id }),
+      closeContractInfo: () => set({ contractInfoPlayerId: null }),
 
       setFusionPlayer: (id) => set({ fusionPlayerId: id, fusionCardIds: [] }),
       addFusionCard: (id) => set((state) => {
@@ -4010,12 +4019,21 @@ export const useGameStore = create<GameStore>()(
               }]
             : []
 
+          // 在籍履歴（(L)レンタル）用：現在レンタル中の選手について、この年その所属チームでの出場記録を追記
+          const seasonYear = state.currentSeason.year
+          const playersWithLoanHistory = playersWithChamp.map(p => {
+            if (!p.loan) return p
+            const existing = p.loanTeamYears ?? []
+            if (existing.some(l => l.year === seasonYear && l.teamId === p.teamId)) return p
+            return { ...p, loanTeamYears: [...existing, { year: seasonYear, teamId: p.teamId }] }
+          })
+
           const objJewels = newlyCompletedObjs.reduce((s, o) => s + (o.rewardJewels ?? 30), 0)
           const seasonAchievementJewels = seasonAchievements.reduce((s, a) => s + (ACHIEVEMENT_JEWELS[a.rarity] ?? 0), 0)
           const rankJewels = finalRank === 1 ? 200 : finalRank === 2 ? 100 : finalRank === 3 ? 50 : 0
 
           return {
-            players: [...playersWithChamp, ...foreignRefresh.newPlayers],
+            players: [...playersWithLoanHistory, ...foreignRefresh.newPlayers],
             teams: teamsWithCleanedPicks,
             foreignLeagues: foreignRefresh.updatedLeagues,
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,

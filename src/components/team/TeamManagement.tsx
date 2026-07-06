@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
@@ -9,6 +9,15 @@ import { ovr, ratingColor, SPEC_COLOR, formColor } from '../../utils/playerUtils
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
+import ActionSheet from '../ui/ActionSheet'
+
+type RowHandlers = {
+  onPointerDown: () => void
+  onPointerUp: () => void
+  onPointerLeave: () => void
+  onPointerMove: () => void
+  onClick: () => void
+}
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -86,7 +95,7 @@ function StatNum({ label, value }: { label: string; value: number }) {
   )
 }
 
-function PlayerRow({ player, onDetail, loanOwner }: { player: Player; onDetail: (id: string) => void; loanOwner?: Team }) {
+function PlayerRow({ player, handlers, loanOwner }: { player: Player; handlers: RowHandlers; loanOwner?: Team }) {
   const rating = ovr(player)
   const specColor = SPEC_COLOR[player.specialty]
   const fatigue = player.fatigue ?? 0
@@ -102,7 +111,7 @@ function PlayerRow({ player, onDetail, loanOwner }: { player: Player; onDetail: 
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ width: 3, alignSelf: 'stretch', background: `linear-gradient(180deg, ${specColor}, ${alpha(specColor, 0.6)})`, flexShrink: 0 }}/>
         <button
-          onClick={() => onDetail(player.id)}
+          {...handlers}
           style={{
             flex: 1, display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 12px 6px 12px',
@@ -166,13 +175,24 @@ type SortKey = 'ovr' | 'age' | 'jersey'
 
 
 export default function TeamManagement() {
-  const { teams, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
+  const { teams, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, openContractInfo, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
   const [activeTab, setActiveTab] = useState<RosterTier | 'loan'>('main')
   const [sortKey, setSortKey] = useState<SortKey>('ovr')
   const [searchQuery, setSearchQuery] = useState('')
   const [specFilter, setSpecFilter] = useState<string>('all')
+  // 自チーム選手：タップ＝ボトムシートメニュー / 長押し＝選手詳細
+  const [menuPlayerId, setMenuPlayerId] = useState<string | null>(null)
+  const lp = useRef<{ t?: number; long: boolean }>({ long: false })
+
+  const rowHandlers = (pid: string): RowHandlers => ({
+    onPointerDown: () => { lp.current.long = false; lp.current.t = window.setTimeout(() => { lp.current.long = true; openPlayerSheet(pid) }, 450) },
+    onPointerUp: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onPointerLeave: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onPointerMove: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onClick: () => { if (lp.current.long) { lp.current.long = false; return } setMenuPlayerId(pid) },
+  })
 
   const team = teams.find(t => t.id === playerTeamId)
   if (!team) return null
@@ -456,10 +476,27 @@ export default function TeamManagement() {
           {players.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: '14px' }}>登録選手なし</div>
           ) : (
-            players.map(p => <PlayerRow key={p.id} player={p} onDetail={openPlayerSheet} loanOwner={p.loan ? teams.find(t => t.id === p.loan!.ownerTeamId) : undefined}/>)
+            players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? teams.find(t => t.id === p.loan!.ownerTeamId) : undefined}/>)
           )}
         </div>
       </>}
+
+      {(() => {
+        const mp = menuPlayerId ? allPlayers.find(p => p.id === menuPlayerId) : undefined
+        const isRental = !!(mp?.loan && mp.loan.ownerTeamId !== playerTeamId)
+        const cardEnabled = !!mp && mp.rosterTier === 'main' && !isRental
+        return (
+          <ActionSheet
+            open={!!mp}
+            onClose={() => setMenuPlayerId(null)}
+            items={mp ? [
+              { label: 'チャット', onClick: () => { setMenuPlayerId(null); navigate(`/team/chat?player=${mp.id}`) } },
+              { label: 'カード練習', disabled: !cardEnabled, onClick: () => { setMenuPlayerId(null); navigate(`/cards?player=${mp.id}`) } },
+              { label: '契約確認', onClick: () => { setMenuPlayerId(null); openContractInfo(mp.id) } },
+            ] : []}
+          />
+        )
+      })()}
     </div>
   )
 }

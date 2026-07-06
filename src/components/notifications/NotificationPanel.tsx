@@ -55,11 +55,8 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
-  const needsRoster = currentSeason.phase === 'preseason' && !currentSeason.rosterSubmitted
-
   const total = pendingEvents.length + incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
-    + (needsRoster ? 1 : 0)
 
   const card = (border: string, shadow: string): React.CSSProperties => ({
     borderRadius: '14px', overflow: 'hidden', marginBottom: '8px', position: 'relative',
@@ -105,29 +102,6 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
             <div style={{ padding: '40px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA, fontSize: '13px' }}>通知なし</div>
           ) : (
             <>
-              {/* ロスター未提出 */}
-              {needsRoster && (
-                <section style={{ marginBottom: '14px' }}>
-                  <SectionLabel label="ロスター" color={C.red} />
-                  <div style={card(alpha(C.red, 0.5), '#660e10')}>
-                    <div style={inset}/>
-                    <button onClick={() => { navigate('/roster-select'); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left' }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 9, flexShrink: 0, background: alpha(C.red, 0.2), border: `1.5px solid ${alpha(C.red, 0.5)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 9v4M12 17h.01" stroke={C.red} strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke={C.red} strokeWidth="1.8" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '800', color: C.red, marginBottom: '2px' }}>ロスター未提出</div>
-                        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>シーズン開幕前に1軍・リザーブを選出してください</div>
-                      </div>
-                      <Chevron/>
-                    </button>
-                  </div>
-                </section>
-              )}
-
               {/* 引退申請 */}
               {retirementRequests.length > 0 && (
                 <section style={{ marginBottom: '14px' }}>
@@ -335,7 +309,6 @@ export function useNotifCount() {
   const transferReqs = (currentSeason.transferRequests ?? []).length > 0 ? 1 : 0
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length > 0 ? 1 : 0
-  const needsRoster = currentSeason.phase === 'preseason' && !currentSeason.rosterSubmitted ? 1 : 0
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length > 0 ? 1 : 0
   const loginUnclaimed = lastLoginDate !== loginTodayKey() ? 1 : 0
   // 契約満了6ヶ月以内の選手（NotificationsPage と同じ基準）
@@ -347,5 +320,5 @@ export function useNotifCount() {
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
     return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
   }).length
-  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + needsRoster + sponsorOffers + loginUnclaimed + renewals
+  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals
 }

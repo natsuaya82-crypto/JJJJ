@@ -86,22 +86,6 @@ export default function TeamHub() {
       ),
     },
     {
-      key: '/team/contracts',
-      label: '契約確認',
-      desc: '選手の契約状況・残年数・年俸の一覧',
-      countLabel: `${myPlayers.length}名在籍`,
-      badge: 0,
-      color: C.textSub,
-      shadow: '#1a2030',
-      urgent: false,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M9 12h6M9 16h4M6 3h12a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          <path d="M9 7h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-        </svg>
-      ),
-    },
-    {
       key: '/team/facilities',
       label: '施設強化',
       desc: '合宿・医療・スカウト・戦術分析施設のアップグレード',

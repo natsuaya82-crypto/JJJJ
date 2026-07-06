@@ -38,7 +38,7 @@ export default function RosterSelectPage() {
   )
   const [checked, setChecked] = useState<Set<string>>(new Set())  // まとめて選択中
   const [sortKey, setSortKey] = useState<'ovr_desc' | 'ovr_asc' | 'age_asc' | 'age_desc' | 'name'>('ovr_desc')
-  const [filterKey, setFilterKey] = useState<'all' | 'main' | 'second' | 'undecided'>('all')
+  const [filterKey, setFilterKey] = useState<'all' | 'main' | 'second' | 'undecided' | 'standard' | 'development' | 'dual' | 'expiring'>('all')
   const [jerseyMap] = useState<Record<string, number>>(
     () => Object.fromEntries(eligible.map(p => [p.id, p.jerseyNumber]))
   )
@@ -48,6 +48,10 @@ export default function RosterSelectPage() {
     if (filterKey === 'main') list = list.filter(p => assign[p.id] === 'main')
     else if (filterKey === 'second') list = list.filter(p => assign[p.id] === 'second')
     else if (filterKey === 'undecided') list = list.filter(p => !assign[p.id])
+    else if (filterKey === 'standard') list = list.filter(p => (p.contract.contractType ?? 'standard') === 'standard')
+    else if (filterKey === 'development') list = list.filter(p => p.contract.contractType === 'development')
+    else if (filterKey === 'dual') list = list.filter(p => p.contract.contractType === 'dual')
+    else if (filterKey === 'expiring') list = list.filter(p => p.contract.yearsLeft <= 1)
     list.sort((a, b) =>
       sortKey === 'ovr_asc' ? ovr(a) - ovr(b)
       : sortKey === 'age_asc' ? a.age - b.age
@@ -69,29 +73,45 @@ export default function RosterSelectPage() {
       return next
     })
   }
-  // 選択中の選手をまとめて配置
+  // 選択中の選手をまとめて配置（契約形態による制約あり）
   function applyTier(tier: Tier) {
     setAssign(prev => {
       const next = { ...prev }
-      checked.forEach(id => { next[id] = tier })
+      checked.forEach(id => {
+        const p = eligible.find(e => e.id === id)
+        if (!p) return
+        const ct = p.contract.contractType ?? 'standard'
+        if (tier === 'second' && ct !== 'development') return  // 本契約/2wayは2軍不可
+        if (tier === 'main' && ct === 'development') return     // 育成は1軍不可
+        next[id] = tier
+      })
       return next
     })
     setChecked(new Set())
   }
   function clearCheck() { setChecked(new Set()) }
-  // おまかせ配置：去年1軍優先＋OVR上位で1軍を埋め、残りは2軍
+  // おまかせ配置：育成は強制2軍、standard/dualはOVR上位でMAX_MAIN枠まで1軍
   function autofill() {
-    const order = [
-      ...eligible.filter(p => p.rosterTier === 'main').map(p => p.id),
-      ...eligible.filter(p => p.rosterTier !== 'main').map(p => p.id),
+    const mainCandidates = eligible.filter(p => (p.contract.contractType ?? 'standard') !== 'development')
+    const devPlayers = eligible.filter(p => p.contract.contractType === 'development')
+    const ordered = [
+      ...mainCandidates.filter(p => p.rosterTier === 'main'),
+      ...mainCandidates.filter(p => p.rosterTier !== 'main'),
     ]
-    const mainIds = new Set(order.slice(0, MAX_MAIN))
+    const mainIds = new Set(ordered.slice(0, MAX_MAIN).map(p => p.id))
     const next: Record<string, Tier> = {}
-    for (const p of eligible) next[p.id] = mainIds.has(p.id) ? 'main' : 'second'
+    for (const p of mainCandidates) { if (mainIds.has(p.id)) next[p.id] = 'main' }
+    for (const p of devPlayers) next[p.id] = 'second'
     setAssign(next)
     setChecked(new Set())
   }
-  function clearAll() { setAssign({}); setChecked(new Set()) }
+  // クリア時も育成契約は2軍固定
+  function clearAll() {
+    setAssign(Object.fromEntries(
+      eligible.filter(p => p.contract.contractType === 'development').map(p => [p.id, 'second' as Tier])
+    ))
+    setChecked(new Set())
+  }
 
   function handleSubmit() {
     if (!canSubmit) return
@@ -99,7 +119,14 @@ export default function RosterSelectPage() {
     navigate('/')
   }
 
-  const statusOf = (id: string): { label: string; color: string } => {
+  const statusOf = (id: string): { label: string; color: string; locked?: boolean } => {
+    const p = eligible.find(e => e.id === id)
+    const ct = p?.contract.contractType ?? 'standard'
+    if (ct === 'development') return { label: '育成', color: C.blue, locked: true }
+    if (ct === 'dual') {
+      const t = assign[id]
+      return t ? { label: '2way', color: C.cyan, locked: true } : { label: '未定', color: C.textGhost }
+    }
     const t = assign[id]
     if (t === 'main') return { label: '1軍', color: C.gold }
     if (t === 'second') return { label: '2軍', color: C.blue }
@@ -168,6 +195,10 @@ export default function RosterSelectPage() {
           <option value="main">1軍のみ</option>
           <option value="second">2軍のみ</option>
           <option value="undecided">未定のみ</option>
+          <option value="standard">本契約</option>
+          <option value="development">育成契約</option>
+          <option value="dual">2way契約</option>
+          <option value="expiring">今季満了</option>
         </select>
         <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)} style={{
           flex: 1, padding: '9px 10px', borderRadius: 10, fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
@@ -186,16 +217,20 @@ export default function RosterSelectPage() {
         {eligible.length === 0 && (
           <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: C.textDim }}>選手がいません</div>
         )}
-        {displayed.map(p => (
-          <PlayerRow
-            key={p.id}
-            p={p}
-            status={statusOf(p.id)}
-            checked={checked.has(p.id)}
-            onTap={() => toggleCheck(p.id)}
-            onLong={() => openPlayerSheet(p.id)}
-          />
-        ))}
+        {displayed.map(p => {
+          const st = statusOf(p.id)
+          return (
+            <PlayerRow
+              key={p.id}
+              p={p}
+              status={st}
+              locked={st.locked ?? false}
+              checked={checked.has(p.id)}
+              onTap={() => { if (!st.locked) toggleCheck(p.id) }}
+              onLong={() => openPlayerSheet(p.id)}
+            />
+          )
+        })}
       </div>
 
       {/* まとめて配置バー（選択中のみ） */}
@@ -247,9 +282,10 @@ export default function RosterSelectPage() {
 }
 
 // 一覧の1行：タップで選択トグル、長押しで詳細
-function PlayerRow({ p, status, checked, onTap, onLong }: {
+function PlayerRow({ p, status, locked, checked, onTap, onLong }: {
   p: Player
-  status: { label: string; color: string }
+  status: { label: string; color: string; locked?: boolean }
+  locked: boolean
   checked: boolean
   onTap: () => void
   onLong: () => void
@@ -269,23 +305,27 @@ function PlayerRow({ p, status, checked, onTap, onLong }: {
       onPointerMove={cancel}
       onClick={click}
       style={{
-        marginBottom: 6, borderRadius: 12, cursor: 'pointer',
+        marginBottom: 6, borderRadius: 12, cursor: locked ? 'default' : 'pointer',
         background: checked
           ? `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${alpha(C.gold, 0.05)})`
           : `linear-gradient(180deg, ${C.surface} 0%, ${C.bg} 100%)`,
         border: checked ? `2px solid ${C.gold}` : `1px solid ${C.border2}`,
-        padding: '9px 12px',
+        padding: '9px 12px', opacity: locked ? 0.75 : 1,
         display: 'flex', alignItems: 'center', gap: 10,
       }}
     >
-      {/* チェック */}
+      {/* チェック（locked選手はアイコンで表示） */}
       <div style={{
         width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-        border: `2px solid ${checked ? C.gold : C.border2}`,
-        background: checked ? C.gold : 'transparent',
+        border: `2px solid ${locked ? alpha(status.color, 0.5) : checked ? C.gold : C.border2}`,
+        background: locked ? alpha(status.color, 0.15) : checked ? C.gold : 'transparent',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#1a0d00', fontSize: 13, fontWeight: 900,
-      }}>{checked ? '✓' : ''}</div>
+        color: locked ? status.color : '#1a0d00', fontSize: locked ? 9 : 13, fontWeight: 900,
+      }}>
+        {locked
+          ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          : checked ? '✓' : ''}
+      </div>
 
       <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border2}` }}>
         <PlayerFace playerId={p.id} nationality={p.nationality} size={44} />

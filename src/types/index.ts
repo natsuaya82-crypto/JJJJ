@@ -224,6 +224,7 @@ export type Player = {
   transferListed?: boolean    // 「移籍を認める」で移籍リスト入り（他チームのオファー対象・シーズン内に決まらなければFA）
   // レンタル移籍：ownerTeamId が保有元、teamId は現在プレー中（借り手）。untilYear シーズン終了で自動返却。
   loan?: { ownerTeamId: string; untilYear: number }
+  loanTeamYears?: { year: number; teamId: string }[]  // 在籍履歴用：その年そのチームでレンタル出場した記録（今後のシーズンから蓄積）
   status: PlayerStatus
   fatigue: number
   morale: number

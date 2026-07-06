@@ -185,6 +185,12 @@ button { font-family: inherit; }
 .page-slide-left  { animation: slide-from-right 0.18s ease-out; }
 .page-slide-right { animation: slide-from-left  0.18s ease-out; }
 
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sheet-up { animation: sheet-up 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+
 .slide-in-left {
   animation: slide-from-left 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }

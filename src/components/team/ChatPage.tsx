@@ -860,6 +860,8 @@ export default function ChatPage() {
   // 通知などから ?player=<id> で来た場合は直接その選手のチャットを開く
   const [chatPlayerId, setChatPlayerId] = useState<string | null>(() => searchParams.get('player'))
   const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade'))
+  // ?player / ?trade で「直接」会話を開いて来た場合、戻るは会話一覧ではなく呼び出し元の画面(navigate(-1))へ返す
+  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade')))
   const wantParam = searchParams.get('want')  // トレード提案で「もらう」に初期選択する選手
   const [messageCache, setMessageCache] = useState<Record<string, ChatMessage[]>>({})
   const [activeTab, setActiveTab] = useState<'own' | 'transfer'>(searchParams.get('trade') ? 'transfer' : 'own')
@@ -870,8 +872,11 @@ export default function ChatPage() {
   useEffect(() => {
     const pl = searchParams.get('player')
     const tr = searchParams.get('trade')
-    if (pl) { setChatPlayerId(pl); setTradeTeamId(null) }
-    else if (tr) { setTradeTeamId(tr); setChatPlayerId(null); setActiveTab('transfer') }
+    if (pl) { setChatPlayerId(pl); setTradeTeamId(null); cameFromParamRef.current = true }
+    else if (tr) { setTradeTeamId(tr); setChatPlayerId(null); setActiveTab('transfer'); cameFromParamRef.current = true }
+    // クエリを消す（戻ってくるたびに再発火して会話へ強制される／履歴が狂うのを防ぐ）
+    if (pl || tr) navigate('/team/chat', { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   const totalRaces = currentSeason.races.length
@@ -921,8 +926,13 @@ export default function ChatPage() {
   const inboundCount = incomingOffers.length + incomingLoanOffers.length
   const loanSlotsUsed = players.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length
 
+  const closeConversation = (clear: () => void) => {
+    if (cameFromParamRef.current) { cameFromParamRef.current = false; navigate(-1) }
+    else clear()
+  }
+
   if (tradeTeam) return (
-    <TradeChatView team={tradeTeam} onClose={() => setTradeTeamId(null)}
+    <TradeChatView team={tradeTeam} onClose={() => closeConversation(() => setTradeTeamId(null))}
       initialMode={wantParam ? 'trade' : undefined} initialGetId={wantParam ?? undefined} />
   )
 
@@ -931,7 +941,7 @@ export default function ChatPage() {
       player={chatPlayer}
       initialMessages={messageCache[chatPlayer.id]}
       onMessagesChange={msgs => setMessageCache(prev => ({ ...prev, [chatPlayer.id]: msgs }))}
-      onClose={() => setChatPlayerId(null)}
+      onClose={() => closeConversation(() => setChatPlayerId(null))}
     />
   )
 

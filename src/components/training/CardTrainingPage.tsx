@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import BackButton from '../ui/BackButton'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
@@ -35,7 +35,20 @@ export default function CardTrainingPage() {
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
   } = useGameStore()
 
+  const [searchParams] = useSearchParams()
+
   useEffect(() => { dismissDroppedCards() }, [])
+
+  // メニューから ?player=id で来たら、その選手で合成を開始（1軍・非レンタルのみ対象）
+  useEffect(() => {
+    const pid = searchParams.get('player')
+    if (pid && pid !== fusionPlayerId && mainPlayers.some(p => p.id === pid)) {
+      setFusionPlayer(pid)
+    }
+    // ?player を消す（戻ってくるたびに再発火してSTEP2へ強制される／履歴が狂うのを防ぐ）
+    if (pid) navigate('/cards', { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; traitGranted: boolean; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
   const [adWatched, setAdWatched] = useState(false)
@@ -218,7 +231,7 @@ export default function CardTrainingPage() {
           onCancel={() => setAdConfirmOpen(false)}
         />
       )}
-      {sharedHeader(() => clearFusion(), '選手変更')}
+      {sharedHeader(() => navigate(-1))}
 
       {/* Selected player banner */}
       <div style={{

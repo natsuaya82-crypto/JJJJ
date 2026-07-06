@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole } from '../../types'
 import PlayerFace from '../player/PlayerFace'
+import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { formatTime } from '../../engine/raceEngine'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
@@ -131,7 +132,7 @@ export default function PlayerSheet() {
   const openRaceDetail = (name: string) => {
     setSelectedRaceName(name)
     setPageAnim('page-slide-left')
-    setPage(3)
+    setPage(4)
     setPageKey(k => k + 1)
   }
 
@@ -139,12 +140,12 @@ export default function PlayerSheet() {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
   }
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (page === 3) return
+    if (page === 4) return
     const dx = e.changedTouches[0].clientX - touchStart.current.x
     const dy = e.changedTouches[0].clientY - touchStart.current.y
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 48) {
-      if (dx < 0) goToPage(2)
-      if (dx > 0) goToPage(1)
+      if (dx < 0) goToPage(Math.min(page + 1, 3))
+      if (dx > 0) goToPage(Math.max(page - 1, 1))
     }
   }
 
@@ -189,6 +190,41 @@ export default function PlayerSheet() {
   }
   const reserveRaceNames = RESERVE_RACE_POOL_NAMES.filter(n => seenReserveNames.has(n))
 
+  // 在籍履歴（移籍情報）集計：年 × teamId × tier(1軍/2軍) ごとに 出場数・区間賞数
+  type HistoryRow = { year: number; teamId: string; tier: 'main' | 'second'; races: number; wins: number }
+  const historyMap = new Map<string, HistoryRow>()
+  const addHistory = (year: number, tier: 'main' | 'second', raceList: typeof currentSeason.races | undefined) => {
+    if (!raceList) return
+    for (const race of raceList) {
+      if (!race.results) continue
+      for (const sr of race.results.segmentResults) {
+        for (const runner of sr.runners) {
+          if (runner.playerId !== player.id) continue
+          const key = `${year}|${runner.teamId}|${tier}`
+          let row = historyMap.get(key)
+          if (!row) { row = { year, teamId: runner.teamId, tier, races: 0, wins: 0 }; historyMap.set(key, row) }
+          row.races += 1
+          if (runner.rank === 1) row.wins += 1
+        }
+      }
+    }
+  }
+  for (const ps of pastSeasons) {
+    addHistory(ps.year, 'main', ps.races)
+    addHistory(ps.year, 'second', ps.secondTeamRaces)
+  }
+  addHistory(currentSeason.year, 'main', currentSeason.races)
+  addHistory(currentSeason.year, 'second', currentSeason.secondTeamRaces)
+  // 現行シーズンは未出場でも「今年・現チーム・現在の1軍2軍」を必ず1行出す（0レースで空にしない）
+  {
+    const curTier: 'main' | 'second' = player.rosterTier === 'second' ? 'second' : 'main'
+    const key = `${currentSeason.year}|${player.teamId}|${curTier}`
+    if (!historyMap.has(key)) historyMap.set(key, { year: currentSeason.year, teamId: player.teamId, tier: curTier, races: 0, wins: 0 })
+  }
+  const historyRows = [...historyMap.values()].sort(
+    (a, b) => a.year - b.year || (a.tier === b.tier ? 0 : a.tier === 'main' ? -1 : 1)
+  )
+
   return (
     <>
       <div
@@ -215,12 +251,12 @@ export default function PlayerSheet() {
           backgroundColor: '#0A1729',
           borderBottom: '1px solid #1a3252',
         }}>
-          <BackButton onClick={() => page === 3 ? goToPage(2) : openPlayerSheet(null)}/>
+          <BackButton onClick={() => page === 4 ? goToPage(2) : openPlayerSheet(null)}/>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-            {page === 3 ? (
+            {page === 4 ? (
               <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8' }}>{selectedRaceName}</span>
             ) : (
-              [1, 2].map(p => (
+              [1, 2, 3].map(p => (
                 <div key={p} onClick={() => goToPage(p)} style={{
                   width: page === p ? '20px' : '6px', height: '6px', borderRadius: '3px',
                   backgroundColor: page === p ? specCol : '#2E2B42',
@@ -378,8 +414,49 @@ export default function PlayerSheet() {
             </div>
           )}
 
-          {/* Page 3: レース詳細 */}
-          {page === 3 && selectedRaceName && (() => {
+          {/* Page 3: 在籍履歴（移籍情報） */}
+          {page === 3 && (
+            <div style={{ padding: '12px 20px 28px' }}>
+              <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px' }}>在籍履歴</div>
+              {historyRows.length > 0 ? (
+                <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                  {/* header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
+                    <span style={{ width: '40px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
+                    <span style={{ flex: 1, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>チーム名</span>
+                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
+                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
+                  </div>
+                  {historyRows.map((row, i) => {
+                    const t = teams.find(tm => tm.id === row.teamId)
+                    const teamName = t?.name ?? t?.shortName ?? '不明'
+                    const isLoan = (player.loanTeamYears ?? []).some(l => l.year === row.year && l.teamId === row.teamId)
+                      || (row.year === currentSeason.year && !!player.loan && row.teamId === player.teamId)
+                    const suffix = `${row.tier === 'second' ? '(B)' : ''}${isLoan ? '(L)' : ''}`
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
+                        <span style={{ width: '40px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={20} />}
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {teamName}
+                            {suffix && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>{suffix}</span>}
+                          </span>
+                        </div>
+                        <span style={{ width: '36px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
+                        <span style={{ width: '36px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>記録なし</div>
+              )}
+            </div>
+          )}
+
+          {/* Page 4: レース詳細（ドリルダウン） */}
+          {page === 4 && selectedRaceName && (() => {
             const entries = (raceGroupMap.get(selectedRaceName) ?? []).slice().sort((a, b) => b.year - a.year)
             return (
               <div style={{ padding: '12px 20px 28px' }}>

@@ -62,7 +62,7 @@ function preseasonCardDist(rank: number) {
 
 function PreseasonHub({
   year, isFirstSeason, campBonus, reserveLeagueJoined, draftState,
-  rosterSubmitted, mainCount, secondCount, lastRank, objectivesCount,
+  lastRank, objectivesCount,
   onClaimCards, onReserve, onDraft, onStart, navigate,
 }: {
   year: number
@@ -70,9 +70,6 @@ function PreseasonHub({
   campBonus?: { type: string; applied: boolean }
   reserveLeagueJoined?: boolean
   draftState: DraftState
-  rosterSubmitted: boolean
-  mainCount: number
-  secondCount: number
   lastRank: number
   objectivesCount: number
   onClaimCards: () => void
@@ -81,11 +78,10 @@ function PreseasonHub({
   onStart: () => void
   navigate: (path: string) => void
 }) {
-  const rosterDone  = rosterSubmitted
   const campDone    = !!campBonus?.applied
   const reserveDone = reserveLeagueJoined !== undefined
   const draftDone   = isFirstSeason || (!!draftState && draftState.isComplete)
-  const allReady    = rosterDone && campDone && (isFirstSeason || reserveDone) && draftDone
+  const allReady    = campDone && (isFirstSeason || reserveDone) && draftDone
 
   return (
     <div style={{ padding: '14px 12px 0' }}>
@@ -114,7 +110,7 @@ function PreseasonHub({
             {isFirstSeason ? '開幕準備' : '新シーズン準備'}
           </div>
           <div style={{ fontSize: 11, color: C.textSub }}>
-            {isFirstSeason ? 'スカッドを提出してカードを受け取り、開幕へ' : 'ドラフト・カード受取を済ませてシーズン開幕へ'}
+            {isFirstSeason ? 'カードを受け取り、開幕へ' : 'ドラフト・カード受取を済ませてシーズン開幕へ'}
           </div>
         </div>
 
@@ -140,34 +136,11 @@ function PreseasonHub({
           </div>
         )}
 
-        {/* ② スカッド提出 */}
-        <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
-          <StepBadge n={isFirstSeason ? 1 : 2} done={rosterDone} color={rosterDone ? C.green : C.gold}/>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: rosterDone ? C.textDim : C.text }}>
-              {rosterDone ? 'スカッド提出完了' : 'スカッド提出'}
-            </div>
-            <div style={{ fontSize: 11, color: rosterDone ? C.green : C.textDim, marginTop: 1 }}>
-              {rosterDone ? `1軍 ${mainCount}名 · リザーブ ${secondCount}名` : '1軍16〜20名を選んで提出（必須）'}
-            </div>
-          </div>
-          <button onClick={() => navigate('/roster-select')} className="btn-press" style={{
-            padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0,
-            fontSize: 12, fontWeight: 900,
-            ...(rosterDone
-              ? { background: C.surface, border: `1px solid ${C.border2}`, color: C.textDim, boxShadow: 'none' }
-              : { background: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`, border: `2px solid #8b6914`, color: C.bg, boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.4)` }
-            ),
-          } as React.CSSProperties}>
-            {rosterDone ? '再編集' : '編成する →'}
-          </button>
-        </div>
-
-        {/* ③ リザーブリーグ — 2年目以降のみ */}
+        {/* ② リザーブリーグ — 2年目以降のみ */}
         {!isFirstSeason && (
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: reserveDone ? 0 : 10 }}>
-              <StepBadge n={3} done={reserveDone} color={reserveDone ? C.green : C.cyan}/>
+              <StepBadge n={2} done={reserveDone} color={reserveDone ? C.green : C.cyan}/>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: reserveDone ? C.textDim : C.text }}>
                   {reserveDone ? `リザーブリーグ — ${reserveLeagueJoined ? '参加' : '不参加'}` : 'リザーブリーグ参加'}
@@ -195,9 +168,9 @@ function PreseasonHub({
           </div>
         )}
 
-        {/* ④ シーズン目標の確認 */}
+        {/* ③ シーズン目標の確認 */}
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
-          <StepBadge n={isFirstSeason ? 2 : 4} done color={C.green}/>
+          <StepBadge n={isFirstSeason ? 1 : 3} done color={C.green}/>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>今シーズンの目標</div>
             <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
@@ -213,10 +186,10 @@ function PreseasonHub({
           }}>確認 →</button>
         </div>
 
-        {/* ⑤ シーズン前カード */}
+        {/* ④ シーズン前カード */}
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: campDone ? 0 : 10 }}>
-            <StepBadge n={isFirstSeason ? 3 : 5} done={campDone} color={campDone ? C.green : C.cyan}/>
+            <StepBadge n={isFirstSeason ? 2 : 4} done={campDone} color={campDone ? C.green : C.cyan}/>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: campDone ? C.textDim : C.text }}>
                 {campDone ? 'カード受取完了' : 'シーズン前カード'}
@@ -414,9 +387,6 @@ export default function Dashboard() {
           campBonus={currentSeason.campBonus}
           reserveLeagueJoined={currentSeason.reserveLeagueJoined}
           draftState={draftState}
-          rosterSubmitted={!!currentSeason.rosterSubmitted}
-          mainCount={mainPlayers.length}
-          secondCount={players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'second').length}
           lastRank={lastRank}
           objectivesCount={currentSeason.objectives.length}
           onClaimCards={claimPreseasonCards}
