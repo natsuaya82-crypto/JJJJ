@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/NotificationPanel'
 import { C, alpha } from '../../styles/tokens'
+import PressButton from '../ui/PressButton'
 
 type MenuAction = { label: string; path?: string; action?: () => void; color?: string }
 type NavItem = { to: string; label: string; icon: () => React.ReactElement }
@@ -62,6 +63,7 @@ const NAV: NavItem[] = [
 
 const AD_H = 50
 const NAV_H = 64
+const HEADER_H = 63  // ヘッダー実効高（ボタンminHeight44+上下padding18+border1）。safe-area分は別途加算
 
 /* ── Animated page wrapper ─────────────────── */
 function PageWrapper({ children, locationKey }: { children: React.ReactNode; locationKey: string }) {
@@ -120,15 +122,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', height: '100dvh',
+      minHeight: '100dvh',
       backgroundColor: C.bg, maxWidth: '480px', margin: '0 auto', position: 'relative',
     }}>
 
-      {/* ── Header ── */}
+      {/* ── Header（実機で固定：viewport上端＋safe-area） ── */}
       <header style={{
-        position: 'sticky', top: 0, zIndex: 40,
-        background: `linear-gradient(180deg, ${C.bg}f5 0%, ${C.bg}a0 100%)`,
-        backdropFilter: 'blur(12px)',
+        position: 'fixed', top: 0, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 40,
+        background: C.bg,
         padding: 'calc(10px + env(safe-area-inset-top)) 16px 8px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${alpha(C.gold, 0.1)}`,
@@ -220,7 +221,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <>
           <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 45 }}/>
           <div style={{
-            position: 'fixed', top: 'calc(54px + env(safe-area-inset-top))', right: 'max(8px, calc(50% - 232px))', zIndex: 46,
+            position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, right: 'max(8px, calc(50% - 232px))', zIndex: 46,
             backgroundColor: C.surface, border: `1px solid ${C.border2}`, borderRadius: '14px',
             minWidth: '180px', overflow: 'hidden',
             boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
@@ -244,8 +245,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </>
       )}
 
-      {/* ── Content ── */}
-      <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', paddingBottom: `calc(${NAV_H + adH + 12}px + env(safe-area-inset-bottom))` }}>
+      {/* ── Content（ヘッダーと下タブ/広告の間だけをスクロール。viewport基準で固定） ── */}
+      <main ref={mainRef} style={{
+        position: 'fixed', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px',
+        top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
+        bottom: `calc(${NAV_H + adH}px + env(safe-area-inset-bottom))`,
+        overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+      }}>
         <PageWrapper locationKey={location.pathname}>
           {children}
         </PageWrapper>
@@ -266,7 +272,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {NAV.map(({ to, label, icon: Icon }) => {
           const active = isActive(to)
           return (
-            <button key={to}
+            <PressButton key={to}
               data-se="transition"
               onClick={() => { audio.playSe('transition'); navigate(to) }}
               style={{
@@ -306,7 +312,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               }}>
                 {label}
               </span>
-            </button>
+            </PressButton>
           )
         })}
       </nav>}
@@ -320,17 +326,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           height: `calc(${AD_H}px + env(safe-area-inset-bottom))`,
           backgroundColor: '#070610',
           borderTop: `1px solid ${C.border}`,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '7px',
           zIndex: 60,
         }}>
-          <div style={{
-            width: '320px', height: '36px', borderRadius: '4px',
-            border: `1px dashed ${C.border2}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '10px', color: C.border3, letterSpacing: '2px',
-          }}>
-            ADVERTISEMENT
-          </div>
+          {/* 実機はネイティブのAdMobバナーがこの枠に表示される。Web側のプレースホルダーは出さない（二重表示防止）。 */}
         </div>
       )}
     </div>

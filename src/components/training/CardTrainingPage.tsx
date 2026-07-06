@@ -6,12 +6,13 @@ import type { CardStatKey, CardRarity } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import {
-  CARD_STAT_LABELS, RARITY_COLORS, RARITY_LABELS, RARITY_BG,
-  detectCombo,
+  CARD_STAT_LABELS, RARITY_COLORS,
+  detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
-import { CardTrainingHeaderSVG, STAT_ICON_MAP } from '../icons/StatIcons'
+import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
+import TrainingCardSVG from './TrainingCardSVG'
 import { audio } from '../../utils/audio'
 import { showRewardAd } from '../../utils/ads'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -19,6 +20,8 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const PURPLE = '#A855F7'
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+// 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
+const MENU_MULT_LABEL: Record<number, string> = { 2: '1.2', 3: '1.4', 4: '1.6', 5: '1.8' }
 
 function requiredExp(level: number): number {
   const dull = level < 80 ? 1 : level < 90 ? 2 : 4
@@ -57,8 +60,9 @@ export default function CardTrainingPage() {
     [trainingCards, filterStat]
   )
 
+  // 選択順を保ったカード配列（合成スロット表示用）
   const selectedCards = useMemo(
-    () => trainingCards.filter(c => selectedCardIds.includes(c.id)),
+    () => selectedCardIds.map(id => trainingCards.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c),
     [trainingCards, selectedCardIds]
   )
 
@@ -76,6 +80,9 @@ export default function CardTrainingPage() {
 
   const combo = useMemo(() => detectCombo(selectedCards), [selectedCards])
   const targetPlayer = useMemo(() => players.find(p => p.id === targetPlayerId), [players, targetPlayerId])
+  const isMenu = !!combo && combo.name !== '通常合成'
+  const distinctCount = useMemo(() => new Set(selectedCards.map(c => c.statKey)).size, [selectedCards])
+  const fusionFull = selectedCardIds.length >= MAX_FUSION_CARDS
 
   function selectPlayer(id: string) {
     setTargetPlayerId(id)
@@ -83,17 +90,17 @@ export default function CardTrainingPage() {
     setStep('cards')
   }
 
-  // グループをタップ：未選択があれば1枚追加、全部選択済みなら全解除
-  function toggleGroup(cards: typeof filteredCards) {
+  // グループをタップ：空きスロットがあれば未選択カードを1枚追加
+  function addFromGroup(cards: typeof filteredCards) {
     setApplied(null)
-    const selected = cards.filter(c => selectedCardIds.includes(c.id))
-    if (selected.length < cards.length) {
-      const next = cards.find(c => !selectedCardIds.includes(c.id))
-      if (next) setSelectedCardIds(prev => [...prev, next.id])
-    } else {
-      const ids = new Set(cards.map(c => c.id))
-      setSelectedCardIds(prev => prev.filter(id => !ids.has(id)))
-    }
+    if (fusionFull) return
+    const next = cards.find(c => !selectedCardIds.includes(c.id))
+    if (next) setSelectedCardIds(prev => [...prev, next.id])
+  }
+
+  function removeCard(id: string) {
+    setApplied(null)
+    setSelectedCardIds(prev => prev.filter(x => x !== id))
   }
 
   function handleApply() {
@@ -130,7 +137,7 @@ export default function CardTrainingPage() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: PURPLE, letterSpacing: '3px', fontWeight: 900, marginBottom: 1 }}>CARD TRAINING</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>カード特訓</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>カード練習</div>
           </div>
           <CardTrainingHeaderSVG width={60} height={43} />
         </div>
@@ -167,7 +174,7 @@ export default function CardTrainingPage() {
 
         <div style={{ padding: '14px 14px 6px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '3px', fontWeight: 900, marginBottom: 2 }}>STEP 1</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>特訓する選手を選ぶ</div>
+          <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>練習する選手を選ぶ</div>
         </div>
 
         <div style={{ padding: '6px 12px' }}>
@@ -196,7 +203,7 @@ export default function CardTrainingPage() {
                   <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(C.gold, 0.5)}`, boxShadow: `0 0 8px ${alpha(C.gold, 0.3)}` }}>
                     <PlayerFace playerId={p.id} nationality={p.nationality} size={56} />
                   </div>
-<span style={{ padding: '2px 6px', borderRadius: 7, flexShrink: 0, background: alpha(specCol, 0.15), color: specCol, fontSize: 9, fontWeight: 700 }}>
+                  <span style={{ padding: '2px 6px', borderRadius: 7, flexShrink: 0, background: alpha(specCol, 0.15), color: specCol, fontSize: 9, fontWeight: 700 }}>
                     {SPECIALTY_LABELS[p.specialty]}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -224,7 +231,7 @@ export default function CardTrainingPage() {
     )
   }
 
-  // ── STEP 2: Card selection ────────────────────────────────────
+  // ── STEP 2: Fusion (パズドラ風) ────────────────────────────────
   return (
     <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text, paddingBottom: 80 }}>
       {adConfirmOpen && (
@@ -292,12 +299,65 @@ export default function CardTrainingPage() {
         </div>
       )}
 
+      {/* Fusion slots */}
+      <div style={{
+        margin: '12px 14px 0', padding: '12px', borderRadius: 12,
+        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+        border: isMenu ? `2px solid ${combo!.color}` : `2px solid ${C.border2}`,
+        boxShadow: isMenu
+          ? `0 4px 0 ${alpha(combo!.color, 0.4)}, 0 6px 16px ${alpha(combo!.color, 0.15)}`
+          : `0 4px 0 rgba(0,0,0,0.5)`,
+        position: 'relative',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>
+            合成スロット <span style={{ color: C.textSub }}>{selectedCardIds.length}/{MAX_FUSION_CARDS}</span>
+          </div>
+          {isMenu && (
+            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo!.color, textShadow: `0 0 12px ${alpha(combo!.color, 0.5)}` }}>
+              {combo!.name}
+              <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+          {Array.from({ length: MAX_FUSION_CARDS }).map((_, i) => {
+            const card = selectedCards[i]
+            if (card) {
+              return (
+                <button key={i} onClick={() => removeCard(card.id)}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', flex: 1, display: 'flex', justifyContent: 'center' }}>
+                  <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={58} selected />
+                </button>
+              )
+            }
+            return (
+              <div key={i} style={{
+                flex: 1, aspectRatio: '58 / 81', maxWidth: 58, margin: '0 auto',
+                borderRadius: 9, border: `2px dashed ${C.border2}`,
+                background: alpha(C.surface, 0.5),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: C.textGhost, fontSize: 20, fontFamily: SAIRA,
+              }}>+</div>
+            )
+          })}
+        </div>
+
+        {selectedCardIds.length > 0 && (
+          <div style={{ marginTop: 8, textAlign: 'center', fontSize: 10, color: C.textDim }}>
+            {isMenu
+              ? <>能力EXPが <span style={{ color: combo!.color, fontWeight: 800 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span> で入る{combo!.traitGrant ? `・${Math.round((combo!.traitChance ?? 0) * 100)}%でスキル付与` : ''}</>
+              : 'レシピ未成立 — 通常合成（ボーナスなし）'}
+          </div>
+        )}
+      </div>
+
       <div style={{ padding: '12px 14px 0' }}>
-        {/* Card filter */}
+        {/* Inventory filter */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>
             カードを選ぶ
-            {selectedCardIds.length > 0 && <span style={{ color: C.gold, marginLeft: 8 }}>{selectedCardIds.length}枚選択中</span>}
           </div>
           <select
             value={filterStat}
@@ -312,112 +372,30 @@ export default function CardTrainingPage() {
             }}
           >
             <option value="all">すべて</option>
-            <option value="speed">スピード</option>
-            <option value="stamina">スタミナ</option>
-            <option value="mountainUp">山登り</option>
-            <option value="mountainDown">山下り</option>
-            <option value="pacing">ペース</option>
-            <option value="mental">メンタル</option>
-            <option value="recovery">回復力</option>
+            {statKeys.map(k => <option key={k} value={k}>{CARD_STAT_LABELS[k]}</option>)}
           </select>
         </div>
 
-        {/* Card grid */}
+        {/* Inventory grid */}
         {trainingCards.length === 0 ? (
           <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '32px 0' }}>カードがありません</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 7, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: 10, marginBottom: 12, justifyItems: 'center' }}>
             {cardGroups.map(group => {
-              const rarity = group.rarity
-              const total = group.cards.length
               const selCount = group.cards.filter(c => selectedCardIds.includes(c.id)).length
-              const sel = selCount > 0
+              const remaining = group.cards.length - selCount
+              const disabled = remaining <= 0 || fusionFull
               return (
                 <button
                   key={group.key}
-                  onClick={() => toggleGroup(group.cards)}
-                  style={{
-                    background: sel ? RARITY_BG[rarity] : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                    border: `2px solid ${sel ? RARITY_COLORS[rarity] : alpha(RARITY_COLORS[rarity], 0.35)}`,
-                    borderRadius: 10, padding: '10px 6px 8px',
-                    cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                    outline: 'none',
-                    boxShadow: sel
-                      ? `0 4px 0 ${alpha(RARITY_COLORS[rarity], 0.5)}, 0 6px 14px ${alpha(RARITY_COLORS[rarity], 0.25)}, inset 0 1px 0 rgba(255,255,255,0.1)`
-                      : `0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
-                    position: 'relative', overflow: 'hidden',
-                  }}
+                  onClick={() => addFromGroup(group.cards)}
+                  disabled={disabled}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: disabled ? 'not-allowed' : 'pointer' }}
                 >
-                  {sel && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(RARITY_COLORS[rarity], 0.4)}, transparent)`, pointerEvents: 'none' }}/>}
-                  {total > 1 && (
-                    <div style={{ position: 'absolute', top: 4, right: 4, fontSize: 9, fontWeight: 900, color: '#fff', background: RARITY_COLORS[rarity], borderRadius: 6, padding: '1px 5px', fontFamily: SAIRA, lineHeight: 1.3 }}>×{total}</div>
-                  )}
-                  <div style={{
-                    fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
-                    color: RARITY_COLORS[rarity],
-                    background: `${RARITY_COLORS[rarity]}22`,
-                    padding: '2px 5px', borderRadius: 4,
-                    fontFamily: SAIRA,
-                  }}>{RARITY_LABELS[rarity]}</div>
-                  {STAT_ICON_MAP[group.statKey]({ size: 20, color: RARITY_COLORS[rarity] })}
-                  <div style={{ fontSize: 10, color: sel ? C.text : C.textSub, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>
-                    {CARD_STAT_LABELS[group.statKey]}
-                  </div>
-                  {selCount > 0 && (
-                    <div style={{ fontSize: 9, fontWeight: 800, color: RARITY_COLORS[rarity], fontFamily: SAIRA }}>{selCount}枚選択中</div>
-                  )}
+                  <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={76} count={remaining} dimmed={disabled} />
                 </button>
               )
             })}
-          </div>
-        )}
-
-        {/* Combo preview */}
-        {selectedCards.length > 0 && (
-          <div style={{
-            marginBottom: 12, borderRadius: 12,
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: combo?.isSpecial ? `2px solid ${combo.color}` : `2px solid ${C.goldDark}`,
-            boxShadow: combo?.isSpecial
-              ? `0 4px 0 ${alpha(combo.color, 0.45)}, 0 6px 16px ${alpha(combo.color, 0.15)}, inset 0 1px 0 rgba(255,255,255,0.08)`
-              : `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)`,
-            padding: '12px 14px',
-            position: 'relative', overflow: 'hidden',
-          }}>
-            <div style={{ position: 'absolute', inset: 3, border: `1px solid ${combo?.isSpecial ? alpha(combo.color, 0.2) : 'rgba(245,200,66,0.15)'}`, borderRadius: 9, pointerEvents: 'none' }}/>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${combo?.isSpecial ? alpha(combo.color, 0.5) : alpha(C.gold, 0.4)}, transparent)`, pointerEvents: 'none' }}/>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: combo?.isSpecial ? combo.color : C.gold, letterSpacing: '2px', fontWeight: 900, marginBottom: 8 }}>
-              選択中 {selectedCards.length}枚
-              {combo?.isSpecial && <span style={{ marginLeft: 8, background: `${combo.color}33`, padding: '1px 6px', borderRadius: 4, letterSpacing: 1 }}>COMBO</span>}
-            </div>
-            {combo ? (
-              <>
-                <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: combo.color, marginBottom: 10, textShadow: `0 0 12px ${alpha(combo.color, 0.5)}` }}>
-                  {combo.name}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {Object.entries(combo.statDeltas).map(([key]) => (
-                    <div key={key} style={{
-                      fontFamily: SAIRA, fontSize: 12, fontWeight: 800,
-                      background: `linear-gradient(180deg, ${alpha('#9FE88D', 0.18)}, ${alpha('#9FE88D', 0.08)})`,
-                      padding: '4px 10px', borderRadius: 6, color: '#9FE88D',
-                      border: `1px solid ${alpha('#9FE88D', 0.35)}`,
-                      boxShadow: `0 2px 0 ${alpha('#9FE88D', 0.2)}`,
-                    }}>
-                      {CARD_STAT_LABELS[key as CardStatKey]}
-                    </div>
-                  ))}
-                </div>
-                {combo.traitGrant && (
-                  <div style={{ fontSize: 10, color: C.gold, marginTop: 8, fontFamily: SAIRA, fontWeight: 700 }}>
-                    {Math.round((combo.traitChance ?? 0) * 100)}% でスキル付与の可能性
-                  </div>
-                )}
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: C.textDim }}>コンボなし — 通常合成</div>
-            )}
           </div>
         )}
 
@@ -458,8 +436,8 @@ export default function CardTrainingPage() {
             width: '100%', position: 'relative', overflow: 'hidden',
             background: !canApply
               ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`
-              : combo?.isSpecial
-              ? `linear-gradient(180deg, ${alpha(combo.color, 0.9)}, #7e22ce)`
+              : isMenu
+              ? `linear-gradient(180deg, ${alpha(combo!.color, 0.9)}, #7e22ce)`
               : `linear-gradient(180deg, #9333ea, #7e22ce)`,
             color: !canApply ? C.textGhost : '#fff',
             border: canApply ? `2px solid #c084fc` : `2px solid ${C.border2}`,
@@ -472,9 +450,7 @@ export default function CardTrainingPage() {
           }}
         >
           {canApply && <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '40%', background: 'linear-gradient(180deg,rgba(255,255,255,0.18),transparent)', borderRadius: '6px 6px 50% 50%', pointerEvents: 'none' }} />}
-          {selectedCardIds.length === 0 ? 'カードを選んでください'
-            : !combo ? '—'
-            : '特訓実行'}
+          {selectedCardIds.length === 0 ? 'カードを選んでください' : '練習実行'}
         </button>
       </div>
 

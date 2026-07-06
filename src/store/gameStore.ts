@@ -4630,16 +4630,17 @@ export const useGameStore = create<GameStore>()(
 
       claimLoginBonus: () => {
         const state = get()
-        // 10:00 AM reset: before 10AM counts as previous day
+        // 10:00 AM reset: before 10AM counts as previous day。日付はローカル基準で統一（UTCと混ぜない）。
+        const localDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
         const now = new Date()
         const base = new Date(now)
         if (base.getHours() < 10) base.setDate(base.getDate() - 1)
-        const today = base.toISOString().slice(0, 10)
+        const today = localDate(base)
         if (state.lastLoginDate === today) return null
 
         const prev = new Date(base)
         prev.setDate(prev.getDate() - 1)
-        const yesterday = prev.toISOString().slice(0, 10)
+        const yesterday = localDate(prev)
         const continued = state.lastLoginDate === yesterday
         const prevStreak = continued ? (state.loginStreak ?? 0) : 0
         const newStreak = prevStreak + 1

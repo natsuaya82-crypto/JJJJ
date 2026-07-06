@@ -1115,27 +1115,12 @@ export default function ChatPage() {
           </>
         )}
 
-        {activeTab === 'transfer' && (
-          <>
-            <div style={{ fontSize: 10, fontWeight: 800, color: C.textSub, letterSpacing: '0.1em', marginBottom: 4, marginTop: (acqPlayers.length > 0 || inboundCount > 0) ? 14 : 4 }}>
-              他チームと交渉（移籍金・トレード）
-            </div>
-            {opponentTeams.map(t => {
-              const hasNeg = (currentSeason.tradeNegotiations ?? []).some(n => n.targetTeamId === t.id)
-              return (
-                <button key={t.id} onClick={() => setTradeTeamId(t.id)} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, cursor: 'pointer', width: '100%', marginBottom: 4,
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${hasNeg ? alpha(C.gold, 0.5) : C.border2}`, fontFamily: 'inherit',
-                }}>
-                  <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={30} />
-                  <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 700, color: C.text }}>{t.name}</span>
-                  {hasNeg && <span style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 8, background: C.gold, color: '#111' }}>交渉中</span>}
-                  <span style={{ color: C.textGhost }}>›</span>
-                </button>
-              )
-            })}
-          </>
+        {activeTab === 'transfer' && acqPlayers.length === 0 && inboundCount === 0 && (
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA, fontSize: 12, lineHeight: 1.7 }}>
+            進行中の交渉・オファーはありません。<br/>移籍市場や他チームの選手から交渉を始めてください。
+          </div>
         )}
+
       </div>
     </div>
   )

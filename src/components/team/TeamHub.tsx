@@ -46,7 +46,7 @@ export default function TeamHub() {
     },
     {
       key: '/cards',
-      label: 'カード特訓',
+      label: 'カード練習',
       desc: 'カード合成で選手を育成・スキル付与',
       countLabel: trainingCards.length > 0
         ? `手持ち${trainingCards.length}枚${raceDroppedCards.length > 0 ? ` / NEW+${raceDroppedCards.length}` : ''}`

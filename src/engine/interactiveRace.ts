@@ -31,9 +31,9 @@ export type RaceSegmentEvent = {
   _effects: Array<{
     effortType: 'aggressive' | 'balanced' | 'conservative'
     staminaSuccess: number
-    timeBonusSuccess: number  // 秒、負=速い
+    timeBonusSuccess: number  // 区間タイムに対する割合、負=速い（例 -0.0048 = 区間タイム-0.48%）
     staminaFail: number
-    timeBonusFail: number     // 秒、正=遅い
+    timeBonusFail: number     // 区間タイムに対する割合、正=遅い
   }>
 }
 
@@ -194,11 +194,7 @@ export function generateSegmentEvents(params: {
 }): RaceSegmentEvent[] {
   const { seg, playerBaseTime, cpuTimesForSeg, cumulativeTimes, isFirstSeg, player, totalSegs, players, cpuLineups, teams } = params
 
-  // 1区はスタートダッシュ演出で必ずイベント。それ以降は毎回出すとテンポが悪く、
-  // 区間スキップ後にも必ず発生してストレスになるため、一定確率で「イベントなし」にする。
-  if (!isFirstSeg && Math.random() < 0.5) return []
-
-  const maxEvents = seg.distanceKm < 5 ? 1 : 2
+  // 各区間ちょうど1回だけイベントを出す（くどさ回避のため2回目は出さない）。
   const events: RaceSegmentEvent[] = []
 
   const playerMap = new Map(players.map(p => [p.id, p]))
@@ -285,11 +281,6 @@ export function generateSegmentEvents(params: {
     events.push(makeWaterStationEvent(player, ctx))
   }
 
-  if (events.length < maxEvents) {
-    const closestRivalOvr = nearestFasterOvr ?? nearestChaserOvr
-    events.push(makeFinalPushEvent(player, projectedRank, totalTeams, seg, closestRivalOvr, ctx))
-  }
-
   // IDを区間ごとにユニークにする
   return events.map((e, i) => ({ ...e, id: `${e.id}_seg${segIdx}_${i}` }))
 }
@@ -326,9 +317,9 @@ function makeStartDashEvent(player: Player, ctx: RaceContext): RaceSegmentEvent 
       { id: 'c', text: isKicker ? 'スパートに備えて後半型で入る' : isLong ? '長距離型のリズムで刻む' : '後半勝負で体力を温存する' },
     ],
     _effects: [
-      { effortType: 'aggressive', staminaSuccess: -3, timeBonusSuccess: -12, staminaFail: -11, timeBonusFail: 8 },
-      { effortType: 'balanced',   staminaSuccess: -1, timeBonusSuccess: -5,  staminaFail: -4,  timeBonusFail: 2 },
-      { effortType: 'conservative', staminaSuccess: 0, timeBonusSuccess: 0,  staminaFail: 0,   timeBonusFail: 0 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
     ],
   }
 }
@@ -371,9 +362,9 @@ function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext)
       { id: 'c', text: 'リズムを刻んで体力を温存する' },
     ],
     _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -4, timeBonusSuccess: -15, staminaFail: -13, timeBonusFail: 10 },
-      { effortType: 'balanced',     staminaSuccess: -2, timeBonusSuccess: -6,  staminaFail: -5,  timeBonusFail: 3 },
-      { effortType: 'conservative', staminaSuccess: 1,  timeBonusSuccess: 0,   staminaFail: 1,   timeBonusFail: 0 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
     ],
   }
 }
@@ -415,9 +406,9 @@ function makeMountainDescentEvent(player: Player, ctx: RaceContext): RaceSegment
       { id: 'c', text: '下りを使って体力を回復させながら走る' },
     ],
     _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -3, timeBonusSuccess: -18, staminaFail: -13, timeBonusFail: 12 },
-      { effortType: 'balanced',     staminaSuccess: -2, timeBonusSuccess: -5,  staminaFail: -4,  timeBonusFail: 3 },
-      { effortType: 'conservative', staminaSuccess: 2,  timeBonusSuccess: 0,   staminaFail: 2,   timeBonusFail: 0 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
     ],
   }
 }
@@ -454,9 +445,9 @@ function makePackRaceEvent(player: Player, nearbyCount: number, opponentOvr: num
     ],
     opponentOvr,
     _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -3, timeBonusSuccess: -12, staminaFail: -11, timeBonusFail: 7 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -4,  staminaFail: -3,  timeBonusFail: 1 },
-      { effortType: 'conservative', staminaSuccess: 1,  timeBonusSuccess: 0,   staminaFail: 1,   timeBonusFail: 0 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
     ],
   }
 }
@@ -499,9 +490,9 @@ function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: nu
     ],
     opponentOvr,
     _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -3, timeBonusSuccess: -15, staminaFail: -12, timeBonusFail: 8 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -7,  staminaFail: -4,  timeBonusFail: 2 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,   staminaFail: 0,   timeBonusFail: 0 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
     ],
   }
 }
@@ -541,9 +532,9 @@ function makeFrontPressureEvent(player: Player, opponentOvr: number | undefined,
     ],
     opponentOvr,
     _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -3, timeBonusSuccess: -10, staminaFail: -11, timeBonusFail: 6 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -3,  staminaFail: -3,  timeBonusFail: 1 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,   staminaFail: 0,   timeBonusFail: 0 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
     ],
   }
 }
@@ -580,9 +571,9 @@ function makeWaterStationEvent(player: Player, ctx: RaceContext): RaceSegmentEve
       { id: 'c', text: '給水をパスしてタイムを削る' },
     ],
     _effects: [
-      { effortType: 'conservative', staminaSuccess: 5,  timeBonusSuccess: 0,  staminaFail: 5,  timeBonusFail: 0 },
-      { effortType: 'balanced',     staminaSuccess: 2,  timeBonusSuccess: -1, staminaFail: 2,  timeBonusFail: 0 },
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -5, staminaFail: -6, timeBonusFail: 4 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
     ],
   }
 }
@@ -661,9 +652,9 @@ function makeFinalPushEvent(
     ],
     opponentOvr,
     _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -4, timeBonusSuccess: -18, staminaFail: -14, timeBonusFail: 10 },
-      { effortType: 'balanced',     staminaSuccess: -2, timeBonusSuccess: -7,  staminaFail: -5,  timeBonusFail: 3 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,   staminaFail: 0,   timeBonusFail: 0 },
+      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
+      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
+      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
     ],
   }
 }
@@ -674,14 +665,16 @@ export function resolveChoice(
   event: RaceSegmentEvent,
   choiceIdx: number,
   segStamina: number,
+  segBaseTime: number,
 ): { staminaDelta: number; timeDelta: number; newStamina: number; success: boolean } {
   const effect = event._effects[choiceIdx]
   if (!effect) return { staminaDelta: 0, timeDelta: 0, newStamina: segStamina, success: true }
 
+  // timeBonus は区間タイムに対する割合。区間の基準タイムに掛けて秒に変換する。
   if (effect.effortType === 'conservative') {
     return {
       staminaDelta: effect.staminaSuccess,
-      timeDelta: effect.timeBonusSuccess,
+      timeDelta: Math.round(segBaseTime * effect.timeBonusSuccess),
       newStamina: segStamina + effect.staminaSuccess,
       success: true,
     }
@@ -692,7 +685,8 @@ export function resolveChoice(
   const success = Math.random() < successProb
 
   const staminaDelta = success ? effect.staminaSuccess : effect.staminaFail
-  const timeDelta = success ? effect.timeBonusSuccess : effect.timeBonusFail
+  const timeFrac = success ? effect.timeBonusSuccess : effect.timeBonusFail
+  const timeDelta = Math.round(segBaseTime * timeFrac)
 
   return { staminaDelta, timeDelta, newStamina: segStamina + staminaDelta, success }
 }

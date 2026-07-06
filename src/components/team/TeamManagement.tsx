@@ -266,7 +266,7 @@ export default function TeamManagement() {
           { key: '持久重視', label: '持久重視', desc: 'スタミナ向上に特化したトレーニング。長距離レースに強くなる。', effect: 'スタミナ +1 (確率35%)', color: C.green, shadow: '#0d3d22' },
           { key: 'スピード重視', label: 'スピード重視', desc: '速力向上のトレーニング。スプリント区間での活躍が期待できる。', effect: '速力 +1 (確率35%)', color: C.red, shadow: '#660e10' },
           { key: '精神強化', label: '精神強化', desc: '精神力・集中力を高める。プレッシャーに強くなる。', effect: '精神 +1 (確率35%)', color: C.blue, shadow: '#1a2050' },
-          { key: '登り強化', label: '登り強化', desc: '山岳区間の走力を特訓。山登り専門家でなくても効果あり。', effect: '登り +1 (確率35%)', color: C.orange, shadow: '#5a2800' },
+          { key: '登り強化', label: '登り強化', desc: '山岳区間の走力を練習。山登り専門家でなくても効果あり。', effect: '登り +1 (確率35%)', color: C.orange, shadow: '#5a2800' },
           { key: '回復調整', label: '回復調整', desc: '激しいトレーニングを控え疲労回復を優先する調整期。', effect: '疲労 -8 (毎レース)', color: C.cyan, shadow: '#0e3f5a' },
         ]
         const avgFatigue = myMainPlayers.length > 0

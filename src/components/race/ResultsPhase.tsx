@@ -513,7 +513,7 @@ export function ResultsPhase({
                 }}
               >
                 <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }} />
-                特訓する
+                練習する
               </button>
             </div>
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>

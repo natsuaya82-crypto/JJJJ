@@ -209,7 +209,7 @@ export default function RacePage() {
     const playerObj = players.find(p => p.id === playerPlayerId)
     if (!playerObj) return
 
-    const { staminaDelta: _sd, timeDelta, newStamina } = resolveChoice(event, choiceIdx, iSim.segStamina)
+    const { staminaDelta: _sd, timeDelta, newStamina } = resolveChoice(event, choiceIdx, iSim.segStamina, iSim.playerBaseTime)
     void _sd
 
     const remainingEvents = iSim.pendingEvents.slice(1)
