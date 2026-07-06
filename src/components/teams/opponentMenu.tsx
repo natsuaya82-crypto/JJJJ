@@ -83,6 +83,7 @@ function LoanModal({ player, slots, pending, onSubmit, onClose }: { player: Play
 export function useOpponentMenu() {
   const navigate = useNavigate()
   const { players, teams, playerTeamId, currentSeason } = useGameStore()
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const scoutOpponentPlayer = useGameStore(s => s.scoutOpponentPlayer)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
@@ -93,14 +94,14 @@ export function useOpponentMenu() {
   const lp = useRef<{ t?: number; long: boolean }>({ long: false })
 
   const rowHandlers = (pid: string) => ({
-    onPointerDown: () => { lp.current.long = false; lp.current.t = window.setTimeout(() => { lp.current.long = true; navigate('/player/' + pid) }, 450) },
+    onPointerDown: () => { lp.current.long = false; lp.current.t = window.setTimeout(() => { lp.current.long = true; openPlayerSheet(pid) }, 450) },
     onPointerUp: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
     onPointerLeave: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
     onPointerMove: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
     onClick: (e: React.MouseEvent) => {
       if (lp.current.long) { lp.current.long = false; return }
       const tp = players.find(x => x.id === pid)
-      if (tp && tp.teamId === playerTeamId) { navigate('/player/' + pid); return }  // 自チーム選手は詳細へ
+      if (tp && tp.teamId === playerTeamId) { openPlayerSheet(pid); return }  // 自チーム選手は詳細へ
       const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
       const top = r.bottom + 210 > window.innerHeight ? Math.max(8, r.top - 210) : r.bottom + 4
       const left = Math.min(Math.max(8, r.left + 28), window.innerWidth - 202)

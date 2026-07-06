@@ -13,7 +13,7 @@ import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyP
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant } from '../data/economy'
 import { tierForContract, canSignContract } from '../data/rosterRules'
-import { generateDropCards, detectCombo } from '../utils/cardCombo'
+import { generateDropCards, detectCombo, MAX_FUSION_CARDS } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
 
@@ -207,6 +207,14 @@ export type GameStore = GameState & {
   // Player sheet
   openPlayerId: string | null
   openPlayerSheet: (id: string | null) => void
+
+  // Card fusion (練習) UI state
+  fusionPlayerId: string | null
+  fusionCardIds: string[]
+  setFusionPlayer: (id: string) => void
+  addFusionCard: (id: string) => void
+  removeFusionCard: (id: string) => void
+  clearFusion: () => void
   setTrainingFocus: (playerId: string, ratingKey: string | null) => void
   sendScoutMission: (prospectId: string) => void
   startFAVisit: (playerId: string) => void
@@ -333,6 +341,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     raceLineup: {},
     lastRaceLineup: {},
     openPlayerId: null,
+    fusionPlayerId: null,
+    fusionCardIds: [],
     raceStrategy: 'balanced',
     raceTeamTalk: 'best',
     activeRacePhase: null,
@@ -393,6 +403,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     lastLoginDate: undefined as unknown as string,
     loginStreak: undefined as unknown as number,
     totalLoginDays: undefined as unknown as number,
+    lastAdDate: undefined as unknown as string,
+    adsWatchedToday: undefined as unknown as number,
     adsRemoved: false,
   } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
 }
@@ -1733,6 +1745,15 @@ export const useGameStore = create<GameStore>()(
       },
 
       openPlayerSheet: (id) => set({ openPlayerId: id }),
+
+      setFusionPlayer: (id) => set({ fusionPlayerId: id, fusionCardIds: [] }),
+      addFusionCard: (id) => set((state) => {
+        if (state.fusionCardIds.includes(id) || state.fusionCardIds.length >= MAX_FUSION_CARDS) return {}
+        return { fusionCardIds: [...state.fusionCardIds, id] }
+      }),
+      removeFusionCard: (id) => set((state) => ({ fusionCardIds: state.fusionCardIds.filter(x => x !== id) })),
+      clearFusion: () => set({ fusionPlayerId: null, fusionCardIds: [] }),
+
       setRaceStrategy: (s) => set({ raceStrategy: s }),
       setRaceTeamTalk: (t) => set({ raceTeamTalk: t }),
 
@@ -4671,7 +4692,11 @@ export const useGameStore = create<GameStore>()(
       setAdsRemoved: (v) => set({ adsRemoved: v }),
 
       resetGame: () => {
-        set({ ...(emptyState() as unknown as GameStore) })
+        // データ削除：ゲーム進行・広告カウント・ログインボーナスはリセット（また受け取れる）するが、
+        // 課金(広告なし購入)は「データ」ではなく権利なので維持する。
+        // ※アプリのアンインストール時は localStorage ごと消えるので、その場合のみ「購入を復元」が必要。
+        const paid = get().adsRemoved
+        set({ ...(emptyState() as unknown as GameStore), adsRemoved: paid })
         localStorage.removeItem('jpel-manager-save')
       },
     }),
@@ -5010,7 +5035,7 @@ type RatingsKey = keyof import('../types').Ratings
 
 /** L→L+1 に必要なEXP。L<80: ×1 / 80≤L<90: ×2 / 90≤L: ×4 */
 function requiredExpForLevel(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 2 : 4
+  const dull = level < 80 ? 1 : level < 90 ? 1.5 : 2
   return Math.floor(0.5 * level * level * dull)
 }
 

@@ -3,24 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
-import { CARD_STAT_LABELS, RARITY_COLORS, RARITY_LABELS } from '../../utils/cardCombo'
+import { CARD_NAMES } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
-import { STAT_ICON_MAP } from '../icons/StatIcons'
+import TrainingCardSVG from './TrainingCardSVG'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-const RARITY_ORDER: CardRarity[] = ['legendary', 'epic', 'rare', 'normal']
-
-const STAT_TABS: { key: CardStatKey | 'all'; label: string }[] = [
-  { key: 'all', label: 'すべて' },
-  { key: 'speed', label: 'SPD' },
-  { key: 'stamina', label: 'STA' },
-  { key: 'mountainUp', label: '山↑' },
-  { key: 'mountainDown', label: '山↓' },
-  { key: 'pacing', label: 'PACe' },
-  { key: 'mental', label: 'MEN' },
-  { key: 'recovery', label: 'REC' },
-]
+const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 
 const SORT_OPTIONS = [
   { key: 'rarity', label: 'レア度順' },
@@ -31,17 +20,21 @@ type SortKey = typeof SORT_OPTIONS[number]['key']
 
 const RARITY_RANK: Record<CardRarity, number> = { legendary: 4, epic: 3, rare: 2, normal: 1 }
 
+// 絞り込み・並べ替えはプルダウン（<select>）で統一
+const selectStyle = {
+  padding: '6px 28px 6px 10px', borderRadius: 8,
+  background: C.surface2, border: `1px solid ${C.border}`,
+  color: C.textSub, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
+  appearance: 'none' as const, WebkitAppearance: 'none' as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+}
+
 export default function CardInventoryPage() {
   const navigate = useNavigate()
   const { trainingCards } = useGameStore()
   const [filterStat, setFilterStat] = useState<CardStatKey | 'all'>('all')
   const [sort, setSort] = useState<SortKey>('rarity')
-
-  const counts = useMemo(() => {
-    const m: Partial<Record<CardRarity, number>> = {}
-    for (const c of trainingCards) m[c.rarity] = (m[c.rarity] ?? 0) + 1
-    return m
-  }, [trainingCards])
 
   const filtered = useMemo(() => {
     const base = filterStat === 'all' ? trainingCards : trainingCards.filter(c => c.statKey === filterStat)
@@ -52,13 +45,7 @@ export default function CardInventoryPage() {
     })
   }, [trainingCards, filterStat, sort])
 
-  const statCounts = useMemo(() => {
-    const m: Partial<Record<CardStatKey, number>> = {}
-    for (const c of trainingCards) m[c.statKey] = (m[c.statKey] ?? 0) + 1
-    return m
-  }, [trainingCards])
-
-  // 合成画面と同じく、同じカードは1つにまとめて×Nで表示
+  // 同じカード（能力×レア度）は1つにまとめて×Nで表示
   const cardGroups = useMemo(() => {
     const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; count: number }>()
     for (const c of filtered) {
@@ -101,108 +88,31 @@ export default function CardInventoryPage() {
         </button>
       </div>
 
+      {/* 絞り込み・並べ替え（プルダウン） */}
       <div style={{ padding: '0 14px 12px', display: 'flex', gap: 8 }}>
-        {RARITY_ORDER.map(r => (
-          <div key={r} style={{
-            flex: 1, position: 'relative', overflow: 'hidden',
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${alpha(RARITY_COLORS[r], 0.45)}`,
-            boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-            borderRadius: 12, padding: '8px 0', textAlign: 'center',
-          }}>
-            <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 9, pointerEvents: 'none' }}/>
-            <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: RARITY_COLORS[r], textShadow: `0 0 8px ${alpha(RARITY_COLORS[r], 0.5)}` }}>
-              {counts[r] ?? 0}
-            </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginTop: 2 }}>{RARITY_LABELS[r][0]}</div>
-          </div>
-        ))}
+        <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...selectStyle, flex: 1 }}>
+          <option value="all">すべての種類</option>
+          {statKeys.map(k => <option key={k} value={k}>{CARD_NAMES[k]}</option>)}
+        </select>
+        <select value={sort} onChange={e => setSort(e.target.value as SortKey)} style={{ ...selectStyle, flex: 1 }}>
+          {SORT_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+        </select>
       </div>
 
-      <div style={{ overflowX: 'auto', display: 'flex', gap: 6, padding: '0 14px 10px' }}>
-        {STAT_TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setFilterStat(tab.key)}
-            style={{
-              flexShrink: 0, padding: '5px 10px', borderRadius: 20, border: 'none',
-              fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA,
-              background: filterStat === tab.key
-                ? `linear-gradient(180deg, ${C.surface}, ${C.bg})`
-                : C.surface2,
-              color: filterStat === tab.key ? C.gold : C.textSub,
-              outline: filterStat === tab.key ? `1px solid ${alpha(C.gold, 0.4)}` : `1px solid ${C.border}`,
-              boxShadow: filterStat === tab.key ? `0 2px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)` : 'none',
-            }}
-          >
-            {tab.label}
-            {tab.key !== 'all' && statCounts[tab.key as CardStatKey] != null && (
-              <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>
-                {statCounts[tab.key as CardStatKey]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ padding: '0 14px 10px', display: 'flex', gap: 6, alignItems: 'center' }}>
-        <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>並べ替え:</span>
-        {SORT_OPTIONS.map(s => (
-          <button
-            key={s.key}
-            onClick={() => setSort(s.key)}
-            style={{
-              padding: '3px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
-              fontSize: 10, fontWeight: 600, fontFamily: SAIRA,
-              background: sort === s.key
-                ? `linear-gradient(180deg, ${C.surface}, ${C.bg})`
-                : C.surface2,
-              color: sort === s.key ? C.gold : C.textSub,
-              outline: sort === s.key ? `1px solid ${alpha(C.gold, 0.4)}` : `1px solid ${C.border}`,
-            }}
-          >{s.label}</button>
-        ))}
-      </div>
-
+      {/* Card grid */}
       <div style={{ padding: '0 14px' }}>
-        {filtered.length === 0 ? (
+        {cardGroups.length === 0 ? (
           <div style={{ textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: 13, padding: '40px 0' }}>
             カードがありません
           </div>
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-            gap: 7,
+            gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))',
+            gap: 10, justifyItems: 'center',
           }}>
             {cardGroups.map(group => (
-              <div
-                key={group.key}
-                style={{
-                  position: 'relative', overflow: 'hidden',
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `2px solid ${alpha(RARITY_COLORS[group.rarity], 0.4)}`,
-                  boxShadow: `0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
-                  borderRadius: 10,
-                  padding: '10px 6px 8px',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                }}
-              >
-                {group.count > 1 && (
-                  <div style={{ position: 'absolute', top: 4, right: 4, fontSize: 9, fontWeight: 900, color: '#fff', background: RARITY_COLORS[group.rarity], borderRadius: 6, padding: '1px 5px', fontFamily: SAIRA, lineHeight: 1.3 }}>×{group.count}</div>
-                )}
-                <div style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
-                  color: RARITY_COLORS[group.rarity],
-                  background: `${RARITY_COLORS[group.rarity]}22`,
-                  padding: '2px 5px', borderRadius: 4,
-                  fontFamily: SAIRA,
-                }}>{RARITY_LABELS[group.rarity]}</div>
-                {STAT_ICON_MAP[group.statKey]({ size: 20, color: RARITY_COLORS[group.rarity] })}
-                <div style={{ fontSize: 10, color: C.textSub, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>
-                  {CARD_STAT_LABELS[group.statKey]}
-                </div>
-              </div>
+              <TrainingCardSVG key={group.key} statKey={group.statKey} rarity={group.rarity} width={76} count={group.count} />
             ))}
           </div>
         )}

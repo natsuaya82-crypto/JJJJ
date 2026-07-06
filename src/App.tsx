@@ -10,6 +10,7 @@ import { runWithLoading } from './store/loadingStore'
 import TitleScreen from './components/title/TitleScreen'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
+import AnnouncementsPage from './components/more/AnnouncementsPage'
 import Dashboard from './components/dashboard/Dashboard'
 import TeamManagement from './components/team/TeamManagement'
 import Onboarding from './components/onboarding/Onboarding'
@@ -54,6 +55,7 @@ import WECSimPage from './components/international/WECSimPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
 import CardTrainingPage from './components/training/CardTrainingPage'
 import CardInventoryPage from './components/training/CardInventoryPage'
+import CardSelectPage from './components/training/CardSelectPage'
 import BudgetPage from './components/budget/BudgetPage'
 import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
@@ -164,10 +166,12 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/cards" element={<CardTrainingPage />} />
           <Route path="/cards/list" element={<CardInventoryPage />} />
+          <Route path="/cards/select" element={<CardSelectPage />} />
           <Route path="/budget" element={<BudgetPage />} />
           <Route path="/login-bonus" element={<LoginBonusPage />} />
           <Route path="/news" element={<NewsPage />} />
           <Route path="/more" element={<MorePage onBackToTitle={onBackToTitle} />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
         </Routes>
       </Layout>

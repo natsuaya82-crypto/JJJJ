@@ -1,5 +1,6 @@
 import type { Player, Team } from '../../types'
 import { useNavigate } from 'react-router-dom'
+import { useGameStore } from '../../store/gameStore'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, FORM_LABELS, FORM_COLORS } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
@@ -13,6 +14,7 @@ interface Props {
 
 export default function KeyPlayersSection({ players, team }: Props) {
   const navigate = useNavigate()
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const top = [...players].sort((a, b) => ovr(b) - ovr(a)).slice(0, 3)
 
   return (
@@ -35,7 +37,7 @@ export default function KeyPlayersSection({ players, team }: Props) {
           return (
             <div
               key={p.id}
-              onClick={() => navigate(`/player/${p.id}`)}
+              onClick={() => openPlayerSheet(p.id)}
               className="btn-press"
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,

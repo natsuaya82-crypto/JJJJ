@@ -1,5 +1,5 @@
 import type { CardStatKey, CardRarity } from '../../types'
-import { CARD_STAT_LABELS, RARITY_COLORS, RARITY_LABELS } from '../../utils/cardCombo'
+import { CARD_NAMES, RARITY_COLORS, RARITY_LABELS } from '../../utils/cardCombo'
 import { STAT_ICON_MAP } from '../icons/StatIcons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -82,7 +82,7 @@ export default function TrainingCardSVG({
         position: 'absolute', bottom: width * 0.2, left: 0, right: 0, textAlign: 'center',
         fontFamily: SAIRA, fontSize: width * 0.145, fontWeight: 900, color: '#fff',
         textShadow: '0 1px 3px rgba(0,0,0,0.8)', padding: '0 4px',
-      }}>{CARD_STAT_LABELS[statKey]}</div>
+      }}>{CARD_NAMES[statKey]}</div>
 
       {/* count badge */}
       {count != null && count > 1 && (

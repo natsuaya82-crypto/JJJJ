@@ -2,11 +2,11 @@ import { useState, useMemo, useEffect } from 'react'
 import BackButton from '../ui/BackButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import type { CardStatKey, CardRarity } from '../../types'
+import type { CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import {
-  CARD_STAT_LABELS, RARITY_COLORS,
+  CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
@@ -24,20 +24,19 @@ const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown
 const MENU_MULT_LABEL: Record<number, string> = { 2: '1.2', 3: '1.4', 4: '1.6', 5: '1.8' }
 
 function requiredExp(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 2 : 4
+  const dull = level < 80 ? 1 : level < 90 ? 1.5 : 2
   return Math.floor(0.5 * level * level * dull)
 }
 
 export default function CardTrainingPage() {
   const navigate = useNavigate()
-  const { trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards } = useGameStore()
+  const {
+    trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
+    fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
+  } = useGameStore()
 
   useEffect(() => { dismissDroppedCards() }, [])
 
-  const [step, setStep] = useState<'player' | 'cards'>('player')
-  const [filterStat, setFilterStat] = useState<CardStatKey | 'all'>('all')
-  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
-  const [targetPlayerId, setTargetPlayerId] = useState<string>('')
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; traitGranted: boolean; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
   const [adWatched, setAdWatched] = useState(false)
   const [adConfirmOpen, setAdConfirmOpen] = useState(false)
@@ -55,56 +54,30 @@ export default function CardTrainingPage() {
     [players, playerTeamId]
   )
 
-  const filteredCards = useMemo(
-    () => filterStat === 'all' ? trainingCards : trainingCards.filter(c => c.statKey === filterStat),
-    [trainingCards, filterStat]
-  )
-
-  // 選択順を保ったカード配列（合成スロット表示用）
+  // 選択順を保ったカード配列（合成スロット表示用）。存在しないid（stale）は除外。
   const selectedCards = useMemo(
-    () => selectedCardIds.map(id => trainingCards.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c),
-    [trainingCards, selectedCardIds]
+    () => fusionCardIds.map(id => trainingCards.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c),
+    [trainingCards, fusionCardIds]
   )
-
-  // 同じ種類（能力×レア度）のカードは1つにまとめて表示する
-  const cardGroups = useMemo(() => {
-    const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; cards: typeof filteredCards }>()
-    for (const c of filteredCards) {
-      const k = `${c.statKey}_${c.rarity}`
-      const g = map.get(k)
-      if (g) g.cards.push(c)
-      else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, cards: [c] })
-    }
-    return [...map.values()]
-  }, [filteredCards])
 
   const combo = useMemo(() => detectCombo(selectedCards), [selectedCards])
-  const targetPlayer = useMemo(() => players.find(p => p.id === targetPlayerId), [players, targetPlayerId])
+  const targetPlayer = useMemo(() => players.find(p => p.id === fusionPlayerId), [players, fusionPlayerId])
   const isMenu = !!combo && combo.name !== '通常合成'
   const distinctCount = useMemo(() => new Set(selectedCards.map(c => c.statKey)).size, [selectedCards])
-  const fusionFull = selectedCardIds.length >= MAX_FUSION_CARDS
 
   function selectPlayer(id: string) {
-    setTargetPlayerId(id)
-    setSelectedCardIds([])
-    setStep('cards')
-  }
-
-  // グループをタップ：空きスロットがあれば未選択カードを1枚追加
-  function addFromGroup(cards: typeof filteredCards) {
     setApplied(null)
-    if (fusionFull) return
-    const next = cards.find(c => !selectedCardIds.includes(c.id))
-    if (next) setSelectedCardIds(prev => [...prev, next.id])
+    setFusionPlayer(id)
   }
 
   function removeCard(id: string) {
     setApplied(null)
-    setSelectedCardIds(prev => prev.filter(x => x !== id))
+    removeFusionCard(id)
   }
 
   function handleApply() {
-    if (!targetPlayerId || selectedCardIds.length === 0 || !combo || !targetPlayer) return
+    const cardIds = selectedCards.map(c => c.id)
+    if (!targetPlayer || cardIds.length === 0 || !combo) return
     const preRatings: Partial<Record<CardStatKey, number>> = {}
     const preExp: Partial<Record<CardStatKey, number>> = {}
     statKeys.forEach(k => {
@@ -114,14 +87,15 @@ export default function CardTrainingPage() {
     const greatSuccess = adWatched || Math.random() < 0.05
     const multiplier = greatSuccess ? 1.5 : 1.0
     const willTrait = !!(combo.traitGrant && combo.traitChance && Math.random() < combo.traitChance)
-    applyTrainingCards(targetPlayerId, selectedCardIds, willTrait, multiplier)
+    applyTrainingCards(targetPlayer.id, cardIds, willTrait, multiplier)
     setApplied({ combo, traitGranted: willTrait, greatSuccess, preRatings, preExp })
-    setSelectedCardIds([])
     setAdWatched(false)
+    // 選手は残してカードだけクリア（合成完了オーバーレイを表示し続けるため。選手を消すとSTEP1に戻って結果が消える）
+    setFusionPlayer(targetPlayer.id)
     audio.playSe(greatSuccess ? 'great_success' : 'levelup')
   }
 
-  const canApply = !!targetPlayerId && selectedCardIds.length > 0 && !!combo
+  const canApply = !!targetPlayer && selectedCards.length > 0 && !!combo
 
   const sharedHeader = (onBack: () => void, backLabel?: string) => (
     <div style={{
@@ -167,7 +141,7 @@ export default function CardTrainingPage() {
   )
 
   // ── STEP 1: Player selection ──────────────────────────────────
-  if (step === 'player') {
+  if (!targetPlayer) {
     return (
       <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text, paddingBottom: 80 }}>
         {sharedHeader(() => navigate(-1))}
@@ -233,7 +207,7 @@ export default function CardTrainingPage() {
 
   // ── STEP 2: Fusion (パズドラ風) ────────────────────────────────
   return (
-    <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text, paddingBottom: 80 }}>
+    <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text, paddingBottom: 96 }}>
       {adConfirmOpen && (
         <ConfirmDialog
           title="動画を見ますか？"
@@ -244,60 +218,67 @@ export default function CardTrainingPage() {
           onCancel={() => setAdConfirmOpen(false)}
         />
       )}
-      {sharedHeader(() => setStep('player'), '選手変更')}
+      {sharedHeader(() => clearFusion(), '選手変更')}
 
       {/* Selected player banner */}
-      {targetPlayer && (
-        <div style={{
-          margin: '12px 14px 0',
-          padding: '10px 14px', borderRadius: 12,
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark}`,
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)`,
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{ position: 'absolute', inset: 3, border: `1px solid rgba(245,200,66,0.18)`, borderRadius: 9, pointerEvents: 'none' }}/>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(C.gold, 0.4)}, transparent)`, pointerEvents: 'none' }}/>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{ flexShrink: 0, borderRadius: 10, overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
-              <PlayerFace playerId={targetPlayer.id} nationality={targetPlayer.nationality} size={60} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{targetPlayer.name}</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{targetPlayer.age}歳 · OVR {ovr(targetPlayer)}</div>
-            </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>STEP 2</div>
+      <div style={{
+        margin: '12px 14px 0',
+        padding: '10px 14px', borderRadius: 12,
+        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+        border: `2px solid ${C.goldDark}`,
+        boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)`,
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', inset: 3, border: `1px solid rgba(245,200,66,0.18)`, borderRadius: 9, pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(C.gold, 0.4)}, transparent)`, pointerEvents: 'none' }}/>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <div style={{ flexShrink: 0, borderRadius: 10, overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
+            <PlayerFace playerId={targetPlayer.id} nationality={targetPlayer.nationality} size={60} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
-            {statKeys.map(k => {
-              const current = targetPlayer.ratings[k] ?? 0
-              const delta = combo?.statDeltas[k] ?? 0
-              const curExp = targetPlayer.exp?.[k] ?? 0
-              const req = requiredExp(current)
-              const basePct = req > 0 ? Math.min(curExp / req, 1) : 1
-              const gainExp = Math.min(curExp + delta, req)
-              const gainPct = req > 0 ? Math.max(0, gainExp / req - basePct) : 0
-              const levelUp = req > 0 && curExp + delta >= req
-              return (
-                <div key={k} style={{
-                  padding: '5px 6px', borderRadius: 6, textAlign: 'center',
-                  background: delta > 0 ? alpha('#9FE88D', 0.12) : alpha(C.surface, 0.8),
-                  border: `1px solid ${delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
-                }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>{CARD_STAT_LABELS[k]}</div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
-                    {current}{levelUp && <span style={{ fontSize: 8, color: '#9FE88D', marginLeft: 2 }}>↑</span>}
-                  </div>
-                  <div style={{ height: 3, borderRadius: 2, background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${basePct * 100}%`, background: alpha(C.textSub, 0.5), borderRadius: 2, transition: 'width 0.25s ease' }}/>
-                    <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${gainPct * 100}%`, background: '#9FE88D', borderRadius: 2, transition: 'left 0.25s ease, width 0.25s ease' }}/>
-                  </div>
-                </div>
-              )
-            })}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{targetPlayer.name}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{targetPlayer.age}歳 · OVR {ovr(targetPlayer)}</div>
           </div>
+          <button
+            onClick={() => clearFusion()}
+            style={{
+              padding: '5px 10px', borderRadius: 8,
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `1px solid ${C.border2}`,
+              boxShadow: `0 2px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+              color: C.textSub, fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA,
+            }}
+          >選手変更</button>
         </div>
-      )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
+          {statKeys.map(k => {
+            const current = targetPlayer.ratings[k] ?? 0
+            const delta = combo?.statDeltas[k] ?? 0
+            const curExp = targetPlayer.exp?.[k] ?? 0
+            const req = requiredExp(current)
+            const basePct = req > 0 ? Math.min(curExp / req, 1) : 1
+            const gainExp = Math.min(curExp + delta, req)
+            const gainPct = req > 0 ? Math.max(0, gainExp / req - basePct) : 0
+            const levelUp = req > 0 && curExp + delta >= req
+            return (
+              <div key={k} style={{
+                padding: '5px 6px', borderRadius: 6, textAlign: 'center',
+                background: delta > 0 ? alpha('#9FE88D', 0.12) : alpha(C.surface, 0.8),
+                border: `1px solid ${delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
+              }}>
+                <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>{CARD_STAT_LABELS[k]}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
+                  {current}{levelUp && <span style={{ fontSize: 8, color: '#9FE88D', marginLeft: 2 }}>↑</span>}
+                </div>
+                <div style={{ height: 3, borderRadius: 2, background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${basePct * 100}%`, background: alpha(C.textSub, 0.5), borderRadius: 2, transition: 'width 0.25s ease' }}/>
+                  <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${gainPct * 100}%`, background: '#9FE88D', borderRadius: 2, transition: 'left 0.25s ease, width 0.25s ease' }}/>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Fusion slots */}
       <div style={{
@@ -311,7 +292,7 @@ export default function CardTrainingPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>
-            合成スロット <span style={{ color: C.textSub }}>{selectedCardIds.length}/{MAX_FUSION_CARDS}</span>
+            合成スロット <span style={{ color: C.textSub }}>{selectedCards.length}/{MAX_FUSION_CARDS}</span>
           </div>
           {isMenu && (
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo!.color, textShadow: `0 0 12px ${alpha(combo!.color, 0.5)}` }}>
@@ -333,102 +314,63 @@ export default function CardTrainingPage() {
               )
             }
             return (
-              <div key={i} style={{
-                flex: 1, aspectRatio: '58 / 81', maxWidth: 58, margin: '0 auto',
-                borderRadius: 9, border: `2px dashed ${C.border2}`,
-                background: alpha(C.surface, 0.5),
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: C.textGhost, fontSize: 20, fontFamily: SAIRA,
-              }}>+</div>
+              <button key={i} onClick={() => navigate('/cards/select')}
+                style={{
+                  flex: 1, aspectRatio: '58 / 81', maxWidth: 58, margin: '0 auto',
+                  borderRadius: 9, border: `2px dashed ${C.border2}`,
+                  background: alpha(C.surface, 0.5),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: C.textGhost, fontSize: 20, fontFamily: SAIRA, cursor: 'pointer',
+                }}>+</button>
             )
           })}
         </div>
 
-        {selectedCardIds.length > 0 && (
-          <div style={{ marginTop: 8, textAlign: 'center', fontSize: 10, color: C.textDim }}>
-            {isMenu
-              ? <>能力EXPが <span style={{ color: combo!.color, fontWeight: 800 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span> で入る{combo!.traitGrant ? `・${Math.round((combo!.traitChance ?? 0) * 100)}%でスキル付与` : ''}</>
-              : 'レシピ未成立 — 通常合成（ボーナスなし）'}
-          </div>
-        )}
+        <div style={{ marginTop: 8, textAlign: 'center', fontSize: 10, color: C.textDim }}>
+          {selectedCards.length === 0
+            ? '空きスロットをタップしてカードを選ぶ'
+            : isMenu
+            ? <>能力EXPが <span style={{ color: combo!.color, fontWeight: 800 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span> で入る{combo!.traitGrant ? `・${Math.round((combo!.traitChance ?? 0) * 100)}%でスキル付与` : ''}</>
+            : 'レシピ未成立 — 通常合成（ボーナスなし）'}
+        </div>
       </div>
 
-      <div style={{ padding: '12px 14px 0' }}>
-        {/* Inventory filter */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>
-            カードを選ぶ
-          </div>
-          <select
-            value={filterStat}
-            onChange={e => setFilterStat(e.target.value as typeof filterStat)}
-            style={{
-              padding: '5px 28px 5px 8px', borderRadius: 6,
-              background: C.surface2, border: `1px solid ${C.border}`,
-              color: C.textSub, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer',
-              appearance: 'none', WebkitAppearance: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-            }}
-          >
-            <option value="all">すべて</option>
-            {statKeys.map(k => <option key={k} value={k}>{CARD_STAT_LABELS[k]}</option>)}
-          </select>
+      {/* Ad option */}
+      {canApply && (
+        <div style={{ margin: '14px 14px 0', textAlign: 'center' }}>
+          {!adWatched ? (
+            <button
+              onClick={() => setAdConfirmOpen(true)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '6px 4px',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                <rect x="2" y="4" width="20" height="16" rx="2.5" stroke={C.textDim} strokeWidth="1.8"/>
+                <path d="M10 9.5l5 2.5-5 2.5z" fill={C.textDim}/>
+              </svg>
+              <span style={{ fontSize: 11, color: C.textSub, textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                広告を見て大成功（通常5%）
+              </span>
+            </button>
+          ) : (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 4px' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+              <span style={{ fontSize: 11, color: C.gold }}>広告視聴済み</span>
+            </div>
+          )}
         </div>
+      )}
 
-        {/* Inventory grid */}
-        {trainingCards.length === 0 ? (
-          <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '32px 0' }}>カードがありません</div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: 10, marginBottom: 12, justifyItems: 'center' }}>
-            {cardGroups.map(group => {
-              const selCount = group.cards.filter(c => selectedCardIds.includes(c.id)).length
-              const remaining = group.cards.length - selCount
-              const disabled = remaining <= 0 || fusionFull
-              return (
-                <button
-                  key={group.key}
-                  onClick={() => addFromGroup(group.cards)}
-                  disabled={disabled}
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: disabled ? 'not-allowed' : 'pointer' }}
-                >
-                  <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={76} count={remaining} dimmed={disabled} />
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Ad option */}
-        {canApply && (
-          <div style={{ marginBottom: 8, textAlign: 'center' }}>
-            {!adWatched ? (
-              <button
-                onClick={() => setAdConfirmOpen(true)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '6px 4px',
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                  <rect x="2" y="4" width="20" height="16" rx="2.5" stroke={C.textDim} strokeWidth="1.8"/>
-                  <path d="M10 9.5l5 2.5-5 2.5z" fill={C.textDim}/>
-                </svg>
-                <span style={{ fontSize: 11, color: C.textSub, textDecoration: 'underline', textUnderlineOffset: 2 }}>
-                  広告を見て大成功（通常5%）
-                </span>
-              </button>
-            ) : (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 4px' }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                <span style={{ fontSize: 11, color: C.gold }}>広告視聴済み</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Apply button */}
+      {/* Sticky apply bar */}
+      <div style={{
+        position: 'sticky', bottom: 0, marginTop: 16,
+        padding: '12px 14px calc(12px + env(safe-area-inset-bottom, 0px))',
+        background: `linear-gradient(180deg, ${alpha(C.bg, 0)}, ${C.bg} 24%)`,
+        borderTop: `1px solid ${C.border}`,
+      }}>
         <button
           onClick={handleApply}
           disabled={!canApply}
@@ -450,7 +392,7 @@ export default function CardTrainingPage() {
           }}
         >
           {canApply && <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '40%', background: 'linear-gradient(180deg,rgba(255,255,255,0.18),transparent)', borderRadius: '6px 6px 50% 50%', pointerEvents: 'none' }} />}
-          {selectedCardIds.length === 0 ? 'カードを選んでください' : '練習実行'}
+          {selectedCards.length === 0 ? 'カードを選んでください' : '練習実行'}
         </button>
       </div>
 

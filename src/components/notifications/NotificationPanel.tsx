@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
+import { loginTodayKey } from '../../utils/loginDate'
 import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -336,8 +337,7 @@ export function useNotifCount() {
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length > 0 ? 1 : 0
   const needsRoster = currentSeason.phase === 'preseason' && !currentSeason.rosterSubmitted ? 1 : 0
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length > 0 ? 1 : 0
-  const today = new Date().toDateString()
-  const loginUnclaimed = lastLoginDate !== today ? 1 : 0
+  const loginUnclaimed = lastLoginDate !== loginTodayKey() ? 1 : 0
   // 契約満了6ヶ月以内の選手（NotificationsPage と同じ基準）
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races?.length ?? 1

@@ -1,6 +1,18 @@
 import type { CardStatKey, CardRarity, TrainingCard, ComboResult, TraitId } from '../types'
 
+// 能力（ステータス）の名前。選手の能力表示・EXPプレビュー・結果画面はこちらを使う。
 export const CARD_STAT_LABELS: Record<CardStatKey, string> = {
+  speed: 'スピード',
+  stamina: 'スタミナ',
+  mountainUp: '山登り',
+  mountainDown: '山下り',
+  pacing: 'ペース配分',
+  mental: 'メンタル',
+  recovery: '回復力',
+}
+
+// カードの名前（実際の練習名）。カードの絵・カード絞り込み・カードのラベルだけこちらを使う。
+export const CARD_NAMES: Record<CardStatKey, string> = {
   speed: 'インターバル走',
   stamina: 'ロング走',
   mountainUp: '登坂走',
@@ -38,10 +50,10 @@ export const MAX_FUSION_CARDS = 5
 
 // 設計書準拠: カードはEXPを付与（ノーマル300 / レア1200 / エピック4000 / レジェンド10000）
 export const RARITY_EXP: Record<CardRarity, number> = {
-  normal: 300,
-  rare: 1200,
-  epic: 4000,
-  legendary: 10000,
+  normal: 800,
+  rare: 3000,
+  epic: 9000,
+  legendary: 25000,
 }
 
 const RARITY_VALUE: Record<CardRarity, number> = RARITY_EXP

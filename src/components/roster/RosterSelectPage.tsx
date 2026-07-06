@@ -19,6 +19,7 @@ type Tier = 'main' | 'second'
 export default function RosterSelectPage() {
   const navigate = useNavigate()
   const { players, playerTeamId, currentSeason, submitRoster, getRosterWindow } = useGameStore()
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const rosterWindow = getRosterWindow()
 
   const eligible = useMemo(() =>
@@ -186,7 +187,7 @@ export default function RosterSelectPage() {
             status={statusOf(p.id)}
             checked={checked.has(p.id)}
             onTap={() => toggleCheck(p.id)}
-            onLong={() => navigate(`/player/${p.id}`)}
+            onLong={() => openPlayerSheet(p.id)}
           />
         ))}
       </div>

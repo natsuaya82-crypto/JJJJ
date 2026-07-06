@@ -89,6 +89,7 @@ export default function TransferPage() {
   } = useGameStore()
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
 
   const { section } = useParams<{ section: string }>()
   const navigate = useNavigate()
@@ -562,10 +563,10 @@ export default function TransferPage() {
                     <div style={{ position: 'relative', zIndex: 1 }}>
                       <div style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}
-                          onClick={e => { e.stopPropagation(); navigate(`/player/${p.id}`) }}>
+                          onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
                           <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }} onClick={e => { e.stopPropagation(); navigate(`/player/${p.id}`) }}>
+                        <div style={{ flex: 1, minWidth: 0 }} onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
                           <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
                             <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: isScouted ? ratingColor(rating) : C.textGhost }}>{isScouted ? rating : '?'}</span>
@@ -699,10 +700,10 @@ export default function TransferPage() {
                     <div style={{ position: 'relative', zIndex: 1 }}>
                       <div style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}
-                          onClick={e => { e.stopPropagation(); navigate(`/player/${p.id}`) }}>
+                          onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
                           <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }} onClick={e => { e.stopPropagation(); navigate(`/player/${p.id}`) }}>
+                        <div style={{ flex: 1, minWidth: 0 }} onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
                           <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
                             <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>

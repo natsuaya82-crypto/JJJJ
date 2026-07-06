@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
+import { loginTodayKey } from '../../utils/loginDate'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -28,10 +29,7 @@ export default function LoginBonusPage() {
   const mult = adsRemoved ? 2 : 1
   const [claimResult, setClaimResult] = useState<{ gained: number; streak: number } | null>(null)
 
-  const now = new Date()
-  const base = new Date(now)
-  if (base.getHours() < 10) base.setDate(base.getDate() - 1)
-  const today = base.toISOString().slice(0, 10)
+  const today = loginTodayKey()
 
   const claimedToday = lastLoginDate === today
   const streak = loginStreak ?? 0

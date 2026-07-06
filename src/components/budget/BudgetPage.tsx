@@ -36,6 +36,7 @@ function Row({ label, value, color, sub }: { label: string; value: string; color
 export default function BudgetPage() {
   const navigate = useNavigate()
   const { teams, players, playerTeamId, currentSeason, sponsors } = useGameStore()
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
 
   const myTeam = teams.find(t => t.id === playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
@@ -278,7 +279,7 @@ export default function BudgetPage() {
             {topSalaries.map((p, i) => (
               <div
                 key={p.id}
-                onClick={() => navigate(`/player/${p.id}`)}
+                onClick={() => openPlayerSheet(p.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 0',

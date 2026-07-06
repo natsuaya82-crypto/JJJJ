@@ -4,6 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { ovr, calcTransferValue, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
+import { loginTodayKey } from '../../utils/loginDate'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
 import type { IncomingOffer } from '../../types'
@@ -216,6 +217,7 @@ function OfferChatView({
 export default function NotificationsPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, playerTeamId, resolveEvent, lastLoginDate } = useGameStore()
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
 
   const [chatOfferId, setChatOfferId] = useState<string | null>(null)
   const [offerMessageCache, setOfferMessageCache] = useState<Record<string, OfferChatMsg[]>>({})
@@ -247,11 +249,7 @@ export default function NotificationsPage() {
     .sort((a, b) => a.months - b.months)
   const renewalNeeded = renewalPlayers.length
 
-  const now = new Date()
-  const base = new Date(now)
-  if (base.getHours() < 10) base.setDate(base.getDate() - 1)
-  const todayStr = base.toISOString().slice(0, 10)
-  const loginUnclaimed = lastLoginDate !== todayStr
+  const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
   const total = pendingEvents.length + incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
@@ -372,7 +370,7 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳 · 通算{p.career.totalRaces}レース</div>
                           </div>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #42A5F5)`, color: C.bg }} onClick={() => navigate(`/player/${req.playerId}`)}>選手ページで対応する</Btn>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #42A5F5)`, color: C.bg }} onClick={() => openPlayerSheet(req.playerId)}>選手ページで対応する</Btn>
                       </div>
                     </div>
                   )

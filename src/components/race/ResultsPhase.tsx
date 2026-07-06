@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { showRewardAd } from '../../utils/ads'
 import type { Race, RaceResults, Team, Player, Season, Nationality } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
 import { segOvr } from '../../utils/playerUtils'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { useGameStore } from '../../store/gameStore'
-import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS } from '../../utils/cardCombo'
+import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -35,7 +36,7 @@ function FaceOrDot({ playerId, nationality, size = 40 }: { playerId?: string; na
 }
 
 function requiredExp(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 2 : 4
+  const dull = level < 80 ? 1 : level < 90 ? 1.5 : 2
   return Math.floor(0.5 * level * level * dull)
 }
 
@@ -78,6 +79,7 @@ export function ResultsPhase({
   const navigate = useNavigate()
   const [view, setView] = useState<'main' | 'segments' | 'exp'>('main')
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
+  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const raceExpGains = useGameStore(s => s.raceExpGains ?? {})
   const teamMap = new Map(teams.map(t => [t.id, t]))
   const playerMap = new Map(players.map(p => [p.id, p]))
@@ -106,10 +108,11 @@ export function ResultsPhase({
     })
   })()
 
-  const finish = () => {
+  const finish = async () => {
     // 契約満了間近の選手がいる場合は先に対応させる。
     // シーズン最終戦・リザーブリーグ（reserveStandings/onContinue経由）では誘導しない。
     if (urgentRenewalExists && !isLastRace && !reserveStandings && !onContinue) { navigate('/notifications'); return }
+    if (isLastRace && !adsRemoved) await showRewardAd()
     onContinue ? onContinue() : navigate('/')
   }
 
@@ -529,7 +532,7 @@ export function ResultsPhase({
                     {RARITY_LABELS[card.rarity]}
                   </div>
                   <div style={{ fontSize: 10, color: C.textSub, marginBottom: 4 }}>
-                    {CARD_STAT_LABELS[card.statKey]}
+                    {CARD_NAMES[card.statKey]}
                   </div>
                 </div>
               ))}

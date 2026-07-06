@@ -2,7 +2,7 @@
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, SPEC_COLOR, ratingColor } from '../../utils/playerUtils'
+import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NumberDial from '../ui/NumberDial'
@@ -35,6 +35,11 @@ const DC_ROLE_OPTS: { key: TeamRole; label: string }[] = [
 ]
 const DC_SALARY_STEP = 1000000
 const DC_SALARY_MIN = 3000000
+// ドラフト新人でも年俸は市場相場の半分未満には下げられない（極端に安く囲えないようにする）
+function draftSalaryFloor(p: Player): number {
+  const half = Math.round(faMarketSalary(p) / 2 / DC_SALARY_STEP) * DC_SALARY_STEP
+  return Math.max(DC_SALARY_MIN, half)
+}
 const DC_SALARY_MAX = 60000000
 function dcFmt(yen: number) {
   if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
@@ -924,7 +929,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
     for (const p of myDrafted) {
       const o = ovr(p)
       init[p.id] = {
-        salary: Math.max(DC_SALARY_MIN, Math.min(DC_SALARY_MAX, Math.round(p.contract.annualSalary / DC_SALARY_STEP) * DC_SALARY_STEP)),
+        salary: Math.min(DC_SALARY_MAX, Math.max(draftSalaryFloor(p), Math.round(p.contract.annualSalary / DC_SALARY_STEP) * DC_SALARY_STEP)),
         years: 3,
         contractType: 'standard',
         teamRole: o >= 82 ? 'ace' : o >= 75 ? 'key_player' : o >= 68 ? 'rotation' : 'development',
@@ -976,6 +981,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
           const ovrCol = ratingColor(rating)
           const c = contracts[p.id]
           if (!c) return null
+          const salaryMin = draftSalaryFloor(p)
           const btn = (active: boolean): React.CSSProperties => ({
             flex: 1, padding: '5px 2px', borderRadius: 6, border: 'none', cursor: 'pointer',
             backgroundColor: active ? C.blue : C.surface, color: active ? '#fff' : C.textDim,
@@ -1002,7 +1008,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>年俸</span>
                 <div style={{ flex: 1 }}>
-                  <NumberDial value={c.salary} onChange={v => upd(p.id, { salary: Math.max(DC_SALARY_MIN, Math.min(DC_SALARY_MAX, v)) })} min={DC_SALARY_MIN} max={DC_SALARY_MAX} accent={C.gold} />
+                  <NumberDial value={c.salary} onChange={v => upd(p.id, { salary: Math.max(salaryMin, Math.min(DC_SALARY_MAX, v)) })} min={salaryMin} max={DC_SALARY_MAX} accent={C.gold} />
                 </div>
               </div>
               {/* 契約年数 */}

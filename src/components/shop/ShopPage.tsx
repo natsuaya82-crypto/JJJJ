@@ -4,7 +4,8 @@ import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
 import { useState } from 'react'
 import { C, alpha } from '../../styles/tokens'
-import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS } from '../../utils/cardCombo'
+import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
+
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -204,7 +205,7 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
                 </div>
                 <div style={{ flex: 1 }}>
                   <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
-                    {CARD_STAT_LABELS[card.statKey]}
+                    {CARD_NAMES[card.statKey]}
                   </span>
                 </div>
                 <span style={{
@@ -311,7 +312,7 @@ export default function ShopPage() {
                   </div>
                   <div style={{ fontSize: 11, color: C.textDim, marginBottom: 6 }}>{item.desc}</div>
                   <div style={{ fontSize: 9, color: C.textGhost }}>
-                    対象: {Object.values(CARD_STAT_LABELS).join(' / ')}
+                    対象: {Object.values(CARD_NAMES).join(' / ')}
                   </div>
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -341,6 +342,7 @@ export default function ShopPage() {
           )
         })}
       </div>
+
     </div>
   )
 }
