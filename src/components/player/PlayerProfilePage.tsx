@@ -14,6 +14,14 @@ import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
+const TEAM_ROLE_LABEL: Record<string, string> = {
+  ace: 'エース',
+  sub_ace: 'サブエース',
+  key_player: '主力',
+  rotation: 'ローテ',
+  development: '育成',
+}
+
 type RatingKey = keyof Player['ratings']
 
 function fmt(yen: number) {
@@ -222,13 +230,15 @@ export default function PlayerProfilePage() {
             </div>
             <div style={{ fontSize: '11px', color: C.textSub, marginBottom: '6px' }}>{player.nameKana}</div>
             <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '6px', backgroundColor: alpha(specCol, 0.2), color: specCol, fontWeight: '800', border: `1px solid ${alpha(specCol, 0.3)}` }}>
-                {SPECIALTY_LABELS[player.specialty]}
+              <span style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '6px', backgroundColor: alpha(specCol, 0.2), color: isScouted ? specCol : C.textGhost, fontWeight: '800', border: `1px solid ${alpha(specCol, 0.3)}` }}>
+                {isScouted ? SPECIALTY_LABELS[player.specialty] : '?'}
               </span>
-              <span style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '6px', backgroundColor: alpha(formColor, 0.15), color: formColor, fontWeight: '700' }}>
-                {formLabel}
-              </span>
-              {(() => {
+              {isScouted && (
+                <span style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '6px', backgroundColor: alpha(formColor, 0.15), color: formColor, fontWeight: '700' }}>
+                  {formLabel}
+                </span>
+              )}
+              {isScouted && (() => {
                 const stage = careerStage(player)
                 const stageCol = CAREER_STAGE_COLOR[stage]
                 return (
@@ -251,13 +261,13 @@ export default function PlayerProfilePage() {
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8 }}>基本情報</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: 8 }}>
               {[
-                { label: '所属', value: team ? team.shortName : foreignClub ? foreignClub.clubName : 'FA', color: team ? team.colors.primary : C.textDim },
-                { label: '年齢', value: `${player.age}歳`, color: C.textSub },
-                { label: '年俸', value: fmt(player.contract.annualSalary), color: C.gold },
-                { label: '契約', value: playerStatusLabel(player).label, color: player.transferListed ? C.orange : player.teamId === '' ? C.green : C.textSub },
-                { label: '契約残', value: `${player.contract.yearsLeft}年`, color: player.contract.yearsLeft <= 1 ? C.red : C.textSub },
-                { label: 'ポテ', value: isScouted ? `${player.potential}` : '?', color: (isScouted && player.potential >= 85) ? C.gold : isScouted ? C.textSub : C.textGhost },
-                { label: '市場価値', value: fmt(calcTransferValue(player)), color: C.green },
+                { label: '所属', value: team ? team.name : foreignClub ? foreignClub.clubName : 'FA', color: team ? team.colors.primary : C.textDim },
+                { label: '年齢', value: isScouted ? `${player.age}歳` : '?', color: isScouted ? C.textSub : C.textGhost },
+                { label: '年俸', value: isScouted ? fmt(player.contract.annualSalary) : '?', color: isScouted ? C.gold : C.textGhost },
+                { label: '契約', value: isScouted ? playerStatusLabel(player).label : '?', color: isScouted ? (player.transferListed ? C.orange : player.teamId === '' ? C.green : C.textSub) : C.textGhost },
+                { label: '契約残', value: isScouted ? `${player.contract.yearsLeft}年` : '?', color: isScouted ? (player.contract.yearsLeft <= 1 ? C.red : C.textSub) : C.textGhost },
+                { label: '市場価値', value: isScouted ? fmt(calcTransferValue(player)) : '?', color: isScouted ? C.green : C.textGhost },
+                { label: '立ち位置', value: isScouted ? (player.teamRole ? TEAM_ROLE_LABEL[player.teamRole] : '—') : '?', color: isScouted ? C.textSub : C.textGhost },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ padding: '7px 9px', borderRadius: '9px', background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`, border: `1px solid ${C.border2}` }}>
                   <div style={{ fontSize: '8px', color: C.textGhost, marginBottom: '2px' }}>{label}</div>
@@ -265,12 +275,14 @@ export default function PlayerProfilePage() {
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 9px', borderRadius: '9px', background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`, border: `1px solid ${C.border2}` }}>
-              <div style={{ fontSize: '8px', color: C.textGhost }}>ドラフト</div>
-              <div style={{ fontSize: '12px', fontWeight: '700', color: player.draftRound ? C.gold : C.textGhost, fontFamily: SAIRA }}>
-                {player.draftRound && player.draftPick != null ? `${player.draftYear}年度 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外'}
+            {isScouted && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 9px', borderRadius: '9px', background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`, border: `1px solid ${C.border2}` }}>
+                <div style={{ fontSize: '8px', color: C.textGhost }}>ドラフト</div>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: player.draftRound ? C.gold : C.textGhost, fontFamily: SAIRA }}>
+                  {player.draftRound && player.draftPick != null ? `${player.draftYear}年度 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外'}
+                </div>
               </div>
-            </div>
+            )}
             {foreignClub && (
               <div style={{ marginTop: '8px', padding: '6px 10px', borderRadius: '8px', backgroundColor: alpha(C.blue, 0.12), border: `1px solid ${alpha(C.blue, 0.3)}` }}>
                 <span style={{ fontSize: '9px', color: C.blue }}>{foreignClub.leagueName} — {foreignClub.clubName}</span>

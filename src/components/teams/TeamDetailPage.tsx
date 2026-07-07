@@ -11,6 +11,10 @@ import { useOpponentMenu } from './opponentMenu'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
+const TEAM_ROLE_LABEL: Record<string, string> = {
+  ace: 'エース', sub_ace: 'サブエース', key_player: '主力', rotation: 'ローテ', development: '育成',
+}
+
 function fmt(yen: number) {
   if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
   return `${Math.round(yen / 10000)}万`
@@ -234,7 +238,10 @@ export default function TeamDetailPage() {
                           {SPECIALTY_LABELS[ace.specialty]}
                         </span>
                       </div>
-                      <div style={{ fontSize: '10px', color: '#5C5870' }}>{ace.age}歳 • {ace.contract.yearsLeft}年契約</div>
+                      <div style={{ fontSize: '10px', color: '#5C5870' }}>
+                        {isScouted ? `${ace.age}歳` : '?歳'}
+                        {isScouted && ace.teamRole ? ` • ${TEAM_ROLE_LABEL[ace.teamRole] ?? ace.teamRole}` : ''}
+                      </div>
                     </div>
                     <div style={{ fontFamily: SAIRA, fontSize: '26px', fontWeight: '900', color: isScouted ? ratingColor(rating) : '#3A3758', flexShrink: 0 }}>
                       {isScouted ? rating : '?'}

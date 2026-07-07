@@ -23,27 +23,29 @@ function ModalShell({ children, onClose }: { children: React.ReactNode; onClose:
   )
 }
 
-function PlayerHead({ player }: { player: Player }) {
+function PlayerHead({ player, isScouted = true }: { player: Player; isScouted?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
       <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{player.name}</div>
-        <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[player.specialty]} · {player.age}歳 · 残{player.contract.yearsLeft}年</div>
+        <div style={{ fontSize: 10, color: C.textDim }}>
+          {isScouted ? SPECIALTY_LABELS[player.specialty] : '?'} · {isScouted ? `${player.age}歳` : '?歳'} · 残{isScouted ? `${player.contract.yearsLeft}年` : '?'}
+        </div>
       </div>
-      <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</div>
+      <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: isScouted ? ratingColor(ovr(player)) : C.textGhost }}>{isScouted ? ovr(player) : '?'}</div>
     </div>
   )
 }
 
-function OfferModal({ player, budget, onSubmit, onClose }: { player: Player; budget: number; onSubmit: (fee: number) => void; onClose: () => void }) {
+function OfferModal({ player, budget, isScouted, onSubmit, onClose }: { player: Player; budget: number; isScouted: boolean; onSubmit: (fee: number) => void; onClose: () => void }) {
   const market = Math.max(1_000_000, Math.round(calcTransferValue(player) / 1_000_000) * 1_000_000)
   const [fee, setFee] = useState(market)
   const over = fee > budget
   return (
     <ModalShell onClose={onClose}>
       <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 10 }}>移籍金オファー</div>
-      <PlayerHead player={player} />
+      <PlayerHead player={player} isScouted={isScouted} />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.textDim, marginBottom: 4 }}>
         <span>市場価値 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(market)}</span></span>
         <span>予算 <span style={{ color: over ? C.red : C.textSub, fontFamily: SAIRA }}>{fmt(budget)}</span></span>
@@ -57,12 +59,12 @@ function OfferModal({ player, budget, onSubmit, onClose }: { player: Player; bud
   )
 }
 
-function LoanModal({ player, slots, pending, onSubmit, onClose }: { player: Player; slots: number; pending: boolean; onSubmit: (years: number) => void; onClose: () => void }) {
+function LoanModal({ player, slots, pending, isScouted, onSubmit, onClose }: { player: Player; slots: number; pending: boolean; isScouted: boolean; onSubmit: (years: number) => void; onClose: () => void }) {
   const full = slots >= 3
   return (
     <ModalShell onClose={onClose}>
       <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900, marginBottom: 10 }}>レンタル要請</div>
-      <PlayerHead player={player} />
+      <PlayerHead player={player} isScouted={isScouted} />
       <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>買わずに1〜2年借りる要請。相手が次レースで回答します（レンタル枠 {slots}/3・移籍金なし・給与は自チーム負担）。</div>
       {pending ? (
         <div style={{ fontSize: 13, color: C.blue, fontWeight: 700, textAlign: 'center', padding: 8, marginBottom: 8 }}>レンタル要請中 — 次レースで回答</div>
@@ -88,6 +90,13 @@ export function useOpponentMenu() {
   const scoutOpponentPlayer = useGameStore(s => s.scoutOpponentPlayer)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
+
+  const isScoutedFn = (pid: string) => {
+    const p = players.find(x => x.id === pid)
+    if (!p || p.teamId === playerTeamId) return true
+    const entry = (currentSeason.scoutedOpponents ?? []).find(s => s.playerId === pid)
+    return entry != null && currentSeason.year - entry.year <= 1
+  }
 
   const [menuId, setMenuId] = useState<string | null>(null)
   const [offerId, setOfferId] = useState<string | null>(null)
@@ -128,20 +137,21 @@ export function useOpponentMenu() {
       <ActionSheet
         open={!!menuPlayer}
         onClose={() => setMenuId(null)}
+        header={menuPlayer ? <PlayerHead player={menuPlayer} isScouted={isScoutedFn(menuPlayer.id)} /> : undefined}
         items={menuItems.map(it => ({ ...it, onClick: () => { it.onClick(); setMenuId(null) } }))}
       />
 
       {offerId && (() => {
         const p = players.find(x => x.id === offerId); if (!p) return null
         const budget = teams.find(t => t.id === playerTeamId)?.finance.budget ?? 0
-        return <OfferModal player={p} budget={budget} onSubmit={fee => { submitTransferBid(p.id, fee); setOfferId(null) }} onClose={() => setOfferId(null)} />
+        return <OfferModal player={p} budget={budget} isScouted={isScoutedFn(p.id)} onSubmit={fee => { submitTransferBid(p.id, fee); setOfferId(null) }} onClose={() => setOfferId(null)} />
       })()}
 
       {loanId && (() => {
         const p = players.find(x => x.id === loanId); if (!p) return null
         const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
         const pending = (currentSeason.loanRequests ?? []).some(r => r.playerId === p.id)
-        return <LoanModal player={p} slots={slots} pending={pending} onSubmit={y => { submitLoanRequest(p.id, y); setLoanId(null) }} onClose={() => setLoanId(null)} />
+        return <LoanModal player={p} slots={slots} pending={pending} isScouted={isScoutedFn(p.id)} onSubmit={y => { submitLoanRequest(p.id, y); setLoanId(null) }} onClose={() => setLoanId(null)} />
       })()}
     </>
   )

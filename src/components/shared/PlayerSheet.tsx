@@ -5,7 +5,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue } from '../../utils/playerUtils'
 import { formatTime } from '../../engine/raceEngine'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 
@@ -114,7 +114,7 @@ function fmt(yen: number) {
 export default function PlayerSheet() {
   const {
     openPlayerId, openPlayerSheet, players, teams,
-    currentSeason, pastSeasons,
+    currentSeason, pastSeasons, playerTeamId,
   } = useGameStore()
   const [page, setPage] = useState(1)
   const [pageAnim, setPageAnim] = useState('')
@@ -159,6 +159,9 @@ export default function PlayerSheet() {
   if (!player) return null
 
   const team = teams.find(t => t.id === player.teamId)
+  const isMyPlayer = player.teamId === playerTeamId
+  const scoutEntry = (currentSeason.scoutedOpponents ?? []).find(s => s.playerId === player.id)
+  const isScouted = isMyPlayer || (scoutEntry != null && currentSeason.year - scoutEntry.year <= 1)
   const playerOvr = ovr(player)
   const specCol = SPEC_COLOR[player.specialty]
 
@@ -290,16 +293,16 @@ export default function PlayerSheet() {
               </div>
               <div style={{ fontSize: '10px', color: '#5C5870', marginBottom: '6px' }}>{player.nameKana}</div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ padding: '2px 8px', borderRadius: '10px', backgroundColor: `${specCol}18`, color: specCol, fontSize: '10px', fontWeight: '700' }}>
-                  {SPECIALTY_LABELS[player.specialty]}
+                <span style={{ padding: '2px 8px', borderRadius: '10px', backgroundColor: isScouted ? `${specCol}18` : '#1E1B2E', color: isScouted ? specCol : '#5C5870', fontSize: '10px', fontWeight: '700' }}>
+                  {isScouted ? SPECIALTY_LABELS[player.specialty] : '?'}
                 </span>
-                <span style={{ fontSize: '10px', color: '#5C5870' }}>{player.age}歳 / {player.yearsPro}年目</span>
+                <span style={{ fontSize: '10px', color: '#5C5870' }}>{isScouted ? `${player.age}歳 / ${player.yearsPro}年目` : '?'}</span>
               </div>
             </div>
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
-              <div style={{ fontSize: '32px', fontWeight: '900', color: ratingColor(playerOvr), fontFamily: 'monospace', lineHeight: 1 }}>{playerOvr}</div>
+              <div style={{ fontSize: '32px', fontWeight: '900', color: isScouted ? ratingColor(playerOvr) : '#5C5870', fontFamily: 'monospace', lineHeight: 1 }}>{isScouted ? playerOvr : '?'}</div>
               <div style={{ fontSize: '8px', color: '#5C5870', letterSpacing: '1px' }}>OVR</div>
-              {player.ovrHistory && player.ovrHistory.length >= 2 && (
+              {isScouted && player.ovrHistory && player.ovrHistory.length >= 2 && (
                 <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'center' }}>
                   <OVRSparkline history={player.ovrHistory}/>
                 </div>
@@ -314,17 +317,17 @@ export default function PlayerSheet() {
           {/* Page 1: プロフィール */}
           {page === 1 && (
             <div style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <RadarChart ratings={player.ratings} color={specCol} />
+              {isScouted && <RadarChart ratings={player.ratings} color={specCol} />}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {[
-                  { label: '所属', val: team?.shortName ?? (player.teamId === '' ? 'FA' : '—') },
+                  { label: '所属', val: team?.name ?? (player.teamId === '' ? 'FA' : '—') },
                   { label: '出身', val: player.origin },
-                  { label: '成長タイプ', val: player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準' },
-                  { label: 'ポテンシャル', val: String(player.potential) },
-                  { label: '契約残', val: `${player.contract.yearsLeft}年` },
-                  { label: '年俸', val: fmt(player.contract.annualSalary) },
-                  { label: '契約体系', val: CONTRACT_TYPE_LABEL[player.contract.contractType ?? 'standard'] ?? '本契約' },
-                  { label: '立ち位置', val: player.teamRole ? TEAM_ROLE_LABEL[player.teamRole] : '—' },
+                  { label: '成長タイプ', val: isScouted ? (player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準') : '?' },
+                  { label: '市場価値', val: isScouted ? fmt(calcTransferValue(player)) : '?' },
+                  { label: '契約残', val: isScouted ? `${player.contract.yearsLeft}年` : '?' },
+                  { label: '年俸', val: isScouted ? fmt(player.contract.annualSalary) : '?' },
+                  { label: '契約体系', val: isScouted ? (CONTRACT_TYPE_LABEL[player.contract.contractType ?? 'standard'] ?? '本契約') : '?' },
+                  { label: '立ち位置', val: isScouted ? (player.teamRole ? TEAM_ROLE_LABEL[player.teamRole] : '—') : '?' },
                 ].map(({ label, val }) => (
                   <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
                     <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>{label}</div>
@@ -332,14 +335,16 @@ export default function PlayerSheet() {
                   </div>
                 ))}
               </div>
-              <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: player.draftRound ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
-                  {player.draftRound && player.draftPick != null
-                    ? `${player.draftYear}年度 全体${(player.draftRound - 1) * 20 + player.draftPick}位`
-                    : 'ドラフト外'}
+              {isScouted && (
+                <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: player.draftRound ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
+                    {player.draftRound && player.draftPick != null
+                      ? `${player.draftYear}年度 全体${(player.draftRound - 1) * 20 + player.draftPick}位`
+                      : 'ドラフト外'}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 

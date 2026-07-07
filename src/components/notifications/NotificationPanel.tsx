@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { loginTodayKey } from '../../utils/loginDate'
+import { audio } from '../../utils/audio'
 import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -48,6 +50,9 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
     acceptIncomingOffer, declineIncomingOffer,
     acceptRetirement, dismissRetirementRequest,
   } = useGameStore()
+  const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
+  const claimGift = useGameStore(s => s.claimGift)
+  const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
   const pendingEvents = (currentSeason.events ?? []).filter(e => !e.resolved)
   const incomingOffers = currentSeason.incomingOffers ?? []
@@ -57,6 +62,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
   const total = pendingEvents.length + incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
+    + pendingGifts.length
 
   const card = (border: string, shadow: string): React.CSSProperties => ({
     borderRadius: '14px', overflow: 'hidden', marginBottom: '8px', position: 'relative',
@@ -102,6 +108,35 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
             <div style={{ padding: '40px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA, fontSize: '13px' }}>通知なし</div>
           ) : (
             <>
+              {/* アップデート記念プレゼント */}
+              {pendingGifts.length > 0 && (
+                <section style={{ marginBottom: '14px' }}>
+                  <SectionLabel label="プレゼント" color={C.gold} />
+                  {pendingGifts.map(gift => (
+                    <div key={gift.id} style={card(alpha(C.gold, 0.6), '#5a3500')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '9px', flexShrink: 0, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.35)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                              <path d="M20 12v9H4v-9M2 7h20v5H2V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: C.gold, marginBottom: '2px' }}>{gift.title}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold }}>カード{gift.cards.length}枚</div>
+                          </div>
+                        </div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub, lineHeight: 1.5, marginBottom: '10px' }}>{gift.message}</div>
+                        <button onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }} style={{ width: '100%', padding: '9px', borderRadius: '10px', cursor: 'pointer', border: `2px solid ${alpha(C.gold, 0.55)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, boxShadow: `0 4px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.08)`, color: C.gold, fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
+                          受け取る
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              )}
+
               {/* 引退申請 */}
               {retirementRequests.length > 0 && (
                 <section style={{ marginBottom: '14px' }}>
@@ -292,6 +327,19 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
+
+      {/* 受け取りました ポップ */}
+      {claimedGift && (
+        <div onClick={() => setClaimedGift(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
+          <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.gold}`, borderRadius: 20, padding: 28, maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: `0 6px 0 ${alpha(C.gold, 0.35)}, 0 10px 40px ${alpha(C.gold, 0.25)}` }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
+            <div style={{ fontSize: 13, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
+            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>カード{claimedGift.cards.length}枚を手に入れた</div>
+            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, borderRadius: 12, background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -303,6 +351,7 @@ const SKIP_EVENT_TYPES = [
 
 export function useNotifCount() {
   const { currentSeason, players, playerTeamId, lastLoginDate } = useGameStore()
+  const gifts = useGameStore(s => (s.pendingGifts ?? []).length)
   const events = (currentSeason.events ?? []).filter(e => !e.resolved && !SKIP_EVENT_TYPES.includes(e.type)).length
   const offers = (currentSeason.incomingOffers ?? []).length
   const retirements = (currentSeason.retirementRequests ?? []).length
@@ -320,5 +369,5 @@ export function useNotifCount() {
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
     return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
   }).length
-  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals
+  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals + gifts
 }

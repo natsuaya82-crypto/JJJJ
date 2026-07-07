@@ -575,12 +575,12 @@ export default function TransferPage() {
                                 視察-1PT
                               </button>
                             )}
-                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{p.age}歳</span>
+                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{isScouted ? `${p.age}歳` : '?歳'}</span>
                             <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{allClubs[p.teamId] ?? '?'}</span>
                           </div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>価値 <span style={{ color: C.gold }}>{fmt(val)}</span></span>
-                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{fmt(p.contract.annualSalary)}</span></span>
+                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>価値 <span style={{ color: C.gold }}>{isScouted ? fmt(val) : '?'}</span></span>
+                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{isScouted ? fmt(p.contract.annualSalary) : '?'}</span></span>
                           </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
