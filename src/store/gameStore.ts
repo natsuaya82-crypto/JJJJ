@@ -1110,19 +1110,22 @@ export const useGameStore = create<GameStore>()(
             return { ...p, form: newForm, morale: newMorale, ratings: newRatings, exp: newExp, fatigue: Math.max(0, Math.min(100, (p.fatigue ?? 0) + planFatigueDelta)), ...careerUpdate }
           })
 
-          // Injury system: racers with high fatigue may get injured
+          // Injury system: racers with high fatigue may get injured (CPUチームの選手も対象)
           const injuryNewsItems: typeof state.currentSeason.newsFeed = []
           const playersWithInjuries = finalPlayers.map(p => {
-            if (p.teamId !== playerTeamId || !racingIds.has(p.id) || p.status !== 'active') return p
+            if (!racingIds.has(p.id) || p.status !== 'active') return p
             const injuryChance = Math.max(0, (p.fatigue - 65) / 35 * 0.10)
             if (Math.random() < injuryChance) {
               const recoveryRaces = 2 + Math.floor(Math.random() * 2)
-              injuryNewsItems.push({
-                date: race.date,
-                headline: `${p.name}が疲労で戦線離脱 — 復帰まで約${recoveryRaces}戦`,
-                category: 'injury' as const,
-                relatedIds: [p.id],
-              })
+              // ニュースとnoInjury目標のカウントは自チームのみ。CPUの故障はサイレントに発生
+              if (p.teamId === playerTeamId) {
+                injuryNewsItems.push({
+                  date: race.date,
+                  headline: `${p.name}が疲労で戦線離脱 — 復帰まで約${recoveryRaces}戦`,
+                  category: 'injury' as const,
+                  relatedIds: [p.id],
+                })
+              }
               return { ...p, status: 'injured' as const, injuredUntilRace: raceIndex + 1 + recoveryRaces }
             }
             return p
