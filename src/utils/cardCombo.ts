@@ -73,6 +73,21 @@ export function generateTrainingCard(rarity: CardRarity): TrainingCard {
   }
 }
 
+// ─── 完全休養カード（疲労回復専用の特殊カード） ───
+// EXPは付与せず、疲労を回復する。value＝疲労回復量。statKey は 'recovery' のプレースホルダ（EXPには使わない）。
+export const REST_FATIGUE: Record<CardRarity, number> = { normal: 10, rare: 30, epic: 60, legendary: 90 }
+export const REST_CARD_NAME = '完全休養'
+
+export function generateRestCard(rarity: CardRarity): TrainingCard {
+  return {
+    id: newCardId(),
+    kind: 'rest',
+    statKey: 'recovery',
+    rarity,
+    value: REST_FATIGUE[rarity],
+  }
+}
+
 // 設計書準拠: 全チーム2枚 / 区間賞→+レア / 3位以内→+エピック / 優勝→+レジェンド（エピックの代わり）
 export function generateDropCards(rank: number, _totalTeams: number, segmentWon = false): TrainingCard[] {
   const cards: TrainingCard[] = []
@@ -83,6 +98,11 @@ export function generateDropCards(rank: number, _totalTeams: number, segmentWon 
   if (rank === 1) cards.push(generateTrainingCard('legendary'))
   else if (rank <= 3) cards.push(generateTrainingCard('epic'))
   else if (rank <= 6) cards.push(generateTrainingCard('rare'))
+  // 約25%の確率で完全休養カードを1枚追加（順位でレア度が決まる）
+  if (Math.random() < 0.25) {
+    const restRarity: CardRarity = rank === 1 ? 'epic' : rank <= 3 ? 'rare' : 'normal'
+    cards.push(generateRestCard(restRarity))
+  }
   return cards
 }
 
@@ -134,9 +154,8 @@ export function detectMenu(statKeys: CardStatKey[]): Recipe | null {
   return RECIPE_MAP.get(recipeKey(statKeys)) ?? null
 }
 
-export function detectCombo(cards: TrainingCard[]): ComboResult | null {
-  if (cards.length === 0) return null
-
+// 能力（ステータス）カードだけの合成結果を判定する（従来のレシピ判定）。rest混在時は statCards を渡す。
+function detectStatCombo(cards: TrainingCard[]): ComboResult {
   const statValues: Partial<Record<CardStatKey, number>> = {}
   for (const c of cards) {
     statValues[c.statKey] = (statValues[c.statKey] ?? 0) + c.value
@@ -167,5 +186,51 @@ export function detectCombo(cards: TrainingCard[]): ComboResult | null {
     color: '#4B5563',
     statDeltas: deltas,
     isSpecial: false,
+  }
+}
+
+const REST_COLOR = '#5EC8B8'
+
+export function detectCombo(cards: TrainingCard[]): ComboResult | null {
+  if (cards.length === 0) return null
+
+  const restCards = cards.filter(c => c.kind === 'rest')
+  const statCards = cards.filter(c => c.kind !== 'rest')
+
+  // rest カードが無ければ従来通り
+  if (restCards.length === 0) {
+    return detectStatCombo(statCards)
+  }
+
+  const fatigueBase = restCards.reduce((s, c) => s + c.value, 0)
+
+  // 超回復コンボ: 完全休養＋回復力（ジョグ）カード → 疲労回復・回復力EXPが ×1.2
+  if (statCards.length > 0 && statCards.every(c => c.statKey === 'recovery')) {
+    const recoverySum = statCards.reduce((s, c) => s + c.value, 0)
+    return {
+      name: '超回復',
+      color: REST_COLOR,
+      statDeltas: { recovery: Math.round(recoverySum * 1.2) },
+      isSpecial: true,
+      fatigueDelta: Math.round(fatigueBase * 1.2),
+    }
+  }
+
+  // 完全休養のみ
+  if (statCards.length === 0) {
+    return {
+      name: REST_CARD_NAME,
+      color: REST_COLOR,
+      statDeltas: {},
+      isSpecial: false,
+      fatigueDelta: fatigueBase,
+    }
+  }
+
+  // rest＋その他の能力カード混在（recovery以外も含む）: 能力側は従来レシピ判定、疲労回復は等倍で付与
+  const statResult = detectStatCombo(statCards)
+  return {
+    ...statResult,
+    fatigueDelta: fatigueBase,
   }
 }

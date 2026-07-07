@@ -260,6 +260,13 @@ export type TrainingCard = {
   statKey: CardStatKey
   rarity: CardRarity
   value: number
+  kind?: 'rest'   // 未指定＝通常の能力カード / 'rest'＝完全休養（疲労回復カード）
+}
+export type Gift = {
+  id: string
+  title: string
+  message: string
+  cards: TrainingCard[]
 }
 export type ComboResult = {
   name: string
@@ -268,6 +275,7 @@ export type ComboResult = {
   traitGrant?: TraitId
   traitChance?: number
   isSpecial: boolean
+  fatigueDelta?: number   // 正の数＝減らす疲労量
 }
 
 export type SponsorType = 'team' | 'personal'
@@ -619,6 +627,8 @@ export type GameState = {
   nationalTeam?: NationalTeam
   trainingCards: TrainingCard[]
   raceDroppedCards: TrainingCard[]
+  pendingGifts: Gift[]
+  giftGivenVersions: string[]
   raceExpGains?: Record<string, Partial<Record<CardStatKey, number>>>
   jewels: number
   achievements?: Achievement[]

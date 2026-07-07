@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
-import { CARD_NAMES } from '../../utils/cardCombo'
+import { CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 
@@ -33,11 +33,13 @@ const selectStyle = {
 export default function CardInventoryPage() {
   const navigate = useNavigate()
   const { trainingCards } = useGameStore()
-  const [filterStat, setFilterStat] = useState<CardStatKey | 'all'>('all')
+  const [filterStat, setFilterStat] = useState<CardStatKey | 'all' | 'rest'>('all')
   const [sort, setSort] = useState<SortKey>('rarity')
 
   const filtered = useMemo(() => {
-    const base = filterStat === 'all' ? trainingCards : trainingCards.filter(c => c.statKey === filterStat)
+    const base = filterStat === 'all' ? trainingCards
+      : filterStat === 'rest' ? trainingCards.filter(c => c.kind === 'rest')
+      : trainingCards.filter(c => c.kind !== 'rest' && c.statKey === filterStat)
     return [...base].sort((a, b) => {
       if (sort === 'rarity') return RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity]
       if (sort === 'stat') return a.statKey.localeCompare(b.statKey)
@@ -45,14 +47,14 @@ export default function CardInventoryPage() {
     })
   }, [trainingCards, filterStat, sort])
 
-  // 同じカード（能力×レア度）は1つにまとめて×Nで表示
+  // 同じカード（種類×レア度）は1つにまとめて×Nで表示（完全休養は kind でグループを分ける）
   const cardGroups = useMemo(() => {
-    const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; count: number }>()
+    const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; kind?: 'rest'; value: number; count: number }>()
     for (const c of filtered) {
-      const k = `${c.statKey}_${c.rarity}`
+      const k = `${c.kind ?? 'stat'}_${c.statKey}_${c.rarity}`
       const g = map.get(k)
       if (g) g.count++
-      else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, count: 1 })
+      else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, kind: c.kind, value: c.value, count: 1 })
     }
     return [...map.values()]
   }, [filtered])
@@ -93,6 +95,7 @@ export default function CardInventoryPage() {
         <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...selectStyle, flex: 1 }}>
           <option value="all">すべての種類</option>
           {statKeys.map(k => <option key={k} value={k}>{CARD_NAMES[k]}</option>)}
+          <option value="rest">{REST_CARD_NAME}</option>
         </select>
         <select value={sort} onChange={e => setSort(e.target.value as SortKey)} style={{ ...selectStyle, flex: 1 }}>
           {SORT_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
@@ -112,7 +115,7 @@ export default function CardInventoryPage() {
             gap: 10, justifyItems: 'center',
           }}>
             {cardGroups.map(group => (
-              <TrainingCardSVG key={group.key} statKey={group.statKey} rarity={group.rarity} width={76} count={group.count} />
+              <TrainingCardSVG key={group.key} statKey={group.statKey} rarity={group.rarity} width={76} count={group.count} kind={group.kind} value={group.value} />
             ))}
           </div>
         )}

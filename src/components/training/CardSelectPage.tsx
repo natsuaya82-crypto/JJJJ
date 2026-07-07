@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
-import { CARD_NAMES, MAX_FUSION_CARDS } from '../../utils/cardCombo'
+import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME } from '../../utils/cardCombo'
 import { C } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 
@@ -24,7 +24,7 @@ const selectStyle = {
 export default function CardSelectPage() {
   const navigate = useNavigate()
   const { trainingCards, fusionCardIds, addFusionCard, removeFusionCard } = useGameStore()
-  const [filterStat, setFilterStat] = useState<CardStatKey | 'all'>('all')
+  const [filterStat, setFilterStat] = useState<CardStatKey | 'all' | 'rest'>('all')
 
   const fusionFull = fusionCardIds.length >= MAX_FUSION_CARDS
 
@@ -35,18 +35,20 @@ export default function CardSelectPage() {
   )
 
   const filteredCards = useMemo(
-    () => filterStat === 'all' ? trainingCards : trainingCards.filter(c => c.statKey === filterStat),
+    () => filterStat === 'all' ? trainingCards
+      : filterStat === 'rest' ? trainingCards.filter(c => c.kind === 'rest')
+      : trainingCards.filter(c => c.kind !== 'rest' && c.statKey === filterStat),
     [trainingCards, filterStat]
   )
 
-  // 同じ種類（能力×レア度）のカードは1つにまとめて表示する
+  // 同じ種類（種類×レア度）のカードは1つにまとめて表示する（完全休養は kind でグループを分ける）
   const cardGroups = useMemo(() => {
-    const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; cards: typeof filteredCards }>()
+    const map = new Map<string, { key: string; statKey: CardStatKey; rarity: CardRarity; kind?: 'rest'; value: number; cards: typeof filteredCards }>()
     for (const c of filteredCards) {
-      const k = `${c.statKey}_${c.rarity}`
+      const k = `${c.kind ?? 'stat'}_${c.statKey}_${c.rarity}`
       const g = map.get(k)
       if (g) g.cards.push(c)
-      else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, cards: [c] })
+      else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, kind: c.kind, value: c.value, cards: [c] })
     }
     return [...map.values()]
   }, [filteredCards])
@@ -84,7 +86,7 @@ export default function CardSelectPage() {
             {selectedCards.map(card => (
               <button key={card.id} onClick={() => removeFusionCard(card.id)}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
-                <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={50} selected />
+                <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={50} selected kind={card.kind} value={card.value} />
               </button>
             ))}
           </div>
@@ -96,6 +98,7 @@ export default function CardSelectPage() {
         <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...selectStyle, width: '100%' }}>
           <option value="all">すべての種類</option>
           {statKeys.map(k => <option key={k} value={k}>{CARD_NAMES[k]}</option>)}
+          <option value="rest">{REST_CARD_NAME}</option>
         </select>
       </div>
 
@@ -129,7 +132,7 @@ export default function CardSelectPage() {
                   disabled={disabled}
                   style={{ background: 'none', border: 'none', padding: 0, cursor: disabled ? 'not-allowed' : 'pointer' }}
                 >
-                  <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={76} count={remaining} dimmed={disabled} />
+                  <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={76} count={remaining} dimmed={disabled} kind={group.kind} value={group.value} />
                 </button>
               )
             })}

@@ -489,6 +489,18 @@ export default function TeamManagement() {
           <ActionSheet
             open={!!mp}
             onClose={() => setMenuPlayerId(null)}
+            header={mp ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                  <PlayerFace playerId={mp.id} nationality={mp.nationality} size={44} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{mp.name}</div>
+                  <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · 残{mp.contract.yearsLeft}年</div>
+                </div>
+                <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>
+              </div>
+            ) : undefined}
             items={mp ? [
               { label: 'チャット', onClick: () => { setMenuPlayerId(null); navigate(`/team/chat?player=${mp.id}`) } },
               { label: 'カード練習', disabled: !cardEnabled, onClick: () => { setMenuPlayerId(null); navigate(`/cards?player=${mp.id}`) } },

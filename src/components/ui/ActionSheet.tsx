@@ -8,7 +8,8 @@ export type ActionSheetItem = {
 }
 
 // 画面下から出る固定ボトムシート。位置は常に画面下端で一定＝行の位置に依存せず見切れない。
-export default function ActionSheet({ open, onClose, items }: { open: boolean; onClose: () => void; items: ActionSheetItem[] }) {
+// header に対象（選手の顔・名前など）を渡すと、誰に対するメニューか一目で分かる。
+export default function ActionSheet({ open, onClose, items, header }: { open: boolean; onClose: () => void; items: ActionSheetItem[]; header?: React.ReactNode }) {
   if (!open) return null
   return (
     <>
@@ -30,6 +31,11 @@ export default function ActionSheet({ open, onClose, items }: { open: boolean; o
         }}
       >
         <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 10px' }} />
+        {header && (
+          <div style={{ padding: '2px 4px 10px', marginBottom: 6, borderBottom: `1px solid ${C.border}` }}>
+            {header}
+          </div>
+        )}
         {items.map((it, i) => (
           <button
             key={i}

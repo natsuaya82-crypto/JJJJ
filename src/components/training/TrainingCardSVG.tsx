@@ -1,12 +1,15 @@
 import type { CardStatKey, CardRarity } from '../../types'
-import { CARD_NAMES, RARITY_COLORS, RARITY_LABELS } from '../../utils/cardCombo'
+import { CARD_NAMES, RARITY_COLORS, RARITY_LABELS, REST_CARD_NAME } from '../../utils/cardCombo'
 import { STAT_ICON_MAP } from '../icons/StatIcons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
+const REST_ACCENT = '#5EC8B8'
+
 // 練習カードのビジュアル。SVGでカード枠（レア度で色/ホロ演出）を描き、中央に能力アイコンを載せる。
+// kind==='rest' の完全休養カードは休養アイコン＋「疲労 -N」を表示する。
 export default function TrainingCardSVG({
-  statKey, rarity, width = 82, selected = false, count, dimmed = false,
+  statKey, rarity, width = 82, selected = false, count, dimmed = false, kind, value,
 }: {
   statKey: CardStatKey
   rarity: CardRarity
@@ -14,11 +17,15 @@ export default function TrainingCardSVG({
   selected?: boolean
   count?: number
   dimmed?: boolean
+  kind?: 'rest'
+  value?: number
 }) {
+  const isRest = kind === 'rest'
   const col = RARITY_COLORS[rarity]
+  const accent = isRest ? REST_ACCENT : col
   const h = Math.round(width * 1.4)
   const holo = rarity === 'epic' || rarity === 'legendary'
-  const uid = `${statKey}_${rarity}`
+  const uid = `${kind ?? 'stat'}_${statKey}_${rarity}`
 
   return (
     <div style={{ position: 'relative', width, height: h, opacity: dimmed ? 0.4 : 1, transition: 'opacity 0.15s' }}>
@@ -72,17 +79,34 @@ export default function TrainingCardSVG({
       <div style={{
         position: 'absolute', top: '30%', left: 0, right: 0,
         display: 'flex', justifyContent: 'center',
-        filter: `drop-shadow(0 0 6px ${col}66)`,
+        filter: `drop-shadow(0 0 6px ${accent}66)`,
       }}>
-        {STAT_ICON_MAP[statKey]({ size: Math.round(width * 0.44), color: col })}
+        {isRest ? (
+          <svg width={Math.round(width * 0.44)} height={Math.round(width * 0.44)} viewBox="0 0 44 44">
+            <circle cx="22" cy="22" r="20" fill="none" stroke={accent} strokeWidth="3" />
+            <text x="22" y="22" textAnchor="middle" dominantBaseline="central"
+              fontFamily={SAIRA} fontSize="24" fontWeight={900} fill={accent}>休</text>
+          </svg>
+        ) : (
+          STAT_ICON_MAP[statKey]({ size: Math.round(width * 0.44), color: col })
+        )}
       </div>
 
       {/* name plate */}
       <div style={{
-        position: 'absolute', bottom: width * 0.2, left: 0, right: 0, textAlign: 'center',
+        position: 'absolute', bottom: isRest ? width * 0.3 : width * 0.2, left: 0, right: 0, textAlign: 'center',
         fontFamily: SAIRA, fontSize: width * 0.145, fontWeight: 900, color: '#fff',
         textShadow: '0 1px 3px rgba(0,0,0,0.8)', padding: '0 4px',
-      }}>{CARD_NAMES[statKey]}</div>
+      }}>{isRest ? REST_CARD_NAME : CARD_NAMES[statKey]}</div>
+
+      {/* rest: 疲労回復量 */}
+      {isRest && value != null && (
+        <div style={{
+          position: 'absolute', bottom: width * 0.16, left: 0, right: 0, textAlign: 'center',
+          fontFamily: SAIRA, fontSize: width * 0.12, fontWeight: 900, color: accent,
+          textShadow: `0 0 6px ${accent}88`,
+        }}>疲労 -{value}</div>
+      )}
 
       {/* count badge */}
       {count != null && count > 1 && (

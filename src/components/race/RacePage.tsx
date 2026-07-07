@@ -462,6 +462,7 @@ export default function RacePage() {
         cumulativeTime={iSim.cumulativeTime}
         cpuTimesForSeg={iSim.cpuTimesForSeg}
         playerBaseTime={livePlayerTime}
+        segStamina={iSim.segStamina}
         segPts={iSim.segPts}
         showingSegResult={iSim.showingSegResult}
         lastSegResult={iSim.lastSegResult}

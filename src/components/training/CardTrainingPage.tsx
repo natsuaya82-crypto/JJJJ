@@ -76,7 +76,9 @@ export default function CardTrainingPage() {
   const combo = useMemo(() => detectCombo(selectedCards), [selectedCards])
   const targetPlayer = useMemo(() => players.find(p => p.id === fusionPlayerId), [players, fusionPlayerId])
   const isMenu = !!combo && combo.name !== '通常合成'
-  const distinctCount = useMemo(() => new Set(selectedCards.map(c => c.statKey)).size, [selectedCards])
+  const fatigueDelta = combo?.fatigueDelta ?? 0
+  // レシピ倍率バッジは能力カード（rest以外）の種類数で決まる。完全休養/超回復はEXP倍率を出さない。
+  const distinctCount = useMemo(() => new Set(selectedCards.filter(c => c.kind !== 'rest').map(c => c.statKey)).size, [selectedCards])
 
   function selectPlayer(id: string) {
     setApplied(null)
@@ -310,7 +312,12 @@ export default function CardTrainingPage() {
           {isMenu && (
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo!.color, textShadow: `0 0 12px ${alpha(combo!.color, 0.5)}` }}>
               {combo!.name}
-              <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+              {distinctCount >= 2 && (
+                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+              )}
+              {fatigueDelta > 0 && (
+                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
+              )}
             </div>
           )}
         </div>
@@ -322,7 +329,7 @@ export default function CardTrainingPage() {
               return (
                 <button key={i} onClick={() => removeCard(card.id)}
                   style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', flex: 1, display: 'flex', justifyContent: 'center' }}>
-                  <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={58} selected />
+                  <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={58} selected kind={card.kind} value={card.value} />
                 </button>
               )
             }
@@ -342,9 +349,13 @@ export default function CardTrainingPage() {
         <div style={{ marginTop: 8, textAlign: 'center', fontSize: 10, color: C.textDim }}>
           {selectedCards.length === 0
             ? '空きスロットをタップしてカードを選ぶ'
+            : distinctCount === 0 && fatigueDelta > 0
+            ? <>疲労を <span style={{ color: combo!.color, fontWeight: 800 }}>-{fatigueDelta}</span> 回復</>
+            : combo?.name === '超回復'
+            ? <>回復力EXP・疲労回復が <span style={{ color: combo!.color, fontWeight: 800 }}>×1.2</span>（疲労 -{fatigueDelta}）</>
             : isMenu
-            ? <>能力EXPが <span style={{ color: combo!.color, fontWeight: 800 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span> で入る{combo!.traitGrant ? `・${Math.round((combo!.traitChance ?? 0) * 100)}%でスキル付与` : ''}</>
-            : 'レシピ未成立 — 通常合成（ボーナスなし）'}
+            ? <>能力EXPが <span style={{ color: combo!.color, fontWeight: 800 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span> で入る{combo!.traitGrant ? `・${Math.round((combo!.traitChance ?? 0) * 100)}%でスキル付与` : ''}{fatigueDelta > 0 ? `・疲労 -${fatigueDelta}` : ''}</>
+            : <>レシピ未成立 — 通常合成（ボーナスなし）{fatigueDelta > 0 ? `・疲労 -${fatigueDelta}` : ''}</>}
         </div>
       </div>
 
@@ -488,6 +499,19 @@ export default function CardTrainingPage() {
                 )
               })}
             </div>
+            {(applied.combo.fatigueDelta ?? 0) > 0 && (
+              <div style={{
+                marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: alpha(applied.combo.color, 0.12),
+                border: `1.5px solid ${alpha(applied.combo.color, 0.5)}`,
+                borderRadius: 10, padding: '9px 16px',
+              }}>
+                <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub }}>疲労回復</span>
+                <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: applied.combo.color, textShadow: `0 0 10px ${alpha(applied.combo.color, 0.5)}` }}>
+                  -{applied.greatSuccess ? Math.round((applied.combo.fatigueDelta ?? 0) * 1.5) : (applied.combo.fatigueDelta ?? 0)}
+                </span>
+              </div>
+            )}
             {applied.traitGranted && applied.combo.traitGrant && (
               <div style={{
                 background: `linear-gradient(180deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.08)})`,

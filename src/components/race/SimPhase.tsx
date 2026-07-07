@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Race, Team, Player } from '../../types'
 import type { RaceSegmentEvent, InteractiveSegResult, EventTriggerCondition } from '../../engine/interactiveRace'
+import { choiceSuccessProb } from '../../engine/interactiveRace'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { C, alpha } from '../../styles/tokens'
@@ -82,6 +83,7 @@ type Props = {
   cumulativeTime: Record<string, number>
   cpuTimesForSeg: Record<string, number>
   playerBaseTime: number
+  segStamina: number
   segPts: Record<string, number>
   showingSegResult: boolean
   lastSegResult: InteractiveSegResult | null
@@ -306,7 +308,7 @@ export function RaceTrack({
 export function SimPhase({
   race, teams, players, playerTeamId,
   pendingEvent, pendingEventsCount: _pendingEventsCount, lowStaminaHint,
-  currentSegIdx, completedSegResults, cumulativeTime, cpuTimesForSeg, playerBaseTime, segPts,
+  currentSegIdx, completedSegResults, cumulativeTime, cpuTimesForSeg, playerBaseTime, segStamina, segPts,
   showingSegResult, lastSegResult, segRunnerIds,
   onChoiceMade, onAdvance, onSkip: _onSkip, onSkipSegment,
 }: Props) {
@@ -495,13 +497,18 @@ export function SimPhase({
               {pendingEvent.choices.map((c, i) => {
                 const sel = selectedChoice === i
                 const label = lowStaminaHint && c.lowStaminaText ? c.lowStaminaText : c.text
+                const effortType = pendingEvent._effects[i]?.effortType
+                const prob = effortType ? choiceSuccessProb(effortType, segStamina, pendingEvent.opponentOvr ?? segStamina) : 1
+                const isSure = prob >= 1
+                const probPct = Math.round(prob * 100)
+                const probCol = isSure ? C.green : probPct >= 65 ? C.green : probPct >= 40 ? C.gold : C.red
                 return (
                   <button
                     key={c.id}
                     onClick={() => handleChoice(i)}
                     disabled={selectedChoice !== null}
                     style={{
-                      width: '100%', textAlign: 'left', padding: '16px 16px', borderRadius: 12,
+                      width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: 12,
                       cursor: selectedChoice !== null ? 'default' : 'pointer',
                       border: `2px solid ${sel ? segCol : C.border2}`,
                       background: sel ? alpha(segCol, 0.2) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -510,9 +517,17 @@ export function SimPhase({
                       fontFamily: SAIRA, fontSize: 15, fontWeight: 800,
                       opacity: selectedChoice !== null && !sel ? 0.4 : 1,
                       transition: 'all 0.15s ease',
+                      display: 'flex', alignItems: 'center', gap: 10,
                     }}
                   >
-                    {label}
+                    <span style={{ flex: 1 }}>{label}</span>
+                    <span style={{
+                      flexShrink: 0, fontSize: 11, fontWeight: 900, color: probCol,
+                      background: alpha(probCol, 0.13), border: `1px solid ${alpha(probCol, 0.4)}`,
+                      borderRadius: 8, padding: '3px 8px', textAlign: 'center', minWidth: 52,
+                    }}>
+                      {isSure ? '確実' : `成功 ${probPct}%`}
+                    </span>
                   </button>
                 )
               })}

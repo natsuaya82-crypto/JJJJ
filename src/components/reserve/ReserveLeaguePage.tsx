@@ -244,6 +244,7 @@ function ReserveSimPhase({ race, results, teams, players, playerTeamId, onDone }
       cumulativeTime={cumulativeTime}
       cpuTimesForSeg={cpuTimesForSeg}
       playerBaseTime={playerBaseTime}
+      segStamina={0}
       segPts={segPts}
       showingSegResult={true}
       lastSegResult={currentResult}

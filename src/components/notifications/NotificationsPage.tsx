@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { ovr, calcTransferValue, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { loginTodayKey } from '../../utils/loginDate'
+import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
 import type { IncomingOffer } from '../../types'
@@ -218,9 +219,12 @@ export default function NotificationsPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, playerTeamId, resolveEvent, lastLoginDate } = useGameStore()
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
+  const claimGift = useGameStore(s => s.claimGift)
 
   const [chatOfferId, setChatOfferId] = useState<string | null>(null)
   const [offerMessageCache, setOfferMessageCache] = useState<Record<string, OfferChatMsg[]>>({})
+  const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
   const SKIP_EVENT_TYPES = [
     'player_form_up', 'young_breakout', 'team_chemistry', 'player_milestone', 'budget_boost',
@@ -256,6 +260,7 @@ export default function NotificationsPage() {
     + (renewalNeeded > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers.length > 0 ? 1 : 0)
+    + pendingGifts.length
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -297,6 +302,33 @@ export default function NotificationsPage() {
         <div style={{ padding: '80px 20px', textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: '14px' }}>通知なし</div>
       ) : (
         <div style={{ paddingBottom: '24px' }}>
+
+          {/* アップデート記念プレゼント */}
+          {pendingGifts.length > 0 && (
+            <section>
+              <SectionHead label="プレゼント" color={C.gold} count={pendingGifts.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {pendingGifts.map(gift => (
+                  <div key={gift.id} style={cardStyle(alpha(C.gold, 0.6), '#5a3500')}>
+                    <div style={inset}/>
+                    <div style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                          <path d="M20 12v9H4v-9M2 7h20v5H2V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.gold }}>{gift.title}</div>
+                        </div>
+                      </div>
+                      <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, lineHeight: 1.6, marginBottom: '10px' }}>{gift.message}</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px', borderRadius: '8px', background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>カード{gift.cards.length}枚</div>
+                      <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, color: '#111' }} onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }}>受け取る</Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* ログインボーナス */}
           {loginUnclaimed && (
@@ -615,6 +647,19 @@ export default function NotificationsPage() {
               </div>
             </section>
           )}
+        </div>
+      )}
+
+      {/* 受け取りました ポップ */}
+      {claimedGift && (
+        <div onClick={() => setClaimedGift(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
+          <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.gold}`, borderRadius: 20, padding: 28, maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: `0 6px 0 ${alpha(C.gold, 0.35)}, 0 10px 40px ${alpha(C.gold, 0.25)}` }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
+            <div style={{ fontSize: 13, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
+            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>カード{claimedGift.cards.length}枚を手に入れた</div>
+            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, borderRadius: 12, background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
+          </div>
         </div>
       )}
     </div>

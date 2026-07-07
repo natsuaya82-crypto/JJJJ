@@ -661,6 +661,18 @@ function makeFinalPushEvent(
 
 // ─── Resolve Choice ──────────────────────────────────────────────────────────
 
+// 選択肢の成功確率。温存(conservative)は必ず成功=1。攻め/バランスは実力差で 0.15〜0.90。
+// 表示(SimPhase)と判定(resolveChoice)で同じ値を使うためにexportして共用する。
+export function choiceSuccessProb(
+  effortType: 'aggressive' | 'balanced' | 'conservative',
+  segStamina: number,
+  opponentOvr: number,
+): number {
+  if (effortType === 'conservative') return 1
+  const gap = segStamina - opponentOvr
+  return Math.max(0.15, Math.min(0.90, 0.55 + gap * 0.02))
+}
+
 export function resolveChoice(
   event: RaceSegmentEvent,
   choiceIdx: number,
@@ -680,8 +692,7 @@ export function resolveChoice(
     }
   }
 
-  const gap = segStamina - (event.opponentOvr ?? segStamina)
-  const successProb = Math.max(0.15, Math.min(0.90, 0.55 + gap * 0.02))
+  const successProb = choiceSuccessProb(effect.effortType, segStamina, event.opponentOvr ?? segStamina)
   const success = Math.random() < successProb
 
   const staminaDelta = success ? effect.staminaSuccess : effect.staminaFail

@@ -6,7 +6,7 @@ import { formatTime, formatDiff } from '../../engine/raceEngine'
 import { segOvr } from '../../utils/playerUtils'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { useGameStore } from '../../store/gameStore'
-import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES } from '../../utils/cardCombo'
+import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -532,7 +532,7 @@ export function ResultsPhase({
                     {RARITY_LABELS[card.rarity]}
                   </div>
                   <div style={{ fontSize: 10, color: C.textSub, marginBottom: 4 }}>
-                    {CARD_NAMES[card.statKey]}
+                    {card.kind === 'rest' ? REST_CARD_NAME : CARD_NAMES[card.statKey]}
                   </div>
                 </div>
               ))}
