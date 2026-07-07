@@ -16,19 +16,14 @@ import TeamManagement from './components/team/TeamManagement'
 import Onboarding from './components/onboarding/Onboarding'
 import DraftRoom from './components/draft/DraftRoom'
 import RacePage from './components/race/RacePage'
-import TeamsPage from './components/teams/TeamsPage'
 import ScoutPage from './components/scout/ScoutPage'
 import TransferPage from './components/transfer/TransferPage'
 import TransferHub from './components/transfer/TransferHub'
-import AcquisitionPage from './components/acquire/AcquisitionPage'
 import TeamHub from './components/team/TeamHub'
 import TeamsHub from './components/teams/TeamsHub'
 import TeamDetailPage from './components/teams/TeamDetailPage'
-import ForeignLeaguesPage from './components/teams/ForeignLeaguesPage'
 import ForeignLeagueDetailPage from './components/teams/ForeignLeagueDetailPage'
 import ForeignClubDetailPage from './components/teams/ForeignClubDetailPage'
-import ContractRenewalPage from './components/team/ContractRenewalPage'
-import ContractPage from './components/team/ContractPage'
 import ChatPage from './components/team/ChatPage'
 import RecordsHub from './components/records/RecordsHub'
 import RecordsPage from './components/records/RecordsPage'
@@ -41,16 +36,13 @@ import ContractInfoModal from './components/shared/ContractInfoModal'
 import NotificationsPage from './components/notifications/NotificationsPage'
 import HelpPage from './components/help/HelpPage'
 import SchedulePage from './components/schedule/SchedulePage'
-import RosterSelectPage from './components/roster/RosterSelectPage'
 import ShopPage from './components/shop/ShopPage'
 import SponsorPage from './components/sponsors/SponsorPage'
 import StarredPlayersPage from './components/transfer/StarredPlayersPage'
 import NegotiationPage from './components/transfer/NegotiationPage'
 import OfferListPage from './components/transfer/OfferListPage'
 import RentalPage from './components/transfer/RentalPage'
-import PlayerProfilePage from './components/player/PlayerProfilePage'
 import FacilitiesPage from './components/facilities/FacilitiesPage'
-import IndividualEventsPage from './components/events/IndividualEventsPage'
 import WorldEkidenPage from './components/international/WorldEkidenPage'
 import WECSimPage from './components/international/WECSimPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
@@ -61,7 +53,6 @@ import BudgetPage from './components/budget/BudgetPage'
 import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
 import JewelsPage from './components/jewels/JewelsPage'
-import PrivacyPolicyPage from './components/more/PrivacyPolicyPage'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -126,21 +117,16 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/team" element={<TeamHub />} />
-          <Route path="/team/renewals" element={<ContractRenewalPage />} />
-          <Route path="/team/contracts" element={<ContractPage />} />
           <Route path="/team/chat" element={<ChatPage />} />
           <Route path="/team/facilities" element={<FacilitiesPage />} />
           <Route path="/team/:section" element={<TeamManagement />} />
           <Route path="/race" element={<RacePage />} />
-          <Route path="/acquire" element={<AcquisitionPage />} />
           <Route path="/scout" element={<ScoutPage />} />
 
           <Route path="/teams" element={<TeamsHub />} />
           <Route path="/teams/detail/:teamId" element={<TeamDetailPage />} />
-          <Route path="/teams/foreign" element={<ForeignLeaguesPage />} />
           <Route path="/teams/foreign/:leagueId" element={<ForeignLeagueDetailPage />} />
           <Route path="/teams/foreign/:leagueId/:clubId" element={<ForeignClubDetailPage />} />
-          <Route path="/teams/list" element={<TeamsPage />} />
           <Route path="/teams/:section" element={<Placeholder title="coming soon" />} />
           <Route path="/transfer" element={<TransferHub />} />
           <Route path="/transfer/starred" element={<StarredPlayersPage />} />
@@ -148,8 +134,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/transfer/rental" element={<RentalPage />} />
           <Route path="/transfer/negotiate/:mode/:id" element={<NegotiationPage />} />
           <Route path="/transfer/:section" element={<TransferPage />} />
-          <Route path="/player/:playerId" element={<PlayerProfilePage />} />
-          <Route path="/events" element={<IndividualEventsPage />} />
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />
           <Route path="/international" element={<WorldEkidenPage />} />
@@ -159,7 +143,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/records/history" element={<HistoryPage />} />
           <Route path="/records/achievements" element={<AchievementsPage />} />
           <Route path="/records/:section" element={<Placeholder title="coming soon" />} />
-          <Route path="/roster-select" element={<RosterSelectPage />} />
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/sponsors" element={<SponsorPage />} />
           <Route path="/reserve" element={<ReserveLeaguePage />} />
@@ -174,7 +157,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/news" element={<NewsPage />} />
           <Route path="/more" element={<MorePage onBackToTitle={onBackToTitle} />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
-          <Route path="/privacy" element={<PrivacyPolicyPage />} />
         </Routes>
       </Layout>
     </>

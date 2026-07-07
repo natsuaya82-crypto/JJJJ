@@ -909,7 +909,6 @@ export default function ChatPage() {
   const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? pendingTradeTeamId ?? null)
   const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId))
   const wantParam = searchParams.get('want')
-  const feeModeParam = searchParams.get('feeMode')
   const [messageCache, setMessageCache] = useState<Record<string, ChatMessage[]>>({})
   const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId) ? 'transfer' : 'own')
 
