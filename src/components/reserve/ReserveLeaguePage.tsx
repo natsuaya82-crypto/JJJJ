@@ -47,6 +47,11 @@ export default function ReserveLeaguePage() {
   const secondPlayers = players.filter(
     p => p.teamId === playerTeamId && (isSecondMember(p) || !!p.loan) && p.status !== 'retired'
   )
+  // 故障中の選手は選択不可（リストには理由付きで表示）
+  const unavailableMap: Record<string, string> = {}
+  for (const p of secondPlayers) {
+    if (p.status === 'injured') unavailableMap[p.id] = '故障中'
+  }
 
   // Lineup helpers
   const assignedIds = new Set(Object.values(lineup).filter(Boolean))
@@ -146,6 +151,7 @@ export default function ReserveLeaguePage() {
       setRaceStrategy={setRaceStrategy}
       teamTalk=""
       setTeamTalk={() => {}}
+      unavailable={unavailableMap}
     />
   )
 

@@ -248,6 +248,7 @@ export function LineupPhase({
             const isRec = greedyRec[pickerSeg] === p.id
             const specCol = SPEC_COLOR[p.specialty]
             const r = p.ratings
+            const blockReason = unavailable?.[p.id]
             return (
               <div
                 key={p.id}
@@ -260,7 +261,8 @@ export function LineupPhase({
                   border: isSelected ? `2px solid ${alpha(C.gold, 0.5)}` : isAssignedElsewhere ? `2px solid ${alpha(C.cyan, 0.55)}` : `2px solid transparent`,
                   boxShadow: isSelected ? `0 3px 0 #5a3500, 0 5px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)` : 'none',
                   borderBottom: isSelected || isAssignedElsewhere ? undefined : `1px solid ${C.surface2}`,
-                  cursor: 'pointer',
+                  cursor: blockReason ? 'default' : 'pointer',
+                  opacity: blockReason ? 0.45 : 1,
                   borderLeft: isSelected || isAssignedElsewhere ? undefined : (isRec ? `3px solid ${alpha(pickerSegCol, 0.31)}` : `3px solid transparent`),
                   marginBottom: isSelected || isAssignedElsewhere ? 2 : 0,
                 }}
@@ -275,6 +277,7 @@ export function LineupPhase({
                       {isSelected && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(pickerSegCol, 0.15), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>選択中</span>}
                       {isRec && !isSelected && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(pickerSegCol, 0.12), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>最適</span>}
                       {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄{assignedSeg}区</span>}
+                      {blockReason && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.red, 0.12), color: C.red, fontWeight: 700, border: `1px solid ${alpha(C.red, 0.3)}`, flexShrink: 0 }}>{blockReason}</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 1 }}>
                       <span style={{ fontSize: 9, padding: '0 4px', borderRadius: 4, backgroundColor: alpha(specCol, 0.09), color: specCol, fontWeight: 700 }}>{SPECIALTY_LABELS[p.specialty]}</span>
@@ -347,7 +350,7 @@ export function LineupPhase({
             </div>
           )}
           {lastLineup && Object.keys(lastLineup).length > 0 && (
-            <button onClick={() => { clearRaceLineup(); Object.entries(lastLineup).forEach(([k, v]) => setRaceLineup(+k, v)) }} style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '6px', border: `1px solid ${C.textGhost}`, background: 'transparent', color: C.textSub, cursor: 'pointer', fontFamily: 'inherit' }}>前回</button>
+            <button onClick={() => { clearRaceLineup(); Object.entries(lastLineup).forEach(([k, v]) => { if (!unavailable?.[v]) setRaceLineup(+k, v) }) }} style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '6px', border: `1px solid ${C.textGhost}`, background: 'transparent', color: C.textSub, cursor: 'pointer', fontFamily: 'inherit' }}>前回</button>
           )}
         </div>
       </div>
@@ -443,7 +446,7 @@ export function LineupPhase({
       }}>
         <button onClick={clearRaceLineup} style={{ padding: '10px 12px', borderRadius: '12px', border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
         <button
-          onClick={() => autoFill(race.segments, mainPlayers, raceLineup, setRaceLineup)}
+          onClick={() => autoFill(race.segments, availablePlayers, raceLineup, setRaceLineup)}
           style={{
             padding: '11px 18px', borderRadius: 11,
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -457,23 +460,34 @@ export function LineupPhase({
           自動配置
         </button>
         {allSegsFilled ? (
-          <button className="btn-game btn-game--gold" onClick={() => onStart(segTactics)} style={{ flex: 1 }}>
-            <span className="btn-game__inner">レース開始！</span>
-          </button>
+          <>
+            {onSkipRace && (
+              <button
+                onClick={onSkipRace}
+                title="イベントなしで一気に結果へ"
+                style={{
+                  flexShrink: 0, padding: '11px 14px', borderRadius: 11,
+                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                  border: `2px solid ${C.border2}`, color: C.textSub,
+                  fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  boxShadow: '0 4px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                スキップ
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 4l8 8-8 8M13 4l8 8-8 8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            )}
+            <button className="btn-game btn-game--gold" onClick={() => onStart(segTactics)} style={{ flex: 1 }}>
+              <span className="btn-game__inner">レース開始！</span>
+            </button>
+          </>
         ) : (
           <button style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: C.surface2, color: C.textGhost, fontSize: '14px', fontWeight: '700', cursor: 'default', fontFamily: 'inherit' }}>
             {race.segments.length - filledCount}区間未設定
           </button>
         )}
       </div>
-      {allSegsFilled && onSkipRace && (
-        <button
-          onClick={onSkipRace}
-          style={{ width: '100%', marginTop: 8, padding: '11px', borderRadius: 12, border: `1px solid ${C.border2}`, background: C.surface2, color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-        >
-          スキップして結果を見る（イベントなし）
-        </button>
-      )}
     </div>
   )
 }

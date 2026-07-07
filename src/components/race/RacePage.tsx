@@ -79,11 +79,29 @@ export default function RacePage() {
     p => p.teamId === playerTeamId && p.status !== 'retired'
       // 1軍契約(main) or レンタル枠（1軍・2軍どちらのレースにも出場制限なし）
       && (p.rosterTier === 'main' || !!p.loan)
-      // レンタル選手は加入後2戦の出走制限を受けない
-      && (!!p.loan || p.acquiredRaceIndex == null || raceIndex - p.acquiredRaceIndex >= 2)
   )
+  // 出走不可の選手（リストには表示するが選択不可）: playerId → 理由ラベル
+  const unavailableMap: Record<string, string> = {}
+  for (const p of mainPlayers) {
+    if (p.status === 'injured') {
+      const left = p.injuredUntilRace != null ? p.injuredUntilRace - raceIndex : 0
+      unavailableMap[p.id] = left > 0 ? `故障中・復帰まで約${left}戦` : '故障中'
+    } else if (!p.loan && p.acquiredRaceIndex != null && raceIndex - p.acquiredRaceIndex < 2) {
+      // レンタル選手は加入後2戦の出走制限を受けない
+      unavailableMap[p.id] = `移籍加入・あと${p.acquiredRaceIndex + 2 - raceIndex}戦で出走可`
+    }
+  }
   const assignedIds = new Set(Object.values(raceLineup))
   const allSegsFilled = (race?.segments ?? []).every(s => !!raceLineup[s.index])
+
+  // 既に配置済みの選手が出走不可になった場合（配置後に故障など）はラインナップから外す
+  useEffect(() => {
+    if (phase !== 'lineup') return
+    for (const [segIdx, pid] of Object.entries(raceLineup)) {
+      if (pid && unavailableMap[pid]) setRaceLineup(+segIdx, '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, raceLineup])
 
   if (!currentRace && phase === 'lineup') {
     return (
@@ -469,6 +487,7 @@ export default function RacePage() {
       teamTalk={raceTeamTalk}
       setTeamTalk={setRaceTeamTalk}
       lastLineup={lastRaceLineup}
+      unavailable={unavailableMap}
     />
   )
 
