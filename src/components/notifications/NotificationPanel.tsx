@@ -203,7 +203,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                     return (
                       <div key={bid.id} style={card(alpha(C.green, 0.45), '#0d3d22')}>
                         <div style={inset}/>
-                        <button onClick={() => { navigate('/transfer'); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => { navigate(`/team/chat?trade=${bid.targetTeamId}&want=${bid.playerId}&feeMode=1`); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.green} />
                           <div style={{ flex: 1, textAlign: 'left' }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{p.name} → {targetTeam?.shortName ?? '?'}</div>

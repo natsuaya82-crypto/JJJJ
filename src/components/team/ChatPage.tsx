@@ -516,7 +516,7 @@ function ChatView({
 
 function TradeChatView({ team, onClose, initialMode, initialGetId }: { team: Team; onClose: () => void; initialMode?: 'fee' | 'trade'; initialGetId?: string }) {
   const navigate = useNavigate()
-  const { players, teams, playerTeamId, currentSeason, submitTransferBid, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
+  const { players, teams, playerTeamId, currentSeason, submitTransferBid, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, acceptFeeCounter, rejectTransferBid } = useGameStore()
   const mainP = players.filter(p => p.teamId === team.id && p.rosterTier === 'main' && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
   const secondP = players.filter(p => p.teamId === team.id && isSecondMember(p) && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
   const bids = currentSeason.transferBids ?? []
@@ -588,17 +588,43 @@ function TradeChatView({ team, onClose, initialMode, initialGetId }: { team: Tea
     )
   }
 
+  const [counterBidId, setCounterBidId] = useState<string | null>(null)
+
   const renderRow = (p: Player) => {
     const b = bidOf(p.id)
     const feeAccepted = b?.status === 'fee_accepted'
+    const isCountered = b?.status === 'countered'
     return (
-      <OppRow key={p.id} player={p} bidLabel={b ? (feeAccepted ? '費用合意→契約交渉へ' : b.status === 'countered' ? '相手が対抗提示' : '打診中') : null}
-        bidColor={feeAccepted ? C.green : b ? C.gold : C.textDim}
-        onClick={() => {
-          if (feeAccepted && b) { navigate(`/transfer/negotiate/transfer/${b.id}`); return }  // チーム合意済み→選手と契約交渉
-          if (b) { navigate('/transfer/offers'); return }  // 打診中/対抗提示→オファー一覧で確認
-          openFee(p)  // まだ→移籍金オファー
-        }} />
+      <div key={p.id}>
+        <OppRow player={p} bidLabel={b ? (feeAccepted ? '費用合意→契約交渉へ' : isCountered ? '対抗提示あり' : '打診中') : null}
+          bidColor={feeAccepted ? C.green : isCountered ? C.orange : b ? C.gold : C.textDim}
+          onClick={() => {
+            if (feeAccepted && b) { navigate(`/transfer/negotiate/transfer/${b.id}`); return }
+            if (isCountered && b) { setCounterBidId(counterBidId === b.id ? null : b.id); return }
+            openFee(p)
+          }} />
+        {isCountered && b && counterBidId === b.id && b.counterFee != null && (
+          <div style={{ margin: '0 0 8px', padding: '12px 14px', borderRadius: '0 0 12px 12px', background: C.surface2, border: `1px solid ${alpha(C.orange, 0.4)}`, borderTop: 'none' }}>
+            <div style={{ fontSize: 11, color: C.textSub, marginBottom: 4 }}>
+              {team.name}から対抗提示
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
+              <span style={{ fontFamily: SAIRA, fontSize: 13, color: C.textGhost, textDecoration: 'line-through' }}>{fmt(b.offeredFee)}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.orange }}>{fmt(b.counterFee)}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { acceptFeeCounter(b.id); setCounterBidId(null) }}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: alpha(C.green, 0.15), color: C.green, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {fmt(b.counterFee)}で合意
+              </button>
+              <button onClick={() => { rejectTransferBid(b.id); setCounterBidId(null) }}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                取り下げ
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -856,13 +882,24 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { players, playerTeamId, currentSeason, teams, foreignLeagues, generateContractRequests,
-    acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer, acceptIncomingLoanOffer, declineIncomingLoanOffer } = useGameStore()
+    acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer, acceptIncomingLoanOffer, declineIncomingLoanOffer, openPlayerSheet,
+    acceptFeeCounter, rejectTransferBid } = useGameStore()
+  // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lpFired = useRef(false)
+  const longPress = (pid: string) => ({
+    onPointerDown: () => { lpFired.current = false; lpTimer.current = setTimeout(() => { lpFired.current = true; openPlayerSheet(pid) }, 450) },
+    onPointerUp: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerLeave: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+  })
   // 通知などから ?player=<id> で来た場合は直接その選手のチャットを開く
   const [chatPlayerId, setChatPlayerId] = useState<string | null>(() => searchParams.get('player'))
   const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade'))
   // ?player / ?trade で「直接」会話を開いて来た場合、戻るは会話一覧ではなく呼び出し元の画面(navigate(-1))へ返す
   const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade')))
   const wantParam = searchParams.get('want')  // トレード提案で「もらう」に初期選択する選手
+  const feeModeParam = searchParams.get('feeMode')  // 移籍金対応モードで開く
   const [messageCache, setMessageCache] = useState<Record<string, ChatMessage[]>>({})
   const [activeTab, setActiveTab] = useState<'own' | 'transfer'>(searchParams.get('trade') ? 'transfer' : 'own')
 
@@ -917,6 +954,9 @@ export default function ChatPage() {
   // 他チーム（トレード交渉の相手）
   const opponentTeams = teams.filter(t => t.id !== playerTeamId)
   const tradeTeam = tradeTeamId ? opponentTeams.find(t => t.id === tradeTeamId) ?? null : null
+  // 外国クラブへの入札（teamsに含まれないため別途解決）
+  const allForeignClubs = (foreignLeagues ?? []).flatMap(l => l.clubs)
+  const tradeForeignClub = (!tradeTeam && tradeTeamId) ? allForeignClubs.find(c => c.id === tradeTeamId) ?? null : null
 
   // 相手から来たオファー（移籍・レンタル）＝チャットで対応
   const foreignClubMap = new Map((foreignLeagues ?? []).flatMap(l => l.clubs).map(c => [c.id, c.shortName]))
@@ -933,8 +973,60 @@ export default function ChatPage() {
 
   if (tradeTeam) return (
     <TradeChatView team={tradeTeam} onClose={() => closeConversation(() => setTradeTeamId(null))}
-      initialMode={wantParam ? 'trade' : undefined} initialGetId={wantParam ?? undefined} />
+      initialMode={feeModeParam ? 'fee' : wantParam ? 'trade' : undefined} initialGetId={wantParam ?? undefined} />
   )
+
+  if (tradeForeignClub) {
+    const bids = currentSeason.transferBids ?? []
+    const counteredBids = bids.filter(b => b.targetTeamId === tradeForeignClub.id && b.status === 'countered')
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
+          <BackButton onClick={() => closeConversation(() => setTradeTeamId(null))} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{tradeForeignClub.name}</div>
+            <div style={{ fontSize: 10, color: C.textDim }}>移籍金交渉</div>
+          </div>
+        </div>
+        <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {counteredBids.length === 0 && (
+            <div style={{ fontSize: 13, color: C.textDim, textAlign: 'center', padding: 24 }}>対抗提示はありません</div>
+          )}
+          {counteredBids.map(bid => {
+            const p = players.find(pl => pl.id === bid.playerId)
+            if (!p || bid.counterFee == null) return null
+            return (
+              <div key={bid.id} style={{ borderRadius: 12, background: C.surface, border: `1px solid ${alpha(C.orange, 0.4)}`, padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <PlayerFace playerId={p.id} nationality={p.nationality} size={36} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{p.name}</div>
+                    <div style={{ fontSize: 10, color: C.textDim }}>{tradeForeignClub.name}からの対抗提示</div>
+                  </div>
+                  <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 12 }}>
+                  <span style={{ fontFamily: SAIRA, fontSize: 13, color: C.textGhost, textDecoration: 'line-through' }}>{fmt(bid.offeredFee)}</span>
+                  <span style={{ fontSize: 10, color: C.textSub }}>→</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.orange }}>{fmt(bid.counterFee)}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => acceptFeeCounter(bid.id)}
+                    style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: alpha(C.green, 0.15), color: C.green, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {fmt(bid.counterFee)}で合意
+                  </button>
+                  <button onClick={() => rejectTransferBid(bid.id)}
+                    style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    取り下げ
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   if (chatPlayer) return (
     <ChatView
@@ -954,11 +1046,12 @@ export default function ChatPage() {
     return (
       <button
         key={player.id}
-        onClick={() => setChatPlayerId(player.id)}
+        {...longPress(player.id)}
+        onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(player.id) }}
         style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${borderColor}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
-          <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
+          <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(player.id) }} style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
             <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1002,11 +1095,12 @@ export default function ChatPage() {
     return (
       <button
         key={player.id}
-        onClick={() => setChatPlayerId(player.id)}
+        {...longPress(player.id)}
+        onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(player.id) }}
         style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(statusCol, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
-          <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
+          <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(player.id) }} style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
             <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
