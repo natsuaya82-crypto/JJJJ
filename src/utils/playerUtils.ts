@@ -92,31 +92,36 @@ export function calcTransferValue(p: Player): number {
   const o = ovr(p)
   const age = p.age
 
-  // Younger players valued exponentially higher — same logic as soccer
+  // OVRを主役にする。下限(45)を引いて2乗すると OVR差が大きく開き、
+  // 年齢や将来性でOVRの上下が逆転しない（例: 80→(35)^2=1225 / 56→(11)^2=121 ＝約10倍差）。
+  const base = Math.pow(Math.max(0, o - 45), 2)
+
+  // 年齢は「補正」程度に抑える（OVRを覆さない範囲）。若手にやや上乗せ、高齢で減衰。
   const ageFactor =
-    age <= 18 ? 2.5 :
-    age <= 20 ? 2.0 :
-    age <= 22 ? 1.6 :
-    age <= 24 ? 1.3 :
-    age <= 26 ? 1.1 :
-    age <= 28 ? 1.0 :
-    age <= 30 ? 0.75 :
-    age <= 32 ? 0.45 :
-    age <= 34 ? 0.20 :
-    0.05
+    age <= 20 ? 1.30 :
+    age <= 23 ? 1.20 :
+    age <= 26 ? 1.05 :
+    age <= 28 ? 1.00 :
+    age <= 30 ? 0.80 :
+    age <= 32 ? 0.60 :
+    age <= 34 ? 0.40 :
+    0.25
 
-  const potFactor = p.potential >= 85 ? 1.3 : p.potential >= 75 ? 1.1 : 1.0
+  const potFactor = p.potential >= 85 ? 1.15 : p.potential >= 75 ? 1.07 : 1.0
 
-  // Career track record adds market premium
-  const segFactor   = 1 + Math.min(p.career.segmentWins * 0.03, 0.30)
-  const champFactor = 1 + p.career.championships * 0.15
-  const mvpFactor   = 1 + p.career.mvpAwards * 0.10
-  const careerFactor = segFactor * champFactor * mvpFactor
+  // 実績プレミアム。初期生成(全て0)なら careerFactor=1.0 ＝ OVR＋年齢だけの素の価値。
+  // プレイで出走・区間賞・優勝・MVPが溜まるほど上がる（変動する）。
+  // 主軸は「出走回数」＝どれだけ起用されてきたか（区間賞ゼロの堅実な選手も評価される）。
+  const appFactor   = 1 + Math.min(p.career.totalRaces * 0.004, 0.25)   // 出走で最大+25%
+  const segFactor   = 1 + Math.min(p.career.segmentWins * 0.015, 0.15)  // 区間賞（点取り屋要素、控えめに残す）
+  const champFactor = 1 + p.career.championships * 0.08
+  const mvpFactor   = 1 + p.career.mvpAwards * 0.06
+  const careerFactor = appFactor * segFactor * champFactor * mvpFactor
 
-  const ctFactor = 1.0 + Math.min((p.contract.yearsLeft - 1) * 0.08, 0.24)
+  const ctFactor = 1.0 + Math.min((p.contract.yearsLeft - 1) * 0.06, 0.18)
 
-  // OVR70/28yo base ≈ 4900万
-  const raw = o * o * ageFactor * potFactor * careerFactor * ctFactor * 10000
+  // 係数80000で OVR70/28歳 ≈ 5000万（OVR80/24 ≈ 1.2億、OVR56 ≈ 1000万台）
+  const raw = base * ageFactor * potFactor * careerFactor * ctFactor * 80000
   return Math.round(raw / 1000000) * 1000000
 }
 
