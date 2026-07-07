@@ -15,12 +15,7 @@ const icon = (
   </svg>
 )
 
-function NavigateBack() {
-  const navigate = useNavigate()
-  return <button data-se="back" onClick={() => { audio.markBack(); audio.playSe('back'); navigate(-1) }} style={buttonStyle}>{icon}</button>
-}
-
 export default function BackButton({ onClick }: { onClick?: () => void }) {
-  if (onClick) return <button data-se="back" onClick={() => { audio.playSe('back'); onClick() }} style={buttonStyle}>{icon}</button>
-  return <NavigateBack />
+  const navigate = useNavigate()
+  return <button data-se="back" onClick={() => { audio.markBack(); audio.playSe('back'); if (onClick) onClick(); else navigate(-1) }} style={buttonStyle}>{icon}</button>
 }

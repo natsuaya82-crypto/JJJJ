@@ -403,6 +403,46 @@ export default function RacePage() {
     setPhase('results')
   }
 
+  // 選手選択画面から「まるごとスキップ」：全区間をイベントなし（素の実力）で計算して結果へ
+  function handleFullSkip() {
+    if (!allSegsFilled || !currentRace) return
+    setLockedRace(currentRace)
+    setLockedRaceIndex(raceIndex)
+    setActiveRaceLocked(currentRace, raceIndex)
+    const race = currentRace
+    const cpuLineups: Record<string, Record<number, string>> = {}
+    for (const team of teams) {
+      if (team.id === playerTeamId) continue
+      cpuLineups[team.id] = buildAILineup(team.id, players, race)
+    }
+    const seasonProgress = raceIndex / currentSeason.races.length
+    const totalSegs = race.segments.length
+    let completedSegs: ReturnType<typeof finalizeSegment>[] = []
+    const cumTime: Record<string, number> = {}
+    const segPts: Record<string, number> = {}
+    for (const seg of race.segments) {
+      const pid = raceLineup[seg.index]
+      const playerObj = players.find(p => p.id === pid)
+      const playerTeam = teams.find(t => t.id === playerTeamId)
+      const cpuTimes = calcCpuTimesForSeg(seg, teams, cpuLineups, players, playerTeamId, race, seasonProgress, totalSegs)
+      const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
+      const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
+      const pBase = playerObj
+        ? calcFinalSegTime(skSegStamina, skSegOvr, 0, playerObj, seg, playerTeam, race, seasonProgress, raceStrategy, totalSegs)
+        : 9999
+      const res = finalizeSegment({ segmentIndex: seg.index, playerTeamId, playerPlayerId: pid ?? '', playerFinalTime: pBase, cpuTimesForSeg: cpuTimes, cpuLineups })
+      completedSegs = [...completedSegs, res]
+      cumTime[playerTeamId] = (cumTime[playerTeamId] ?? 0) + pBase
+      for (const [tid, t] of Object.entries(cpuTimes)) cumTime[tid] = (cumTime[tid] ?? 0) + t
+      res.runners.slice(0, 3).forEach((r, i) => { segPts[r.teamId] = (segPts[r.teamId] ?? 0) + [3, 2, 1][i] })
+    }
+    const teamRankings = buildTeamRankings(cumTime, completedSegs, segPts, race.segments.length)
+    const preComputedResults: RaceResults = { teamRankings, segmentResults: completedSegs }
+    const finalResults = runRace(raceLineup, {}, preComputedResults)
+    setResults(finalResults ?? preComputedResults)
+    setPhase('results')
+  }
+
   // Derive lowStaminaHint from internal state (not passed directly)
   const lowStaminaHint = iSim && iSim.initialSegStamina > 0
     ? iSim.segStamina / iSim.initialSegStamina < 0.6
@@ -422,6 +462,7 @@ export default function RacePage() {
       setRaceLineup={setRaceLineup}
       clearRaceLineup={clearRaceLineup}
       onStart={(tactics) => runWithLoading('レース準備中…', () => startInteractiveSim(tactics), 500)}
+      onSkipRace={() => runWithLoading('結果を計算中…', () => handleFullSkip(), 500)}
       weatherLabel={weatherLabel}
       raceStrategy={raceStrategy}
       setRaceStrategy={setRaceStrategy}

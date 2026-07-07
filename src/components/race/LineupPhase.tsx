@@ -57,8 +57,8 @@ const ALL_STATS: [string, keyof import('../../types').Player['ratings']][] = [
 
 export function LineupPhase({
   race, raceNumber, totalRaces, mainPlayers, raceLineup, allSegsFilled,
-  pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart,
-  onBack, lastLineup,
+  pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart, onSkipRace,
+  onBack, lastLineup, unavailable,
 }: {
   race: Race
   raceNumber: number
@@ -72,6 +72,7 @@ export function LineupPhase({
   setRaceLineup: (i: number, id: string) => void
   clearRaceLineup: () => void
   onStart: (tactics: Record<number, string>) => void
+  onSkipRace?: () => void
   weatherLabel: Record<string, string>
   raceStrategy: 'aggressive' | 'balanced' | 'conservative'
   setRaceStrategy: (s: 'aggressive' | 'balanced' | 'conservative') => void
@@ -79,6 +80,7 @@ export function LineupPhase({
   setTeamTalk: (t: string) => void
   onBack?: () => void
   lastLineup?: Record<number, string>
+  unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
 }) {
   const navigate = useNavigate()
   const [segTactics] = useState<Record<number, string>>({})
@@ -91,10 +93,12 @@ export function LineupPhase({
   const totalDist = race.segments.reduce((s, sg) => s + sg.distanceKm, 0)
   const filledCount = Object.values(raceLineup).filter(Boolean).length
 
+  const availablePlayers = useMemo(() => mainPlayers.filter(p => !unavailable?.[p.id]), [mainPlayers, unavailable])
+
   const greedyRec = useMemo(() => {
     const pairs: { segIndex: number; playerId: string; score: number }[] = []
     for (const seg of race.segments) {
-      for (const p of mainPlayers) {
+      for (const p of availablePlayers) {
         const score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
                     * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
         pairs.push({ segIndex: seg.index, playerId: p.id, score })
@@ -110,7 +114,7 @@ export function LineupPhase({
       usedPlayers.add(playerId)
     }
     return rec
-  }, [race.segments, mainPlayers])
+  }, [race.segments, availablePlayers])
 
   function getPlayerSegment(playerId: string): number | null {
     for (const [k, v] of Object.entries(raceLineup)) {
@@ -120,6 +124,7 @@ export function LineupPhase({
   }
 
   function selectPlayer(segIndex: number, playerId: string) {
+    if (unavailable?.[playerId]) return
     const oldSeg = getPlayerSegment(playerId)
     const displaced = raceLineup[segIndex]
     if (oldSeg !== null && oldSeg !== segIndex) {
@@ -154,6 +159,10 @@ export function LineupPhase({
       return { p, score, assignedSeg }
     })
     .sort((a, b) => {
+      // 出走不可の選手は常に末尾
+      const ua = unavailable?.[a.p.id] ? 1 : 0
+      const ub = unavailable?.[b.p.id] ? 1 : 0
+      if (ua !== ub) return ua - ub
       switch (pickerSort) {
         case 'ovr':    return ovr(b.p) - ovr(a.p)
         case 'age':    return a.p.age - b.p.age
@@ -164,7 +173,7 @@ export function LineupPhase({
         default:       return b.score - a.score
       }
     })
-  }, [pickerSegData, mainPlayers, raceLineup, pickerSort]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pickerSegData, mainPlayers, raceLineup, pickerSort, unavailable]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickerSegCol = pickerSegData ? terrainColor(pickerSegData.uphillPct, pickerSegData.downhillPct) : C.blue
 
@@ -457,6 +466,14 @@ export function LineupPhase({
           </button>
         )}
       </div>
+      {allSegsFilled && onSkipRace && (
+        <button
+          onClick={onSkipRace}
+          style={{ width: '100%', marginTop: 8, padding: '11px', borderRadius: 12, border: `1px solid ${C.border2}`, background: C.surface2, color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+        >
+          スキップして結果を見る（イベントなし）
+        </button>
+      )}
     </div>
   )
 }

@@ -174,6 +174,36 @@ export function buildScoutReport(p: { ratings: { speed: number; stamina: number;
   return { bestTerrain, growthOutlook, valueTrend, buyWindow }
 }
 
+// 他チーム選手の視察（1レース待ち式）判定用の最小シーズン型。
+// currentSeason 全体の循環参照を避けるため必要フィールドだけを受ける。
+type ScoutSeasonLike = {
+  currentRaceIndex?: number
+  secondTeamRaceIndex?: number
+  individualEvents?: { results?: unknown }[]
+  scoutedOpponents?: { playerId: string; reqAt?: number; year: number }[]
+}
+
+// そのシーズンに消化したレース総数（リーグ戦＋リザーブ戦＋記録会）。
+export function racesConsumed(season: ScoutSeasonLike): number {
+  return (season.currentRaceIndex ?? 0)
+    + (season.secondTeamRaceIndex ?? 0)
+    + ((season.individualEvents ?? []).filter(e => e.results).length)
+}
+
+// 視察済み（＝能力/ポテンシャル開示）か。reqAt 無しの旧セーブは即開示扱い。
+export function isOpponentScouted(playerId: string, season: ScoutSeasonLike): boolean {
+  const entry = (season.scoutedOpponents ?? []).find(s => s.playerId === playerId)
+  if (!entry) return false
+  return entry.reqAt === undefined || racesConsumed(season) > entry.reqAt
+}
+
+// 視察中（依頼したがまだ1レース消化していない）か。
+export function isScoutPending(playerId: string, season: ScoutSeasonLike): boolean {
+  const entry = (season.scoutedOpponents ?? []).find(s => s.playerId === playerId)
+  if (!entry) return false
+  return entry.reqAt !== undefined && racesConsumed(season) <= entry.reqAt
+}
+
 export function formColor(form: number): string {
   return FORM_COLORS[Math.round(form)] ?? '#5C5870'
 }

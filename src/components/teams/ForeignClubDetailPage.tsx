@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { useOpponentMenu } from './opponentMenu'
@@ -73,8 +73,7 @@ export default function ForeignClubDetailPage() {
           const value = calcTransferValue(p)
           const salary = p.contract.annualSalary
           const specCol = SPEC_COLOR[p.specialty]
-          const scout = scoutedOpponents.find(s => s.playerId === p.id)
-          const isScouted = scout != null && currentSeason.year - scout.year <= 1
+          const isScouted = isOpponentScouted(p.id, currentSeason)
 
           return (
             <div key={p.id} style={{

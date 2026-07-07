@@ -1,5 +1,19 @@
-import type { Race } from '../types'
+import type { Race, IndividualEvent } from '../types'
 import { INITIAL_TEAMS } from './teams'
+
+// 記録会（タイムトライアル）年7回。本編レースの合間に配置。種目を散らし、負荷の高いマラソンは夏の休養期に。
+export function generateIndividualEvents(year: number): IndividualEvent[] {
+  const y = String(year)
+  return [
+    { id: `tt-5k-1-${y}`,   name: `${y} 春季5000m記録会`,   date: `${y}-03-25`, distance: 5000 },
+    { id: `tt-10k-1-${y}`,  name: `${y} 春季10000m記録会`,  date: `${y}-04-26`, distance: 10000 },
+    { id: `tt-half-1-${y}`, name: `${y} 初夏ハーフ記録会`,   date: `${y}-05-24`, distance: 21097 },
+    { id: `tt-5k-2-${y}`,   name: `${y} 初夏5000m記録会`,   date: `${y}-06-28`, distance: 5000 },
+    { id: `tt-mara-${y}`,   name: `${y} 夏季マラソン記録会`, date: `${y}-08-02`, distance: 42195 },
+    { id: `tt-10k-2-${y}`,  name: `${y} 夏季10000m記録会`,  date: `${y}-08-23`, distance: 10000 },
+    { id: `tt-half-2-${y}`, name: `${y} 秋季ハーフ記録会`,   date: `${y}-09-27`, distance: 21097 },
+  ]
+}
 
 const ALL_TEAM_IDS = INITIAL_TEAMS.map(t => t.id)
 

@@ -197,6 +197,7 @@ export default function App() {
   const { isInitialized, draftState, resetGame } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const grantUpdateGifts = useGameStore(s => s.grantUpdateGifts)
+  const ensureIndividualEvents = useGameStore(s => s.ensureIndividualEvents)
   const [titleShown, setTitleShown] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
 
@@ -215,6 +216,8 @@ export default function App() {
   useEffect(() => { initAds(adsRemoved) }, [])
   // アップデート記念プレゼントを配布（冪等。ゲーム開始済みのときだけ）
   useEffect(() => { if (isInitialized) grantUpdateGifts() }, [isInitialized])
+  // 既存セーブ移行：現シーズンに新しい記録会7回を注入（冪等。リセット不要で反映）
+  useEffect(() => { if (isInitialized) ensureIndividualEvents() }, [isInitialized])
   // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
   useEffect(() => { initLocalNotifications() }, [])
   // 買い切りの購入/復元でフラグが変わったらバナー表示を切り替える（初回マウントは initAds が担当）

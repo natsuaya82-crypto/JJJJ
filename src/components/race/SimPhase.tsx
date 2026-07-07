@@ -130,7 +130,7 @@ function calcRunnerPositions(
     // 総合タイム = この区間より前の累積 + 現区間の進行分（kmRatio=1で実累積に一致）
     const overallTotal = (baselineCumulative[t.id] ?? 0) + kmRatio * segTime
     return { teamId: t.id, km, segTime, overallTotal }
-  }).sort((a, b) => a.overallTotal - b.overallTotal)
+  }).sort((a, b) => a.overallTotal - b.overallTotal || a.teamId.localeCompare(b.teamId))
 }
 
 // レーストラック表示
@@ -286,12 +286,12 @@ export function RaceTrack({
                   </div>
                 </div>
 
-                {/* 総合タイム差 */}
-                <div style={{ width: 48, textAlign: 'right', flexShrink: 0, fontFamily: SAIRA, position: 'relative', zIndex: 1 }}>
+                {/* 総合タイム差（折り返し禁止：折り返すと行高が変わり下位がガタつくため） */}
+                <div style={{ minWidth: 52, textAlign: 'right', flexShrink: 0, fontFamily: SAIRA, position: 'relative', zIndex: 1, whiteSpace: 'nowrap' }}>
                   {rank === 0 ? (
-                    <span style={{ fontSize: 11, color: C.gold, fontWeight: 900 }}>TOP</span>
+                    <span style={{ fontSize: 11, color: C.gold, fontWeight: 900, whiteSpace: 'nowrap' }}>TOP</span>
                   ) : (
-                    <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.red : C.textDim }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.red : C.textDim, whiteSpace: 'nowrap' }}>
                       {formatDiff(gapSec)}
                     </span>
                   )}

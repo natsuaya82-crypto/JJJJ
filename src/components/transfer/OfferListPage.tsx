@@ -48,7 +48,7 @@ export default function OfferListPage() {
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100%' }}>
       <div style={{ padding: '12px 16px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-          <BackButton onClick={() => navigate('/transfer')} />
+          <BackButton />
           <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.gold }}>オファー一覧</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

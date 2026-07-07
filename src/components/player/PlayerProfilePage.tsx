@@ -298,7 +298,7 @@ export default function PlayerProfilePage() {
             <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               <div style={{ fontSize: 11, color: C.textGhost }}>能力値・詳細情報を見るには視察が必要です</div>
               <button
-                onClick={() => { if (scoutPoints > 0) scoutOpponentPlayer(player.id, 1) }}
+                onClick={() => { scoutOpponentPlayer(player.id) }}
                 style={{
                   padding: '7px 20px', borderRadius: 10,
                   cursor: scoutPoints > 0 ? 'pointer' : 'not-allowed',

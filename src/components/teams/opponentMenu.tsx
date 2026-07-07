@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
-import { ovr, ratingColor, calcTransferValue } from '../../utils/playerUtils'
+import { ovr, ratingColor, calcTransferValue, isOpponentScouted, isScoutPending } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NumberDial from '../ui/NumberDial'
@@ -94,8 +94,7 @@ export function useOpponentMenu() {
   const isScoutedFn = (pid: string) => {
     const p = players.find(x => x.id === pid)
     if (!p || p.teamId === playerTeamId) return true
-    const entry = (currentSeason.scoutedOpponents ?? []).find(s => s.playerId === pid)
-    return entry != null && currentSeason.year - entry.year <= 1
+    return isOpponentScouted(pid, currentSeason)
   }
 
   const [menuId, setMenuId] = useState<string | null>(null)
@@ -120,14 +119,14 @@ export function useOpponentMenu() {
   const menuItems = (() => {
     if (!menuPlayer) return []
     const isForeign = !teams.some(t => t.id === menuPlayer.teamId)
-    const scouted = !!(currentSeason.scoutedOpponents ?? []).find(s => s.playerId === menuPlayer.id && currentSeason.year - s.year <= 1)
-    const scoutPoints = currentSeason.scoutPoints ?? 0
+    const scouted = isOpponentScouted(menuPlayer.id, currentSeason)
+    const pending = isScoutPending(menuPlayer.id, currentSeason)
     const items = [
       { label: '移籍オファーを出す', color: C.gold, onClick: () => setOfferId(menuPlayer.id) },
       { label: 'レンタルのオファー', color: C.blue, onClick: () => setLoanId(menuPlayer.id) },
       // トレードは国内チームのみ（海外クラブとはトレード不可）
       ...(!isForeign ? [{ label: 'トレードを提案', color: C.orange, onClick: () => navigate(`/team/chat?trade=${menuPlayer.teamId}&want=${menuPlayer.id}`) }] : []),
-      { label: scouted ? '視察済み' : '視察する（-1PT）', color: C.green, disabled: scouted || scoutPoints < 1, onClick: () => scoutOpponentPlayer(menuPlayer.id, 1) },
+      { label: scouted ? '視察済み' : pending ? '視察中' : '視察する', color: C.green, disabled: scouted || pending, onClick: () => scoutOpponentPlayer(menuPlayer.id) },
     ]
     return items
   })()

@@ -281,6 +281,18 @@ export function generateSegmentEvents(params: {
     events.push(makeWaterStationEvent(player, ctx))
   }
 
+  // 発火地点はイベントの内容に応じた適切なゾーンで出す（毎回同じにならないよう、ゾーン内で少しだけランダム）。
+  // スタートダッシュ=序盤 / 山岳=序盤〜中盤 / 給水=中盤 / ラスト勝負=終盤 / 攻防系=中盤の駆け引き。
+  for (const e of events) {
+    let min: number
+    if (e.id === 'start_dash') min = 0.08 + Math.random() * 0.10          // 序盤 8〜18%
+    else if (e.id.startsWith('mountain')) min = 0.15 + Math.random() * 0.18  // 山 15〜33%
+    else if (e.id === 'water_station') min = 0.35 + Math.random() * 0.20      // 給水 35〜55%
+    else if (e.id === 'final_push') min = 0.74 + Math.random() * 0.14         // ラスト 74〜88%
+    else min = 0.35 + Math.random() * 0.25                                     // 並走/追い上げ/先頭 35〜60%
+    e.trigger = { type: 'ratio', min }
+  }
+
   // IDを区間ごとにユニークにする
   return events.map((e, i) => ({ ...e, id: `${e.id}_seg${segIdx}_${i}` }))
 }

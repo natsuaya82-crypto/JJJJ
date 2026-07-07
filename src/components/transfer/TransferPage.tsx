@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer, isOpponentScouted, isScoutPending } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
@@ -287,13 +287,7 @@ export default function TransferPage() {
   return (
     <div style={{ paddingTop: '4px', paddingBottom: '80px', fontFamily: SAIRA }}>
       <div style={{ padding: '10px 16px 12px' }}>
-        <BackButton onClick={
-          tab === 'trade' && tradeTarget
-            ? () => resetTrade(null)
-            : tab === 'market-results'
-              ? () => navigate('/transfer/market', { state: location.state })
-              : () => navigate('/transfer')
-        } />
+        <BackButton onClick={tab === 'trade' && tradeTarget ? () => resetTrade(null) : undefined} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div style={{ fontSize: '20px', fontWeight: '900', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 16px ${alpha(C.gold, 0.25)}` }}>
@@ -546,10 +540,9 @@ export default function TransferPage() {
               const isBidOpen = bidTarget === p.id
               const initFee = listing ? Math.round(listing.askingPrice * 0.82 / 500000) * 500000 : Math.round(val * 0.85 / 500000) * 500000
               const rating = ovr(p)
-              const scoutEntry = (currentSeason.scoutedOpponents ?? []).find(s => s.playerId === p.id)
-              const isScouted = scoutEntry != null && currentSeason.year - scoutEntry.year <= 1
+              const isScouted = isOpponentScouted(p.id, currentSeason)
+              const scoutPending = isScoutPending(p.id, currentSeason)
               const isStarred = starredOpponents.includes(p.id)
-              const scoutPts = currentSeason.scoutPoints ?? 0
               return (
                 <div key={p.id} style={{ marginBottom: '7px' }}>
                   <div style={{
@@ -571,9 +564,13 @@ export default function TransferPage() {
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
                             <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: isScouted ? ratingColor(rating) : C.textGhost }}>{isScouted ? rating : '?'}</span>
                             {!isScouted && (
-                              <button onClick={e => { e.stopPropagation(); if (scoutPts > 0) scoutOpponentPlayer(p.id, 1) }} style={{ padding: '2px 7px', borderRadius: '6px', cursor: scoutPts > 0 ? 'pointer' : 'not-allowed', backgroundColor: scoutPts > 0 ? '#7986CB18' : 'transparent', border: `1px solid ${scoutPts > 0 ? '#7986CB40' : C.border}`, color: scoutPts > 0 ? '#7986CB' : C.textGhost, fontSize: '9px', fontWeight: '700', fontFamily: SAIRA }}>
-                                視察-1PT
-                              </button>
+                              scoutPending ? (
+                                <span style={{ padding: '2px 7px', borderRadius: '6px', color: '#7986CB', fontSize: '9px', fontWeight: '700', fontFamily: SAIRA }}>視察中</span>
+                              ) : (
+                                <button onClick={e => { e.stopPropagation(); scoutOpponentPlayer(p.id) }} style={{ padding: '2px 7px', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#7986CB18', border: `1px solid #7986CB40`, color: '#7986CB', fontSize: '9px', fontWeight: '700', fontFamily: SAIRA }}>
+                                  視察
+                                </button>
+                              )
                             )}
                             <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{isScouted ? `${p.age}歳` : '?歳'}</span>
                             <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{allClubs[p.teamId] ?? '?'}</span>

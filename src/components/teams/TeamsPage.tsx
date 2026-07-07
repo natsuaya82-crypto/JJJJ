@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted, isScoutPending } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import { useOpponentMenu } from './opponentMenu'
 
@@ -22,20 +22,12 @@ function RecentForm({ raceResults }: { raceResults: { rank: number }[] }) {
 }
 
 export default function TeamsPage() {
-  const { teams, players, playerTeamId, currentSeason, openPlayerSheet, scoutOpponentPlayer } = useGameStore()
+  const { teams, players, playerTeamId, currentSeason, openPlayerSheet } = useGameStore()
   const navigate = useNavigate()
   const { rowHandlers, overlay } = useOpponentMenu()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'rank' | 'name'>('rank')
   const [showDraftOrder, setShowDraftOrder] = useState(false)
-
-  const scoutPoints = currentSeason.scoutPoints ?? 0
-  const scoutedOpponents = currentSeason.scoutedOpponents ?? []
-
-  function getScoutLevel(playerId: string): 0 | 1 | 2 {
-    const entry = scoutedOpponents.find(s => s.playerId === playerId)
-    return (entry?.level ?? 0) as 0 | 1 | 2
-  }
 
   const standings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const getRank = (teamId: string) => standings.findIndex(s => s.teamId === teamId) + 1
@@ -59,10 +51,7 @@ export default function TeamsPage() {
         </div>
         <div style={{ fontSize: '22px', fontWeight: '900', color: '#F0EDE8', marginBottom: '6px' }}>他チーム</div>
         <div style={{ fontSize: '10px', color: '#5C5870', marginBottom: '10px', lineHeight: 1.5 }}>
-          相手チームの能力値はスカウト派遣で解禁。スカウトPT残:
-          <span style={{ color: scoutPoints > 0 ? '#C9A84C' : '#E8462A', fontWeight: '700', marginLeft: '4px' }}>
-            {scoutPoints}
-          </span>
+          相手チームの能力値は視察で解禁。選手を選び「視察する」と、次の1レース消化で開示されます。
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           <select value={sortBy} onChange={e => setSortBy(e.target.value as 'rank' | 'name')} style={{ flex: 1, padding: '7px 10px', borderRadius: '10px', backgroundColor: '#1E1B2E', border: '1px solid #2E2B42', color: '#9B97A8', fontSize: '11px', fontFamily: 'inherit', outline: 'none' }}>
@@ -184,7 +173,8 @@ export default function TeamsPage() {
                     teamPlayers.map((p, i) => {
                       const rating = ovr(p)
                       const specCol = SPEC_COLOR[p.specialty]
-                      const scoutLevel = isMyTeam ? 2 : getScoutLevel(p.id)
+                      const scouted = isMyTeam || isOpponentScouted(p.id, currentSeason)
+                      const pending = !isMyTeam && isScoutPending(p.id, currentSeason)
 
                       return (
                         <div key={p.id} style={{
@@ -207,27 +197,20 @@ export default function TeamsPage() {
                             {...(isMyTeam ? { onClick: () => openPlayerSheet(p.id) } : rowHandlers(p.id))}
                             style={{ flex: 1, cursor: 'pointer' }}
                           >
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: scoutLevel >= 1 ? '#F0EDE8' : '#5C5870' }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: scouted ? '#F0EDE8' : '#5C5870' }}>
                               {p.name}
                             </div>
-                            {scoutLevel >= 1 && (
+                            {scouted ? (
                               <div style={{ fontSize: '9px', color: '#5C5870' }}>{p.age}歳</div>
-                            )}
+                            ) : pending ? (
+                              <div style={{ fontSize: '9px', color: '#7986CB' }}>視察中</div>
+                            ) : null}
                           </div>
 
-                          {/* Stats based on scout level */}
-                          {scoutLevel >= 2 ? (
+                          {/* Stats (視察済みのみ開示) */}
+                          {scouted ? (
                             <div style={{ display: 'flex', gap: '6px' }}>
                               {([['速', p.ratings.speed], ['持', p.ratings.stamina], ['登', p.ratings.mountainUp], ['下', p.ratings.mountainDown], ['精', p.ratings.mental]] as [string, number][]).map(([l, v]) => (
-                                <div key={l} style={{ textAlign: 'center', minWidth: '18px' }}>
-                                  <div style={{ fontSize: '7px', color: '#3A3758' }}>{l}</div>
-                                  <div style={{ fontSize: '11px', fontWeight: '700', color: v >= 75 ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>{v}</div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : scoutLevel === 1 ? (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              {([['速', p.ratings.speed], ['持', p.ratings.stamina], ['精', p.ratings.mental]] as [string, number][]).map(([l, v]) => (
                                 <div key={l} style={{ textAlign: 'center', minWidth: '18px' }}>
                                   <div style={{ fontSize: '7px', color: '#3A3758' }}>{l}</div>
                                   <div style={{ fontSize: '11px', fontWeight: '700', color: v >= 75 ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>{v}</div>
@@ -243,26 +226,6 @@ export default function TeamsPage() {
                           }}>
                             {rating}
                           </div>
-
-                          {/* Upgrade scout level button */}
-                          {!isMyTeam && scoutLevel === 1 && (
-                            <button
-                              onClick={e => {
-                                e.stopPropagation()
-                                if (scoutPoints < 2) return
-                                scoutOpponentPlayer(p.id, 2)
-                              }}
-                              style={{
-                                padding: '4px 8px', borderRadius: '8px', cursor: scoutPoints >= 2 ? 'pointer' : 'not-allowed',
-                                backgroundColor: scoutPoints >= 2 ? '#C9A84C15' : '#1A1828',
-                                border: `1px solid ${scoutPoints >= 2 ? '#C9A84C35' : '#252236'}`,
-                                color: scoutPoints >= 2 ? '#C9A84C' : '#3A3758',
-                                fontSize: '8px', fontWeight: '700', fontFamily: 'inherit', flexShrink: 0,
-                              }}
-                            >
-                              詳細 -2PT
-                            </button>
-                          )}
                         </div>
                       )
                     })

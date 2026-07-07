@@ -4,6 +4,8 @@ import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const TT_COLOR = '#5EC8B8'
+const TT_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
 function getCourseType(race: { segments: { uphillPct: number; downhillPct: number; distanceKm: number }[] }): string {
   const segs = race.segments
@@ -54,9 +56,12 @@ export default function SchedulePage() {
       }))
     : []
 
-  const allRaces = [...mainRaces, ...stRaces].sort((a, b) =>
-    a.race.date.localeCompare(b.race.date)
-  )
+  // 記録会（タイムトライアル）をレースと同じ時系列に混ぜる
+  const ttItems = (currentSeason.individualEvents ?? []).map(ev => ({
+    type: 'tt' as const, date: ev.date, ev, isDone: !!ev.results,
+  }))
+  const raceItems = [...mainRaces, ...stRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
+  const timeline = [...raceItems, ...ttItems].sort((a, b) => a.date.localeCompare(b.date))
 
   const totalDone = currentSeason.currentRaceIndex + (hasReserve ? stIdx : 0)
   const totalRaces = currentSeason.races.length + (hasReserve ? (currentSeason.secondTeamRaces ?? []).length : 0)
@@ -135,7 +140,33 @@ export default function SchedulePage() {
       </div>
 
       <div style={{ paddingBottom: '24px' }}>
-        {allRaces.map(({ race, kind, roundNum, isNext, isDone, myRank }, idx) => {
+        {timeline.map((it, idx) => {
+          const notLast = idx < timeline.length - 1
+
+          // ── 記録会（タイムトライアル） ──
+          if (it.type === 'tt') {
+            const ev = it.ev
+            return (
+              <div key={ev.id} style={{ display: 'flex', alignItems: 'stretch', padding: '0 20px', opacity: it.isDone ? 0.55 : 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0, paddingTop: '16px' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: it.isDone ? C.border2 : alpha(TT_COLOR, 0.7), flexShrink: 0, zIndex: 1 }}/>
+                  {notLast && <div style={{ flex: 1, width: 1, backgroundColor: C.border, marginTop: '4px' }}/>}
+                </div>
+                <div style={{ flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px', borderRadius: '14px', border: `1px dashed ${alpha(TT_COLOR, 0.5)}`, background: it.isDone ? 'transparent' : alpha(TT_COLOR, 0.06) }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{ev.name}</div>
+                      <div style={{ fontSize: '11px', color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {TT_LABEL[ev.distance]}</div>
+                    </div>
+                    {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          const { race, kind, roundNum, isNext, isDone, myRank } = it.r
           const accentColor = kind === 'main' ? C.gold : C.blue
           const accentShadow = kind === 'main' ? '#5a3500' : '#1a2050'
           const labelText = `第${roundNum}戦`
@@ -161,7 +192,7 @@ export default function SchedulePage() {
                   boxShadow: isNext ? `0 0 10px ${accentColor}` : 'none',
                   zIndex: 1,
                 }}/>
-                {idx < allRaces.length - 1 && (
+                {notLast && (
                   <div style={{ flex: 1, width: 1, backgroundColor: C.border, marginTop: '4px' }}/>
                 )}
               </div>
@@ -170,7 +201,7 @@ export default function SchedulePage() {
                 {...(canEnter ? { onClick: () => navigate('/race') } : {})}
                 style={{
                   flex: 1, marginLeft: '12px',
-                  marginBottom: idx < allRaces.length - 1 ? '6px' : '0',
+                  marginBottom: notLast ? '6px' : '0',
                   padding: '12px 14px',
                   borderRadius: '14px',
                   border: isNext

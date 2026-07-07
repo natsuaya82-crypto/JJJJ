@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { isSecondMember } from '../../data/rosterRules'
 import PlayerFace from '../player/PlayerFace'
@@ -221,8 +221,7 @@ export default function TeamDetailPage() {
               const ace = mainPlayers[0]
               const rating = ovr(ace)
               const specCol = SPEC_COLOR[ace.specialty]
-              const scout = scoutedOpponents.find(s => s.playerId === ace.id)
-              const isScouted = isMyTeam || (scout != null && currentSeason.year - scout.year <= 1)
+              const isScouted = isMyTeam || isOpponentScouted(ace.id, currentSeason)
               return (
                 <div>
                   <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>ACE</div>
@@ -262,8 +261,7 @@ export default function TeamDetailPage() {
                 const rating = ovr(p)
                 const value = calcTransferValue(p)
                 const salary = p.contract.annualSalary
-                const scout = scoutedOpponents.find(s => s.playerId === p.id)
-                const isScouted = isMyTeam || (scout != null && currentSeason.year - scout.year <= 1)
+                const isScouted = isMyTeam || isOpponentScouted(p.id, currentSeason)
                 return (
                   <div key={p.id} style={{
                     marginBottom: '6px', borderRadius: '12px',
