@@ -5,8 +5,9 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted } from '../../utils/playerUtils'
 import { formatTime } from '../../engine/raceEngine'
+import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 
 const CONTRACT_TYPE_LABEL: Record<string, string> = {
@@ -160,8 +161,7 @@ export default function PlayerSheet() {
 
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
-  const scoutEntry = (currentSeason.scoutedOpponents ?? []).find(s => s.playerId === player.id)
-  const isScouted = isMyPlayer || (scoutEntry != null && currentSeason.year - scoutEntry.year <= 1)
+  const isScouted = isMyPlayer || isOpponentScouted(player.id, currentSeason)
   const playerOvr = ovr(player)
   const specCol = SPEC_COLOR[player.specialty]
 
@@ -277,9 +277,6 @@ export default function PlayerSheet() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
             <div style={{ flexShrink: 0, position: 'relative', borderRadius: 14, overflow: 'hidden', border: `1.5px solid ${specCol}40` }}>
               <PlayerFace playerId={player.id} nationality={player.nationality} size={64} />
-              <div style={{ position: 'absolute', bottom: 0, right: 0, background: 'rgba(10,10,20,0.85)', fontSize: 9, fontWeight: 800, color: specCol, fontFamily: 'monospace', padding: '0 3px', lineHeight: '14px', borderRadius: '4px 0 0 0' }}>
-                {player.jerseyNumber > 0 ? player.jerseyNumber : '—'}
-              </div>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
@@ -357,14 +354,35 @@ export default function PlayerSheet() {
                 {[
                   { label: '通算出走', val: player.career.totalRaces },
                   { label: '区間賞', val: player.career.segmentWins },
-                  { label: '優勝', val: player.career.championships },
-                  { label: 'MVP', val: player.career.mvpAwards },
                 ].map(({ label, val }) => (
                   <div key={label} style={{ textAlign: 'center', padding: '10px 4px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
                     <div style={{ fontSize: '20px', fontWeight: '900', color: val > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', lineHeight: 1 }}>{val}</div>
                     <div style={{ fontSize: '8px', color: '#5C5870', marginTop: '3px' }}>{label}</div>
                   </div>
                 ))}
+              </div>
+
+              {/* 自己ベスト（種目別・記録会で走った実タイムのみ） */}
+              <div>
+                <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>自己ベスト</div>
+                <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                  {EVENT_DISTANCES.map((d, i) => {
+                    const best = player.eventBests?.[d]
+                    return (
+                      <div key={d} style={{ display: 'flex', alignItems: 'center', padding: '9px 12px', backgroundColor: i % 2 === 0 ? '#14121F' : 'transparent', borderBottom: i < EVENT_DISTANCES.length - 1 ? '1px solid #1A1828' : 'none' }}>
+                        <span style={{ flex: 1, fontSize: '12px', fontWeight: '700', color: '#C9C6D0' }}>{EVENT_LABEL[d]}</span>
+                        {best ? (
+                          <>
+                            <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '900', color: '#C9A84C' }}>{formatRaceTime(best.timeSec)}</span>
+                            <span style={{ width: 40, textAlign: 'right', fontSize: '8px', color: '#5C5870' }}>{`'${String(best.year).slice(2)}`}</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#3A3758' }}>記録なし</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
               {/* 1軍 races */}

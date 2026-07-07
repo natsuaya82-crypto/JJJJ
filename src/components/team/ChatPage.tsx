@@ -525,6 +525,7 @@ function TradeChatView({ team, onClose, initialMode, initialGetId }: { team: Tea
 
   const [selId, setSelId] = useState<string | null>(null)
   const [fee, setFee] = useState(0)
+  const [counterBidId, setCounterBidId] = useState<string | null>(null)
   const sel = selId ? players.find(p => p.id === selId) : null
 
   const [mode, setMode] = useState<'fee' | 'trade'>(initialMode ?? 'fee')
@@ -588,8 +589,6 @@ function TradeChatView({ team, onClose, initialMode, initialGetId }: { team: Tea
       </div>
     )
   }
-
-  const [counterBidId, setCounterBidId] = useState<string | null>(null)
 
   const renderRow = (p: Player) => {
     const b = bidOf(p.id)
@@ -784,7 +783,11 @@ function getPlayerStatus(
 
   if (hasRetirement) return { label: '引退希望', color: C.textSub, priority: 0 }
   if (player.transferListed) return { label: '退団へ', color: C.orange, priority: 1 }
-  if (hasTransfer) return { label: '移籍希望', color: C.orange, priority: 1 }
+  if (hasTransfer) {
+    const tr = (transferRequests ?? []).find(r => r.playerId === player.id)
+    const reasonLabel = tr?.reason === 'playing_time' ? '出場機会' : tr?.reason === 'team_performance' ? '強豪志向' : '待遇不満'
+    return { label: `移籍希望・${reasonLabel}`, color: C.orange, priority: 1 }
+  }
   if (activeReq?.status === 'countered') return { label: '対応中', color: C.gold, priority: 2 }
   if (activeReq?.initiatedBy === 'gm' && activeReq.status === 'pending_gm') return { label: '対応中', color: C.gold, priority: 2 }
   if (months < 12 || activeReq?.status === 'pending_gm') return { label: '要対応', color: C.red, priority: 3 }
@@ -897,14 +900,18 @@ export default function ChatPage() {
   })
   // 通知などから ?player=<id> で来た場合は直接その選手のチャットを開く
   const locState = location.state as { tradeTeamId?: string } | null
+  const [pendingTradeTeamId] = useState<string | null>(() => {
+    const v = sessionStorage.getItem('pendingTradeTeamId')
+    if (v) sessionStorage.removeItem('pendingTradeTeamId')
+    return v
+  })
   const [chatPlayerId, setChatPlayerId] = useState<string | null>(() => searchParams.get('player'))
-  const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? null)
-  // ?player / ?trade で「直接」会話を開いて来た場合、戻るは会話一覧ではなく呼び出し元の画面(navigate(-1))へ返す
-  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId))
-  const wantParam = searchParams.get('want')  // トレード提案で「もらう」に初期選択する選手
-  const feeModeParam = searchParams.get('feeMode')  // 移籍金対応モードで開く
+  const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? pendingTradeTeamId ?? null)
+  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId))
+  const wantParam = searchParams.get('want')
+  const feeModeParam = searchParams.get('feeMode')
   const [messageCache, setMessageCache] = useState<Record<string, ChatMessage[]>>({})
-  const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
+  const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId) ? 'transfer' : 'own')
 
   useEffect(() => { generateContractRequests() }, [])
 

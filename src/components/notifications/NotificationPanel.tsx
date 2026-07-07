@@ -203,7 +203,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                     return (
                       <div key={bid.id} style={card(alpha(C.green, 0.45), '#0d3d22')}>
                         <div style={inset}/>
-                        <button onClick={() => { navigate('/team/chat', { state: { tradeTeamId: bid.targetTeamId } }); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => { navigate(`/team/chat?trade=${bid.targetTeamId}`); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.green} />
                           <div style={{ flex: 1, textAlign: 'left' }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{p.name} → {targetTeam?.shortName ?? '?'}</div>
@@ -305,7 +305,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                             )}
                             <div style={{ flex: 1 }}>
                               <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{event.title}</div>
-                              {eventPlayer && <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, marginBottom: '3px' }}>#{eventPlayer.jerseyNumber} {eventPlayer.name}</div>}
+                              {eventPlayer && <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, marginBottom: '3px' }}>{eventPlayer.name}</div>}
                               <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub, lineHeight: 1.5 }}>{event.body}</div>
                             </div>
                           </div>

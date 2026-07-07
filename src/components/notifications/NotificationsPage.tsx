@@ -8,7 +8,8 @@ import { loginTodayKey } from '../../utils/loginDate'
 import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
-import type { IncomingOffer } from '../../types'
+import NumberDial from '../ui/NumberDial'
+import type { IncomingOffer, TransferBid, Team, Player } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -43,6 +44,76 @@ function FaceOvr({ playerId, nationality, pOvr, accentColor }: {
 
 type OfferChatMsg = { from: 'team' | 'gm'; text: string }
 const TRANSFER_STEP = 5_000_000
+
+// 移籍金交渉カード：クラブとの移籍金のやり取りを通知内で完結させる。
+// ①提示額で合意 ②こちらの金額をダイアルで再提示 ③あきらめる
+function FeeCounterCard({ bid, player, targetTeam, cardStyle, inset, onAccept, onReoffer, onGiveUp }: {
+  bid: TransferBid
+  player: Player
+  targetTeam?: Team
+  cardStyle: (borderColor: string, shadowColor: string) => React.CSSProperties
+  inset: React.CSSProperties
+  onAccept: () => void
+  onReoffer: (fee: number) => void
+  onGiveUp: () => void
+}) {
+  const pOvr = ovr(player)
+  const mv = calcTransferValue(player)
+  const counterFee = bid.counterFee ?? 0
+  const counterRatio = counterFee ? counterFee / mv : 0
+  const counterRating = counterRatio >= 0.95 ? { label: '適正', color: C.green } : counterRatio >= 0.75 ? { label: 'やや高', color: C.orange } : { label: '高値', color: C.red }
+  const [dialOpen, setDialOpen] = useState(false)
+  const [dialFee, setDialFee] = useState(counterFee || bid.offeredFee)
+
+  return (
+    <div style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
+      <div style={inset}/>
+      <div style={{ padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+          <FaceOvr playerId={player.id} nationality={player.nationality} pOvr={pOvr} accentColor={C.green} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{player.name}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{targetTeam?.name ?? '?'} へ移籍打診中</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '8px 12px', borderRadius: '10px', background: alpha(counterRating.color, 0.07), border: `1px solid ${alpha(counterRating.color, 0.2)}` }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>提示額</div>
+            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.text }}>{fmtYen(bid.offeredFee)}</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke={C.textGhost} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div style={{ flex: 1, textAlign: 'right' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>先方希望</div>
+            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: counterRating.color }}>{fmtYen(counterFee)}</div>
+          </div>
+          <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: counterRating.color, padding: '2px 7px', borderRadius: '6px', background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>
+        </div>
+
+        {!dialOpen ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={onAccept}>{fmtYen(counterFee)}で合意する</Btn>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setDialFee(counterFee || bid.offeredFee); setDialOpen(true) }}
+                style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(C.gold, 0.45)}`, backgroundColor: alpha(C.gold, 0.08), color: C.gold, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>金額を提示する</button>
+              <button onClick={onGiveUp}
+                style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>あきらめる</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>提示する移籍金</div>
+            <NumberDial value={dialFee} onChange={v => setDialFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.green} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => onReoffer(dialFee)}>この額で再提示</Btn>
+              <button onClick={() => setDialOpen(false)}
+                style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>戻る</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function OfferChatView({
   offer,
@@ -218,6 +289,11 @@ function OfferChatView({
 export default function NotificationsPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, playerTeamId, resolveEvent, lastLoginDate } = useGameStore()
+  const acceptFeeCounter = useGameStore(s => s.acceptFeeCounter)
+  const rejectTransferBid = useGameStore(s => s.rejectTransferBid)
+  const submitTransferBid = useGameStore(s => s.submitTransferBid)
+  const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
+  const dismissJoinNotice = useGameStore(s => s.dismissJoinNotice)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
   const claimGift = useGameStore(s => s.claimGift)
@@ -237,6 +313,12 @@ export default function NotificationsPage() {
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
   const sponsorOffers = currentSeason.sponsorOffers ?? []
+
+  // 加入通知（全経路：FA/移籍/レンタル/トレード/ドラフト）。今季加入(joinedYear===今季)かつ未確認の選手。
+  const joinNotices = players
+    .filter(p => p.teamId === playerTeamId && p.joinedYear === currentSeason.year)
+    .map(p => ({ p, key: `${p.id}-${p.joinedYear}` }))
+    .filter(x => !seenJoinIds.includes(x.key))
 
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races?.length ?? 1
@@ -261,6 +343,7 @@ export default function NotificationsPage() {
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers.length > 0 ? 1 : 0)
     + pendingGifts.length
+    + joinNotices.length
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -330,6 +413,40 @@ export default function NotificationsPage() {
             </section>
           )}
 
+          {/* 加入（全経路：FA/移籍/レンタル/トレード/ドラフト） */}
+          {joinNotices.length > 0 && (
+            <section style={{ marginTop: pendingGifts.length > 0 ? '20px' : 0 }}>
+              <SectionHead label="新加入" color={C.cyan} count={joinNotices.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {joinNotices.map(({ p, key }) => {
+                  const isLoan = !!p.loan
+                  const yrs = p.loan ? Math.max(1, p.loan.untilYear - currentSeason.year) : 0
+                  return (
+                    <div key={key} style={cardStyle(alpha(C.cyan, 0.45), '#0a2a3a')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                          <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.cyan} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '800', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.cyan, fontWeight: '700', marginTop: '2px' }}>
+                              {isLoan ? `レンタルで${yrs}シーズン加入しました` : 'チームに加入しました'}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '12px' }}>ロスター画面で確認できます。</div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.cyan}, #4fc3f7)`, color: C.bg }} onClick={() => { dismissJoinNotice(key); navigate('/team/roster') }}>ロスターで確認</Btn>
+                          <button onClick={() => dismissJoinNotice(key)} style={{ flex: 'none', padding: '11px 16px', borderRadius: 10, border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
           {/* ログインボーナス */}
           {loginUnclaimed && (
             <section>
@@ -366,7 +483,7 @@ export default function NotificationsPage() {
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={accent} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>#{p.jerseyNumber} · {p.age}歳</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳</div>
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>残り{Math.max(0, months)}ヶ月</div>
@@ -437,36 +554,18 @@ export default function NotificationsPage() {
                   const p = players.find(pl => pl.id === bid.playerId)
                   const targetTeam = teams.find(t => t.id === bid.targetTeamId)
                   if (!p) return null
-                  const pOvr = ovr(p)
-                  const mv = calcTransferValue(p)
-                  const counterRatio = bid.counterFee ? bid.counterFee / mv : 0
-                  const counterRating = counterRatio >= 0.95 ? { label: '適正', color: C.green } : counterRatio >= 0.75 ? { label: 'やや高', color: C.orange } : { label: '高値', color: C.red }
                   return (
-                    <div key={bid.id} style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
-                      <div style={inset}/>
-                      <div style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                          <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.green} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{targetTeam?.name ?? '?'} へ移籍打診中</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '8px 12px', borderRadius: '10px', background: alpha(counterRating.color, 0.07), border: `1px solid ${alpha(counterRating.color, 0.2)}` }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>提示額</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.text }}>{fmtYen(bid.offeredFee)}</div>
-                          </div>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke={C.textGhost} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          <div style={{ flex: 1, textAlign: 'right' }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>先方希望</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: counterRating.color }}>{fmtYen(bid.counterFee ?? 0)}</div>
-                          </div>
-                          <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: counterRating.color, padding: '2px 7px', borderRadius: '6px', background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>
-                        </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate('/team/chat', { state: { tradeTeamId: bid.targetTeamId } })}>チャットで対応する</Btn>
-                      </div>
-                    </div>
+                    <FeeCounterCard
+                      key={bid.id}
+                      bid={bid}
+                      player={p}
+                      targetTeam={targetTeam}
+                      cardStyle={cardStyle}
+                      inset={inset}
+                      onAccept={() => acceptFeeCounter(bid.id)}
+                      onGiveUp={() => rejectTransferBid(bid.id)}
+                      onReoffer={(fee) => { rejectTransferBid(bid.id); submitTransferBid(bid.playerId, fee) }}
+                    />
                   )
                 })}
               </div>
@@ -584,7 +683,7 @@ export default function NotificationsPage() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '800', color: C.text, marginBottom: '1px' }}>{event.title}</div>
                             {eventPlayer && (
-                              <div style={{ fontFamily: SAIRA, fontSize: '11px', color: borderCol, fontWeight: '700' }}>#{eventPlayer.jerseyNumber} {eventPlayer.name} · {eventPlayer.age}歳</div>
+                              <div style={{ fontFamily: SAIRA, fontSize: '11px', color: borderCol, fontWeight: '700' }}>{eventPlayer.name} · {eventPlayer.age}歳</div>
                             )}
                           </div>
                         </div>

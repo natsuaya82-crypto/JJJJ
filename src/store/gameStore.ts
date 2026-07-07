@@ -5,11 +5,11 @@ import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
-import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces } from '../data/races'
+import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerSecondTeam } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup } from '../engine/raceEngine'
 import { generateRaceEvents, generatePressConference } from '../engine/eventEngine'
-import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue } from '../utils/playerUtils'
+import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant } from '../data/economy'
 import { tierForContract, canSignContract } from '../data/rosterRules'
@@ -105,16 +105,11 @@ function buildAcquisitionSigning(
   if (!canSignContract(players, playerTeamId, contractType)) return null
   const isDual = contractType === 'dual'
   const oldTeamId = player.teamId
-  const existingNums = new Set(
-    [...myTeam.roster.main, ...myTeam.roster.second].map(id => players.find(p => p.id === id)?.jerseyNumber ?? 0)
-  )
-  let jerseyNum = 1
-  while (existingNums.has(jerseyNum)) jerseyNum++
   const newPlayers = players.map(p => p.id === playerId ? {
     ...p,
     teamId: playerTeamId,
     rosterTier: tier,
-    jerseyNumber: jerseyNum,
+    
     status: 'active' as const,
     form: 0,
     teamRole: teamRole ?? p.teamRole,
@@ -143,6 +138,7 @@ export type GameStore = GameState & {
   draftState: DraftState | null
   raceLineup: Record<number, string>   // segmentIndex → playerId (for current race)
   lastRaceLineup: Record<number, string>  // saved from previous race for "前回" restore
+  seenJoinIds: string[]   // 加入通知を確認済みの選手キー（`playerId-joinedYear`）
 
   // Setup
   startSetup: (setup: SetupData) => void
@@ -180,7 +176,7 @@ export type GameStore = GameState & {
   getTeamPlayers: (teamId: string, tier: RosterTier) => Player[]
   getSalaryTotal: (teamId: string) => number
   toggleRosterSlot: (playerId: string, slot: 'main' | 'second') => void
-  submitRoster: (selectedIds: string[], jerseyMap: Record<string, number>) => void
+  submitRoster: (selectedIds: string[]) => void
   generateDevProspects: () => void
   scoutDevProspect: (prospectId: string) => void
   signDevProspect: (prospectId: string) => void
@@ -269,7 +265,7 @@ export type GameStore = GameState & {
   sellDraftPick: (pickKey: string, targetTeamId: string, price: number) => boolean
 
   // Opponent scouting & starring
-  scoutOpponentPlayer: (playerId: string, level: 1 | 2) => void
+  scoutOpponentPlayer: (playerId: string) => void
   toggleStarOpponent: (playerId: string) => void
   toggleStarProspect: (prospectId: string) => void
 
@@ -324,6 +320,10 @@ export type GameStore = GameState & {
   // Update gifts (通知から受け取るプレゼント)
   grantUpdateGifts: () => void
   claimGift: (id: string) => void
+  ensureIndividualEvents: () => void
+
+  // 加入通知（全経路：FA/移籍/レンタル/トレード/ドラフト）を確認済みにする
+  dismissJoinNotice: (key: string) => void
 
   // Contract renewals
   decideRenewal: (playerId: string, renew: boolean, years?: number) => void
@@ -362,6 +362,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     activeRaceLockedRace: null,
     rivalTeamId: null,
     gmRep: 50,
+    seenJoinIds: [],
     playerTeamId: 'fukuoka',
     currentSeason: {
       year: 2027,
@@ -644,17 +645,11 @@ export const useGameStore = create<GameStore>()(
         const newPicks = [...picks, { pickNumber: currentPick + 1, teamId: playerTeamId, playerId, playerName: player.name }]
         const newPool = pool.filter(p => p.id !== playerId)
 
-        const existingNums = new Set(
-          (state.teams.find(t => t.id === playerTeamId)?.roster.main ?? [])
-            .map(id => state.players.find(p => p.id === id)?.jerseyNumber ?? 0)
-        )
-        let jerseyNum = (state.teams.find(t => t.id === playerTeamId)?.roster.main.length ?? 0) + 1
-        while (existingNums.has(jerseyNum)) jerseyNum++
         const updatedPlayer: Player = {
           ...player,
           teamId: playerTeamId,
           rosterTier: 'main',
-          jerseyNumber: jerseyNum,
+          
           draftRound: currentPick < 20 ? 1 : 2,
           draftPick: (currentPick % 20) + 1,
           status: 'active',
@@ -711,7 +706,7 @@ export const useGameStore = create<GameStore>()(
           ...picked,
           teamId,
           rosterTier: 'main',
-          jerseyNumber: jerseyNum,
+          
           draftRound: currentPick < 20 ? 1 : 2,
           draftPick: (currentPick % 20) + 1,
           status: 'active',
@@ -766,6 +761,7 @@ export const useGameStore = create<GameStore>()(
             currentSeason: {
               ...state.currentSeason, phase: 'preseason',
               races: state.currentSeason.races.length > 0 ? state.currentSeason.races : SEASON_2027_RACES,
+              individualEvents: (state.currentSeason.individualEvents ?? []).length > 0 ? state.currentSeason.individualEvents : generateIndividualEvents(state.currentSeason.year),
               newsFeed: state.currentSeason.newsFeed.length > 0 ? state.currentSeason.newsFeed : buildInitialNews(),
               secondTeamRaces: (state.currentSeason.secondTeamRaces ?? []).length > 0 ? state.currentSeason.secondTeamRaces : SECOND_TEAM_RACES_INITIAL,
               secondTeamRaceIndex: state.currentSeason.secondTeamRaceIndex ?? 0,
@@ -1359,15 +1355,11 @@ export const useGameStore = create<GameStore>()(
             }
             if (accepted.length > 0) {
               const myTeamNow = teamsWithCpuTx.find(t => t.id === playerTeamId)
-              const usedNums = new Set([...(myTeamNow?.roster.main ?? []), ...(myTeamNow?.roster.second ?? [])].map(id => playersWithCpuTx.find(p => p.id === id)?.jerseyNumber ?? 0))
               const acceptedMap = new Map(accepted.map(a => [a.playerId, a]))
-              let j = 40
               playersAfterLoan = playersWithCpuTx.map(p => {
                 const a = acceptedMap.get(p.id)
                 if (!a) return p
-                while (usedNums.has(j)) j++
-                const jersey = j; usedNums.add(jersey); j++
-                return { ...p, teamId: playerTeamId, jerseyNumber: jersey, loan: { ownerTeamId: a.ownerId, untilYear: state.currentSeason.year + a.years }, acquiredRaceIndex: raceIndex + 1, joinedYear: state.currentSeason.year }
+                return { ...p, teamId: playerTeamId,  loan: { ownerTeamId: a.ownerId, untilYear: state.currentSeason.year + a.years }, acquiredRaceIndex: raceIndex + 1, joinedYear: state.currentSeason.year }
               })
               teamsAfterLoan = teamsWithCpuTx.map(t => {
                 const lost = accepted.filter(a => a.ownerId === t.id).map(a => a.playerId)
@@ -1381,6 +1373,42 @@ export const useGameStore = create<GameStore>()(
           const midRaceObjJewels = updatedObjectives
             .filter(o => o.done && !prevDoneIds.has(o.id))
             .reduce((s, o) => s + (o.rewardJewels ?? 30), 0)
+
+          // ── 移籍希望：契約残り2年切った(≤1)選手から毎レース最大1人。理由は出場機会/強豪志向/待遇不満。 ──
+          const existTrReq = new Set((state.currentSeason.transferRequests ?? []).map(r => r.playerId))
+          const trTotalTeams = state.teams.length
+          const myStandRank = (() => {
+            const sorted = [...updatedStandings].sort((a, b) => b.totalPoints - a.totalPoints)
+            const i = sorted.findIndex(s => s.teamId === playerTeamId)
+            return i >= 0 ? i + 1 : Math.ceil(trTotalTeams / 2)
+          })()
+          const trCandidates = playersAfterLoan
+            .filter(p => p.teamId === playerTeamId && p.status === 'active' && p.contract.yearsLeft <= 1 && !existTrReq.has(p.id))
+            .map(p => {
+              const apps = seasonAppearances(p.id, updatedRaces)
+              const frac = apps / (raceIndex + 1)
+              let score = 0
+              let reason: 'playing_time' | 'team_performance' | 'unhappy' = 'unhappy'
+              if (frac < 0.3) { score = (0.3 - frac) * 40; reason = 'playing_time' }
+              if (ovr(p) >= 75 && myStandRank > trTotalTeams / 2) {
+                const amb = (ovr(p) - 72) + (myStandRank - trTotalTeams / 2) * 1.2
+                if (amb > score) { score = amb; reason = 'team_performance' }
+              }
+              if ((p.morale ?? 70) < 50) {
+                const un = (50 - (p.morale ?? 70)) * 0.8
+                if (un > score) { score = un; reason = 'unhappy' }
+              }
+              return { id: p.id, score, reason }
+            })
+            .filter(c => c.score > 0)
+          let newTransferReqs: { playerId: string; reason: 'playing_time' | 'team_performance' | 'unhappy' }[] = []
+          if (trCandidates.length > 0 && Math.random() < 0.45) {
+            const totalScore = trCandidates.reduce((s, c) => s + c.score, 0)
+            let r = Math.random() * totalScore
+            let picked = trCandidates[0]
+            for (const c of trCandidates) { r -= c.score; if (r <= 0) { picked = c; break } }
+            newTransferReqs = [{ playerId: picked.id, reason: picked.reason }]
+          }
 
           return {
             players: playersAfterLoan,
@@ -1411,6 +1439,7 @@ export const useGameStore = create<GameStore>()(
               incomingLoanOffers: mergedLoanOffers,
               loanRequests: [],
               transferBids: processedBids,
+              transferRequests: [...(state.currentSeason.transferRequests ?? []), ...newTransferReqs],
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
             },
           }
@@ -1459,7 +1488,7 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
-      submitRoster: (selectedIds, jerseyMap) => {
+      submitRoster: (selectedIds) => {
         set(state => {
           const allIds = state.players
             .filter(p => p.teamId === state.playerTeamId && p.status !== 'retired')
@@ -1478,7 +1507,7 @@ export const useGameStore = create<GameStore>()(
               return {
                 ...p,
                 rosterTier: (inMain ? 'main' : 'second') as 'main' | 'second',
-                jerseyNumber: jerseyMap[p.id] ?? p.jerseyNumber,
+                
                 dualRegistered: false,
               }
             }),
@@ -1546,9 +1575,6 @@ export const useGameStore = create<GameStore>()(
           if (team.finance.budget < prospect.signingFee) return state
           if (team.roster.second.length >= 20) return state
 
-          const existingNums = new Set(state.players.filter(p => p.teamId === state.playerTeamId).map(p => p.jerseyNumber))
-          let jerseyNum = 50
-          while (existingNums.has(jerseyNum)) jerseyNum++
 
           const newPlayer: import('../types').Player = {
             id: prospect.id,
@@ -1575,7 +1601,7 @@ export const useGameStore = create<GameStore>()(
             },
             nationality: prospect.nationality,
             origin: prospect.origin,
-            jerseyNumber: jerseyNum,
+            
             status: 'active',
             fatigue: 0,
             morale: 70,
@@ -1655,7 +1681,7 @@ export const useGameStore = create<GameStore>()(
           if (!player || player.teamId !== state.playerTeamId) return state
           return {
             players: state.players.map(p =>
-              p.id === playerId ? { ...p, teamId: '', jerseyNumber: 0 } : p
+              p.id === playerId ? { ...p, teamId: '', } : p
             ),
             teams: state.teams.map(t => {
               if (t.id !== state.playerTeamId) return t
@@ -1684,18 +1710,13 @@ export const useGameStore = create<GameStore>()(
         const effectiveTier: 'main' | 'second' = rosterTier ?? tierForContract(finalContractType)
         // 枠チェック：1軍契約18・2軍契約15・2way5・登録上限(1軍23/2軍20)
         if (!canSignContract(st.players, st.playerTeamId, finalContractType)) return false
-        const existingNums = new Set(
-          [...team.roster.main, ...team.roster.second].map(id => st.players.find(p => p.id === id)?.jerseyNumber ?? 0)
-        )
-        let jerseyNum = 1
-        while (existingNums.has(jerseyNum)) jerseyNum++
         set(state => ({
           players: state.players.map(p =>
             p.id === playerId ? {
               ...p,
               teamId: state.playerTeamId,
               rosterTier: effectiveTier,
-              jerseyNumber: jerseyNum,
+              
               status: 'active' as const,
               form: 0,
               joinedYear: state.currentSeason.year,
@@ -2146,13 +2167,10 @@ export const useGameStore = create<GameStore>()(
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!myTeam || myTeam.finance.budget < price) return false
         if ((myTeam.finance.deficitStreak ?? 0) >= 1) return false  // 赤字ペナルティ中は新規補強不可（ドラフト・契約更新は可）
-        const existingNums = new Set(myTeam.roster.main.map(id => state.players.find(p => p.id === id)?.jerseyNumber ?? 0))
-        let jerseyNum = 1
-        while (existingNums.has(jerseyNum)) jerseyNum++
         const mktMainFull = myTeam.roster.main.length >= 23
         set(state => ({
           players: state.players.map(p => p.id === listing.playerId ? {
-            ...p, teamId: state.playerTeamId, rosterTier: mktMainFull ? 'second' as const : 'main' as const, jerseyNumber: jerseyNum,
+            ...p, teamId: state.playerTeamId, rosterTier: mktMainFull ? 'second' as const : 'main' as const, 
             status: 'active' as const, joinedYear: state.currentSeason.year, contract: { ...p.contract, yearsLeft: Math.max(p.contract.yearsLeft, 2) },
           } : p),
           teams: state.teams.map(t => {
@@ -2190,11 +2208,8 @@ export const useGameStore = create<GameStore>()(
         }
         const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
         if (!buyingTeam) return
-        const existingNums = new Set(buyingTeam.roster.main.map(id => state.players.find(p => p.id === id)?.jerseyNumber ?? 0))
-        let jerseyNum = 1
-        while (existingNums.has(jerseyNum)) jerseyNum++
         set(state => ({
-          players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, jerseyNumber: jerseyNum, rosterTier: 'main' as const } : p),
+          players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const } : p),
           teams: state.teams.map(t => {
             if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } }
             if (t.id === offer.fromTeamId) return { ...t, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
@@ -2278,18 +2293,13 @@ export const useGameStore = create<GameStore>()(
           const retPlayers = state.players.filter(p => p.teamId === state.playerTeamId && p.age >= 35)
           const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
           const newRet = retPlayers.filter(p => !existRet.has(p.id) && Math.random() < 0.4).map(p => ({ playerId: p.id, age: p.age }))
-          const tranPlayers = racesPlayed > 0
-            ? state.players.filter(p => p.teamId === state.playerTeamId && p.rosterTier === 'second' && p.age < 28)
-            : []
-          const existTran = new Set((state.currentSeason.transferRequests ?? []).map(r => r.playerId))
-          const newTran = tranPlayers.filter(p => !existTran.has(p.id) && Math.random() < 0.08).slice(0, 2).map(p => ({ playerId: p.id, reason: 'playing_time' as const }))
-          if (newReqs.length === 0 && newRet.length === 0 && newTran.length === 0) return state
+          // 移籍希望はチャットを開くたびではなくレース進行時に生成する（runRace内 generateTransferWishes）。ここでは扱わない。
+          if (newReqs.length === 0 && newRet.length === 0) return state
           return {
             currentSeason: {
               ...state.currentSeason,
               contractRequests: [...(state.currentSeason.contractRequests ?? []), ...newReqs],
               retirementRequests: [...(state.currentSeason.retirementRequests ?? []), ...newRet],
-              transferRequests: [...(state.currentSeason.transferRequests ?? []), ...newTran],
             }
           }
         })
@@ -2449,11 +2459,9 @@ export const useGameStore = create<GameStore>()(
           const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces)
           const ratio = desired > 0 ? salary / desired : 2
           const personality = player.personality ?? 'salary'
-          // 視察情報レベル：少ないほど選手は慎重（厳しめ）
-          const scoutLevel = offer.source === 'scout'
-            ? (state.currentSeason.scoutedOpponents?.find(s => s.playerId === player.id)?.level ?? 0)
-            : 2
-          const infoPenalty = offer.source === 'scout' ? (scoutLevel >= 2 ? 0 : scoutLevel === 1 ? 0.05 : 0.12) : 0
+          // 視察情報：未視察だと選手は慎重（厳しめ）
+          const scouted = offer.source === 'scout' ? isOpponentScouted(player.id, state.currentSeason) : true
+          const infoPenalty = offer.source === 'scout' ? (scouted ? 0 : 0.12) : 0
           const rlx = (offer.round - 1) * 0.02
           // 4要素で判断：年俸(ratio)・役割(roleBonus)・契約形態(typeAdjust)・契約年数(yearsBonus)
           const roleBonus = teamRole === 'ace' ? -0.06 : teamRole === 'sub_ace' ? -0.04 : teamRole === 'key_player' ? -0.02 : 0
@@ -2564,7 +2572,7 @@ export const useGameStore = create<GameStore>()(
           if (!player || player.teamId !== state.playerTeamId) return state
           const buyoutCost = player.contract.annualSalary * Math.max(0, player.contract.yearsLeft - 1)
           return {
-            players: state.players.map(p => p.id === playerId ? { ...p, teamId: '', jerseyNumber: 0 } : p),
+            players: state.players.map(p => p.id === playerId ? { ...p, teamId: '', } : p),
             teams: state.teams.map(t => {
               if (t.id !== state.playerTeamId) return t
               return {
@@ -2601,11 +2609,8 @@ export const useGameStore = create<GameStore>()(
           const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
           const maxBudget = buyingTeam?.finance.budget ?? 0
           if (counterPrice <= maxBudget) {
-            const existingNums = new Set(buyingTeam!.roster.main.map(id => state.players.find(p => p.id === id)?.jerseyNumber ?? 0))
-            let jerseyNum = 1
-            while (existingNums.has(jerseyNum)) jerseyNum++
             return {
-              players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, jerseyNumber: jerseyNum, rosterTier: 'main' as const } : p),
+              players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const } : p),
               teams: state.teams.map(t => {
                 if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + counterPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } }
                 if (t.id === offer.fromTeamId) return { ...t, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
@@ -2642,7 +2647,7 @@ export const useGameStore = create<GameStore>()(
             return { ...base, history: { ...base.history, legends: [...(base.history.legends ?? []), legend] } }
           })
           return {
-            players: state.players.map(p => p.id === playerId ? { ...p, status: 'retired' as const, teamId: '', jerseyNumber: 0 } : p),
+            players: state.players.map(p => p.id === playerId ? { ...p, status: 'retired' as const, teamId: '', } : p),
             teams: newTeams,
             currentSeason: { ...state.currentSeason, retirementRequests: (state.currentSeason.retirementRequests ?? []).filter(r => r.playerId !== playerId) }
           }
@@ -2683,13 +2688,11 @@ export const useGameStore = create<GameStore>()(
         const yrs = Math.max(1, Math.min(2, years))
         set(state => {
           const myTeam = state.teams.find(t => t.id === state.playerTeamId)
-          const nums = new Set([...(myTeam?.roster.main ?? []), ...(myTeam?.roster.second ?? [])].map(id => state.players.find(p => p.id === id)?.jerseyNumber ?? 0))
-          let j = 40; while (nums.has(j)) j++  // レンタルは40番台
           return {
             players: state.players.map(p => p.id === playerId ? {
               ...p,
               teamId: state.playerTeamId,
-              jerseyNumber: j,
+              
               loan: { ownerTeamId: ownerId, untilYear: state.currentSeason.year + yrs },
               acquiredRaceIndex: state.currentSeason.currentRaceIndex,
               joinedYear: state.currentSeason.year,
@@ -2794,13 +2797,10 @@ export const useGameStore = create<GameStore>()(
         const standings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
         const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
         if (!playerConsentToMove(player, myRank, state.teams.length).ok) return false
-        const existingNums = new Set(myTeam.roster.main.map(id => state.players.find(p => p.id === id)?.jerseyNumber ?? 0))
-        let jerseyNum = 1
-        while (existingNums.has(jerseyNum)) jerseyNum++
         const ftMainFull = myTeam.roster.main.length >= 23
         set(s => ({
           players: s.players.map(p => p.id === bid.playerId
-            ? { ...p, teamId: s.playerTeamId, rosterTier: ftMainFull ? 'second' as const : 'main' as const, jerseyNumber: jerseyNum, status: 'active' as const, joinedYear: s.currentSeason.year, contract: { ...p.contract, annualSalary: salary, yearsLeft: years, faEligibleYear: s.currentSeason.year + years } }
+            ? { ...p, teamId: s.playerTeamId, rosterTier: ftMainFull ? 'second' as const : 'main' as const,  status: 'active' as const, joinedYear: s.currentSeason.year, contract: { ...p.contract, annualSalary: salary, yearsLeft: years, faEligibleYear: s.currentSeason.year + years } }
             : p
           ),
           teams: s.teams.map(t => {
@@ -2886,19 +2886,21 @@ export const useGameStore = create<GameStore>()(
         return true
       },
 
-      scoutOpponentPlayer: (playerId, level) => {
+      scoutOpponentPlayer: (playerId) => {
         set(state => {
-          const cost = level === 1 ? 1 : 2
-          if (state.currentSeason.scoutPoints < cost) return state
+          // 視察はポイント不要・人数無制限。既に依頼済みなら何もしない。
+          // 依頼時の消化レース数(reqAt)を記録し、次の1レース消化で開示される。
           const existing = (state.currentSeason.scoutedOpponents ?? []).find(s => s.playerId === playerId)
-          if (existing && existing.level >= level) return state
+          if (existing) return state
+          // 視察したら自動でウォッチリスト（スター）登録する
+          const starred = state.starredOpponents ?? []
           return {
+            starredOpponents: starred.includes(playerId) ? starred : [...starred, playerId],
             currentSeason: {
               ...state.currentSeason,
-              scoutPoints: state.currentSeason.scoutPoints - cost,
               scoutedOpponents: [
-                ...(state.currentSeason.scoutedOpponents ?? []).filter(s => s.playerId !== playerId),
-                { playerId, level, year: state.currentSeason.year },
+                ...(state.currentSeason.scoutedOpponents ?? []),
+                { playerId, reqAt: racesConsumed(state.currentSeason), year: state.currentSeason.year },
               ],
             },
           }
@@ -3362,7 +3364,7 @@ export const useGameStore = create<GameStore>()(
             }
           }
           releaseSet.forEach(id => cpuReleasedIds.add(id))
-          return state.players.map(p => releaseSet.has(p.id) ? { ...p, teamId: '', jerseyNumber: 0 } : p)
+          return state.players.map(p => releaseSet.has(p.id) ? { ...p, teamId: '', } : p)
         })()
         const teamsAfterCpuRelease = teamsWithPicks.map(t => ({
           ...t,
@@ -3408,7 +3410,7 @@ export const useGameStore = create<GameStore>()(
 
           const needs = cpuSpecialtyNeeds(team.id, playersAfterCpuRelease)
           const foreignOnTeam = playersAfterCpuRelease.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
-          const usedNums = new Set(playersAfterCpuRelease.filter(p => p.teamId === team.id).map(p => p.jerseyNumber))
+          const usedNums = new Set<number>()
           let foreignSigned = 0, signed = 0
           // contendはベテランも可、rebuildは若手のみ
           const ageCap = strat === 'contend' ? 36 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 32 : 35)
@@ -3463,7 +3465,7 @@ export const useGameStore = create<GameStore>()(
         const playersWithCpuSigns = playersAfterCpuRelease.map(p => {
           const s = cpuSignings.find(x => x.playerId === p.id)
           if (!s) return p
-          return { ...p, teamId: s.teamId, jerseyNumber: s.num, contract: { yearsLeft: 2, annualSalary: Math.round(ovr(p) * 110000 / 500000) * 500000, faEligibleYear: newYear + 2 } }
+          return { ...p, teamId: s.teamId,  contract: { yearsLeft: 2, annualSalary: Math.round(ovr(p) * 110000 / 500000) * 500000, faEligibleYear: newYear + 2 } }
         })
         const teamsWithCpuSigns = teamsAfterCpuRelease.map(t => ({
           ...t,
@@ -3480,7 +3482,7 @@ export const useGameStore = create<GameStore>()(
           const slotsNeeded = Math.max(0, 15 - secondRoster.length)
           if (slotsNeeded <= 0) continue
           const foreignOnTeam = playersWithCpuSigns.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
-          const usedNums = new Set(playersWithCpuSigns.filter(p => p.teamId === team.id).map(p => p.jerseyNumber))
+          const usedNums = new Set<number>()
           let foreignSigned2 = 0, signed2 = 0
           for (const fa of availableFAs) {
             if (signed2 >= slotsNeeded) break
@@ -3498,7 +3500,7 @@ export const useGameStore = create<GameStore>()(
         const playersWithAllCpuSigns = playersWithCpuSigns.map(p => {
           const s2 = cpuSecondSignings.find(x => x.playerId === p.id)
           if (!s2) return p
-          return { ...p, teamId: s2.teamId, jerseyNumber: s2.num, rosterTier: 'second' as const, contract: { yearsLeft: 2, annualSalary: Math.round(ovr(p) * 90000 / 500000) * 500000, faEligibleYear: newYear + 2 } }
+          return { ...p, teamId: s2.teamId,  rosterTier: 'second' as const, contract: { yearsLeft: 2, annualSalary: Math.round(ovr(p) * 90000 / 500000) * 500000, faEligibleYear: newYear + 2 } }
         })
         const teamsWithAllCpuSigns = teamsWithCpuSigns.map(t => ({
           ...t,
@@ -3588,10 +3590,10 @@ export const useGameStore = create<GameStore>()(
             .map(p => p.id)
 
           const playersAfterFA = grownPlayers.map(p => {
-            if (expiredIds.has(p.id)) return { ...p, teamId: '', jerseyNumber: 0, transferListed: false, loan: undefined }
+            if (expiredIds.has(p.id)) return { ...p, teamId: '',  transferListed: false, loan: undefined }
             // 「移籍を認める」でリスト入りしたのにシーズン内で決まらなかった選手は強制FA
             if (p.transferListed && p.teamId === state.playerTeamId && p.status === 'active') {
-              return { ...p, teamId: '', jerseyNumber: 0, transferListed: false }
+              return { ...p, teamId: '',  transferListed: false }
             }
             // レンタル期間終了 → 保有元チームへ自動返却
             if (p.loan && p.loan.untilYear <= state.currentSeason.year + 1) {
@@ -4071,11 +4073,7 @@ export const useGameStore = create<GameStore>()(
               scoutedOpponents: (state.currentSeason.scoutedOpponents ?? []).filter(s => s.year >= state.currentSeason.year),
               scoutedProspects: (state.currentSeason.scoutedProspects ?? []).filter(s => s.year >= state.currentSeason.year),
               trainingPlan: null,
-              individualEvents: [
-                { id: `ev5k-${newYear}`, name: `${newYear}年度 全日本5000m選手権`, date: `${newYear}-04-15`, distance: 5000 as const },
-                { id: `ev10k-${newYear}`, name: `${newYear}年度 全日本10000m選手権`, date: `${newYear}-07-01`, distance: 10000 as const },
-                { id: `evhalf-${newYear}`, name: `${newYear}年度 全日本ハーフマラソン選手権`, date: `${newYear}-09-20`, distance: 21097 as const },
-              ],
+              individualEvents: generateIndividualEvents(newYear),
               worldEkidenResult: undefined,
               sponsorOffers: newSponsorOffers,
               seasonRaceIncome: 0,
@@ -4271,9 +4269,6 @@ export const useGameStore = create<GameStore>()(
           })),
         }))
 
-        const existingNums = new Set(myMainPlayers.map(p => p.jerseyNumber))
-        let jerseyNum = myTeam.roster.main.length + 1
-        while (existingNums.has(jerseyNum)) jerseyNum++
 
         const mainFull = myTeam.roster.main.length >= 23
         const assignedTier: 'main' | 'second' = mainFull ? 'second' : 'main'
@@ -4284,7 +4279,7 @@ export const useGameStore = create<GameStore>()(
                 ...p,
                 teamId: s.playerTeamId,
                 rosterTier: assignedTier,
-                jerseyNumber: jerseyNum,
+                
                 status: 'active',
                 joinedYear: s.currentSeason.year,
                 foreignCategory: foreignCat,
@@ -4526,7 +4521,7 @@ export const useGameStore = create<GameStore>()(
                   specialty: spec, potential: 80, growthCurve: 'normal',
                   teamId: `wec_${n.country}`, rosterTier: 'main',
                   contract: { yearsLeft: 1, annualSalary: 0, faEligibleYear: 9999 },
-                  nationality: 'JPN', origin: n.name, jerseyNumber: i + 1, status: 'active',
+                  nationality: 'JPN', origin: n.name,  status: 'active',
                   fatigue: 10 + Math.floor(Math.random() * 20),
                   morale: 60 + Math.floor(Math.random() * 20),
                   form: Math.floor(Math.random() * 3) - 1,
@@ -4646,6 +4641,8 @@ export const useGameStore = create<GameStore>()(
 
       dismissDroppedCards: () => set({ raceDroppedCards: [], raceExpGains: {} }),
 
+      dismissJoinNotice: (key) => set(s => ({ seenJoinIds: s.seenJoinIds.includes(key) ? s.seenJoinIds : [...s.seenJoinIds, key] })),
+
       // アップデート記念プレゼント（1.0.4）。冪等：giftGivenVersions に記録済みなら何もしない。
       grantUpdateGifts: () => {
         set(state => {
@@ -4673,6 +4670,29 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
+      // 既存セーブ移行：現シーズンに記録会を注入（冪等・1回だけ）。
+      // 過去には戻れないので、シーズン途中の場合は「まだ来ていない日付」の記録会だけ入れる。
+      ensureIndividualEvents: () => {
+        set(state => {
+          const MARK = 'tt-events-v1'
+          if ((state.giftGivenVersions ?? []).includes(MARK)) return state
+          const cs = state.currentSeason
+          const races = cs.races ?? []
+          if (races.length === 0) return state  // 本編開始前はマークもせず、開始処理側で生成
+          const evs = cs.individualEvents ?? []
+          const alreadyNew = evs.length > 0 && evs.every(e => e.id.startsWith('tt-'))
+          // 現在地点＝最後に消化したレースの日付（未消化なら全部未来）
+          const idx = cs.currentRaceIndex ?? 0
+          const cutoff = idx > 0 ? (races[idx - 1]?.date ?? '') : ''
+          const events = alreadyNew ? evs : generateIndividualEvents(cs.year).filter(e => e.date >= cutoff)
+          return {
+            // 旧仕様で溜まった移籍希望（チャットを開くたびに増殖したもの）を一度だけリセット。以後はレース進行時に正しく生成される。
+            currentSeason: { ...cs, individualEvents: events, transferRequests: [] },
+            giftGivenVersions: [...(state.giftGivenVersions ?? []), MARK],
+          }
+        })
+      },
+
       claimGift: (id) => {
         set(state => {
           const gift = (state.pendingGifts ?? []).find(g => g.id === id)
@@ -4693,7 +4713,7 @@ export const useGameStore = create<GameStore>()(
 
           if (!renew) {
             const newPlayers = state.players.map(p =>
-              p.id === playerId ? { ...p, teamId: '', jerseyNumber: 0 } : p
+              p.id === playerId ? { ...p, teamId: '', } : p
             )
             const newTeams = state.teams.map(t =>
               t.id !== state.playerTeamId ? t : {
@@ -4804,16 +4824,43 @@ function rnd(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 21097): number {
+// 距離別ベストタイム(秒)のOVRアンカー[OVR, 秒]。コンディション最高(form+2/疲労0/モラール80+)での値。
+//  OVR: 50 / 60 / 70 / 80 / 90 / 99
+//  5000: 14:15 14:00 13:45 13:30 13:00 12:30
+//  10000:29:15 28:45 28:15 27:45 27:00 26:00
+//  ハーフ:63:00 62:00 61:00 60:00 59:00 57:00
+//  マラソン:2:13 2:11 2:09 2:07 2:04 2:00
+const IND_ANCHORS: Record<number, [number, number][]> = {
+  5000:  [[50, 855], [60, 840], [70, 825], [80, 810], [90, 780], [99, 750]],
+  10000: [[50, 1755], [60, 1725], [70, 1695], [80, 1665], [90, 1620], [99, 1560]],
+  21097: [[50, 3780], [60, 3720], [70, 3660], [80, 3600], [90, 3540], [99, 3420]],
+  42195: [[50, 7980], [60, 7860], [70, 7740], [80, 7620], [90, 7440], [99, 7200]],
+}
+
+// OVRから距離別ベストタイム(コンディション最高時)。アンカーを区分線形で通し、50未満は最下段の傾きで延長。
+function individualBaseTime(o: number, distance: 5000 | 10000 | 21097 | 42195): number {
+  const pts = IND_ANCHORS[distance]
+  const oo = Math.min(99, o)
+  if (oo <= pts[0][0]) {
+    const [o0, t0] = pts[0], [o1, t1] = pts[1]
+    return t0 + (pts[0][0] - oo) * (t0 - t1) / (o1 - o0)
+  }
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [o0, t0] = pts[i], [o1, t1] = pts[i + 1]
+    if (oo >= o0 && oo <= o1) return t0 + (oo - o0) * (t1 - t0) / (o1 - o0)
+  }
+  return pts[pts.length - 1][1]
+}
+
+export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 21097 | 42195): number {
   const o = ovr(player)
-  const base = distance === 5000 ? (850 - (o - 50) * 2.0)
-             : distance === 10000 ? (1740 - (o - 50) * 4.0)
-             : (4100 - (o - 50) * 9.5)
-  const specBonus = player.specialty === 'sprinter' ? -8 : player.specialty === 'long' ? -10 : player.specialty === 'ace' ? -5 : player.specialty === 'allrounder' ? -4 : 0
-  const formBonus = (player.form ?? 0) * -5
-  const fatiguePenalty = Math.max(0, (player.fatigue ?? 0) - 20) * 0.15
-  const noise = (Math.random() - 0.5) * 25
-  return Math.max(500, Math.round(base + specBonus + formBonus + fatiguePenalty + noise))
+  const base = individualBaseTime(o, distance)  // コンディション最高でのベスト
+  // コンディション低下ペナルティ（最高で0＝アンカー通り）
+  const formPen = (2 - (player.form ?? 0)) * 4
+  const fatiguePen = (player.fatigue ?? 0) * 0.2
+  const moralePen = Math.max(0, 80 - (player.morale ?? 70)) * 0.12
+  const noise = Math.random() * 12
+  return Math.max(400, Math.round(base + formPen + fatiguePen + moralePen + noise))
 }
 
 export const WEC_CITIES = [

@@ -39,10 +39,6 @@ export default function RosterSelectPage() {
   const [checked, setChecked] = useState<Set<string>>(new Set())  // まとめて選択中
   const [sortKey, setSortKey] = useState<'ovr_desc' | 'ovr_asc' | 'age_asc' | 'age_desc' | 'name'>('ovr_desc')
   const [filterKey, setFilterKey] = useState<'all' | 'main' | 'second' | 'undecided' | 'standard' | 'development' | 'dual' | 'expiring'>('all')
-  const [jerseyMap] = useState<Record<string, number>>(
-    () => Object.fromEntries(eligible.map(p => [p.id, p.jerseyNumber]))
-  )
-
   const displayed = useMemo(() => {
     let list = eligible.slice()
     if (filterKey === 'main') list = list.filter(p => assign[p.id] === 'main')
@@ -115,7 +111,7 @@ export default function RosterSelectPage() {
 
   function handleSubmit() {
     if (!canSubmit) return
-    submitRoster(eligible.filter(p => assign[p.id] === 'main').map(p => p.id), jerseyMap)
+    submitRoster(eligible.filter(p => assign[p.id] === 'main').map(p => p.id))
     navigate('/')
   }
 

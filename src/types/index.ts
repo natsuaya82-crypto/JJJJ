@@ -217,7 +217,6 @@ export type Player = {
   }
   nationality: Nationality
   origin: string
-  jerseyNumber: number
   acquiredRaceIndex?: number  // 移籍/トレードで加入したレース番号。加入後2戦は出走不可の判定に使う
   joinedYear?: number         // このチームに加入したシーズン年。当該シーズン中は「NEW」表示
   renewalLockedUntilYear?: number  // 更新交渉を最終拒否 → この年まで自チームは更新オファー不可
@@ -225,6 +224,7 @@ export type Player = {
   // レンタル移籍：ownerTeamId が保有元、teamId は現在プレー中（借り手）。untilYear シーズン終了で自動返却。
   loan?: { ownerTeamId: string; untilYear: number }
   loanTeamYears?: { year: number; teamId: string }[]  // 在籍履歴用：その年そのチームでレンタル出場した記録（今後のシーズンから蓄積）
+  eventBests?: Partial<Record<'d5000' | 'd10000' | 'half' | 'marathon', { timeSec: number; year: number }>>  // 記録会の種目別自己ベスト
   status: PlayerStatus
   fatigue: number
   morale: number
@@ -324,7 +324,7 @@ export type IndividualEvent = {
   id: string
   name: string
   date: string
-  distance: 5000 | 10000 | 21097
+  distance: 5000 | 10000 | 21097 | 42195
   results?: IndividualEventResult[]
 }
 
@@ -536,7 +536,7 @@ export type Season = {
   campBonus?: { type: string; applied: boolean }
   events?: GameEvent[]
   pendingTradeOffers?: AITradeOffer[]
-  scoutedOpponents?: { playerId: string; level: 1 | 2; year: number }[]
+  scoutedOpponents?: { playerId: string; reqAt: number; year: number }[]
   trainingPlan?: string | null
   secondTeamRaces?: Race[]
   secondTeamRaceIndex?: number
@@ -551,7 +551,7 @@ export type Season = {
   contractRequests?: ContractRequest[]
   acquisitionOffers?: AcquisitionOffer[]
   retirementRequests?: { playerId: string; age: number }[]
-  transferRequests?: { playerId: string; reason: 'playing_time' | 'team_performance' }[]
+  transferRequests?: { playerId: string; reason: 'playing_time' | 'team_performance' | 'unhappy' }[]
   pendingRenewalDecisions?: string[]
   rosterSubmitted?: boolean
   devProspects?: DevProspect[]

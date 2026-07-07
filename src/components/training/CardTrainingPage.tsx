@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import BackButton from '../ui/BackButton'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -12,6 +12,7 @@ import {
 import { C, alpha } from '../../styles/tokens'
 import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
+import PlayerRow from '../player/PlayerRow'
 import TrainingCardSVG from './TrainingCardSVG'
 import { audio } from '../../utils/audio'
 import { showRewardAd } from '../../utils/ads'
@@ -33,20 +34,44 @@ export default function CardTrainingPage() {
   const {
     trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
+    openPlayerSheet,
   } = useGameStore()
 
   const [searchParams] = useSearchParams()
 
-  useEffect(() => { dismissDroppedCards() }, [])
+  // 長押しで選手詳細を表示。タップは選手選択。
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lpFired = useRef(false)
+  const selectHandlers = (pid: string) => ({
+    onPointerDown: () => {
+      lpFired.current = false
+      lpTimer.current = setTimeout(() => { lpFired.current = true; openPlayerSheet(pid) }, 450)
+    },
+    onPointerUp: () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null } },
+    onPointerLeave: () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null } },
+    onPointerMove: () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null } },
+    onClick: () => { if (lpFired.current) { lpFired.current = false; return } selectPlayer(pid) },
+  })
 
-  // メニューから ?player=id で来たら、その選手で合成を開始（1軍・非レンタルのみ対象）
+  useEffect(() => {
+    dismissDroppedCards()
+    // カード練習を直接開いたら前回の選手選択/合成状態をリセット（?player ディープリンク時は除く）
+    if (!searchParams.get('player')) clearFusion()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // URLの ?player とストアの合成状態を同期。履歴で戻って ?player が消えたら合成状態を破棄する。
   useEffect(() => {
     const pid = searchParams.get('player')
-    if (pid && pid !== fusionPlayerId && mainPlayers.some(p => p.id === pid)) {
-      setFusionPlayer(pid)
+    if (pid) {
+      if (mainPlayers.some(p => p.id === pid)) {
+        if (pid !== fusionPlayerId) setFusionPlayer(pid)
+      } else {
+        navigate('/cards', { replace: true }) // 無効なidは選手選択へ
+      }
+    } else if (fusionPlayerId) {
+      clearFusion()
     }
-    // ?player を消す（戻ってくるたびに再発火してSTEP2へ強制される／履歴が狂うのを防ぐ）
-    if (pid) navigate('/cards', { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
@@ -74,7 +99,11 @@ export default function CardTrainingPage() {
   )
 
   const combo = useMemo(() => detectCombo(selectedCards), [selectedCards])
-  const targetPlayer = useMemo(() => players.find(p => p.id === fusionPlayerId), [players, fusionPlayerId])
+  // 画面遷移(STEP1↔STEP2)はURLの ?player で表す＝戻るボタンが履歴ベースで自然に効く
+  const targetPlayer = useMemo(() => {
+    const pid = searchParams.get('player')
+    return pid ? players.find(p => p.id === pid) : undefined
+  }, [players, searchParams])
   const isMenu = !!combo && combo.name !== '通常合成'
   const fatigueDelta = combo?.fatigueDelta ?? 0
   // レシピ倍率バッジは能力カード（rest以外）の種類数で決まる。完全休養/超回復はEXP倍率を出さない。
@@ -83,6 +112,7 @@ export default function CardTrainingPage() {
   function selectPlayer(id: string) {
     setApplied(null)
     setFusionPlayer(id)
+    navigate(`/cards?player=${id}`) // 履歴に積む → 戻るで選手選択へ戻れる
   }
 
   function removeCard(id: string) {
@@ -170,51 +200,13 @@ export default function CardTrainingPage() {
           {mainPlayers.length === 0 && (
             <div style={{ padding: 30, textAlign: 'center', fontSize: 13, color: C.textDim }}>選手がいません</div>
           )}
-          {mainPlayers.map(p => {
-            const rating = ovr(p)
-            const specCol = SPEC_COLOR[p.specialty]
-            return (
-              <div
-                key={p.id}
-                onClick={() => selectPlayer(p.id)}
-                style={{
-                  marginBottom: 6, borderRadius: 14, overflow: 'hidden',
-                  background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                  border: `2px solid ${C.goldDark}`,
-                  boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)`,
-                  padding: '10px 12px 7px',
-                  cursor: 'pointer',
-                  position: 'relative',
-                }}
-              >
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(C.gold, 0.3)}, transparent)`, pointerEvents: 'none' }}/>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(C.gold, 0.5)}`, boxShadow: `0 0 8px ${alpha(C.gold, 0.3)}` }}>
-                    <PlayerFace playerId={p.id} nationality={p.nationality} size={56} />
-                  </div>
-                  <span style={{ padding: '2px 6px', borderRadius: 7, flexShrink: 0, background: alpha(specCol, 0.15), color: specCol, fontSize: 9, fontWeight: 700 }}>
-                    {SPECIALTY_LABELS[p.specialty]}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginTop: 1 }}>{p.age}歳</div>
-                  </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(rating), minWidth: 32, textAlign: 'right', flexShrink: 0 }}>{rating}</div>
-                </div>
-                <div style={{ display: 'flex', paddingLeft: 34, paddingBottom: 2, gap: 0 }}>
-                  {([
-                    ['速', p.ratings.speed], ['持', p.ratings.stamina], ['登', p.ratings.mountainUp],
-                    ['下', p.ratings.mountainDown], ['ペ', p.ratings.pacing], ['精', p.ratings.mental], ['回', p.ratings.recovery],
-                  ] as [string, number][]).map(([label, val]) => (
-                    <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim }}>{label}</div>
-                      <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: ratingColor(val), lineHeight: 1.2 }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+          {mainPlayers.map(p => (
+            <PlayerRow
+              key={p.id}
+              player={p}
+              handlers={selectHandlers(p.id)}
+            />
+          ))}
         </div>
       </div>
     )
@@ -254,16 +246,6 @@ export default function CardTrainingPage() {
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{targetPlayer.name}</div>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{targetPlayer.age}歳 · OVR {ovr(targetPlayer)}</div>
           </div>
-          <button
-            onClick={() => clearFusion()}
-            style={{
-              padding: '5px 10px', borderRadius: 8,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `1px solid ${C.border2}`,
-              boxShadow: `0 2px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-              color: C.textSub, fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA,
-            }}
-          >選手変更</button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
           {statKeys.map(k => {

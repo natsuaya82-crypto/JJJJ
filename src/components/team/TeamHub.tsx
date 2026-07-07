@@ -31,7 +31,7 @@ export default function TeamHub() {
     {
       key: '/team/roster',
       label: 'ロスター',
-      desc: '1軍・リザーブ・ユースの選手管理、背番号、放出',
+      desc: '1軍・リザーブ・ユースの選手管理、放出',
       countLabel: expiringCount > 0 ? `FA間近 ${expiringCount}名` : `${myPlayers.length}名在籍`,
       badge: expiringCount,
       color: C.blue,
