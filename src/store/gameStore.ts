@@ -1,6 +1,6 @@
 ﻿import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Ratings, Race } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -9,11 +9,11 @@ import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, gene
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerSecondTeam } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup } from '../engine/raceEngine'
 import { generateRaceEvents, generatePressConference } from '../engine/eventEngine'
-import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer } from '../utils/playerUtils'
+import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant } from '../data/economy'
 import { tierForContract, canSignContract } from '../data/rosterRules'
-import { generateDropCards, detectCombo, MAX_FUSION_CARDS } from '../utils/cardCombo'
+import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
 
@@ -321,6 +321,10 @@ export type GameStore = GameState & {
   applyTrainingCards: (playerId: string, cardIds: string[], grantTrait?: boolean, multiplier?: number) => void
   dismissDroppedCards: () => void
 
+  // Update gifts (通知から受け取るプレゼント)
+  grantUpdateGifts: () => void
+  claimGift: (id: string) => void
+
   // Contract renewals
   decideRenewal: (playerId: string, renew: boolean, years?: number) => void
 
@@ -338,7 +342,7 @@ export type GameStore = GameState & {
 }
 
 function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
-  const basePlayers = BASE_PLAYERS.map(p => ({ ...p, teamId: '' }))
+  const basePlayers = BASE_PLAYERS.map(p => ({ ...p, teamId: '', career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 } }))
   return {
     isInitialized: false,
     setupData: null,
@@ -402,6 +406,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     nationalTeam: undefined,
     trainingCards: [],
     raceDroppedCards: [],
+    pendingGifts: [],
+    giftGivenVersions: [],
     jewels: 0,
     starredOpponents: [],
     starredProspects: [],
@@ -952,7 +958,8 @@ export const useGameStore = create<GameStore>()(
               // recovery stat reduces fatigue gain: recovery=50→normal, recovery=90→-12%
               const recoveryMult = 1.0 - (p.ratings.recovery - 50) * 0.003
               const fatigueGain = Math.round(baseFatigueGain * Math.max(0.7, recoveryMult))
-              return { ...p, fatigue: Math.min(100, p.fatigue + fatigueGain) }
+              // 自然回復: 出場選手は毎レース疲労が3減る
+              return { ...p, fatigue: Math.max(0, Math.min(100, p.fatigue + fatigueGain) - 3) }
             } else if (p.status === 'injured') {
               // Injured players recover 18 fatigue per race
               const newFatigue = Math.max(0, p.fatigue - 18)
@@ -4624,17 +4631,58 @@ export const useGameStore = create<GameStore>()(
               newTraits = [...newTraits, combo.traitGrant]
             }
           }
+          // 疲労回復（完全休養／超回復）。大成功倍率(multiplier)も疲労に掛ける。
+          const fatigueRecovered = combo.fatigueDelta ? Math.round(combo.fatigueDelta * multiplier) : 0
+          const newFatigue = Math.max(0, (player.fatigue ?? 0) - fatigueRecovered)
           const remaining = (state.trainingCards ?? []).filter(c => !cardIds.includes(c.id))
           return {
             trainingCards: remaining,
             players: state.players.map(p =>
-              p.id === playerId ? { ...p, ratings: result.ratings, exp: result.exp, traits: newTraits } : p
+              p.id === playerId ? { ...p, ratings: result.ratings, exp: result.exp, traits: newTraits, fatigue: newFatigue } : p
             ),
           }
         })
       },
 
       dismissDroppedCards: () => set({ raceDroppedCards: [], raceExpGains: {} }),
+
+      // アップデート記念プレゼント（1.0.4）。冪等：giftGivenVersions に記録済みなら何もしない。
+      grantUpdateGifts: () => {
+        set(state => {
+          const GIFT_VERSION = '1.0.4-epic'
+          if ((state.giftGivenVersions ?? []).includes(GIFT_VERSION)) return state
+          const epicStats: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+          const cards: TrainingCard[] = epicStats.map((statKey, index) => ({
+            id: `gift_${GIFT_VERSION}_${index}`,
+            statKey,
+            rarity: 'epic' as const,
+            value: RARITY_EXP.epic,
+          }))
+          const restCard = { ...generateRestCard('epic'), id: `gift_${GIFT_VERSION}_rest` }
+          cards.push(restCard)
+          const gift: Gift = {
+            id: `gift_${GIFT_VERSION}`,
+            title: 'アップデート記念プレゼント',
+            message: 'カード練習リニューアル記念！全種類のエピックカードをプレゼント。',
+            cards,
+          }
+          return {
+            pendingGifts: [...(state.pendingGifts ?? []), gift],
+            giftGivenVersions: [...(state.giftGivenVersions ?? []), GIFT_VERSION],
+          }
+        })
+      },
+
+      claimGift: (id) => {
+        set(state => {
+          const gift = (state.pendingGifts ?? []).find(g => g.id === id)
+          if (!gift) return state
+          return {
+            trainingCards: [...(state.trainingCards ?? []), ...gift.cards],
+            pendingGifts: (state.pendingGifts ?? []).filter(g => g.id !== id),
+          }
+        })
+      },
 
       decideRenewal: (playerId, renew, years = 2) => {
         set(state => {
@@ -4720,7 +4768,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 4,
+      version: 5,
       migrate: (persistedState: unknown, version: number) => {
         const s = persistedState as Record<string, unknown>
         // v1→v2: undrafted pool players that were never converted to FA
@@ -4734,6 +4782,13 @@ export const useGameStore = create<GameStore>()(
         }
         // v3→v4: reset ALL pre-populated career stats (wipes fake initial values for base/ai/fp players)
         if (version < 4 && Array.isArray(s.players)) {
+          s.players = (s.players as Record<string, unknown>[]).map(p => ({
+            ...p,
+            career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
+          }))
+        }
+        // v4→v5: reset career for not-yet-started saves (base players had fake career values hardcoded)
+        if (version < 5 && !s.isInitialized && Array.isArray(s.players)) {
           s.players = (s.players as Record<string, unknown>[]).map(p => ({
             ...p,
             career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
@@ -5172,12 +5227,7 @@ function growPlayer(p: Player): Player {
   }
 }
 
-export function calcTransferValue(p: Player): number {
-  const o = ovr(p)
-  const ageFactor = p.age <= 22 ? 1.3 : p.age <= 25 ? 1.1 : p.age <= 28 ? 0.95 : p.age <= 31 ? 0.7 : 0.45
-  const specFactor = (p.specialty === 'ace' || p.specialty === 'allrounder') ? 1.15 : 1.0
-  return Math.round(Math.max(0, o - 50) * 500000 * ageFactor * specFactor / 500000) * 500000
-}
+// calcTransferValue は playerUtils に一本化（重複を排除）。この行より上の import から使用する。
 
 function buildInitialNews() {
   return [
