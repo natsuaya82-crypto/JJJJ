@@ -1041,7 +1041,7 @@ export function refreshForeignLeagues(
       clubs: l.clubs.map(club => {
         const kept = club.playerIds.filter(id => !removedIds.has(id))
         const freshClub = freshL?.clubs.find(fc => fc.id === club.id)
-        const addN = 1 + (Math.random() < 0.5 ? 1 : 0)
+        const addN = 3 + (Math.random() < 0.5 ? 1 : 0)
         const adds = (freshClub?.playerIds ?? []).slice(0, addN)
         for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
         return { ...club, playerIds: [...kept, ...adds] }
@@ -1058,21 +1058,50 @@ export function generateForeignLeaguePlayers(
   const players: Player[] = []
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
-  // rank 9〜12 が外国人上位帯 (rank 12: world class, rank 9: 日本Sと同等)
-  const FOREIGN_GRADE_POOL: Rank[] = [
-    'SSS', 'SSS', 'SSS',
-    'SS', 'SS', 'SS', 'SS', 'SS',
-    'S', 'S', 'S', 'S', 'S',
-    'A', 'A', 'A', 'A',
-    'B', 'B', 'B',
-    'C', 'C',
-  ]
+
+  // 地域別グレードプール（日本S/A帯を基準に強弱）
+  const GRADE_POOL: Record<string, Rank[]> = {
+    // アフリカ（ETH/KEN/UGA/TAN）: かなり高め
+    AFRICA: [
+      'SSS', 'SSS', 'SSS', 'SSS', 'SSS',
+      'SS', 'SS', 'SS', 'SS', 'SS',
+      'S', 'S', 'S', 'S',
+      'A', 'A', 'A',
+      'B', 'B',
+      'C', 'C', 'C',
+    ],
+    // ユーロ・アメリカ: 日本平均より高め
+    EUR_USA: [
+      'SSS', 'SSS', 'SSS',
+      'SS', 'SS', 'SS', 'SS',
+      'S', 'S', 'S', 'S', 'S',
+      'A', 'A', 'A', 'A',
+      'B', 'B', 'B',
+      'C', 'C', 'C',
+    ],
+    // 中国・韓国・台湾: 日本平均より低め
+    ASIA: [
+      'S', 'S',
+      'A', 'A', 'A', 'A',
+      'B', 'B', 'B', 'B', 'B',
+      'C', 'C', 'C', 'C',
+      'D', 'D', 'D', 'D', 'D',
+      'D', 'D',
+    ],
+  }
+
+  function gradePoolFor(country: string): Rank[] {
+    if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return GRADE_POOL.AFRICA
+    if (['EUR', 'USA'].includes(country)) return GRADE_POOL.EUR_USA
+    if (['CHN', 'KOR', 'TWN'].includes(country)) return GRADE_POOL.ASIA
+    return GRADE_POOL.EUR_USA
+  }
 
   const updatedLeagues = leagues.map(league => ({
     ...league,
     clubs: league.clubs.map(club => {
       const clubPlayerIds: string[] = []
-      const grades = [...FOREIGN_GRADE_POOL].sort(() => Math.random() - 0.5)
+      const grades = [...gradePoolFor(club.country)].sort(() => Math.random() - 0.5)
       const namePool = FOREIGN_NAMES_BY_NATIONALITY[club.country as string]
         ?? FOREIGN_NAMES_BY_NATIONALITY.EUR
         ?? []
