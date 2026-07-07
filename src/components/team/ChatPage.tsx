@@ -896,17 +896,15 @@ export default function ChatPage() {
     onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
   })
   // 通知などから ?player=<id> で来た場合は直接その選手のチャットを開く
+  const locState = location.state as { tradeTeamId?: string } | null
   const [chatPlayerId, setChatPlayerId] = useState<string | null>(() => searchParams.get('player'))
-  const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade'))
-  // location.state経由で来たcounteredBidID（通知の「チャットで対応する」から）
-  const locState = location.state as { counterBidId?: string } | null
-  const [counterBidIdFromState, setCounterBidIdFromState] = useState<string | null>(() => locState?.counterBidId ?? null)
+  const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? null)
   // ?player / ?trade で「直接」会話を開いて来た場合、戻るは会話一覧ではなく呼び出し元の画面(navigate(-1))へ返す
-  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.counterBidId))
+  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId))
   const wantParam = searchParams.get('want')  // トレード提案で「もらう」に初期選択する選手
   const feeModeParam = searchParams.get('feeMode')  // 移籍金対応モードで開く
   const [messageCache, setMessageCache] = useState<Record<string, ChatMessage[]>>({})
-  const [activeTab, setActiveTab] = useState<'own' | 'transfer'>(searchParams.get('trade') ? 'transfer' : 'own')
+  const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
 
   useEffect(() => { generateContractRequests() }, [])
 
@@ -916,10 +914,21 @@ export default function ChatPage() {
     const tr = searchParams.get('trade')
     if (pl) { setChatPlayerId(pl); setTradeTeamId(null); cameFromParamRef.current = true }
     else if (tr) { setTradeTeamId(tr); setChatPlayerId(null); setActiveTab('transfer'); cameFromParamRef.current = true }
-    // クエリを消す（戻ってくるたびに再発火して会話へ強制される／履歴が狂うのを防ぐ）
     if (pl || tr) navigate('/team/chat', { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
+
+  // location.state経由で来たtradeTeamId（通知などからstate付きnavigate）
+  useEffect(() => {
+    const ls = location.state as { tradeTeamId?: string } | null
+    if (ls?.tradeTeamId) {
+      setTradeTeamId(ls.tradeTeamId)
+      setChatPlayerId(null)
+      setActiveTab('transfer')
+      cameFromParamRef.current = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key])
 
   const totalRaces = currentSeason.races.length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
@@ -957,11 +966,8 @@ export default function ChatPage() {
   const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? null : null
 
   // 他チーム（トレード交渉の相手）
-  const opponentTeams = teams.filter(t => t.id !== playerTeamId)
-  const tradeTeam = tradeTeamId ? opponentTeams.find(t => t.id === tradeTeamId) ?? null : null
-  // 外国クラブへの入札（teamsに含まれないため別途解決）
   const allForeignClubs = (foreignLeagues ?? []).flatMap(l => l.clubs)
-  const tradeForeignClub = (!tradeTeam && tradeTeamId) ? allForeignClubs.find(c => c.id === tradeTeamId) ?? null : null
+  const tradeTeam = tradeTeamId ? teams.find(t => t.id === tradeTeamId) ?? null : null
 
   // 相手から来たオファー（移籍・レンタル）＝チャットで対応
   const foreignClubMap = new Map((foreignLeagues ?? []).flatMap(l => l.clubs).map(c => [c.id, c.shortName]))
@@ -976,143 +982,10 @@ export default function ChatPage() {
     else clear()
   }
 
-  // 通知からcounterBidId指定で来た場合：チームIDに依存せずbidを直接表示
-  if (counterBidIdFromState) {
-    const bid = (currentSeason.transferBids ?? []).find(b => b.id === counterBidIdFromState)
-    const p = bid ? players.find(pl => pl.id === bid.playerId) : null
-    const clubName = bid ? (teams.find(t => t.id === bid.targetTeamId)?.name ?? allForeignClubs.find(c => c.id === bid.targetTeamId)?.name ?? '相手クラブ') : '相手クラブ'
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
-          <BackButton onClick={() => { navigate('/team/chat', { replace: true, state: null }); setCounterBidIdFromState(null) }} />
-          <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{clubName}</div><div style={{ fontSize: 10, color: C.textDim }}>移籍金交渉</div></div>
-        </div>
-        <div style={{ padding: '14px 12px' }}>
-          {(!bid || bid.status !== 'countered' || bid.counterFee == null) ? (
-            <div style={{ fontSize: 13, color: C.textDim, textAlign: 'center', padding: 24 }}>交渉データが見つかりません</div>
-          ) : p ? (
-            <div style={{ borderRadius: 12, background: C.surface, border: `1px solid ${alpha(C.orange, 0.4)}`, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <PlayerFace playerId={p.id} nationality={p.nationality} size={36} />
-                <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{p.name}</div><div style={{ fontSize: 10, color: C.textDim }}>{clubName}からの対抗提示</div></div>
-                <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 12 }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 13, color: C.textGhost, textDecoration: 'line-through' }}>{fmt(bid.offeredFee)}</span>
-                <span style={{ fontSize: 10, color: C.textSub }}>→</span>
-                <span style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.orange }}>{fmt(bid.counterFee)}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => { acceptFeeCounter(bid.id); setCounterBidIdFromState(null) }}
-                  style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: alpha(C.green, 0.15), color: C.green, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {fmt(bid.counterFee)}で合意
-                </button>
-                <button onClick={() => { rejectTransferBid(bid.id); setCounterBidIdFromState(null) }}
-                  style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  取り下げ
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    )
-  }
-
   if (tradeTeam) return (
     <TradeChatView team={tradeTeam} onClose={() => closeConversation(() => setTradeTeamId(null))}
-      initialMode={feeModeParam ? 'fee' : wantParam ? 'trade' : undefined} initialGetId={wantParam ?? undefined} />
+      initialMode="fee" initialGetId={wantParam ?? undefined} />
   )
-
-  if (tradeForeignClub) {
-    const bids = currentSeason.transferBids ?? []
-    const counteredBids = bids.filter(b => b.targetTeamId === tradeForeignClub.id && b.status === 'countered')
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
-          <BackButton onClick={() => closeConversation(() => setTradeTeamId(null))} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{tradeForeignClub.name}</div>
-            <div style={{ fontSize: 10, color: C.textDim }}>移籍金交渉</div>
-          </div>
-        </div>
-        <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {counteredBids.length === 0 && (
-            <div style={{ fontSize: 13, color: C.textDim, textAlign: 'center', padding: 24 }}>対抗提示はありません</div>
-          )}
-          {counteredBids.map(bid => {
-            const p = players.find(pl => pl.id === bid.playerId)
-            if (!p || bid.counterFee == null) return null
-            return (
-              <div key={bid.id} style={{ borderRadius: 12, background: C.surface, border: `1px solid ${alpha(C.orange, 0.4)}`, padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <PlayerFace playerId={p.id} nationality={p.nationality} size={36} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{p.name}</div>
-                    <div style={{ fontSize: 10, color: C.textDim }}>{tradeForeignClub.name}からの対抗提示</div>
-                  </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 12 }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: 13, color: C.textGhost, textDecoration: 'line-through' }}>{fmt(bid.offeredFee)}</span>
-                  <span style={{ fontSize: 10, color: C.textSub }}>→</span>
-                  <span style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.orange }}>{fmt(bid.counterFee)}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => acceptFeeCounter(bid.id)}
-                    style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: alpha(C.green, 0.15), color: C.green, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {fmt(bid.counterFee)}で合意
-                  </button>
-                  <button onClick={() => rejectTransferBid(bid.id)}
-                    style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    取り下げ
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
-  // tradeTeamIdがあるが国内・外国どちらでもチームが見つからない場合のフォールバック
-  if (tradeTeamId && !tradeTeam && !tradeForeignClub) {
-    const fallbackBids = (currentSeason.transferBids ?? []).filter(b => b.targetTeamId === tradeTeamId && b.status === 'countered')
-    const clubLabel = allForeignClubs.find(c => c.id === tradeTeamId)?.name ?? teams.find(t => t.id === tradeTeamId)?.name ?? '相手クラブ'
-    if (fallbackBids.length > 0) return (
-      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
-          <BackButton onClick={() => closeConversation(() => setTradeTeamId(null))} />
-          <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{clubLabel}</div><div style={{ fontSize: 10, color: C.textDim }}>移籍金交渉</div></div>
-        </div>
-        <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {fallbackBids.map(bid => {
-            const p = players.find(pl => pl.id === bid.playerId)
-            if (!p || bid.counterFee == null) return null
-            return (
-              <div key={bid.id} style={{ borderRadius: 12, background: C.surface, border: `1px solid ${alpha(C.orange, 0.4)}`, padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <PlayerFace playerId={p.id} nationality={p.nationality} size={36} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{p.name}</div><div style={{ fontSize: 10, color: C.textDim }}>対抗提示あり</div></div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 12 }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: 13, color: C.textGhost, textDecoration: 'line-through' }}>{fmt(bid.offeredFee)}</span>
-                  <span style={{ fontSize: 10, color: C.textSub }}>→</span>
-                  <span style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.orange }}>{fmt(bid.counterFee)}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => acceptFeeCounter(bid.id)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: alpha(C.green, 0.15), color: C.green, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>{fmt(bid.counterFee)}で合意</button>
-                  <button onClick={() => rejectTransferBid(bid.id)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>取り下げ</button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
 
   if (chatPlayer) return (
     <ChatView

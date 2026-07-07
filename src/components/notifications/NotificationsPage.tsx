@@ -464,7 +464,7 @@ export default function NotificationsPage() {
                           </div>
                           <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: counterRating.color, padding: '2px 7px', borderRadius: '6px', background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate('/team/chat', { state: { counterBidId: bid.id } })}>チャットで対応する</Btn>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate('/team/chat', { state: { tradeTeamId: bid.targetTeamId } })}>チャットで対応する</Btn>
                       </div>
                     </div>
                   )
