@@ -659,6 +659,7 @@ export type GameState = {
   adsWatchedToday?: number
   segmentRecords?: Record<string, SegmentRecord[]>
   adsRemoved?: boolean   // 買い切り版（広告なし・ログインボーナス常時2倍）を購入済みか
+  twitterIntroSeen?: boolean   // 公式Xフォロー案内ポップを一度表示済みか（初回起動のみ表示）
 }
 
 export const SPECIALTY_LABELS: Record<Specialty, string> = {

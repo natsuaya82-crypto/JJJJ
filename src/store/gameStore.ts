@@ -345,6 +345,8 @@ export type GameStore = GameState & {
 
   // 買い切り版（広告なし）
   setAdsRemoved: (v: boolean) => void
+  // 公式Xフォロー案内ポップを表示済みにする（初回のみ表示するためのフラグ）
+  markTwitterIntroSeen: () => void
 
   // Dev reset
   resetGame: () => void
@@ -428,6 +430,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     lastAdDate: undefined as unknown as string,
     adsWatchedToday: undefined as unknown as number,
     adsRemoved: false,
+    twitterIntroSeen: false,
   } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
 }
 
@@ -5250,6 +5253,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       setAdsRemoved: (v) => set({ adsRemoved: v }),
+      markTwitterIntroSeen: () => set({ twitterIntroSeen: true }),
 
       resetGame: () => {
         // データ削除：ゲーム進行・広告カウント・ログインボーナスはリセット（また受け取れる）するが、
