@@ -209,8 +209,16 @@ function ChatView({
       ? buildAcqMessages(player, acqOffer!, teams.find(t => t.id === player.teamId)?.name)
       : buildMessages(player, contractReq, months, !!retirementReq, !!transferReq, transferReq?.reason, events)
     if (!initialMessages || initialMessages.length === 0) return built
-    // 保存済みログを開いた後に発生した新しい用件（更新要求・引退相談など）は、ログに無い分だけ追記する
-    const fresh = built.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
+    // 保存済みログを開いた後に発生した「新しい用件」だけをログに追記する。
+    // 交渉への返答系（承諾・拒否・カウンター等）は会話の流れの一部であり、後から再構築すると
+    // 「移籍を認めたのに『その条件では受け入れられません』が出る」ような文脈違いになるため対象外。
+    const freshSource = buildMessages(
+      player,
+      contractReq && contractReq.status === 'pending_gm' && contractReq.initiatedBy === 'player' ? contractReq : undefined,
+      player.transferListed ? 99 : months,  // 退団予定の選手には契約残の催促を出さない
+      !!retirementReq, !!transferReq, transferReq?.reason, events,
+    )
+    const fresh = freshSource.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
     return fresh.length > 0 ? [...initialMessages, ...fresh] : initialMessages
   })
 
