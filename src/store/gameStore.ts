@@ -2078,10 +2078,11 @@ export const useGameStore = create<GameStore>()(
                       yearsInTeam: retPlayer.yearsPro,
                       career: { segmentWins: retPlayer.career.segmentWins, championships: retPlayer.career.championships, mvpAwards: retPlayer.career.mvpAwards },
                     }
-                    return { ...t, roster: { ...t.roster, main: t.roster.main.filter(id => id !== pid) }, history: { ...t.history, legends: [...(t.history.legends ?? []), legend] } }
+                    // 2軍・2way選手の引退でもゴーストIDが残らないよう両方の名簿から除去
+                    return { ...t, roster: { main: t.roster.main.filter(id => id !== pid), second: t.roster.second.filter(id => id !== pid) }, history: { ...t.history, legends: [...(t.history.legends ?? []), legend] } }
                   })
                 } else {
-                  teams = teams.map(t => t.id === state.playerTeamId ? { ...t, roster: { ...t.roster, main: t.roster.main.filter(id => id !== pid) } } : t)
+                  teams = teams.map(t => t.id === state.playerTeamId ? { ...t, roster: { main: t.roster.main.filter(id => id !== pid), second: t.roster.second.filter(id => id !== pid) } } : t)
                 }
               }
             }
@@ -2238,7 +2239,7 @@ export const useGameStore = create<GameStore>()(
             players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined } : p),
             teams: st.teams.map(t => t.id === st.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
             foreignLeagues: (st.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
-            currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30) },
+            currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30) },
           }))
           return
         }
@@ -2255,6 +2256,8 @@ export const useGameStore = create<GameStore>()(
           currentSeason: {
             ...state.currentSeason,
             incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId),
+            // 売却した選手の出品（自分のもの含む）は市場から掃除する
+            transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
             newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${buyingTeam.shortName}へ移籍金${Math.round(offer.offeredPrice / 10000)}万で放出`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
           },
         }))
