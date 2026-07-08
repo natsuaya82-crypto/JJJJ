@@ -22,6 +22,18 @@ export default function NumberDial({
   const N = Math.round(clamp(value) / STEP)              // 0..9999（100万円単位の個数）
   const digits = String(N).padStart(4, '0').split('').map(Number)  // [万億, 億, 千万, 百万]
   const [openIdx, setOpenIdx] = useState<number | null>(null)
+  // ポップアップは fixed 配置（親の overflow:hidden や画面端で数字が見切れないように）。
+  // 上に十分な余白が無いときは下に開く。
+  const [popPos, setPopPos] = useState<{ x: number; top: number; up: boolean } | null>(null)
+  const POP_H = 340  // 0〜9 リストのおおよその高さ
+
+  const openDial = (idx: number, el: HTMLElement) => {
+    if (openIdx === idx) { setOpenIdx(null); return }
+    const r = el.getBoundingClientRect()
+    const up = r.top > POP_H + 12
+    setPopPos({ x: r.left + r.width / 2, top: up ? r.top - 4 : r.bottom + 4, up })
+    setOpenIdx(idx)
+  }
 
   const setDigit = (idx: number, d: number) => {
     const arr = [...digits]
@@ -42,13 +54,14 @@ export default function NumberDial({
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative' }}>
       {digits.map((d, idx) => (
         <div key={idx} style={{ position: 'relative' }}>
-          <button onClick={() => setOpenIdx(openIdx === idx ? null : idx)} style={cell(openIdx === idx)}>{d}</button>
-          {openIdx === idx && (
+          <button onClick={(e) => openDial(idx, e.currentTarget)} style={cell(openIdx === idx)}>{d}</button>
+          {openIdx === idx && popPos && (
             <>
               <div onClick={() => setOpenIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
               <div style={{
-                position: 'absolute', top: -4, left: '50%', transform: 'translate(-50%, -100%)', zIndex: 41,
-                maxHeight: 200, overflowY: 'auto', borderRadius: 10,
+                position: 'fixed', left: popPos.x, top: popPos.top,
+                transform: `translate(-50%, ${popPos.up ? '-100%' : '0'})`, zIndex: 41,
+                borderRadius: 10,
                 background: C.surface, border: `1.5px solid ${alpha(accent, 0.6)}`,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.6)', padding: 4,
                 display: 'flex', flexDirection: 'column', gap: 2,

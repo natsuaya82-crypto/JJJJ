@@ -1232,7 +1232,7 @@ export const useGameStore = create<GameStore>()(
             return nextRaceIndex >= mid0 && nextRaceIndex <= mid1
           })()
           // CPU-to-CPU transfer completions during open window
-          type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string }
+          type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
           const cpuTxList: CpuTx[] = []
           const cpuTxListingIds = new Set<string>()
           if (isWindowOpenNow) {
@@ -1244,7 +1244,7 @@ export const useGameStore = create<GameStore>()(
               const seller = state.teams.find(t => t.id === listing.fromTeamId)
               const buyer = state.teams.find(t => t.id === buyerTeamId)
               if (!p || !seller || !buyer) continue
-              cpuTxList.push({ playerId: p.id, fromTeamId: listing.fromTeamId, toTeamId: buyerTeamId, playerName: p.name, playerOvr: ovr(p), fromShort: seller.shortName, toShort: buyer.shortName })
+              cpuTxList.push({ playerId: p.id, fromTeamId: listing.fromTeamId, toTeamId: buyerTeamId, playerName: p.name, playerOvr: ovr(p), fromShort: seller.shortName, toShort: buyer.shortName, fee: listing.askingPrice })
               cpuTxListingIds.add(listing.id)
             }
           }
@@ -1253,6 +1253,9 @@ export const useGameStore = create<GameStore>()(
             headline: `${tx.toShort}が${tx.fromShort}から${tx.playerName}（OVR${tx.playerOvr}）を獲得`,
             category: 'trade' as const,
             relatedIds: [tx.playerId],
+            major: tx.fee >= 100_000_000,
+            fromTeamId: tx.fromTeamId,
+            toTeamId: tx.toTeamId,
           }))
           const existingListingsFiltered = (state.currentSeason.transferListings ?? []).filter(l => !cpuTxListingIds.has(l.id))
 
@@ -2208,7 +2211,7 @@ export const useGameStore = create<GameStore>()(
           currentSeason: {
             ...state.currentSeason,
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.id !== listingId),
-            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を移籍金${Math.round(price / 10000)}万で獲得`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を移籍金${Math.round(price / 10000)}万で獲得`, category: 'trade' as const, relatedIds: [player.id], major: price >= 100_000_000, fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId }, ...state.currentSeason.newsFeed].slice(0, 30),
           },
         }))
         return true
@@ -2348,7 +2351,9 @@ export const useGameStore = create<GameStore>()(
           const roundFactor = 1 + (req.round - 1) * 0.03
           const demand = Math.round(req.demandSalary * roundFactor / 500000) * 500000
           const ratio = demand > 0 ? salary / demand : 2
-          const acceptThresh = personality === 'winning' && isGoodTeam ? 0.90 : personality === 'loyalty' ? 0.92 : 0.95
+          // 士気が高い選手は譲歩する（要求を丸呑みしなくても交渉で下げられる余地を作る）
+          const moraleDiscount = (player.morale ?? 60) >= 80 ? 0.05 : (player.morale ?? 60) >= 65 ? 0.02 : 0
+          const acceptThresh = (personality === 'winning' && isGoodTeam ? 0.90 : personality === 'loyalty' ? 0.92 : 0.95) - moraleDiscount
           const counterThresh = personality === 'salary' ? 0.77 : 0.73
           const isLastRound = req.round >= 3  // 交渉は最大3ラウンド
           let newStatus: ContractRequest['status']
@@ -2358,7 +2363,8 @@ export const useGameStore = create<GameStore>()(
             newStatus = 'accepted'
           } else if (ratio >= counterThresh && !isLastRound) {
             newStatus = 'countered'
-            counterSalary = Math.round(demand * 1.03 / 500000) * 500000
+            // カウンターは「提示と要求の中間」＝承諾すれば実際に値引きが成立する（従来は要求+3%で交渉するだけ損だった）
+            counterSalary = Math.round((demand + salary) / 2 / 500000) * 500000
             counterYears = Math.max(1, years, req.demandYears)
           } else {
             newStatus = 'rejected'
@@ -2889,7 +2895,7 @@ export const useGameStore = create<GameStore>()(
             ...s.currentSeason,
             transferBids: (s.currentSeason.transferBids ?? []).map(b => b.id === bidId ? { ...b, status: 'complete' as const } : b),
             transferListings: (s.currentSeason.transferListings ?? []).filter(l => l.playerId !== bid.playerId),
-            newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: `${player.name}を移籍金${Math.round(bid.offeredFee / 10000)}万・年俸${Math.round(salary / 10000)}万で獲得`, category: 'trade' as const, relatedIds: [player.id] }, ...s.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: `${player.name}を移籍金${Math.round(bid.offeredFee / 10000)}万・年俸${Math.round(salary / 10000)}万で獲得`, category: 'trade' as const, relatedIds: [player.id], major: bid.offeredFee >= 100_000_000, fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId }, ...s.currentSeason.newsFeed].slice(0, 30),
           },
         }))
         return { ok: true }
@@ -3482,73 +3488,76 @@ export const useGameStore = create<GameStore>()(
         const lastStandings = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
         const totalTeams = state.teams.length
         const rankOf = (teamId: string) => { const i = lastStandings.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeams / 2) }
-        for (const team of cpuTeamsSorted) {
+        // チームごとの補強状態を事前に構築
+        const estCostFA = (fa: Player) => Math.round(ovr(fa) * 110000 / 500000) * 500000
+        type TSS = {
+          team: (typeof cpuTeamsSorted)[0]
+          tier: 'elite' | 'mid' | 'weak'
+          minOvr: number
+          strat: 'contend' | 'rebuild' | 'balanced'
+          rosterCount: number
+          slotsNeeded: number
+          spendable: number
+          ageCap: number
+          foreignOnTeam: number
+          signed: number
+          spent: number
+          foreignSigned: number
+          usedNums: Set<number>
+        }
+        const teamSignStates: TSS[] = cpuTeamsSorted.map(team => {
           const currentRoster = playersAfterCpuRelease.filter(p => p.teamId === team.id && p.rosterTier === 'main' && p.status === 'active')
           const tier = cpuTeamTier(team.id, playersAfterCpuRelease)
           const minOvr = tier === 'elite' ? 74 : tier === 'mid' ? 67 : 58
-          const slotsNeeded = Math.max(0, 23 - currentRoster.length)  // 1軍登録は23人（1軍契約18＋2way5）
-          if (slotsNeeded <= 0) continue
-
-          // 運用方針と予算
           const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
           const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
           const committedSalary = playersAfterCpuRelease.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
           const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
           const spendable = Math.max(0, rankBudgetGrant(rankOf(team.id)) - committedSalary) * spendFactor
-          let spent = 0
-          const estCost = (fa: Player) => Math.round(ovr(fa) * 110000 / 500000) * 500000
-
-          const needs = cpuSpecialtyNeeds(team.id, playersAfterCpuRelease)
-          const foreignOnTeam = playersAfterCpuRelease.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
-          const usedNums = new Set<number>()
-          let foreignSigned = 0, signed = 0
-          // contendはベテランも可、rebuildは若手のみ
           const ageCap = strat === 'contend' ? 36 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 32 : 35)
-          // ロスター16人未満の間は予算に関係なく最低限補強（戦力崩壊防止）
-          const budgetOk = (fa: Player) => (currentRoster.length + signed) < 16 || (spent + estCost(fa) <= spendable)
-          const canSign = (fa: Player) =>
-            !signedFAIds.has(fa.id) &&
-            !(fa.nationality === 'FOREIGN' && foreignOnTeam + foreignSigned >= 3) &&
-            fa.age < ageCap
-          const doSign = (fa: Player) => {
-            let num = 1; while (usedNums.has(num)) num++; usedNums.add(num)
-            if (fa.nationality === 'FOREIGN') foreignSigned++
-            signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: team.id, num }); signed++
-            spent += estCost(fa)
+          const foreignOnTeam = playersAfterCpuRelease.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
+          return {
+            team, tier, minOvr, strat,
+            rosterCount: currentRoster.length,
+            slotsNeeded: Math.max(0, 23 - currentRoster.length),
+            spendable, ageCap, foreignOnTeam,
+            signed: 0, spent: 0, foreignSigned: 0, usedNums: new Set<number>(),
           }
-          // 若手再建はポテンシャル・若さ優先、それ以外はOVR優先（availableFAsは既にOVR降順）
-          const pool = strat === 'rebuild'
-            ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
-            : availableFAs
-
-          // Pass 1: fill specialty holes — up to 2 per specialty
-          const specFloor = strat === 'rebuild' ? 50 : Math.max(50, minOvr - 10)
-          const pass1Counts: Record<string, number> = {}
-          for (const spec of needs) {
-            if (signed >= slotsNeeded) break
-            const currentCount = playersAfterCpuRelease.filter(p => p.teamId === team.id && p.specialty === spec && p.rosterTier === 'main' && p.status === 'active').length
-            const toFill = Math.max(0, 2 - currentCount - (pass1Counts[spec] ?? 0))
-            let filled = 0
+        })
+        const canSignFA = (fa: Player, ts: TSS) =>
+          !signedFAIds.has(fa.id) &&
+          !(fa.nationality === 'FOREIGN' && ts.foreignOnTeam + ts.foreignSigned >= 3) &&
+          fa.age < ts.ageCap
+        const budgetOkFA = (fa: Player, ts: TSS) =>
+          (ts.rosterCount + ts.signed) < 16 || (ts.spent + estCostFA(fa) <= ts.spendable)
+        const doSignFA = (fa: Player, ts: TSS) => {
+          let num = 1; while (ts.usedNums.has(num)) num++; ts.usedNums.add(num)
+          if (fa.nationality === 'FOREIGN') ts.foreignSigned++
+          signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: ts.team.id, num }); ts.signed++; ts.spent += estCostFA(fa)
+        }
+        // ドラフト方式：全チームが1人ずつ取り合う（eliteが先、予算・方針に従う）
+        let roundHadPick = true
+        while (roundHadPick) {
+          roundHadPick = false
+          for (const ts of teamSignStates) {
+            if (ts.signed >= ts.slotsNeeded) continue
+            const pass2Floor = ts.strat === 'rebuild' ? 50 : ts.minOvr
+            const pool = ts.strat === 'rebuild'
+              ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
+              : availableFAs
             for (const fa of pool) {
-              if (filled >= toFill || signed >= slotsNeeded) break
-              if (fa.specialty !== spec || !canSign(fa) || ovr(fa) < specFloor || !budgetOk(fa)) continue
-              doSign(fa); filled++
-              pass1Counts[spec] = (pass1Counts[spec] ?? 0) + 1
+              if (!canSignFA(fa, ts) || ovr(fa) < pass2Floor || !budgetOkFA(fa, ts)) continue
+              doSignFA(fa, ts); roundHadPick = true; break
             }
           }
-          // Pass 2: 方針に沿ってベスト補強（予算内）
-          const pass2Floor = strat === 'rebuild' ? 50 : minOvr
-          for (const fa of pool) {
-            if (signed >= slotsNeeded) break
-            if (!canSign(fa) || ovr(fa) < pass2Floor || !budgetOk(fa)) continue
-            doSign(fa)
-          }
-          // Pass 3: 安全確保 — 予算/OVRに関係なくロスターを最低限まで埋める（弱小は20まで）
-          const floorFill = tier === 'weak' ? 20 : 16
+        }
+        // 安全確保 — 予算/OVRに関係なくロスターを最低限まで埋める（弱小は20まで）
+        for (const ts of teamSignStates) {
+          const floorFill = ts.tier === 'weak' ? 20 : 16
           for (const fa of availableFAs) {
-            if (currentRoster.length + signed >= floorFill) break
-            if (!canSign(fa)) continue
-            doSign(fa)
+            if (ts.rosterCount + ts.signed >= floorFill) break
+            if (!canSignFA(fa, ts)) continue
+            doSignFA(fa, ts)
           }
         }
         const newYear = state.currentSeason.year
@@ -3690,13 +3699,19 @@ export const useGameStore = create<GameStore>()(
           })
 
           // ── RETIREMENT SYSTEM ──
-          const retireProb = (age: number) =>
-            age >= 38 ? 0.97 : age >= 36 ? 0.80 : age >= 34 ? 0.35 : age >= 32 ? 0.10 : 0
+          // 選手ごとに引退年齢を32〜40でばらつかせる（idから決定的に算出＝毎シーズンぶれない）。
+          // 実力者(高OVR)は少し長く現役を続ける。到達したら引退。
+          const idHash = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h }
+          const retirementAge = (p: Player) => {
+            const o = ovr(p)
+            const bonus = o >= 80 ? 2 : o >= 72 ? 1 : 0
+            return Math.min(40, 32 + (idHash(p.id) % 7) + bonus)   // 32〜40でばらつく
+          }
 
           const retiringIds = new Set(
             grownPlayers
               .filter(p => p.status === 'active' && p.teamId && p.teamId !== '__pool__' && !expiredIds.has(p.id))
-              .filter(p => Math.random() < retireProb(p.age))
+              .filter(p => p.age >= retirementAge(p))
               .map(p => p.id)
           )
 
