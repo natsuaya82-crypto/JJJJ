@@ -88,17 +88,27 @@ export function generateRestCard(rarity: CardRarity): TrainingCard {
   }
 }
 
-// 設計書準拠: 全チーム2枚 / 区間賞→+レア / 3位以内→+エピック / 優勝→+レジェンド（エピックの代わり）
-export function generateDropCards(rank: number, _totalTeams: number, segmentWon = false): TrainingCard[] {
+// レア度ランダム抽選：ノーマル60% / レア30% / エピック9% / レジェンド1%
+function randomRarity(): CardRarity {
+  const r = Math.random()
+  return r < 0.60 ? 'normal' : r < 0.90 ? 'rare' : r < 0.99 ? 'epic' : 'legendary'
+}
+
+// カードドロップ。土台3枚(ランダム) ＋ 区間賞ごと1枚(ランダム) ＋ 順位ボーナス ＋ 25%で完全休養。
+// 順位で枚数・レア度に差をつけつつ、全員に土台3枚を配って低迷時も育成が進むようにする。
+export function generateDropCards(rank: number, _totalTeams: number, segWinCount = 0): TrainingCard[] {
   const cards: TrainingCard[] = []
-  cards.push(generateTrainingCard('normal'))
-  cards.push(generateTrainingCard('normal'))
-  cards.push(generateTrainingCard('normal'))
-  if (segmentWon) cards.push(generateTrainingCard('rare'))
-  if (rank === 1) cards.push(generateTrainingCard('legendary'))
-  else if (rank <= 3) cards.push(generateTrainingCard('epic'))
-  else if (rank <= 6) cards.push(generateTrainingCard('rare'))
-  // 約25%の確率で完全休養カードを1枚追加（順位でレア度が決まる）
+  // 全員：土台3枚（レア度ランダム）
+  for (let i = 0; i < 3; i++) cards.push(generateTrainingCard(randomRarity()))
+  // 区間賞：取った区の数だけ+1枚（レア度ランダム）
+  for (let i = 0; i < Math.max(0, segWinCount); i++) cards.push(generateTrainingCard(randomRarity()))
+  // 順位ボーナス
+  if (rank === 1) { cards.push(generateTrainingCard('epic'), generateTrainingCard('epic')) }
+  else if (rank <= 5) { cards.push(generateTrainingCard('epic'), generateTrainingCard('rare')) }
+  else if (rank <= 10) { cards.push(generateTrainingCard('rare'), generateTrainingCard('rare')) }
+  else if (rank <= 15) { cards.push(generateTrainingCard('rare'), generateTrainingCard('normal')) }
+  else { cards.push(generateTrainingCard('normal'), generateTrainingCard('normal')) }
+  // 25%で完全休養カードを1枚（順位でレア度）
   if (Math.random() < 0.25) {
     const restRarity: CardRarity = rank === 1 ? 'epic' : rank <= 3 ? 'rare' : 'normal'
     cards.push(generateRestCard(restRarity))

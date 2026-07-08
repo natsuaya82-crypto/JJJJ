@@ -120,39 +120,6 @@ export function generateRaceEvents(params: {
     })
   }
 
-  // Sponsor offer — シーズン1回限り
-  if (!seasonTypes.has('sponsor_offer') && raceIndex >= 1 && Math.random() < 0.20) {
-    candidates.push({
-      id: uid(), raceIndex, type: 'sponsor_offer',
-      title: 'スポンサーから追加支援の申し出',
-      body: '大手スポーツメーカーからウェア提供とチーム強化費500万円の協力申し出が届いています。',
-      choices: [
-        { label: '受け入れる', desc: '予算+500万。GM評判+1。' },
-        { label: '断る（独立性重視）', desc: 'GM評判+3。' },
-      ],
-      resolved: false,
-    })
-  }
-
-  // Media interview
-  if (!recentTypes.has('media_interview') && Math.random() < 0.5) {
-    const rank = [...(season.standings ?? [])]
-      .sort((a, b) => b.totalPoints - a.totalPoints)
-      .findIndex(s => s.teamId === playerTeamId) + 1
-    const ctx = rank <= 5 ? '快進撃' : rank >= 15 ? '苦しい状況' : 'チームの現状'
-    candidates.push({
-      id: uid(), raceIndex, type: 'media_interview',
-      title: `メディア取材: ${ctx}についてコメントを`,
-      body: `スポーツメディアから${ctx}について見解を求められています。どう対応しますか？`,
-      choices: [
-        { label: '強気のコメント', desc: 'GM評判+4。全員士気+5。' },
-        { label: '冷静な分析コメント', desc: 'GM評判+2。' },
-        { label: '選手を称えるコメント', desc: '全員士気+8。GM評判変化なし。' },
-      ],
-      resolved: false,
-    })
-  }
-
   // Playing time demand
   const benchPlayers = mainPlayers.filter(p => p.morale < 55 && p.age <= 28 && !recentPlayerIds.has(p.id))
   if (raceIndex >= 3 && benchPlayers.length > 0 && !recentTypes.has('playing_time_demand') && Math.random() < 0.25) {
@@ -182,20 +149,6 @@ export function generateRaceEvents(params: {
         { label: '引き留める（士気+15/予算-300万）', desc: '残留。士気+15、予算-300万。' },
         { label: '移籍市場に出す', desc: '移籍タブからトレード交渉が可能に。' },
         { label: '様子を見る', desc: '対処なし。士気がさらに下がる可能性。' },
-      ],
-      resolved: false,
-    })
-  }
-
-  // Board warning (when gmRep is critically low)
-  if (typeof gmRep === 'number' && gmRep < 35 && !recentTypes.has('board_warning')) {
-    candidates.push({
-      id: uid(), raceIndex, type: 'board_warning',
-      title: '理事会から警告書',
-      body: `GM評判${gmRep}は許容水準を下回っています。理事会はシーズン目標の達成とチーム立て直しを強く求めています。`,
-      choices: [
-        { label: '改善計画を提示する', desc: 'GM評判+5。理事会の信頼を部分回復。' },
-        { label: '「結果で示す」と返答', desc: 'GM評判変化なし。プレッシャーが高まる。' },
       ],
       resolved: false,
     })
@@ -239,26 +192,6 @@ export function generateRaceEvents(params: {
     })
   }
 
-  // Rival provocation — rival team's GM makes headlines
-  if (!recentTypes.has('rival_provocation') && Math.random() < 0.30) {
-    const taunts = [
-      'ライバルチームが強化合宿の成果を公開、「今年こそ優勝」と宣言',
-      'ライバルが有力選手を補強、戦力強化が各所で話題に',
-      'ライバルチームGMが「今季は優勝候補筆頭」と自信のコメント',
-    ]
-    candidates.push({
-      id: uid(), raceIndex, type: 'rival_provocation',
-      title: pickRandom(taunts),
-      body: 'ライバルチームの強化ぶりが注目されています。選手への影響が出る前に手を打ちますか？',
-      choices: [
-        { label: '強烈な返答を出す', desc: 'チーム士気+15。GM評判+3。ライバル意識が高まる。' },
-        { label: '冷静に結果で示すと語る', desc: 'GM評判+4。品格を保つ。' },
-        { label: '無視する', desc: '何も変化なし。選手は独自に燃え上がるかも。' },
-      ],
-      resolved: false,
-    })
-  }
-
   // CPU team tries to poach your young prospect
   const youngStars = mainPlayers.filter(p => p.age <= 25 && ovr(p) >= 70 && !recentPlayerIds.has(p.id))
   if (youngStars.length > 0 && !recentTypes.has('ai_poaching') && Math.random() < 0.25) {
@@ -271,22 +204,6 @@ export function generateRaceEvents(params: {
         { label: '即座に契約延長を提示する', desc: '予算-300万。士気+20。確実に引き留め。' },
         { label: '「移籍は考えていない」と一蹴する', desc: '士気+5。交渉はしないが意思を示す。' },
         { label: '様子を見る', desc: '放置すると士気低下と移籍志向が高まるリスク。' },
-      ],
-      resolved: false,
-    })
-  }
-
-  // Team chemistry moment
-  const avgMorale = mainPlayers.length > 0 ? mainPlayers.reduce((s, p) => s + p.morale, 0) / mainPlayers.length : 60
-  if (avgMorale >= 72 && !recentTypes.has('team_chemistry') && Math.random() < 0.35) {
-    candidates.push({
-      id: uid(), raceIndex, type: 'team_chemistry',
-      title: 'チームの絆が最高潮に',
-      body: '選手たちの連帯感が高まっており、練習での動きも活き活きしています。このタイミングで何か仕掛けますか？',
-      choices: [
-        { label: 'チームミーティングで士気を高める', desc: '全員士気+10・疲労+3。集中力UP。' },
-        { label: '特別合宿を組む', desc: '予算-200万。全員士気+20・疲労+8。' },
-        { label: '自然の流れに任せる', desc: 'そのままキープ。費用なし。' },
       ],
       resolved: false,
     })

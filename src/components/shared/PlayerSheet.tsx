@@ -117,6 +117,8 @@ export default function PlayerSheet() {
     openPlayerId, openPlayerSheet, players, teams,
     currentSeason, pastSeasons, playerTeamId,
   } = useGameStore()
+  const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
+  const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const [page, setPage] = useState(1)
   const [pageAnim, setPageAnim] = useState('')
   const [pageKey, setPageKey] = useState(0)
@@ -269,7 +271,19 @@ export default function PlayerSheet() {
               ))
             )}
           </div>
-          <div style={{ width: '52px' }} />
+          {!isMyPlayer && page !== 4 ? (
+            <button
+              onClick={() => toggleStarOpponent(player.id)}
+              title="ウォッチリスト"
+              style={{ width: '52px', display: 'flex', justifyContent: 'flex-end', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill={starredOpponents.includes(player.id) ? '#F5C842' : 'none'} stroke={starredOpponents.includes(player.id) ? '#F5C842' : '#5C5870'} strokeWidth="1.8">
+                <path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17.8 5.9 20.4l1.5-6.8L2.2 9l6.9-.7z" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          ) : (
+            <div style={{ width: '52px' }} />
+          )}
         </div>
 
         {/* Header */}

@@ -433,6 +433,7 @@ export type Team = {
     pickNumber: number
     originallyOwnedBy: string
   }[]
+  initialRank: number
   isPlayerControlled: boolean
   gmName: string
   sponsors?: string[]            // Sponsor IDs

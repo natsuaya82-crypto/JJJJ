@@ -58,8 +58,8 @@ export default function BudgetPage() {
 
   const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
-  const PRIZE_TABLE = [300, 180, 120, 80, 80, 40, 40, 40, 40, 40]
-  const prizePerRace = (PRIZE_TABLE[Math.min(myRank - 1, PRIZE_TABLE.length - 1)] ?? 20) * 10000
+  const PRIZE_TABLE = [2000, 1500, 1000, 700, 500, 300, 300, 300]
+  const prizePerRace = (PRIZE_TABLE[Math.min(myRank - 1, PRIZE_TABLE.length - 1)] ?? 200) * 10000
   const racesLeft = Math.max(0, (currentSeason.races?.length ?? 10) - currentSeason.currentRaceIndex)
   const racesTotal = currentSeason.races?.length ?? 10
 

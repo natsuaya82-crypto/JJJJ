@@ -722,7 +722,7 @@ const AI_SECOND_POOL_WEAK: Rank[] = [
 ]
 
 export function generateCpuRosters(
-  teams: { id: string }[],
+  teams: { id: string; initialRank?: number }[],
   year: number,
 ): { cpuPlayers: Player[]; teamRosters: Record<string, { main: string[]; second: string[] }> } {
   const cpuPlayers: Player[] = []
@@ -732,12 +732,11 @@ export function generateCpuRosters(
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
   let cpuIdCounter = 5000
 
-  const teamsCopy = [...teams]
-  const shuffled = teamsCopy.sort(() => Math.random() - 0.5)
   const tierMap = new Map<string, 'elite' | 'mid' | 'weak'>()
-  shuffled.slice(0, 5).forEach(t => tierMap.set(t.id, 'elite'))
-  shuffled.slice(5, 15).forEach(t => tierMap.set(t.id, 'mid'))
-  shuffled.slice(15).forEach(t => tierMap.set(t.id, 'weak'))
+  for (const t of teams) {
+    const rank = t.initialRank ?? 10
+    tierMap.set(t.id, rank <= 6 ? 'elite' : rank <= 14 ? 'mid' : 'weak')
+  }
 
   function makePlayer(
     baseRank: Rank, i: number, teamId: string, tier: 'main' | 'second',
@@ -808,57 +807,70 @@ export function generateCpuRosters(
     const mainPool = teamTier === 'elite' ? AI_GRADE_POOL_ELITE : teamTier === 'weak' ? AI_GRADE_POOL_WEAK : AI_GRADE_POOL_MID
     const secondPool = teamTier === 'elite' ? AI_SECOND_POOL_ELITE : teamTier === 'weak' ? AI_SECOND_POOL_WEAK : AI_SECOND_POOL_MID
 
-    const mainIds: string[] = []   // 1軍契約(standard) 18
-    const dualIds: string[] = []   // 2way(dual) 5（1軍/2軍共通）
-    const secondIds: string[] = [] // 2軍契約(development) 15
+    const mainIds: string[] = []   // 本契約(standard) 12
+    const dualIds: string[] = []   // 2WAY(dual) 3（1軍/2軍共通）
+    const secondIds: string[] = [] // 育成(development) 15
 
     const mainGrades = [...mainPool].sort(() => Math.random() - 0.5)
     const secondGrades = [...secondPool].sort(() => Math.random() - 0.5)
 
-    // 1軍契約(standard) 18人 — 外国人は3人まで
+    // 本契約(standard) 12人 — 外国人は2人まで
     let teamForeignCount = 0
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 12; i++) {
       const grade = mainGrades[i % mainGrades.length]
-      const canBeForeign = teamForeignCount < 3
-      const isForeign = canBeForeign && (i < 2 ? Math.random() < 0.55 : Math.random() < 0.08)
+      const canBeForeign = teamForeignCount < 2
+      const isForeign = canBeForeign && (i < 1 ? Math.random() < 0.55 : Math.random() < 0.08)
       if (isForeign) teamForeignCount++
       const p = makePlayer(grade, i, team.id, 'main', isForeign, 'standard')
       cpuPlayers.push(p); mainIds.push(p.id)
     }
-    // 2way(dual) 5人 — 1軍側で保持し2軍にも登録（国内）
-    for (let i = 0; i < 5; i++) {
+    // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）
+    for (let i = 0; i < 3; i++) {
       const grade = secondGrades[i % secondGrades.length]
-      const p = makePlayer(grade, 18 + i, team.id, 'main', false, 'dual')
+      const p = makePlayer(grade, 12 + i, team.id, 'main', false, 'dual')
       cpuPlayers.push(p); dualIds.push(p.id)
     }
-    // 2軍契約(development) 15人（国内）
+    // 育成(development) 15人（国内）
     for (let i = 0; i < 15; i++) {
-      const grade = secondGrades[(i + 5) % secondGrades.length]
+      const grade = secondGrades[(i + 3) % secondGrades.length]
       const p = makePlayer(grade, i, team.id, 'second', false, 'development')
       cpuPlayers.push(p); secondIds.push(p.id)
     }
 
-    // 2way は1軍・2軍の両方に登録
+    // 2WAY は1軍・2軍の両方に登録
     teamRosters[team.id] = { main: [...mainIds, ...dualIds], second: [...secondIds, ...dualIds] }
   }
 
   return { cpuPlayers, teamRosters }
 }
 
-export function generatePlayerSecondTeam(year: number): Player[] {
-  const POOL: Rank[] = ['A','A','A','A', 'B','B','B','B','B', 'C','C','C','C']
+// プレイヤーチームの初期30人生成（20位相当・最弱スタート固定）
+// 本契約12 + 2WAY3 + 育成15 = 30人、目標年俸合計約2.8億
+export function generatePlayerInitialRoster(year: number): {
+  players: Player[]
+  mainIds: string[]
+  dualIds: string[]
+  secondIds: string[]
+} {
+  const MAIN_POOL: Rank[]   = ['A', 'B','B','B','B','B','B','B','B', 'C','C','C']   // 12人
+  const DUAL_POOL: Rank[]   = ['B', 'C', 'C']                                        // 3人
+  const SECOND_POOL: Rank[] = ['C','C','C','C','C','C','C','C', 'D','D','D','D','D','D','D'] // 15人
+
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
   const usedNames = new Set<string>()
   const players: Player[] = []
+  const mainIds: string[] = []
+  const dualIds: string[] = []
+  const secondIds: string[] = []
 
-  ;[...POOL].sort(() => Math.random() - 0.5).forEach((rank, i) => {
+  function makePRPlayer(rank: Rank, tier: 'main' | 'second', contractType: 'standard' | 'dual' | 'development'): Player {
     idCounter++
     const specialty = specialties[rng(0, specialties.length - 1)]
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
     const ratings = generateRatings(rank, specialty)
     const { potential } = rankToBaseRange(rank, growthCurve)
-    const age = rng(19, 24)
+    const age = tier === 'main' ? rng(20, 28) : rng(18, 24)
     const yearsPro = Math.max(0, age - 22)
     const origin = Math.random() < 0.6
       ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
@@ -869,30 +881,42 @@ export function generatePlayerSecondTeam(year: number): Player[] {
       attempts++
     } while (usedNames.has(name) && attempts < 60)
     usedNames.add(name)
-
-    players.push({
-      id: `base2-${year}-${idCounter}`,
+    return {
+      id: `pr-${contractType}-${year}-${idCounter}`,
       name, nameKana: '', age, yearsPro,
       draftYear: year - yearsPro, draftRound: null, draftPick: null,
       ratings, specialty,
       potential: Math.min(90, rng(potential[0], potential[1])),
       growthCurve,
-      teamId: '', rosterTier: 'second',
+      teamId: '', rosterTier: tier,
       contract: {
-        yearsLeft: rng(2, 3),
+        yearsLeft: rng(2, 4),
         annualSalary: calculateRookieSalary(rank),
-        faEligibleYear: year + rng(2, 4),
-        contractType: 'development',
+        faEligibleYear: year + rng(2, 5),
+        contractType,
       },
       nationality: 'JPN', origin,
       status: 'active', fatigue: 0, morale: rng(70, 90), form: 0,
       career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
       traits: assignTraits(rank, specialty, age),
       personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
-    })
-  })
+    }
+  }
 
-  return players
+  for (const rank of [...MAIN_POOL].sort(() => Math.random() - 0.5)) {
+    const p = makePRPlayer(rank, 'main', 'standard')
+    players.push(p); mainIds.push(p.id)
+  }
+  for (const rank of [...DUAL_POOL].sort(() => Math.random() - 0.5)) {
+    const p = makePRPlayer(rank, 'main', 'dual')
+    players.push(p); dualIds.push(p.id)
+  }
+  for (const rank of [...SECOND_POOL].sort(() => Math.random() - 0.5)) {
+    const p = makePRPlayer(rank, 'second', 'development')
+    players.push(p); secondIds.push(p.id)
+  }
+
+  return { players, mainIds, dualIds, secondIds }
 }
 
 // CPUチームの2軍を補充するための若手選手を生成する（teamId付き）。

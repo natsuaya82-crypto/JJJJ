@@ -53,6 +53,12 @@ type ChatMessage = { from: 'player' | 'gm'; text: string }
 
 const COMPLAINT_EVENT_TYPES = ['player_morale_low', 'player_fatigue', 'playing_time_demand', 'ai_poaching'] as const
 
+// チャットで決着させる選手イベント（移籍希望・引退・契約更新要求は専用フローがあるので除く）
+const CHAT_EVENT_EXCLUDE = ['transfer_request', 'player_retirement', 'player_wants_renewal'] as const
+function isChatEvent(e: GameEvent): boolean {
+  return !e.resolved && !!e.playerId && (e.choices?.length ?? 0) > 0 && !(CHAT_EVENT_EXCLUDE as readonly string[]).includes(e.type)
+}
+
 function buildMessages(
   player: ReturnType<typeof useGameStore.getState>['players'][0],
   contractReq: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['contractRequests']>[0] | undefined,
@@ -66,7 +72,7 @@ function buildMessages(
 
   if (events) {
     events
-      .filter(e => e.playerId === player.id && !e.resolved && (COMPLAINT_EVENT_TYPES as readonly string[]).includes(e.type))
+      .filter(e => e.playerId === player.id && isChatEvent(e))
       .forEach(e => msgs.push({ from: 'player', text: e.body }))
   }
 
@@ -162,8 +168,11 @@ function ChatView({
     dismissTransferRequest, allowPlayerTransfer,
     generateContractRequests,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
-    openPlayerSheet,
+    openPlayerSheet, resolveEvent,
   } = useGameStore()
+
+  // この選手のチャットで決着させる選手イベント（疲労・モラール・出場機会・マイルストーン等）
+  const chatEvent = (currentSeason.events ?? []).find(e => e.playerId === player.id && isChatEvent(e))
 
   const totalRaces = currentSeason.races.length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
@@ -280,6 +289,13 @@ function ChatView({
     if (justAcquired) return [
       { label: '閉じる', color: C.green, action: onClose },
     ]
+
+    // 選手イベント：選択肢を会話内ボタンで決着（resolveEvent）
+    if (chatEvent) return chatEvent.choices.map((c, idx) => ({
+      label: c.desc ? `${c.label}（${c.desc}）` : c.label,
+      color: idx === 0 ? C.blue : idx === chatEvent.choices.length - 1 ? C.textSub : C.gold,
+      action: () => { append({ from: 'gm', text: c.label }); resolveEvent(chatEvent.id, idx) },
+    }))
 
     // 獲得オファー交渉モード
     if (isAcq && acqOffer) {
@@ -776,9 +792,9 @@ function getPlayerStatus(
 ) {
   const hasRetirement = (retirementRequests ?? []).some(r => r.playerId === player.id)
   const hasTransfer = (transferRequests ?? []).some(r => r.playerId === player.id)
-  const hasComplaint = (events ?? []).some(e =>
-    e.playerId === player.id && !e.resolved && (COMPLAINT_EVENT_TYPES as readonly string[]).includes(e.type)
-  )
+  const chatEvt = (events ?? []).find(e => e.playerId === player.id && isChatEvent(e))
+  const hasComplaint = !!chatEvt && (COMPLAINT_EVENT_TYPES as readonly string[]).includes(chatEvt.type)
+  const hasOtherEvent = !!chatEvt && !hasComplaint
   const activeReq = (contractRequests ?? []).find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected')
 
   if (hasRetirement) return { label: '引退希望', color: C.textSub, priority: 0 }
@@ -792,6 +808,7 @@ function getPlayerStatus(
   if (activeReq?.initiatedBy === 'gm' && activeReq.status === 'pending_gm') return { label: '対応中', color: C.gold, priority: 2 }
   if (months < 12 || activeReq?.status === 'pending_gm') return { label: '要対応', color: C.red, priority: 3 }
   if (hasComplaint) return { label: '不満あり', color: C.orange, priority: 4 }
+  if (hasOtherEvent) return { label: '連絡あり', color: C.blue, priority: 4 }
   return null
 }
 

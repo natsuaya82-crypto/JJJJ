@@ -12,6 +12,7 @@ import KeyPlayersSection from './KeyPlayersSection'
 import NextRaceCard from './NextRaceCard'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Race } from '../../types'
+import { getDueIndividualEvent } from '../../utils/eventTime'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -291,6 +292,9 @@ export default function Dashboard() {
     ...(nextReserveRace ? [{ race: nextReserveRace, kind: 'reserve' as const, number: stIdx + 1, total: (currentSeason.secondTeamRaces ?? []).length }] : []),
   ]
   const nextRaceData = nextRaceCandidates.sort((a, b) => a.race.date.localeCompare(b.race.date))[0] ?? null
+  // カレンダー進行: 次のリーグ戦より前に未実施の記録会があればNEXTはそちら
+  const dueTT = getDueIndividualEvent(currentSeason)
+  const showTTNext = !!dueTT && (!nextRaceData || nextRaceData.kind !== 'reserve' || dueTT.date <= nextRaceData.race.date)
   const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
   const sorted = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sorted.findIndex(s => s.teamId === playerTeamId) + 1
@@ -469,7 +473,24 @@ export default function Dashboard() {
       ) : (
         /* 通常シーズン */
         <div style={{ padding: '0 12px 16px' }}>
-          {nextRaceData ? (
+          {showTTNext && dueTT ? (
+            <button onClick={() => navigate('/race')} style={{
+              width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+              padding: '14px 16px', borderRadius: 14,
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `1.5px dashed ${alpha('#5EC8B8', 0.55)}`,
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '1px', color: '#5EC8B8', padding: '1px 7px', borderRadius: 6, backgroundColor: alpha('#5EC8B8', 0.14), border: `1px solid ${alpha('#5EC8B8', 0.3)}`, fontFamily: SAIRA }}>NEXT 記録会</span>
+                <div style={{ fontSize: 15, fontWeight: 900, color: C.text, margin: '5px 0 2px' }}>{dueTT.name}</div>
+                <div style={{ fontSize: 10, color: C.textDim }}>{dueTT.date.replace(/-/g, '/')}</div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: '#5EC8B8', flexShrink: 0 }}>
+                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+          ) : nextRaceData ? (
             <NextRaceCard
               race={nextRaceData.race}
               raceNumber={nextRaceData.number}

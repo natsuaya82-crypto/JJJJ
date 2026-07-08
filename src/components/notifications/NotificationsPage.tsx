@@ -288,7 +288,7 @@ function OfferChatView({
 
 export default function NotificationsPage() {
   const navigate = useNavigate()
-  const { teams, players, currentSeason, playerTeamId, resolveEvent, lastLoginDate } = useGameStore()
+  const { teams, players, currentSeason, playerTeamId, lastLoginDate } = useGameStore()
   const acceptFeeCounter = useGameStore(s => s.acceptFeeCounter)
   const rejectTransferBid = useGameStore(s => s.rejectTransferBid)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
@@ -302,15 +302,11 @@ export default function NotificationsPage() {
   const [offerMessageCache, setOfferMessageCache] = useState<Record<string, OfferChatMsg[]>>({})
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
-  const SKIP_EVENT_TYPES = [
-    'player_form_up', 'young_breakout', 'team_chemistry', 'player_milestone', 'budget_boost',
-    'transfer_request', 'player_wants_renewal',
-  ]
-  const pendingEvents = (currentSeason.events ?? []).filter(e => !e.resolved && !SKIP_EVENT_TYPES.includes(e.type))
   const incomingOffers = currentSeason.incomingOffers ?? []
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
+  const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted')
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
   const sponsorOffers = currentSeason.sponsorOffers ?? []
 
@@ -337,8 +333,8 @@ export default function NotificationsPage() {
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
-  const total = pendingEvents.length + incomingOffers.length
-    + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
+  const total = incomingOffers.length
+    + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + (renewalNeeded > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers.length > 0 ? 1 : 0)
@@ -572,9 +568,39 @@ export default function NotificationsPage() {
             </section>
           )}
 
+          {/* 費用合意（移籍金OK→選手と契約交渉へ） */}
+          {feeAcceptedBids.length > 0 && (
+            <section style={{ marginTop: (retirementRequests.length > 0 || transferReqs.length > 0 || counteredBids.length > 0) ? '20px' : 0 }}>
+              <SectionHead label="費用合意" color={C.green} count={feeAcceptedBids.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {feeAcceptedBids.map(bid => {
+                  const p = players.find(pl => pl.id === bid.playerId)
+                  const targetTeam = teams.find(t => t.id === bid.targetTeamId)
+                  if (!p) return null
+                  return (
+                    <div key={bid.id} style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                          <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.green} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.green, fontWeight: '700', marginTop: '2px' }}>{targetTeam?.name ?? '?'} が移籍金 {fmtYen(bid.offeredFee)} に合意</div>
+                          </div>
+                        </div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '12px' }}>次は選手本人と年俸・役割を交渉します。</div>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate(`/transfer/negotiate/transfer/${bid.id}`)}>選手と契約交渉へ</Btn>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
           {/* 契約交渉 */}
           {pendingContracts.length > 0 && (
-            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + counteredBids.length) > 0 ? '20px' : 0 }}>
+            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length) > 0 ? '20px' : 0 }}>
               <SectionHead label="契約交渉" color={C.gold} count={pendingContracts.length}/>
               <div style={{ padding: '0 16px' }}>
                 <div style={cardStyle(alpha(C.gold, 0.45), '#5a3500')}>
@@ -649,103 +675,6 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 選手イベント */}
-          {pendingEvents.length > 0 && (
-            <section style={{ marginTop: (incomingOffers.length + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length) > 0 ? '20px' : 0 }}>
-              <SectionHead label="選手イベント" color={C.blue} count={pendingEvents.length}/>
-              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {pendingEvents.map(event => {
-                  const eventPlayer = event.playerId ? players.find(p => p.id === event.playerId) : null
-                  const pOvr = eventPlayer ? ovr(eventPlayer) : null
-
-                  const isDanger = ['player_fatigue','transfer_request','budget_crisis','board_warning','player_morale_low'].includes(event.type)
-                  const isGood   = ['player_form_up','young_breakout','team_chemistry','player_milestone','veteran_ambition','sponsor_offer','budget_boost'].includes(event.type)
-                  const borderCol = isDanger ? C.red : isGood ? C.green : C.gold
-                  const shadowCol = isDanger ? '#660e10' : isGood ? '#0d3d22' : '#5a3500'
-
-                  const showFatigue  = event.type === 'player_fatigue' && eventPlayer
-                  const showMorale   = ['player_morale_low','transfer_request','playing_time_demand','ai_poaching'].includes(event.type) && eventPlayer
-                  const showContract = ['player_wants_renewal','transfer_request'].includes(event.type) && eventPlayer
-
-                  const fatigue   = eventPlayer?.fatigue ?? 0
-                  const morale    = eventPlayer?.morale ?? 0
-                  const fatigueCol = fatigue >= 80 ? C.red : fatigue >= 60 ? C.orange : C.green
-                  const moraleCol  = morale <= 30 ? C.red : morale <= 50 ? C.orange : C.green
-
-                  return (
-                    <div key={event.id} style={cardStyle(alpha(borderCol, 0.5), shadowCol)}>
-                      <div style={inset}/>
-                      <div style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                          {eventPlayer && pOvr !== null ? (
-                            <FaceOvr playerId={eventPlayer.id} nationality={eventPlayer.nationality} pOvr={pOvr} accentColor={borderCol} />
-                          ) : null}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '800', color: C.text, marginBottom: '1px' }}>{event.title}</div>
-                            {eventPlayer && (
-                              <div style={{ fontFamily: SAIRA, fontSize: '11px', color: borderCol, fontWeight: '700' }}>{eventPlayer.name} · {eventPlayer.age}歳</div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, lineHeight: 1.65, marginBottom: '10px' }}>{event.body}</div>
-
-                        {(showFatigue || showMorale || showContract) && (
-                          <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {showFatigue && (
-                              <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                                  <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>疲労</span>
-                                  <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '800', color: fatigueCol }}>{fatigue}/100{fatigue >= 80 ? ' — 危険域' : fatigue >= 60 ? ' — 要注意' : ''}</span>
-                                </div>
-                                <div style={{ height: '5px', backgroundColor: C.border, borderRadius: '3px' }}>
-                                  <div style={{ height: '100%', width: `${fatigue}%`, backgroundColor: fatigueCol, borderRadius: '3px', transition: 'width 0.3s' }}/>
-                                </div>
-                              </div>
-                            )}
-                            {showMorale && (
-                              <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                                  <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>モラール</span>
-                                  <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '800', color: moraleCol }}>{morale}/100{morale <= 30 ? ' — 限界' : morale <= 50 ? ' — 不満' : ''}</span>
-                                </div>
-                                <div style={{ height: '5px', backgroundColor: C.border, borderRadius: '3px' }}>
-                                  <div style={{ height: '100%', width: `${morale}%`, backgroundColor: moraleCol, borderRadius: '3px', transition: 'width 0.3s' }}/>
-                                </div>
-                              </div>
-                            )}
-                            {showContract && eventPlayer && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>契約残</span>
-                                <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '800', color: (eventPlayer.contract.yearsLeft ?? 1) <= 1 ? C.red : C.gold }}>{eventPlayer.contract.yearsLeft}年</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {event.choices.map((choice, idx) => {
-                            const isRisky = choice.desc.includes('リスク') || choice.desc.includes('故障') || choice.label.includes('無視')
-                            const isNeg   = !isRisky && (choice.desc.includes('-') && !choice.desc.includes('+'))
-                            const isPos   = !isRisky && !isNeg && choice.desc.includes('+')
-                            const btnCol  = isRisky ? C.red : isNeg ? C.orange : isPos ? C.green : borderCol
-                            const btnBg   = isRisky ? alpha(C.red, 0.08) : isNeg ? alpha(C.orange, 0.06) : isPos ? alpha(C.green, 0.07) : alpha(borderCol, 0.07)
-                            const btnBorder = isRisky ? alpha(C.red, 0.35) : isNeg ? alpha(C.orange, 0.3) : isPos ? alpha(C.green, 0.3) : alpha(borderCol, 0.35)
-                            return (
-                              <button key={idx} onClick={() => resolveEvent(event.id, idx)} className="btn-press" style={{ width: '100%', padding: '10px 12px', borderRadius: '11px', cursor: 'pointer', background: btnBg, border: `1.5px solid ${btnBorder}`, textAlign: 'left', fontFamily: SAIRA, marginBottom: idx === event.choices.length - 1 ? 4 : 0 }}>
-                                <div style={{ fontSize: '12px', fontWeight: '800', color: btnCol, marginBottom: '2px' }}>{choice.label}</div>
-                                <div style={{ fontSize: '10px', color: C.textSub, lineHeight: 1.4 }}>{choice.desc}</div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
         </div>
       )}
 

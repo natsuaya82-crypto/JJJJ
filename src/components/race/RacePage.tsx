@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { runWithLoading } from '../../store/loadingStore'
-import type { RaceResults } from '../../types'
+import type { RaceResults, IndividualEvent, Player, Team } from '../../types'
+import BackButton from '../ui/BackButton'
+import PlayerFace from '../player/PlayerFace'
 import { LineupPhase } from './LineupPhase'
 import { SimPhase } from './SimPhase'
 import { ResultsPhase } from './ResultsPhase'
 import { buildAILineup } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
+import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
+import { C, alpha } from '../../styles/tokens'
 import {
   calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
   generateSegmentEvents, resolveChoice, finalizeSegment,
@@ -16,6 +20,102 @@ import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 type Phase = 'lineup' | 'simulating' | 'results'
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
+
+const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const TT_COLOR = '#5EC8B8'
+const TT_DIST_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
+
+// 記録会画面: 未実施なら開催ボタン、実施済みなら結果を表示して次へ進む
+function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onDone }: {
+  event: IndividualEvent
+  players: Player[]
+  teams: Team[]
+  playerTeamId: string
+  onRun: () => void
+  onDone: () => void
+}) {
+  const done = !!event.results
+  const bestKey = event.distance === 5000 ? 'd5000' as const
+    : event.distance === 10000 ? 'd10000' as const
+    : event.distance === 21097 ? 'half' as const : 'marathon' as const
+  const teamShort = (id: string) => teams.find(t => t.id === id)?.shortName ?? ''
+  const playerName = (id: string) => players.find(p => p.id === id)?.name ?? ''
+  const top3 = (event.results ?? []).slice(0, 3)
+  const myResults = (event.results ?? []).filter(r => r.teamId === playerTeamId)
+
+  return (
+    <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 100, background: C.bg, minHeight: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
+        <BackButton />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px', borderRadius: 6, backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
+          <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginTop: 3 }}>{event.name}</div>
+          <div style={{ fontSize: 10, color: C.textDim }}>{event.date.replace(/-/g, '/')} · {TT_DIST_LABEL[event.distance]}</div>
+        </div>
+      </div>
+
+      {!done ? (
+        <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ borderRadius: 14, padding: '14px 16px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px dashed ${alpha(TT_COLOR, 0.5)}` }}>
+            <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8 }}>
+              全クラブの現役選手が{TT_DIST_LABEL[event.distance]}のタイムトライアルに出場します（故障中の選手を除く）。
+              その日の調子・疲労がタイムに影響し、走ったタイムは種目別の自己ベストに記録されます。
+              3位以内に入ると士気と調子が上がります。
+            </div>
+          </div>
+          <button onClick={onRun}
+            style={{ width: '100%', padding: 15, borderRadius: 12, border: 'none', background: TT_COLOR, color: '#062b26', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>
+            記録会を開催する
+          </button>
+        </div>
+      ) : (
+        <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {top3.map(r => (
+                <div key={r.playerId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${r.rank === 1 ? alpha(C.gold, 0.5) : C.border}` }}>
+                  <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: r.rank === 1 ? C.gold : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
+                  <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+                    <PlayerFace playerId={r.playerId} nationality={players.find(p => p.id === r.playerId)?.nationality ?? 'JPN'} size={30} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
+                    <div style={{ fontSize: 9, color: C.textDim }}>{teamShort(r.teamId)}</div>
+                  </div>
+                  <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: r.rank === 1 ? C.gold : C.text }}>{formatRaceTime(r.timeSec)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', marginBottom: 6 }}>自チームの結果</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {myResults.map(r => {
+                const p = players.find(pl => pl.id === r.playerId)
+                const isPB = p?.eventBests?.[bestKey]?.timeSec === r.timeSec
+                return (
+                  <div key={r.playerId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 9, background: C.surface2, border: `1px solid ${C.border}` }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, width: 30, flexShrink: 0 }}>{r.rank}位</span>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
+                    {isPB && <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span>}
+                    <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub, flexShrink: 0 }}>{formatRaceTime(r.timeSec)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <button onClick={onDone}
+            style={{ width: '100%', padding: 15, borderRadius: 12, border: 'none', background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>
+            次へ
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // 最終順位を構築：全区間を走り切ったチームを上位（タイム昇順）、未完走チーム（人員不足で欠員）を下位に。
 // simulateRace と同じ方針で、累積タイム0の欠員チームが不当に1位になるのを防ぐ。
@@ -47,6 +147,7 @@ export default function RacePage() {
     raceStrategy, setRaceStrategy,
     raceTeamTalk, setRaceTeamTalk,
     setActiveRacePhase, setActiveRaceLocked,
+    simulateIndividualEvent,
   } = useGameStore()
 
   const [phase, setPhaseLocal] = useState<Phase>('lineup')
@@ -55,6 +156,7 @@ export default function RacePage() {
   const [lockedRace, setLockedRace] = useState<import('../../types').Race | null>(null)
   const [lockedRaceIndex, setLockedRaceIndex] = useState<number>(0)
   const [iSim, setISim] = useState<ISim | null>(null)
+  const [ttViewId, setTtViewId] = useState<string | null>(null)
 
   const setPhase = (p: Phase) => {
     setPhaseLocal(p)
@@ -465,6 +567,23 @@ export default function RacePage() {
   const lowStaminaHint = iSim && iSim.initialSegStamina > 0
     ? iSim.segStamina / iSim.initialSegStamina < 0.6
     : false
+
+  // カレンダー進行: 次のリーグ戦より前の日付に未実施の記録会があれば、先にそれを消化する
+  if (phase === 'lineup') {
+    const ttEvent = ttViewId
+      ? (currentSeason.individualEvents ?? []).find(e => e.id === ttViewId) ?? null
+      : getDueIndividualEvent(currentSeason)
+    if (ttEvent) return (
+      <IndividualEventScreen
+        event={ttEvent as NonNullable<typeof currentSeason.individualEvents>[0]}
+        players={players}
+        teams={teams}
+        playerTeamId={playerTeamId}
+        onRun={() => { simulateIndividualEvent(ttEvent.id); setTtViewId(ttEvent.id) }}
+        onDone={() => setTtViewId(null)}
+      />
+    )
+  }
 
   if (phase === 'lineup') return (
     <LineupPhase

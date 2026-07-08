@@ -6,12 +6,12 @@ import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
-import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerSecondTeam } from '../engine/playerGenerator'
+import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup } from '../engine/raceEngine'
-import { generateRaceEvents, generatePressConference } from '../engine/eventEngine'
+import { generateRaceEvents } from '../engine/eventEngine'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant } from '../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET } from '../data/economy'
 import { tierForContract, canSignContract } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -518,13 +518,20 @@ function checkSeasonAchievements(params: {
   return newAchievements
 }
 
-function selectSeasonObjectives(hasRival: boolean) {
+// シーズン目標。チーム目標＝順位で、前年順位からスケール（初年度は緩め、強くなるほど厳しく）。
+function selectSeasonObjectives(hasRival: boolean, teamsLen: number, prevRank?: number) {
   type ObjTemplate = { id: string; desc: string; target: number; rewardJewels: number }
+  // 順位目標：初年度はリーグ中位あたりの緩い目標。以降は前年順位から1つ上を狙う（優勝後は優勝維持）。
+  const targetRank = prevRank == null
+    ? Math.max(6, Math.round(teamsLen * 0.6))
+    : Math.max(1, prevRank - 1)
+  const rankObj: ObjTemplate = {
+    id: 'topN',
+    desc: targetRank <= 1 ? '総合優勝' : `トップ${targetRank}フィニッシュ`,
+    target: targetRank,
+    rewardJewels: targetRank <= 1 ? 150 : targetRank <= 3 ? 80 : targetRank <= 5 ? 50 : 30,
+  }
   const pool: ObjTemplate[] = [
-    { id: 'topN', desc: '総合優勝', target: 1, rewardJewels: 150 },
-    { id: 'topN', desc: 'トップ3フィニッシュ', target: 3, rewardJewels: 80 },
-    { id: 'topN', desc: 'トップ5フィニッシュ', target: 5, rewardJewels: 50 },
-    { id: 'topN', desc: 'トップ8フィニッシュ', target: 8, rewardJewels: 30 },
     { id: 'segWins', desc: '区間賞1回獲得', target: 1, rewardJewels: 20 },
     { id: 'segWins', desc: '区間賞3回獲得', target: 3, rewardJewels: 50 },
     { id: 'segWins', desc: '区間賞5回獲得', target: 5, rewardJewels: 80 },
@@ -542,8 +549,8 @@ function selectSeasonObjectives(hasRival: boolean) {
     )
   }
   const shuffled = [...pool].sort(() => Math.random() - 0.5)
-  const selected: ObjTemplate[] = []
-  const usedIds = new Set<string>()
+  const selected: ObjTemplate[] = [rankObj]   // 順位目標は常に含める
+  const usedIds = new Set<string>(['topN'])
   for (const o of shuffled) {
     if (!usedIds.has(o.id) && selected.length < 5) {
       selected.push(o)
@@ -605,18 +612,23 @@ export const useGameStore = create<GameStore>()(
           isComplete: false,
         }
 
-        // Pre-populate AI team rosters (main + second) and player team second
+        // Pre-populate AI team rosters (main + second) and player team initial roster
         const { cpuPlayers, teamRosters } = generateCpuRosters(
           state.teams.filter(t => t.id !== state.playerTeamId),
           state.currentSeason.year,
         )
-        const playerSecondPlayers = generatePlayerSecondTeam(state.currentSeason.year)
-        const playerSecondIds = playerSecondPlayers.map(p => p.id)
-        const playerSecondWithTeam = playerSecondPlayers.map(p => ({ ...p, teamId: state.playerTeamId }))
+        const { players: prPlayers, mainIds: prMainIds, dualIds: prDualIds, secondIds: prSecondIds } =
+          generatePlayerInitialRoster(state.currentSeason.year)
+        const prPlayersWithTeam = prPlayers.map(p => ({ ...p, teamId: state.playerTeamId }))
+        const prSalaryTotal = prPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
 
         const teams = state.teams.map(t => {
           if (t.id === state.playerTeamId) {
-            return { ...t, roster: { ...t.roster, second: playerSecondIds } }
+            return {
+              ...t,
+              roster: { main: [...prMainIds, ...prDualIds], second: [...prSecondIds, ...prDualIds] },
+              finance: { ...t.finance, budget: 400_000_000, salaryTotal: prSalaryTotal },
+            }
           }
           const cpuRoster = teamRosters[t.id]
           if (!cpuRoster) return t
@@ -629,7 +641,11 @@ export const useGameStore = create<GameStore>()(
           state.currentSeason.year,
         )
 
-        const players = [...state.players, ...cpuPlayers, ...pool, ...foreignPlayers, ...playerSecondWithTeam]
+        // startSetup で teamId を付与した BASE_PLAYERS を除外し、prPlayersWithTeam に置き換える
+        const players = [
+          ...state.players.filter(p => p.teamId !== state.playerTeamId),
+          ...cpuPlayers, ...pool, ...foreignPlayers, ...prPlayersWithTeam,
+        ]
         set({ draftState, players, teams, foreignLeagues: updatedLeagues })
       },
 
@@ -1166,9 +1182,6 @@ export const useGameStore = create<GameStore>()(
             return p
           })
 
-          // GM rep delta per race
-          const raceRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? 10
-          const raceRepDelta = raceRank === 1 ? 2 : raceRank <= 3 ? 1 : raceRank >= state.teams.length - 2 ? -2 : 0
 
           // Scout missions countdown
           const updatedMissions = (state.currentSeason.scoutMissions ?? []).map(m => ({ ...m, racesLeft: m.racesLeft - 1 }))
@@ -1191,19 +1204,6 @@ export const useGameStore = create<GameStore>()(
             gmRep: state.gmRep ?? 50,
             teams: state.teams,
           })
-          const pressRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? 10
-          const pressSegWins = results.segmentResults.filter(sr => sr.runners[0]?.teamId === playerTeamId).length
-          const pressNotable = pressRank === 1 || pressRank >= state.teams.length - 1 || raceIndex + 1 >= state.currentSeason.races.length - 1
-          if (pressNotable && Math.random() < 0.5) {
-            const pressConf = generatePressConference({
-              playerTeamId,
-              raceIndex: raceIndex + 1,
-              teamRank: pressRank,
-              totalTeams: state.teams.length,
-              segWins: pressSegWins,
-            })
-            newEvents.unshift(pressConf)
-          }
           const existingTrades = (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.expiresAtRace > raceIndex + 1)
 
           // Accumulate race income (prizes + attendance) to carry over to next season's budget
@@ -1270,7 +1270,7 @@ export const useGameStore = create<GameStore>()(
           })
 
           const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? state.teams.length
-          const droppedCards = generateDropCards(finalPlayerRank, state.teams.length, mySegWinCount > 0)
+          const droppedCards = generateDropCards(finalPlayerRank, state.teams.length, mySegWinCount)
 
           const raceAchievements = checkRaceAchievements({
             playerRank: finalPlayerRank,
@@ -1423,7 +1423,7 @@ export const useGameStore = create<GameStore>()(
             raceDroppedCards: droppedCards,
             raceExpGains: raceExpGainsMap,
             achievements: [...(state.achievements ?? []), ...raceAchievements],
-            gmRep: Math.max(1, Math.min(100, (state.gmRep ?? 50) + raceRepDelta)),
+            gmRep: state.gmRep ?? 50,   // 評判はシーズン終了時の目標達成率でのみ変動
             segmentRecords: updatedSegmentRecords,
             currentSeason: {
               ...state.currentSeason,
@@ -1987,7 +1987,6 @@ export const useGameStore = create<GameStore>()(
           } else if (event.type === 'player_milestone' && pid) {
             if (choiceIndex === 0) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
-              gmRep = Math.min(100, gmRep + 2)
             } else {
               players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
             }
@@ -2027,13 +2026,12 @@ export const useGameStore = create<GameStore>()(
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 20000000) } } : t)
             } else {
-              // Accept retirement — mark player as retired, gmRep up
+              // Accept retirement — mark player as retired（評判は変えない：目標達成に一本化）
               const retPlayer = players.find(p => p.id === pid)
               if (retPlayer) {
                 const isLegend = retPlayer.career.segmentWins >= 5 || retPlayer.career.championships >= 1 || retPlayer.yearsPro >= 4
                 players = players.map(p => p.id === pid ? { ...p, status: 'retired' as const, teamId: '' } : p)
                 players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
-                gmRep = Math.min(100, gmRep + 3)
                 if (isLegend) {
                   teams = teams.map(t => {
                     if (t.id !== state.playerTeamId) return t
@@ -3296,7 +3294,7 @@ export const useGameStore = create<GameStore>()(
 
       startRegularSeason: () => set(state => {
         if (state.currentSeason.objectives.length === 0) {
-          const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId)
+          const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length)
           return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives } }
         }
         return { currentSeason: { ...state.currentSeason, phase: 'regular' } }
@@ -3305,7 +3303,7 @@ export const useGameStore = create<GameStore>()(
       initObjectivesIfEmpty: () => set(state => {
         const objs = state.currentSeason.objectives
         if (objs.length === 0) {
-          return { currentSeason: { ...state.currentSeason, objectives: selectSeasonObjectives(!!state.rivalTeamId) } }
+          return { currentSeason: { ...state.currentSeason, objectives: selectSeasonObjectives(!!state.rivalTeamId, state.teams.length) } }
         }
         const hasJewels = objs.some(o => (o.rewardJewels ?? 0) > 0)
         if (!hasJewels) {
@@ -3836,11 +3834,15 @@ export const useGameStore = create<GameStore>()(
             } : null
           }).filter(Boolean) as typeof faNews
 
-          // New season objectives (5 types, randomized)
-          const newObjectives = selectSeasonObjectives(!!state.rivalTeamId)
+          // 来季の目標：今季の最終順位を基準にスケール（順位が上がるほど翌年の目標も厳しく）
+          const newObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length, finalRank)
 
-          const seasonRep = finalRank === 1 ? 8 : finalRank <= 3 ? 3 : finalRank >= state.teams.length - 2 ? -8 : -2
-          const newGmRep = Math.max(1, Math.min(100, (state.gmRep ?? 50) + seasonRep + (objBonus > 0 ? 2 : 0)))
+          // GM評判＝今季の目標達成率で少しずつ変動（±5以内）
+          const objAchieved = completedObjs.filter(o => o.done).length
+          const objTotalCount = completedObjs.length || 1
+          const objAchieveRate = objAchieved / objTotalCount
+          const repDelta = objAchieveRate >= 1 ? 5 : objAchieveRate >= 0.6 ? 3 : objAchieveRate >= 0.4 ? 1 : objAchieveRate >= 0.2 ? -1 : -3
+          const newGmRep = Math.max(1, Math.min(100, (state.gmRep ?? 50) + repDelta))
 
           // ── BONUS CLAUSE PAYOUTS (item 16) ──
           const playerTeamRosterIds = teamsWithFA.find(t => t.id === state.playerTeamId)?.roster.main ?? []
@@ -4394,17 +4396,29 @@ export const useGameStore = create<GameStore>()(
 
           // Form/morale boost for top finishers from player team
           const playerTeamTop = ranked.filter(r => r.teamId === state.playerTeamId && r.rank <= 3)
+          // 種目別自己ベスト: 実際に走ったタイムでのみ更新（全選手）
+          const bestKey: 'd5000' | 'd10000' | 'half' | 'marathon' =
+            event.distance === 5000 ? 'd5000' : event.distance === 10000 ? 'd10000' : event.distance === 21097 ? 'half' : 'marathon'
+          const timeByPlayer = new Map(ranked.map(r => [r.playerId, r.timeSec]))
           const updatedPlayers = state.players.map(p => {
-            if (playerTeamTop.some(r => r.playerId === p.id)) {
-              return { ...p, morale: Math.min(100, (p.morale ?? 70) + 8), form: Math.min(2, (p.form ?? 0) + 1) }
+            const ran = timeByPlayer.get(p.id)
+            let next = p
+            if (ran != null) {
+              const prev = p.eventBests?.[bestKey]
+              if (!prev || ran < prev.timeSec) {
+                next = { ...next, eventBests: { ...next.eventBests, [bestKey]: { timeSec: ran, year: state.currentSeason.year } } }
+              }
             }
-            return p
+            if (playerTeamTop.some(r => r.playerId === p.id)) {
+              next = { ...next, morale: Math.min(100, (next.morale ?? 70) + 8), form: Math.min(2, (next.form ?? 0) + 1) }
+            }
+            return next
           })
 
           // News for player team finishers
           const myBest = ranked.find(r => r.teamId === state.playerTeamId)
           const myBestPlayer = myBest ? state.players.find(p => p.id === myBest.playerId) : null
-          const distLabel = event.distance === 5000 ? '5000m' : event.distance === 10000 ? '10000m' : 'ハーフ'
+          const distLabel = event.distance === 5000 ? '5000m' : event.distance === 10000 ? '10000m' : event.distance === 42195 ? 'マラソン' : 'ハーフ'
           const newsItem = myBestPlayer ? {
             date: event.date,
             headline: `${event.name}：${myBestPlayer.name}が${distLabel}で${myBest!.rank}位（${fmtTime(myBest!.timeSec)}）`,
@@ -4582,7 +4596,6 @@ export const useGameStore = create<GameStore>()(
           const japanFinalRank = finalStandings.find(s => s.country === 'JPN')?.finalRank ?? 15
           const japanTotalTime = races.reduce((s, r) => s + r.japanTime, 0)
 
-          const gmRepBoost = japanFinalRank === 1 ? 15 : japanFinalRank === 2 ? 10 : japanFinalRank === 3 ? 7 : japanFinalRank <= 6 ? 3 : japanFinalRank <= 10 ? 1 : 0
           const budgetBoost = japanFinalRank === 1 ? 20000000 : japanFinalRank === 2 ? 12000000 : japanFinalRank === 3 ? 8000000 : japanFinalRank <= 6 ? 3000000 : japanFinalRank <= 10 ? 1000000 : 0
 
           const resultLabel = japanFinalRank === 1 ? '金メダル獲得！' : japanFinalRank <= 3 ? `${japanFinalRank}位入賞！` : `${japanFinalRank}位`
@@ -4594,7 +4607,6 @@ export const useGameStore = create<GameStore>()(
           }
 
           return {
-            gmRep: Math.min(100, (state.gmRep ?? 50) + gmRepBoost),
             teams: budgetBoost > 0 ? state.teams.map(t =>
               t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + budgetBoost } } : t
             ) : state.teams,
@@ -4791,7 +4803,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 5,
+      version: 6,
       migrate: (persistedState: unknown, version: number) => {
         const s = persistedState as Record<string, unknown>
         // v1→v2: undrafted pool players that were never converted to FA
@@ -4816,6 +4828,28 @@ export const useGameStore = create<GameStore>()(
             ...p,
             career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
           }))
+        }
+        // v5→v6: initialRank を追加、budget を新グラント額に更新
+        if (version < 6 && Array.isArray(s.teams)) {
+          const RANK_MAP: Record<string, number> = {
+            sapporo: 9, morioka: 16, aomori: 18, sendai: 10,
+            tokyo: 1, yokohama: 4, chiba: 8, saitama: 7,
+            nagano: 14, niigata: 20, shizuoka: 11, nagoya: 3,
+            kyoto: 13, osaka: 2, kobe: 6,
+            hiroshima: 12, okayama: 19,
+            fukuoka: 5, kagoshima: 15, okinawa: 17,
+          }
+          s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+            const id = t.id as string
+            const isPlayer = t.isPlayerControlled as boolean
+            const initialRank = RANK_MAP[id] ?? 10
+            const newBudget = isPlayer ? 400_000_000 : (RANK_BUDGET[initialRank] ?? 400_000_000)
+            return {
+              ...t,
+              initialRank,
+              finance: { ...(t.finance as Record<string, unknown>), budget: newBudget },
+            }
+          })
         }
         return s
       },

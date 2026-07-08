@@ -46,7 +46,6 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const {
     teams, players, currentSeason,
-    resolveEvent,
     acceptIncomingOffer, declineIncomingOffer,
     acceptRetirement, dismissRetirementRequest,
   } = useGameStore()
@@ -54,13 +53,12 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const claimGift = useGameStore(s => s.claimGift)
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
-  const pendingEvents = (currentSeason.events ?? []).filter(e => !e.resolved)
   const incomingOffers = currentSeason.incomingOffers ?? []
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
-  const total = pendingEvents.length + incomingOffers.length
+  const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
     + pendingGifts.length
 
@@ -281,48 +279,6 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                 </section>
               )}
 
-              {/* 選手コメント */}
-              {pendingEvents.length > 0 && (
-                <section style={{ marginBottom: '14px' }}>
-                  <SectionLabel label="選手コメント" color={C.blue} />
-                  {pendingEvents.map(event => {
-                    const eventPlayer = event.playerId ? players.find(p => p.id === event.playerId) : null
-                    const pOvr = eventPlayer ? ovr(eventPlayer) : null
-                    return (
-                      <div key={event.id} style={card(alpha(C.blue, 0.45), '#2a3580')}>
-                        <div style={inset}/>
-                        <div style={{ padding: '12px 14px 10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '8px' }}>
-                            {pOvr !== null && eventPlayer ? (
-                              <FaceOvr playerId={eventPlayer.id} nationality={eventPlayer.nationality} pOvr={pOvr} accentColor={C.blue} />
-                            ) : (
-                              <div style={{ width: '36px', height: '36px', borderRadius: '9px', flexShrink: 0, background: alpha(C.blue, 0.12), border: `1px solid ${alpha(C.blue, 0.28)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                                  <path d="M12 2L2 20h20L12 2z" stroke={C.blue} strokeWidth="2" strokeLinejoin="round"/>
-                                  <path d="M12 9v5M12 17v.5" stroke={C.blue} strokeWidth="2" strokeLinecap="round"/>
-                                </svg>
-                              </div>
-                            )}
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{event.title}</div>
-                              {eventPlayer && <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, marginBottom: '3px' }}>{eventPlayer.name}</div>}
-                              <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub, lineHeight: 1.5 }}>{event.body}</div>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' as const }}>
-                            {event.choices.map((choice, idx) => (
-                              <button key={idx} onClick={() => resolveEvent(event.id, idx)} style={{ flex: 1, minWidth: '80px', padding: '8px', borderRadius: '10px', cursor: 'pointer', background: idx === 0 ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : C.surface, border: `${idx === 0 ? 2 : 1}px solid ${idx === 0 ? alpha(C.blue, 0.45) : C.border2}`, boxShadow: idx === 0 ? `0 3px 0 #2a3580, inset 0 1px 0 rgba(255,255,255,0.06)` : 'none', color: idx === 0 ? C.blue : C.textSub, fontFamily: SAIRA, fontSize: '9px', fontWeight: '700', lineHeight: 1.3, marginBottom: '4px' }}>
-                                <div>{choice.label}</div>
-                                <div style={{ color: idx === 0 ? alpha(C.blue, 0.65) : C.textGhost, marginTop: '1px', fontWeight: '400' }}>{choice.desc}</div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </section>
-              )}
             </>
           )}
         </div>
@@ -344,15 +300,9 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   )
 }
 
-const SKIP_EVENT_TYPES = [
-  'player_form_up', 'young_breakout', 'team_chemistry', 'player_milestone', 'budget_boost',
-  'transfer_request', 'player_wants_renewal',
-]
-
 export function useNotifCount() {
   const { currentSeason, players, playerTeamId, lastLoginDate } = useGameStore()
   const gifts = useGameStore(s => (s.pendingGifts ?? []).length)
-  const events = (currentSeason.events ?? []).filter(e => !e.resolved && !SKIP_EVENT_TYPES.includes(e.type)).length
   const offers = (currentSeason.incomingOffers ?? []).length
   const retirements = (currentSeason.retirementRequests ?? []).length
   const transferReqs = (currentSeason.transferRequests ?? []).length > 0 ? 1 : 0
@@ -369,5 +319,5 @@ export function useNotifCount() {
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
     return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
   }).length
-  return events + offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals + gifts
+  return offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals + gifts
 }

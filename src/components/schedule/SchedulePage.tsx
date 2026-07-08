@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { formatRaceTime } from '../../utils/eventTime'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -30,7 +31,7 @@ function getCourseColor(type: string): string {
 
 export default function SchedulePage() {
   const navigate = useNavigate()
-  const { currentSeason, playerTeamId } = useGameStore()
+  const { currentSeason, playerTeamId, players } = useGameStore()
   const isSeasonStart = currentSeason.currentRaceIndex === 0 && !currentSeason.races[0]?.results
 
   const stIdx = currentSeason.secondTeamRaceIndex ?? 0
@@ -146,6 +147,10 @@ export default function SchedulePage() {
           // ── 記録会（タイムトライアル） ──
           if (it.type === 'tt') {
             const ev = it.ev
+            const winner = ev.results?.[0]
+            const winnerPlayer = winner ? players.find(p => p.id === winner.playerId) : null
+            const myTop = ev.results?.find(r => r.teamId === playerTeamId)
+            const myTopPlayer = myTop ? players.find(p => p.id === myTop.playerId) : null
             return (
               <div key={ev.id} style={{ display: 'flex', alignItems: 'stretch', padding: '0 20px', opacity: it.isDone ? 0.55 : 1 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0, paddingTop: '16px' }}>
@@ -158,6 +163,14 @@ export default function SchedulePage() {
                       <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
                       <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{ev.name}</div>
                       <div style={{ fontSize: '11px', color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {TT_LABEL[ev.distance]}</div>
+                      {it.isDone && winnerPlayer && (
+                        <div style={{ fontSize: '10px', color: C.textDim, marginTop: '4px', lineHeight: 1.6 }}>
+                          <span style={{ color: C.gold, fontWeight: 700 }}>優勝</span> {winnerPlayer.name} <span style={{ fontFamily: SAIRA }}>{formatRaceTime(winner!.timeSec)}</span>
+                          {myTopPlayer && myTop && (
+                            <><br/><span style={{ color: TT_COLOR, fontWeight: 700 }}>自チーム</span> {myTopPlayer.name} {myTop.rank}位 <span style={{ fontFamily: SAIRA }}>{formatRaceTime(myTop.timeSec)}</span></>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
                   </div>
