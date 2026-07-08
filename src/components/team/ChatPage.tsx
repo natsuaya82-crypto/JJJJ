@@ -302,6 +302,9 @@ function ChatView({
         updated.rejectReason === 'team_refused' ? '（代理人）クラブが主力の放出に応じません。金額の問題ではないようです。'
         : updated.rejectReason === 'demotion' ? '（代理人）2way契約・育成契約では本人が納得しません。本契約を用意できますか？'
         : '申し訳ありませんが、その条件では合意できません。' })
+    } else {
+      // 判定は合意だが署名処理（枠上限）で成立しなかった場合。無言にならないようフォローする
+      append({ from: 'player', text: '（代理人）受け入れ枠の都合で契約手続きができなかったようです。ロスターを整理してから改めてお願いします。' })
     }
     setComposing(false)
   }
@@ -914,7 +917,11 @@ function IncomingTransferCard({ offer, player, teamName, onAccept, onCounter, on
             <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{player.name}</span>
             {offer.fromForeign && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 5, background: alpha(C.blue, 0.18), color: C.blue }}>海外</span>}
           </div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{teamName}が移籍金 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(offer.offeredPrice)}</span> で獲得を打診</div>
+          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
+            {offer.offeredPrice > 0
+              ? <>{teamName}が移籍金 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(offer.offeredPrice)}</span> で獲得を打診</>
+              : <>{teamName}がフリー移籍（移籍金なし）で獲得を打診</>}
+          </div>
         </div>
         <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</span>
       </div>
@@ -1000,18 +1007,13 @@ export default function ChatPage() {
   })
   // 通知などから ?player=<id> で来た場合は直接その選手のチャットを開く
   const locState = location.state as { tradeTeamId?: string } | null
-  const [pendingTradeTeamId] = useState<string | null>(() => {
-    const v = sessionStorage.getItem('pendingTradeTeamId')
-    if (v) sessionStorage.removeItem('pendingTradeTeamId')
-    return v
-  })
   const [chatPlayerId, setChatPlayerId] = useState<string | null>(() => searchParams.get('player'))
-  const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? pendingTradeTeamId ?? null)
-  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId))
+  const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? null)
+  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId))
   const wantParam = searchParams.get('want')
   // チャット履歴は store（currentSeason.chatLogs）に保存。画面を離れても・解決後も年内は見返せる。
   const chatLogs = currentSeason.chatLogs ?? {}
-  const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId) ? 'transfer' : 'own')
+  const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
 
   useEffect(() => { generateContractRequests() }, [])
 
@@ -1046,7 +1048,10 @@ export default function ChatPage() {
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
 
-  const withStatus = myPlayers.map(p => {
+  // 獲得交渉中（トレード成立後の再契約など）の自チーム選手は「移籍・獲得」タブに出すので、自チーム一覧からは除く
+  const activeAcqPlayerIds = new Set((currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered').map(o => o.playerId))
+
+  const withStatus = myPlayers.filter(p => !activeAcqPlayerIds.has(p.id)).map(p => {
     const months = contractMonths(p.contract.yearsLeft, raceIndex, totalRaces)
     const status = getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, events, months)
     return { player: p, months, status }
@@ -1077,8 +1082,13 @@ export default function ChatPage() {
   const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? players.find(p => p.id === chatPlayerId) ?? null : null
 
   // 他チーム（トレード交渉の相手）
-  const allForeignClubs = (foreignLeagues ?? []).flatMap(l => l.clubs)
   const tradeTeam = tradeTeamId ? teams.find(t => t.id === tradeTeamId) ?? null : null
+
+  // 無効なパラメータで来た場合（存在しない選手・海外クラブのID等）は一覧表示に落ちる。
+  // その際「戻る」が呼び出し元へ飛ばないようフラグを下ろす
+  useEffect(() => {
+    if (!chatPlayer && !tradeTeam) cameFromParamRef.current = false
+  })
 
   // 相手から来たオファー（移籍・レンタル）＝チャットで対応
   const foreignClubMap = new Map((foreignLeagues ?? []).flatMap(l => l.clubs).map(c => [c.id, c.shortName]))
@@ -1094,13 +1104,14 @@ export default function ChatPage() {
   }
 
   if (tradeTeam) return (
-    <TradeChatView team={tradeTeam} onClose={() => closeConversation(() => setTradeTeamId(null))}
-      initialMode="fee" initialGetId={wantParam ?? undefined}
+    <TradeChatView key={tradeTeam.id} team={tradeTeam} onClose={() => closeConversation(() => setTradeTeamId(null))}
+      initialMode={wantParam ? 'trade' : 'fee'} initialGetId={wantParam ?? undefined}
       onNegotiateContract={(pid) => { setTradeTeamId(null); setChatPlayerId(pid) }} />
   )
 
   if (chatPlayer) return (
     <ChatView
+      key={chatPlayer.id}
       player={chatPlayer}
       initialMessages={chatLogs[chatPlayer.id]}
       onMessagesChange={msgs => setChatLog(chatPlayer.id, msgs)}

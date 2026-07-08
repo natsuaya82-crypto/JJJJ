@@ -442,6 +442,9 @@ export type Team = {
   gmName: string
   sponsors?: string[]            // Sponsor IDs
   facilities?: Facilities
+  // 記録会のチーム歴代記録（在籍時に出したタイムはチームに永続。選手が抜けても残る）。
+  // 距離キーごとに選手ベストを保持（同一選手は最速のみ）。
+  eventRecords?: Partial<Record<'d5000' | 'd10000' | 'half' | 'marathon', { playerId: string; timeSec: number; year: number }[]>>
   history: {
     seasonResults: { year: number; rank: number; points: number }[]
     championships: number

@@ -88,7 +88,7 @@ export function calcClubModifier(team: Pick<Team, 'city'>, raceLocation: string)
 }
 
 export function calcConditionModifier(fatigue: number, morale: number, form: number): number {
-  const fatigueMod = 1.0 - Math.max(0, (fatigue - 30) / 70) * 0.11
+  const fatigueMod = 1.0 - Math.max(0, (fatigue - 25) / 75) * 0.16
   const moraleMod = morale <= 70 ? 0.95 + (morale / 70) * 0.05 : 1.0 + ((morale - 70) / 30) * 0.03
   const formMod = 1.0 + form * 0.03
   return fatigueMod * moraleMod * formMod

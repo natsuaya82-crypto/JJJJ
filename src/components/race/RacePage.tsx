@@ -61,7 +61,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px', borderRadius: 6, backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
           <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginTop: 3 }}>{event.name}</div>
-          <div style={{ fontSize: 10, color: C.textDim }}>{event.date.replace(/-/g, '/')} · {TT_DIST_LABEL[event.distance]}</div>
+          <div style={{ fontSize: 10, color: C.textDim }}>{event.date.replace(/-/g, '/')} · {TT_DIST_LABEL[event.distance]}{event.weather ? ` · ${({ sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '風' } as const)[event.weather]}` : ''}</div>
         </div>
       </div>
 

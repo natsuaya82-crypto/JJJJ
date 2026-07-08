@@ -2238,7 +2238,8 @@ export const useGameStore = create<GameStore>()(
           players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const } : p),
           teams: state.teams.map(t => {
             if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } }
-            if (t.id === offer.fromTeamId) return { ...t, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
+            // 買い手側からも移籍金を差し引く（AI経済の整合性）
+            if (t.id === offer.fromTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget - offer.offeredPrice }, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
             return t
           }),
           currentSeason: {
@@ -2338,6 +2339,7 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const req = (state.currentSeason.contractRequests ?? []).find(r => r.id === requestId)
           if (!req) return state
+          if (req.status === 'accepted' || req.status === 'rejected') return state  // 二重実行ガード（契約年数の二重加算防止）
           const player = state.players.find(p => p.id === req.playerId)
           if (!player) return state
           const myRank = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === state.playerTeamId) + 1
@@ -2807,7 +2809,10 @@ export const useGameStore = create<GameStore>()(
         if ((myTeamBid?.finance.deficitStreak ?? 0) >= 1) return
         const existing = (state.currentSeason.transferBids ?? []).find(b => b.playerId === playerId && (b.status === 'pending' || b.status === 'fee_accepted' || b.status === 'countered' || b.status === 'player_neg'))
         if (existing) return
-        const bid = { id: `bid_${Date.now()}`, playerId, targetTeamId: player.teamId, offeredFee: fee, round: 1, status: 'pending' as const, submittedAtRace: state.currentSeason.currentRaceIndex }
+        // 同一選手への入札は今季3回まで。roundは過去の入札数を引き継ぐ（取り下げ→再入札の無限ループ防止）
+        const priorBids = (state.currentSeason.transferBids ?? []).filter(b => b.playerId === playerId).length
+        if (priorBids >= 3) return
+        const bid = { id: `bid_${Date.now()}`, playerId, targetTeamId: player.teamId, offeredFee: fee, round: priorBids + 1, status: 'pending' as const, submittedAtRace: state.currentSeason.currentRaceIndex }
         set(s => ({ currentSeason: { ...s.currentSeason, transferBids: [...(s.currentSeason.transferBids ?? []), bid] } }))
       },
 
@@ -3312,8 +3317,7 @@ export const useGameStore = create<GameStore>()(
                   return { ...p, fatigue: nf, status: nf < 40 ? 'active' as const : p.status }
                 }
                 if (p.status === 'active') {
-                  const recoveryBonus = Math.round((p.ratings.recovery - 50) * 0.08)
-                  return { ...p, fatigue: Math.max(0, p.fatigue - 16 - recoveryBonus) }
+                  return { ...p, fatigue: Math.max(0, p.fatigue - 5) }
                 }
               }
               return p
@@ -4477,7 +4481,7 @@ export const useGameStore = create<GameStore>()(
           const results = activePlayers.map(p => ({
             playerId: p.id,
             teamId: p.teamId,
-            timeSec: simulateIndividualTime(p, event.distance),
+            timeSec: simulateIndividualTime(p, event.distance, event.weather),
           }))
           results.sort((a, b) => a.timeSec - b.timeSec)
           const ranked = results.map((r, i) => ({ ...r, rank: i + 1 }))
@@ -4535,8 +4539,29 @@ export const useGameStore = create<GameStore>()(
             relatedIds: [myBestPlayer.id],
           } : null
 
+          // チーム歴代記録：走った選手のタイムを当時所属チームに永続記録（選手ごと最速・距離別）。
+          const teamEventUpdates = new Map<string, { playerId: string; timeSec: number }[]>()
+          for (const r of ranked) {
+            const arr = teamEventUpdates.get(r.teamId) ?? []
+            arr.push({ playerId: r.playerId, timeSec: r.timeSec })
+            teamEventUpdates.set(r.teamId, arr)
+          }
+          const evYear = state.currentSeason.year
+          const updatedTeams = state.teams.map(t => {
+            const ups = teamEventUpdates.get(t.id)
+            if (!ups || ups.length === 0) return t
+            const byPlayer = new Map((t.eventRecords?.[bestKey] ?? []).map(e => [e.playerId, e]))
+            for (const u of ups) {
+              const prev = byPlayer.get(u.playerId)
+              if (!prev || u.timeSec < prev.timeSec) byPlayer.set(u.playerId, { playerId: u.playerId, timeSec: u.timeSec, year: evYear })
+            }
+            const merged = [...byPlayer.values()].sort((a, b) => a.timeSec - b.timeSec).slice(0, 30)
+            return { ...t, eventRecords: { ...t.eventRecords, [bestKey]: merged } }
+          })
+
           return {
             players: updatedPlayers,
+            teams: updatedTeams,
             trainingCards: rewardCards.length > 0 ? [...(state.trainingCards ?? []), ...rewardCards] : state.trainingCards,
             currentSeason: {
               ...state.currentSeason,

@@ -2,16 +2,21 @@ import type { Race, IndividualEvent } from '../types'
 import { INITIAL_TEAMS } from './teams'
 
 // 記録会（タイムトライアル）年7回。本編レースの合間に配置。種目を散らし、負荷の高いマラソンは夏の休養期に。
+const pickTTWeather = (): IndividualEvent['weather'] => {
+  // 晴れ・曇り多め、雨・風は控えめ
+  const r = Math.random()
+  return r < 0.4 ? 'sunny' : r < 0.7 ? 'cloudy' : r < 0.87 ? 'windy' : 'rainy'
+}
 export function generateIndividualEvents(year: number): IndividualEvent[] {
   const y = String(year)
   return [
-    { id: `tt-5k-1-${y}`,   name: `${y} 春季5000m記録会`,   date: `${y}-03-29`, distance: 5000 },
-    { id: `tt-10k-1-${y}`,  name: `${y} 春季10000m記録会`,  date: `${y}-04-26`, distance: 10000 },
-    { id: `tt-half-1-${y}`, name: `${y} 初夏ハーフ記録会`,   date: `${y}-05-24`, distance: 21097 },
-    { id: `tt-mara-${y}`,   name: `${y} 夏季マラソン記録会`, date: `${y}-08-02`, distance: 42195 },
-    { id: `tt-10k-2-${y}`,  name: `${y} 夏季10000m記録会`,  date: `${y}-08-23`, distance: 10000 },
-    { id: `tt-5k-2-${y}`,   name: `${y} 秋季5000m記録会`,   date: `${y}-10-18`, distance: 5000 },
-    { id: `tt-half-2-${y}`, name: `${y} 冬季ハーフ記録会`,   date: `${y}-12-06`, distance: 21097 },
+    { id: `tt-5k-1-${y}`,   name: `${y} 春季5000m記録会`,   date: `${y}-03-29`, distance: 5000,  weather: pickTTWeather() },
+    { id: `tt-10k-1-${y}`,  name: `${y} 春季10000m記録会`,  date: `${y}-04-26`, distance: 10000, weather: pickTTWeather() },
+    { id: `tt-half-1-${y}`, name: `${y} 初夏ハーフ記録会`,   date: `${y}-05-24`, distance: 21097, weather: pickTTWeather() },
+    { id: `tt-mara-${y}`,   name: `${y} 夏季マラソン記録会`, date: `${y}-08-02`, distance: 42195, weather: pickTTWeather() },
+    { id: `tt-10k-2-${y}`,  name: `${y} 夏季10000m記録会`,  date: `${y}-08-23`, distance: 10000, weather: pickTTWeather() },
+    { id: `tt-5k-2-${y}`,   name: `${y} 秋季5000m記録会`,   date: `${y}-10-18`, distance: 5000,  weather: pickTTWeather() },
+    { id: `tt-half-2-${y}`, name: `${y} 冬季ハーフ記録会`,   date: `${y}-12-06`, distance: 21097, weather: pickTTWeather() },
   ]
 }
 

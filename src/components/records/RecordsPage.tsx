@@ -111,6 +111,9 @@ const EV_DIST_TABS: { dist: EvDist; label: string }[] = [
   { dist: 5000, label: '5000m' }, { dist: 10000, label: '10000m' },
   { dist: 21097, label: 'ハーフ' }, { dist: 42195, label: 'マラソン' },
 ]
+// EvDist → eventBests（選手ごとに永続する種目別自己ベスト）のキー
+type EvKey = 'd5000' | 'd10000' | 'half' | 'marathon'
+const EV_KEY: Record<EvDist, EvKey> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
 function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDist) => void }) {
   return (
     <div style={{ display: 'flex', gap: '2px', background: C.surface, borderRadius: '10px', padding: '3px', border: `1px solid ${C.border}`, margin: '4px 0 6px' }}>
@@ -144,24 +147,15 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
     ...(currentSeason.currentRaceIndex > 0 ? [currentSeason] : []),
   ].sort((a, b) => a.year - b.year)
 
-  // 今季の記録会 種目別記録（自チーム選手のみ・10位まで）
+  // 記録会 種目別記録（歴代・チームに永続）。在籍時に出した記録はチームに残る（選手が抜けても保持）。
   const [evDist, setEvDist] = useState<EvDist>(5000)
-  const myPlayerIds = new Set(players.filter(p => p.teamId === playerTeamId).map(p => p.id))
   const myEventTops = EV_DIST_TABS.map(({ dist, label }) => {
-    const best = new Map<string, number>()
-    for (const ev of currentSeason.individualEvents ?? []) {
-      if (ev.distance !== dist || !ev.results) continue
-      for (const r of ev.results) {
-        if (!myPlayerIds.has(r.playerId)) continue
-        const cur = best.get(r.playerId)
-        if (cur == null || r.timeSec < cur) best.set(r.playerId, r.timeSec)
-      }
-    }
-    const rows = [...best.entries()]
-      .sort((a, b) => a[1] - b[1])
+    const key = EV_KEY[dist]
+    const rows = (myTeam?.eventRecords?.[key] ?? [])
+      .map(rec => ({ p: players.find(x => x.id === rec.playerId), t: rec.timeSec, year: rec.year }))
+      .filter((x): x is { p: GameStore['players'][0]; t: number; year: number } => !!x.p)
+      .sort((a, b) => a.t - b.t)
       .slice(0, 10)
-      .map(([id, t]) => ({ p: players.find(x => x.id === id), t }))
-      .filter((x): x is { p: GameStore['players'][0]; t: number } => !!x.p)
     return { dist, label, rows }
   })
 
@@ -199,12 +193,12 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       </CardPanel>
 
       <CardPanel>
-        <SectionLabel>{currentSeason.year}シーズン 種目別記録（自チーム）</SectionLabel>
+        <SectionLabel>歴代 種目別記録（自チーム）</SectionLabel>
         <EventDistTabs value={evDist} onChange={setEvDist} />
         {(() => {
           const group = myEventTops.find(g => g.dist === evDist)
           if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
-          return group.rows.map(({ p, t }, i) => {
+          return group.rows.map(({ p, t, year }, i) => {
             const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
             return (
               <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
@@ -214,7 +208,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
                   <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                     {myTeam && <TeamLogoSVG primary={myTeam.colors.primary} secondary={myTeam.colors.secondary} shortName={myTeam.shortName} teamId={myTeam.id} size={12} />}
-                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''} / {p.age}歳 / {SPECIALTY_LABELS[p.specialty]}</span>
+                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''} / {SPECIALTY_LABELS[p.specialty]} / {year}年</span>
                   </div>
                 </div>
                 <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(t)}</span>
@@ -446,24 +440,16 @@ function PlayersTab({ players, teams, currentSeason }: {
 
   const topSegWins = [...careerPlayers].sort((a, b) => b.career.segmentWins - a.career.segmentWins).slice(0, 10).filter(p => p.career.segmentWins > 0)
   const topMVP     = [...careerPlayers].sort((a, b) => b.career.mvpAwards - a.career.mvpAwards).slice(0, 10).filter(p => p.career.mvpAwards > 0)
-  const topChamps  = [...careerPlayers].sort((a, b) => b.career.championships - a.career.championships).slice(0, 10).filter(p => p.career.championships > 0)
 
-  // 今季の記録会 種目別記録（その年に実際に走ったタイムのベスト）
+  // 記録会 種目別記録（歴代・全チーム）。eventBests＝選手ごとの永続自己ベストを使う。
   const [evDist, setEvDist] = useState<EvDist>(5000)
   const seasonEventTops = EV_DIST_TABS.map(({ dist, label }) => {
-    const best = new Map<string, number>()
-    for (const ev of currentSeason.individualEvents ?? []) {
-      if (ev.distance !== dist || !ev.results) continue
-      for (const r of ev.results) {
-        const cur = best.get(r.playerId)
-        if (cur == null || r.timeSec < cur) best.set(r.playerId, r.timeSec)
-      }
-    }
-    const rows = [...best.entries()]
-      .sort((a, b) => a[1] - b[1])
+    const key = EV_KEY[dist]
+    const rows = players
+      .filter(p => isDomestic(p) && p.eventBests?.[key])
+      .map(p => ({ p, t: p.eventBests![key]!.timeSec, year: p.eventBests![key]!.year }))
+      .sort((a, b) => a.t - b.t)
       .slice(0, 10)
-      .map(([id, t]) => ({ p: players.find(x => x.id === id), t }))
-      .filter((x): x is { p: GameStore['players'][0]; t: number } => !!x.p)
     return { dist, label, rows }
   })
 
@@ -533,20 +519,13 @@ function PlayersTab({ players, teams, currentSeason }: {
         </CardPanel>
       )}
 
-      {topChamps.length > 0 && (
-        <CardPanel>
-          <SectionLabel>個人優勝回数ランキング</SectionLabel>
-          {topChamps.map((p, i) => <RankRow key={p.id} p={p} i={i} value={p.career.championships} unit="回" />)}
-        </CardPanel>
-      )}
-
       <CardPanel>
-        <SectionLabel>{currentSeason.year}シーズン 種目別記録（記録会）</SectionLabel>
+        <SectionLabel>歴代 種目別記録（記録会）</SectionLabel>
         <EventDistTabs value={evDist} onChange={setEvDist} />
         {(() => {
           const group = seasonEventTops.find(g => g.dist === evDist)
           if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
-          return group.rows.map(({ p, t }, i) => {
+          return group.rows.map(({ p, t, year }, i) => {
             const team = teams.find(tm => tm.id === p.teamId)
             const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
             return (
@@ -555,12 +534,10 @@ function PlayersTab({ players, teams, currentSeason }: {
                 <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</div>
-                  {team && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
-                      <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />
-                      <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</span>
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
+                    {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
+                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(team?.name ?? (p.status === 'retired' ? '引退' : '—'))} / {year}年</span>
+                  </div>
                 </div>
                 <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(t)}</span>
               </div>

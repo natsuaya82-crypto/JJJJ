@@ -227,7 +227,7 @@ export default function PlayerSheet() {
     if (!historyMap.has(key)) historyMap.set(key, { year: currentSeason.year, teamId: player.teamId, tier: curTier, races: 0, wins: 0 })
   }
   const historyRows = [...historyMap.values()].sort(
-    (a, b) => a.year - b.year || (a.tier === b.tier ? 0 : a.tier === 'main' ? -1 : 1)
+    (a, b) => b.year - a.year || (a.tier === b.tier ? 0 : a.tier === 'main' ? -1 : 1)
   )
 
   return (
@@ -307,7 +307,7 @@ export default function PlayerSheet() {
                 <span style={{ padding: '2px 8px', borderRadius: '10px', backgroundColor: isScouted ? `${specCol}18` : '#1E1B2E', color: isScouted ? specCol : '#5C5870', fontSize: '10px', fontWeight: '700' }}>
                   {isScouted ? SPECIALTY_LABELS[player.specialty] : '?'}
                 </span>
-                <span style={{ fontSize: '10px', color: '#5C5870' }}>{isScouted ? `${player.age}歳 / ${player.yearsPro}年目` : '?'}</span>
+                <span style={{ fontSize: '10px', color: '#5C5870' }}>{isScouted ? `${player.age}歳 / ${player.yearsPro + 1}年目` : '?'}</span>
               </div>
             </div>
             <div style={{ textAlign: 'center', flexShrink: 0 }}>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
-import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME } from '../../utils/cardCombo'
+import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME, detectCombo } from '../../utils/cardCombo'
 import { isStatMaxed } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
@@ -12,6 +12,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const PURPLE = '#A855F7'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+const MENU_MULT_LABEL: Record<number, string> = { 2: '1.2', 3: '1.4', 4: '1.6', 5: '1.8' }
 
 const selectStyle = {
   padding: '6px 28px 6px 10px', borderRadius: 8,
@@ -37,6 +38,12 @@ export default function CardSelectPage() {
     () => fusionCardIds.map(id => trainingCards.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c),
     [trainingCards, fusionCardIds]
   )
+
+  // 選択中カードの合成結果（レシピ判定）をこの画面でもプレビュー表示する
+  const combo = useMemo(() => detectCombo(selectedCards), [selectedCards])
+  const isMenu = !!combo && combo.name !== '通常合成'
+  const fatigueDelta = combo?.fatigueDelta ?? 0
+  const distinctCount = useMemo(() => new Set(selectedCards.filter(c => c.kind !== 'rest').map(c => c.statKey)).size, [selectedCards])
 
   const filteredCards = useMemo(
     () => filterStat === 'all' ? trainingCards
@@ -87,6 +94,20 @@ export default function CardSelectPage() {
       {selectedCards.length > 0 && (
         <div style={{ padding: '0 14px 12px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中（タップで外す）</div>
+          {combo && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px', borderRadius: 9, background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
+              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo.color }}>{combo.name}</span>
+              {isMenu && distinctCount >= 2 && (
+                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+              )}
+              {fatigueDelta > 0 && (
+                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
+              )}
+              {combo.name === '通常合成' && (
+                <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
+              )}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {selectedCards.map(card => (
               <button key={card.id} onClick={() => removeFusionCard(card.id)}

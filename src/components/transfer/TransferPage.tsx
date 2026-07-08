@@ -205,6 +205,8 @@ export default function TransferPage() {
   if (!myTeam) return null
 
   const window = getTransferWindow()
+  // 赤字ペナルティ中は新規補強不可（startAcquisitionOfferが内部で弾くため、ボタン側でも明示する）
+  const signingBanned = (myTeam.finance.deficitStreak ?? 0) >= 1
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
     .sort((a, b) => ovr(b) - ovr(a))
@@ -533,9 +535,10 @@ export default function TransferPage() {
                             {isStarred ? '★' : '☆'}
                           </button>
                           {p.teamId === '' ? (
-                            <button onClick={() => { startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
-                              style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: '#0A0912', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA }}>
-                              契約オファー
+                            <button disabled={signingBanned}
+                              onClick={() => { if (signingBanned) return; startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
+                              style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: signingBanned ? C.surface2 : `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: signingBanned ? C.textGhost : '#0A0912', fontSize: '11px', fontWeight: '800', cursor: signingBanned ? 'not-allowed' : 'pointer', fontFamily: SAIRA }}>
+                              {signingBanned ? '赤字で補強不可' : '契約オファー'}
                             </button>
                           ) : hasBid ? (
                             <span style={{ fontSize: '10px', color: C.gold, fontWeight: '700', fontFamily: SAIRA }}>入札中</span>
@@ -664,11 +667,11 @@ export default function TransferPage() {
                           >
                             {isStarred ? '★' : '☆'}
                           </button>
-                          <button
-                            onClick={() => { startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
-                            style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: '#0A0912', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA }}
+                          <button disabled={signingBanned}
+                            onClick={() => { if (signingBanned) return; startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
+                            style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: signingBanned ? C.surface2 : `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: signingBanned ? C.textGhost : '#0A0912', fontSize: '11px', fontWeight: '800', cursor: signingBanned ? 'not-allowed' : 'pointer', fontFamily: SAIRA }}
                           >
-                            契約オファー
+                            {signingBanned ? '赤字で補強不可' : '契約オファー'}
                           </button>
                         </div>
                       </div>

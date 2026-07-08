@@ -28,8 +28,8 @@ const DC_CONTRACT_OPTS = [
 ]
 const DC_ROLE_OPTS: { key: TeamRole; label: string }[] = [
   { key: 'ace', label: 'エース' },
-  { key: 'sub_ace', label: 'サブ' },
   { key: 'key_player', label: '主力' },
+  { key: 'sub_ace', label: 'サブ' },
   { key: 'rotation', label: 'ローテ' },
   { key: 'development', label: '育成' },
 ]
