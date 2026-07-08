@@ -176,22 +176,36 @@ export default function TransferPage() {
 
   function handlePropose(offOvr: number, reqOvr: number, offPickVal: number, reqPickVal: number) {
     const { result, cFee, msg } = evaluateOffer(offOvr, reqOvr, tradeFee, tradeRound, offPickVal, reqPickVal)
-    setCounterMsg(msg)
     if (result === 'accept') {
-      tradePlayer(offerIds, requestIds, tradeTarget!, tradeFee, offerPickKeys, requestPickKeys)
-      setTradeStatus('accepted')
+      // UI判定が通っても、ストア側（主力放出拒否・価値釣り合い・本人同意・予算）で不成立になることがある。
+      // 実際に成立した場合だけ「成立」を出す
+      const ok = tradePlayer(offerIds, requestIds, tradeTarget!, tradeFee, offerPickKeys, requestPickKeys)
+      if (ok) {
+        setCounterMsg(msg)
+        setTradeStatus('accepted')
+      } else {
+        setCounterMsg('先方が首を縦に振りません。主力の放出拒否か、選手本人が移籍に納得していないようです。')
+        setTradeStatus('rejected')
+      }
     } else if (result === 'counter') {
+      setCounterMsg(msg)
       setCounterFee(cFee)
       setTradeStatus('countered')
     } else {
+      setCounterMsg(msg)
       setTradeStatus('rejected')
     }
   }
 
   function handleAcceptCounter() {
-    tradePlayer(offerIds, requestIds, tradeTarget!, counterFee, offerPickKeys, requestPickKeys)
-    setCounterMsg('トレード成立！')
-    setTradeStatus('accepted')
+    const ok = tradePlayer(offerIds, requestIds, tradeTarget!, counterFee, offerPickKeys, requestPickKeys)
+    if (ok) {
+      setCounterMsg('トレード成立！')
+      setTradeStatus('accepted')
+    } else {
+      setCounterMsg('先方が最終確認で難色を示しました。主力の放出拒否か、選手本人が移籍に納得していないようです。')
+      setTradeStatus('rejected')
+    }
   }
 
   function handleReNegotiate() {

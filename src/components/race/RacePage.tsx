@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore, individualEventAbility } from '../../store/gameStore'
 import { ovr, ratingColor } from '../../utils/playerUtils'
@@ -259,6 +259,9 @@ export default function RacePage() {
   const [lockedRaceIndex, setLockedRaceIndex] = useState<number>(0)
   const [iSim, setISim] = useState<ISim | null>(null)
   const [ttViewId, setTtViewId] = useState<string | null>(null)
+  // レース最終確定（runRace）の二重発火ガード。ゴーストクリック等で同じレースを2回確定すると
+  // 次レースに結果が書き込まれセーブが壊れるため、レースIDで1回に制限する
+  const finalizedRaceIdRef = useRef<string | null>(null)
 
   const setPhase = (p: Phase) => {
     setPhaseLocal(p)
@@ -515,6 +518,7 @@ export default function RacePage() {
     const allDone = iSim.completedSegs.length >= race.segments.length || !nextSeg
 
     if (allDone) {
+      if (finalizedRaceIdRef.current === race.id) return  // 二重発火ガード
       // Race complete — build RaceResults and hand off to store
       const segmentResults = iSim.completedSegs.map(s => ({
         segmentIndex: s.segmentIndex,
@@ -529,6 +533,8 @@ export default function RacePage() {
       try {
         const r = runRace(raceLineup, {}, preComputedResults)
         if (r) finalResults = r
+        // 成功後にガードを立てる（runRaceは同期なので二重クリックは防げる。失敗時は再試行を塞がない）
+        finalizedRaceIdRef.current = race.id
       } catch (e) {
         console.error('runRace failed:', e)
       }
@@ -620,7 +626,9 @@ export default function RacePage() {
 
     const teamRankings = buildTeamRankings(cumTime, completedSegs, segPts, race.segments.length)
     const preComputedResults: RaceResults = { teamRankings, segmentResults: completedSegs }
+    if (finalizedRaceIdRef.current === race.id) return  // 二重発火ガード
     const finalResults = runRace(raceLineup, {}, preComputedResults)
+    finalizedRaceIdRef.current = race.id  // 成功後に立てる（同期実行なので二重クリックは防げる）
     setResults(finalResults)
     setPhase('results')
   }
@@ -628,6 +636,7 @@ export default function RacePage() {
   // 選手選択画面から「まるごとスキップ」：全区間をイベントなし（素の実力）で計算して結果へ
   function handleFullSkip() {
     if (!allSegsFilled || !currentRace) return
+    if (finalizedRaceIdRef.current === currentRace.id) return  // 二重発火ガード
     setLockedRace(currentRace)
     setLockedRaceIndex(raceIndex)
     setActiveRaceLocked(currentRace, raceIndex)
@@ -661,6 +670,7 @@ export default function RacePage() {
     const teamRankings = buildTeamRankings(cumTime, completedSegs, segPts, race.segments.length)
     const preComputedResults: RaceResults = { teamRankings, segmentResults: completedSegs }
     const finalResults = runRace(raceLineup, {}, preComputedResults)
+    finalizedRaceIdRef.current = race.id  // 成功後に立てる（同期実行なので二重クリックは防げる）
     setResults(finalResults ?? preComputedResults)
     setPhase('results')
   }

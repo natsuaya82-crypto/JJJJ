@@ -1041,6 +1041,8 @@ export function buildDraftOrder(
   return [...round1, ...round2]
 }
 
+// 海外選手のID採番。カウンタはメモリ上の値なのでアプリ再起動でリセットされる。
+// そのままだと再起動後の生成で既存セーブ内のIDと衝突するため、IDには年とランダム接尾辞を含めて一意性を保証する。
 let foreignIdCounter = 9000
 
 // 年1回、海外クラブに動きをつける：引退等（removedIds）を外し、若手を1〜2人ずつ新加入。
@@ -1138,7 +1140,7 @@ export function generateForeignLeaguePlayers(
           ? namePool[rng(0, namePool.length - 1)]
           : FOREIGN_NAMES[rng(0, FOREIGN_NAMES.length - 1)]
 
-        const id = `fp-${club.id}-${foreignIdCounter}`
+        const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
         clubPlayerIds.push(id)
 
         players.push({

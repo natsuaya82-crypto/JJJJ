@@ -108,7 +108,7 @@ export default function ReserveLeaguePage() {
           })}
         </div>
         <div style={{ padding: '24px 16px 8px' }}>
-          <button style={{ width: '100%', padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, color: C.textSub, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer' }}>
+          <button onClick={() => { setActiveRacePhase(null); navigate('/') }} style={{ width: '100%', padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, color: C.textSub, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer' }}>
             ホームへ戻る
           </button>
         </div>

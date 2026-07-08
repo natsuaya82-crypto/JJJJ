@@ -87,7 +87,11 @@ export async function showRewardAd(): Promise<boolean> {
   useLoadingStore.getState().show('広告を読み込み中…')
   try {
     const { AdMob, RewardAdPluginEvents } = await import('@capacitor-community/admob')
-    await AdMob.prepareRewardVideoAd({ adId: REWARD_AD_ID })
+    // prepare が settle しない端末・回線でも進行が止まらないよう、12秒で諦めて先へ進む
+    await Promise.race([
+      AdMob.prepareRewardVideoAd({ adId: REWARD_AD_ID }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('ad prepare timeout')), 12000)),
+    ])
     useLoadingStore.getState().hide()  // 準備完了→動画表示へ
 
     return await new Promise<boolean>((resolve) => {
