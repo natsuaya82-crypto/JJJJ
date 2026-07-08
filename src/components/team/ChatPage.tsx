@@ -19,8 +19,8 @@ const CONTRACT_TYPE_OPTS = [
 
 const TEAM_ROLE_OPTS: { key: TeamRole; label: string }[] = [
   { key: 'ace', label: 'エース' },
-  { key: 'sub_ace', label: 'サブエース' },
   { key: 'key_player', label: '主力' },
+  { key: 'sub_ace', label: 'サブエース' },
   { key: 'rotation', label: 'ローテ' },
   { key: 'development', label: '育成' },
 ]
@@ -174,7 +174,7 @@ function ChatView({
     dismissTransferRequest, allowPlayerTransfer,
     generateContractRequests,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
-    openPlayerSheet, resolveEvent, finalizeTransfer,
+    openPlayerSheet, resolveEvent, finalizeTransfer, rejectTransferBid,
   } = useGameStore()
 
   // この選手のチャットで決着させる選手イベント（疲労・モラール・出場機会・マイルストーン等）
@@ -202,19 +202,24 @@ function ChatView({
   const isTransfer = !!transferBid && !isAcq
 
   const events = currentSeason.events ?? []
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() =>
-    initialMessages ?? (isTransfer
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+    const built = isTransfer
       ? buildTransferMessages(player, transferBid!, teams.find(t => t.id === transferBid!.targetTeamId)?.name)
       : isAcq
       ? buildAcqMessages(player, acqOffer!, teams.find(t => t.id === player.teamId)?.name)
-      : buildMessages(player, contractReq, months, !!retirementReq, !!transferReq, transferReq?.reason, events))
-  )
+      : buildMessages(player, contractReq, months, !!retirementReq, !!transferReq, transferReq?.reason, events)
+    if (!initialMessages || initialMessages.length === 0) return built
+    // 保存済みログを開いた後に発生した新しい用件（更新要求・引退相談など）は、ログに無い分だけ追記する
+    const fresh = built.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
+    return fresh.length > 0 ? [...initialMessages, ...fresh] : initialMessages
+  })
 
   useEffect(() => { onMessagesChange(chatMessages) }, [chatMessages])
   const [composing, setComposing] = useState(false)
   const [composeMode, setComposeMode] = useState<'renewal' | 'acq' | 'transfer'>('renewal')
   const [justAcquired, setJustAcquired] = useState(false)  // 獲得成立直後（契約更新フローへの誤遷移を防ぐ）
   const [negotiationFailed, setNegotiationFailed] = useState(false)  // 交渉決裂直後（別フローに落ちず締めの表示だけ出す）
+  const [justRetired, setJustRetired] = useState(false)  // 引退承認直後（送別メッセージを見せてから閉じる）
   const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
   const [offerYears, setOfferYears] = useState(2)
   const [offerContractType, setOfferContractType] = useState<'standard' | 'development' | 'dual'>('standard')
@@ -333,6 +338,11 @@ function ChatView({
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
+    // 引退承認直後：送別メッセージを見せてから閉じる（即アンマウントで一瞬も表示されない問題の対策）
+    if (justRetired) return [
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
+
     // 選手イベント：選択肢を会話内ボタンで決着（resolveEvent）
     if (chatEvent) return chatEvent.choices.map((c, idx) => ({
       label: c.label,
@@ -343,6 +353,7 @@ function ChatView({
     // 移籍金合意後の契約交渉モード（他チームから移籍金OKが出た選手）
     if (isTransfer) return [
       { label: '契約条件を提示する', color: C.blue, action: openComposeTransfer },
+      { label: 'オファーを取り下げる', color: C.textSub, action: () => { rejectTransferBid(transferBid!.id); onClose() } },
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
@@ -387,6 +398,7 @@ function ChatView({
       { label: '引退を承認する', color: C.textSub, action: () => {
         append({ from: 'player', text: 'ありがとうございます。長い間お世話になりました。' })
         acceptRetirement(player.id)
+        setJustRetired(true)
       }},
       { label: '引き留める', color: C.blue, action: () => {
         append(
@@ -436,13 +448,20 @@ function ChatView({
     ]
 
     if (contractReq?.status === 'pending_gm') return [
-      { label: `要求を飲む（${fmt(contractReq.demandSalary)}/${contractReq.demandYears}年）`, color: C.green, action: () => {
-        append(
-          { from: 'gm', text: `了解です。年俸${fmt(contractReq.demandSalary)}、${contractReq.demandYears}年で承諾します。` },
-          { from: 'player', text: 'ありがとうございます。よろしくお願いします。' }
-        )
-        submitContractRenewalOffer(contractReq.id, contractReq.demandSalary, contractReq.demandYears, contractReq.offerContractType ?? player.contract.contractType ?? 'standard', undefined)
-      }},
+      // 要求額はラウンドごとに3%ずつ上がる（エンジン側と同じ式）。古い額を出すと「飲んだのに拒否」される
+      ...(() => {
+        const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
+        return [{ label: `要求を飲む（${fmt(effDemand)}/${contractReq.demandYears}年）`, color: C.green, action: () => {
+          append({ from: 'gm', text: `了解です。年俸${fmt(effDemand)}、${contractReq.demandYears}年で承諾します。` })
+          submitContractRenewalOffer(contractReq.id, effDemand, contractReq.demandYears, contractReq.offerContractType ?? player.contract.contractType ?? 'standard', undefined)
+          const updated = (useGameStore.getState().currentSeason.contractRequests ?? []).find(r => r.id === contractReq.id)
+          if (updated?.status === 'accepted') {
+            append({ from: 'player', text: 'ありがとうございます。よろしくお願いします。' })
+          } else {
+            append({ from: 'player', text: '申し訳ありませんが、その条件では受け入れられません。' })
+          }
+        }}]
+      })(),
       { label: 'カウンターオファーを出す', color: C.blue, action: openCompose },
       { label: '移籍を認める', color: C.orange, action: () => {
         append(
@@ -453,12 +472,21 @@ function ChatView({
       }},
     ]
 
+    // 退団予定（移籍リスト入り）の選手は契約更新できない
+    if (player.transferListed) return [
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
+
     if (months < 12 || contractReq?.initiatedBy === 'gm') return [
       { label: '契約条件を提示する', color: C.blue, action: openCompose },
     ]
 
-    return [
+    if (months < 24) return [
       { label: '契約更新の話をする', color: C.blue, action: openCompose },
+    ]
+
+    return [
+      { label: '閉じる', color: C.textSub, action: onClose },
     ]
   })()
 
@@ -1045,7 +1073,8 @@ export default function ChatPage() {
   const feeAcceptedBidIds = new Set((currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted').map(b => b.playerId))
   const contractPendingPlayers = players.filter(p => feeAcceptedBidIds.has(p.id) && !myPlayers.some(m => m.id === p.id) && !offerPlayers.some(o => o.id === p.id))
   const openablePlayers = [...myPlayers, ...offerPlayers, ...contractPendingPlayers]
-  const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? null : null
+  // 開いている最中に選手の状態が変わっても（引退承認など）チャットが突然閉じないよう、全選手からフォールバック解決する
+  const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? players.find(p => p.id === chatPlayerId) ?? null : null
 
   // 他チーム（トレード交渉の相手）
   const allForeignClubs = (foreignLeagues ?? []).flatMap(l => l.clubs)

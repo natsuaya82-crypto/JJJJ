@@ -221,6 +221,7 @@ export type Player = {
   joinedYear?: number         // このチームに加入したシーズン年。当該シーズン中は「NEW」表示
   renewalLockedUntilYear?: number  // 更新交渉を最終拒否 → この年まで自チームは更新オファー不可
   transferLockedUntilYear?: number // 移籍交渉が決裂 → この年まで自チームは移籍金オファー不可
+  retirementDeclinedYear?: number  // 引退を引き留めた年。その年は引退希望を再抽選しない
   transferListed?: boolean    // 「移籍を認める」で移籍リスト入り（他チームのオファー対象・シーズン内に決まらなければFA）
   // レンタル移籍：ownerTeamId が保有元、teamId は現在プレー中（借り手）。untilYear シーズン終了で自動返却。
   loan?: { ownerTeamId: string; untilYear: number }
@@ -326,6 +327,7 @@ export type IndividualEvent = {
   name: string
   date: string
   distance: 5000 | 10000 | 21097 | 42195
+  weather?: 'sunny' | 'cloudy' | 'rainy' | 'windy'   // 記録会当日の天気（タイムに影響）
   results?: IndividualEventResult[]
   rewardCards?: TrainingCard[]  // 開催時に自チームへ付与した練習カード（結果画面の表示用）
 }
