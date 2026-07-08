@@ -4861,20 +4861,36 @@ function rnd(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-// 距離別ベストタイム(秒)のOVRアンカー[OVR, 秒]。コンディション最高(form+2/疲労0/モラール80+)での値。
-//  OVR: 50 / 60 / 70 / 80 / 90 / 99
-//  5000: 14:15 14:00 13:45 13:30 13:00 12:30
-//  10000:29:15 28:45 28:15 27:45 27:00 26:00
-//  ハーフ:63:00 62:00 61:00 60:00 59:00 57:00
-//  マラソン:2:13 2:11 2:09 2:07 2:04 2:00
+// 距離別ベストタイム(秒)の能力アンカー[能力値, 秒]。コンディション最高(form+2/疲労0/モラール80+)での値。
+//  能力: 50 / 70 / 90 / 99
+//  5000: 14:30 13:45 13:00 12:30
+//  10000:29:30 28:15 27:00 26:00
+//  ハーフ:65:00 62:00 59:00 57:00
+//  マラソン:2:13 2:09 2:04 2:00
 const IND_ANCHORS: Record<number, [number, number][]> = {
-  5000:  [[50, 855], [60, 840], [70, 825], [80, 810], [90, 780], [99, 750]],
-  10000: [[50, 1755], [60, 1725], [70, 1695], [80, 1665], [90, 1620], [99, 1560]],
-  21097: [[50, 3780], [60, 3720], [70, 3660], [80, 3600], [90, 3540], [99, 3420]],
-  42195: [[50, 7980], [60, 7860], [70, 7740], [80, 7620], [90, 7440], [99, 7200]],
+  5000:  [[50, 870], [70, 825], [90, 780], [99, 750]],
+  10000: [[50, 1770], [70, 1695], [90, 1620], [99, 1560]],
+  21097: [[50, 3900], [70, 3720], [90, 3540], [99, 3420]],
+  42195: [[50, 7980], [70, 7740], [90, 7440], [99, 7200]],
 }
 
-// OVRから距離別ベストタイム(コンディション最高時)。アンカーを区分線形で通し、50未満は最下段の傾きで延長。
+// 種目別のステータス比率。OVRではなくこの加重平均（種目適性値）で基準タイムを引く。
+// 短い種目ほどスピード、長い種目ほどスタミナ・回復・ペース配分・精神が効く。山岳系は対象外。
+const IND_STAT_WEIGHTS: Record<number, { speed: number; stamina: number; pacing: number; mental: number; recovery: number }> = {
+  5000:  { speed: 0.50, stamina: 0.20, pacing: 0.12, mental: 0.10, recovery: 0.08 },
+  10000: { speed: 0.35, stamina: 0.30, pacing: 0.15, mental: 0.10, recovery: 0.10 },
+  21097: { speed: 0.18, stamina: 0.40, pacing: 0.20, mental: 0.10, recovery: 0.12 },
+  42195: { speed: 0.08, stamina: 0.42, pacing: 0.18, mental: 0.14, recovery: 0.18 },
+}
+
+// 種目適性値: 種目ごとのステータス加重平均
+export function individualEventAbility(player: Player, distance: 5000 | 10000 | 21097 | 42195): number {
+  const w = IND_STAT_WEIGHTS[distance]
+  const r = player.ratings
+  return r.speed * w.speed + r.stamina * w.stamina + r.pacing * w.pacing + r.mental * w.mental + r.recovery * w.recovery
+}
+
+// 種目適性値から距離別ベストタイム(コンディション最高時)。アンカーを区分線形で通し、50未満は最下段の傾きで延長。
 function individualBaseTime(o: number, distance: 5000 | 10000 | 21097 | 42195): number {
   const pts = IND_ANCHORS[distance]
   const oo = Math.min(99, o)
@@ -4890,7 +4906,7 @@ function individualBaseTime(o: number, distance: 5000 | 10000 | 21097 | 42195): 
 }
 
 export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 21097 | 42195): number {
-  const o = ovr(player)
+  const o = individualEventAbility(player, distance)
   const base = individualBaseTime(o, distance)  // コンディション最高でのベスト
   // コンディション低下ペナルティ（最高で0＝アンカー通り）
   const formPen = (2 - (player.form ?? 0)) * 4

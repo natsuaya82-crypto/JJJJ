@@ -34,13 +34,14 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   onRun: () => void
   onDone: () => void
 }) {
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const done = !!event.results
   const bestKey = event.distance === 5000 ? 'd5000' as const
     : event.distance === 10000 ? 'd10000' as const
     : event.distance === 21097 ? 'half' as const : 'marathon' as const
   const teamShort = (id: string) => teams.find(t => t.id === id)?.shortName ?? ''
   const playerName = (id: string) => players.find(p => p.id === id)?.name ?? ''
-  const top3 = (event.results ?? []).slice(0, 3)
+  const topTen = (event.results ?? []).slice(0, 10)
   const myResults = (event.results ?? []).filter(r => r.teamId === playerTeamId)
 
   return (
@@ -71,20 +72,21 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
       ) : (
         <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位10名</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {top3.map(r => (
-                <div key={r.playerId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${r.rank === 1 ? alpha(C.gold, 0.5) : C.border}` }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: r.rank === 1 ? C.gold : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
+              {topTen.map(r => (
+                <button key={r.playerId} onClick={() => openPlayerSheet(r.playerId)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${r.rank === 1 ? alpha(C.gold, 0.5) : r.teamId === playerTeamId ? alpha(TT_COLOR, 0.5) : C.border}` }}>
+                  <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.text : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
                   <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                     <PlayerFace playerId={r.playerId} nationality={players.find(p => p.id === r.playerId)?.nationality ?? 'JPN'} size={30} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
-                    <div style={{ fontSize: 9, color: C.textDim }}>{teamShort(r.teamId)}</div>
+                    <div style={{ fontSize: 9, color: r.teamId === playerTeamId ? TT_COLOR : C.textDim }}>{teamShort(r.teamId)}</div>
                   </div>
                   <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: r.rank === 1 ? C.gold : C.text }}>{formatRaceTime(r.timeSec)}</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -96,12 +98,16 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                 const p = players.find(pl => pl.id === r.playerId)
                 const isPB = p?.eventBests?.[bestKey]?.timeSec === r.timeSec
                 return (
-                  <div key={r.playerId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 9, background: C.surface2, border: `1px solid ${C.border}` }}>
+                  <button key={r.playerId} onClick={() => openPlayerSheet(r.playerId)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit', background: C.surface2, border: `1px solid ${C.border}` }}>
                     <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, width: 30, flexShrink: 0 }}>{r.rank}位</span>
+                    <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+                      <PlayerFace playerId={r.playerId} nationality={p?.nationality ?? 'JPN'} size={26} />
+                    </div>
                     <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
                     {isPB && <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span>}
                     <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub, flexShrink: 0 }}>{formatRaceTime(r.timeSec)}</span>
-                  </div>
+                  </button>
                 )
               })}
             </div>
