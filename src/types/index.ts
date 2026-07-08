@@ -527,6 +527,9 @@ export type Season = {
     headline: string
     category: 'trade' | 'draft' | 'college' | 'race' | 'injury' | 'fa' | 'finance'
     relatedIds: string[]
+    major?: boolean       // 大ニュース（移籍金1億以上の大型移籍など）
+    fromTeamId?: string   // 移籍元チーム
+    toTeamId?: string     // 移籍先チーム
   }[]
   objectives: {
     id: string

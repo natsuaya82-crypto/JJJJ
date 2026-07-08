@@ -84,7 +84,9 @@ export default function NewsPage() {
             ? players.find(p => p.id === news.relatedIds[0])
             : undefined
           const relOvr = relPlayer ? ovr(relPlayer) : 0
-          const showDetail = !!relPlayer && relOvr >= HIGH_OVR
+          const showDetail = !!relPlayer && (relOvr >= HIGH_OVR || !!news.major)
+          const fromTeam = news.fromTeamId ? teams.find(t => t.id === news.fromTeamId) : undefined
+          const toTeam = news.toTeamId ? teams.find(t => t.id === news.toTeamId) : undefined
 
           if (showDetail && relPlayer) {
             const team = teams.find(t => t.id === relPlayer.teamId)
@@ -96,8 +98,10 @@ export default function NewsPage() {
             return (
               <div key={i} style={{
                 background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                border: `2px solid ${alpha(col, 0.55)}`, borderRadius: 14,
-                boxShadow: `0 4px 0 #2a1800, 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
+                border: news.major ? `2px solid ${C.gold}` : `2px solid ${alpha(col, 0.55)}`, borderRadius: 14,
+                boxShadow: news.major
+                  ? `0 4px 0 #5a3500, 0 6px 22px ${alpha(C.gold, 0.28)}, inset 0 1px 0 rgba(255,255,255,0.08)`
+                  : `0 4px 0 #2a1800, 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
                 overflow: 'hidden',
               }}>
                 {/* Top row */}
@@ -106,8 +110,11 @@ export default function NewsPage() {
                     {CAT_ICON[news.category] ?? DEFAULT_ICON}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', color: col, marginBottom: 2 }}>
-                      {CAT_LABEL[news.category]}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                      {news.major && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', color: '#111', background: `linear-gradient(180deg, ${C.goldHi ?? C.gold}, ${C.gold})`, padding: '1px 6px', borderRadius: 4 }}>大ニュース</span>}
+                      <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', color: col }}>
+                        {CAT_LABEL[news.category]}
+                      </div>
                     </div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: C.text, lineHeight: 1.4 }}>{news.headline}</div>
                   </div>
@@ -129,9 +136,17 @@ export default function NewsPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: specCol, fontFamily: SAIRA }}>{SPECIALTY_LABELS[relPlayer.specialty]}</span>
                       <span style={{ fontSize: 10, color: C.textDim }}>{relPlayer.age}歳</span>
-                      <span style={{ fontSize: 10, color: C.textDim }}>
-                        {isFA ? 'FA中' : team ? team.shortName : '—'}
-                      </span>
+                      {(fromTeam || toTeam) ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.textSub, fontWeight: 700 }}>
+                          <span>{fromTeam ? fromTeam.shortName : (isFA ? 'FA' : '—')}</span>
+                          <span style={{ color: C.gold }}>→</span>
+                          <span style={{ color: C.gold }}>{toTeam ? toTeam.shortName : '—'}</span>
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 10, color: C.textDim }}>
+                          {isFA ? 'FA中' : team ? team.shortName : '—'}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>

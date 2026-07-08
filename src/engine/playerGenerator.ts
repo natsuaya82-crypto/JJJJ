@@ -789,9 +789,9 @@ export function generateCpuRosters(
       growthCurve,
       teamId, rosterTier: tier,
       contract: {
-        yearsLeft: rng(1, 3),
+        yearsLeft: rng(2, 4),
         annualSalary: calculateRookieSalary(rank),
-        faEligibleYear: year + rng(1, 3),
+        faEligibleYear: year + rng(2, 4),
         contractType,
       },
       nationality, origin,

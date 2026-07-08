@@ -39,6 +39,9 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   onDone: () => void
 }) {
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  // 国内チーム or 海外クラブから所属を解決（記録会に海外選手が出るため）
+  const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
   const [resting, setResting] = useState<Set<string>>(new Set())
   const [sortKey, setSortKey] = useState<'pb' | 'fatigue' | 'ovr' | 'age'>('pb')
   const toggleResting = (id: string) => setResting(prev => {
@@ -151,7 +154,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
                     {(() => {
-                      const t = teams.find(tm => tm.id === r.teamId)
+                      const t = resolveTeam(r.teamId)
                       if (!t) return null
                       return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>

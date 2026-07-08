@@ -117,6 +117,9 @@ export default function PlayerSheet() {
     openPlayerId, openPlayerSheet, players, teams,
     currentSeason, pastSeasons, playerTeamId,
   } = useGameStore()
+  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  // 国内チーム or 海外クラブから所属を解決
+  const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const [page, setPage] = useState(1)
@@ -490,8 +493,8 @@ export default function PlayerSheet() {
                     <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
                   </div>
                   {historyRows.map((row, i) => {
-                    const t = teams.find(tm => tm.id === row.teamId)
-                    const teamName = t?.name ?? t?.shortName ?? '不明'
+                    const t = resolveTeam(row.teamId)
+                    const teamName = t?.name ?? t?.shortName ?? ''
                     const isLoan = (player.loanTeamYears ?? []).some(l => l.year === row.year && l.teamId === row.teamId)
                       || (row.year === currentSeason.year && !!player.loan && row.teamId === player.teamId)
                     const suffix = `${row.tier === 'second' ? '(B)' : ''}${isLoan ? '(L)' : ''}`
