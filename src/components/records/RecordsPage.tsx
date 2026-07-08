@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { GameStore } from '../../store/gameStore'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
+import { formatRaceTime } from '../../utils/eventTime'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
@@ -62,7 +63,7 @@ export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
       </div>
 
       <div style={{ padding: '14px 16px 0' }}>
-        {tab === 'franchise' && <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} />}
+        {tab === 'franchise' && <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} />}
         {tab === 'league' && <LeagueTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} />}
         {tab === 'players' && <PlayersTab players={players} teams={teams} currentSeason={currentSeason} />}
         {tab === 'gm' && <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} />}
@@ -92,21 +93,77 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId }: {
+// 選手行の長押しで選手詳細（PlayerSheet）を開く共通ハンドラ
+function usePlayerLongPress() {
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  return (pid: string) => ({
+    onPointerDown: () => { timer.current = setTimeout(() => openPlayerSheet(pid), 450) },
+    onPointerUp: () => { if (timer.current) clearTimeout(timer.current) },
+    onPointerLeave: () => { if (timer.current) clearTimeout(timer.current) },
+    onPointerMove: () => { if (timer.current) clearTimeout(timer.current) },
+  })
+}
+
+// 種目別記録の距離切替タブ（5000m/10000m/ハーフ/マラソン）
+type EvDist = 5000 | 10000 | 21097 | 42195
+const EV_DIST_TABS: { dist: EvDist; label: string }[] = [
+  { dist: 5000, label: '5000m' }, { dist: 10000, label: '10000m' },
+  { dist: 21097, label: 'ハーフ' }, { dist: 42195, label: 'マラソン' },
+]
+function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDist) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: '2px', background: C.surface, borderRadius: '10px', padding: '3px', border: `1px solid ${C.border}`, margin: '4px 0 6px' }}>
+      {EV_DIST_TABS.map(({ dist, label }) => (
+        <button key={dist} onClick={() => onChange(dist)} style={{
+          flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer', borderRadius: '8px', fontFamily: SAIRA,
+          fontSize: '11px', fontWeight: value === dist ? 700 : 400,
+          background: value === dist ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'none',
+          color: value === dist ? '#5EC8B8' : C.textDim,
+          boxShadow: value === dist ? `0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)` : 'none',
+        }}>{label}</button>
+      ))}
+    </div>
+  )
+}
+
+function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players }: {
   teams: GameStore['teams']
   pastSeasons: GameStore['pastSeasons']
   currentSeason: GameStore['currentSeason']
   playerTeamId: string
+  players: GameStore['players']
 }) {
   const myTeam = teams.find(t => t.id === playerTeamId)
+  const longPress = usePlayerLongPress()
   const championships = myTeam?.history.championships ?? 0
-  const legends = myTeam?.history.legends ?? []
   const bestStreak = myTeam?.history.bestStreak ?? 0
   const currentStreak = myTeam?.history.currentStreak ?? 0
   const allSeasons = [
     ...pastSeasons,
     ...(currentSeason.currentRaceIndex > 0 ? [currentSeason] : []),
   ].sort((a, b) => a.year - b.year)
+
+  // 今季の記録会 種目別記録（自チーム選手のみ・10位まで）
+  const [evDist, setEvDist] = useState<EvDist>(5000)
+  const myPlayerIds = new Set(players.filter(p => p.teamId === playerTeamId).map(p => p.id))
+  const myEventTops = EV_DIST_TABS.map(({ dist, label }) => {
+    const best = new Map<string, number>()
+    for (const ev of currentSeason.individualEvents ?? []) {
+      if (ev.distance !== dist || !ev.results) continue
+      for (const r of ev.results) {
+        if (!myPlayerIds.has(r.playerId)) continue
+        const cur = best.get(r.playerId)
+        if (cur == null || r.timeSec < cur) best.set(r.playerId, r.timeSec)
+      }
+    }
+    const rows = [...best.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, 10)
+      .map(([id, t]) => ({ p: players.find(x => x.id === id), t }))
+      .filter((x): x is { p: GameStore['players'][0]; t: number } => !!x.p)
+    return { dist, label, rows }
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -142,38 +199,29 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId }: {
       </CardPanel>
 
       <CardPanel>
-        <SectionLabel>フランチャイズ名鑑</SectionLabel>
-        {legends.length === 0 ? (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>引退した伝説はまだいない</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-            {[...legends].reverse().map((leg, i) => (
-              <div key={`${leg.name}-${leg.retiredYear}-${i}`} style={{
-                padding: '10px 0', borderBottom: `1px solid ${C.border}`,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text }}>{leg.name}</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>
-                      {SPECIALTY_LABELS[leg.specialty]} / {leg.retiredYear}年引退 / {leg.retiredAge}歳 / {leg.yearsInTeam}年在籍
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.gold, lineHeight: 1, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>
-                      {leg.peakOvr}
-                    </div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>PEAK OVR</div>
+        <SectionLabel>{currentSeason.year}シーズン 種目別記録（自チーム）</SectionLabel>
+        <EventDistTabs value={evDist} onChange={setEvDist} />
+        {(() => {
+          const group = myEventTops.find(g => g.dist === evDist)
+          if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
+          return group.rows.map(({ p, t }, i) => {
+            const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
+            return (
+              <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
+                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center' }}>{i + 1}</span>
+                <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
+                    {myTeam && <TeamLogoSVG primary={myTeam.colors.primary} secondary={myTeam.colors.secondary} shortName={myTeam.shortName} teamId={myTeam.id} size={12} />}
+                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''} / {p.age}歳 / {SPECIALTY_LABELS[p.specialty]}</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>区間賞 <span style={{ color: C.gold, fontWeight: '700', textShadow: `0 0 5px ${alpha(C.gold, 0.4)}` }}>{leg.career.segmentWins}</span></span>
-                  <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>優勝 <span style={{ color: C.gold, fontWeight: '700', textShadow: `0 0 5px ${alpha(C.gold, 0.4)}` }}>{leg.career.championships}</span></span>
-                  <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>MVP <span style={{ color: C.gold, fontWeight: '700', textShadow: `0 0 5px ${alpha(C.gold, 0.4)}` }}>{leg.career.mvpAwards}</span></span>
-                </div>
+                <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(t)}</span>
               </div>
-            ))}
-          </div>
-        )}
+            )
+          })
+        })()}
       </CardPanel>
 
       <CardPanel>
@@ -385,8 +433,7 @@ function PlayersTab({ players, teams, currentSeason }: {
   teams: GameStore['teams']
   currentSeason: GameStore['currentSeason']
 }) {
-  const specialties: (keyof typeof SPECIALTY_LABELS)[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
-
+  const longPress = usePlayerLongPress()
   // 国内チームIDセット（海外リーグ選手を除外するため）
   const domesticTeamIds = new Set(teams.map(t => t.id))
   const isDomestic = (p: GameStore['players'][0]) => p.teamId === '' || domesticTeamIds.has(p.teamId)
@@ -396,18 +443,29 @@ function PlayersTab({ players, teams, currentSeason }: {
     isDomestic(p) &&
     (p.career.totalRaces > 0 || p.career.segmentWins > 0 || p.career.championships > 0 || p.career.mvpAwards > 0)
   )
-  // 現役トップは国内1軍のみ
-  const activePlayers = players.filter(p => domesticTeamIds.has(p.teamId) && p.status === 'active' && p.rosterTier === 'main')
 
   const topSegWins = [...careerPlayers].sort((a, b) => b.career.segmentWins - a.career.segmentWins).slice(0, 10).filter(p => p.career.segmentWins > 0)
-  const topRaces   = [...careerPlayers].sort((a, b) => b.career.totalRaces - a.career.totalRaces).slice(0, 10).filter(p => p.career.totalRaces > 0)
   const topMVP     = [...careerPlayers].sort((a, b) => b.career.mvpAwards - a.career.mvpAwards).slice(0, 10).filter(p => p.career.mvpAwards > 0)
   const topChamps  = [...careerPlayers].sort((a, b) => b.career.championships - a.career.championships).slice(0, 10).filter(p => p.career.championships > 0)
 
-  const topBySpecialty = specialties.map(spec => ({
-    spec,
-    player: activePlayers.filter(p => p.specialty === spec).sort((a, b) => ovr(b) - ovr(a))[0],
-  })).filter(x => x.player)
+  // 今季の記録会 種目別記録（その年に実際に走ったタイムのベスト）
+  const [evDist, setEvDist] = useState<EvDist>(5000)
+  const seasonEventTops = EV_DIST_TABS.map(({ dist, label }) => {
+    const best = new Map<string, number>()
+    for (const ev of currentSeason.individualEvents ?? []) {
+      if (ev.distance !== dist || !ev.results) continue
+      for (const r of ev.results) {
+        const cur = best.get(r.playerId)
+        if (cur == null || r.timeSec < cur) best.set(r.playerId, r.timeSec)
+      }
+    }
+    const rows = [...best.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, 10)
+      .map(([id, t]) => ({ p: players.find(x => x.id === id), t }))
+      .filter((x): x is { p: GameStore['players'][0]; t: number } => !!x.p)
+    return { dist, label, rows }
+  })
 
   // 今季スタッツ: 実レース結果から集計
   const seasonSegWinMap: Record<string, number> = {}
@@ -430,15 +488,18 @@ function PlayersTab({ players, teams, currentSeason }: {
     const valCol = color ?? (i === 0 ? C.gold : i <= 2 ? C.green : C.textSub)
     const isRetired = p.status === 'retired'
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+      <div {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
         <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
         <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</span>
             {isRetired && <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px', borderRadius: 3, background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>}
           </div>
-          <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{team?.shortName ?? (isRetired ? '引退' : '—')} / {SPECIALTY_LABELS[p.specialty]}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
+            {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
+            <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? (isRetired ? '引退' : '—')} / {SPECIALTY_LABELS[p.specialty]}</span>
+          </div>
         </div>
         <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: valCol, textShadow: i <= 2 ? `0 0 8px ${alpha(valCol, 0.5)}` : 'none' }}>{value}</span>
         <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{unit}</span>
@@ -465,14 +526,6 @@ function PlayersTab({ players, teams, currentSeason }: {
         }
       </CardPanel>
 
-      <CardPanel>
-        <SectionLabel>通算出走記録ランキング</SectionLabel>
-        {topRaces.length === 0
-          ? <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>記録なし</div>
-          : topRaces.map((p, i) => <RankRow key={p.id} p={p} i={i} value={p.career.totalRaces} unit="区" color={C.textSub} />)
-        }
-      </CardPanel>
-
       {topMVP.length > 0 && (
         <CardPanel>
           <SectionLabel>MVP受賞ランキング</SectionLabel>
@@ -488,36 +541,32 @@ function PlayersTab({ players, teams, currentSeason }: {
       )}
 
       <CardPanel>
-        <SectionLabel>役割別トップ選手（現役）</SectionLabel>
-        {topBySpecialty.length === 0
-          ? <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>記録なし</div>
-          : topBySpecialty.map(({ spec, player }) => {
-            const team = teams.find(t => t.id === player.teamId)
+        <SectionLabel>{currentSeason.year}シーズン 種目別記録（記録会）</SectionLabel>
+        <EventDistTabs value={evDist} onChange={setEvDist} />
+        {(() => {
+          const group = seasonEventTops.find(g => g.dist === evDist)
+          if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
+          return group.rows.map(({ p, t }, i) => {
+            const team = teams.find(tm => tm.id === p.teamId)
+            const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
             return (
-              <div key={spec} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-                <div style={{ fontFamily: SAIRA, width: '48px', fontSize: '9px', color: C.gold, fontWeight: '700', letterSpacing: '0.5px', lineHeight: 1.3, flexShrink: 0 }}>
-                  {SPECIALTY_LABELS[spec]}
+              <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
+                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center' }}>{i + 1}</span>
+                <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</div>
+                  {team && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
+                      <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />
+                      <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</span>
+                    </div>
+                  )}
                 </div>
-                <div style={{ width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={player.id} nationality={player.nationality} size={30} /></div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{player.name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{team?.shortName} / {player.age}歳</span>
-                    {(() => {
-                      const stage = careerStage(player)
-                      const stageCol = CAREER_STAGE_COLOR[stage]
-                      return (
-                        <span style={{ fontFamily: SAIRA, fontSize: 8, padding: '1px 4px', borderRadius: 3, background: alpha(stageCol, 0.15), color: stageCol, fontWeight: 700, border: `1px solid ${alpha(stageCol, 0.3)}` }}>
-                          {CAREER_STAGE_LABEL[stage]}
-                        </span>
-                      )
-                    })()}
-                  </div>
-                </div>
+                <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(t)}</span>
               </div>
             )
           })
-        }
+        })()}
       </CardPanel>
     </div>
   )

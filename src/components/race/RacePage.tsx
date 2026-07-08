@@ -5,6 +5,8 @@ import { runWithLoading } from '../../store/loadingStore'
 import type { RaceResults, IndividualEvent, Player, Team } from '../../types'
 import BackButton from '../ui/BackButton'
 import PlayerFace from '../player/PlayerFace'
+import TrainingCardSVG from '../training/TrainingCardSVG'
+import { TeamLogoSVG } from '../icons/Icons'
 import { LineupPhase } from './LineupPhase'
 import { SimPhase } from './SimPhase'
 import { ResultsPhase } from './ResultsPhase'
@@ -47,7 +49,6 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   const bestKey = event.distance === 5000 ? 'd5000' as const
     : event.distance === 10000 ? 'd10000' as const
     : event.distance === 21097 ? 'half' as const : 'marathon' as const
-  const teamShort = (id: string) => teams.find(t => t.id === id)?.shortName ?? ''
   const playerName = (id: string) => players.find(p => p.id === id)?.name ?? ''
   const topTen = (event.results ?? []).slice(0, 10)
   const myResults = (event.results ?? []).filter(r => r.teamId === playerTeamId)
@@ -129,42 +130,35 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
         </>
       ) : (
         <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {(() => {
-            // カード報酬（総合1位=レジェンダリー、2〜10位=エピック、11〜100位=レア）を集計して表示
-            const mine = (event.results ?? []).filter(r => r.teamId === playerTeamId)
-            const legend = mine.filter(r => r.rank === 1).length
-            const epic = mine.filter(r => r.rank >= 2 && r.rank <= 10).length
-            const rare = mine.filter(r => r.rank >= 11 && r.rank <= 100).length
-            if (legend + epic + rare === 0) return null
-            const chip = (label: string, count: number, color: string) => count > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 7, background: alpha(color, 0.14), border: `1px solid ${alpha(color, 0.45)}`, color, fontFamily: 'inherit' }}>
-                {label} ×{count}
-              </span>
-            )
-            return (
-              <div style={{ borderRadius: 12, padding: '10px 14px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}` }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: C.textSub, letterSpacing: '0.1em', marginBottom: 6 }}>獲得した練習カード</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {chip('レジェンダリー', legend, C.gold)}
-                  {chip('エピック', epic, '#C77DFF')}
-                  {chip('レア', rare, C.blue)}
-                </div>
-              </div>
-            )
-          })()}
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位10名</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {topTen.map(r => (
+              {topTen.map((r, i) => (
                 <button key={r.playerId} onClick={() => openPlayerSheet(r.playerId)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${r.rank === 1 ? alpha(C.gold, 0.5) : r.teamId === playerTeamId ? alpha(TT_COLOR, 0.5) : C.border}` }}>
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                    border: `1px solid ${r.rank === 1 ? alpha(C.gold, 0.5) : r.teamId === playerTeamId ? alpha(TT_COLOR, 0.5) : C.border}`,
+                    // 下位から順に表示して1位が最後に出る
+                    animation: 'race-result-in 0.35s ease both',
+                    animationDelay: `${(topTen.length - 1 - i) * 0.15}s`,
+                  }}>
                   <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.text : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
                   <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                     <PlayerFace playerId={r.playerId} nationality={players.find(p => p.id === r.playerId)?.nationality ?? 'JPN'} size={30} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
-                    <div style={{ fontSize: 9, color: r.teamId === playerTeamId ? TT_COLOR : C.textDim }}>{teamShort(r.teamId)}</div>
+                    {(() => {
+                      const t = teams.find(tm => tm.id === r.teamId)
+                      if (!t) return null
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
+                          <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={12} />
+                          <span style={{ fontSize: 9, color: r.teamId === playerTeamId ? TT_COLOR : C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                        </div>
+                      )
+                    })()}
                   </div>
                   <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: r.rank === 1 ? C.gold : C.text }}>{formatRaceTime(r.timeSec)}</span>
                 </button>
@@ -172,7 +166,18 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
             </div>
           </div>
 
-          <div>
+          {(event.rewardCards ?? []).length > 0 && (
+            <div style={{ borderRadius: 12, padding: '10px 14px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}`, animation: 'race-result-in 0.4s ease both', animationDelay: `${topTen.length * 0.15 + 0.2}s` }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 8 }}>獲得した練習カード · {(event.rewardCards ?? []).length}枚</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {(event.rewardCards ?? []).map(c => (
+                  <TrainingCardSVG key={c.id} statKey={c.statKey} rarity={c.rarity} width={62} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ animation: 'race-result-in 0.4s ease both', animationDelay: `${topTen.length * 0.15 + 0.35}s` }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', marginBottom: 6 }}>自チームの結果</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {myResults.map(r => {
@@ -180,7 +185,12 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                 const isPB = p?.eventBests?.[bestKey]?.timeSec === r.timeSec
                 return (
                   <button key={r.playerId} onClick={() => openPlayerSheet(r.playerId)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit', background: C.surface2, border: `1px solid ${C.border}` }}>
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                      background: isPB ? alpha(C.green, 0.06) : C.surface2,
+                      border: `1px solid ${isPB ? alpha(C.green, 0.45) : C.border}`,
+                      boxShadow: isPB ? `0 0 8px ${alpha(C.green, 0.15)}` : 'none',
+                    }}>
                     <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, width: 30, flexShrink: 0 }}>{r.rank}位</span>
                     <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={r.playerId} nationality={p?.nationality ?? 'JPN'} size={26} />
@@ -666,7 +676,7 @@ export default function RacePage() {
         players={players}
         teams={teams}
         playerTeamId={playerTeamId}
-        onRun={(skipIds) => { simulateIndividualEvent(ttEvent.id, skipIds); setTtViewId(ttEvent.id) }}
+        onRun={(skipIds) => runWithLoading('記録会 開催中…', () => { simulateIndividualEvent(ttEvent.id, skipIds); setTtViewId(ttEvent.id) }, 800)}
         onDone={() => setTtViewId(null)}
       />
     )

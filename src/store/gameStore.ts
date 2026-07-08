@@ -9,7 +9,7 @@ import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, gene
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
-import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted } from '../utils/playerUtils'
+import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET } from '../data/economy'
 import { tierForContract, canSignContract } from '../data/rosterRules'
@@ -198,6 +198,7 @@ export type GameStore = GameState & {
   proposeTrade: (targetTeamId: string, giveIds: string[], givePickKeys: string[], getIds: string[], getPickKeys: string[]) => void
   acceptTradeCounter: (negId: string) => boolean
   dismissTradeNegotiation: (negId: string) => void
+  setChatLog: (playerId: string, messages: import('../types').ChatMessage[]) => void
   getTransferWindow: () => { open: boolean; label: string; racesUntil: number | null }
   getRosterWindow: () => { open: boolean; label: string }
   ensureFuturePicks: () => void
@@ -1069,6 +1070,7 @@ export const useGameStore = create<GameStore>()(
             // EXPベース成長: 走った区間の地形タイプで能力別EXPを付与
             let newRatings = { ...p.ratings }
             let newExp = { ...(p.exp ?? {}) } as Partial<Record<CardStatKey, number>>
+            const statCaps = getStatPotentials(p)  // 能力別ポテンシャル上限
             if (racingIds.has(p.id) && p.status === 'active') {
               const playerSeg = results.segmentResults.find(sr =>
                 sr.runners.some(r => r.playerId === p.id)
@@ -1080,12 +1082,14 @@ export const useGameStore = create<GameStore>()(
                 const ageMult = ageMultiplier(p)
                 const potMult = potMultiplier(p.potential)
                 if (ageMult > 0) {
-                  const result = processExpGains(newRatings, newExp, baseGains, potMult, ageMult)
+                  const result = processExpGains(newRatings, newExp, baseGains, potMult, ageMult, statCaps)
                   newRatings = result.ratings
                   newExp = result.exp
                   const gained: Partial<Record<CardStatKey, number>> = {}
                   ;(Object.keys(baseGains) as CardStatKey[]).forEach(k => {
-                    const v = Math.round((baseGains[k] ?? 0) * potMult * ageMult)
+                    // レース前に既に上限だった能力はEXPが入らない（表示も0）。今回上限に達した分は表示する。
+                    const capped = ((p.ratings as Record<string, number>)[k] ?? 0) >= Math.min(99, (statCaps as Record<string, number>)[k] ?? 99)
+                    const v = capped ? 0 : Math.round((baseGains[k] ?? 0) * potMult * ageMult)
                     if (v > 0) gained[k] = v
                   })
                   raceExpGainsMap[p.id] = gained
@@ -1099,7 +1103,7 @@ export const useGameStore = create<GameStore>()(
               const ageMult = ageMultiplier(p)
               const potMult = potMultiplier(p.potential)
               if (ageMult > 0) {
-                const result = processExpGains(newRatings, newExp, benchGains, potMult, ageMult)
+                const result = processExpGains(newRatings, newExp, benchGains, potMult, ageMult, statCaps)
                 newRatings = result.ratings
                 newExp = result.exp
               }
@@ -1119,7 +1123,7 @@ export const useGameStore = create<GameStore>()(
                 if (planStat && Math.random() < 0.30) {
                   // 練習プランはEXPボーナスとして追加（直接+1ではなく）
                   const bonusGain: Partial<Record<CardStatKey, number>> = { [planStat as CardStatKey]: 600 }
-                  const result = processExpGains(newRatings, newExp, bonusGain, potMultiplier(p.potential), 1.0)
+                  const result = processExpGains(newRatings, newExp, bonusGain, potMultiplier(p.potential), 1.0, statCaps)
                   newRatings = result.ratings
                   newExp = result.exp
                 }
@@ -1294,7 +1298,7 @@ export const useGameStore = create<GameStore>()(
             const newEntries = sr.runners.map(r => {
               const pl = state.players.find(x => x.id === r.playerId)
               const tm = state.teams.find(x => x.id === r.teamId)
-              return { playerName: pl?.name ?? '不明', teamShort: tm?.shortName ?? '?', timeSec: r.timeSec, year: state.currentSeason.year }
+              return { playerName: pl?.name ?? '不明', teamShort: tm?.shortName ?? '?', playerId: r.playerId, teamId: r.teamId, timeSec: r.timeSec, year: state.currentSeason.year }
             })
             const fastestNew = newEntries.length > 0
               ? newEntries.reduce((min, e) => e.timeSec < min.timeSec ? e : min, newEntries[0])
@@ -1911,14 +1915,14 @@ export const useGameStore = create<GameStore>()(
           } else if (event.type === 'player_form_up' && pid) {
             if (choiceIndex === 0) {
               const stat = STATS[Math.floor(Math.random() * STATS.length)]
-              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min(99, p.ratings[stat] + 1) }, fatigue: Math.min(100, p.fatigue + 8) } : p)
+              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 1) }, fatigue: Math.min(100, p.fatigue + 8) } : p)
             } else {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 10) } : p)
             }
           } else if (event.type === 'young_breakout' && pid) {
             if (choiceIndex === 0) {
               const stat = STATS[Math.floor(Math.random() * STATS.length)]
-              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min(99, p.ratings[stat] + 2) }, fatigue: Math.min(100, p.fatigue + 10) } : p)
+              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 2) }, fatigue: Math.min(100, p.fatigue + 10) } : p)
             }
           } else if (event.type === 'player_wants_renewal' && pid) {
             if (choiceIndex === 0) {
@@ -3194,6 +3198,9 @@ export const useGameStore = create<GameStore>()(
 
       dismissTradeNegotiation: (negId) => set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).filter(n => n.id !== negId) } })),
 
+      // チャット履歴を playerId 単位で保存（currentSeason 内なのでシーズンまたぎで自動リセット）
+      setChatLog: (playerId, messages) => set(s => ({ currentSeason: { ...s.currentSeason, chatLogs: { ...(s.currentSeason.chatLogs ?? {}), [playerId]: messages } } })),
+
       runSecondTeamRace: (lineup, strategy = 'balanced') => {
         const state = get()
         const { currentSeason, teams, players, playerTeamId } = state
@@ -3251,7 +3258,8 @@ export const useGameStore = create<GameStore>()(
             if (p.age <= 24 && Math.random() < 0.22 && p.status === 'active') {
               const stat = STATS[Math.floor(Math.random() * STATS.length)]
               const cur = (p.ratings as Record<string, number>)[stat] ?? 0
-              if (cur < 99) return { ...p, fatigue: newFatigue, ratings: { ...p.ratings, [stat]: cur + 1 } }
+              const cap = (getStatPotentials(p) as Record<string, number>)[stat] ?? 99
+              if (cur < cap) return { ...p, fatigue: newFatigue, ratings: { ...p.ratings, [stat]: cur + 1 } }
             }
             return { ...p, fatigue: newFatigue }
           })
@@ -4398,9 +4406,11 @@ export const useGameStore = create<GameStore>()(
           const event = state.currentSeason.individualEvents?.find(e => e.id === eventId)
           if (!event || event.results) return state
           const skip = new Set(skipPlayerIds ?? [])
+          // 出走は国内リーグ所属選手のみ（海外クラブ選手は対象外）。
           // CPUチームは疲労40以上の選手を自動で休ませる（自チームはプレイヤーの出走/休む選択に従う）
+          const domesticTeamIds = new Set(state.teams.map(t => t.id))
           const activePlayers = state.players.filter(p =>
-            p.status === 'active' && p.teamId && !skip.has(p.id)
+            p.status === 'active' && domesticTeamIds.has(p.teamId) && !skip.has(p.id)
             && (p.teamId === state.playerTeamId || (p.fatigue ?? 0) < 40))
           const results = activePlayers.map(p => ({
             playerId: p.id,
@@ -4439,7 +4449,6 @@ export const useGameStore = create<GameStore>()(
 
           // カード報酬（自チームのみ）: 総合1位=レジェンダリー、2〜10位=エピック、11〜100位=レア 各1枚
           const CARD_STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-          const CARD_EXP: Record<CardRarity, number> = { normal: 300, rare: 1200, epic: 4000, legendary: 10000 }
           const rewardCards: TrainingCard[] = []
           for (const r of ranked) {
             if (r.teamId !== state.playerTeamId) continue
@@ -4449,7 +4458,7 @@ export const useGameStore = create<GameStore>()(
               id: `tt_${event.id}_${r.playerId}`,
               statKey: CARD_STAT_KEYS[Math.floor(Math.random() * CARD_STAT_KEYS.length)],
               rarity,
-              value: CARD_EXP[rarity],
+              value: RARITY_EXP[rarity],
             })
           }
 
@@ -4470,7 +4479,7 @@ export const useGameStore = create<GameStore>()(
             currentSeason: {
               ...state.currentSeason,
               individualEvents: state.currentSeason.individualEvents?.map(e =>
-                e.id === eventId ? { ...e, results: ranked } : e
+                e.id === eventId ? { ...e, results: ranked, rewardCards } : e
               ),
               newsFeed: newsItem
                 ? [...(state.currentSeason.newsFeed ?? []), newsItem]
@@ -4673,6 +4682,7 @@ export const useGameStore = create<GameStore>()(
             combo.statDeltas as Partial<Record<CardStatKey, number>>,
             multiplier,
             1.0,  // カードは年齢倍率なし
+            getStatPotentials(player),  // 能力別ポテンシャル上限
           )
           let newTraits = [...(player.traits ?? [])]
           if (grantTrait && combo.traitGrant && !newTraits.includes(combo.traitGrant)) {
@@ -5296,26 +5306,33 @@ function processExpGains(
   gains: Partial<Record<CardStatKey, number>>,
   potMult: number,
   ageMult: number,
+  caps: Partial<Record<CardStatKey, number>>,
 ): { ratings: Player['ratings']; exp: Partial<Record<CardStatKey, number>> } {
   const newRatings = { ...ratings }
   const newExp = { ...exp }
+  const capOf = (stat: CardStatKey) => Math.min(99, caps[stat] ?? 99)
   for (const [stat, baseGain] of Object.entries(gains) as [CardStatKey, number][]) {
+    // 既に能力別ポテンシャル上限に達している能力はEXPを加算しない（カード・EXPの無駄を防ぐ）。
+    const cur0 = (newRatings as Record<string, number>)[stat] ?? 0
+    if (cur0 >= capOf(stat)) continue
     const gain = Math.round(baseGain * potMult * ageMult)
     if (gain <= 0) continue
     newExp[stat] = (newExp[stat] ?? 0) + gain
   }
   const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
   for (const stat of STAT_KEYS) {
+    const cap = capOf(stat)
     let cur = (newRatings as Record<string, number>)[stat] ?? 0
     let acc = newExp[stat] ?? 0
-    while (cur < 99 && acc > 0) {
+    while (cur < cap && acc > 0) {
       const req = requiredExpForLevel(cur)
       if (acc < req) break
       acc -= req
       cur++
     }
     ;(newRatings as Record<string, number>)[stat] = cur
-    newExp[stat] = acc
+    // 上限到達時は余剰EXPを残さない（無駄に溜め込まない）
+    newExp[stat] = cur >= cap ? 0 : acc
   }
   return { ratings: newRatings, exp: newExp }
 }
@@ -5336,21 +5353,22 @@ function growPlayer(p: Player): Player {
   const ageDiff = (p.age + 1) - peakAge
   const ratings = { ...p.ratings }
   const primary = getPrimaryKey(p.specialty)
+  const caps = getStatPotentials(p)  // 経験による微増もポテンシャル上限を超えない
 
   if (ageDiff >= 1 && ageDiff < 4) {
     // 初期衰え: 身体系がわずかに落ちるが経験でカバー
     if (Math.random() < 0.30) ratings[primary] = Math.max(20, ratings[primary] - 1)
     if (Math.random() < 0.20) ratings.stamina = Math.max(20, ratings.stamina - 1)
-    if (Math.random() < 0.35) ratings.mental = Math.min(99, ratings.mental + 1)
-    if (Math.random() < 0.30) ratings.pacing = Math.min(99, ratings.pacing + 1)
+    if (Math.random() < 0.35) ratings.mental = Math.min(caps.mental, ratings.mental + 1)
+    if (Math.random() < 0.30) ratings.pacing = Math.min(caps.pacing, ratings.pacing + 1)
   } else if (ageDiff >= 4) {
     // 本格的な衰え
     ratings[primary] = Math.max(20, ratings[primary] - rnd(1, 2))
     if (Math.random() < 0.60) ratings.stamina = Math.max(20, ratings.stamina - 1)
     if (Math.random() < 0.40) ratings.recovery = Math.max(20, ratings.recovery - 1)
     if (Math.random() < 0.20) ratings.speed = Math.max(20, ratings.speed - 1)
-    if (Math.random() < 0.20) ratings.mental = Math.min(99, ratings.mental + 1)
-    if (Math.random() < 0.15) ratings.pacing = Math.min(99, ratings.pacing + 1)
+    if (Math.random() < 0.20) ratings.mental = Math.min(caps.mental, ratings.mental + 1)
+    if (Math.random() < 0.15) ratings.pacing = Math.min(caps.pacing, ratings.pacing + 1)
   }
   // 成長期・ピーク前後: レース/カードEXPに委ねる（growPlayerでは変化なし）
 

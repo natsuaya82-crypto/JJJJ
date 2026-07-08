@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { fmtTime } from '../../store/gameStore'
+import PlayerFace from '../player/PlayerFace'
+import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -29,7 +31,16 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function PlayersStatsPage() {
   const navigate = useNavigate()
-  const { segmentRecords } = useGameStore()
+  const { segmentRecords, players, teams, openPlayerSheet } = useGameStore()
+
+  // 選手行の長押しで選手詳細を開く
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPress = (pid: string) => ({
+    onPointerDown: () => { lpTimer.current = setTimeout(() => openPlayerSheet(pid), 450) },
+    onPointerUp: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerLeave: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+  })
 
   const records = segmentRecords ?? {}
 
@@ -83,13 +94,29 @@ export default function PlayersStatsPage() {
                 <CardPanel key={segIdx}>
                   <SectionLabel>第{segIdx}区 区間記録</SectionLabel>
                   {top.map((entry, i) => {
+                    // 旧セーブの記録にはIDが無いので名前・略称から逆引きする
+                    const player = entry.playerId
+                      ? players.find(p => p.id === entry.playerId)
+                      : players.find(p => p.name === entry.playerName)
+                    const team = entry.teamId
+                      ? teams.find(t => t.id === entry.teamId)
+                      : teams.find(t => t.shortName === entry.teamShort)
                     const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+                      <div key={i} {...(player ? longPress(player.id) : {})}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: player ? 'pointer' : 'default' }}>
                         <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
-                        <div style={{ flex: 1 }}>
+                        {player && (
+                          <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}>
+                            <PlayerFace playerId={player.id} nationality={player.nationality} size={28} />
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{entry.playerName}</div>
-                          <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{entry.teamShort} / {entry.year}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
+                            {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
+                            <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? entry.teamShort} / {entry.year}</span>
+                          </div>
                         </div>
                         <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '900', color: rankCol, textShadow: i <= 2 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>{fmtTime(entry.timeSec)}</span>
                       </div>

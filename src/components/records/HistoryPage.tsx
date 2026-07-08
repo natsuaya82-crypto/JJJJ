@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import PlayerFace from '../player/PlayerFace'
+import { TeamLogoSVG } from '../icons/Icons'
 import { C } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -37,7 +38,16 @@ function fmtTime(sec: number) {
 
 export default function HistoryPage() {
   const navigate = useNavigate()
-  const { teams, players, pastSeasons, currentSeason } = useGameStore()
+  const { teams, players, pastSeasons, currentSeason, openPlayerSheet } = useGameStore()
+
+  // 選手行の長押しで選手詳細を開く
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPress = (pid: string) => ({
+    onPointerDown: () => { lpTimer.current = setTimeout(() => openPlayerSheet(pid), 450) },
+    onPointerUp: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerLeave: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+  })
 
   const allRaceNames = [...new Set(
     pastSeasons.flatMap(s => s.races.filter(r => r.results).map(r => r.name))
@@ -184,12 +194,16 @@ export default function HistoryPage() {
                     const team = teams.find(t => t.id === entry.teamId)
                     const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
                     return (
-                      <div key={`${entry.playerId}-${entry.year}-${entry.raceName}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+                      <div key={`${entry.playerId}-${entry.year}-${entry.raceName}`} {...(player ? longPress(player.id) : {})}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${C.border}`, cursor: player ? 'pointer' : 'default' }}>
                         <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${rankCol}60` : 'none' }}>{i + 1}</span>
                         {player && <div style={{ width: 30, height: 30, borderRadius: 7, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.border2}` }}><PlayerFace playerId={player.id} nationality={player.nationality} size={30} /></div>}
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{player?.name ?? '—'}</div>
-                          <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>{team?.shortName ?? '—'} / {entry.year} {entry.raceName}{entry.distanceKm ? ` · ${entry.distanceKm}km` : ''}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2, minWidth: 0 }}>
+                            {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
+                            <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? '—'} / {entry.year} {entry.raceName}{entry.distanceKm ? ` · ${entry.distanceKm}km` : ''}</span>
+                          </div>
                         </div>
                         <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '900', color: rankCol }}>{fmtTime(entry.timeSec)}</span>
                       </div>

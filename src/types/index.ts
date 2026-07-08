@@ -326,6 +326,7 @@ export type IndividualEvent = {
   date: string
   distance: 5000 | 10000 | 21097 | 42195
   results?: IndividualEventResult[]
+  rewardCards?: TrainingCard[]  // 開催時に自チームへ付与した練習カード（結果画面の表示用）
 }
 
 export type WorldEkidenCountryResult = {
@@ -561,7 +562,12 @@ export type Season = {
   worldEkidenResult?: WorldEkidenResult
   sponsorOffers?: SponsorOffer[]
   seasonRaceIncome?: number
+  chatLogs?: Record<string, ChatMessage[]>
 }
+
+// チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい
+// currentSeason になるため）自動的にリセットされる。
+export type ChatMessage = { from: 'player' | 'gm'; text: string }
 
 export type CollegeRunner = {
   id: string
@@ -608,6 +614,8 @@ export type Achievement = {
 export type SegmentRecord = {
   playerName: string
   teamShort: string
+  playerId?: string  // 旧セーブの記録には無い。表示側は名前からのフォールバック解決をする
+  teamId?: string
   timeSec: number
   year: number
 }
