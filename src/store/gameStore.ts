@@ -1242,6 +1242,7 @@ export const useGameStore = create<GameStore>()(
           const cpuTxList: CpuTx[] = []
           const cpuTxListingIds = new Set<string>()
           if (isWindowOpenNow) {
+            const movedThisRace = new Set<string>()
             for (const listing of (state.currentSeason.transferListings ?? [])) {
               if (listing.fromTeamId === playerTeamId || listing.competingTeams.length === 0) continue
               if (Math.random() >= 0.5) continue
@@ -1250,6 +1251,13 @@ export const useGameStore = create<GameStore>()(
               const seller = state.teams.find(t => t.id === listing.fromTeamId)
               const buyer = state.teams.find(t => t.id === buyerTeamId)
               if (!p || !seller || !buyer) continue
+              // 出品後に選手が移籍していた古い出品は成立させない（現所属と出品元が一致するときのみ）。
+              // 同一レース内で同じ選手が二重に動くのも防ぐ。レンタル中・買い手が現所属と同じ場合も対象外
+              if (p.teamId !== listing.fromTeamId || p.loan || movedThisRace.has(p.id) || buyerTeamId === p.teamId) {
+                cpuTxListingIds.add(listing.id)  // 無効な出品は掃除する
+                continue
+              }
+              movedThisRace.add(p.id)
               cpuTxList.push({ playerId: p.id, fromTeamId: listing.fromTeamId, toTeamId: buyerTeamId, playerName: p.name, playerOvr: ovr(p), fromShort: seller.shortName, toShort: buyer.shortName, fee: listing.askingPrice })
               cpuTxListingIds.add(listing.id)
             }
@@ -1357,7 +1365,12 @@ export const useGameStore = create<GameStore>()(
             const sold = cpuTxList.filter(tx => tx.fromTeamId === t.id).map(tx => tx.playerId)
             const bought = cpuTxList.filter(tx => tx.toTeamId === t.id).map(tx => tx.playerId)
             if (sold.length === 0 && bought.length === 0) return t
-            return { ...t, roster: { ...t.roster, main: [...t.roster.main.filter(id => !sold.includes(id)), ...bought] } }
+            // 売り手は1軍・2軍両方の名簿から除去（2軍選手の売却でゴーストが残らないように）。
+            // 買い手は既に名簿に居るIDを除いてから追加（再購入での重複防止）
+            return { ...t, roster: {
+              main: [...t.roster.main.filter(id => !sold.includes(id) && !bought.includes(id)), ...bought],
+              second: t.roster.second.filter(id => !sold.includes(id) && !bought.includes(id)),
+            } }
           })
 
           // レンタル要請（移籍市場から出したもの）の応答。相手が承諾なら借用成立、拒否ならニュース。
@@ -3469,12 +3482,15 @@ export const useGameStore = create<GameStore>()(
         })
 
         // CPU teams release declining/surplus players
+        // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
+        // ロスター概念の無い海外側との取引で国内名簿が壊れる）
+        const domesticTeamIdSet = new Set(state.teams.map(t => t.id))
         const cpuReleasedIds = new Set<string>()
         const playersAfterCpuRelease = (() => {
           const releaseSet = new Set<string>()
           const cpuTeamIds = [...new Set(
             state.players
-              .filter(p => p.teamId !== state.playerTeamId && p.teamId !== '' && p.teamId !== '__pool__')
+              .filter(p => p.teamId !== state.playerTeamId && p.teamId !== '' && p.teamId !== '__pool__' && domesticTeamIdSet.has(p.teamId))
               .map(p => p.teamId)
           )]
           for (const teamId of cpuTeamIds) {
@@ -3580,7 +3596,7 @@ export const useGameStore = create<GameStore>()(
           const tradeCount: Record<string, number> = {}
           const cpuIdsForTrade = [...new Set(
             playersAfterCpuTransfer
-              .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId)
+              .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId && domesticTeamIdSet.has(p.teamId))
               .map(p => p.teamId)
           )]
           for (const buyerId of cpuIdsForTrade) {
@@ -3632,7 +3648,7 @@ export const useGameStore = create<GameStore>()(
           const loanYear = state.currentSeason.year + 1
           const cpuIdsForLoan = [...new Set(
             playersAfterCpuTransfer
-              .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId)
+              .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId && domesticTeamIdSet.has(p.teamId))
               .map(p => p.teamId)
           )]
           const mainCount = (teamId: string) =>
