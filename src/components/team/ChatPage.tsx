@@ -201,23 +201,29 @@ function ChatView({
   const transferBid = (currentSeason.transferBids ?? []).find(b => b.playerId === player.id && b.status === 'fee_accepted')
   const isTransfer = !!transferBid && !isAcq
 
+  // 自チーム所属かどうか。契約更新・引退・移籍希望・不満・契約残の催促は自チーム選手専用の会話で、
+  // 他チーム/FA選手（獲得・移籍交渉の相手）に出してはいけない。
+  const isMine = player.teamId === playerTeamId
+
   const events = currentSeason.events ?? []
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
     const built = isTransfer
       ? buildTransferMessages(player, transferBid!, teams.find(t => t.id === transferBid!.targetTeamId)?.name)
       : isAcq
       ? buildAcqMessages(player, acqOffer!, teams.find(t => t.id === player.teamId)?.name)
-      : buildMessages(player, contractReq, months, !!retirementReq, !!transferReq, transferReq?.reason, events)
+      : isMine
+      ? buildMessages(player, contractReq, months, !!retirementReq, !!transferReq, transferReq?.reason, events)
+      : []  // 他チーム/FA選手で交渉モードでもない（終了した交渉の見返し等）は保存ログのみ
     if (!initialMessages || initialMessages.length === 0) return built
     // 保存済みログを開いた後に発生した「新しい用件」だけをログに追記する。
     // 交渉への返答系（承諾・拒否・カウンター等）は会話の流れの一部であり、後から再構築すると
     // 「移籍を認めたのに『その条件では受け入れられません』が出る」ような文脈違いになるため対象外。
-    const freshSource = buildMessages(
+    const freshSource = isMine ? buildMessages(
       player,
       contractReq && contractReq.status === 'pending_gm' && contractReq.initiatedBy === 'player' ? contractReq : undefined,
       player.transferListed ? 99 : months,  // 退団予定の選手には契約残の催促を出さない
       !!retirementReq, !!transferReq, transferReq?.reason, events,
-    )
+    ) : []
     const fresh = freshSource.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
     return fresh.length > 0 ? [...initialMessages, ...fresh] : initialMessages
   })
@@ -398,12 +404,11 @@ function ChatView({
       ]
     }
 
-    // 獲得オファーが決裂した相手選手：契約更新フローに落とさず、終了ボタンだけ出す
-    if (acqOffer && acqOffer.status === 'rejected' && player.teamId !== playerTeamId) {
-      return [
-        { label: '閉じる', color: C.textSub, action: onClose },
-      ]
-    }
+    // 自チーム以外の選手（獲得・移籍交渉が終わった相手や海外選手など）は、
+    // 交渉モードでない限り契約更新フローに一切落とさない。閉じるだけ。
+    if (!isMine) return [
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
 
     if (retirementReq) return [
       { label: '引退を承認する', color: C.textSub, action: () => {
