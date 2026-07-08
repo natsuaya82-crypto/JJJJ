@@ -25,6 +25,7 @@ import TeamDetailPage from './components/teams/TeamDetailPage'
 import ForeignLeagueDetailPage from './components/teams/ForeignLeagueDetailPage'
 import ForeignClubDetailPage from './components/teams/ForeignClubDetailPage'
 import ChatPage from './components/team/ChatPage'
+import FriendsPage from './components/friends/FriendsPage'
 import RecordsHub from './components/records/RecordsHub'
 import RecordsPage from './components/records/RecordsPage'
 import PlayersStatsPage from './components/records/PlayersStatsPage'
@@ -137,6 +138,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />
           <Route path="/international" element={<WorldEkidenPage />} />
+          <Route path="/friends" element={<FriendsPage />} />
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/season" element={<RecordsPage />} />
           <Route path="/records/players" element={<PlayersStatsPage />} />

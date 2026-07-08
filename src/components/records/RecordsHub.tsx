@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
+import BackButton from '../ui/BackButton'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -87,7 +88,10 @@ export default function RecordsHub() {
           {currentSeason.year} RECORDS
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text }}>記録室</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <BackButton />
+            <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text }}>記録室</div>
+          </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {championships > 0 && (
               <div style={{ padding: '4px 10px', borderRadius: '20px', background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.28)}`, display: 'flex', alignItems: 'center', gap: '5px' }}>

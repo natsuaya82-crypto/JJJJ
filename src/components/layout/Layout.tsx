@@ -52,10 +52,12 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    to: '/records', label: '記録室',
+    to: '/friends', label: 'フレンド',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2l2.5 7.5H22l-6.5 4.7 2.5 7.5L12 17.5l-6 4.2 2.5-7.5L2 9.5h7.5L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+        <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M3 20c0-3.3 2.7-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M21 14.5c0-1.1-.9-2-1.9-2-.6 0-1.1.3-1.4.7-.3-.4-.8-.7-1.4-.7-1 0-1.9.9-1.9 2 0 2.2 3.3 4.2 3.3 4.2s3.3-2 3.3-4.2z" fill="currentColor"/>
       </svg>
     ),
   },
@@ -113,10 +115,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [location.pathname])
 
   const MENU_ITEMS: MenuAction[] = [
-    { label: 'ログインボーナス', path: '/login-bonus', color: '#6dd5fa' },
-    { label: 'お知らせ', path: '/announcements', color: C.gold },
-    { label: '操作方法・遊び方', path: '/help', color: C.gold },
-    { label: '設定', path: '/more', color: C.textSub },
+    { label: 'ログインボーナス', path: '/login-bonus', color: C.text },
+    { label: '記録室', path: '/records', color: C.text },
+    { label: 'お知らせ', path: '/announcements', color: C.text },
+    { label: '操作方法・遊び方', path: '/help', color: C.text },
+    { label: '設定', path: '/more', color: C.text },
   ]
 
   const isActive = (to: string) => to === '/' ? location.pathname === '/' : (location.pathname === to || location.pathname.startsWith(to + '/'))

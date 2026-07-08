@@ -308,7 +308,7 @@ export type GameStore = GameState & {
   upgradeFacility: (key: FacilityKey) => boolean
 
   // Individual events
-  simulateIndividualEvent: (eventId: string) => void
+  simulateIndividualEvent: (eventId: string, skipPlayerIds?: string[]) => void
 
   // World Ekiden
   simulateWorldEkiden: () => void
@@ -4381,11 +4381,12 @@ export const useGameStore = create<GameStore>()(
       },
 
       // ── Individual Events ─────────────────────────────────────────────
-      simulateIndividualEvent: (eventId) => {
+      simulateIndividualEvent: (eventId, skipPlayerIds) => {
         set(state => {
           const event = state.currentSeason.individualEvents?.find(e => e.id === eventId)
           if (!event || event.results) return state
-          const activePlayers = state.players.filter(p => p.status === 'active' && p.teamId)
+          const skip = new Set(skipPlayerIds ?? [])
+          const activePlayers = state.players.filter(p => p.status === 'active' && p.teamId && !skip.has(p.id))
           const results = activePlayers.map(p => ({
             playerId: p.id,
             teamId: p.teamId,
