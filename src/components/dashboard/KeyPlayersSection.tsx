@@ -1,7 +1,7 @@
 import type { Player, Team } from '../../types'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, FORM_LABELS, FORM_COLORS } from '../../utils/playerUtils'
+import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, FORM_LABELS, FORM_COLORS, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 
@@ -107,15 +107,20 @@ export default function KeyPlayersSection({ players, team }: Props) {
 
               {/* Ratings */}
               <div style={{ display: 'flex', gap: 8 }}>
-                {([['速', p.ratings.speed], ['持', p.ratings.stamina], ['精', p.ratings.mental]] as [string, number][]).map(([l, v]) => (
-                  <div key={l} style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginBottom: 1, letterSpacing: '0.08em' }}>{l}</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: v >= 80 ? C.gold : C.textSub,
-                      textShadow: v >= 80 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
-                      {v}
+                {([['速', 'speed'], ['持', 'stamina'], ['精', 'mental']] as ['速' | '持' | '精', 'speed' | 'stamina' | 'mental'][]).map(([l, key]) => {
+                  const v = p.ratings[key]
+                  const maxed = isStatMaxed(p, key)
+                  const col = ratingColor(v, maxed)
+                  return (
+                    <div key={l} style={{ textAlign: 'center' }}>
+                      <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginBottom: 1, letterSpacing: '0.08em' }}>{l}</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: col,
+                        textShadow: (maxed || v >= 90) ? `0 0 8px ${alpha(col, 0.5)}` : 'none' }}>
+                        {v}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* OVR */}

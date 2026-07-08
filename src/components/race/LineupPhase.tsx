@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import type { Player, Race, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
-import { ovr, effSegOvr, SPEC_COLOR } from '../../utils/playerUtils'
+import { ovr, effSegOvr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
@@ -295,7 +295,7 @@ export function LineupPhase({
                     return (
                       <div key={label} style={{ flex: 1, textAlign: 'center' }}>
                         <div style={{ fontSize: 7, color: C.textGhost }}>{label}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, fontFamily: SAIRA, lineHeight: 1.2, color: val >= 80 ? C.gold : val >= 65 ? C.textSub : C.textDim }}>{val}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, fontFamily: SAIRA, lineHeight: 1.2, color: ratingColor(val, isStatMaxed(p, key)) }}>{val}</div>
                       </div>
                     )
                   })}
@@ -423,7 +423,7 @@ export function LineupPhase({
                     return (
                       <div key={label} style={{ flex: 1, textAlign: 'center' }}>
                         <div style={{ fontSize: 7, color: C.textGhost }}>{label}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: SAIRA, lineHeight: 1.1, color: val >= 80 ? C.gold : val >= 65 ? C.textSub : C.textDim }}>{val}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: SAIRA, lineHeight: 1.1, color: ratingColor(val, isStatMaxed(player, key)) }}>{val}</div>
                       </div>
                     )
                   })}

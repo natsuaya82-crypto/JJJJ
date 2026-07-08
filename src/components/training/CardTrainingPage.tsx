@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
 import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
@@ -250,6 +250,7 @@ export default function CardTrainingPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
           {statKeys.map(k => {
             const current = targetPlayer.ratings[k] ?? 0
+            const maxed = isStatMaxed(targetPlayer, k)
             const delta = combo?.statDeltas[k] ?? 0
             const curExp = targetPlayer.exp?.[k] ?? 0
             const req = requiredExp(current)
@@ -260,16 +261,16 @@ export default function CardTrainingPage() {
             return (
               <div key={k} style={{
                 padding: '5px 6px', borderRadius: 6, textAlign: 'center',
-                background: delta > 0 ? alpha('#9FE88D', 0.12) : alpha(C.surface, 0.8),
-                border: `1px solid ${delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
+                background: maxed ? alpha(C.gold, 0.1) : delta > 0 ? alpha('#9FE88D', 0.12) : alpha(C.surface, 0.8),
+                border: `1px solid ${maxed ? alpha(C.gold, 0.4) : delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
               }}>
                 <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>{CARD_STAT_LABELS[k]}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
-                  {current}{levelUp && <span style={{ fontSize: 8, color: '#9FE88D', marginLeft: 2 }}>↑</span>}
+                <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: maxed ? C.gold : delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
+                  {current}{maxed ? <span style={{ fontSize: 7, color: C.gold, marginLeft: 2 }}>MAX</span> : levelUp && <span style={{ fontSize: 8, color: '#9FE88D', marginLeft: 2 }}>↑</span>}
                 </div>
                 <div style={{ height: 3, borderRadius: 2, background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${basePct * 100}%`, background: alpha(C.textSub, 0.5), borderRadius: 2, transition: 'width 0.25s ease' }}/>
-                  <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${gainPct * 100}%`, background: '#9FE88D', borderRadius: 2, transition: 'left 0.25s ease, width 0.25s ease' }}/>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${maxed ? 100 : basePct * 100}%`, background: maxed ? alpha(C.gold, 0.6) : alpha(C.textSub, 0.5), borderRadius: 2, transition: 'width 0.25s ease' }}/>
+                  <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${maxed ? 0 : gainPct * 100}%`, background: '#9FE88D', borderRadius: 2, transition: 'left 0.25s ease, width 0.25s ease' }}/>
                 </div>
               </div>
             )

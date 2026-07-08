@@ -1,5 +1,43 @@
-import type { Player, Specialty, GrowthCurve } from '../types'
+import type { Player, Specialty, GrowthCurve, Ratings, CardStatKey } from '../types'
 import { calcBaseAbility, calcAffinity, calcConditionModifier } from '../engine/raceEngine'
+
+// ── 能力別ポテンシャル（各能力ごとの成長上限）──
+// 単一の potential と特性から各能力の上限を導出する（保存はせず都度算出＝既存セーブもそのまま動く）。
+// 得意能力は potential+α まで、苦手能力は低め。現在値を下回らない（既に高い能力は据え置き）。
+const SPEC_STRONG_STATS: Record<Specialty, CardStatKey[]> = {
+  ace:           ['pacing', 'mental', 'stamina'],
+  sprinter:      ['speed', 'pacing'],
+  long:          ['stamina', 'mental', 'recovery'],
+  mountain_up:   ['mountainUp', 'stamina'],
+  mountain_down: ['mountainDown', 'speed'],
+  allrounder:    ['speed', 'stamina', 'pacing'],
+  kick:          ['speed', 'mental'],
+  grinder:       ['stamina', 'recovery', 'mental'],
+}
+const ALL_STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+
+// 各能力の成長上限（内部の正確値）。得意 potential+3 / 苦手 potential-6、現在値未満にはしない。
+export function getStatPotentials(p: Player): Ratings {
+  const strong = new Set(SPEC_STRONG_STATS[p.specialty] ?? [])
+  const out = {} as Ratings
+  for (const stat of ALL_STAT_KEYS) {
+    const ceil = strong.has(stat) ? p.potential + 3 : p.potential - 6
+    const cur = (p.ratings as Record<string, number>)[stat] ?? 0
+    ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, Math.round(ceil)))
+  }
+  return out
+}
+
+// その能力が上限に達しているか（カード合成のブロック・表示用）。
+export function isStatMaxed(p: Player, stat: CardStatKey): boolean {
+  const cur = (p.ratings as Record<string, number>)[stat] ?? 0
+  return cur >= (getStatPotentials(p) as Record<string, number>)[stat]
+}
+
+// 表示用の上限バンド（正確値は隠して幅で示す）。cap を中心に ±3、1..99 にクランプ。
+export function statCapBand(cap: number): { lo: number; hi: number } {
+  return { lo: Math.max(1, cap - 3), hi: Math.min(99, cap + 3) }
+}
 
 export const SPEC_COLOR: Record<Specialty, string> = {
   ace: '#C9A84C',
@@ -36,11 +74,28 @@ export function effSegOvr(p: Player, uphillPct: number, downhillPct: number, dis
   return Math.round(segOvr(p, uphillPct, downhillPct, distanceKm, statWeights) * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0))
 }
 
+// OVR→市場給与(円)。非線形（スターほど跳ね上がる）。区分線形で下記アンカーを通す。
+//  60→600万 / 70→1500万 / 80→3500万 / 90→7000万 / 95→1億 / 99→1.4億
+const SALARY_ANCHORS: [number, number][] = [
+  [45, 2_000_000], [50, 3_000_000], [60, 6_000_000], [70, 15_000_000],
+  [80, 35_000_000], [90, 70_000_000], [95, 100_000_000], [99, 140_000_000],
+]
+function ovrSalary(o: number): number {
+  const pts = SALARY_ANCHORS
+  if (o <= pts[0][0]) return pts[0][1]
+  if (o >= pts[pts.length - 1][0]) return pts[pts.length - 1][1]
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [o0, v0] = pts[i], [o1, v1] = pts[i + 1]
+    if (o >= o0 && o <= o1) return v0 + (o - o0) * (v1 - v0) / (o1 - o0)
+  }
+  return pts[pts.length - 1][1]
+}
+
+// 市場給与＝OVRベース×年齢補正。能力が落ちれば下がる（衰えを反映）。
 export function faMarketSalary(p: Player): number {
-  const base = ovr(p) * 140000
   const age = p.age
-  const ageFactor = age < 24 ? 1.1 : age < 28 ? 1.0 : age < 31 ? 0.85 : 0.65
-  return Math.round(base * ageFactor / 500000) * 500000
+  const ageFactor = age <= 23 ? 1.08 : age <= 27 ? 1.0 : age <= 30 ? 0.9 : age <= 33 ? 0.72 : 0.55
+  return Math.round(ovrSalary(ovr(p)) * ageFactor / 500000) * 500000
 }
 
 // 選手がそのシーズンに何レース出場したか（データ判定用）
@@ -56,14 +111,18 @@ export function seasonAppearances(playerId: string, races: readonly RaceLike[]):
 // 主力かどうかを「データ」で判定（年俸ではなく、よく出場しているか）。
 // playFraction=そのチームの消化レースに対する出場割合(0..1), teamRaces=消化レース数。
 export function isDataKeyPlayer(p: Player, playFraction: number, teamRaces: number): boolean {
-  return p.rosterTier === 'main' && teamRaces >= 3 && playFraction >= 0.6
+  if (p.rosterTier !== 'main') return false
+  // 高OVRのスターは出場割合・シーズン序盤に関係なく常に主力扱い（簡単に引き抜けない）。
+  if (ovr(p) >= 78) return true
+  // それ以外は「3戦以降で出場5.5割以上」で主力判定。
+  return teamRaces >= 3 && playFraction >= 0.55
 }
 
 // 移籍・トレードで動く選手本人が「移籍先チームに行くことに納得するか」。
 // チーム同士が合意しても、選手が納得しなければ成立しない。年俸ではなく出場データ・順位で判断。
 // destRank=移籍先の現順位, totalTeams=全チーム数, playFraction=現チームでの出場割合, teamRaces=消化レース数。
 export function playerConsentToMove(
-  p: Player, destRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0,
+  p: Player, destRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0, consentBonus = 0,
 ): { ok: boolean; reason: string } {
   const appeal = destRank > 0 ? (totalTeams - destRank + 1) / totalTeams : 0.5 // 1.0=首位級
   const personality = p.personality ?? 'salary'
@@ -74,6 +133,7 @@ export function playerConsentToMove(
   else score = 0.5 + appeal * 0.35
   if (morale < 40) score += 0.2
   else if (morale >= 75) score -= 0.1
+  score += consentBonus  // スカウト拠点などの交渉成立ボーナス
   // 出場データによる移籍意欲：2軍・出場が少ない選手は出たがる。主力は残りたい。
   const key = isDataKeyPlayer(p, playFraction, teamRaces)
   if (p.rosterTier === 'second') score += 0.35
@@ -212,11 +272,13 @@ export function formLabel(form: number): string {
   return FORM_LABELS[Math.round(form)] ?? '普通'
 }
 
-export function ratingColor(v: number): string {
-  if (v >= 82) return '#FFD700'
-  if (v >= 76) return '#C9A84C'
-  if (v >= 69) return '#4CAF50'
-  if (v >= 58) return '#7986CB'
-  return '#5C5870'
+export function ratingColor(v: number, maxed = false): string {
+  if (maxed) return '#E8462A'     // その選手のポテンシャル上限に到達＝MAX：赤
+  if (v >= 90) return '#FFD700'   // 金
+  if (v >= 80) return '#B87333'   // 金茶（ブロンズ寄りにして金と区別）
+  if (v >= 70) return '#4CAF50'   // グリーン
+  if (v >= 60) return '#5B9BD5'   // ブルー
+  if (v >= 50) return '#9B97A8'   // グレー
+  return '#4A4658'                // ブラック（40以下）
 }
 

@@ -4,7 +4,8 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C } from '../../styles/tokens'
+import { isStatMaxed } from '../../utils/playerUtils'
+import { C, alpha } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -23,10 +24,13 @@ const selectStyle = {
 
 export default function CardSelectPage() {
   const navigate = useNavigate()
-  const { trainingCards, fusionCardIds, addFusionCard, removeFusionCard } = useGameStore()
+  const { trainingCards, fusionCardIds, addFusionCard, removeFusionCard, fusionPlayerId, players } = useGameStore()
   const [filterStat, setFilterStat] = useState<CardStatKey | 'all' | 'rest'>('all')
 
   const fusionFull = fusionCardIds.length >= MAX_FUSION_CARDS
+  // 合成対象の選手（能力別ポテンシャル上限に達した能力のカードは使えない＝無駄防止）
+  const targetPlayer = fusionPlayerId ? players.find(p => p.id === fusionPlayerId) ?? null : null
+  const isCardMaxed = (statKey: CardStatKey, kind?: 'rest') => kind !== 'rest' && !!targetPlayer && isStatMaxed(targetPlayer, statKey)
 
   // 選択中カード（選択順・存在するものだけ）。タップで外せる。
   const selectedCards = useMemo(
@@ -58,6 +62,7 @@ export default function CardSelectPage() {
     if (fusionFull) return
     const next = cards.find(c => !fusionCardIds.includes(c.id))
     if (!next) return
+    if (isCardMaxed(next.statKey, next.kind)) return  // 上限到達能力は追加不可
     addFusionCard(next.id)
   }
 
@@ -124,15 +129,19 @@ export default function CardSelectPage() {
               // 残り枚数 = 所持数 − 既に合成中の同種枚数
               const selCount = group.cards.filter(c => fusionCardIds.includes(c.id)).length
               const remaining = group.cards.length - selCount
-              const disabled = remaining <= 0 || fusionFull
+              const statMaxed = isCardMaxed(group.statKey, group.kind)
+              const disabled = remaining <= 0 || fusionFull || statMaxed
               return (
                 <button
                   key={group.key}
                   onClick={() => pick(group.cards)}
                   disabled={disabled}
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: disabled ? 'not-allowed' : 'pointer' }}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: disabled ? 'not-allowed' : 'pointer', position: 'relative' }}
                 >
                   <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={76} count={remaining} dimmed={disabled} kind={group.kind} value={group.value} />
+                  {statMaxed && (
+                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-12deg)', fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#fff', background: alpha(C.red, 0.85), padding: '2px 8px', borderRadius: 5, letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>上限</span>
+                  )}
                 </button>
               )
             })}

@@ -5,7 +5,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, getStatPotentials, statCapBand, isStatMaxed } from '../../utils/playerUtils'
 import { formatTime } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
@@ -34,7 +34,7 @@ const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
   { key: 'recovery', abbr: '回' },
 ]
 
-function RadarChart({ ratings, color }: { ratings: Player['ratings']; color: string }) {
+function RadarChart({ ratings, color, player }: { ratings: Player['ratings']; color: string; player: Player }) {
   const cx = 100, cy = 100, R = 66, labelR = 88
   const n = RADAR_KEYS.length
   const ang = (i: number) => ((-90 + (360 / n) * i) * Math.PI) / 180
@@ -64,7 +64,7 @@ function RadarChart({ ratings, color }: { ratings: Player['ratings']; color: str
       })}
       {RADAR_KEYS.map((a, i) => {
         const val = ratings[a.key] ?? 50
-        const valCol = val >= 80 ? '#C9A84C' : val >= 65 ? '#9B97A8' : '#5C5870'
+        const valCol = ratingColor(val, isStatMaxed(player, a.key))
         return (
           <g key={i}>
             <text x={px(i,labelR)} y={py(i,labelR)-6}
@@ -328,7 +328,32 @@ export default function PlayerSheet() {
           {/* Page 1: プロフィール */}
           {page === 1 && (
             <div style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {isScouted && <RadarChart ratings={player.ratings} color={specCol} />}
+              {isScouted && <RadarChart ratings={player.ratings} color={specCol} player={player} />}
+              {isScouted && (() => {
+                const caps = getStatPotentials(player)
+                return (
+                  <div style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
+                    <div style={{ fontSize: '8px', color: '#5C5870', letterSpacing: '1px', marginBottom: '6px' }}>伸びしろ（成長上限の目安）</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
+                      {RADAR_KEYS.map(({ key, abbr }) => {
+                        const cur = player.ratings[key] ?? 0
+                        const cap = (caps as Record<string, number>)[key] ?? 99
+                        const maxed = cur >= cap
+                        const band = statCapBand(cap)
+                        return (
+                          <div key={key} style={{ textAlign: 'center', padding: '4px 2px', borderRadius: '6px', background: maxed ? `${'#C9A84C'}14` : '#100E1A', border: `1px solid ${maxed ? '#C9A84C40' : '#1E1B2E'}` }}>
+                            <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '1px' }}>{abbr}</div>
+                            <div style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: '11px', fontWeight: '900', color: maxed ? '#C9A84C' : '#9B97A8' }}>{cur}</div>
+                            <div style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: '8px', color: maxed ? '#C9A84C' : '#5C5870' }}>
+                              {maxed ? 'MAX' : `~${band.lo}-${band.hi}`}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {[
                   { label: '所属', val: team?.name ?? (player.teamId === '' ? 'FA' : '—') },

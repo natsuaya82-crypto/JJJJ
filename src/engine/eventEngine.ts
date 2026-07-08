@@ -45,7 +45,7 @@ export function generateRaceEvents(params: {
     candidates.push({
       id: uid(), raceIndex, type: 'player_fatigue', playerId: p.id,
       title: `${p.name}が疲労を訴えている`,
-      body: `${p.name}（疲労度${p.fatigue}）がトレーニング後に「少し体が重い」とコメント。次のレース前に対処しますか？`,
+      body: `監督、正直に言うと少し体が重いんです…。次のレース前に、休ませてもらえませんか？`,
       choices: [
         { label: '休養させる', desc: '疲労-30・フォーム+1。次レース欠場。' },
         { label: '軽め調整に切り替える', desc: '疲労-10。出場は維持。' },
@@ -62,43 +62,11 @@ export function generateRaceEvents(params: {
     candidates.push({
       id: uid(), raceIndex, type: 'player_morale_low', playerId: p.id,
       title: `${p.name}の士気が低下`,
-      body: `${p.name}のモチベーション低下をスタッフが懸念しています。何か手を打ちますか？`,
+      body: `監督…最近どうも気持ちが乗らなくて。すみません、正直に言うと少し参ってます。`,
       choices: [
         { label: '個別面談で激励する', desc: '士気+25。' },
         { label: 'ボーナスを支給する', desc: '士気+15。予算-200万。' },
         { label: '様子を見る', desc: '対処なし。状況が悪化する恐れあり。' },
-      ],
-      resolved: false,
-    })
-  }
-
-  // Player in hot form
-  const goodFormPlayers = mainPlayers.filter(p => (p.form ?? 0) >= 1 && !recentPlayerIds.has(p.id))
-  if (goodFormPlayers.length > 0 && !recentTypes.has('player_form_up') && Math.random() < 0.65) {
-    const p = pickRandom(goodFormPlayers)
-    candidates.push({
-      id: uid(), raceIndex, type: 'player_form_up', playerId: p.id,
-      title: `${p.name}が絶好調！`,
-      body: `${p.name}の練習タイムが軒並み自己ベスト水準。このまま強化練習を積みますか？`,
-      choices: [
-        { label: '強化メニューを組む', desc: 'ランダム能力値+1。疲労+8。' },
-        { label: '試合に向けて温存する', desc: '士気+10。' },
-      ],
-      resolved: false,
-    })
-  }
-
-  // Young player breakthrough
-  const youngPlayers = mainPlayers.filter(p => p.age <= 24 && p.yearsPro <= 3 && !recentPlayerIds.has(p.id))
-  if (youngPlayers.length > 0 && !recentTypes.has('young_breakout') && Math.random() < 0.4) {
-    const p = pickRandom(youngPlayers)
-    candidates.push({
-      id: uid(), raceIndex, type: 'young_breakout', playerId: p.id,
-      title: `${p.name}が急成長の兆し`,
-      body: `${p.name}（${p.age}歳）の練習での動きが別人のよう。才能が開花しつつあります。`,
-      choices: [
-        { label: '特別強化メニューを組む', desc: 'ランダム能力値+2。疲労+10。' },
-        { label: '通常メニューを維持', desc: '無理させない。' },
       ],
       resolved: false,
     })
@@ -127,7 +95,7 @@ export function generateRaceEvents(params: {
     candidates.push({
       id: uid(), raceIndex, type: 'playing_time_demand', playerId: p.id,
       title: `${p.name}が出場機会を要求`,
-      body: `${p.name}が「もっとレースに起用してほしい」と直訴してきました。どう対応しますか？`,
+      body: `監督、最近出番が少なくて…。正直、もっとレースで走りたいです。使ってもらえませんか？`,
       choices: [
         { label: '起用を約束する', desc: '士気+20。次のレースで優先配置することを意識して。' },
         { label: '「状況を見て判断する」と伝える', desc: '士気+5。当たり障りのない対応。' },
@@ -154,25 +122,6 @@ export function generateRaceEvents(params: {
     })
   }
 
-  // Player career milestones
-  const MILESTONE_THRESHOLDS = [25, 50, 75, 100, 150, 200]
-  const milestonePlayers = mainPlayers.filter(p =>
-    MILESTONE_THRESHOLDS.includes(p.career.totalRaces) && !recentPlayerIds.has(p.id)
-  )
-  if (milestonePlayers.length > 0 && !recentTypes.has('player_milestone')) {
-    const p = milestonePlayers[0]
-    candidates.push({
-      id: uid(), raceIndex, type: 'player_milestone', playerId: p.id,
-      title: `${p.name}がキャリア${p.career.totalRaces}レース達成`,
-      body: `${p.name}が通算${p.career.totalRaces}レース出場を達成しました。節目を迎えた選手をどう祝いますか？`,
-      choices: [
-        { label: '個人祝福コメントを出す', desc: `${p.name}の士気+15。GM評判+2。` },
-        { label: 'チーム全員でお祝いする', desc: '全員士気+8。一体感が生まれる。' },
-      ],
-      resolved: false,
-    })
-  }
-
   // Veteran ambition — older high-OVR player with no championship
   const veteranDream = mainPlayers.filter(p =>
     p.age >= 32 && ovr(p) >= 68 && p.career.championships === 0 && !recentPlayerIds.has(p.id)
@@ -182,28 +131,11 @@ export function generateRaceEvents(params: {
     candidates.push({
       id: uid(), raceIndex, type: 'veteran_ambition', playerId: p.id,
       title: `${p.name}が「優勝への執念」を語る`,
-      body: `${p.age}歳の${p.name}はまだ一度も優勝を経験していません。「このチームで頂点に立ちたい。全力を出し切る」と宣言しています。`,
+      body: `監督、俺はこのチームでまだ一度も優勝してない。${p.age}歳になった今、最後にこのチームで頂点に立ちたいんです。`,
       choices: [
         { label: '全面バックアップを約束する', desc: `${p.name}の士気+30・疲労+5。チーム全員も奮起する。` },
         { label: '「チームで掴み取ろう」と激励', desc: '全員士気+12。一体感向上。' },
         { label: '静かに見守る', desc: '対処なし。本人はやる気を燃やし続ける。' },
-      ],
-      resolved: false,
-    })
-  }
-
-  // CPU team tries to poach your young prospect
-  const youngStars = mainPlayers.filter(p => p.age <= 25 && ovr(p) >= 70 && !recentPlayerIds.has(p.id))
-  if (youngStars.length > 0 && !recentTypes.has('ai_poaching') && Math.random() < 0.25) {
-    const p = pickRandom(youngStars)
-    candidates.push({
-      id: uid(), raceIndex, type: 'ai_poaching', playerId: p.id,
-      title: `他チームが${p.name}に接触`,
-      body: `複数のチームが${p.name}（${p.age}歳 OVR${ovr(p)}）への関心を示し、代理人に接触してきました。`,
-      choices: [
-        { label: '即座に契約延長を提示する', desc: '予算-300万。士気+20。確実に引き留め。' },
-        { label: '「移籍は考えていない」と一蹴する', desc: '士気+5。交渉はしないが意思を示す。' },
-        { label: '様子を見る', desc: '放置すると士気低下と移籍志向が高まるリスク。' },
       ],
       resolved: false,
     })

@@ -66,10 +66,10 @@ const FACILITY_META: {
   {
     key: 'trainingCamp',
     name: '合宿施設',
-    desc: '選手の年間成長をサポートする高度なトレーニング環境',
+    desc: '選手のレース獲得経験値を底上げする育成環境',
     color: C.green,
     shadow: '#0d3d22',
-    effects: ['Lv1: 選手成長+7%', 'Lv2: 選手成長+14%', 'Lv3: 選手成長+21%'],
+    effects: ['Lv1: レースEXP+6%', 'Lv2: +12%', 'Lv3: +18%', 'Lv4: +24%', 'Lv5: +30%'],
   },
   {
     key: 'medicalCenter',
@@ -77,15 +77,15 @@ const FACILITY_META: {
     desc: 'ハイレベルなスポーツ医学でコンディション管理を強化',
     color: C.cyan,
     shadow: '#0e3f5a',
-    effects: ['Lv1: レース後疲労-8%', 'Lv2: 疲労-16%', 'Lv3: 疲労-24%'],
+    effects: ['Lv1: 疲労-8%', 'Lv2: -16%', 'Lv3: -24%', 'Lv4: -32%', 'Lv5: -40%'],
   },
   {
     key: 'scoutOffice',
     name: 'スカウト拠点',
-    desc: '全国に張り巡らせたネットワークで有望選手を早期発掘',
+    desc: '有望選手を早期発掘し、獲得・移籍交渉を有利に運ぶ',
     color: C.orange,
     shadow: '#5a2800',
-    effects: ['Lv1: スカウトPT+1/シーズン', 'Lv2: +2', 'Lv3: +3'],
+    effects: ['Lv1: PT+1・成立+2%', 'Lv2: +2・+4%', 'Lv3: +3・+6%', 'Lv4: +4・+8%', 'Lv5: +5・+10%'],
   },
   {
     key: 'tacticsRoom',
@@ -93,11 +93,12 @@ const FACILITY_META: {
     desc: 'データ分析でレース戦略を最適化し選手の実力を引き出す',
     color: C.blue,
     shadow: '#2a3580',
-    effects: ['Lv1: レース時全能力+1', 'Lv2: 全能力+2', 'Lv3: 全能力+3'],
+    effects: ['Lv1: レース時全能力+1', 'Lv2: +2', 'Lv3: +3', 'Lv4: +4', 'Lv5: +5'],
   },
 ]
 
-const UPGRADE_COSTS = [50, 100, 200]
+const UPGRADE_COSTS = [100, 300, 500, 1000, 3000]
+const MAX_LV = 5
 
 export default function FacilitiesPage() {
   const navigate = useNavigate()
@@ -131,7 +132,7 @@ export default function FacilitiesPage() {
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {FACILITY_META.map(f => {
           const currentLv = myTeam.facilities?.[f.key] ?? 0
-          const nextCost = currentLv < 3 ? UPGRADE_COSTS[currentLv] : null
+          const nextCost = currentLv < MAX_LV ? UPGRADE_COSTS[currentLv] : null
           const canUpgrade = nextCost !== null && jewels >= nextCost
 
           return (
@@ -168,8 +169,8 @@ export default function FacilitiesPage() {
                 </div>
               </div>
 
-              <div style={{ padding: '0 16px 10px', display: 'flex', gap: '6px' }}>
-                {[1, 2, 3].map(lv => (
+              <div style={{ padding: '0 16px 10px', display: 'flex', gap: '5px' }}>
+                {[1, 2, 3, 4, 5].map(lv => (
                   <div key={lv} style={{
                     height: '4px', flex: 1, borderRadius: '2px',
                     background: currentLv >= lv ? f.color : C.surface,
@@ -178,20 +179,20 @@ export default function FacilitiesPage() {
                 ))}
               </div>
 
-              <div style={{ padding: '8px 16px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: '8px' }}>
+              <div style={{ padding: '8px 16px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: '5px' }}>
                 {f.effects.map((eff, i) => (
                   <div key={i} style={{
-                    flex: 1, padding: '6px 8px', borderRadius: '8px', textAlign: 'center',
+                    flex: 1, padding: '6px 3px', borderRadius: '7px', textAlign: 'center',
                     background: currentLv > i ? alpha(f.color, 0.12) : C.surface,
                     border: `1px solid ${currentLv > i ? alpha(f.color, 0.28) : C.border}`,
                   }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '8px', color: currentLv > i ? f.color : C.textGhost, fontWeight: '700', lineHeight: 1.4 }}>{eff}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '7px', color: currentLv > i ? f.color : C.textGhost, fontWeight: '700', lineHeight: 1.35 }}>{eff}</div>
                   </div>
                 ))}
               </div>
 
               <div style={{ padding: '10px 14px 14px' }}>
-                {currentLv >= 3 ? (
+                {currentLv >= MAX_LV ? (
                   <div style={{ textAlign: 'center', padding: '10px', fontFamily: SAIRA, fontSize: '11px', color: C.gold, fontWeight: '700', background: alpha(C.gold, 0.08), borderRadius: '10px', border: `1px solid ${alpha(C.gold, 0.22)}` }}>
                     MAX レベル達成
                   </div>

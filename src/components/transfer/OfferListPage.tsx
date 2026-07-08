@@ -130,7 +130,7 @@ export default function OfferListPage() {
                       )}
                       {b.status === 'fee_accepted' && (
                         <div style={{ padding: '0 12px 12px' }}>
-                          <button onClick={() => navigate(`/transfer/negotiate/transfer/${b.id}`)} style={actBtn(C.green)}>選手と契約交渉へ →</button>
+                          <button onClick={() => navigate(`/team/chat?player=${b.playerId}`)} style={actBtn(C.green)}>選手と契約交渉へ →</button>
                         </div>
                       )}
                       {b.status === 'pending' && (

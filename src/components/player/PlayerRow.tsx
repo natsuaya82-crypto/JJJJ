@@ -1,6 +1,6 @@
-import type { Player, Team } from '../../types'
+import type { Player, Team, CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR, formColor } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, formColor, isStatMaxed } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
@@ -16,8 +16,8 @@ export type RowHandlers = {
   onClick: () => void
 }
 
-function StatNum({ label, value }: { label: string; value: number }) {
-  const col = ratingColor(value)
+function StatNum({ label, value, maxed }: { label: string; value: number; maxed: boolean }) {
+  const col = ratingColor(value, maxed)
   return (
     <div style={{ textAlign: 'center', flex: 1 }}>
       <div style={{ fontSize: '8px', color: C.textDim, marginBottom: '1px' }}>{label}</div>
@@ -101,10 +101,10 @@ export default function PlayerRow({ player, handlers, loanOwner, selected }: {
       </div>
       <div style={{ display: 'flex', padding: '0 12px 8px 72px' }}>
         {([
-          ['速力', r.speed], ['持久', r.stamina], ['登り', r.mountainUp], ['下り', r.mountainDown],
-          ['ペース', r.pacing], ['精神', r.mental], ['回復', r.recovery],
-        ] as [string, number][]).map(([label, val]) => (
-          <StatNum key={label} label={label} value={val}/>
+          ['速力', 'speed'], ['持久', 'stamina'], ['登り', 'mountainUp'], ['下り', 'mountainDown'],
+          ['ペース', 'pacing'], ['精神', 'mental'], ['回復', 'recovery'],
+        ] as [string, CardStatKey][]).map(([label, key]) => (
+          <StatNum key={label} label={label} value={r[key]} maxed={isStatMaxed(player, key)}/>
         ))}
       </div>
     </div>

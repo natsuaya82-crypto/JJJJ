@@ -2821,7 +2821,8 @@ export const useGameStore = create<GameStore>()(
         // 選手本人の同意ゲート
         const standings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
         const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
-        const consent = playerConsentToMove(player, myRank, state.teams.length)
+        const scoutLvT = myTeam.facilities?.scoutOffice ?? 0
+        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02)
         if (!consent.ok) {
           // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
           set(s => ({
@@ -4403,7 +4404,7 @@ export const useGameStore = create<GameStore>()(
         if (!myTeam) return false
         const currentLv = myTeam.facilities?.[key] ?? 0
         if (currentLv >= 5) return false
-        const UPGRADE_COSTS = [50, 100, 200, 350, 550]
+        const UPGRADE_COSTS = [100, 300, 500, 1000, 3000]
         const cost = UPGRADE_COSTS[currentLv]
         if (state.jewels < cost) return false
         set(state => ({

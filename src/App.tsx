@@ -40,7 +40,6 @@ import SchedulePage from './components/schedule/SchedulePage'
 import ShopPage from './components/shop/ShopPage'
 import SponsorPage from './components/sponsors/SponsorPage'
 import StarredPlayersPage from './components/transfer/StarredPlayersPage'
-import NegotiationPage from './components/transfer/NegotiationPage'
 import OfferListPage from './components/transfer/OfferListPage'
 import RentalPage from './components/transfer/RentalPage'
 import FacilitiesPage from './components/facilities/FacilitiesPage'
@@ -133,7 +132,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/transfer/starred" element={<StarredPlayersPage />} />
           <Route path="/transfer/offers" element={<OfferListPage />} />
           <Route path="/transfer/rental" element={<RentalPage />} />
-          <Route path="/transfer/negotiate/:mode/:id" element={<NegotiationPage />} />
           <Route path="/transfer/:section" element={<TransferPage />} />
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />

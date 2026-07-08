@@ -589,7 +589,7 @@ export default function NotificationsPage() {
                           </div>
                         </div>
                         <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '12px' }}>次は選手本人と年俸・役割を交渉します。</div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate(`/transfer/negotiate/transfer/${bid.id}`)}>選手と契約交渉へ</Btn>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${bid.playerId}`)}>選手と契約交渉へ</Btn>
                       </div>
                     </div>
                   )

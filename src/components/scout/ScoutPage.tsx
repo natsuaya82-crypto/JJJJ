@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Specialty } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, statCapBand } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 
@@ -221,7 +221,7 @@ export default function ScoutPage() {
                           {p.name}
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                          <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: p.scouted ? C.gold : C.textGhost }}>{p.scouted ? p.potential : '?'}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: p.scouted ? 13 : 18, fontWeight: 900, color: p.scouted ? C.gold : C.textGhost }}>{p.scouted ? `~${statCapBand(p.potential).lo}-${statCapBand(p.potential).hi}` : '?'}</span>
                           <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{p.age}歳</span>
                           <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px' }}>{p.origin}</span>
                         </div>

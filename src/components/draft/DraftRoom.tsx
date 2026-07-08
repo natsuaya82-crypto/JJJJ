@@ -2,7 +2,7 @@
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
+import { ovr, SPEC_COLOR, ratingColor, faMarketSalary, statCapBand } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NumberDial from '../ui/NumberDial'
@@ -870,18 +870,26 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
             </div>
             <div style={{ padding: '10px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${C.border2}` }}>
               <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '6px' }}>ポテンシャル</div>
-              <div style={{ height: '8px', backgroundColor: C.border2, borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
-                <div style={{
-                  height: '100%', width: `${p.potential}%`, borderRadius: '4px',
-                  background: p.potential >= 90
-                    ? `linear-gradient(90deg, ${C.gold}, ${C.goldHi})`
-                    : `linear-gradient(90deg, ${C.green}, ${alpha(C.green, 0.8)})`,
-                }}/>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: p.potential >= 90 ? C.gold : C.textSub, fontFamily: SAIRA, textShadow: p.potential >= 90 ? '0 0 10px rgba(245,200,66,0.5)' : 'none' }}>
-                {p.potential}
-              </div>
-              <div style={{ fontSize: '9px', color: C.textDim, marginTop: '2px' }}>成長上限の目安</div>
+              {(() => {
+                const band = statCapBand(p.potential)
+                const high = p.potential >= 90
+                return (
+                  <>
+                    <div style={{ height: '8px', backgroundColor: C.border2, borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
+                      <div style={{
+                        height: '100%', width: `${band.hi}%`, borderRadius: '4px',
+                        background: high
+                          ? `linear-gradient(90deg, ${C.gold}, ${C.goldHi})`
+                          : `linear-gradient(90deg, ${C.green}, ${alpha(C.green, 0.8)})`,
+                      }}/>
+                    </div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: high ? C.gold : C.textSub, fontFamily: SAIRA, textShadow: high ? '0 0 10px rgba(245,200,66,0.5)' : 'none' }}>
+                      ~{band.lo}-{band.hi}
+                    </div>
+                  </>
+                )
+              })()}
+              <div style={{ fontSize: '9px', color: C.textDim, marginTop: '2px' }}>成長上限の目安（幅）</div>
             </div>
           </div>
           {p.traits && p.traits.length > 0 && (

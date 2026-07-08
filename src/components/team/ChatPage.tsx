@@ -214,6 +214,7 @@ function ChatView({
   const [composing, setComposing] = useState(false)
   const [composeMode, setComposeMode] = useState<'renewal' | 'acq' | 'transfer'>('renewal')
   const [justAcquired, setJustAcquired] = useState(false)  // 獲得成立直後（契約更新フローへの誤遷移を防ぐ）
+  const [negotiationFailed, setNegotiationFailed] = useState(false)  // 交渉決裂直後（別フローに落ちず締めの表示だけ出す）
   const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
   const [offerYears, setOfferYears] = useState(2)
   const [offerContractType, setOfferContractType] = useState<'standard' | 'development' | 'dual'>('standard')
@@ -267,7 +268,11 @@ function ChatView({
       append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
       setJustAcquired(true)
     } else {
-      append({ from: 'player', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` })
+      append(
+        { from: 'player', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` },
+        { from: 'player', text: '（代理人）今回はご縁がなかったということで。またの機会によろしくお願いいたします。' },
+      )
+      setNegotiationFailed(true)
     }
     setComposing(false)
   }
@@ -321,6 +326,11 @@ function ChatView({
     // 獲得成立直後：契約更新フローに落ちないよう終了ボタンだけ出す
     if (justAcquired) return [
       { label: '閉じる', color: C.green, action: onClose },
+    ]
+
+    // 交渉決裂直後：締めのメッセージを見せたまま閉じるだけにする
+    if (negotiationFailed) return [
+      { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
     // 選手イベント：選択肢を会話内ボタンで決着（resolveEvent）

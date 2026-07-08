@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useGameStore, individualEventAbility } from '../../store/gameStore'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { runWithLoading } from '../../store/loadingStore'
@@ -238,6 +239,7 @@ function buildTeamRankings(
 }
 
 export default function RacePage() {
+  const navigate = useNavigate()
   const {
     currentSeason, teams, players, playerTeamId,
     raceLineup, lastRaceLineup, setRaceLineup, clearRaceLineup, runRace,
@@ -677,7 +679,7 @@ export default function RacePage() {
         teams={teams}
         playerTeamId={playerTeamId}
         onRun={(skipIds) => runWithLoading('記録会 開催中…', () => { simulateIndividualEvent(ttEvent.id, skipIds); setTtViewId(ttEvent.id) }, 800)}
-        onDone={() => setTtViewId(null)}
+        onDone={() => { setTtViewId(null); navigate('/') }}
       />
     )
   }
