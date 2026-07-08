@@ -75,7 +75,7 @@ export default function ScoutPage() {
   function getScoutEntry(prospectId: string) {
     return scoutedProspects.find(s => s.prospectId === prospectId && currentSeason.year - s.year <= 1)
   }
-  function isScouted(prospectId: string) { return getScoutEntry(prospectId) != null }
+  function isScouted(_prospectId: string) { return true }   // スカウト廃止＝ドラフト候補も全公開
   function isReady(prospectId: string) {
     const e = getScoutEntry(prospectId)
     return e != null && currentRaceIndex > e.raceIndex
@@ -205,7 +205,7 @@ export default function ScoutPage() {
               <div key={p.id} style={{ marginBottom: '8px' }}>
                 <div style={{
                   position: 'relative', overflow: 'hidden',
-                  borderRadius: p.scouted ? '14px 14px 0 0' : '14px',
+                  borderRadius: true ? '14px 14px 0 0' : '14px',
                   background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                   border: `2px solid ${C.goldDark}`,
                   boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
@@ -221,18 +221,18 @@ export default function ScoutPage() {
                           {p.name}
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                          <span style={{ fontFamily: SAIRA, fontSize: p.scouted ? 13 : 18, fontWeight: 900, color: p.scouted ? C.gold : C.textGhost }}>{p.scouted ? `~${statCapBand(p.potential).lo}-${statCapBand(p.potential).hi}` : '?'}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: true ? 13 : 18, fontWeight: 900, color: true ? C.gold : C.textGhost }}>{true ? `~${statCapBand(p.potential).lo}-${statCapBand(p.potential).hi}` : '?'}</span>
                           <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{p.age}歳</span>
                           <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px' }}>{p.origin}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <span style={{ padding: '1px 6px', borderRadius: '8px', background: alpha(specCol, 0.15), color: specCol, fontSize: '9px', fontWeight: '700' }}>{SPECIALTY_LABELS[p.specialty]}</span>
                           <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>{p.nationality === 'FOREIGN' ? '外国籍' : '日本人'}</span>
-                          {p.scouted && <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>10km {format10kTime(devScore)}</span>}
+                          {true && <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>10km {format10kTime(devScore)}</span>}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                        {!p.scouted ? (
+                        {!true ? (
                           <button
                             onClick={() => scoutDevProspect(p.id)}
                             style={{
@@ -268,7 +268,7 @@ export default function ScoutPage() {
                     </div>
                   </div>
                 </div>
-                {p.scouted && (
+                {true && (
                   <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderTop: 'none', borderRadius: '0 0 14px 14px', padding: '12px 14px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
                       {([

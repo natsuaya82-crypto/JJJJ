@@ -251,10 +251,9 @@ export function racesConsumed(season: ScoutSeasonLike): number {
 }
 
 // 視察済み（＝能力/ポテンシャル開示）か。reqAt 無しの旧セーブは即開示扱い。
-export function isOpponentScouted(playerId: string, season: ScoutSeasonLike): boolean {
-  const entry = (season.scoutedOpponents ?? []).find(s => s.playerId === playerId)
-  if (!entry) return false
-  return entry.reqAt === undefined || racesConsumed(season) > entry.reqAt
+export function isOpponentScouted(_playerId: string, _season: ScoutSeasonLike): boolean {
+  // スカウト（?で隠す）を廃止＝全選手のデータを最初から公開する。
+  return true
 }
 
 // 視察中（依頼したがまだ1レース消化していない）か。
