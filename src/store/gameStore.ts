@@ -3571,6 +3571,93 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
+        // ⑤ CPU間トレード（予算不足でも価値が近い選手同士を交換）
+        {
+          const tradedIds = new Set<string>()
+          const tradeCount: Record<string, number> = {}
+          const cpuIdsForTrade = [...new Set(
+            playersAfterCpuTransfer
+              .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId)
+              .map(p => p.teamId)
+          )]
+          for (const buyerId of cpuIdsForTrade) {
+            if ((tradeCount[buyerId] ?? 0) >= 1) continue
+            const buyTier = cpuTeamTier(buyerId, playersAfterCpuTransfer)
+            const buyMinOvr = buyTier === 'elite' ? 74 : buyTier === 'mid' ? 67 : 60
+            const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyerId && p.rosterTier === 'main' && p.status === 'active')
+            if (buyRoster.length >= 23) continue
+            const buyerSurplus = buyRoster
+              .filter(p => !tradedIds.has(p.id) && ovr(p) < buyMinOvr)
+              .sort((a, b) => calcTransferValue(b) - calcTransferValue(a))
+            if (buyerSurplus.length === 0) continue
+            const offered = buyerSurplus[0]
+            const offeredVal = calcTransferValue(offered)
+            for (const sellerId of cpuIdsForTrade) {
+              if (sellerId === buyerId || (tradeCount[sellerId] ?? 0) >= 1) continue
+              const sellTier = cpuTeamTier(sellerId, playersAfterCpuTransfer)
+              const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
+              const sellRoster = playersAfterCpuTransfer
+                .filter(p => p.teamId === sellerId && p.rosterTier === 'main' && p.status === 'active')
+                .sort((a, b) => ovr(b) - ovr(a))
+              const target = sellRoster.slice(3).find(p =>
+                !tradedIds.has(p.id) &&
+                ovr(p) >= buyMinOvr && ovr(p) < sellMinOvr &&
+                calcTransferValue(p) <= offeredVal * 1.3
+              )
+              if (!target || ovr(offered) < sellMinOvr - 6) continue
+              tradedIds.add(offered.id); tradedIds.add(target.id)
+              tradeCount[buyerId] = (tradeCount[buyerId] ?? 0) + 1
+              tradeCount[sellerId] = (tradeCount[sellerId] ?? 0) + 1
+              playersAfterCpuTransfer = playersAfterCpuTransfer.map(p => {
+                if (p.id === offered.id) return { ...p, teamId: sellerId }
+                if (p.id === target.id) return { ...p, teamId: buyerId }
+                return p
+              })
+              teamsAfterCpuTransfer = teamsAfterCpuTransfer.map(t => {
+                if (t.id === buyerId) return { ...t, roster: { ...t.roster, main: [...t.roster.main.filter(id => id !== offered.id), target.id] } }
+                if (t.id === sellerId) return { ...t, roster: { ...t.roster, main: [...t.roster.main.filter(id => id !== target.id), offered.id] } }
+                return t
+              })
+              break
+            }
+          }
+        }
+
+        // ④ CPU間レンタル（ロスター過多チームから不足チームへ1年貸し出し）
+        {
+          const loanedIds = new Set<string>()
+          const loanYear = state.currentSeason.year + 1
+          const cpuIdsForLoan = [...new Set(
+            playersAfterCpuTransfer
+              .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId)
+              .map(p => p.teamId)
+          )]
+          const mainCount = (teamId: string) =>
+            playersAfterCpuTransfer.filter(p => p.teamId === teamId && p.rosterTier === 'main' && p.status === 'active' && !p.loan).length
+          const givenLoan: Record<string, number> = {}
+          const receivedLoan: Record<string, number> = {}
+          for (const senderId of cpuIdsForLoan) {
+            if (mainCount(senderId) <= 21 || (givenLoan[senderId] ?? 0) >= 1) continue
+            const receiver = cpuIdsForLoan.find(id => id !== senderId && mainCount(id) < 17 && (receivedLoan[id] ?? 0) < 1)
+            if (!receiver) continue
+            const candidate = playersAfterCpuTransfer
+              .filter(p => p.teamId === senderId && p.rosterTier === 'main' && p.status === 'active' && !p.loan && !loanedIds.has(p.id))
+              .sort((a, b) => ovr(a) - ovr(b))[0]
+            if (!candidate) continue
+            loanedIds.add(candidate.id)
+            givenLoan[senderId] = (givenLoan[senderId] ?? 0) + 1
+            receivedLoan[receiver] = (receivedLoan[receiver] ?? 0) + 1
+            playersAfterCpuTransfer = playersAfterCpuTransfer.map(p =>
+              p.id !== candidate.id ? p : { ...p, teamId: receiver, loan: { ownerTeamId: senderId, untilYear: loanYear } }
+            )
+            teamsAfterCpuTransfer = teamsAfterCpuTransfer.map(t => {
+              if (t.id === senderId) return { ...t, roster: { ...t.roster, main: t.roster.main.filter(id => id !== candidate.id) } }
+              if (t.id === receiver) return { ...t, roster: { ...t.roster, main: [...t.roster.main, candidate.id] } }
+              return t
+            })
+          }
+        }
+
         // FA補強（受け皿）：移籍市場で動けなかった選手・チームの補完
         const availableFAs = playersAfterCpuTransfer
           .filter(p => p.teamId === '' && p.status === 'active')
@@ -3708,15 +3795,32 @@ export const useGameStore = create<GameStore>()(
           },
         }))
 
+        // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）
+        const foreignClubsList = (state.foreignLeagues ?? []).flatMap(l => l.clubs)
+        let playersWithForeignSigns = playersWithAllCpuSigns
+        if (foreignClubsList.length > 0) {
+          const remainForeignFAs = playersWithAllCpuSigns
+            .filter(p => p.teamId === '' && p.status === 'active' && p.nationality === 'FOREIGN')
+            .sort((a, b) => ovr(b) - ovr(a))
+          let clubIdx = 0
+          for (const fa of remainForeignFAs) {
+            const club = foreignClubsList[clubIdx % foreignClubsList.length]
+            clubIdx++
+            playersWithForeignSigns = playersWithForeignSigns.map(p =>
+              p.id !== fa.id ? p : { ...p, teamId: club.id }
+            )
+          }
+        }
+
         const cpuSigningNewsItems = cpuSignings
           .filter(s => {
-            const p = playersAfterCpuRelease.find(x => x.id === s.playerId)
+            const p = playersAfterCpuTransfer.find(x => x.id === s.playerId)
             return p && ovr(p) >= 65
           })
           .slice(0, 10)
           .map(s => {
-            const p = playersAfterCpuRelease.find(x => x.id === s.playerId)!
-            const team = teamsAfterCpuRelease.find(t => t.id === s.teamId)
+            const p = playersAfterCpuTransfer.find(x => x.id === s.playerId)!
+            const team = teamsAfterCpuTransfer.find(t => t.id === s.teamId)
             return {
               date: `${newYear}-02-10`,
               headline: `${team?.shortName ?? ''}が${p.name}（OVR${ovr(p)}）と契約合意`,
@@ -3728,7 +3832,7 @@ export const useGameStore = create<GameStore>()(
         set({
           draftState: { pool, pickOrder, currentPick: 0, picks: [], isComplete: false },
           isInitialized: false,
-          players: [...playersWithAllCpuSigns, ...pool],
+          players: [...playersWithForeignSigns, ...pool],
           teams: teamsWithAllCpuSigns,
           currentSeason: {
             ...state.currentSeason,
