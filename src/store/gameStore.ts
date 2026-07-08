@@ -4850,6 +4850,15 @@ export const useGameStore = create<GameStore>()(
             giftGivenVersions: [...(state.giftGivenVersions ?? []), MARK],
           }
         })
+        // 誤追記バグ（交渉返答が文脈違いで復元される）で汚れた保存チャットログを一度だけ全消去する
+        set(state => {
+          const CHAT_MARK = 'chatlogs-reset-v1'
+          if ((state.giftGivenVersions ?? []).includes(CHAT_MARK)) return state
+          return {
+            currentSeason: { ...state.currentSeason, chatLogs: {} },
+            giftGivenVersions: [...(state.giftGivenVersions ?? []), CHAT_MARK],
+          }
+        })
       },
 
       claimGift: (id) => {
