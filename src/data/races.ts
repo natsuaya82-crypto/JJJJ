@@ -5,13 +5,13 @@ import { INITIAL_TEAMS } from './teams'
 export function generateIndividualEvents(year: number): IndividualEvent[] {
   const y = String(year)
   return [
-    { id: `tt-5k-1-${y}`,   name: `${y} 春季5000m記録会`,   date: `${y}-03-25`, distance: 5000 },
+    { id: `tt-5k-1-${y}`,   name: `${y} 春季5000m記録会`,   date: `${y}-03-29`, distance: 5000 },
     { id: `tt-10k-1-${y}`,  name: `${y} 春季10000m記録会`,  date: `${y}-04-26`, distance: 10000 },
     { id: `tt-half-1-${y}`, name: `${y} 初夏ハーフ記録会`,   date: `${y}-05-24`, distance: 21097 },
-    { id: `tt-5k-2-${y}`,   name: `${y} 初夏5000m記録会`,   date: `${y}-06-28`, distance: 5000 },
     { id: `tt-mara-${y}`,   name: `${y} 夏季マラソン記録会`, date: `${y}-08-02`, distance: 42195 },
     { id: `tt-10k-2-${y}`,  name: `${y} 夏季10000m記録会`,  date: `${y}-08-23`, distance: 10000 },
-    { id: `tt-half-2-${y}`, name: `${y} 秋季ハーフ記録会`,   date: `${y}-09-27`, distance: 21097 },
+    { id: `tt-5k-2-${y}`,   name: `${y} 秋季5000m記録会`,   date: `${y}-10-18`, distance: 5000 },
+    { id: `tt-half-2-${y}`, name: `${y} 冬季ハーフ記録会`,   date: `${y}-12-06`, distance: 21097 },
   ]
 }
 
@@ -51,71 +51,15 @@ export const SEASON_2027_RACES: Race[] = [
     participants: ALL_TEAM_IDS,
   },
 
-  // ───── Race 02: 東京スプリント駅伝 ─────
-  // 都市型。短い区間が多くスプリンター天国。長い区間は精神・スタミナが要る。
-  {
-    id: 'race-2027-02',
-    name: '東京スプリント駅伝',
-    date: '2027-04-05',
-    location: '東京',
-    type: 'league',
-    conditions: { temperature: 14, weather: 'cloudy', elevation: 30 },
-    segments: [
-      // 1区 6.5km 平坦: 都市開幕スプリント
-      seg(1, 6.5,  0,  0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
-      // 2区 7.0km 平坦: 連続スプリント。前区間との繋ぎが課題
-      seg(2, 7.0,  0,  0, { speed: 0.65, pacing: 0.16, mental: 0.10, stamina: 0.06, recovery: 0.03 }),
-      // 3区 11.5km 緩傾斜: 長めの精神消耗戦
-      seg(3, 11.5, 5,  5, { mental: 0.32, pacing: 0.32, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
-      // 4区 6.0km 平坦: 純粋速さ爆発区間
-      seg(4, 6.0,  0,  0, { speed: 0.70, pacing: 0.14, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
-      // 5区 10.8km 緩傾斜: 中盤タクティカル
-      seg(5, 10.8, 5,  5, { pacing: 0.38, mental: 0.28, stamina: 0.20, recovery: 0.10, speed: 0.04 }),
-      // 6区 5.5km 平坦: 最短区間・絶対速度のみ問われる
-      seg(6, 5.5,  0,  0, { speed: 0.72, pacing: 0.12, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
-      // 7区 9.2km 緩傾斜: アンカー前の消耗戦
-      seg(7, 9.2,  5,  5, { pacing: 0.35, stamina: 0.25, mental: 0.22, recovery: 0.12, speed: 0.06 }),
-      // 8区 12.5km 緩上り: 最長アンカー。スタミナ型が有利
-      seg(8, 12.5, 8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.20, mental: 0.12, speed: 0.04 }),
-    ],
-    participants: ALL_TEAM_IDS,
-  },
-
-  // ───── Race 03: 富士山岳駅伝 ─────
-  // 本格山岳。登り専門・下り専門に分かれる。フラット選手には過酷。
-  {
-    id: 'race-2027-03',
-    name: '富士山岳駅伝',
-    date: '2027-04-19',
-    location: '富士山',
-    type: 'league',
-    conditions: { temperature: 8, weather: 'cloudy', elevation: 1200 },
-    segments: [
-      // 1区 10.0km アップダウン: 起伏のアプローチ。山岳・スタミナ複合
-      seg(1, 10.0, 20, 18, { mountainUp: 0.25, mountainDown: 0.20, stamina: 0.30, pacing: 0.15, recovery: 0.10 }),
-      // 2区 12.0km 急登: 長い山登り区間。スタミナで失速しない持続力
-      seg(2, 12.0, 55,  2, { mountainUp: 0.68, stamina: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
-      // 3区 9.0km 急登: 短くて急。爆発的な登攀力が全て
-      seg(3, 9.0,  55,  2, { mountainUp: 0.75, stamina: 0.12, mental: 0.07, recovery: 0.04, pacing: 0.02 }),
-      // 4区 11.0km 急降: 長い下り。技術と速さのコントロール
-      seg(4, 11.0,  2, 55, { mountainDown: 0.62, speed: 0.20, mental: 0.10, pacing: 0.05, recovery: 0.03 }),
-      // 5区 9.5km 急降: 短い急降。攻撃的な下り専門が輝く
-      seg(5, 9.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
-      // 6区 8.5km アップダウン: 帰路起伏。疲弊した脚で最後の山岳戦
-      seg(6, 8.5,  20, 18, { mountainUp: 0.22, mountainDown: 0.25, stamina: 0.28, pacing: 0.15, recovery: 0.10 }),
-    ],
-    participants: ALL_TEAM_IDS,
-  },
-
-  // ───── Race 04: 東北桜駅伝 ─────
+  // ───── Race 02: 東北桜駅伝 ─────
   // 長距離主体。起伏区間が2回あり、スタミナ・回復力が問われる持久戦。
   {
-    id: 'race-2027-04',
+    id: 'race-2027-02',
     name: '東北桜駅伝',
-    date: '2027-05-03',
+    date: '2027-04-05',
     location: '仙台',
     type: 'league',
-    conditions: { temperature: 16, weather: 'sunny', elevation: 80 },
+    conditions: { temperature: 13, weather: 'sunny', elevation: 80 },
     segments: [
       // 1区 9.0km 緩傾斜: 精神の立ち上がり。メンタルが初速を決める
       seg(1, 9.0,   5,  5, { mental: 0.32, pacing: 0.30, speed: 0.18, stamina: 0.14, recovery: 0.06 }),
@@ -137,15 +81,71 @@ export const SEASON_2027_RACES: Race[] = [
     participants: ALL_TEAM_IDS,
   },
 
+  // ───── Race 03: 東京スプリント駅伝 ─────
+  // 都市型。短い区間が多くスプリンター天国。長い区間は精神・スタミナが要る。
+  {
+    id: 'race-2027-03',
+    name: '東京スプリント駅伝',
+    date: '2027-05-03',
+    location: '東京',
+    type: 'league',
+    conditions: { temperature: 17, weather: 'cloudy', elevation: 30 },
+    segments: [
+      // 1区 6.5km 平坦: 都市開幕スプリント
+      seg(1, 6.5,  0,  0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
+      // 2区 7.0km 平坦: 連続スプリント。前区間との繋ぎが課題
+      seg(2, 7.0,  0,  0, { speed: 0.65, pacing: 0.16, mental: 0.10, stamina: 0.06, recovery: 0.03 }),
+      // 3区 11.5km 緩傾斜: 長めの精神消耗戦
+      seg(3, 11.5, 5,  5, { mental: 0.32, pacing: 0.32, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
+      // 4区 6.0km 平坦: 純粋速さ爆発区間
+      seg(4, 6.0,  0,  0, { speed: 0.70, pacing: 0.14, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
+      // 5区 10.8km 緩傾斜: 中盤タクティカル
+      seg(5, 10.8, 5,  5, { pacing: 0.38, mental: 0.28, stamina: 0.20, recovery: 0.10, speed: 0.04 }),
+      // 6区 5.5km 平坦: 最短区間・絶対速度のみ問われる
+      seg(6, 5.5,  0,  0, { speed: 0.72, pacing: 0.12, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
+      // 7区 9.2km 緩傾斜: アンカー前の消耗戦
+      seg(7, 9.2,  5,  5, { pacing: 0.35, stamina: 0.25, mental: 0.22, recovery: 0.12, speed: 0.06 }),
+      // 8区 12.5km 緩上り: 最長アンカー。スタミナ型が有利
+      seg(8, 12.5, 8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.20, mental: 0.12, speed: 0.04 }),
+    ],
+    participants: ALL_TEAM_IDS,
+  },
+
+  // ───── Race 04: 富士山岳駅伝 ─────
+  // 本格山岳。登り専門・下り専門に分かれる。フラット選手には過酷。
+  {
+    id: 'race-2027-04',
+    name: '富士山岳駅伝',
+    date: '2027-05-31',
+    location: '富士山',
+    type: 'league',
+    conditions: { temperature: 12, weather: 'cloudy', elevation: 1200 },
+    segments: [
+      // 1区 10.0km アップダウン: 起伏のアプローチ。山岳・スタミナ複合
+      seg(1, 10.0, 20, 18, { mountainUp: 0.25, mountainDown: 0.20, stamina: 0.30, pacing: 0.15, recovery: 0.10 }),
+      // 2区 12.0km 急登: 長い山登り区間。スタミナで失速しない持続力
+      seg(2, 12.0, 55,  2, { mountainUp: 0.68, stamina: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
+      // 3区 9.0km 急登: 短くて急。爆発的な登攀力が全て
+      seg(3, 9.0,  55,  2, { mountainUp: 0.75, stamina: 0.12, mental: 0.07, recovery: 0.04, pacing: 0.02 }),
+      // 4区 11.0km 急降: 長い下り。技術と速さのコントロール
+      seg(4, 11.0,  2, 55, { mountainDown: 0.62, speed: 0.20, mental: 0.10, pacing: 0.05, recovery: 0.03 }),
+      // 5区 9.5km 急降: 短い急降。攻撃的な下り専門が輝く
+      seg(5, 9.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
+      // 6区 8.5km アップダウン: 帰路起伏。疲弊した脚で最後の山岳戦
+      seg(6, 8.5,  20, 18, { mountainUp: 0.22, mountainDown: 0.25, stamina: 0.28, pacing: 0.15, recovery: 0.10 }),
+    ],
+    participants: ALL_TEAM_IDS,
+  },
+
   // ───── Race 05: 関西スプリント駅伝 ─────
   // 平坦主体の短距離戦。ただし4区だけ長くスタミナ勝負になる。
   {
     id: 'race-2027-05',
     name: '関西スプリント駅伝',
-    date: '2027-05-17',
+    date: '2027-06-28',
     location: '大阪',
     type: 'league',
-    conditions: { temperature: 20, weather: 'sunny', elevation: 20 },
+    conditions: { temperature: 24, weather: 'sunny', elevation: 20 },
     segments: [
       // 1区 7.5km 平坦: 速さのオープニング
       seg(1, 7.5,  0,  0, { speed: 0.63, pacing: 0.18, mental: 0.11, stamina: 0.05, recovery: 0.03 }),
@@ -163,41 +163,15 @@ export const SEASON_2027_RACES: Race[] = [
     participants: ALL_TEAM_IDS,
   },
 
-  // ───── Race 06: 信州アルペン駅伝 ─────
-  // 山岳に特化。登り下りが連続し、アンカーのみスタミナ型が活きる。
-  {
-    id: 'race-2027-06',
-    name: '信州アルペン駅伝',
-    date: '2027-06-07',
-    location: '長野',
-    type: 'league',
-    conditions: { temperature: 18, weather: 'sunny', elevation: 800 },
-    segments: [
-      // 1区 9.5km 起伏: 山岳へのアプローチ。オールラウンドな山岳力
-      seg(1, 9.5,  20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, pacing: 0.14, recovery: 0.10 }),
-      // 2区 10.5km 急登: 長い技術的登り。スタミナ込みの山登り力
-      seg(2, 10.5, 55,  2, { mountainUp: 0.55, stamina: 0.24, pacing: 0.12, mental: 0.06, recovery: 0.03 }),
-      // 3区 8.5km 急登: 短い急登。爆発的登山力が支配
-      seg(3, 8.5,  55,  2, { mountainUp: 0.74, stamina: 0.12, mental: 0.08, recovery: 0.04, pacing: 0.02 }),
-      // 4区 10.0km 急降: 技術的長い下り。山下りとスピードのバランス
-      seg(4, 10.0,  2, 55, { mountainDown: 0.55, speed: 0.22, pacing: 0.12, mental: 0.08, recovery: 0.03 }),
-      // 5区 8.5km 急降: 短い急降。攻撃的山下り
-      seg(5, 8.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
-      // 6区 11.0km 緩上り: 山から帰るアンカー。スタミナ型の逆襲
-      seg(6, 11.0,  8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.22, mental: 0.10, speed: 0.04 }),
-    ],
-    participants: ALL_TEAM_IDS,
-  },
-
-  // ───── Race 07: 九州夏季駅伝 ─────
+  // ───── Race 06: 九州夏季駅伝 ─────
   // 酷暑。スタミナ・回復力の消耗戦。速さよりメンタルが重要になる。
   {
-    id: 'race-2027-07',
+    id: 'race-2027-06',
     name: '九州夏季駅伝',
-    date: '2027-06-21',
+    date: '2027-07-19',
     location: '福岡',
     type: 'league',
-    conditions: { temperature: 28, weather: 'sunny', elevation: 60 },
+    conditions: { temperature: 31, weather: 'sunny', elevation: 60 },
     segments: [
       // 1区 7.0km 平坦: 熱気の中の先行。精神とペースが速さより重要
       seg(1, 7.0,  0,  0, { speed: 0.55, pacing: 0.22, mental: 0.14, stamina: 0.06, recovery: 0.03 }),
@@ -219,15 +193,41 @@ export const SEASON_2027_RACES: Race[] = [
     participants: ALL_TEAM_IDS,
   },
 
+  // ───── Race 07: 信州アルペン駅伝 ─────
+  // 山岳に特化。登り下りが連続し、アンカーのみスタミナ型が活きる。
+  {
+    id: 'race-2027-07',
+    name: '信州アルペン駅伝',
+    date: '2027-09-13',
+    location: '長野',
+    type: 'league',
+    conditions: { temperature: 19, weather: 'sunny', elevation: 800 },
+    segments: [
+      // 1区 9.5km 起伏: 山岳へのアプローチ。オールラウンドな山岳力
+      seg(1, 9.5,  20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, pacing: 0.14, recovery: 0.10 }),
+      // 2区 10.5km 急登: 長い技術的登り。スタミナ込みの山登り力
+      seg(2, 10.5, 55,  2, { mountainUp: 0.55, stamina: 0.24, pacing: 0.12, mental: 0.06, recovery: 0.03 }),
+      // 3区 8.5km 急登: 短い急登。爆発的登山力が支配
+      seg(3, 8.5,  55,  2, { mountainUp: 0.74, stamina: 0.12, mental: 0.08, recovery: 0.04, pacing: 0.02 }),
+      // 4区 10.0km 急降: 技術的長い下り。山下りとスピードのバランス
+      seg(4, 10.0,  2, 55, { mountainDown: 0.55, speed: 0.22, pacing: 0.12, mental: 0.08, recovery: 0.03 }),
+      // 5区 8.5km 急降: 短い急降。攻撃的山下り
+      seg(5, 8.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
+      // 6区 11.0km 緩上り: 山から帰るアンカー。スタミナ型の逆襲
+      seg(6, 11.0,  8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.22, mental: 0.10, speed: 0.04 }),
+    ],
+    participants: ALL_TEAM_IDS,
+  },
+
   // ───── Race 08: 全日本プロ駅伝 ─────
   // 最難関クラスの長距離大会。全区間が長く、スタミナ・回復力なしには完走できない。
   {
     id: 'race-2027-08',
     name: '全日本プロ駅伝',
-    date: '2027-07-12',
+    date: '2027-10-11',
     location: '名古屋',
     type: 'league',
-    conditions: { temperature: 30, weather: 'sunny', elevation: 50 },
+    conditions: { temperature: 19, weather: 'sunny', elevation: 50 },
     segments: [
       // 1区 9.5km 平坦: 戦略的開幕。ペースと精神で位置を取る
       seg(1, 9.5,  0,  0, { pacing: 0.38, speed: 0.28, mental: 0.20, stamina: 0.10, recovery: 0.04 }),
@@ -254,10 +254,10 @@ export const SEASON_2027_RACES: Race[] = [
   {
     id: 'race-2027-09',
     name: '秋季グランプリ',
-    date: '2027-09-14',
+    date: '2027-11-08',
     location: '横浜',
     type: 'league',
-    conditions: { temperature: 22, weather: 'cloudy', elevation: 40 },
+    conditions: { temperature: 14, weather: 'cloudy', elevation: 40 },
     segments: [
       // 1区 8.5km 平坦: 秋の開幕ダッシュ
       seg(1, 8.5,  0,  0, { speed: 0.60, pacing: 0.20, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
@@ -284,10 +284,10 @@ export const SEASON_2027_RACES: Race[] = [
   {
     id: 'race-2027-10',
     name: 'JPELグランドファイナル',
-    date: '2027-10-18',
+    date: '2027-12-27',
     location: '東京',
     type: 'league',
-    conditions: { temperature: 18, weather: 'sunny', elevation: 30 },
+    conditions: { temperature: 6, weather: 'sunny', elevation: 30 },
     segments: [
       // 1区 9.0km 平坦: 戦術的な幕開け。速さよりも読み合い
       seg(1,  9.0,  0,  0, { pacing: 0.36, speed: 0.28, mental: 0.22, stamina: 0.10, recovery: 0.04 }),
@@ -493,7 +493,7 @@ const RESERVE_RACE_POOL: RaceTemplate[] = [
 ]
 
 const RACE_DATES_BY_SLOT = [
-  '-03-22', '-04-12', '-05-10', '-05-31', '-06-28', '-07-26', '-08-23', '-09-06', '-10-04', '-10-25',
+  '-03-22', '-04-19', '-05-17', '-06-14', '-09-27', '-10-25', '-11-22',
 ]
 
 function seededIdx(year: number, slot: number, range: number): number {
