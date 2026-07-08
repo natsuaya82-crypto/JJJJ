@@ -76,17 +76,19 @@ function isEssentiallyUnpoachable(player: Player, playFraction: number, teamRace
 
 // 引き抜き選手の希望年俸。市場相場に、出場データ（主力ほど高い）と現年俸からの昇給要求を反映。
 function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFraction = 0.5, teamRaces = 0): number {
+  // 市場給与(OVR/年齢ベース・非線形)と現年俸のブレンド。市場中心＋現年俸で急変を防ぐ。
+  // → 衰えれば市場給与が下がって希望も下がる／現在高給でもすぐ暴落しない。
   const market = faMarketSalary(player)
+  const cur = player.contract.annualSalary
   const c = player.career
-  const achieve = 1 + Math.min(0.35, c.championships * 0.06 + c.mvpAwards * 0.05 + c.segmentWins * 0.004)
-  let desired = market * achieve
-  if (source === 'scout') {
-    // よく出ている選手ほど高い（データ判定）。控え・2軍は安く動く。
-    const playMult = teamRaces >= 3
-      ? (playFraction >= 0.8 ? 2.6 : playFraction >= 0.6 ? 1.9 : playFraction >= 0.4 ? 1.35 : 1.1)
-      : (player.rosterTier === 'main' ? 1.5 : 1.0)
-    const yearsMult = 1 + Math.max(0, player.contract.yearsLeft - 1) * 0.1
-    desired = Math.max(desired, player.contract.annualSalary * 1.12) * playMult * yearsMult
+  const achieve = 1 + Math.min(0.20, c.championships * 0.04 + c.mvpAwards * 0.03)
+  let desired = (market * 0.65 + cur * 0.35) * achieve
+  const personality = player.personality ?? 'salary'
+  if (personality === 'salary') desired *= 1.10   // 金型は高め
+  if (source === 'scout' && teamRaces >= 3) {
+    // 引き抜き：よく出てる主力ほど手放させるのに上乗せ
+    const playMult = playFraction >= 0.8 ? 1.35 : playFraction >= 0.6 ? 1.18 : 1.0
+    desired *= playMult
   }
   return Math.round(desired / 500000) * 500000
 }
@@ -2468,7 +2470,17 @@ export const useGameStore = create<GameStore>()(
           const roleBonus = teamRole === 'ace' ? -0.06 : teamRole === 'sub_ace' ? -0.04 : teamRole === 'key_player' ? -0.02 : 0
           const typeAdjust = contractType === 'standard' ? 0 : contractType === 'dual' ? 0.05 : 0.08
           const yearsBonus = (personality === 'loyalty' && years >= 3) ? -0.03 : 0
-          const acceptThresh = (personality === 'loyalty' ? 0.97 : personality === 'winning' ? 1.0 : 1.02) + infoPenalty - rlx + roleBonus + typeAdjust + yearsBonus
+          // 性格×行き先：優勝型は「今より強いチーム」なら安くても乗る／弱いチームだと渋る。
+          const appealAdj = (() => {
+            if (personality !== 'winning') return 0
+            const sorted = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+            const myRank = sorted.findIndex(s => s.teamId === state.playerTeamId) + 1
+            const theirRank = sorted.findIndex(s => s.teamId === player.teamId) + 1
+            if (myRank <= 0 || theirRank <= 0) return 0
+            // 自チームが相手より上位なら閾値↓(乗りやすい)、下位なら↑
+            return Math.max(-0.08, Math.min(0.08, (theirRank - myRank) * -0.012))
+          })()
+          const acceptThresh = (personality === 'loyalty' ? 0.97 : personality === 'winning' ? 1.0 : 1.02) + infoPenalty - rlx + roleBonus + typeAdjust + yearsBonus + appealAdj
           const counterThresh = (personality === 'salary' ? 0.90 : 0.85) + infoPenalty - rlx
           const isLastRound = offer.round >= 3
 
@@ -4386,7 +4398,10 @@ export const useGameStore = create<GameStore>()(
           const event = state.currentSeason.individualEvents?.find(e => e.id === eventId)
           if (!event || event.results) return state
           const skip = new Set(skipPlayerIds ?? [])
-          const activePlayers = state.players.filter(p => p.status === 'active' && p.teamId && !skip.has(p.id))
+          // CPUチームは疲労40以上の選手を自動で休ませる（自チームはプレイヤーの出走/休む選択に従う）
+          const activePlayers = state.players.filter(p =>
+            p.status === 'active' && p.teamId && !skip.has(p.id)
+            && (p.teamId === state.playerTeamId || (p.fatigue ?? 0) < 40))
           const results = activePlayers.map(p => ({
             playerId: p.id,
             teamId: p.teamId,
@@ -4401,20 +4416,42 @@ export const useGameStore = create<GameStore>()(
           const bestKey: 'd5000' | 'd10000' | 'half' | 'marathon' =
             event.distance === 5000 ? 'd5000' : event.distance === 10000 ? 'd10000' : event.distance === 21097 ? 'half' : 'marathon'
           const timeByPlayer = new Map(ranked.map(r => [r.playerId, r.timeSec]))
+          // 疲労: 出走で距離別に増加、休んだ現役選手は回復
+          const FAT_GAIN: Record<number, number> = { 5000: 3, 10000: 5, 21097: 8, 42195: 14 }
+          const fatGain = FAT_GAIN[event.distance] ?? 5
           const updatedPlayers = state.players.map(p => {
             const ran = timeByPlayer.get(p.id)
             let next = p
             if (ran != null) {
+              next = { ...next, fatigue: Math.min(100, (next.fatigue ?? 0) + fatGain) }
               const prev = p.eventBests?.[bestKey]
               if (!prev || ran < prev.timeSec) {
                 next = { ...next, eventBests: { ...next.eventBests, [bestKey]: { timeSec: ran, year: state.currentSeason.year } } }
               }
+            } else if (p.status === 'active' && p.teamId) {
+              next = { ...next, fatigue: Math.max(0, (next.fatigue ?? 0) - 8) }
             }
             if (playerTeamTop.some(r => r.playerId === p.id)) {
               next = { ...next, morale: Math.min(100, (next.morale ?? 70) + 8), form: Math.min(2, (next.form ?? 0) + 1) }
             }
             return next
           })
+
+          // カード報酬（自チームのみ）: 総合1位=レジェンダリー、2〜10位=エピック、11〜100位=レア 各1枚
+          const CARD_STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+          const CARD_EXP: Record<CardRarity, number> = { normal: 300, rare: 1200, epic: 4000, legendary: 10000 }
+          const rewardCards: TrainingCard[] = []
+          for (const r of ranked) {
+            if (r.teamId !== state.playerTeamId) continue
+            const rarity: CardRarity | null = r.rank === 1 ? 'legendary' : r.rank <= 10 ? 'epic' : r.rank <= 100 ? 'rare' : null
+            if (!rarity) continue
+            rewardCards.push({
+              id: `tt_${event.id}_${r.playerId}`,
+              statKey: CARD_STAT_KEYS[Math.floor(Math.random() * CARD_STAT_KEYS.length)],
+              rarity,
+              value: CARD_EXP[rarity],
+            })
+          }
 
           // News for player team finishers
           const myBest = ranked.find(r => r.teamId === state.playerTeamId)
@@ -4429,6 +4466,7 @@ export const useGameStore = create<GameStore>()(
 
           return {
             players: updatedPlayers,
+            trainingCards: rewardCards.length > 0 ? [...(state.trainingCards ?? []), ...rewardCards] : state.trainingCards,
             currentSeason: {
               ...state.currentSeason,
               individualEvents: state.currentSeason.individualEvents?.map(e =>

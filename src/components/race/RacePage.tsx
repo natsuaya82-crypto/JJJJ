@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useGameStore } from '../../store/gameStore'
+import { useGameStore, individualEventAbility } from '../../store/gameStore'
+import { ovr, ratingColor } from '../../utils/playerUtils'
 import { runWithLoading } from '../../store/loadingStore'
 import type { RaceResults, IndividualEvent, Player, Team } from '../../types'
 import BackButton from '../ui/BackButton'
@@ -31,10 +32,17 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   players: Player[]
   teams: Team[]
   playerTeamId: string
-  onRun: () => void
+  onRun: (skipPlayerIds: string[]) => void
   onDone: () => void
 }) {
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const [resting, setResting] = useState<Set<string>>(new Set())
+  const [sortKey, setSortKey] = useState<'pb' | 'fatigue' | 'ovr' | 'age'>('pb')
+  const toggleResting = (id: string) => setResting(prev => {
+    const n = new Set(prev)
+    n.has(id) ? n.delete(id) : n.add(id)
+    return n
+  })
   const done = !!event.results
   const bestKey = event.distance === 5000 ? 'd5000' as const
     : event.distance === 10000 ? 'd10000' as const
@@ -56,21 +64,94 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
       </div>
 
       {!done ? (
-        <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ borderRadius: 14, padding: '14px 16px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px dashed ${alpha(TT_COLOR, 0.5)}` }}>
-            <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8 }}>
-              全クラブの現役選手が{TT_DIST_LABEL[event.distance]}のタイムトライアルに出場します（故障中の選手を除く）。
-              その日の調子・疲労がタイムに影響し、走ったタイムは種目別の自己ベストに記録されます。
-              3位以内に入ると士気と調子が上がります。
-            </div>
+        <>
+          <div style={{ padding: '12px 14px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', flexShrink: 0 }}>自チームの出場選手</span>
+            <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)}
+              style={{ padding: '5px 8px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
+              <option value="pb">自己ベスト順</option>
+              <option value="fatigue">疲労少ない順</option>
+              <option value="ovr">OVR順</option>
+              <option value="age">年齢順</option>
+            </select>
           </div>
-          <button onClick={onRun}
-            style={{ width: '100%', padding: 15, borderRadius: 12, border: 'none', background: TT_COLOR, color: '#062b26', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>
-            記録会を開催する
-          </button>
-        </div>
+          <div style={{ padding: '4px 14px 0', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {(() => {
+              const runners = players
+                .filter(p => p.teamId === playerTeamId && p.status === 'active')
+                .map(p => ({ p, ability: Math.round(individualEventAbility(p, event.distance)) }))
+                .sort((a, b) => {
+                  switch (sortKey) {
+                    case 'pb': {
+                      const pa = a.p.eventBests?.[bestKey]?.timeSec ?? Infinity
+                      const pbb = b.p.eventBests?.[bestKey]?.timeSec ?? Infinity
+                      // PB未記録同士は種目適性順で並べる
+                      return pa === pbb ? b.ability - a.ability : pa - pbb
+                    }
+                    case 'fatigue': return (a.p.fatigue ?? 0) - (b.p.fatigue ?? 0)
+                    case 'ovr': return ovr(b.p) - ovr(a.p)
+                    case 'age': return a.p.age - b.p.age
+                    default: return b.ability - a.ability
+                  }
+                })
+              return runners.map(({ p, ability }) => {
+                const pb = p.eventBests?.[bestKey]
+                const fat = p.fatigue ?? 0
+                const isResting = resting.has(p.id)
+                return (
+                  <div key={p.id} onClick={() => openPlayerSheet(p.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px 7px 12px', borderRadius: 9, cursor: 'pointer', width: '100%', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, opacity: isResting ? 0.45 : 1 }}>
+                    <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+                      <PlayerFace playerId={p.id} nationality={p.nationality} size={32} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                        <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: pb ? C.textSub : C.textGhost, flexShrink: 0 }}>PB {pb ? formatRaceTime(pb.timeSec) : '--'}</span>
+                      </div>
+                      <span style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 700, color: fat < 40 ? C.green : fat < 70 ? C.gold : C.red }}>疲{fat}</span>
+                    </div>
+                    <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ability), flexShrink: 0 }}>{ability}</span>
+                    <button onClick={(e) => { e.stopPropagation(); toggleResting(p.id) }}
+                      style={{ flexShrink: 0, padding: '5px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, fontWeight: 800, background: isResting ? 'transparent' : alpha(TT_COLOR, 0.14), border: `1.5px solid ${isResting ? C.border2 : alpha(TT_COLOR, 0.5)}`, color: isResting ? C.textDim : TT_COLOR }}>
+                      {isResting ? '休む' : '出走'}
+                    </button>
+                  </div>
+                )
+              })
+            })()}
+          </div>
+          <div style={{ position: 'fixed', bottom: 50, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 12px', background: `linear-gradient(to top, ${C.bg} 80%, transparent)`, borderTop: `1px solid ${C.border}`, zIndex: 35 }}>
+            <button className="btn-game btn-game--gold" onClick={() => onRun([...resting])} style={{ width: '100%' }}>
+              <span className="btn-game__inner">記録会スタート！</span>
+            </button>
+          </div>
+        </>
       ) : (
         <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {(() => {
+            // カード報酬（総合1位=レジェンダリー、2〜10位=エピック、11〜100位=レア）を集計して表示
+            const mine = (event.results ?? []).filter(r => r.teamId === playerTeamId)
+            const legend = mine.filter(r => r.rank === 1).length
+            const epic = mine.filter(r => r.rank >= 2 && r.rank <= 10).length
+            const rare = mine.filter(r => r.rank >= 11 && r.rank <= 100).length
+            if (legend + epic + rare === 0) return null
+            const chip = (label: string, count: number, color: string) => count > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 7, background: alpha(color, 0.14), border: `1px solid ${alpha(color, 0.45)}`, color, fontFamily: 'inherit' }}>
+                {label} ×{count}
+              </span>
+            )
+            return (
+              <div style={{ borderRadius: 12, padding: '10px 14px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}` }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.textSub, letterSpacing: '0.1em', marginBottom: 6 }}>獲得した練習カード</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {chip('レジェンダリー', legend, C.gold)}
+                  {chip('エピック', epic, '#C77DFF')}
+                  {chip('レア', rare, C.blue)}
+                </div>
+              </div>
+            )
+          })()}
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位10名</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -585,7 +666,7 @@ export default function RacePage() {
         players={players}
         teams={teams}
         playerTeamId={playerTeamId}
-        onRun={() => { simulateIndividualEvent(ttEvent.id); setTtViewId(ttEvent.id) }}
+        onRun={(skipIds) => { simulateIndividualEvent(ttEvent.id, skipIds); setTtViewId(ttEvent.id) }}
         onDone={() => setTtViewId(null)}
       />
     )

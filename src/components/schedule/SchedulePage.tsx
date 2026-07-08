@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import { formatRaceTime } from '../../utils/eventTime'
+import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -37,11 +37,14 @@ export default function SchedulePage() {
   const stIdx = currentSeason.secondTeamRaceIndex ?? 0
   const hasReserve = currentSeason.reserveLeagueJoined === true
 
+  // カレンダー進行: 次のリーグ戦の前に未実施の記録会があればNEXTはそちら
+  const dueTT = getDueIndividualEvent(currentSeason)
+
   const mainRaces = currentSeason.races.map((r, i) => ({
     race: r,
     kind: 'main' as const,
     roundNum: i + 1,
-    isNext: i === currentSeason.currentRaceIndex && !r.results,
+    isNext: i === currentSeason.currentRaceIndex && !r.results && !dueTT,
     isDone: !!r.results,
     myRank: r.results?.teamRankings.find(tr => tr.teamId === playerTeamId)?.rank ?? null,
   }))
@@ -147,20 +150,35 @@ export default function SchedulePage() {
           // ── 記録会（タイムトライアル） ──
           if (it.type === 'tt') {
             const ev = it.ev
+            const isNextTT = dueTT?.id === ev.id
             const winner = ev.results?.[0]
             const winnerPlayer = winner ? players.find(p => p.id === winner.playerId) : null
             const myTop = ev.results?.find(r => r.teamId === playerTeamId)
             const myTopPlayer = myTop ? players.find(p => p.id === myTop.playerId) : null
+            const TTCard = isNextTT ? 'button' : 'div'
             return (
               <div key={ev.id} style={{ display: 'flex', alignItems: 'stretch', padding: '0 20px', opacity: it.isDone ? 0.55 : 1 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0, paddingTop: '16px' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: it.isDone ? C.border2 : alpha(TT_COLOR, 0.7), flexShrink: 0, zIndex: 1 }}/>
+                  <div style={{ width: isNextTT ? 10 : 8, height: isNextTT ? 10 : 8, borderRadius: '50%', backgroundColor: it.isDone ? C.border2 : alpha(TT_COLOR, isNextTT ? 1 : 0.7), boxShadow: isNextTT ? `0 0 10px ${TT_COLOR}` : 'none', flexShrink: 0, zIndex: 1 }}/>
                   {notLast && <div style={{ flex: 1, width: 1, backgroundColor: C.border, marginTop: '4px' }}/>}
                 </div>
-                <div style={{ flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px', borderRadius: '14px', border: `1px dashed ${alpha(TT_COLOR, 0.5)}`, background: it.isDone ? 'transparent' : alpha(TT_COLOR, 0.06) }}>
+                <TTCard
+                  {...(isNextTT ? { onClick: () => navigate('/race') } : {})}
+                  style={{
+                    flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px', borderRadius: '14px',
+                    border: isNextTT ? `2px solid ${alpha(TT_COLOR, 0.55)}` : `1px dashed ${alpha(TT_COLOR, 0.5)}`,
+                    background: isNextTT ? `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)` : it.isDone ? 'transparent' : alpha(TT_COLOR, 0.06),
+                    boxShadow: isNextTT ? `0 4px 0 #123f39, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)` : 'none',
+                    cursor: isNextTT ? 'pointer' : 'default',
+                    textAlign: 'left', fontFamily: 'inherit', width: '100%',
+                  } as React.CSSProperties}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
+                      {isNextTT && (
+                        <span style={{ fontSize: '10px', fontWeight: '800', color: C.bg, padding: '1px 7px', borderRadius: '6px', backgroundColor: TT_COLOR, fontFamily: SAIRA, marginLeft: 6 }}>NEXT</span>
+                      )}
                       <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{ev.name}</div>
                       <div style={{ fontSize: '11px', color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {TT_LABEL[ev.distance]}</div>
                       {it.isDone && winnerPlayer && (
@@ -173,8 +191,13 @@ export default function SchedulePage() {
                       )}
                     </div>
                     {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
+                    {isNextTT && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: TT_COLOR, flexShrink: 0 }}>
+                        <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                      </svg>
+                    )}
                   </div>
-                </div>
+                </TTCard>
               </div>
             )
           }
