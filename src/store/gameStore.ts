@@ -262,7 +262,7 @@ export type GameStore = GameState & {
   submitTransferBid: (playerId: string, fee: number) => void
   acceptFeeCounter: (bidId: string) => void
   rejectTransferBid: (bidId: string) => void
-  finalizeTransfer: (bidId: string, salary: number, years: number) => boolean
+  finalizeTransfer: (bidId: string, salary: number, years: number) => { ok: boolean; reason?: string }
   listMyPlayerForSale: (playerId: string, askingPrice: number) => void
   delistMyPlayer: (playerId: string) => void
   sellDraftPick: (pickKey: string, targetTeamId: string, price: number) => boolean
@@ -1051,6 +1051,9 @@ export const useGameStore = create<GameStore>()(
           const talkBonus = teamTalk === 'enjoy' ? 5 : teamTalk === 'win' && teamRank <= 5 ? 10 : 0
           const moraleDelta = baseMoraleDelta + talkBonus
           const raceExpGainsMap: Record<string, Partial<Record<CardStatKey, number>>> = {}
+          // 強化合宿: 自チームのレース獲得EXP ×(1 + Lv×6%)
+          const campLv = state.teams.find(t => t.id === playerTeamId)?.facilities?.trainingCamp ?? 0
+          const campExpMult = 1 + campLv * 0.06
           const finalPlayers = updatedPlayers.map(p => {
             // Form: 設計書準拠 レース後再抽選（絶好調10%/好調25%/普通40%/不調20%/最悪5%）
             const fr = Math.random()
@@ -1082,14 +1085,14 @@ export const useGameStore = create<GameStore>()(
                 const ageMult = ageMultiplier(p)
                 const potMult = potMultiplier(p.potential)
                 if (ageMult > 0) {
-                  const result = processExpGains(newRatings, newExp, baseGains, potMult, ageMult, statCaps)
+                  const result = processExpGains(newRatings, newExp, baseGains, potMult * campExpMult, ageMult, statCaps)
                   newRatings = result.ratings
                   newExp = result.exp
                   const gained: Partial<Record<CardStatKey, number>> = {}
                   ;(Object.keys(baseGains) as CardStatKey[]).forEach(k => {
                     // レース前に既に上限だった能力はEXPが入らない（表示も0）。今回上限に達した分は表示する。
                     const capped = ((p.ratings as Record<string, number>)[k] ?? 0) >= Math.min(99, (statCaps as Record<string, number>)[k] ?? 99)
-                    const v = capped ? 0 : Math.round((baseGains[k] ?? 0) * potMult * ageMult)
+                    const v = capped ? 0 : Math.round((baseGains[k] ?? 0) * potMult * campExpMult * ageMult)
                     if (v > 0) gained[k] = v
                   })
                   raceExpGainsMap[p.id] = gained
@@ -1103,7 +1106,7 @@ export const useGameStore = create<GameStore>()(
               const ageMult = ageMultiplier(p)
               const potMult = potMultiplier(p.potential)
               if (ageMult > 0) {
-                const result = processExpGains(newRatings, newExp, benchGains, potMult, ageMult, statCaps)
+                const result = processExpGains(newRatings, newExp, benchGains, potMult * campExpMult, ageMult, statCaps)
                 newRatings = result.ratings
                 newExp = result.exp
               }
@@ -1123,7 +1126,7 @@ export const useGameStore = create<GameStore>()(
                 if (planStat && Math.random() < 0.30) {
                   // 練習プランはEXPボーナスとして追加（直接+1ではなく）
                   const bonusGain: Partial<Record<CardStatKey, number>> = { [planStat as CardStatKey]: 600 }
-                  const result = processExpGains(newRatings, newExp, bonusGain, potMultiplier(p.potential), 1.0, statCaps)
+                  const result = processExpGains(newRatings, newExp, bonusGain, potMultiplier(p.potential) * campExpMult, 1.0, statCaps)
                   newRatings = result.ratings
                   newExp = result.exp
                 }
@@ -2484,8 +2487,11 @@ export const useGameStore = create<GameStore>()(
             // 自チームが相手より上位なら閾値↓(乗りやすい)、下位なら↑
             return Math.max(-0.08, Math.min(0.08, (theirRank - myRank) * -0.012))
           })()
-          const acceptThresh = (personality === 'loyalty' ? 0.97 : personality === 'winning' ? 1.0 : 1.02) + infoPenalty - rlx + roleBonus + typeAdjust + yearsBonus + appealAdj
-          const counterThresh = (personality === 'salary' ? 0.90 : 0.85) + infoPenalty - rlx
+          // スカウト拠点: Lv×2%ぶん受諾ラインを緩和（獲得・移籍しやすくなる）
+          const scoutLv = state.teams.find(t => t.id === state.playerTeamId)?.facilities?.scoutOffice ?? 0
+          const scoutNegoBonus = scoutLv * 0.02
+          const acceptThresh = (personality === 'loyalty' ? 0.97 : personality === 'winning' ? 1.0 : 1.02) + infoPenalty - rlx + roleBonus + typeAdjust + yearsBonus + appealAdj - scoutNegoBonus
+          const counterThresh = (personality === 'salary' ? 0.90 : 0.85) + infoPenalty - rlx - scoutNegoBonus
           const isLastRound = offer.round >= 3
 
           if (ratio >= acceptThresh) {
@@ -2770,6 +2776,8 @@ export const useGameStore = create<GameStore>()(
         if (!state.getTransferWindow().open) return  // 移籍ウィンドウ閉鎖中はオファー不可
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId === state.playerTeamId || player.teamId === '') return
+        // 交渉決裂ペナルティ: 決裂した年の翌年まで移籍金オファー不可
+        if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return
         // 赤字ペナルティ中は新規補強(入札)不可（ドラフト・契約更新は可）
         const myTeamBid = state.teams.find(t => t.id === state.playerTeamId)
         if ((myTeamBid?.finance.deficitStreak ?? 0) >= 1) return
@@ -2805,15 +2813,26 @@ export const useGameStore = create<GameStore>()(
       finalizeTransfer: (bidId, salary, years) => {
         const state = get()
         const bid = (state.currentSeason.transferBids ?? []).find(b => b.id === bidId)
-        if (!bid || bid.status !== 'fee_accepted') return false
+        if (!bid || bid.status !== 'fee_accepted') return { ok: false, reason: '交渉の状態が変わったため、手続きを進められませんでした。' }
         const player = state.players.find(p => p.id === bid.playerId)
-        if (!player || player.teamId !== bid.targetTeamId) return false
+        if (!player || player.teamId !== bid.targetTeamId) return { ok: false, reason: '彼は既に別のクラブへ移籍しています。' }
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
-        if (!myTeam || myTeam.finance.budget < bid.offeredFee) return false
+        if (!myTeam || myTeam.finance.budget < bid.offeredFee) return { ok: false, reason: `貴クラブの予算では移籍金${Math.round(bid.offeredFee / 10000)}万を支払えないようです。資金を確保してから改めてお願いします。` }
         // 選手本人の同意ゲート
         const standings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
         const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
-        if (!playerConsentToMove(player, myRank, state.teams.length).ok) return false
+        const consent = playerConsentToMove(player, myRank, state.teams.length)
+        if (!consent.ok) {
+          // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
+          set(s => ({
+            players: s.players.map(p => p.id === bid.playerId ? { ...p, transferLockedUntilYear: s.currentSeason.year + 1 } : p),
+            currentSeason: {
+              ...s.currentSeason,
+              transferBids: (s.currentSeason.transferBids ?? []).map(b => b.id === bidId ? { ...b, status: 'failed' as const } : b),
+            },
+          }))
+          return { ok: false, reason: `${consent.reason}ようです。交渉は決裂となりました。来季まで再交渉はできません。` }
+        }
         const ftMainFull = myTeam.roster.main.length >= 23
         set(s => ({
           players: s.players.map(p => p.id === bid.playerId
@@ -2836,7 +2855,7 @@ export const useGameStore = create<GameStore>()(
             newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: `${player.name}を移籍金${Math.round(bid.offeredFee / 10000)}万・年俸${Math.round(salary / 10000)}万で獲得`, category: 'trade' as const, relatedIds: [player.id] }, ...s.currentSeason.newsFeed].slice(0, 30),
           },
         }))
-        return true
+        return { ok: true }
       },
 
       listMyPlayerForSale: (playerId, askingPrice) => {
@@ -3568,15 +3587,12 @@ export const useGameStore = create<GameStore>()(
           const ovrSnapshot: Record<string, number> = {}
           state.players.forEach(p => { ovrSnapshot[p.id] = ovr(p) })
 
-          const campLv = state.teams.find(t => t.id === state.playerTeamId)?.facilities?.trainingCamp ?? 0
+          // 強化合宿の効果はレース獲得EXPアップに変更（runRace側で反映）。ここは加齢処理のみ。
           const grownPlayers = state.players.map(p => {
             const grown = p.status === 'active' || p.status === 'injured' ? growPlayer(p) : p
-            // trainingCamp: extra growth roll for player-team players
-            const extraGrown = (campLv > 0 && p.teamId === state.playerTeamId && Math.random() < campLv * 0.07)
-              ? growPlayer(grown) : grown
             const snap = ovrSnapshot[p.id]
-            if (snap == null) return extraGrown
-            return { ...extraGrown, ovrHistory: [...(p.ovrHistory ?? []), { year: state.currentSeason.year, ovr: snap }].slice(-8) }
+            if (snap == null) return grown
+            return { ...grown, ovrHistory: [...(p.ovrHistory ?? []), { year: state.currentSeason.year, ovr: snap }].slice(-8) }
           })
 
           // Build growth report for player team
@@ -4386,8 +4402,8 @@ export const useGameStore = create<GameStore>()(
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!myTeam) return false
         const currentLv = myTeam.facilities?.[key] ?? 0
-        if (currentLv >= 3) return false
-        const UPGRADE_COSTS = [50, 100, 200]
+        if (currentLv >= 5) return false
+        const UPGRADE_COSTS = [50, 100, 200, 350, 550]
         const cost = UPGRADE_COSTS[currentLv]
         if (state.jewels < cost) return false
         set(state => ({
@@ -4506,7 +4522,6 @@ export const useGameStore = create<GameStore>()(
 
           const cityIdx = Math.max(0, Math.floor((year - 2027) / 4) % WEC_CITIES.length)
           const cityInfo = WEC_CITIES[cityIdx]
-          const coachBoost = nt.isPlayerCoach ? 3 : 0
 
           const RACE_POINTS = [15, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1]
           const WEC_NATIONS = [
@@ -4562,12 +4577,8 @@ export const useGameStore = create<GameStore>()(
                   .sort((a, b) => ovr(b as Player) - ovr(a as Player))
                   .slice(0, segCount) as Player[]
 
-            const boostedJapanRunners = coachBoost > 0
-              ? japanRunners.map(p => ({ ...p, ratings: { ...p.ratings, speed: Math.min(99, p.ratings.speed + coachBoost), stamina: Math.min(99, p.ratings.stamina + coachBoost) } }))
-              : japanRunners
-
             const lineups: Record<string, Record<number, string>> = { 'wec_JPN': {} }
-            boostedJapanRunners.forEach((p, i) => { lineups['wec_JPN'][i + 1] = p.id })
+            japanRunners.forEach((p, i) => { lineups['wec_JPN'][i + 1] = p.id })
 
             // Virtual players for foreign nations
             const avgJpnOvr = japanRunners.reduce((s, p) => s + ovr(p), 0) / Math.max(1, japanRunners.length)
@@ -4596,9 +4607,7 @@ export const useGameStore = create<GameStore>()(
               }
             })
 
-            // Boosted Japan runners override originals
-            const boostedMap = new Map(boostedJapanRunners.map(p => [p.id, p]))
-            const allPlayers = [...state.players.map(p => boostedMap.get(p.id) ?? p), ...virtualPlayers]
+            const allPlayers = [...state.players, ...virtualPlayers]
 
             const raceResult = simulateRace(wecRace, lineups, state.teams, allPlayers, 0.5)
 

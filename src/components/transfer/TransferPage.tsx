@@ -61,22 +61,6 @@ const PERSONALITY_COLOR: Record<string, string> = {
   loyalty: C.blue,
 }
 
-type NegStatus = 'idle' | 'offering' | 'countered' | 'accepted' | 'rejected'
-
-type Negotiation = {
-  playerId: string
-  round: number
-  offerSalary: number
-  offerYears: number
-  status: NegStatus
-  counterSalary: number
-  counterYears: number
-  demandSalary: number
-  contractType: 'standard' | 'development' | 'dual'
-  rosterFull?: boolean   // 合意したがロスター枠が満杯で契約できなかった
-}
-
-
 export default function TransferPage() {
   const {
     teams, players, playerTeamId, currentSeason, gmRep, foreignLeagues,
@@ -130,7 +114,6 @@ export default function TransferPage() {
 
   const [filterSpec, setFilterSpec] = useState<Specialty | 'all'>('all')
   const [tradeTier, setTradeTier] = useState<'all' | 'main' | 'second'>('all')
-  const [neg, setNeg] = useState<Negotiation | null>(null)
 
   const [tradeTarget, setTradeTarget] = useState<string | null>(null)
   const [tradeStep, setTradeStep] = useState<1 | 2 | 3>(1)
@@ -235,46 +218,6 @@ export default function TransferPage() {
   const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
   const isGoodTeam = myRank > 0 && myRank <= 5
-
-  function submitOffer(n: Negotiation) {
-    const player = players.find(p => p.id === n.playerId)
-    if (!player) return
-
-    const roundFactor = 1 + (n.round - 1) * 0.03
-    const demand = Math.round(n.demandSalary * roundFactor / SALARY_STEP) * SALARY_STEP
-    const ratio = n.offerSalary / demand
-    const isLastRound = n.round >= 3
-
-    const personality = player.personality ?? 'salary'
-    const acceptThresh = personality === 'winning' && isGoodTeam ? 0.90
-      : personality === 'loyalty' && (gmRep ?? 50) >= 65 ? 0.92
-      : 0.96
-    const counterThresh = personality === 'salary' ? 0.77
-      : personality === 'winning' ? 0.73
-      : 0.74
-
-    if (ratio >= acceptThresh) {
-      const ok = signFAPlayer(n.playerId, n.offerSalary, n.offerYears, n.contractType)
-      if (ok) setNeg({ ...n, status: 'accepted', rosterFull: false })
-      else setNeg({ ...n, rosterFull: true })
-    } else if (ratio >= counterThresh && !isLastRound) {
-      const cSalary = Math.round(demand * 1.03 / SALARY_STEP) * SALARY_STEP
-      const cYears  = Math.max(n.offerYears, 2)
-      setNeg({ ...n, status: 'countered', counterSalary: cSalary, counterYears: cYears })
-    } else {
-      setNeg({ ...n, status: 'rejected' })
-    }
-  }
-
-  function acceptCounter(n: Negotiation) {
-    const ok = signFAPlayer(n.playerId, n.counterSalary, n.counterYears, n.contractType)
-    if (ok) setNeg({ ...n, offerSalary: n.counterSalary, offerYears: n.counterYears, status: 'accepted', rosterFull: false })
-    else setNeg({ ...n, rosterFull: true })
-  }
-
-  function reNegotiate(n: Negotiation) {
-    setNeg({ ...n, round: n.round + 1, status: 'offering' })
-  }
 
   const selectStyle: React.CSSProperties = {
     flex: 1, padding: '7px 8px', borderRadius: '10px',
@@ -537,6 +480,8 @@ export default function TransferPage() {
               const val = calcTransferValue(p)
               const listing = listings.find(l => l.playerId === p.id)
               const hasBid = activeBids.some(b => b.playerId === p.id)
+              // 交渉決裂ペナルティ中は入札不可（グレーアウト）
+              const bidLocked = p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
               const isBidOpen = bidTarget === p.id
               const initFee = listing ? Math.round(listing.askingPrice * 0.82 / 500000) * 500000 : Math.round(val * 0.85 / 500000) * 500000
               const rating = ovr(p)
@@ -544,7 +489,7 @@ export default function TransferPage() {
               const scoutPending = isScoutPending(p.id, currentSeason)
               const isStarred = starredOpponents.includes(p.id)
               return (
-                <div key={p.id} style={{ marginBottom: '7px' }}>
+                <div key={p.id} style={{ marginBottom: '7px', opacity: bidLocked ? 0.5 : 1 }}>
                   <div style={{
                     position: 'relative', overflow: 'hidden',
                     borderRadius: isBidOpen ? '14px 14px 0 0' : '14px',
@@ -594,6 +539,8 @@ export default function TransferPage() {
                             </button>
                           ) : hasBid ? (
                             <span style={{ fontSize: '10px', color: C.gold, fontWeight: '700', fontFamily: SAIRA }}>入札中</span>
+                          ) : bidLocked ? (
+                            <span style={{ fontSize: '10px', color: C.red, fontWeight: '700', fontFamily: SAIRA }}>交渉決裂・来季まで不可</span>
                           ) : (
                             <button disabled={!window.open}
                               onClick={() => { setBidTarget(isBidOpen ? null : p.id); if (!isBidOpen) setBidFee(initFee) }}
@@ -680,15 +627,13 @@ export default function TransferPage() {
             faPlayers.map(p => {
               const specCol  = SPEC_COLOR[p.specialty]
               const market   = faMarketSalary(p)
-              const isNeg    = neg?.playerId === p.id
-              const negOver  = isNeg && (neg.status === 'accepted' || neg.status === 'rejected')
               const rating   = ovr(p)
               const isStarred = starredOpponents.includes(p.id)
               return (
                 <div key={p.id} style={{ marginBottom: '7px' }}>
                   <div style={{
                     position: 'relative', overflow: 'hidden',
-                    borderRadius: isNeg ? '14px 14px 0 0' : '14px',
+                    borderRadius: '14px',
                     background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                     border: `2px solid ${alpha(specCol, 0.25)}`,
                     boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
@@ -719,33 +664,16 @@ export default function TransferPage() {
                           >
                             {isStarred ? '★' : '☆'}
                           </button>
-                          {negOver ? (
-                            <span style={{ fontSize: '10px', fontWeight: '700', color: neg?.status === 'accepted' ? C.green : C.red, fontFamily: SAIRA }}>
-                              {neg?.status === 'accepted' ? '契約済' : '交渉終了'}
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => navigate('/transfer/negotiate/fa/' + p.id)}
-                              style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: `linear-gradient(135deg, ${C.gold}, #E8C86A)`, color: '#0A0912', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA }}
-                            >
-                              オファー
-                            </button>
-                          )}
+                          <button
+                            onClick={() => { startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
+                            style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: '#0A0912', fontSize: '11px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA }}
+                          >
+                            契約オファー
+                          </button>
                         </div>
                       </div>
                     </div>
                   </div>
-                  {isNeg && neg && (
-                    <NegotiationPanel
-                      neg={neg}
-                      player={p}
-                      onChange={setNeg}
-                      onSubmit={submitOffer}
-                      onAcceptCounter={acceptCounter}
-                      onReNegotiate={reNegotiate}
-                      onCancel={() => setNeg(null)}
-                    />
-                  )}
                 </div>
               )
             })
@@ -1180,7 +1108,7 @@ export default function TransferPage() {
             const theirPicks = isForeignTrade ? [] : (targetTeam!.draftPicks ?? []).filter(pk => pk.year > currentSeason.year)
             const offPickVal = offerPickKeys.reduce((s, k) => { const pk = myPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round) : 0) }, 0)
             const reqPickVal = requestPickKeys.reduce((s, k) => { const pk = theirPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round) : 0) }, 0)
-            const canPropose = (offerIds.length > 0 || offerPickKeys.length > 0) && (requestIds.length > 0 || requestPickKeys.length > 0) && tradeStatus !== 'accepted'
+            const canPropose = (offerIds.length > 0 || offerPickKeys.length > 0) && (requestIds.length > 0 || requestPickKeys.length > 0) && tradeStatus !== 'accepted' && tradeStatus !== 'rejected'
             const isFinalRound = tradeRound >= 3
 
             return (
@@ -1462,202 +1390,6 @@ export default function TransferPage() {
           })()}
         </div>
       )}
-    </div>
-  )
-}
-
-function NegotiationPanel({ neg, player, onChange, onSubmit, onAcceptCounter, onReNegotiate, onCancel }: {
-  neg: Negotiation
-  player: Player
-  onChange: (n: Negotiation) => void
-  onSubmit: (n: Negotiation) => void
-  onAcceptCounter: (n: Negotiation) => void
-  onReNegotiate: (n: Negotiation) => void
-  onCancel: () => void
-}) {
-  const isOffering  = neg.status === 'offering'
-  const isCountered = neg.status === 'countered'
-  const isAccepted  = neg.status === 'accepted'
-  const isRejected  = neg.status === 'rejected'
-
-  const statusColor = isAccepted ? C.green : isRejected ? C.red : isCountered ? C.orange : C.gold
-  const personality = player.personality ?? 'salary'
-  const pColor = PERSONALITY_COLOR[personality]
-
-  return (
-    <div style={{
-      position: 'relative', overflow: 'hidden',
-      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-      border: isCountered
-        ? `2px solid ${alpha(C.gold, 0.4)}`
-        : `2px solid ${alpha(C.blue, 0.4)}`,
-      borderTop: 'none',
-      borderRadius: '0 0 14px 14px', padding: '14px 16px',
-      boxShadow: isCountered
-        ? '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4)'
-        : '0 4px 0 #2a3580, 0 6px 16px rgba(0,0,0,0.4)',
-    }}>
-      <div style={{ position: 'absolute', inset: 4, border: `1px solid ${isCountered ? 'rgba(245,200,66,0.15)' : 'rgba(121,134,203,0.15)'}`, borderRadius: 10, pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <span style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', fontFamily: SAIRA }}>
-            {isAccepted ? '契約成立' : isRejected ? '交渉終了' : isCountered ? 'カウンター' : `第${neg.round}ラウンド`}
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '5px', backgroundColor: alpha(pColor, 0.09), color: pColor, fontWeight: '700', border: `1px solid ${alpha(pColor, 0.18)}`, fontFamily: SAIRA }}>
-              {PERSONALITY_LABEL[personality]}
-            </span>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              {[1, 2, 3].map(r => (
-                <div key={r} style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: r <= neg.round ? statusColor : C.border2 }}/>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {neg.rosterFull && (
-          <div style={{
-            padding: '10px 12px', borderRadius: '10px', marginBottom: '10px', textAlign: 'center',
-            background: alpha(C.red, 0.1), border: `1px solid ${alpha(C.red, 0.4)}`,
-            color: C.red, fontSize: '11px', fontWeight: '700', fontFamily: SAIRA, lineHeight: 1.5,
-          }}>
-            {neg.contractType === 'standard' ? '1軍' : '2軍'}のロスターが上限です。枠を空けてから契約してください。
-          </div>
-        )}
-
-        {isOffering && (
-          <>
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>年俸オファー</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  onClick={() => onChange({ ...neg, offerSalary: Math.max(SALARY_MIN, neg.offerSalary - SALARY_STEP) })}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
-                <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px' }}>
-                  <span style={{ fontSize: '18px', fontWeight: '900', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 12px ${alpha(C.gold, 0.25)}` }}>{fmt(neg.offerSalary)}</span>
-                  <span style={{ fontSize: '9px', color: C.textDim, marginLeft: '4px', fontFamily: SAIRA }}>/ 年</span>
-                </div>
-                <button
-                  onClick={() => onChange({ ...neg, offerSalary: Math.min(SALARY_MAX, neg.offerSalary + SALARY_STEP) })}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
-              </div>
-            </div>
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>契約年数</div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[1, 2, 3, 4].map(y => (
-                  <button key={y} onClick={() => onChange({ ...neg, offerYears: y })} style={{
-                    flex: 1, padding: '8px 0', borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: SAIRA,
-                    background: neg.offerYears === y ? `linear-gradient(135deg, ${C.gold}, #E8C86A)` : C.surface,
-                    color: neg.offerYears === y ? '#0A0912' : C.textSub,
-                    fontSize: '12px', fontWeight: neg.offerYears === y ? 900 : 500,
-                    outline: neg.offerYears !== y ? `1px solid ${C.border2}` : 'none',
-                  }}>
-                    {y}年
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>契約種別</div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {([
-                  { key: 'standard', label: '本契約', desc: 'CAP全額計上' },
-                  { key: 'dual', label: '2way契約', desc: 'CAP50%計上' },
-                  { key: 'development', label: '育成契約', desc: 'CAP対象外' },
-                ] as { key: 'standard' | 'development' | 'dual'; label: string; desc: string }[]).map(({ key, label, desc }) => {
-                  const sel = neg.contractType === key
-                  return (
-                    <button key={key} onClick={() => onChange({ ...neg, contractType: key })} style={{
-                      flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: SAIRA,
-                      background: sel ? `linear-gradient(135deg, ${C.blue}, #5a72e8)` : C.surface,
-                      color: sel ? '#fff' : C.textSub,
-                      fontSize: '10px', fontWeight: sel ? 900 : 500,
-                      outline: !sel ? `1px solid ${C.border2}` : 'none',
-                    }}>
-                      <div style={{ fontWeight: 800, marginBottom: '2px' }}>{label}</div>
-                      <div style={{ fontSize: '8px', opacity: 0.75 }}>{desc}</div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => onSubmit(neg)} style={{
-                flex: 1, padding: '13px', borderRadius: '11px', marginBottom: 8,
-                border: `2px solid ${C.goldDark}`,
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                color: C.gold,
-                fontSize: '14px', fontWeight: '900', cursor: 'pointer', fontFamily: SAIRA,
-                boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                textShadow: `0 0 12px ${alpha(C.gold, 0.25)}`,
-              }}>
-                提案する
-              </button>
-              <button onClick={onCancel} style={{
-                padding: '13px 14px', borderRadius: '11px', border: `1px solid ${C.border2}`,
-                background: 'transparent', color: C.textDim, fontSize: '13px', cursor: 'pointer', fontFamily: SAIRA,
-              }}>取消</button>
-            </div>
-          </>
-        )}
-
-        {isCountered && (
-          <>
-            <div style={{ padding: '12px 14px', borderRadius: '10px', marginBottom: '12px', backgroundColor: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.25)}` }}>
-              <div style={{ fontSize: '10px', color: C.orange, marginBottom: '6px', fontWeight: '700', fontFamily: SAIRA }}>選手の要求条件</div>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div>
-                  <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '2px', fontFamily: SAIRA }}>年俸</div>
-                  <div style={{ fontSize: '18px', fontWeight: '900', color: C.orange, fontFamily: SAIRA }}>{fmt(neg.counterSalary)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '2px', fontFamily: SAIRA }}>年数</div>
-                  <div style={{ fontSize: '18px', fontWeight: '900', color: C.orange, fontFamily: SAIRA }}>{neg.counterYears}年</div>
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => onAcceptCounter(neg)} style={{
-                flex: 1, padding: '12px', borderRadius: '11px', marginBottom: 8,
-                border: `2px solid ${C.green}`,
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                color: C.green, fontSize: '13px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
-                boxShadow: '0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-              }}>受け入れる</button>
-              {neg.round < 3 && (
-                <button onClick={() => onReNegotiate(neg)} style={{
-                  flex: 1, padding: '12px', borderRadius: '11px', marginBottom: 8,
-                  border: `2px solid ${alpha(C.gold, 0.4)}`,
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  color: C.gold, fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
-                  boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                }}>再交渉</button>
-              )}
-              <button onClick={onCancel} style={{
-                padding: '12px 14px', borderRadius: '11px', border: `1px solid ${C.border2}`,
-                background: 'transparent', color: C.textDim, fontSize: '13px', cursor: 'pointer', fontFamily: SAIRA,
-              }}>打ち切り</button>
-            </div>
-          </>
-        )}
-
-        {isAccepted && (
-          <div style={{ padding: '14px', borderRadius: '10px', textAlign: 'center', backgroundColor: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.25)}` }}>
-            <div style={{ fontSize: '16px', fontWeight: '900', color: C.green, marginBottom: '4px', fontFamily: SAIRA }}>契約成立！</div>
-            <div style={{ fontSize: '12px', color: C.textSub, fontFamily: SAIRA }}>{fmt(neg.offerSalary)} / {neg.offerYears}年契約</div>
-          </div>
-        )}
-
-        {isRejected && (
-          <div style={{ padding: '14px', borderRadius: '10px', textAlign: 'center', backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}` }}>
-            <div style={{ fontSize: '15px', fontWeight: '900', color: C.red, marginBottom: '4px', fontFamily: SAIRA }}>交渉決裂</div>
-            <div style={{ fontSize: '11px', color: C.textSub, fontFamily: SAIRA }}>
-              {neg.round >= 3 ? '最終ラウンドで合意に至りませんでした' : 'オファーが低すぎます'}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

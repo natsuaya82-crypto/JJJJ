@@ -6,7 +6,7 @@ import PlayerFace from '../player/PlayerFace'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue } from '../../utils/playerUtils'
 import { canSignContract, isSecondMember } from '../../data/rosterRules'
 import { SPECIALTY_LABELS } from '../../types'
-import type { TeamRole, GameEvent, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer } from '../../types'
+import type { TeamRole, GameEvent, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { C, alpha } from '../../styles/tokens'
@@ -48,8 +48,6 @@ function fmtDuration(months: number): string {
   if (m === 0) return `${y}年`
   return `${y}年${m}ヶ月`
 }
-
-type ChatMessage = { from: 'player' | 'gm'; text: string }
 
 const COMPLAINT_EVENT_TYPES = ['player_morale_low', 'player_fatigue', 'playing_time_demand', 'ai_poaching'] as const
 
@@ -147,6 +145,14 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
   return msgs
 }
 
+// 移籍金合意後の契約交渉（他チームとの移籍金合意が済んだ選手）
+function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: string): ChatMessage[] {
+  return [{
+    from: 'player',
+    text: `（代理人）移籍金${fmt(bid.offeredFee)}で${fromTeamName ?? '所属クラブ'}との合意が取れました。あとは${player.name}本人との契約条件次第です。ご提示ください。`,
+  }]
+}
+
 // --- Chat View ---
 
 function ChatView({
@@ -168,7 +174,7 @@ function ChatView({
     dismissTransferRequest, allowPlayerTransfer,
     generateContractRequests,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
-    openPlayerSheet, resolveEvent,
+    openPlayerSheet, resolveEvent, finalizeTransfer,
   } = useGameStore()
 
   // この選手のチャットで決着させる選手イベント（疲労・モラール・出場機会・マイルストーン等）
@@ -191,16 +197,22 @@ function ChatView({
     acqOffers.filter(o => o.playerId === player.id).at(-1)
   const isAcq = !!acqOffer && (acqOffer.status === 'pending' || acqOffer.status === 'countered')
 
+  // 移籍金合意後の契約交渉（他チームから移籍金OKが出た選手）
+  const transferBid = (currentSeason.transferBids ?? []).find(b => b.playerId === player.id && b.status === 'fee_accepted')
+  const isTransfer = !!transferBid && !isAcq
+
   const events = currentSeason.events ?? []
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() =>
-    initialMessages ?? (isAcq
+    initialMessages ?? (isTransfer
+      ? buildTransferMessages(player, transferBid!, teams.find(t => t.id === transferBid!.targetTeamId)?.name)
+      : isAcq
       ? buildAcqMessages(player, acqOffer!, teams.find(t => t.id === player.teamId)?.name)
       : buildMessages(player, contractReq, months, !!retirementReq, !!transferReq, transferReq?.reason, events))
   )
 
   useEffect(() => { onMessagesChange(chatMessages) }, [chatMessages])
   const [composing, setComposing] = useState(false)
-  const [composeMode, setComposeMode] = useState<'renewal' | 'acq'>('renewal')
+  const [composeMode, setComposeMode] = useState<'renewal' | 'acq' | 'transfer'>('renewal')
   const [justAcquired, setJustAcquired] = useState(false)  // 獲得成立直後（契約更新フローへの誤遷移を防ぐ）
   const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
   const [offerYears, setOfferYears] = useState(2)
@@ -237,6 +249,27 @@ function ChatView({
     setOfferTeamRole(null)
     setComposeMode('acq')
     setComposing(true)
+  }
+
+  const openComposeTransfer = () => {
+    const base = Math.round(faMarketSalary(player) / SALARY_STEP) * SALARY_STEP
+    setOfferSalary(Math.max(SALARY_MIN, Math.min(SALARY_MAX, base)))
+    setOfferYears(2)
+    setComposeMode('transfer')
+    setComposing(true)
+  }
+
+  const handleSubmitTransferOffer = () => {
+    if (!transferBid) return
+    append({ from: 'gm', text: `年俸${fmt(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
+    const res = finalizeTransfer(transferBid.id, offerSalary, offerYears)
+    if (res.ok) {
+      append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
+      setJustAcquired(true)
+    } else {
+      append({ from: 'player', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` })
+    }
+    setComposing(false)
   }
 
   const handleSubmitAcqOffer = () => {
@@ -292,10 +325,16 @@ function ChatView({
 
     // 選手イベント：選択肢を会話内ボタンで決着（resolveEvent）
     if (chatEvent) return chatEvent.choices.map((c, idx) => ({
-      label: c.desc ? `${c.label}（${c.desc}）` : c.label,
+      label: c.label,
       color: idx === 0 ? C.blue : idx === chatEvent.choices.length - 1 ? C.textSub : C.gold,
       action: () => { append({ from: 'gm', text: c.label }); resolveEvent(chatEvent.id, idx) },
     }))
+
+    // 移籍金合意後の契約交渉モード（他チームから移籍金OKが出た選手）
+    if (isTransfer) return [
+      { label: '契約条件を提示する', color: C.blue, action: openComposeTransfer },
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
 
     // 獲得オファー交渉モード
     if (isAcq && acqOffer) {
@@ -478,6 +517,7 @@ function ChatView({
                 </button>
               ))}
             </div>
+            {composeMode !== 'transfer' && (
             <div style={{ display: 'flex', gap: 5 }}>
               {CONTRACT_TYPE_OPTS.map(({ key, label, desc }) => {
                 const sel = offerContractType === key
@@ -492,6 +532,8 @@ function ChatView({
                 )
               })}
             </div>
+            )}
+            {composeMode !== 'transfer' && (
             <div style={{ display: 'flex', gap: 4 }}>
               {TEAM_ROLE_OPTS.map(({ key, label }) => {
                 const sel = offerTeamRole === key
@@ -503,8 +545,9 @@ function ChatView({
                 )
               })}
             </div>
+            )}
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={composeMode === 'acq' ? handleSubmitAcqOffer : handleSubmitOffer}
+              <button onClick={composeMode === 'transfer' ? handleSubmitTransferOffer : composeMode === 'acq' ? handleSubmitAcqOffer : handleSubmitOffer}
                 style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.blue, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
                 提示する
               </button>
@@ -518,7 +561,7 @@ function ChatView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 16px 16px' }}>
             {replyButtons.map((btn, i) => (
               <button key={i} onClick={btn.action}
-                style={{ width: '100%', padding: '15px 14px', borderRadius: 12, border: `1.5px solid ${alpha(btn.color, 0.5)}`, backgroundColor: alpha(btn.color, 0.1), color: btn.color, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${alpha(btn.color, 0.5)}`, backgroundColor: alpha(btn.color, 0.1), color: btn.color, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
                 {btn.label}
               </button>
             ))}
@@ -531,8 +574,7 @@ function ChatView({
 
 // --- 他チーム（1軍/2軍を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
-function TradeChatView({ team, onClose, initialMode, initialGetId }: { team: Team; onClose: () => void; initialMode?: 'fee' | 'trade'; initialGetId?: string }) {
-  const navigate = useNavigate()
+function TradeChatView({ team, onClose, initialMode, initialGetId, onNegotiateContract }: { team: Team; onClose: () => void; initialMode?: 'fee' | 'trade'; initialGetId?: string; onNegotiateContract: (playerId: string) => void }) {
   const { players, teams, playerTeamId, currentSeason, submitTransferBid, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, acceptFeeCounter, rejectTransferBid } = useGameStore()
   const mainP = players.filter(p => p.teamId === team.id && p.rosterTier === 'main' && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
   const secondP = players.filter(p => p.teamId === team.id && isSecondMember(p) && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
@@ -610,13 +652,16 @@ function TradeChatView({ team, onClose, initialMode, initialGetId }: { team: Tea
     const b = bidOf(p.id)
     const feeAccepted = b?.status === 'fee_accepted'
     const isCountered = b?.status === 'countered'
+    // 交渉決裂ペナルティ中は再オファー不可
+    const locked = !b && p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
     return (
       <div key={p.id}>
-        <OppRow player={p} bidLabel={b ? (feeAccepted ? '費用合意→契約交渉へ' : isCountered ? '対抗提示あり' : '打診中') : null}
-          bidColor={feeAccepted ? C.green : isCountered ? C.orange : b ? C.gold : C.textDim}
+        <OppRow player={p} bidLabel={b ? (feeAccepted ? '費用合意→契約交渉へ' : isCountered ? '対抗提示あり' : '打診中') : locked ? '交渉決裂・来季まで不可' : null}
+          bidColor={feeAccepted ? C.green : isCountered ? C.orange : b ? C.gold : locked ? C.red : C.textDim}
           onClick={() => {
-            if (feeAccepted && b) { navigate(`/transfer/negotiate/transfer/${b.id}`); return }
+            if (feeAccepted && b) { onNegotiateContract(p.id); return }
             if (isCountered && b) { setCounterBidId(counterBidId === b.id ? null : b.id); return }
+            if (locked) return
             openFee(p)
           }} />
         {isCountered && b && counterBidId === b.id && b.counterFee != null && (
@@ -905,7 +950,7 @@ export default function ChatPage() {
   const [searchParams] = useSearchParams()
   const { players, playerTeamId, currentSeason, teams, foreignLeagues, generateContractRequests,
     acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer, acceptIncomingLoanOffer, declineIncomingLoanOffer, openPlayerSheet,
-    acceptFeeCounter, rejectTransferBid } = useGameStore()
+    acceptFeeCounter, rejectTransferBid, setChatLog } = useGameStore()
   // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lpFired = useRef(false)
@@ -926,7 +971,8 @@ export default function ChatPage() {
   const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? pendingTradeTeamId ?? null)
   const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId))
   const wantParam = searchParams.get('want')
-  const [messageCache, setMessageCache] = useState<Record<string, ChatMessage[]>>({})
+  // チャット履歴は store（currentSeason.chatLogs）に保存。画面を離れても・解決後も年内は見返せる。
+  const chatLogs = currentSeason.chatLogs ?? {}
   const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId || pendingTradeTeamId) ? 'transfer' : 'own')
 
   useEffect(() => { generateContractRequests() }, [])
@@ -985,7 +1031,10 @@ export default function ChatPage() {
   // チャットが閉じず、相手の返事＝拒否/カウンター/合意を確認できるようにする）。
   const offerPlayerIds = new Set((currentSeason.acquisitionOffers ?? []).map(o => o.playerId))
   const offerPlayers = players.filter(p => offerPlayerIds.has(p.id) && !myPlayers.some(m => m.id === p.id))
-  const openablePlayers = [...myPlayers, ...offerPlayers]
+  // 移籍金合意済み（契約交渉待ち）の他チーム選手もチャットで開けるようにする
+  const feeAcceptedBidIds = new Set((currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted').map(b => b.playerId))
+  const contractPendingPlayers = players.filter(p => feeAcceptedBidIds.has(p.id) && !myPlayers.some(m => m.id === p.id) && !offerPlayers.some(o => o.id === p.id))
+  const openablePlayers = [...myPlayers, ...offerPlayers, ...contractPendingPlayers]
   const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? null : null
 
   // 他チーム（トレード交渉の相手）
@@ -1007,14 +1056,15 @@ export default function ChatPage() {
 
   if (tradeTeam) return (
     <TradeChatView team={tradeTeam} onClose={() => closeConversation(() => setTradeTeamId(null))}
-      initialMode="fee" initialGetId={wantParam ?? undefined} />
+      initialMode="fee" initialGetId={wantParam ?? undefined}
+      onNegotiateContract={(pid) => { setTradeTeamId(null); setChatPlayerId(pid) }} />
   )
 
   if (chatPlayer) return (
     <ChatView
       player={chatPlayer}
-      initialMessages={messageCache[chatPlayer.id]}
-      onMessagesChange={msgs => setMessageCache(prev => ({ ...prev, [chatPlayer.id]: msgs }))}
+      initialMessages={chatLogs[chatPlayer.id]}
+      onMessagesChange={msgs => setChatLog(chatPlayer.id, msgs)}
       onClose={() => closeConversation(() => setChatPlayerId(null))}
     />
   )
@@ -1131,7 +1181,7 @@ export default function ChatPage() {
       <div style={{ padding: '0 12px 10px', display: 'flex', gap: 8 }}>
         {([['own', '自チーム'], ['transfer', '移籍・獲得']] as const).map(([key, label]) => {
           const active = activeTab === key
-          const badge = key === 'transfer' ? acqPlayers.length + inboundCount : 0
+          const badge = key === 'transfer' ? acqPlayers.length + inboundCount + contractPendingPlayers.length : 0
           return (
             <button key={key} onClick={() => setActiveTab(key)}
               style={{
@@ -1201,7 +1251,38 @@ export default function ChatPage() {
           </>
         )}
 
-        {activeTab === 'transfer' && acqPlayers.length === 0 && inboundCount === 0 && (
+        {activeTab === 'transfer' && contractPendingPlayers.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 800, color: C.green, letterSpacing: '0.1em', marginBottom: 2, marginTop: (inboundCount > 0 || acqPlayers.length > 0) ? 12 : 4 }}>
+              契約交渉待ち · {contractPendingPlayers.length}名
+            </div>
+            {contractPendingPlayers.map(p => {
+              const specCol = SPEC_COLOR[p.specialty]
+              const curTeam = teams.find(t => t.id === p.teamId)
+              return (
+                <button key={p.id} {...longPress(p.id)}
+                  onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(p.id) }}
+                  style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.green, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+                    <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(p.id) }} style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
+                      <PlayerFace playerId={p.id} nationality={p.nationality} size={44} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                        <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.green, 0.18), border: `1px solid ${alpha(C.green, 0.4)}`, color: C.green, fontWeight: 800, flexShrink: 0 }}>費用合意</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>{curTeam?.shortName ?? '他クラブ'}と移籍金合意済み — 本人と契約交渉</div>
+                    </div>
+                    <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(p)), lineHeight: 1, flexShrink: 0 }}>{ovr(p)}</div>
+                  </div>
+                </button>
+              )
+            })}
+          </>
+        )}
+
+        {activeTab === 'transfer' && acqPlayers.length === 0 && inboundCount === 0 && contractPendingPlayers.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA, fontSize: 12, lineHeight: 1.7 }}>
             進行中の交渉・オファーはありません。<br/>移籍市場や他チームの選手から交渉を始めてください。
           </div>
