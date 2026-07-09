@@ -9,6 +9,7 @@ import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, gene
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
+import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET } from '../data/economy'
@@ -288,6 +289,9 @@ export type GameStore = GameState & {
   // Second team
   runSecondTeamRace: (lineup: Record<number, string>, strategy?: 'aggressive' | 'balanced' | 'conservative') => void
   setReserveLeagueJoined: (joined: boolean) => void
+
+  // 海外リーグ：本編レースに同期して裏で1戦進める（プレイヤーは干渉せず結果閲覧のみ）
+  advanceForeignLeagues: () => void
 
   // Season
   beginSeasonDraft: () => void
@@ -1497,6 +1501,9 @@ export const useGameStore = create<GameStore>()(
             },
           }
         })
+
+        // 本編レース完走に同期して海外リーグも1戦進める（別set・裏進行）
+        get().advanceForeignLeagues()
 
         return results
       },
@@ -3439,6 +3446,25 @@ export const useGameStore = create<GameStore>()(
         currentSeason: { ...state.currentSeason, reserveLeagueJoined: joined }
       })),
 
+      // 海外リーグを1マッチデー進める。本編レースの完走に同期して runRace 末尾から呼ばれる。
+      // 本編と同じコース（races[foreignRaceIndex]）を各海外クラブが走り、順位表と選手の記録を積む。
+      advanceForeignLeagues: () => set(state => {
+        const leagues = state.foreignLeagues ?? []
+        if (leagues.length === 0) return {}
+        const races = state.currentSeason.races
+        const idx = state.currentSeason.foreignRaceIndex ?? 0
+        if (idx >= races.length) return {}
+        const race = races[idx]
+        if (!race) return {}
+        const prevStandings = state.currentSeason.foreignStandings ?? initForeignStandings(leagues)
+        const seasonProgress = races.length > 0 ? idx / races.length : 0
+        const { standingsByLeague, players } = simulateForeignLeagueRound(race, leagues, state.players, prevStandings, seasonProgress)
+        return {
+          players,
+          currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1 },
+        }
+      }),
+
       startRegularSeason: () => set(state => {
         if (state.currentSeason.objectives.length === 0) {
           const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length)
@@ -4425,8 +4451,13 @@ export const useGameStore = create<GameStore>()(
           const seasonAchievementJewels = seasonAchievements.reduce((s, a) => s + (ACHIEVEMENT_JEWELS[a.rarity] ?? 0), 0)
           const rankJewels = finalRank === 1 ? 200 : finalRank === 2 ? 100 : finalRank === 3 ? 50 : 0
 
+          // 海外リーグの優勝クラブ所属選手に championships +1（今季の順位表を確定してから）
+          const playersWithForeignChamp = applyForeignChampions(
+            state.foreignLeagues ?? [], playersWithLoanHistory, state.currentSeason.foreignStandings ?? {},
+          )
+
           return {
-            players: [...playersWithLoanHistory, ...foreignRefresh.newPlayers],
+            players: [...playersWithForeignChamp, ...foreignRefresh.newPlayers],
             teams: teamsWithCleanedPicks,
             foreignLeagues: foreignRefresh.updatedLeagues,
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
@@ -4464,6 +4495,8 @@ export const useGameStore = create<GameStore>()(
               secondTeamRaces: newSecondTeamRaces,
               secondTeamRaceIndex: 0,
               secondTeamStandings: state.teams.map(t => ({ teamId: t.id, totalPoints: 0, raceResults: [] })),
+              foreignStandings: initForeignStandings(foreignRefresh.updatedLeagues),
+              foreignRaceIndex: 0,
               standings: state.teams.map(t => ({
                 teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
               })),

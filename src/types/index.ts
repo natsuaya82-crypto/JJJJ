@@ -403,6 +403,9 @@ export type ForeignLeague = {
   clubs: ForeignClub[]
 }
 
+// 海外リーグの順位表（1クラブぶん）。currentSeason.foreignStandings に leagueId 単位で保持。
+export type ForeignStanding = { clubId: string; totalPoints: number; raceResults: { raceId: string; rank: number; points: number }[] }
+
 export type NationalTeam = {
   coachTeamId: string
   year: number
@@ -572,6 +575,9 @@ export type Season = {
   sponsorOffers?: SponsorOffer[]
   seasonRaceIncome?: number
   chatLogs?: Record<string, ChatMessage[]>
+  // 海外リーグの裏進行（プレイヤーの本編レースに同期して1戦ずつ進む）
+  foreignStandings?: Record<string, ForeignStanding[]>   // leagueId → 順位表
+  foreignRaceIndex?: number                              // 消化した海外マッチデー数
 }
 
 // チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい
