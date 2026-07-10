@@ -43,7 +43,7 @@ export default function ForeignLeagueDetailPage() {
           <div>
             <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '3px', marginBottom: '3px' }}>{league.countryName.toUpperCase()}</div>
             <div style={{ fontSize: '20px', fontWeight: '900', color: '#F0EDE8', lineHeight: 1.2 }}>{league.name}</div>
-            <div style={{ fontSize: '11px', color: '#5C5870', marginTop: '2px' }}>{league.clubs.length}クラブ — {hasResults ? '勝点順・上位2クラブがECL出場' : 'OVR平均順（開幕前）'}</div>
+            <div style={{ fontSize: '11px', color: '#5C5870', marginTop: '2px' }}>{league.clubs.length}クラブ — {hasResults ? '勝点順' : 'OVR平均順（開幕前）'}</div>
           </div>
         </div>
 
@@ -59,7 +59,7 @@ export default function ForeignLeagueDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {clubStandings.map(({ club, avgOvr, points, played }, idx) => {
             const rankColor = idx === 0 ? '#C9A84C' : idx === 1 ? '#9B97A8' : idx === 2 ? '#CD7F32' : '#3A3758'
-            const eclSpot = hasResults && idx < 2   // 上位2クラブ＝ECL出場圏
+            const eclSpot = hasResults && idx < 2   // 上位2クラブを金枠で強調
             return (
               <button
                 key={club.id}
@@ -83,7 +83,6 @@ export default function ForeignLeagueDetailPage() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{club.name}</span>
-                      {eclSpot && <span style={{ flexShrink: 0, fontSize: '8px', fontWeight: '900', color: '#0A0912', background: '#C9A84C', borderRadius: '4px', padding: '1px 4px' }}>ECL</span>}
                     </div>
                     <div style={{ fontSize: '9px', color: '#5C5870' }}>{club.shortName}</div>
                   </div>

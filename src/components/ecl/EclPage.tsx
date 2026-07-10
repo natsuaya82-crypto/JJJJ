@@ -12,6 +12,19 @@ export default function EclPage() {
   const result = currentSeason.eclResult
   const phase = currentSeason.phase
 
+  // ECLはカレンダー配置・調整が済むまで非公開（開催ボタン・結果を出さない）。コードは温存。
+  const ECL_ENABLED = false
+  if (!ECL_ENABLED) {
+    return (
+      <div style={{ minHeight: '100dvh', background: C.bg, padding: '12px 16px' }}>
+        <BackButton />
+        <div style={{ padding: '60px 20px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA, fontSize: 13 }}>
+          準備中
+        </div>
+      </div>
+    )
+  }
+
   // 出場チーム（日本上位2＋海外各リーグ上位2）を算出（プレビュー/未開催時用）
   const qualifiers: Qualifier[] = []
   const std = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)

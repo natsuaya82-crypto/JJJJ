@@ -1507,8 +1507,9 @@ export const useGameStore = create<GameStore>()(
           }
         })
 
-        // 本編レース完走に同期して海外リーグも1戦進める（別set・裏進行）
-        get().advanceForeignLeagues()
+        // 本編レース完走に同期して海外リーグも1戦進める（別set・裏進行）。
+        // 万一エラーが出てもコアのレース進行を壊さないようガードする。
+        try { get().advanceForeignLeagues() } catch (e) { console.error('advanceForeignLeagues failed', e) }
 
         return results
       },
@@ -4500,11 +4501,19 @@ export const useGameStore = create<GameStore>()(
           )
 
           // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
-          const foreignTx = simulateForeignTransferMarket({
-            foreignLeagues: foreignRefresh.updatedLeagues,
-            players: [...playersWithForeignChamp, ...foreignRefresh.newPlayers],
-            year: newYear,
-          })
+          // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。
+          const foreignBasePlayers = [...playersWithForeignChamp, ...foreignRefresh.newPlayers]
+          let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[] }
+          try {
+            foreignTx = simulateForeignTransferMarket({
+              foreignLeagues: foreignRefresh.updatedLeagues,
+              players: foreignBasePlayers,
+              year: newYear,
+            })
+          } catch (e) {
+            console.error('simulateForeignTransferMarket failed', e)
+            foreignTx = { foreignLeagues: foreignRefresh.updatedLeagues, players: foreignBasePlayers, news: [] }
+          }
 
           return {
             players: foreignTx.players,
