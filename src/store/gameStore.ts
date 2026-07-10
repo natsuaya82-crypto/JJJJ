@@ -12,6 +12,7 @@ import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { simulateEclEvent } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
+import { simulateForeignTransferMarket } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET } from '../data/economy'
@@ -4498,10 +4499,17 @@ export const useGameStore = create<GameStore>()(
             state.foreignLeagues ?? [], playersWithLoanHistory, state.currentSeason.foreignStandings ?? {},
           )
 
-          return {
-            players: [...playersWithForeignChamp, ...foreignRefresh.newPlayers],
-            teams: teamsWithCleanedPicks,
+          // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
+          const foreignTx = simulateForeignTransferMarket({
             foreignLeagues: foreignRefresh.updatedLeagues,
+            players: [...playersWithForeignChamp, ...foreignRefresh.newPlayers],
+            year: newYear,
+          })
+
+          return {
+            players: foreignTx.players,
+            teams: teamsWithCleanedPicks,
+            foreignLeagues: foreignTx.foreignLeagues,
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
             gmRep: newGmRep,
             achievements: [...(state.achievements ?? []), ...seasonAchievements],
@@ -4544,6 +4552,7 @@ export const useGameStore = create<GameStore>()(
               })),
               newsFeed: [
                 { date: `${newYear}-03-01`, headline: `${newYear}シーズン開幕！全${newRaces.length}戦のスケジュール決定`, category: 'race' as const, relatedIds: [] },
+                ...foreignTx.news,
                 { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year}シーズン王者：${champion?.name ?? ''}！`, category: 'race' as const, relatedIds: [] },
                 seasonPrizeNews,
                 ...(objBonus > 0 ? [{ date: `${state.currentSeason.year}-11-01`, headline: `目標達成ボーナス：スカウトPt+${objBonus}・予算+${Math.round(objBudgetBonus / 10000)}万`, category: 'draft' as const, relatedIds: [] }] : []),
