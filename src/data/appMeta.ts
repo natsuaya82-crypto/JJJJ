@@ -2,11 +2,17 @@
 // ★アプリを更新したら、必ず APP_VERSION を上げ、同時に CHANGELOG 先頭へ新エントリを追記すること。
 //   （設定画面の「バージョン情報」と「お知らせ」はここを参照します）
 
-export const APP_VERSION = 'v1.0.4'
+export const APP_VERSION = 'v1.0.5'
 
 export type ChangelogEntry = { version: string; date: string; title: string; body: string }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 'v1.0.5',
+    date: '2026.07.10',
+    title: '海外リーグの拡充と細かな改善',
+    body: '海外リーグを拡充しました。各リーグのクラブ数を増やし、シーズン中に海外リーグも自動で進行して順位が付くように。選手はクラブや国境を越えて移籍・引き抜きされ、注目の移籍はニュースにも流れます（海外リーグの状況は「他チーム」→各リーグから確認できます）。また公式X（@JPEL_MANAGER）を開設し、初回起動時の案内と設定画面から確認できるようにしました。アップデート情報やバグのお問い合わせは公式Xで受け付けます。あわせて各所の細かな不具合の修正と動作の安定化を行いました。',
+  },
   {
     version: 'v1.0.4',
     date: '2026.07.09',

@@ -84,6 +84,32 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         </div>
       </div>
 
+      {/* ── 公式X ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 9, color: alpha(C.gold, 0.4), letterSpacing: '3px', marginBottom: 10 }}>OFFICIAL X</div>
+        <button
+          onClick={() => window.open('https://x.com/JPEL_MANAGER', '_blank')}
+          className="btn-press"
+          style={{
+            width: '100%', padding: '14px 16px', borderRadius: 14, cursor: 'pointer',
+            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+            border: `1px solid ${alpha(C.gold, 0.14)}`,
+            display: 'flex', alignItems: 'center', gap: 12, fontFamily: SAIRA,
+          }}
+        >
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </div>
+          <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>公式X（@JPEL_MANAGER）</div>
+            <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>アップデート情報・バグのお問い合わせはこちら</div>
+          </div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: C.textDim, flexShrink: 0 }}>
+            <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+
       {/* ── タイトルへ戻る ── */}
       {onBackToTitle && (
         <button
