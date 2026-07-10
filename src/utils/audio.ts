@@ -48,11 +48,11 @@ class AudioManager {
         const na = mod.NativeAudio
         const bgms: BgmName[] = ['home', 'race']
         for (const name of bgms) {
-          try { await na.preload({ assetId: `bgm_${name}`, assetPath: `public/audio/bgm/${name}.mp3`, audioChannelNum: 1, isUrl: false, volume: this.musicVol }) } catch { /* 未配置等は無視 */ }
+          try { await na.preload({ assetId: `bgm_${name}`, assetPath: `audio/bgm/${name}.mp3`, audioChannelNum: 1, isUrl: false, volume: this.musicVol }) } catch { /* 未配置等は無視 */ }
         }
         const ses: SeName[] = ['tap', 'transition', 'back', 'title', 'event', 'great_success', 'levelup', 'reward']
         for (const name of ses) {
-          try { await na.preload({ assetId: `se_${name}`, assetPath: `public/audio/se/${name}.mp3`, audioChannelNum: 3, isUrl: false, volume: this.seVol }) } catch { /* 未配置等は無視 */ }
+          try { await na.preload({ assetId: `se_${name}`, assetPath: `audio/se/${name}.mp3`, audioChannelNum: 3, isUrl: false, volume: this.seVol }) } catch { /* 未配置等は無視 */ }
         }
         this.na = na
         return na

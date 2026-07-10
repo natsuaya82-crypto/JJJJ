@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
+import PressButton from '../ui/PressButton'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -246,10 +247,9 @@ export default function TeamHub() {
       {/* Section cards */}
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {SECTIONS.map(s => (
-          <button
+          <PressButton
             key={s.key}
             onClick={() => navigate(s.key)}
-            className="btn-press"
             style={{
               width: '100%', padding: '12px 14px',
               borderRadius: 14,
@@ -285,7 +285,7 @@ export default function TeamHub() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>
               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
             </svg>
-          </button>
+          </PressButton>
         ))}
       </div>
 

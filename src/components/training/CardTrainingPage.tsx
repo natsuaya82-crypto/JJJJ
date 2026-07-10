@@ -214,7 +214,7 @@ export default function CardTrainingPage() {
 
   // ── STEP 2: Fusion (パズドラ風) ────────────────────────────────
   return (
-    <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text, paddingBottom: 96 }}>
+    <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text }}>
       {adConfirmOpen && (
         <ConfirmDialog
           title="動画を見ますか？"

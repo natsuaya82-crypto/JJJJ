@@ -75,6 +75,10 @@ html, body {
   overscroll-behavior: none;
   /* ダブルタップズームを無効化（iOSはviewportのuser-scalable=noを無視するため） */
   touch-action: manipulation;
+  /* 長押しコピーペーストメニューを抑制 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   /* iOSのラバーバンド（ヘッダーごと動く現象）を防止：body自体はスクロールさせず、
      アプリ内の <main> だけをスクロールさせる。 */
   height: 100%;

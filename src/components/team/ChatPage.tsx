@@ -51,10 +51,12 @@ function fmtDuration(months: number): string {
 
 const COMPLAINT_EVENT_TYPES = ['player_morale_low', 'player_fatigue', 'playing_time_demand', 'ai_poaching'] as const
 
-// チャットで決着させる選手イベント（移籍希望・引退・契約更新要求は専用フローがあるので除く）
-const CHAT_EVENT_EXCLUDE = ['transfer_request', 'player_retirement', 'player_wants_renewal'] as const
+// チャットに表示する選手イベント（現在生成中の型のみ。旧データの廃止型はここに含めない）
+const CHAT_EVENT_INCLUDE = [
+  'player_fatigue', 'player_morale_low', 'playing_time_demand', 'veteran_ambition', 'ai_poaching',
+] as const
 function isChatEvent(e: GameEvent): boolean {
-  return !e.resolved && !!e.playerId && (e.choices?.length ?? 0) > 0 && !(CHAT_EVENT_EXCLUDE as readonly string[]).includes(e.type)
+  return !e.resolved && !!e.playerId && (e.choices?.length ?? 0) > 0 && (CHAT_EVENT_INCLUDE as readonly string[]).includes(e.type)
 }
 
 function buildMessages(
