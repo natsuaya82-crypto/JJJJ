@@ -65,7 +65,7 @@ const NAV: NavItem[] = [
 
 const AD_H = 50
 const NAV_H = 64
-const HEADER_H = 63  // ヘッダー実効高（ボタンminHeight44+上下padding18+border1）。safe-area分は別途加算
+const HEADER_H = 55  // ヘッダー実効高（ボタンminHeight44+上下padding10+border1）。safe-area分は別途加算
 
 /* ── Animated page wrapper ─────────────────── */
 function PageWrapper({ children, locationKey }: { children: React.ReactNode; locationKey: string }) {
@@ -135,7 +135,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 40,
         background: C.bg,
-        padding: '10px 16px 8px',
+        padding: 'calc(6px + env(safe-area-inset-top)) 16px 4px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${alpha(C.gold, 0.1)}`,
       }}>
@@ -226,7 +226,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <>
           <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 45 }}/>
           <div style={{
-            position: 'fixed', top: `${HEADER_H}px`, right: 'max(8px, calc(50% - 232px))', zIndex: 46,
+            position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, right: 'max(8px, calc(50% - 232px))', zIndex: 46,
             backgroundColor: C.surface, border: `1px solid ${C.border2}`, borderRadius: '14px',
             minWidth: '180px', overflow: 'hidden',
             boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
@@ -253,7 +253,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Content（ヘッダーと下タブ/広告の間だけをスクロール。viewport基準で固定） ── */}
       <main ref={mainRef} style={{
         position: 'fixed', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px',
-        top: `${HEADER_H}px`,
+        top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
         bottom: `calc(${NAV_H + adH}px + env(safe-area-inset-bottom))`,
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}>
