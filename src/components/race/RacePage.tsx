@@ -126,7 +126,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
               })
             })()}
           </div>
-          <div style={{ position: 'fixed', bottom: 50, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 12px', background: `linear-gradient(to top, ${C.bg} 80%, transparent)`, borderTop: `1px solid ${C.border}`, zIndex: 35 }}>
+          <div style={{ position: 'sticky', bottom: 0, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px calc(12px + env(safe-area-inset-bottom))', background: `linear-gradient(to top, ${C.bg} 70%, ${alpha(C.bg, 0)})`, borderTop: `1px solid ${C.border}`, zIndex: 35 }}>
             <button className="btn-game btn-game--gold" onClick={() => onRun([...resting])} style={{ width: '100%' }}>
               <span className="btn-game__inner">記録会スタート！</span>
             </button>
