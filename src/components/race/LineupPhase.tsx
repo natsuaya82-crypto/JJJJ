@@ -310,7 +310,7 @@ export function LineupPhase({
 
   // --- メイン画面（区一覧） ---
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: `${BOTTOM_OFFSET + 80}px` }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: '12px' }}>
 
       {/* ヘッダー */}
       <div style={{ background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`, padding: '10px 16px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -434,12 +434,12 @@ export function LineupPhase({
         })}
       </div>
 
-      {/* ボトムバー */}
+      {/* ボトムバー（sticky：iOSでは overflow スクロール枠内の position:fixed がビューポートに固定されないため） */}
       <div style={{
-        position: 'fixed', bottom: BOTTOM_OFFSET, left: 0, right: 0, margin: '0 auto',
+        position: 'sticky', bottom: 0, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
-        padding: '8px 14px 12px',
-        background: `linear-gradient(to top, ${C.bg} 80%, transparent)`,
+        padding: '8px 14px calc(12px + env(safe-area-inset-bottom))',
+        background: `linear-gradient(to top, ${C.bg} 70%, ${alpha(C.bg, 0)})`,
         borderTop: `1px solid ${C.border}`,
         display: 'flex', gap: '6px',
         zIndex: 35,
