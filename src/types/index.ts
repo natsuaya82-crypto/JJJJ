@@ -406,6 +406,24 @@ export type ForeignLeague = {
 // 海外リーグの順位表（1クラブぶん）。currentSeason.foreignStandings に leagueId 単位で保持。
 export type ForeignStanding = { clubId: string; totalPoints: number; raceResults: { raceId: string; rank: number; points: number }[] }
 
+// ECL（Ekiden Champions League）：日本リーグ上位2＋海外各リーグ上位2の計16チームが3戦のポイント制で優勝を争う国際大会。
+export type EclStanding = {
+  id: string
+  name: string
+  shortName: string
+  isForeign: boolean
+  isPlayerTeam: boolean
+  leagueName: string
+  colors: { primary: string; secondary: string }
+  points: number
+}
+export type EclResult = {
+  year: number
+  championId: string
+  standings: EclStanding[]           // 勝点降順
+  races: { name: string; raceId: string }[]
+}
+
 export type NationalTeam = {
   coachTeamId: string
   year: number
@@ -578,6 +596,7 @@ export type Season = {
   // 海外リーグの裏進行（プレイヤーの本編レースに同期して1戦ずつ進む）
   foreignStandings?: Record<string, ForeignStanding[]>   // leagueId → 順位表
   foreignRaceIndex?: number                              // 消化した海外マッチデー数
+  eclResult?: EclResult                                  // ECL開催結果（ポストシーズンに1回）
 }
 
 // チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい

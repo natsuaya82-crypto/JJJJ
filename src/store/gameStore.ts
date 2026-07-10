@@ -10,6 +10,8 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
+import { simulateEclEvent } from '../engine/ecl'
+import type { EclParticipant } from '../engine/ecl'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET } from '../data/economy'
@@ -292,6 +294,8 @@ export type GameStore = GameState & {
 
   // 海外リーグ：本編レースに同期して裏で1戦進める（プレイヤーは干渉せず結果閲覧のみ）
   advanceForeignLeagues: () => void
+  // ECL：日本上位2＋海外各リーグ上位2の16チームで3戦を自動シム（ポストシーズンに1回）
+  simulateEcl: () => void
 
   // Season
   beginSeasonDraft: () => void
@@ -3462,6 +3466,44 @@ export const useGameStore = create<GameStore>()(
         return {
           players,
           currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1 },
+        }
+      }),
+
+      // ECLを開催（自動シム・冪等）。日本リーグ上位2＋海外各リーグ上位2＝16チームが3戦。
+      simulateEcl: () => set(state => {
+        if (state.currentSeason.eclResult) return {}
+        const std = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+        const participants: EclParticipant[] = []
+        std.slice(0, 2).forEach(s => {
+          const t = state.teams.find(tm => tm.id === s.teamId)
+          if (t) participants.push({ id: t.id, name: t.name, shortName: t.shortName, isForeign: false, isPlayerTeam: t.id === state.playerTeamId, leagueName: 'JPEL', colors: t.colors, playerIds: t.roster.main })
+        })
+        const fs = state.currentSeason.foreignStandings ?? {}
+        for (const league of state.foreignLeagues ?? []) {
+          const top2 = [...(fs[league.id] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 2)
+          top2.forEach(s => {
+            const club = league.clubs.find(c => c.id === s.clubId)
+            if (club) participants.push({ id: club.id, name: club.name, shortName: club.shortName, isForeign: true, isPlayerTeam: false, leagueName: league.name, colors: club.colors, playerIds: club.playerIds })
+          })
+        }
+        if (participants.length < 2) return {}
+        const rr = state.currentSeason.races
+        const eclRaces = [rr[3], rr[6], rr[9]].filter((r): r is NonNullable<typeof r> => !!r)
+        if (eclRaces.length === 0) return {}
+        const result = simulateEclEvent({ year: state.currentSeason.year, participants, races: eclRaces, teams: state.teams, players: state.players })
+
+        const won = result.championId === state.playerTeamId
+        const ECL_PRIZE = 100_000_000   // 優勝賞金1億（自チームが優勝したとき）
+        const updatedTeams = won
+          ? state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + ECL_PRIZE } } : t)
+          : state.teams
+        const newAch = won
+          ? [{ id: `ecl-champion-${state.currentSeason.year}`, name: 'ECL制覇', desc: `${state.currentSeason.year}年 ECLで優勝`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
+          : []
+        return {
+          teams: updatedTeams,
+          achievements: [...(state.achievements ?? []), ...newAch],
+          currentSeason: { ...state.currentSeason, eclResult: result },
         }
       }),
 

@@ -47,6 +47,7 @@ import RentalPage from './components/transfer/RentalPage'
 import FacilitiesPage from './components/facilities/FacilitiesPage'
 import WorldEkidenPage from './components/international/WorldEkidenPage'
 import WECSimPage from './components/international/WECSimPage'
+import EclPage from './components/ecl/EclPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
 import CardTrainingPage from './components/training/CardTrainingPage'
 import CardInventoryPage from './components/training/CardInventoryPage'
@@ -142,6 +143,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />
           <Route path="/international" element={<WorldEkidenPage />} />
+          <Route path="/ecl" element={<EclPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/season" element={<RecordsPage />} />

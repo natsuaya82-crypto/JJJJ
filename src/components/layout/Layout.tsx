@@ -117,6 +117,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const MENU_ITEMS: MenuAction[] = [
     { label: 'ログインボーナス', path: '/login-bonus', color: C.text },
     { label: '記録室', path: '/records', color: C.text },
+    { label: 'ECL（国際大会）', path: '/ecl', color: C.text },
     { label: 'お知らせ', path: '/announcements', color: C.text },
     { label: '操作方法・遊び方', path: '/help', color: C.text },
     { label: '設定', path: '/more', color: C.text },
