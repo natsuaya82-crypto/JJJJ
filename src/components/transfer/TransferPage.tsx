@@ -8,6 +8,7 @@ import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, career
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
+import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -80,13 +81,16 @@ export default function TransferPage() {
   const location = useLocation()
   const tab = (section as Tab) ?? 'market'
 
-  const [mktSearch, setMktSearch] = useState('')
-  const [mktSpec, setMktSpec] = useState<Specialty | 'all'>('all')
-  const [mktNat, setMktNat] = useState<Nationality | 'all'>('all')
-  const [mktAvail, setMktAvail] = useState<'all' | 'listed' | 'expiring' | 'fa'>('all')
-  const [mktTeam, setMktTeam] = useState<string>('all')
-  const [mktAge, setMktAge] = useState<string>('all')
-  const [mktLeague, setMktLeague] = useState<string>('all')
+  // 検索フィルタはモジュールスコープに退避してあり、遷移（結果⇄一覧・チャット往復）で消えない。
+  // 市場系画面から完全に離れたときにApp側でクリアされる
+  const savedF = getMarketFilters()
+  const [mktSearch, setMktSearch] = useState(savedF.search)
+  const [mktSpec, setMktSpec] = useState<Specialty | 'all'>(savedF.spec as Specialty | 'all')
+  const [mktNat, setMktNat] = useState<Nationality | 'all'>(savedF.nat as Nationality | 'all')
+  const [mktAvail, setMktAvail] = useState<'all' | 'listed' | 'expiring' | 'fa'>(savedF.avail as 'all' | 'listed' | 'expiring' | 'fa')
+  const [mktTeam, setMktTeam] = useState<string>(savedF.team)
+  const [mktAge, setMktAge] = useState<string>(savedF.age)
+  const [mktLeague, setMktLeague] = useState<string>(savedF.league)
 
   useEffect(() => {
     if (tab === 'trade') ensureFuturePicks()
@@ -107,8 +111,12 @@ export default function TransferPage() {
     setMktAge(s.age ?? 'all')
     setMktLeague(s.league ?? 'all')
   }, [location.key, location.state, tab])
-  const [mktSortKey, setMktSortKey] = useState<'ovr' | 'value' | 'age' | 'salary' | 'name'>('ovr')
-  const [mktSortDir, setMktSortDir] = useState<'desc' | 'asc'>('desc')
+  const [mktSortKey, setMktSortKey] = useState<'ovr' | 'value' | 'age' | 'salary' | 'name'>(savedF.sortKey as 'ovr' | 'value' | 'age' | 'salary' | 'name')
+  const [mktSortDir, setMktSortDir] = useState<'desc' | 'asc'>(savedF.sortDir as 'desc' | 'asc')
+  // フィルタ変更をモジュールスコープへ同期（アンマウント後の復元用）
+  useEffect(() => {
+    saveMarketFilters({ search: mktSearch, spec: mktSpec, nat: mktNat, avail: mktAvail, team: mktTeam, age: mktAge, league: mktLeague, sortKey: mktSortKey, sortDir: mktSortDir })
+  }, [mktSearch, mktSpec, mktNat, mktAvail, mktTeam, mktAge, mktLeague, mktSortKey, mktSortDir])
   const [bidTarget, setBidTarget] = useState<string | null>(null)
   const [bidFee, setBidFee] = useState(0)
 

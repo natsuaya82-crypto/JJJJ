@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { C } from '../../styles/tokens'
 
 export type ActionSheetItem = {
@@ -10,6 +11,14 @@ export type ActionSheetItem = {
 // 画面下から出る固定ボトムシート。位置は常に画面下端で一定＝行の位置に依存せず見切れない。
 // header に対象（選手の顔・名前など）を渡すと、誰に対するメニューか一目で分かる。
 export default function ActionSheet({ open, onClose, items, header }: { open: boolean; onClose: () => void; items: ActionSheetItem[]; header?: React.ReactNode }) {
+  // 表示中は背景ページのスクロールをロックする
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [open])
+
   if (!open) return null
   return (
     <>
@@ -27,7 +36,8 @@ export default function ActionSheet({ open, onClose, items, header }: { open: bo
           border: `1px solid ${C.border2}`,
           borderBottom: 'none',
           boxShadow: '0 -12px 40px rgba(0,0,0,0.6)',
-          padding: '8px 14px calc(14px + env(safe-area-inset-bottom))',
+          // 下端の50pxは広告バナーに覆われるため、その分の余白を確保する
+          padding: '8px 14px calc(64px + env(safe-area-inset-bottom))',
         }}
       >
         <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 10px' }} />

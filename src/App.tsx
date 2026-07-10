@@ -4,6 +4,7 @@ import { useGameStore } from './store/gameStore'
 import { audio } from './utils/audio'
 import { initAds, removeBanner, showBanner } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
+import { clearMarketFilters } from './utils/marketFilters'
 import LoadingOverlay from './components/ui/LoadingOverlay'
 import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
@@ -84,6 +85,10 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
     if (prevPath.current !== location.pathname) {
       prevPath.current = location.pathname
     }
+    // 移籍市場の検索フィルタは、市場系画面（/transfer配下と契約交渉のチャット往復）を
+    // 完全に離れたときだけクリアする（結果⇄一覧の行き来では保持）
+    const p = location.pathname
+    if (!p.startsWith('/transfer') && p !== '/team/chat') clearMarketFilters()
   }, [location.pathname])
 
   // 全タップSE。このアプリは <div onClick> が多いので、button/a に加えて

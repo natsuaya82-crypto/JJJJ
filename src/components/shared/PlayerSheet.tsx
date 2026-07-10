@@ -162,6 +162,14 @@ export default function PlayerSheet() {
     setSelectedRaceName(null)
   }, [openPlayerId])
 
+  // シート表示中は背景ページのスクロールをロックする
+  useEffect(() => {
+    if (!player) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [player?.id])
+
   if (!player) return null
 
   const team = teams.find(t => t.id === player.teamId)
@@ -249,6 +257,8 @@ export default function PlayerSheet() {
           backgroundColor: '#0A1729',
           zIndex: 201,
           fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
+          // 下端の50pxは広告バナーに覆われるため、コンテンツ末尾に余白を確保する
+          paddingBottom: 'calc(60px + env(safe-area-inset-bottom))',
         }}
       >
         {/* Top bar */}
