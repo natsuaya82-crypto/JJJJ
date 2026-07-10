@@ -254,6 +254,7 @@ export default function PlayerSheet() {
           position: 'fixed', top: 0, bottom: 0, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
           overflowY: 'auto',
+          touchAction: 'pan-y',
           backgroundColor: '#0A1729',
           zIndex: 201,
           fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
