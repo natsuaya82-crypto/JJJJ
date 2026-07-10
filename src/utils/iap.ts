@@ -13,8 +13,6 @@ const isIOS = () => Capacitor.getPlatform() === 'ios'
 
 export async function purchaseAdFree(): Promise<PurchaseResult> {
   if (!isIOS()) return 'purchased'
-  // iOSでもネイティブのIAPプラグインが未登録なら購入不可（準備中）
-  if (!Capacitor.isPluginAvailable('IAP')) return 'unavailable'
   try {
     const { result } = await IAP.purchase()
     return result === 'purchased' ? 'purchased' : 'cancelled'
