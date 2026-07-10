@@ -254,7 +254,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main ref={mainRef} style={{
         position: 'fixed', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px',
         top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
-        bottom: `calc(${NAV_H + adH}px + env(safe-area-inset-bottom))`,
+        bottom: `calc(${raceInProgress ? adH : NAV_H + adH}px + env(safe-area-inset-bottom))`,
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}>
         <PageWrapper locationKey={location.pathname}>
