@@ -275,6 +275,7 @@ export type GameStore = GameState & {
   loanInPlayer: (playerId: string, years: number, force?: boolean) => boolean   // 他チームから借りる（forceで主力判定スキップ＝相手が貸す打診済み）
   loanOutPlayer: (playerId: string, toTeamId: string, years: number) => boolean  // 自チームの選手を貸す
   submitLoanRequest: (playerId: string, years: number) => boolean  // 移籍市場からレンタル要請を出す
+  cancelLoanRequest: (playerId: string) => void                    // レンタル要請を取り下げる
   submitTransferBid: (playerId: string, fee: number) => void
   acceptFeeCounter: (bidId: string) => void
   rejectTransferBid: (bidId: string) => void
@@ -2917,6 +2918,15 @@ export const useGameStore = create<GameStore>()(
           },
         }))
         return true
+      },
+
+      cancelLoanRequest: (playerId) => {
+        set(state => ({
+          currentSeason: {
+            ...state.currentSeason,
+            loanRequests: (state.currentSeason.loanRequests ?? []).filter(r => r.playerId !== playerId),
+          },
+        }))
       },
 
       submitTransferBid: (playerId, fee) => {

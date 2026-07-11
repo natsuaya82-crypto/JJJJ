@@ -27,13 +27,14 @@ const BID_STATUS: Record<string, { label: string; color: string }> = {
 
 export default function OfferListPage() {
   const navigate = useNavigate()
-  const { players, teams, playerTeamId, currentSeason, acceptIncomingOffer, declineIncomingOffer, acceptFeeCounter, rejectTransferBid } = useGameStore()
+  const { players, teams, playerTeamId, currentSeason, acceptIncomingOffer, declineIncomingOffer, acceptFeeCounter, rejectTransferBid, cancelLoanRequest } = useGameStore()
   const [tab, setTab] = useState<'incoming' | 'outgoing'>('incoming')
 
   const incoming = currentSeason.incomingOffers ?? []
   const myBids = (currentSeason.transferBids ?? []).filter(b => ['pending', 'fee_accepted', 'countered', 'player_neg'].includes(b.status))
   const acqOffers = (currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered')
-  const outgoingCount = myBids.length + acqOffers.length
+  const loanReqs = currentSeason.loanRequests ?? []
+  const outgoingCount = myBids.length + acqOffers.length + loanReqs.length
 
   const findP = (id: string) => players.find(p => p.id === id)
   const findT = (id: string) => teams.find(t => t.id === id)
@@ -93,6 +94,25 @@ export default function OfferListPage() {
           outgoingCount === 0
             ? <Empty text="出しているオファーはありません" />
             : <>
+                {loanReqs.map(r => {
+                  const p = findP(r.playerId); const t = findT(r.targetTeamId); if (!p) return null
+                  return (
+                    <div key={r.id} style={{ ...cardStyle, border: `1px solid ${alpha(C.blue, 0.4)}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+                        <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={40} /></div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{p.name}</div>
+                          <div style={{ fontSize: 10, color: C.textDim }}>{t?.shortName ?? ''} へレンタル要請 {r.years}年</div>
+                        </div>
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: alpha(C.blue, 0.18), color: C.blue }}>回答待ち</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 12px' }}>
+                        <span style={{ flex: 1, fontSize: 10, color: C.textDim }}>相手クラブの回答を待っています（次レースで回答）</span>
+                        <button onClick={() => cancelLoanRequest(r.playerId)} style={{ ...actBtn(C.textSub, true), flex: 'none', padding: '8px 14px' }}>取り下げ</button>
+                      </div>
+                    </div>
+                  )
+                })}
                 {acqOffers.map(o => {
                   const p = findP(o.playerId); if (!p) return null
                   const st = o.status === 'countered' ? { label: '回答あり', color: C.gold } : { label: '交渉中', color: C.blue }
