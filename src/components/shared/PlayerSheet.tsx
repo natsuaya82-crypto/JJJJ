@@ -11,12 +11,6 @@ import { formatTime } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 
-const CONTRACT_TYPE_LABEL: Record<string, string> = {
-  standard: '本契約',
-  dual: '2way契約',
-  development: '育成契約',
-}
-
 const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
   ace: 'エース',
   sub_ace: 'サブエース',
@@ -152,7 +146,9 @@ export default function PlayerSheet() {
     const dx = e.changedTouches[0].clientX - touchStart.current.x
     const dy = e.changedTouches[0].clientY - touchStart.current.y
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 48) {
-      if (dx < 0) goToPage(Math.min(page + 1, 3))
+      // ドラフト候補（通常選手リスト外）は2ページまで
+      const maxPage = players.some(p => p.id === openPlayerId) ? 3 : 2
+      if (dx < 0) goToPage(Math.min(page + 1, maxPage))
       if (dx > 0) goToPage(Math.max(page - 1, 1))
     }
   }
@@ -404,7 +400,7 @@ export default function PlayerSheet() {
                       { label: '市場価値', val: isScouted ? fmt(calcTransferValue(player)) : '?' },
                       { label: '契約残', val: isScouted ? `${player.contract.yearsLeft}年` : '?' },
                       { label: '年俸', val: isScouted ? fmt(player.contract.annualSalary) : '?' },
-                      { label: '契約体系', val: isScouted ? (CONTRACT_TYPE_LABEL[player.contract.contractType ?? 'standard'] ?? '本契約') : '?' },
+                      { label: 'ドラフト', val: isScouted ? (player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外') : '?' },
                       { label: '立ち位置', val: isScouted ? (player.teamRole ? TEAM_ROLE_LABEL[player.teamRole] : '—') : '?' },
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
@@ -413,16 +409,6 @@ export default function PlayerSheet() {
                       </div>
                     ))}
                   </div>
-                  {isScouted && (
-                    <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
-                      <div style={{ fontSize: '12px', fontWeight: '700', color: player.draftRound ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
-                        {player.draftRound && player.draftPick != null
-                          ? `${player.draftYear}年度 全体${(player.draftRound - 1) * 20 + player.draftPick}位`
-                          : 'ドラフト外'}
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
             </div>

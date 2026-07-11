@@ -16,11 +16,15 @@ export default function StarredPlayersPage() {
   const players = useGameStore(s => s.players)
   const teams = useGameStore(s => s.teams)
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects ?? [])
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
 
-  const starredPlayers = players.filter(p => starredOpponents.includes(p.id))
+  // 通常選手に加え、スカウトのドラフト候補も解決する（★を付けたのに出ない問題の解消）
+  const starredPlayers = starredOpponents
+    .map(id => players.find(p => p.id === id) ?? scoutProspects.find(p => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => p != null)
 
   function getTeamName(teamId: string): string {
     if (teamId === '') return 'FA'
@@ -55,7 +59,8 @@ export default function StarredPlayersPage() {
         ) : starredPlayers.map(p => {
           const rating   = ovr(p)
           const specCol  = SPEC_COLOR[p.specialty]
-          const teamName = getTeamName(p.teamId)
+          const isProspect = !players.some(pp => pp.id === p.id)
+          const teamName = isProspect ? p.origin : getTeamName(p.teamId)
           const isFA     = p.teamId === ''
           const value    = isFA ? faMarketSalary(p) : calcTransferValue(p)
           const valueLabel = isFA ? '市場' : '価値'
