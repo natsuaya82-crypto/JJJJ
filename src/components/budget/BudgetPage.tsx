@@ -3,7 +3,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
-import { computeNextSeasonBudget, rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, BASE_OPERATING_COST } from '../../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -47,8 +47,6 @@ export default function BudgetPage() {
   const squadSalaryTotal = rosterPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
   const facLevelSum = Object.values((myTeam?.facilities ?? {}) as Record<string, number>).reduce((s, v) => s + (v ?? 0), 0)
   const facilityUpkeep = facLevelSum * FACILITY_UPKEEP_PER_LEVEL   // 施設Lv連動（施設なしなら0）
-  const operatingCost = BASE_OPERATING_COST                        // 運営費（一律・施設と無関係）
-  const facRunningCost = facilityUpkeep + operatingCost
 
   const myTeamSponsorIds = myTeam?.sponsors ?? []
   const myPersonalSponsorIds = rosterPlayers.flatMap(p => p.personalSponsors ?? [])
@@ -60,6 +58,9 @@ export default function BudgetPage() {
 
   const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
+  const nextGrant = rankBudgetGrant(myRank || teams.length)
+  const opCost = operatingCost(nextGrant)                          // 運営費＝グラントの10%
+  const facRunningCost = facilityUpkeep + opCost
   const PRIZE_TABLE = [2000, 1500, 1000, 700, 500, 300, 300, 300]
   const prizePerRace = (PRIZE_TABLE[Math.min(myRank - 1, PRIZE_TABLE.length - 1)] ?? 200) * 10000
   const racesLeft = Math.max(0, (currentSeason.races?.length ?? 10) - currentSeason.currentRaceIndex)
@@ -89,10 +90,10 @@ export default function BudgetPage() {
     salaryTotal: squadSalaryTotal,
     runningCost: facRunningCost,
   })
-  const nextGrant = rankBudgetGrant(myRank || teams.length)
 
-  // 今シーズンの収支＝初期予算(繰越)＋今季の収入 − 今季の支出。順位グラントは来期の予算なので含めない。
-  const seasonIncome = budget + sponsorAnnual + projectedSeasonRaceIncome
+  // 今シーズンの収支＝初期予算(繰越)＋スポンサー − 年俸 − 運営費 − 維持費。
+  // 賞金・観客・順位グラントは年度末に確定して来期の予算になるので、今季の収支には含めない。
+  const seasonIncome = budget + sponsorAnnual
   const seasonExpense = squadSalaryTotal + facRunningCost
   const seasonNet = seasonIncome - seasonExpense
 
@@ -163,9 +164,8 @@ export default function BudgetPage() {
           <div style={{ position: 'relative', zIndex: 1 }}>
             <Row label="初期予算（繰越）" value={`+${fmt(budget)}`} color={C.gold} />
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
-            <Row label="賞金・観客収入" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
-            <Row label="運営費" value={`-${fmt(operatingCost)}`} color={C.red} sub="チーム運営の固定費" />
+            <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
             <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
               <div>

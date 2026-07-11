@@ -27,12 +27,15 @@ export function rankBudgetGrant(finalRank: number): number {
   return RANK_BUDGET[finalRank] ?? 350_000_000
 }
 
-// ランニングコスト：施設Lv合計 × 単価 ＋ 一律の運営費（毎シーズンの固定支出）。
-// 強い＝施設が充実→維持費が高い＝勝ってもカツカツになる。
+// ランニングコスト：施設Lv合計 × 単価 ＋ 運営費（＝グラントの10%）。
+// 強い＝グラントが大きい→運営費も高い＝勝ってもカツカツになる。
 export const FACILITY_UPKEEP_PER_LEVEL = 5_000_000   // 施設Lv1つあたり500万/年
-export const BASE_OPERATING_COST = 50_000_000        // 運営費 5000万/年（一律）
-export function runningCost(facilityLevelSum: number): number {
-  return facilityLevelSum * FACILITY_UPKEEP_PER_LEVEL + BASE_OPERATING_COST
+export const OPERATING_COST_RATE = 0.10              // 運営費＝グラント額の10%
+export function operatingCost(grant: number): number {
+  return Math.round(grant * OPERATING_COST_RATE)
+}
+export function runningCost(facilityLevelSum: number, grant: number): number {
+  return facilityLevelSum * FACILITY_UPKEEP_PER_LEVEL + operatingCost(grant)
 }
 
 // 赤字を許容する下限（借金の底）。これ以下は endSeason 側で指名権/選手の強制売却で補填する。

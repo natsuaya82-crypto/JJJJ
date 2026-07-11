@@ -4406,7 +4406,7 @@ export const useGameStore = create<GameStore>()(
             objBudgetBonus,
             bonusPayout: bonusTotalPayout,
             salaryTotal: playerSalaryTotal,
-            runningCost: runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined)),
+            runningCost: runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), rankBudgetGrant(finalRank)),
           })
           // 残高がマイナスなら連続赤字カウント+1、黒字なら0にリセット
           const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
@@ -4435,7 +4435,7 @@ export const useGameStore = create<GameStore>()(
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
-              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined)),
+              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), rankBudgetGrant(rank)),
             })
             return { ...t, finance: { ...t.finance, budget: b, salaryTotal: sal, deficitStreak: b < 0 ? prevStreak + 1 : 0 } }
           })
