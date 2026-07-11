@@ -7,7 +7,6 @@ import type { InteractiveSegResult } from '../../engine/interactiveRace'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
 import { SimPhase } from '../race/SimPhase'
-import { isSecondMember } from '../../data/rosterRules'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -18,7 +17,7 @@ const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り'
 
 export default function ReserveLeaguePage() {
   const navigate = useNavigate()
-  const { teams, players, playerTeamId, currentSeason, runSecondTeamRace, setActiveRacePhase } = useGameStore()
+  const { teams, players, playerTeamId, currentSeason, runSecondTeamRace, setActiveRacePhase, raceLineup, lastRaceLineup } = useGameStore()
 
   const [phase, setPhaseLocal] = useState<Phase>('lineup')
   // 1軍レースと同様に、編成〜進行中は下ナビを隠す
@@ -43,9 +42,15 @@ export default function ReserveLeaguePage() {
   const nextRace = stRaces[stRaceIndex] ?? null
   const activeRace = (phase !== 'lineup' && lockedRace) ? lockedRace : nextRace
 
-  // 2軍選手（2軍契約 ＋ 2way ＋ レンタル枠）。レンタルは1軍/2軍どちらのレースにも出場可。
+  // リザーブ出走者＝直近の本編スカッドに選ばれなかった自チームの控え組。
+  // 本編スカッド（設定中の raceLineup、無ければ直近使用の lastRaceLineup）に入っていない選手を出せる。
+  const mainSquadIds = new Set(
+    ((Object.values(raceLineup).filter(Boolean).length > 0
+      ? Object.values(raceLineup)
+      : Object.values(lastRaceLineup ?? {})) as string[]).filter(Boolean)
+  )
   const secondPlayers = players.filter(
-    p => p.teamId === playerTeamId && (isSecondMember(p) || !!p.loan) && p.status !== 'retired'
+    p => p.teamId === playerTeamId && p.status !== 'retired' && !mainSquadIds.has(p.id)
   )
   // 故障中の選手は選択不可（リストには理由付きで表示）
   const unavailableMap: Record<string, string> = {}
@@ -84,7 +89,7 @@ export default function ReserveLeaguePage() {
       <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40, background: C.bg, minHeight: '100dvh' }}>
         <div style={{ padding: '12px 16px 14px', borderBottom: `1px solid ${C.border}` }}>
           <BackButton/>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '2px', marginBottom: 2 }}>2軍リーグ 全試合完了</div>
+          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '2px', marginBottom: 2 }}>リザーブリーグ 全試合完了</div>
           <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>リザーブシーズン終了</div>
         </div>
         <div style={{ padding: '24px 16px', textAlign: 'center' }}>
@@ -122,7 +127,7 @@ export default function ReserveLeaguePage() {
       <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", background: C.bg, minHeight: '100dvh' }}>
         <div style={{ padding: '12px 16px 14px', borderBottom: `1px solid ${C.border}` }}>
           <BackButton/>
-          <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>２軍リーグ</div>
+          <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>リザーブリーグ</div>
         </div>
         <div style={{ padding: '60px 20px', textAlign: 'center', fontFamily: SAIRA, color: C.textDim, fontSize: 13 }}>
           リザーブリーグは未開始です
