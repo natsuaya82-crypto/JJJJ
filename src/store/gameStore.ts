@@ -424,7 +424,16 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     growthReport: null,
     seasonBudgetNotice: null,
     // 初期予算はグラント表から算出（initialRank連動）。teams.tsの旧ハードコード値に依存しない
-    teams: INITIAL_TEAMS.map(t => ({ ...t, roster: { main: [], second: [] }, finance: { ...t.finance, salaryTotal: 0, budget: rankBudgetGrant(t.initialRank) } })),
+    // 初期施設もinitialRank連動（1-5位:各Lv4=維持費8000万/年、6-10位:Lv3=6000万、11-15位:Lv2=4000万、16-20位:Lv1=2000万）
+    teams: INITIAL_TEAMS.map(t => {
+      const facLv = t.initialRank <= 5 ? 4 : t.initialRank <= 10 ? 3 : t.initialRank <= 15 ? 2 : 1
+      return {
+        ...t,
+        roster: { main: [], second: [] },
+        facilities: { trainingCamp: facLv, medicalCenter: facLv, scoutOffice: facLv, tacticsRoom: facLv },
+        finance: { ...t.finance, salaryTotal: 0, budget: rankBudgetGrant(t.initialRank) },
+      }
+    }),
     players: basePlayers,
     saveTimestamp: new Date().toISOString(),
     version: '0.1.0',
@@ -654,7 +663,8 @@ export const useGameStore = create<GameStore>()(
             return {
               ...t,
               roster: { main: [...prMainIds, ...prDualIds], second: [...prSecondIds, ...prDualIds] },
-              // 最弱スタート：初期予算は最下位(20位)グラント
+              // 最弱スタート：初期予算は最下位(20位)グラント、施設は0から自分で建てる
+              facilities: {},
               finance: { ...t.finance, budget: rankBudgetGrant(20), salaryTotal: prSalaryTotal },
             }
           }
@@ -838,11 +848,11 @@ export const useGameStore = create<GameStore>()(
           lineups[team.id] = buildAILineup(team.id, players, race)
         }
 
-        // Tactics room: boost player-team runners' effective OVR
-        const tacticsLv = teams.find(t => t.id === playerTeamId)?.facilities?.tacticsRoom ?? 0
-        const playersForSim = tacticsLv > 0 ? players.map(p => {
-          if (p.teamId !== playerTeamId) return p
-          const boost = tacticsLv
+        // Tactics room: boost runners' effective OVR (CPUも自チームの施設Lv分だけ強化される)
+        const tacticsLvByTeam = new Map(teams.map(t => [t.id, t.facilities?.tacticsRoom ?? 0]))
+        const playersForSim = players.map(p => {
+          const boost = tacticsLvByTeam.get(p.teamId) ?? 0
+          if (boost <= 0) return p
           return { ...p, ratings: {
             speed: Math.min(99, p.ratings.speed + boost),
             stamina: Math.min(99, p.ratings.stamina + boost),
@@ -852,7 +862,7 @@ export const useGameStore = create<GameStore>()(
             mental: Math.min(99, p.ratings.mental + boost),
             recovery: Math.min(99, p.ratings.recovery + boost),
           }}
-        }) : players
+        })
 
         // Chemistry: nationality cohesion bonus for player team lineup
         const lineupPlayerIds = Object.values(lineup)
@@ -991,14 +1001,15 @@ export const useGameStore = create<GameStore>()(
             Object.values(lineups).flatMap(l => Object.values(l)).filter(Boolean) as string[]
           )
           const stratMult = state.raceStrategy === 'aggressive' ? 1.4 : state.raceStrategy === 'conservative' ? 0.65 : 1.0
-          const medLv = state.teams.find(t => t.id === state.playerTeamId)?.facilities?.medicalCenter ?? 0
-          const medMult = 1 - medLv * 0.08
-          const baseFatigueGain = Math.min(14, 4 + race.segments.length * 1.5) * stratMult * medMult
+          // 医療センターは各チームの施設Lvで疲労軽減（CPUも自チームの施設が効く）
+          const medLvByTeam = new Map(state.teams.map(t => [t.id, t.facilities?.medicalCenter ?? 0]))
+          const baseFatigueGain = Math.min(14, 4 + race.segments.length * 1.5) * stratMult
           const updatedPlayers = state.players.map(p => {
             if (racingIds.has(p.id)) {
+              const medMult = 1 - (medLvByTeam.get(p.teamId) ?? 0) * 0.08
               // recovery stat reduces fatigue gain: recovery=50→normal, recovery=90→-12%
               const recoveryMult = 1.0 - (p.ratings.recovery - 50) * 0.003
-              const fatigueGain = Math.round(baseFatigueGain * Math.max(0.7, recoveryMult))
+              const fatigueGain = Math.round(baseFatigueGain * medMult * Math.max(0.7, recoveryMult))
               // 自然回復: 出場選手は毎レース疲労が6減る
               return { ...p, fatigue: Math.max(0, Math.min(100, p.fatigue + fatigueGain) - 6) }
             } else if (p.status === 'injured') {

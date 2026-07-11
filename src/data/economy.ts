@@ -27,6 +27,17 @@ export function rankBudgetGrant(finalRank: number): number {
   return RANK_BUDGET[finalRank] ?? 350_000_000
 }
 
+// 指名権の市場価値：1巡は指名位置で大きく変わる（全体1位1.2億 → 20位約1600万）。2巡は500〜1000万。
+// pickNumber は 1巡=1〜20。旧データの2巡(21〜40)でも2巡側はほぼ一律なので誤差は出ない。
+export function draftPickValue(round: number, pickNumber: number): number {
+  if (round === 1) {
+    const v = 120_000_000 * Math.pow(0.90, Math.max(0, pickNumber - 1))
+    return Math.max(15_000_000, Math.round(v / 500_000) * 500_000)
+  }
+  const v = 10_000_000 - (Math.max(1, pickNumber) - 1) * 250_000
+  return Math.max(5_000_000, Math.round(v / 500_000) * 500_000)
+}
+
 // ランニングコスト：施設Lv合計 × 単価 ＋ 運営費（＝グラントの10%）。
 // 強い＝グラントが大きい→運営費も高い＝勝ってもカツカツになる。
 export const FACILITY_UPKEEP_PER_LEVEL = 5_000_000   // 施設Lv1つあたり500万/年
