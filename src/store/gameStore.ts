@@ -5404,7 +5404,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 7,
+      version: 8,
       migrate: (persistedState: unknown, version: number) => {
         const s = persistedState as Record<string, unknown>
         // v1→v2: undrafted pool players that were never converted to FA
@@ -5467,6 +5467,16 @@ export const useGameStore = create<GameStore>()(
               return { ...p, rosterTier: 'main', dualRegistered: false, contract: { ...contract, contractType: 'standard' } }
             })
           }
+        }
+        // v8: 既存セーブの予算を新グラント表に合わせる（プレイヤーは最下位20位＝最弱スタート、CPUはinitialRank連動）
+        if (version < 8 && Array.isArray(s.teams)) {
+          const pid = s.playerTeamId as string | undefined
+          s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+            const initialRank = (t.initialRank as number) ?? 10
+            const isPlayer = t.id === pid || t.isPlayerControlled === true
+            const budget = isPlayer ? rankBudgetGrant(20) : rankBudgetGrant(initialRank)
+            return { ...t, finance: { ...(t.finance as Record<string, unknown>), budget } }
+          })
         }
         return s
       },
