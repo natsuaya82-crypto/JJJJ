@@ -124,9 +124,9 @@ export default function ScoutPage() {
 
         {pageTab === 'draft' && (
           <div style={{ padding: '8px 12px', borderRadius: '10px', background: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.2)}`, marginBottom: '10px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>スカウトとドラフトの仕組み</div>
+            <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>ドラフトの仕組み</div>
             <div style={{ fontSize: '10px', color: C.textDim, lineHeight: 1.5 }}>
-              候補選手を視察(PT消費)するとレース後に詳細能力が解放される。シーズン終了後のドラフトでこの情報を元に指名判断ができる。
+              候補選手の能力・ポテンシャルは最初から全公開。シーズン終了後のドラフトで、この情報を元に指名判断ができる。
             </div>
           </div>
         )}
@@ -135,7 +135,6 @@ export default function ScoutPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
             <span style={{ fontSize: '11px', color: C.textDim }}>
               {prospects.length}名の候補選手
-              {scoutedCount > 0 && <span style={{ color: C.gold, marginLeft: '4px' }}>• {scoutedCount}名視察済</span>}
             </span>
             <div style={{
               marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px',
