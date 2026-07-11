@@ -258,8 +258,6 @@ export default function PlayerSheet() {
           backgroundColor: '#0A1729',
           zIndex: 201,
           fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
-          // 下端の50pxは広告バナーに覆われるため、コンテンツ末尾に余白を確保する
-          paddingBottom: 'calc(60px + env(safe-area-inset-bottom))',
         }}
       >
         {/* Top bar */}
@@ -559,6 +557,9 @@ export default function PlayerSheet() {
           })()}
 
         </div>
+        {/* 下端の広告バナー分のスペーサー。iOSのWebViewはスクロールコンテナの
+            padding-bottomをスクロール領域に含めないことがあるため、要素で確保する */}
+        <div style={{ height: 'calc(60px + env(safe-area-inset-bottom))', flexShrink: 0 }} />
       </div>
     </>
   )
