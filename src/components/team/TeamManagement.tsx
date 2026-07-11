@@ -109,6 +109,8 @@ export default function TeamManagement() {
   const activeTier: RosterTier = activeTab === 'loan' ? 'main' : activeTab
   // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
   const loanedIn = allPlayers.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId && p.status !== 'retired')
+  const rosterSalary = allPlayers.filter(p => p.teamId === playerTeamId && p.status !== 'retired').reduce((s, p) => s + p.contract.annualSalary, 0)
+  const fmtYen = (y: number) => y >= 100000000 ? `${(y / 100000000).toFixed(1)}億` : `${Math.round(y / 10000)}万`
   const rawPlayers = activeTab === 'loan' ? loanedIn : getTeamPlayers(playerTeamId, activeTier)
   const players = [...rawPlayers]
     .filter(p => searchQuery === '' || p.name.includes(searchQuery) || p.nameKana.includes(searchQuery))
@@ -313,33 +315,24 @@ export default function TeamManagement() {
       })()}
 
       {(section === 'roster' || !section) && <>
-      <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, margin: '0 12px 0' }}>
-        {([
-          { key: 'main' as const, label: 'ロスター', count: team.roster.main.length, max: TIER_MAX.main },
-          ...(loanedIn.length > 0 ? [{ key: 'loan' as const, label: 'レンタル', count: loanedIn.length }] : []),
-        ] as { key: RosterTier | 'loan'; label: string; count: number; max?: number }[]).map(tab => {
-          const active = activeTab === tab.key
-          const alertColor = C.gold
-          const isAlert = false
-          return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              flex: 1, padding: '10px 2px 8px', border: 'none', background: active
-                ? `linear-gradient(135deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.06)})`
-                : 'transparent',
-              borderBottom: `1.5px solid ${active ? alpha(alertColor, 0.4) : 'transparent'}`,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              color: active ? alertColor : C.textDim,
-              transition: 'all 0.15s',
-            }}>
-              <div style={{ fontSize: 12, fontWeight: active ? 800 : 500 }}>{tab.label}</div>
-              <div style={{ fontSize: 10, fontFamily: SAIRA, color: active ? alertColor : C.textGhost, marginTop: 1 }}>
-                {'max' in tab ? `${tab.count}/${tab.max}` : `${tab.count}名`}
-              </div>
-              {isAlert && !active && <div style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: C.red, margin: '2px auto 0' }}/>}
-            </button>
-          )
-        })}
+      {/* ロスター見出し：人数・総年俸・（あれば）レンタルトグルを1行に集約 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px 8px', flexWrap: 'wrap' }}>
+        <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.text }}>ロスター</span>
+        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: C.gold }}>
+          {team.roster.main.length}<span style={{ fontSize: 11, color: C.textDim }}>/{TIER_MAX.main}</span>
+        </span>
+        <span style={{ fontSize: 11, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
+        <div style={{ flex: 1 }} />
+        {loanedIn.length > 0 && (
+          <button onClick={() => setActiveTab(activeTab === 'loan' ? 'main' : 'loan')} style={{
+            padding: '5px 11px', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA, fontSize: 11, fontWeight: 800,
+            border: `1px solid ${activeTab === 'loan' ? C.gold : C.border2}`,
+            background: activeTab === 'loan' ? alpha(C.gold, 0.15) : 'transparent',
+            color: activeTab === 'loan' ? C.gold : C.textDim,
+          }}>
+            レンタル {loanedIn.length}
+          </button>
+        )}
       </div>
 
       {(
