@@ -15,7 +15,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { simulateForeignTransferMarket } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost } from '../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -73,6 +73,12 @@ function placePlayerInTier(
 // 売却・トレード済みの指名権を「欠落」と誤認して再生成（複製）しないため。
 function pickExistsAnywhere(teams: Team[], ownerId: string, year: number, round: number): boolean {
   return teams.some(t => (t.draftPicks ?? []).some(pk => pk.year === year && pk.round === round && pk.originallyOwnedBy === ownerId))
+}
+
+// 指名権キー "YYYY-R{round}-{pickNumber}" から市場価値を出す（位置連動）。解釈不能なら2巡相当
+function pickKeyValue(key: string): number {
+  const m = key.match(/-R(\d+)-(\d+)$/)
+  return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000
 }
 
 // 獲得交渉での選手の希望年俸（厳しめ）。市場年俸に実績プレミアムを乗せ、引き抜きは現年俸からの昇給を要求。
@@ -258,7 +264,7 @@ export type GameStore = GameState & {
   acceptAcquisitionCounter: (offerId: string) => void
   reNegotiateAcquisition: (offerId: string) => void
   abandonAcquisitionOffer: (offerId: string) => void
-  releasePlayerWithBuyout: (playerId: string) => void
+  releasePlayerWithBuyout: (playerId: string) => boolean
   counterIncomingOffer: (offerId: string, counterPrice: number) => 'sold' | 'refused' | 'invalid'
   generateContractRequests: () => void
   dismissRetirementRequest: (playerId: string) => void
@@ -2713,12 +2719,14 @@ export const useGameStore = create<GameStore>()(
       },
 
       releasePlayerWithBuyout: (playerId) => {
+        let released = false
         set(state => {
           const player = state.players.find(p => p.id === playerId)
           if (!player || player.teamId !== state.playerTeamId) return state
           // 最低ロスター人数を割る解雇は不可
           if (!canReleaseFromRoster(state.players, state.playerTeamId)) return state
           const buyoutCost = player.contract.annualSalary * Math.max(0, player.contract.yearsLeft - 1)
+          released = true
           return {
             players: state.players.map(p => p.id === playerId ? { ...p, teamId: '', } : p),
             teams: state.teams.map(t => {
@@ -2734,6 +2742,7 @@ export const useGameStore = create<GameStore>()(
             }),
           }
         })
+        return released
       },
 
       counterIncomingOffer: (offerId, counterPrice) => {
@@ -3047,7 +3056,7 @@ export const useGameStore = create<GameStore>()(
         if (!myTeam || !buyTeam) return false
         const pick = myTeam.draftPicks.find(p => `${p.year}-R${p.round}-${p.pickNumber}` === pickKey)
         if (!pick) return false
-        const fairVal = pick.round === 1 ? 25_000_000 : 8_000_000
+        const fairVal = draftPickValue(pick.round, pick.pickNumber)
         if (price > fairVal * 1.3) return false
         if (buyTeam.finance.budget < price) return false  // 買い手が払えない額では成立しない
         const date = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
@@ -3221,7 +3230,6 @@ export const useGameStore = create<GameStore>()(
         // calcTransferValue（OVR・年齢・実績を加味）＋出場データで両サイドの価値を比較。
         // 相手の主力は無条件拒否ではなく1.5倍の価値を要求（proposeTradeと同じ換算）
         const teamRaces = state.currentSeason.currentRaceIndex
-        const pickValue = 8_000_000  // 指名権1つの概算価値
         const activityBonus = (p: Player) => {
           const apps = seasonAppearances(p.id, state.currentSeason.races)
           const frac = teamRaces > 0 ? apps / teamRaces : 0
@@ -3233,9 +3241,9 @@ export const useGameStore = create<GameStore>()(
           return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
         }
         const offeredVal = offered.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p), 0)
-          + offerPickKeys.length * pickValue + Math.max(0, transferFee)
+          + offerPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, transferFee)
         const requestedVal = requested.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p) * keyPremium(p), 0)
-          + requestPickKeys.length * pickValue + Math.max(0, -transferFee)
+          + requestPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, -transferFee)
         if (offeredVal < requestedVal * 0.92) return false  // 価値が釣り合わなければ不成立
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
@@ -3328,11 +3336,10 @@ export const useGameStore = create<GameStore>()(
       // トレードのチャット交渉。提案→相手が承諾/カウンター/拒否（最大3回）。
       proposeTrade: (targetTeamId, giveIds, givePickKeys, getIds, getPickKeys) => {
         const state = get()
-        const PICK = 8_000_000
         const teamRaces = state.currentSeason.currentRaceIndex
         const activity = (p: Player) => { const apps = seasonAppearances(p.id, state.currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : 0; return 1 + frac * 0.4 }
         const pval = (p: Player) => calcTransferValue(p) * activity(p)
-        const valOf = (ids: string[], picks: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + picks.length * PICK
+        const valOf = (ids: string[], picks: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + picks.reduce((s, k) => s + pickKeyValue(k), 0)
         const theirName = state.teams.find(t => t.id === targetTeamId)?.shortName ?? '相手クラブ'
         // 主力（データ上よく出場・やる気あり）は無条件拒否ではなく1.5倍の価値を要求する
         const keyPremium = (p: Player) => {
@@ -3341,7 +3348,7 @@ export const useGameStore = create<GameStore>()(
           return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
         }
         const cpuGain = valOf(giveIds, givePickKeys)  // 相手が受け取る
-        const cpuLoss = getIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p) * keyPremium(p), 0) + getPickKeys.length * PICK  // 相手が手放す（主力プレミアム込み）
+        const cpuLoss = getIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p) * keyPremium(p), 0) + getPickKeys.reduce((s, k) => s + pickKeyValue(k), 0)  // 相手が手放す（主力プレミアム込み）
 
         const existing = (state.currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === targetTeamId)
         const round = (existing?.round ?? 0) + 1
@@ -3611,10 +3618,19 @@ export const useGameStore = create<GameStore>()(
         // 空のとき（旧セーブ等）だけ従来通り新規生成にフォールバック。
         const scouted = state.currentSeason.scoutProspects ?? []
         const pool = scouted.length > 0 ? scouted : generateDraftPool(state.currentSeason.year)
-        const pickOrder = buildDraftOrder(state.teams, state.currentSeason.year, state.playerTeamId)
+        const yr = state.currentSeason.year
+
+        // ドラフト順は「当年分の指名権の所有」で決める：最下位のpick1を買ったチームがそのまま全体1位で指名。
+        // 当年分の指名権が揃っていない（旧セーブ等）場合だけ従来の順位ベースにフォールバック。
+        const ownedYearPicks = state.teams
+          .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => ({ round: pk.round, pickNumber: pk.pickNumber, ownerId: t.id })))
+          .sort((a, b) => a.round - b.round || a.pickNumber - b.pickNumber)
+        const pickOrder = ownedYearPicks.length >= state.teams.length
+          ? ownedYearPicks.map(pk => pk.ownerId)
+          : buildDraftOrder(state.teams, state.currentSeason.year, state.playerTeamId)
 
         // Ensure all teams have future draft picks (backfill for existing saves)
-        const yr = state.currentSeason.year
+        // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）
         const numTeamsForPicks = state.teams.length
         const teamsWithPicks = state.teams.map((t, tIdx) => {
           const approxPick = numTeamsForPicks - tIdx
@@ -3626,7 +3642,7 @@ export const useGameStore = create<GameStore>()(
               }
             }
           }
-          return newPicks.length > 0 ? { ...t, draftPicks: [...(t.draftPicks ?? []), ...newPicks] } : t
+          return { ...t, draftPicks: [...(t.draftPicks ?? []).filter(pk => pk.year > yr), ...newPicks] }
         })
 
         // CPU teams release declining/surplus players

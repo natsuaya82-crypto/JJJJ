@@ -27,12 +27,13 @@ export function rankBudgetGrant(finalRank: number): number {
   return RANK_BUDGET[finalRank] ?? 350_000_000
 }
 
-// 指名権の市場価値：1巡は指名位置で大きく変わる（全体1位1.2億 → 20位約1600万）。2巡は500〜1000万。
+// 指名権の市場価値：ドラ1級選手の実価値(約1.2億)×0.9^指名位置。
+// 全体1位≈1.08億、5位≈7100万、10位≈4200万、20位≈1450万。2巡は500〜1000万。
 // pickNumber は 1巡=1〜20。旧データの2巡(21〜40)でも2巡側はほぼ一律なので誤差は出ない。
 export function draftPickValue(round: number, pickNumber: number): number {
   if (round === 1) {
-    const v = 120_000_000 * Math.pow(0.90, Math.max(0, pickNumber - 1))
-    return Math.max(15_000_000, Math.round(v / 500_000) * 500_000)
+    const v = 120_000_000 * Math.pow(0.90, Math.max(1, pickNumber))
+    return Math.max(14_000_000, Math.round(v / 500_000) * 500_000)
   }
   const v = 10_000_000 - (Math.max(1, pickNumber) - 1) * 250_000
   return Math.max(5_000_000, Math.round(v / 500_000) * 500_000)

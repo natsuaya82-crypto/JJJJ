@@ -9,6 +9,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, GameEvent, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
+import { draftPickValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
 
 const CONTRACT_TYPE_OPTS = [
@@ -650,7 +651,7 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
 
   // 成功率の見積もり（proposeTradeと同じ評価式）
   const tradeOutlook = (() => {
-    const PICK = 8_000_000
+    const pickVal = (k: string) => { const m = k.match(/-R(\d+)-(\d+)$/); return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000 }
     const teamRaces = currentSeason.currentRaceIndex
     const activity = (p: Player) => { const apps = seasonAppearances(p.id, currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : 0; return 1 + frac * 0.4 }
     const pval = (p: Player) => calcTransferValue(p) * activity(p)
@@ -661,8 +662,8 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
       return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
     }
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
-    const cpuGain = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + givePk.size * PICK
-    const cpuLoss = getPlayers.reduce((s, p) => s + pval(p) * keyPremium(p), 0) + getPk.size * PICK
+    const cpuGain = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + [...givePk].reduce((s, k) => s + pickVal(k), 0)
+    const cpuLoss = getPlayers.reduce((s, p) => s + pval(p) * keyPremium(p), 0) + [...getPk].reduce((s, k) => s + pickVal(k), 0)
     const hasKey = getPlayers.some(p => keyPremium(p) > 1)
     const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
     const myRank = stgs.findIndex(s => s.teamId === playerTeamId) + 1
@@ -683,7 +684,7 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
     return { rate, shortage, blockMsg, hasKey, isFinal: nextRound >= 3 }
   })()
   const pickKey = (pk: { year: number; round: number; pickNumber: number }) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
-  const pickLabel = (k: string) => { const [y, r] = k.split('-'); return `${y} ${r.replace('R', '第')}巡` }
+  const pickLabel = (k: string) => { const [y, r, n] = k.split('-'); return r === 'R1' ? `${y} 1巡(全体${n}位)` : `${y} ${r.replace('R', '第')}巡` }
   const nameOf = (id: string) => players.find(p => p.id === id)?.name ?? '選手'
   const toggle = (setFn: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) => setFn(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   const getCount = getP.size + getPk.size

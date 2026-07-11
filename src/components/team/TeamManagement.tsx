@@ -93,6 +93,10 @@ export default function TeamManagement() {
   const [specFilter, setSpecFilter] = useState<string>('all')
   // 自チーム選手：タップ＝ボトムシートメニュー / 長押し＝選手詳細
   const [menuPlayerId, setMenuPlayerId] = useState<string | null>(null)
+  // 解雇確認（違約金を見せてから実行）
+  const [releasePlayerId, setReleasePlayerId] = useState<string | null>(null)
+  const [releaseError, setReleaseError] = useState(false)
+  const releasePlayerWithBuyout = useGameStore(s => s.releasePlayerWithBuyout)
   const lp = useRef<{ t?: number; long: boolean }>({ long: false })
 
   const rowHandlers = (pid: string): RowHandlers => ({
@@ -404,8 +408,39 @@ export default function TeamManagement() {
               { label: 'チャット', onClick: () => { setMenuPlayerId(null); navigate(`/team/chat?player=${mp.id}`) } },
               { label: 'カード練習', disabled: !cardEnabled, onClick: () => { setMenuPlayerId(null); navigate(`/cards?player=${mp.id}`) } },
               { label: '契約確認', onClick: () => { setMenuPlayerId(null); openContractInfo(mp.id) } },
+              { label: '解雇する', color: C.red, disabled: isRental, onClick: () => { setMenuPlayerId(null); setReleaseError(false); setReleasePlayerId(mp.id) } },
             ] : []}
           />
+        )
+      })()}
+
+      {(() => {
+        const rp = releasePlayerId ? allPlayers.find(p => p.id === releasePlayerId) : undefined
+        if (!rp) return null
+        const buyout = rp.contract.annualSalary * Math.max(0, rp.contract.yearsLeft - 1)
+        return (
+          <>
+            <div onClick={() => setReleasePlayerId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 320 }} />
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 321, width: 'calc(100% - 48px)', maxWidth: 360, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 16, padding: '20px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>{rp.name}を解雇しますか？</div>
+              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.7, marginBottom: 4 }}>
+                違約金：<span style={{ color: buyout > 0 ? C.red : C.textDim, fontWeight: 800 }}>{buyout > 0 ? fmtYen(buyout) : 'なし'}</span>
+                {buyout > 0 && <span style={{ color: C.textDim }}>（年俸×残り{rp.contract.yearsLeft - 1}年分を即時支払い）</span>}
+              </div>
+              <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 14 }}>解雇した選手はフリーになり、戻すことはできません。</div>
+              {releaseError && <div style={{ fontSize: 11, color: C.red, marginBottom: 10 }}>最低ロスター人数を下回るため解雇できません。</div>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { const ok = releasePlayerWithBuyout(rp.id); if (ok) setReleasePlayerId(null); else setReleaseError(true) }}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: C.red, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  解雇する
+                </button>
+                <button onClick={() => setReleasePlayerId(null)}
+                  style={{ flex: 1, padding: '12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  やめる
+                </button>
+              </div>
+            </div>
+          </>
         )
       })()}
     </div>

@@ -8,7 +8,11 @@ import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, career
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
+import PlayerRow from '../player/PlayerRow'
+import ActionSheet from '../ui/ActionSheet'
+import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
+import { draftPickValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -75,6 +79,7 @@ export default function TransferPage() {
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const adH = useAdHeight()
 
   const { section } = useParams<{ section: string }>()
   const navigate = useNavigate()
@@ -119,6 +124,10 @@ export default function TransferPage() {
   }, [mktSearch, mktSpec, mktNat, mktAvail, mktTeam, mktAge, mktLeague, mktSortKey, mktSortDir])
   const [bidTarget, setBidTarget] = useState<string | null>(null)
   const [bidFee, setBidFee] = useState(0)
+  // 移籍市場カード：タップ＝ボトムシートメニュー / 長押し＝選手詳細
+  const [menuPlayerId, setMenuPlayerId] = useState<string | null>(null)
+  const [loanTarget, setLoanTarget] = useState<string | null>(null)
+  const lpRef = useRef<{ t?: number; long: boolean }>({ long: false })
 
   const [filterSpec, setFilterSpec] = useState<Specialty | 'all'>('all')
   const [tradeTier, setTradeTier] = useState<'all' | 'main' | 'second'>('all')
@@ -149,7 +158,7 @@ export default function TransferPage() {
   function pickKey(p: { year: number; round: number; pickNumber: number }) {
     return `${p.year}-R${p.round}-${p.pickNumber}`
   }
-  function pickValue(round: number) { return round === 1 ? 25_000_000 : 8_000_000 }
+  function pickValue(round: number, pickNumber: number) { return draftPickValue(round, pickNumber) }
 
   function resetTrade(teamId: string | null) {
     setTradeTarget(teamId)
@@ -233,6 +242,16 @@ export default function TransferPage() {
   const window = getTransferWindow()
   // 赤字ペナルティ中は新規補強不可（startAcquisitionOfferが内部で弾くため、ボタン側でも明示する）
   const signingBanned = (myTeam.finance.deficitStreak ?? 0) >= 1
+
+  // 移籍市場カードの押下：タップ＝メニュー / 長押し(450ms)＝選手詳細。
+  // ※この関数より下で `window` が getTransferWindow() の結果に shadow されるため、bare の setTimeout/clearTimeout を使う。
+  const rowHandlers = (pid: string) => ({
+    onPointerDown: () => { lpRef.current.long = false; lpRef.current.t = setTimeout(() => { lpRef.current.long = true; openPlayerSheet(pid) }, 450) },
+    onPointerUp: () => { if (lpRef.current.t) { clearTimeout(lpRef.current.t); lpRef.current.t = undefined } },
+    onPointerLeave: () => { if (lpRef.current.t) { clearTimeout(lpRef.current.t); lpRef.current.t = undefined } },
+    onPointerMove: () => { if (lpRef.current.t) { clearTimeout(lpRef.current.t); lpRef.current.t = undefined } },
+    onClick: () => { if (lpRef.current.long) { lpRef.current.long = false; return } setMenuPlayerId(pid) },
+  })
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
     .sort((a, b) => ovr(b) - ovr(a))
@@ -502,129 +521,141 @@ export default function TransferPage() {
             {marketPlayers.length === 0 && (
               <div style={{ padding: '40px', textAlign: 'center', color: C.textGhost, fontSize: '13px', fontFamily: SAIRA }}>条件に合う選手なし</div>
             )}
+            {/* ロスターと同じカード：タップ＝メニュー / 長押し＝詳細 */}
+            <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {marketPlayers.map(p => {
-              const specCol = SPEC_COLOR[p.specialty]
               const isListed = listedIds.has(p.id)
-              const val = calcTransferValue(p)
-              const listing = listings.find(l => l.playerId === p.id)
               const hasBid = activeBids.some(b => b.playerId === p.id)
-              // 交渉決裂ペナルティ中は入札不可（グレーアウト）
               const bidLocked = p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
-              const isBidOpen = bidTarget === p.id
-              const initFee = listing ? Math.round(listing.askingPrice * 0.82 / 500000) * 500000 : Math.round(val * 0.85 / 500000) * 500000
-              const rating = ovr(p)
-              const isScouted = isOpponentScouted(p.id, currentSeason)
-              const scoutPending = isScoutPending(p.id, currentSeason)
-              const isStarred = starredOpponents.includes(p.id)
+              const ownerTeam = teams.find(t => t.id === p.teamId)
+              const badge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px', borderRadius: 3, fontWeight: 700, flexShrink: 0 }
               return (
-                <div key={p.id} style={{ marginBottom: '7px', opacity: bidLocked ? 0.5 : 1 }}>
-                  <div style={{
-                    position: 'relative', overflow: 'hidden',
-                    borderRadius: isBidOpen ? '14px 14px 0 0' : '14px',
-                    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                    border: `2px solid ${isListed ? C.goldDark : alpha(specCol, 0.25)}`,
-                    boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  }}>
-                    <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                      <div style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}
-                          onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
-                          <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }} onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
-                          <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                            <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>
-                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{p.age}歳</span>
-                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{allClubs[p.teamId] ?? '?'}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>価値 <span style={{ color: C.gold }}>{isScouted ? fmt(val) : '?'}</span></span>
-                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{isScouted ? fmt(p.contract.annualSalary) : '?'}</span></span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                          <button
-                            onClick={e => { e.stopPropagation(); toggleStarOpponent(p.id) }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: isStarred ? C.gold : C.textGhost, fontSize: 18, lineHeight: 1 }}
-                          >
-                            {isStarred ? '★' : '☆'}
-                          </button>
-                          {p.teamId === '' ? (
-                            <button disabled={signingBanned}
-                              onClick={() => { if (signingBanned) return; startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
-                              style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: signingBanned ? C.surface2 : `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: signingBanned ? C.textGhost : '#0A0912', fontSize: '11px', fontWeight: '800', cursor: signingBanned ? 'not-allowed' : 'pointer', fontFamily: SAIRA }}>
-                              {signingBanned ? '赤字で補強不可' : '契約オファー'}
-                            </button>
-                          ) : hasBid ? (
-                            <span style={{ fontSize: '10px', color: C.gold, fontWeight: '700', fontFamily: SAIRA }}>入札中</span>
-                          ) : bidLocked ? (
-                            <span style={{ fontSize: '10px', color: C.red, fontWeight: '700', fontFamily: SAIRA }}>交渉決裂・来季まで不可</span>
-                          ) : (
-                            <button disabled={!window.open}
-                              onClick={() => { setBidTarget(isBidOpen ? null : p.id); if (!isBidOpen) setBidFee(initFee) }}
-                              style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: !window.open ? C.surface2 : isBidOpen ? C.surface2 : `linear-gradient(135deg, ${C.gold}, #E8C86A)`, color: !window.open ? C.textGhost : isBidOpen ? C.textSub : '#0A0912', fontSize: '11px', fontWeight: '800', cursor: window.open ? 'pointer' : 'not-allowed', fontFamily: SAIRA }}>
-                              {isBidOpen ? '閉じる' : '入札'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {isBidOpen && (
-                    <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderTop: 'none', borderRadius: '0 0 14px 14px', padding: '12px 14px' }}>
-                      <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
-                        入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(val)}</span>
-                        {listing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmt(listing.askingPrice)}</span>}
-                      </div>
-                      <div style={{ padding: '4px 0 10px' }}>
-                        <NumberDial value={bidFee} onChange={v => setBidFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', marginBottom: '10px', fontFamily: SAIRA }}>
-                        <span style={{ color: C.textGhost }}>低い</span>
-                        <span style={{ fontWeight: '700', color: bidFee >= val ? C.green : bidFee >= val * 0.75 ? C.gold : C.red }}>
-                          {bidFee >= val ? '合意圏' : bidFee >= val * 0.75 ? 'カウンター可能性' : '否決の可能性高'}
+                <div key={p.id} style={{ opacity: bidLocked ? 0.5 : 1 }}>
+                  <PlayerRow
+                    player={p}
+                    handlers={rowHandlers(p.id)}
+                    extra={
+                      <>
+                        <span style={{ ...badge, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: C.textSub }}>
+                          {ownerTeam && <TeamLogoSVG primary={ownerTeam.colors.primary} secondary={ownerTeam.colors.secondary} shortName={ownerTeam.shortName} teamId={ownerTeam.id} size={11} />}
+                          {allClubs[p.teamId] ?? 'FA'}
                         </span>
-                        <span style={{ color: C.textGhost }}>高い</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => { submitTransferBid(p.id, bidFee); setBidTarget(null) }}
-                          disabled={bidFee > myTeam.finance.budget}
-                          style={{
-                            flex: 1, padding: '11px', borderRadius: '11px', border: 'none', marginBottom: 8,
-                            background: bidFee > myTeam.finance.budget ? C.surface2 : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                            color: bidFee > myTeam.finance.budget ? C.textGhost : C.gold,
-                            fontSize: '13px', fontWeight: '900', cursor: bidFee <= myTeam.finance.budget ? 'pointer' : 'default', fontFamily: SAIRA,
-                            boxShadow: bidFee > myTeam.finance.budget ? 'none' : '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                          } as React.CSSProperties}>
-                          {bidFee > myTeam.finance.budget ? '予算不足' : '入札する（次レース回答）'}
-                        </button>
-                        <button onClick={() => setBidTarget(null)} style={{ padding: '11px 14px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
-                      </div>
-                      {/* レンタル要請（買わずに借りる） */}
-                      <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 2, paddingTop: 10 }}>
-                        {(() => {
-                          const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
-                          const reqPending = (currentSeason.loanRequests ?? []).some(r => r.playerId === p.id)
-                          if (reqPending) return <div style={{ fontSize: 10, color: C.blue, fontFamily: SAIRA }}>レンタル要請中 — 次レースで回答</div>
-                          if (slots >= 3) return <div style={{ fontSize: 10, color: C.red, fontFamily: SAIRA }}>レンタル枠が満杯（3/3）</div>
-                          return (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, marginRight: 'auto' }}>買わずにレンタルで要請</span>
-                              {[1, 2].map(y => (
-                                <button key={y} onClick={() => { submitLoanRequest(p.id, y); setBidTarget(null) }} style={{ padding: '7px 13px', borderRadius: 8, border: `1.5px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.12), color: C.blue, fontSize: 11, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>{y}年</button>
-                              ))}
-                            </div>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                  )}
+                        {isListed && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>出品中</span>}
+                        {hasBid && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>入札中</span>}
+                        {bidLocked && <span style={{ ...badge, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red }}>交渉決裂</span>}
+                      </>
+                    }
+                  />
                 </div>
               )
             })}
+            </div>
+
+            {/* タップメニュー（ロスターと同じ操作系） */}
+            {(() => {
+              const mp = menuPlayerId ? players.find(x => x.id === menuPlayerId) : undefined
+              if (!mp) return null
+              const isFA = mp.teamId === ''
+              const mHasBid = activeBids.some(b => b.playerId === mp.id)
+              const mLocked = mp.transferLockedUntilYear != null && currentSeason.year < mp.transferLockedUntilYear
+              const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+              const reqPending = (currentSeason.loanRequests ?? []).some(r => r.playerId === mp.id)
+              const mListing = listings.find(l => l.playerId === mp.id)
+              const mVal = calcTransferValue(mp)
+              const mInit = mListing ? Math.round(mListing.askingPrice * 0.82 / 500000) * 500000 : Math.round(mVal * 0.85 / 500000) * 500000
+              const isStarred = starredOpponents.includes(mp.id)
+              const items: { label: string; disabled?: boolean; color?: string; onClick: () => void }[] = isFA ? [
+                { label: signingBanned ? '赤字で補強不可' : '契約オファー', disabled: signingBanned, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
+                { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
+              ] : [
+                { label: mHasBid ? '入札中 — 次レースで回答' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '交渉決裂・来季まで不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id); setBidFee(mInit) } },
+                { label: reqPending ? 'レンタル要請中 — 次レースで回答' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : !window.open ? '移籍ウィンドウ CLOSED' : 'レンタルで借りる', disabled: reqPending || slots >= 3 || !window.open, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
+                { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
+              ]
+              return (
+                <ActionSheet
+                  open={!!mp}
+                  onClose={() => setMenuPlayerId(null)}
+                  header={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                        <PlayerFace playerId={mp.id} nationality={mp.nationality} size={44} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{mp.name}</div>
+                        <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · {allClubs[mp.teamId] ?? 'FA'}</div>
+                        <div style={{ fontSize: 10, color: C.textSub, marginTop: 2, fontFamily: SAIRA }}>価値 <span style={{ color: C.gold }}>{fmt(mVal)}</span>　年俸 {fmt(mp.contract.annualSalary)}</div>
+                      </div>
+                      <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>
+                    </div>
+                  }
+                  items={items}
+                />
+              )
+            })()}
+
+            {/* 入札シート（金額入力） */}
+            {(() => {
+              const bp = bidTarget ? players.find(x => x.id === bidTarget) : undefined
+              if (!bp) return null
+              const bListing = listings.find(l => l.playerId === bp.id)
+              const bVal = calcTransferValue(bp)
+              return (
+                <>
+                  <div onClick={() => setBidTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300 }} />
+                  <div className="sheet-up" style={{ position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: 480, zIndex: 301, background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', padding: '8px 16px calc(16px + env(safe-area-inset-bottom))' }}>
+                    <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
+                    <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 8 }}>{bp.name} へ入札</div>
+                    <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
+                      入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(bVal)}</span>
+                      {bListing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmt(bListing.askingPrice)}</span>}
+                    </div>
+                    <div style={{ padding: '4px 0 10px' }}>
+                      <NumberDial value={bidFee} onChange={v => setBidFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', marginBottom: '12px', fontFamily: SAIRA }}>
+                      <span style={{ color: C.textGhost }}>低い</span>
+                      <span style={{ fontWeight: '700', color: bidFee >= bVal ? C.green : bidFee >= bVal * 0.75 ? C.gold : C.red }}>
+                        {bidFee >= bVal ? '合意圏' : bidFee >= bVal * 0.75 ? 'カウンター可能性' : '否決の可能性高'}
+                      </span>
+                      <span style={{ color: C.textGhost }}>高い</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => { submitTransferBid(bp.id, bidFee); setBidTarget(null) }} disabled={bidFee > myTeam.finance.budget}
+                        style={{ flex: 1, padding: '13px', borderRadius: '11px', border: 'none', background: bidFee > myTeam.finance.budget ? C.surface2 : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: bidFee > myTeam.finance.budget ? C.textGhost : C.gold, fontSize: '14px', fontWeight: '900', cursor: bidFee <= myTeam.finance.budget ? 'pointer' : 'default', fontFamily: SAIRA, boxShadow: bidFee > myTeam.finance.budget ? 'none' : '0 4px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.08)' } as React.CSSProperties}>
+                        {bidFee > myTeam.finance.budget ? '予算不足' : '入札する（次レース回答）'}
+                      </button>
+                      <button onClick={() => setBidTarget(null)} style={{ padding: '13px 16px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '13px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
+
+            {/* レンタルシート（期間選択） */}
+            {(() => {
+              const rp = loanTarget ? players.find(x => x.id === loanTarget) : undefined
+              if (!rp) return null
+              return (
+                <>
+                  <div onClick={() => setLoanTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300 }} />
+                  <div className="sheet-up" style={{ position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: 480, zIndex: 301, background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', padding: '8px 16px calc(16px + env(safe-area-inset-bottom))' }}>
+                    <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
+                    <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 4 }}>{rp.name} をレンタル</div>
+                    <div style={{ fontSize: 10, color: C.textDim, marginBottom: 14, fontFamily: SAIRA }}>買わずに借りる。期間を選んで要請（次レースで回答）。</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      {[1, 2].map(y => (
+                        <button key={y} onClick={() => { submitLoanRequest(rp.id, y); setLoanTarget(null) }}
+                          style={{ flex: 1, padding: '14px', borderRadius: 12, border: `1.5px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.12), color: C.blue, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>
+                          {y}年契約
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => setLoanTarget(null)} style={{ display: 'block', width: '100%', marginTop: 12, padding: '13px', borderRadius: 12, border: `1px solid ${C.border}`, background: C.surface2, color: C.textDim, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>キャンセル</button>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         )
       })()}
@@ -990,7 +1021,7 @@ export default function TransferPage() {
                   <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px', fontFamily: SAIRA }}>指名権の売却</div>
                   {myPicks.map(pk => {
                     const k = `${pk.year}-R${pk.round}-${pk.pickNumber}`
-                    const fairVal = pk.round === 1 ? 25_000_000 : 8_000_000
+                    const fairVal = draftPickValue(pk.round, pk.pickNumber)
                     const isSelling = pickSellTarget === k
                     return (
                       <div key={k} style={{ marginBottom: '6px' }}>
@@ -1001,7 +1032,7 @@ export default function TransferPage() {
                           border: `1px solid ${isSelling ? alpha(C.blue, 0.35) : C.border2}`,
                         }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権</div>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権{pk.round === 1 ? `（全体${pk.pickNumber}位）` : ''}</div>
                             <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>参考価値 ≈ {fmt(fairVal)}</div>
                           </div>
                           <button onClick={() => {
@@ -1136,8 +1167,8 @@ export default function TransferPage() {
             const requestedOvr = requestIds.reduce((s, id) => { const p = players.find(x => x.id === id); return s + (p ? ovr(p) : 0) }, 0)
             const myPicks = (myTeam?.draftPicks ?? []).filter(pk => pk.year > currentSeason.year)
             const theirPicks = isForeignTrade ? [] : (targetTeam!.draftPicks ?? []).filter(pk => pk.year > currentSeason.year)
-            const offPickVal = offerPickKeys.reduce((s, k) => { const pk = myPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round) : 0) }, 0)
-            const reqPickVal = requestPickKeys.reduce((s, k) => { const pk = theirPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round) : 0) }, 0)
+            const offPickVal = offerPickKeys.reduce((s, k) => { const pk = myPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round, pk.pickNumber) : 0) }, 0)
+            const reqPickVal = requestPickKeys.reduce((s, k) => { const pk = theirPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round, pk.pickNumber) : 0) }, 0)
             const canPropose = (offerIds.length > 0 || offerPickKeys.length > 0) && (requestIds.length > 0 || requestPickKeys.length > 0) && tradeStatus !== 'accepted' && tradeStatus !== 'rejected'
             const isFinalRound = tradeRound >= 3
 
@@ -1266,8 +1297,8 @@ export default function TransferPage() {
                           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}>
                           <div>
-                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.blue, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権</div>
-                            <div style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>参考価値 ≈ {fmt(pickValue(pk.round))}</div>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.blue, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権{pk.round === 1 ? `（全体${pk.pickNumber}位）` : ''}</div>
+                            <div style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>参考価値 ≈ {fmt(pickValue(pk.round, pk.pickNumber))}</div>
                           </div>
                           {sel && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: accentColor, flexShrink: 0 }} />}
                         </button>
@@ -1354,7 +1385,7 @@ export default function TransferPage() {
                             <div style={{ padding: '10px', borderRadius: '10px', background: alpha(C.green, 0.07), border: `1px solid ${alpha(C.green, 0.2)}` }}>
                               <div style={{ fontSize: '8px', color: C.green, letterSpacing: '2px', marginBottom: '6px', fontFamily: SAIRA }}>もらう — {targetShortName}</div>
                               {requestIds.map(id => { const p = players.find(x => x.id === id); if (!p) return null; return <div key={id} style={{ fontSize: '11px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: '2px' }}>{p.name} <span style={{ color: ratingColor(ovr(p)) }}>{ovr(p)}</span></div> })}
-                              {requestPickKeys.map(k => <div key={k} style={{ fontSize: '10px', color: C.blue, fontFamily: SAIRA }}>{k.replace(/-R(\d+)-\d+$/, '年 第$1巡指名権')}</div>)}
+                              {requestPickKeys.map(k => <div key={k} style={{ fontSize: '10px', color: C.blue, fontFamily: SAIRA }}>{k.replace(/-R1-(\d+)$/, '年 1巡（全体$1位）').replace(/-R(\d+)-\d+$/, '年 第$1巡指名権')}</div>)}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '22px', color: C.gold, fontSize: '18px', fontWeight: '900', fontFamily: SAIRA }}>
                               ⇄
@@ -1362,7 +1393,7 @@ export default function TransferPage() {
                             <div style={{ padding: '10px', borderRadius: '10px', background: alpha(C.red, 0.07), border: `1px solid ${alpha(C.red, 0.2)}` }}>
                               <div style={{ fontSize: '8px', color: C.red, letterSpacing: '2px', marginBottom: '6px', fontFamily: SAIRA }}>出す — {myTeam.shortName}</div>
                               {offerIds.map(id => { const p = players.find(x => x.id === id); if (!p) return null; return <div key={id} style={{ fontSize: '11px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: '2px' }}>{p.name} <span style={{ color: ratingColor(ovr(p)) }}>{ovr(p)}</span></div> })}
-                              {offerPickKeys.map(k => <div key={k} style={{ fontSize: '10px', color: C.blue, fontFamily: SAIRA }}>{k.replace(/-R(\d+)-\d+$/, '年 第$1巡指名権')}</div>)}
+                              {offerPickKeys.map(k => <div key={k} style={{ fontSize: '10px', color: C.blue, fontFamily: SAIRA }}>{k.replace(/-R1-(\d+)$/, '年 1巡（全体$1位）').replace(/-R(\d+)-\d+$/, '年 第$1巡指名権')}</div>)}
                             </div>
                           </div>
                           <div style={{ padding: '12px 14px', borderRadius: '12px', background: `linear-gradient(180deg, ${C.surface2}, ${C.surface})`, border: `1px solid ${C.border2}`, marginBottom: '10px' }}>
