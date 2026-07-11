@@ -1,45 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Specialty, Player, DevProspect } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
-import PlayerRow from '../player/PlayerRow'
+import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 function fmt(yen: number) {
   if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
   return `${Math.round(yen / 10000)}万`
-}
-
-function potentialStars(potential: number): string {
-  if (potential >= 90) return '★★★★★'
-  if (potential >= 75) return '★★★★'
-  if (potential >= 60) return '★★★'
-  if (potential >= 45) return '★★'
-  return '★'
-}
-
-function potentialColor(potential: number): string {
-  if (potential >= 75) return C.gold
-  if (potential >= 60) return C.green
-  if (potential >= 45) return C.blue
-  return C.textDim
-}
-
-function collegeRaceScore(p: { id: string; ratings: { speed: number; stamina: number; pacing: number; mental: number } }): number {
-  const base = p.ratings.speed * 0.3 + p.ratings.stamina * 0.3 + p.ratings.pacing * 0.2 + p.ratings.mental * 0.2
-  const seed = parseInt(p.id.slice(-6), 16)
-  return base + ((seed % 200) - 100) * 0.04
-}
-
-function format10kTime(score: number): string {
-  const sec = Math.max(1620, Math.round(1860 - (score - 50) * 5.0))
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 // DevProspect は Player 型ではない（trueRatings のみで contract 等が無い）ので、
@@ -57,32 +29,16 @@ function devToPlayer(dp: DevProspect): Player {
     fatigue: 0,
     form: 0,
     morale: 70,
-    contract: { annualSalary: 0, yearsLeft: 3, contractType: 'development' },
+    contract: { annualSalary: 0, yearsLeft: 3, contractType: 'standard' },
   } as unknown as Player
-}
-
-// 将来性バッジ（PlayerRow の名前行 extra に差し込む）
-function PotentialBadge({ potential }: { potential: number }) {
-  const col = potentialColor(potential)
-  return (
-    <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: alpha(col, 0.12), border: `1px solid ${alpha(col, 0.3)}`, color: col, fontWeight: 700, letterSpacing: '-0.5px', flexShrink: 0 }}>
-      将来 {potentialStars(potential)}
-    </span>
-  )
-}
-
-function Time10k({ score }: { score: number }) {
-  return <span style={{ fontSize: 9, color: C.textDim, flexShrink: 0 }}>10km {format10kTime(score)}</span>
 }
 
 export default function ScoutPage() {
   const {
     currentSeason, initScoutPool,
     generateDevProspects, signDevProspect,
-    teams, playerTeamId,
-    toggleStarProspect,
+    teams, playerTeamId, openPlayerSheet,
   } = useGameStore()
-  const starredProspects = useGameStore(s => s.starredProspects ?? [])
 
   const [pageTab, setPageTab] = useState<'draft' | 'dev'>('draft')
 
@@ -97,6 +53,16 @@ export default function ScoutPage() {
 
   const [sortBy, setSortBy] = useState<'ovr' | 'specialty' | 'age'>('ovr')
   const [filterSpec, setFilterSpec] = useState<Specialty | null>(null)
+
+  // 長押しで選手詳細（ロスターと同じ挙動）
+  const lp = useRef<{ t?: number; long: boolean }>({ long: false })
+  const rowHandlers = (pid: string): RowHandlers => ({
+    onPointerDown: () => { lp.current.long = false; lp.current.t = window.setTimeout(() => { lp.current.long = true; openPlayerSheet(pid) }, 450) },
+    onPointerUp: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onPointerLeave: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onPointerMove: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onClick: () => {},
+  })
 
   const sorted = [...prospects]
     .filter(p => filterSpec === null || p.specialty === filterSpec)
@@ -141,7 +107,7 @@ export default function ScoutPage() {
           <div style={{ padding: '8px 12px', borderRadius: '10px', background: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.2)}`, marginBottom: '10px' }}>
             <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>ドラフトの仕組み</div>
             <div style={{ fontSize: '10px', color: C.textDim, lineHeight: 1.5 }}>
-              候補選手の能力・将来性はすべて公開。★を付けて指名候補をチェックしておける。シーズン終了後のドラフトで指名する。
+              候補選手の能力はすべて公開。長押しで詳細を確認できる。シーズン終了後のドラフトで指名する。
             </div>
           </div>
         )}
@@ -183,7 +149,7 @@ export default function ScoutPage() {
             <span style={{ fontSize: '11px', color: C.textDim }}>{devProspects.length}名の有望株</span>
           </div>
           <div style={{ padding: '7px 12px', borderRadius: '9px', background: alpha(C.cyan, 0.08), border: `1px solid ${alpha(C.cyan, 0.2)}`, fontSize: '9px', color: C.textDim, marginBottom: '10px', lineHeight: 1.5 }}>
-            ドラフト外の無名若手を発掘。能力・将来性はすべて公開。契約すればリザーブに育成契約で加入。
+            ドラフト外の無名若手を発掘。能力はすべて公開。長押しで詳細を確認できる。
           </div>
           {devProspects.length === 0 && (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: '13px' }}>有望株なし</div>
@@ -191,20 +157,12 @@ export default function ScoutPage() {
           {devProspects.map(dp => {
             const canAfford = myBudget >= dp.signingFee
             const canSign = (myTeam?.roster.second.length ?? 0) < 20
-            const devScore = dp.trueRatings.speed * 0.3 + dp.trueRatings.stamina * 0.3 + dp.trueRatings.pacing * 0.2 + dp.trueRatings.mental * 0.2
             return (
               <div key={dp.id} style={{
                 marginBottom: '8px', borderRadius: 14, overflow: 'hidden',
                 border: `1px solid ${C.border}`, background: C.bg,
               }}>
-                <PlayerRow
-                  player={devToPlayer(dp)}
-                  handlers={{ onClick: () => {} }}
-                  extra={<>
-                    <PotentialBadge potential={dp.potential} />
-                    <Time10k score={devScore} />
-                  </>}
-                />
+                <PlayerRow player={devToPlayer(dp)} handlers={rowHandlers(dp.id)} />
                 <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 10, color: C.textDim }}>{dp.origin}</span>
                   <button
@@ -234,22 +192,9 @@ export default function ScoutPage() {
 
       {pageTab === 'draft' && (
         <div style={{ margin: '0 12px', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-          {sorted.map(p => {
-            const score = collegeRaceScore(p)
-            const isStarred = starredProspects.includes(p.id)
-            return (
-              <PlayerRow
-                key={p.id}
-                player={p}
-                handlers={{ onClick: () => toggleStarProspect(p.id) }}
-                extra={<>
-                  <span style={{ fontSize: 14, color: isStarred ? C.gold : C.textGhost, lineHeight: 1, flexShrink: 0 }}>{isStarred ? '★' : '☆'}</span>
-                  <PotentialBadge potential={p.potential} />
-                  <Time10k score={score} />
-                </>}
-              />
-            )
-          })}
+          {sorted.map(p => (
+            <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} />
+          ))}
         </div>
       )}
     </div>

@@ -536,6 +536,8 @@ export type Season = {
   collegeRaces: Race[]
   draftPool: CollegeRunner[]
   scoutPoints: number
+  initialBudget?: number   // そのシーズンの開始予算（固定・収支表示用）。前季endSeasonで確定した来期予算。
+  seasonGrant?: number     // そのシーズンの順位グラント額（前年順位ベース。運営費＝この10%）。1年目は最下位20位相当＝3.5億。
   scoutProspects: Player[]
   standings: {
     teamId: string
@@ -663,6 +665,7 @@ export type GameState = {
   teams: Team[]
   players: Player[]
   growthReport: { year: number; entries: GrowthEntry[] } | null
+  seasonBudgetNotice?: { year: number; budget: number } | null  // シーズン終了で確定した来期予算（ホームで一度だけポップ表示）
   saveTimestamp: string
   version: string
   rivalTeamId: string | null

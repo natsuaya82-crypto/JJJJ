@@ -9,14 +9,12 @@ import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
+import { useAdHeight } from '../layout/Layout'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
-
-// 下ナビは lineup 中は非表示なので、広告(50px)の上にボトムバーを置く
-const BOTTOM_OFFSET = 50
 
 function autoFill(
   segments: import('../../types').Segment[],
@@ -84,6 +82,7 @@ export function LineupPhase({
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
 }) {
   const navigate = useNavigate()
+  const adH = useAdHeight()
   const [segTactics] = useState<Record<number, string>>({})
   const [pickerSort, setPickerSort] = useState<'seg' | 'ovr' | 'age' | 'fatigue' | 'speed' | 'stamina' | 'mountainUp' | 'mountainDown' | 'pacing' | 'mental' | 'recovery'>('seg')
 
@@ -269,7 +268,7 @@ export function LineupPhase({
 
   // --- メイン画面（区一覧） ---
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: '12px' }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: `calc(88px + env(safe-area-inset-bottom))` }}>
 
       {/* ヘッダー */}
       <div style={{ background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`, padding: '10px 16px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -393,14 +392,13 @@ export function LineupPhase({
         })}
       </div>
 
-      {/* ボトムバー（sticky：iOSでは overflow スクロール枠内の position:fixed がビューポートに固定されないため） */}
+      {/* ボトムバー（fixed：常に画面下端＝広告の上に固定。選手を何人置いても位置が動かない） */}
       <div style={{
-        position: 'sticky', bottom: 0, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
-        padding: '8px 14px calc(12px + env(safe-area-inset-bottom))',
-        background: `linear-gradient(to top, ${C.bg} 70%, ${alpha(C.bg, 0)})`,
-        borderTop: `1px solid ${C.border}`,
-        display: 'flex', gap: '6px',
+        padding: '8px 14px calc(10px)',
+        background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,
+        display: 'flex', alignItems: 'center', gap: '6px',
         zIndex: 35,
       }}>
         <button onClick={clearRaceLineup} style={{ padding: '10px 12px', borderRadius: '12px', border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>

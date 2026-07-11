@@ -147,12 +147,16 @@ function OfferChatView({
   const append = (...msgs: OfferChatMsg[]) => setChatMessages(prev => [...prev, ...msgs])
 
   const handleAccept = () => {
-    append(
-      { from: 'gm', text: `了解です。${fmtYen(offer.offeredPrice)}で売却します。` },
-      { from: 'team', text: '契約成立です。ありがとうございます。' }
-    )
+    const ok = acceptIncomingOffer(offer.id)
+    if (ok) {
+      append(
+        { from: 'gm', text: `了解です。${fmtYen(offer.offeredPrice)}で売却します。` },
+        { from: 'team', text: '契約成立です。ありがとうございます。' }
+      )
+    } else {
+      append({ from: 'team', text: '申し訳ありません、状況が変わったためこの交渉は無効になりました。' })
+    }
     setDone(true)
-    acceptIncomingOffer(offer.id)
   }
 
   const handleDecline = () => {
@@ -165,14 +169,14 @@ function OfferChatView({
   }
 
   const handleCounter = () => {
-    const fromTeamState = useGameStore.getState().teams.find(t => t.id === offer.fromTeamId)
-    const canAfford = counterPrice <= (fromTeamState?.finance?.budget ?? 0)
     append({ from: 'gm', text: `${fmtYen(counterPrice)}であれば売却可能です。いかがでしょうか。` })
-    counterIncomingOffer(offer.id, counterPrice)
-    if (canAfford) {
+    const result = counterIncomingOffer(offer.id, counterPrice)
+    if (result === 'sold') {
       append({ from: 'team', text: `合意しました。${fmtYen(counterPrice)}での移籍を進めましょう。` })
+    } else if (result === 'refused') {
+      append({ from: 'team', text: `申し訳ありませんが、${fmtYen(counterPrice)}は当クラブには支払えません。今回の交渉は終了とします。` })
     } else {
-      append({ from: 'team', text: `申し訳ありませんが、${fmtYen(counterPrice)}は当クラブの予算を超えています。今回の交渉は終了とします。` })
+      append({ from: 'team', text: '申し訳ありません、状況が変わったためこの交渉は無効になりました。' })
     }
     setDone(true)
     setComposing(false)
@@ -357,12 +361,17 @@ export default function NotificationsPage() {
     position: 'absolute', inset: 4, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, pointerEvents: 'none',
   }
 
-  const chatOffer = chatOfferId ? incomingOffers.find(o => o.id === chatOfferId) : null
+  // 対応（承諾・拒否・カウンター）するとオファーはストアから即消えるため、
+  // 消えた後も返事メッセージを見せられるようスナップショットで保持する
+  const liveOffer = chatOfferId ? incomingOffers.find(o => o.id === chatOfferId) : null
+  const offerSnapshotRef = useRef<IncomingOffer | null>(null)
+  if (liveOffer) offerSnapshotRef.current = liveOffer
+  const chatOffer = chatOfferId ? (liveOffer ?? offerSnapshotRef.current) : null
 
   if (chatOffer) return (
     <OfferChatView
       offer={chatOffer}
-      onClose={() => setChatOfferId(null)}
+      onClose={() => { setChatOfferId(null); offerSnapshotRef.current = null }}
       initialMessages={offerMessageCache[chatOffer.id]}
       onMessagesChange={msgs => setOfferMessageCache(prev => ({ ...prev, [chatOffer.id]: msgs }))}
     />

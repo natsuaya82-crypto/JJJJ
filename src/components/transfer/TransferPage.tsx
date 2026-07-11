@@ -141,6 +141,10 @@ export default function TransferPage() {
   const [pickSellPrice, setPickSellPrice] = useState<number>(0)
   const [pickSellResult, setPickSellResult] = useState<'idle' | 'success' | 'failed'>('idle')
   const [tradeLeague, setTradeLeague] = useState<string>('jpel')
+  // 被オファー対応の結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）
+  const [offerResults, setOfferResults] = useState<{ id: string; text: string; ok: boolean }[]>([])
+  const pushOfferResult = (id: string, text: string, ok: boolean) => setOfferResults(prev => [...prev.filter(r => r.id !== id), { id, text, ok }])
+  const dismissOfferResult = (id: string) => setOfferResults(prev => prev.filter(r => r.id !== id))
 
   function pickKey(p: { year: number; round: number; pickNumber: number }) {
     return `${p.year}-R${p.round}-${p.pickNumber}`
@@ -752,11 +756,17 @@ export default function TransferPage() {
 
         return (
           <div style={{ padding: '0 12px' }}>
-            {incomingOffers.length > 0 && (
+            {(incomingOffers.length > 0 || offerResults.length > 0) && (
               <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontSize: '9px', color: C.pink, letterSpacing: '2px', marginBottom: '8px', fontWeight: '700', fontFamily: SAIRA }}>
                   他クラブからのオファー {incomingOffers.length}件 — 要確認
                 </div>
+                {offerResults.map(r => (
+                  <div key={r.id} style={{ borderRadius: '12px', background: alpha(r.ok ? C.green : C.red, 0.08), border: `1.5px solid ${alpha(r.ok ? C.green : C.red, 0.45)}`, padding: '10px 12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ flex: 1, fontSize: '12px', color: C.text, lineHeight: 1.6, fontFamily: SAIRA }}>{r.text}</div>
+                    <button onClick={() => dismissOfferResult(r.id)} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: '9px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA }}>確認</button>
+                  </div>
+                ))}
                 {incomingOffers.map(offer => {
                   const p = players.find(pl => pl.id === offer.playerId)
                   const fromTeam = teams.find(t => t.id === offer.fromTeamId)
@@ -801,7 +811,11 @@ export default function TransferPage() {
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
-                            onClick={() => acceptIncomingOffer(offer.id)}
+                            onClick={() => {
+                              const tn = fromTeam?.shortName ?? '海外クラブ'
+                              const ok = acceptIncomingOffer(offer.id)
+                              pushOfferResult(offer.id, ok ? `${p.name}を${tn}へ売却しました（移籍金${fmt(offer.offeredPrice)}を獲得）` : `${p.name}の売却は成立しませんでした`, ok)
+                            }}
                             style={{
                               flex: 2, padding: '9px', borderRadius: '11px', border: `2px solid ${C.green}`, marginBottom: 8,
                               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -812,7 +826,15 @@ export default function TransferPage() {
                             承諾 — {fmt(offer.offeredPrice)}
                           </button>
                           <button
-                            onClick={() => counterIncomingOffer(offer.id, Math.round(offer.offeredPrice * 1.3 / 500000) * 500000)}
+                            onClick={() => {
+                              const price = Math.round(offer.offeredPrice * 1.3 / 500000) * 500000
+                              const tn = fromTeam?.shortName ?? '海外クラブ'
+                              const r = counterIncomingOffer(offer.id, price)
+                              pushOfferResult(offer.id,
+                                r === 'sold' ? `${tn}がカウンターを受諾。${p.name}を売却しました（移籍金${fmt(price)}を獲得）`
+                                : r === 'refused' ? `${tn}は${fmt(price)}を支払えず、交渉は決裂しました`
+                                : `${p.name}の交渉は無効になりました`, r === 'sold')
+                            }}
                             style={{
                               flex: 2, padding: '9px', borderRadius: '11px', border: `2px solid ${C.goldDark}`, marginBottom: 8,
                               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -1365,10 +1387,25 @@ export default function TransferPage() {
                               const shortage = Math.ceil((-counterpartGain - tolerance) / 1_000_000) * 1_000_000
                               const color = isOk ? C.green : shortage <= 20_000_000 ? C.gold : C.red
                               const label = isOk ? '合意圏内' : `あと${fmt(shortage)}不足`
-                              return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${C.border}` }}>
-                                <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>相手から見た評価</span>
-                                <span style={{ fontSize: '11px', fontWeight: '700', color, fontFamily: SAIRA }}>{label}</span>
-                              </div>
+                              const excess = counterpartGain + tolerance
+                              const successRate = excess >= 0 ? 100 : Math.max(0, Math.round(100 * (1 + excess / 80_000_000)))
+                              const barColor = successRate >= 70 ? C.green : successRate >= 30 ? C.gold : C.red
+                              const filled = Math.round(successRate / 10)
+                              return <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${C.border}` }}>
+                                  <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>相手から見た評価</span>
+                                  <span style={{ fontSize: '11px', fontWeight: '700', color, fontFamily: SAIRA }}>{label}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                                  <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA, flexShrink: 0 }}>成功率</span>
+                                  <div style={{ display: 'flex', gap: '3px', flex: 1 }}>
+                                    {Array.from({ length: 10 }).map((_, i) => (
+                                      <div key={i} style={{ flex: 1, height: '6px', borderRadius: '3px', background: i < filled ? barColor : C.border2 }} />
+                                    ))}
+                                  </div>
+                                  <span style={{ fontSize: '12px', fontWeight: '800', color: barColor, fontFamily: SAIRA, flexShrink: 0, minWidth: '38px', textAlign: 'right' }}>{successRate}%</span>
+                                </div>
+                              </>
                             })()}
                           </div>
                           <button

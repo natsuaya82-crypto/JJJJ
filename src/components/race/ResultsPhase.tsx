@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { showRewardAd } from '../../utils/ads'
 import type { Race, RaceResults, Team, Player, Season, Nationality } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
-import { segOvr } from '../../utils/playerUtils'
+import { segOvr, ovr, ratingColor } from '../../utils/playerUtils'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { useGameStore } from '../../store/gameStore'
+import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
@@ -69,6 +70,7 @@ export function ResultsPhase({
   onContinue?: () => void
 }) {
   const navigate = useNavigate()
+  const adH = useAdHeight()
   const [view, setView] = useState<'main' | 'segments' | 'exp'>('main')
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
@@ -256,7 +258,7 @@ export function ResultsPhase({
   // 経験値獲得：最終結果のあとに表示する専用画面
   if (view === 'exp') {
     return (
-      <div style={{ fontFamily: SAIRA, paddingBottom: '40px', background: C.bg, minHeight: '100dvh' }}>
+      <div style={{ fontFamily: SAIRA, paddingBottom: `calc(88px + env(safe-area-inset-bottom))`, background: C.bg, minHeight: '100dvh' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.surface2, borderBottom: `1px solid ${C.border}`, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => setView('main')} style={{
             background: 'none', border: 'none', cursor: 'pointer', color: C.textSub,
@@ -287,6 +289,7 @@ export function ResultsPhase({
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <FaceOrDot playerId={p.id} nationality={p.nationality} size={32} />
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{p.name}</div>
+                      <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {gainedKeys.map(k => {
@@ -318,15 +321,19 @@ export function ResultsPhase({
             </div>
           </div>
         </div>
-        <div style={{ padding: '8px 12px' }}>
+        <div style={{
+          position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
+          background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
+        }}>
           {isLastRace ? (
-            <button className="btn-game btn-game--gold" onClick={finish} style={{ width: '100%', marginBottom: 8 }}>
+            <button className="btn-game btn-game--gold" onClick={finish} style={{ width: '100%' }}>
               <span className="btn-game__inner">
                 {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
               </span>
             </button>
           ) : (
-            <button className="btn-game btn-game--blue" onClick={finish} style={{ width: '100%', marginBottom: 8 }}>
+            <button className="btn-game btn-game--blue" onClick={finish} style={{ width: '100%' }}>
               <span className="btn-game__inner">
                 {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
               </span>
@@ -338,7 +345,7 @@ export function ResultsPhase({
   }
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: '40px' }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: `calc(88px + env(safe-area-inset-bottom))` }}>
 
       <div style={{
         padding: '12px 16px 11px', textAlign: 'center',
@@ -664,19 +671,23 @@ export function ResultsPhase({
         </div>
       )}
 
-      <div style={{ padding: '16px 12px 8px' }}>
+      <div style={{
+        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+        width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
+        background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
+      }}>
         {hasExp ? (
-          <button className="btn-game btn-game--blue" onClick={() => setView('exp')} style={{ width: '100%', marginBottom: 8 }}>
+          <button className="btn-game btn-game--blue" onClick={() => setView('exp')} style={{ width: '100%' }}>
             <span className="btn-game__inner">経験値を確認 →</span>
           </button>
         ) : isLastRace ? (
-          <button className="btn-game btn-game--gold" onClick={finish} style={{ width: '100%', marginBottom: 8 }}>
+          <button className="btn-game btn-game--gold" onClick={finish} style={{ width: '100%' }}>
             <span className="btn-game__inner">
               {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
             </span>
           </button>
         ) : (
-          <button className="btn-game btn-game--blue" onClick={finish} style={{ width: '100%', marginBottom: 8 }}>
+          <button className="btn-game btn-game--blue" onClick={finish} style={{ width: '100%' }}>
             <span className="btn-game__inner">
               {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
             </span>

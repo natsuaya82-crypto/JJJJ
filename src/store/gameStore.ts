@@ -243,7 +243,7 @@ export type GameStore = GameState & {
 
   // Transfer market
   executeTransferPurchase: (listingId: string, price: number) => boolean
-  acceptIncomingOffer: (offerId: string) => void
+  acceptIncomingOffer: (offerId: string) => boolean
   declineIncomingOffer: (offerId: string) => void
   acceptIncomingLoanOffer: (offerId: string) => boolean
   declineIncomingLoanOffer: (offerId: string) => void
@@ -259,7 +259,7 @@ export type GameStore = GameState & {
   reNegotiateAcquisition: (offerId: string) => void
   abandonAcquisitionOffer: (offerId: string) => void
   releasePlayerWithBuyout: (playerId: string) => void
-  counterIncomingOffer: (offerId: string, counterPrice: number) => void
+  counterIncomingOffer: (offerId: string, counterPrice: number) => 'sold' | 'refused' | 'invalid'
   generateContractRequests: () => void
   dismissRetirementRequest: (playerId: string) => void
   acceptRetirement: (playerId: string) => void
@@ -334,6 +334,7 @@ export type GameStore = GameState & {
   // Card training
   applyTrainingCards: (playerId: string, cardIds: string[], grantTrait?: boolean, multiplier?: number) => void
   dismissDroppedCards: () => void
+  dismissBudgetNotice: () => void
 
   // Update gifts (通知から受け取るプレゼント)
   grantUpdateGifts: () => void
@@ -393,6 +394,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       collegeRaces: [],
       draftPool: [],
       scoutPoints: 5,
+      initialBudget: rankBudgetGrant(20),
+      seasonGrant: rankBudgetGrant(20),   // 1年目は前シーズンが無いので最下位20位相当のグラント＝3.5億。運営費＝この10%。
       scoutProspects: [],
       objectives: [],
       trainingAssignments: {},
@@ -419,6 +422,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     },
     pastSeasons: [],
     growthReport: null,
+    seasonBudgetNotice: null,
     // 初期予算はグラント表から算出（initialRank連動）。teams.tsの旧ハードコード値に依存しない
     teams: INITIAL_TEAMS.map(t => ({ ...t, roster: { main: [], second: [] }, finance: { ...t.finance, salaryTotal: 0, budget: rankBudgetGrant(t.initialRank) } })),
     players: basePlayers,
@@ -2295,10 +2299,10 @@ export const useGameStore = create<GameStore>()(
       acceptIncomingOffer: (offerId) => {
         const state = get()
         const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
-        if (!offer) return
+        if (!offer) return false
         const player = state.players.find(p => p.id === offer.playerId)
-        if (!player || player.teamId !== state.playerTeamId) return
-        if (player.loan && player.loan.ownerTeamId !== state.playerTeamId) return  // レンタルで借りている選手は保有権が無く売却不可
+        if (!player || player.teamId !== state.playerTeamId) return false
+        if (player.loan && player.loan.ownerTeamId !== state.playerTeamId) return false  // レンタルで借りている選手は保有権が無く売却不可
         // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
         if (offer.fromForeign) {
           const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
@@ -2308,10 +2312,10 @@ export const useGameStore = create<GameStore>()(
             foreignLeagues: (st.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
             currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30) },
           }))
-          return
+          return true
         }
         const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
-        if (!buyingTeam) return
+        if (!buyingTeam) return false
         set(state => ({
           players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const } : p),
           teams: state.teams.map(t => {
@@ -2328,6 +2332,7 @@ export const useGameStore = create<GameStore>()(
             newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${buyingTeam.shortName}へ移籍金${Math.round(offer.offeredPrice / 10000)}万で放出`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
           },
         }))
+        return true
       },
 
       declineIncomingOffer: (offerId) => {
@@ -2721,6 +2726,8 @@ export const useGameStore = create<GameStore>()(
       },
 
       counterIncomingOffer: (offerId, counterPrice) => {
+        // 成立('sold')・決裂('refused')・無効('invalid')をUIに返し、結果表示に使う
+        let outcome: 'sold' | 'refused' | 'invalid' = 'invalid'
         set(state => {
           const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
           if (!offer) return state
@@ -2733,6 +2740,7 @@ export const useGameStore = create<GameStore>()(
           if (offer.fromForeign) {
             if (player && counterPrice <= offer.offeredPrice * 1.3) {
               const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
+              outcome = 'sold'
               return {
                 players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined } : p),
                 teams: state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + counterPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
@@ -2740,11 +2748,13 @@ export const useGameStore = create<GameStore>()(
                 currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(counterPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30) },
               }
             }
+            outcome = 'refused'
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
           const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
           const maxBudget = buyingTeam?.finance.budget ?? 0
           if (counterPrice <= maxBudget) {
+            outcome = 'sold'
             return {
               players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const } : p),
               teams: state.teams.map(t => {
@@ -2755,9 +2765,11 @@ export const useGameStore = create<GameStore>()(
               currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) }
             }
           } else {
+            outcome = 'refused'
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
         })
+        return outcome
       },
 
       dismissRetirementRequest: (playerId) => set(state => ({
@@ -2945,7 +2957,10 @@ export const useGameStore = create<GameStore>()(
         const standings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
         const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
         const scoutLvT = myTeam.facilities?.scoutOffice ?? 0
-        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02)
+        // 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）
+        const marketSalary = faMarketSalary(player)
+        const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
+        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02 + salaryBonus)
         if (!consent.ok) {
           // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
           set(s => ({
@@ -3191,33 +3206,34 @@ export const useGameStore = create<GameStore>()(
         // レンタル中の選手は保有権が無いのでトレード対象にできない（出す側・もらう側とも）
         if (offered.some(p => p.loan) || requested.some(p => p.loan)) return false
 
-        // 相手チームの主力（データ上よく出場）は放出しない
-        const teamRaces = state.currentSeason.currentRaceIndex
-        for (const rp of requested) {
-          const apps = seasonAppearances(rp.id, state.currentSeason.races)
-          const frac = teamRaces > 0 ? apps / teamRaces : (rp.rosterTier === 'main' ? 0.5 : 0)
-          if (isDataKeyPlayer(rp, frac, teamRaces) && (rp.morale ?? 60) >= 45) return false
-        }
-
         // 価値の釣り合い：ゴミ選手を複数足しただけでは成立しない。
         // calcTransferValue（OVR・年齢・実績を加味）＋出場データで両サイドの価値を比較。
+        // 相手の主力は無条件拒否ではなく1.5倍の価値を要求（proposeTradeと同じ換算）
+        const teamRaces = state.currentSeason.currentRaceIndex
         const pickValue = 8_000_000  // 指名権1つの概算価値
         const activityBonus = (p: Player) => {
           const apps = seasonAppearances(p.id, state.currentSeason.races)
           const frac = teamRaces > 0 ? apps / teamRaces : 0
           return 1 + frac * 0.4  // よく出場している選手は価値プレミアム
         }
+        const keyPremium = (p: Player) => {
+          const apps = seasonAppearances(p.id, state.currentSeason.races)
+          const frac = teamRaces > 0 ? apps / teamRaces : (p.rosterTier === 'main' ? 0.5 : 0)
+          return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
+        }
         const offeredVal = offered.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p), 0)
           + offerPickKeys.length * pickValue + Math.max(0, transferFee)
-        const requestedVal = requested.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p), 0)
+        const requestedVal = requested.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p) * keyPremium(p), 0)
           + requestPickKeys.length * pickValue + Math.max(0, -transferFee)
         if (offeredVal < requestedVal * 0.92) return false  // 価値が釣り合わなければ不成立
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
+        // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
         const stgs = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
         const myRankNow = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
+        const consentBonusT = requestedVal > 0 && offeredVal / requestedVal >= 1.2 ? 0.15 : 0
         for (const rp of requested) {
-          if (!playerConsentToMove(rp, myRankNow, state.teams.length).ok) return false
+          if (!playerConsentToMove(rp, myRankNow, state.teams.length, 0.5, 0, consentBonusT).ok) return false
         }
 
         function matchPick(picks: typeof state.teams[0]['draftPicks'], key: string) {
@@ -3307,21 +3323,26 @@ export const useGameStore = create<GameStore>()(
         const pval = (p: Player) => calcTransferValue(p) * activity(p)
         const valOf = (ids: string[], picks: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + picks.length * PICK
         const theirName = state.teams.find(t => t.id === targetTeamId)?.shortName ?? '相手クラブ'
+        // 主力（データ上よく出場・やる気あり）は無条件拒否ではなく1.5倍の価値を要求する
+        const keyPremium = (p: Player) => {
+          const apps = seasonAppearances(p.id, state.currentSeason.races)
+          const frac = teamRaces > 0 ? apps / teamRaces : (p.rosterTier === 'main' ? 0.5 : 0)
+          return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
+        }
         const cpuGain = valOf(giveIds, givePickKeys)  // 相手が受け取る
-        const cpuLoss = valOf(getIds, getPickKeys)    // 相手が手放す
+        const cpuLoss = getIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p) * keyPremium(p), 0) + getPickKeys.length * PICK  // 相手が手放す（主力プレミアム込み）
 
         const existing = (state.currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === targetTeamId)
         const round = (existing?.round ?? 0) + 1
 
-        // 相手の主力放出拒否 / 獲得選手の同意
+        // 獲得選手の同意（相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる）
         const stgs = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
         const myRank = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
+        const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
         let hardNo = ''
         for (const id of getIds) {
           const rp = state.players.find(p => p.id === id); if (!rp) continue
-          const apps = seasonAppearances(rp.id, state.currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : (rp.rosterTier === 'main' ? 0.5 : 0)
-          if (isDataKeyPlayer(rp, frac, teamRaces) && (rp.morale ?? 60) >= 45) { hardNo = `${rp.name}は主力だ。放出はできない。`; break }
-          if (!playerConsentToMove(rp, myRank, state.teams.length).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
+          if (!playerConsentToMove(rp, myRank, state.teams.length, 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
         }
 
         let status: TradeNegotiation['status'] = 'countered'
@@ -3641,26 +3662,18 @@ export const useGameStore = create<GameStore>()(
         let playersAfterCpuTransfer = playersAfterCpuRelease
         let teamsAfterCpuTransfer = teamsAfterCpuRelease
         {
-          const lastStandingsT = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
-          const totalTeamsT = state.teams.length
-          const rankOfT = (teamId: string) => { const i = lastStandingsT.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeamsT / 2) }
-
+          // 実際の予算残高（finance.budget）から移籍金を払う。売った側は実際に受け取る（自チームと同じ金の動き）
           const cpuTeamsForTransfer = teamsAfterCpuRelease
             .filter(t => t.id !== state.playerTeamId)
-            .map(t => {
-              const tier = cpuTeamTier(t.id, playersAfterCpuRelease)
-              const committed = playersAfterCpuRelease.filter(p => p.teamId === t.id).reduce((s, p) => s + p.contract.annualSalary, 0)
-              const budget = Math.max(0, rankBudgetGrant(rankOfT(t.id)) - committed)
-              return { team: t, tier, budget }
-            })
+            .map(t => ({ team: t, tier: cpuTeamTier(t.id, playersAfterCpuRelease), budget: Math.max(0, t.finance.budget) }))
             .sort((a, b) => b.budget - a.budget)
 
           const transferPurchases: Record<string, number> = {}
 
-          for (const { team: buyTeam, tier: buyTier, budget: initialBudget } of cpuTeamsForTransfer) {
+          for (const { team: buyTeam, tier: buyTier } of cpuTeamsForTransfer) {
             const minOvr = buyTier === 'elite' ? 74 : buyTier === 'mid' ? 67 : 60
-            const committed = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id).reduce((s, p) => s + p.contract.annualSalary, 0)
-            let remainBudget = Math.max(0, initialBudget - committed)
+            // 売却で残高が増えている可能性があるので現時点の残高を読む
+            let remainBudget = Math.max(0, teamsAfterCpuTransfer.find(t => t.id === buyTeam.id)?.finance.budget ?? 0)
             const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.rosterTier === 'main' && p.status === 'active')
             if (buyRoster.length >= 23) continue
             if ((transferPurchases[buyTeam.id] ?? 0) >= 2) continue
@@ -3685,7 +3698,7 @@ export const useGameStore = create<GameStore>()(
               if (remainBudget < fee + newSalary) continue
               cpuTransferIds.add(target.id)
               transferPurchases[buyTeam.id] = (transferPurchases[buyTeam.id] ?? 0) + 1
-              remainBudget -= fee + newSalary
+              remainBudget -= fee
               const txYear = state.currentSeason.year
               playersAfterCpuTransfer = playersAfterCpuTransfer.map(p =>
                 p.id !== target.id ? p : {
@@ -3693,9 +3706,10 @@ export const useGameStore = create<GameStore>()(
                   contract: { ...p.contract, annualSalary: newSalary, yearsLeft: 2, faEligibleYear: txYear + 2 },
                 }
               )
+              // 移籍金を実際に動かす：買い手の残高から引き、売り手の残高に足す
               teamsAfterCpuTransfer = teamsAfterCpuTransfer.map(t => {
-                if (t.id === target.teamId) return { ...t, roster: { ...t.roster, main: t.roster.main.filter(id => id !== target.id) } }
-                if (t.id === buyTeam.id) return { ...t, roster: { ...t.roster, main: [...t.roster.main, target.id] } }
+                if (t.id === target.teamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + fee }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== target.id) } }
+                if (t.id === buyTeam.id) return { ...t, finance: { ...t.finance, budget: t.finance.budget - fee }, roster: { ...t.roster, main: [...t.roster.main, target.id] } }
                 return t
               })
               break
@@ -3819,7 +3833,8 @@ export const useGameStore = create<GameStore>()(
           const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
           const committedSalary = playersAfterCpuTransfer.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
           const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
-          const spendable = Math.max(0, rankBudgetGrant(rankOf(team.id)) - committedSalary) * spendFactor
+          // 残高がマイナス（赤字）のチームは補強を自粛（ロスター16人未満の緊急補強のみ budgetOk 側で許容）
+          const spendable = team.finance.budget < 0 ? 0 : Math.max(0, rankBudgetGrant(rankOf(team.id)) - committedSalary) * spendFactor
           let spent = 0
           const estCost = (fa: Player) => faMarketSalary(fa)
 
@@ -4572,6 +4587,8 @@ export const useGameStore = create<GameStore>()(
             raceLineup: {},
             raceStrategy: 'balanced' as const,
             growthReport: { year: state.currentSeason.year, entries: growthEntries },
+            // シーズン終了で確定した来期予算（ホームでポップ表示 → 確認で消える）
+            seasonBudgetNotice: { year: newYear, budget: newBudget },
             currentSeason: {
               year: newYear,
               currentRaceIndex: 0,
@@ -4580,6 +4597,8 @@ export const useGameStore = create<GameStore>()(
               collegeRaces: [],
               draftPool: [],
               scoutPoints: 5 + objBonus + (state.teams.find(t => t.id === state.playerTeamId)?.facilities?.scoutOffice ?? 0),
+              initialBudget: newBudget,   // 来期の開始予算（＝繰越+グラント+賞金観客スポンサー）。収支表示の基準。
+              seasonGrant: rankBudgetGrant(finalRank),   // 来期の順位グラント額（前年＝今季順位ベース）。運営費＝この10%。
               scoutProspects: nextScoutPool,
               objectives: newObjectives,
               trainingAssignments: {},
@@ -5224,6 +5243,8 @@ export const useGameStore = create<GameStore>()(
 
       dismissDroppedCards: () => set({ raceDroppedCards: [], raceExpGains: {} }),
 
+      dismissBudgetNotice: () => set({ seasonBudgetNotice: null }),
+
       dismissJoinNotice: (key) => set(s => ({ seenJoinIds: s.seenJoinIds.includes(key) ? s.seenJoinIds : [...s.seenJoinIds, key] })),
 
       // アップデート記念プレゼント（1.0.4）。冪等：giftGivenVersions に記録済みなら何もしない。
@@ -5404,7 +5425,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 8,
+      version: 9,
       migrate: (persistedState: unknown, version: number) => {
         const s = persistedState as Record<string, unknown>
         // v1→v2: undrafted pool players that were never converted to FA
@@ -5477,6 +5498,13 @@ export const useGameStore = create<GameStore>()(
             const budget = isPlayer ? rankBudgetGrant(20) : rankBudgetGrant(initialRank)
             return { ...t, finance: { ...(t.finance as Record<string, unknown>), budget } }
           })
+        }
+        // v9: currentSeason.initialBudget が無い旧セーブは、現在のプレイヤー予算を初期予算とみなす（3.5億で埋めないため）
+        if (version < 9 && s.currentSeason && (s.currentSeason as Record<string, unknown>).initialBudget == null) {
+          const pid = s.playerTeamId as string | undefined
+          const myTeam = Array.isArray(s.teams) ? (s.teams as Record<string, unknown>[]).find(t => t.id === pid) : undefined
+          const curBudget = myTeam ? ((myTeam.finance as Record<string, unknown>)?.budget as number) : undefined
+          s.currentSeason = { ...(s.currentSeason as Record<string, unknown>), initialBudget: curBudget ?? rankBudgetGrant(20) }
         }
         return s
       },

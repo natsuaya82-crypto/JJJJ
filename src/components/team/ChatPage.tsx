@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import PlayerFace from '../player/PlayerFace'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove } from '../../utils/playerUtils'
 import { canSignContract, isSecondMember } from '../../data/rosterRules'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, GameEvent, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
@@ -647,6 +647,41 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
   const [givePk, setGivePk] = useState<Set<string>>(new Set())
 
   const neg = (currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === team.id)
+
+  // 成功率の見積もり（proposeTradeと同じ評価式）
+  const tradeOutlook = (() => {
+    const PICK = 8_000_000
+    const teamRaces = currentSeason.currentRaceIndex
+    const activity = (p: Player) => { const apps = seasonAppearances(p.id, currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : 0; return 1 + frac * 0.4 }
+    const pval = (p: Player) => calcTransferValue(p) * activity(p)
+    // 主力は無条件拒否ではなく1.5倍の価値を要求される
+    const keyPremium = (p: Player) => {
+      const apps = seasonAppearances(p.id, currentSeason.races)
+      const frac = teamRaces > 0 ? apps / teamRaces : (p.rosterTier === 'main' ? 0.5 : 0)
+      return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
+    }
+    const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
+    const cpuGain = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + givePk.size * PICK
+    const cpuLoss = getPlayers.reduce((s, p) => s + pval(p) * keyPremium(p), 0) + getPk.size * PICK
+    const hasKey = getPlayers.some(p => keyPremium(p) > 1)
+    const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+    const myRank = stgs.findIndex(s => s.teamId === playerTeamId) + 1
+    const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
+    let blockMsg = ''
+    for (const rp of getPlayers) {
+      const consent = playerConsentToMove(rp, myRank, teams.length, 0.5, 0, consentBonus)
+      if (!consent.ok) { blockMsg = consent.reason; break }
+    }
+    const nextRound = (neg?.round ?? 0) + 1
+    const ratio = cpuLoss > 0 ? cpuGain / cpuLoss : 0
+    let rate: number
+    if (blockMsg || cpuLoss === 0) rate = 0
+    else if (ratio >= 0.95) rate = 100
+    else if (nextRound >= 3) rate = 0
+    else rate = Math.max(0, Math.min(99, Math.round(((ratio - 0.55) / 0.40) * 100)))
+    const shortage = Math.max(0, cpuLoss * 0.95 - cpuGain)
+    return { rate, shortage, blockMsg, hasKey, isFinal: nextRound >= 3 }
+  })()
   const pickKey = (pk: { year: number; round: number; pickNumber: number }) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
   const pickLabel = (k: string) => { const [y, r] = k.split('-'); return `${y} ${r.replace('R', '第')}巡` }
   const nameOf = (id: string) => players.find(p => p.id === id)?.name ?? '選手'
@@ -732,7 +767,12 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
                 </div>
               )}
               {neg.status === 'rejected' && (
-                <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
+                <>
+                  {tradeOutlook.blockMsg
+                    ? <div style={{ fontSize: 10, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{tradeOutlook.blockMsg}。対象を変えてください</div>
+                    : tradeOutlook.shortage > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>あと約{fmt(tradeOutlook.shortage)}相当が不足しています。出す選手か指名権を追加して再提案してください</div>}
+                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
+                </>
               )}
               <div style={{ fontSize: 9, color: C.textGhost, marginTop: 6, fontFamily: SAIRA }}>交渉 {neg.round}/3 回目</div>
             </div>
@@ -747,6 +787,34 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
             <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 6 }}>貰う（{team.shortName}）</div>
             <div style={{ fontSize: 12, color: C.text, lineHeight: 1.7 }}>{[...[...getP].map(nameOf), ...[...getPk].map(pickLabel)].join('・')}</div>
           </div>
+
+          {!submitted && giveCount > 0 && getCount > 0 && (() => {
+            const { rate, shortage, blockMsg, hasKey, isFinal } = tradeOutlook
+            const barColor = rate >= 70 ? C.green : rate >= 30 ? C.gold : C.red
+            const filled = Math.round(rate / 10)
+            return (
+              <div style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, flexShrink: 0 }}>成功率</span>
+                  <div style={{ display: 'flex', gap: 3, flex: 1 }}>
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <div key={i} style={{ flex: 1, height: 6, borderRadius: 3, background: i < filled ? barColor : C.border2 }} />
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: barColor, fontFamily: SAIRA, flexShrink: 0, minWidth: 38, textAlign: 'right' }}>{rate}%</span>
+                </div>
+                {hasKey && <div style={{ fontSize: 10, color: C.gold, marginTop: 6, lineHeight: 1.5 }}>主力を含むため必要額1.5倍で計算されています</div>}
+                {blockMsg && <div style={{ fontSize: 10, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{blockMsg}</div>}
+                {!blockMsg && rate < 100 && shortage > 0 && (
+                  <div style={{ fontSize: 10, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>
+                    あと約{fmt(shortage)}相当が不足。出す選手か指名権を追加してください
+                    {isFinal && <span style={{ color: C.red }}>（最終交渉：合意圏内でないと決裂します）</span>}
+                  </div>
+                )}
+                {!blockMsg && rate === 100 && <div style={{ fontSize: 10, color: C.green, marginTop: 6 }}>合意圏内です</div>}
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -958,6 +1026,10 @@ export default function ChatPage() {
   // チャット履歴は store（currentSeason.chatLogs）に保存。画面を離れても・解決後も年内は見返せる。
   const chatLogs = currentSeason.chatLogs ?? {}
   const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
+  // 買い取り・レンタル打診に対応した結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）
+  const [offerResults, setOfferResults] = useState<{ id: string; text: string; ok: boolean }[]>([])
+  const pushOfferResult = (id: string, text: string, ok: boolean) => setOfferResults(prev => [...prev.filter(r => r.id !== id), { id, text, ok }])
+  const dismissOfferResult = (id: string) => setOfferResults(prev => prev.filter(r => r.id !== id))
 
   useEffect(() => { generateContractRequests() }, [])
 
@@ -1216,22 +1288,47 @@ export default function ChatPage() {
           <div style={{ padding: '40px 20px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA, fontSize: 12 }}>選手がいません</div>
         )}
 
-        {activeTab === 'transfer' && inboundCount > 0 && (
+        {activeTab === 'transfer' && (inboundCount > 0 || offerResults.length > 0) && (
           <>
             <div style={{ fontSize: 10, fontWeight: 800, color: C.orange, letterSpacing: '0.1em', marginBottom: 2, marginTop: 4 }}>
               相手から来たオファー · {inboundCount}件
             </div>
+            {offerResults.map(r => (
+              <div key={r.id} style={{ borderRadius: 12, background: alpha(r.ok ? C.green : C.red, 0.08), border: `1.5px solid ${alpha(r.ok ? C.green : C.red, 0.45)}`, padding: '10px 12px', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, fontSize: 12, color: C.text, lineHeight: 1.6 }}>{r.text}</div>
+                <button onClick={() => dismissOfferResult(r.id)} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 9, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+              </div>
+            ))}
             {incomingOffers.map(o => {
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
-              return <IncomingTransferCard key={o.id} offer={o} player={p} teamName={teamName(o.fromTeamId)}
-                onAccept={() => acceptIncomingOffer(o.id)} onCounter={(price) => counterIncomingOffer(o.id, price)} onDecline={() => declineIncomingOffer(o.id)} />
+              const tn = teamName(o.fromTeamId)
+              return <IncomingTransferCard key={o.id} offer={o} player={p} teamName={tn}
+                onAccept={() => {
+                  const ok = acceptIncomingOffer(o.id)
+                  pushOfferResult(o.id, ok ? `${p.name}を${tn}へ売却しました（移籍金${fmt(o.offeredPrice)}を獲得）` : `${p.name}の売却は成立しませんでした`, ok)
+                }}
+                onCounter={(price) => {
+                  const r = counterIncomingOffer(o.id, price)
+                  pushOfferResult(o.id,
+                    r === 'sold' ? `${tn}がカウンターを受諾。${p.name}を売却しました（移籍金${fmt(price)}を獲得）`
+                    : r === 'refused' ? `${tn}は${fmt(price)}を支払えず、交渉は決裂しました`
+                    : `${p.name}の交渉は無効になりました`, r === 'sold')
+                }}
+                onDecline={() => declineIncomingOffer(o.id)} />
             })}
             {incomingLoanOffers.map(o => {
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
-              return <IncomingLoanCard key={o.id} offer={o} player={p} teamName={teamName(o.fromTeamId)} slotsFull={loanSlotsUsed >= 3}
-                onAccept={() => acceptIncomingLoanOffer(o.id)} onDecline={() => declineIncomingLoanOffer(o.id)} />
+              const tn = teamName(o.fromTeamId)
+              return <IncomingLoanCard key={o.id} offer={o} player={p} teamName={tn} slotsFull={loanSlotsUsed >= 3}
+                onAccept={() => {
+                  const ok = acceptIncomingLoanOffer(o.id)
+                  pushOfferResult(o.id, ok
+                    ? (o.direction === 'lend_out' ? `${p.name}を${tn}へ${o.years}年レンタルで貸し出しました` : `${p.name}を${o.years}年レンタルで借りました`)
+                    : `レンタルは成立しませんでした（枠または条件を満たしていません）`, ok)
+                }}
+                onDecline={() => declineIncomingLoanOffer(o.id)} />
             })}
           </>
         )}

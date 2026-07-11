@@ -157,7 +157,9 @@ export default function PlayerSheet() {
     }
   }
 
+  // 通常の選手に加え、スカウトのドラフト候補（Player[]）も詳細表示できるよう解決する
   const player = players.find(p => p.id === openPlayerId)
+    ?? (currentSeason.scoutProspects ?? []).find(p => p.id === openPlayerId)
 
   useEffect(() => {
     setPage(1)

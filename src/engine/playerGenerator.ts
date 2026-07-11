@@ -1,5 +1,6 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
 import type { TraitId } from '../utils/traitUtils'
+import { rankBudgetGrant } from '../data/economy'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -697,43 +698,29 @@ export function generateDraftPool(year: number): Player[] {
   return players
 }
 
-// AI roster rank distribution per team tier (main: 20, second: 15)
-const AI_GRADE_POOL_ELITE: Rank[] = [
-  'SSS', 'SSS',
-  'SS', 'SS', 'SS', 'SS',
-  'S', 'S', 'S', 'S', 'S', 'S',
-  'A', 'A', 'A', 'A',
-  'B', 'B', 'B', 'B',
-]
-const AI_GRADE_POOL_MID: Rank[] = [
-  'SS',
-  'S', 'S', 'S', 'S',
-  'A', 'A', 'A', 'A', 'A', 'A',
-  'B', 'B', 'B', 'B', 'B',
-  'C', 'C', 'C', 'C',
-]
-const AI_GRADE_POOL_WEAK: Rank[] = [
-  'S',
-  'A', 'A', 'A', 'A',
-  'B', 'B', 'B', 'B', 'B', 'B', 'B',
-  'C', 'C', 'C', 'C', 'C',
-  'D', 'D', 'D',
-]
-const AI_SECOND_POOL_ELITE: Rank[] = [
-  'A', 'A', 'A',
-  'B', 'B', 'B', 'B', 'B',
-  'C', 'C', 'C', 'C', 'C',
-  'D', 'D',
-]
-const AI_SECOND_POOL_MID: Rank[] = [
-  'B', 'B', 'B',
-  'C', 'C', 'C', 'C', 'C', 'C', 'C',
-  'D', 'D', 'D', 'D', 'D',
-]
-const AI_SECOND_POOL_WEAK: Rank[] = [
-  'C', 'C', 'C',
-  'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D',
-]
+// 年俸配分：予算合計をスター偏重の傾斜で人数分に配る（上位ほど高額・下限あり・合計は予算内）
+function distributeSalaries(total: number, count: number, minSalary: number): number[] {
+  const weights = Array.from({ length: count }, (_, i) => Math.pow(count - i, 1.6))
+  const wsum = weights.reduce((s, w) => s + w, 0)
+  const raw = weights.map(w => total * w / wsum)
+  // 下限で底上げした分は、上位の「下限を超える部分」を比例圧縮して合計を維持する
+  const fixed = raw.map(v => Math.max(minSalary, v))
+  const over = fixed.reduce((s, v) => s + Math.max(0, v - minSalary), 0)
+  const deficit = fixed.reduce((s, v) => s + v, 0) - total
+  const shrink = over > 0 ? Math.max(0, 1 - deficit / over) : 1
+  return fixed.map(v => Math.round((minSalary + Math.max(0, v - minSalary) * shrink) / 500_000) * 500_000)
+}
+
+// 年俸から選手ランクを決める（calculateRookieSalaryの帯の中間を境界にする）
+function rankForSalary(s: number): Rank {
+  if (s >= 36_000_000) return 'SSS'
+  if (s >= 28_000_000) return 'SS'
+  if (s >= 20_000_000) return 'S'
+  if (s >= 14_000_000) return 'A'
+  if (s >= 10_000_000) return 'B'
+  if (s >= 7_000_000) return 'C'
+  return 'D'
+}
 
 export function generateCpuRosters(
   teams: { id: string; initialRank?: number }[],
@@ -746,15 +733,10 @@ export function generateCpuRosters(
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
   let cpuIdCounter = 5000
 
-  const tierMap = new Map<string, 'elite' | 'mid' | 'weak'>()
-  for (const t of teams) {
-    const rank = t.initialRank ?? 10
-    tierMap.set(t.id, rank <= 6 ? 'elite' : rank <= 14 ? 'mid' : 'weak')
-  }
-
   function makePlayer(
     baseRank: Rank, i: number, teamId: string, tier: 'main' | 'second',
     isForeign: boolean, contractType: 'standard' | 'development' | 'dual' = tier === 'main' ? 'standard' : 'development',
+    salary?: number,
   ): Player {
     cpuIdCounter++
     const rank: Rank = baseRank
@@ -805,7 +787,7 @@ export function generateCpuRosters(
       teamId, rosterTier: 'main',
       contract: {
         yearsLeft: rng(2, 4),
-        annualSalary: calculateRookieSalary(rank),
+        annualSalary: salary ?? calculateRookieSalary(rank),
         faEligibleYear: year + rng(2, 4),
         contractType: 'standard',
       },
@@ -818,37 +800,35 @@ export function generateCpuRosters(
   }
 
   for (const team of teams) {
-    const teamTier = tierMap.get(team.id) ?? 'mid'
-    const mainPool = teamTier === 'elite' ? AI_GRADE_POOL_ELITE : teamTier === 'weak' ? AI_GRADE_POOL_WEAK : AI_GRADE_POOL_MID
-    const secondPool = teamTier === 'elite' ? AI_SECOND_POOL_ELITE : teamTier === 'weak' ? AI_SECOND_POOL_WEAK : AI_SECOND_POOL_MID
+    // グラント（initialRank連動の初期予算）の8割を30人の年俸に充てる。
+    // 年俸から選手の強さを決めるので、予算の大きいチームほど強い選手が揃う。
+    const grant = rankBudgetGrant(team.initialRank ?? 10)
+    const salaries = distributeSalaries(Math.round(grant * 0.8), 30, 4_000_000)
 
     const mainIds: string[] = []   // 本契約(standard) 12
     const dualIds: string[] = []   // 2WAY(dual) 3（1軍/2軍共通）
     const secondIds: string[] = [] // 育成(development) 15
 
-    const mainGrades = [...mainPool].sort(() => Math.random() - 0.5)
-    const secondGrades = [...secondPool].sort(() => Math.random() - 0.5)
-
-    // 本契約(standard) 12人 — 外国人は2人まで
+    // 本契約(standard) 12人 — 年俸上位から。外国人は2人まで
     let teamForeignCount = 0
     for (let i = 0; i < 12; i++) {
-      const grade = mainGrades[i % mainGrades.length]
+      const sal = salaries[i]
       const canBeForeign = teamForeignCount < 2
       const isForeign = canBeForeign && (i < 1 ? Math.random() < 0.55 : Math.random() < 0.08)
       if (isForeign) teamForeignCount++
-      const p = makePlayer(grade, i, team.id, 'main', isForeign, 'standard')
+      const p = makePlayer(rankForSalary(sal), i, team.id, 'main', isForeign, 'standard', sal)
       cpuPlayers.push(p); mainIds.push(p.id)
     }
     // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）
     for (let i = 0; i < 3; i++) {
-      const grade = secondGrades[i % secondGrades.length]
-      const p = makePlayer(grade, 12 + i, team.id, 'main', false, 'dual')
+      const sal = salaries[12 + i]
+      const p = makePlayer(rankForSalary(sal), 12 + i, team.id, 'main', false, 'dual', sal)
       cpuPlayers.push(p); dualIds.push(p.id)
     }
-    // 育成(development) 15人（国内）
+    // 育成(development) 15人（国内・年俸下位）
     for (let i = 0; i < 15; i++) {
-      const grade = secondGrades[(i + 3) % secondGrades.length]
-      const p = makePlayer(grade, i, team.id, 'second', false, 'development')
+      const sal = salaries[15 + i]
+      const p = makePlayer(rankForSalary(sal), i, team.id, 'second', false, 'development', sal)
       cpuPlayers.push(p); secondIds.push(p.id)
     }
 
@@ -1095,54 +1075,32 @@ export function generateForeignLeaguePlayers(
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
 
-  // 地域別グレードプール（日本S/A帯を基準に強弱）
-  const GRADE_POOL: Record<string, Rank[]> = {
-    // アフリカ（ETH/KEN/UGA/TAN）: かなり高め
-    AFRICA: [
-      'SSS', 'SSS', 'SSS', 'SSS', 'SSS',
-      'SS', 'SS', 'SS', 'SS', 'SS',
-      'S', 'S', 'S', 'S',
-      'A', 'A', 'A',
-      'B', 'B',
-      'C', 'C', 'C',
-    ],
-    // ユーロ・アメリカ: 日本平均より高め
-    EUR_USA: [
-      'SSS', 'SSS', 'SSS',
-      'SS', 'SS', 'SS', 'SS',
-      'S', 'S', 'S', 'S', 'S',
-      'A', 'A', 'A', 'A',
-      'B', 'B', 'B',
-      'C', 'C', 'C',
-    ],
-    // 中国・韓国・台湾: 日本平均より低め
-    ASIA: [
-      'S', 'S',
-      'A', 'A', 'A', 'A',
-      'B', 'B', 'B', 'B', 'B',
-      'C', 'C', 'C', 'C',
-      'D', 'D', 'D', 'D', 'D',
-      'D', 'D',
-    ],
+  // 地域別の仮想予算。JPELと同じく8割を22人の年俸に充て、年俸から強さを決める。
+  // アフリカ（ETH/KEN/UGA/TAN）はJPEL首位（グラント7億）を上回る
+  const REGION_BUDGET: Record<string, number> = {
+    AFRICA: 850_000_000,
+    EUR_USA: 700_000_000,
+    ASIA: 400_000_000,
   }
-
-  function gradePoolFor(country: string): Rank[] {
-    if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return GRADE_POOL.AFRICA
-    if (['EUR', 'USA'].includes(country)) return GRADE_POOL.EUR_USA
-    if (['CHN', 'KOR', 'TWN'].includes(country)) return GRADE_POOL.ASIA
-    return GRADE_POOL.EUR_USA
+  function budgetFor(country: string): number {
+    if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return REGION_BUDGET.AFRICA
+    if (['EUR', 'USA'].includes(country)) return REGION_BUDGET.EUR_USA
+    if (['CHN', 'KOR', 'TWN'].includes(country)) return REGION_BUDGET.ASIA
+    return REGION_BUDGET.EUR_USA
   }
 
   const updatedLeagues = leagues.map(league => ({
     ...league,
     clubs: league.clubs.map(club => {
       const clubPlayerIds: string[] = []
-      const grades = [...gradePoolFor(club.country)].sort(() => Math.random() - 0.5)
+      // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
+      const salaries = distributeSalaries(Math.round(budgetFor(club.country) * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
       const namePool = FOREIGN_NAMES_BY_NATIONALITY[club.country as string]
         ?? FOREIGN_NAMES_BY_NATIONALITY.EUR
         ?? []
 
-      grades.forEach((rank, i) => {
+      salaries.forEach((clubSalary) => {
+        const rank = rankForSalary(clubSalary)
         foreignIdCounter++
         const specialty = specialties[rng(0, specialties.length - 1)]
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
@@ -1176,7 +1134,7 @@ export function generateForeignLeaguePlayers(
           rosterTier: 'main',
           contract: {
             yearsLeft: rng(1, 3),
-            annualSalary: calculateRookieSalary(rank),
+            annualSalary: clubSalary,
             faEligibleYear: year + rng(1, 3),
           },
           nationality: nat,

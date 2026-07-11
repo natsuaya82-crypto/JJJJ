@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore, individualEventAbility } from '../../store/gameStore'
 import { ovr, ratingColor } from '../../utils/playerUtils'
@@ -11,6 +11,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { LineupPhase } from './LineupPhase'
 import { SimPhase } from './SimPhase'
 import { ResultsPhase } from './ResultsPhase'
+import { useAdHeight } from '../layout/Layout'
 import { buildAILineup } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
@@ -39,6 +40,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   onDone: () => void
 }) {
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const adH = useAdHeight()
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   // 国内チーム or 海外クラブから所属を解決（記録会に海外選手が出るため）
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
@@ -133,6 +135,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
           </div>
         </>
       ) : (
+        <>
         <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位10名</div>
@@ -208,11 +211,14 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
             </div>
           </div>
 
+        </div>
+        <div style={{ position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 10px', background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`, zIndex: 35 }}>
           <button onClick={onDone}
             style={{ width: '100%', padding: 15, borderRadius: 12, border: 'none', background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>
             次へ
           </button>
         </div>
+        </>
       )}
     </div>
   )
@@ -269,12 +275,12 @@ export default function RacePage() {
     audio.playBgm(p === 'simulating' ? 'race' : 'home')
   }
 
-  useEffect(() => {
-    // マウント時は編成画面（lineup）。下ナビを隠してボトムバー(クリア/自動配置)と被らないようにする。
+  // 描画前(useLayoutEffect)に lineup 化して下ナビを隠す＝タブが一瞬見えてから消える「遅れて全画面化」を防ぐ。
+  useLayoutEffect(() => {
     setActiveRacePhase('lineup')
-    audio.playBgm('home')
     return () => { setActiveRacePhase(null) }
   }, [])
+  useEffect(() => { audio.playBgm('home') }, [])
 
   const raceIndex = currentSeason.currentRaceIndex
   const currentRace = currentSeason.races[raceIndex]
@@ -692,7 +698,7 @@ export default function RacePage() {
         teams={teams}
         playerTeamId={playerTeamId}
         onRun={(skipIds) => runWithLoading('記録会 開催中…', () => { simulateIndividualEvent(ttEvent.id, skipIds); setTtViewId(ttEvent.id) }, 800)}
-        onDone={() => { setTtViewId(null); navigate('/') }}
+        onDone={() => navigate('/')}
       />
     )
   }
