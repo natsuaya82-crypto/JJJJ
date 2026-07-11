@@ -5,7 +5,10 @@ const config: CapacitorConfig = {
   appName: 'JPEL Manager',
   webDir: 'dist',
   ios: {
-    contentInset: 'always',
+    // セーフエリアはCSSの env(safe-area-inset-*) で自前処理しているため、
+    // WKWebViewのネイティブ自動インセットは無効化する。'always'だと二重インセットで
+    // 描画位置とタッチ判定がズレ「押した所の少し下が反応する」バグになる。
+    contentInset: 'never',
     // WKWebView自体のスクロール/バウンドを無効化。ヘッダー・下タブが動く「スライド」を防ぎ、
     // スクロールは中身エリア(<main>のoverflow:auto)だけに限定する。
     scrollEnabled: false,
