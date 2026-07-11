@@ -166,8 +166,10 @@ function PremiumCard() {
         setMsg('ありがとうございます！広告なし版が有効になりました。')
       } else if (res === 'cancelled') {
         setMsg('購入をキャンセルしました。')
+      } else if (res === 'pending') {
+        setMsg('購入の承認待ちです。承認されると自動で反映されます。')
       } else if (res === 'unavailable') {
-        setMsg('現在この端末では購入を準備中です。')
+        setMsg('ストアで商品情報を取得できませんでした。しばらくしてから再度お試しください。')
       } else {
         setMsg('購入に失敗しました。時間をおいて再度お試しください。')
       }
