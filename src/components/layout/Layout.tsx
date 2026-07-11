@@ -67,6 +67,13 @@ const AD_H = 50
 const NAV_H = 50
 const HEADER_H = 47  // ヘッダー実効高（ボタンminHeight44+上下padding2+border1）。safe-area分は別途加算
 
+// 画面下部の広告バナーの高さ。買い切り版（adsRemoved）なら0。
+// 固定配置の要素（ボトムバー・シート類）はこれを使って広告の上で止める
+export function useAdHeight(): number {
+  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
+  return adsRemoved ? 0 : AD_H
+}
+
 /* ── Animated page wrapper ─────────────────── */
 function PageWrapper({ children, locationKey }: { children: React.ReactNode; locationKey: string }) {
   const [key, setKey] = useState(locationKey)
@@ -282,7 +289,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               style={{
                 flex: 1, height: '100%', border: 'none', background: 'none',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: '2px', cursor: 'pointer',
+                gap: '3px', cursor: 'pointer',
                 transition: 'color 0.15s ease',
                 position: 'relative',
                 minHeight: '44px',
@@ -290,7 +297,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               }}
             >
               <div style={{
-                width: 40, height: 30, borderRadius: 9,
+                width: 44, height: 38, borderRadius: 11,
                 background: active
                   ? `linear-gradient(180deg, ${C.cyan}30 0%, ${C.cyan}18 100%)`
                   : `linear-gradient(180deg, #1e3a5c 0%, #0f2440 100%)`,
@@ -325,9 +332,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Ad Space（買い切り版では非表示） ── */}
       {!adsRemoved && (
         <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+          position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
-          height: `calc(${AD_H}px + env(safe-area-inset-bottom))`,
+          height: `${AD_H}px`,
           backgroundColor: '#070610',
           borderTop: `1px solid ${C.border}`,
           zIndex: 60,
