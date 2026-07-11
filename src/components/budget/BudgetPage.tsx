@@ -88,6 +88,11 @@ export default function BudgetPage() {
   })
   const nextGrant = rankBudgetGrant(myRank || teams.length)
 
+  // 今シーズンの収支（年度末に予算へ反映される）
+  const seasonIncome = nextGrant + sponsorAnnual + projectedSeasonRaceIncome
+  const seasonExpense = squadSalaryTotal + facRunningCost
+  const seasonNet = seasonIncome - seasonExpense
+
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 
   const topSalaries = [...rosterPlayers]
@@ -129,13 +134,13 @@ export default function BudgetPage() {
           }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 6 }}>
-              移籍予算（現在）
+              今シーズンの予算
             </div>
             <div style={{ fontFamily: SAIRA, fontSize: 42, fontWeight: 900, color: budgetColor, lineHeight: 1, textShadow: budgetColor === C.green ? '0 0 10px rgba(46,204,113,0.4)' : budgetColor === C.red ? '0 0 10px rgba(255,71,87,0.4)' : '0 0 10px rgba(255,152,0,0.4)' }}>
               {fmt(budget)}
             </div>
             <div style={{ fontSize: 11, color: C.textDim, marginTop: 6 }}>
-              {budget >= 0 ? '補強に使える資金' : '予算不足 — 選手放出を検討してください'}
+              {budget >= 0 ? '移籍・補強に今使えるお金' : '予算不足 — 選手放出を検討してください'}
             </div>
           </div>
         </div>
@@ -143,78 +148,28 @@ export default function BudgetPage() {
 
       <div style={{ margin: '0 14px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
-          残り{racesLeft}戦の収入見込み
+          今シーズンの収支
         </div>
         <div style={{
           background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           border: `2px solid ${C.goldDark}`,
           borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
           boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-        }}>
-          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <Row
-              label={`レース賞金 (残${racesLeft}戦 × ${fmt(prizePerRace)})`}
-              value={fmt(estimatedRemainingRacePrize)}
-              color={C.green}
-              sub={`現在${myRank}位基準`}
-            />
-            <Row
-              label="観客収入見込み"
-              value={fmt(estimatedRemainingAttendance)}
-              color={C.textSub}
-            />
-            <Row
-              label="スポンサー収入見込み"
-              value={fmt(estimatedSponsorRemaining)}
-              color={C.green}
-            />
-            {racesLeft > 0 && (
-              <Row
-                label="シーズン終了賞金（現順位基準）"
-                value={fmt(estimatedSeasonPrize)}
-                color={C.gold}
-                sub="最終順位確定後に付与"
-              />
-            )}
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '12px 0 4px',
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>合計見込み</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green, textShadow: '0 0 10px rgba(46,204,113,0.4)' }}>
-                {fmt(estimatedRemainingRacePrize + estimatedRemainingAttendance + estimatedSponsorRemaining + (racesLeft > 0 ? estimatedSeasonPrize : 0), true)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ margin: '0 14px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
-          来季予算 見込み（現在{myRank || '—'}位基準）
-        </div>
-        <div style={{
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark}`,
-          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-          marginBottom: 14,
         }}>
           <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
             <Row label="順位グラント" value={`+${fmt(nextGrant)}`} color={C.gold} sub={`最終${myRank || '—'}位で確定`} />
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
-            <Row label="賞金・観客収入（今季累計＋残り）" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
-            <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`ロスター${rosterPlayers.length}名`} />
+            <Row label="賞金・観客収入" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
+            <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="施設維持費・運営費" value={`-${fmt(facRunningCost)}`} color={C.red} sub="施設Lvが高いほど高い" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>来季予算 見込み</div>
-                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>前季残高 {fmt(budget)} を繰り越し（年俸・維持費は年度末に精算／赤字は-1億まで）</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>今季の収支</div>
+                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>年度末に予算へ反映（黒字なら予算増・赤字なら減）</div>
               </div>
-              <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.gold, textShadow: '0 0 10px rgba(245,200,66,0.4)' }}>
-                {fmt(projectedNextBudget)}
+              <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: seasonNet >= 0 ? C.green : C.red, textShadow: seasonNet >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
+                {fmt(seasonNet, true)}
               </div>
             </div>
           </div>
