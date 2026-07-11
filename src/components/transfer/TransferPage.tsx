@@ -601,9 +601,8 @@ export default function TransferPage() {
               const bListing = listings.find(l => l.playerId === bp.id)
               const bVal = calcTransferValue(bp)
               return (
-                <>
-                  <div onClick={() => setBidTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300 }} />
-                  <div className="sheet-up" style={{ position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: 480, zIndex: 301, background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', padding: '8px 16px calc(16px + env(safe-area-inset-bottom))' }}>
+                <div onClick={() => setBidTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
                     <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
                     <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 8 }}>{bp.name} へ入札</div>
                     <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
@@ -628,7 +627,7 @@ export default function TransferPage() {
                       <button onClick={() => setBidTarget(null)} style={{ padding: '13px 16px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '13px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
                     </div>
                   </div>
-                </>
+                </div>
               )
             })()}
 
@@ -637,9 +636,8 @@ export default function TransferPage() {
               const rp = loanTarget ? players.find(x => x.id === loanTarget) : undefined
               if (!rp) return null
               return (
-                <>
-                  <div onClick={() => setLoanTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300 }} />
-                  <div className="sheet-up" style={{ position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: 480, zIndex: 301, background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', padding: '8px 16px calc(16px + env(safe-area-inset-bottom))' }}>
+                <div onClick={() => setLoanTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
                     <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
                     <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 4 }}>{rp.name} をレンタル</div>
                     <div style={{ fontSize: 10, color: C.textDim, marginBottom: 14, fontFamily: SAIRA }}>買わずに借りる。期間を選んで要請（次レースで回答）。</div>
@@ -653,7 +651,7 @@ export default function TransferPage() {
                     </div>
                     <button onClick={() => setLoanTarget(null)} style={{ display: 'block', width: '100%', marginTop: 12, padding: '13px', borderRadius: 12, border: `1px solid ${C.border}`, background: C.surface2, color: C.textDim, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>キャンセル</button>
                   </div>
-                </>
+                </div>
               )
             })()}
           </div>

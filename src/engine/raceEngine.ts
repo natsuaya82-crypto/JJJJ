@@ -231,9 +231,11 @@ export function calcWeatherModifier(
   let mod = 1.0
   switch (weather) {
     case 'rainy':
-      mod += (stamina - 70) * 0.001
-      if (specialty === 'sprinter') mod -= 0.04
-      else if (specialty === 'grinder' || specialty === 'long') mod += 0.02
+      // 雨は基本的に遅くなる。高スタミナ・粘り型はダメージを軽減できるが、速くはならない。
+      mod -= 0.035
+      mod += Math.min(0.03, Math.max(0, (stamina - 60) * 0.0006))
+      if (specialty === 'grinder' || specialty === 'long') mod += 0.01
+      else if (specialty === 'sprinter') mod -= 0.015
       break
     case 'windy':
       mod -= 0.015

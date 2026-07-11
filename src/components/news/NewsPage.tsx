@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { ovr, faMarketSalary, SPEC_COLOR } from '../../utils/playerUtils'
@@ -39,6 +39,16 @@ export default function NewsPage() {
   const newsFeed  = useGameStore(s => s.currentSeason.newsFeed)
   const players   = useGameStore(s => s.players)
   const teams     = useGameStore(s => s.teams)
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+
+  // 長押しで選手詳細
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lp = (pid: string) => ({
+    onPointerDown: () => { timer.current = setTimeout(() => openPlayerSheet(pid), 450) },
+    onPointerUp: () => { if (timer.current) clearTimeout(timer.current) },
+    onPointerLeave: () => { if (timer.current) clearTimeout(timer.current) },
+    onPointerMove: () => { if (timer.current) clearTimeout(timer.current) },
+  })
 
   const initCat = (location.state as { cat?: string } | null)?.cat ?? 'all'
   const [filter, setFilter] = useState<string>(initCat)
@@ -96,13 +106,13 @@ export default function NewsPage() {
             const isFA = !relPlayer.teamId
 
             return (
-              <div key={i} style={{
+              <div key={i} {...lp(relPlayer.id)} style={{
                 background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
                 border: news.major ? `2px solid ${C.gold}` : `2px solid ${alpha(col, 0.55)}`, borderRadius: 14,
                 boxShadow: news.major
                   ? `0 4px 0 #5a3500, 0 6px 22px ${alpha(C.gold, 0.28)}, inset 0 1px 0 rgba(255,255,255,0.08)`
                   : `0 4px 0 #2a1800, 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
-                overflow: 'hidden',
+                overflow: 'hidden', cursor: 'pointer',
               }}>
                 {/* Top row */}
                 <div style={{ padding: '10px 12px 8px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${alpha(col, 0.18)}` }}>
