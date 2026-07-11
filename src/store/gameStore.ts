@@ -3596,7 +3596,10 @@ export const useGameStore = create<GameStore>()(
 
       beginSeasonDraft: () => {
         const state = get()
-        const pool = generateDraftPool(state.currentSeason.year)
+        // スカウト画面で見せた候補（scoutProspects）をそのままドラフトプールにする。
+        // 空のとき（旧セーブ等）だけ従来通り新規生成にフォールバック。
+        const scouted = state.currentSeason.scoutProspects ?? []
+        const pool = scouted.length > 0 ? scouted : generateDraftPool(state.currentSeason.year)
         const pickOrder = buildDraftOrder(state.teams, state.currentSeason.year, state.playerTeamId)
 
         // Ensure all teams have future draft picks (backfill for existing saves)
