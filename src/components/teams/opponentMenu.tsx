@@ -82,7 +82,7 @@ function LoanModal({ player, slots, pending, isScouted, onSubmit, onClose }: { p
   )
 }
 
-// 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細。domestic はトレード可、foreign は移籍(海外)＋視察のみ。
+// 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細。移籍オファー・レンタルのオファーが可能。
 export function useOpponentMenu() {
   const navigate = useNavigate()
   const { players, teams, playerTeamId, currentSeason } = useGameStore()

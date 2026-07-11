@@ -51,16 +51,17 @@ export default function RecordsHub() {
       ),
     },
     {
-      key: '/records/history',
-      label: '歴史',
-      desc: '歴代チャンピオンとリーグ順位推移',
-      countLabel: championships > 0 ? `優勝 ${championships}回` : '初優勝を目指せ',
-      badge: championships,
+      key: '/records/draft',
+      label: '歴代ドラフト',
+      desc: '2027年度からの歴代ドラフト指名選手',
+      countLabel: '年度別に一覧',
+      badge: 0,
       color: C.orange,
       shadow: '#5a2800',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2l2.5 7.5H22l-6.5 4.7 2.5 7.5L12 17.5l-6 4.2 2.5-7.5L2 9.5h7.5L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+          <path d="M12 3v13M12 16l-4-4M12 16l4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M4 20h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
         </svg>
       ),
     },

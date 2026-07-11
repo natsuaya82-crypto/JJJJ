@@ -356,6 +356,7 @@ export type GameStore = GameState & {
   setAdsRemoved: (v: boolean) => void
   // 公式Xフォロー案内ポップを表示済みにする（初回のみ表示するためのフラグ）
   markTwitterIntroSeen: () => void
+  dismissExpiredNegotiation: (id: string) => void
 
   // Dev reset
   resetGame: () => void
@@ -1285,6 +1286,18 @@ export const useGameStore = create<GameStore>()(
           }))
           const existingListingsFiltered = (state.currentSeason.transferListings ?? []).filter(l => !cpuTxListingIds.has(l.id))
 
+          // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
+          const offerExpiredNegs: { id: string; playerId: string; playerName: string }[] = []
+          const offerExpiredPlayerIds: string[] = [];
+          (state.currentSeason.incomingOffers ?? []).forEach(o => {
+            if (o.expiresAtRace <= nextRaceIndex) {
+              const pl = finalPlayers.find(p => p.id === o.playerId)
+              if (pl) {
+                offerExpiredNegs.push({ id: o.id, playerId: o.playerId, playerName: pl.name })
+                offerExpiredPlayerIds.push(o.playerId)
+              }
+            }
+          })
           const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], isWindowOpenNow, state.currentSeason.transferRequests ?? [])
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
@@ -1295,11 +1308,20 @@ export const useGameStore = create<GameStore>()(
           const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
           // Process pending transfer bids
+          const bidExpiredNegs: { id: string; playerId: string; playerName: string }[] = []
+          const bidExpiredPlayerIds: string[] = []
           const processedBids = (state.currentSeason.transferBids ?? []).map(bid => {
             // 費用合意・カウンター中でも、対象選手が他所へ移籍していたら破談にする（永久に残るのを防ぐ）
             if (bid.status === 'fee_accepted' || bid.status === 'countered') {
               const pl = finalPlayers.find(p => p.id === bid.playerId)
               if (!pl || pl.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
+              // 費用合意から5試合放置で自動失効
+              if (bid.status === 'fee_accepted' && bid.feeAcceptedAtRace != null && nextRaceIndex - bid.feeAcceptedAtRace >= 5) {
+                const pl2 = finalPlayers.find(p => p.id === bid.playerId)
+                bidExpiredNegs.push({ id: bid.id, playerId: bid.playerId, playerName: pl2?.name ?? '' })
+                bidExpiredPlayerIds.push(bid.playerId)
+                return { ...bid, status: 'failed' as const }
+              }
               return bid
             }
             if (bid.status !== 'pending') return bid
@@ -1309,7 +1331,7 @@ export const useGameStore = create<GameStore>()(
             const isListed = transferData.listings.some(l => l.playerId === bid.playerId)
             const isExpiring = player.contract.yearsLeft <= 1
             const threshold = val * (isListed ? 0.85 : isExpiring ? 0.92 : 1.05) * (0.9 + Math.random() * 0.2)
-            if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const }
+            if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
             if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) {
               return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
             }
@@ -1472,8 +1494,15 @@ export const useGameStore = create<GameStore>()(
             newTransferReqs = [{ playerId: picked.id, reason: picked.reason }]
           }
 
+          // 期限切れ交渉のプレイヤーを1年間ロック
+          const allExpiredPlayerIds = [...new Set([...bidExpiredPlayerIds, ...offerExpiredPlayerIds])]
+          const allExpiredNegs = [...bidExpiredNegs, ...offerExpiredNegs]
+          const playersWithExpiredLocks = allExpiredPlayerIds.length > 0
+            ? playersAfterLoan.map(p => allExpiredPlayerIds.includes(p.id) ? { ...p, transferLockedUntilYear: state.currentSeason.year + 1 } : p)
+            : playersAfterLoan
+
           return {
-            players: playersAfterLoan,
+            players: playersWithExpiredLocks,
             teams: teamsAfterLoan,
             jewels: state.jewels + (playerRank > 0 ? raceJewels : 0) + midRaceObjJewels,
             raceLineup: {},
@@ -1503,6 +1532,7 @@ export const useGameStore = create<GameStore>()(
               transferBids: processedBids,
               transferRequests: [...(state.currentSeason.transferRequests ?? []), ...newTransferReqs],
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
+              expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs],
             },
           }
         })
@@ -5358,6 +5388,7 @@ export const useGameStore = create<GameStore>()(
 
       setAdsRemoved: (v) => set({ adsRemoved: v }),
       markTwitterIntroSeen: () => set({ twitterIntroSeen: true }),
+      dismissExpiredNegotiation: (id) => set(s => ({ currentSeason: { ...s.currentSeason, expiredNegotiations: (s.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== id) } })),
 
       resetGame: () => {
         // データ削除：ゲーム進行・広告カウント・ログインボーナスはリセット（また受け取れる）するが、
@@ -5598,7 +5629,7 @@ function generateForeignAndLoanOffers(params: {
     if (target) {
       const club = foreignClubs[(ovr(target) + raceIndex) % foreignClubs.length]
       const tv = calcTransferValue(target)
-      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * (0.95 + Math.random() * 0.25) / 1000000) * 1000000), expiresAtRace: raceIndex + 3, round: 1, fromForeign: true })
+      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * (0.95 + Math.random() * 0.25) / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
   }
 
@@ -5738,7 +5769,7 @@ function generateTransferActivity(
     const tv = calcTransferValue(target)
     // Realistic offer: 85-105% for elite, 80-97% for others
     const ratio = tier === 'elite' ? (0.85 + Math.random() * 0.20) : (0.80 + Math.random() * 0.17)
-    newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * ratio / 1000000) * 1000000), expiresAtRace: raceIndex + 3, round: 1 })
+    newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * ratio / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1 })
     offerTargets.add(target.id)
     offeringTeams.add(team.id)
   }
@@ -5759,7 +5790,7 @@ function generateTransferActivity(
         fromTeamId: bTeam.id,
         playerId: p.id,
         offeredPrice: Math.max(Math.round(listing.askingPrice * 0.92 / 500000) * 500000, Math.round(tv * (0.85 + Math.random() * 0.20) / 500000) * 500000),
-        expiresAtRace: raceIndex + 3,
+        expiresAtRace: raceIndex + 5,
         round: 1,
       })
       alreadyOfferedIds.add(p.id)
@@ -5781,7 +5812,7 @@ function generateTransferActivity(
       fromTeamId: suitor.id,
       playerId: ep.id,
       offeredPrice: 0, // フリー移籍（移籍金なし）
-      expiresAtRace: raceIndex + 3,
+      expiresAtRace: raceIndex + 5,
       round: 1,
     })
     alreadyOfferedIds.add(ep.id)

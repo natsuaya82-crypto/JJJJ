@@ -31,7 +31,7 @@ import FriendsPage from './components/friends/FriendsPage'
 import RecordsHub from './components/records/RecordsHub'
 import RecordsPage from './components/records/RecordsPage'
 import PlayersStatsPage from './components/records/PlayersStatsPage'
-import HistoryPage from './components/records/HistoryPage'
+import DraftHistoryPage from './components/records/DraftHistoryPage'
 import AchievementsPage from './components/records/AchievementsPage'
 import ReserveLeaguePage from './components/reserve/ReserveLeaguePage'
 import PlayerSheet from './components/shared/PlayerSheet'
@@ -148,7 +148,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/season" element={<RecordsPage />} />
           <Route path="/records/players" element={<PlayersStatsPage />} />
-          <Route path="/records/history" element={<HistoryPage />} />
+          <Route path="/records/draft" element={<DraftHistoryPage />} />
           <Route path="/records/achievements" element={<AchievementsPage />} />
           <Route path="/records/:section" element={<Placeholder title="coming soon" />} />
           <Route path="/shop" element={<ShopPage />} />

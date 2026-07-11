@@ -333,6 +333,9 @@ export default function NotificationsPage() {
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
+  const expiredNegotiations = currentSeason.expiredNegotiations ?? []
+  const dismissExpiredNegotiation = useGameStore(s => s.dismissExpiredNegotiation)
+
   const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + (renewalNeeded > 0 ? 1 : 0)
@@ -340,6 +343,7 @@ export default function NotificationsPage() {
     + (sponsorOffers.length > 0 ? 1 : 0)
     + pendingGifts.length
     + joinNotices.length
+    + expiredNegotiations.length
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -594,6 +598,27 @@ export default function NotificationsPage() {
                     </div>
                   )
                 })}
+              </div>
+            </section>
+          )}
+
+          {/* 期限切れ交渉（移籍拒否） */}
+          {expiredNegotiations.length > 0 && (
+            <section style={{ marginTop: '20px' }}>
+              <SectionHead label="交渉期限切れ" color={C.red} count={expiredNegotiations.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {expiredNegotiations.map(neg => (
+                  <div key={neg.id} style={cardStyle(alpha(C.red, 0.45), '#3d0000')}>
+                    <div style={inset}/>
+                    <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{neg.playerName}選手が移籍を拒否しました</div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>来季まで交渉できません</div>
+                      </div>
+                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissExpiredNegotiation(neg.id)}>確認</Btn>
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           )}

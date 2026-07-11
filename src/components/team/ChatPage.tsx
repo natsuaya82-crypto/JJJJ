@@ -131,7 +131,7 @@ function buildMessages(
   return msgs
 }
 
-// 獲得オファー（FA・他チーム視察）のチャット初期メッセージ
+// 獲得オファー（FA・他チーム選手）のチャット初期メッセージ
 function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: string): ChatMessage[] {
   const msgs: ChatMessage[] = []
   msgs.push({
@@ -192,7 +192,7 @@ function ChatView({
   const transferReq = (currentSeason.transferRequests ?? []).find(r => r.playerId === player.id)
   const months = contractMonths(player.contract.yearsLeft, raceIndex, totalRaces)
 
-  // 獲得オファー交渉（FA・他チーム視察）。存在すれば契約更新ではなく獲得交渉モードで進める。
+  // 獲得オファー交渉（FA・他チーム選手）。存在すれば契約更新ではなく獲得交渉モードで進める。
   const acqOffers = currentSeason.acquisitionOffers ?? []
   const acqOffer =
     acqOffers.find(o => o.playerId === player.id && (o.status === 'pending' || o.status === 'countered')) ??
@@ -289,11 +289,12 @@ function ChatView({
       append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
       setJustAcquired(true)
     } else {
-      append(
-        { from: 'player', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` },
-        { from: 'player', text: '（代理人）今回はご縁がなかったということで。またの機会によろしくお願いいたします。' },
-      )
-      setNegotiationFailed(true)
+      append({ from: 'player', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` })
+      const currentBid = useGameStore.getState().currentSeason.transferBids?.find(b => b.id === transferBid.id)
+      if (!currentBid || currentBid.status === 'failed') {
+        append({ from: 'player', text: '（代理人）今回はご縁がなかったということで。またの機会によろしくお願いいたします。' })
+        setNegotiationFailed(true)
+      }
     }
     setComposing(false)
   }
@@ -630,219 +631,147 @@ function ChatView({
 
 // --- 他チーム（1軍/2軍を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
-function TradeChatView({ team, onClose, initialMode, initialGetId, onNegotiateContract }: { team: Team; onClose: () => void; initialMode?: 'fee' | 'trade'; initialGetId?: string; onNegotiateContract: (playerId: string) => void }) {
-  const { players, teams, playerTeamId, currentSeason, submitTransferBid, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, acceptFeeCounter, rejectTransferBid } = useGameStore()
+function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
+  const { players, teams, playerTeamId, currentSeason, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
   const mainP = players.filter(p => p.teamId === team.id && p.rosterTier === 'main' && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
   const secondP = players.filter(p => p.teamId === team.id && isSecondMember(p) && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
-  const bids = currentSeason.transferBids ?? []
-  const bidOf = (pid: string) => bids.find(b => b.playerId === pid && ['pending', 'fee_accepted', 'countered', 'player_neg'].includes(b.status))
-
-  const [selId, setSelId] = useState<string | null>(null)
-  const [fee, setFee] = useState(0)
-  const [counterBidId, setCounterBidId] = useState<string | null>(null)
-  const sel = selId ? players.find(p => p.id === selId) : null
-
-  const [mode, setMode] = useState<'fee' | 'trade'>(initialMode ?? 'fee')
-  const [give, setGive] = useState<Set<string>>(new Set())
-  const [getP, setGetP] = useState<Set<string>>(() => new Set(initialGetId ? [initialGetId] : []))
-  const [givePk, setGivePk] = useState<Set<string>>(new Set())
-  const [getPk, setGetPk] = useState<Set<string>>(new Set())
-  const neg = (currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === team.id)
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const theirPlayers = [...mainP, ...secondP]
   const myPlayersT = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan).sort((a, b) => ovr(b) - ovr(a))
+  const myTeam = teams.find(t => t.id === playerTeamId)
+
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [submitted, setSubmitted] = useState(false)
+  const [getP, setGetP] = useState<Set<string>>(() => new Set(initialGetId ? [initialGetId] : []))
+  const [getPk, setGetPk] = useState<Set<string>>(new Set())
+  const [give, setGive] = useState<Set<string>>(new Set())
+  const [givePk, setGivePk] = useState<Set<string>>(new Set())
+
+  const neg = (currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === team.id)
   const pickKey = (pk: { year: number; round: number; pickNumber: number }) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
   const pickLabel = (k: string) => { const [y, r] = k.split('-'); return `${y} ${r.replace('R', '第')}巡` }
+  const nameOf = (id: string) => players.find(p => p.id === id)?.name ?? '選手'
   const toggle = (setFn: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) => setFn(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const submitTrade = () => {
-    proposeTrade(team.id, [...give], [...givePk], [...getP], [...getPk])
-  }
+  const getCount = getP.size + getPk.size
+  const giveCount = give.size + givePk.size
+  const submitTrade = () => { proposeTrade(team.id, [...give], [...givePk], [...getP], [...getPk]); setSubmitted(true) }
+  const resetAll = () => { setGive(new Set()); setGetP(new Set()); setGivePk(new Set()); setGetPk(new Set()); setSubmitted(false); setStep(1) }
 
-  const openFee = (p: Player) => {
-    setSelId(p.id)
-    setFee(Math.max(1_000_000, Math.round(calcTransferValue(p) / 1_000_000) * 1_000_000))
-  }
-  const submit = () => { if (sel) { submitTransferBid(sel.id, fee); setSelId(null) } }
+  // 下タブの上に固定するアクションバー（sticky）
+  const stickyBar = (children: React.ReactNode) => (
+    <div style={{ position: 'sticky', bottom: 0, marginTop: 8, padding: '10px 14px calc(12px + env(safe-area-inset-bottom))', background: `linear-gradient(to top, ${C.bg} 70%, ${alpha(C.bg, 0)})`, borderTop: `1px solid ${C.border}`, display: 'flex', gap: 8 }}>
+      {children}
+    </div>
+  )
+  const primaryBtn = (label: string, onClick: () => void, enabled = true) => (
+    <button onClick={() => enabled && onClick()} disabled={!enabled}
+      style={{ flex: 1, padding: '14px', borderRadius: 12, border: 'none', cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4, background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA }}>
+      {label}
+    </button>
+  )
+  // 上の戻るボタンに統一：1個前の画面（ステップ）へ。ステップ1で閉じる。
+  const goBack = () => { if (step > 1) { setSubmitted(false); setStep((step - 1) as 1 | 2 | 3) } else onClose() }
 
-  // 移籍金オファー画面
-  if (sel) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
-          <BackButton onClick={() => setSelId(null)} />
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{team.name} へ移籍金オファー</div>
-        </div>
-        <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <PlayerFace playerId={sel.id} nationality={sel.nationality} size={44} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{sel.name}</div>
-              <div style={{ fontSize: 10, color: C.textDim }}>市場価値 {fmt(calcTransferValue(sel))} · 残{sel.contract.yearsLeft}年</div>
-            </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(ovr(sel)) }}>{ovr(sel)}</div>
-          </div>
-          <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>
-            まず相手クラブに移籍金を提示して<b>チーム間の合意</b>を得ます。合意（費用合意）後に、選手本人と年俸・役割・契約形態・契約年数を交渉します。主力はクラブが手放しません。
-          </div>
-          {(() => {
-            const lst = (currentSeason.transferListings ?? []).find(l => l.playerId === sel.id)
-            if (!lst) return null
-            return (
-              <div style={{ fontSize: 10, color: C.orange, fontWeight: 700 }}>
-                この選手は移籍市場に出品中{lst.competingTeams.length > 0 ? ` — 他に${lst.competingTeams.length}クラブが関心（競合入札）` : ''}
-              </div>
-            )
-          })()}
-          <div style={{ fontSize: 10, color: C.textDim }}>提示移籍金</div>
-          <div style={{ padding: '2px 0 6px' }}>
-            <NumberDial value={fee} onChange={v => setFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.orange} />
-          </div>
-          <button onClick={submit} style={{ width: '100%', padding: 14, borderRadius: 12, border: 'none', background: C.orange, color: '#1a0d00', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>
-            移籍金をオファー（チームに打診）
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const renderRow = (p: Player) => {
-    const b = bidOf(p.id)
-    const feeAccepted = b?.status === 'fee_accepted'
-    const isCountered = b?.status === 'countered'
-    // 交渉決裂ペナルティ中は再オファー不可
-    const locked = !b && p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
-    return (
-      <div key={p.id}>
-        <OppRow player={p} bidLabel={b ? (feeAccepted ? '費用合意→契約交渉へ' : isCountered ? '対抗提示あり' : '打診中') : locked ? '交渉決裂・来季まで不可' : null}
-          bidColor={feeAccepted ? C.green : isCountered ? C.orange : b ? C.gold : locked ? C.red : C.textDim}
-          onClick={() => {
-            if (feeAccepted && b) { onNegotiateContract(p.id); return }
-            if (isCountered && b) { setCounterBidId(counterBidId === b.id ? null : b.id); return }
-            if (locked) return
-            openFee(p)
-          }} />
-        {isCountered && b && counterBidId === b.id && b.counterFee != null && (
-          <div style={{ margin: '0 0 8px', padding: '12px 14px', borderRadius: '0 0 12px 12px', background: C.surface2, border: `1px solid ${alpha(C.orange, 0.4)}`, borderTop: 'none' }}>
-            <div style={{ fontSize: 11, color: C.textSub, marginBottom: 4 }}>
-              {team.name}から対抗提示
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 13, color: C.textGhost, textDecoration: 'line-through' }}>{fmt(b.offeredFee)}</span>
-              <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.orange }}>{fmt(b.counterFee)}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { acceptFeeCounter(b.id); setCounterBidId(null) }}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: alpha(C.green, 0.15), color: C.green, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {fmt(b.counterFee)}で合意
-              </button>
-              <button onClick={() => { rejectTransferBid(b.id); setCounterBidId(null) }}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
-                取り下げ
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
+  const stepTitle = step === 1 ? `貰う選手を選ぶ（${team.shortName}）` : step === 2 ? '出す選手を選ぶ（自チーム）' : 'トレード確認'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 40 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif" }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
-        <BackButton onClick={onClose} />
+        <BackButton onClick={goBack} />
         <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={34} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{team.name}</div>
-          <div style={{ fontSize: 10, color: C.textDim }}>まず移籍金でチーム合意 → その後に選手と契約交渉</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{team.name} とトレード</div>
+          <div style={{ fontSize: 10, color: C.textDim }}>STEP {step}/3 · {stepTitle}</div>
         </div>
       </div>
 
-      {/* モード切替：移籍金で獲得 / トレード提案 */}
-      <div style={{ padding: '10px 12px 6px', display: 'flex', gap: 8 }}>
-        {([['fee', '移籍金で獲得'], ['trade', 'トレード提案']] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setMode(k)} style={{
-            flex: 1, padding: '9px 4px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 800,
-            background: mode === k ? alpha(C.gold, 0.15) : C.surface2, border: `1.5px solid ${mode === k ? C.gold : C.border2}`, color: mode === k ? C.gold : C.textDim,
-          }}>{label}</button>
-        ))}
-      </div>
-
-      {mode === 'fee' && (
-        <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, marginBottom: 6 }}>1軍 · {mainP.length}名</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{mainP.map(renderRow)}</div>
-          </div>
-          {secondP.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: C.blue, marginBottom: 6 }}>2軍（リザーブ） · {secondP.length}名</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{secondP.map(renderRow)}</div>
+      {/* STEP 1: 相手選手を選ぶ */}
+      {step === 1 && (
+        <div style={{ padding: '10px 12px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 11, color: C.textDim }}>{team.shortName}から<b style={{ color: C.green }}>貰う選手</b>を選択（複数可）</div>
+          {theirPlayers.map(p => <TradeSelRow key={p.id} player={p} selected={getP.has(p.id)} color={C.green} onToggle={() => toggle(setGetP, p.id)} />)}
+          {(team.draftPicks ?? []).length > 0 && (<>
+            <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>指名権</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {(team.draftPicks ?? []).map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={getPk.has(k)} color={C.green} onToggle={() => toggle(setGetPk, k)} /> })}
             </div>
-          )}
+          </>)}
         </div>
       )}
 
-      {mode === 'trade' && (
-        <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* 相手の応答 */}
-          {neg && (
+      {/* STEP 2: 自チーム選手を選ぶ */}
+      {step === 2 && (
+        <div style={{ padding: '10px 12px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 11, color: C.textDim }}>自チームから<b style={{ color: C.red }}>出す選手</b>を選択（複数可）</div>
+          {myPlayersT.map(p => <TradeSelRow key={p.id} player={p} selected={give.has(p.id)} color={C.red} onToggle={() => toggle(setGive, p.id)} />)}
+          {(myTeam?.draftPicks ?? []).length > 0 && (<>
+            <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>指名権</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {(myTeam?.draftPicks ?? []).map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={givePk.has(k)} color={C.red} onToggle={() => toggle(setGivePk, k)} /> })}
+            </div>
+          </>)}
+        </div>
+      )}
+
+      {/* STEP 3: 確認 */}
+      {step === 3 && (
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {submitted && !neg && (
+            <div style={{ borderRadius: 12, padding: '14px', textAlign: 'center', background: alpha(C.green, 0.12), border: `1.5px solid ${alpha(C.green, 0.5)}` }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green, marginBottom: 4 }}>トレード成立！</div>
+              <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>加入選手は2軍へ。契約体系は「移籍・獲得」タブの契約交渉で確定してください。</div>
+              <button onClick={onClose} style={{ marginTop: 10, padding: '10px 20px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>閉じる</button>
+            </div>
+          )}
+          {submitted && neg && (
             <div style={{ borderRadius: 12, padding: '10px 12px', background: alpha(neg.status === 'rejected' ? C.red : C.gold, 0.1), border: `1.5px solid ${alpha(neg.status === 'rejected' ? C.red : C.gold, 0.5)}` }}>
               <div style={{ fontSize: 12, color: C.text, lineHeight: 1.6 }}>{neg.message}</div>
               {neg.status === 'countered' && (
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <button onClick={() => { if (acceptTradeCounter(neg.id)) { setGive(new Set()); setGetP(new Set()); setGivePk(new Set()); setGetPk(new Set()) } }} style={{ flex: 1, padding: 10, borderRadius: 9, border: 'none', background: C.green, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>条件を飲んで成立</button>
-                  <button onClick={() => dismissTradeNegotiation(neg.id)} style={{ padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>決裂</button>
+                  <button onClick={() => { acceptTradeCounter(neg.id) }} style={{ flex: 1, padding: 10, borderRadius: 9, border: 'none', background: C.green, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>条件を飲んで成立</button>
+                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替え</button>
                 </div>
               )}
               {neg.status === 'rejected' && (
-                <button onClick={() => dismissTradeNegotiation(neg.id)} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>閉じる（組み替えて再提示可）</button>
+                <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
               )}
               <div style={{ fontSize: 9, color: C.textGhost, marginTop: 6, fontFamily: SAIRA }}>交渉 {neg.round}/3 回目</div>
             </div>
           )}
 
-          {/* もらう */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 6 }}>もらう（{team.shortName}から）</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {[...mainP, ...secondP].map(p => <TradeSelRow key={p.id} player={p} selected={getP.has(p.id)} color={C.green} onToggle={() => toggle(setGetP, p.id)} />)}
-            </div>
-            {(team.draftPicks ?? []).length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
-                {(team.draftPicks ?? []).map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={getPk.has(k)} color={C.green} onToggle={() => toggle(setGetPk, k)} /> })}
-              </div>
-            )}
-          </div>
-
-          {/* 出す */}
-          <div>
+          <div style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, padding: '12px 14px' }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 6 }}>出す（自チーム）</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {myPlayersT.map(p => <TradeSelRow key={p.id} player={p} selected={give.has(p.id)} color={C.red} onToggle={() => toggle(setGive, p.id)} />)}
-            </div>
-            {(myTeam?.draftPicks ?? []).length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
-                {(myTeam?.draftPicks ?? []).map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={givePk.has(k)} color={C.red} onToggle={() => toggle(setGivePk, k)} /> })}
-              </div>
-            )}
+            {giveCount === 0
+              ? <div style={{ fontSize: 11, color: C.textGhost }}>なし</div>
+              : <div style={{ fontSize: 12, color: C.text, lineHeight: 1.7 }}>{[...[...give].map(nameOf), ...[...givePk].map(pickLabel)].join('・')}</div>}
+            <div style={{ height: 1, background: C.border, margin: '10px 0' }} />
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 6 }}>貰う（{team.shortName}）</div>
+            <div style={{ fontSize: 12, color: C.text, lineHeight: 1.7 }}>{[...[...getP].map(nameOf), ...[...getPk].map(pickLabel)].join('・')}</div>
           </div>
-
-          <button onClick={submitTrade} disabled={getP.size + getPk.size === 0}
-            style={{ padding: 14, borderRadius: 12, border: 'none', cursor: getP.size + getPk.size === 0 ? 'not-allowed' : 'pointer', opacity: getP.size + getPk.size === 0 ? 0.4 : 1, background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA }}>
-            トレードを提案する
-          </button>
         </div>
       )}
+
+      {/* 下タブの上に固定するアクションバー */}
+      {step === 1 && stickyBar(primaryBtn('次へ', () => setStep(2), getCount > 0))}
+      {step === 2 && stickyBar(primaryBtn('次へ', () => setStep(3), giveCount > 0))}
+      {step === 3 && !submitted && stickyBar(primaryBtn('トレードを提案する', submitTrade, giveCount > 0 && getCount > 0))}
     </div>
   )
 }
 
 function TradeSelRow({ player, selected, color, onToggle }: { player: Player; selected: boolean; color: string; onToggle: () => void }) {
+  const specCol = SPEC_COLOR[player.specialty]
   return (
-    <button onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 9, cursor: 'pointer', textAlign: 'left', width: '100%', background: selected ? alpha(color, 0.14) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${selected ? color : C.border}`, fontFamily: 'inherit' }}>
-      <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, border: `2px solid ${selected ? color : C.border2}`, background: selected ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111', fontSize: 11, fontWeight: 900 }}>{selected ? '✓' : ''}</div>
-      <div style={{ flexShrink: 0, borderRadius: 7, overflow: 'hidden' }}><PlayerFace playerId={player.id} nationality={player.nationality} size={32} /></div>
-      <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{player.name}</div>
-      <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</span>
+    <button onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', width: '100%', background: selected ? alpha(color, 0.14) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${selected ? color : C.border}`, fontFamily: 'inherit' }}>
+      <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, border: `2px solid ${selected ? color : C.border2}`, background: selected ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0A0912', fontSize: 12, fontWeight: 900 }}>{selected ? '✓' : ''}</div>
+      <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}><PlayerFace playerId={player.id} nationality={player.nationality} size={40} /></div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
+          <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: alpha(specCol, 0.15), color: specCol, fontWeight: 700, flexShrink: 0 }}>{SPECIALTY_LABELS[player.specialty]}</span>
+        </div>
+        <div style={{ fontSize: 10, color: C.textDim }}>{player.age}歳 · {fmt(player.contract.annualSalary)} · 残{player.contract.yearsLeft}年</div>
+      </div>
+      <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)), flexShrink: 0 }}>{ovr(player)}</span>
     </button>
   )
 }
@@ -1079,7 +1008,7 @@ export default function ChatPage() {
   })
   const others = withStatus.filter(x => x.status === null).sort((a, b) => ovr(b.player) - ovr(a.player))
 
-  // 獲得交渉中の選手（FA・他チーム視察）
+  // 獲得交渉中の選手（FA・他チーム選手）
   const activeAcqOffers = (currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered')
   const acqPlayers = activeAcqOffers
     .map(o => ({ player: players.find(p => p.id === o.playerId), offer: o }))

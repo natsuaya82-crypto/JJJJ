@@ -59,9 +59,9 @@ export default function LoginBonusPage() {
   ]
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
-      <div style={{ padding: '12px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '20px' }}>
+    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', background: C.bg, minHeight: '100dvh' }}>
+      <div style={{ padding: '10px 16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '12px' }}>
           <BackButton />
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: '#6dd5fa', letterSpacing: '3px', fontWeight: '900' }}>LOGIN BONUS</div>
@@ -70,7 +70,7 @@ export default function LoginBonusPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
         {/* Claim result */}
         {claimResult && (
@@ -110,7 +110,7 @@ export default function LoginBonusPage() {
           <button
             onClick={handleClaim}
             style={{
-              width: '100%', padding: '16px', borderRadius: 14, cursor: 'pointer',
+              width: '100%', padding: '13px', borderRadius: 14, cursor: 'pointer',
               background: `linear-gradient(180deg, #1a4a7a 0%, #0f2a4a 100%)`,
               border: `2px solid ${alpha('#6dd5fa', 0.6)}`,
               boxShadow: `0 4px 0 #061525, 0 6px 16px ${alpha('#6dd5fa', 0.2)}`,
@@ -127,9 +127,9 @@ export default function LoginBonusPage() {
         <div style={{
           background: alpha(C.surface2, 0.8),
           border: `1px solid ${C.border}`,
-          borderRadius: 14, padding: '14px 12px',
+          borderRadius: 14, padding: '11px 12px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700 }}>
               WEEKLY STREAK
             </div>
@@ -224,9 +224,9 @@ export default function LoginBonusPage() {
         <div style={{
           background: alpha(C.surface2, 0.8),
           border: `1px solid ${C.border}`,
-          borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8,
+          borderRadius: 14, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 6,
         }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700, marginBottom: 2 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700, marginBottom: 1 }}>
             REWARD DETAILS
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -250,23 +250,30 @@ export default function LoginBonusPage() {
         <div style={{
           background: alpha(C.surface2, 0.8),
           border: `1px solid ${C.border}`,
-          borderRadius: 14, padding: '14px 16px',
+          borderRadius: 14, padding: '11px 16px',
         }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700, marginBottom: 12 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700, marginBottom: 10 }}>
             TOTAL STATS
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 32, fontWeight: 900, color: C.text, lineHeight: 1 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 26, fontWeight: 900, color: C.text, lineHeight: 1 }}>
                 {total}
               </div>
               <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>累計ログイン日数</div>
             </div>
             <div style={{ width: 1, background: C.border }} />
             <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 26, fontWeight: 900, color: C.gold, lineHeight: 1 }}>
+                {streak}
+              </div>
+              <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>連続ログイン日数</div>
+            </div>
+            <div style={{ width: 1, background: C.border }} />
+            <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <JewelIcon size={18} />
-                <span style={{ fontFamily: SAIRA, fontSize: 32, fontWeight: 900, color: '#6dd5fa', lineHeight: 1 }}>
+                <span style={{ fontFamily: SAIRA, fontSize: 26, fontWeight: 900, color: '#6dd5fa', lineHeight: 1 }}>
                   {totalJewels}
                 </span>
               </div>

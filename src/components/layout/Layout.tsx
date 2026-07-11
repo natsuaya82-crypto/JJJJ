@@ -65,7 +65,7 @@ const NAV: NavItem[] = [
 
 const AD_H = 50
 const NAV_H = 50
-const HEADER_H = 47  // ヘッダー実効高（ボタンminHeight44+上下padding2+border1）。safe-area分は別途加算
+const HEADER_H = 49  // ヘッダー実効高（ボタンminHeight44+上下padding2+border1）。safe-area分は別途加算
 
 // 画面下部の広告バナーの高さ。買い切り版（adsRemoved）なら0。
 // 固定配置の要素（ボトムバー・シート類）はこれを使って広告の上で止める
@@ -139,9 +139,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Header（実機で固定：viewport上端＋safe-area） ── */}
       <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 40,
+        position: 'fixed', top: 'env(safe-area-inset-top)', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 40,
         background: C.bg,
-        padding: 'calc(2px + env(safe-area-inset-top)) 16px 2px',
+        padding: '2px 16px 2px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${alpha(C.gold, 0.1)}`,
       }}>

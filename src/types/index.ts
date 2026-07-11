@@ -120,6 +120,7 @@ export type TransferBid = {
   offeredSalary?: number
   offeredYears?: number
   submittedAtRace: number
+  feeAcceptedAtRace?: number
 }
 
 export type TeamRole = 'ace' | 'sub_ace' | 'key_player' | 'rotation' | 'development'
@@ -140,7 +141,7 @@ export type ContractRequest = {
   offerTeamRole?: TeamRole
 }
 
-// 他チーム選手（視察）・FA選手への獲得オファー交渉。チャットで交渉する。
+// 他チーム選手・FA選手への獲得オファー交渉。チャットで交渉する。
 export type AcquisitionOffer = {
   id: string
   playerId: string
@@ -597,6 +598,7 @@ export type Season = {
   foreignStandings?: Record<string, ForeignStanding[]>   // leagueId → 順位表
   foreignRaceIndex?: number                              // 消化した海外マッチデー数
   eclResult?: EclResult                                  // ECL開催結果（ポストシーズンに1回）
+  expiredNegotiations?: { id: string; playerId: string; playerName: string }[]
 }
 
 // チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい

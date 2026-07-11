@@ -319,5 +319,6 @@ export function useNotifCount() {
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
     return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
   }).length
-  return offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals + gifts
+  const expiredNegs = (currentSeason.expiredNegotiations ?? []).length
+  return offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals + gifts + expiredNegs
 }

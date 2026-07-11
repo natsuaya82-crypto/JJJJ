@@ -367,20 +367,6 @@ export default function ScoutPage() {
                             </svg>
                           </div>
                         </>
-                      ) : !scouted ? (
-                        <button
-                          onClick={e => { e.stopPropagation(); if (scoutPoints > 0) scoutDraftProspect(p.id) }}
-                          disabled={scoutPoints <= 0}
-                          style={{
-                            padding: '5px 10px', borderRadius: '8px', border: 'none',
-                            background: scoutPoints > 0 ? `linear-gradient(135deg, ${C.gold}, #E8C86A)` : C.surface2,
-                            color: scoutPoints > 0 ? '#0A0912' : C.textGhost,
-                            fontSize: '11px', fontWeight: '800',
-                            cursor: scoutPoints > 0 ? 'pointer' : 'not-allowed', fontFamily: SAIRA,
-                          }}
-                        >
-                          視察
-                        </button>
                       ) : null}
                     </div>
                   </div>

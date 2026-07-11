@@ -13,6 +13,7 @@ export default function TransferHub() {
 
   const win = getTransferWindow()
   const pendingTrades = currentSeason.pendingTradeOffers ?? []
+  const tradeNegs = currentSeason.tradeNegotiations ?? []
   const faPlayers = players.filter(p => p.teamId === '' && p.status === 'active')
   const transferBids = (currentSeason.transferBids ?? []).filter(b => b.status !== 'complete' && b.status !== 'failed')
   const allListings = currentSeason.transferListings ?? []
@@ -48,6 +49,17 @@ export default function TransferHub() {
       color: C.blue,
       shadow: '#1a2050',
       urgent: incomingOffers.length > 0,
+    },
+    {
+      key: 'trade',
+      path: '/transfer/trade',
+      label: 'トレード',
+      desc: '他クラブと選手・指名権を交換',
+      countLabel: tradeNegs.length > 0 ? `交渉中 ${tradeNegs.length}件` : '選手を交換',
+      badge: tradeNegs.length,
+      color: C.orange,
+      shadow: '#5a2800',
+      urgent: tradeNegs.length > 0,
     },
     {
       key: 'rental',
