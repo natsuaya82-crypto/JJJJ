@@ -300,25 +300,44 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ベルの数字は通知ページ(NotificationsPage)の「N件」＝ total と完全一致させる。
+// NotificationsPage.tsx の total 計算をそのまま同じ集合・同じ数え方で複製している。
+// 片方だけ変えるとズレるので、通知ページの total を変えたらここも合わせること。
 export function useNotifCount() {
   const { currentSeason, players, playerTeamId, lastLoginDate } = useGameStore()
-  const gifts = useGameStore(s => (s.pendingGifts ?? []).length)
-  const offers = (currentSeason.incomingOffers ?? []).length
-  const retirements = (currentSeason.retirementRequests ?? []).length
-  const transferReqs = (currentSeason.transferRequests ?? []).length > 0 ? 1 : 0
-  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' || b.status === 'fee_accepted').length
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length > 0 ? 1 : 0
-  const sponsorOffers = (currentSeason.sponsorOffers ?? []).length > 0 ? 1 : 0
-  const loginUnclaimed = lastLoginDate !== loginTodayKey() ? 1 : 0
-  // 契約満了6ヶ月以内の選手（NotificationsPage と同じ基準）
+  const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
+  const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
+
+  const incomingOffers = (currentSeason.incomingOffers ?? []).length
+  const retirementRequests = (currentSeason.retirementRequests ?? []).length
+  const transferReqs = (currentSeason.transferRequests ?? []).length
+  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
+  const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted').length
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length
+  const sponsorOffers = (currentSeason.sponsorOffers ?? []).length
+  const expiredNegotiations = (currentSeason.expiredNegotiations ?? []).length
+
+  const joinNotices = players
+    .filter(p => p.teamId === playerTeamId && p.joinedYear === currentSeason.year)
+    .filter(p => !seenJoinIds.includes(`${p.id}-${p.joinedYear}`))
+    .length
+
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races?.length ?? 1
-  const renewals = players.filter(p => {
+  const renewalNeeded = players.filter(p => {
     if (p.teamId !== playerTeamId || p.status !== 'active') return false
     const remaining = Math.max(0, totalRaces - raceIndex)
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
     return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
   }).length
-  const expiredNegs = (currentSeason.expiredNegotiations ?? []).length
-  return offers + retirements + transferReqs + counteredBids + pendingContracts + sponsorOffers + loginUnclaimed + renewals + gifts + expiredNegs
+
+  const loginUnclaimed = lastLoginDate !== loginTodayKey()
+
+  return incomingOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
+    + (renewalNeeded > 0 ? 1 : 0)
+    + (loginUnclaimed ? 1 : 0)
+    + (sponsorOffers > 0 ? 1 : 0)
+    + pendingGifts.length
+    + joinNotices
+    + expiredNegotiations
 }
