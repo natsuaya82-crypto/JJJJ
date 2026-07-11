@@ -218,6 +218,14 @@ export default function App() {
   const [titleShown, setTitleShown] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
   const [showTwitter, setShowTwitter] = useState(false)
+  // セーブ読み込み（非同期）完了までタイトルから先へ進めない。
+  // 完了前に isInitialized=false の初期状態を見て新規ゲーム画面を出すと、既存セーブを上書きする事故になるため
+  const [hydrated, setHydrated] = useState(() => useGameStore.persist.hasHydrated())
+  useEffect(() => {
+    if (hydrated) return
+    const unsub = useGameStore.persist.onFinishHydration(() => setHydrated(true))
+    return unsub
+  }, [hydrated])
 
   useEffect(() => {
     fetch(`https://itunes.apple.com/jp/lookup?bundleId=${BUNDLE_ID}`)
@@ -250,7 +258,7 @@ export default function App() {
   }, [adsRemoved])
 
   let content
-  if (!titleShown) {
+  if (!titleShown || !hydrated) {
     content = <TitleScreen onStart={() => { audio.unlock(); audio.playSe('title'); runWithLoading('ゲームを準備中…', () => setTitleShown(true), 800) }} />
   } else if (!isInitialized && !draftState) {
     content = <Onboarding />

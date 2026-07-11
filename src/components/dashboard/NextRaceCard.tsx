@@ -25,10 +25,30 @@ interface Props {
   raceNumber: number
   totalRaces: number
   onClick: () => void
+  variant?: 'main' | 'reserve'   // reserve=リザーブリーグは青系にして1軍と区別
 }
 
-export default function NextRaceCard({ race, raceNumber, totalRaces, onClick }: Props) {
+export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, variant = 'main' }: Props) {
   const totalDist = race.segments.reduce((s, sg) => s + sg.distanceKm, 0).toFixed(1)
+  const isReserve = variant === 'reserve'
+  // アクセント色一式（金＝1軍 / 青＝リザーブ）
+  const AC = isReserve ? {
+    border: C.blue, shadowDeep: '#2f3a7a', frame: 'rgba(121,134,203,0.35)',
+    headerGrad: `linear-gradient(90deg, ${alpha(C.blue, 0.20)}, ${alpha(C.blue, 0.04)})`,
+    headerBorder: alpha(C.blue, 0.20),
+    badgeGrad: `linear-gradient(180deg, #aab3e6 0%, ${C.blue} 60%, #4a56a8 100%)`,
+    badgeBorder: '#2f3a7a', badgeShadow: '#232c5e',
+    divider: '#4a56a8', tileBorder: alpha(C.blue, 0.15), btnClass: 'btn-game--blue',
+    typeLabel: 'RESERVE',
+  } : {
+    border: C.gold, shadowDeep: '#8b6914', frame: 'rgba(245,200,66,0.28)',
+    headerGrad: `linear-gradient(90deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.04)})`,
+    headerBorder: alpha(C.gold, 0.18),
+    badgeGrad: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
+    badgeBorder: '#8b6914', badgeShadow: '#5a3500',
+    divider: C.goldDark, tileBorder: alpha(C.gold, 0.12), btnClass: 'btn-game--gold',
+    typeLabel: RACE_TYPE_LABEL[race.type] ?? race.type.toUpperCase(),
+  }
 
   return (
     <div
@@ -40,12 +60,12 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick }: 
       style={{
         borderRadius: 20, overflow: 'hidden', position: 'relative',
         background: `linear-gradient(135deg, ${alpha(C.cyan, 0.08)} 0%, transparent 50%), linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-        border: `3px solid ${C.gold}`,
-        boxShadow: `0 8px 0 #8b6914, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
+        border: `3px solid ${AC.border}`,
+        boxShadow: `0 8px 0 ${AC.shadowDeep}, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
       }}
     >
       {/* Inner frame */}
-      <div style={{ position: 'absolute', inset: 5, border: `1px solid rgba(245,200,66,0.28)`, borderRadius: 14, pointerEvents: 'none', zIndex: 1 }}/>
+      <div style={{ position: 'absolute', inset: 5, border: `1px solid ${AC.frame}`, borderRadius: 14, pointerEvents: 'none', zIndex: 1 }}/>
 
       {/* Tasuki accent */}
       <div style={{
@@ -56,9 +76,9 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick }: 
 
       {/* Header */}
       <div style={{
-        background: `linear-gradient(90deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.04)})`,
+        background: AC.headerGrad,
         padding: '14px 16px 12px',
-        borderBottom: `1px solid ${alpha(C.gold, 0.18)}`,
+        borderBottom: `1px solid ${AC.headerBorder}`,
         position: 'relative', zIndex: 2,
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
@@ -82,13 +102,13 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick }: 
           </div>
           <div style={{
             padding: '5px 12px', borderRadius: 20, flexShrink: 0,
-            background: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
-            border: `2px solid #8b6914`,
+            background: AC.badgeGrad,
+            border: `2px solid ${AC.badgeBorder}`,
             fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.bg,
-            boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.4)`,
+            boxShadow: `0 3px 0 ${AC.badgeShadow}, inset 0 1px 0 rgba(255,255,255,0.4)`,
             textShadow: 'none',
           }}>
-            {RACE_TYPE_LABEL[race.type] ?? race.type.toUpperCase()}
+            {AC.typeLabel}
           </div>
         </div>
       </div>
@@ -98,7 +118,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick }: 
         display: 'grid', gridTemplateColumns: '1fr 1px 1fr 1px 1fr 1px 1fr',
         padding: '10px 16px 10px', gap: 0,
         background: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.2) 100%)`,
-        borderBottom: `1px solid ${alpha(C.gold, 0.12)}`,
+        borderBottom: `1px solid ${AC.tileBorder}`,
         position: 'relative', zIndex: 2,
       }}>
         {[
@@ -114,7 +134,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick }: 
             return (
               <div key={i} style={{
                 width: 1, alignSelf: 'center', height: 24,
-                background: `linear-gradient(180deg, transparent, ${C.goldDark}, transparent)`,
+                background: `linear-gradient(180deg, transparent, ${AC.divider}, transparent)`,
               }}/>
             )
           }
@@ -128,7 +148,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick }: 
 
       {/* CTA */}
       <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2 }}>
-        <button className="btn-game btn-game--gold" style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
+        <button className={`btn-game ${AC.btnClass}`} style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
           <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>
             出走メンバーを組む
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>

@@ -151,9 +151,15 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   const [evDist, setEvDist] = useState<EvDist>(5000)
   const myEventTops = EV_DIST_TABS.map(({ dist, label }) => {
     const key = EV_KEY[dist]
+    // 選手データが長期整理で削除されていても、記録に焼き込まれた名前で表示を続ける
     const rows = (myTeam?.eventRecords?.[key] ?? [])
-      .map(rec => ({ p: players.find(x => x.id === rec.playerId), t: rec.timeSec, year: rec.year }))
-      .filter((x): x is { p: GameStore['players'][0]; t: number; year: number } => !!x.p)
+      .map(rec => {
+        const p = players.find(x => x.id === rec.playerId)
+        const name = p?.name ?? rec.playerName
+        if (!name) return null
+        return { id: rec.playerId, name, nationality: p?.nationality ?? rec.nationality ?? 'JPN' as const, specialty: p?.specialty ?? null, inRoster: !!p, t: rec.timeSec, year: rec.year }
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null)
       .sort((a, b) => a.t - b.t)
       .slice(0, 10)
     return { dist, label, rows }
@@ -198,20 +204,20 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
         {(() => {
           const group = myEventTops.find(g => g.dist === evDist)
           if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
-          return group.rows.map(({ p, t, year }, i) => {
+          return group.rows.map((row, i) => {
             const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
             return (
-              <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
+              <div key={row.id} {...(row.inRoster ? longPress(row.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: row.inRoster ? 'pointer' : 'default' }}>
                 <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center' }}>{i + 1}</span>
-                <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
+                <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={row.id} nationality={row.nationality} size={28} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{row.name}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                     {myTeam && <TeamLogoSVG primary={myTeam.colors.primary} secondary={myTeam.colors.secondary} shortName={myTeam.shortName} teamId={myTeam.id} size={12} />}
-                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''} / {SPECIALTY_LABELS[p.specialty]} / {year}年</span>
+                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''}{row.specialty ? ` / ${SPECIALTY_LABELS[row.specialty]}` : ''} / {row.year}年</span>
                   </div>
                 </div>
-                <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(t)}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(row.t)}</span>
               </div>
             )
           })

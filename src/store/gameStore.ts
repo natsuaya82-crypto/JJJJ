@@ -1,5 +1,6 @@
 ﻿import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { saveStorage } from './saveStorage'
 import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
@@ -12,7 +13,7 @@ import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { simulateEclEvent } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
-import { simulateForeignTransferMarket } from '../engine/foreignTransfers'
+import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue } from '../data/economy'
@@ -73,6 +74,21 @@ function placePlayerInTier(
 // 売却・トレード済みの指名権を「欠落」と誤認して再生成（複製）しないため。
 function pickExistsAnywhere(teams: Team[], ownerId: string, year: number, round: number): boolean {
   return teams.some(t => (t.draftPicks ?? []).some(pk => pk.year === year && pk.round === round && pk.originallyOwnedBy === ownerId))
+}
+
+// 指名権番号を「前年順位の逆順」で振るためのマップ。最下位=1（全体1位指名）〜優勝=N。
+// 各チームの直近シーズン順位（history.seasonResults の最新年）を使い、成績の悪い順に 1,2,3... を割り当てる。
+// 履歴なし（開幕年など）は最下位扱いとし、配列順を維持（＝従来と同じ挙動でフォールバック）。
+function standingsPickNumbers(teams: Team[]): Map<string, number> {
+  const latestRank = (t: Team): number => {
+    const past = t.history?.seasonResults ?? []
+    if (past.length === 0) return Number.POSITIVE_INFINITY
+    return past.reduce((best, r) => (r.year > best.year ? r : best)).rank
+  }
+  const sorted = [...teams].sort((a, b) => latestRank(b) - latestRank(a)) // 成績が悪い順（順位の数字が大きい順）
+  const map = new Map<string, number>()
+  sorted.forEach((t, i) => map.set(t.id, i + 1))
+  return map
 }
 
 // 指名権キー "YYYY-R{round}-{pickNumber}" から市場価値を出す（位置連動）。解釈不能なら2巡相当
@@ -804,9 +820,11 @@ export const useGameStore = create<GameStore>()(
             return p
           })
           // Generate future draft picks for all teams (yr+1, yr+2, rounds 1-2)
+          // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
           const currentYear = state.currentSeason.year
-          const teamsWithPicks = state.teams.map((t, tIdx) => {
-            const pickNum = tIdx + 1
+          const pickNumMap = standingsPickNumbers(state.teams)
+          const teamsWithPicks = state.teams.map((t) => {
+            const pickNum = pickNumMap.get(t.id) ?? 1
             const newPicks: typeof t.draftPicks = []
             for (const yr of [currentYear + 1, currentYear + 2]) {
               for (const round of [1, 2]) {
@@ -3176,13 +3194,14 @@ export const useGameStore = create<GameStore>()(
           !(t.draftPicks ?? []).some(pk => pk.year > yr)
         )
         if (!anyMissingPicks) return
-        const numTeams = state.teams.length
-        const updatedTeams = state.teams.map((t, tIdx) => {
+        // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
+        const pickNumMap = standingsPickNumbers(state.teams)
+        const updatedTeams = state.teams.map((t) => {
           const newPicks: typeof t.draftPicks = []
           for (const year of [yr + 1, yr + 2]) {
             for (const round of [1, 2]) {
               if (!pickExistsAnywhere(state.teams, t.id, year, round)) {
-                newPicks.push({ year, round, pickNumber: Math.max(1, numTeams - tIdx), originallyOwnedBy: t.id })
+                newPicks.push({ year, round, pickNumber: pickNumMap.get(t.id) ?? 1, originallyOwnedBy: t.id })
               }
             }
           }
@@ -3655,9 +3674,10 @@ export const useGameStore = create<GameStore>()(
 
         // Ensure all teams have future draft picks (backfill for existing saves)
         // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）
-        const numTeamsForPicks = state.teams.length
-        const teamsWithPicks = state.teams.map((t, tIdx) => {
-          const approxPick = numTeamsForPicks - tIdx
+        // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
+        const pickNumMap = standingsPickNumbers(state.teams)
+        const teamsWithPicks = state.teams.map((t) => {
+          const approxPick = pickNumMap.get(t.id) ?? 1
           const newPicks: typeof t.draftPicks = []
           for (const year of [yr + 1, yr + 2]) {
             for (const round of [1, 2]) {
@@ -4466,6 +4486,7 @@ export const useGameStore = create<GameStore>()(
           const prevStreakMe = playerTeamObj?.finance.deficitStreak ?? 0
           // 施設Lv合計→維持費。強い＝施設充実で維持費が高い。
           const facLevelSum = (f?: Record<string, number>) => Object.values(f ?? {}).reduce((s, v) => s + (v ?? 0), 0)
+          const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), rankBudgetGrant(finalRank))
           const newBudget = computeNextSeasonBudget({
             finalRank,
             prevBalance: playerBudgetAtSeasonEnd,
@@ -4475,8 +4496,18 @@ export const useGameStore = create<GameStore>()(
             objBudgetBonus,
             bonusPayout: bonusTotalPayout,
             salaryTotal: playerSalaryTotal,
-            runningCost: runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), rankBudgetGrant(finalRank)),
+            runningCost: runningCostVal,
           })
+          // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。グラントは連続赤字ペナルティ適用後の実額。
+          const grantMultForBudget = prevStreakMe >= 3 ? 0.65 : prevStreakMe >= 2 ? 0.80 : 1.0
+          const newBudgetBreakdown = {
+            carryover: playerBudgetAtSeasonEnd,
+            grant: Math.round(rankBudgetGrant(finalRank) * grantMultForBudget),
+            raceIncome: prevRaceIncome,
+            sponsor: sponsorAnnual,
+            objBonus: objBudgetBonus,
+            expenses: bonusTotalPayout + playerSalaryTotal + runningCostVal,
+          }
           // 残高がマイナスなら連続赤字カウント+1、黒字なら0にリセット
           const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
 
@@ -4628,10 +4659,25 @@ export const useGameStore = create<GameStore>()(
             foreignTx = { foreignLeagues: foreignRefresh.updatedLeagues, players: foreignBasePlayers, news: [] }
           }
 
+          // シーズンオフの日本↔海外クロスボーダー移籍（CPU同士）。プレイヤーのチームは対象外。
+          let crossTx: { teams: typeof teamsWithCleanedPicks; foreignLeagues: typeof foreignTx.foreignLeagues; players: typeof foreignTx.players; news: typeof foreignTx.news }
+          try {
+            crossTx = simulateCrossBorderTransfers({
+              teams: teamsWithCleanedPicks,
+              foreignLeagues: foreignTx.foreignLeagues,
+              players: foreignTx.players,
+              playerTeamId: state.playerTeamId,
+              year: newYear,
+            })
+          } catch (e) {
+            console.error('simulateCrossBorderTransfers failed', e)
+            crossTx = { teams: teamsWithCleanedPicks, foreignLeagues: foreignTx.foreignLeagues, players: foreignTx.players, news: [] }
+          }
+
           return {
-            players: foreignTx.players,
-            teams: teamsWithCleanedPicks,
-            foreignLeagues: foreignTx.foreignLeagues,
+            players: crossTx.players,
+            teams: crossTx.teams,
+            foreignLeagues: crossTx.foreignLeagues,
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
             gmRep: newGmRep,
             achievements: [...(state.achievements ?? []), ...seasonAchievements],
@@ -4653,6 +4699,7 @@ export const useGameStore = create<GameStore>()(
               scoutPoints: 5 + objBonus + (state.teams.find(t => t.id === state.playerTeamId)?.facilities?.scoutOffice ?? 0),
               initialBudget: newBudget,   // 来期の開始予算（＝繰越+グラント+賞金観客スポンサー）。収支表示の基準。
               seasonGrant: rankBudgetGrant(finalRank),   // 来期の順位グラント額（前年＝今季順位ベース）。運営費＝この10%。
+              budgetBreakdown: newBudgetBreakdown,       // 初期予算の内訳（財務ページで表示）
               scoutProspects: nextScoutPool,
               objectives: newObjectives,
               trainingAssignments: {},
@@ -4678,6 +4725,7 @@ export const useGameStore = create<GameStore>()(
               })),
               newsFeed: [
                 { date: `${newYear}-03-01`, headline: `${newYear}シーズン開幕！全${newRaces.length}戦のスケジュール決定`, category: 'race' as const, relatedIds: [] },
+                ...crossTx.news,
                 ...foreignTx.news,
                 { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year}シーズン王者：${champion?.name ?? ''}！`, category: 'race' as const, relatedIds: [] },
                 seasonPrizeNews,
@@ -5052,6 +5100,8 @@ export const useGameStore = create<GameStore>()(
           } : null
 
           // チーム歴代記録：走った選手のタイムを当時所属チームに永続記録（選手ごと最速・距離別）。
+          // 名前・国籍も焼き込む（選手データが長期整理で削除されても記録が名前ごと残る）
+          const playerById = new Map(state.players.map(p => [p.id, p]))
           const teamEventUpdates = new Map<string, { playerId: string; timeSec: number }[]>()
           for (const r of ranked) {
             const arr = teamEventUpdates.get(r.teamId) ?? []
@@ -5065,7 +5115,8 @@ export const useGameStore = create<GameStore>()(
             const byPlayer = new Map((t.eventRecords?.[bestKey] ?? []).map(e => [e.playerId, e]))
             for (const u of ups) {
               const prev = byPlayer.get(u.playerId)
-              if (!prev || u.timeSec < prev.timeSec) byPlayer.set(u.playerId, { playerId: u.playerId, timeSec: u.timeSec, year: evYear })
+              const pl = playerById.get(u.playerId)
+              if (!prev || u.timeSec < prev.timeSec) byPlayer.set(u.playerId, { playerId: u.playerId, playerName: pl?.name, nationality: pl?.nationality, timeSec: u.timeSec, year: evYear })
             }
             const merged = [...byPlayer.values()].sort((a, b) => a.timeSec - b.timeSec).slice(0, 30)
             return { ...t, eventRecords: { ...t.eventRecords, [bestKey]: merged } }
@@ -5480,6 +5531,8 @@ export const useGameStore = create<GameStore>()(
     {
       name: 'jpel-manager-save',
       version: 9,
+      // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
+      storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
         const s = persistedState as Record<string, unknown>
         // v1→v2: undrafted pool players that were never converted to FA

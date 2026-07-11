@@ -7,7 +7,6 @@ import PlayerFace from '../player/PlayerFace'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const HIGH_OVR = 65
 
 function fmt(yen: number) {
   if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
@@ -89,12 +88,12 @@ export default function NewsPage() {
           </div>
         ) : filtered.map((news, i) => {
           const col = CAT_COLOR[news.category] ?? C.textDim
-          const isTransfer = news.category === 'trade' || news.category === 'fa'
-          const relPlayer = isTransfer && news.relatedIds.length > 0
+          // 選手に紐づくニュース（移籍・区間新記録・ボーナス等）は顔付きカードで詳細（長押し）を見せる
+          const relPlayer = news.relatedIds.length > 0
             ? players.find(p => p.id === news.relatedIds[0])
             : undefined
           const relOvr = relPlayer ? ovr(relPlayer) : 0
-          const showDetail = !!relPlayer && (relOvr >= HIGH_OVR || !!news.major)
+          const showDetail = !!relPlayer
           const fromTeam = news.fromTeamId ? teams.find(t => t.id === news.fromTeamId) : undefined
           const toTeam = news.toTeamId ? teams.find(t => t.id === news.toTeamId) : undefined
 

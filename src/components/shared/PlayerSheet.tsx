@@ -117,6 +117,7 @@ export default function PlayerSheet() {
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
+  const segmentRecords = useGameStore(s => s.segmentRecords ?? {})
   const adH = useAdHeight()
   const [page, setPage] = useState(1)
   const [pageAnim, setPageAnim] = useState('')
@@ -556,11 +557,18 @@ export default function PlayerSheet() {
                   <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                     {entries.map((e, i) => {
                       const rankCol = e.rank === 1 ? '#C9A84C' : e.rank <= 3 ? '#9B97A8' : '#5C5870'
+                      // この大会×区間の区間記録保持者で、かつこの行がその記録更新の走りなら「区間記録」パッチ
+                      const rec = (segmentRecords[`${selectedRaceName}-${e.segIdx}`] ?? [])[0]
+                      const isSegRecord = !!rec && rec.timeSec === e.timeSec &&
+                        (rec.playerId ? rec.playerId === player.id : rec.playerName === player.name)
                       return (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < entries.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                           <span style={{ fontSize: '12px', color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
                           <span style={{ fontSize: '12px', color: '#9B97A8', flexShrink: 0 }}>第{e.segIdx + 1}区</span>
                           <span style={{ fontSize: '15px', fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '32px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
+                          {isSegRecord && (
+                            <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: '4px', background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>区間記録</span>
+                          )}
                           <span style={{ flex: 1 }} />
                           <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatTime(e.timeSec)}</span>
                         </div>

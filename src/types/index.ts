@@ -233,6 +233,7 @@ export type Player = {
   renewalLockedUntilYear?: number  // 更新交渉を最終拒否 → この年まで自チームは更新オファー不可
   transferLockedUntilYear?: number // 移籍交渉が決裂 → この年まで自チームは移籍金オファー不可
   retirementDeclinedYear?: number  // 引退を引き留めた年。その年は引退希望を再抽選しない
+  faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
   transferListed?: boolean    // 「移籍を認める」で移籍リスト入り（他チームのオファー対象・シーズン内に決まらなければFA）
   // レンタル移籍：ownerTeamId が保有元、teamId は現在プレー中（借り手）。untilYear シーズン終了で自動返却。
   loan?: { ownerTeamId: string; untilYear: number }
@@ -476,7 +477,8 @@ export type Team = {
   facilities?: Facilities
   // 記録会のチーム歴代記録（在籍時に出したタイムはチームに永続。選手が抜けても残る）。
   // 距離キーごとに選手ベストを保持（同一選手は最速のみ）。
-  eventRecords?: Partial<Record<'d5000' | 'd10000' | 'half' | 'marathon', { playerId: string; timeSec: number; year: number }[]>>
+  // playerName/nationality は表示用に焼き込む（選手データが長期整理で削除されても記録が名前ごと残る）
+  eventRecords?: Partial<Record<'d5000' | 'd10000' | 'half' | 'marathon', { playerId: string; playerName?: string; nationality?: Nationality; timeSec: number; year: number }[]>>
   history: {
     seasonResults: { year: number; rank: number; points: number }[]
     championships: number
@@ -548,6 +550,15 @@ export type Season = {
   scoutPoints: number
   initialBudget?: number   // そのシーズンの開始予算（固定・収支表示用）。前季endSeasonで確定した来期予算。
   seasonGrant?: number     // そのシーズンの順位グラント額（前年順位ベース。運営費＝この10%）。1年目は最下位20位相当＝3.5億。
+  // 初期予算がどう決まったかの内訳（前季endSeasonで確定）。2年目以降のみ。財務ページで「何が合わさって初期予算か」を表示。
+  budgetBreakdown?: {
+    carryover: number    // 昨年繰越（前季末の残高）
+    grant: number        // 順位グラント（連続赤字ペナルティ適用後）
+    raceIncome: number   // 賞金・観客収入
+    sponsor: number      // スポンサー収入
+    objBonus: number     // 目標達成ボーナス
+    expenses: number     // 前季支出（年俸＋運営費＋施設維持費＋出来高賞与）
+  }
   scoutProspects: Player[]
   standings: {
     teamId: string

@@ -495,6 +495,7 @@ export default function Dashboard() {
               race={nextRaceData.race}
               raceNumber={nextRaceData.number}
               totalRaces={nextRaceData.total}
+              variant={nextRaceData.kind}
               onClick={() => navigate(nextRaceData.kind === 'reserve' ? '/reserve' : '/race')}
             />
           ) : (

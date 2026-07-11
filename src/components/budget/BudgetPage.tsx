@@ -66,6 +66,8 @@ export default function BudgetPage() {
   // 初期予算（そのシーズンの開始予算・固定）と今季収支（初期予算 − 固定支出）
   const initialBudget = currentSeason.initialBudget ?? budget
   const seasonBalance = initialBudget - squadSalaryTotal - opCost - facilityUpkeep
+  // 初期予算の内訳（2年目以降。前季endSeasonで確定）。何が合わさって初期予算かを表示。
+  const bd = currentSeason.budgetBreakdown
   const PRIZE_TABLE = [2000, 1500, 1000, 700, 500, 300, 300, 300]
   const prizePerRace = (PRIZE_TABLE[Math.min(myRank - 1, PRIZE_TABLE.length - 1)] ?? 200) * 10000
   const racesLeft = Math.max(0, (currentSeason.races?.length ?? 10) - currentSeason.currentRaceIndex)
@@ -165,6 +167,24 @@ export default function BudgetPage() {
           <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
             <Row label="初期予算" value={`+${fmt(initialBudget)}`} color={C.gold} />
+            {bd && (
+              <div style={{ padding: '4px 0 8px 12px', marginLeft: 4, marginBottom: 4, borderLeft: `2px solid ${alpha(C.gold, 0.25)}` }}>
+                <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 3, letterSpacing: 1 }}>初期予算の内訳</div>
+                {([
+                  ['昨年繰越', bd.carryover],
+                  ['順位グラント', bd.grant],
+                  ['賞金・観客収入', bd.raceIncome],
+                  ['スポンサー収入', bd.sponsor],
+                  ...(bd.objBonus > 0 ? [['目標達成ボーナス', bd.objBonus] as [string, number]] : []),
+                  ['前季の年俸・運営費など', -bd.expenses],
+                ] as [string, number][]).map(([label, v]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
+                    <span style={{ fontSize: 11, color: C.textDim }}>{label}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: v >= 0 ? C.textSub : C.red }}>{v >= 0 ? '+' : '-'}{fmt(Math.abs(v))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
             <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
