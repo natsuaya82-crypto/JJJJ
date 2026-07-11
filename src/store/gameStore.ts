@@ -5359,7 +5359,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 6,
+      version: 7,
       migrate: (persistedState: unknown, version: number) => {
         const s = persistedState as Record<string, unknown>
         // v1→v2: undrafted pool players that were never converted to FA
@@ -5406,6 +5406,22 @@ export const useGameStore = create<GameStore>()(
               finance: { ...(t.finance as Record<string, unknown>), budget: newBudget },
             }
           })
+        }
+        // v7: ロスターをフラット化（1軍/2軍・契約種別を廃止し、単一ロスター(main)へ統合）
+        if (version < 7) {
+          if (Array.isArray(s.teams)) {
+            s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+              const roster = (t.roster ?? {}) as { main?: string[]; second?: string[] }
+              const merged = Array.from(new Set([...(roster.main ?? []), ...(roster.second ?? [])]))
+              return { ...t, roster: { main: merged, second: [] } }
+            })
+          }
+          if (Array.isArray(s.players)) {
+            s.players = (s.players as Record<string, unknown>[]).map(p => {
+              const contract = (p.contract ?? {}) as Record<string, unknown>
+              return { ...p, rosterTier: 'main', dualRegistered: false, contract: { ...contract, contractType: 'standard' } }
+            })
+          }
         }
         return s
       },

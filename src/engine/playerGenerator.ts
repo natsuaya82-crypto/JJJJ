@@ -795,18 +795,19 @@ export function generateCpuRosters(
     }
 
     const id = `ai${tier === 'second' ? '2' : ''}-${teamId}-${cpuIdCounter}`
+    void contractType   // 契約形態は廃止（フラット化）。tier は年齢分布のためだけに使う
     return {
       id, name, nameKana: '', age, yearsPro,
       draftYear: year - yearsPro, draftRound: null, draftPick: null,
       ratings, specialty,
       potential: potentialVal,
       growthCurve,
-      teamId, rosterTier: tier,
+      teamId, rosterTier: 'main',
       contract: {
         yearsLeft: rng(2, 4),
         annualSalary: calculateRookieSalary(rank),
         faEligibleYear: year + rng(2, 4),
-        contractType,
+        contractType: 'standard',
       },
       nationality, origin,
       status: 'active', fatigue: 0, morale: rng(65, 85), form: 0,
@@ -851,8 +852,8 @@ export function generateCpuRosters(
       cpuPlayers.push(p); secondIds.push(p.id)
     }
 
-    // 2WAY は1軍・2軍の両方に登録
-    teamRosters[team.id] = { main: [...mainIds, ...dualIds], second: [...secondIds, ...dualIds] }
+    // フラット化：全員を単一ロスター(main)へ。2軍は使わない
+    teamRosters[team.id] = { main: [...mainIds, ...dualIds, ...secondIds], second: [] }
   }
 
   return { cpuPlayers, teamRosters }
@@ -902,12 +903,12 @@ export function generatePlayerInitialRoster(year: number): {
       ratings, specialty,
       potential: Math.min(90, rng(potential[0], potential[1])),
       growthCurve,
-      teamId: '', rosterTier: tier,
+      teamId: '', rosterTier: 'main',
       contract: {
         yearsLeft: rng(2, 4),
         annualSalary: calculateRookieSalary(rank),
         faEligibleYear: year + rng(2, 5),
-        contractType,
+        contractType: 'standard',
       },
       nationality: 'JPN', origin,
       status: 'active', fatigue: 0, morale: rng(70, 90), form: 0,
@@ -930,7 +931,8 @@ export function generatePlayerInitialRoster(year: number): {
     players.push(p); secondIds.push(p.id)
   }
 
-  return { players, mainIds, dualIds, secondIds }
+  // フラット化：全員を単一ロスター(main)へ返す（2軍・2wayは使わない）
+  return { players, mainIds: [...mainIds, ...dualIds, ...secondIds], dualIds: [], secondIds: [] }
 }
 
 // CPUチームの2軍を補充するための若手選手を生成する（teamId付き）。
