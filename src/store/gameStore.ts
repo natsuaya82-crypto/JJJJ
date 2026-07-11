@@ -15,7 +15,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { simulateForeignTransferMarket } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET } from '../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -4355,6 +4355,8 @@ export const useGameStore = create<GameStore>()(
           const prevRaceIncome = state.currentSeason.seasonRaceIncome ?? 0
           // 来季予算（前季残高の繰り越し + 収入 - 支出、赤字は-1億まで許容）。計算は data/economy.ts に集約。
           const prevStreakMe = playerTeamObj?.finance.deficitStreak ?? 0
+          // 施設Lv合計→維持費。強い＝施設充実で維持費が高い。
+          const facLevelSum = (f?: Record<string, number>) => Object.values(f ?? {}).reduce((s, v) => s + (v ?? 0), 0)
           const newBudget = computeNextSeasonBudget({
             finalRank,
             prevBalance: playerBudgetAtSeasonEnd,
@@ -4364,6 +4366,7 @@ export const useGameStore = create<GameStore>()(
             objBudgetBonus,
             bonusPayout: bonusTotalPayout,
             salaryTotal: playerSalaryTotal,
+            runningCost: runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined)),
           })
           // 残高がマイナスなら連続赤字カウント+1、黒字なら0にリセット
           const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
@@ -4392,6 +4395,7 @@ export const useGameStore = create<GameStore>()(
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
+              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined)),
             })
             return { ...t, finance: { ...t.finance, budget: b, salaryTotal: sal, deficitStreak: b < 0 ? prevStreak + 1 : 0 } }
           })

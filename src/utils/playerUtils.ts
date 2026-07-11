@@ -77,8 +77,8 @@ export function effSegOvr(p: Player, uphillPct: number, downhillPct: number, dis
 // OVR→市場給与(円)。非線形（スターほど跳ね上がる）。区分線形で下記アンカーを通す。
 //  60→600万 / 70→1500万 / 80→3500万 / 90→7000万 / 95→1億 / 99→1.4億
 const SALARY_ANCHORS: [number, number][] = [
-  [45, 2_000_000], [50, 3_000_000], [60, 6_000_000], [70, 15_000_000],
-  [80, 35_000_000], [90, 70_000_000], [95, 100_000_000], [99, 140_000_000],
+  [45, 3_000_000], [50, 4_000_000], [60, 6_000_000], [70, 10_000_000],
+  [80, 30_000_000], [90, 50_000_000], [95, 80_000_000], [99, 100_000_000],
 ]
 function ovrSalary(o: number): number {
   const pts = SALARY_ANCHORS
@@ -180,8 +180,8 @@ export function calcTransferValue(p: Player): number {
 
   const ctFactor = 1.0 + Math.min((p.contract.yearsLeft - 1) * 0.06, 0.18)
 
-  // 係数80000で OVR70/28歳 ≈ 5000万（OVR80/24 ≈ 1.2億、OVR56 ≈ 1000万台）
-  const raw = base * ageFactor * potFactor * careerFactor * ctFactor * 80000
+  // 係数70000で OVR70/28歳 ≈ 4600万（OVR80/24 ≈ 1.1億、OVR56 ≈ 1000万台）
+  const raw = base * ageFactor * potFactor * careerFactor * ctFactor * 70000
   return Math.round(raw / 1000000) * 1000000
 }
 

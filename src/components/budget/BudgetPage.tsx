@@ -3,7 +3,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
-import { computeNextSeasonBudget, rankBudgetGrant } from '../../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, runningCost } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -85,6 +85,7 @@ export default function BudgetPage() {
     objBudgetBonus: 0,
     bonusPayout: 0,
     salaryTotal: squadSalaryTotal,
+    runningCost: runningCost(Object.values((myTeam?.facilities ?? {}) as Record<string, number>).reduce((s, v) => s + (v ?? 0), 0)),
   })
   const nextGrant = rankBudgetGrant(myRank || teams.length)
 
