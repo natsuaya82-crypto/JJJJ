@@ -531,17 +531,8 @@ export default function TransferPage() {
                         <div style={{ flex: 1, minWidth: 0 }} onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
                           <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                            <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: isScouted ? ratingColor(rating) : C.textGhost }}>{isScouted ? rating : '?'}</span>
-                            {!isScouted && (
-                              scoutPending ? (
-                                <span style={{ padding: '2px 7px', borderRadius: '6px', color: '#7986CB', fontSize: '9px', fontWeight: '700', fontFamily: SAIRA }}>視察中</span>
-                              ) : (
-                                <button onClick={e => { e.stopPropagation(); scoutOpponentPlayer(p.id) }} style={{ padding: '2px 7px', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#7986CB18', border: `1px solid #7986CB40`, color: '#7986CB', fontSize: '9px', fontWeight: '700', fontFamily: SAIRA }}>
-                                  視察
-                                </button>
-                              )
-                            )}
-                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{isScouted ? `${p.age}歳` : '?歳'}</span>
+                            <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>
+                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{p.age}歳</span>
                             <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{allClubs[p.teamId] ?? '?'}</span>
                           </div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1064,22 +1055,14 @@ export default function TransferPage() {
         <div style={{ padding: '8px 12px' }}>
           {!tradeTarget ? (
             <>
-              <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '10px', padding: '0 2px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択</div>
-              <select value={tradeLeague} onChange={e => setTradeLeague(e.target.value)} style={{
-                width: '100%', padding: '8px 10px', borderRadius: '10px', marginBottom: '10px',
-                background: C.surface2, border: `1px solid ${C.border2}`,
-                color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none',
-              }}>
-                <option value="jpel">JPEL</option>
-                {foreignLeagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '10px', padding: '0 2px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択（国内のみ）</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                 {tradeLeague === 'jpel'
                   ? teams.filter(t => t.id !== playerTeamId).map(t => {
                       const theirMain = t.roster.main.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
                       const avgOvr = theirMain.length > 0 ? Math.round(theirMain.reduce((s, p) => s + ovr(p), 0) / theirMain.length) : 0
                       return (
-                        <button key={t.id} onClick={() => resetTrade(t.id)} style={{
+                        <button key={t.id} onClick={() => navigate(`/team/chat?trade=${t.id}`)} style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
                           padding: '12px 8px', borderRadius: '12px',
                           background: `linear-gradient(160deg, ${alpha(t.colors.primary, 0.18)}, ${alpha(t.colors.primary, 0.06)})`,

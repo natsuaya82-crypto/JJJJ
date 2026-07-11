@@ -87,7 +87,6 @@ export function useOpponentMenu() {
   const navigate = useNavigate()
   const { players, teams, playerTeamId, currentSeason } = useGameStore()
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
-  const scoutOpponentPlayer = useGameStore(s => s.scoutOpponentPlayer)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
 
@@ -118,15 +117,9 @@ export function useOpponentMenu() {
   const menuPlayer = menuId ? players.find(x => x.id === menuId) : undefined
   const menuItems = (() => {
     if (!menuPlayer) return []
-    const isForeign = !teams.some(t => t.id === menuPlayer.teamId)
-    const scouted = isOpponentScouted(menuPlayer.id, currentSeason)
-    const pending = isScoutPending(menuPlayer.id, currentSeason)
     const items = [
       { label: '移籍オファーを出す', color: C.gold, onClick: () => setOfferId(menuPlayer.id) },
       { label: 'レンタルのオファー', color: C.blue, onClick: () => setLoanId(menuPlayer.id) },
-      // トレードは国内チームのみ（海外クラブとはトレード不可）
-      ...(!isForeign ? [{ label: 'トレードを提案', color: C.orange, onClick: () => navigate(`/team/chat?trade=${menuPlayer.teamId}&want=${menuPlayer.id}`) }] : []),
-      { label: scouted ? '視察済み' : pending ? '視察中' : '視察する', color: C.green, disabled: scouted || pending, onClick: () => scoutOpponentPlayer(menuPlayer.id) },
     ]
     return items
   })()
