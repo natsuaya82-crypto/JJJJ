@@ -1,4 +1,4 @@
-import { MemoryRouter as BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { MemoryRouter as BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from './store/gameStore'
 import { audio } from './utils/audio'
@@ -78,6 +78,7 @@ function Placeholder({ title }: { title: string }) {
 function SeasonBudgetNotice() {
   const notice = useGameStore(s => s.seasonBudgetNotice)
   const dismiss = useGameStore(s => s.dismissBudgetNotice)
+  const navigate = useNavigate()
   if (!notice) return null
   const SAIRA = "'Saira Condensed', system-ui, sans-serif"
   const fmtYen = (yen: number) => yen >= 100000000 ? `${(yen / 100000000).toFixed(1)}億` : `${Math.round(yen / 10000)}万`
@@ -86,9 +87,11 @@ function SeasonBudgetNotice() {
       <div onClick={e => e.stopPropagation()} style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 11, color: '#f5c842', letterSpacing: '3px', fontWeight: 900, marginBottom: 8 }}>SEASON BUDGET</div>
         <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{notice.year}シーズンの予算が確定しました</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: notice.budget >= 0 ? '#2ecc71' : '#ff4757', lineHeight: 1, marginBottom: 8 }}>{fmtYen(notice.budget)}</div>
-        <div style={{ fontSize: 11, color: '#8c9aaf', marginBottom: 20, lineHeight: 1.6 }}>前季の成績・スポンサー・賞金・観客収入を反映した来期予算です</div>
-        <button onClick={dismiss} style={{ width: '100%', padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>確認</button>
+        <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: notice.budget >= 0 ? '#2ecc71' : '#ff4757', lineHeight: 1, marginBottom: 20 }}>{fmtYen(notice.budget)}</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => { dismiss(); navigate('/') }} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>OK</button>
+          <button onClick={() => { dismiss(); navigate('/budget') }} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid #f5c842', background: 'transparent', color: '#f5c842', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>確認</button>
+        </div>
       </div>
     </div>
   )
