@@ -76,7 +76,7 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
 }
 
 
-const TIER_MAX: Record<RosterTier, number> = { main: 23, second: 20 }
+const TIER_MAX: Record<RosterTier, number> = { main: 30, second: 20 }
 
 type SortKey = 'ovr' | 'age'
 
@@ -315,8 +315,7 @@ export default function TeamManagement() {
       {(section === 'roster' || !section) && <>
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, margin: '0 12px 0' }}>
         {([
-          { key: 'main' as const, label: '1軍', count: team.roster.main.length, max: TIER_MAX.main },
-          { key: 'second' as const, label: 'リザーブ', count: team.roster.second.length, max: TIER_MAX.second },
+          { key: 'main' as const, label: 'ロスター', count: team.roster.main.length, max: TIER_MAX.main },
           ...(loanedIn.length > 0 ? [{ key: 'loan' as const, label: 'レンタル', count: loanedIn.length }] : []),
         ] as { key: RosterTier | 'loan'; label: string; count: number; max?: number }[]).map(tab => {
           const active = activeTab === tab.key
