@@ -91,10 +91,8 @@ export default function BudgetPage() {
     runningCost: facRunningCost,
   })
 
-  // 今シーズンの収支＝スポンサー − 年俸 − 運営費 − 施設維持費。
-  const seasonIncome = sponsorAnnual
-  const seasonExpense = squadSalaryTotal + facRunningCost
-  const seasonNet = seasonIncome - seasonExpense
+  // 今シーズンの収支＝お金関係を全部合計（予算繰越＋グラント＋スポンサー＋賞金観客 − 年俸 − 運営費 − 施設維持費）。
+  const seasonNet = budget + nextGrant + sponsorAnnual + projectedSeasonRaceIncome - squadSalaryTotal - facRunningCost
 
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 
@@ -161,7 +159,10 @@ export default function BudgetPage() {
         }}>
           <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
+            <Row label="予算（繰越）" value={`+${fmt(budget)}`} color={C.gold} />
+            <Row label="順位グラント" value={`+${fmt(nextGrant)}`} color={C.green} />
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
+            <Row label="賞金・観客収入" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
             <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
