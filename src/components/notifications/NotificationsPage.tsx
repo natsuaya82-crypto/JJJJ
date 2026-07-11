@@ -340,6 +340,9 @@ export default function NotificationsPage() {
   const expiredNegotiations = currentSeason.expiredNegotiations ?? []
   const dismissExpiredNegotiation = useGameStore(s => s.dismissExpiredNegotiation)
 
+  const loanResponses = currentSeason.loanResponses ?? []
+  const dismissLoanResponse = useGameStore(s => s.dismissLoanResponse)
+
   const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + (renewalNeeded > 0 ? 1 : 0)
@@ -348,6 +351,7 @@ export default function NotificationsPage() {
     + pendingGifts.length
     + joinNotices.length
     + expiredNegotiations.length
+    + loanResponses.length
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -628,6 +632,37 @@ export default function NotificationsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {/* レンタル回答（承諾/却下） */}
+          {loanResponses.length > 0 && (
+            <section style={{ marginTop: '20px' }}>
+              <SectionHead label="レンタル回答" color={C.blue} count={loanResponses.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {loanResponses.map(resp => {
+                  const accent = resp.accepted ? C.green : C.red
+                  const shadow = resp.accepted ? '#0d3d22' : '#3d0000'
+                  return (
+                    <div key={resp.id} style={cardStyle(alpha(accent, 0.45), shadow)}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                        <div>
+                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
+                            {resp.accepted
+                              ? `${resp.ownerShort}が${resp.playerName}のレンタルを承諾`
+                              : `${resp.ownerShort}が${resp.playerName}のレンタルを却下`}
+                          </div>
+                          <div style={{ fontFamily: SAIRA, fontSize: '11px', color: accent, marginTop: '2px' }}>
+                            {resp.accepted ? `${resp.years}年で加入しました` : '要請は受け入れられませんでした'}
+                          </div>
+                        </div>
+                        <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissLoanResponse(resp.id)}>確認</Btn>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </section>
           )}

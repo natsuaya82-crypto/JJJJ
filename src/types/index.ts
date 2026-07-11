@@ -96,6 +96,16 @@ export type LoanRequest = {
   submittedAtRace: number
 }
 
+// レンタル要請への相手クラブの回答（承諾/却下）。通知で表示して確認したら消す。
+export type LoanResponse = {
+  id: string
+  playerId: string
+  playerName: string
+  ownerShort: string
+  accepted: boolean
+  years: number
+}
+
 // 相手チームから来るレンタル打診（チャットで対応）
 export type IncomingLoanOffer = {
   id: string
@@ -580,6 +590,7 @@ export type Season = {
   incomingOffers?: IncomingOffer[]
   incomingLoanOffers?: IncomingLoanOffer[]
   loanRequests?: LoanRequest[]
+  loanResponses?: LoanResponse[]
   tradeNegotiations?: TradeNegotiation[]
   transferBids?: TransferBid[]
   reserveLeagueJoined?: boolean

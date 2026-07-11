@@ -1,6 +1,6 @@
 ﻿import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -276,6 +276,7 @@ export type GameStore = GameState & {
   loanOutPlayer: (playerId: string, toTeamId: string, years: number) => boolean  // 自チームの選手を貸す
   submitLoanRequest: (playerId: string, years: number) => boolean  // 移籍市場からレンタル要請を出す
   cancelLoanRequest: (playerId: string) => void                    // レンタル要請を取り下げる
+  dismissLoanResponse: (id: string) => void                        // レンタル回答の通知を確認済みにする
   submitTransferBid: (playerId: string, fee: number) => void
   acceptFeeCounter: (bidId: string) => void
   rejectTransferBid: (bidId: string) => void
@@ -1437,6 +1438,7 @@ export const useGameStore = create<GameStore>()(
           let playersAfterLoan = playersWithCpuTx
           let teamsAfterLoan = teamsWithCpuTx
           const loanRespNews: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[] = []
+          const newLoanResponses: LoanResponse[] = []
           if (pendingLoanReqs.length > 0) {
             const trIdx = raceIndex + 1
             let freeSlots = Math.max(0, 3 - playersWithCpuTx.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length)
@@ -1451,8 +1453,10 @@ export const useGameStore = create<GameStore>()(
               if (loanable && freeSlots > 0) {
                 accepted.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
                 loanRespNews.push({ date: race.date, headline: `${ownerShort}が${pl.name}のレンタル要請を承諾。${req.years}年で借用`, category: 'trade', relatedIds: [pl.id] })
+                newLoanResponses.push({ id: `lresp_${pl.id}_${raceIndex}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: true, years: req.years })
               } else {
                 loanRespNews.push({ date: race.date, headline: `${ownerShort}が${pl.name}のレンタル要請を断った`, category: 'trade', relatedIds: [pl.id] })
+                newLoanResponses.push({ id: `lresp_${pl.id}_${raceIndex}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: false, years: req.years })
               }
             }
             if (accepted.length > 0) {
@@ -1554,6 +1558,7 @@ export const useGameStore = create<GameStore>()(
               incomingOffers: mergedIncomingOffers,
               incomingLoanOffers: mergedLoanOffers,
               loanRequests: [],
+              loanResponses: [...(state.currentSeason.loanResponses ?? []), ...newLoanResponses],
               transferBids: processedBids,
               transferRequests: [...(state.currentSeason.transferRequests ?? []), ...newTransferReqs],
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
@@ -2925,6 +2930,15 @@ export const useGameStore = create<GameStore>()(
           currentSeason: {
             ...state.currentSeason,
             loanRequests: (state.currentSeason.loanRequests ?? []).filter(r => r.playerId !== playerId),
+          },
+        }))
+      },
+
+      dismissLoanResponse: (id) => {
+        set(state => ({
+          currentSeason: {
+            ...state.currentSeason,
+            loanResponses: (state.currentSeason.loanResponses ?? []).filter(r => r.id !== id),
           },
         }))
       },

@@ -316,6 +316,7 @@ export function useNotifCount() {
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length
   const expiredNegotiations = (currentSeason.expiredNegotiations ?? []).length
+  const loanResponses = (currentSeason.loanResponses ?? []).length
 
   const joinNotices = players
     .filter(p => p.teamId === playerTeamId && p.joinedYear === currentSeason.year)
@@ -340,4 +341,5 @@ export function useNotifCount() {
     + pendingGifts.length
     + joinNotices
     + expiredNegotiations
+    + loanResponses
 }
