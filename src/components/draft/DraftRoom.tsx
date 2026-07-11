@@ -954,9 +954,11 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
   const upd = (id: string, patch: Partial<DraftContract>) => setContracts(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
 
   const handleFinish = () => {
+    // 契約設定の途中で1件でも失敗しても開幕（onFinish）は必ず実行する（ボタン無反応＝開幕しないを防ぐ）
     for (const p of myDrafted) {
       const c = contracts[p.id]
-      if (c) setDraftContract(p.id, c.salary, c.years, c.contractType, c.teamRole ?? undefined)
+      try { if (c) setDraftContract(p.id, c.salary, c.years, c.contractType, c.teamRole ?? undefined) }
+      catch (e) { console.error('[draft] setDraftContract failed', p.id, e) }
     }
     onFinish()
   }

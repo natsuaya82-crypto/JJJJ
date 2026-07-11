@@ -725,11 +725,12 @@ export const useGameStore = create<GameStore>()(
           .map(id => state.players.find(p => p.id === id))
           .filter(p => p?.nationality === 'FOREIGN').length
 
-        const available = pool.filter(p => {
+        const eligibleByCap = pool.filter(p => {
           if (p.nationality === 'FOREIGN' && foreignCount >= 3) return false
           return true
         })
-        if (available.length === 0) return
+        // 外国人枠で全員弾かれても指名は進める（デッドロック＝ドラフト凍結・自番へスキップ不能を防ぐ）
+        const available = eligibleByCap.length > 0 ? eligibleByCap : pool
 
         const scored = available.map(p => {
           return { p, score: ovr(p) * (0.97 + Math.random() * 0.06) }
@@ -798,9 +799,9 @@ export const useGameStore = create<GameStore>()(
             teams: teamsWithPicks,
             currentSeason: {
               ...state.currentSeason, phase: 'preseason',
-              races: state.currentSeason.races.length > 0 ? state.currentSeason.races : SEASON_2027_RACES,
+              races: (state.currentSeason.races ?? []).length > 0 ? state.currentSeason.races : SEASON_2027_RACES,
               individualEvents: (state.currentSeason.individualEvents ?? []).length > 0 ? state.currentSeason.individualEvents : generateIndividualEvents(state.currentSeason.year),
-              newsFeed: state.currentSeason.newsFeed.length > 0 ? state.currentSeason.newsFeed : buildInitialNews(),
+              newsFeed: (state.currentSeason.newsFeed ?? []).length > 0 ? state.currentSeason.newsFeed : buildInitialNews(),
               secondTeamRaces: (state.currentSeason.secondTeamRaces ?? []).length > 0 ? state.currentSeason.secondTeamRaces : SECOND_TEAM_RACES_INITIAL,
               secondTeamRaceIndex: state.currentSeason.secondTeamRaceIndex ?? 0,
               secondTeamStandings: state.currentSeason.secondTeamStandings ?? state.teams.map(t => ({ teamId: t.id, totalPoints: 0, raceResults: [] })),
