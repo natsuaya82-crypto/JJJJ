@@ -40,16 +40,15 @@ export default function BudgetPage() {
 
   const myTeam = teams.find(t => t.id === playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
-  const mainPlayers = myPlayers.filter(p => p.rosterTier === 'main')
-  const secondPlayers = myPlayers.filter(p => p.rosterTier === 'second')
+  // フラット化：1軍/2軍の区別なし。全ロスターをまとめて扱う
+  const rosterPlayers = myPlayers.filter(p => p.status !== 'retired')
 
   const budget = myTeam?.finance.budget ?? 0
-  const salaryTotal = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
-  const secondSalaryTotal = secondPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
-  const squadSalaryTotal = salaryTotal + secondSalaryTotal
+  const squadSalaryTotal = rosterPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
+  const facRunningCost = runningCost(Object.values((myTeam?.facilities ?? {}) as Record<string, number>).reduce((s, v) => s + (v ?? 0), 0))
 
   const myTeamSponsorIds = myTeam?.sponsors ?? []
-  const myPersonalSponsorIds = mainPlayers.flatMap(p => p.personalSponsors ?? [])
+  const myPersonalSponsorIds = rosterPlayers.flatMap(p => p.personalSponsors ?? [])
   const allSponsorIds = [...myTeamSponsorIds, ...myPersonalSponsorIds]
   const sponsorList = allSponsorIds
     .map(id => (sponsors ?? []).find(s => s.id === id))
@@ -85,13 +84,13 @@ export default function BudgetPage() {
     objBudgetBonus: 0,
     bonusPayout: 0,
     salaryTotal: squadSalaryTotal,
-    runningCost: runningCost(Object.values((myTeam?.facilities ?? {}) as Record<string, number>).reduce((s, v) => s + (v ?? 0), 0)),
+    runningCost: facRunningCost,
   })
   const nextGrant = rankBudgetGrant(myRank || teams.length)
 
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 
-  const topSalaries = [...mainPlayers]
+  const topSalaries = [...rosterPlayers]
     .sort((a, b) => b.contract.annualSalary - a.contract.annualSalary)
     .slice(0, 5)
 
@@ -207,11 +206,12 @@ export default function BudgetPage() {
             <Row label="順位グラント" value={`+${fmt(nextGrant)}`} color={C.gold} sub={`最終${myRank || '—'}位で確定`} />
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
             <Row label="賞金・観客収入（今季累計＋残り）" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
-            <Row label="年俸総額（1軍+2軍）" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`1軍${mainPlayers.length}名・2軍${secondPlayers.length}名`} />
+            <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`ロスター${rosterPlayers.length}名`} />
+            <Row label="施設維持費・運営費" value={`-${fmt(facRunningCost)}`} color={C.red} sub="施設Lvが高いほど高い" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>来季予算 見込み</div>
-                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>前季残高 {fmt(budget)} を繰り越し（赤字は-1億まで）</div>
+                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>前季残高 {fmt(budget)} を繰り越し（年俸・維持費は年度末に精算／赤字は-1億まで）</div>
               </div>
               <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.gold, textShadow: '0 0 10px rgba(245,200,66,0.4)' }}>
                 {fmt(projectedNextBudget)}
@@ -300,13 +300,9 @@ export default function BudgetPage() {
                 </div>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 2px' }}>
-              <div style={{ fontSize: 11, color: C.textDim }}>1軍総年俸</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>{fmt(salaryTotal)}</div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0 4px' }}>
-              <div style={{ fontSize: 11, color: C.textDim }}>2軍総年俸（{secondPlayers.length}名）</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub }}>{fmt(secondSalaryTotal)}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 4px' }}>
+              <div style={{ fontSize: 11, color: C.textDim }}>総年俸（{rosterPlayers.length}名）</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>{fmt(squadSalaryTotal)}</div>
             </div>
           </div>
         </div>
