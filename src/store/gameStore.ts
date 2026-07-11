@@ -419,7 +419,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     },
     pastSeasons: [],
     growthReport: null,
-    teams: INITIAL_TEAMS.map(t => ({ ...t, roster: { main: [], second: [] }, finance: { ...t.finance, salaryTotal: 0 } })),
+    // 初期予算はグラント表から算出（initialRank連動）。teams.tsの旧ハードコード値に依存しない
+    teams: INITIAL_TEAMS.map(t => ({ ...t, roster: { main: [], second: [] }, finance: { ...t.finance, salaryTotal: 0, budget: rankBudgetGrant(t.initialRank) } })),
     players: basePlayers,
     saveTimestamp: new Date().toISOString(),
     version: '0.1.0',
@@ -649,7 +650,8 @@ export const useGameStore = create<GameStore>()(
             return {
               ...t,
               roster: { main: [...prMainIds, ...prDualIds], second: [...prSecondIds, ...prDualIds] },
-              finance: { ...t.finance, budget: 400_000_000, salaryTotal: prSalaryTotal },
+              // 最弱スタート：初期予算は最下位(20位)グラント
+              finance: { ...t.finance, budget: rankBudgetGrant(20), salaryTotal: prSalaryTotal },
             }
           }
           const cpuRoster = teamRosters[t.id]
