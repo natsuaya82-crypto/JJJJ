@@ -1049,7 +1049,7 @@ export const useGameStore = create<GameStore>()(
 
           // Update objectives（noInjury は負傷判定が後段なので後で反映）
           const mySegWinCount = results.segmentResults.filter(sr => sr.runners[0]?.teamId === playerTeamId).length
-          const baseObjectives = state.currentSeason.objectives.map(obj => {
+          const baseObjectives = (state.currentSeason.objectives ?? []).map(obj => {
             if (obj.done) return obj
             if (obj.id === 'segWins') {
               const next = obj.current + mySegWinCount
@@ -1222,7 +1222,7 @@ export const useGameStore = create<GameStore>()(
           const completedProspectIds = new Set(updatedMissions.filter(m => m.racesLeft <= 0).map(m => m.prospectId))
           const activeMissions = updatedMissions.filter(m => m.racesLeft > 0)
           const updatedScoutProspects = completedProspectIds.size > 0
-            ? state.currentSeason.scoutProspects.map(sp => {
+            ? (state.currentSeason.scoutProspects ?? []).map(sp => {
                 if (!completedProspectIds.has(sp.id)) return sp
                 const tr = (sp as Player & { trueRatings?: Ratings }).trueRatings
                 return { ...sp, publicRatings: { speed: tr?.speed ?? sp.ratings.speed, stamina: tr?.stamina ?? sp.ratings.stamina, mountainUp: tr?.mountainUp ?? sp.ratings.mountainUp, mountainDown: tr?.mountainDown ?? sp.ratings.mountainDown, pacing: tr?.pacing ?? sp.ratings.pacing } }
@@ -1449,7 +1449,7 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          const prevDoneIds = new Set(state.currentSeason.objectives.filter(o => o.done).map(o => o.id))
+          const prevDoneIds = new Set((state.currentSeason.objectives ?? []).filter(o => o.done).map(o => o.id))
           const midRaceObjJewels = updatedObjectives
             .filter(o => o.done && !prevDoneIds.has(o.id))
             .reduce((s, o) => s + (o.rewardJewels ?? 30), 0)
@@ -3550,7 +3550,7 @@ export const useGameStore = create<GameStore>()(
       }),
 
       startRegularSeason: () => set(state => {
-        if (state.currentSeason.objectives.length === 0) {
+        if ((state.currentSeason.objectives ?? []).length === 0) {
           const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length)
           return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives } }
         }
@@ -4299,7 +4299,7 @@ export const useGameStore = create<GameStore>()(
           // Check objectives + award scout points + budget rewards
           const finalRank = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === state.playerTeamId) + 1
           const playerBudgetAtSeasonEnd = teamsWithFA.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
-          const completedObjs = state.currentSeason.objectives.map(obj => {
+          const completedObjs = (state.currentSeason.objectives ?? []).map(obj => {
             if (obj.done) return obj
             if (obj.id === 'topN' && finalRank > 0 && finalRank <= obj.target) return { ...obj, current: finalRank, done: true }
             if (obj.id === 'noInjury' && obj.current === 0) return { ...obj, done: true }

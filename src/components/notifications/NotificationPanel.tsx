@@ -306,7 +306,7 @@ export function useNotifCount() {
   const offers = (currentSeason.incomingOffers ?? []).length
   const retirements = (currentSeason.retirementRequests ?? []).length
   const transferReqs = (currentSeason.transferRequests ?? []).length > 0 ? 1 : 0
-  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
+  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' || b.status === 'fee_accepted').length
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length > 0 ? 1 : 0
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length > 0 ? 1 : 0
   const loginUnclaimed = lastLoginDate !== loginTodayKey() ? 1 : 0

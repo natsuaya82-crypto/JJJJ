@@ -35,12 +35,15 @@ export default function DraftHistoryPage() {
     onPointerMove: () => { if (timer.current) clearTimeout(timer.current) },
   })
 
-  // 自チームの歴代ドラフト指名選手（2027年度〜）。指名時に draftYear=当年 が入る。
-  const drafted = players.filter(p => (p.draftYear ?? 0) >= 2027)
+  // 歴代ドラフト指名選手。ドラフトで指名された選手だけ draftRound/draftPick が入る
+  // （初期・自動生成の選手は null なので除外＝「関係ない選手」を弾ける）。
+  const drafted = players.filter(p => p.draftRound != null)
   const years = [...new Set(drafted.map(p => p.draftYear))].sort((a, b) => b - a)
   const byYear = years.map(y => ({
     year: y,
-    list: drafted.filter(p => p.draftYear === y).sort((a, b) => ovr(b) - ovr(a)),
+    // 指名順（巡→順位）に並べる＝ドラフトボード順
+    list: drafted.filter(p => p.draftYear === y).sort((a, b) =>
+      (a.draftRound! - b.draftRound!) || ((a.draftPick ?? 0) - (b.draftPick ?? 0))),
   }))
 
   return (
@@ -51,7 +54,7 @@ export default function DraftHistoryPage() {
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.orange, letterSpacing: '3px', fontWeight: '900', marginBottom: '2px' }}>RECORDS</div>
         <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text, marginBottom: '4px' }}>歴代ドラフト</div>
-        <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '14px' }}>2027年度からの自チーム指名選手</div>
+        <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '14px' }}>2027年度からの全ドラフト指名選手（指名順）</div>
       </div>
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -74,7 +77,7 @@ export default function DraftHistoryPage() {
               const o = ovr(p)
               return (
                 <div key={p.id} {...lp(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: i < list.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', opacity: isRetired ? 0.6 : 1 }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textGhost, width: '20px', textAlign: 'center' }}>{i + 1}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: 800, color: p.draftRound === 1 ? C.gold : C.textDim, width: '34px', textAlign: 'center', flexShrink: 0 }}>{p.draftRound}<span style={{ fontSize: 8, color: C.textDim }}>巡</span>{p.draftPick}</span>
                   <div style={{ width: '30px', height: '30px', borderRadius: '8px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={30} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
