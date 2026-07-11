@@ -294,7 +294,7 @@ export default function PlayerSheet() {
               ))
             )}
           </div>
-          {!isMyPlayer && page !== 4 ? (
+          {!isMyPlayer && !isProspect && page !== 4 ? (
             <button
               onClick={() => toggleStarOpponent(player.id)}
               title="ウォッチリスト"
@@ -385,8 +385,8 @@ export default function PlayerSheet() {
                   </div>
                   <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '8px', color: '#5C5870' }}>予想指名順位</div>
-                    <div style={{ fontSize: '12px', fontWeight: '700', color: predictedPick ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
-                      {predictedPick ? `${Math.ceil(predictedPick / 20)}巡目 全体${predictedPick}位` : '—'}
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: (predictedPick && predictedPick <= 40) ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
+                      {predictedPick && predictedPick <= 40 ? `${Math.ceil(predictedPick / 20)}巡目 全体${predictedPick}位` : '指名圏外'}
                     </div>
                   </div>
                 </>
