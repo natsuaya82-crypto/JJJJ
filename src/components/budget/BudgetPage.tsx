@@ -3,7 +3,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
-import { computeNextSeasonBudget, rankBudgetGrant, runningCost } from '../../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, BASE_OPERATING_COST } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -45,7 +45,10 @@ export default function BudgetPage() {
 
   const budget = myTeam?.finance.budget ?? 0
   const squadSalaryTotal = rosterPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
-  const facRunningCost = runningCost(Object.values((myTeam?.facilities ?? {}) as Record<string, number>).reduce((s, v) => s + (v ?? 0), 0))
+  const facLevelSum = Object.values((myTeam?.facilities ?? {}) as Record<string, number>).reduce((s, v) => s + (v ?? 0), 0)
+  const facilityUpkeep = facLevelSum * FACILITY_UPKEEP_PER_LEVEL   // 施設Lv連動（施設なしなら0）
+  const operatingCost = BASE_OPERATING_COST                        // 運営費（一律・施設と無関係）
+  const facRunningCost = facilityUpkeep + operatingCost
 
   const myTeamSponsorIds = myTeam?.sponsors ?? []
   const myPersonalSponsorIds = rosterPlayers.flatMap(p => p.personalSponsors ?? [])
@@ -162,7 +165,8 @@ export default function BudgetPage() {
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
             <Row label="賞金・観客収入" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
-            <Row label="施設維持費・運営費" value={`-${fmt(facRunningCost)}`} color={C.red} sub="施設Lvが高いほど高い" />
+            <Row label="運営費" value={`-${fmt(operatingCost)}`} color={C.red} sub="チーム運営の固定費" />
+            <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>今シーズンの収支</div>
