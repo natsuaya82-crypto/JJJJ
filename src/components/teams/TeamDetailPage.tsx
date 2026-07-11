@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
+import { C } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -253,63 +255,22 @@ export default function TeamDetailPage() {
 
         <div style={{ minWidth: '100%', scrollSnapAlign: 'start' }}>
           <div style={{ padding: '0 12px' }}>
-            {(() => {
-              const renderPlayer = (p: typeof mainPlayers[0]) => {
-                const specCol = SPEC_COLOR[p.specialty]
-                const rating = ovr(p)
-                const value = calcTransferValue(p)
-                const salary = p.contract.annualSalary
-                const isScouted = isMyTeam || isOpponentScouted(p.id, currentSeason)
-                return (
-                  <div key={p.id} style={{
-                    marginBottom: '6px', borderRadius: '12px',
-                    backgroundColor: '#0E0D17', border: '1px solid #1A1828',
-                    padding: '10px 12px', cursor: 'pointer',
-                  }}
-                    {...rowHandlers(p.id)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <PlayerFace playerId={p.id} nationality={p.nationality} size={40} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                          <span style={{ padding: '1px 5px', borderRadius: '8px', backgroundColor: `${specCol}15`, color: specCol, fontSize: '8px', fontWeight: '700', flexShrink: 0 }}>
-                            {SPECIALTY_LABELS[p.specialty]}
-                          </span>
-                          {!isMyTeam && <span style={{ fontSize: '8px', color: '#5C5870', marginLeft: 'auto', flexShrink: 0 }}>タップ=交渉 / 長押し=詳細</span>}
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <span style={{ fontSize: '9px', color: '#5C5870' }}>
-                            価値 <span style={{ color: '#4CAF50', fontFamily: 'monospace', fontWeight: '700' }}>{fmt(value)}</span>
-                          </span>
-                          <span style={{ fontSize: '9px', color: '#5C5870' }}>
-                            年俸 <span style={{ color: '#C9A84C', fontFamily: 'monospace', fontWeight: '700' }}>{fmt(salary)}</span>
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '20px', fontWeight: '900', fontFamily: 'monospace', color: isScouted ? ratingColor(rating) : '#3A3758', flexShrink: 0 }}>
-                        {isScouted ? rating : '?'}
-                      </div>
-                    </div>
-                  </div>
-                )
-              }
-              return (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px', flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8' }}>ロスター</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: '#C9A84C' }}>
-                      {mainPlayers.length}<span style={{ fontSize: 10, color: '#5C5870' }}>/{ROSTER_MAX}</span>
-                    </span>
-                    <span style={{ fontSize: 10, color: '#5C5870' }}>総年俸 <span style={{ color: '#9B97A8', fontWeight: 700, fontFamily: SAIRA }}>{fmt(teamSalary)}</span></span>
-                  </div>
-                  {mainPlayers.length === 0
-                    ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17', borderRadius: '14px', marginBottom: '12px' }}>登録なし</div>
-                    : mainPlayers.map(renderPlayer)
-                  }
-                </>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8' }}>ロスター</span>
+              <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: '#C9A84C' }}>
+                {mainPlayers.length}<span style={{ fontSize: 10, color: '#5C5870' }}>/{ROSTER_MAX}</span>
+              </span>
+              <span style={{ fontSize: 10, color: '#5C5870' }}>総年俸 <span style={{ color: '#9B97A8', fontWeight: 700, fontFamily: SAIRA }}>{fmt(teamSalary)}</span></span>
+              {!isMyTeam && <span style={{ fontSize: 8, color: '#5C5870', marginLeft: 'auto' }}>タップ=交渉 / 長押し=詳細</span>}
+            </div>
+            {mainPlayers.length === 0
+              ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17', borderRadius: '14px', marginBottom: '12px' }}>登録なし</div>
+              : (
+                <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
+                  {mainPlayers.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} />)}
+                </div>
               )
-            })()}
+            }
           </div>
         </div>
       </div>
