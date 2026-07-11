@@ -5480,6 +5480,17 @@ export const useGameStore = create<GameStore>()(
         }
         return s
       },
+      // 古いセーブで currentSeason に欠けているフィールドを初期値で補完する。
+      // （新バージョンで追加された配列フィールド等が undefined のままだと、参照時に
+      //   クラッシュ→ボタン無反応・進行不可になるため、ロード時に一括で埋める）
+      merge: (persistedState, currentState) => {
+        const p = (persistedState ?? {}) as Partial<typeof currentState>
+        return {
+          ...currentState,
+          ...p,
+          currentSeason: { ...currentState.currentSeason, ...(p.currentSeason ?? {}) },
+        }
+      },
     }
   )
 )
