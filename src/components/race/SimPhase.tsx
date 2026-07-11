@@ -8,6 +8,7 @@ import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
+import { useAdHeight } from '../layout/Layout'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
@@ -312,6 +313,7 @@ export function SimPhase({
   showingSegResult, lastSegResult, segRunnerIds,
   onChoiceMade, onAdvance, onSkip: _onSkip, onSkipSegment,
 }: Props) {
+  const adH = useAdHeight()
   const teamMap = new Map(teams.map(t => [t.id, t]))
   const playerMap = new Map(players.map(p => [p.id, p]))
 
@@ -436,7 +438,7 @@ export function SimPhase({
     return (
       <div style={{
         fontFamily: SAIRA,
-        position: 'fixed', top: 52, bottom: 50, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', top: 52, bottom: adH, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: 480, zIndex: 30, overflow: 'hidden',
         background: `radial-gradient(ellipse at 50% 30%, ${alpha(segCol, 0.22)} 0%, ${C.bg} 65%)`,
         display: 'flex', flexDirection: 'column',
@@ -541,10 +543,10 @@ export function SimPhase({
   return (
     <div style={{ fontFamily: SAIRA, minHeight: '100svh', backgroundColor: C.bg, paddingBottom: 80 }}>
 
-      {/* レース状況の覗き見中：イベントに戻る（広告枠50pxの上に配置） */}
+      {/* レース状況の覗き見中：イベントに戻る（広告枠の上に配置。買い切り版は0） */}
       {atEvent && peekRace && (
         <div style={{
-          position: 'fixed', bottom: 50, left: 0, right: 0, margin: '0 auto',
+          position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: 480, zIndex: 55,
           padding: '14px 12px', background: `linear-gradient(0deg, ${C.bg} 70%, transparent)`,
         }}>

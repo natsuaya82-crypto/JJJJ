@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { C } from '../../styles/tokens'
+import { useAdHeight } from '../layout/Layout'
 
 export type ActionSheetItem = {
   label: string
@@ -11,6 +12,7 @@ export type ActionSheetItem = {
 // 画面下から出る固定ボトムシート。位置は常に画面下端で一定＝行の位置に依存せず見切れない。
 // header に対象（選手の顔・名前など）を渡すと、誰に対するメニューか一目で分かる。
 export default function ActionSheet({ open, onClose, items, header }: { open: boolean; onClose: () => void; items: ActionSheetItem[]; header?: React.ReactNode }) {
+  const adH = useAdHeight()
   // 表示中は背景ページのスクロールをロックする
   useEffect(() => {
     if (!open) return
@@ -29,8 +31,8 @@ export default function ActionSheet({ open, onClose, items, header }: { open: bo
       <div
         className="sheet-up"
         style={{
-          // 下50pxは広告バナーの帯。シートは広告の上で止める
-          position: 'fixed', bottom: 50, left: 0, right: 0, margin: '0 auto',
+          // 下は広告バナーの帯（買い切り版は0）。シートは広告の上で止める
+          position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: 480, zIndex: 301,
           background: C.surface,
           borderRadius: '18px 18px 0 0',

@@ -4,6 +4,7 @@ import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, faMarketSalary, statCapBand } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
+import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
 import NumberDial from '../ui/NumberDial'
 import { audio } from '../../utils/audio'
@@ -87,6 +88,7 @@ const SELECT_STYLE: React.CSSProperties = {
 function PickedPlayerSheet({ playerId, players, onClose }: {
   playerId: string; players: Player[]; onClose: () => void
 }) {
+  const adH = useAdHeight()
   const p = players.find(pl => pl.id === playerId)
   if (!p) return null
   const rating = ovr(p)
@@ -97,7 +99,7 @@ function PickedPlayerSheet({ playerId, players, onClose }: {
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 180 }}/>
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', zIndex: 190,
         background: C.surface, borderRadius: '20px 20px 0 0',
         border: `1px solid ${C.border2}`, borderBottom: 'none',
@@ -148,6 +150,7 @@ function PickedPlayerSheet({ playerId, players, onClose }: {
 
 export default function DraftRoom() {
   const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason } = useGameStore()
+  const adH = useAdHeight()
   const [tab, setTab]           = useState<TabKey>('players')
   const [sortKey, setSortKey]   = useState<SortKey>('ovr')
   const [filterSpec, setFilterSpec] = useState<Specialty | 'all'>('all')
@@ -682,19 +685,21 @@ export default function DraftRoom() {
         )}
       </div>
 
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px', height: '50px',
-        backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
-      }}>
+      {adH > 0 && (
         <div style={{
-          width: '320px', height: '36px', borderRadius: '4px',
-          border: `1px dashed ${C.border2}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '10px', color: C.textDim, letterSpacing: '2px',
-        }}>ADVERTISEMENT</div>
-      </div>
+          position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px', height: '50px',
+          backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
+        }}>
+          <div style={{
+            width: '320px', height: '36px', borderRadius: '4px',
+            border: `1px dashed ${C.border2}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '10px', color: C.textDim, letterSpacing: '2px',
+          }}>ADVERTISEMENT</div>
+        </div>
+      )}
       {viewPlayerId && (
         <PickedPlayerSheet playerId={viewPlayerId} players={players} onClose={() => setViewPlayerId(null)}/>
       )}
@@ -924,6 +929,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
   playerTeamId: string
   onFinish: () => void
 }) {
+  const adH = useAdHeight()
   const myPicks    = picks.filter(p => p.teamId === playerTeamId)
   const playerTeam = teams.find(t => t.id === playerTeamId)
   const { players, setDraftContract } = useGameStore()
@@ -962,16 +968,18 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
       display: 'flex', flexDirection: 'column', padding: '0 0 130px',
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
     }}>
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px', height: '50px',
-        backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
-      }}>
-        <div style={{ width: '320px', height: '36px', borderRadius: '4px', border: `1px dashed ${C.border2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: C.textDim, letterSpacing: '2px' }}>
-          ADVERTISEMENT
+      {adH > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px', height: '50px',
+          backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
+        }}>
+          <div style={{ width: '320px', height: '36px', borderRadius: '4px', border: `1px dashed ${C.border2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: C.textDim, letterSpacing: '2px' }}>
+            ADVERTISEMENT
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{
         padding: '40px 24px 28px', textAlign: 'center',
@@ -1048,7 +1056,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
       </div>
 
       <div style={{
-        position: 'fixed', bottom: '50px', left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', zIndex: 61,
         padding: '10px 16px 12px',
         background: `linear-gradient(180deg, transparent, ${C.bg} 28%)`,

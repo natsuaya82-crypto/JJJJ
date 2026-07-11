@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole } from '../../types'
 import PlayerFace from '../player/PlayerFace'
@@ -122,6 +123,7 @@ export default function PlayerSheet() {
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
+  const adH = useAdHeight()
   const [page, setPage] = useState(1)
   const [pageAnim, setPageAnim] = useState('')
   const [pageKey, setPageKey] = useState(0)
@@ -251,8 +253,8 @@ export default function PlayerSheet() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
-          // 下50pxは広告バナーの帯。他画面と同じくシートは広告の上で止める
-          position: 'fixed', top: 0, bottom: 50, left: 0, right: 0, margin: '0 auto',
+          // 下は広告バナーの帯（買い切り版は0）。他画面と同じくシートは広告の上で止める
+          position: 'fixed', top: 0, bottom: adH, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
           overflowY: 'auto',
           touchAction: 'pan-y',
