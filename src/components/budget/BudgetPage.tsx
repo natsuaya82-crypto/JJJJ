@@ -88,8 +88,8 @@ export default function BudgetPage() {
   })
   const nextGrant = rankBudgetGrant(myRank || teams.length)
 
-  // 今シーズンの収支（＝今季の営業損益）。順位グラントは「来季」の予算なのでここには含めない。
-  const seasonIncome = sponsorAnnual + projectedSeasonRaceIncome
+  // 今シーズンの収支（全部を計算した黒字/赤字）。順位グラント＋その他収入 − 年俸 − 維持費。
+  const seasonIncome = nextGrant + sponsorAnnual + projectedSeasonRaceIncome
   const seasonExpense = squadSalaryTotal + facRunningCost
   const seasonNet = seasonIncome - seasonExpense
 
@@ -158,28 +158,21 @@ export default function BudgetPage() {
         }}>
           <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
+            <Row label="順位グラント" value={`+${fmt(nextGrant)}`} color={C.gold} sub={`現在${myRank || '—'}位`} />
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
             <Row label="賞金・観客収入" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="施設維持費・運営費" value={`-${fmt(facRunningCost)}`} color={C.red} sub="施設Lvが高いほど高い" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>今季の収支</div>
-                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>年度末に予算へ反映（黒字なら予算増・赤字なら減）</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>今シーズンの収支</div>
+                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{seasonNet >= 0 ? '黒字' : '赤字'}（年度末に予算へ反映）</div>
               </div>
-              <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: seasonNet >= 0 ? C.green : C.red, textShadow: seasonNet >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: seasonNet >= 0 ? C.green : C.red, textShadow: seasonNet >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
                 {fmt(seasonNet, true)}
               </div>
             </div>
           </div>
-        </div>
-        {/* 順位グラントは来季の予算。現順位で終えた場合にもらえる額を案内 */}
-        <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 12, background: alpha(C.gold, 0.08), border: `1px solid ${alpha(C.gold, 0.25)}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>来季の順位グラント</div>
-            <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>現在{myRank || '—'}位で終えると来季予算に加算</div>
-          </div>
-          <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.gold }}>+{fmt(nextGrant)}</div>
         </div>
       </div>
 
