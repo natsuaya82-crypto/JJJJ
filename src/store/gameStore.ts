@@ -4674,16 +4674,70 @@ export const useGameStore = create<GameStore>()(
             crossTx = { teams: teamsWithCleanedPicks, foreignLeagues: foreignTx.foreignLeagues, players: foreignTx.players, news: [] }
           }
 
+          // ── 長期プレイでの肥大化対策（記録は名前焼き込みで残るため消えない） ──
+          // 1) 海外クラブは30人上限：あふれた分はOVR下位から外し、選手データごと削除
+          const playerByIdCl = new Map(crossTx.players.map(p => [p.id, p]))
+          const foreignDropIds = new Set<string>()
+          const cappedForeignLeagues = crossTx.foreignLeagues.map(l => ({
+            ...l,
+            clubs: l.clubs.map(c => {
+              if (c.playerIds.length <= 30) return c
+              const sorted = [...c.playerIds].sort((a, b) => {
+                const pa = playerByIdCl.get(a); const pb = playerByIdCl.get(b)
+                return (pb ? ovr(pb) : 0) - (pa ? ovr(pa) : 0)
+              })
+              sorted.slice(30).forEach(id => foreignDropIds.add(id))
+              return { ...c, playerIds: sorted.slice(0, 30) }
+            }),
+          }))
+          // 2) 引退選手の軽量化（能力履歴・特性などを落として名前と実績だけ残す）
+          //    ＋無所属FAの整理（2季続けて無所属：ドラフト歴ありは引退・なしは削除）
+          const leanRetired = (p: Player): Player => ({ ...p, status: 'retired', teamId: '', ovrHistory: [], traits: [], fatigue: 0, form: 0, loan: undefined, faSinceYear: undefined })
+          const cleanedPlayers = crossTx.players
+            .filter(p => !foreignDropIds.has(p.id))
+            .flatMap((p): Player[] => {
+              if (p.status === 'retired') return [leanRetired(p)]
+              if (p.status === 'active' && p.teamId === '') {
+                const since = p.faSinceYear ?? state.currentSeason.year
+                if (newYear - since >= 2) return p.draftRound != null ? [leanRetired(p)] : []
+                return [{ ...p, faSinceYear: since }]
+              }
+              return [p.faSinceYear != null ? { ...p, faSinceYear: undefined } : p]
+            })
+
           return {
-            players: crossTx.players,
+            players: cleanedPlayers,
             teams: crossTx.teams,
-            foreignLeagues: crossTx.foreignLeagues,
+            foreignLeagues: cappedForeignLeagues,
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
             gmRep: newGmRep,
             achievements: [...(state.achievements ?? []), ...seasonAchievements],
             draftState: null,
             sponsors: updatedSponsors,
-            pastSeasons: [...state.pastSeasons, { ...state.currentSeason, objectives: completedObjs }],
+            // 過去シーズンはレース結果・順位・世界駅伝など「記録として見返すもの」だけ残す。
+            // 記録会の全結果（毎年約1MB）・ニュース・チャットログ等は一度も読まれないため空にして保存する
+            pastSeasons: [...state.pastSeasons, {
+              ...state.currentSeason,
+              objectives: completedObjs,
+              individualEvents: [],
+              newsFeed: [],
+              chatLogs: {},
+              scoutProspects: [],
+              draftPool: [],
+              collegeRaces: state.currentSeason.collegeRaces,
+              transferListings: [],
+              incomingOffers: [],
+              transferBids: [],
+              contractRequests: [],
+              acquisitionOffers: [],
+              retirementRequests: [],
+              transferRequests: [],
+              events: [],
+              scoutMissions: [],
+              faVisits: [],
+              pendingTradeOffers: [],
+              scoutedOpponents: [],
+            }],
             raceLineup: {},
             raceStrategy: 'balanced' as const,
             growthReport: { year: state.currentSeason.year, entries: growthEntries },
@@ -5530,7 +5584,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 9,
+      version: 10,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
@@ -5612,6 +5666,34 @@ export const useGameStore = create<GameStore>()(
           const myTeam = Array.isArray(s.teams) ? (s.teams as Record<string, unknown>[]).find(t => t.id === pid) : undefined
           const curBudget = myTeam ? ((myTeam.finance as Record<string, unknown>)?.budget as number) : undefined
           s.currentSeason = { ...(s.currentSeason as Record<string, unknown>), initialBudget: curBudget ?? rankBudgetGrant(20) }
+        }
+        // v10: セーブ肥大化の掃除（既に膨らんだセーブの救済）。
+        //  - 過去シーズンから一度も読まれない重いデータ（記録会全結果・ニュース・チャットログ等）を空にする
+        //  - チーム歴代記録に選手名を焼き込む（今後の選手データ整理で名前が消えないように）
+        //  ※レース結果・順位・世界駅伝・自己ベスト・歴代記録は全て残る
+        if (version < 10) {
+          if (Array.isArray(s.pastSeasons)) {
+            s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => ({
+              ...ps,
+              individualEvents: [], newsFeed: [], chatLogs: {}, scoutProspects: [], draftPool: [],
+              transferListings: [], incomingOffers: [], transferBids: [], contractRequests: [],
+              acquisitionOffers: [], retirementRequests: [], transferRequests: [], events: [],
+              scoutMissions: [], faVisits: [], pendingTradeOffers: [], scoutedOpponents: [],
+            }))
+          }
+          if (Array.isArray(s.teams) && Array.isArray(s.players)) {
+            const nameById = new Map((s.players as Record<string, unknown>[]).map(p => [p.id as string, { name: p.name as string, nationality: p.nationality }]))
+            s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+              const er = t.eventRecords as Record<string, { playerId: string; playerName?: string; nationality?: unknown; timeSec: number; year: number }[]> | undefined
+              if (!er) return t
+              const filled = Object.fromEntries(Object.entries(er).map(([k, recs]) => [k, (recs ?? []).map(r => {
+                if (r.playerName) return r
+                const info = nameById.get(r.playerId)
+                return info ? { ...r, playerName: info.name, nationality: info.nationality } : r
+              })]))
+              return { ...t, eventRecords: filled }
+            })
+          }
         }
         return s
       },

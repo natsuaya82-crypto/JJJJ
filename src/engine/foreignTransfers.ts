@@ -1,5 +1,6 @@
-import type { ForeignLeague, Player, Team } from '../types'
-import { ovr } from '../utils/playerUtils'
+import type { ForeignLeague, Player, Team, Specialty } from '../types'
+import { SPECIALTY_LABELS } from '../types'
+import { ovr, calcTransferValue } from '../utils/playerUtils'
 
 type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[] }
 
