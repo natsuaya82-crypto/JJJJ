@@ -88,8 +88,8 @@ export default function BudgetPage() {
   })
   const nextGrant = rankBudgetGrant(myRank || teams.length)
 
-  // 今シーズンの収支（全部を計算した黒字/赤字）。順位グラント＋その他収入 − 年俸 − 維持費。
-  const seasonIncome = nextGrant + sponsorAnnual + projectedSeasonRaceIncome
+  // 今シーズンの収支＝初期予算(繰越)＋今季の収入 − 今季の支出。順位グラントは来期の予算なので含めない。
+  const seasonIncome = budget + sponsorAnnual + projectedSeasonRaceIncome
   const seasonExpense = squadSalaryTotal + facRunningCost
   const seasonNet = seasonIncome - seasonExpense
 
@@ -158,7 +158,7 @@ export default function BudgetPage() {
         }}>
           <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <Row label="順位グラント" value={`+${fmt(nextGrant)}`} color={C.gold} sub={`現在${myRank || '—'}位`} />
+            <Row label="初期予算（繰越）" value={`+${fmt(budget)}`} color={C.gold} />
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
             <Row label="賞金・観客収入" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
