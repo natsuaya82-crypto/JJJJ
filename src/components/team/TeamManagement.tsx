@@ -76,7 +76,7 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
 }
 
 
-const TIER_MAX: Record<RosterTier, number> = { main: 30, second: 20 }
+const TIER_MAX: Record<RosterTier, number> = { main: 40, second: 20 }
 
 type SortKey = 'ovr' | 'age'
 
