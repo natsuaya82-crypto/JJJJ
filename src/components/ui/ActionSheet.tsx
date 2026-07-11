@@ -29,15 +29,15 @@ export default function ActionSheet({ open, onClose, items, header }: { open: bo
       <div
         className="sheet-up"
         style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+          // 下50pxは広告バナーの帯。シートは広告の上で止める
+          position: 'fixed', bottom: 50, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: 480, zIndex: 301,
           background: C.surface,
           borderRadius: '18px 18px 0 0',
           border: `1px solid ${C.border2}`,
           borderBottom: 'none',
           boxShadow: '0 -12px 40px rgba(0,0,0,0.6)',
-          // 下端の50pxは広告バナーに覆われるため、その分の余白を確保する
-          padding: '8px 14px calc(64px + env(safe-area-inset-bottom))',
+          padding: '8px 14px calc(14px + env(safe-area-inset-bottom))',
         }}
       >
         <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 10px' }} />

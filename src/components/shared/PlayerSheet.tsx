@@ -251,7 +251,8 @@ export default function PlayerSheet() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
-          position: 'fixed', top: 0, bottom: 0, left: 0, right: 0, margin: '0 auto',
+          // 下50pxは広告バナーの帯。他画面と同じくシートは広告の上で止める
+          position: 'fixed', top: 0, bottom: 50, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
           overflowY: 'auto',
           touchAction: 'pan-y',
@@ -557,9 +558,6 @@ export default function PlayerSheet() {
           })()}
 
         </div>
-        {/* 下端の広告バナー分のスペーサー。iOSのWebViewはスクロールコンテナの
-            padding-bottomをスクロール領域に含めないことがあるため、要素で確保する */}
-        <div style={{ height: 'calc(60px + env(safe-area-inset-bottom))', flexShrink: 0 }} />
       </div>
     </>
   )
