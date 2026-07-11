@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
+import { ROSTER_MAX } from '../../data/rosterRules'
 import PlayerFace from '../player/PlayerFace'
 import { useOpponentMenu } from './opponentMenu'
 
@@ -295,11 +296,12 @@ export default function TeamDetailPage() {
               }
               return (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
-                    <span style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px' }}>
-                      ロスター <span style={{ color: '#3A3758' }}>({mainPlayers.length})</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8' }}>ロスター</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: '#C9A84C' }}>
+                      {mainPlayers.length}<span style={{ fontSize: 10, color: '#5C5870' }}>/{ROSTER_MAX}</span>
                     </span>
-                    <span style={{ fontSize: '9px', color: '#5C5870' }}>総年俸 <span style={{ color: '#C9A84C', fontFamily: SAIRA, fontWeight: 700 }}>{fmt(teamSalary)}</span></span>
+                    <span style={{ fontSize: 10, color: '#5C5870' }}>総年俸 <span style={{ color: '#9B97A8', fontWeight: 700, fontFamily: SAIRA }}>{fmt(teamSalary)}</span></span>
                   </div>
                   {mainPlayers.length === 0
                     ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17', borderRadius: '14px', marginBottom: '12px' }}>登録なし</div>
