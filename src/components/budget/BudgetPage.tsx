@@ -151,6 +151,37 @@ export default function BudgetPage() {
 
       <div style={{ margin: '0 14px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+          今シーズンの収支
+        </div>
+        <div style={{
+          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          border: `2px solid ${C.goldDark}`,
+          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
+          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        }}>
+          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <Row label="初期予算（繰越）" value={`+${fmt(budget)}`} color={C.gold} />
+            <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
+            <Row label="賞金・観客収入" value={`+${fmt(projectedSeasonRaceIncome)}`} color={C.green} />
+            <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
+            <Row label="運営費" value={`-${fmt(operatingCost)}`} color={C.red} sub="チーム運営の固定費" />
+            <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>今シーズンの収支</div>
+                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{seasonNet >= 0 ? '黒字' : '赤字'}（年度末に予算へ反映）</div>
+              </div>
+              <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: seasonNet >= 0 ? C.green : C.red, textShadow: seasonNet >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
+                {fmt(seasonNet, true)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ margin: '0 14px 14px' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           スポンサー契約 ({sponsorList.length}件)
         </div>
         <div style={{
