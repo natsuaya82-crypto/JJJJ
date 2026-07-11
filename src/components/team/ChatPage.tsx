@@ -573,7 +573,7 @@ function ChatView({
                 </button>
               ))}
             </div>
-            {composeMode !== 'transfer' && (
+            {false && composeMode !== 'transfer' && (
             <div style={{ display: 'flex', gap: 5 }}>
               {CONTRACT_TYPE_OPTS.map(({ key, label, desc }) => {
                 const sel = offerContractType === key

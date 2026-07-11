@@ -1026,13 +1026,15 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
                   <button key={y} onClick={() => upd(p.id, { years: y })} style={btn(c.years === y)}>{y}年</button>
                 ))}
               </div>
-              {/* 契約形態 */}
+              {/* 契約形態は廃止（フラット化）。全員standard固定のため選択UIは非表示 */}
+              {false && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>形態</span>
                 {DC_CONTRACT_OPTS.map(o => (
                   <button key={o.key} onClick={() => upd(p.id, { contractType: o.key })} style={btn(c.contractType === o.key)}>{o.label}</button>
                 ))}
               </div>
+              )}
               {/* 役割 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>役割</span>
