@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Player, Team, CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, formColor, isStatMaxed } from '../../utils/playerUtils'
@@ -28,11 +29,12 @@ function StatNum({ label, value, maxed }: { label: string; value: number; maxed:
 
 // ロスター画面・カード練習の選手選択などで共通利用する選手パネル。
 // selected を渡すと選択中ハイライト（金枠）を表示する。
-export default function PlayerRow({ player, handlers, loanOwner, selected }: {
+export default function PlayerRow({ player, handlers, loanOwner, selected, extra }: {
   player: Player
   handlers: RowHandlers
   loanOwner?: Team
   selected?: boolean
+  extra?: ReactNode   // 名前行の末尾に差し込む追加バッジ（区間ピッカーの「最適」等）
 }) {
   const rating = ovr(player)
   const specColor = SPEC_COLOR[player.specialty]
@@ -78,6 +80,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected }: {
               {player.dualRegistered && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.25)}`, color: C.green, fontWeight: 700, flexShrink: 0 }}>両方</span>}
               {ctType === 'development' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.cyan, 0.08), border: `1px solid ${alpha(C.cyan, 0.25)}`, color: C.cyan, fontWeight: 700, flexShrink: 0 }}>育成</span>}
               {loanOwner && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px 1px 3px', borderRadius: 3, backgroundColor: alpha('#AB8ED6', 0.14), border: `1px solid ${alpha('#AB8ED6', 0.45)}`, color: '#C4AEE8', fontWeight: 700, flexShrink: 0 }}><TeamLogoSVG primary={loanOwner.colors.primary} secondary={loanOwner.colors.secondary} shortName={loanOwner.shortName} teamId={loanOwner.id} size={11} />レンタル</span>}
+              {extra}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(specColor, 0.08), border: `1px solid ${alpha(specColor, 0.25)}`, color: specColor, fontWeight: 700, flexShrink: 0 }}>

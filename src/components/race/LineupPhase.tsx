@@ -8,6 +8,7 @@ import { ovr, effSegOvr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../util
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
+import PlayerRow from '../player/PlayerRow'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -241,65 +242,23 @@ export function LineupPhase({
 
         {/* 選手リスト */}
         <div style={{ background: C.bg }}>
-          {pickerPlayers.map(({ p, assignedSeg }, rank) => {
-            const playerOvr = ovr(p)
+          {pickerPlayers.map(({ p, assignedSeg }) => {
             const isSelected = raceLineup[pickerSeg] === p.id
             const isAssignedElsewhere = assignedSeg !== null && assignedSeg !== pickerSeg
             const isRec = greedyRec[pickerSeg] === p.id
-            const specCol = SPEC_COLOR[p.specialty]
-            const r = p.ratings
             const blockReason = unavailable?.[p.id]
             return (
-              <div
-                key={p.id}
-                onClick={() => selectPlayer(pickerSeg, p.id)}
-                style={{
-                  padding: '8px 12px 5px',
-                  background: isSelected
-                    ? `linear-gradient(135deg, ${alpha(C.gold, 0.1)}, ${alpha(C.gold, 0.03)})`
-                    : isAssignedElsewhere ? `linear-gradient(135deg, ${alpha(C.cyan, 0.14)}, ${alpha(C.cyan, 0.06)})` : isRec ? alpha(pickerSegCol, 0.03) : 'transparent',
-                  border: isSelected ? `2px solid ${alpha(C.gold, 0.5)}` : isAssignedElsewhere ? `2px solid ${alpha(C.cyan, 0.55)}` : `2px solid transparent`,
-                  boxShadow: isSelected ? `0 3px 0 #5a3500, 0 5px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)` : 'none',
-                  borderBottom: isSelected || isAssignedElsewhere ? undefined : `1px solid ${C.surface2}`,
-                  cursor: blockReason ? 'default' : 'pointer',
-                  opacity: blockReason ? 0.45 : 1,
-                  borderLeft: isSelected || isAssignedElsewhere ? undefined : (isRec ? `3px solid ${alpha(pickerSegCol, 0.31)}` : `3px solid transparent`),
-                  marginBottom: isSelected || isAssignedElsewhere ? 2 : 0,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <div style={{ flexShrink: 0, borderRadius: 6, overflow: 'hidden' }}>
-                    <PlayerFace playerId={p.id} nationality={p.nationality as Nationality} size={34} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: isRec ? 800 : 600, color: p.status === 'injured' ? C.red : isAssignedElsewhere ? C.cyan : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                      {isSelected && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(pickerSegCol, 0.15), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>選択中</span>}
-                      {isRec && !isSelected && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(pickerSegCol, 0.12), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>最適</span>}
-                      {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄{assignedSeg}区</span>}
-                      {blockReason && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.red, 0.12), color: C.red, fontWeight: 700, border: `1px solid ${alpha(C.red, 0.3)}`, flexShrink: 0 }}>{blockReason}</span>}
-                    </div>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 1 }}>
-                      <span style={{ fontSize: 9, padding: '0 4px', borderRadius: 4, backgroundColor: alpha(specCol, 0.09), color: specCol, fontWeight: 700 }}>{SPECIALTY_LABELS[p.specialty]}</span>
-                      <span style={{ fontSize: 9, color: C.textDim }}>{p.age}歳</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 700, color: (p.fatigue ?? 0) < 40 ? C.green : (p.fatigue ?? 0) < 70 ? C.gold : C.red }}>疲{p.fatigue ?? 0}</span>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 18, fontWeight: 900, fontFamily: SAIRA, lineHeight: 1, color: rank === 0 ? pickerSegCol : C.textSub }}>{playerOvr}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', paddingLeft: 40 }}>
-                  {ALL_STATS.map(([label, key]) => {
-                    const val = r[key] as number
-                    return (
-                      <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ fontSize: 7, color: C.textGhost }}>{label}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, fontFamily: SAIRA, lineHeight: 1.2, color: ratingColor(val, isStatMaxed(p, key)) }}>{val}</div>
-                      </div>
-                    )
-                  })}
-                </div>
+              <div key={p.id} style={{ opacity: blockReason ? 0.45 : 1 }}>
+                <PlayerRow
+                  player={p}
+                  selected={isSelected}
+                  handlers={{ onClick: () => { if (!blockReason) selectPlayer(pickerSeg, p.id) } }}
+                  extra={<>
+                    {isRec && !isSelected && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(pickerSegCol, 0.15), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>最適</span>}
+                    {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄{assignedSeg}区</span>}
+                    {blockReason && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.red, 0.12), color: C.red, fontWeight: 700, border: `1px solid ${alpha(C.red, 0.3)}`, flexShrink: 0 }}>{blockReason}</span>}
+                  </>}
+                />
               </div>
             )
           })}
