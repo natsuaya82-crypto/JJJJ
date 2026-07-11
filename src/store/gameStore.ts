@@ -16,7 +16,7 @@ import { simulateForeignTransferMarket } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost } from '../data/economy'
-import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX } from '../data/rosterRules'
+import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
@@ -1745,6 +1745,10 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const player = state.players.find(p => p.id === playerId)
           if (!player || player.teamId !== state.playerTeamId) return state
+          // 最低ロスター人数を割る放出は不可
+          if (!canReleaseFromRoster(state.players, state.playerTeamId)) return state
+          // 契約期間が残っているなら解約金（残年俸×(残年-1)）。満了(残1年以下)は無償。
+          const buyout = player.contract.annualSalary * Math.max(0, player.contract.yearsLeft - 1)
           return {
             players: state.players.map(p =>
               p.id === playerId ? { ...p, teamId: '', } : p
@@ -1753,6 +1757,7 @@ export const useGameStore = create<GameStore>()(
               if (t.id !== state.playerTeamId) return t
               return {
                 ...t,
+                finance: { ...t.finance, budget: Math.max(0, t.finance.budget - buyout) },
                 roster: {
                   main: t.roster.main.filter(id => id !== playerId),
                   second: t.roster.second.filter(id => id !== playerId),
@@ -2662,6 +2667,8 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const player = state.players.find(p => p.id === playerId)
           if (!player || player.teamId !== state.playerTeamId) return state
+          // 最低ロスター人数を割る解雇は不可
+          if (!canReleaseFromRoster(state.players, state.playerTeamId)) return state
           const buyoutCost = player.contract.annualSalary * Math.max(0, player.contract.yearsLeft - 1)
           return {
             players: state.players.map(p => p.id === playerId ? { ...p, teamId: '', } : p),
