@@ -5,7 +5,6 @@ import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
-import { isSecondMember } from '../../data/rosterRules'
 import PlayerFace from '../player/PlayerFace'
 import { useOpponentMenu } from './opponentMenu'
 
@@ -45,13 +44,11 @@ export default function TeamDetailPage() {
   // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細（共有フック）
   const { rowHandlers, overlay } = useOpponentMenu()
 
+  // フラット化：チームの全ロスター（1軍/2軍の区別なし）
   const mainPlayers = players
-    .filter(p => p.teamId === teamId && p.rosterTier === 'main')
+    .filter(p => p.teamId === teamId && p.status !== 'retired')
     .sort((a, b) => ovr(b) - ovr(a))
-
-  const secondPlayers = players
-    .filter(p => p.teamId === teamId && isSecondMember(p))
-    .sort((a, b) => ovr(b) - ovr(a))
+  const teamSalary = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
 
   const completedRaces = currentSeason.races.filter(r => r.results)
   const recentForm = (standing?.raceResults ?? []).slice(-4)
@@ -298,21 +295,16 @@ export default function TeamDetailPage() {
               }
               return (
                 <>
-                  <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>
-                    一軍 <span style={{ color: '#3A3758' }}>({mainPlayers.length})</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
+                    <span style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px' }}>
+                      ロスター <span style={{ color: '#3A3758' }}>({mainPlayers.length})</span>
+                    </span>
+                    <span style={{ fontSize: '9px', color: '#5C5870' }}>総年俸 <span style={{ color: '#C9A84C', fontFamily: SAIRA, fontWeight: 700 }}>{fmt(teamSalary)}</span></span>
                   </div>
                   {mainPlayers.length === 0
                     ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17', borderRadius: '14px', marginBottom: '12px' }}>登録なし</div>
                     : mainPlayers.map(renderPlayer)
                   }
-                  {secondPlayers.length > 0 && (
-                    <>
-                      <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', margin: '12px 0 8px', paddingLeft: '4px' }}>
-                        二軍 <span style={{ color: '#3A3758' }}>({secondPlayers.length})</span>
-                      </div>
-                      {secondPlayers.map(renderPlayer)}
-                    </>
-                  )}
                 </>
               )
             })()}
