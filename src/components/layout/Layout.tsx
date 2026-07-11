@@ -64,8 +64,8 @@ const NAV: NavItem[] = [
 ]
 
 const AD_H = 50
-const NAV_H = 64
-const HEADER_H = 55  // ヘッダー実効高（ボタンminHeight44+上下padding10+border1）。safe-area分は別途加算
+const NAV_H = 50
+const HEADER_H = 47  // ヘッダー実効高（ボタンminHeight44+上下padding2+border1）。safe-area分は別途加算
 
 /* ── Animated page wrapper ─────────────────── */
 function PageWrapper({ children, locationKey }: { children: React.ReactNode; locationKey: string }) {
@@ -134,7 +134,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 40,
         background: C.bg,
-        padding: 'calc(6px + env(safe-area-inset-top)) 16px 4px',
+        padding: 'calc(2px + env(safe-area-inset-top)) 16px 2px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${alpha(C.gold, 0.1)}`,
       }}>
@@ -282,7 +282,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               style={{
                 flex: 1, height: '100%', border: 'none', background: 'none',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: '3px', cursor: 'pointer',
+                gap: '2px', cursor: 'pointer',
                 transition: 'color 0.15s ease',
                 position: 'relative',
                 minHeight: '44px',
@@ -290,7 +290,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               }}
             >
               <div style={{
-                width: 44, height: 38, borderRadius: 11,
+                width: 40, height: 30, borderRadius: 9,
                 background: active
                   ? `linear-gradient(180deg, ${C.cyan}30 0%, ${C.cyan}18 100%)`
                   : `linear-gradient(180deg, #1e3a5c 0%, #0f2440 100%)`,
@@ -299,7 +299,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 boxShadow: active
                   ? `0 0 14px ${alpha(C.cyan, 0.5)}, inset 0 1px 0 rgba(255,255,255,0.2)`
                   : `inset 0 1px 0 rgba(255,255,255,0.07), 0 2px 4px rgba(0,0,0,0.4)`,
-                transform: active ? 'translateY(-3px)' : 'none',
+                transform: active ? 'translateY(-2px)' : 'none',
                 transition: 'all 0.18s ease',
                 flexShrink: 0,
                 color: active ? C.cyan : C.textDim,
