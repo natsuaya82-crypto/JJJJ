@@ -91,9 +91,8 @@ export default function BudgetPage() {
     runningCost: facRunningCost,
   })
 
-  // 今シーズンの収支＝初期予算(繰越)＋スポンサー − 年俸 − 運営費 − 維持費。
-  // 賞金・観客・順位グラントは年度末に確定して来期の予算になるので、今季の収支には含めない。
-  const seasonIncome = budget + sponsorAnnual
+  // 今シーズンの収支＝スポンサー − 年俸 − 運営費 − 施設維持費。
+  const seasonIncome = sponsorAnnual
   const seasonExpense = squadSalaryTotal + facRunningCost
   const seasonNet = seasonIncome - seasonExpense
 
@@ -162,7 +161,6 @@ export default function BudgetPage() {
         }}>
           <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <Row label="初期予算（繰越）" value={`+${fmt(budget)}`} color={C.gold} />
             <Row label="スポンサー収入" value={`+${fmt(sponsorAnnual)}`} color={C.green} />
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
