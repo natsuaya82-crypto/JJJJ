@@ -15,7 +15,9 @@ export function initForeignStandings(foreignLeagues: ForeignLeague[]): Record<st
 function buildClubLineup(clubPlayerIds: string[], players: Player[], race: Race): Record<number, string> {
   const roster = clubPlayerIds
     .map(id => players.find(p => p.id === id))
-    .filter((p): p is Player => !!p && p.status === 'active')
+    // 出場不可（引退/負傷）だけ除外。status未設定(undefined)の海外選手も走れるようにする
+    // （status==='active'で絞ると、statusが付いていない海外選手が全員弾かれ空ラインナップ＝出走0になる）
+    .filter((p): p is Player => !!p && p.status !== 'retired' && p.status !== 'injured')
     .sort((a, b) => ovr(b) - ovr(a))
   const lineup: Record<number, string> = {}
   race.segments.forEach((seg, i) => {
