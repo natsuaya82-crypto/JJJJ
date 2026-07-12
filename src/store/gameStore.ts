@@ -320,6 +320,7 @@ export type GameStore = GameState & {
   // 海外リーグ：本編レースに同期して裏で1戦進める（プレイヤーは干渉せず結果閲覧のみ）
   advanceForeignLeagues: () => void
   runMidSeasonForeignTransfers: () => void   // 移籍ウィンドウ中、レース毎に低確率で日本↔海外の移籍を少数発生
+  advanceMarketOneRace: () => void           // 本編以外(リザーブ/記録会)のレースでも入札・レンタル要請の応答を進める
   // ECL：日本上位2＋海外各リーグ上位2の16チームで3戦を自動シム（ポストシーズンに1回）
   simulateEcl: () => void
 
@@ -3708,6 +3709,8 @@ export const useGameStore = create<GameStore>()(
             },
           }
         })
+        // リザーブ戦の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
+        try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
       },
 
       setReserveLeagueJoined: (joined: boolean) => set(state => ({
@@ -3762,6 +3765,95 @@ export const useGameStore = create<GameStore>()(
           }
         })
       },
+
+      // 本編以外(リザーブ戦/記録会)のレース完了時にも、出した入札(移籍金オファー)とレンタル要請の応答を進める。
+      // 本編レースは runRace 内で処理するので、こちらはリザーブ/記録会から呼ぶ。
+      advanceMarketOneRace: () => set(state => {
+        const cs = state.currentSeason
+        const raceIdx = cs.currentRaceIndex ?? 0
+        const races = cs.races ?? []
+        const playerTeamId = state.playerTeamId
+        const expiredNegs: { id: string; playerId: string; playerName: string }[] = []
+        const lockedIds: string[] = []
+
+        // 入札(移籍金オファー)の応答
+        const bids = (cs.transferBids ?? []).map(bid => {
+          if (bid.status === 'fee_accepted' || bid.status === 'countered') {
+            const pl = state.players.find(p => p.id === bid.playerId)
+            if (!pl || pl.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
+            return bid
+          }
+          if (bid.status !== 'pending') return bid
+          const player = state.players.find(p => p.id === bid.playerId)
+          if (!player || player.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
+          const apps = seasonAppearances(player.id, races)
+          const frac = raceIdx > 0 ? apps / raceIdx : (player.rosterTier === 'main' ? 0.5 : 0)
+          if (isEssentiallyUnpoachable(player, frac, raceIdx)) {
+            expiredNegs.push({ id: bid.id, playerId: player.id, playerName: player.name })
+            lockedIds.push(player.id)
+            return { ...bid, status: 'rejected' as const }
+          }
+          const val = calcTransferValue(player)
+          const isListed = (cs.transferListings ?? []).some(l => l.playerId === bid.playerId)
+          const isExpiring = player.contract.yearsLeft <= 1
+          const threshold = transferBidBase(val, isListed, isExpiring) * (0.9 + Math.random() * 0.2)
+          if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: raceIdx }
+          if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
+          return { ...bid, status: 'rejected' as const }
+        })
+
+        // レンタル要請の応答
+        const pendingLoanReqs = cs.loanRequests ?? []
+        const newLoanResponses: LoanResponse[] = []
+        const acceptedLoans: { playerId: string; ownerId: string; years: number }[] = []
+        if (pendingLoanReqs.length > 0) {
+          let freeSlots = Math.max(0, 3 - state.players.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length)
+          for (const req of pendingLoanReqs) {
+            const pl = state.players.find(p => p.id === req.playerId)
+            if (!pl || pl.teamId !== req.targetTeamId || pl.loan) continue
+            const apps = seasonAppearances(pl.id, races)
+            const frac = raceIdx > 0 ? apps / raceIdx : (pl.rosterTier === 'main' ? 0.5 : 0)
+            const loanable = !isDataKeyPlayer(pl, frac, raceIdx)
+            const ownerShort = state.teams.find(t => t.id === pl.teamId)?.shortName ?? '相手クラブ'
+            if (loanable && freeSlots > 0) {
+              acceptedLoans.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
+              newLoanResponses.push({ id: `lresp_${pl.id}_${raceIdx}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: true, years: req.years })
+            } else {
+              newLoanResponses.push({ id: `lresp_${pl.id}_${raceIdx}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: false, years: req.years })
+            }
+          }
+        }
+
+        // 変化が無ければ何もしない
+        const bidsChanged = bids.some((b, i) => b !== (cs.transferBids ?? [])[i])
+        if (!bidsChanged && newLoanResponses.length === 0 && expiredNegs.length === 0) return {}
+
+        const acceptedMap = new Map(acceptedLoans.map(a => [a.playerId, a]))
+        const players = state.players.map(p => {
+          let np = p
+          if (lockedIds.includes(p.id)) np = { ...np, transferLockedUntilYear: cs.year + 1 }
+          const a = acceptedMap.get(p.id)
+          if (a) np = { ...np, teamId: playerTeamId, loan: { ownerTeamId: a.ownerId, untilYear: cs.year + a.years }, acquiredRaceIndex: raceIdx, joinedYear: cs.year }
+          return np
+        })
+        const teams = acceptedLoans.length ? state.teams.map(t => {
+          const lost = acceptedLoans.filter(a => a.ownerId === t.id).map(a => a.playerId)
+          if (lost.length === 0) return t
+          return { ...t, roster: { main: t.roster.main.filter(id => !lost.includes(id)), second: t.roster.second.filter(id => !lost.includes(id)) } }
+        }) : state.teams
+
+        return {
+          players,
+          teams,
+          currentSeason: {
+            ...cs,
+            transferBids: bids,
+            loanRequests: pendingLoanReqs.length > 0 ? [] : (cs.loanRequests ?? []),
+            loanResponses: [...(cs.loanResponses ?? []), ...newLoanResponses],
+            expiredNegotiations: [...(cs.expiredNegotiations ?? []), ...expiredNegs],
+          },
+        }
+      }),
 
       // ECLを開催（自動シム・冪等）。日本リーグ上位2＋海外各リーグ上位2＝16チームが3戦。
       simulateEcl: () => set(state => {
@@ -5408,6 +5500,8 @@ export const useGameStore = create<GameStore>()(
             },
           }
         })
+        // 記録会の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
+        try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
       },
 
       // ── World Ekiden ──────────────────────────────────────────────────
