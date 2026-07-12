@@ -281,6 +281,8 @@ export type Gift = {
   title: string
   message: string
   cards: TrainingCard[]
+  jewels?: number       // ジュエル配布ギフト（お詫び等）。cards は空でよい
+  expiresAt?: string    // 受け取り期限（ISO日時）。過ぎたら受け取り不可で自動削除
 }
 export type ComboResult = {
   name: string
@@ -625,6 +627,8 @@ export type Season = {
   expiredNegotiations?: { id: string; playerId: string; playerName: string }[]
   // フリー移籍（移籍金0の接触）の決断結果。left=移籍した/false=残留。確認で消す
   freeTransferNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[]
+  // タップして対応済みの接触中通知のID（通知とバッジから消す。接触自体は裏で進行）
+  seenFreeContactIds?: string[]
 }
 
 // チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい

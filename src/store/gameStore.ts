@@ -384,6 +384,7 @@ export type GameStore = GameState & {
   markTwitterIntroSeen: () => void
   dismissExpiredNegotiation: (id: string) => void
   dismissFreeTransferNotice: (id: string) => void
+  markFreeContactSeen: (id: string) => void
 
   // Dev reset
   resetGame: () => void
@@ -5543,28 +5544,30 @@ export const useGameStore = create<GameStore>()(
 
       dismissJoinNotice: (key) => set(s => ({ seenJoinIds: s.seenJoinIds.includes(key) ? s.seenJoinIds : [...s.seenJoinIds, key] })),
 
-      // アップデート記念プレゼント（1.0.4）。冪等：giftGivenVersions に記録済みなら何もしない。
+      // アップデートギフト配布＋期限切れギフトの掃除（毎回起動時に呼ばれる・冪等）。
+      // 1.0.6：不具合のお詫びとしてジュエル1000個を配布（受け取り期間1か月）。
       grantUpdateGifts: () => {
         set(state => {
-          const GIFT_VERSION = '1.0.4-epic'
-          if ((state.giftGivenVersions ?? []).includes(GIFT_VERSION)) return state
-          const epicStats: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-          const cards: TrainingCard[] = epicStats.map((statKey, index) => ({
-            id: `gift_${GIFT_VERSION}_${index}`,
-            statKey,
-            rarity: 'epic' as const,
-            value: RARITY_EXP.epic,
-          }))
-          const restCard = { ...generateRestCard('epic'), id: `gift_${GIFT_VERSION}_rest` }
-          cards.push(restCard)
+          // 期限切れ（expiresAt を過ぎた）ギフトは毎回掃除する
+          const nowISO = new Date().toISOString()
+          const pruned = (state.pendingGifts ?? []).filter(g => !g.expiresAt || g.expiresAt >= nowISO)
+          const prunedChanged = pruned.length !== (state.pendingGifts ?? []).length
+
+          const GIFT_VERSION = '1.0.6-apology'
+          if ((state.giftGivenVersions ?? []).includes(GIFT_VERSION)) {
+            return prunedChanged ? { pendingGifts: pruned } : state
+          }
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()  // 配布から1か月
           const gift: Gift = {
             id: `gift_${GIFT_VERSION}`,
-            title: 'アップデート記念プレゼント',
-            message: 'カード練習リニューアル記念！全種類のエピックカードをプレゼント。',
-            cards,
+            title: 'バグ修正のお詫び',
+            message: '不具合でご迷惑をおかけしたお詫びに、ジュエル1000個をお贈りします。受け取り期間は配布から1か月です。',
+            cards: [],
+            jewels: 1000,
+            expiresAt,
           }
           return {
-            pendingGifts: [...(state.pendingGifts ?? []), gift],
+            pendingGifts: [...pruned, gift],
             giftGivenVersions: [...(state.giftGivenVersions ?? []), GIFT_VERSION],
           }
         })
@@ -5628,8 +5631,13 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const gift = (state.pendingGifts ?? []).find(g => g.id === id)
           if (!gift) return state
+          // 期限切れは受け取らせず削除だけする
+          if (gift.expiresAt && gift.expiresAt < new Date().toISOString()) {
+            return { pendingGifts: (state.pendingGifts ?? []).filter(g => g.id !== id) }
+          }
           return {
             trainingCards: [...(state.trainingCards ?? []), ...gift.cards],
+            jewels: (state.jewels ?? 0) + (gift.jewels ?? 0),
             pendingGifts: (state.pendingGifts ?? []).filter(g => g.id !== id),
           }
         })
@@ -5710,6 +5718,7 @@ export const useGameStore = create<GameStore>()(
       markTwitterIntroSeen: () => set({ twitterIntroSeen: true }),
       dismissExpiredNegotiation: (id) => set(s => ({ currentSeason: { ...s.currentSeason, expiredNegotiations: (s.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== id) } })),
       dismissFreeTransferNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, freeTransferNotices: (s.currentSeason.freeTransferNotices ?? []).filter(n => n.id !== id) } })),
+      markFreeContactSeen: (id) => set(s => ({ currentSeason: { ...s.currentSeason, seenFreeContactIds: [...new Set([...(s.currentSeason.seenFreeContactIds ?? []), id])] } })),
 
       resetGame: () => {
         // データ削除：ゲーム進行・広告カウント・ログインボーナスはリセット（また受け取れる）するが、

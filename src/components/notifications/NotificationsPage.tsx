@@ -318,11 +318,14 @@ export default function NotificationsPage() {
   const [offerMessageCache, setOfferMessageCache] = useState<Record<string, OfferChatMsg[]>>({})
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
-  // フリー移籍の接触（offeredPrice=0）はGMが対応できない情報通知。金額付きオファーとは別扱い
+  // フリー移籍の接触（offeredPrice=0）はGMが対応できない情報通知。金額付きオファーとは別扱い。
+  // タップして対応済み（seenFreeContactIds）のものは通知から消える（接触自体は裏で進行）
   const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
-  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamId))
+  const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
+  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId))
   const freeTransferNotices = currentSeason.freeTransferNotices ?? []
   const dismissFreeTransferNotice = useGameStore(s => s.dismissFreeTransferNotice)
+  const markFreeContactSeen = useGameStore(s => s.markFreeContactSeen)
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
@@ -435,7 +438,7 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, lineHeight: 1.6, marginBottom: '10px' }}>{gift.message}</div>
-                      <div style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px', borderRadius: '8px', background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>カード{gift.cards.length}枚</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px', borderRadius: '8px', background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>{gift.jewels ? `ジュエル${gift.jewels}個` : `カード${gift.cards.length}枚`}</div>
                       <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, color: '#111' }} onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }}>受け取る</Btn>
                     </div>
                   </div>
@@ -645,7 +648,7 @@ export default function NotificationsPage() {
                   const clubName = teams.find(t => t.id === o.fromTeamId)?.shortName ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === o.fromTeamId)?.shortName ?? '他クラブ'
                   const decidesIn = Math.max(1, o.expiresAtRace - (currentSeason.currentRaceIndex ?? 0))
                   return (
-                    <button key={o.id} onClick={() => navigate(`/team/chat?player=${target.id}`)} style={{ ...cardStyle(alpha(C.orange, 0.4), '#5a2800'), width: '100%', textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+                    <button key={o.id} onClick={() => { navigate(`/team/chat?player=${target.id}`); markFreeContactSeen(o.id) }} style={{ ...cardStyle(alpha(C.orange, 0.4), '#5a2800'), width: '100%', textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
                       <div style={inset}/>
                       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={ovr(target)} accentColor={C.orange} />
@@ -839,7 +842,7 @@ export default function NotificationsPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
             <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
             <div style={{ fontSize: 13, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
-            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>カード{claimedGift.cards.length}枚を手に入れた</div>
+            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>{claimedGift.jewels ? `ジュエル${claimedGift.jewels}個を手に入れた` : `カード${claimedGift.cards.length}枚を手に入れた`}</div>
             <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, borderRadius: 12, background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
           </div>
         </div>

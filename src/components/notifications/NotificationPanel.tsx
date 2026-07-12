@@ -123,7 +123,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: C.gold, marginBottom: '2px' }}>{gift.title}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold }}>カード{gift.cards.length}枚</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold }}>{gift.jewels ? `ジュエル${gift.jewels}個` : `カード${gift.cards.length}枚`}</div>
                           </div>
                         </div>
                         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub, lineHeight: 1.5, marginBottom: '10px' }}>{gift.message}</div>
@@ -292,7 +292,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
             <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
             <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
             <div style={{ fontSize: 13, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
-            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>カード{claimedGift.cards.length}枚を手に入れた</div>
+            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>{claimedGift.jewels ? `ジュエル${claimedGift.jewels}個を手に入れた` : `カード${claimedGift.cards.length}枚を手に入れた`}</div>
             <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, borderRadius: 12, background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
           </div>
         </div>
@@ -309,9 +309,10 @@ export function useNotifCount() {
   const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
   const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
 
-  // フリー移籍の接触（offeredPrice=0）は情報通知として別カウント（NotificationsPageと同じ分け方）
+  // フリー移籍の接触（offeredPrice=0）は情報通知として別カウント（NotificationsPageと同じ分け方・対応済みは除外）
   const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0).length
-  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamId)).length
+  const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
+  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId)).length
   const freeTransferNotices = (currentSeason.freeTransferNotices ?? []).length
   const retirementRequests = (currentSeason.retirementRequests ?? []).length
   const transferReqs = (currentSeason.transferRequests ?? []).length
