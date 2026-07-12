@@ -91,6 +91,34 @@ function standingsPickNumbers(teams: Team[]): Map<string, number> {
   return map
 }
 
+// 2年目以降のドラフト順（1巡目）を決める加重抽選。
+// 前年下位5チームだけ抽選で全体1〜5位の指名順を決め、残り（6位以降）は前年順位の逆順。
+// teamId → 全体指名順位(1=全体1位) を返す。
+function draftLotteryOrder(teams: Team[]): Map<string, number> {
+  const latestRank = (t: Team): number => {
+    const past = t.history?.seasonResults ?? []
+    if (past.length === 0) return Number.POSITIVE_INFINITY
+    return past.reduce((best, r) => (r.year > best.year ? r : best)).rank
+  }
+  const sorted = [...teams].sort((a, b) => latestRank(b) - latestRank(a)) // 成績が悪い順
+  // 下位5チームの重み（最下位ほど高い＝1位指名を引きやすい）
+  const LOTTERY_WEIGHTS = [40, 25, 18, 11, 6]
+  const pool = sorted.slice(0, 5).map((t, i) => ({ id: t.id, w: LOTTERY_WEIGHTS[i] ?? 1 }))
+  const lotteryOrder: string[] = []
+  while (pool.length > 0) {
+    const total = pool.reduce((s, x) => s + x.w, 0)
+    let r = Math.random() * total
+    let idx = pool.length - 1
+    for (let i = 0; i < pool.length; i++) { r -= pool[i].w; if (r <= 0) { idx = i; break } }
+    lotteryOrder.push(pool[idx].id)
+    pool.splice(idx, 1)
+  }
+  const full = [...lotteryOrder, ...sorted.slice(5).map(t => t.id)]
+  const map = new Map<string, number>()
+  full.forEach((id, i) => map.set(id, i + 1))
+  return map
+}
+
 // 指名権キー "YYYY-R{round}-{pickNumber}" から市場価値を出す（位置連動）。解釈不能なら2巡相当
 function pickKeyValue(key: string): number {
   const m = key.match(/-R(\d+)-(\d+)$/)
@@ -670,7 +698,10 @@ export const useGameStore = create<GameStore>()(
       beginInauguralDraft: () => {
         const state = get()
         const pool = generateDraftPool(state.currentSeason.year)
-        const pickOrder = buildDraftOrder(state.teams, state.currentSeason.year, state.playerTeamId)
+        // 初年度は前シーズンが無いので、グラント順位(initialRank)で指名順を決める（最下位=20位が全体1位）。
+        // 2巡目はスネークで逆順（1位から）。
+        const inauguralRound1 = [...state.teams].sort((a, b) => b.initialRank - a.initialRank).map(t => t.id)
+        const pickOrder = [...inauguralRound1, ...[...inauguralRound1].reverse()]
         const draftState: DraftState = {
           pool,
           pickOrder,
@@ -3960,16 +3991,18 @@ export const useGameStore = create<GameStore>()(
         const pool = scouted.length > 0 ? scouted : generateDraftPool(state.currentSeason.year)
         const yr = state.currentSeason.year
 
-        // ドラフト順は「当年分の指名権の所有」で決める：最下位のpick1を買ったチームがそのまま全体1位で指名。
-        // ただし指名順位は"保存済みのpickNumber"ではなく、各指名権の【元保有チームの直近順位】から都度算出する。
-        // （初回に順位が無いまま配列順で焼き込まれた古い番号に引きずられ、2年目以降も順序が壊れるのを防ぐ）
-        const pickRank = standingsPickNumbers(state.teams) // teamId → 逆順順位（最下位=1＝全体1位指名）
+        // ドラフト順は「当年分の指名権の所有」で決める：指名スロットの並びは各指名権の
+        // 【元保有チームの抽選順】で決まり、現在の保有チームがそこで指名する。
+        // 2年目以降は前年下位5チームの加重抽選で1巡目の順を決定。2巡目はスネーク（逆順＝1位から）。
+        const lotteryPos = draftLotteryOrder(state.teams) // teamId → 全体指名順位(1=全体1位)
+        const teamCount = state.teams.length
         const ownedYearPicks = state.teams
-          .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => ({
-            round: pk.round,
-            orderKey: pickRank.get(pk.originallyOwnedBy ?? t.id) ?? pk.pickNumber,
-            ownerId: t.id,
-          })))
+          .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => {
+            const basePos = lotteryPos.get(pk.originallyOwnedBy ?? t.id) ?? pk.pickNumber
+            // 2巡目はスネーク：1巡目の逆順にする（最後に指名したチームが2巡目の先頭）
+            const orderKey = pk.round === 2 ? teamCount + 1 - basePos : basePos
+            return { round: pk.round, orderKey, ownerId: t.id }
+          }))
           .sort((a, b) => a.round - b.round || a.orderKey - b.orderKey)
         const pickOrder = ownedYearPicks.length >= state.teams.length
           ? ownedYearPicks.map(pk => pk.ownerId)
@@ -5030,6 +5063,17 @@ export const useGameStore = create<GameStore>()(
               return [{ id: `dep-${oldP.id}-${newYear}`, playerId: oldP.id, playerName: oldP.name, toTeamName: to ?? '', reason: to ? 'transfer' : 'fa' }]
             })
 
+          // 海外クラブ在籍で今季出場ゼロの選手にも0戦のエントリを埋めて保存する。
+          // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
+          const archivedForeignApps = { ...(state.currentSeason.foreignAppearances ?? {}) }
+          for (const fl of (state.foreignLeagues ?? [])) {
+            for (const fc of fl.clubs) {
+              for (const pid of fc.playerIds) {
+                if (!archivedForeignApps[pid]) archivedForeignApps[pid] = { clubId: fc.id, races: 0, wins: 0 }
+              }
+            }
+          }
+
           return {
             players: cleanedPlayers,
             teams: crossTx.teams,
@@ -5043,6 +5087,7 @@ export const useGameStore = create<GameStore>()(
             // 記録会の全結果（毎年約1MB）・ニュース・チャットログ等は一度も読まれないため空にして保存する
             pastSeasons: [...state.pastSeasons, {
               ...state.currentSeason,
+              foreignAppearances: archivedForeignApps,
               objectives: completedObjs,
               individualEvents: [],
               newsFeed: [],
