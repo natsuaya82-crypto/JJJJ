@@ -177,7 +177,7 @@ export default function SchedulePage() {
                     border: isNextTT ? `2px solid ${alpha(TT_COLOR, 0.55)}` : `1px dashed ${alpha(TT_COLOR, 0.5)}`,
                     background: isNextTT ? `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)` : it.isDone ? 'transparent' : alpha(TT_COLOR, 0.06),
                     boxShadow: isNextTT ? `0 4px 0 #123f39, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)` : 'none',
-                    cursor: isNextTT ? 'pointer' : 'default',
+                    cursor: 'default',
                     textAlign: 'left', fontFamily: 'inherit', width: '100%',
                   } as React.CSSProperties}
                 >
@@ -199,11 +199,6 @@ export default function SchedulePage() {
                       )}
                     </div>
                     {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
-                    {isNextTT && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: TT_COLOR, flexShrink: 0 }}>
-                        <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                      </svg>
-                    )}
                   </div>
                 </TTCard>
               </div>
@@ -216,7 +211,7 @@ export default function SchedulePage() {
           const labelText = `第${roundNum}戦`
           const rColor = rankColor(myRank)
 
-          const canEnter = isNext && kind === 'main'
+          const canEnter = false   // 予定表は閲覧専用。出走はホームのNEXT RACEカードから。
           const CardTag = canEnter ? 'button' : 'div'
 
           return (
