@@ -141,12 +141,17 @@ export function generateRaceEvents(params: {
     })
   }
 
+  // 選手からのチャット雑談イベント（疲労・士気・出場機会・ベテランの野心）は廃止。
+  // 移籍・契約・引退などの本筋の用件だけをチャットに残す
+  const removedChatTypes: GameEventType[] = ['player_fatigue', 'player_morale_low', 'playing_time_demand', 'veteran_ambition', 'ai_poaching']
+  const kept = candidates.filter(e => !removedChatTypes.includes(e.type))
+
   // Shuffle and cap at 2 per race
-  for (let i = candidates.length - 1; i > 0; i--) {
+  for (let i = kept.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [candidates[i], candidates[j]] = [candidates[j], candidates[i]]
+    [kept[i], kept[j]] = [kept[j], kept[i]]
   }
-  return candidates.slice(0, 2)
+  return kept.slice(0, 2)
 }
 
 

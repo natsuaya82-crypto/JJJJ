@@ -233,6 +233,7 @@ export type Player = {
   renewalLockedUntilYear?: number  // 更新交渉を最終拒否 → この年まで自チームは更新オファー不可
   transferLockedUntilYear?: number // 移籍交渉が決裂 → この年まで自チームは移籍金オファー不可
   retirementDeclinedYear?: number  // 引退を引き留めた年。その年は引退希望を再抽選しない
+  transferRequestDismissedYear?: number  // 移籍希望に「残ってほしい」で対応した年。その年は再抽選しない
   faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
   transferListed?: boolean    // 「移籍を認める」で移籍リスト入り（他チームのオファー対象・シーズン内に決まらなければFA）
   // レンタル移籍：ownerTeamId が保有元、teamId は現在プレー中（借り手）。untilYear シーズン終了で自動返却。
@@ -630,7 +631,7 @@ export type Season = {
   // タップして対応済みの接触中通知のID（通知とバッジから消す。接触自体は裏で進行）
   seenFreeContactIds?: string[]
   // 自チーム選手の退団通知（シーズン切替時の契約満了・FA流出・移籍）。確認で消す
-  departureNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; reason: 'transfer' | 'fa' }[]
+  departureNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; reason: 'transfer' | 'fa' | 'loan'; fee?: number; years?: number }[]
   // 今季の移籍金の累計（財務ページの明細表示用）。売却・指名権売却=収入 / 移籍金での獲得=支出
   transferIncome?: number
   transferSpend?: number

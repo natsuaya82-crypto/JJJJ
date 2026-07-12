@@ -206,7 +206,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                       border: `1px solid ${isPB ? alpha(C.green, 0.45) : C.border}`,
                       boxShadow: isPB ? `0 0 8px ${alpha(C.green, 0.15)}` : 'none',
                     }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, width: 30, flexShrink: 0 }}>{r.rank}位</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, minWidth: 30, flexShrink: 0, whiteSpace: 'nowrap' }}>{r.rank}位</span>
                     <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={r.playerId} nationality={p?.nationality ?? 'JPN'} size={26} />
                     </div>

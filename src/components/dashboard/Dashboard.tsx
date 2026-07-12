@@ -479,23 +479,55 @@ export default function Dashboard() {
       ) : (
         /* 通常シーズン */
         <div style={{ padding: '0 12px 16px' }}>
-          {showTTNext && dueTT ? (
-            <button onClick={() => navigate('/race')} style={{
-              width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-              padding: '14px 16px', borderRadius: 14,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `1.5px dashed ${alpha('#5EC8B8', 0.55)}`,
-              display: 'flex', alignItems: 'center', gap: 12,
+          {showTTNext && dueTT ? (() => {
+            const distLabel = dueTT.distance === 5000 ? '5000m' : dueTT.distance === 10000 ? '10000m' : dueTT.distance === 21097 ? 'ハーフ' : 'マラソン'
+            const distKm = (dueTT.distance / 1000).toFixed(dueTT.distance >= 10000 ? 0 : 1)
+            return (
+            <div role="button" tabIndex={0} className="pressable" onClick={() => navigate('/race')} style={{
+              borderRadius: 20, overflow: 'hidden', position: 'relative',
+              background: `linear-gradient(135deg, ${alpha(C.green, 0.08)} 0%, transparent 50%), linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+              border: `3px solid ${C.green}`,
+              boxShadow: `0 8px 0 #0d3d22, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
             }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '1px', color: '#5EC8B8', padding: '1px 7px', borderRadius: 6, backgroundColor: alpha('#5EC8B8', 0.14), border: `1px solid ${alpha('#5EC8B8', 0.3)}`, fontFamily: SAIRA }}>NEXT 記録会</span>
-                <div style={{ fontSize: 15, fontWeight: 900, color: C.text, margin: '5px 0 2px' }}>{dueTT.name}</div>
-                <div style={{ fontSize: 10, color: C.textDim }}>{dueTT.date.replace(/-/g, '/')}</div>
+              <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.green, 0.28)}`, borderRadius: 14, pointerEvents: 'none', zIndex: 1 }}/>
+              {/* Header */}
+              <div style={{ background: `linear-gradient(90deg, ${alpha(C.green, 0.18)}, ${alpha(C.green, 0.04)})`, padding: '14px 16px 12px', borderBottom: `1px solid ${alpha(C.green, 0.18)}`, position: 'relative', zIndex: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, boxShadow: `0 0 8px ${C.green}` }}/>
+                      <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.green, letterSpacing: '0.22em', fontWeight: 900 }}>NEXT 記録会</span>
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224` }}>{dueTT.name}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, marginTop: 3, letterSpacing: '0.06em' }}>{dueTT.date.replace(/-/g, '/')}</div>
+                  </div>
+                  <div style={{ padding: '5px 12px', borderRadius: 20, flexShrink: 0, background: `linear-gradient(180deg, #66BB6A 0%, ${C.green} 60%, #0d5a30 100%)`, border: `2px solid #0d3d22`, fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.bg, boxShadow: `0 3px 0 #0a2e1a, inset 0 1px 0 rgba(255,255,255,0.4)` }}>TIME TRIAL</div>
+                </div>
               </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: '#5EC8B8', flexShrink: 0 }}>
-                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </button>
+              {/* Info tiles */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', padding: '10px 16px', gap: 0, background: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.2) 100%)`, borderBottom: `1px solid ${alpha(C.green, 0.15)}`, position: 'relative', zIndex: 2 }}>
+                <div style={{ textAlign: 'center', padding: '2px 0' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '1px', marginBottom: 2 }}>種目</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: SAIRA }}>{distLabel}</div>
+                </div>
+                <div style={{ width: 1, alignSelf: 'center', height: 24, background: `linear-gradient(180deg, transparent, #0d5a30, transparent)` }}/>
+                <div style={{ textAlign: 'center', padding: '2px 0' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '1px', marginBottom: 2 }}>距離</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: SAIRA }}>{distKm}km</div>
+                </div>
+              </div>
+              {/* CTA */}
+              <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2 }}>
+                <button className="btn-game btn-game--green" style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>
+                    記録会を開催
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+            )
+          })()
           ) : nextRaceData ? (
             <NextRaceCard
               race={nextRaceData.race}

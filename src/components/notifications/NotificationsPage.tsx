@@ -674,10 +674,18 @@ export default function NotificationsPage() {
                         <FaceOvr playerId={n.playerId} nationality={(players.find(p => p.id === n.playerId)?.nationality ?? 'JPN')} pOvr={(() => { const p = players.find(x => x.id === n.playerId); return p ? ovr(p) : 0 })()} accentColor={C.red} />
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
-                            {n.reason === 'transfer' ? `${n.playerName}が${n.toTeamName}へ移籍しました` : `${n.playerName}が契約満了で退団しました`}
+                            {n.reason === 'loan'
+                              ? `${n.playerName}が${n.toTeamName}へレンタルされました`
+                              : n.reason === 'transfer'
+                              ? `${n.playerName}が${n.toTeamName}へ移籍しました`
+                              : `${n.playerName}が契約満了で退団しました`}
                           </div>
                           <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>
-                            {n.reason === 'transfer' ? '契約満了に伴う移籍です' : 'FAとなり移籍先を探しています'}
+                            {n.reason === 'loan'
+                              ? `${n.years ?? 1}シーズンのレンタルで貸出`
+                              : n.reason === 'transfer'
+                              ? (n.fee != null ? `移籍金${fmtYen(n.fee)}での移籍` : '移籍が成立しました')
+                              : 'FAとなり移籍先を探しています'}
                           </div>
                         </div>
                       </div>

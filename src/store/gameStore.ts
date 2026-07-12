@@ -1536,8 +1536,10 @@ export const useGameStore = create<GameStore>()(
             return i >= 0 ? i + 1 : Math.ceil(trTotalTeams / 2)
           })()
           const trCandidates = playersAfterLoan
-            // レンタルで借りている選手は移籍希望の対象外（保有権が無く「移籍を認める」と他人の選手を消してしまう）
-            .filter(p => p.teamId === playerTeamId && p.status === 'active' && p.contract.yearsLeft <= 1 && !existTrReq.has(p.id) && !p.loan)
+            // レンタルで借りている選手は移籍希望の対象外（保有権が無く「移籍を認める」と他人の選手を消してしまう）。
+            // 既に対応済み（移籍を認めた transferListed / 残ってほしいで説得済み）の選手は同シーズン中に再抽選しない
+            .filter(p => p.teamId === playerTeamId && p.status === 'active' && p.contract.yearsLeft <= 1 && !existTrReq.has(p.id) && !p.loan
+              && !p.transferListed && p.transferRequestDismissedYear !== state.currentSeason.year)
             .map(p => {
               const apps = seasonAppearances(p.id, updatedRaces)
               const frac = apps / (raceIndex + 1)
@@ -2408,7 +2410,7 @@ export const useGameStore = create<GameStore>()(
             players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined } : p),
             teams: st.teams.map(t => t.id === st.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
             foreignLeagues: (st.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
-            currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + offer.offeredPrice, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30) },
+            currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + offer.offeredPrice, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), { id: `dep_${offer.playerId}`, playerId: offer.playerId, playerName: player.name, toTeamName: clubName, reason: 'transfer' as const, fee: offer.offeredPrice }] },
           }))
           return true
         }
@@ -2429,6 +2431,7 @@ export const useGameStore = create<GameStore>()(
             // 売却した選手の出品（自分のもの含む）は市場から掃除する
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
             newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${buyingTeam.shortName}へ移籍金${Math.round(offer.offeredPrice / 10000)}万で放出`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+            departureNotices: [...(state.currentSeason.departureNotices ?? []), { id: `dep_${offer.playerId}`, playerId: offer.playerId, playerName: player.name, toTeamName: buyingTeam.shortName, reason: 'transfer' as const, fee: offer.offeredPrice }],
           },
         }))
         return true
@@ -2934,6 +2937,8 @@ export const useGameStore = create<GameStore>()(
       },
 
       dismissTransferRequest: (playerId) => set(state => ({
+        // 対応済みの年を記録し、同じシーズン中に移籍希望を再抽選しない
+        players: state.players.map(p => p.id === playerId ? { ...p, transferRequestDismissedYear: state.currentSeason.year } : p),
         currentSeason: { ...state.currentSeason, transferRequests: (state.currentSeason.transferRequests ?? []).filter(r => r.playerId !== playerId) }
       })),
 
@@ -3005,6 +3010,7 @@ export const useGameStore = create<GameStore>()(
           currentSeason: {
             ...state.currentSeason,
             newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${yrs}シーズンのレンタルで放出`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+            departureNotices: [...(state.currentSeason.departureNotices ?? []), { id: `dep_${playerId}`, playerId, playerName: player.name, toTeamName: state.teams.find(t => t.id === toTeamId)?.shortName ?? '他クラブ', reason: 'loan' as const, years: yrs }],
           },
         }))
         return true
