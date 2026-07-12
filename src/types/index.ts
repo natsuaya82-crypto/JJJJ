@@ -623,6 +623,8 @@ export type Season = {
   foreignRaceIndex?: number                              // 消化した海外マッチデー数
   eclResult?: EclResult                                  // ECL開催結果（ポストシーズンに1回）
   expiredNegotiations?: { id: string; playerId: string; playerName: string }[]
+  // フリー移籍（移籍金0の接触）の決断結果。left=移籍した/false=残留。確認で消す
+  freeTransferNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[]
 }
 
 // チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい

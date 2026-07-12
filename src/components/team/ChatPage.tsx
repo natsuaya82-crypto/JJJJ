@@ -342,7 +342,11 @@ function ChatView({
       } else if (updated?.status === 'countered') {
         append({ from: 'player', text: `考えましたが、年俸${fmt(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意できます。これ以上は難しいです。` })
       } else if (updated?.status === 'rejected') {
-        append({ from: 'player', text: '申し訳ありませんが、その条件では受け入れられません。' })
+        // フリー移籍の接触中で本人が移籍に傾いている場合は、条件の問題ではないことを伝える
+        const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0)
+        append({ from: 'player', text: courted
+          ? '申し訳ありません…実は他クラブから誘いを受けていて、心が揺れています。条件の問題ではないんです。少し考えさせてください。'
+          : '申し訳ありませんが、その条件では受け入れられません。' })
       }
     }
     setComposing(false)
@@ -364,8 +368,22 @@ function ChatView({
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
+    // 複数の用件（イベント・引退・移籍希望・契約）が同じチャットに溜まっている場合、
+    // 返答ボタンは「最後に来たメッセージの用件」だけに出す。古い未応答の用件のボタンは
+    // 新しい用件を片付けた後に出る（前の話へのボタンが最新の発言と食い違うのを防ぐ）
+    const lastIdx = (pred: (m: ChatMessage) => boolean) => { for (let i = chatMessages.length - 1; i >= 0; i--) { if (pred(chatMessages[i])) return i } return -1 }
+    const newestTopic = (() => {
+      const cands: { key: 'event' | 'retirement' | 'transfer' | 'contract'; idx: number }[] = []
+      if (chatEvent) cands.push({ key: 'event', idx: lastIdx(m => m.from === 'player' && m.text === chatEvent.body) })
+      if (retirementReq) cands.push({ key: 'retirement', idx: lastIdx(m => m.text.includes('引退を考えて')) })
+      if (transferReq) cands.push({ key: 'transfer', idx: lastIdx(m => m.text.includes('移籍を考えて')) })
+      if (contractReq && contractReq.status !== 'accepted') cands.push({ key: 'contract', idx: lastIdx(m => m.text.includes('契約について') || m.text.includes('契約の件')) })
+      const found = cands.filter(c => c.idx >= 0)
+      return found.length > 0 ? found.reduce((a, b) => (b.idx > a.idx ? b : a)).key : null
+    })()
+
     // 選手イベント：選択肢を会話内ボタンで決着（resolveEvent）
-    if (chatEvent) return chatEvent.choices.map((c, idx) => ({
+    if (chatEvent && (newestTopic == null || newestTopic === 'event')) return chatEvent.choices.map((c, idx) => ({
       label: c.label,
       color: idx === 0 ? C.blue : idx === chatEvent.choices.length - 1 ? C.textSub : C.gold,
       action: () => { append({ from: 'gm', text: c.label }); resolveEvent(chatEvent.id, idx) },
@@ -414,7 +432,7 @@ function ChatView({
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
-    if (retirementReq) return [
+    if (retirementReq && (newestTopic == null || newestTopic === 'retirement')) return [
       { label: '引退を承認する', color: C.textSub, action: () => {
         append({ from: 'player', text: 'ありがとうございます。長い間お世話になりました。' })
         acceptRetirement(player.id)
@@ -434,7 +452,7 @@ function ChatView({
       }},
     ]
 
-    if (transferReq) return [
+    if (transferReq && (newestTopic == null || newestTopic === 'transfer')) return [
       { label: '移籍を認める', color: C.orange, action: () => {
         append({ from: 'player', text: 'ありがとうございます。移籍先を探します。' })
         allowPlayerTransfer(player.id)
@@ -457,6 +475,18 @@ function ChatView({
     if (contractReq?.status === 'accepted') return []
 
     if (contractReq?.status === 'rejected') {
+      // フリー移籍で心が移籍に傾いている選手は条件の問題ではないため、再提示ボタンを出さない
+      const freeContact = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
+      const courtedAway = (() => {
+        if (!freeContact) return false
+        const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+        const idx = stgs.findIndex(s => s.teamId === freeContact.fromTeamId)
+        const rank = idx >= 0 ? idx + 1 : Math.ceil(teams.length / 2)
+        return playerConsentToMove(player, rank, teams.length).ok
+      })()
+      if (courtedAway) return [
+        { label: '閉じる', color: C.textSub, action: onClose },
+      ]
       // 最終拒否＝退団（移籍リスト入り）でFAへ。もう提示できない。まだ途中なら再交渉して再提示可。
       return player.transferListed ? [] : [
         { label: '条件を変えて提示する', color: C.blue, action: () => { reNegotiateContract(contractReq.id); openCompose() } },
@@ -489,7 +519,11 @@ function ChatView({
           if (updated?.status === 'accepted') {
             append({ from: 'player', text: 'ありがとうございます。よろしくお願いします。' })
           } else {
-            append({ from: 'player', text: '申し訳ありませんが、その条件では受け入れられません。' })
+            // フリー移籍の接触中で本人が移籍に傾いている場合、要求どおりでも断られる。条件の問題ではないことを伝える
+            const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0)
+            append({ from: 'player', text: courted
+              ? 'すみません…実は他クラブから誘いを受けていて、移籍を前向きに考えています。条件の問題ではないんです。'
+              : '申し訳ありませんが、その条件では受け入れられません。' })
           }
         }}]
       })(),
@@ -928,7 +962,9 @@ function IncomingTransferCard({ offer, player, teamName, onAccept, onCounter, on
   onAccept: () => void; onCounter: (price: number) => void; onDecline: () => void
 }) {
   const [mode, setMode] = useState<'idle' | 'counter'>('idle')
-  const [fee, setFee] = useState(Math.round(offer.offeredPrice * 1.2 / 1_000_000) * 1_000_000)
+  // フリー移籍オファー（提示0円）へのカウンターは市場価値ベースで初期化（0を出さない）
+  const feeBase = offer.offeredPrice > 0 ? offer.offeredPrice * 1.2 : calcTransferValue(player)
+  const [fee, setFee] = useState(Math.max(1_000_000, Math.round(feeBase / 1_000_000) * 1_000_000))
   const specCol = SPEC_COLOR[player.specialty]
   return (
     <div style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}`, padding: '10px 12px', marginBottom: 2 }}>
@@ -1311,7 +1347,26 @@ export default function ChatPage() {
                 <button onClick={() => dismissOfferResult(r.id)} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 9, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
               </div>
             ))}
-            {incomingOffers.map(o => {
+            {incomingOffers.filter(o => o.offeredPrice === 0).map(o => {
+              // フリー移籍の接触：GMは対応できず、本人が数戦後に決断する（情報表示のみ）
+              const p = players.find(pl => pl.id === o.playerId)
+              if (!p) return null
+              const decidesIn = Math.max(1, o.expiresAtRace - (currentSeason.currentRaceIndex ?? 0))
+              return (
+                <button key={o.id} onClick={() => setChatPlayerId(p.id)} style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.orange, 0.4)}`, padding: '10px 12px', marginBottom: 2, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(C.orange, 0.4)}` }}>
+                      <PlayerFace playerId={p.id} nationality={p.nationality} size={40} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{teamName(o.fromTeamId)}が{p.name}と接触中</div>
+                      <div style={{ fontSize: 10, color: C.textDim, marginTop: 2, lineHeight: 1.5 }}>契約満了に伴うフリー移籍の勧誘。本人が約{decidesIn}戦後に決断します。タップして契約更新の交渉へ</div>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+            {incomingOffers.filter(o => o.offeredPrice > 0).map(o => {
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
               const tn = teamName(o.fromTeamId)

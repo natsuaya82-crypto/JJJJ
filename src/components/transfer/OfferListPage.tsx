@@ -30,7 +30,8 @@ export default function OfferListPage() {
   const { players, teams, playerTeamId, currentSeason, acceptIncomingOffer, declineIncomingOffer, acceptFeeCounter, rejectTransferBid, cancelLoanRequest } = useGameStore()
   const [tab, setTab] = useState<'incoming' | 'outgoing'>('incoming')
 
-  const incoming = currentSeason.incomingOffers ?? []
+  // フリー移籍の接触（offeredPrice=0）はGMが対応できないため除外（通知ページで情報表示）
+  const incoming = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
   const myBids = (currentSeason.transferBids ?? []).filter(b => ['pending', 'fee_accepted', 'countered', 'player_neg'].includes(b.status))
   const acqOffers = (currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered')
   const loanReqs = currentSeason.loanRequests ?? []

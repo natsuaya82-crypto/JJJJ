@@ -53,7 +53,8 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const claimGift = useGameStore(s => s.claimGift)
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
-  const incomingOffers = currentSeason.incomingOffers ?? []
+  // フリー移籍の接触（offeredPrice=0）はGMが対応できないためパネルには出さない（通知ページで情報表示）
+  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
@@ -308,7 +309,10 @@ export function useNotifCount() {
   const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
   const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
 
-  const incomingOffers = (currentSeason.incomingOffers ?? []).length
+  // フリー移籍の接触（offeredPrice=0）は情報通知として別カウント（NotificationsPageと同じ分け方）
+  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0).length
+  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamId)).length
+  const freeTransferNotices = (currentSeason.freeTransferNotices ?? []).length
   const retirementRequests = (currentSeason.retirementRequests ?? []).length
   const transferReqs = (currentSeason.transferRequests ?? []).length
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
@@ -342,4 +346,6 @@ export function useNotifCount() {
     + joinNotices
     + expiredNegotiations
     + loanResponses
+    + freeContacts
+    + freeTransferNotices
 }

@@ -127,17 +127,28 @@ function OfferChatView({
   onMessagesChange: (msgs: OfferChatMsg[]) => void
 }) {
   const { teams, players, acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer } = useGameStore()
+  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
   const fromTeam = teams.find(t => t.id === offer.fromTeamId)
+  const fromForeignClub = fromTeam ? null : foreignLeagues.flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)
+  const fromName = fromTeam?.shortName ?? fromForeignClub?.shortName ?? '他クラブ'
   const player = players.find(p => p.id === offer.playerId)
   const pOvr = player ? ovr(player) : 0
+  // 移籍金0＝契約満了間近の選手へのフリー移籍オファー
+  const isFree = offer.offeredPrice === 0
+  const priceLabel = isFree ? 'フリー移籍（移籍金なし）' : fmtYen(offer.offeredPrice)
 
-  const defaultMsgs: OfferChatMsg[] = player && fromTeam ? [
-    { from: 'team', text: `${player.name}選手の獲得に興味があります。移籍金${fmtYen(offer.offeredPrice)}でいかがでしょうか。` }
+  const defaultMsgs: OfferChatMsg[] = player ? [
+    { from: 'team', text: isFree
+      ? `${player.name}選手の獲得に興味があります。契約満了が近いとのことですので、移籍金なしのフリー移籍でお願いできませんか。`
+      : `${player.name}選手の獲得に興味があります。移籍金${fmtYen(offer.offeredPrice)}でいかがでしょうか。` }
   ] : []
 
   const [chatMessages, setChatMessages] = useState<OfferChatMsg[]>(initialMessages ?? defaultMsgs)
   const [composing, setComposing] = useState(false)
-  const [counterPrice, setCounterPrice] = useState(() => Math.round(offer.offeredPrice * 1.2 / TRANSFER_STEP) * TRANSFER_STEP)
+  // フリー移籍オファーへのカウンターは市場価値ベースで初期化（0×1.2=0を出さない）
+  const counterBase = offer.offeredPrice > 0 ? offer.offeredPrice : (player ? calcTransferValue(player) : 10_000_000)
+  const [counterPrice, setCounterPrice] = useState(() => Math.max(TRANSFER_STEP, Math.round(counterBase * 1.2 / TRANSFER_STEP) * TRANSFER_STEP))
   const [done, setDone] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -150,7 +161,7 @@ function OfferChatView({
     const ok = acceptIncomingOffer(offer.id)
     if (ok) {
       append(
-        { from: 'gm', text: `了解です。${fmtYen(offer.offeredPrice)}で売却します。` },
+        { from: 'gm', text: isFree ? '了解です。フリー移籍を承諾します。' : `了解です。${fmtYen(offer.offeredPrice)}で売却します。` },
         { from: 'team', text: '契約成立です。ありがとうございます。' }
       )
     } else {
@@ -195,7 +206,7 @@ function OfferChatView({
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{player?.name ?? '—'}</div>
-          <div style={{ fontSize: 10, color: C.textDim }}>{fromTeam?.shortName ?? '?'} からのオファー · {fmtYen(offer.offeredPrice)}</div>
+          <div style={{ fontSize: 10, color: C.textDim }}>{fromName} からのオファー · {priceLabel}</div>
         </div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(pOvr) }}>{pOvr}</div>
       </div>
@@ -203,9 +214,9 @@ function OfferChatView({
       <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {chatMessages.map((msg, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: msg.from === 'team' ? 'row' : 'row-reverse', alignItems: 'flex-end', gap: 8 }}>
-            {msg.from === 'team' && fromTeam && (
+            {msg.from === 'team' && (
               <div style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, background: C.surface3, border: `1.5px solid ${alpha(C.red, 0.35)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, color: C.red }}>{fromTeam.shortName.slice(0, 3)}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, color: C.red }}>{fromName.slice(0, 3)}</span>
               </div>
             )}
             <div style={{
@@ -242,7 +253,7 @@ function OfferChatView({
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const }}>
               {[1.1, 1.25, 1.5, 2.0].map(r => {
-                const v = Math.round(offer.offeredPrice * r / TRANSFER_STEP) * TRANSFER_STEP
+                const v = Math.round(counterBase * r / TRANSFER_STEP) * TRANSFER_STEP
                 return (
                   <button key={r} onClick={() => setCounterPrice(v)}
                     style={{ padding: '3px 8px', borderRadius: 6, border: `1px solid ${counterPrice === v ? C.red : C.border2}`, background: counterPrice === v ? alpha(C.red, 0.15) : 'transparent', color: counterPrice === v ? C.red : C.textDim, fontSize: 10, cursor: 'pointer', fontFamily: SAIRA }}>
@@ -272,7 +283,7 @@ function OfferChatView({
         ) : (
           <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
-              { label: `売却する（${fmtYen(offer.offeredPrice)}）`, color: C.green, action: handleAccept },
+              { label: isFree ? 'フリー移籍を承諾する（移籍金なし）' : `売却する（${fmtYen(offer.offeredPrice)}）`, color: C.green, action: handleAccept },
               { label: '価格を交渉する', color: C.gold, action: () => setComposing(true) },
               { label: '断る', color: C.textSub, action: handleDecline },
             ].map((btn, i) => (
@@ -293,6 +304,7 @@ function OfferChatView({
 export default function NotificationsPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, playerTeamId, lastLoginDate } = useGameStore()
+  const foreignLeaguesAll = useGameStore(s => s.foreignLeagues ?? [])
   const acceptFeeCounter = useGameStore(s => s.acceptFeeCounter)
   const rejectTransferBid = useGameStore(s => s.rejectTransferBid)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
@@ -306,7 +318,11 @@ export default function NotificationsPage() {
   const [offerMessageCache, setOfferMessageCache] = useState<Record<string, OfferChatMsg[]>>({})
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
-  const incomingOffers = currentSeason.incomingOffers ?? []
+  // フリー移籍の接触（offeredPrice=0）はGMが対応できない情報通知。金額付きオファーとは別扱い
+  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
+  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamId))
+  const freeTransferNotices = currentSeason.freeTransferNotices ?? []
+  const dismissFreeTransferNotice = useGameStore(s => s.dismissFreeTransferNotice)
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
@@ -352,6 +368,8 @@ export default function NotificationsPage() {
     + joinNotices.length
     + expiredNegotiations.length
     + loanResponses.length
+    + freeContacts.length
+    + freeTransferNotices.length
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -616,6 +634,63 @@ export default function NotificationsPage() {
           )}
 
           {/* 期限切れ交渉（移籍拒否） */}
+          {/* フリー移籍：接触中（情報のみ・本人が数戦後に決断） */}
+          {freeContacts.length > 0 && (
+            <section style={{ marginTop: '20px' }}>
+              <SectionHead label="接触中" color={C.orange} count={freeContacts.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {freeContacts.map(o => {
+                  const target = players.find(p => p.id === o.playerId)
+                  if (!target) return null
+                  const clubName = teams.find(t => t.id === o.fromTeamId)?.shortName ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === o.fromTeamId)?.shortName ?? '他クラブ'
+                  const decidesIn = Math.max(1, o.expiresAtRace - (currentSeason.currentRaceIndex ?? 0))
+                  return (
+                    <button key={o.id} onClick={() => navigate(`/team/chat?player=${target.id}`)} style={{ ...cardStyle(alpha(C.orange, 0.4), '#5a2800'), width: '100%', textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={ovr(target)} accentColor={C.orange} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{clubName}が{target.name}と接触中</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px', lineHeight: 1.6 }}>
+                            契約満了に伴うフリー移籍の勧誘です。本人が約{decidesIn}戦後に決断します。タップして契約更新の交渉へ（本人が移籍に傾いていると断られます）
+                          </div>
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: C.orange, flexShrink: 0 }}>
+                          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                        </svg>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* フリー移籍：本人の決断結果 */}
+          {freeTransferNotices.length > 0 && (
+            <section style={{ marginTop: '20px' }}>
+              <SectionHead label="フリー移籍の決断" color={C.orange} count={freeTransferNotices.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {freeTransferNotices.map(n => (
+                  <div key={n.id} style={cardStyle(alpha(n.left ? C.red : C.green, 0.45), n.left ? '#3d0000' : '#0d3d22')}>
+                    <div style={inset}/>
+                    <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
+                          {n.left ? `${n.playerName}が${n.toTeamName}へのフリー移籍を決めました` : `${n.playerName}は残留を選びました`}
+                        </div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>
+                          {n.left ? '契約満了に伴う本人の決断です（移籍金なし）' : `${n.toTeamName}の勧誘を断りました`}
+                        </div>
+                      </div>
+                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissFreeTransferNotice(n.id)}>確認</Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {expiredNegotiations.length > 0 && (
             <section style={{ marginTop: '20px' }}>
               <SectionHead label="交渉期限切れ" color={C.red} count={expiredNegotiations.length}/>
@@ -707,10 +782,13 @@ export default function NotificationsPage() {
               <SectionHead label="移籍オファー" color={C.red} count={incomingOffers.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {incomingOffers.map(offer => {
+                  // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
                   const fromTeam = teams.find(t => t.id === offer.fromTeamId)
+                  const fromClubName = fromTeam?.shortName ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '他クラブ'
                   const target = players.find(p => p.id === offer.playerId)
                   if (!target) return null
                   const pOvr = ovr(target)
+                  const isFreeOffer = offer.offeredPrice === 0
                   const expiresIn = Math.max(0, offer.expiresAtRace - currentSeason.currentRaceIndex)
                   const mv = calcTransferValue(target)
                   const ratio = mv > 0 ? offer.offeredPrice / mv : 0
@@ -723,18 +801,25 @@ export default function NotificationsPage() {
                           <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={pOvr} accentColor={C.red} />
                           <div style={{ flex: 1 }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{target.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{fromTeam?.shortName ?? '?'} が買取を希望</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{fromClubName} が{isFreeOffer ? 'フリー移籍での獲得' : '買取'}を希望</div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.green, textShadow: `0 0 8px ${alpha(C.green, 0.4)}` }}>{fmtYen(offer.offeredPrice)}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: isFreeOffer ? '13px' : '20px', fontWeight: '900', color: isFreeOffer ? C.textSub : C.green, textShadow: isFreeOffer ? 'none' : `0 0 8px ${alpha(C.green, 0.4)}` }}>{isFreeOffer ? '移籍金なし' : fmtYen(offer.offeredPrice)}</div>
                             <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '1px' }}>期限 {expiresIn}戦</div>
                           </div>
                         </div>
+                        {!isFreeOffer && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '7px 10px', borderRadius: '10px', background: alpha(mvRating.color, 0.08), border: `1px solid ${alpha(mvRating.color, 0.2)}` }}>
                           <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '700', color: mvRating.color, padding: '2px 6px', borderRadius: '6px', background: alpha(mvRating.color, 0.15) }}>{mvRating.label}</span>
                           <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub }}>市場価値 <span style={{ color: C.text, fontWeight: '700' }}>{fmtYen(mv)}</span></span>
                           <span style={{ fontFamily: SAIRA, fontSize: '11px', color: mvRating.color, marginLeft: 'auto', fontWeight: '700' }}>{Math.round(ratio * 100)}%</span>
                         </div>
+                        )}
+                        {isFreeOffer && (
+                        <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '12px', lineHeight: 1.6 }}>
+                          契約満了が近いため、移籍金なしでの獲得打診です。断っても契約が切れればFAで流出する可能性があります。
+                        </div>
+                        )}
                         <Btn variant="primary" style={{ width: '100%' }} onClick={() => setChatOfferId(offer.id)}>対応する</Btn>
                       </div>
                     </div>

@@ -383,6 +383,7 @@ export type GameStore = GameState & {
   // 公式Xフォロー案内ポップを表示済みにする（初回のみ表示するためのフラグ）
   markTwitterIntroSeen: () => void
   dismissExpiredNegotiation: (id: string) => void
+  dismissFreeTransferNotice: (id: string) => void
 
   // Dev reset
   resetGame: () => void
@@ -1332,9 +1333,11 @@ export const useGameStore = create<GameStore>()(
           const existingListingsFiltered = (state.currentSeason.transferListings ?? []).filter(l => !cpuTxListingIds.has(l.id))
 
           // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
+          // ※フリー移籍の接触（offeredPrice=0）は対象外：下の「本人決断」で処理する
           const offerExpiredNegs: { id: string; playerId: string; playerName: string }[] = []
           const offerExpiredPlayerIds: string[] = [];
           (state.currentSeason.incomingOffers ?? []).forEach(o => {
+            if (o.offeredPrice === 0) return
             if (o.expiresAtRace <= nextRaceIndex) {
               const pl = finalPlayers.find(p => p.id === o.playerId)
               if (pl) {
@@ -1343,6 +1346,29 @@ export const useGameStore = create<GameStore>()(
               }
             }
           })
+
+          // フリー移籍の接触：期限が来たら選手本人が決断する（GMは関与できない）。
+          // 移籍するかは本人の納得度（やる気・移籍先の順位・出場状況）で決まる
+          const freeDecisionNotices: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[] = []
+          const freeMoves: { playerId: string; toTeamId: string }[] = []
+          const standingsForFree = [...updatedStandings].sort((a, b) => b.totalPoints - a.totalPoints)
+          ;(state.currentSeason.incomingOffers ?? []).forEach(o => {
+            if (o.offeredPrice !== 0 || o.expiresAtRace > nextRaceIndex) return
+            const pl = finalPlayers.find(p => p.id === o.playerId)
+            const suitor = state.teams.find(t => t.id === o.fromTeamId)
+            if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
+            const suitorRank = standingsForFree.findIndex(s => s.teamId === suitor.id) + 1
+            // 決断までに契約を更新できていれば残留確定（引き留め成功）
+            const leaves = pl.contract.yearsLeft > 1 ? false : playerConsentToMove(pl, suitorRank, state.teams.length).ok
+            freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
+            if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
+          })
+          const freeMoveNews = freeDecisionNotices.filter(n => n.left).map(n => ({
+            date: race.date,
+            headline: `${n.playerName}が契約満了に伴い${n.toTeamName}へフリー移籍を決断`,
+            category: 'trade' as const,
+            relatedIds: [n.playerId],
+          }))
           const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], isWindowOpenNow, state.currentSeason.transferRequests ?? [])
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
@@ -1549,9 +1575,24 @@ export const useGameStore = create<GameStore>()(
             ? playersAfterLoan.map(p => allExpiredPlayerIds.includes(p.id) ? { ...p, transferLockedUntilYear: state.currentSeason.year + 1 } : p)
             : playersAfterLoan
 
+          // フリー移籍の決断で退団する選手を移す（本人が決めたので即時移籍）
+          const playersAfterFreeMoves = freeMoves.length > 0
+            ? playersWithExpiredLocks.map(p => {
+                const mv = freeMoves.find(m => m.playerId === p.id)
+                return mv ? { ...p, teamId: mv.toTeamId, rosterTier: 'main' as const, transferListed: undefined } : p
+              })
+            : playersWithExpiredLocks
+          const teamsAfterFreeMoves = freeMoves.length > 0
+            ? teamsAfterLoan.map(t => {
+                if (t.id === playerTeamId) return { ...t, roster: { main: t.roster.main.filter(id => !freeMoves.some(m => m.playerId === id)), second: t.roster.second.filter(id => !freeMoves.some(m => m.playerId === id)) } }
+                const gains = freeMoves.filter(m => m.toTeamId === t.id)
+                return gains.length > 0 ? { ...t, roster: { ...t.roster, main: [...t.roster.main, ...gains.map(g => g.playerId)] } } : t
+              })
+            : teamsAfterLoan
+
           return {
-            players: playersWithExpiredLocks,
-            teams: teamsAfterLoan,
+            players: playersAfterFreeMoves,
+            teams: teamsAfterFreeMoves,
             jewels: state.jewels + (playerRank > 0 ? raceJewels : 0) + midRaceObjJewels,
             raceLineup: {},
             lastRaceLineup: { ...state.raceLineup },
@@ -1570,7 +1611,7 @@ export const useGameStore = create<GameStore>()(
               objectives: updatedObjectives,
               scoutMissions: activeMissions,
               scoutProspects: updatedScoutProspects,
-              newsFeed: [...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
+              newsFeed: [...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
               events: [...(state.currentSeason.events ?? []), ...newEvents],
               pendingTradeOffers: existingTrades,
               transferListings: transferData.listings,
@@ -1582,6 +1623,7 @@ export const useGameStore = create<GameStore>()(
               transferRequests: [...(state.currentSeason.transferRequests ?? []), ...newTransferReqs],
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
               expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs],
+              freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],
             },
           }
         })
@@ -2471,6 +2513,21 @@ export const useGameStore = create<GameStore>()(
           if (req.status === 'accepted' || req.status === 'rejected') return state  // 二重実行ガード（契約年数の二重加算防止）
           const player = state.players.find(p => p.id === req.playerId)
           if (!player) return state
+          // フリー移籍で他クラブと接触中：本人に移籍の意思がある場合、提示内容に関わらず更新を断る
+          const freeContact = (state.currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
+          if (freeContact) {
+            const stgsFc = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+            const suitorIdx = stgsFc.findIndex(s => s.teamId === freeContact.fromTeamId)
+            const suitorRank = suitorIdx >= 0 ? suitorIdx + 1 : Math.ceil(state.teams.length / 2)
+            if (playerConsentToMove(player, suitorRank, state.teams.length).ok) {
+              return {
+                currentSeason: {
+                  ...state.currentSeason,
+                  contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? { ...r, status: 'rejected' as const, offerSalary: salary, offerYears: years } : r),
+                },
+              }
+            }
+          }
           const myRank = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === state.playerTeamId) + 1
           const isGoodTeam = myRank > 0 && myRank <= 5
           const personality = player.personality ?? 'salary'
@@ -2520,7 +2577,14 @@ export const useGameStore = create<GameStore>()(
           return {
             players: newPlayers,
             teams: newTeams,
-            currentSeason: { ...state.currentSeason, contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? updatedReq : r) }
+            currentSeason: {
+              ...state.currentSeason,
+              contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? updatedReq : r),
+              // 更新成立なら進行中のフリー移籍の接触は打ち切り（残留確定）
+              incomingOffers: newStatus === 'accepted'
+                ? (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === player.id && o.offeredPrice === 0))
+                : state.currentSeason.incomingOffers,
+            }
           }
         })
       },
@@ -2543,7 +2607,12 @@ export const useGameStore = create<GameStore>()(
               contract: { ...p.contract, annualSalary: req.counterSalary!, yearsLeft: cNewYears, contractType: placed.tier === desiredTier ? (req.offerContractType ?? p.contract.contractType) : p.contract.contractType, faEligibleYear: state.currentSeason.year + cNewYears },
             } : p),
             teams: placed.teams,
-            currentSeason: { ...state.currentSeason, contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? { ...r, status: 'accepted' as const } : r) }
+            currentSeason: {
+              ...state.currentSeason,
+              contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? { ...r, status: 'accepted' as const } : r),
+              // 更新成立なら進行中のフリー移籍の接触は打ち切り（残留確定）
+              incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === req.playerId && o.offeredPrice === 0)),
+            }
           }
         })
       },
@@ -5640,6 +5709,7 @@ export const useGameStore = create<GameStore>()(
       setAdsRemoved: (v) => set({ adsRemoved: v }),
       markTwitterIntroSeen: () => set({ twitterIntroSeen: true }),
       dismissExpiredNegotiation: (id) => set(s => ({ currentSeason: { ...s.currentSeason, expiredNegotiations: (s.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== id) } })),
+      dismissFreeTransferNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, freeTransferNotices: (s.currentSeason.freeTransferNotices ?? []).filter(n => n.id !== id) } })),
 
       resetGame: () => {
         // データ削除：ゲーム進行・広告カウント・ログインボーナスはリセット（また受け取れる）するが、
@@ -6123,8 +6193,8 @@ function generateTransferActivity(
       id: `inc-free-${raceIndex}-${suitor.id}-${ep.id}`,
       fromTeamId: suitor.id,
       playerId: ep.id,
-      offeredPrice: 0, // フリー移籍（移籍金なし）
-      expiresAtRace: raceIndex + 5,
+      offeredPrice: 0, // フリー移籍（移籍金なし・GMは関与できず、期限が来たら本人が決断する）
+      expiresAtRace: raceIndex + 3,
       round: 1,
     })
     alreadyOfferedIds.add(ep.id)

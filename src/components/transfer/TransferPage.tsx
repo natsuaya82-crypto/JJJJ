@@ -513,7 +513,8 @@ export default function TransferPage() {
 
 
       {tab === 'listings' && (() => {
-        const incomingOffers = currentSeason.incomingOffers ?? []
+        // フリー移籍の接触（offeredPrice=0）はGMが対応できないため対応カードから除外（通知ページで情報表示）
+        const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
         const listings = currentSeason.transferListings ?? []
         const listedIds = new Set(listings.map(l => l.playerId))
 
@@ -532,10 +533,16 @@ export default function TransferPage() {
                 ))}
                 {incomingOffers.map(offer => {
                   const p = players.find(pl => pl.id === offer.playerId)
+                  // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
                   const fromTeam = teams.find(t => t.id === offer.fromTeamId)
+                  const offerFrom = fromTeam?.shortName ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '他クラブ'
                   if (!p) return null
                   const rating = ovr(p)
                   const specCol = SPEC_COLOR[p.specialty]
+                  // 移籍金0＝契約満了間近の選手へのフリー移籍オファー
+                  const isFreeOffer = offer.offeredPrice === 0
+                  // フリー移籍へのカウンターは市場価値ベース（0×1.3=0を出さない）
+                  const counterPrice = Math.max(500000, Math.round((isFreeOffer ? calcTransferValue(p) : offer.offeredPrice * 1.3) / 500000) * 500000)
                   return (
                     <div key={offer.id} style={{
                       position: 'relative', overflow: 'hidden',
@@ -565,19 +572,20 @@ export default function TransferPage() {
                             </div>
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '2px', fontFamily: SAIRA }}>{fromTeam?.shortName} からのオファー</div>
-                            <div style={{ fontSize: '16px', fontWeight: '900', color: C.pink, fontFamily: SAIRA, textShadow: `0 0 12px ${alpha(C.pink, 0.25)}` }}>
-                              {fmt(offer.offeredPrice)}
+                            <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '2px', fontFamily: SAIRA }}>{offerFrom} からのオファー</div>
+                            <div style={{ fontSize: isFreeOffer ? '12px' : '16px', fontWeight: '900', color: isFreeOffer ? C.textSub : C.pink, fontFamily: SAIRA, textShadow: isFreeOffer ? 'none' : `0 0 12px ${alpha(C.pink, 0.25)}` }}>
+                              {isFreeOffer ? 'フリー移籍' : fmt(offer.offeredPrice)}
                             </div>
-                            <div style={{ fontSize: '8px', color: C.textDim, fontFamily: SAIRA }}>移籍金</div>
+                            <div style={{ fontSize: '8px', color: C.textDim, fontFamily: SAIRA }}>{isFreeOffer ? '移籍金なし' : '移籍金'}</div>
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={() => {
-                              const tn = fromTeam?.shortName ?? '海外クラブ'
                               const ok = acceptIncomingOffer(offer.id)
-                              pushOfferResult(offer.id, ok ? `${p.name}を${tn}へ売却しました（移籍金${fmt(offer.offeredPrice)}を獲得）` : `${p.name}の売却は成立しませんでした`, ok)
+                              pushOfferResult(offer.id, ok
+                                ? (isFreeOffer ? `${p.name}を${offerFrom}へフリー移籍で放出しました` : `${p.name}を${offerFrom}へ売却しました（移籍金${fmt(offer.offeredPrice)}を獲得）`)
+                                : `${p.name}の売却は成立しませんでした`, ok)
                             }}
                             style={{
                               flex: 2, padding: '9px', borderRadius: '11px', border: `2px solid ${C.green}`, marginBottom: 8,
@@ -586,16 +594,14 @@ export default function TransferPage() {
                               boxShadow: '0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
                             }}
                           >
-                            承諾 — {fmt(offer.offeredPrice)}
+                            {isFreeOffer ? '承諾 — フリー移籍' : `承諾 — ${fmt(offer.offeredPrice)}`}
                           </button>
                           <button
                             onClick={() => {
-                              const price = Math.round(offer.offeredPrice * 1.3 / 500000) * 500000
-                              const tn = fromTeam?.shortName ?? '海外クラブ'
-                              const r = counterIncomingOffer(offer.id, price)
+                              const r = counterIncomingOffer(offer.id, counterPrice)
                               pushOfferResult(offer.id,
-                                r === 'sold' ? `${tn}がカウンターを受諾。${p.name}を売却しました（移籍金${fmt(price)}を獲得）`
-                                : r === 'refused' ? `${tn}は${fmt(price)}を支払えず、交渉は決裂しました`
+                                r === 'sold' ? `${offerFrom}がカウンターを受諾。${p.name}を売却しました（移籍金${fmt(counterPrice)}を獲得）`
+                                : r === 'refused' ? `${offerFrom}は${fmt(counterPrice)}を支払えず、交渉は決裂しました`
                                 : `${p.name}の交渉は無効になりました`, r === 'sold')
                             }}
                             style={{
@@ -605,7 +611,7 @@ export default function TransferPage() {
                               boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
                             }}
                           >
-                            カウンター — {fmt(Math.round(offer.offeredPrice * 1.3 / 500000) * 500000)}
+                            カウンター — {fmt(counterPrice)}
                           </button>
                           <button
                             onClick={() => declineIncomingOffer(offer.id)}
