@@ -528,7 +528,7 @@ export default function Dashboard() {
             </div>
             )
           })()
-          ) : nextRaceData ? (
+          : nextRaceData ? (
             <NextRaceCard
               race={nextRaceData.race}
               raceNumber={nextRaceData.number}
