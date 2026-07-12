@@ -3,11 +3,14 @@
    画面上部: ステータスバー(時刻/バッテリー)+ダイナミックアイランド、その下からアプリ実画面。 */
 const sharp = require('sharp')
 
+// 内部の作図キャンバス(基準)
 const CW = 1290, CH = 2796
+// 最終出力サイズ = 元スクショと同じ 1242x2688 (App Store 6.5")
+const OUT_W = 1242, OUT_H = 2688
 
 // 端末本体(上部だけ見せる。下端はキャンバス外)
-const PB_X = 35
-const PB_W = 1220
+const PB_W = 1100
+const PB_X = Math.round((CW - PB_W) / 2)
 const PB_Y = 920
 const PB_H = Math.round(PB_W * 2556 / 1179) // 2645 (下は画面外)
 const R_BODY = 150
@@ -87,20 +90,7 @@ function bgSvg(s) {
 function screenOverlaySvg() {
   const cy = STATUS_H / 2
   const iw = 360, ih = 42, ix = (SW - iw) / 2, iy = cy - ih / 2 - 4
-  const bw = 52, bh = 27, bx = SW - 76 - bw, by = cy - bh / 2
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${SW}" height="${SH_VIS}">
-    <text x="66" y="${cy + 15}" font-family="${GOTHIC}" font-size="42" font-weight="700" fill="#ffffff">9:41</text>
-    <g fill="#ffffff">
-      <rect x="${SW - 216}" y="${cy + 2}"  width="7" height="14" rx="2"/>
-      <rect x="${SW - 205}" y="${cy - 3}"  width="7" height="19" rx="2"/>
-      <rect x="${SW - 194}" y="${cy - 8}"  width="7" height="24" rx="2"/>
-      <rect x="${SW - 183}" y="${cy - 13}" width="7" height="29" rx="2"/>
-    </g>
-    <path d="M ${SW - 155} ${cy - 4} a 22 22 0 0 1 34 0" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
-    <circle cx="${SW - 138}" cy="${cy + 12}" r="4" fill="#ffffff"/>
-    <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="7" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
-    <rect x="${bx + 4}" y="${by + 4}" width="${bw - 16}" height="${bh - 8}" rx="3" fill="#ffffff" opacity="0.9"/>
-    <rect x="${bx + bw + 2}" y="${by + 9}" width="4" height="9" rx="2" fill="#ffffff" opacity="0.9"/>
     <rect x="${ix}" y="${iy}" width="${iw}" height="${ih}" rx="${ih / 2}" fill="#000"/>
   </svg>`
 }
@@ -115,7 +105,7 @@ async function run() {
   const maskBuf = Buffer.from(screenMaskSvg())
   for (const s of SHOTS) {
     if (s.hero) {
-      await sharp(s.raw).resize(CW, CH, { fit: 'cover', position: 'centre' }).png().toFile(s.out)
+      await sharp(s.raw).resize(OUT_W, OUT_H, { fit: 'cover', position: 'centre' }).png().toFile(s.out)
       console.log('hero ->', s.out)
       continue
     }
@@ -129,9 +119,12 @@ async function run() {
         { input: overlayBuf, left: 0, top: 0 },
         { input: maskBuf, blend: 'dest-in' },
       ]).png().toBuffer()
-    await sharp(Buffer.from(bgSvg(s)))
+    // sharpは resize を composite より先に適用するため、合成を完了させてから
+    // 別工程でリサイズする(でないと縮小後の枠の上に等倍のscreenが乗ってズレる)。
+    const composed = await sharp(Buffer.from(bgSvg(s)))
       .composite([{ input: screen, left: SX, top: SY }])
-      .png().toFile(s.out)
+      .png().toBuffer()
+    await sharp(composed).resize(OUT_W, OUT_H, { fit: 'fill' }).png().toFile(s.out)
     console.log('shot ->', s.out)
   }
   console.log('done', CW + 'x' + CH)
