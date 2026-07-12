@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import PlayerFace from '../player/PlayerFace'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
 import { canSignContract, isSecondMember } from '../../data/rosterRules'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, GameEvent, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
@@ -185,9 +185,16 @@ function ChatView({
   const totalRaces = currentSeason.races.length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const contractRequests = currentSeason.contractRequests ?? []
-  const contractReq =
+  // フリー移籍で他クラブと接触中か（勧誘クラブ名）。接触中は契約更新の用件（要求・催促）をこの会話に出さず、
+  // 「誘いを受けている」文脈に一本化する。引き留めは「契約条件を提示する」から（成立すれば接触打ち切り＝残留）
+  const freeContactClub = (() => {
+    const fc = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
+    return fc ? (teams.find(t => t.id === fc.fromTeamId)?.shortName ?? '他クラブ') : null
+  })()
+  const contractReqRaw =
     contractRequests.find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected') ??
     contractRequests.filter(r => r.playerId === player.id).at(-1)
+  const contractReq = freeContactClub ? undefined : contractReqRaw
   const retirementReq = (currentSeason.retirementRequests ?? []).find(r => r.playerId === player.id)
   const transferReq = (currentSeason.transferRequests ?? []).find(r => r.playerId === player.id)
   const months = contractMonths(player.contract.yearsLeft, raceIndex, totalRaces)
@@ -211,24 +218,30 @@ function ChatView({
   const talksHere = isMine && !isLoanedIn
 
   const events = currentSeason.events ?? []
+  // 接触中の文脈メッセージ（契約更新の話ではなく「誘いを受けている」ことを本人が伝える）
+  const contactMsg: ChatMessage | null = freeContactClub
+    ? { from: 'player', text: `実は${freeContactClub}から誘いを受けています。数戦のうちに答えを出すつもりです。` }
+    : null
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-    const built = isTransfer
+    const builtBase = isTransfer
       ? buildTransferMessages(player, transferBid!, teams.find(t => t.id === transferBid!.targetTeamId)?.name)
       : isAcq
       ? buildAcqMessages(player, acqOffer!, teams.find(t => t.id === player.teamId)?.name)
       : talksHere
-      ? buildMessages(player, contractReq, months, !!retirementReq, !!transferReq, transferReq?.reason, events)
+      ? buildMessages(player, contractReq, freeContactClub ? 99 : months, !!retirementReq, !!transferReq, transferReq?.reason, events)
       : []  // 他チーム/FA選手・レンタル選手で交渉モードでもない場合は保存ログのみ
+    const built = (talksHere && !isTransfer && !isAcq && contactMsg) ? [...builtBase, contactMsg] : builtBase
     if (!initialMessages || initialMessages.length === 0) return built
     // 保存済みログを開いた後に発生した「新しい用件」だけをログに追記する。
     // 交渉への返答系（承諾・拒否・カウンター等）は会話の流れの一部であり、後から再構築すると
     // 「移籍を認めたのに『その条件では受け入れられません』が出る」ような文脈違いになるため対象外。
-    const freshSource = talksHere ? buildMessages(
+    const freshSourceBase = talksHere ? buildMessages(
       player,
       contractReq && contractReq.status === 'pending_gm' && contractReq.initiatedBy === 'player' ? contractReq : undefined,
-      player.transferListed ? 99 : months,  // 退団予定の選手には契約残の催促を出さない
+      (player.transferListed || freeContactClub) ? 99 : months,  // 退団予定・接触中の選手には契約残の催促を出さない
       !!retirementReq, !!transferReq, transferReq?.reason, events,
     ) : []
+    const freshSource = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
     const fresh = freshSource.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
     return fresh.length > 0 ? [...initialMessages, ...fresh] : initialMessages
   })
@@ -472,14 +485,16 @@ function ChatView({
       }},
     ] : null
 
-    // フリー移籍で心が移籍に傾いているか（契約更新を条件に関わらず断る状態）
+    // フリー移籍で心が移籍に傾いているか（契約更新を条件に関わらず断る状態）。判定は決断時と同じ freeContactConsent
     const courtedAway = (() => {
       const freeContact = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
       if (!freeContact) return false
       const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
       const idx = stgs.findIndex(s => s.teamId === freeContact.fromTeamId)
       const rank = idx >= 0 ? idx + 1 : Math.ceil(teams.length / 2)
-      return playerConsentToMove(player, rank, teams.length).ok
+      const fcRaces = Math.max(1, currentSeason.currentRaceIndex ?? 0)
+      const fcFrac = seasonAppearances(player.id, currentSeason.races) / fcRaces
+      return freeContactConsent(player, rank, teams.length, fcFrac, fcRaces)
     })()
 
     const buildContractButtons = (): ReplyBtns | null => {

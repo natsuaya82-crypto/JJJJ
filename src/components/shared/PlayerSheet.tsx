@@ -206,16 +206,15 @@ export default function PlayerSheet() {
   }
   for (const ps of pastSeasons) {
     processRaces(ps.races, ps.year)
+    processRaces(ps.secondTeamRaces ?? [], ps.year)   // リザーブ駅伝の結果も履歴に含める
     processRaces(ps.collegeRaces ?? [], ps.year)
   }
   processRaces(currentSeason.races, currentSeason.year)
+  processRaces(currentSeason.secondTeamRaces ?? [], currentSeason.year)
   processRaces(currentSeason.collegeRaces ?? [], currentSeason.year)
 
-  const seenReserveNames = new Set<string>()
-  for (const r of [...(currentSeason.collegeRaces ?? []), ...pastSeasons.flatMap(ps => ps.collegeRaces ?? [])]) {
-    seenReserveNames.add(r.name)
-  }
-  const reserveRaceNames = RESERVE_RACE_POOL_NAMES.filter(n => seenReserveNames.has(n))
+  // 2軍駅伝は年ごとに開催大会が入れ替わるため、「この選手が実際に走った大会」だけを一覧に出す
+  const reserveRaceNames = RESERVE_RACE_POOL_NAMES.filter(n => (raceGroupMap.get(n) ?? []).length > 0)
 
   // 在籍履歴（移籍情報）集計：年 × teamId × tier(1軍/2軍) ごとに 出場数・区間賞数
   type HistoryRow = { year: number; teamId: string; tier: 'main' | 'second'; races: number; wins: number }
@@ -422,22 +421,22 @@ export default function PlayerSheet() {
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* 自己ベスト（種目別・記録会で走った実タイムのみ） */}
+              {/* 自己ベスト（種目別・記録会で走った実タイムのみ）。種目を横に並べてタイムを下に置く */}
               <div>
                 <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>自己ベスト</div>
-                <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${EVENT_DISTANCES.length}, 1fr)`, borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E', background: '#14121F' }}>
                   {EVENT_DISTANCES.map((d, i) => {
                     const best = player.eventBests?.[d]
                     return (
-                      <div key={d} style={{ display: 'flex', alignItems: 'center', padding: '9px 12px', backgroundColor: i % 2 === 0 ? '#14121F' : 'transparent', borderBottom: i < EVENT_DISTANCES.length - 1 ? '1px solid #1A1828' : 'none' }}>
-                        <span style={{ flex: 1, fontSize: '12px', fontWeight: '700', color: '#C9C6D0' }}>{EVENT_LABEL[d]}</span>
+                      <div key={d} style={{ padding: '9px 4px', textAlign: 'center', borderLeft: i > 0 ? '1px solid #1A1828' : 'none' }}>
+                        <div style={{ fontSize: '10px', fontWeight: '700', color: '#8B87A0', marginBottom: '4px' }}>{EVENT_LABEL[d]}</div>
                         {best ? (
                           <>
-                            <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '900', color: '#C9A84C' }}>{formatRaceTime(best.timeSec)}</span>
-                            <span style={{ width: 40, textAlign: 'right', fontSize: '8px', color: '#5C5870' }}>{`'${String(best.year).slice(2)}`}</span>
+                            <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '900', color: '#C9A84C' }}>{formatRaceTime(best.timeSec)}</div>
+                            <div style={{ fontSize: '8px', color: '#5C5870', marginTop: '1px' }}>{`'${String(best.year).slice(2)}`}</div>
                           </>
                         ) : (
-                          <span style={{ fontSize: '11px', color: '#3A3758' }}>記録なし</span>
+                          <div style={{ fontSize: '12px', color: '#3A3758' }}>—</div>
                         )}
                       </div>
                     )

@@ -14,7 +14,7 @@ import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings
 import { simulateEclEvent } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
+import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
@@ -1361,8 +1361,11 @@ export const useGameStore = create<GameStore>()(
             const suitor = state.teams.find(t => t.id === o.fromTeamId)
             if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
             const suitorRank = standingsForFree.findIndex(s => s.teamId === suitor.id) + 1
-            // 決断までに契約を更新できていれば残留確定（引き留め成功）
-            const leaves = pl.contract.yearsLeft > 1 ? false : playerConsentToMove(pl, suitorRank, state.teams.length).ok
+            // 決断までに契約を更新できていれば残留確定（引き留め成功）。
+            // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）
+            const flApps = seasonAppearances(pl.id, updatedRaces)
+            const flFrac = flApps / Math.max(1, nextRaceIndex)
+            const leaves = pl.contract.yearsLeft > 1 ? false : freeContactConsent(pl, suitorRank, state.teams.length, flFrac, nextRaceIndex)
             freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
             if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
           })
@@ -2500,8 +2503,10 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const racesPlayed = state.currentSeason.currentRaceIndex ?? 0
           if (racesPlayed === 0) return state
+          // フリー移籍で接触中の選手は契約更新の要求を出さない（用件が二重になるのを防ぐ。引き留めは接触カード経由の提示で行う）
+          const contactedIds = new Set((state.currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
           const myPlayers = state.players.filter(p => p.teamId === state.playerTeamId && p.contract.yearsLeft === 1
-            && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed)
+            && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !contactedIds.has(p.id))
           // 拒否済みも含めて「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）
           const existing = new Set((state.currentSeason.contractRequests ?? []).map(r => r.playerId))
           const newReqs: ContractRequest[] = myPlayers.filter(p => !existing.has(p.id)).map(p => {
@@ -2543,12 +2548,15 @@ export const useGameStore = create<GameStore>()(
           const player = state.players.find(p => p.id === req.playerId)
           if (!player) return state
           // フリー移籍で他クラブと接触中：本人に移籍の意思がある場合、提示内容に関わらず更新を断る
+          // （判定は決断時と同じ freeContactConsent＝出場実績込み）
           const freeContact = (state.currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
           if (freeContact) {
             const stgsFc = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
             const suitorIdx = stgsFc.findIndex(s => s.teamId === freeContact.fromTeamId)
             const suitorRank = suitorIdx >= 0 ? suitorIdx + 1 : Math.ceil(state.teams.length / 2)
-            if (playerConsentToMove(player, suitorRank, state.teams.length).ok) {
+            const fcRaces = Math.max(1, state.currentSeason.currentRaceIndex)
+            const fcFrac = seasonAppearances(player.id, state.currentSeason.races) / fcRaces
+            if (freeContactConsent(player, suitorRank, state.teams.length, fcFrac, fcRaces)) {
               return {
                 currentSeason: {
                   ...state.currentSeason,
@@ -3126,7 +3134,10 @@ export const useGameStore = create<GameStore>()(
         // 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）
         const marketSalary = faMarketSalary(player)
         const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
-        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02 + salaryBonus)
+        // クラブ間で移籍金が合意済み＝クラブ公認の移籍。主力（放出拒否）判定はクラブ側で済んでいるため、
+        // 本人の「主力だから残りたい」心理はここでは大きく緩む（+0.25）
+        const clubBlessedBonus = 0.25
+        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02 + salaryBonus + clubBlessedBonus)
         if (!consent.ok) {
           // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
           set(s => ({

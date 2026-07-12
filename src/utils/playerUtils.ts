@@ -148,6 +148,15 @@ export function playerConsentToMove(
   return { ok, reason }
 }
 
+// フリー移籍の勧誘に本人が乗るか（接触の決断・接触中の契約更新拒否の判定を共有）。
+// 通常の移籍同意より腰が重い（-0.2）＋現チームでの出場実績を必ず加味する。
+// 出場している選手・愛着のある選手は基本残留し、干されている選手だけが出て行きやすい。
+export function freeContactConsent(
+  p: Player, suitorRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0,
+): boolean {
+  return playerConsentToMove(p, suitorRank, totalTeams, playFraction, teamRaces, -0.2).ok
+}
+
 export function calcTransferValue(p: Player): number {
   const o = ovr(p)
   const age = p.age

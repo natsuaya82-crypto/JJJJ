@@ -9,7 +9,7 @@ import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
 import NumberDial from '../ui/NumberDial'
-import type { IncomingOffer, TransferBid, Team, Player } from '../../types'
+import type { IncomingOffer, TransferBid, Player } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -47,10 +47,10 @@ const TRANSFER_STEP = 5_000_000
 
 // 移籍金交渉カード：クラブとの移籍金のやり取りを通知内で完結させる。
 // ①提示額で合意 ②こちらの金額をダイアルで再提示 ③あきらめる
-function FeeCounterCard({ bid, player, targetTeam, cardStyle, inset, onAccept, onReoffer, onGiveUp }: {
+function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccept, onReoffer, onGiveUp }: {
   bid: TransferBid
   player: Player
-  targetTeam?: Team
+  targetTeamName: string
   cardStyle: (borderColor: string, shadowColor: string) => React.CSSProperties
   inset: React.CSSProperties
   onAccept: () => void
@@ -73,7 +73,7 @@ function FeeCounterCard({ bid, player, targetTeam, cardStyle, inset, onAccept, o
           <FaceOvr playerId={player.id} nationality={player.nationality} pOvr={pOvr} accentColor={C.green} />
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{player.name}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{targetTeam?.name ?? '?'} へ移籍打診中</div>
+            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{targetTeamName} へ移籍打診中</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '8px 12px', borderRadius: '10px', background: alpha(counterRating.color, 0.07), border: `1px solid ${alpha(counterRating.color, 0.2)}` }}>
@@ -321,7 +321,9 @@ export default function NotificationsPage() {
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted')
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
+  // フリー移籍で接触中の選手の契約要求は出さない（接触カードに一本化。用件の二重表示を防ぐ）
+  const contactedPlayerIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId))
   const sponsorOffers = currentSeason.sponsorOffers ?? []
 
   // 加入通知（全経路：FA/移籍/レンタル/トレード/ドラフト）。今季加入(joinedYear===今季)かつ未確認の選手。
@@ -341,7 +343,7 @@ export default function NotificationsPage() {
       const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
       return { p, months }
     })
-    .filter(({ p, months }) => months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
+    .filter(({ p, months }) => months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedPlayerIds.has(p.id))
     .sort((a, b) => a.months - b.months)
   const renewalNeeded = renewalPlayers.length
 
@@ -578,14 +580,16 @@ export default function NotificationsPage() {
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {counteredBids.map(bid => {
                   const p = players.find(pl => pl.id === bid.playerId)
-                  const targetTeam = teams.find(t => t.id === bid.targetTeamId)
+                  // 海外クラブへの入札もあるため、国内チーム→海外クラブの順で名前を解決する
+                  const targetTeamName = teams.find(t => t.id === bid.targetTeamId)?.name
+                    ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === bid.targetTeamId)?.name ?? '海外クラブ'
                   if (!p) return null
                   return (
                     <FeeCounterCard
                       key={bid.id}
                       bid={bid}
                       player={p}
-                      targetTeam={targetTeam}
+                      targetTeamName={targetTeamName}
                       cardStyle={cardStyle}
                       inset={inset}
                       onAccept={() => acceptFeeCounter(bid.id)}
@@ -605,7 +609,9 @@ export default function NotificationsPage() {
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {feeAcceptedBids.map(bid => {
                   const p = players.find(pl => pl.id === bid.playerId)
-                  const targetTeam = teams.find(t => t.id === bid.targetTeamId)
+                  // 海外クラブへの入札もあるため、国内チーム→海外クラブの順で名前を解決する
+                  const targetTeamName = teams.find(t => t.id === bid.targetTeamId)?.name
+                    ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === bid.targetTeamId)?.name ?? '海外クラブ'
                   if (!p) return null
                   return (
                     <div key={bid.id} style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
@@ -615,7 +621,7 @@ export default function NotificationsPage() {
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.green} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.green, fontWeight: '700', marginTop: '2px' }}>{targetTeam?.name ?? '?'} が移籍金 {fmtYen(bid.offeredFee)} に合意</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.green, fontWeight: '700', marginTop: '2px' }}>{targetTeamName} が移籍金 {fmtYen(bid.offeredFee)} に合意</div>
                           </div>
                         </div>
                         <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '12px' }}>次は選手本人と年俸・役割を交渉します。</div>

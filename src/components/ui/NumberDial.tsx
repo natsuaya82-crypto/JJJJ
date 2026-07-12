@@ -1,13 +1,84 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const STEP = 1_000_000            // 100万円単位
 const MAXV = 9_999_000_000        // 99億9900万
+const ITEM_H = 30                 // ホイール1目盛りの高さ
 
-// ダイヤル式の金額入力。年俸・移籍金など全金額入力で共通利用。
-// 表示は6桁の「万円」。上4桁だけダイヤルで変更、下2桁(00)は固定＝常に100万円単位。
-// 桁をタップすると縦に0〜9のダイヤルが伸び、タップ/スライドで数値変更できる。
+// 桁ごとの回転ホイール。上下にドラッグ（スワイプ）して0〜9を循環させる。
+// ポップアップを出さないので画面端でも見切れない。
+function DigitWheel({ digit, onChange, accent }: {
+  digit: number
+  onChange: (d: number) => void
+  accent: string
+}) {
+  const [offset, setOffset] = useState(0)          // ドラッグ中の残り移動量(px)
+  const drag = useRef<{ startY: number; base: number; moved: boolean } | null>(null)
+
+  const wrap = (n: number) => ((n % 10) + 10) % 10
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    drag.current = { startY: e.clientY, base: digit, moved: false }
+  }
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!drag.current) return
+    const dy = e.clientY - drag.current.startY
+    if (Math.abs(dy) > 4) drag.current.moved = true
+    // 下にドラッグ＝ホイールが下に回る＝数字が小さくなる（iOSピッカーと同じ向き）
+    const steps = Math.round(dy / ITEM_H)
+    const newDigit = wrap(drag.current.base - steps)
+    if (newDigit !== digit) onChange(newDigit)
+    setOffset(dy - steps * ITEM_H)
+  }
+  const onPointerEnd = (e: React.PointerEvent) => {
+    if (!drag.current) return
+    // ドラッグせずタップ：上半分タップで+1、下半分タップで-1（微調整用）
+    if (!drag.current.moved) {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      const upper = e.clientY < r.top + r.height / 2
+      onChange(wrap(digit + (upper ? 1 : -1)))
+    }
+    drag.current = null
+    setOffset(0)
+  }
+
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      style={{
+        width: 34, height: ITEM_H * 3, borderRadius: 10, overflow: 'hidden', position: 'relative',
+        border: `1.5px solid ${C.border2}`,
+        background: `linear-gradient(180deg, ${C.surface} 0%, ${C.surface3} 50%, ${C.surface} 100%)`,
+        cursor: 'ns-resize', touchAction: 'none', userSelect: 'none', flexShrink: 0,
+      }}
+    >
+      {/* 中央の選択枠 */}
+      <div style={{ position: 'absolute', top: ITEM_H, left: 2, right: 2, height: ITEM_H, borderRadius: 7, border: `1.5px solid ${alpha(accent, 0.55)}`, background: alpha(accent, 0.1), pointerEvents: 'none' }}/>
+      {/* 上下のフェード */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(180deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(0deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>
+      {/* 数字列：上=+1（回すと増える方向）、中央=現在値、下=-1 */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${offset}px)`, transition: drag.current ? 'none' : 'transform 0.12s ease' }}>
+        {[wrap(digit + 1), digit, wrap(digit - 1)].map((n, i) => (
+          <div key={i} style={{
+            height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: SAIRA, fontWeight: 900,
+            fontSize: i === 1 ? 22 : 16,
+            color: i === 1 ? C.text : C.textGhost,
+          }}>{n}</div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ホイール式の金額入力。年俸・移籍金など全金額入力で共通利用。
+// 表示は6桁の「万円」。上4桁を桁ごとのホイールで変更、下2桁(00)は固定＝常に100万円単位。
 export default function NumberDial({
   value, onChange, min = 0, max = MAXV, accent = C.gold,
 }: {
@@ -20,20 +91,7 @@ export default function NumberDial({
   const clampMax = Math.min(max, MAXV)
   const clamp = (yen: number) => Math.max(min, Math.min(clampMax, Math.round(yen / STEP) * STEP))
   const N = Math.round(clamp(value) / STEP)              // 0..9999（100万円単位の個数）
-  const digits = String(N).padStart(4, '0').split('').map(Number)  // [万億, 億, 千万, 百万]
-  const [openIdx, setOpenIdx] = useState<number | null>(null)
-  // ポップアップは fixed 配置（親の overflow:hidden や画面端で数字が見切れないように）。
-  // 上に十分な余白が無いときは下に開く。
-  const [popPos, setPopPos] = useState<{ x: number; top: number; up: boolean } | null>(null)
-  const POP_H = 340  // 0〜9 リストのおおよその高さ
-
-  const openDial = (idx: number, el: HTMLElement) => {
-    if (openIdx === idx) { setOpenIdx(null); return }
-    const r = el.getBoundingClientRect()
-    const up = r.top > POP_H + 12
-    setPopPos({ x: r.left + r.width / 2, top: up ? r.top - 4 : r.bottom + 4, up })
-    setOpenIdx(idx)
-  }
+  const digits = String(N).padStart(4, '0').split('').map(Number)  // [十億, 億, 千万, 百万]
 
   const setDigit = (idx: number, d: number) => {
     const arr = [...digits]
@@ -42,45 +100,12 @@ export default function NumberDial({
     onChange(clamp(newN * STEP))
   }
 
-  const cell = (open: boolean): React.CSSProperties => ({
-    width: 30, height: 40, borderRadius: 8, cursor: 'pointer',
-    border: `1.5px solid ${open ? accent : C.border2}`,
-    background: open ? alpha(accent, 0.15) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-    color: C.text, fontFamily: SAIRA, fontSize: 24, fontWeight: 900,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  })
-
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
       {digits.map((d, idx) => (
-        <div key={idx} style={{ position: 'relative' }}>
-          <button onClick={(e) => openDial(idx, e.currentTarget)} style={cell(openIdx === idx)}>{d}</button>
-          {openIdx === idx && popPos && (
-            <>
-              <div onClick={() => setOpenIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{
-                position: 'fixed', left: popPos.x, top: popPos.top,
-                transform: `translate(-50%, ${popPos.up ? '-100%' : '0'})`, zIndex: 41,
-                borderRadius: 10,
-                background: C.surface, border: `1.5px solid ${alpha(accent, 0.6)}`,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.6)', padding: 4,
-                display: 'flex', flexDirection: 'column', gap: 2,
-              }}>
-                {Array.from({ length: 10 }, (_, n) => (
-                  <button key={n} onClick={() => { setDigit(idx, n); setOpenIdx(null) }}
-                    style={{
-                      width: 34, height: 30, borderRadius: 6, cursor: 'pointer', border: 'none',
-                      background: n === d ? accent : 'transparent',
-                      color: n === d ? '#0A0912' : C.textSub,
-                      fontFamily: SAIRA, fontSize: 18, fontWeight: 900,
-                    }}>{n}</button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        <DigitWheel key={idx} digit={d} onChange={n => setDigit(idx, n)} accent={accent} />
       ))}
-      <span style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>00</span>
+      <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>00</span>
       <span style={{ fontSize: 12, color: C.textDim, marginLeft: 2, flexShrink: 0 }}>万円</span>
     </div>
   )

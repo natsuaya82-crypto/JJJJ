@@ -51,6 +51,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   } = useGameStore()
   const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
   const claimGift = useGameStore(s => s.claimGift)
+  const foreignLeaguesP = useGameStore(s => s.foreignLeagues ?? [])
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないためパネルには出さない（通知ページで情報表示）
@@ -60,7 +61,8 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない（NotificationsPageと同じ）
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
+  const contactedIdsP = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsP.has(r.playerId))
   const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
     + pendingGifts.length
@@ -199,15 +201,17 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                   {counteredBids.map(bid => {
                     const p = players.find(pl => pl.id === bid.playerId)
                     const targetTeam = teams.find(t => t.id === bid.targetTeamId)
+                    // 海外クラブへの入札は通知ページ（移籍金交渉カード）で対応する
+                    const targetName = targetTeam?.shortName ?? foreignLeaguesP.flatMap(l => l.clubs).find(c => c.id === bid.targetTeamId)?.shortName ?? '海外クラブ'
                     if (!p) return null
                     const pOvr = ovr(p)
                     return (
                       <div key={bid.id} style={card(alpha(C.green, 0.45), '#0d3d22')}>
                         <div style={inset}/>
-                        <button onClick={() => { navigate(targetTeam ? `/team/chat?trade=${bid.targetTeamId}` : '/transfer/offers'); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => { navigate(targetTeam ? `/team/chat?trade=${bid.targetTeamId}` : '/notifications'); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.green} />
                           <div style={{ flex: 1, textAlign: 'left' }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{p.name} → {targetTeam?.shortName ?? '?'}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{p.name} → {targetName}</div>
                             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.green }}>先方希望 {fmtYen(bid.counterFee ?? 0)}</div>
                           </div>
                           <Chevron />
@@ -322,7 +326,8 @@ export function useNotifCount() {
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')).length
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted').length
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length
+  const contactedIdsC = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsC.has(r.playerId)).length
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length
   const expiredNegotiations = (currentSeason.expiredNegotiations ?? []).length
   const loanResponses = (currentSeason.loanResponses ?? []).length
@@ -338,7 +343,7 @@ export function useNotifCount() {
     if (p.teamId !== playerTeamId || p.status !== 'active') return false
     const remaining = Math.max(0, totalRaces - raceIndex)
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
-    return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
+    return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedIdsC.has(p.id)
   }).length
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
