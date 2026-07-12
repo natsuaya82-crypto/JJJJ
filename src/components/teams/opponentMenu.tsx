@@ -6,22 +6,12 @@ import type { Player } from '../../types'
 import { ovr, ratingColor, calcTransferValue, isOpponentScouted, isScoutPending } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
-import NumberDial from '../ui/NumberDial'
 import ActionSheet from '../ui/ActionSheet'
+import BidSheet from '../transfer/BidSheet'
+import LoanSheet from '../transfer/LoanSheet'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 function fmt(yen: number) { return yen >= 100000000 ? `${(yen / 100000000).toFixed(1)}億` : `${Math.round(yen / 10000)}万` }
-
-function ModalShell({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200 }} />
-      <div style={{ position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 'min(360px, 92vw)', zIndex: 201, background: C.surface, borderRadius: '16px', border: `1px solid ${C.border2}`, padding: '16px', boxShadow: '0 20px 50px rgba(0,0,0,0.7)' }}>
-        {children}
-      </div>
-    </>
-  )
-}
 
 function PlayerHead({ player, isScouted = true }: { player: Player; isScouted?: boolean }) {
   return (
@@ -35,50 +25,6 @@ function PlayerHead({ player, isScouted = true }: { player: Player; isScouted?: 
       </div>
       <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: isScouted ? ratingColor(ovr(player)) : C.textGhost }}>{isScouted ? ovr(player) : '?'}</div>
     </div>
-  )
-}
-
-function OfferModal({ player, budget, isScouted, onSubmit, onClose }: { player: Player; budget: number; isScouted: boolean; onSubmit: (fee: number) => void; onClose: () => void }) {
-  const market = Math.max(1_000_000, Math.round(calcTransferValue(player) / 1_000_000) * 1_000_000)
-  const [fee, setFee] = useState(market)
-  const over = fee > budget
-  return (
-    <ModalShell onClose={onClose}>
-      <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 10 }}>移籍金オファー</div>
-      <PlayerHead player={player} isScouted={isScouted} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.textDim, marginBottom: 4 }}>
-        <span>市場価値 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(market)}</span></span>
-        <span>予算 <span style={{ color: over ? C.red : C.textSub, fontFamily: SAIRA }}>{fmt(budget)}</span></span>
-      </div>
-      <div style={{ padding: '4px 0 10px' }}><NumberDial value={fee} onChange={setFee} min={1_000_000} max={budget} /></div>
-      <button onClick={() => onSubmit(fee)} disabled={over} style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', cursor: over ? 'not-allowed' : 'pointer', opacity: over ? 0.5 : 1, background: C.gold, color: '#1a0d00', fontSize: 14, fontWeight: 900, fontFamily: SAIRA, marginBottom: 8 }}>
-        {over ? '予算不足' : `${fmt(fee)}を移籍金としてオファー`}
-      </button>
-      <button onClick={onClose} style={{ width: '100%', padding: 11, borderRadius: 12, background: 'transparent', border: `1px solid ${C.border}`, color: C.textDim, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>キャンセル</button>
-    </ModalShell>
-  )
-}
-
-function LoanModal({ player, slots, pending, isScouted, onSubmit, onClose }: { player: Player; slots: number; pending: boolean; isScouted: boolean; onSubmit: (years: number) => void; onClose: () => void }) {
-  const full = slots >= 3
-  return (
-    <ModalShell onClose={onClose}>
-      <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900, marginBottom: 10 }}>レンタル要請</div>
-      <PlayerHead player={player} isScouted={isScouted} />
-      <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>買わずに1〜2年借りる要請（レンタル枠 {slots}/3・移籍金なし・給与は自チーム負担）。</div>
-      {pending ? (
-        <div style={{ fontSize: 13, color: C.blue, fontWeight: 700, textAlign: 'center', padding: 8, marginBottom: 8 }}>レンタル要請中</div>
-      ) : full ? (
-        <div style={{ fontSize: 13, color: C.red, fontWeight: 700, textAlign: 'center', padding: 8, marginBottom: 8 }}>レンタル枠が満杯です（3/3）</div>
-      ) : (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          {[1, 2].map(y => (
-            <button key={y} onClick={() => onSubmit(y)} style={{ flex: 1, padding: 13, borderRadius: 12, border: `1px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.13), color: C.blue, fontSize: 14, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>{y}年で要請</button>
-          ))}
-        </div>
-      )}
-      <button onClick={onClose} style={{ width: '100%', padding: 11, borderRadius: 12, background: 'transparent', border: `1px solid ${C.border}`, color: C.textDim, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>閉じる</button>
-    </ModalShell>
   )
 }
 
@@ -136,14 +82,15 @@ export function useOpponentMenu() {
       {offerId && (() => {
         const p = players.find(x => x.id === offerId); if (!p) return null
         const budget = teams.find(t => t.id === playerTeamId)?.finance.budget ?? 0
-        return <OfferModal player={p} budget={budget} isScouted={isScoutedFn(p.id)} onSubmit={fee => { submitTransferBid(p.id, fee); setOfferId(null) }} onClose={() => setOfferId(null)} />
+        const listing = (currentSeason.transferListings ?? []).find(l => l.playerId === p.id)
+        return <BidSheet player={p} budget={budget} listing={listing} onSubmit={fee => { submitTransferBid(p.id, fee); setOfferId(null) }} onClose={() => setOfferId(null)} />
       })()}
 
       {loanId && (() => {
         const p = players.find(x => x.id === loanId); if (!p) return null
         const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
         const pending = (currentSeason.loanRequests ?? []).some(r => r.playerId === p.id)
-        return <LoanModal player={p} slots={slots} pending={pending} isScouted={isScoutedFn(p.id)} onSubmit={y => { submitLoanRequest(p.id, y); setLoanId(null) }} onClose={() => setLoanId(null)} />
+        return <LoanSheet player={p} slots={slots} pending={pending} onSubmit={y => { submitLoanRequest(p.id, y); setLoanId(null) }} onClose={() => setLoanId(null)} />
       })()}
     </>
   )

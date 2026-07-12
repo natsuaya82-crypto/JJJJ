@@ -10,9 +10,11 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import PlayerRow from '../player/PlayerRow'
 import ActionSheet from '../ui/ActionSheet'
+import BidSheet from './BidSheet'
+import LoanSheet from './LoanSheet'
 import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
-import { draftPickValue, transferBidBase, transferAcceptChance } from '../../data/economy'
+import { draftPickValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -95,7 +97,6 @@ export default function TransferPage() {
     saveMarketFilters({ search: mktSearch, spec: mktSpec, nat: mktNat, avail: mktAvail, team: mktTeam, age: mktAge, league: mktLeague, sortKey: mktSortKey, sortDir: mktSortDir })
   }, [mktSearch, mktSpec, mktNat, mktAvail, mktTeam, mktAge, mktLeague, mktSortKey, mktSortDir])
   const [bidTarget, setBidTarget] = useState<string | null>(null)
-  const [bidFee, setBidFee] = useState(0)
   // 移籍市場カード：タップ＝ボトムシートメニュー / 長押し＝選手詳細
   const [menuPlayerId, setMenuPlayerId] = useState<string | null>(null)
   const [loanTarget, setLoanTarget] = useState<string | null>(null)
@@ -415,13 +416,12 @@ export default function TransferPage() {
               const reqPending = (currentSeason.loanRequests ?? []).some(r => r.playerId === mp.id)
               const mListing = listings.find(l => l.playerId === mp.id)
               const mVal = calcTransferValue(mp)
-              const mInit = mListing ? Math.round(mListing.askingPrice * 0.82 / 500000) * 500000 : Math.round(mVal * 0.85 / 500000) * 500000
               const isStarred = starredOpponents.includes(mp.id)
               const items: { label: string; disabled?: boolean; color?: string; onClick: () => void }[] = isFA ? [
                 { label: signingBanned ? '赤字で補強不可' : '契約オファー', disabled: signingBanned, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ] : [
-                { label: mHasBid ? '入札中' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '交渉決裂・来季まで不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id); setBidFee(mInit) } },
+                { label: mHasBid ? '入札中' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '交渉決裂・来季まで不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },
                 { label: reqPending ? 'レンタル要請中' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : !window.open ? '移籍ウィンドウ CLOSED' : 'レンタルで借りる', disabled: reqPending || slots >= 3 || !window.open, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ]
@@ -447,65 +447,21 @@ export default function TransferPage() {
               )
             })()}
 
-            {/* 入札シート（金額入力） */}
-            {(() => {
-              const bp = bidTarget ? players.find(x => x.id === bidTarget) : undefined
+            {/* 入札シート（成立確率つき）— 他チームタブと共通 */}
+            {bidTarget && (() => {
+              const bp = players.find(x => x.id === bidTarget)
               if (!bp) return null
               const bListing = listings.find(l => l.playerId === bp.id)
-              const bVal = calcTransferValue(bp)
-              // 成立見込み：入札額が受諾ライン（価値×係数）に対しどのくらいかを確率化（金額を上げると上がる）
-              const base = transferBidBase(bVal, !!bListing, bp.contract.yearsLeft <= 1)
-              const chancePct = Math.round(transferAcceptChance(bidFee, base) * 100)
-              return (
-                <div onClick={() => setBidTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                  <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
-                    <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
-                    <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 8 }}>{bp.name} へ入札</div>
-                    <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
-                      入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(bVal)}</span>
-                      {bListing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmt(bListing.askingPrice)}</span>}
-                    </div>
-                    <div style={{ padding: '4px 0 10px' }}>
-                      <NumberDial value={bidFee} onChange={v => setBidFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <span style={{ fontSize: 11, color: C.textSub, fontFamily: SAIRA }}>成立見込み</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: chancePct >= 70 ? C.green : chancePct >= 35 ? C.gold : C.red }}>{chancePct}%</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={() => { submitTransferBid(bp.id, bidFee); setBidTarget(null) }} disabled={bidFee > myTeam.finance.budget}
-                        style={{ flex: 1, padding: '13px', borderRadius: '11px', border: 'none', background: bidFee > myTeam.finance.budget ? C.surface2 : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: bidFee > myTeam.finance.budget ? C.textGhost : C.gold, fontSize: '14px', fontWeight: '900', cursor: bidFee <= myTeam.finance.budget ? 'pointer' : 'default', fontFamily: SAIRA, boxShadow: bidFee > myTeam.finance.budget ? 'none' : '0 4px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.08)' } as React.CSSProperties}>
-                        {bidFee > myTeam.finance.budget ? '予算不足' : '入札する'}
-                      </button>
-                      <button onClick={() => setBidTarget(null)} style={{ padding: '13px 16px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '13px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
-                    </div>
-                  </div>
-                </div>
-              )
+              return <BidSheet player={bp} budget={myTeam.finance.budget} listing={bListing} onSubmit={fee => { submitTransferBid(bp.id, fee); setBidTarget(null) }} onClose={() => setBidTarget(null)} />
             })()}
 
-            {/* レンタルシート（期間選択） */}
-            {(() => {
-              const rp = loanTarget ? players.find(x => x.id === loanTarget) : undefined
+            {/* レンタルシート — 他チームタブと共通 */}
+            {loanTarget && (() => {
+              const rp = players.find(x => x.id === loanTarget)
               if (!rp) return null
-              return (
-                <div onClick={() => setLoanTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                  <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
-                    <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
-                    <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 4 }}>{rp.name} をレンタル</div>
-                    <div style={{ fontSize: 10, color: C.textDim, marginBottom: 14, fontFamily: SAIRA }}>買わずに借りる。期間を選んで要請。</div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      {[1, 2].map(y => (
-                        <button key={y} onClick={() => { submitLoanRequest(rp.id, y); setLoanTarget(null) }}
-                          style={{ flex: 1, padding: '14px', borderRadius: 12, border: `1.5px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.12), color: C.blue, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>
-                          {y}年契約
-                        </button>
-                      ))}
-                    </div>
-                    <button onClick={() => setLoanTarget(null)} style={{ display: 'block', width: '100%', marginTop: 12, padding: '13px', borderRadius: 12, border: `1px solid ${C.border}`, background: C.surface2, color: C.textDim, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>キャンセル</button>
-                  </div>
-                </div>
-              )
+              const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+              const pending = (currentSeason.loanRequests ?? []).some(r => r.playerId === rp.id)
+              return <LoanSheet player={rp} slots={slots} pending={pending} onSubmit={y => { submitLoanRequest(rp.id, y); setLoanTarget(null) }} onClose={() => setLoanTarget(null)} />
             })()}
           </div>
         )
