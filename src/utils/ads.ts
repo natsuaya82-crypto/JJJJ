@@ -6,8 +6,7 @@ import { useLoadingStore } from '../store/loadingStore'
 
 const BANNER_AD_ID = 'ca-app-pub-7463045893100088/8946193510'
 const REWARD_AD_ID = 'ca-app-pub-7463045893100088/5817804007'
-// TODO: 本番のインタースティシャル広告ユニットIDに差し替える（現状はGoogleのテストID）。
-const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/4411468910'
+const INTERSTITIAL_AD_ID = 'ca-app-pub-7463045893100088/6600640316'
 
 // 広告の「1日」の区切り（朝10時締め）。store と画面表示で同じ日付を使うために共通化する。
 export function getAdDay(): string {
