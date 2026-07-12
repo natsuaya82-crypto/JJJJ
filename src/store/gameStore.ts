@@ -1,6 +1,6 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { saveStorage } from './saveStorage'
+import { saveStorage, flushSaveNow } from './saveStorage'
 import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
@@ -319,6 +319,7 @@ export type GameStore = GameState & {
 
   // 海外リーグ：本編レースに同期して裏で1戦進める（プレイヤーは干渉せず結果閲覧のみ）
   advanceForeignLeagues: () => void
+  runMidSeasonForeignTransfers: () => void   // 移籍ウィンドウ中、レース毎に低確率で日本↔海外の移籍を少数発生
   // ECL：日本上位2＋海外各リーグ上位2の16チームで3戦を自動シム（ポストシーズンに1回）
   simulateEcl: () => void
 
@@ -1588,6 +1589,8 @@ export const useGameStore = create<GameStore>()(
         // 本編レース完走に同期して海外リーグも1戦進める（別set・裏進行）。
         // 万一エラーが出てもコアのレース進行を壊さないようガードする。
         try { get().advanceForeignLeagues() } catch (e) { console.error('advanceForeignLeagues failed', e) }
+        // 移籍ウィンドウ中は日本↔海外の移籍も裏で少数発生させる（別set・裏進行）。
+        try { get().runMidSeasonForeignTransfers() } catch (e) { console.error('runMidSeasonForeignTransfers failed', e) }
 
         return results
       },
@@ -3462,14 +3465,24 @@ export const useGameStore = create<GameStore>()(
         const race = stRaces[stRaceIndex]
         const seasonProgress = stRaceIndex / stRaces.length
 
-        // Build CPU lineups: prefer second tier, fallback to weakest main-team players
+        // リザーブ出場＝「その週の1軍リーグに出ていない選手」。2軍という区分は廃止されたので、
+        // リザーブ戦の直前に行われた1軍リーグ戦（同週）の出場者を除外し、残りロスターの上位から起用する。
+        const lastMainRace = (currentSeason.races ?? [])
+          .filter(r => r.results && r.date <= race.date)
+          .sort((a, b) => b.date.localeCompare(a.date))[0]
+        const mainRunnerIds = new Set<string>()
+        if (lastMainRace?.results) {
+          for (const seg of lastMainRace.results.segmentResults) {
+            for (const rr of seg.runners) mainRunnerIds.add(rr.playerId)
+          }
+        }
         const lineups: Record<string, Record<number, string>> = { [playerTeamId]: lineup }
         for (const team of teams) {
           if (team.id === playerTeamId) continue
-          const pool = [
-            ...team.roster.second.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p && p.status === 'active'),
-            ...team.roster.main.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p && p.status === 'active').sort((a, b) => ovr(a) - ovr(b)),
-          ]
+          const pool = [...team.roster.main, ...team.roster.second]
+            .map(id => players.find(p => p.id === id))
+            .filter((p): p is Player => !!p && p.status === 'active' && !mainRunnerIds.has(p.id))
+            .sort((a, b) => ovr(b) - ovr(a))   // 1軍戦の出場者は除外済み。残り＝控えの中から上位を起用。
           const cpuLineup: Record<number, string> = {}
           for (let i = 0; i < race.segments.length; i++) {
             if (pool[i]) cpuLineup[race.segments[i].index] = pool[i].id
@@ -3592,6 +3605,36 @@ export const useGameStore = create<GameStore>()(
           currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1 },
         }
       }),
+
+      // 移籍ウィンドウ中、レース毎に低確率で日本↔海外のクロスボーダー移籍を少数だけ発生させる（リーグが年中生きてる感じ）。
+      // オフシーズンの一括処理と同じ財務＋補強ポイント連動ロジックを、件数を絞って呼ぶ。
+      runMidSeasonForeignTransfers: () => {
+        const st = get()
+        if (!st.getTransferWindow().open) return
+        if ((st.foreignLeagues ?? []).length === 0) return
+        if (Math.random() > 0.30) return   // 発生率 約30%/レース
+        const nIn = Math.random() < 0.55 ? 1 : 0
+        const nOut = Math.random() < 0.55 ? 1 : 0
+        if (nIn === 0 && nOut === 0) return
+        set(state => {
+          const res = simulateCrossBorderTransfers({
+            teams: state.teams,
+            foreignLeagues: state.foreignLeagues ?? [],
+            players: state.players,
+            playerTeamId: state.playerTeamId,
+            year: state.currentSeason.year,
+            maxIn: nIn,
+            maxOut: nOut,
+          })
+          if (res.news.length === 0) return {}
+          return {
+            teams: res.teams,
+            players: res.players,
+            foreignLeagues: res.foreignLeagues,
+            currentSeason: { ...state.currentSeason, newsFeed: [...res.news, ...state.currentSeason.newsFeed].slice(0, 40) },
+          }
+        })
+      },
 
       // ECLを開催（自動シム・冪等）。日本リーグ上位2＋海外各リーグ上位2＝16チームが3戦。
       simulateEcl: () => set(state => {
@@ -5579,7 +5622,10 @@ export const useGameStore = create<GameStore>()(
         // ※アプリのアンインストール時は localStorage ごと消えるので、その場合のみ「購入を復元」が必要。
         const paid = get().adsRemoved
         set({ ...(emptyState() as unknown as GameStore), adsRemoved: paid })
+        // ファイル保存(native)はlocalStorageを消しても残るため、初期化状態を即時フラッシュして確定させる。
+        // （旧セーブ掃除のため localStorage も従来どおり削除）
         localStorage.removeItem('jpel-manager-save')
+        void flushSaveNow()
       },
     }),
     {

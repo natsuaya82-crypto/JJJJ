@@ -99,6 +99,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   players: Player[]
   playerTeamId: string
   year: number
+  maxIn?: number   // 海外→日本の件数（省略時はオフシーズン想定で2〜4）
+  maxOut?: number  // 日本→海外の件数（省略時はオフシーズン想定で2〜4）
 }): { teams: T[]; foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[] } {
   const { teams, foreignLeagues, players, playerTeamId, year } = params
   const foreignClubs = foreignLeagues.flatMap(l => l.clubs)
@@ -156,8 +158,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const moves: { playerId: string; fromId: string; toId: string; dir: 'in' | 'out'; fee: number }[] = []
   const moved = new Set<string>()
 
-  const N_IN = 2 + Math.floor(Math.random() * 3)   // 海外→日本CPU 2〜4件
-  const N_OUT = 2 + Math.floor(Math.random() * 3)  // 日本CPU→海外 2〜4件
+  const N_IN = params.maxIn ?? (2 + Math.floor(Math.random() * 3))   // 海外→日本CPU（省略時2〜4件）
+  const N_OUT = params.maxOut ?? (2 + Math.floor(Math.random() * 3))  // 日本CPU→海外（省略時2〜4件）
 
   // 海外→日本CPU：予算に余裕のあるチームが、自分の弱いタイプ（穴）を海外から補強。移籍金を支払う。
   for (let i = 0; i < N_IN; i++) {
