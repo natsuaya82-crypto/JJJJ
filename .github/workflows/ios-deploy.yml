@@ -99,3 +99,6 @@ jobs:
           issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           api-key-id: ${{ secrets.IOS_KEY_ID }}
           api-private-key: ${{ secrets.IOS_API_KEY }}
+          # アップロード後の「処理完了待ち」を無効化。待機中にAPIトークンが期限切れになり
+          # 401でワークフローが失敗表示になるのを防ぐ。アップロード自体は待ち有無に関係なく完了する。
+          wait-for-processing: false
