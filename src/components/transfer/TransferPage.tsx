@@ -396,7 +396,7 @@ export default function TransferPage() {
                         </span>
                         {isListed && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>出品中</span>}
                         {hasBid && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>入札中</span>}
-                        {bidLocked && <span style={{ ...badge, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red }}>交渉決裂</span>}
+                        {bidLocked && <span style={{ ...badge, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red }}>交渉不可</span>}
                       </>
                     }
                   />
@@ -418,10 +418,10 @@ export default function TransferPage() {
               const mVal = calcTransferValue(mp)
               const isStarred = starredOpponents.includes(mp.id)
               const items: { label: string; disabled?: boolean; color?: string; onClick: () => void }[] = isFA ? [
-                { label: signingBanned ? '赤字で補強不可' : '契約オファー', disabled: signingBanned, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
+                { label: signingBanned ? '赤字で補強不可' : mLocked ? '退団直後・来季まで交渉不可' : '契約オファー', disabled: signingBanned || mLocked, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ] : [
-                { label: mHasBid ? '入札中' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '交渉決裂・来季まで不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },
+                { label: mHasBid ? '入札中' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '来季まで交渉不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },
                 { label: reqPending ? 'レンタル要請中' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : !window.open ? '移籍ウィンドウ CLOSED' : 'レンタルで借りる', disabled: reqPending || slots >= 3 || !window.open, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ]

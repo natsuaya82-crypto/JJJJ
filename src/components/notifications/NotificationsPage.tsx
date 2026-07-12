@@ -238,17 +238,6 @@ function OfferChatView({
           <div style={{ padding: '12px 12px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 10, color: C.textDim }}>希望移籍金</div>
             <NumberDial value={counterPrice} onChange={v => setCounterPrice(Math.max(1_000_000, v))} min={1_000_000} accent={C.red} />
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const }}>
-              {[1.1, 1.25, 1.5, 2.0].map(r => {
-                const v = Math.round(counterBase * r / TRANSFER_STEP) * TRANSFER_STEP
-                return (
-                  <button key={r} onClick={() => setCounterPrice(v)}
-                    style={{ padding: '3px 8px', borderRadius: 6, border: `1px solid ${counterPrice === v ? C.red : C.border2}`, background: counterPrice === v ? alpha(C.red, 0.15) : 'transparent', color: counterPrice === v ? C.red : C.textDim, fontSize: 10, cursor: 'pointer', fontFamily: SAIRA }}>
-                    {fmtYen(v)}
-                  </button>
-                )
-              })}
-            </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={handleCounter}
                 style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.red, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -307,23 +296,24 @@ export default function NotificationsPage() {
 
   // フリー移籍の接触（offeredPrice=0）はGMが対応できない情報通知。金額付きオファーとは別扱い。
   // タップして対応済み（seenFreeContactIds）のものは通知から消える（接触自体は裏で進行）
-  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
+  // ※件数と表示のズレ防止：選手が退団・引退した「幽霊通知」はここで除外する（表示側でnullにしても数だけ残るため）
+  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamId && p.status === 'active'))
   const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
-  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId))
+  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId && p.status === 'active'))
   const freeTransferNotices = currentSeason.freeTransferNotices ?? []
   const dismissFreeTransferNotice = useGameStore(s => s.dismissFreeTransferNotice)
   const markFreeContactSeen = useGameStore(s => s.markFreeContactSeen)
   // シーズン切替時の退団通知（契約満了のFA流出・他クラブへの移籍）
   const departureNotices = currentSeason.departureNotices ?? []
   const dismissDepartureNotice = useGameStore(s => s.dismissDepartureNotice)
-  const retirementRequests = currentSeason.retirementRequests ?? []
+  const retirementRequests = (currentSeason.retirementRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
   // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
-  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
-  const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted')
+  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId))
+  const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId))
   // フリー移籍で接触中の選手の契約要求は出さない（接触カードに一本化。用件の二重表示を防ぐ）
   const contactedPlayerIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId))
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
   const sponsorOffers = currentSeason.sponsorOffers ?? []
 
   // 加入通知（全経路：FA/移籍/レンタル/トレード/ドラフト）。今季加入(joinedYear===今季)かつ未確認の選手。

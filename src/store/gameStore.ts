@@ -1481,7 +1481,8 @@ export const useGameStore = create<GameStore>()(
           const listedIdSet = new Set(transferData.listings.map(l => l.playerId))
           const playersWithCpuTx = recoveredPlayers.map(p => {
             const tx = cpuTxList.find(t => t.playerId === p.id)
-            if (tx) return { ...p, teamId: tx.toTeamId, rosterTier: 'main' as const, transferListed: false }
+            // 自チームから出て行った選手とは1年間交渉不可
+            if (tx) return { ...p, teamId: tx.toTeamId, rosterTier: 'main' as const, transferListed: false, ...(p.teamId === playerTeamId ? { transferLockedUntilYear: state.currentSeason.year + 1 } : {}) }
             const listed = listedIdSet.has(p.id)
             const nextListed = listed ? true : (p.teamId === playerTeamId ? (p.transferListed ?? false) : false)
             return nextListed === (p.transferListed ?? false) ? p : { ...p, transferListed: nextListed }
@@ -1597,11 +1598,12 @@ export const useGameStore = create<GameStore>()(
             ? playersAfterLoan.map(p => allExpiredPlayerIds.includes(p.id) ? { ...p, transferLockedUntilYear: state.currentSeason.year + 1 } : p)
             : playersAfterLoan
 
-          // フリー移籍の決断で退団する選手を移す（本人が決めたので即時移籍）
+          // フリー移籍の決断で退団する選手を移す（本人が決めたので即時移籍）。
+          // 出て行った選手とは1年間交渉不可（すぐ買い戻すのは不自然なので）
           const playersAfterFreeMoves = freeMoves.length > 0
             ? playersWithExpiredLocks.map(p => {
                 const mv = freeMoves.find(m => m.playerId === p.id)
-                return mv ? { ...p, teamId: mv.toTeamId, rosterTier: 'main' as const, transferListed: undefined } : p
+                return mv ? { ...p, teamId: mv.toTeamId, rosterTier: 'main' as const, transferListed: undefined, transferLockedUntilYear: state.currentSeason.year + 1 } : p
               })
             : playersWithExpiredLocks
           const teamsAfterFreeMoves = freeMoves.length > 0
@@ -2425,7 +2427,8 @@ export const useGameStore = create<GameStore>()(
         if (offer.fromForeign) {
           const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
           set(st => ({
-            players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined } : p),
+            // 放出した選手とは1年間交渉不可（transferLockedUntilYear）
+            players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, transferLockedUntilYear: st.currentSeason.year + 1 } : p),
             teams: st.teams.map(t => t.id === st.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
             foreignLeagues: (st.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
             currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + offer.offeredPrice, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), { id: `dep_${offer.playerId}`, playerId: offer.playerId, playerName: player.name, toTeamName: clubName, reason: 'transfer' as const, fee: offer.offeredPrice }] },
@@ -2435,7 +2438,8 @@ export const useGameStore = create<GameStore>()(
         const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
         if (!buyingTeam) return false
         set(state => ({
-          players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const } : p),
+          // 放出した選手とは1年間交渉不可（transferLockedUntilYear）
+          players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const, transferLockedUntilYear: state.currentSeason.year + 1 } : p),
           teams: state.teams.map(t => {
             if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } }
             // 買い手側からも移籍金を差し引く（AI経済の整合性）
@@ -2687,6 +2691,8 @@ export const useGameStore = create<GameStore>()(
           if (!player) return state
           if (source === 'fa' && player.teamId !== '') return state
           if (source === 'scout' && (player.teamId === '' || player.teamId === state.playerTeamId)) return state
+          // 自チームから移籍・FA流出した選手とは1年間交渉不可（移籍金オファーと同じロック）
+          if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return state
           // 赤字ペナルティ中は新規補強(FA/引き抜き)不可（ドラフト・契約更新は可）
           const myTeam0 = state.teams.find(t => t.id === state.playerTeamId)
           if ((myTeam0?.finance.deficitStreak ?? 0) >= 1) return state
@@ -2900,7 +2906,8 @@ export const useGameStore = create<GameStore>()(
               const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
               outcome = 'sold'
               return {
-                players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined } : p),
+                // 放出した選手とは1年間交渉不可
+                players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, transferLockedUntilYear: state.currentSeason.year + 1 } : p),
                 teams: state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + counterPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
                 foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
                 currentSeason: { ...state.currentSeason, transferIncome: (state.currentSeason.transferIncome ?? 0) + counterPrice, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(counterPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30) },
@@ -2914,7 +2921,8 @@ export const useGameStore = create<GameStore>()(
           if (counterPrice <= maxBudget) {
             outcome = 'sold'
             return {
-              players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const } : p),
+              // 放出した選手とは1年間交渉不可
+              players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const, transferLockedUntilYear: state.currentSeason.year + 1 } : p),
               teams: state.teams.map(t => {
                 if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + counterPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } }
                 if (t.id === offer.fromTeamId) return { ...t, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
@@ -4449,9 +4457,10 @@ export const useGameStore = create<GameStore>()(
           const loanReturnIds = new Map<string, string>()  // playerId → ownerTeamId
           const playersAfterFA = grownPlayers.map(p => {
             if (expiredIds.has(p.id)) return { ...p, teamId: '',  transferListed: false, loan: undefined }
-            // 「移籍を認める」でリスト入りしたのにシーズン内で決まらなかった選手は強制FA
+            // 「移籍を認める」でリスト入りしたのにシーズン内で決まらなかった選手は強制FA。
+            // 出て行った選手なので1年間交渉不可（契約満了FAと同じ扱い）
             if (p.transferListed && p.teamId === state.playerTeamId && p.status === 'active') {
-              return { ...p, teamId: '',  transferListed: false }
+              return { ...p, teamId: '',  transferListed: false, transferLockedUntilYear: state.currentSeason.year + 2 }
             }
             // レンタル期間終了 → 保有元チームへ自動返却（ロスター配列は2軍側へ戻すのでtierも揃える）
             if (p.loan && p.loan.untilYear <= state.currentSeason.year + 1) {

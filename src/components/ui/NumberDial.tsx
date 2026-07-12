@@ -34,11 +34,11 @@ function DigitWheel({ digit, onChange, accent }: {
   }
   const onPointerEnd = (e: React.PointerEvent) => {
     if (!drag.current) return
-    // ドラッグせずタップ：上半分タップで+1、下半分タップで-1（微調整用）
+    // ドラッグせずタップ：見えている数字を選ぶ（上半分タップで-1、下半分タップで+1）
     if (!drag.current.moved) {
       const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
       const upper = e.clientY < r.top + r.height / 2
-      onChange(wrap(digit + (upper ? 1 : -1)))
+      onChange(wrap(digit + (upper ? -1 : 1)))
     }
     drag.current = null
     setOffset(0)
@@ -62,9 +62,9 @@ function DigitWheel({ digit, onChange, accent }: {
       {/* 上下のフェード */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(180deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(0deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>
-      {/* 数字列：上=+1（回すと増える方向）、中央=現在値、下=-1 */}
+      {/* 数字列：上=-1、中央=現在値、下=+1。上にドラッグすると下の大きい数字が中央に入ってくる（＝増える） */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${offset}px)`, transition: drag.current ? 'none' : 'transform 0.12s ease' }}>
-        {[wrap(digit + 1), digit, wrap(digit - 1)].map((n, i) => (
+        {[wrap(digit - 1), digit, wrap(digit + 1)].map((n, i) => (
           <div key={i} style={{
             height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: SAIRA, fontWeight: 900,

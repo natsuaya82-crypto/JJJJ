@@ -55,14 +55,15 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないためパネルには出さない（通知ページで情報表示）
-  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
-  const retirementRequests = currentSeason.retirementRequests ?? []
+  // ※選手が退団・引退した「幽霊通知」は全種類除外（NotificationsPage・useNotifCountと同じ基準）
   const playerTeamIdP = useGameStore(s => s.playerTeamId)
+  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
+  const retirementRequests = (currentSeason.retirementRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
   // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない（NotificationsPageと同じ）
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
-  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
+  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId))
   const contactedIdsP = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsP.has(r.playerId))
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsP.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
   const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
     + pendingGifts.length
@@ -316,18 +317,19 @@ export function useNotifCount() {
   const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
 
   // フリー移籍の接触（offeredPrice=0）は情報通知として別カウント（NotificationsPageと同じ分け方・対応済みは除外）
-  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0).length
+  // ※選手が退団・引退した「幽霊通知」はページ側と同じ基準で除外（数だけ残ってバッジがズレるのを防ぐ）
+  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamId && p.status === 'active')).length
   const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
-  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId)).length
+  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId && p.status === 'active')).length
   const freeTransferNotices = (currentSeason.freeTransferNotices ?? []).length
   const departureNotices = (currentSeason.departureNotices ?? []).length
-  const retirementRequests = (currentSeason.retirementRequests ?? []).length
+  const retirementRequests = (currentSeason.retirementRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')).length
   // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない（NotificationsPageと同じ基準）
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')).length
-  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
-  const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted').length
+  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId)).length
+  const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId)).length
   const contactedIdsC = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsC.has(r.playerId)).length
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsC.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')).length
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length
   const expiredNegotiations = (currentSeason.expiredNegotiations ?? []).length
   const loanResponses = (currentSeason.loanResponses ?? []).length
