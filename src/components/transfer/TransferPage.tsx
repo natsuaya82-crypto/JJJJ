@@ -12,7 +12,7 @@ import PlayerRow from '../player/PlayerRow'
 import ActionSheet from '../ui/ActionSheet'
 import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
-import { draftPickValue } from '../../data/economy'
+import { draftPickValue, transferBidBase, transferAcceptChance } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -453,6 +453,9 @@ export default function TransferPage() {
               if (!bp) return null
               const bListing = listings.find(l => l.playerId === bp.id)
               const bVal = calcTransferValue(bp)
+              // 成立見込み：入札額が受諾ライン（価値×係数）に対しどのくらいかを確率化（金額を上げると上がる）
+              const base = transferBidBase(bVal, !!bListing, bp.contract.yearsLeft <= 1)
+              const chancePct = Math.round(transferAcceptChance(bidFee, base) * 100)
               return (
                 <div onClick={() => setBidTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                   <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
@@ -465,12 +468,9 @@ export default function TransferPage() {
                     <div style={{ padding: '4px 0 10px' }}>
                       <NumberDial value={bidFee} onChange={v => setBidFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', marginBottom: '12px', fontFamily: SAIRA }}>
-                      <span style={{ color: C.textGhost }}>低い</span>
-                      <span style={{ fontWeight: '700', color: bidFee >= bVal ? C.green : bidFee >= bVal * 0.75 ? C.gold : C.red }}>
-                        {bidFee >= bVal ? '合意圏' : bidFee >= bVal * 0.75 ? 'カウンター可能性' : '否決の可能性高'}
-                      </span>
-                      <span style={{ color: C.textGhost }}>高い</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: 11, color: C.textSub, fontFamily: SAIRA }}>成立見込み</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: chancePct >= 70 ? C.green : chancePct >= 35 ? C.gold : C.red }}>{chancePct}%</span>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={() => { submitTransferBid(bp.id, bidFee); setBidTarget(null) }} disabled={bidFee > myTeam.finance.budget}

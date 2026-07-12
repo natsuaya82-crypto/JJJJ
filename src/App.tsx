@@ -9,7 +9,7 @@ import { clearMarketFilters } from './utils/marketFilters'
 import LoadingOverlay from './components/ui/LoadingOverlay'
 import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
-import { runWithLoading } from './store/loadingStore'
+import { useLoadingStore } from './store/loadingStore'
 import TitleScreen from './components/title/TitleScreen'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
@@ -271,9 +271,27 @@ export default function App() {
     else showBanner()
   }, [adsRemoved])
 
+  // タイトルをタップしたら、セーブ読み込み(hydration)が終わるまでロード表示を出しっぱなしにする。
+  // 固定時間で消すと、重いセーブでは読み込み前にタイトルへ戻ってしまう（タップ→ロード→またタイトル）。
+  const handleTitleStart = () => {
+    audio.unlock(); audio.playSe('title')
+    const { show, hide } = useLoadingStore.getState()
+    show('ゲームを準備中…')
+    const start = Date.now()
+    setTitleShown(true)
+    const finish = () => {
+      // 最低表示時間は確保しつつ、読み込み完了まで待つ
+      setTimeout(hide, Math.max(0, 800 - (Date.now() - start)))
+    }
+    if (useGameStore.persist.hasHydrated()) finish()
+    else {
+      const unsub = useGameStore.persist.onFinishHydration(() => { unsub(); finish() })
+    }
+  }
+
   let content
   if (!titleShown || !hydrated) {
-    content = <TitleScreen onStart={() => { audio.unlock(); audio.playSe('title'); runWithLoading('ゲームを準備中…', () => setTitleShown(true), 800) }} />
+    content = <TitleScreen onStart={handleTitleStart} />
   } else if (!isInitialized && !draftState) {
     content = <Onboarding />
   } else if (!isInitialized && draftState && !draftState.isComplete) {

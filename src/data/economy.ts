@@ -75,3 +75,14 @@ export function computeNextSeasonBudget(args: {
   // 下限の大盤振る舞いは廃止。赤字は許容するが DEFICIT_LIMIT で底打ち（不足分は別途強制売却で補う）。
   return Math.max(DEFICIT_LIMIT, raw)
 }
+
+// ── 移籍入札：相手が受けるかの判定基準（UI の成立確率表示と store の合否判定で共有）──
+// 「受諾ライン」のベース額。実際の判定では threshold = base × (0.9〜1.1 の揺れ) となる。
+export function transferBidBase(marketValue: number, isListed: boolean, isExpiring: boolean): number {
+  return marketValue * (isListed ? 0.85 : isExpiring ? 0.92 : 1.05)
+}
+// 入札額 fee に対する受諾確率(0..1)。threshold = base×(0.9 + rand*0.2) の一様分布から算出。
+export function transferAcceptChance(fee: number, base: number): number {
+  if (base <= 0) return 1
+  return Math.max(0, Math.min(1, (fee / base - 0.9) / 0.2))
+}
