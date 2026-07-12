@@ -3923,11 +3923,15 @@ export const useGameStore = create<GameStore>()(
       }),
 
       startRegularSeason: () => set(state => {
+        // プレシーズンのドラフト（今季スカウトした代）が終わったので、
+        // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。
+        // これで endSeason 側で引き継いだ視察済みプールがドラフトに使われ、シーズン中の視察は常に新しい代になる。
+        const freshScoutPool = generateDraftPool(state.currentSeason.year + 1)
         if ((state.currentSeason.objectives ?? []).length === 0) {
           const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length)
-          return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives } }
+          return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives, scoutProspects: freshScoutPool } }
         }
-        return { currentSeason: { ...state.currentSeason, phase: 'regular' } }
+        return { currentSeason: { ...state.currentSeason, phase: 'regular', scoutProspects: freshScoutPool } }
       }),
 
       initObjectivesIfEmpty: () => set(state => {
@@ -5075,7 +5079,9 @@ export const useGameStore = create<GameStore>()(
               initialBudget: newBudget,   // 来期の開始予算（＝繰越+グラント+賞金観客スポンサー）。収支表示の基準。
               seasonGrant: rankBudgetGrant(finalRank),   // 来期の順位グラント額（前年＝今季順位ベース）。運営費＝この10%。
               budgetBreakdown: newBudgetBreakdown,       // 初期予算の内訳（財務ページで表示）
-              scoutProspects: nextScoutPool,
+              // 今季スカウトした候補（＝来季プレシーズンで指名する代）をそのまま引き継ぐ。
+              // 視察した選手がそのままドラフトに並ぶようにする。空のとき（一度もスカウトを開いていない等）だけ新規生成。
+              scoutProspects: (state.currentSeason.scoutProspects?.length ?? 0) > 0 ? state.currentSeason.scoutProspects : nextScoutPool,
               objectives: newObjectives,
               trainingAssignments: {},
               scoutMissions: [],

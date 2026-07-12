@@ -484,8 +484,8 @@ export default function PlayerSheet() {
                 </div>
               </div>}
 
-              {/* 2軍 races */}
-              {reserveRaceNames.length > 0 && (
+              {/* 2軍 races（ドラフト候補では非表示。加入後は通常詳細に切り替わり表示される） */}
+              {!isProspect && reserveRaceNames.length > 0 && (
                 <div>
                   <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>2軍駅伝</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
