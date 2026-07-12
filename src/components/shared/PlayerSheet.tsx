@@ -491,17 +491,13 @@ export default function PlayerSheet() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                     {reserveRaceNames.map(name => {
                       const entries = raceGroupMap.get(name) ?? []
-                      const lastEntry = entries.slice().sort((a, b) => b.year - a.year)[0]
                       return (
                         <div key={name} onClick={() => openRaceDetail(name)} style={{
-                          padding: '8px 6px', borderRadius: '8px', border: '1px solid #1E1B2E', backgroundColor: '#14121F',
-                          cursor: 'pointer', textAlign: 'center', minHeight: 52,
-                          display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
+                          padding: '10px 6px', borderRadius: '8px', border: '1px solid #1E1B2E', backgroundColor: '#14121F',
+                          cursor: 'pointer', textAlign: 'center', minHeight: 44,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
                           <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: entries.length > 0 ? '#F0EDE8' : '#3A3758' }}>{name}</span>
-                          <span style={{ fontSize: '9px', color: lastEntry ? (lastEntry.rank === 1 ? '#C9A84C' : '#5C5870') : '#2A2740', fontFamily: 'monospace' }}>
-                            {lastEntry ? `${lastEntry.year}年 ${lastEntry.rank}位` : '—'}
-                          </span>
                         </div>
                       )
                     })}
