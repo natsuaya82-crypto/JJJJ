@@ -326,6 +326,9 @@ export default function NotificationsPage() {
   const freeTransferNotices = currentSeason.freeTransferNotices ?? []
   const dismissFreeTransferNotice = useGameStore(s => s.dismissFreeTransferNotice)
   const markFreeContactSeen = useGameStore(s => s.markFreeContactSeen)
+  // シーズン切替時の退団通知（契約満了のFA流出・他クラブへの移籍）
+  const departureNotices = currentSeason.departureNotices ?? []
+  const dismissDepartureNotice = useGameStore(s => s.dismissDepartureNotice)
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferReqs = currentSeason.transferRequests ?? []
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
@@ -373,6 +376,7 @@ export default function NotificationsPage() {
     + loanResponses.length
     + freeContacts.length
     + freeTransferNotices.length
+    + departureNotices.length
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -665,6 +669,34 @@ export default function NotificationsPage() {
                     </button>
                   )
                 })}
+              </div>
+            </section>
+          )}
+
+          {/* 退団通知（シーズン切替時の契約満了・移籍） */}
+          {departureNotices.length > 0 && (
+            <section style={{ marginTop: '20px' }}>
+              <SectionHead label="退団" color={C.red} count={departureNotices.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {departureNotices.map(n => (
+                  <div key={n.id} style={cardStyle(alpha(C.red, 0.45), '#3d0000')}>
+                    <div style={inset}/>
+                    <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                        <FaceOvr playerId={n.playerId} nationality={(players.find(p => p.id === n.playerId)?.nationality ?? 'JPN')} pOvr={(() => { const p = players.find(x => x.id === n.playerId); return p ? ovr(p) : 0 })()} accentColor={C.red} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
+                            {n.reason === 'transfer' ? `${n.playerName}が${n.toTeamName}へ移籍しました` : `${n.playerName}が契約満了で退団しました`}
+                          </div>
+                          <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>
+                            {n.reason === 'transfer' ? '契約満了に伴う移籍です' : 'FAとなり移籍先を探しています'}
+                          </div>
+                        </div>
+                      </div>
+                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissDepartureNotice(n.id)}>確認</Btn>
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           )}

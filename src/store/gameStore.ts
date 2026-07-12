@@ -3809,29 +3809,37 @@ export const useGameStore = create<GameStore>()(
         const yr = state.currentSeason.year
 
         // ドラフト順は「当年分の指名権の所有」で決める：最下位のpick1を買ったチームがそのまま全体1位で指名。
-        // 当年分の指名権が揃っていない（旧セーブ等）場合だけ従来の順位ベースにフォールバック。
+        // ただし指名順位は"保存済みのpickNumber"ではなく、各指名権の【元保有チームの直近順位】から都度算出する。
+        // （初回に順位が無いまま配列順で焼き込まれた古い番号に引きずられ、2年目以降も順序が壊れるのを防ぐ）
+        const pickRank = standingsPickNumbers(state.teams) // teamId → 逆順順位（最下位=1＝全体1位指名）
         const ownedYearPicks = state.teams
-          .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => ({ round: pk.round, pickNumber: pk.pickNumber, ownerId: t.id })))
-          .sort((a, b) => a.round - b.round || a.pickNumber - b.pickNumber)
+          .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => ({
+            round: pk.round,
+            orderKey: pickRank.get(pk.originallyOwnedBy ?? t.id) ?? pk.pickNumber,
+            ownerId: t.id,
+          })))
+          .sort((a, b) => a.round - b.round || a.orderKey - b.orderKey)
         const pickOrder = ownedYearPicks.length >= state.teams.length
           ? ownedYearPicks.map(pk => pk.ownerId)
           : buildDraftOrder(state.teams, state.currentSeason.year, state.playerTeamId)
 
         // Ensure all teams have future draft picks (backfill for existing saves)
         // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）
-        // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
+        // 指名権番号は前年順位の逆順（最下位＝全体1位）。既存の将来指名権も"元保有チームの順位"で振り直し、
+        // 初回に配列順で焼き込まれた古い番号を都度上書きして正す（表示と実際の指名順を一致させる）。
         const pickNumMap = standingsPickNumbers(state.teams)
         const teamsWithPicks = state.teams.map((t) => {
-          const approxPick = pickNumMap.get(t.id) ?? 1
           const newPicks: typeof t.draftPicks = []
           for (const year of [yr + 1, yr + 2]) {
             for (const round of [1, 2]) {
               if (!pickExistsAnywhere(state.teams, t.id, year, round)) {
-                newPicks.push({ year, round, pickNumber: approxPick, originallyOwnedBy: t.id })
+                newPicks.push({ year, round, pickNumber: pickNumMap.get(t.id) ?? 1, originallyOwnedBy: t.id })
               }
             }
           }
-          return { ...t, draftPicks: [...(t.draftPicks ?? []).filter(pk => pk.year > yr), ...newPicks] }
+          const keptFuture = (t.draftPicks ?? []).filter(pk => pk.year > yr)
+            .map(pk => ({ ...pk, pickNumber: pickNumMap.get(pk.originallyOwnedBy ?? t.id) ?? pk.pickNumber }))
+          return { ...t, draftPicks: [...keptFuture, ...newPicks] }
         })
 
         // CPU teams release declining/surplus players

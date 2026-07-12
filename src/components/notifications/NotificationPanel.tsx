@@ -314,6 +314,7 @@ export function useNotifCount() {
   const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
   const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId)).length
   const freeTransferNotices = (currentSeason.freeTransferNotices ?? []).length
+  const departureNotices = (currentSeason.departureNotices ?? []).length
   const retirementRequests = (currentSeason.retirementRequests ?? []).length
   const transferReqs = (currentSeason.transferRequests ?? []).length
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
@@ -349,4 +350,5 @@ export function useNotifCount() {
     + loanResponses
     + freeContacts
     + freeTransferNotices
+    + departureNotices
 }

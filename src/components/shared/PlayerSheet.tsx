@@ -248,8 +248,11 @@ export default function PlayerSheet() {
     const key = `${currentSeason.year}|${player.teamId}|${curTier}`
     if (!historyMap.has(key)) historyMap.set(key, { year: currentSeason.year, teamId: player.teamId, tier: curTier, races: 0, wins: 0 })
   }
+  // 同じ年に2チーム（シーズン中の移籍）がある場合は、現所属チームを必ず上にする
   const historyRows = [...historyMap.values()].sort(
-    (a, b) => b.year - a.year || (a.tier === b.tier ? 0 : a.tier === 'main' ? -1 : 1)
+    (a, b) => b.year - a.year
+      || (a.teamId === b.teamId ? 0 : a.teamId === player.teamId ? -1 : b.teamId === player.teamId ? 1 : 0)
+      || (a.tier === b.tier ? 0 : a.tier === 'main' ? -1 : 1)
   )
 
   return (

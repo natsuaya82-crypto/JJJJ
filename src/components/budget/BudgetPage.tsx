@@ -8,11 +8,11 @@ import { computeNextSeasonBudget, rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, op
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
 
+// 財務ページは万円単位で統一表示（例: 4.2億→42,000万、3500万→3,500万）。
+// 丸めないので内訳の合計が初期予算とぴったり一致して見える
 function fmt(yen: number, showSign = false) {
   const sign = showSign && yen >= 0 ? '+' : ''
-  if (Math.abs(yen) >= 100000000) return `${sign}${(yen / 100000000).toFixed(1)}億`
-  if (Math.abs(yen) >= 10000) return `${sign}${Math.round(yen / 10000)}万`
-  return `${sign}${yen.toLocaleString()}`
+  return `${sign}${Math.round(yen / 10_000).toLocaleString()}万`
 }
 
 function Row({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
@@ -63,11 +63,15 @@ export default function BudgetPage() {
   const seasonGrant = currentSeason.seasonGrant ?? currentSeason.initialBudget ?? nextGrant
   const opCost = operatingCost(seasonGrant)
   const facRunningCost = facilityUpkeep + opCost
-  // 初期予算（そのシーズンの開始予算・固定）と今季収支（初期予算 − 固定支出）
+  // 初期予算（そのシーズンの開始予算・固定）と今季収支（初期予算 ＋ 移籍金収支 − 固定支出）
   const initialBudget = currentSeason.initialBudget ?? budget
-  const seasonBalance = initialBudget - squadSalaryTotal - opCost - facilityUpkeep
+  const transferIncome = currentSeason.transferIncome ?? 0
+  const transferSpend = currentSeason.transferSpend ?? 0
+  const seasonBalance = initialBudget + transferIncome - transferSpend - squadSalaryTotal - opCost - facilityUpkeep
   // 初期予算の内訳（2年目以降。前季endSeasonで確定）。何が合わさって初期予算かを表示。
-  const bd = currentSeason.budgetBreakdown
+  // 旧形式（繰越=精算前の期末残高・支出が別行）のセーブは、表示時に精算後の最終収支へ変換する
+  const bdRaw = currentSeason.budgetBreakdown
+  const bd = bdRaw ? { ...bdRaw, carryover: bdRaw.carryover - (bdRaw.expenses ?? 0), expenses: 0 } : undefined
   const PRIZE_TABLE = [2000, 1500, 1000, 700, 500, 300, 300, 300]
   const prizePerRace = (PRIZE_TABLE[Math.min(myRank - 1, PRIZE_TABLE.length - 1)] ?? 200) * 10000
   const racesLeft = Math.max(0, (currentSeason.races?.length ?? 10) - currentSeason.currentRaceIndex)
@@ -171,12 +175,11 @@ export default function BudgetPage() {
               <div style={{ padding: '4px 0 8px 12px', marginLeft: 4, marginBottom: 4, borderLeft: `2px solid ${alpha(C.gold, 0.25)}` }}>
                 <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 3, letterSpacing: 1 }}>初期予算の内訳</div>
                 {([
-                  ['昨年繰越', bd.carryover],
+                  ['昨年繰越（最終収支）', bd.carryover],
                   ['順位グラント', bd.grant],
                   ['賞金・観客収入', bd.raceIncome],
                   ['スポンサー収入', bd.sponsor],
                   ...(bd.objBonus > 0 ? [['目標達成ボーナス', bd.objBonus] as [string, number]] : []),
-                  ['前季の年俸・運営費など', -bd.expenses],
                 ] as [string, number][]).map(([label, v]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
                     <span style={{ fontSize: 11, color: C.textDim }}>{label}</span>
@@ -185,6 +188,8 @@ export default function BudgetPage() {
                 ))}
               </div>
             )}
+            {transferIncome > 0 && <Row label="移籍金収入" value={`+${fmt(transferIncome)}`} color={C.green} sub="選手・指名権の売却" />}
+            {transferSpend > 0 && <Row label="移籍金支出" value={`-${fmt(transferSpend)}`} color={C.red} sub="移籍金での選手獲得" />}
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
             <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
