@@ -1622,7 +1622,7 @@ export const useGameStore = create<GameStore>()(
               loanRequests: [],
               loanResponses: [...(state.currentSeason.loanResponses ?? []), ...newLoanResponses],
               transferBids: processedBids,
-              transferRequests: [...(state.currentSeason.transferRequests ?? []), ...newTransferReqs],
+              transferRequests: [...(state.currentSeason.transferRequests ?? []).filter(r => finalPlayers.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')), ...newTransferReqs],
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
               expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs],
               freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],

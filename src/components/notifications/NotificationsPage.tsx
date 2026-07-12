@@ -317,7 +317,8 @@ export default function NotificationsPage() {
   const departureNotices = currentSeason.departureNotices ?? []
   const dismissDepartureNotice = useGameStore(s => s.dismissDepartureNotice)
   const retirementRequests = currentSeason.retirementRequests ?? []
-  const transferReqs = currentSeason.transferRequests ?? []
+  // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない
+  const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted')
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')

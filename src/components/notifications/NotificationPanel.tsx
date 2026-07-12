@@ -56,7 +56,9 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないためパネルには出さない（通知ページで情報表示）
   const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
   const retirementRequests = currentSeason.retirementRequests ?? []
-  const transferReqs = currentSeason.transferRequests ?? []
+  const playerTeamIdP = useGameStore(s => s.playerTeamId)
+  // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない（NotificationsPageと同じ）
+  const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered')
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm')
   const total = incomingOffers.length
