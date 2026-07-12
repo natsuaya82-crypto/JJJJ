@@ -27,6 +27,7 @@ export default function CardSelectPage() {
   const navigate = useNavigate()
   const { trainingCards, fusionCardIds, addFusionCard, removeFusionCard, fusionPlayerId, players } = useGameStore()
   const [filterStat, setFilterStat] = useState<CardStatKey | 'all' | 'rest'>('all')
+  const [filterRarity, setFilterRarity] = useState<CardRarity | 'all'>('all')
 
   const fusionFull = fusionCardIds.length >= MAX_FUSION_CARDS
   // 合成対象の選手（能力別ポテンシャル上限に達した能力のカードは使えない＝無駄防止）
@@ -46,10 +47,14 @@ export default function CardSelectPage() {
   const distinctCount = useMemo(() => new Set(selectedCards.filter(c => c.kind !== 'rest').map(c => c.statKey)).size, [selectedCards])
 
   const filteredCards = useMemo(
-    () => filterStat === 'all' ? trainingCards
-      : filterStat === 'rest' ? trainingCards.filter(c => c.kind === 'rest')
-      : trainingCards.filter(c => c.kind !== 'rest' && c.statKey === filterStat),
-    [trainingCards, filterStat]
+    () => trainingCards.filter(c => {
+      const statOk = filterStat === 'all' ? true
+        : filterStat === 'rest' ? c.kind === 'rest'
+        : (c.kind !== 'rest' && c.statKey === filterStat)
+      const rarityOk = filterRarity === 'all' || c.rarity === filterRarity
+      return statOk && rarityOk
+    }),
+    [trainingCards, filterStat, filterRarity]
   )
 
   // 同じ種類（種類×レア度）のカードは1つにまとめて表示する（完全休養は kind でグループを分ける）
@@ -74,58 +79,63 @@ export default function CardSelectPage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: SAIRA, color: C.text, paddingBottom: 96 }}>
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        background: `linear-gradient(180deg, ${C.bg} 70%, transparent)`,
-        padding: '14px 16px 10px',
-        display: 'flex', alignItems: 'center', gap: 12,
-      }}>
-        <BackButton/>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900 }}>カードを選ぶ</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 1 }}>
-            合成中 <span style={{ color: PURPLE, fontWeight: 800 }}>{fusionCardIds.length}</span>/{MAX_FUSION_CARDS}
-          </div>
-        </div>
-      </div>
-
-      {/* 選択中（タップで外す） */}
-      {selectedCards.length > 0 && (
-        <div style={{ padding: '0 14px 12px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中（タップで外す）</div>
-          {combo && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px', borderRadius: 9, background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo.color }}>{combo.name}</span>
-              {isMenu && distinctCount >= 2 && (
-                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
-              )}
-              {fatigueDelta > 0 && (
-                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
-              )}
-              {combo.name === '通常合成' && (
-                <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
-              )}
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: SAIRA, color: C.text }}>
+      {/* 上部固定：ヘッダ＋選択中＋絞り込み（カード一覧だけスクロールし、選択中は常に見える） */}
+      <div style={{ flexShrink: 0, background: C.bg, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <BackButton/>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900 }}>カードを選ぶ</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 1 }}>
+              合成中 <span style={{ color: PURPLE, fontWeight: 800 }}>{fusionCardIds.length}</span>/{MAX_FUSION_CARDS}
             </div>
-          )}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {selectedCards.map(card => (
-              <button key={card.id} onClick={() => removeFusionCard(card.id)}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
-                <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={50} selected kind={card.kind} value={card.value} />
-              </button>
-            ))}
           </div>
         </div>
-      )}
 
-      {/* 絞り込み（プルダウン） */}
-      <div style={{ padding: '0 14px 12px' }}>
-        <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...selectStyle, width: '100%' }}>
-          <option value="all">すべての種類</option>
-          {statKeys.map(k => <option key={k} value={k}>{CARD_NAMES[k]}</option>)}
-          <option value="rest">{REST_CARD_NAME}</option>
-        </select>
+        {/* 選択中（タップで外す） */}
+        {selectedCards.length > 0 && (
+          <div style={{ padding: '0 14px 10px' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中（タップで外す）</div>
+            {combo && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px', borderRadius: 9, background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
+                <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo.color }}>{combo.name}</span>
+                {isMenu && distinctCount >= 2 && (
+                  <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+                )}
+                {fatigueDelta > 0 && (
+                  <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
+                )}
+                {combo.name === '通常合成' && (
+                  <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
+                )}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {selectedCards.map(card => (
+                <button key={card.id} onClick={() => removeFusionCard(card.id)}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                  <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={50} selected kind={card.kind} value={card.value} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 絞り込み（種類＋レア度） */}
+        <div style={{ padding: '0 14px 10px', display: 'flex', gap: 8 }}>
+          <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...selectStyle, flex: 1, minWidth: 0 }}>
+            <option value="all">すべての種類</option>
+            {statKeys.map(k => <option key={k} value={k}>{CARD_NAMES[k]}</option>)}
+            <option value="rest">{REST_CARD_NAME}</option>
+          </select>
+          <select value={filterRarity} onChange={e => setFilterRarity(e.target.value as typeof filterRarity)} style={{ ...selectStyle, flex: 1, minWidth: 0 }}>
+            <option value="all">全レア度</option>
+            <option value="legendary">レジェンダリー</option>
+            <option value="epic">エピック</option>
+            <option value="rare">レア</option>
+            <option value="normal">ノーマル</option>
+          </select>
+        </div>
       </div>
 
       {fusionFull && (
@@ -134,8 +144,8 @@ export default function CardSelectPage() {
         </div>
       )}
 
-      {/* Card grid */}
-      <div style={{ padding: '0 14px' }}>
+      {/* Card grid（ここだけスクロール） */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 12px' }}>
         {cardGroups.length === 0 ? (
           <div style={{ textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: 13, padding: '40px 0' }}>
             カードがありません
@@ -143,7 +153,7 @@ export default function CardSelectPage() {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
             gap: 10, justifyItems: 'center',
           }}>
             {cardGroups.map(group => {
@@ -159,7 +169,7 @@ export default function CardSelectPage() {
                   disabled={disabled}
                   style={{ background: 'none', border: 'none', padding: 0, cursor: disabled ? 'not-allowed' : 'pointer', position: 'relative' }}
                 >
-                  <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={76} count={remaining} dimmed={disabled} kind={group.kind} value={group.value} />
+                  <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={70} count={remaining} dimmed={disabled} kind={group.kind} value={group.value} />
                   {statMaxed && (
                     <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-12deg)', fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#fff', background: alpha(C.red, 0.85), padding: '2px 8px', borderRadius: 5, letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>上限</span>
                   )}
@@ -170,11 +180,11 @@ export default function CardSelectPage() {
         )}
       </div>
 
-      {/* 下固定：決定して合成画面へ戻る */}
+      {/* 下端固定：決定して合成画面へ戻る */}
       <div style={{
-        position: 'sticky', bottom: 0, marginTop: 16,
+        flexShrink: 0,
         padding: '10px 14px calc(10px + env(safe-area-inset-bottom))',
-        background: `linear-gradient(180deg, transparent, ${C.bg} 30%)`,
+        background: C.bg, borderTop: `1px solid ${C.border}`,
       }}>
         <button
           onClick={() => navigate(-1)}

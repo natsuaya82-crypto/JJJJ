@@ -17,6 +17,7 @@ import TrainingCardSVG from './TrainingCardSVG'
 import { audio } from '../../utils/audio'
 import { showRewardAd } from '../../utils/ads'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { useAdHeight } from '../layout/Layout'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const PURPLE = '#A855F7'
@@ -31,6 +32,7 @@ function requiredExp(level: number): number {
 
 export default function CardTrainingPage() {
   const navigate = useNavigate()
+  const adH = useAdHeight()
   const {
     trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
@@ -214,7 +216,7 @@ export default function CardTrainingPage() {
 
   // ── STEP 2: Fusion (パズドラ風) ────────────────────────────────
   return (
-    <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text }}>
       {adConfirmOpen && (
         <ConfirmDialog
           title="動画を見ますか？"
@@ -371,10 +373,10 @@ export default function CardTrainingPage() {
         </div>
       )}
 
-      {/* Sticky apply bar */}
+      {/* 下部固定の実行バー（フレックスで最下部へ・下タブ＋広告の上に出す） */}
       <div style={{
-        position: 'sticky', bottom: 0, marginTop: 16,
-        padding: '12px 14px calc(12px + env(safe-area-inset-bottom, 0px))',
+        marginTop: 'auto',
+        padding: '12px 14px calc(14px + env(safe-area-inset-bottom, 0px))',
         background: `linear-gradient(180deg, ${alpha(C.bg, 0)}, ${C.bg} 24%)`,
         borderTop: `1px solid ${C.border}`,
       }}>
