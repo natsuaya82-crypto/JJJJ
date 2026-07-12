@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { runWithLoading } from '../../store/loadingStore'
+import { showInterstitialAd } from '../../utils/ads'
 import PressButton from '../ui/PressButton'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr } from '../../utils/playerUtils'
@@ -270,6 +271,7 @@ export default function Dashboard() {
     claimPreseasonCards, setReserveLeagueJoined,
     startRegularSeason, initObjectivesIfEmpty,
   } = useGameStore()
+  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const navigate = useNavigate()
   useEffect(() => {
     initObjectivesIfEmpty()
@@ -462,7 +464,11 @@ export default function Dashboard() {
               )}
               <button
                 className="btn-game btn-game--gold"
-                onClick={() => runWithLoading('シーズンを更新中…', endSeason, 800)}
+                onClick={async () => {
+                  // シーズン終了の瞬間にインタースティシャル広告（買い切り版は出さない）→ その後シーズン更新
+                  if (!adsRemoved) await showInterstitialAd()
+                  runWithLoading('シーズンを更新中…', endSeason, 800)
+                }}
                 style={{ width: '100%' }}
               >
                 <span className="btn-game__inner">{currentSeason.year + 1}シーズン開幕へ →</span>

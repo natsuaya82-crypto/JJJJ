@@ -6,6 +6,8 @@ import { useLoadingStore } from '../store/loadingStore'
 
 const BANNER_AD_ID = 'ca-app-pub-7463045893100088/8946193510'
 const REWARD_AD_ID = 'ca-app-pub-7463045893100088/5817804007'
+// TODO: 本番のインタースティシャル広告ユニットIDに差し替える（現状はGoogleのテストID）。
+const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/4411468910'
 
 // 広告の「1日」の区切り（朝10時締め）。store と画面表示で同じ日付を使うために共通化する。
 export function getAdDay(): string {
@@ -75,6 +77,35 @@ export async function initAds(adsRemoved: boolean): Promise<void> {
     if (!adsRemoved) await showBanner()
   } catch (e) {
     console.warn('[ads] init failed', e)
+  }
+}
+
+// インタースティシャル（全画面）広告を表示する。シーズン終了などの画面転換で使う。
+// ロード中はローディングを出し、広告が閉じる（または失敗）まで待ってから解決する。
+// iOS以外（ブラウザ開発時）や失敗時は即解決して進行を止めない。
+export async function showInterstitialAd(): Promise<void> {
+  if (Capacitor.getPlatform() !== 'ios') return
+
+  useLoadingStore.getState().show('広告を読み込み中…')
+  try {
+    const { AdMob, InterstitialAdPluginEvents } = await import('@capacitor-community/admob')
+    // prepare が settle しない端末・回線でも進行が止まらないよう、12秒で諦めて先へ進む
+    await Promise.race([
+      AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('ad prepare timeout')), 12000)),
+    ])
+    useLoadingStore.getState().hide()  // 準備完了→広告表示へ
+
+    await new Promise<void>((resolve) => {
+      const handles: Array<Promise<{ remove: () => void }>> = []
+      const cleanup = () => handles.forEach(h => h.then(l => l.remove()))
+      handles.push(AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => { cleanup(); resolve() }))
+      handles.push(AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, () => { cleanup(); resolve() }))
+      AdMob.showInterstitial().catch(() => { cleanup(); resolve() })
+    })
+  } catch (e) {
+    useLoadingStore.getState().hide()
+    console.warn('[ads] interstitial failed', e)
   }
 }
 
