@@ -42,6 +42,9 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const adH = useAdHeight()
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  // 記録会には来季のドラフト候補（scoutProspects＝players外）も出るので、そちらからも名前/出身を解決する
+  const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects ?? [])
+  const findP = (id: string) => players.find(p => p.id === id) ?? scoutProspects.find(p => p.id === id)
   // 国内チーム or 海外クラブから所属を解決（記録会に海外選手が出るため）
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
   const [resting, setResting] = useState<Set<string>>(new Set())
@@ -55,7 +58,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   const bestKey = event.distance === 5000 ? 'd5000' as const
     : event.distance === 10000 ? 'd10000' as const
     : event.distance === 21097 ? 'half' as const : 'marathon' as const
-  const playerName = (id: string) => players.find(p => p.id === id)?.name ?? ''
+  const playerName = (id: string) => findP(id)?.name ?? ''
   const topTen = (event.results ?? []).slice(0, 10)
   const myResults = (event.results ?? []).filter(r => r.teamId === playerTeamId)
 
@@ -152,19 +155,24 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                   }}>
                   <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.text : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
                   <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-                    <PlayerFace playerId={r.playerId} nationality={players.find(p => p.id === r.playerId)?.nationality ?? 'JPN'} size={30} />
+                    <PlayerFace playerId={r.playerId} nationality={findP(r.playerId)?.nationality ?? 'JPN'} size={30} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
                     {(() => {
                       const t = resolveTeam(r.teamId)
-                      if (!t) return null
-                      return (
+                      if (t) return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                           <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={12} />
                           <span style={{ fontSize: 9, color: r.teamId === playerTeamId ? TT_COLOR : C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
                         </div>
                       )
+                      // ドラフト候補は所属チームが無いので出身（高校/大学）を表示
+                      const origin = scoutProspects.find(p => p.id === r.playerId)?.origin
+                      if (origin) return (
+                        <div style={{ fontSize: 9, color: C.textDim, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{origin}</div>
+                      )
+                      return null
                     })()}
                   </div>
                   <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: r.rank === 1 ? C.gold : C.text }}>{formatRaceTime(r.timeSec)}</span>
