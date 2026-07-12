@@ -16,7 +16,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue } from '../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -1400,10 +1400,22 @@ export const useGameStore = create<GameStore>()(
             if (bid.status !== 'pending') return bid
             const player = finalPlayers.find(p => p.id === bid.playerId)
             if (!player || player.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
+            // データ上の主力は移籍金をいくら積んでも売らない。費用に合意してから拒否するのではなく、提示の時点で拒否する。
+            {
+              const apps = seasonAppearances(player.id, updatedRaces)
+              const frac = nextRaceIndex > 0 ? apps / nextRaceIndex : (player.rosterTier === 'main' ? 0.5 : 0)
+              if (isEssentiallyUnpoachable(player, frac, nextRaceIndex)) {
+                // 「移籍拒否」通知を出し、来季まで再入札できないようロックする
+                bidExpiredNegs.push({ id: bid.id, playerId: player.id, playerName: player.name })
+                bidExpiredPlayerIds.push(player.id)
+                return { ...bid, status: 'rejected' as const }
+              }
+            }
             const val = calcTransferValue(player)
             const isListed = transferData.listings.some(l => l.playerId === bid.playerId)
             const isExpiring = player.contract.yearsLeft <= 1
-            const threshold = val * (isListed ? 0.85 : isExpiring ? 0.92 : 1.05) * (0.9 + Math.random() * 0.2)
+            // 受諾ラインのベースは UI（成立確率表示）と共有。実際の判定はこれに±10%の揺れを乗せる。
+            const threshold = transferBidBase(val, isListed, isExpiring) * (0.9 + Math.random() * 0.2)
             if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
             if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) {
               return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
