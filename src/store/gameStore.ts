@@ -3740,10 +3740,16 @@ export const useGameStore = create<GameStore>()(
         if (!race) return {}
         const prevStandings = state.currentSeason.foreignStandings ?? initForeignStandings(leagues)
         const seasonProgress = races.length > 0 ? idx / races.length : 0
-        const { standingsByLeague, players } = simulateForeignLeagueRound(race, leagues, state.players, prevStandings, seasonProgress)
+        const { standingsByLeague, players, appearances } = simulateForeignLeagueRound(race, leagues, state.players, prevStandings, seasonProgress)
+        // 今季の海外出場記録に加算（選手詳細の在籍履歴に海外クラブ行として表示するため）
+        const foreignAppearances = { ...(state.currentSeason.foreignAppearances ?? {}) }
+        for (const [id, add] of Object.entries(appearances)) {
+          const cur = foreignAppearances[id] ?? { clubId: add.clubId, races: 0, wins: 0 }
+          foreignAppearances[id] = { clubId: add.clubId || cur.clubId, races: cur.races + add.races, wins: cur.wins + add.wins }
+        }
         return {
           players,
-          currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1 },
+          currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1, foreignAppearances },
         }
       }),
 
@@ -5077,6 +5083,7 @@ export const useGameStore = create<GameStore>()(
               secondTeamStandings: state.teams.map(t => ({ teamId: t.id, totalPoints: 0, raceResults: [] })),
               foreignStandings: initForeignStandings(foreignRefresh.updatedLeagues),
               foreignRaceIndex: 0,
+              foreignAppearances: {},
               standings: state.teams.map(t => ({
                 teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
               })),

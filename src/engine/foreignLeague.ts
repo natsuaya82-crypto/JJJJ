@@ -34,8 +34,9 @@ export function simulateForeignLeagueRound(
   players: Player[],
   standingsByLeague: Record<string, ForeignStanding[]>,
   seasonProgress: number,
-): { standingsByLeague: Record<string, ForeignStanding[]>; players: Player[] } {
+): { standingsByLeague: Record<string, ForeignStanding[]>; players: Player[]; appearances: Record<string, { clubId: string; races: number; wins: number }> } {
   const careerAdd: Record<string, { races: number; segWins: number }> = {}
+  const clubOf: Record<string, string> = {}   // playerId → 今走ったクラブ
   const newStandings: Record<string, ForeignStanding[]> = { ...standingsByLeague }
 
   for (const league of foreignLeagues) {
@@ -59,11 +60,13 @@ export function simulateForeignLeagueRound(
     })
 
     // career: 出走選手の通算レース+1、区間賞ぶんの segmentWins を加算
-    const racingIds = new Set(Object.values(lineups).flatMap(l => Object.values(l)))
-    for (const id of racingIds) {
-      const segWins = results.segmentResults.filter(sr => sr.runners[0]?.playerId === id).length
-      const cur = careerAdd[id] ?? { races: 0, segWins: 0 }
-      careerAdd[id] = { races: cur.races + 1, segWins: cur.segWins + segWins }
+    for (const [clubId, lineup] of Object.entries(lineups)) {
+      for (const id of Object.values(lineup)) {
+        clubOf[id] = clubId
+        const segWins = results.segmentResults.filter(sr => sr.runners[0]?.playerId === id).length
+        const cur = careerAdd[id] ?? { races: 0, segWins: 0 }
+        careerAdd[id] = { races: cur.races + 1, segWins: cur.segWins + segWins }
+      }
     }
   }
 
@@ -73,7 +76,13 @@ export function simulateForeignLeagueRound(
     return { ...p, career: { ...p.career, totalRaces: p.career.totalRaces + add.races, segmentWins: p.career.segmentWins + add.segWins } }
   })
 
-  return { standingsByLeague: newStandings, players: updatedPlayers }
+  // このマッチデーの出場記録（playerId → クラブ・出場数・区間賞数）。呼び出し側で今季分に加算する。
+  const appearances: Record<string, { clubId: string; races: number; wins: number }> = {}
+  for (const [id, add] of Object.entries(careerAdd)) {
+    appearances[id] = { clubId: clubOf[id] ?? '', races: add.races, wins: add.segWins }
+  }
+
+  return { standingsByLeague: newStandings, players: updatedPlayers, appearances }
 }
 
 // シーズン終了時、各海外リーグの優勝クラブ所属選手に career.championships +1。
