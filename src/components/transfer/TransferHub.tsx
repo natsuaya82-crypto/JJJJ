@@ -81,17 +81,19 @@ export default function TransferHub() {
       shadow: '#5a2800',
       urgent: false,
     },
-    {
-      key: 'listings',
-      path: '/transfer/listings',
-      label: '出品・指名権売却',
-      desc: '自チームの選手を出品・指名権を売る',
-      countLabel: allListings.filter(l => l.fromTeamId === playerTeamId).length > 0 ? `${allListings.filter(l => l.fromTeamId === playerTeamId).length}件出品中` : '資金をつくる',
-      badge: allListings.filter(l => l.fromTeamId === playerTeamId).length,
-      color: C.green,
-      shadow: '#0d3d22',
-      urgent: false,
-    },
+    // 出品・指名権売却は次バージョンでは出さないので非表示（コードは /transfer/listings に残置）。
+    // 復活させるときはこのタイルを戻すだけでOK。
+    // {
+    //   key: 'listings',
+    //   path: '/transfer/listings',
+    //   label: '出品・指名権売却',
+    //   desc: '自チームの選手を出品・指名権を売る',
+    //   countLabel: allListings.filter(l => l.fromTeamId === playerTeamId).length > 0 ? `${allListings.filter(l => l.fromTeamId === playerTeamId).length}件出品中` : '資金をつくる',
+    //   badge: allListings.filter(l => l.fromTeamId === playerTeamId).length,
+    //   color: C.green,
+    //   shadow: '#0d3d22',
+    //   urgent: false,
+    // },
     {
       key: 'watchlist',
       path: '/transfer/starred',
