@@ -4504,7 +4504,9 @@ export const useGameStore = create<GameStore>()(
           const newRaces = generateSeasonRaces(newYear)
           const newSecondTeamRaces = generateSecondTeamRaces(newYear)
           const champion = updatedTeams.find(t => t.id === sortedStandings[0]?.teamId)
-          const nextScoutPool = generateDraftPool(newYear + 1)
+          // 翌季のプレシーズンで指名される新人はその年(newYear)に加入するので draftYear=newYear にする。
+          // （+1 にすると加入年より1年多い年度で記録され、歴代ドラフトが1年ズレる）
+          const nextScoutPool = generateDraftPool(newYear)
 
           // FA news
           const faNews = expiredIds.size > 0
