@@ -297,6 +297,9 @@ export default function DraftRoom() {
     <div style={{
       height: '100svh', backgroundColor: C.bg,
       maxWidth: '480px', margin: '0 auto',
+      // 上端はダイナミックアイランドの下（セーフエリア）から、下は広告＋ホームバーの上で止める
+      paddingTop: 'env(safe-area-inset-top)',
+      paddingBottom: `calc(${adH}px + env(safe-area-inset-bottom))`,
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',

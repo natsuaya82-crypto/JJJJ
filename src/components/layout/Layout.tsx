@@ -64,7 +64,7 @@ const NAV: NavItem[] = [
 ]
 
 const AD_H = 50
-const NAV_H = 50
+const NAV_H = 58
 const HEADER_H = 49  // ヘッダー実効高（ボタンminHeight44+上下padding2+border1）。safe-area分は別途加算
 
 // 画面下部の広告バナーの高さ。買い切り版（adsRemoved）なら0。
@@ -261,7 +261,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main ref={mainRef} style={{
         position: 'fixed', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px',
         top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
-        bottom: `calc(${raceInProgress ? adH : NAV_H + adH}px + env(safe-area-inset-bottom))`,
+        bottom: `calc(${raceInProgress ? adH : NAV_H + adH + 6}px + env(safe-area-inset-bottom))`,
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}>
         <PageWrapper locationKey={location.pathname}>
@@ -298,7 +298,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               }}
             >
               <div style={{
-                width: 44, height: 38, borderRadius: 11,
+                width: 50, height: 42, borderRadius: 12,
                 background: active
                   ? `linear-gradient(180deg, ${C.cyan}30 0%, ${C.cyan}18 100%)`
                   : `linear-gradient(180deg, #1e3a5c 0%, #0f2440 100%)`,
@@ -315,7 +315,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Icon/>
               </div>
               <span style={{
-                fontSize: '10px',
+                fontSize: '11px',
                 fontWeight: active ? '700' : '400',
                 letterSpacing: '0.3px',
                 color: active ? C.cyan : C.textDim,

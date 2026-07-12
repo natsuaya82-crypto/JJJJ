@@ -307,9 +307,7 @@ export function LineupPhase({
               {NAT_LABELS[dominantNat] ?? dominantNat} 士気+{chemBonus}
             </div>
           )}
-          {lastLineup && Object.keys(lastLineup).length > 0 && (
-            <button onClick={() => { clearRaceLineup(); Object.entries(lastLineup).forEach(([k, v]) => { if (!unavailable?.[v]) setRaceLineup(+k, v) }) }} style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '6px', border: `1px solid ${C.textGhost}`, background: 'transparent', color: C.textSub, cursor: 'pointer', fontFamily: 'inherit' }}>前回</button>
-          )}
+          <button onClick={() => autoFill(race.segments, availablePlayers, raceLineup, setRaceLineup)} style={{ fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動配置</button>
         </div>
       </div>
 
@@ -402,20 +400,6 @@ export function LineupPhase({
         zIndex: 35,
       }}>
         <button onClick={clearRaceLineup} style={{ padding: '10px 12px', borderRadius: '12px', border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
-        <button
-          onClick={() => autoFill(race.segments, availablePlayers, raceLineup, setRaceLineup)}
-          style={{
-            padding: '11px 18px', borderRadius: 11,
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${C.cyan}`, color: C.cyan,
-            fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit',
-            boxShadow: '0 4px 0 #0e3f5a, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-            position: 'relative', overflow: 'hidden',
-          }}
-        >
-          <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }} />
-          自動配置
-        </button>
         {allSegsFilled ? (
           <>
             {onSkipRace && (

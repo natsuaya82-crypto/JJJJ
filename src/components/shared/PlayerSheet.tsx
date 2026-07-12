@@ -265,8 +265,8 @@ export default function PlayerSheet() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
-          // 下は広告バナーの帯（買い切り版は0）。他画面と同じくシートは広告の上で止める
-          position: 'fixed', top: 0, bottom: adH, left: 0, right: 0, margin: '0 auto',
+          // 上端はダイナミックアイランドの下（セーフエリア）から。下は広告バナー＋ホームバーの上で止める。
+          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
           overflowY: 'auto',
           touchAction: 'pan-y',
