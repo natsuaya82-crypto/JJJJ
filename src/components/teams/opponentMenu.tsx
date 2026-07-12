@@ -65,9 +65,9 @@ function LoanModal({ player, slots, pending, isScouted, onSubmit, onClose }: { p
     <ModalShell onClose={onClose}>
       <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900, marginBottom: 10 }}>レンタル要請</div>
       <PlayerHead player={player} isScouted={isScouted} />
-      <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>買わずに1〜2年借りる要請。相手が次レースで回答します（レンタル枠 {slots}/3・移籍金なし・給与は自チーム負担）。</div>
+      <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>買わずに1〜2年借りる要請（レンタル枠 {slots}/3・移籍金なし・給与は自チーム負担）。</div>
       {pending ? (
-        <div style={{ fontSize: 13, color: C.blue, fontWeight: 700, textAlign: 'center', padding: 8, marginBottom: 8 }}>レンタル要請中 — 次レースで回答</div>
+        <div style={{ fontSize: 13, color: C.blue, fontWeight: 700, textAlign: 'center', padding: 8, marginBottom: 8 }}>レンタル要請中</div>
       ) : full ? (
         <div style={{ fontSize: 13, color: C.red, fontWeight: 700, textAlign: 'center', padding: 8, marginBottom: 8 }}>レンタル枠が満杯です（3/3）</div>
       ) : (

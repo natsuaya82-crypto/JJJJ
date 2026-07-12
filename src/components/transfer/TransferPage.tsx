@@ -421,8 +421,8 @@ export default function TransferPage() {
                 { label: signingBanned ? '赤字で補強不可' : '契約オファー', disabled: signingBanned, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ] : [
-                { label: mHasBid ? '入札中 — 次レースで回答' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '交渉決裂・来季まで不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id); setBidFee(mInit) } },
-                { label: reqPending ? 'レンタル要請中 — 次レースで回答' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : !window.open ? '移籍ウィンドウ CLOSED' : 'レンタルで借りる', disabled: reqPending || slots >= 3 || !window.open, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
+                { label: mHasBid ? '入札中' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '交渉決裂・来季まで不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id); setBidFee(mInit) } },
+                { label: reqPending ? 'レンタル要請中' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : !window.open ? '移籍ウィンドウ CLOSED' : 'レンタルで借りる', disabled: reqPending || slots >= 3 || !window.open, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ]
               return (
@@ -475,7 +475,7 @@ export default function TransferPage() {
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={() => { submitTransferBid(bp.id, bidFee); setBidTarget(null) }} disabled={bidFee > myTeam.finance.budget}
                         style={{ flex: 1, padding: '13px', borderRadius: '11px', border: 'none', background: bidFee > myTeam.finance.budget ? C.surface2 : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: bidFee > myTeam.finance.budget ? C.textGhost : C.gold, fontSize: '14px', fontWeight: '900', cursor: bidFee <= myTeam.finance.budget ? 'pointer' : 'default', fontFamily: SAIRA, boxShadow: bidFee > myTeam.finance.budget ? 'none' : '0 4px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.08)' } as React.CSSProperties}>
-                        {bidFee > myTeam.finance.budget ? '予算不足' : '入札する（次レース回答）'}
+                        {bidFee > myTeam.finance.budget ? '予算不足' : '入札する'}
                       </button>
                       <button onClick={() => setBidTarget(null)} style={{ padding: '13px 16px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '13px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
                     </div>
@@ -493,7 +493,7 @@ export default function TransferPage() {
                   <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
                     <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
                     <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 4 }}>{rp.name} をレンタル</div>
-                    <div style={{ fontSize: 10, color: C.textDim, marginBottom: 14, fontFamily: SAIRA }}>買わずに借りる。期間を選んで要請（次レースで回答）。</div>
+                    <div style={{ fontSize: 10, color: C.textDim, marginBottom: 14, fontFamily: SAIRA }}>買わずに借りる。期間を選んで要請。</div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       {[1, 2].map(y => (
                         <button key={y} onClick={() => { submitLoanRequest(rp.id, y); setLoanTarget(null) }}
@@ -740,7 +740,7 @@ export default function TransferPage() {
                           color: C.gold, fontSize: '12px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
                           boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
                         }}>
-                          出品を確定（次レースで反映）
+                          出品を確定
                         </button>
                         <button onClick={() => setListingPlayerId(null)} style={{ padding: '10px 12px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
                       </div>

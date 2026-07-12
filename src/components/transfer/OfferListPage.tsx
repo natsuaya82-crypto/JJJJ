@@ -108,7 +108,7 @@ export default function OfferListPage() {
                         <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: alpha(C.blue, 0.18), color: C.blue }}>回答待ち</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 12px' }}>
-                        <span style={{ flex: 1, fontSize: 10, color: C.textDim }}>相手クラブの回答を待っています（次レースで回答）</span>
+                        <span style={{ flex: 1, fontSize: 10, color: C.textDim }}>相手クラブの回答を待っています</span>
                         <button onClick={() => cancelLoanRequest(r.playerId)} style={{ ...actBtn(C.textSub, true), flex: 'none', padding: '8px 14px' }}>取り下げ</button>
                       </div>
                     </div>
@@ -156,7 +156,7 @@ export default function OfferListPage() {
                       )}
                       {b.status === 'pending' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 12px' }}>
-                          <span style={{ flex: 1, fontSize: 10, color: C.textDim }}>相手クラブの回答を待っています（次レースで回答）</span>
+                          <span style={{ flex: 1, fontSize: 10, color: C.textDim }}>相手クラブの回答を待っています</span>
                           <button onClick={() => rejectTransferBid(b.id)} style={{ ...actBtn(C.textSub, true), flex: 'none', padding: '8px 14px' }}>取り下げ</button>
                         </div>
                       )}
