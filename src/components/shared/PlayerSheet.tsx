@@ -422,19 +422,6 @@ export default function PlayerSheet() {
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* Career */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                {[
-                  { label: '通算出走', val: player.career.totalRaces },
-                  { label: '区間賞', val: player.career.segmentWins },
-                ].map(({ label, val }) => (
-                  <div key={label} style={{ textAlign: 'center', padding: '10px 4px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
-                    <div style={{ fontSize: '20px', fontWeight: '900', color: val > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', lineHeight: 1 }}>{val}</div>
-                    <div style={{ fontSize: '8px', color: '#5C5870', marginTop: '3px' }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-
               {/* 自己ベスト（種目別・記録会で走った実タイムのみ） */}
               <div>
                 <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>自己ベスト</div>

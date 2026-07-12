@@ -1860,10 +1860,19 @@ export const useGameStore = create<GameStore>()(
       },
 
       initScoutPool: () => {
-        const state = get()
-        if ((state.currentSeason.scoutProspects ?? []).length > 0) return
-        const pool = generateDraftPool(state.currentSeason.year + 1)
-        set(s => ({ currentSeason: { ...s.currentSeason, scoutProspects: pool } }))
+        set(state => {
+          const cur = state.currentSeason.scoutProspects ?? []
+          // 加入済み（players に居る）候補を除去。残りがあればそれを維持し、空になったら翌年のドラフト候補を新規生成。
+          // （既存セーブで候補が加入者で埋まり、翌年候補が出てこないのを解消）
+          const remaining = cur.filter(p => !state.players.some(pl => pl.id === p.id))
+          if (remaining.length > 0) {
+            return remaining.length === cur.length
+              ? state
+              : { currentSeason: { ...state.currentSeason, scoutProspects: remaining } }
+          }
+          const pool = generateDraftPool(state.currentSeason.year + 1)
+          return { currentSeason: { ...state.currentSeason, scoutProspects: pool } }
+        })
       },
 
       releasePlayer: (playerId) => {
@@ -5258,7 +5267,7 @@ export const useGameStore = create<GameStore>()(
             ? new Set((state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => c.id))
             : new Set<string>()
           // スカウト候補（大学/高校のドラフト候補）も記録会に参加させ、実力タイムを残す（チーム未所属＝teamId空）。
-          const prospects = (state.currentSeason.scoutProspects ?? []).filter(p => p.status === 'active' && !skip.has(p.id))
+          const prospects = (state.currentSeason.scoutProspects ?? []).filter(p => (p.status === 'active' || p.status === 'draft_eligible') && !skip.has(p.id) && !state.players.some(pl => pl.id === p.id))
           const activePlayers = [
             ...state.players.filter(p =>
               p.status === 'active' && !skip.has(p.id)

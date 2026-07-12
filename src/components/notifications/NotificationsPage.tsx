@@ -237,20 +237,7 @@ function OfferChatView({
         {!done && composing ? (
           <div style={{ padding: '12px 12px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 10, color: C.textDim }}>希望移籍金</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button onClick={() => setCounterPrice(p => Math.max(0, p - TRANSFER_STEP * 5))}
-                style={{ padding: '5px 9px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 11, cursor: 'pointer' }}>−5</button>
-              <button onClick={() => setCounterPrice(p => Math.max(0, p - TRANSFER_STEP))}
-                style={{ padding: '5px 9px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 11, cursor: 'pointer' }}>−1</button>
-              <div style={{ flex: 1, textAlign: 'center', padding: '6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8 }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>{fmtYen(counterPrice)}</span>
-                <span style={{ fontSize: 9, color: C.textDim, marginLeft: 4 }}>500万単位</span>
-              </div>
-              <button onClick={() => setCounterPrice(p => p + TRANSFER_STEP)}
-                style={{ padding: '5px 9px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 11, cursor: 'pointer' }}>+1</button>
-              <button onClick={() => setCounterPrice(p => p + TRANSFER_STEP * 5)}
-                style={{ padding: '5px 9px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 11, cursor: 'pointer' }}>+5</button>
-            </div>
+            <NumberDial value={counterPrice} onChange={v => setCounterPrice(Math.max(1_000_000, v))} min={1_000_000} accent={C.red} />
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const }}>
               {[1.1, 1.25, 1.5, 2.0].map(r => {
                 const v = Math.round(counterBase * r / TRANSFER_STEP) * TRANSFER_STEP

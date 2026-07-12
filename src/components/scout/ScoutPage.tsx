@@ -10,11 +10,13 @@ import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function ScoutPage() {
-  const { currentSeason, initScoutPool, openPlayerSheet } = useGameStore()
+  const { currentSeason, initScoutPool, openPlayerSheet, players } = useGameStore()
 
   useEffect(() => { initScoutPool() }, [])
 
-  const prospects = currentSeason.scoutProspects
+  // ドラフトで加入済みの選手（＝playersに存在）は候補リストに残っていても表示しない（スカウトに居座らせない）。
+  const enrolledIds = new Set(players.map(p => p.id))
+  const prospects = (currentSeason.scoutProspects ?? []).filter(p => !enrolledIds.has(p.id))
 
   const [sortBy, setSortBy] = useState<'ovr' | 'specialty' | 'age'>('ovr')
   const [filterSpec, setFilterSpec] = useState<Specialty | null>(null)
