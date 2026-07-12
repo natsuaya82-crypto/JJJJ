@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
-import { calcTransferValue } from '../../utils/playerUtils'
+import { calcTransferValue, playerConsentToMove } from '../../utils/playerUtils'
 import { transferBidBase, transferAcceptChance } from '../../data/economy'
+import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 
@@ -27,6 +28,22 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   const chancePct = Math.round(transferAcceptChance(fee, base) * 100)
   const over = fee > budget
 
+  // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
+  const { currentSeason, teams, playerTeamId } = useGameStore()
+  const standings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const myRank = standings.findIndex(s => s.teamId === playerTeamId) + 1
+  const scoutLv = teams.find(t => t.id === playerTeamId)?.facilities?.scoutOffice ?? 0
+  const consentBase = scoutLv * 0.02
+  // 年俸ボーナス（相場1.2倍=+0.1 / 1.5倍=+0.2）でどこまで説得できるかを段階表示
+  const mind = playerConsentToMove(player, myRank, teams.length, 0.5, 0, consentBase, true).ok ? 'willing'
+    : playerConsentToMove(player, myRank, teams.length, 0.5, 0, consentBase + 0.1, true).ok ? 'salary12'
+    : playerConsentToMove(player, myRank, teams.length, 0.5, 0, consentBase + 0.2, true).ok ? 'salary15'
+    : 'refuse'
+  const mindLabel = mind === 'willing' ? '前向き' : mind === 'salary12' ? '高めの年俸なら承諾' : mind === 'salary15' ? '大幅な高年俸なら承諾' : '移籍を望んでいない'
+  const mindColor = mind === 'willing' ? C.green : mind === 'refuse' ? C.red : C.gold
+  // 本人が拒否なら、クラブと合意できても成立しない＝成立見込みは0%
+  const overallPct = mind === 'refuse' ? 0 : chancePct
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
       <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
@@ -40,9 +57,17 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
         <div style={{ padding: '4px 0 10px' }}>
           <NumberDial value={fee} onChange={v => setFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>クラブ合意</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub }}>{chancePct}%</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>本人の意向</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: mindColor }}>{mindLabel}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingTop: '6px', borderTop: `1px solid ${C.border}` }}>
           <span style={{ fontSize: 11, color: C.textSub, fontFamily: SAIRA }}>成立見込み</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: chancePct >= 70 ? C.green : chancePct >= 35 ? C.gold : C.red }}>{chancePct}%</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: overallPct >= 70 ? C.green : overallPct >= 35 ? C.gold : C.red }}>{overallPct}%</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => onSubmit(fee)} disabled={over}

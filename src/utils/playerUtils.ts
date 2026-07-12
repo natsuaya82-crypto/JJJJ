@@ -121,8 +121,10 @@ export function isDataKeyPlayer(p: Player, playFraction: number, teamRaces: numb
 // 移籍・トレードで動く選手本人が「移籍先チームに行くことに納得するか」。
 // チーム同士が合意しても、選手が納得しなければ成立しない。年俸ではなく出場データ・順位で判断。
 // destRank=移籍先の現順位, totalTeams=全チーム数, playFraction=現チームでの出場割合, teamRaces=消化レース数。
+// clubBlessed=true はクラブ間で移籍金が合意済みの公認移籍：売る判断はクラブが済ませているので
+// 「主力だから残りたい」の減点は働かず、本人は行き先の魅力・愛着だけで決める。
 export function playerConsentToMove(
-  p: Player, destRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0, consentBonus = 0,
+  p: Player, destRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0, consentBonus = 0, clubBlessed = false,
 ): { ok: boolean; reason: string } {
   const appeal = destRank > 0 ? (totalTeams - destRank + 1) / totalTeams : 0.5 // 1.0=首位級
   const personality = p.personality ?? 'salary'
@@ -135,7 +137,7 @@ export function playerConsentToMove(
   else if (morale >= 75) score -= 0.1
   score += consentBonus  // スカウト拠点などの交渉成立ボーナス
   // 出場データによる移籍意欲：2軍・出場が少ない選手は出たがる。主力は残りたい。
-  const key = isDataKeyPlayer(p, playFraction, teamRaces)
+  const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
   if (p.rosterTier === 'second') score += 0.35
   else if (teamRaces >= 3 && playFraction < 0.4) score += 0.25   // 1軍でもほぼ出ていない＝出場機会を求める
   else if (key) score -= 0.3                                     // 主力（よく出ている）は動きにくい

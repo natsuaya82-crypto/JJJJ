@@ -3139,10 +3139,9 @@ export const useGameStore = create<GameStore>()(
         // 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）
         const marketSalary = faMarketSalary(player)
         const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
-        // クラブ間で移籍金が合意済み＝クラブ公認の移籍。主力（放出拒否）判定はクラブ側で済んでいるため、
-        // 本人の「主力だから残りたい」心理はここでは大きく緩む（+0.25）
-        const clubBlessedBonus = 0.25
-        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02 + salaryBonus + clubBlessedBonus)
+        // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
+        // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
+        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
         if (!consent.ok) {
           // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
           set(s => ({
