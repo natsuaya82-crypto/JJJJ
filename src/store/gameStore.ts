@@ -5073,6 +5073,16 @@ export const useGameStore = create<GameStore>()(
               }
             }
           }
+          // 国内も同様：今季1度も出走しなかった在籍選手の所属を記録して保存（在籍履歴の空白防止）
+          const appearedIds = new Set<string>()
+          for (const race of [...state.currentSeason.races, ...(state.currentSeason.secondTeamRaces ?? [])]) {
+            if (!race.results) continue
+            for (const sr of race.results.segmentResults) for (const r of sr.runners) appearedIds.add(r.playerId)
+          }
+          const domesticTeamIds = new Set(state.teams.map(t => t.id))
+          const zeroAppearances = state.players
+            .filter(p => p.status === 'active' && domesticTeamIds.has(p.teamId) && !appearedIds.has(p.id))
+            .map(p => ({ playerId: p.id, teamId: p.teamId, tier: (p.rosterTier === 'second' ? 'second' : 'main') as 'main' | 'second' }))
 
           return {
             players: cleanedPlayers,
@@ -5088,6 +5098,7 @@ export const useGameStore = create<GameStore>()(
             pastSeasons: [...state.pastSeasons, {
               ...state.currentSeason,
               foreignAppearances: archivedForeignApps,
+              zeroAppearances,
               objectives: completedObjs,
               individualEvents: [],
               newsFeed: [],

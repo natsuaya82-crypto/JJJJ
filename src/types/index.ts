@@ -628,6 +628,9 @@ export type Season = {
   // 海外リーグの選手ごとの出場記録（playerId → 所属クラブ・今季の出場数・区間賞数）。
   // currentSeason に積み、シーズン終了で pastSeasons に乗る（選手詳細の在籍履歴に海外クラブ行として表示）。
   foreignAppearances?: Record<string, { clubId: string; races: number; wins: number }>
+  // 国内在籍で今季1度も出走しなかった選手の所属（シーズン終了時に保存）。
+  // 在籍履歴は出走記録から行を作るため、これが無いと出なかった年の所属が消える
+  zeroAppearances?: { playerId: string; teamId: string; tier: 'main' | 'second' }[]
   eclResult?: EclResult                                  // ECL開催結果（ポストシーズンに1回）
   expiredNegotiations?: { id: string; playerId: string; playerName: string }[]
   // フリー移籍（移籍金0の接触）の決断結果。left=移籍した/false=残留。確認で消す

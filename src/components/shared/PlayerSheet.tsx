@@ -262,6 +262,14 @@ export default function PlayerSheet() {
   }
   for (const ps of pastSeasons) addForeignHistory(ps.year, ps.foreignAppearances)
   addForeignHistory(currentSeason.year, currentSeason.foreignAppearances)
+  // 出走ゼロだった年の国内所属（シーズン終了時に保存）からも行を埋める（0戦でも在籍は表示する）
+  for (const ps of pastSeasons) {
+    const z = (ps.zeroAppearances ?? []).find(e => e.playerId === player.id)
+    if (z) {
+      const key = `${ps.year}|${z.teamId}|${z.tier}`
+      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, tier: z.tier, races: 0, wins: 0 })
+    }
+  }
   // 現行シーズンは未出場でも「今年・現チーム・現在の1軍2軍」を必ず1行出す（0レースで空にしない）
   {
     const curTier: 'main' | 'second' = player.rosterTier === 'second' ? 'second' : 'main'
