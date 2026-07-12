@@ -386,6 +386,8 @@ export type GameStore = GameState & {
   dismissExpiredNegotiation: (id: string) => void
   dismissFreeTransferNotice: (id: string) => void
   markFreeContactSeen: (id: string) => void
+  // フリー接触中の選手に引き留めを断られた：以後この接触は通知・要対応に出さず、本人の決断を待つだけにする
+  refuseFreeContactRetention: (playerId: string) => void
   dismissDepartureNotice: (id: string) => void
 
   // Dev reset
@@ -2557,10 +2559,13 @@ export const useGameStore = create<GameStore>()(
             const fcRaces = Math.max(1, state.currentSeason.currentRaceIndex)
             const fcFrac = seasonAppearances(player.id, state.currentSeason.races) / fcRaces
             if (freeContactConsent(player, suitorRank, state.teams.length, fcFrac, fcRaces)) {
+              // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
               return {
                 currentSeason: {
                   ...state.currentSeason,
                   contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? { ...r, status: 'rejected' as const, offerSalary: salary, offerYears: years } : r),
+                  incomingOffers: (state.currentSeason.incomingOffers ?? []).map(o => o.id === freeContact.id ? { ...o, retentionRefused: true } : o),
+                  seenFreeContactIds: [...new Set([...(state.currentSeason.seenFreeContactIds ?? []), freeContact.id])],
                 },
               }
             }
@@ -5910,6 +5915,17 @@ export const useGameStore = create<GameStore>()(
       dismissExpiredNegotiation: (id) => set(s => ({ currentSeason: { ...s.currentSeason, expiredNegotiations: (s.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== id) } })),
       dismissFreeTransferNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, freeTransferNotices: (s.currentSeason.freeTransferNotices ?? []).filter(n => n.id !== id) } })),
       markFreeContactSeen: (id) => set(s => ({ currentSeason: { ...s.currentSeason, seenFreeContactIds: [...new Set([...(s.currentSeason.seenFreeContactIds ?? []), id])] } })),
+      refuseFreeContactRetention: (playerId) => set(s => {
+        const fc = (s.currentSeason.incomingOffers ?? []).find(o => o.playerId === playerId && o.offeredPrice === 0)
+        if (!fc) return s
+        return {
+          currentSeason: {
+            ...s.currentSeason,
+            incomingOffers: (s.currentSeason.incomingOffers ?? []).map(o => o.id === fc.id ? { ...o, retentionRefused: true } : o),
+            seenFreeContactIds: [...new Set([...(s.currentSeason.seenFreeContactIds ?? []), fc.id])],
+          },
+        }
+      }),
       dismissDepartureNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, departureNotices: (s.currentSeason.departureNotices ?? []).filter(n => n.id !== id) } })),
 
       resetGame: () => {

@@ -222,8 +222,13 @@ export default function App() {
   const [hydrated, setHydrated] = useState(() => useGameStore.persist.hasHydrated())
   useEffect(() => {
     if (hydrated) return
+    // 購読前に読み込みが完了しているケース（実機のファイル読込は速い）。
+    // ここで再確認しないと完了通知を永遠に待ち続けてタイトルから進めなくなる
+    if (useGameStore.persist.hasHydrated()) { setHydrated(true); return }
     const unsub = useGameStore.persist.onFinishHydration(() => setHydrated(true))
-    return unsub
+    // 保険：読み込みが失敗しても5秒で必ず先へ進める（無限に詰まないように）
+    const failsafe = setTimeout(() => setHydrated(true), 5000)
+    return () => { unsub(); clearTimeout(failsafe) }
   }, [hydrated])
 
   // 重要操作（レース確定=currentRaceIndex / シーズン更新=year / 購入=adsRemoved / 開始・リセット=isInitialized）の

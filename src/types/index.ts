@@ -70,6 +70,7 @@ export type IncomingOffer = {
   expiresAtRace: number
   round: number
   fromForeign?: boolean   // 海外クラブからのオファー
+  retentionRefused?: boolean  // フリー接触中に引き留めを一度断った（以後は本人の決断待ちだけ・通知や要対応に出さない）
 }
 
 // トレードのチャット交渉。提案→相手が承諾/カウンター/拒否→往復（最大3回）。

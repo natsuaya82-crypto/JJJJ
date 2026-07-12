@@ -174,7 +174,7 @@ function ChatView({
     acceptContractCounter, reNegotiateContract,
     acceptRetirement, dismissRetirementRequest,
     dismissTransferRequest, allowPlayerTransfer,
-    generateContractRequests,
+    generateContractRequests, refuseFreeContactRetention,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
     openPlayerSheet, resolveEvent, finalizeTransfer, rejectTransferBid,
   } = useGameStore()
@@ -187,10 +187,8 @@ function ChatView({
   const contractRequests = currentSeason.contractRequests ?? []
   // フリー移籍で他クラブと接触中か（勧誘クラブ名）。接触中は契約更新の用件（要求・催促）をこの会話に出さず、
   // 「誘いを受けている」文脈に一本化する。引き留めは「契約条件を提示する」から（成立すれば接触打ち切り＝残留）
-  const freeContactClub = (() => {
-    const fc = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
-    return fc ? (teams.find(t => t.id === fc.fromTeamId)?.shortName ?? '他クラブ') : null
-  })()
+  const freeContactOffer = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0) ?? null
+  const freeContactClub = freeContactOffer ? (teams.find(t => t.id === freeContactOffer.fromTeamId)?.shortName ?? '他クラブ') : null
   const contractReqRaw =
     contractRequests.find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected') ??
     contractRequests.filter(r => r.playerId === player.id).at(-1)
@@ -358,9 +356,10 @@ function ChatView({
         append({ from: 'player', text: `考えましたが、年俸${fmt(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意できます。これ以上は難しいです。` })
       } else if (updated?.status === 'rejected') {
         // フリー移籍の接触中で本人が移籍に傾いている場合は、条件の問題ではないことを伝える
-        const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0)
+        // （引き留め拒否が実際に起きた時だけ。残留寄りの選手が条件で断った時は通常の断り文句）
+        const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0 && o.retentionRefused)
         append({ from: 'player', text: courted
-          ? '申し訳ありません…実は他クラブから誘いを受けていて、心が揺れています。条件の問題ではないんです。少し考えさせてください。'
+          ? '申し訳ありません…実は他クラブから誘いを受けていて、移籍を前向きに考えています。条件の問題ではないんです。'
           : '申し訳ありませんが、その条件では受け入れられません。' })
       }
     }
@@ -471,6 +470,16 @@ function ChatView({
         allowPlayerTransfer(player.id)
       }},
       { label: '残ってほしい', color: C.blue, action: () => {
+        // 他クラブに心が傾いている選手は「わかりました」と言わず、最初から正直に断る（以後は本人の決断待ち）
+        if (courtedAway) {
+          append(
+            { from: 'gm', text: 'まだあなたの力が必要です。残ってください。' },
+            { from: 'player', text: `すみません…実は${freeContactClub ?? '他クラブ'}から誘いを受けていて、移籍を前向きに考えています。お約束はできません。` }
+          )
+          dismissTransferRequest(player.id)
+          refuseFreeContactRetention(player.id)
+          return
+        }
         append(
           { from: 'gm', text: 'まだあなたの力が必要です。残ってください。' },
           { from: 'player', text: 'わかりました。もう少し様子を見てみます。' }
@@ -532,7 +541,7 @@ function ChatView({
               append({ from: 'player', text: 'ありがとうございます。よろしくお願いします。' })
             } else {
               // フリー移籍の接触中で本人が移籍に傾いている場合、要求どおりでも断られる。条件の問題ではないことを伝える
-              const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0)
+              const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0 && o.retentionRefused)
               append({ from: 'player', text: courted
                 ? 'すみません…実は他クラブから誘いを受けていて、移籍を前向きに考えています。条件の問題ではないんです。'
                 : '申し訳ありませんが、その条件では受け入れられません。' })
@@ -565,10 +574,18 @@ function ChatView({
 
     // 対応済みの契約合意は締めの状態（ボタンなし・見返し用）
     if (contractReq?.status === 'accepted') return []
-    // 心が移籍に傾いている選手に契約を断られた後は閉じるだけ（無駄な再提示ループを防ぐ）
-    if (courtedAway && contractReq?.status === 'rejected') return [
-      { label: '閉じる', color: C.textSub, action: onClose },
-    ]
+
+    // フリー接触中：引き留めは契約提示に一本化（通常の契約更新ボタンは出さない）。
+    // 一度断られたらこの件は終わり＝閉じるだけにして、本人の決断を待つ
+    if (freeContactOffer) {
+      if (freeContactOffer.retentionRefused || contractReqRaw?.status === 'rejected') return [
+        { label: '閉じる', color: C.textSub, action: onClose },
+      ]
+      return [
+        { label: '引き留めの条件を提示する', color: C.blue, action: openCompose },
+        { label: '閉じる', color: C.textSub, action: onClose },
+      ]
+    }
 
     // 退団予定（移籍リスト入り）の選手は契約更新できない
     if (player.transferListed) return [
@@ -966,6 +983,7 @@ function getPlayerStatus(
   transferRequests: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['transferRequests']>,
   events: ReturnType<typeof useGameStore.getState>['currentSeason']['events'],
   months: number,
+  contacted: boolean,
 ) {
   const hasRetirement = (retirementRequests ?? []).some(r => r.playerId === player.id)
   const hasTransfer = (transferRequests ?? []).some(r => r.playerId === player.id)
@@ -981,9 +999,16 @@ function getPlayerStatus(
     const reasonLabel = tr?.reason === 'playing_time' ? '出場機会' : tr?.reason === 'team_performance' ? '強豪志向' : '待遇不満'
     return { label: `移籍希望・${reasonLabel}`, color: C.orange, priority: 1 }
   }
+  // フリー接触中の選手に契約残の「要対応」は出さない（接触の用件は移籍・獲得タブと通知側で扱う）
+  if (contacted) {
+    if (hasComplaint) return { label: '不満あり', color: C.orange, priority: 4 }
+    if (hasOtherEvent) return { label: '連絡あり', color: C.blue, priority: 4 }
+    return null
+  }
   if (activeReq?.status === 'countered') return { label: '対応中', color: C.gold, priority: 2 }
   if (activeReq?.initiatedBy === 'gm' && activeReq.status === 'pending_gm') return { label: '対応中', color: C.gold, priority: 2 }
-  if (months < 12 || activeReq?.status === 'pending_gm') return { label: '要対応', color: C.red, priority: 3 }
+  // 契約残による「要対応」は通知の契約更新リマインダーと同じ基準（6ヶ月未満）に揃える
+  if (months < 6 || activeReq?.status === 'pending_gm') return { label: '要対応', color: C.red, priority: 3 }
   if (hasComplaint) return { label: '不満あり', color: C.orange, priority: 4 }
   if (hasOtherEvent) return { label: '連絡あり', color: C.blue, priority: 4 }
   return null
@@ -1148,11 +1173,14 @@ export default function ChatPage() {
   // 獲得交渉中（トレード成立後の再契約など）の自チーム選手は「移籍・獲得」タブに出すので、自チーム一覧からは除く
   const activeAcqPlayerIds = new Set((currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered').map(o => o.playerId))
 
+  // フリー接触中の選手（契約残の要対応から外す。用件は移籍・獲得タブの接触中カードと通知側で扱う）
+  const contactedIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
+
   const withStatus = myPlayers.filter(p => !activeAcqPlayerIds.has(p.id)).map(p => {
     const months = contractMonths(p.contract.yearsLeft, raceIndex, totalRaces)
     // レンタルで借りている選手の契約・引退・移籍の用件は保有元クラブの管轄なので出さない
     const isLoanedIn = !!p.loan && p.loan.ownerTeamId !== playerTeamId
-    const status = isLoanedIn ? null : getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, events, months)
+    const status = isLoanedIn ? null : getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, events, months, contactedIds.has(p.id))
     return { player: p, months, status }
   })
 
@@ -1192,7 +1220,9 @@ export default function ChatPage() {
   // 相手から来たオファー（移籍・レンタル）＝チャットで対応
   const foreignClubMap = new Map((foreignLeagues ?? []).flatMap(l => l.clubs).map(c => [c.id, c.shortName]))
   const teamName = (id: string) => teams.find(t => t.id === id)?.shortName ?? foreignClubMap.get(id) ?? '他クラブ'
-  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => players.some(p => p.id === o.playerId && p.teamId === playerTeamId))
+  // 引き留めを断られた接触（retentionRefused）は対応済み：一覧・件数に出さず、本人の決断を待つだけ
+  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o =>
+    players.some(p => p.id === o.playerId && p.teamId === playerTeamId) && !(o.offeredPrice === 0 && o.retentionRefused))
   const incomingLoanOffers = currentSeason.incomingLoanOffers ?? []
   const inboundCount = incomingOffers.length + incomingLoanOffers.length
   const loanSlotsUsed = players.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length
