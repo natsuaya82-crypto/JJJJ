@@ -389,7 +389,7 @@ export default function DraftRoom() {
               </div>
               <div style={{ fontSize: '8px', color: C.textDim, marginTop: '1px' }}>MY PICKS</div>
             </div>
-            {!isMyPick && myPicksDone < myPicksTotal && (
+            {!isMyPick && !isComplete && (
               <button onClick={skipToMyPick} style={{
                 padding: '6px 11px', borderRadius: '10px',
                 border: `2px solid ${C.blue}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -399,7 +399,7 @@ export default function DraftRoom() {
                 position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }}/>
-                自番へ →
+                {myPicksDone < myPicksTotal ? '自番へ →' : '最後までスキップ →'}
               </button>
             )}
           </div>

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { showRewardAd } from '../../utils/ads'
 import type { Race, RaceResults, Team, Player, Season, Nationality } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
 import { segOvr, ovr, ratingColor } from '../../utils/playerUtils'
@@ -74,7 +73,6 @@ export function ResultsPhase({
   const [view, setView] = useState<'main' | 'segments' | 'exp'>('main')
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
-  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const raceExpGains = useGameStore(s => s.raceExpGains ?? {})
   const teamMap = new Map(teams.map(t => [t.id, t]))
   const playerMap = new Map(players.map(p => [p.id, p]))
@@ -107,7 +105,7 @@ export function ResultsPhase({
     // 契約満了間近の選手がいる場合は先に対応させる。
     // シーズン最終戦・リザーブリーグ（reserveStandings/onContinue経由）では誘導しない。
     if (urgentRenewalExists && !isLastRace && !reserveStandings && !onContinue) { navigate('/notifications'); return }
-    if (isLastRace && !adsRemoved) await showRewardAd()
+    // 最終戦直後の広告は廃止（「次シーズン開幕へ」で1回だけ流す。2連続で広告が出るのを防ぐ）
     onContinue ? onContinue() : navigate('/')
   }
 
