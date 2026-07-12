@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLoadingStore } from '../../store/loadingStore'
+import { useAdHeight } from '../layout/Layout'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -30,6 +31,7 @@ function renderTip(tip: string) {
 export default function LoadingOverlay() {
   const active = useLoadingStore(s => s.active)
   const label = useLoadingStore(s => s.label)
+  const adH = useAdHeight()   // 広告バナー分。広告なし(買い切り)なら0
   const [tip, setTip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)])
   const wasActive = useRef(false)
 
@@ -93,8 +95,8 @@ export default function LoadingOverlay() {
         </div>
       </div>
 
-      {/* 右下ローディングバー */}
-      <div style={{ position: 'absolute', right: 16, bottom: 'calc(20px + env(safe-area-inset-bottom))', zIndex: 4, textAlign: 'right' }}>
+      {/* 右下ローディングバー（広告バナーに隠れないよう広告分だけ上げる。広告なしなら従来位置） */}
+      <div style={{ position: 'absolute', right: 16, bottom: `calc(${20 + adH}px + env(safe-area-inset-bottom))`, zIndex: 4, textAlign: 'right' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
           <span style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: 11, letterSpacing: 4, color: C.textSub }}>
             <span style={{ color: C.gold }}>◆</span> {label || 'NOW LOADING'}
