@@ -307,10 +307,8 @@ export default function RacePage() {
     if (p.status === 'injured') {
       const left = p.injuredUntilRace != null ? p.injuredUntilRace - raceIndex : 0
       unavailableMap[p.id] = left > 0 ? `故障中・復帰まで約${left}戦` : '故障中'
-    } else if (!p.loan && p.acquiredRaceIndex != null && raceIndex - p.acquiredRaceIndex < 2) {
-      // レンタル選手は加入後2戦の出走制限を受けない
-      unavailableMap[p.id] = `移籍加入・あと${p.acquiredRaceIndex + 2 - raceIndex}戦で出走可`
     }
+    // 移籍/トレード加入直後の出走制限は撤廃（加入したレースからいつでも出走可）
   }
   const assignedIds = new Set(Object.values(raceLineup))
   const allSegsFilled = (race?.segments ?? []).every(s => !!raceLineup[s.index])

@@ -438,7 +438,7 @@ export function SimPhase({
     return (
       <div style={{
         fontFamily: SAIRA,
-        position: 'fixed', top: 52, bottom: adH, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', top: 52, bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: 480, zIndex: 30, overflow: 'hidden',
         background: `radial-gradient(ellipse at 50% 30%, ${alpha(segCol, 0.22)} 0%, ${C.bg} 65%)`,
         display: 'flex', flexDirection: 'column',
@@ -546,7 +546,7 @@ export function SimPhase({
       {/* レース状況の覗き見中：イベントに戻る（広告枠の上に配置。買い切り版は0） */}
       {atEvent && peekRace && (
         <div style={{
-          position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
+          position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: 480, zIndex: 55,
           padding: '14px 12px', background: `linear-gradient(0deg, ${C.bg} 70%, transparent)`,
         }}>
