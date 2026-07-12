@@ -12,9 +12,7 @@ export default function TransferHub() {
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
 
   const win = getTransferWindow()
-  const pendingTrades = currentSeason.pendingTradeOffers ?? []
   const tradeNegs = currentSeason.tradeNegotiations ?? []
-  const faPlayers = players.filter(p => p.teamId === '' && p.status === 'active')
   const transferBids = (currentSeason.transferBids ?? []).filter(b => b.status !== 'complete' && b.status !== 'failed')
   const allListings = currentSeason.transferListings ?? []
   const incomingOffers = currentSeason.incomingOffers ?? []
@@ -84,6 +82,17 @@ export default function TransferHub() {
       urgent: false,
     },
     {
+      key: 'listings',
+      path: '/transfer/listings',
+      label: '出品・指名権売却',
+      desc: '自チームの選手を出品・指名権を売る',
+      countLabel: allListings.filter(l => l.fromTeamId === playerTeamId).length > 0 ? `${allListings.filter(l => l.fromTeamId === playerTeamId).length}件出品中` : '資金をつくる',
+      badge: allListings.filter(l => l.fromTeamId === playerTeamId).length,
+      color: C.green,
+      shadow: '#0d3d22',
+      urgent: false,
+    },
+    {
       key: 'watchlist',
       path: '/transfer/starred',
       label: 'WATCHLIST',
@@ -137,6 +146,12 @@ export default function TransferHub() {
     watchlist: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+      </svg>
+    ),
+    listings: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3v12M12 3l-4 4M12 3l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     ),
   }

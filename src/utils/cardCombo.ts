@@ -36,12 +36,6 @@ export const RARITY_LABELS: Record<CardRarity, string> = {
   legendary: 'レジェンダリー',
 }
 
-export const RARITY_BG: Record<CardRarity, string> = {
-  normal: '#1E1E2E',
-  rare: '#1E2A3E',
-  epic: '#2A1E3E',
-  legendary: '#3E2E1E',
-}
 
 const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 
@@ -160,9 +154,6 @@ function recipeKey(types: CardStatKey[]): string {
 const RECIPE_MAP = new Map(RECIPES.map(r => [recipeKey(r.types), r]))
 
 // 選択中のカードから成立するメニューを事前に判定（UI表示用）。カード未選択でも呼べる。
-export function detectMenu(statKeys: CardStatKey[]): Recipe | null {
-  return RECIPE_MAP.get(recipeKey(statKeys)) ?? null
-}
 
 // 能力（ステータス）カードだけの合成結果を判定する（従来のレシピ判定）。rest混在時は statCards を渡す。
 function detectStatCombo(cards: TrainingCard[]): ComboResult {

@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer, isOpponentScouted, isScoutPending } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
@@ -31,50 +31,22 @@ const NAT_LABELS: Record<Nationality, string> = {
   FOREIGN: 'その他外国',
 }
 
-type Tab = 'market' | 'market-results' | 'fa' | 'roster' | 'trade' | 'listings'
-
-const SALARY_STEP = 500000
-const SALARY_MIN  = 3000000
-const SALARY_MAX  = 80000000
+type Tab = 'market' | 'market-results' | 'trade' | 'listings'
 
 function fmt(yen: number) {
   if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
   return `${Math.round(yen / 10000)}万`
 }
 
-function ContractBadge({ years }: { years: number }) {
-  const col = years <= 1 ? C.red : years <= 2 ? C.gold : C.textDim
-  return (
-    <span style={{
-      fontSize: '9px', fontWeight: '700', padding: '2px 6px', borderRadius: '6px',
-      backgroundColor: alpha(col, 0.09), color: col, border: `1px solid ${alpha(col, 0.18)}`,
-      fontFamily: SAIRA,
-    }}>
-      {years}年
-    </span>
-  )
-}
-
-const PERSONALITY_LABEL: Record<string, string> = {
-  salary: '高年俸志向',
-  winning: '勝利志向',
-  loyalty: 'チーム愛着型',
-}
-const PERSONALITY_COLOR: Record<string, string> = {
-  salary: C.gold,
-  winning: C.green,
-  loyalty: C.blue,
-}
-
 export default function TransferPage() {
   const {
-    teams, players, playerTeamId, currentSeason, gmRep, foreignLeagues,
-    signFAPlayer, tradePlayer, getTransferWindow, ensureFuturePicks, startAcquisitionOffer,
+    teams, players, playerTeamId, currentSeason, foreignLeagues,
+    getTransferWindow, ensureFuturePicks, startAcquisitionOffer,
     submitTransferBid, submitLoanRequest,
     acceptIncomingOffer, declineIncomingOffer,
     counterIncomingOffer,
     listMyPlayerForSale, delistMyPlayer, sellDraftPick,
-    scoutOpponentPlayer,
+
   } = useGameStore()
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
@@ -129,112 +101,17 @@ export default function TransferPage() {
   const [loanTarget, setLoanTarget] = useState<string | null>(null)
   const lpRef = useRef<{ t?: number; long: boolean }>({ long: false })
 
-  const [filterSpec, setFilterSpec] = useState<Specialty | 'all'>('all')
-  const [tradeTier, setTradeTier] = useState<'all' | 'main' | 'second'>('all')
-
-  const [tradeTarget, setTradeTarget] = useState<string | null>(null)
-  const [tradeStep, setTradeStep] = useState<1 | 2 | 3>(1)
-  const [offerIds, setOfferIds] = useState<string[]>([])
-  const [requestIds, setRequestIds] = useState<string[]>([])
-  const [offerPickKeys, setOfferPickKeys] = useState<string[]>([])
-  const [requestPickKeys, setRequestPickKeys] = useState<string[]>([])
-  const [tradeFee, setTradeFee] = useState<number>(0)
-  const [tradeRound, setTradeRound] = useState<number>(1)
-  const [tradeStatus, setTradeStatus] = useState<'idle' | 'countered' | 'accepted' | 'rejected'>('idle')
-  const [counterFee, setCounterFee] = useState<number>(0)
-  const [counterMsg, setCounterMsg] = useState<string>('')
   const [listingPlayerId, setListingPlayerId] = useState<string | null>(null)
   const [listingPrice, setListingPrice] = useState<number>(0)
   const [pickSellTarget, setPickSellTarget] = useState<string | null>(null)
   const [pickSellTeam, setPickSellTeam] = useState<string>('')
   const [pickSellPrice, setPickSellPrice] = useState<number>(0)
   const [pickSellResult, setPickSellResult] = useState<'idle' | 'success' | 'failed'>('idle')
-  const [tradeLeague, setTradeLeague] = useState<string>('jpel')
   // 被オファー対応の結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）
   const [offerResults, setOfferResults] = useState<{ id: string; text: string; ok: boolean }[]>([])
   const pushOfferResult = (id: string, text: string, ok: boolean) => setOfferResults(prev => [...prev.filter(r => r.id !== id), { id, text, ok }])
   const dismissOfferResult = (id: string) => setOfferResults(prev => prev.filter(r => r.id !== id))
 
-  function pickKey(p: { year: number; round: number; pickNumber: number }) {
-    return `${p.year}-R${p.round}-${p.pickNumber}`
-  }
-  function pickValue(round: number, pickNumber: number) { return draftPickValue(round, pickNumber) }
-
-  function resetTrade(teamId: string | null) {
-    setTradeTarget(teamId)
-    setTradeStep(1)
-    setOfferIds([]); setRequestIds([])
-    setOfferPickKeys([]); setRequestPickKeys([])
-    setTradeFee(0)
-    setTradeRound(1); setTradeStatus('idle'); setCounterFee(0); setCounterMsg('')
-  }
-
-  function evaluateOffer(offOvr: number, reqOvr: number, fee: number, round: number, offPickVal: number, reqPickVal: number): { result: 'accept' | 'counter' | 'reject'; cFee: number; msg: string } {
-    const ovrGap = (reqOvr - offOvr) * 4_000_000
-    const netFee = fee + offPickVal - reqPickVal
-    const counterpartGain = netFee - ovrGap
-    const tolerance = round === 1 ? 3_000_000 : round === 2 ? 8_000_000 : 16_000_000
-    if (counterpartGain >= -tolerance) {
-      return { result: 'accept', cFee: 0, msg: 'トレード成立！' }
-    }
-    const gap = -(counterpartGain)
-    if (gap <= 50_000_000) {
-      const demand = Math.ceil((gap - tolerance) / 1_000_000) * 1_000_000
-      const msgs = [
-        `条件を詰めましょう。移籍金${fmt(demand)}の追加で合意できます。`,
-        `悪くない提案ですが、${fmt(demand)}の上乗せをお願いします。`,
-        `もう少し。${fmt(demand)}払っていただければ話は進みます。`,
-      ]
-      return { result: 'counter', cFee: demand, msg: msgs[round - 1] ?? msgs[0] }
-    }
-    const rejects = [
-      '条件が大きく乖離しています。別の提案をお願いします。',
-      'やはり条件が合いません。もっと良い選手か指名権が必要です。',
-      '最終回答：この条件では合意できません。',
-    ]
-    return { result: 'reject', cFee: 0, msg: rejects[round - 1] ?? rejects[0] }
-  }
-
-  function handlePropose(offOvr: number, reqOvr: number, offPickVal: number, reqPickVal: number) {
-    const { result, cFee, msg } = evaluateOffer(offOvr, reqOvr, tradeFee, tradeRound, offPickVal, reqPickVal)
-    if (result === 'accept') {
-      // UI判定が通っても、ストア側（主力放出拒否・価値釣り合い・本人同意・予算）で不成立になることがある。
-      // 実際に成立した場合だけ「成立」を出す
-      const ok = tradePlayer(offerIds, requestIds, tradeTarget!, tradeFee, offerPickKeys, requestPickKeys)
-      if (ok) {
-        setCounterMsg(msg)
-        setTradeStatus('accepted')
-      } else {
-        setCounterMsg('先方が首を縦に振りません。主力の放出拒否か、選手本人が移籍に納得していないようです。')
-        setTradeStatus('rejected')
-      }
-    } else if (result === 'counter') {
-      setCounterMsg(msg)
-      setCounterFee(cFee)
-      setTradeStatus('countered')
-    } else {
-      setCounterMsg(msg)
-      setTradeStatus('rejected')
-    }
-  }
-
-  function handleAcceptCounter() {
-    const ok = tradePlayer(offerIds, requestIds, tradeTarget!, counterFee, offerPickKeys, requestPickKeys)
-    if (ok) {
-      setCounterMsg('トレード成立！')
-      setTradeStatus('accepted')
-    } else {
-      setCounterMsg('先方が最終確認で難色を示しました。主力の放出拒否か、選手本人が移籍に納得していないようです。')
-      setTradeStatus('rejected')
-    }
-  }
-
-  function handleReNegotiate() {
-    setTradeFee(counterFee)
-    setTradeRound(r => r + 1)
-    setTradeStatus('idle')
-    setCounterFee(0); setCounterMsg('')
-  }
 
   const myTeam = teams.find(t => t.id === playerTeamId)
   if (!myTeam) return null
@@ -256,28 +133,15 @@ export default function TransferPage() {
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
     .sort((a, b) => ovr(b) - ovr(a))
 
-  const faPlayers = players
-    .filter(p => p.teamId === '' && p.status === 'active')
-    .filter(p => filterSpec === 'all' || p.specialty === filterSpec)
-    .sort((a, b) => ovr(b) - ovr(a))
-
   const salaryUsed = myPlayers.reduce((sum, p) => sum + p.contract.annualSalary, 0)
-  const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
-  const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
-  const isGoodTeam = myRank > 0 && myRank <= 5
 
-  const selectStyle: React.CSSProperties = {
-    flex: 1, padding: '7px 8px', borderRadius: '10px',
-    backgroundColor: C.surface2, border: `1px solid ${C.border2}`,
-    color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none',
-  }
 
-  const tabTitle = tab === 'market' ? '移籍市場' : tab === 'market-results' ? '検索結果' : tab === 'fa' ? 'FA' : tab === 'roster' ? 'ロスター' : tab === 'listings' ? '出品管理' : 'トレード'
+  const tabTitle = tab === 'market' ? '移籍市場' : tab === 'market-results' ? '検索結果' : tab === 'listings' ? '出品管理' : 'トレード'
 
   return (
     <div style={{ paddingTop: '4px', paddingBottom: '80px', fontFamily: SAIRA }}>
       <div style={{ padding: '10px 16px 12px' }}>
-        <BackButton onClick={tab === 'trade' && tradeTarget ? () => resetTrade(null) : undefined} />
+        <BackButton />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div style={{ fontSize: '20px', fontWeight: '900', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 16px ${alpha(C.gold, 0.25)}` }}>
@@ -292,17 +156,6 @@ export default function TransferPage() {
           </div>
         </div>
 
-        {tab === 'roster' && (
-          <div style={{
-            padding: '10px 12px', borderRadius: '12px',
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `1px solid ${C.border2}`, marginBottom: '10px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>年俸総額</span>
-            <span style={{ fontSize: '13px', fontWeight: 900, fontFamily: SAIRA, color: C.gold }}>{fmt(salaryUsed)}</span>
-          </div>
-        )}
 
         {!window.open && tab === 'market' && (
           <div style={{
@@ -658,125 +511,6 @@ export default function TransferPage() {
         )
       })()}
 
-      {tab === 'fa' && (
-        <div style={{ padding: '0 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <span style={{ fontSize: '9px', color: C.textGhost, fontFamily: SAIRA }}>{faPlayers.length}名</span>
-            <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
-              <option value="all">全タイプ</option>
-              {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
-                <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
-              ))}
-            </select>
-          </div>
-
-          {faPlayers.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: C.textGhost, fontSize: '13px', fontFamily: SAIRA }}>条件に合う選手なし</div>
-          ) : (
-            faPlayers.map(p => {
-              const specCol  = SPEC_COLOR[p.specialty]
-              const market   = faMarketSalary(p)
-              const rating   = ovr(p)
-              const isStarred = starredOpponents.includes(p.id)
-              return (
-                <div key={p.id} style={{ marginBottom: '7px' }}>
-                  <div style={{
-                    position: 'relative', overflow: 'hidden',
-                    borderRadius: '14px',
-                    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                    border: `2px solid ${alpha(specCol, 0.25)}`,
-                    boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  }}>
-                    <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                      <div style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}
-                          onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
-                          <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }} onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
-                          <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                            <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>
-                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{p.age}歳</span>
-                            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>FA</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>市場 <span style={{ color: C.gold }}>{fmt(market)}</span></span>
-                            <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{fmt(p.contract.annualSalary)}</span></span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                          <button
-                            onClick={e => { e.stopPropagation(); toggleStarOpponent(p.id) }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: isStarred ? C.gold : C.textGhost, fontSize: 18, lineHeight: 1 }}
-                          >
-                            {isStarred ? '★' : '☆'}
-                          </button>
-                          <button disabled={signingBanned}
-                            onClick={() => { if (signingBanned) return; startAcquisitionOffer(p.id, 'fa'); navigate(`/team/chat?player=${p.id}`) }}
-                            style={{ padding: '5px 10px', borderRadius: '8px', border: 'none', background: signingBanned ? C.surface2 : `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: signingBanned ? C.textGhost : '#0A0912', fontSize: '11px', fontWeight: '800', cursor: signingBanned ? 'not-allowed' : 'pointer', fontFamily: SAIRA }}
-                          >
-                            {signingBanned ? '赤字で補強不可' : '契約オファー'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-      )}
-
-      {tab === 'roster' && (
-        <div style={{ padding: '0 12px' }}>
-          {myPlayers.map(p => {
-            const rating   = ovr(p)
-            const specCol  = SPEC_COLOR[p.specialty]
-            const isExpiring  = p.contract.yearsLeft <= 1
-
-            return (
-              <div key={p.id} style={{ marginBottom: '8px' }}>
-                <div style={{
-                  position: 'relative', overflow: 'hidden',
-                  padding: '12px 14px',
-                  borderRadius: '14px',
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `2px solid ${isExpiring ? alpha(C.red, 0.37) : C.goldDark}`,
-                  boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                }}>
-                  <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
-                  <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-                    <div style={{
-                      width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
-                      backgroundColor: alpha(ratingColor(rating), 0.08), border: `1px solid ${alpha(ratingColor(rating), 0.25)}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '14px', fontWeight: '900', color: ratingColor(rating), fontFamily: SAIRA,
-                    }}>
-                      {rating}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: C.text, marginBottom: '3px', fontFamily: SAIRA }}>{p.name}</div>
-                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '9px', fontWeight: '700', padding: '1px 5px', borderRadius: '6px', backgroundColor: alpha(specCol, 0.09), color: specCol, fontFamily: SAIRA }}>
-                          {SPECIALTY_LABELS[p.specialty]}
-                        </span>
-                        <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
-                        <ContractBadge years={p.contract.yearsLeft}/>
-                        <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{fmt(p.contract.annualSalary)}/年</span>
-                        {isExpiring && <span style={{ fontSize: '9px', color: C.red, fontWeight: '700', fontFamily: SAIRA }}>FA間近</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
 
       {tab === 'listings' && (() => {
         const incomingOffers = currentSeason.incomingOffers ?? []
@@ -1104,12 +838,9 @@ export default function TransferPage() {
 
       {tab === 'trade' && (
         <div style={{ padding: '8px 12px' }}>
-          {!tradeTarget ? (
-            <>
               <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '10px', padding: '0 2px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択（国内のみ）</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                {tradeLeague === 'jpel'
-                  ? teams.filter(t => t.id !== playerTeamId).map(t => {
+                  {teams.filter(t => t.id !== playerTeamId).map(t => {
                       const theirMain = t.roster.main.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
                       const avgOvr = theirMain.length > 0 ? Math.round(theirMain.reduce((s, p) => s + ovr(p), 0) / theirMain.length) : 0
                       return (
@@ -1129,339 +860,8 @@ export default function TransferPage() {
                         </button>
                       )
                     })
-                  : (foreignLeagues.find(l => l.id === tradeLeague)?.clubs ?? []).map(club => {
-                      const clubPlayers = players.filter(p => p.teamId === club.id)
-                      const avgOvr = clubPlayers.length > 0 ? Math.round(clubPlayers.reduce((s, p) => s + ovr(p), 0) / clubPlayers.length) : 0
-                      return (
-                        <button key={club.id} onClick={() => resetTrade(club.id)} style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-                          padding: '12px 8px', borderRadius: '12px',
-                          background: `linear-gradient(160deg, ${alpha(club.colors.primary, 0.18)}, ${alpha(club.colors.primary, 0.06)})`,
-                          border: `1px solid ${alpha(club.colors.primary, 0.3)}`,
-                          cursor: 'pointer', fontFamily: SAIRA,
-                        }}>
-                          <TeamLogoSVG primary={club.colors.primary} secondary={club.colors.secondary} shortName={club.shortName} teamId={club.id} size={48} />
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '11px', fontWeight: '700', color: C.text, fontFamily: SAIRA, lineHeight: 1.2 }}>{club.name}</div>
-                            <div style={{ fontSize: '9px', color: C.textDim, marginTop: '2px', fontFamily: SAIRA }}>{NAT_LABELS[club.country] ?? club.country}</div>
-                          </div>
-                          <span style={{ fontSize: '18px', fontWeight: '900', color: ratingColor(avgOvr), fontFamily: SAIRA, lineHeight: 1 }}>{avgOvr}</span>
-                        </button>
-                      )
-                    })
                 }
               </div>
-            </>
-          ) : (() => {
-            const targetTeam = teams.find(t => t.id === tradeTarget)
-            const targetForeignClub = targetTeam ? null : foreignLeagues.flatMap(l => l.clubs).find(c => c.id === tradeTarget)
-            if (!targetTeam && !targetForeignClub) return null
-            const isForeignTrade = !targetTeam
-            const targetShortName = targetTeam?.shortName ?? targetForeignClub?.shortName ?? ''
-            const theirPlayers = targetTeam
-              ? targetTeam.roster.main.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p).sort((a, b) => ovr(b) - ovr(a))
-              : players.filter(p => p.teamId === tradeTarget).sort((a, b) => ovr(b) - ovr(a))
-            const offeredOvr   = offerIds.reduce((s, id) => { const p = players.find(x => x.id === id); return s + (p ? ovr(p) : 0) }, 0)
-            const requestedOvr = requestIds.reduce((s, id) => { const p = players.find(x => x.id === id); return s + (p ? ovr(p) : 0) }, 0)
-            const myPicks = (myTeam?.draftPicks ?? []).filter(pk => pk.year > currentSeason.year)
-            const theirPicks = isForeignTrade ? [] : (targetTeam!.draftPicks ?? []).filter(pk => pk.year > currentSeason.year)
-            const offPickVal = offerPickKeys.reduce((s, k) => { const pk = myPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round, pk.pickNumber) : 0) }, 0)
-            const reqPickVal = requestPickKeys.reduce((s, k) => { const pk = theirPicks.find(p => pickKey(p) === k); return s + (pk ? pickValue(pk.round, pk.pickNumber) : 0) }, 0)
-            const canPropose = (offerIds.length > 0 || offerPickKeys.length > 0) && (requestIds.length > 0 || requestPickKeys.length > 0) && tradeStatus !== 'accepted' && tradeStatus !== 'rejected'
-            const isFinalRound = tradeRound >= 3
-
-            return (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <BackButton onClick={() => {
-                    if (tradeStep === 1) resetTrade(null)
-                    else setTradeStep(s => (s - 1) as 1 | 2 | 3)
-                  }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {[1,2,3].map(r => (
-                      <div key={r} style={{
-                        width: '20px', height: '4px', borderRadius: '2px',
-                        backgroundColor: r <= tradeRound ? C.gold : C.border2,
-                      }}/>
-                    ))}
-                    <span style={{ fontSize: '9px', color: C.textDim, marginLeft: '4px', fontFamily: SAIRA }}>第{tradeRound}回交渉</span>
-                  </div>
-                </div>
-
-                {(tradeStatus === 'accepted' || tradeStatus === 'rejected') && (
-                  <div style={{
-                    padding: '14px', borderRadius: '12px', marginBottom: '12px', textAlign: 'center',
-                    backgroundColor: tradeStatus === 'accepted' ? alpha(C.green, 0.09) : alpha(C.red, 0.09),
-                    border: `1px solid ${tradeStatus === 'accepted' ? alpha(C.green, 0.25) : alpha(C.red, 0.25)}`,
-                  }}>
-                    <div style={{ fontSize: '15px', fontWeight: '800', color: tradeStatus === 'accepted' ? C.green : C.red, marginBottom: '4px', fontFamily: SAIRA }}>
-                      {tradeStatus === 'accepted' ? 'トレード成立！' : '交渉決裂'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: C.textSub, fontFamily: SAIRA }}>{counterMsg}</div>
-                  </div>
-                )}
-
-                {tradeStatus === 'countered' && (
-                  <div style={{
-                    position: 'relative', overflow: 'hidden',
-                    padding: '14px', borderRadius: '14px', marginBottom: '12px',
-                    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                    border: `2px solid ${alpha(C.gold, 0.4)}`,
-                    boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  }}>
-                    <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                      <div style={{ fontSize: '10px', color: C.gold, letterSpacing: '2px', marginBottom: '6px', fontFamily: SAIRA }}>
-                        {targetShortName}からのカウンター
-                      </div>
-                      <div style={{ fontSize: '12px', color: C.text, marginBottom: '10px', lineHeight: 1.5, fontFamily: SAIRA }}>
-                        {counterMsg}
-                      </div>
-                      <div style={{
-                        padding: '8px 12px', borderRadius: '8px', backgroundColor: C.surface,
-                        border: `1px solid ${C.border2}`, marginBottom: '10px',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      }}>
-                        <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>要求移籍金</span>
-                        <span style={{ fontSize: '16px', fontWeight: '900', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 12px ${alpha(C.gold, 0.25)}` }}>
-                          {fmt(counterFee)}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button onClick={handleAcceptCounter} style={{
-                          flex: 1, padding: '10px', borderRadius: '11px', border: `2px solid ${C.green}`, marginBottom: 8,
-                          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                          color: C.green, fontSize: '12px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
-                          boxShadow: '0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                        }}>
-                          受け入れる ({fmt(counterFee)})
-                        </button>
-                        {!isFinalRound && (
-                          <button onClick={handleReNegotiate} style={{
-                            flex: 1, padding: '10px', borderRadius: '11px',
-                            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                            border: `2px solid ${alpha(C.gold, 0.4)}`,
-                            color: C.gold, fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
-                            marginBottom: 8,
-                            boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                          }}>
-                            再交渉する
-                          </button>
-                        )}
-                        <button onClick={() => setTradeStatus('rejected')} style={{
-                          padding: '10px 12px', borderRadius: '11px',
-                          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                          border: `2px solid ${C.red}`,
-                          color: C.red, fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
-                          marginBottom: 8,
-                          boxShadow: '0 4px 0 #660e10, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                        }}>
-                          拒否
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tradeStatus !== 'accepted' && (
-                  <>
-                    {(() => {
-                      const playerCard = (p: Player, sel: boolean, accentColor: string, onClick: () => void) => (
-                        <button key={p.id} onClick={onClick} style={{
-                          width: '100%', padding: '10px 12px', borderRadius: '10px', marginBottom: '5px', textAlign: 'left', cursor: 'pointer', fontFamily: SAIRA,
-                          background: sel ? alpha(accentColor, 0.12) : C.surface2,
-                          border: `1px solid ${sel ? alpha(accentColor, 0.5) : C.border2}`,
-                          borderLeft: `4px solid ${sel ? accentColor : alpha(SPEC_COLOR[p.specialty] ?? C.border2, 0.6)}`,
-                          display: 'flex', alignItems: 'center', gap: '10px',
-                        }}>
-                          <PlayerFace playerId={p.id} nationality={p.nationality} size={38} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                              <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: SAIRA }}>{p.name}</div>
-                              <span style={{ fontSize: '18px', fontWeight: '900', color: ratingColor(ovr(p)), fontFamily: SAIRA, marginLeft: '8px', flexShrink: 0 }}>{ovr(p)}</span>
-                            </div>
-                            <div style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳 • {fmt(p.contract.annualSalary)}/年 • 残{p.contract.yearsLeft}年</div>
-                            <div style={{ fontSize: '10px', color: C.gold, fontFamily: SAIRA }}>移籍価値 {fmt(calcTransferValue(p))}</div>
-                          </div>
-                          {sel && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: accentColor, flexShrink: 0 }} />}
-                        </button>
-                      )
-                      const pickCard = (pk: typeof myPicks[0], sel: boolean, accentColor: string, onClick: () => void) => (
-                        <button key={pickKey(pk)} onClick={onClick} style={{
-                          width: '100%', padding: '10px 12px', borderRadius: '10px', marginBottom: '5px', textAlign: 'left', cursor: 'pointer', fontFamily: SAIRA,
-                          background: sel ? alpha(accentColor, 0.12) : C.surface2,
-                          border: `1px solid ${sel ? alpha(accentColor, 0.5) : C.border2}`,
-                          borderLeft: `4px solid ${sel ? accentColor : C.blue}`,
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        }}>
-                          <div>
-                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.blue, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権{pk.round === 1 ? `（全体${pk.pickNumber}位）` : ''}</div>
-                            <div style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>参考価値 ≈ {fmt(pickValue(pk.round, pk.pickNumber))}</div>
-                          </div>
-                          {sel && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: accentColor, flexShrink: 0 }} />}
-                        </button>
-                      )
-
-                      if (tradeStep === 1) return (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: 8 }}>
-                            <div style={{ fontSize: '10px', color: C.green, letterSpacing: '2px', fontFamily: SAIRA }}>
-                              STEP 1 — {targetShortName}から選ぶ
-                            </div>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <select value={tradeTier} onChange={e => setTradeTier(e.target.value as typeof tradeTier)} style={{ ...selectStyle }}>
-                                <option value="all">全登録</option>
-                                <option value="main">1軍</option>
-                                <option value="second">2軍</option>
-                              </select>
-                              <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
-                                <option value="all">全タイプ</option>
-                                {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
-                                  <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                          {theirPlayers.filter(p => (filterSpec === 'all' || p.specialty === filterSpec) && (tradeTier === 'all' || p.rosterTier === tradeTier)).map(p => playerCard(p, requestIds.includes(p.id), C.green, () => { setRequestIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
-                          {!isForeignTrade && theirPicks.map(pk => pickCard(pk, requestPickKeys.includes(pickKey(pk)), C.green, () => { const k = pickKey(pk); setRequestPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
-                          <button onClick={() => setTradeStep(2)} style={{
-                            width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
-                            position: 'sticky', bottom: '12px', zIndex: 5,
-                            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                            border: `2px solid ${alpha(C.green, 0.5)}`,
-                            color: C.green, fontSize: '13px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
-                            boxShadow: '0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.4)',
-                          }}>
-                            次へ — 提供する選手を選ぶ
-                            {(requestIds.length > 0 || requestPickKeys.length > 0) && <span style={{ marginLeft: '8px', fontSize: '11px', color: C.gold }}>{requestIds.length + requestPickKeys.length}件選択中</span>}
-                          </button>
-                        </div>
-                      )
-
-                      if (tradeStep === 2) return (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: 8 }}>
-                            <div style={{ fontSize: '10px', color: C.red, letterSpacing: '2px', fontFamily: SAIRA }}>
-                              STEP 2 — 自チームから選ぶ
-                            </div>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <select value={tradeTier} onChange={e => setTradeTier(e.target.value as typeof tradeTier)} style={{ ...selectStyle }}>
-                                <option value="all">全登録</option>
-                                <option value="main">1軍</option>
-                                <option value="second">2軍</option>
-                              </select>
-                              <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={{ ...selectStyle }}>
-                                <option value="all">全タイプ</option>
-                                {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
-                                  <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                          {myPlayers.filter(p => (filterSpec === 'all' || p.specialty === filterSpec) && (tradeTier === 'all' || p.rosterTier === tradeTier)).map(p => playerCard(p, offerIds.includes(p.id), C.red, () => { setOfferIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); setTradeStatus('idle') }))}
-                          {!isForeignTrade && myPicks.map(pk => pickCard(pk, offerPickKeys.includes(pickKey(pk)), C.red, () => { const k = pickKey(pk); setOfferPickKeys(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]); setTradeStatus('idle') }))}
-                          <button disabled={offerIds.length === 0 && offerPickKeys.length === 0} onClick={() => setTradeStep(3)} style={{
-                            width: '100%', padding: '13px', borderRadius: '11px', marginTop: '6px',
-                            position: 'sticky', bottom: '12px', zIndex: 5,
-                            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                            border: `2px solid ${offerIds.length > 0 || offerPickKeys.length > 0 ? alpha(C.gold, 0.5) : C.border2}`,
-                            color: offerIds.length > 0 || offerPickKeys.length > 0 ? C.gold : C.textGhost,
-                            fontSize: '13px', fontWeight: '800', cursor: offerIds.length > 0 || offerPickKeys.length > 0 ? 'pointer' : 'default', fontFamily: SAIRA,
-                            boxShadow: offerIds.length > 0 || offerPickKeys.length > 0 ? '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4)' : 'none',
-                          }}>
-                            次へ — 条件を確認する
-                            {(offerIds.length > 0 || offerPickKeys.length > 0) && <span style={{ marginLeft: '8px', fontSize: '11px', color: C.gold }}>{offerIds.length + offerPickKeys.length}件選択中</span>}
-                          </button>
-                        </div>
-                      )
-
-                      // Step 3: 確認・移籍金・提案
-                      return (
-                        <div>
-                          <div style={{ fontSize: '10px', color: C.gold, letterSpacing: '2px', marginBottom: '10px', fontFamily: SAIRA }}>STEP 3 — 交換内容の確認・移籍金</div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '8px', marginBottom: '12px', alignItems: 'start' }}>
-                            <div style={{ padding: '10px', borderRadius: '10px', background: alpha(C.green, 0.07), border: `1px solid ${alpha(C.green, 0.2)}` }}>
-                              <div style={{ fontSize: '8px', color: C.green, letterSpacing: '2px', marginBottom: '6px', fontFamily: SAIRA }}>もらう — {targetShortName}</div>
-                              {requestIds.map(id => { const p = players.find(x => x.id === id); if (!p) return null; return <div key={id} style={{ fontSize: '11px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: '2px' }}>{p.name} <span style={{ color: ratingColor(ovr(p)) }}>{ovr(p)}</span></div> })}
-                              {requestPickKeys.map(k => <div key={k} style={{ fontSize: '10px', color: C.blue, fontFamily: SAIRA }}>{k.replace(/-R1-(\d+)$/, '年 1巡（全体$1位）').replace(/-R(\d+)-\d+$/, '年 第$1巡指名権')}</div>)}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '22px', color: C.gold, fontSize: '18px', fontWeight: '900', fontFamily: SAIRA }}>
-                              ⇄
-                            </div>
-                            <div style={{ padding: '10px', borderRadius: '10px', background: alpha(C.red, 0.07), border: `1px solid ${alpha(C.red, 0.2)}` }}>
-                              <div style={{ fontSize: '8px', color: C.red, letterSpacing: '2px', marginBottom: '6px', fontFamily: SAIRA }}>出す — {myTeam.shortName}</div>
-                              {offerIds.map(id => { const p = players.find(x => x.id === id); if (!p) return null; return <div key={id} style={{ fontSize: '11px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: '2px' }}>{p.name} <span style={{ color: ratingColor(ovr(p)) }}>{ovr(p)}</span></div> })}
-                              {offerPickKeys.map(k => <div key={k} style={{ fontSize: '10px', color: C.blue, fontFamily: SAIRA }}>{k.replace(/-R1-(\d+)$/, '年 1巡（全体$1位）').replace(/-R(\d+)-\d+$/, '年 第$1巡指名権')}</div>)}
-                            </div>
-                          </div>
-                          <div style={{ padding: '12px 14px', borderRadius: '12px', background: `linear-gradient(180deg, ${C.surface2}, ${C.surface})`, border: `1px solid ${C.border2}`, marginBottom: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '10px', color: C.textDim, letterSpacing: '1px', fontFamily: SAIRA }}>移籍金調整</span>
-                              <span style={{ fontSize: '13px', fontWeight: '800', fontFamily: SAIRA, color: tradeFee > 0 ? C.red : tradeFee < 0 ? C.green : C.textDim }}>
-                                {tradeFee === 0 ? 'なし' : tradeFee > 0 ? `${myTeam.shortName}支払 ${fmt(tradeFee)}` : `${myTeam.shortName}受取 ${fmt(-tradeFee)}`}
-                              </span>
-                            </div>
-                            <input type="range" min={-50000000} max={50000000} step={1000000} value={tradeFee}
-                              onChange={e => { setTradeFee(Number(e.target.value)); setTradeStatus('idle') }}
-                              style={{ width: '100%', accentColor: tradeFee >= 0 ? C.red : C.green }} />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: C.textGhost, marginTop: '2px', fontFamily: SAIRA }}>
-                              <span>{myTeam.shortName}受取 5000万</span><span>{myTeam.shortName}支払 5000万</span>
-                            </div>
-                            {(() => {
-                              const ovrDiff = (requestedOvr - offeredOvr) * 4_000_000
-                              const netContrib = tradeFee + offPickVal - reqPickVal
-                              const counterpartGain = netContrib - ovrDiff
-                              const tolerance = tradeRound === 1 ? 3_000_000 : tradeRound === 2 ? 8_000_000 : 16_000_000
-                              const isOk = counterpartGain >= -tolerance
-                              const shortage = Math.ceil((-counterpartGain - tolerance) / 1_000_000) * 1_000_000
-                              const color = isOk ? C.green : shortage <= 20_000_000 ? C.gold : C.red
-                              const label = isOk ? '合意圏内' : `あと${fmt(shortage)}不足`
-                              const excess = counterpartGain + tolerance
-                              const successRate = excess >= 0 ? 100 : Math.max(0, Math.round(100 * (1 + excess / 80_000_000)))
-                              const barColor = successRate >= 70 ? C.green : successRate >= 30 ? C.gold : C.red
-                              const filled = Math.round(successRate / 10)
-                              return <>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${C.border}` }}>
-                                  <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>相手から見た評価</span>
-                                  <span style={{ fontSize: '11px', fontWeight: '700', color, fontFamily: SAIRA }}>{label}</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                                  <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA, flexShrink: 0 }}>成功率</span>
-                                  <div style={{ display: 'flex', gap: '3px', flex: 1 }}>
-                                    {Array.from({ length: 10 }).map((_, i) => (
-                                      <div key={i} style={{ flex: 1, height: '6px', borderRadius: '3px', background: i < filled ? barColor : C.border2 }} />
-                                    ))}
-                                  </div>
-                                  <span style={{ fontSize: '12px', fontWeight: '800', color: barColor, fontFamily: SAIRA, flexShrink: 0, minWidth: '38px', textAlign: 'right' }}>{successRate}%</span>
-                                </div>
-                              </>
-                            })()}
-                          </div>
-                          <button
-                            disabled={!canPropose}
-                            onClick={() => handlePropose(offeredOvr, requestedOvr, offPickVal, reqPickVal)}
-                            style={{
-                              width: '100%', padding: '14px', borderRadius: '11px', marginTop: 8, marginBottom: 8,
-                              border: canPropose ? `2px solid ${C.goldDark}` : `1px solid ${C.border2}`,
-                              background: canPropose ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : C.surface2,
-                              color: canPropose ? C.gold : C.textGhost,
-                              fontSize: '14px', fontWeight: '900',
-                              cursor: canPropose ? 'pointer' : 'default',
-                              fontFamily: SAIRA,
-                              boxShadow: canPropose ? '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)' : 'none',
-                              textShadow: canPropose ? `0 0 12px ${alpha(C.gold, 0.25)}` : 'none',
-                            }}
-                          >
-                            {isFinalRound ? '最終提案する' : 'トレードを提案する'}
-                          </button>
-                        </div>
-                      )
-                    })()}
-                  </>
-                )}
-              </div>
-            )
-          })()}
         </div>
       )}
     </div>

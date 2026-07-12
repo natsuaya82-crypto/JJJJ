@@ -916,48 +916,6 @@ export function generatePlayerInitialRoster(year: number): {
 }
 
 // CPUチームの2軍を補充するための若手選手を生成する（teamId付き）。
-export function generateCpuSecondPlayers(teamId: string, count: number, year: number): Player[] {
-  const POOL: Rank[] = ['B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D']
-  const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
-  const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
-  const usedNames = new Set<string>()
-  const players: Player[] = []
-  for (let i = 0; i < count; i++) {
-    idCounter++
-    const rank = POOL[rng(0, POOL.length - 1)]
-    const specialty = specialties[rng(0, specialties.length - 1)]
-    const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    const ratings = generateRatings(rank, specialty)
-    const { potential } = rankToBaseRange(rank, growthCurve)
-    const age = rng(19, 24)
-    const yearsPro = Math.max(0, age - 22)
-    const origin = Math.random() < 0.6
-      ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
-      : HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
-    let name: string, attempts = 0
-    do {
-      name = `${FAMILY_NAMES[rng(0, FAMILY_NAMES.length - 1)]} ${GIVEN_NAMES_MALE[rng(0, GIVEN_NAMES_MALE.length - 1)]}`
-      attempts++
-    } while (usedNames.has(name) && attempts < 60)
-    usedNames.add(name)
-    players.push({
-      id: `ai2gen-${teamId}-${year}-${idCounter}`,
-      name, nameKana: '', age, yearsPro,
-      draftYear: year - yearsPro, draftRound: null, draftPick: null,
-      ratings, specialty,
-      potential: Math.min(90, rng(potential[0], potential[1])),
-      growthCurve,
-      teamId, rosterTier: 'second',
-      contract: { yearsLeft: rng(1, 3), annualSalary: calculateRookieSalary(rank), faEligibleYear: year + rng(1, 3) },
-      nationality: 'JPN', origin,
-      status: 'active', fatigue: 0, morale: rng(65, 85), form: 0,
-      career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-      traits: assignTraits(rank, specialty, age),
-      personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
-    })
-  }
-  return players
-}
 
 function calculateRookieSalary(rank: Rank): number {
   if (rank === 'SSS') return 40000000

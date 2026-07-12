@@ -18,7 +18,6 @@ export function canReleaseFromRoster(players: Player[], teamId: string): boolean
 
 // 旧定数の互換エイリアス（既存importが壊れないよう残す。全てフラットの上限を指す）
 export const MAIN_REG_MAX = ROSTER_MAX
-export const MAIN_CONTRACT_MAX = ROSTER_MAX
 export const SECOND_REG_MAX = ROSTER_MAX
 export const SECOND_CONTRACT_MAX = ROSTER_MAX
 export const DUAL_MAX = ROSTER_MAX

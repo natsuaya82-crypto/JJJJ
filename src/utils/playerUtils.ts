@@ -1,4 +1,4 @@
-import type { Player, Specialty, GrowthCurve, Ratings, CardStatKey } from '../types'
+import type { Player, Specialty, Ratings, CardStatKey } from '../types'
 import { calcBaseAbility, calcAffinity, calcConditionModifier } from '../engine/raceEngine'
 
 // ── 能力別ポテンシャル（各能力ごとの成長上限）──
@@ -203,37 +203,6 @@ export const CAREER_STAGE_COLOR: Record<CareerStage, string> = {
   developing: '#7986CB', growing: '#4CAF50', peak: '#FFD700', declining: '#9B97A8',
 }
 
-export type ScoutReport = {
-  bestTerrain: string
-  growthOutlook: string
-  valueTrend: 'up' | 'flat' | 'down'
-  buyWindow: string
-}
-
-export function buildScoutReport(p: { ratings: { speed: number; stamina: number; mountainUp: number; mountainDown: number; pacing: number; mental: number }; specialty: Specialty; growthCurve: GrowthCurve; age: number }): ScoutReport {
-  const r = p.ratings
-  const uphillScore   = r.mountainUp * 0.55 + r.stamina * 0.45
-  const downhillScore = r.mountainDown * 0.55 + r.speed * 0.45
-  const flatScore     = r.speed * 0.5 + r.stamina * 0.5
-  const maxScore      = Math.max(uphillScore, downhillScore, flatScore)
-  const bestTerrain   = maxScore === uphillScore ? '上り坂' : maxScore === downhillScore ? '下り坂' : '平坦'
-
-  const growthOutlook = p.growthCurve === 'early'
-    ? '早熟型 — 現在の能力が安定。即戦力だが伸び代は限定的'
-    : p.growthCurve === 'late_bloomer'
-    ? '晩成型 — 現在は発展途上。数年後に大きく開花する可能性'
-    : '標準型 — 2〜3年で安定したパフォーマンスに到達見込み'
-
-  const peakStart   = p.specialty === 'sprinter' ? 22 : p.specialty === 'grinder' ? 26 : 24
-  const yearsToPeak = Math.max(0, peakStart - p.age)
-  const buyWindow   = yearsToPeak === 0
-    ? 'ピーク到達済み。即戦力として今すぐ起用可'
-    : `約${yearsToPeak}年後にパフォーマンスのピークを迎える見込み`
-
-  const valueTrend: 'up' | 'flat' | 'down' = p.age < peakStart - 1 ? 'up' : p.age <= peakStart + 3 ? 'flat' : 'down'
-  return { bestTerrain, growthOutlook, valueTrend, buyWindow }
-}
-
 // 他チーム選手の視察（1レース待ち式）判定用の最小シーズン型。
 // currentSeason 全体の循環参照を避けるため必要フィールドだけを受ける。
 type ScoutSeasonLike = {
@@ -267,9 +236,6 @@ export function formColor(form: number): string {
   return FORM_COLORS[Math.round(form)] ?? '#5C5870'
 }
 
-export function formLabel(form: number): string {
-  return FORM_LABELS[Math.round(form)] ?? '普通'
-}
 
 export function ratingColor(v: number, maxed = false): string {
   if (maxed) return '#E8462A'     // その選手のポテンシャル上限に到達＝MAX：赤

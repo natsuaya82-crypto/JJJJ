@@ -1,6 +1,7 @@
 import { MemoryRouter as BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from './store/gameStore'
+import { flushSaveNow } from './store/saveStorage'
 import { audio } from './utils/audio'
 import { initAds, removeBanner, showBanner } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
@@ -47,7 +48,6 @@ import RentalPage from './components/transfer/RentalPage'
 import FacilitiesPage from './components/facilities/FacilitiesPage'
 import WorldEkidenPage from './components/international/WorldEkidenPage'
 import WECSimPage from './components/international/WECSimPage'
-import EclPage from './components/ecl/EclPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
 import CardTrainingPage from './components/training/CardTrainingPage'
 import CardInventoryPage from './components/training/CardInventoryPage'
@@ -167,7 +167,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />
           <Route path="/international" element={<WorldEkidenPage />} />
-          <Route path="/ecl" element={<EclPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/season" element={<RecordsPage />} />
@@ -226,6 +225,21 @@ export default function App() {
     const unsub = useGameStore.persist.onFinishHydration(() => setHydrated(true))
     return unsub
   }, [hydrated])
+
+  // 重要操作（レース確定=currentRaceIndex / シーズン更新=year / 購入=adsRemoved / 開始・リセット=isInitialized）の
+  // 直後にセーブを即時フラッシュ（デバウンス待ちの間にアプリがキルされても消えないように）。native のみ実効。
+  // persist の setItem 完了後に走らせるため microtask で1拍遅らせる。
+  useEffect(() => {
+    const unsub = useGameStore.subscribe((s, p) => {
+      if (
+        s.currentSeason.year !== p.currentSeason.year ||
+        s.currentSeason.currentRaceIndex !== p.currentSeason.currentRaceIndex ||
+        s.adsRemoved !== p.adsRemoved ||
+        s.isInitialized !== p.isInitialized
+      ) queueMicrotask(() => { void flushSaveNow() })
+    })
+    return unsub
+  }, [])
 
   useEffect(() => {
     fetch(`https://itunes.apple.com/jp/lookup?bundleId=${BUNDLE_ID}`)

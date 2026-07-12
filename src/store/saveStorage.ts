@@ -24,14 +24,24 @@ async function flushWrite() {
   }
 }
 
-// バックグラウンド移行・タブ非表示の瞬間に即時フラッシュ（アプリキルで直前の操作が消えるのを防ぐ）
+// バックグラウンド移行・タブ非表示・ページ破棄の瞬間に即時フラッシュ（アプリキルで直前の操作が消えるのを防ぐ）
+function flushImmediate() {
+  if (timer) { clearTimeout(timer); timer = null }
+  void flushWrite()
+}
 if (isNative && typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      if (timer) { clearTimeout(timer); timer = null }
-      void flushWrite()
-    }
+    if (document.visibilityState === 'hidden') flushImmediate()
   })
+  if (typeof window !== 'undefined') window.addEventListener('pagehide', flushImmediate)
+}
+
+// 重要操作（レース確定・シーズン更新・購入・リセット等）の直後に呼び、デバウンスを待たず即書き込む。
+// Webでは何もしない（同期localStorageのため不要）。
+export async function flushSaveNow(): Promise<void> {
+  if (!isNative) return
+  if (timer) { clearTimeout(timer); timer = null }
+  await flushWrite()
 }
 
 export const saveStorage: StateStorage = {

@@ -3464,6 +3464,9 @@ export const useGameStore = create<GameStore>()(
 
         const race = stRaces[stRaceIndex]
         const seasonProgress = stRaceIndex / stRaces.length
+        // EXP付与用の合宿ボーナス倍率（1軍レースと同じ）
+        const campLv = teams.find(t => t.id === playerTeamId)?.facilities?.trainingCamp ?? 0
+        const campExpMult = 1 + campLv * 0.06
 
         // リザーブ出場＝「その週の1軍リーグに出ていない選手」。2軍という区分は廃止されたので、
         // リザーブ戦の直前に行われた1軍リーグ戦（同週）の出場者を除外し、残りロスターの上位から起用する。
@@ -3476,13 +3479,17 @@ export const useGameStore = create<GameStore>()(
             for (const rr of seg.runners) mainRunnerIds.add(rr.playerId)
           }
         }
+        // 1軍の主力（OVR78以上、または3戦以降で1軍出場率55%以上）はリザーブに出せない（格上の無双を防ぐ）。
+        const mainRacesConsumed = currentSeason.currentRaceIndex
+        const isMainRegular = (p: Player) =>
+          isDataKeyPlayer(p, mainRacesConsumed > 0 ? seasonAppearances(p.id, currentSeason.races) / mainRacesConsumed : 0, mainRacesConsumed)
         const lineups: Record<string, Record<number, string>> = { [playerTeamId]: lineup }
         for (const team of teams) {
           if (team.id === playerTeamId) continue
           const pool = [...team.roster.main, ...team.roster.second]
             .map(id => players.find(p => p.id === id))
-            .filter((p): p is Player => !!p && p.status === 'active' && !mainRunnerIds.has(p.id))
-            .sort((a, b) => ovr(b) - ovr(a))   // 1軍戦の出場者は除外済み。残り＝控えの中から上位を起用。
+            .filter((p): p is Player => !!p && p.status === 'active' && !mainRunnerIds.has(p.id) && !isMainRegular(p))
+            .sort((a, b) => ovr(b) - ovr(a))   // 1軍戦の出場者・主力は除外済み。残り＝控えの中から上位を起用。
           const cpuLineup: Record<number, string> = {}
           for (let i = 0; i < race.segments.length; i++) {
             if (pool[i]) cpuLineup[race.segments[i].index] = pool[i].id
@@ -3513,7 +3520,6 @@ export const useGameStore = create<GameStore>()(
           // Fatigue based on strategy + young player development
           const stratMult = strategy === 'aggressive' ? 1.4 : strategy === 'conservative' ? 0.65 : 1.0
           const racingIds = new Set(Object.values(lineups[playerTeamId] ?? {}).filter(Boolean) as string[])
-          const STATS = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const
           const updatedPlayers = state.players.map(p => {
             if (!racingIds.has(p.id)) {
               // リザーブ戦に出場しない自チーム選手は、その週で疲労が回復する（1軍主力を温存できる）
@@ -3530,11 +3536,16 @@ export const useGameStore = create<GameStore>()(
             }
             const baseFatigue = Math.round(4 * stratMult)
             const newFatigue = Math.min(100, p.fatigue + baseFatigue)
-            if (p.age <= 24 && Math.random() < 0.22 && p.status === 'active') {
-              const stat = STATS[Math.floor(Math.random() * STATS.length)]
-              const cur = (p.ratings as Record<string, number>)[stat] ?? 0
-              const cap = (getStatPotentials(p) as Record<string, number>)[stat] ?? 99
-              if (cur < cap) return { ...p, fatigue: newFatigue, ratings: { ...p.ratings, [stat]: cur + 1 } }
+            // 出場者に走った区間の地形EXPを付与（1軍レースと同じ仕組み。若手の直接+1は廃止しEXPに一本化）
+            if (p.status === 'active') {
+              const playerSeg = results.segmentResults.find(sr => sr.runners.some(r => r.playerId === p.id))
+              const seg = playerSeg ? race.segments.find(s => s.index === playerSeg.segmentIndex) : null
+              const ageMult = ageMultiplier(p)
+              if (seg && ageMult > 0) {
+                const sType = segmentType(seg.uphillPct, seg.downhillPct, seg.distanceKm)
+                const result = processExpGains({ ...p.ratings }, { ...(p.exp ?? {}) }, segTypeExpGain(sType), potMultiplier(p.potential) * campExpMult, ageMult, getStatPotentials(p))
+                return { ...p, fatigue: newFatigue, ratings: result.ratings, exp: result.exp }
+              }
             }
             return { ...p, fatigue: newFatigue }
           })

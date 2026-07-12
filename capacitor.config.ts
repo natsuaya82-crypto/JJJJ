@@ -13,12 +13,6 @@ const config: CapacitorConfig = {
     // スクロールは中身エリア(<main>のoverflow:auto)だけに限定する。
     scrollEnabled: false,
   },
-  plugins: {
-    // OTA（Capgo）: 起動/復帰時に新バンドルを自動チェックして適用する
-    CapacitorUpdater: {
-      autoUpdate: true,
-    },
-  },
 }
 
 export default config

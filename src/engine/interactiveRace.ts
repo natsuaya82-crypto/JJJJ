@@ -103,31 +103,6 @@ export function calcFinalSegTime(
 
 // ─── Player Base Time ────────────────────────────────────────────────────────
 
-export function calcPlayerBaseTime(
-  player: Player,
-  seg: Segment,
-  team: Team | undefined,
-  race: Race,
-  _seasonProgress: number,
-  raceStrategy: 'aggressive' | 'balanced' | 'conservative',
-  totalSegs: number,
-): number {
-  const traits = player.traits ?? []
-  const effectiveRatings = player.ratings
-  const STRATEGY_MODS = { aggressive: 1.03, balanced: 1.0, conservative: 0.98 }
-  const stratMod = STRATEGY_MODS[raceStrategy]
-  const base = calcBaseAbility(effectiveRatings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-  const aff = calcAffinity(player.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
-  const clubMod = team ? calcClubModifier(team, race.location) : 1.0
-  const fatigue = player.specialty === 'grinder' ? Math.min(player.fatigue ?? 0, 40) : (player.fatigue ?? 0)
-  const condMod = calcConditionModifier(fatigue, player.morale ?? 70, player.form ?? 0)
-  const traitMod = calcTraitModifier(traits, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.index, totalSegs)
-  const weatherMod = race.conditions
-    ? calcWeatherModifier(race.conditions.weather, player.specialty, effectiveRatings.stamina, effectiveRatings.mental)
-    : 1.0
-  const score = base * aff * clubMod * condMod * traitMod * weatherMod * stratMod
-  return Math.round(scoreToTime(score, seg.distanceKm, seg.uphillPct, seg.downhillPct))
-}
 
 // ─── CPU Times ───────────────────────────────────────────────────────────────
 
@@ -590,86 +565,6 @@ function makeWaterStationEvent(player: Player, ctx: RaceContext): RaceSegmentEve
   }
 }
 
-function makeFinalPushEvent(
-  player: Player,
-  projectedRank: number,
-  totalTeams: number,
-  seg: Segment,
-  opponentOvr: number | undefined,
-  ctx: RaceContext,
-): RaceSegmentEvent {
-  const isKicker = player.specialty === 'kick'
-  // 実況の「首位/上位」判定は総合順位で行う（区間内の見かけ順位が総合と食い違い、
-  // 16位なのに「首位を走る」等の矛盾した文言が出るのを防ぐ）
-  const isWinning = ctx.overallRank === 1
-  const isClose = ctx.overallRank <= 3
-  void seg
-  void projectedRank
-
-  const situation = isWinning
-    ? pick([
-        '残り2km。この区間の独走を守り切れるか。',
-        ctx.gapBehindSec != null && ctx.behindName
-          ? `残り2km。${ctx.behindName}が${Math.round(ctx.gapBehindSec)}秒後ろ。トップを死守できるか。`
-          : '残り2km。首位を走るランナー、最後まで気を抜けない。',
-        `${player.name}が先頭を行く。残り2km、逃げ切るだけだ。`,
-        '残り2km。このまま力を出し切れば区間賞が見えてくる。',
-      ])
-    : isClose
-    ? pick([
-        '残り2km。表彰台圏内で迎えたラスト勝負。',
-        ctx.gapAheadSec != null && ctx.aheadName
-          ? `残り2km。総合${ctx.overallRank}位、前の${ctx.aheadName}まで${Math.round(ctx.gapAheadSec)}秒。最後の勝負。`
-          : `残り2km。総合${ctx.overallRank}位、上位を狙えるラストスパート。`,
-        `残り2km。${player.name}にまだ余力はあるか。ここからが真の勝負だ。`,
-        '残り2km。表彰台まであと一息。最後の気力を振り絞れ。',
-      ])
-    : pick([
-        '残り2km。順位はまだ動く。最後の力を振り絞れ。',
-        ctx.gapAheadSec != null && ctx.aheadName
-          ? `残り2km。前の${ctx.aheadName}まで${Math.round(ctx.gapAheadSec)}秒。一つでも順位を上げたい。`
-          : `残り2km。総合${ctx.overallRank}位、まだ何位まで上がれるか分からない。`,
-        `残り2km、${player.name}の足に力は残っているか。最後まで諦めるな。`,
-        '残り2km。たった2kmだが、その2kmで全てが変わる。',
-      ])
-
-  const battleContext = isWinning
-    ? pick([
-        'このまま逃げ切れば区間賞。',
-        ctx.gapBehindSec != null
-          ? `2位との差は${Math.round(ctx.gapBehindSec)}秒。逃げ切れば区間賞も見えてくる。`
-          : '逃げ切ればこの区間の主役。最後まで攻めの姿勢を。',
-      ])
-    : pick([
-        `総合${ctx.overallRank}位 / ${totalTeams}チーム中。残り2kmで何位まで上がれるか。`,
-        ctx.gapBehindSec != null && ctx.behindName
-          ? `総合${ctx.overallRank}位。${ctx.behindName}が${Math.round(ctx.gapBehindSec)}秒後ろ。順位を守りつつ前を追う。`
-          : `総合${ctx.overallRank}位 / ${ctx.totalTeams}チーム。最後の2kmが順位を決める。`,
-      ])
-
-  return {
-    id: 'final_push',
-    type: 'ラスト勝負',
-    trigger: { type: 'kmRemaining', km: 2.2 },
-    situation,
-    battleContext,
-    choices: [
-      {
-        id: 'a',
-        text: isKicker ? 'スパート力を解放して全力勝負' : '全力を出し切って追い込む',
-        lowStaminaText: isKicker ? 'スパートを仕掛ける（スタミナが心配）' : '全力で追い込む（失速するかもしれない）',
-      },
-      { id: 'b', text: '現ペースを維持しつつ粘り切る' },
-      { id: 'c', text: '残る体力を計算した走りで最後まで崩れない' },
-    ],
-    opponentOvr,
-    _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-    ],
-  }
-}
 
 // ─── Resolve Choice ──────────────────────────────────────────────────────────
 

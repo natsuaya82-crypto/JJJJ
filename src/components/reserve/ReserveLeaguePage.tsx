@@ -7,6 +7,7 @@ import type { InteractiveSegResult } from '../../engine/interactiveRace'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
 import { SimPhase } from '../race/SimPhase'
+import { isDataKeyPlayer, seasonAppearances } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -49,8 +50,13 @@ export default function ReserveLeaguePage() {
       ? Object.values(raceLineup)
       : Object.values(lastRaceLineup ?? {})) as string[]).filter(Boolean)
   )
+  // 1軍の主力（OVR78以上、または3戦以降で1軍出場率55%以上）は、その週たまたま1軍を休んでも
+  // リザーブには出せない。格上がリザーブを荒らすのを防ぐ。
+  const mainRacesConsumed = currentSeason.currentRaceIndex
+  const isMainRegular = (p: Player) =>
+    isDataKeyPlayer(p, mainRacesConsumed > 0 ? seasonAppearances(p.id, currentSeason.races) / mainRacesConsumed : 0, mainRacesConsumed)
   const secondPlayers = players.filter(
-    p => p.teamId === playerTeamId && p.status !== 'retired' && !mainSquadIds.has(p.id)
+    p => p.teamId === playerTeamId && p.status !== 'retired' && !mainSquadIds.has(p.id) && !isMainRegular(p)
   )
   // 故障中の選手は選択不可（リストには理由付きで表示）
   const unavailableMap: Record<string, string> = {}
@@ -79,6 +85,19 @@ export default function ReserveLeaguePage() {
     setResults(ran.results)
     // 自動再生でレースを流してから結果へ
     setPhase('simulating')
+  }
+
+  // スキップ：組んだラインナップで再生を飛ばして一気に結果へ（1軍と同じ挙動）
+  function skipRace() {
+    if (!nextRace) return
+    const idxToRun = stRaceIndex
+    setLockedRace(nextRace)
+    setLockedRaceIndex(idxToRun)
+    runSecondTeamRace(lineup, raceStrategy)
+    const ran = useGameStore.getState().currentSeason.secondTeamRaces?.[idxToRun]
+    if (!ran?.results) return
+    setResults(ran.results)
+    setPhase('results')
   }
 
   // ── 全試合完了 ──
@@ -157,6 +176,7 @@ export default function ReserveLeaguePage() {
       teamTalk=""
       setTeamTalk={() => {}}
       unavailable={unavailableMap}
+      onSkipRace={skipRace}
     />
   )
 
