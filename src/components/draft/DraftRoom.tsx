@@ -688,20 +688,14 @@ export default function DraftRoom() {
         )}
       </div>
 
+      {/* 実機のAdMobバナーはsafe-areaの上に出るため、帯も同じ位置に合わせる（Layoutと同じ配置） */}
       {adH > 0 && (
         <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+          position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px', height: '50px',
-          backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
-        }}>
-          <div style={{
-            width: '320px', height: '36px', borderRadius: '4px',
-            border: `1px dashed ${C.border2}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '10px', color: C.textDim, letterSpacing: '2px',
-          }}>ADVERTISEMENT</div>
-        </div>
+          backgroundColor: '#070610', borderTop: `1px solid ${C.border}`,
+          zIndex: 60,
+        }}/>
       )}
       {viewPlayerId && (
         <PickedPlayerSheet playerId={viewPlayerId} players={players} onClose={() => setViewPlayerId(null)}/>
@@ -973,17 +967,14 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
       display: 'flex', flexDirection: 'column', padding: '0 0 130px',
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
     }}>
+      {/* 実機のAdMobバナーはsafe-areaの上に出るため、帯も同じ位置に合わせる（Layoutと同じ配置） */}
       {adH > 0 && (
         <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+          position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px', height: '50px',
-          backgroundColor: C.bg, borderTop: `1px solid ${C.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60,
-        }}>
-          <div style={{ width: '320px', height: '36px', borderRadius: '4px', border: `1px dashed ${C.border2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: C.textDim, letterSpacing: '2px' }}>
-            ADVERTISEMENT
-          </div>
-        </div>
+          backgroundColor: '#070610', borderTop: `1px solid ${C.border}`,
+          zIndex: 60,
+        }}/>
       )}
 
       <div style={{

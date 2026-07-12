@@ -13,7 +13,6 @@ const isNative = Capacitor.isNativePlatform()
 let pending: string | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 // 最後にセーブが実際にディスク/localStorageへ書けた時刻（診断表示用）。
-let lastWriteAt: number | null = null
 
 async function flushWrite() {
   if (pending == null) return
@@ -21,7 +20,7 @@ async function flushWrite() {
   pending = null
   try {
     await Filesystem.writeFile({ path: FILE, data, directory: Directory.Data, encoding: Encoding.UTF8 })
-    lastWriteAt = Date.now()
+
   } catch (e) {
     console.error('[save] write failed', e)
   }
@@ -73,7 +72,7 @@ export const saveStorage: StateStorage = {
     })()
   },
   setItem: (name, value) => {
-    if (!isNative) { localStorage.setItem(name, value); lastWriteAt = Date.now(); return }
+    if (!isNative) { localStorage.setItem(name, value); return }
     pending = value
     if (timer) clearTimeout(timer)
     timer = setTimeout(() => { timer = null; void flushWrite() }, 400)
@@ -88,33 +87,3 @@ export const saveStorage: StateStorage = {
   },
 }
 
-// ── セーブ診断（設定画面の「セーブ状態」表示用） ──
-// 保存先と、最後に実際に書けた時刻を返す。
-export function getSaveInfo(): { native: boolean; lastWriteAt: number | null } {
-  return { native: isNative, lastWriteAt }
-}
-
-// 実際に小さなファイル(またはlocalStorage)へ書き込み→読み戻して一致するか自己テストする。
-// 本番でも安全（専用のテスト用キー/ファイルを使い、終わったら消す）。
-export async function runSaveSelfTest(): Promise<{ ok: boolean; detail: string }> {
-  const token = `ok-${Date.now()}`
-  if (!isNative) {
-    try {
-      localStorage.setItem('jpel-save-selftest', token)
-      const back = localStorage.getItem('jpel-save-selftest')
-      localStorage.removeItem('jpel-save-selftest')
-      return back === token ? { ok: true, detail: 'ブラウザ保存 書き込み/読み戻しOK' } : { ok: false, detail: '読み戻し不一致' }
-    } catch (e) {
-      return { ok: false, detail: String(e) }
-    }
-  }
-  const probe = 'jpel-save-selftest.json'
-  try {
-    await Filesystem.writeFile({ path: probe, data: token, directory: Directory.Data, encoding: Encoding.UTF8 })
-    const back = await Filesystem.readFile({ path: probe, directory: Directory.Data, encoding: Encoding.UTF8 })
-    await Filesystem.deleteFile({ path: probe, directory: Directory.Data }).catch(() => { /* 掃除失敗は無視 */ })
-    return back.data === token ? { ok: true, detail: 'ファイル保存 書き込み/読み戻しOK' } : { ok: false, detail: '読み戻し不一致' }
-  } catch (e) {
-    return { ok: false, detail: `ファイル保存に失敗: ${String(e)}` }
-  }
-}

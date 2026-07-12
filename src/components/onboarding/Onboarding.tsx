@@ -80,21 +80,13 @@ export default function Onboarding() {
         </div>
       )}
 
-      {/* Ad banner */}
+      {/* Ad banner — 実機のAdMobバナーはsafe-areaの上に出るため、帯も同じ位置に合わせる（Layoutと同じ配置） */}
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', height: '50px',
         backgroundColor: '#070610', borderTop: '1px solid #1E1B2E',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 60,
-      }}>
-        <div style={{
-          width: '320px', height: '36px', borderRadius: '4px',
-          border: '1px dashed #2E2B42',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '10px', color: '#3A3758', letterSpacing: '2px',
-        }}>ADVERTISEMENT</div>
-      </div>
+      }}/>
 
       {/* ---- TEAM SELECT ---- */}
       {step === 'team_select' && (

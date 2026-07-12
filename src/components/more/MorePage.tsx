@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree } from '../../utils/iap'
-import { getSaveInfo, runSaveSelfTest } from '../../store/saveStorage'
+
 import { C, alpha } from '../../styles/tokens'
 
 import { APP_VERSION } from '../../data/appMeta'
@@ -86,7 +86,6 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       </div>
 
       {/* ── セーブ状態 ── */}
-      <SaveStatusCard />
 
       {/* ── 公式X ── */}
       <div style={{ marginBottom: 20 }}>
@@ -153,66 +152,6 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   )
 }
 
-function SaveStatusCard() {
-  const info = getSaveInfo()
-  const [test, setTest] = useState<{ ok: boolean; detail: string } | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  const fmtTime = (ms: number | null) => {
-    if (ms == null) return 'まだ保存していません'
-    const d = new Date(ms)
-    const p = (n: number) => String(n).padStart(2, '0')
-    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
-  }
-
-  const run = async () => {
-    if (busy) return
-    setBusy(true); setTest(null)
-    try { setTest(await runSaveSelfTest()) } finally { setBusy(false) }
-  }
-
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 9, color: alpha(C.gold, 0.4), letterSpacing: '3px', marginBottom: 10 }}>SAVE</div>
-      <div style={{
-        background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-        border: `1px solid ${alpha(C.gold, 0.14)}`, borderRadius: 14, padding: '14px 16px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 12, color: C.textSub }}>保存先</span>
-          <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{info.native ? 'ファイル保存' : 'ブラウザ保存'}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <span style={{ fontSize: 12, color: C.textSub }}>最終保存</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: info.lastWriteAt ? C.text : C.textGhost, fontFamily: 'monospace' }}>{fmtTime(info.lastWriteAt)}</span>
-        </div>
-        <button
-          onClick={run}
-          disabled={busy}
-          style={{
-            width: '100%', padding: '10px', borderRadius: 10,
-            border: `1px solid ${alpha(C.gold, 0.3)}`, background: 'transparent',
-            color: C.gold, fontSize: 12, fontWeight: 800, fontFamily: SAIRA,
-            cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
-          }}
-        >
-          {busy ? 'テスト中…' : 'セーブをテスト'}
-        </button>
-        {test && (
-          <div style={{
-            marginTop: 10, padding: '8px 10px', borderRadius: 8,
-            background: alpha(test.ok ? C.green : C.red, 0.1),
-            border: `1px solid ${alpha(test.ok ? C.green : C.red, 0.4)}`,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
-            <span style={{ fontSize: 13, fontWeight: 900, color: test.ok ? C.green : C.red, fontFamily: SAIRA }}>{test.ok ? 'OK' : 'NG'}</span>
-            <span style={{ fontSize: 10, color: C.textSub, lineHeight: 1.4 }}>{test.detail}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 function PremiumCard() {
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
