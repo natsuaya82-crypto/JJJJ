@@ -425,6 +425,11 @@ function ChatView({
           { from: 'gm', text: 'まだチームにあなたの力が必要です。もう少し頑張ってもらえませんか。' },
           { from: 'player', text: 'わかりました。もう少し頑張ってみます。' }
         )
+        // 契約更新の要求も抱えている場合、引き留めの直後に出る「要求を飲む」の脈絡を作る
+        if (contractReq?.status === 'pending_gm') {
+          const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
+          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmt(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
+        }
         dismissRetirementRequest(player.id)
       }},
     ]
@@ -439,6 +444,12 @@ function ChatView({
           { from: 'gm', text: 'まだあなたの力が必要です。残ってください。' },
           { from: 'player', text: 'わかりました。もう少し様子を見てみます。' }
         )
+        // 同じ選手が契約更新の要求も抱えている場合、残留の返事だけだと
+        // 次に出る「要求を飲む」ボタンの脈絡が無くなるため、ここで要求を言わせる
+        if (contractReq?.status === 'pending_gm') {
+          const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
+          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmt(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
+        }
         dismissTransferRequest(player.id)
       }},
     ]

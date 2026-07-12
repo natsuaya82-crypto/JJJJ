@@ -3520,6 +3520,8 @@ export const useGameStore = create<GameStore>()(
           // Fatigue based on strategy + young player development
           const stratMult = strategy === 'aggressive' ? 1.4 : strategy === 'conservative' ? 0.65 : 1.0
           const racingIds = new Set(Object.values(lineups[playerTeamId] ?? {}).filter(Boolean) as string[])
+          // 結果画面の経験値タブ用に、獲得EXPを記録する（1軍レースと同じ表示を出す）
+          const stExpGains: Record<string, Partial<Record<CardStatKey, number>>> = {}
           const updatedPlayers = state.players.map(p => {
             if (!racingIds.has(p.id)) {
               // リザーブ戦に出場しない自チーム選手は、その週で疲労が回復する（1軍主力を温存できる）
@@ -3543,7 +3545,18 @@ export const useGameStore = create<GameStore>()(
               const ageMult = ageMultiplier(p)
               if (seg && ageMult > 0) {
                 const sType = segmentType(seg.uphillPct, seg.downhillPct, seg.distanceKm)
-                const result = processExpGains({ ...p.ratings }, { ...(p.exp ?? {}) }, segTypeExpGain(sType), potMultiplier(p.potential) * campExpMult, ageMult, getStatPotentials(p))
+                const baseGains = segTypeExpGain(sType)
+                const statCaps = getStatPotentials(p)
+                const potMult = potMultiplier(p.potential)
+                const result = processExpGains({ ...p.ratings }, { ...(p.exp ?? {}) }, baseGains, potMult * campExpMult, ageMult, statCaps)
+                const gained: Partial<Record<CardStatKey, number>> = {}
+                ;(Object.keys(baseGains) as CardStatKey[]).forEach(k => {
+                  // レース前に既に上限だった能力はEXPが入らない（表示も0）
+                  const capped = ((p.ratings as Record<string, number>)[k] ?? 0) >= Math.min(99, (statCaps as Record<string, number>)[k] ?? 99)
+                  const v = capped ? 0 : Math.round((baseGains[k] ?? 0) * potMult * campExpMult * ageMult)
+                  if (v > 0) gained[k] = v
+                })
+                stExpGains[p.id] = gained
                 return { ...p, fatigue: newFatigue, ratings: result.ratings, exp: result.exp }
               }
             }
@@ -3582,6 +3595,7 @@ export const useGameStore = create<GameStore>()(
 
           return {
             players: updatedPlayers,
+            raceExpGains: stExpGains,
             currentSeason: {
               ...state.currentSeason,
               secondTeamRaces: updatedRaces,

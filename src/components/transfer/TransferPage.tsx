@@ -745,7 +745,8 @@ export default function TransferPage() {
             })}
 
             {(() => {
-              const myPicks = (myTeam?.draftPicks ?? []).filter(pk => pk.year > currentSeason.year)
+              // 直近オフに使う指名権(今シーズン+1)は売却不可。2シーズン以上先の未来指名権のみ売れる。
+              const myPicks = (myTeam?.draftPicks ?? []).filter(pk => pk.year > currentSeason.year + 1)
               const cpuTeamsList = teams.filter(t => t.id !== playerTeamId)
               if (myPicks.length === 0) return null
               return (
@@ -764,8 +765,8 @@ export default function TransferPage() {
                           border: `1px solid ${isSelling ? alpha(C.blue, 0.35) : C.border2}`,
                         }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権{pk.round === 1 ? `（全体${pk.pickNumber}位）` : ''}</div>
-                            <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>参考価値 ≈ {fmt(fairVal)}</div>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権</div>
+                            <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>指名順位は{pk.year}年の成績で確定 · 参考価値 ≈ {fmt(fairVal)}</div>
                           </div>
                           <button onClick={() => {
                             if (isSelling) { setPickSellTarget(null); setPickSellResult('idle') }

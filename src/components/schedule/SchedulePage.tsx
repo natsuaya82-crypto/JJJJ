@@ -40,11 +40,20 @@ export default function SchedulePage() {
   // カレンダー進行: 次のリーグ戦の前に未実施の記録会があればNEXTはそちら
   const dueTT = getDueIndividualEvent(currentSeason)
 
+  // 進行は日付順。1軍とリザーブの次戦が両方NEXTになって順番を飛ばせてしまわないよう、
+  // 日付が早い方だけを光らせる（同日は1軍優先）。
+  const nextMainObj = currentSeason.races[currentSeason.currentRaceIndex]
+  const nextMainDate = (nextMainObj && !nextMainObj.results) ? nextMainObj.date : null
+  const nextReserveObj = hasReserve ? (currentSeason.secondTeamRaces ?? [])[stIdx] : undefined
+  const nextReserveDate = (nextReserveObj && !nextReserveObj.results) ? nextReserveObj.date : null
+  const mainIsEarliest = !!nextMainDate && (!nextReserveDate || nextMainDate <= nextReserveDate)
+  const reserveIsEarliest = !!nextReserveDate && (!nextMainDate || nextReserveDate < nextMainDate)
+
   const mainRaces = currentSeason.races.map((r, i) => ({
     race: r,
     kind: 'main' as const,
     roundNum: i + 1,
-    isNext: i === currentSeason.currentRaceIndex && !r.results && !dueTT,
+    isNext: i === currentSeason.currentRaceIndex && !r.results && !dueTT && mainIsEarliest,
     isDone: !!r.results,
     myRank: r.results?.teamRankings.find(tr => tr.teamId === playerTeamId)?.rank ?? null,
   }))
@@ -54,7 +63,7 @@ export default function SchedulePage() {
         race: r,
         kind: 'reserve' as const,
         roundNum: i + 1,
-        isNext: i === stIdx && !r.results,
+        isNext: i === stIdx && !r.results && reserveIsEarliest,
         isDone: !!r.results,
         myRank: r.results?.teamRankings.find(tr => tr.teamId === playerTeamId)?.rank ?? null,
       }))
@@ -124,7 +133,7 @@ export default function SchedulePage() {
               {currentSeason.year} シーズン開幕
             </div>
             <div style={{ fontSize: '12px', color: C.textSub }}>
-              全{currentSeason.races.length}戦のスケジュール。NEXTをタップして出走準備へ。
+              全{currentSeason.races.length}戦のスケジュール（日程の確認）。
             </div>
           </div>
         </div>
@@ -155,7 +164,7 @@ export default function SchedulePage() {
             const winnerPlayer = winner ? players.find(p => p.id === winner.playerId) : null
             const myTop = ev.results?.find(r => r.teamId === playerTeamId)
             const myTopPlayer = myTop ? players.find(p => p.id === myTop.playerId) : null
-            const TTCard = isNextTT ? 'button' : 'div'
+            const TTCard = 'div'   // 予定表は閲覧専用（出走はホームのNEXT RACEカードから）
             return (
               <div key={ev.id} style={{ display: 'flex', alignItems: 'stretch', padding: '0 20px', opacity: it.isDone ? 0.55 : 1 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0, paddingTop: '16px' }}>
@@ -163,7 +172,6 @@ export default function SchedulePage() {
                   {notLast && <div style={{ flex: 1, width: 1, backgroundColor: C.border, marginTop: '4px' }}/>}
                 </div>
                 <TTCard
-                  {...(isNextTT ? { onClick: () => navigate('/race') } : {})}
                   style={{
                     flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px', borderRadius: '14px',
                     border: isNextTT ? `2px solid ${alpha(TT_COLOR, 0.55)}` : `1px dashed ${alpha(TT_COLOR, 0.5)}`,
