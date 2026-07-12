@@ -316,7 +316,8 @@ export function useNotifCount() {
   const freeTransferNotices = (currentSeason.freeTransferNotices ?? []).length
   const departureNotices = (currentSeason.departureNotices ?? []).length
   const retirementRequests = (currentSeason.retirementRequests ?? []).length
-  const transferReqs = (currentSeason.transferRequests ?? []).length
+  // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない（NotificationsPageと同じ基準）
+  const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')).length
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered').length
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted').length
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm').length
