@@ -1,3 +1,6 @@
+import { useGameStore } from '../../store/gameStore'
+import { logoPresetSrc } from '../../data/logoPresets'
+
 type IconProps = { size?: number; className?: string; color?: string }
 
 export function IconDashboard({ size = 20, className = '' }: IconProps) {
@@ -695,9 +698,22 @@ const PNG_TEAM_IDS = new Set([
   'hiroshima', 'okayama', 'fukuoka', 'kagoshima', 'okinawa',
 ])
 
-export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId }: {
-  primary: string; secondary: string; shortName: string; size?: number; teamId?: string
+export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, logoId }: {
+  primary: string; secondary: string; shortName: string; size?: number; teamId?: string; logoId?: string
 }) {
+  // プレイヤーが選んだプリセットロゴを最優先。logoId を明示指定（プレビュー等）が無ければ、teamId から自チームの選択を引く。
+  const storeLogoId = useGameStore(s => teamId ? s.teams.find(t => t.id === teamId)?.logoId : undefined)
+  const resolvedLogoId = logoId ?? storeLogoId
+  if (resolvedLogoId) {
+    return (
+      <img
+        src={logoPresetSrc(resolvedLogoId)}
+        width={size}
+        height={size}
+        style={{ objectFit: 'contain', display: 'block' }}
+      />
+    )
+  }
   if (teamId && PNG_TEAM_IDS.has(teamId)) {
     return (
       <img

@@ -35,6 +35,7 @@ type SetupData = {
   teamShortName: string
   teamId: string
   gmName: string
+  logoId?: string
 }
 
 // 契約形態→データ上の rosterTier。1軍契約(standard)/2way(dual)→main、育成(development)→second。
@@ -205,6 +206,7 @@ export type GameStore = GameState & {
   // Setup
   startSetup: (setup: SetupData) => void
   beginInauguralDraft: () => void
+  updateMyTeam: (patch: { name?: string; shortName?: string; gmName?: string; logoId?: string }) => void
 
   // Draft
   playerPick: (playerId: string) => void
@@ -683,6 +685,7 @@ export const useGameStore = create<GameStore>()(
                 name: setup.teamName,
                 shortName: setup.teamShortName,
                 gmName: setup.gmName,
+                logoId: setup.logoId,
                 isPlayerControlled: true,
                 roster: { main: baseIds, second: [] },
                 finance: { ...t.finance, salaryTotal: baseSalary },
@@ -6140,6 +6143,18 @@ export const useGameStore = create<GameStore>()(
         }
       }),
       dismissDepartureNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, departureNotices: (s.currentSeason.departureNotices ?? []).filter(n => n.id !== id) } })),
+
+      updateMyTeam: (patch) => {
+        set(s => ({
+          teams: s.teams.map(t => t.id === s.playerTeamId ? {
+            ...t,
+            ...(patch.name !== undefined ? { name: patch.name } : {}),
+            ...(patch.shortName !== undefined ? { shortName: patch.shortName } : {}),
+            ...(patch.gmName !== undefined ? { gmName: patch.gmName } : {}),
+            ...(patch.logoId !== undefined ? { logoId: patch.logoId } : {}),
+          } : t),
+        }))
+      },
 
       resetGame: () => {
         // データ削除：ゲーム進行・広告カウント・ログインボーナスはリセット（また受け取れる）するが、

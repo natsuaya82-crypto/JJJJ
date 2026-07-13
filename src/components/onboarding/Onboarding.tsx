@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { INITIAL_TEAMS } from '../../data/teams'
+import LogoSelectSheet from '../shared/LogoSelectSheet'
 
 type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 
@@ -12,6 +13,8 @@ export default function Onboarding() {
   const [teamName, setTeamName] = useState('')
   const [teamShortName, setTeamShortName] = useState('')
   const [gmName, setGmName] = useState('')
+  const [selectedLogoId, setSelectedLogoId] = useState('')
+  const [logoSheetOpen, setLogoSheetOpen] = useState(false)
   const [nameError, setNameError] = useState('')
 
   const selectedTeam = INITIAL_TEAMS.find(t => t.id === selectedTeamId)!
@@ -21,7 +24,7 @@ export default function Onboarding() {
     if (!teamShortName.trim()) { setNameError('略称を入力してください'); return }
     if (!gmName.trim()) { setNameError('GM名を入力してください'); return }
     setNameError('')
-    startSetup({ teamId: selectedTeamId, teamName: teamName.trim(), teamShortName: teamShortName.trim(), gmName: gmName.trim() })
+    startSetup({ teamId: selectedTeamId, teamName: teamName.trim(), teamShortName: teamShortName.trim(), gmName: gmName.trim(), logoId: selectedLogoId || undefined })
     beginInauguralDraft()
   }
 
@@ -208,11 +211,35 @@ export default function Onboarding() {
             background: `linear-gradient(135deg, ${selectedTeam.colors.primary}25, #1A1828)`,
             border: `1px solid ${selectedTeam.colors.primary}40`,
           }}>
-            <TeamLogoSVG primary={selectedTeam.colors.primary} secondary={selectedTeam.colors.secondary} shortName={selectedTeam.shortName} teamId={selectedTeam.id} size={56}/>
+            <TeamLogoSVG primary={selectedTeam.colors.primary} secondary={selectedTeam.colors.secondary} shortName={selectedTeam.shortName} teamId={selectedTeam.id} logoId={selectedLogoId} size={56}/>
             <div>
               <div style={{ fontSize: '12px', color: selectedTeam.colors.secondary, opacity: 0.8 }}>{selectedTeam.city} / {selectedTeam.region}</div>
               <div style={{ fontSize: '16px', fontWeight: '800', color: '#F0EDE8' }}>{teamName || selectedTeam.name}</div>
             </div>
+          </div>
+
+          {/* Logo select */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ fontSize: '11px', color: '#9B97A8', letterSpacing: '2px', display: 'block', marginBottom: '8px' }}>
+              チームロゴ
+            </label>
+            <button
+              type="button"
+              onClick={() => setLogoSheetOpen(true)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '10px 12px', borderRadius: '12px', cursor: 'pointer',
+                backgroundColor: '#1E1B2E', border: '1px solid #2E2B42',
+              }}
+            >
+              <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <TeamLogoSVG primary={selectedTeam.colors.primary} secondary={selectedTeam.colors.secondary} shortName={selectedTeam.shortName} teamId={selectedTeam.id} logoId={selectedLogoId} size={40}/>
+              </div>
+              <span style={{ flex: 1, textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#F0EDE8' }}>変更する</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: '#9B97A8', flexShrink: 0 }}>
+                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+            </button>
           </div>
 
           {/* Team name */}
@@ -306,6 +333,10 @@ export default function Onboarding() {
           </button>
 
         </div>
+      )}
+
+      {logoSheetOpen && (
+        <LogoSelectSheet team={selectedTeam} value={selectedLogoId} onSelect={setSelectedLogoId} onClose={() => setLogoSheetOpen(false)} />
       )}
     </div>
   )

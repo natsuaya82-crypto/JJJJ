@@ -461,6 +461,8 @@ export type Team = {
   founded: number
   colors: { primary: string; secondary: string }
   logoUrl: string
+  logoId?: string   // プレイヤーが選んだプリセットロゴ（'logo_01'〜'logo_30'）。設定時はこれを最優先で表示。未設定なら従来のteamId基準ロゴ
+
   roster: {
     main: string[]
     second: string[]

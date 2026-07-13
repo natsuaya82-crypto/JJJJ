@@ -2,11 +2,17 @@
 // ★アプリを更新したら、必ず APP_VERSION を上げ、同時に CHANGELOG 先頭へ新エントリを追記すること。
 //   （設定画面の「バージョン情報」と「お知らせ」はここを参照します）
 
-export const APP_VERSION = 'v1.0.6'
+export const APP_VERSION = 'v1.0.7'
 
 export type ChangelogEntry = { version: string; date: string; title: string; body: string }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 'v1.0.7',
+    date: '2026.07.14',
+    title: 'チームロゴ選択・設定画面を刷新',
+    body: '自チームのロゴをプリセットから選べるようにしました（初回設定・設定画面から変更でき、ゲーム内の表示すべてに反映されます）。設定画面をリスト型に刷新し、チーム編集（ロゴ・チーム名・略称・GM名）／サウンド／データリセットをそれぞれ専用画面に整理しました。あわせて選手能力値のばらつきを見直し、選手詳細から画像を共有できる機能を追加、移籍まわりのオファーUIを統一するなど、多数の改善と不具合修正を行っています。',
+  },
   {
     version: 'v1.0.6',
     date: '2026.07.12',
