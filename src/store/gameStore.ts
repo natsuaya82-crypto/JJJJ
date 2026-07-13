@@ -6104,7 +6104,10 @@ export const useGameStore = create<GameStore>()(
         // 課金(広告なし購入)は「データ」ではなく権利なので維持する。
         // ※アプリのアンインストール時は localStorage ごと消えるので、その場合のみ「購入を復元」が必要。
         const paid = get().adsRemoved
-        set({ ...(emptyState() as unknown as GameStore), adsRemoved: paid })
+        // 公式Xフォロー案内は「この端末で一度見たか」の記録なので、リセット（新規ゲーム）でも保持する。
+        // これをリセットすると毎回案内が出てしまう（最初の起動時1回だけにする）。
+        const twSeen = get().twitterIntroSeen
+        set({ ...(emptyState() as unknown as GameStore), adsRemoved: paid, twitterIntroSeen: twSeen })
         // ファイル保存(native)はlocalStorageを消しても残るため、初期化状態を即時フラッシュして確定させる。
         // （旧セーブ掃除のため localStorage も従来どおり削除）
         localStorage.removeItem('jpel-manager-save')
