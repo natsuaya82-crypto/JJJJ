@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Race, RaceResults, Team, Player, Season, Nationality } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
-import { segOvr, ovr, ratingColor } from '../../utils/playerUtils'
+import { ovr, ratingColor } from '../../utils/playerUtils'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { useGameStore } from '../../store/gameStore'
 import { useAdHeight } from '../layout/Layout'
@@ -183,7 +183,6 @@ export function ResultsPhase({
             const diff = runner.timeSec - leaderTime
             const rankCol = runner.rank === 1 ? C.gold : runner.rank === 2 ? '#9B97A8' : runner.rank === 3 ? '#CD7F32' : isMe ? C.cyan : C.textGhost
             const myRunnerPlayer = isMe && seg ? p : null
-            const ovrVal = myRunnerPlayer && seg ? segOvr(myRunnerPlayer, seg.uphillPct, seg.downhillPct, seg.distanceKm) : null
             const highFatigue = myRunnerPlayer && (myRunnerPlayer.fatigue ?? 0) >= 70
 
             return (
@@ -212,7 +211,6 @@ export function ResultsPhase({
                   {p && <div style={{ fontSize: 11, fontWeight: isMe ? 800 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
                     <span style={{ fontSize: 9, color: C.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>{t?.name ?? '?'}</span>
-                    {ovrVal !== null && <span style={{ fontSize: 8, fontWeight: 700, fontFamily: SAIRA, color: ovrVal >= 80 ? C.gold : ovrVal >= 65 ? C.green : C.textDim, flexShrink: 0 }}>{ovrVal}</span>}
                     {highFatigue && <span style={{ fontSize: 8, color: C.red, fontWeight: 700, fontFamily: SAIRA, flexShrink: 0 }}>疲{myRunnerPlayer!.fatigue}</span>}
                   </div>
                 </div>

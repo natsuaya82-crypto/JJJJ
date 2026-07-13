@@ -4,6 +4,7 @@ import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from 
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { useOpponentMenu } from '../teams/opponentMenu'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -20,6 +21,9 @@ export default function StarredPlayersPage() {
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const playerTeamId = useGameStore(s => s.playerTeamId)
+  // 相手チームタブと同じ操作：タップ=契約メニュー(移籍/レンタル)、長押し=詳細
+  const { rowHandlers, overlay } = useOpponentMenu()
 
   // 通常選手に加え、スカウトのドラフト候補も解決する（★を付けたのに出ない問題の解消）
   const starredPlayers = starredOpponents
@@ -64,6 +68,9 @@ export default function StarredPlayersPage() {
           const isFA     = p.teamId === ''
           const value    = isFA ? faMarketSalary(p) : calcTransferValue(p)
           const valueLabel = isFA ? '市場' : '価値'
+          // 他チーム所属の現役選手だけタップで契約メニュー。自チーム/FA/ドラフト候補はタップで詳細。
+          const isOpp = !isProspect && !isFA && p.teamId !== playerTeamId && p.status === 'active'
+          const rowProps = isOpp ? rowHandlers(p.id) : { onClick: () => openPlayerSheet(p.id) }
 
           return (
             <div key={p.id} style={{ marginBottom: '7px' }}>
@@ -76,12 +83,11 @@ export default function StarredPlayersPage() {
               }}>
                 <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  <div style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}`, cursor: 'pointer' }}
-                      onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
+                  <div {...rowProps} style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                    <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={e => { e.stopPropagation(); openPlayerSheet(p.id) }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
                         <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>
@@ -95,6 +101,7 @@ export default function StarredPlayersPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                       <button
+                        onPointerDown={e => e.stopPropagation()}
                         onClick={e => { e.stopPropagation(); toggleStarOpponent(p.id) }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: C.gold, fontSize: 18, lineHeight: 1 }}
                       >
@@ -111,6 +118,7 @@ export default function StarredPlayersPage() {
           )
         })}
       </div>
+      {overlay}
     </div>
   )
 }
