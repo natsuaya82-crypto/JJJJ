@@ -10,6 +10,7 @@ import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, get
 import { formatTime } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
+import ShareCard from './ShareCard'
 
 const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
   ace: 'エース',
@@ -112,7 +113,9 @@ export default function PlayerSheet() {
     openPlayerId, openPlayerSheet, players, teams,
     currentSeason, pastSeasons, playerTeamId,
   } = useGameStore()
-  const draftPool = useGameStore(s => s.draftState?.pool ?? [])
+  // draftState を購読（安定参照）。pool の ?? [] はセレクタの外で行う（毎回新配列を返すと無限ループになる）
+  const draftState = useGameStore(s => s.draftState)
+  const draftPool = draftState?.pool ?? []
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   // 国内チーム or 海外クラブから所属を解決
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
@@ -126,6 +129,7 @@ export default function PlayerSheet() {
   const [selectedRaceName, setSelectedRaceName] = useState<string | null>(null)
   const touchStart = useRef({ x: 0, y: 0 })
   const sheetRef = useRef<HTMLDivElement>(null)
+  const shareCardRef = useRef<HTMLDivElement>(null)
 
   const goToPage = (next: number) => {
     if (next === page) return
@@ -179,10 +183,10 @@ export default function PlayerSheet() {
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
   const handleShare = async () => {
-    if (!sheetRef.current) return
+    if (!shareCardRef.current) return
     try {
       const { shareElementAsImage } = await import('../../utils/shareImage')
-      await shareElementAsImage(sheetRef.current, { filename: `${player.name}.png`, title: player.name, text: `${player.name} OVR${ovr(player)} #JPELManager` })
+      await shareElementAsImage(shareCardRef.current, { filename: `${player.name}.png`, title: player.name, text: `${player.name} OVR${ovr(player)} #JPELManager` })
     } catch (e) { console.error('share failed', e) }
   }
   // スカウトのドラフト候補（通常の選手リストに居ない＝scoutProspects由来）は詳細ページを簡略表示にする
@@ -295,6 +299,10 @@ export default function PlayerSheet() {
 
   return (
     <>
+      {/* SNS共有用カード（画面外に描画してキャプチャする） */}
+      <div ref={shareCardRef} style={{ position: 'fixed', left: '-99999px', top: 0, pointerEvents: 'none' }}>
+        <ShareCard player={player} team={team} />
+      </div>
       <div
         onClick={() => openPlayerSheet(null)}
         style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 200 }}

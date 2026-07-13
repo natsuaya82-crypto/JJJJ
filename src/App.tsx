@@ -306,21 +306,17 @@ export default function App() {
   } else if (!isInitialized && draftState?.isComplete) {
     content = <DraftRoom />
   } else {
-    content = (
-      <BrowserRouter>
-        <AppRoutes resetGame={resetGame} onBackToTitle={() => setTitleShown(false)} />
-      </BrowserRouter>
-    )
+    content = <AppRoutes resetGame={resetGame} onBackToTitle={() => setTitleShown(false)} />
   }
 
   return (
-    <>
+    <BrowserRouter>
       <LoadingOverlay />
       {content}
       {/* 選手詳細シートは最上位に常時マウント（ドラフト画面など Layout 外でも openPlayerSheet で開ける） */}
       <PlayerSheet />
       {showTwitter && !forceUpdate && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
       {forceUpdate && <ForceUpdateModal />}
-    </>
+    </BrowserRouter>
   )
 }
