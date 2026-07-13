@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow } from './saveStorage'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -508,6 +508,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     starredOpponents: [],
     starredProspects: [],
     segmentRecords: {},
+    transferHistory: [],
     lastLoginDate: undefined as unknown as string,
     loginStreak: undefined as unknown as number,
     totalLoginDays: undefined as unknown as number,
@@ -1689,6 +1690,12 @@ export const useGameStore = create<GameStore>()(
           return {
             players: playersAfterFreeMoves,
             teams: teamsAfterFreeMoves,
+            // 移籍成立記録（チーム詳細の移籍ページ用）。CPU間売買とフリー移籍の決断をここで記録
+            transferHistory: [
+              ...(state.transferHistory ?? []),
+              ...cpuTxList.map(tx => ({ year: state.currentSeason.year, date: race.date, playerId: tx.playerId, fromTeamId: tx.fromTeamId, toTeamId: tx.toTeamId, fee: tx.fee })),
+              ...freeMoves.map(m => ({ year: state.currentSeason.year, date: race.date, playerId: m.playerId, fromTeamId: playerTeamId, toTeamId: m.toTeamId, fee: 0, kind: 'free' as const })),
+            ].slice(-400),
             jewels: state.jewels + (playerRank > 0 ? raceJewels : 0) + midRaceObjJewels,
             raceLineup: {},
             lastRaceLineup: { ...state.raceLineup },
@@ -2440,6 +2447,11 @@ export const useGameStore = create<GameStore>()(
           }
           return {
             players, teams,
+            transferHistory: [
+              ...(state.transferHistory ?? []),
+              ...offer.offeredPlayerIds.map(pid => ({ year: state.currentSeason.year, date: tradeNews.date, playerId: pid, fromTeamId: offer.fromTeamId, toTeamId: state.playerTeamId, fee: 0, kind: 'trade' as const })),
+              ...offer.requestedPlayerIds.map(pid => ({ year: state.currentSeason.year, date: tradeNews.date, playerId: pid, fromTeamId: state.playerTeamId, toTeamId: offer.fromTeamId, fee: 0, kind: 'trade' as const })),
+            ].slice(-400),
             currentSeason: {
               ...state.currentSeason,
               pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId),
@@ -2480,6 +2492,7 @@ export const useGameStore = create<GameStore>()(
             if (t.id === listing.fromTeamId) return { ...t, roster: { ...t.roster, main: t.roster.main.filter(id => id !== listing.playerId) } }
             return t
           }),
+          transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date, playerId: listing.playerId, fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId, fee: price, years: Math.max(player.contract.yearsLeft, 2) }].slice(-400),
           currentSeason: {
             ...state.currentSeason,
             transferSpend: (state.currentSeason.transferSpend ?? 0) + price,
@@ -2505,6 +2518,7 @@ export const useGameStore = create<GameStore>()(
             players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, transferLockedUntilYear: st.currentSeason.year + 1 } : p),
             teams: st.teams.map(t => t.id === st.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
             foreignLeagues: (st.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
+            transferHistory: [...(st.transferHistory ?? []), { year: st.currentSeason.year, date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date, playerId: offer.playerId, fromTeamId: st.playerTeamId, toTeamId: offer.fromTeamId, fee: offer.offeredPrice }].slice(-400),
             currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + offer.offeredPrice, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), { id: `dep_${offer.playerId}`, playerId: offer.playerId, playerName: player.name, toTeamName: clubName, reason: 'transfer' as const, fee: offer.offeredPrice }] },
           }))
           return true
@@ -2520,6 +2534,7 @@ export const useGameStore = create<GameStore>()(
             if (t.id === offer.fromTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget - offer.offeredPrice }, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
             return t
           }),
+          transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date, playerId: offer.playerId, fromTeamId: state.playerTeamId, toTeamId: offer.fromTeamId, fee: offer.offeredPrice }].slice(-400),
           currentSeason: {
             ...state.currentSeason,
             transferIncome: (state.currentSeason.transferIncome ?? 0) + offer.offeredPrice,
@@ -2850,6 +2865,7 @@ export const useGameStore = create<GameStore>()(
             return {
               players: signed.players,
               teams: signed.teams,
+              transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date, playerId: player.id, fromTeamId: player.teamId, toTeamId: state.playerTeamId, fee: 0, kind: 'free' as const, years }].slice(-400),
               currentSeason: {
                 ...state.currentSeason,
                 acquisitionOffers: (state.currentSeason.acquisitionOffers ?? []).map(o => o.id === offerId
@@ -2901,6 +2917,7 @@ export const useGameStore = create<GameStore>()(
           return {
             players: signed.players,
             teams: signed.teams,
+            transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date, playerId: offer.playerId, fromTeamId: player?.teamId ?? '', toTeamId: state.playerTeamId, fee: 0, kind: 'free' as const, years: offer.counterYears }].slice(-400),
             currentSeason: {
               ...state.currentSeason,
               acquisitionOffers: (state.currentSeason.acquisitionOffers ?? []).map(o => o.id === offerId ? { ...o, status: 'accepted' as const } : o),
@@ -3285,6 +3302,7 @@ export const useGameStore = create<GameStore>()(
           ),
           // 海外クラブから獲得した場合、そのクラブの選手リストからも外す
           foreignLeagues: (s.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(bid.playerId) ? { ...c, playerIds: c.playerIds.filter(id => id !== bid.playerId) } : c) })),
+          transferHistory: [...(s.transferHistory ?? []), { year: s.currentSeason.year, date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date, playerId: bid.playerId, fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId, fee: bid.offeredFee, years }].slice(-400),
           currentSeason: {
             ...s.currentSeason,
             transferSpend: (s.currentSeason.transferSpend ?? 0) + bid.offeredFee,
@@ -3602,7 +3620,13 @@ export const useGameStore = create<GameStore>()(
               : c),
           }))
 
-          return { players, teams, foreignLeagues, currentSeason: {
+          return { players, teams, foreignLeagues,
+            transferHistory: [
+              ...(state.transferHistory ?? []),
+              ...offeredIds.map(id => ({ year: state.currentSeason.year, date: tradeDate, playerId: id, fromTeamId: state.playerTeamId, toTeamId: targetTeamId, fee: 0, kind: 'trade' as const })),
+              ...incomingIds.map(id => ({ year: state.currentSeason.year, date: tradeDate, playerId: id, fromTeamId: targetTeamId, toTeamId: state.playerTeamId, fee: 0, kind: 'trade' as const })),
+            ].slice(-400),
+            currentSeason: {
             ...state.currentSeason,
             acquisitionOffers: [...keptOffers, ...incomingOffers],
             newsFeed: [tradeNews, ...state.currentSeason.newsFeed].slice(0, 30),
@@ -4156,6 +4180,8 @@ export const useGameStore = create<GameStore>()(
         }))
 
         // CPU間移籍（メイン市場）：予算の多いチームから優先で他チームの余剰選手を引き抜く
+        // オフシーズンの移籍成立記録（チーム詳細の移籍ページ用）。年は新シーズン（現 currentSeason.year）
+        const offseasonTxRecords: TransferRecord[] = []
         const cpuTransferIds = new Set<string>()
         let playersAfterCpuTransfer = playersAfterCpuRelease
         let teamsAfterCpuTransfer = teamsAfterCpuRelease
@@ -4199,6 +4225,7 @@ export const useGameStore = create<GameStore>()(
               transferPurchases[buyTeam.id] = (transferPurchases[buyTeam.id] ?? 0) + 1
               remainBudget -= fee
               const txYear = state.currentSeason.year
+              offseasonTxRecords.push({ year: txYear, date: `${txYear}-02-01`, playerId: target.id, fromTeamId: target.teamId, toTeamId: buyTeam.id, fee, years: 2 })
               playersAfterCpuTransfer = playersAfterCpuTransfer.map(p =>
                 p.id !== target.id ? p : {
                   ...p, teamId: buyTeam.id,
@@ -4253,6 +4280,8 @@ export const useGameStore = create<GameStore>()(
               tradedIds.add(offered.id); tradedIds.add(target.id)
               tradeCount[buyerId] = (tradeCount[buyerId] ?? 0) + 1
               tradeCount[sellerId] = (tradeCount[sellerId] ?? 0) + 1
+              offseasonTxRecords.push({ year: state.currentSeason.year, date: `${state.currentSeason.year}-02-01`, playerId: offered.id, fromTeamId: buyerId, toTeamId: sellerId, fee: 0, kind: 'trade' })
+              offseasonTxRecords.push({ year: state.currentSeason.year, date: `${state.currentSeason.year}-02-01`, playerId: target.id, fromTeamId: sellerId, toTeamId: buyerId, fee: 0, kind: 'trade' })
               playersAfterCpuTransfer = playersAfterCpuTransfer.map(p => {
                 if (p.id === offered.id) return { ...p, teamId: sellerId }
                 if (p.id === target.id) return { ...p, teamId: buyerId }
@@ -4484,6 +4513,12 @@ export const useGameStore = create<GameStore>()(
           isInitialized: false,
           players: [...playersWithForeignSigns, ...pool],
           teams: teamsWithAllCpuSigns,
+          // 直近10シーズン分だけ残して古い移籍記録は捨てる
+          transferHistory: [
+            ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),
+            ...offseasonTxRecords,
+            ...[...cpuSignings, ...cpuSecondSignings].map(s => ({ year: newYear, date: `${newYear}-02-10`, playerId: s.playerId, fromTeamId: '', toTeamId: s.teamId, fee: 0, kind: 'free' as const, years: 2 })),
+          ].slice(-800),
           currentSeason: {
             ...state.currentSeason,
             newsFeed: [...cpuSigningNewsItems, ...state.currentSeason.newsFeed].slice(0, 30),
@@ -5443,6 +5478,7 @@ export const useGameStore = create<GameStore>()(
         if (myTeam.finance.budget < transferFee) return false
 
         // Remove player from foreign club roster
+        const fromClubId = state.foreignLeagues.flatMap(l => l.clubs).find(c => c.playerIds.includes(playerId))?.id ?? ''
         const updatedLeagues = state.foreignLeagues.map(league => ({
           ...league,
           clubs: league.clubs.map(club => ({
@@ -5480,6 +5516,7 @@ export const useGameStore = create<GameStore>()(
             : t
           ),
           foreignLeagues: updatedLeagues,
+          transferHistory: [...(s.transferHistory ?? []), { year: s.currentSeason.year, playerId, fromTeamId: fromClubId, toTeamId: s.playerTeamId, fee: transferFee, years }].slice(-400),
           currentSeason: {
             ...s.currentSeason,
             newsFeed: [{

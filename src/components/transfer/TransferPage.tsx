@@ -392,7 +392,7 @@ export default function TransferPage() {
                       <>
                         <span style={{ ...badge, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: C.textSub }}>
                           {ownerTeam && <TeamLogoSVG primary={ownerTeam.colors.primary} secondary={ownerTeam.colors.secondary} shortName={ownerTeam.shortName} teamId={ownerTeam.id} size={11} />}
-                          {allClubs[p.teamId] ?? 'FA'}
+                          {allClubs[p.teamId] ?? '未所属'}
                         </span>
                         {isListed && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>出品中</span>}
                         {hasBid && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>入札中</span>}
@@ -436,7 +436,7 @@ export default function TransferPage() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{mp.name}</div>
-                        <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · {allClubs[mp.teamId] ?? 'FA'}</div>
+                        <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · {allClubs[mp.teamId] ?? '未所属'}</div>
                         <div style={{ fontSize: 10, color: C.textSub, marginTop: 2, fontFamily: SAIRA }}>価値 <span style={{ color: C.gold }}>{fmt(mVal)}</span>　年俸 {fmt(mp.contract.annualSalary)}</div>
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>

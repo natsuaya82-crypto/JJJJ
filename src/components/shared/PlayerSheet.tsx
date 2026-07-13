@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useAdHeight } from '../layout/Layout'
@@ -125,6 +126,21 @@ export default function PlayerSheet() {
   const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
   const segmentRecords = useGameStore(s => s.segmentRecords ?? {})
   const adH = useAdHeight()
+  const navigate = useNavigate()
+
+  // 在籍履歴のチーム欄タップでそのチームの詳細ページへ（国内/海外で遷移先が異なる）
+  const goToTeamPage = (teamId: string) => {
+    if (teams.some(t => t.id === teamId)) {
+      openPlayerSheet(null)
+      navigate(`/teams/detail/${teamId}`)
+      return
+    }
+    const league = foreignLeagues.find(l => l.clubs.some(c => c.id === teamId))
+    if (league) {
+      openPlayerSheet(null)
+      navigate(`/teams/foreign/${league.id}/${teamId}`)
+    }
+  }
   const [page, setPage] = useState(1)
   const [pageAnim, setPageAnim] = useState('')
   const [pageKey, setPageKey] = useState(0)
@@ -571,12 +587,20 @@ export default function PlayerSheet() {
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                         <span style={{ width: '40px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                        <div
+                          onClick={t ? () => goToTeamPage(row.teamId) : undefined}
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, cursor: t ? 'pointer' : 'default' }}
+                        >
                           {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={20} />}
                           <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {teamName}
                             {suffix && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>{suffix}</span>}
                           </span>
+                          {t && (
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0 }}>
+                              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                            </svg>
+                          )}
                         </div>
                         <span style={{ width: '36px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
                         <span style={{ width: '36px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>

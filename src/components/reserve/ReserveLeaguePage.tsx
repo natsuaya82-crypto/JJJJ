@@ -101,7 +101,9 @@ export default function ReserveLeaguePage() {
   }
 
   // ── 全試合完了 ──
-  if (allDone || phase === 'done') {
+  // 最終戦を走った直後は allDone になるが、先に通常の再生・結果画面（1軍と同じ ResultsPhase）を見せる。
+  // このサマリに直行するのは、結果を見終えて改めてこのページを開いた時だけ
+  if ((allDone && phase !== 'simulating' && phase !== 'results') || phase === 'done') {
     const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
     const myPts = stStandings.find(s => s.teamId === playerTeamId)?.totalPoints ?? 0
     return (

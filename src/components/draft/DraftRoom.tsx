@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
@@ -150,6 +151,7 @@ function PickedPlayerSheet({ playerId, players, onClose }: {
 
 export default function DraftRoom() {
   const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason, openPlayerSheet } = useGameStore()
+  const navigate = useNavigate()
   const adH = useAdHeight()
   const [tab, setTab]           = useState<TabKey>('players')
   const [sortKey, setSortKey]   = useState<SortKey>('ovr')
@@ -286,7 +288,7 @@ export default function DraftRoom() {
   }
 
   if (isComplete) {
-    return <DraftComplete picks={picks} teams={teams} playerTeamId={playerTeamId} onFinish={advanceDraft} />
+    return <DraftComplete picks={picks} teams={teams} playerTeamId={playerTeamId} onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
   }
 
   const stripStart    = Math.max(0, currentPick - 2)
@@ -731,6 +733,8 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
   isScouted?: boolean; isRecommend?: boolean; buzz?: number
 }) {
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const starredProspects = useGameStore(s => s.starredProspects ?? [])
+  const isStarred = starredProspects.includes(p.id)
   const specCol  = SPEC_COLOR[p.specialty]
   const rating   = ovr(p)
   const ovrCol   = ratingColor(rating)
@@ -753,14 +757,16 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
         style={{
           borderRadius: '14px',
           background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
-          border: isMyPick
+          border: isStarred
+            ? `2px solid ${C.gold}`
+            : isMyPick
             ? `1px solid ${alpha(ovrCol, 0.55)}`
             : isRecommend
             ? `1px solid ${alpha(C.gold, 0.45)}`
             : isStar
             ? `1px solid ${alpha(C.gold, 0.22)}`
             : `1px solid ${alpha(specCol, 0.3)}`,
-          boxShadow: isStar ? `0 0 12px ${alpha(C.gold, 0.06)}` : 'none',
+          boxShadow: isStarred ? `0 0 14px ${alpha(C.gold, 0.35)}` : isStar ? `0 0 12px ${alpha(C.gold, 0.06)}` : 'none',
           overflow: 'hidden', cursor: 'pointer', position: 'relative',
         }}
       >
@@ -774,6 +780,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px', flexWrap: 'wrap' }}>
+              {isStarred && <span style={{ color: C.gold, fontSize: 13, flexShrink: 0 }}>★</span>}
               <span style={{ fontSize: '14px', fontWeight: '700', color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.name}
               </span>
@@ -840,7 +847,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
 
       {isMyPick && (
         <button className="btn-game btn-game--gold" onClick={e => { e.stopPropagation(); onPick(p.id) }} style={{ width: '100%', marginTop: '6px' }}>
-          <span className="btn-game__inner" style={{ textShadow: '-1.25px 0 0 #061224, 1.25px 0 0 #061224, 0 -1.25px 0 #061224, 0 1.25px 0 #061224, -1.25px -1.25px 0 #061224, 1.25px -1.25px 0 #061224, -1.25px 1.25px 0 #061224, 1.25px 1.25px 0 #061224, 0 1px 2px rgba(0,0,0,0.5)' }}>{p.name} を指名する</span>
+          <span className="btn-game__inner">{p.name} を指名する</span>
         </button>
       )}
     </div>

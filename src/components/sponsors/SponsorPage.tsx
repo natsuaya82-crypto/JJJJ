@@ -21,10 +21,9 @@ const TIER_LABEL: Record<string, string> = {
   title:  'タイトル',
 }
 
+// 予算ページと同じ万円単位表記（億に切り上げない）
 function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  if (yen >= 10000000) return `${Math.round(yen / 10000000) * 10}00万`
-  return `${Math.round(yen / 10000)}万`
+  return `${Math.round(yen / 10000).toLocaleString()}万`
 }
 
 function targetText(t: SponsorTarget): string {

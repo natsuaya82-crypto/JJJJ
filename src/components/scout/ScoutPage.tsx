@@ -11,6 +11,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function ScoutPage() {
   const { currentSeason, initScoutPool, openPlayerSheet, players } = useGameStore()
+  const starredProspects = useGameStore(s => s.starredProspects ?? [])
 
   useEffect(() => { initScoutPool() }, [])
 
@@ -90,7 +91,7 @@ export default function ScoutPage() {
 
       <div style={{ margin: '0 12px', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
         {sorted.map(p => (
-          <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} />
+          <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={starredProspects.includes(p.id) ? <span style={{ color: '#F5C842', fontSize: 13, flexShrink: 0 }}>★</span> : undefined} />
         ))}
       </div>
     </div>

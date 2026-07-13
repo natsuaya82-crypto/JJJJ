@@ -1,6 +1,7 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
 import type { TraitId } from '../utils/traitUtils'
 import { rankBudgetGrant } from '../data/economy'
+import { SPEC_STRONG_STATS } from '../utils/playerUtils'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -610,10 +611,11 @@ export function generateDraftPool(year: number): Player[] {
       draftPick: null,
       ratings,
       specialty,
-      // 稀に「お化け」隠れ玉：ランクに関わらず高ポテンシャル(85〜90)。現在値は低いままなので下位指名でも化ける。
+      // 稀に「お化け」隠れ玉：ランクに関わらず高ポテンシャル。現在値は低いままなので下位指名でも化ける。
+      // 日本人は総合90前後を上限にしつつ、選手ごとにばらつかせる（全員90一律を避ける＝得意は99も、苦手は低く）。
       potential: isForeign
         ? rng(potential[0], potential[1])
-        : (Math.random() < 0.06 ? rng(85, 90) : Math.min(90, rng(potential[0], potential[1]))),
+        : (Math.random() < 0.08 ? rng(86, 93) : Math.min(92, rng(potential[0], potential[1]))),
       growthCurve,
       teamId: '__pool__',
       rosterTier: 'main',
@@ -782,13 +784,17 @@ export function generateCpuRosters(
     const { potential } = rankToBaseRange(rank, growthCurve)
     const age = tier === 'main' ? rng(22, 31) : rng(19, 25)
     const yearsPro = Math.max(0, age - 22)
-    const potentialVal = isForeign ? rng(potential[0], potential[1]) : Math.min(90, rng(potential[0], potential[1]))
+    const potentialVal = isForeign ? rng(potential[0], potential[1]) : Math.min(92, rng(potential[0], potential[1]))
 
-    // 経験年数に応じて各能力値を底上げ
+    // 経験年数に応じて各能力値を底上げ。ただし能力別上限で頭打ち（得意は99まで伸び、苦手は抑える＝全能力が同じ値に揃わない）。
     if (yearsPro > 0) {
       const bonus = Math.floor(yearsPro * 1.6)
+      const strongSet = new Set(SPEC_STRONG_STATS[specialty] ?? [])
       ;(Object.keys(ratings) as Array<keyof typeof ratings>).forEach(key => {
-        ratings[key] = Math.min(potentialVal, Math.min(99, ratings[key] + bonus + rng(-3, 5)))
+        // 頭打ちを能力ごとに揺らす（同じ選手でも非得意が全部同じ値に揃わない）
+        const capBase = strongSet.has(key) ? potentialVal + 12 : potentialVal - 5
+        const cap = Math.min(99, Math.max(35, capBase + rng(-7, 2)))
+        ratings[key] = Math.min(cap, Math.min(99, ratings[key] + bonus + rng(-3, 5)))
       })
     }
 
@@ -917,7 +923,7 @@ export function generatePlayerInitialRoster(year: number): {
       name, nameKana: '', age, yearsPro,
       draftYear: year - yearsPro, draftRound: null, draftPick: null,
       ratings, specialty,
-      potential: Math.min(90, rng(potential[0], potential[1])),
+      potential: Math.min(92, rng(potential[0], potential[1])),
       growthCurve,
       teamId: '', rosterTier: 'main',
       contract: {

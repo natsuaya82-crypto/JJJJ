@@ -31,7 +31,7 @@ export default function StarredPlayersPage() {
     .filter((p): p is NonNullable<typeof p> => p != null)
 
   function getTeamName(teamId: string): string {
-    if (teamId === '') return 'FA'
+    if (teamId === '') return '未所属'
     const domestic = teams.find(t => t.id === teamId)
     if (domestic) return domestic.shortName
     for (const league of foreignLeagues) {

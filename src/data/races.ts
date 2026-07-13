@@ -320,10 +320,12 @@ export const SEASON_2027_RACES: Race[] = [
 ]
 
 // ── リザーブレース (各区間も固有の重みを持つ) ────────────────────────────
-type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'>
+// months: 開催できる月。名前に季節が入っているレースはその季節にしか開催しない（11月に春季オープンを防ぐ）。
+// 未指定は通年OK
+type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'> & { months?: number[] }
 const RESERVE_RACE_POOL: RaceTemplate[] = [
   {
-    name: 'リザーブ春季オープン',      location: '川越',  type: 'league',
+    name: 'リザーブ春季オープン',      location: '川越',  type: 'league', months: [3, 4, 5],
     conditions: { temperature: 14, weather: 'sunny',  elevation: 30 },
     segments: [
       seg(1, 7.0, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
@@ -360,7 +362,7 @@ const RESERVE_RACE_POOL: RaceTemplate[] = [
     participants: ALL_TEAM_IDS,
   },
   {
-    name: '四国リザーブサマーレース',   location: '高松',  type: 'league',
+    name: '四国リザーブサマーレース',   location: '高松',  type: 'league', months: [6, 9],
     conditions: { temperature: 27, weather: 'sunny',  elevation: 60 },
     segments: [
       seg(1, 6.5, 0,   0, { speed: 0.60, pacing: 0.18, mental: 0.14, stamina: 0.05, recovery: 0.03 }),
@@ -372,7 +374,7 @@ const RESERVE_RACE_POOL: RaceTemplate[] = [
     participants: ALL_TEAM_IDS,
   },
   {
-    name: '北東北リザーブ夏季大会',     location: '盛岡',  type: 'league',
+    name: '北東北リザーブ夏季大会',     location: '盛岡',  type: 'league', months: [6, 9],
     conditions: { temperature: 22, weather: 'cloudy', elevation: 70 },
     segments: [
       seg(1, 8.0, 5,   5, { mental: 0.34, pacing: 0.30, speed: 0.18, stamina: 0.12, recovery: 0.06 }),
@@ -384,7 +386,7 @@ const RESERVE_RACE_POOL: RaceTemplate[] = [
     participants: ALL_TEAM_IDS,
   },
   {
-    name: 'リザーブ秋季フィナーレ',     location: '宇都宮', type: 'league',
+    name: 'リザーブ秋季フィナーレ',     location: '宇都宮', type: 'league', months: [9, 10, 11],
     conditions: { temperature: 20, weather: 'sunny',  elevation: 45 },
     segments: [
       seg(1, 7.5, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
@@ -397,7 +399,7 @@ const RESERVE_RACE_POOL: RaceTemplate[] = [
     participants: ALL_TEAM_IDS,
   },
   {
-    name: 'リザーブファイナル',          location: '千葉',  type: 'league',
+    name: 'リザーブファイナル',          location: '千葉',  type: 'league', months: [10, 11],
     conditions: { temperature: 18, weather: 'sunny',  elevation: 35 },
     segments: [
       seg(1, 6.0, 5,   5, { pacing: 0.42, speed: 0.28, mental: 0.18, stamina: 0.08, recovery: 0.04 }),
@@ -459,7 +461,7 @@ const RESERVE_RACE_POOL: RaceTemplate[] = [
     participants: ALL_TEAM_IDS,
   },
   {
-    name: '北海道リザーブ秋冬戦',       location: '旭川',  type: 'league',
+    name: '北海道リザーブ秋冬戦',       location: '旭川',  type: 'league', months: [10, 11],
     conditions: { temperature: 10, weather: 'cloudy', elevation: 65 },
     segments: [
       seg(1, 8.0, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
@@ -506,21 +508,28 @@ function seededIdx(year: number, slot: number, range: number): number {
   return Math.abs(Math.floor((x - Math.floor(x)) * range)) % range
 }
 
-export const SECOND_TEAM_RACES_INITIAL: Race[] = RESERVE_RACE_POOL.slice(0, 7).map((tmpl, i) => ({
+export const SECOND_TEAM_RACES_INITIAL: Race[] = RESERVE_RACE_POOL.slice(0, 7).map(({ months: _months, ...tmpl }, i) => ({
   ...tmpl,
   id: `r2-2027-${String(i + 1).padStart(2, '0')}`,
   date: `2027${RACE_DATES_BY_SLOT[i] ?? '-10-01'}`,
   results: undefined,
 }))
 
+// 各スロットの開催月（RACE_DATES_BY_SLOT と対応）
+const SLOT_MONTHS = [3, 4, 5, 6, 9, 10, 11]
+
 export function generateSecondTeamRaces(year: number): Race[] {
   const used = new Set<number>()
   const picked: Race[] = []
   for (let slot = 0; slot < 7; slot++) {
-    let idx = seededIdx(year, slot, RESERVE_RACE_POOL.length)
-    while (used.has(idx)) idx = (idx + 1) % RESERVE_RACE_POOL.length
-    used.add(idx)
-    const tmpl = RESERVE_RACE_POOL[idx]
+    const month = SLOT_MONTHS[slot] ?? 10
+    // 開催時期の合うレースだけから抽選（名前の季節と実開催月がズレないように）。足りなければ全体から
+    const indexed = RESERVE_RACE_POOL.map((t, i) => ({ t, i })).filter(x => !used.has(x.i))
+    const fits = indexed.filter(x => x.t.months == null || x.t.months.includes(month))
+    const pool = fits.length > 0 ? fits : indexed
+    const pick = pool[seededIdx(year, slot, pool.length)]
+    used.add(pick.i)
+    const { months: _months, ...tmpl } = pick.t
     picked.push({
       ...tmpl,
       id: `r2-${year}-${String(slot + 1).padStart(2, '0')}`,

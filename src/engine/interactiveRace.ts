@@ -296,6 +296,8 @@ function makeStartDashEvent(player: Player, ctx: RaceContext): RaceSegmentEvent 
     id: 'start_dash',
     type: 'スタートダッシュ',
     trigger: { type: 'ratio', min: 0.1 },
+    // 相手がいないイベントも難易度を持たせて、毎回同じ%にならないようにする
+    opponentOvr: 52 + Math.floor(Math.random() * 23),
     situation,
     battleContext,
     choices: [
@@ -341,6 +343,8 @@ function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext)
     id: 'mountain_ascent',
     type: '山岳判断',
     trigger: { type: 'ratio', min: 0.15 },
+    // 難易度＝坂のきつさ＋ぶれ（急坂ほど成功率が下がる）
+    opponentOvr: Math.round(46 + seg.uphillPct * 0.5 + Math.random() * 8),
     situation,
     battleContext,
     choices: [
@@ -385,6 +389,7 @@ function makeMountainDescentEvent(player: Player, ctx: RaceContext): RaceSegment
     id: 'mountain_descent',
     type: '下り判断',
     trigger: { type: 'ratio', min: 0.15 },
+    opponentOvr: 52 + Math.floor(Math.random() * 23),
     situation,
     battleContext,
     choices: [
@@ -550,6 +555,7 @@ function makeWaterStationEvent(player: Player, ctx: RaceContext): RaceSegmentEve
     id: 'water_station',
     type: '給水',
     trigger: { type: 'stamina' },
+    opponentOvr: 46 + Math.floor(Math.random() * 20),
     situation,
     battleContext,
     choices: [
@@ -568,16 +574,18 @@ function makeWaterStationEvent(player: Player, ctx: RaceContext): RaceSegmentEve
 
 // ─── Resolve Choice ──────────────────────────────────────────────────────────
 
-// 選択肢の成功確率。温存(conservative)は必ず成功=1。攻め/バランスは実力差で 0.15〜0.90。
+// 選択肢の成功確率。攻め＝低確率・高リターン / 標準＝中間 / 温存＝高確率。
+// どれも実力差(gap)で上下するので、同じイベントでも選択肢ごとに違う%が並ぶ。
 // 表示(SimPhase)と判定(resolveChoice)で同じ値を使うためにexportして共用する。
 export function choiceSuccessProb(
   effortType: 'aggressive' | 'balanced' | 'conservative',
   segStamina: number,
   opponentOvr: number,
 ): number {
-  if (effortType === 'conservative') return 1
   const gap = segStamina - opponentOvr
-  return Math.max(0.15, Math.min(0.90, 0.55 + gap * 0.02))
+  if (effortType === 'conservative') return Math.max(0.85, Math.min(0.99, 0.93 + gap * 0.004))
+  if (effortType === 'aggressive') return Math.max(0.10, Math.min(0.80, 0.42 + gap * 0.025))
+  return Math.max(0.30, Math.min(0.92, 0.62 + gap * 0.015))
 }
 
 export function resolveChoice(
@@ -590,15 +598,7 @@ export function resolveChoice(
   if (!effect) return { staminaDelta: 0, timeDelta: 0, newStamina: segStamina, success: true }
 
   // timeBonus は区間タイムに対する割合。区間の基準タイムに掛けて秒に変換する。
-  if (effect.effortType === 'conservative') {
-    return {
-      staminaDelta: effect.staminaSuccess,
-      timeDelta: Math.round(segBaseTime * effect.timeBonusSuccess),
-      newStamina: segStamina + effect.staminaSuccess,
-      success: true,
-    }
-  }
-
+  // 温存も含めて全選択肢が表示された%どおりに判定される（温存は高確率だが確実ではない）
   const successProb = choiceSuccessProb(effect.effortType, segStamina, event.opponentOvr ?? segStamina)
   const success = Math.random() < successProb
 

@@ -79,7 +79,7 @@ export default function DraftHistoryPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                       {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
                       <span style={{ fontSize: '9px', color: isMine ? C.gold : C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {team?.name ?? (isRetired ? '引退' : 'FA')} / {SPECIALTY_LABELS[p.specialty]} / {p.age}歳
+                        {team?.name ?? (isRetired ? '引退' : '未所属')} / {SPECIALTY_LABELS[p.specialty]} / {p.age}歳
                       </span>
                     </div>
                   </div>

@@ -147,13 +147,13 @@ export default function NewsPage() {
                       <span style={{ fontSize: 10, color: C.textDim }}>{relPlayer.age}歳</span>
                       {(fromTeam || toTeam) ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.textSub, fontWeight: 700 }}>
-                          <span>{fromTeam ? fromTeam.shortName : (isFA ? 'FA' : '—')}</span>
+                          <span>{fromTeam ? fromTeam.shortName : (isFA ? '未所属' : '—')}</span>
                           <span style={{ color: C.gold }}>→</span>
                           <span style={{ color: C.gold }}>{toTeam ? toTeam.shortName : '—'}</span>
                         </span>
                       ) : (
                         <span style={{ fontSize: 10, color: C.textDim }}>
-                          {isFA ? 'FA中' : team ? team.shortName : '—'}
+                          {isFA ? '未所属' : team ? team.shortName : '—'}
                         </span>
                       )}
                     </div>

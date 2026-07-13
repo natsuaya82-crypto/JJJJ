@@ -26,7 +26,6 @@ import TeamHub from './components/team/TeamHub'
 import TeamsHub from './components/teams/TeamsHub'
 import TeamDetailPage from './components/teams/TeamDetailPage'
 import ForeignLeagueDetailPage from './components/teams/ForeignLeagueDetailPage'
-import ForeignClubDetailPage from './components/teams/ForeignClubDetailPage'
 import ChatPage from './components/team/ChatPage'
 import NoSalePage from './components/team/NoSalePage'
 import FriendsPage from './components/friends/FriendsPage'
@@ -159,7 +158,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/teams" element={<TeamsHub />} />
           <Route path="/teams/detail/:teamId" element={<TeamDetailPage />} />
           <Route path="/teams/foreign/:leagueId" element={<ForeignLeagueDetailPage />} />
-          <Route path="/teams/foreign/:leagueId/:clubId" element={<ForeignClubDetailPage />} />
+          <Route path="/teams/foreign/:leagueId/:clubId" element={<TeamDetailPage />} />
           <Route path="/teams/:section" element={<Placeholder title="coming soon" />} />
           <Route path="/transfer" element={<TransferHub />} />
           <Route path="/transfer/starred" element={<StarredPlayersPage />} />

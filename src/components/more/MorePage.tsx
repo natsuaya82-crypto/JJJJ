@@ -9,6 +9,9 @@ import { APP_VERSION } from '../../data/appMeta'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
+// 広告なし版IAPの表示フラグ（有料アプリ契約が有効になったら true に戻す）
+const IAP_ENABLED = false
+
 export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void }) {
   const { resetGame } = useGameStore()
 
@@ -36,7 +39,8 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         <div style={{ fontSize: 28, fontWeight: 900, color: C.text, lineHeight: 1 }}>設定</div>
       </div>
 
-      <PremiumCard />
+      {/* 広告なし版IAP：App Store Connectの有料契約（銀行口座）が通るまで一時非表示。復活時はこの条件を外すだけ */}
+      {IAP_ENABLED && <PremiumCard />}
 
       {/* ── SOUND ── */}
       <div style={{ marginBottom: 20 }}>

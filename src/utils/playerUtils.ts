@@ -4,7 +4,7 @@ import { calcBaseAbility, calcAffinity, calcConditionModifier } from '../engine/
 // ── 能力別ポテンシャル（各能力ごとの成長上限）──
 // 単一の potential と特性から各能力の上限を導出する（保存はせず都度算出＝既存セーブもそのまま動く）。
 // 得意能力は potential+α まで、苦手能力は低め。現在値を下回らない（既に高い能力は据え置き）。
-const SPEC_STRONG_STATS: Record<Specialty, CardStatKey[]> = {
+export const SPEC_STRONG_STATS: Record<Specialty, CardStatKey[]> = {
   ace:           ['pacing', 'mental', 'stamina'],
   sprinter:      ['speed', 'pacing'],
   long:          ['stamina', 'mental', 'recovery'],
@@ -19,11 +19,20 @@ const ALL_STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountai
 // 各能力の成長上限（内部の正確値）。得意 potential+9(最大99) / 苦手 potential-8、現在値未満にはしない。
 // 得意と苦手の差を広げ、選手を尖らせる（例：スプリンターは速さ99・登り80台）。
 // 平均は概ね potential 付近に収まるので OVR(=7能力平均)は potential 前後を維持。
+// 文字列→安定な数値ハッシュ（選手ごと・能力ごとに固定のゆらぎを作る）。
+function hashStr(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
 export function getStatPotentials(p: Player): Ratings {
   const strong = new Set(SPEC_STRONG_STATS[p.specialty] ?? [])
   const out = {} as Ratings
   for (const stat of ALL_STAT_KEYS) {
-    const ceil = strong.has(stat) ? p.potential + 9 : p.potential - 8
+    // 頭打ちを能力ごとに固定でずらす（同じ選手でも非得意が全部同じ値に揃わない）。id+statで決定的。
+    const jitter = (hashStr(p.id + stat) % 9) - 6   // -6〜+2
+    const ceil = (strong.has(stat) ? p.potential + 12 : p.potential - 5) + jitter
     const cur = (p.ratings as Record<string, number>)[stat] ?? 0
     ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, Math.round(ceil)))
   }

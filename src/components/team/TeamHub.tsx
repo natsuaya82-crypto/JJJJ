@@ -65,6 +65,25 @@ export default function TeamHub() {
       ),
     },
     {
+      key: '/team/nosale',
+      label: '非売リスト',
+      desc: '指定した選手には他クラブから買い取りオファーが来なくなる',
+      countLabel: (() => {
+        const n = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && p.noSale).length
+        return n > 0 ? `${n}名指定中` : '指定なし'
+      })(),
+      badge: 0,
+      color: C.red,
+      shadow: '#5a1010',
+      urgent: false,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3l8 3v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+          <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
       key: '/sponsors',
       label: 'スポンサー',
       desc: 'チーム・個人スポンサー契約管理',

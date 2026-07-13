@@ -701,6 +701,19 @@ export type SegmentRecord = {
   year: number
 }
 
+// 移籍の成立記録。fee=0 のときは kind で区別（free=フリー移籍 / trade=トレード）。
+// years は移籍時に結んだ契約年数（不明なら省略）。date は 'YYYY-MM-DD'（成立日、あれば表示）
+export type TransferRecord = {
+  year: number
+  date?: string
+  playerId: string
+  fromTeamId: string
+  toTeamId: string
+  fee: number
+  kind?: 'free' | 'trade'
+  years?: number
+}
+
 export type GameState = {
   playerTeamId: string
   currentSeason: Season
@@ -731,6 +744,7 @@ export type GameState = {
   lastAdDate?: string
   adsWatchedToday?: number
   segmentRecords?: Record<string, SegmentRecord[]>
+  transferHistory?: TransferRecord[]   // 移籍の成立記録（チーム詳細の移籍ページで移籍金・契約期間を表示するため）
   adsRemoved?: boolean   // 買い切り版（広告なし・ログインボーナス常時2倍）を購入済みか
   twitterIntroSeen?: boolean   // 公式Xフォロー案内ポップを一度表示済みか（初回起動のみ表示）
 }

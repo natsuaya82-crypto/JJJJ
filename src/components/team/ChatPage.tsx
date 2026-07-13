@@ -1328,7 +1328,7 @@ export default function ChatPage() {
                     <TeamLogoSVG primary={curTeam.colors.primary} secondary={curTeam.colors.secondary} shortName={curTeam.shortName} teamId={curTeam.id} size={14} />
                     <span style={{ fontSize: 10, color: C.textSub, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{curTeam.shortName}</span>
                   </span>
-                ) : <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>FA</span>
+                ) : <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>未所属</span>
               })()}
               <span style={{ fontSize: 11, color: C.textDim }}>
                 {offer.source === 'fa' ? `市場年俸 ${fmt(faMarketSalary(player))}` : `市場価値 ${fmt(calcTransferValue(player))}`}
