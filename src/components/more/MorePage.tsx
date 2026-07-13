@@ -14,7 +14,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 広告なし版IAPの表示フラグ（有料アプリ契約が有効になったら true に戻す）
 const IAP_ENABLED = false
 
-const OVERLAY_BG = '#0A0912'
+const OVERLAY_BG = C.bg
 const HEADER_H = 49  // Layout.tsx のヘッダー高と同値。詳細画面をヘッダーの下から始める
 
 const CARD: React.CSSProperties = {

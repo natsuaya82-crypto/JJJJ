@@ -25,7 +25,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
   return (
     <div style={{
       position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, left: 0, right: 0, bottom: 0, zIndex: 1100,
-      backgroundColor: '#0A0912',
+      backgroundColor: C.bg,
       maxWidth: 480, margin: '0 auto',
       display: 'flex', flexDirection: 'column',
       fontFamily: SAIRA,
