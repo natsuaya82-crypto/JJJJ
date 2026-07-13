@@ -100,7 +100,11 @@ function SeasonBudgetNotice() {
 
 function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBackToTitle: () => void }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const prevPath = useRef(location.pathname)
+
+  // タイトル／ドラフトからゲーム画面に入ったときは、前回いた画面に関わらず必ずホーム(/)から始める
+  useEffect(() => { navigate('/', { replace: true }) }, [])
 
   // 画面遷移SE。BGMは基本ホーム（/race 中の race BGM は RacePage が制御する）。
   // 戻る操作のときは back音が鳴るので遷移SEは抑制する。
