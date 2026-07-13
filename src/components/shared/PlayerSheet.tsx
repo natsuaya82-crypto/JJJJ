@@ -189,8 +189,12 @@ export default function PlayerSheet() {
       await shareElementAsImage(shareCardRef.current, { filename: `${player.name}.png`, title: player.name, text: `${player.name} OVR${ovr(player)} #JPELManager` })
     } catch (e) { console.error('share failed', e) }
   }
-  // スカウトのドラフト候補（通常の選手リストに居ない＝scoutProspects由来）は詳細ページを簡略表示にする
-  const isProspect = !players.some(p => p.id === player.id)
+  // ドラフト候補は詳細ページを簡略表示にする。
+  // ドラフト進行中は候補が state.players に teamId '__pool__' / status 'draft_eligible' で入るため、
+  // 「playersに居ない」だけだと判定できずフル詳細が開いてしまう。status で確実に候補と判定する。
+  const isProspect = player.status === 'draft_eligible'
+    || player.teamId === '__pool__'
+    || !players.some(p => p.id === player.id)
   const isScouted = isMyPlayer || isProspect || isOpponentScouted(player.id, currentSeason)
 
   // ドラフト候補の予想指名順位（能力＋将来性で全候補内の順位を推定）。
