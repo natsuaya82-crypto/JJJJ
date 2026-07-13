@@ -193,10 +193,13 @@ export default function PlayerSheet() {
   const isProspect = !players.some(p => p.id === player.id)
   const isScouted = isMyPlayer || isProspect || isOpponentScouted(player.id, currentSeason)
 
-  // ドラフト候補の予想指名順位（能力＋将来性で全候補内の順位を推定）
+  // ドラフト候補の予想指名順位（能力＋将来性で全候補内の順位を推定）。
+  // スカウト画面では scoutProspects、ドラフト進行中は draftState.pool が母集団になる（同じ情報を出すため両方を見る）。
   const predictedPick = isProspect ? (() => {
     const val = (pl: typeof player) => ovr(pl) + (pl.potential ?? 0) * 0.5
-    const pool = [...(currentSeason.scoutProspects ?? [])].sort((a, b) => val(b) - val(a))
+    const scoutPool = currentSeason.scoutProspects ?? []
+    const basePool = scoutPool.some(p => p.id === player.id) ? scoutPool : draftPool
+    const pool = [...basePool].sort((a, b) => val(b) - val(a))
     const idx = pool.findIndex(p => p.id === player.id)
     return idx >= 0 ? idx + 1 : null
   })() : null
