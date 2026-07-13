@@ -128,17 +128,19 @@ export default function PlayerSheet() {
   const adH = useAdHeight()
   const navigate = useNavigate()
 
-  // 在籍履歴のチーム欄タップでそのチームの詳細ページへ（国内/海外で遷移先が異なる）
+  // 在籍履歴のチーム欄タップでそのチームの詳細ページへ（国内/海外で遷移先が異なる）。
+  // 遷移先の「戻る」で元の選手詳細に戻れるよう、開いていた選手IDを履歴stateに載せる。
   const goToTeamPage = (teamId: string) => {
+    const returnId = openPlayerId
     if (teams.some(t => t.id === teamId)) {
       openPlayerSheet(null)
-      navigate(`/teams/detail/${teamId}`)
+      navigate(`/teams/detail/${teamId}`, { state: { fromPlayerSheet: returnId } })
       return
     }
     const league = foreignLeagues.find(l => l.clubs.some(c => c.id === teamId))
     if (league) {
       openPlayerSheet(null)
-      navigate(`/teams/foreign/${league.id}/${teamId}`)
+      navigate(`/teams/foreign/${league.id}/${teamId}`, { state: { fromPlayerSheet: returnId } })
     }
   }
   const [page, setPage] = useState(1)

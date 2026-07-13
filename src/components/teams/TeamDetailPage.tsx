@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -81,6 +81,14 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const foreignLeaguesRaw = useGameStore(s => s.foreignLeagues)
   const foreignLeagues = foreignLeaguesRaw ?? []
   const transferHistory = useGameStore(s => s.transferHistory)
+  const location = useLocation()
+  const navigate = useNavigate()
+  // 選手詳細から飛んできた場合は、戻るで元の選手詳細（モーダル）を開き直す
+  const fromPlayerSheet = (location.state as { fromPlayerSheet?: string } | null)?.fromPlayerSheet
+  const handleBack = () => {
+    navigate(-1)
+    if (fromPlayerSheet) openPlayerSheet(fromPlayerSheet)
+  }
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activePage, setActivePage] = useState(0)
   const [moveTab, setMoveTab] = useState<'in' | 'out'>('in')
@@ -272,7 +280,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
       <div style={{ padding: '10px 16px 4px' }}>
-        <BackButton/>
+        <BackButton onClick={handleBack}/>
       </div>
 
       <div style={{
@@ -528,13 +536,12 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                 <div style={{ textAlign: 'center', padding: '28px', color: '#3A3758', fontSize: '11px', backgroundColor: '#0E0D17', borderRadius: '12px', border: '1px solid #1A1828' }}>記録なし</div>
               )
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {rows.map(row => {
                     const p = players.find(pl => pl.id === row.playerId)
                     const other = resolveAnyTeam(row.otherTeamId)
                     if (!p) return null
                     const otherName = other?.name ?? (row.kind === 'free' || !row.otherTeamId ? '無所属' : '不明')
-                    const otherShort = other?.shortName ?? (row.kind === 'free' || !row.otherTeamId ? 'フリー' : '—')
                     const feeLabel = row.hasRec ? (row.kind === 'trade' ? 'トレード' : (row.fee ?? 0) > 0 ? fmt(row.fee!) : 'フリー') : '—'
                     const yearsLabel = row.years ? `${row.years}年` : '—'
                     const dateLabel = fmtDate(row.date, row.year)
@@ -542,31 +549,26 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                       <div
                         key={`${row.playerId}-${row.year}`}
                         onClick={() => openPlayerSheet(p.id)}
-                        style={{ background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '12px 10px 10px', cursor: 'pointer' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '10px 14px', cursor: 'pointer' }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
-                          <PlayerFace playerId={p.id} nationality={p.nationality} size={46} />
-                        </div>
-                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '6px' }}>{p.name}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', minWidth: 0, marginBottom: '8px' }}>
-                          {other && <TeamLogoSVG primary={other.colors.primary} secondary={other.colors.secondary} shortName={other.shortName} teamId={other.id} size={13} />}
-                          <span style={{ fontSize: '9px', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherName}</span>
-                        </div>
-                        <div style={{ borderTop: '1px solid #1A1828', paddingTop: '7px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '8px', color: '#3A3758' }}>{otherLabel}</span>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{otherShort}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '8px', color: '#3A3758' }}>契約期間</span>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: yearsLabel === '—' ? '#3A3758' : '#F0EDE8', fontFamily: SAIRA }}>{yearsLabel}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '8px', color: '#3A3758' }}>移籍金</span>
-                            <span style={{ fontSize: '10px', fontWeight: 800, color: feeLabel === '—' ? '#3A3758' : '#C9A84C', fontFamily: SAIRA }}>{feeLabel}</span>
+                        <PlayerFace playerId={p.id} nationality={p.nationality} size={42} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px', minWidth: 0 }}>
+                            <span style={{ fontSize: '8px', color: '#3A3758', flexShrink: 0 }}>{otherLabel}</span>
+                            {other && <TeamLogoSVG primary={other.colors.primary} secondary={other.colors.secondary} shortName={other.shortName} teamId={other.id} size={12} />}
+                            <span style={{ fontSize: '10px', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherName}</span>
+                            <span style={{ fontSize: '9px', color: '#5C5870', fontFamily: 'monospace', marginLeft: '6px', flexShrink: 0 }}>{dateLabel}</span>
                           </div>
                         </div>
-                        <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '9px', color: '#5C5870', fontFamily: 'monospace' }}>{dateLabel}</div>
+                        <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 44 }}>
+                          <div style={{ fontSize: '8px', color: '#3A3758' }}>契約</div>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: yearsLabel === '—' ? '#3A3758' : '#F0EDE8', fontFamily: SAIRA }}>{yearsLabel}</div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 56 }}>
+                          <div style={{ fontSize: '8px', color: '#3A3758' }}>移籍金</div>
+                          <div style={{ fontSize: '12px', fontWeight: 800, color: feeLabel === '—' ? '#3A3758' : '#C9A84C', fontFamily: SAIRA }}>{feeLabel}</div>
+                        </div>
                       </div>
                     )
                   })}

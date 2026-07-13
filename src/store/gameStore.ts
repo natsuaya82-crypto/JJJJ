@@ -5516,7 +5516,7 @@ export const useGameStore = create<GameStore>()(
             : t
           ),
           foreignLeagues: updatedLeagues,
-          transferHistory: [...(s.transferHistory ?? []), { year: s.currentSeason.year, playerId, fromTeamId: fromClubId, toTeamId: s.playerTeamId, fee: transferFee, years }].slice(-400),
+          transferHistory: [...(s.transferHistory ?? []), { year: s.currentSeason.year, date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date, playerId, fromTeamId: fromClubId, toTeamId: s.playerTeamId, fee: transferFee, years }].slice(-400),
           currentSeason: {
             ...s.currentSeason,
             newsFeed: [{
