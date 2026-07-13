@@ -730,7 +730,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
   player: Player; isMyPick: boolean; onPick: (id: string) => void
   isScouted?: boolean; isRecommend?: boolean; buzz?: number
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const specCol  = SPEC_COLOR[p.specialty]
   const rating   = ovr(p)
   const ovrCol   = ratingColor(rating)
@@ -749,9 +749,9 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
   return (
     <div style={{ marginBottom: '8px' }}>
       <div
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => openPlayerSheet(p.id)}
         style={{
-          borderRadius: expanded ? '14px 14px 0 0' : '14px',
+          borderRadius: '14px',
           background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
           border: isMyPick
             ? `1px solid ${alpha(ovrCol, 0.55)}`
@@ -821,11 +821,6 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
             )}
           </div>
 
-          <div style={{ color: C.textGhost, transform: expanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s', flexShrink: 0 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </div>
         </div>
 
         <div style={{
@@ -843,73 +838,9 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
         </div>
       </div>
 
-      {expanded && (
-        <div style={{
-          background: C.surface, border: `1px solid ${C.border2}`, borderTop: 'none',
-          borderRadius: '0 0 14px 14px', padding: '14px 16px',
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-            <div style={{ padding: '10px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${C.border2}` }}>
-              <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '6px' }}>プロフィール</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '10px', color: C.textDim }}>成長型</span>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: growthColor }}>{growthLabel}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '10px', color: C.textDim }}>性格</span>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: personalityColor }}>{personalityLabel ?? '―'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '10px', color: C.textDim }}>出身</span>
-                  <span style={{ fontSize: '10px', color: C.textSub }}>{p.origin}</span>
-                </div>
-              </div>
-            </div>
-            <div style={{ padding: '10px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${C.border2}` }}>
-              <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '6px' }}>ポテンシャル</div>
-              {(() => {
-                const band = statCapBand(p.potential)
-                const high = p.potential >= 90
-                return (
-                  <>
-                    <div style={{ height: '8px', backgroundColor: C.border2, borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
-                      <div style={{
-                        height: '100%', width: `${band.hi}%`, borderRadius: '4px',
-                        background: high
-                          ? `linear-gradient(90deg, ${C.gold}, ${C.goldHi})`
-                          : `linear-gradient(90deg, ${C.green}, ${alpha(C.green, 0.8)})`,
-                      }}/>
-                    </div>
-                    <div style={{ fontSize: '18px', fontWeight: '800', color: high ? C.gold : C.textSub, fontFamily: SAIRA, textShadow: high ? '0 0 10px rgba(245,200,66,0.5)' : 'none' }}>
-                      ~{band.lo}-{band.hi}
-                    </div>
-                  </>
-                )
-              })()}
-              <div style={{ fontSize: '9px', color: C.textDim, marginTop: '2px' }}>成長上限の目安（幅）</div>
-            </div>
-          </div>
-          {p.traits && p.traits.length > 0 && (
-            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '10px' }}>
-              {p.traits.map(t => (
-                <span key={t} style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '7px', backgroundColor: alpha(C.blue, 0.12), color: C.blue, border: `1px solid ${alpha(C.blue, 0.28)}` }}>
-                  {t.replace(/_/g, ' ')}
-                </span>
-              ))}
-            </div>
-          )}
-          {isMyPick && (
-            <button className="btn-game btn-game--gold" onClick={() => onPick(p.id)} style={{ width: '100%' }}>
-              <span className="btn-game__inner" style={{ textShadow: '-0.5px -0.5px 0 #061224, 0.5px -0.5px 0 #061224, -0.5px 0.5px 0 #061224, 0.5px 0.5px 0 #061224, 0 1px 2px rgba(0,0,0,0.5)' }}>{p.name} を指名する</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {isMyPick && !expanded && (
+      {isMyPick && (
         <button className="btn-game btn-game--gold" onClick={e => { e.stopPropagation(); onPick(p.id) }} style={{ width: '100%', marginTop: '6px' }}>
-          <span className="btn-game__inner" style={{ textShadow: '-0.5px -0.5px 0 #061224, 0.5px -0.5px 0 #061224, -0.5px 0.5px 0 #061224, 0.5px 0.5px 0 #061224, 0 1px 2px rgba(0,0,0,0.5)' }}>{p.name} を指名する</span>
+          <span className="btn-game__inner" style={{ textShadow: '-1.25px 0 0 #061224, 1.25px 0 0 #061224, 0 -1.25px 0 #061224, 0 1.25px 0 #061224, -1.25px -1.25px 0 #061224, 1.25px -1.25px 0 #061224, -1.25px 1.25px 0 #061224, 1.25px 1.25px 0 #061224, 0 1px 2px rgba(0,0,0,0.5)' }}>{p.name} を指名する</span>
         </button>
       )}
     </div>

@@ -112,6 +112,7 @@ export default function PlayerSheet() {
     openPlayerId, openPlayerSheet, players, teams,
     currentSeason, pastSeasons, playerTeamId,
   } = useGameStore()
+  const draftPool = useGameStore(s => s.draftState?.pool ?? [])
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   // 国内チーム or 海外クラブから所属を解決
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
@@ -124,6 +125,7 @@ export default function PlayerSheet() {
   const [pageKey, setPageKey] = useState(0)
   const [selectedRaceName, setSelectedRaceName] = useState<string | null>(null)
   const touchStart = useRef({ x: 0, y: 0 })
+  const sheetRef = useRef<HTMLDivElement>(null)
 
   const goToPage = (next: number) => {
     if (next === page) return
@@ -154,9 +156,10 @@ export default function PlayerSheet() {
     }
   }
 
-  // 通常の選手に加え、スカウトのドラフト候補（Player[]）も詳細表示できるよう解決する
+  // 通常の選手に加え、スカウトのドラフト候補・ドラフト進行中のプール選手も詳細表示できるよう解決する
   const player = players.find(p => p.id === openPlayerId)
     ?? (currentSeason.scoutProspects ?? []).find(p => p.id === openPlayerId)
+    ?? draftPool.find(p => p.id === openPlayerId)
 
   useEffect(() => {
     setPage(1)
@@ -175,6 +178,13 @@ export default function PlayerSheet() {
 
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
+  const handleShare = async () => {
+    if (!sheetRef.current) return
+    try {
+      const { shareElementAsImage } = await import('../../utils/shareImage')
+      await shareElementAsImage(sheetRef.current, { filename: `${player.name}.png`, title: player.name, text: `${player.name} OVR${ovr(player)} #JPELManager` })
+    } catch (e) { console.error('share failed', e) }
+  }
   // スカウトのドラフト候補（通常の選手リストに居ない＝scoutProspects由来）は詳細ページを簡略表示にする
   const isProspect = !players.some(p => p.id === player.id)
   const isScouted = isMyPlayer || isProspect || isOpponentScouted(player.id, currentSeason)
@@ -290,6 +300,7 @@ export default function PlayerSheet() {
         style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 200 }}
       />
       <div
+        ref={sheetRef}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
@@ -326,19 +337,20 @@ export default function PlayerSheet() {
               ))
             )}
           </div>
-          {!isMyPlayer && !isProspect && page !== 4 ? (
-            <button
-              onClick={() => toggleStarOpponent(player.id)}
-              title="ウォッチリスト"
-              style={{ width: '52px', display: 'flex', justifyContent: 'flex-end', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill={starredOpponents.includes(player.id) ? '#F5C842' : 'none'} stroke={starredOpponents.includes(player.id) ? '#F5C842' : '#5C5870'} strokeWidth="1.8">
-                <path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17.8 5.9 20.4l1.5-6.8L2.2 9l6.9-.7z" strokeLinejoin="round"/>
+          <div style={{ minWidth: '52px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+            <button onClick={handleShare} title="共有" data-html2canvas-ignore="true" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8FA6C8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/>
               </svg>
             </button>
-          ) : (
-            <div style={{ width: '52px' }} />
-          )}
+            {!isMyPlayer && !isProspect && page !== 4 && (
+              <button onClick={() => toggleStarOpponent(player.id)} title="ウォッチリスト" data-html2canvas-ignore="true" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill={starredOpponents.includes(player.id) ? '#F5C842' : 'none'} stroke={starredOpponents.includes(player.id) ? '#F5C842' : '#5C5870'} strokeWidth="1.8">
+                  <path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17.8 5.9 20.4l1.5-6.8L2.2 9l6.9-.7z" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Header */}
@@ -426,7 +438,7 @@ export default function PlayerSheet() {
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {[
-                      { label: '所属', val: team?.name ?? (player.teamId === '' ? 'FA' : '—') },
+                      { label: '所属', val: team?.name ?? (player.teamId === '' ? '未所属' : '—') },
                       { label: '出身', val: player.origin },
                       { label: '成長タイプ', val: isScouted ? (player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準') : '?' },
                       { label: '市場価値', val: isScouted ? fmt(calcTransferValue(player)) : '?' },
