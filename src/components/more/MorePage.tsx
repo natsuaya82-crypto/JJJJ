@@ -81,9 +81,9 @@ function DetailScreen({ title, onClose, children }: { title: string; onClose: ()
         borderBottom: `1px solid ${alpha(C.gold, 0.12)}`,
       }}>
         <button onClick={onClose} style={{
-          background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}`, borderRadius: 10, cursor: 'pointer', color: C.gold,
+          background: 'transparent', border: 'none', cursor: 'pointer', color: C.text,
           padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          width: 38, height: 38, flexShrink: 0,
+          width: 40, height: 40, flexShrink: 0,
         }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>

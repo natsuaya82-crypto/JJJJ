@@ -37,7 +37,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
         borderBottom: `1px solid ${alpha(C.gold, 0.12)}`,
       }}>
         <button onClick={onClose} style={{
-          background: 'none', border: 'none', cursor: 'pointer', color: C.textSub,
+          background: 'transparent', border: 'none', cursor: 'pointer', color: C.text,
           padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
           minWidth: 36, minHeight: 36, flexShrink: 0,
         }}>
