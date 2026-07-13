@@ -549,26 +549,32 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                       <div
                         key={`${row.playerId}-${row.year}`}
                         onClick={() => openPlayerSheet(p.id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '10px 14px', cursor: 'pointer' }}
+                        style={{ background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '14px 16px 12px', cursor: 'pointer' }}
                       >
-                        <PlayerFace playerId={p.id} nationality={p.nationality} size={42} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px', minWidth: 0 }}>
-                            <span style={{ fontSize: '8px', color: '#3A3758', flexShrink: 0 }}>{otherLabel}</span>
-                            {other && <TeamLogoSVG primary={other.colors.primary} secondary={other.colors.secondary} shortName={other.shortName} teamId={other.id} size={12} />}
-                            <span style={{ fontSize: '10px', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherName}</span>
-                            <span style={{ fontSize: '9px', color: '#5C5870', fontFamily: 'monospace', marginLeft: '6px', flexShrink: 0 }}>{dateLabel}</span>
+                        {/* 真ん中に顔 */}
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+                          <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#F0EDE8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '10px' }}>{p.name}</div>
+                        {/* 下に 移籍元 / 契約期間 / 移籍金 */}
+                        <div style={{ borderTop: '1px solid #1A1828', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '10px', color: '#3A3758' }}>{otherLabel}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+                              {other && <TeamLogoSVG primary={other.colors.primary} secondary={other.colors.secondary} shortName={other.shortName} teamId={other.id} size={16} />}
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherName}</span>
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: '#3A3758' }}>契約期間</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: yearsLabel === '—' ? '#3A3758' : '#F0EDE8', fontFamily: SAIRA }}>{yearsLabel}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: '#3A3758' }}>移籍金</span>
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: feeLabel === '—' ? '#3A3758' : '#C9A84C', fontFamily: SAIRA }}>{feeLabel}</span>
                           </div>
                         </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 44 }}>
-                          <div style={{ fontSize: '8px', color: '#3A3758' }}>契約</div>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: yearsLabel === '—' ? '#3A3758' : '#F0EDE8', fontFamily: SAIRA }}>{yearsLabel}</div>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 56 }}>
-                          <div style={{ fontSize: '8px', color: '#3A3758' }}>移籍金</div>
-                          <div style={{ fontSize: '12px', fontWeight: 800, color: feeLabel === '—' ? '#3A3758' : '#C9A84C', fontFamily: SAIRA }}>{feeLabel}</div>
-                        </div>
+                        <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '10px', color: '#5C5870', fontFamily: 'monospace' }}>{dateLabel}</div>
                       </div>
                     )
                   })}
