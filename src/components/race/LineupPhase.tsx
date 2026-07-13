@@ -28,7 +28,10 @@ function autoFill(
     const p = players.find(x => x.id === pid)
     if (p) natCounts[p.nationality] = (natCounts[p.nationality] ?? 0) + 1
   }
-  for (const seg of segments) {
+  // 難所（山＝上り/下りが急な区間）から先に埋める。専門家を的確に置くため、
+  // 区間番号順ではなく地形の極端な区間を優先して最適な選手を割り当てる。
+  const orderedSegs = [...segments].sort((a, b) => Math.max(b.uphillPct, b.downhillPct) - Math.max(a.uphillPct, a.downhillPct))
+  for (const seg of orderedSegs) {
     if (currentLineup[seg.index]) continue
     const maxNat = Object.entries(natCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
     const currentMax = Math.max(0, ...Object.values(natCounts))

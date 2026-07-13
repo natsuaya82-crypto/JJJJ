@@ -95,7 +95,8 @@ export function calcConditionModifier(fatigue: number, morale: number, form: num
 }
 
 export function calcRandomFactor(traits?: TraitId[]): number {
-  const range = traits?.includes('consistent') ? 0.04 : traits?.includes('volatile') ? 0.12 : 0.08
+  // ブレ幅を縮小（±8%→±4%）。OVR差が結果に素直に出るようにし、弱い選手が強い選手に勝つ番狂わせを減らす。
+  const range = traits?.includes('consistent') ? 0.02 : traits?.includes('volatile') ? 0.07 : 0.04
   return (1.0 - range) + Math.random() * (range * 2)
 }
 
