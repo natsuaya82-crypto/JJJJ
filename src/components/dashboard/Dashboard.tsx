@@ -11,7 +11,6 @@ import { SectionLabel } from '../ui'
 import HeroCard from './HeroCard'
 import KeyPlayersSection from './KeyPlayersSection'
 import NextRaceCard from './NextRaceCard'
-import { SPECIALTY_LABELS } from '../../types'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 
@@ -589,44 +588,6 @@ export default function Dashboard() {
       {/* ── KEY PLAYERS ── */}
       {currentSeason.phase !== 'preseason' && mainPlayers.length > 0 && (
         <KeyPlayersSection players={mainPlayers} team={team} />
-      )}
-
-      {/* ── LEGENDS ── */}
-      {team.history.legends && team.history.legends.length > 0 && (
-        <div style={{ padding: '0 12px 16px' }}>
-          <SectionLabel style={{ marginBottom: 10 }}>フランチャイズ名鑑</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {team.history.legends.map((legend, i) => (
-              <div key={i} style={{
-                background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                border: `2px solid ${C.goldDark}`,
-                borderRadius: 12, padding: '10px 14px',
-                display: 'flex', alignItems: 'center', gap: 10,
-                boxShadow: `0 3px 0 #5a3500, 0 5px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)`,
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-                  background: `linear-gradient(135deg, ${alpha(C.gold, 0.25)}, ${alpha(C.gold, 0.08)})`,
-                  border: `1px solid ${alpha(C.gold, 0.4)}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2l2.5 7.5H22l-6.5 4.7 2.5 7.5L12 17.5l-6 4.2 2.5-7.5L2 9.5h7.5L12 2z" fill={C.gold} opacity="0.9"/>
-                  </svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{legend.name}</div>
-                  <div style={{ fontSize: 10, color: C.textDim, marginTop: 1 }}>
-                    {SPECIALTY_LABELS[legend.specialty]} · 引退{legend.retiredYear} · OVR {legend.peakOvr}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{legend.career.championships}優</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
 
       {/* ── NEWS ── */}

@@ -842,14 +842,15 @@ export function generateCpuRosters(
   }
 
   for (const team of teams) {
-    // グラント（initialRank連動の初期予算）の8割を30人の年俸に充てる。
+    // グラント（initialRank連動の初期予算）の8割を28人の年俸に充てる。
+    // 初期28人＋初回ドラフト2人でロスター上限30ちょうどになる。
     // 年俸から選手の強さを決めるので、予算の大きいチームほど強い選手が揃う。
     const grant = rankBudgetGrant(team.initialRank ?? 10)
-    const salaries = distributeSalaries(Math.round(grant * 0.8), 30, 4_000_000)
+    const salaries = distributeSalaries(Math.round(grant * 0.8), 28, 4_000_000)
 
     const mainIds: string[] = []   // 本契約(standard) 12
     const dualIds: string[] = []   // 2WAY(dual) 3（1軍/2軍共通）
-    const secondIds: string[] = [] // 育成(development) 15
+    const secondIds: string[] = [] // 育成(development) 13
 
     // 本契約(standard) 12人 — 年俸上位から。外国人は2人まで
     let teamForeignCount = 0
@@ -867,8 +868,8 @@ export function generateCpuRosters(
       const p = makePlayer(rankForSalary(sal), 12 + i, team.id, 'main', false, 'dual', sal)
       cpuPlayers.push(p); dualIds.push(p.id)
     }
-    // 育成(development) 15人（国内・年俸下位）
-    for (let i = 0; i < 15; i++) {
+    // 育成(development) 13人（国内・年俸下位）
+    for (let i = 0; i < 13; i++) {
       const sal = salaries[15 + i]
       const p = makePlayer(rankForSalary(sal), i, team.id, 'second', false, 'development', sal)
       cpuPlayers.push(p); secondIds.push(p.id)
@@ -881,8 +882,8 @@ export function generateCpuRosters(
   return { cpuPlayers, teamRosters }
 }
 
-// プレイヤーチームの初期30人生成（20位相当・最弱スタート固定）
-// 本契約12 + 2WAY3 + 育成15 = 30人、目標年俸合計約2.8億
+// プレイヤーチームの初期28人生成（20位相当・最弱スタート固定）
+// 本契約12 + 2WAY3 + 育成13 = 28人（＋初回ドラフト2でロスター上限30ちょうど）、目標年俸合計約2.8億
 export function generatePlayerInitialRoster(year: number): {
   players: Player[]
   mainIds: string[]
@@ -891,7 +892,7 @@ export function generatePlayerInitialRoster(year: number): {
 } {
   const MAIN_POOL: Rank[]   = ['A', 'B','B','B','B','B','B','B','B', 'C','C','C']   // 12人
   const DUAL_POOL: Rank[]   = ['B', 'C', 'C']                                        // 3人
-  const SECOND_POOL: Rank[] = ['C','C','C','C','C','C','C','C', 'D','D','D','D','D','D','D'] // 15人
+  const SECOND_POOL: Rank[] = ['C','C','C','C','C','C','C', 'D','D','D','D','D','D'] // 13人
 
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']

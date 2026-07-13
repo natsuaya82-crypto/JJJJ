@@ -64,7 +64,7 @@ export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
 
       <div style={{ padding: '14px 16px 0' }}>
         {tab === 'franchise' && <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} />}
-        {tab === 'league' && <LeagueTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} />}
+        {tab === 'league' && <LeagueTab teams={teams} pastSeasons={pastSeasons} />}
         {tab === 'players' && <PlayersTab players={players} teams={teams} currentSeason={currentSeason} />}
         {tab === 'gm' && <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} />}
       </div>
@@ -269,73 +269,17 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   )
 }
 
-function LeagueTab({ teams, pastSeasons, currentSeason }: {
+function LeagueTab({ teams, pastSeasons }: {
   teams: GameStore['teams']
   pastSeasons: GameStore['pastSeasons']
-  currentSeason: GameStore['currentSeason']
 }) {
   const champCounts = teams.map(t => ({
     team: t,
     championships: t.history.championships,
   })).sort((a, b) => b.championships - a.championships)
 
-  const currentStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
-
-  const reserveStandings = currentSeason.reserveLeagueJoined
-    ? [...(currentSeason.secondTeamStandings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
-    : []
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <CardPanel>
-        <SectionLabel>{currentSeason.year}シーズン順位表</SectionLabel>
-        {currentStandings.map((s, i) => {
-          const team = teams.find(t => t.id === s.teamId)
-          const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textDim
-          return (
-            <div key={s.teamId} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '7px 0', borderBottom: `1px solid ${C.border}`,
-            }}>
-              <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>
-                {i + 1}
-              </span>
-              {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={20}/>}
-              <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{team?.name ?? s.teamId}</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub }}>{s.totalPoints}pt</span>
-            </div>
-          )
-        })}
-      </CardPanel>
-
-      {currentSeason.reserveLeagueJoined && (
-        <CardPanel>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <SectionLabel>リザーブ駅伝 順位表</SectionLabel>
-            <div style={{ fontFamily: SAIRA, fontSize: '9px', padding: '1px 6px', borderRadius: '4px', background: '#2A1F3D', color: '#A87FD0', fontWeight: '700' }}>2軍</div>
-          </div>
-          {reserveStandings.length === 0 ? (
-            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>まだ試合なし</div>
-          ) : reserveStandings.map((s, i) => {
-            const team = teams.find(t => t.id === s.teamId)
-            const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textDim
-            return (
-              <div key={s.teamId} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '7px 0', borderBottom: `1px solid ${C.border}`,
-              }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>
-                  {i + 1}
-                </span>
-                {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={20}/>}
-                <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{team?.name ?? s.teamId}</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub }}>{s.totalPoints}pt</span>
-              </div>
-            )
-          })}
-        </CardPanel>
-      )}
-
       <CardPanel>
         <SectionLabel>歴代優勝回数</SectionLabel>
         {champCounts.filter(c => c.championships > 0).length === 0 ? (
@@ -382,48 +326,6 @@ function LeagueTab({ teams, pastSeasons, currentSeason }: {
           })}
         </CardPanel>
       )}
-
-      {(() => {
-        const allLegends = teams.flatMap(t =>
-          (t.history.legends ?? []).map(l => ({ ...l, teamShort: t.shortName }))
-        ).sort((a, b) =>
-          (b.career.segmentWins + b.career.championships * 5 + b.career.mvpAwards * 3 + b.peakOvr * 0.1)
-          - (a.career.segmentWins + a.career.championships * 5 + a.career.mvpAwards * 3 + a.peakOvr * 0.1)
-        ).slice(0, 15)
-        return (
-          <CardPanel>
-            <SectionLabel>歴史殿堂</SectionLabel>
-            {allLegends.length === 0 ? (
-              <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>殿堂入り選手はまだいない</div>
-            ) : allLegends.map((leg, i) => (
-              <div key={`${leg.name}-${leg.retiredYear}`} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '9px 0', borderBottom: `1px solid ${C.border}`,
-              }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '900', color: i === 0 ? C.gold : C.textDim, width: '18px', textAlign: 'center' }}>
-                  {i + 1}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text }}>{leg.name}</span>
-                    {leg.career.championships > 0 && (
-                      <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.gold }}>{'★'.repeat(Math.min(leg.career.championships, 3))}</span>
-                    )}
-                  </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>
-                    {leg.teamShort} / {SPECIALTY_LABELS[leg.specialty]} / {leg.retiredYear}年引退 {leg.retiredAge}歳
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: 3 }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>区間賞 <span style={{ color: C.gold, fontWeight: '700' }}>{leg.career.segmentWins}</span></span>
-                    {leg.career.mvpAwards > 0 && <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>MVP <span style={{ color: C.gold, fontWeight: '700' }}>{leg.career.mvpAwards}</span></span>}
-                    <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>最高OVR <span style={{ color: C.textSub, fontWeight: '700' }}>{leg.peakOvr}</span></span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </CardPanel>
-        )
-      })()}
     </div>
   )
 }

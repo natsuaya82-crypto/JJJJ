@@ -4167,6 +4167,11 @@ export const useGameStore = create<GameStore>()(
               sortedAll.slice(0, totalRoster.length - 30).forEach(p => releaseSet.add(p.id))
             }
           }
+          // 自チーム：シーズン中に整理しなかった超過分を、OVR下位から強制的にFAへ（警告で猶予を与えた上での最終処理）
+          const myRoster = state.players.filter(x => x.teamId === state.playerTeamId && x.status === 'active' && !releaseSet.has(x.id))
+          if (myRoster.length > 30) {
+            [...myRoster].sort((a, b) => ovr(a) - ovr(b)).slice(0, myRoster.length - 30).forEach(p => releaseSet.add(p.id))
+          }
           releaseSet.forEach(id => cpuReleasedIds.add(id))
           return state.players.map(p => releaseSet.has(p.id) ? { ...p, teamId: '', } : p)
         })()

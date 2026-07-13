@@ -5,6 +5,7 @@ import { ovr, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { loginTodayKey } from '../../utils/loginDate'
 import { audio } from '../../utils/audio'
+import { ROSTER_MAX } from '../../data/rosterRules'
 import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -348,10 +349,14 @@ export function useNotifCount() {
     return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedIdsC.has(p.id)
   }).length
 
+  // ロスター超過警告（NotificationsPageと同じ基準）
+  const rosterOver = Math.max(0, players.filter(p => p.teamId === playerTeamId && p.status === 'active').length - ROSTER_MAX)
+
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
   return incomingOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
     + (renewalNeeded > 0 ? 1 : 0)
+    + (rosterOver > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers > 0 ? 1 : 0)
     + pendingGifts.length

@@ -10,6 +10,7 @@ import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
 import NumberDial from '../ui/NumberDial'
 import type { IncomingOffer, TransferBid, Player } from '../../types'
+import { ROSTER_MAX } from '../../data/rosterRules'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -337,6 +338,10 @@ export default function NotificationsPage() {
     .sort((a, b) => a.months - b.months)
   const renewalNeeded = renewalPlayers.length
 
+  // ロスター超過警告：自チームがロスター上限を超えている場合（旧セーブ救済）。強制解雇はせず整理を促すだけ
+  const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
+  const rosterOver = Math.max(0, myRosterCount - ROSTER_MAX)
+
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
   const expiredNegotiations = currentSeason.expiredNegotiations ?? []
@@ -348,6 +353,7 @@ export default function NotificationsPage() {
   const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + (renewalNeeded > 0 ? 1 : 0)
+    + (rosterOver > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers.length > 0 ? 1 : 0)
     + pendingGifts.length
@@ -513,6 +519,23 @@ export default function NotificationsPage() {
                     </div>
                   )
                 })}
+              </div>
+            </section>
+          )}
+
+          {/* ロスター超過警告（旧セーブ救済・強制解雇なし。整理を促すだけ） */}
+          {rosterOver > 0 && (
+            <section>
+              <SectionHead label="ロスター超過" color={C.red} count={rosterOver}/>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.red, 0.45), '#5a1010')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>ロスターが上限を超えています（{myRosterCount}/{ROSTER_MAX}）</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginBottom: '14px' }}>{rosterOver}名分オーバーしています。放出して{ROSTER_MAX}人以下に整理してください（超過中は新規補強ができません）</div>
+                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.red}, #FF6B6B)`, color: C.bg }} onClick={() => navigate('/team/roster')}>ロスターを整理する</Btn>
+                  </div>
+                </div>
               </div>
             </section>
           )}
