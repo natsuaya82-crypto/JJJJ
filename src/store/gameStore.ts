@@ -699,9 +699,14 @@ export const useGameStore = create<GameStore>()(
       beginInauguralDraft: () => {
         const state = get()
         const pool = generateDraftPool(state.currentSeason.year)
-        // 初年度は前シーズンが無いので、グラント順位(initialRank)で指名順を決める（最下位=20位が全体1位）。
+        // 初年度は前シーズンが無いので「初期予算の逆順（貧乏なチームから）」で指名順を決める。
+        // プレイヤーは最弱スタート（rank20相当=最少予算）なので全体1位固定。残りは初期予算の少ない順。
         // 2巡目はスネークで逆順（1位から）。
-        const inauguralRound1 = [...state.teams].sort((a, b) => b.initialRank - a.initialRank).map(t => t.id)
+        const inauguralOthers = [...state.teams]
+          .filter(t => t.id !== state.playerTeamId)
+          .sort((a, b) => rankBudgetGrant(a.initialRank) - rankBudgetGrant(b.initialRank))
+          .map(t => t.id)
+        const inauguralRound1 = [state.playerTeamId, ...inauguralOthers]
         const pickOrder = [...inauguralRound1, ...[...inauguralRound1].reverse()]
         const draftState: DraftState = {
           pool,

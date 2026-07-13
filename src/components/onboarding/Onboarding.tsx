@@ -8,7 +8,7 @@ type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 export default function Onboarding() {
   const { startSetup, beginInauguralDraft } = useGameStore()
   const [step, setStep] = useState<Step>('welcome')
-  const [selectedTeamId, setSelectedTeamId] = useState('fukuoka')
+  const [selectedTeamId, setSelectedTeamId] = useState('')
   const [teamName, setTeamName] = useState('')
   const [teamShortName, setTeamShortName] = useState('')
   const [gmName, setGmName] = useState('')
