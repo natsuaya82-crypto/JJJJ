@@ -722,6 +722,15 @@ export function generateDraftPool(year: number): Player[] {
     })
   }
 
+  // 生成時点で予想指名順位を焼き込む（能力＋将来性の全候補内順位）。
+  // ドラフト中に候補が減っても動かないよう、ここで確定してPlayerに保存する。
+  const draftVal = (p: Player) => {
+    const r = p.ratings
+    const o = (r.speed + r.stamina + r.mountainUp + r.mountainDown + r.pacing + r.mental + r.recovery) / 7
+    return o + (p.potential ?? 0) * 0.5
+  }
+  ;[...players].sort((a, b) => draftVal(b) - draftVal(a)).forEach((p, i) => { p.predictedPick = i + 1 })
+
   return players
 }
 

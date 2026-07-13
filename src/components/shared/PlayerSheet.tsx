@@ -121,6 +121,8 @@ export default function PlayerSheet() {
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
+  const starredProspects = useGameStore(s => s.starredProspects ?? [])
+  const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
   const segmentRecords = useGameStore(s => s.segmentRecords ?? {})
   const adH = useAdHeight()
   const [page, setPage] = useState(1)
@@ -197,16 +199,18 @@ export default function PlayerSheet() {
     || !players.some(p => p.id === player.id)
   const isScouted = isMyPlayer || isProspect || isOpponentScouted(player.id, currentSeason)
 
-  // ドラフト候補の予想指名順位（能力＋将来性で全候補内の順位を推定）。
-  // スカウト画面では scoutProspects、ドラフト進行中は draftState.pool が母集団になる（同じ情報を出すため両方を見る）。
-  const predictedPick = isProspect ? (() => {
-    const val = (pl: typeof player) => ovr(pl) + (pl.potential ?? 0) * 0.5
-    const scoutPool = currentSeason.scoutProspects ?? []
-    const basePool = scoutPool.some(p => p.id === player.id) ? scoutPool : draftPool
-    const pool = [...basePool].sort((a, b) => val(b) - val(a))
-    const idx = pool.findIndex(p => p.id === player.id)
-    return idx >= 0 ? idx + 1 : null
-  })() : null
+  // ドラフト候補の予想指名順位。生成時に焼き込んだ player.predictedPick を使う（ドラフト中も不変）。
+  // predictedPick が無い旧セーブだけ、その場で母集団から推定する（scout/draftどちらのプールでも）。
+  const predictedPick = isProspect
+    ? (player.predictedPick ?? (() => {
+        const val = (pl: typeof player) => ovr(pl) + (pl.potential ?? 0) * 0.5
+        const scoutPool = currentSeason.scoutProspects ?? []
+        const basePool = scoutPool.some(p => p.id === player.id) ? scoutPool : draftPool
+        const pool = [...basePool].sort((a, b) => val(b) - val(a))
+        const idx = pool.findIndex(p => p.id === player.id)
+        return idx >= 0 ? idx + 1 : null
+      })())
+    : null
   const playerOvr = ovr(player)
   const specCol = SPEC_COLOR[player.specialty]
 
@@ -358,13 +362,16 @@ export default function PlayerSheet() {
                 <path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/>
               </svg>
             </button>
-            {!isMyPlayer && !isProspect && page !== 4 && (
-              <button onClick={() => toggleStarOpponent(player.id)} title="ウォッチリスト" data-html2canvas-ignore="true" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill={starredOpponents.includes(player.id) ? '#F5C842' : 'none'} stroke={starredOpponents.includes(player.id) ? '#F5C842' : '#5C5870'} strokeWidth="1.8">
-                  <path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17.8 5.9 20.4l1.5-6.8L2.2 9l6.9-.7z" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            )}
+            {!isMyPlayer && page !== 4 && (() => {
+              const starred = isProspect ? starredProspects.includes(player.id) : starredOpponents.includes(player.id)
+              return (
+                <button onClick={() => isProspect ? toggleStarProspect(player.id) : toggleStarOpponent(player.id)} title={isProspect ? '注目リスト' : 'ウォッチリスト'} data-html2canvas-ignore="true" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={starred ? '#F5C842' : 'none'} stroke={starred ? '#F5C842' : '#5C5870'} strokeWidth="1.8">
+                    <path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17.8 5.9 20.4l1.5-6.8L2.2 9l6.9-.7z" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )
+            })()}
           </div>
         </div>
 
