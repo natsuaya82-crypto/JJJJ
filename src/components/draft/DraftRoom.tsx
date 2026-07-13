@@ -149,7 +149,7 @@ function PickedPlayerSheet({ playerId, players, onClose }: {
 }
 
 export default function DraftRoom() {
-  const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason } = useGameStore()
+  const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason, openPlayerSheet } = useGameStore()
   const adH = useAdHeight()
   const [tab, setTab]           = useState<TabKey>('players')
   const [sortKey, setSortKey]   = useState<SortKey>('ovr')
@@ -157,7 +157,6 @@ export default function DraftRoom() {
   const [pickLog, setPickLog]   = useState<PickLog[]>([])
   const [myTurnFlash, setMyTurnFlash] = useState(false)
   const [pickAnnounce, setPickAnnounce] = useState<{ teamName: string; playerName: string; teamColor: string } | null>(null)
-  const [viewPlayerId, setViewPlayerId] = useState<string | null>(null)
   const orderStripRef = useRef<HTMLDivElement>(null)
   const prevIsMyPickRef = useRef(false)
 
@@ -578,7 +577,7 @@ export default function DraftRoom() {
                     const isCurr    = pickNum === currentPick + 1
                     const accentColor = isMe ? C.gold : (t?.colors.primary ?? C.border2)
                     return (
-                      <div key={pickNum} onClick={() => pk && setViewPlayerId(pk.playerId)} style={{
+                      <div key={pickNum} onClick={() => pk && openPlayerSheet(pk.playerId)} style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
                         padding: '7px 12px', marginBottom: '2px', borderRadius: '10px',
                         background: isCurr ? alpha(accentColor, 0.12) : pk ? (isMe ? alpha(C.gold, 0.05) : C.surface) : 'transparent',
@@ -668,7 +667,7 @@ export default function DraftRoom() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {teamPicks.map(pk => {
                         return (
-                          <div key={pk.pickNum} onClick={() => setViewPlayerId(pk.playerId)} style={{
+                          <div key={pk.pickNum} onClick={() => openPlayerSheet(pk.playerId)} style={{
                             display: 'flex', alignItems: 'center', gap: '3px',
                             padding: '2px 7px', borderRadius: '7px',
                             backgroundColor: C.surface2,
@@ -696,9 +695,6 @@ export default function DraftRoom() {
           backgroundColor: '#070610', borderTop: `1px solid ${C.border}`,
           zIndex: 60,
         }}/>
-      )}
-      {viewPlayerId && (
-        <PickedPlayerSheet playerId={viewPlayerId} players={players} onClose={() => setViewPlayerId(null)}/>
       )}
     </div>
   )
@@ -905,7 +901,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
           )}
           {isMyPick && (
             <button className="btn-game btn-game--gold" onClick={() => onPick(p.id)} style={{ width: '100%' }}>
-              <span className="btn-game__inner">{p.name} を指名する</span>
+              <span className="btn-game__inner" style={{ textShadow: '-0.5px -0.5px 0 #061224, 0.5px -0.5px 0 #061224, -0.5px 0.5px 0 #061224, 0.5px 0.5px 0 #061224, 0 1px 2px rgba(0,0,0,0.5)' }}>{p.name} を指名する</span>
             </button>
           )}
         </div>
@@ -913,7 +909,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
 
       {isMyPick && !expanded && (
         <button className="btn-game btn-game--gold" onClick={e => { e.stopPropagation(); onPick(p.id) }} style={{ width: '100%', marginTop: '6px' }}>
-          <span className="btn-game__inner">{p.name} を指名する</span>
+          <span className="btn-game__inner" style={{ textShadow: '-0.5px -0.5px 0 #061224, 0.5px -0.5px 0 #061224, -0.5px 0.5px 0 #061224, 0.5px 0.5px 0 #061224, 0 1px 2px rgba(0,0,0,0.5)' }}>{p.name} を指名する</span>
         </button>
       )}
     </div>
@@ -1052,7 +1048,8 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
       </div>
 
       <div style={{
-        position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
+        // 広告バナーはsafe-area基点で描画されるので、ボタンもsafe-area分を足さないと重なる
+        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', zIndex: 61,
         padding: '10px 16px 12px',
         background: `linear-gradient(180deg, transparent, ${C.bg} 28%)`,
