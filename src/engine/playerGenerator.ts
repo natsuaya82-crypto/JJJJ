@@ -10,6 +10,9 @@ const FAMILY_NAMES = [
   '太田','三浦','岡本','松田','中島','中野','原田','小野','竹内','金子',
   '浜田','飯田','宮本','津田','野口','熊谷','新井','菊池','小川','今井',
   '大野','松井','島田','高田','工藤','丸山','上野','永田','川口','市川',
+  '藤原','石田','杉山','大塚','平野','内田','高木','安藤','谷口','柴田',
+  '宮崎','酒井','横山','川崎','松尾','菅原','久保','木下','佐野','大西',
+  '松岡','星野','吉川','岩崎','野村','渡部','田村','中山','桜井','望月',
 ]
 
 const GIVEN_NAMES_MALE = [
@@ -18,319 +21,340 @@ const GIVEN_NAMES_MALE = [
   '雄大','俊','拓哉','直樹','勇気','竜也','裕也','侑哉','快','朔太郎',
   '康平','和也','健司','大輔','将','誠','浩','剛志','誠一','太郎',
   '一郎','次郎','三郎','孝一','孝二','博','猛','勝','浩二','浩一',
+  '翔太','悠斗','陽太','湊','樹','遼','慎太郎','圭太','亮太','泰河',
+  '昂大','光','匠','駿','岳','徹','学','修平','智也','啓太',
+  '祐樹','尚樹','大和','海斗','陽介','涼太','圭吾','洋平','直人','真也',
+  '秀平','良太','幸太','賢人','一輝','恭平','玲央','悠真','昌也','篤志',
+  '克也','章吾','龍之介','佑','晴人','光希','敦也','敬介','実','進',
 ]
 
-const FOREIGN_NAMES: { name: string; origin: string }[] = [
-  // Kenya
-  { name: 'キプタニ', origin: 'ケニア' },
-  { name: 'チェランガット', origin: 'ケニア' },
-  { name: 'ロサモ', origin: 'ケニア' },
-  { name: 'ムウァンギ', origin: 'ケニア' },
-  { name: 'チェベット', origin: 'ケニア' },
-  { name: 'キムタイ', origin: 'ケニア' },
-  { name: 'キプコスゲイ', origin: 'ケニア' },
-  { name: 'カモウ', origin: 'ケニア' },
-  { name: 'ロノ', origin: 'ケニア' },
-  { name: 'チェサレク', origin: 'ケニア' },
-  { name: 'キボウエ', origin: 'ケニア' },
-  { name: 'ムウォレ', origin: 'ケニア' },
-  { name: 'コルウェイ', origin: 'ケニア' },
-  { name: 'キプランガット', origin: 'ケニア' },
-  { name: 'ロティッチ', origin: 'ケニア' },
-  { name: 'キルイ', origin: 'ケニア' },
-  { name: 'マテス', origin: 'ケニア' },
-  { name: 'キプサング', origin: 'ケニア' },
-  { name: 'サイモン・ムタイ', origin: 'ケニア' },
-  { name: 'ジョシア・キプランガット', origin: 'ケニア' },
-  { name: 'エベネザー・ロサモ', origin: 'ケニア' },
-  // Ethiopia
-  { name: 'ハイレ', origin: 'エチオピア' },
-  { name: 'ベケレ', origin: 'エチオピア' },
-  { name: 'バレガ', origin: 'エチオピア' },
-  { name: 'キンデ', origin: 'エチオピア' },
-  { name: 'ゲブレハン', origin: 'エチオピア' },
-  { name: 'テスファイェ', origin: 'エチオピア' },
-  { name: 'ワルク', origin: 'エチオピア' },
-  { name: 'アラヌ', origin: 'エチオピア' },
-  { name: 'ゲブレメディン', origin: 'エチオピア' },
-  { name: 'ティルネ', origin: 'エチオピア' },
-  { name: 'メルガ', origin: 'エチオピア' },
-  { name: 'デゲファ', origin: 'エチオピア' },
-  { name: 'ビルハネ', origin: 'エチオピア' },
-  { name: 'ゲラナ・バレガ', origin: 'エチオピア' },
-  { name: 'タデッセ・ハイレ', origin: 'エチオピア' },
-  { name: 'ヨンナス・テスファイェ', origin: 'エチオピア' },
-  // Uganda
-  { name: 'チェプテゲイ', origin: 'ウガンダ' },
-  { name: 'クィルタ', origin: 'ウガンダ' },
-  { name: 'キサザ', origin: 'ウガンダ' },
-  { name: 'チェプロタ', origin: 'ウガンダ' },
-  { name: 'ナムバレ', origin: 'ウガンダ' },
-  // Tanzania
-  { name: 'ムリンガ', origin: 'タンザニア' },
-  { name: 'チャンバ', origin: 'タンザニア' },
-  { name: 'マウヨ', origin: 'タンザニア' },
-  { name: 'キラバ', origin: 'タンザニア' },
-  // Morocco
-  { name: 'アムラン', origin: 'モロッコ' },
-  { name: 'ブフェン', origin: 'モロッコ' },
-  { name: 'エルバクリ', origin: 'モロッコ' },
-  { name: 'アイタラヒム', origin: 'モロッコ' },
-  { name: 'オウルド', origin: 'モロッコ' },
-  // Eritrea
-  { name: 'テスファマリアム', origin: 'エリトリア' },
-  { name: 'ビンヤム', origin: 'エリトリア' },
-  { name: 'フィリモン', origin: 'エリトリア' },
-  // Senegal
-  { name: 'ディアロ', origin: 'セネガル' },
-  { name: 'ンジャイ', origin: 'セネガル' },
-  { name: 'シセ', origin: 'セネガル' },
-  // Somalia
-  { name: 'ワルサメ', origin: 'ソマリア' },
-  { name: 'ファレ', origin: 'ソマリア' },
-  // Korea
-  { name: 'イ・ジョンミン', origin: '韓国' },
-  { name: 'キム・サンウ', origin: '韓国' },
-  { name: 'パク・ジュンヒョク', origin: '韓国' },
-  { name: 'チェ・スンジェ', origin: '韓国' },
-  { name: 'ハン・ドンフン', origin: '韓国' },
-  { name: 'ユン・ソクヒョン', origin: '韓国' },
-  { name: 'リュ・テウォン', origin: '韓国' },
-  { name: 'オ・ジェヒョン', origin: '韓国' },
-  { name: 'ソン・ミンジュン', origin: '韓国' },
-  { name: 'クォン・ヒョンソク', origin: '韓国' },
-  // France
-  { name: 'ラポール', origin: 'フランス' },
-  { name: 'テュルネル', origin: 'フランス' },
-  { name: 'コワル', origin: 'フランス' },
-  { name: 'デュボワ', origin: 'フランス' },
-  { name: 'ルノワール', origin: 'フランス' },
-  // Germany
-  { name: 'フィッシャー', origin: 'ドイツ' },
-  { name: 'クラウゼ', origin: 'ドイツ' },
-  { name: 'ホフマン', origin: 'ドイツ' },
-  { name: 'ベッカー', origin: 'ドイツ' },
-  // Italy
-  { name: 'デ・ルカ', origin: 'イタリア' },
-  { name: 'カントーニ', origin: 'イタリア' },
-  { name: 'フェラーリ', origin: 'イタリア' },
-  { name: 'コッポラ', origin: 'イタリア' },
-  // Spain
-  { name: 'モリーナ', origin: 'スペイン' },
-  { name: 'バエナ', origin: 'スペイン' },
-  { name: 'サラテ', origin: 'スペイン' },
-  { name: 'イバラ', origin: 'スペイン' },
-  // UK
-  { name: 'ウォード', origin: 'イギリス' },
-  { name: 'マクニール', origin: 'イギリス' },
-  { name: 'ハロウェイ', origin: 'イギリス' },
-  { name: 'クロウ', origin: 'イギリス' },
-  // Netherlands / Belgium
-  { name: 'ファンデルメール', origin: 'オランダ' },
-  { name: 'デヨング', origin: 'オランダ' },
-  { name: 'ヴァンダンム', origin: 'ベルギー' },
-  // Brazil
-  { name: 'ドナト', origin: 'ブラジル' },
-  { name: 'アルヴェス', origin: 'ブラジル' },
-  { name: 'カルドーゾ', origin: 'ブラジル' },
-  { name: 'リマ', origin: 'ブラジル' },
-  // USA
-  { name: 'ノックス', origin: 'アメリカ' },
-  { name: 'ドーソン', origin: 'アメリカ' },
-  { name: 'ローレンス', origin: 'アメリカ' },
-  { name: 'ホルト', origin: 'アメリカ' },
-  // China
-  { name: 'ワン・レイ', origin: '中国' },
-  { name: 'リウ・ヤン', origin: '中国' },
-  { name: 'チェン・ウェイ', origin: '中国' },
-  { name: 'ジャン・ミン', origin: '中国' },
-  { name: 'リー・ジアン', origin: '中国' },
-  { name: 'ジャオ・チン', origin: '中国' },
-  { name: 'スン・ハオ', origin: '中国' },
-  { name: 'マ・ロン', origin: '中国' },
-  { name: 'ウー・チン', origin: '中国' },
-  { name: 'チャン・ジュン', origin: '中国' },
+// 外国人名は姓プールと名プールの組み合わせで生成する
+// familyFirst が true の国（韓国・中国・台湾）は「姓・名」、それ以外は「名・姓」の順で表記する
+interface ForeignNamePool {
+  origin: string
+  given: string[]
+  family: string[]
+  familyFirst?: boolean
+}
+
+// 東アフリカ系（ケニア・ウガンダ共通）の名
+const EAST_AFRICAN_GIVEN = [
+  'サイモン','ジェレミア','エリウド','ダニエル','ジョン','ピーター','ポール','ジェームス','ジョセフ','デイビッド',
+  'サミュエル','デニス','パトリック','ロナルド','ロバート','エマニュエル','フェリックス','ベンジャミン','アベル','マーク',
+  'ルーカス','ジュリアス','ヒラリー','エドウィン','ニコラス','ボアズ','カレブ','モーゼス','アイザック','ティモシー',
+  'ビクター','チャールズ','フランシス','アンソニー','マーティン','コスマス',
 ]
 
-const FOREIGN_NAMES_BY_NATIONALITY: Record<string, { name: string; origin: string }[]> = {
-  KOR: [
-    { name: 'イ・ジョンミン', origin: '韓国' }, { name: 'キム・サンウ', origin: '韓国' },
-    { name: 'パク・ジュンヒョク', origin: '韓国' }, { name: 'チェ・スンジェ', origin: '韓国' },
-    { name: 'ハン・ドンフン', origin: '韓国' }, { name: 'ユン・ソクヒョン', origin: '韓国' },
-    { name: 'リュ・テウォン', origin: '韓国' }, { name: 'オ・ジェヒョン', origin: '韓国' },
-    { name: 'ソン・ミンジュン', origin: '韓国' }, { name: 'クォン・ヒョンソク', origin: '韓国' },
-    { name: 'カン・ジュンソ', origin: '韓国' }, { name: 'シン・ドンヒョン', origin: '韓国' },
-    { name: 'チョン・ドユン', origin: '韓国' }, { name: 'イム・テヤン', origin: '韓国' },
-    { name: 'ソ・ジェウォン', origin: '韓国' }, { name: 'ノ・ジュンヨン', origin: '韓国' },
-    { name: 'ムン・ソンミン', origin: '韓国' }, { name: 'ペ・ドンジュン', origin: '韓国' },
-    { name: 'ホ・ミンジュン', origin: '韓国' }, { name: 'チョ・ヒョンソク', origin: '韓国' },
-    { name: 'キム・テヒョン', origin: '韓国' }, { name: 'パク・セジュン', origin: '韓国' },
-    { name: 'イ・ウソン', origin: '韓国' }, { name: 'チェ・ジュンホ', origin: '韓国' },
-    { name: 'アン・ジェヒョク', origin: '韓国' }, { name: 'ユ・ジュンソク', origin: '韓国' },
-  ],
-  CHN: [
-    { name: 'ワン・ハオラン', origin: '中国' }, { name: 'リウ・ユーフェイ', origin: '中国' },
-    { name: 'チェン・ミンジー', origin: '中国' }, { name: 'ジャン・ジェングオ', origin: '中国' },
-    { name: 'リー・ウェンフォン', origin: '中国' }, { name: 'ジャオ・ジーチャン', origin: '中国' },
-    { name: 'スン・ボーウェン', origin: '中国' }, { name: 'マー・チャオ', origin: '中国' },
-    { name: 'ウー・チェンヤン', origin: '中国' }, { name: 'ジュ・ジュンジエ', origin: '中国' },
-    { name: 'ジョウ・ジーユエン', origin: '中国' }, { name: 'シュー・ミンフイ', origin: '中国' },
-    { name: 'リン・ジーチャン', origin: '中国' }, { name: 'タン・ジュンウェイ', origin: '中国' },
-    { name: 'グオ・ペンフェイ', origin: '中国' }, { name: 'ホウ・ユーチャン', origin: '中国' },
-    { name: 'ファン・ハオ', origin: '中国' }, { name: 'チェン・ジアン', origin: '中国' },
-    { name: 'ワン・ジアミン', origin: '中国' }, { name: 'リウ・チャオ', origin: '中国' },
-    { name: 'スー・レイ', origin: '中国' }, { name: 'ジャン・ペン', origin: '中国' },
-    { name: 'ウー・シャオロン', origin: '中国' }, { name: 'ダイ・ユーチン', origin: '中国' },
-    { name: 'リー・ジュンホン', origin: '中国' }, { name: 'チャン・ウェンボ', origin: '中国' },
-  ],
-  TWN: [
-    { name: 'チェン・ジャーハオ', origin: '台湾' }, { name: 'リン・ユーシャン', origin: '台湾' },
-    { name: 'ホアン・チェンウェイ', origin: '台湾' }, { name: 'チャン・チーミン', origin: '台湾' },
-    { name: 'リー・グァンフイ', origin: '台湾' }, { name: 'ウー・ジェンユー', origin: '台湾' },
-    { name: 'ツァイ・ミンハン', origin: '台湾' }, { name: 'シュー・ウェイチェン', origin: '台湾' },
-    { name: 'ヤン・シューハオ', origin: '台湾' }, { name: 'ジェン・カイウェン', origin: '台湾' },
-    { name: 'リウ・ボーシュエン', origin: '台湾' }, { name: 'グオ・シンロン', origin: '台湾' },
-    { name: 'ライ・ジュンジェ', origin: '台湾' }, { name: 'スー・チェンハン', origin: '台湾' },
-    { name: 'ルー・イーファン', origin: '台湾' }, { name: 'パン・シャオロン', origin: '台湾' },
-    { name: 'ホン・ダーウェイ', origin: '台湾' }, { name: 'チュウ・ミンダー', origin: '台湾' },
-    { name: 'ワン・シェンユエン', origin: '台湾' }, { name: 'カオ・チュンイー', origin: '台湾' },
-    { name: 'フー・ヤーティン', origin: '台湾' }, { name: 'シェ・ボーウェイ', origin: '台湾' },
-    { name: 'ドン・チーハオ', origin: '台湾' }, { name: 'ユー・シェンハン', origin: '台湾' },
-  ],
-  ETH: [
-    { name: 'ゲブレメスケル・テスファイェ', origin: 'エチオピア' },
-    { name: 'アブラハム・キンデ', origin: 'エチオピア' },
-    { name: 'イェゲネフ・バレガ', origin: 'エチオピア' },
-    { name: 'タデッセ・ワルク', origin: 'エチオピア' },
-    { name: 'ゲルマン・ハイレ', origin: 'エチオピア' },
-    { name: 'キンデ・ゲブレハン', origin: 'エチオピア' },
-    { name: 'アラムニュ・ジェベサ', origin: 'エチオピア' },
-    { name: 'ワセン・ムクタル', origin: 'エチオピア' },
-    { name: 'ゲブル・テクレ', origin: 'エチオピア' },
-    { name: 'タリク・アメーデ', origin: 'エチオピア' },
-    { name: 'ムラドレイ・テスファ', origin: 'エチオピア' },
-    { name: 'ハイレ・ゲブレシラシエ', origin: 'エチオピア' },
-    { name: 'ベケレ・アルガウ', origin: 'エチオピア' },
-    { name: 'ファジャル・ライラ', origin: 'エチオピア' },
-    { name: 'ダリ・ベケレ', origin: 'エチオピア' },
-    { name: 'ゲラ・テスファウ', origin: 'エチオピア' },
-    { name: 'アスタル・グルム', origin: 'エチオピア' },
-    { name: 'バーハン・ゲブレ', origin: 'エチオピア' },
-    { name: 'ティルフネ・レガセ', origin: 'エチオピア' },
-    { name: 'アジメラ・ファンタ', origin: 'エチオピア' },
-    { name: 'ヨナス・キエドル', origin: 'エリトリア' },
-    { name: 'アブラハム・アレガウィ', origin: 'エリトリア' },
-    { name: 'テスファイ・ゴイトム', origin: 'エリトリア' },
-    { name: 'フィトサム・ベルハン', origin: 'エリトリア' },
-    { name: 'ミルツ・ゼムイ', origin: 'エリトリア' },
-  ],
-  KEN: [
-    { name: 'エリウド・キプコルイ', origin: 'ケニア' },
-    { name: 'ロナルド・キプコスゲイ', origin: 'ケニア' },
-    { name: 'エマニュエル・チェプタル', origin: 'ケニア' },
-    { name: 'ベンジャミン・キムタイ', origin: 'ケニア' },
-    { name: 'フェリックス・チェランガット', origin: 'ケニア' },
-    { name: 'ジョン・ロモルン', origin: 'ケニア' },
-    { name: 'サイモン・キプタノイ', origin: 'ケニア' },
-    { name: 'ウィルソン・キプロノ', origin: 'ケニア' },
-    { name: 'アベル・ムティアイ', origin: 'ケニア' },
-    { name: 'ポール・ムワンギ', origin: 'ケニア' },
-    { name: 'マーク・チェベット', origin: 'ケニア' },
-    { name: 'ダニエル・キプゲン', origin: 'ケニア' },
-    { name: 'ジョセフ・ムウィキ', origin: 'ケニア' },
-    { name: 'ルーカス・ロトゥル', origin: 'ケニア' },
-    { name: 'ジュリアス・チェボレイ', origin: 'ケニア' },
-    { name: 'カルビン・キプトー', origin: 'ケニア' },
-    { name: 'ヒラリー・チェプコイル', origin: 'ケニア' },
-    { name: 'エドウィン・キプタネイ', origin: 'ケニア' },
-    { name: 'ゲオフリー・カムウォロル', origin: 'ケニア' },
-    { name: 'ニコラス・キプルト', origin: 'ケニア' },
-    { name: 'ボアズ・キプラガット', origin: 'ケニア' },
-    { name: 'タデウス・キベット', origin: 'ケニア' },
-    { name: 'ジェームス・ンダイ', origin: 'ケニア' },
-    { name: 'ドミトリ・チュンバ', origin: 'ケニア' },
-    { name: 'アブネル・ムタイ', origin: 'ケニア' },
-  ],
-  UGA: [
-    { name: 'ジョシュア・チェプテゲイ', origin: 'ウガンダ' },
-    { name: 'ジェイコブ・クゥィルタ', origin: 'ウガンダ' },
-    { name: 'オスカル・キサザ', origin: 'ウガンダ' },
-    { name: 'スティーブン・チェプロタ', origin: 'ウガンダ' },
-    { name: 'アロン・マヨル', origin: 'ウガンダ' },
-    { name: 'トビアス・コリル', origin: 'ウガンダ' },
-    { name: 'ジョン・チェリモ', origin: 'ウガンダ' },
-    { name: 'ロナルド・ウォタ', origin: 'ウガンダ' },
-    { name: 'ピーター・アチレング', origin: 'ウガンダ' },
-    { name: 'フレデリック・キプロティク', origin: 'ウガンダ' },
-    { name: 'サイモン・チェプルイ', origin: 'ウガンダ' },
-    { name: 'ダビデ・ムセネ', origin: 'ウガンダ' },
-    { name: 'クリスチャン・ムワンジャ', origin: 'ウガンダ' },
-    { name: 'ヘンリー・チェモ', origin: 'ウガンダ' },
-    { name: 'マイケル・チェロノ', origin: 'ウガンダ' },
-  ],
-  TAN: [
-    { name: 'ゲルフ・ムリンガ', origin: 'タンザニア' },
-    { name: 'アンバッサ・チャンバ', origin: 'タンザニア' },
-    { name: 'ファリド・マウヨ', origin: 'タンザニア' },
-    { name: 'サレー・キラバ', origin: 'タンザニア' },
-    { name: 'ハミシ・マジャリ', origin: 'タンザニア' },
-    { name: 'アブドラ・ケルビ', origin: 'タンザニア' },
-    { name: 'ジュマ・イカンガ', origin: 'タンザニア' },
-    { name: 'エドワード・ムソケ', origin: 'タンザニア' },
-    { name: 'ヤコボ・タオ', origin: 'タンザニア' },
-    { name: 'サディク・ムウアンバ', origin: 'タンザニア' },
-    { name: 'オマル・シャラビ', origin: 'タンザニア' },
-    { name: 'パトリック・チュンゴ', origin: 'タンザニア' },
-    { name: 'アルフレッド・ンダンバ', origin: 'タンザニア' },
-    { name: 'エヴァリスト・ムビンゴ', origin: 'タンザニア' },
-    { name: 'レオナルド・キラカ', origin: 'タンザニア' },
-  ],
-  EUR: [
-    // UK
-    { name: 'カラム・フォスター', origin: 'イギリス' }, { name: 'トム・ウィットフィールド', origin: 'イギリス' },
-    { name: 'ジャック・モーリー', origin: 'イギリス' }, { name: 'サム・ホートン', origin: 'イギリス' },
-    { name: 'アレックス・ダン', origin: 'イギリス' }, { name: 'ベン・クローリー', origin: 'イギリス' },
-    // France
-    { name: 'アントワーヌ・ルフェーブル', origin: 'フランス' }, { name: 'マキシム・ベルトラン', origin: 'フランス' },
-    { name: 'ロメ・ゴティエ', origin: 'フランス' }, { name: 'ジュール・ラクロワ', origin: 'フランス' },
-    { name: 'テオ・ルノー', origin: 'フランス' },
-    // Germany
-    { name: 'ルーカス・ブレナー', origin: 'ドイツ' }, { name: 'モリッツ・シュルツェ', origin: 'ドイツ' },
-    { name: 'フェリックス・ギュンター', origin: 'ドイツ' }, { name: 'ジモン・ハウザー', origin: 'ドイツ' },
-    { name: 'トビアス・クーン', origin: 'ドイツ' },
-    // Italy
-    { name: 'マルコ・フェッラーラ', origin: 'イタリア' }, { name: 'ルカ・エスポジト', origin: 'イタリア' },
-    { name: 'アンドレア・ロンバルディ', origin: 'イタリア' }, { name: 'ジョルジョ・パレルモ', origin: 'イタリア' },
-    { name: 'マッテオ・カルーソ', origin: 'イタリア' },
-    // Spain
-    { name: 'パブロ・ムニョス', origin: 'スペイン' }, { name: 'ハビエル・セラーノ', origin: 'スペイン' },
-    { name: 'アレハンドロ・ビダル', origin: 'スペイン' }, { name: 'ルベン・フローレス', origin: 'スペイン' },
-    // Netherlands / Scandinavia
-    { name: 'ラルス・ファンデンベルフ', origin: 'オランダ' }, { name: 'ダーン・フェルメール', origin: 'オランダ' },
-    { name: 'エリック・ラルセン', origin: 'スウェーデン' }, { name: 'ヨハン・ベリ', origin: 'スウェーデン' },
-    { name: 'オラブ・フォスダール', origin: 'ノルウェー' }, { name: 'マグヌス・ヨハンセン', origin: 'ノルウェー' },
-    // Australia / NZ (EURとして扱う)
-    { name: 'ライアン・クロフォード', origin: 'オーストラリア' }, { name: 'カリン・ドナリー', origin: 'オーストラリア' },
-    { name: 'ブレンダン・ハッチ', origin: 'オーストラリア' }, { name: 'マシュー・クイン', origin: 'ニュージーランド' },
-    { name: 'ジョシュ・リース', origin: 'ニュージーランド' },
-  ],
-  USA: [
-    { name: 'ライアン・ミッチェル', origin: 'アメリカ' }, { name: 'タイラー・ブルックス', origin: 'アメリカ' },
-    { name: 'ジョーダン・サラス', origin: 'アメリカ' }, { name: 'マーカス・ウェブ', origin: 'アメリカ' },
-    { name: 'デヴォン・コール', origin: 'アメリカ' }, { name: 'キャメロン・ナッシュ', origin: 'アメリカ' },
-    { name: 'タナー・リード', origin: 'アメリカ' }, { name: 'アンドレ・ウィリアムズ', origin: 'アメリカ' },
-    { name: 'ザック・ヘンダーソン', origin: 'アメリカ' }, { name: 'ダリウス・トンプソン', origin: 'アメリカ' },
-    { name: 'イライジャ・クック', origin: 'アメリカ' }, { name: 'オーウェン・ハリントン', origin: 'アメリカ' },
-    { name: 'ネイサン・プライス', origin: 'アメリカ' }, { name: 'コール・マクブライド', origin: 'アメリカ' },
-    { name: 'ブレイク・サンダース', origin: 'アメリカ' }, { name: 'クリス・バーンズ', origin: 'アメリカ' },
-    { name: 'カイル・ハリス', origin: 'アメリカ' }, { name: 'トレイ・ジョーンズ', origin: 'アメリカ' },
-    { name: 'マイルス・フォスター', origin: 'アメリカ' }, { name: 'グレイソン・レイン', origin: 'アメリカ' },
-    // Latin America (USAリーグ枠)
-    { name: 'マテウス・シルバ', origin: 'ブラジル' }, { name: 'ルーカス・フォンセカ', origin: 'ブラジル' },
-    { name: 'セバスティアン・モレノ', origin: 'コロンビア' }, { name: 'ディエゴ・リベラ', origin: 'コロンビア' },
-    { name: 'アンドレス・キニョネス', origin: 'エクアドル' }, { name: 'カルロス・ウルタード', origin: 'エクアドル' },
-    { name: 'パブロ・ロドリゲス', origin: 'アルゼンチン' }, { name: 'フアン・ペレス', origin: 'チリ' },
-  ],
+const KEN_FAMILY = [
+  'キプタニ','チェランガット','ロサモ','ムワンギ','チェベット','キムタイ','キプコスゲイ','ロノ','キボウエ','コルウェイ',
+  'キプランガット','ロティッチ','キルイ','キプサング','ムタイ','キプコルイ','チェプタル','キプタノイ','キプロノ','ムティアイ',
+  'キプゲン','ムウィキ','ロトゥル','チェボレイ','キプトー','チェプコイル','キプタネイ','カムウォロル','キプルト','キベット',
+  'ンダイ','チュンバ','コエチ','サング','キプケモイ','ラガット',
+]
+
+const UGA_FAMILY = [
+  'チェプテゲイ','キサザ','チェプロタ','ナムバレ','クィルタ','マヨル','チェムタイ','チェリモ','ウォタ','アチレング',
+  'キプロティク','チェプルイ','ムセネ','ムワンジャ','チェモ','チェロノ','チェボイ','キプシロ','チェマタン','ムサグワ',
+  'ムトゥンバ','ムガルラ','ワニャマ','オケロ','オチェン','オピオ','ムギシャ','トゥムシメ','キベガ','ルワンガ',
+]
+
+// タンザニアの名（スワヒリ系）
+const SWAHILI_GIVEN = [
+  'ハミシ','アブドラ','ジュマ','サディク','オマリ','ファリド','サレー','ヤコボ','エヴァリスト','アルフレッド',
+  'エドワード','レオナルド','ラシディ','セイフ','ムサ','イッサ','カリム','バカリ','スレイマン','ハッサン',
+  'フセイン','アリ','サイディ','マジッド','ラマダニ','シャバニ','ザカリア','ヨハナ','ゴッドフレイ','フィリポ',
+]
+
+const TAN_FAMILY = [
+  'ムリンガ','チャンバ','マウヨ','キラバ','マジャリ','ケルビ','イカンガ','ムソケ','タオ','ムウアンバ',
+  'シャラビ','チュンゴ','ンダンバ','ムビンゴ','キラカ','ムワンガ','ンヨニ','キマロ','シャハンガ','マサンジャ',
+  'サンガ','ジュマンネ','ムカヤ','ンダロ','マレセラ','ムトンガ','カムワガ','ニャンビ','ムハンド','ルワイモ',
+]
+
+// エチオピア・エリトリア共通の名
+const HORN_GIVEN = [
+  'タデッセ','アブラハム','ヨナス','ゲタチュウ','ムルゲタ','ダウィット','ソロモン','ベルハヌ','フィトサム','ビニヤム',
+  'サムソン','ヘノク','アマヌエル','キダネ','エフレム','テドロス','デレジェ','シサイ','タリク','ムクタル',
+  'ワセン','ゲブル','ティルフネ','ファジャル','ダリ','アスタル','バーハン','ミルツ','テスファイ','ハゴス',
+  'メブラツ','アレマイェフ',
+]
+
+const ETH_FAMILY = [
+  'ベケレ','バレガ','キンデ','ゲブレハン','テスファイェ','ワルク','アラヌ','ゲブレメディン','ティルネ','メルガ',
+  'デゲファ','ビルハネ','ハイレ','ゲブレシラシエ','レガセ','ファンタ','グルム','アルガウ','ジェベサ','アメーデ',
+  'テクレ','テスファウ','レメサ','トラ','ネガシュ','アセファ','デスタ','ケベデ','ウォルデ','ゲタネ',
+  'ムレタ','ドゥベ',
+]
+
+const ERI_FAMILY = [
+  'ゴイトム','ベルハン','ゼムイ','アレガウィ','キエドル','テスファマリアム','フィリモン','テウォルデ','キフレ','ゲブレヒウォット',
+  'ツェガイ','ハブテ','メハリ','アンドム','ネガシ','アスメロム','ウォルドゥ','ルッソム','テクレマリアム','ゲブレアブ',
+  'オクバイ','ヨハンネス','ベヤン','シウム','アブラハ','ガイム','テスフォム','ベラケット','セライ','ドラル',
+]
+
+// モロッコの名（アラブ系）
+const ARABIC_GIVEN = [
+  'ユーセフ','アミン','ハムザ','メフディ','アシュラフ','イリアス','スフィアン','アナス','ビラル','タリック',
+  'ラシド','サミル','ハリド','ナビル','アブデラ','ムスタファ','イブラヒム','アユーブ','ワリド','ハキム',
+  'サイード','ジャワド','ヌールディン','レダ','オスマン','フアド','アダム','モンセフ','ザカリヤ','ヤシン',
+]
+
+const MAR_FAMILY = [
+  'アムラン','ブフェン','エルバクリ','アイタラヒム','オウルド','ベンナセル','ベンスリマン','エルカディ','ブアジズ','タハリ',
+  'ラムダニ','ベルカセム','アズーズ','エルアラウィ','ブラヒミ','エルハムディ','アイトサイド','サドキ','ファティヒ','ゼルアリ',
+  'ベンジェルーン','エルフィラリ','ブータイブ','ハディオウイ','エルカバシュ','ジャブラン','アクナウ','ベルアビド','エルマルーフ','ウアリ',
+]
+
+const SEN_GIVEN = [
+  'ママドゥ','アブドゥライ','シェイク','ウスマン','イブラヒマ','アリウン','パパ','モクター','バブカル','サンバ',
+  'ダウダ','マリック','アマドゥ','ラミン','オマール','ドゥドゥ','エルハッジ','アダマ','ブバカル','チェルノ',
+  'サリウ','イスマイラ','マンスール','セリーニュ','イドリサ','バイ','モドゥ','セクー','ファロウ','パスカル',
+]
+
+const SEN_FAMILY = [
+  'ディアロ','ンジャイ','シセ','ンドゥール','ディオップ','フォール','サール','ゲイェ','ムベンゲ','ソウ',
+  'バ','カマラ','ケイタ','トゥーレ','マンガ','ティアム','ニアン','ワデ','セック','ダボ',
+  'バルデ','シラ','コナテ','ジェング','サニェ','サコ','クリバリ','ドラメ','バジ','マネ',
+]
+
+const SOM_GIVEN = [
+  'アブディ','アフメド','ハサン','フセイン','ユスフ','リバン','マハド','アブディラフマン','アブドゥラヒ','ムスタフ',
+  'サイード','ヤシン','オスマン','モハムード','アリー','アワレ','ダヒル','ヌール','シャリフ','アブディカディル',
+  'ハムディ','ムクタール','アブディウェリ','ジャマル','カリード','バシル','イスマイル','ファイサル','アブバカル','ムハンマド',
+]
+
+const SOM_FAMILY = [
+  'ワルサメ','ファレ','ドゥアレ','ハシ','エルミ','ワイス','ジャマ','ディリエ','サマタル','ムセ',
+  'ヌル','アダン','アウェス','ロブレ','ゲディ','バレ','イッセ','アブディレ','シレ','カヒン',
+  'アハメド','ハッサン','アブディラシド','マハムード','イガル','アブカル','ヘルシ','ワベリ','ムヒディン','アブシル',
+]
+
+const KOR_FAMILY = [
+  'イ','キム','パク','チェ','チョン','カン','チョ','ユン','チャン','イム',
+  'ハン','オ','ソ','シン','クォン','ファン','アン','ソン','ユ','ホン',
+  'コ','ムン','ヤン','ペ','ペク','ホ','ノ','シム','ナ','チュ',
+  'リュ','ク',
+]
+
+const KOR_GIVEN = [
+  'ジョンミン','サンウ','ジュンヒョク','スンジェ','ドンフン','ソクヒョン','テウォン','ジェヒョン','ミンジュン','ヒョンソク',
+  'ジュンソ','ドンヒョン','ドユン','テヤン','ジェウォン','ジュンヨン','ソンミン','ドンジュン','テヒョン','セジュン',
+  'ウソン','ジュンホ','ジェヒョク','ジュンソク','ヒョヌ','ミンギュ','ソンフン','ジフン','スンヒョン','ジェミン',
+  'ウジン','ドヒョン','サンヒョク','ヨンジュン','ミンソク','ハヌル',
+]
+
+const CHN_FAMILY = [
+  'ワン','リー','チャン','リウ','チェン','ヤン','ホアン','ジャオ','ウー','ジョウ',
+  'シュー','スン','マー','ジュ','フー','グオ','ホー','リン','ガオ','ルオ',
+  'ジェン','リャン','シエ','タン','ハン','ツァオ','ドン','ダイ','ファン','パン',
+  'ジャン','ソン',
+]
+
+const CHN_GIVEN = [
+  'ハオラン','ユーフェイ','ミンジー','ジェングオ','ウェンフォン','ジーチャン','ボーウェン','チャオ','チェンヤン','ジュンジエ',
+  'ジーユエン','ミンフイ','ジュンウェイ','ペンフェイ','ユーチャン','ハオ','ジアミン','レイ','ペン','シャオロン',
+  'ユーチン','ジュンホン','ウェンボ','イーファン','ハオユー','ジーハオ','ミンハオ','ルイ','ウェイ','ミン',
+  'ジュン','ヨン','シャオフェイ','ティエンユー','ボーハイ','チェンシン',
+]
+
+const TWN_FAMILY = [
+  'チェン','リン','ホアン','チャン','リー','ワン','ウー','リウ','ツァイ','ヤン',
+  'シュー','ジェン','シェ','グオ','ホン','ライ','スー','ルー','パン','チュウ',
+  'カオ','フー','ドン','ユー','ペン','ツェン','シャオ','ヤオ','カン','ウェイ',
+]
+
+const TWN_GIVEN = [
+  'ジャーハオ','ユーシャン','チェンウェイ','チーミン','グァンフイ','ジェンユー','ミンハン','ウェイチェン','シューハオ','カイウェン',
+  'ボーシュエン','シンロン','ジュンジェ','チェンハン','ミンダー','ダーウェイ','チュンイー','ヤーティン','ボーウェイ','チーハオ',
+  'シェンハン','シェンユエン','カイシャン','ユーチェン','チャオハン','イーシュアン','ジャーウェイ','ミンシュアン','ハオティン','ウェンジェ',
+]
+
+// 英語圏（イギリス・アメリカ・オーストラリア・ニュージーランド共通）
+const EN_GIVEN = [
+  'ライアン','タイラー','ジョーダン','マーカス','キャメロン','タナー','ザック','イライジャ','オーウェン','ネイサン',
+  'コール','ブレイク','クリス','カイル','トレイ','マイルス','グレイソン','カラム','トム','ジャック',
+  'サム','アレックス','ベン','ジョシュ','マシュー','ブレンダン','リアム','イーサン','ノア','ルーク',
+  'ヘンリー','オリバー','ジェイク','ディラン','コナー','ハリソン',
+]
+
+const ANGLO_FAMILY = [
+  'ミッチェル','ブルックス','ウェブ','ナッシュ','リード','ヘンダーソン','トンプソン','クック','ハリントン','プライス',
+  'マクブライド','サンダース','バーンズ','ハリス','フォスター','レイン','ウォード','マクニール','ハロウェイ','クロウ',
+  'ウィットフィールド','モーリー','ホートン','ダン','クローリー','クロフォード','ハッチ','クイン','リース','ドナリー',
+  'ベイカー','コリンズ','ウォーカー','ライト','ベネット','ハワード','チャップマン','ドイル','マーフィー','グリフィン',
+]
+
+const FR_GIVEN = [
+  'アントワーヌ','マキシム','ジュール','テオ','ロマン','バティスト','クレマン','ユーゴ','ルイ','ピエール',
+  'ニコラ','ギヨーム','トマ','アルチュール','ヴァンサン','ジュリアン','セバスチャン','フロリアン','カンタン','バンジャマン',
+  'オレリアン','ダミアン','レミ','マチュー','ガエル','ヤニス','エンゾ','リュカ','シモン','ポール',
+]
+
+const FR_FAMILY = [
+  'ルフェーブル','ベルトラン','ゴティエ','ラクロワ','ルノー','ラポール','テュルネル','コワル','デュボワ','ルノワール',
+  'モロー','フォンテーヌ','ルクレール','ジラール','ペラン','デュラン','ロバン','ブラン','ロシェ','マルシャン',
+  'ガルニエ','ルメール','プティ','ロラン','シェヴァリエ','ボワイエ','ペルティエ','デュポン','シャルパンティエ','マルタン',
+]
+
+const DE_GIVEN = [
+  'ルカス','モリッツ','フェリクス','ジモン','トビアス','ヨナス','ニクラス','フィン','レオン','パウル',
+  'マクシミリアン','ヤン','ティム','フローリアン','ダーヴィト','セバスティアン','マルクス','シュテファン','アンドレアス','ミヒャエル',
+  'ファビアン','マティアス','ハンネス','ヨハネス','カルステン','ベネディクト','ユリアン','レナート','ティモ','エリアス',
+]
+
+const DE_FAMILY = [
+  'ブレナー','シュルツェ','ギュンター','ハウザー','クーン','フィッシャー','クラウゼ','ホフマン','ベッカー','シュナイダー',
+  'ヴェーバー','ヴァーグナー','ケルナー','ツィンマーマン','ハルトマン','クレーマー','フォークト','ブラウン','ケーニヒ','ローレンツ',
+  'ザイデル','リヒター','ノイマン','シュヴァルツ','エンゲル','ブラント','ロート','フランク','ヘルマン','ヴィンター',
+]
+
+const IT_GIVEN = [
+  'マルコ','ルカ','アンドレア','ジョルジョ','マッテオ','アレッサンドロ','ダヴィデ','フランチェスコ','ロレンツォ','シモーネ',
+  'フェデリコ','ジャコモ','リッカルド','ステファノ','パオロ','ジュリオ','ニコロ','ピエトロ','トンマーゾ','ガブリエーレ',
+  'サルヴァトーレ','ミケーレ','ダニエーレ','アルベルト','エンリコ','ファビオ','クラウディオ','マッシモ','ジャンルカ','エマヌエーレ',
+]
+
+const IT_FAMILY = [
+  'フェッラーラ','エスポジト','ロンバルディ','パレルモ','カルーソ','デルーカ','カントーニ','フェラーリ','コッポラ','モレッティ',
+  'コロンボ','リナルディ','グレコ','ブルーノ','コンティ','マンチーニ','マリーニ','サントーロ','バルビエリ','ジョルダーノ',
+  'デサンティス','パリージ','ヴィターレ','ソレンティーノ','ロマーノ','フィオーレ','ベッリーニ','トスカーノ','ガッリ','ペトルッチ',
+]
+
+// スペイン語圏（スペイン・中南米共通）
+const ES_GIVEN = [
+  'パブロ','ハビエル','アレハンドロ','ルベン','セルヒオ','ダビド','カルロス','ミゲル','ラウル','アドリアン',
+  'イバン','ホルヘ','ディエゴ','アルバロ','マルコス','フェルナンド','ゴンサロ','サンティアゴ','ロドリゴ','フアン',
+  'ペドロ','アンドレス','イケル','ウナイ','アイトル','オスカル','エクトル','ビセンテ','ラモン','エステバン',
+]
+
+const ES_FAMILY = [
+  'ムニョス','セラーノ','ビダル','フローレス','モリーナ','バエナ','サラテ','イバラ','ガルシア','フェルナンデス',
+  'ロペス','マルティネス','ゴンサレス','ロドリゲス','ペレス','サンチェス','ラミレス','トーレス','カスティージョ','オルテガ',
+  'ナバロ','ヒメネス','モレノ','ロメロ','ドミンゲス','ゲレロ','カブレラ','リベラ','キニョネス','ウルタード',
+  'メンドサ','バルガス',
+]
+
+// オランダ・ベルギー共通
+const NL_GIVEN = [
+  'ラルス','ダーン','ステイン','ヨリス','バス','ヤスペル','スヴェン','ニールス','フレーク','マールテン',
+  'ウィレム','ヘンク','ピート','ヨープ','テイス','ルート','ヨースト','コーエン','イェレ','サンダー',
+  'ミヒール','レンス','ヴィム','ヘリット','アリエン','マルセル','エルウィン','トゥーン','ヨルディ','ステフ',
+]
+
+const NL_FAMILY = [
+  'ファンデンベルフ','フェルメール','ファンデルメール','デヨング','デフリース','バッカー','ヤンセン','フィッセル','スミット','メイエル',
+  'ムルダー','デブール','フェルフーフェン','ボス','ペーテルス','ヘンドリクス','デッケル','ブラウエル','ディクストラ','ファンレーウェン',
+  'カイパース','ポストマ','ティンメルマンス','ファンドールン','スホルテン','ブリンク','ヴァンダンム','クラーセン','ローゼンダール','ヘールツ',
+]
+
+// 北欧（スウェーデン・ノルウェー共通）
+const SCAN_GIVEN = [
+  'エリック','ヨハン','マグヌス','オラブ','ラーシュ','ミカエル','アンデシュ','グスタフ','フレドリック','ヘンリク',
+  'ニルス','ビョルン','シンドレ','エミール','アクセル','イサク','ヨアキム','カスパー','トルビョルン','ハーラル',
+  'エイナル','ヴェガール','スティアン','オイヴィン','エスペン','クリステル','ポントゥス','ラスムス','ヤルレ','ハーコン',
+]
+
+const SCAN_FAMILY = [
+  'ラルセン','ベリ','フォスダール','ヨハンセン','リンドグレン','ニルソン','エリクソン','カールソン','アンデション','ホルム',
+  'ルンドクヴィスト','ダール','ハンセン','オルセン','ペデルセン','ソルバッケン','ハウゲン','ストランド','モーエン','リンドベリ',
+  'ニーゴール','ベルグストロム','ソールハイム','エングルンド','ヴィークルンド','ノルドストレム','オーケソン','リンドホルム','サンドベリ','ダーレン',
+]
+
+// ブラジル（ポルトガル語圏）
+const PT_GIVEN = [
+  'マテウス','ガブリエル','チアゴ','フェリペ','ラファエル','グスタボ','レアンドロ','ロジェリオ','カイオ','ダニーロ',
+  'エヴェルトン','マルセロ','アンドレ','ジョアン','パウロ','ヴィニシウス','エンリケ','ネルソン','オタビオ','ヴァグネル',
+  'ジルベルト','セルジオ','ファビアーノ','ミルトン','ワシントン','クレベル','アイルトン','ジエゴ','ブレノ','ルーカス',
+]
+
+const PT_FAMILY = [
+  'シルバ','フォンセカ','アルヴェス','カルドーゾ','リマ','ドナト','サントス','オリベイラ','ソウザ','ペレイラ',
+  'コスタ','ゴメス','リベイロ','カルバーリョ','バルボーザ','モライス','テイシェイラ','フレイタス','ロチャ','ナシメント',
+  'モウラ','バティスタ','カンポス','ドゥアルテ','メンドンサ','パチェコ','ヴィエイラ','マチャド','ファリアス','ブランダン',
+]
+
+const POOL_KEN: ForeignNamePool = { origin: 'ケニア', given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
+const POOL_UGA: ForeignNamePool = { origin: 'ウガンダ', given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
+const POOL_TAN: ForeignNamePool = { origin: 'タンザニア', given: SWAHILI_GIVEN, family: TAN_FAMILY }
+const POOL_ETH: ForeignNamePool = { origin: 'エチオピア', given: HORN_GIVEN, family: ETH_FAMILY }
+const POOL_ERI: ForeignNamePool = { origin: 'エリトリア', given: HORN_GIVEN, family: ERI_FAMILY }
+const POOL_MAR: ForeignNamePool = { origin: 'モロッコ', given: ARABIC_GIVEN, family: MAR_FAMILY }
+const POOL_SEN: ForeignNamePool = { origin: 'セネガル', given: SEN_GIVEN, family: SEN_FAMILY }
+const POOL_SOM: ForeignNamePool = { origin: 'ソマリア', given: SOM_GIVEN, family: SOM_FAMILY }
+const POOL_KOR: ForeignNamePool = { origin: '韓国', given: KOR_GIVEN, family: KOR_FAMILY, familyFirst: true }
+const POOL_CHN: ForeignNamePool = { origin: '中国', given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
+const POOL_TWN: ForeignNamePool = { origin: '台湾', given: TWN_GIVEN, family: TWN_FAMILY, familyFirst: true }
+const POOL_GBR: ForeignNamePool = { origin: 'イギリス', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_USA: ForeignNamePool = { origin: 'アメリカ', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_AUS: ForeignNamePool = { origin: 'オーストラリア', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_NZL: ForeignNamePool = { origin: 'ニュージーランド', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_FRA: ForeignNamePool = { origin: 'フランス', given: FR_GIVEN, family: FR_FAMILY }
+const POOL_GER: ForeignNamePool = { origin: 'ドイツ', given: DE_GIVEN, family: DE_FAMILY }
+const POOL_ITA: ForeignNamePool = { origin: 'イタリア', given: IT_GIVEN, family: IT_FAMILY }
+const POOL_ESP: ForeignNamePool = { origin: 'スペイン', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_NED: ForeignNamePool = { origin: 'オランダ', given: NL_GIVEN, family: NL_FAMILY }
+const POOL_BEL: ForeignNamePool = { origin: 'ベルギー', given: NL_GIVEN, family: NL_FAMILY }
+const POOL_SWE: ForeignNamePool = { origin: 'スウェーデン', given: SCAN_GIVEN, family: SCAN_FAMILY }
+const POOL_NOR: ForeignNamePool = { origin: 'ノルウェー', given: SCAN_GIVEN, family: SCAN_FAMILY }
+const POOL_BRA: ForeignNamePool = { origin: 'ブラジル', given: PT_GIVEN, family: PT_FAMILY }
+const POOL_COL: ForeignNamePool = { origin: 'コロンビア', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_ECU: ForeignNamePool = { origin: 'エクアドル', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_ARG: ForeignNamePool = { origin: 'アルゼンチン', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_CHI: ForeignNamePool = { origin: 'チリ', given: ES_GIVEN, family: ES_FAMILY }
+
+// 重みに応じてプールを展開する（重みが大きい国ほど選ばれやすい）
+function weightedPools(entries: [ForeignNamePool, number][]): ForeignNamePool[] {
+  return entries.flatMap(([pool, weight]) => Array.from({ length: weight }, () => pool))
+}
+
+// JPEL（ドラフト・CPU）用: 従来の国籍出現比率をおおむね維持した重み付きプール
+const JPEL_FOREIGN_POOLS: ForeignNamePool[] = weightedPools([
+  [POOL_KEN, 21], [POOL_ETH, 16], [POOL_UGA, 5], [POOL_TAN, 4],
+  [POOL_MAR, 5], [POOL_ERI, 3], [POOL_SEN, 3], [POOL_SOM, 2],
+  [POOL_KOR, 10], [POOL_CHN, 10],
+  [POOL_FRA, 5], [POOL_GER, 4], [POOL_ITA, 4], [POOL_ESP, 4], [POOL_GBR, 4],
+  [POOL_NED, 2], [POOL_BEL, 1], [POOL_BRA, 4], [POOL_USA, 4],
+])
+
+// 海外リーグ用: 国コードごとのプール（重みは従来の構成比を踏襲）
+const FOREIGN_LEAGUE_POOLS: Record<string, ForeignNamePool[]> = {
+  KOR: [POOL_KOR],
+  CHN: [POOL_CHN],
+  TWN: [POOL_TWN],
+  ETH: weightedPools([[POOL_ETH, 4], [POOL_ERI, 1]]),
+  KEN: [POOL_KEN],
+  UGA: [POOL_UGA],
+  TAN: [POOL_TAN],
+  EUR: weightedPools([
+    [POOL_GBR, 6], [POOL_FRA, 5], [POOL_GER, 5], [POOL_ITA, 5], [POOL_ESP, 4],
+    [POOL_NED, 2], [POOL_SWE, 2], [POOL_NOR, 2], [POOL_AUS, 3], [POOL_NZL, 2],
+  ]),
+  USA: weightedPools([
+    [POOL_USA, 20], [POOL_BRA, 2], [POOL_COL, 2], [POOL_ECU, 2], [POOL_ARG, 1], [POOL_CHI, 1],
+  ]),
+}
+
+// プールから姓と名を1つずつ選んで名前を組み立てる
+function pickForeignName(pool: ForeignNamePool): { name: string; origin: string } {
+  const given = pool.given[rng(0, pool.given.length - 1)]
+  const family = pool.family[rng(0, pool.family.length - 1)]
+  return {
+    name: pool.familyFirst ? `${family}・${given}` : `${given}・${family}`,
+    origin: pool.origin,
+  }
+}
+
+// JPEL用の外国人名を生成する。usedNames と重複したらリトライする
+function generateJpelForeignName(usedNames: Set<string>): { name: string; origin: string } {
+  const pool = JPEL_FOREIGN_POOLS[rng(0, JPEL_FOREIGN_POOLS.length - 1)]
+  let picked = pickForeignName(pool)
+  let attempts = 0
+  while (usedNames.has(picked.name) && attempts < 60) {
+    picked = pickForeignName(pool)
+    attempts++
+  }
+  usedNames.add(picked.name)
+  return picked
 }
 
 export function nationalityToForeignCategory(nat: Nationality): ForeignCategory {
@@ -557,7 +581,7 @@ export function generateDraftPool(year: number): Player[] {
     let name: string
 
     if (isForeign) {
-      const fn = FOREIGN_NAMES[rng(0, FOREIGN_NAMES.length - 1)]
+      const fn = generateJpelForeignName(usedNames)
       name = fn.name
       origin = fn.origin
     } else {
@@ -586,7 +610,10 @@ export function generateDraftPool(year: number): Player[] {
       draftPick: null,
       ratings,
       specialty,
-      potential: isForeign ? rng(potential[0], potential[1]) : Math.min(90, rng(potential[0], potential[1])),
+      // 稀に「お化け」隠れ玉：ランクに関わらず高ポテンシャル(85〜90)。現在値は低いままなので下位指名でも化ける。
+      potential: isForeign
+        ? rng(potential[0], potential[1])
+        : (Math.random() < 0.06 ? rng(85, 90) : Math.min(90, rng(potential[0], potential[1]))),
       growthCurve,
       teamId: '__pool__',
       rosterTier: 'main',
@@ -761,7 +788,7 @@ export function generateCpuRosters(
     let nationality: 'JPN' | 'FOREIGN'
 
     if (isForeign) {
-      const fn = FOREIGN_NAMES[rng(0, FOREIGN_NAMES.length - 1)]
+      const fn = generateJpelForeignName(usedNames)
       name = fn.name; origin = fn.origin; nationality = 'FOREIGN'
     } else {
       origin = Math.random() < 0.6
@@ -1054,9 +1081,8 @@ export function generateForeignLeaguePlayers(
       const clubPlayerIds: string[] = []
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
       const salaries = distributeSalaries(Math.round(budgetFor(club.country) * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
-      const namePool = FOREIGN_NAMES_BY_NATIONALITY[club.country as string]
-        ?? FOREIGN_NAMES_BY_NATIONALITY.EUR
-        ?? []
+      const namePools = FOREIGN_LEAGUE_POOLS[club.country as string] ?? FOREIGN_LEAGUE_POOLS.EUR
+      const clubUsedNames = new Set<string>()
 
       salaries.forEach((clubSalary) => {
         const rank = rankForSalary(clubSalary)
@@ -1069,9 +1095,15 @@ export function generateForeignLeaguePlayers(
         const nat: Nationality = club.country
         const foreignCat = nationalityToForeignCategory(nat)
 
-        const nameEntry = namePool.length > 0
-          ? namePool[rng(0, namePool.length - 1)]
-          : FOREIGN_NAMES[rng(0, FOREIGN_NAMES.length - 1)]
+        // クラブ内で同名が出ないよう組み合わせをリトライする
+        const pool = namePools[rng(0, namePools.length - 1)]
+        let nameEntry = pickForeignName(pool)
+        let nameAttempts = 0
+        while (clubUsedNames.has(nameEntry.name) && nameAttempts < 60) {
+          nameEntry = pickForeignName(pool)
+          nameAttempts++
+        }
+        clubUsedNames.add(nameEntry.name)
 
         const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
         clubPlayerIds.push(id)

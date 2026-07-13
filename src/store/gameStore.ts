@@ -315,6 +315,7 @@ export type GameStore = GameState & {
   acceptRetirement: (playerId: string) => void
   dismissTransferRequest: (playerId: string) => void
   allowPlayerTransfer: (playerId: string) => void  // 移籍を認める→移籍リスト入り（他チームがオファー・決まらなければFA）
+  toggleNoSale: (playerId: string) => void  // 非売リストのON/OFF（ONで他クラブからの買い取りオファーをブロック）
   // レンタル移籍（レンタル枠 最大3・別枠・移籍金なし・給与は借り手負担・期間後自動返却）
   loanInPlayer: (playerId: string, years: number, force?: boolean) => boolean   // 他チームから借りる（forceで主力判定スキップ＝相手が貸す打診済み）
   loanOutPlayer: (playerId: string, toTeamId: string, years: number) => boolean  // 自チームの選手を貸す
@@ -3076,6 +3077,21 @@ export const useGameStore = create<GameStore>()(
         }
       }),
 
+      toggleNoSale: (playerId) => set(state => {
+        const player = state.players.find(p => p.id === playerId)
+        if (!player || player.teamId !== state.playerTeamId) return state
+        if (player.transferListed) return state  // 退団予定（移籍リスト入り）の選手は非売にできない
+        const next = !player.noSale
+        return {
+          players: state.players.map(p => p.id === playerId ? { ...p, noSale: next } : p),
+          currentSeason: next ? {
+            ...state.currentSeason,
+            // ONにした瞬間、既に届いている買い取りオファー（移籍金付き）も取り下げる。フリー接触（0円）は本人の話なので残す
+            incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === playerId && o.offeredPrice > 0)),
+          } : state.currentSeason,
+        }
+      }),
+
       loanInPlayer: (playerId, years, force = false) => {
         const st = get()
         const player = st.players.find(p => p.id === playerId)
@@ -4518,7 +4534,9 @@ export const useGameStore = create<GameStore>()(
 
           // 加齢処理 + 契約更新適用
           const grownPlayers = state.players.map(p => {
-            const grown = p.status === 'active' || p.status === 'injured' ? growPlayer(p) : p
+            // 自チーム以外(CPU・海外)は毎年ポテンシャルへ向けて成長させる。自チームはレース/カードEXPで成長。
+            const allowAnnualGrowth = p.teamId !== state.playerTeamId
+            const grown = p.status === 'active' || p.status === 'injured' ? growPlayer(p, allowAnnualGrowth) : p
             const snap = ovrSnapshot[p.id]
             const withHistory = snap == null ? grown : { ...grown, ovrHistory: [...(p.ovrHistory ?? []), { year: state.currentSeason.year, ovr: snap }].slice(-8) }
             if (cpuRenewIds.has(p.id)) {
@@ -6425,7 +6443,7 @@ function generateForeignAndLoanOffers(params: {
 
   // 1) 海外クラブからの移籍オファー（自チームの上位選手を狙う）
   if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.30) {
-    const target = [...myMain].filter(p => !offeredIds.has(p.id) && ovr(p) >= 74).sort((a, b) => ovr(b) - ovr(a))[0]
+    const target = [...myMain].filter(p => !offeredIds.has(p.id) && !p.noSale && ovr(p) >= 74).sort((a, b) => ovr(b) - ovr(a))[0]
     if (target) {
       const club = foreignClubs[(ovr(target) + raceIndex) % foreignClubs.length]
       const tv = calcTransferValue(target)
@@ -6531,8 +6549,8 @@ function generateTransferActivity(
     }
   }
 
-  // Incoming offers targeting the player's team
-  const playerTeamPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired' && !p.loan)
+  // Incoming offers targeting the player's team（非売リストの選手には来ない）
+  const playerTeamPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired' && !p.loan && !p.noSale)
   const offerTargets = new Set(validIncoming.map(o => o.playerId))
   const offeringTeams = new Set(validIncoming.map(o => o.fromTeamId))
   const wantToLeaveIds = new Set(transferRequests.map(r => r.playerId))
@@ -6718,13 +6736,37 @@ function getPrimaryKey(specialty: string): RatingsKey {
   return 'stamina'
 }
 
-// growPlayer: 年齢増加・自然老化（ピーク後の衰え）のみ。成長はレース/カードEXPで行う。
-function growPlayer(p: Player): Player {
+// growPlayer: 年齢増加・自然老化（ピーク後の衰え）＋加齢によるポテンシャル上限の減衰。
+// 自チームの成長はレース/カードEXPで行うため allowAnnualGrowth=false。
+// CPU/海外は allowAnnualGrowth=true で毎年ポテンシャル上限へ向けて成長させる（高数値ほど鈍化）。
+const GROW_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+function growPlayer(p: Player, allowAnnualGrowth = false): Player {
   const peakAge = p.growthCurve === 'early' ? 24 : p.growthCurve === 'normal' ? 27 : 30
-  const ageDiff = (p.age + 1) - peakAge
+  const nextAge = p.age + 1
+  const ageDiff = nextAge - peakAge
   const ratings = { ...p.ratings }
   const primary = getPrimaryKey(p.specialty)
-  const caps = getStatPotentials(p)  // 経験による微増もポテンシャル上限を超えない
+
+  // 加齢でポテンシャル上限自体が下がる（ピーク超過後・高齢ほど速く）。max85→83→…のイメージ。
+  let potential = p.potential
+  if (ageDiff >= 1) {
+    potential = Math.max(50, potential - (ageDiff >= 6 ? 2 : 1))
+  }
+  const caps = getStatPotentials({ ...p, potential })  // 減衰後の上限で頭打ち
+
+  // CPU/海外の年次成長：成長期(ピーク前)のみ、各能力を上限へ向けて少しずつ。
+  // 高数値ほど伸びにくく（80台は特に遅い）、potentialが高いほど速い＝プレイヤーと同じ難度。
+  if (allowAnnualGrowth && nextAge < peakAge) {
+    const potFactor = potential >= 87 ? 1.4 : potential >= 75 ? 1.0 : 0.6
+    for (const stat of GROW_KEYS) {
+      const cur = ratings[stat]
+      const cap = caps[stat]
+      if (cur >= cap) continue
+      const diff = cur >= 80 ? 0.35 : cur >= 70 ? 0.6 : 1.0
+      const gain = Math.round(rnd(0, 2) * potFactor * diff)
+      if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
+    }
+  }
 
   if (ageDiff >= 1 && ageDiff < 4) {
     // 初期衰え: 身体系がわずかに落ちるが経験でカバー
@@ -6745,9 +6787,10 @@ function growPlayer(p: Player): Player {
 
   return {
     ...p,
-    age: p.age + 1,
+    age: nextAge,
     yearsPro: p.yearsPro + 1,
     ratings,
+    potential,
     fatigue: 5,
     form: 0,
     morale: Math.min(100, (p.morale ?? 70) + 5),

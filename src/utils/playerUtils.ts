@@ -16,12 +16,14 @@ const SPEC_STRONG_STATS: Record<Specialty, CardStatKey[]> = {
 }
 const ALL_STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 
-// 各能力の成長上限（内部の正確値）。得意 potential+3 / 苦手 potential-6、現在値未満にはしない。
+// 各能力の成長上限（内部の正確値）。得意 potential+9(最大99) / 苦手 potential-8、現在値未満にはしない。
+// 得意と苦手の差を広げ、選手を尖らせる（例：スプリンターは速さ99・登り80台）。
+// 平均は概ね potential 付近に収まるので OVR(=7能力平均)は potential 前後を維持。
 export function getStatPotentials(p: Player): Ratings {
   const strong = new Set(SPEC_STRONG_STATS[p.specialty] ?? [])
   const out = {} as Ratings
   for (const stat of ALL_STAT_KEYS) {
-    const ceil = strong.has(stat) ? p.potential + 3 : p.potential - 6
+    const ceil = strong.has(stat) ? p.potential + 9 : p.potential - 8
     const cur = (p.ratings as Record<string, number>)[stat] ?? 0
     ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, Math.round(ceil)))
   }
