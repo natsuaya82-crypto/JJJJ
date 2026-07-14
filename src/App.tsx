@@ -7,7 +7,6 @@ import { initAds, removeBanner, showBanner } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
 import { clearMarketFilters } from './utils/marketFilters'
 import LoadingOverlay from './components/ui/LoadingOverlay'
-import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
 import { useLoadingStore } from './store/loadingStore'
 import TitleScreen from './components/title/TitleScreen'
@@ -55,7 +54,6 @@ import BudgetPage from './components/budget/BudgetPage'
 import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
 import JewelsPage from './components/jewels/JewelsPage'
-import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -199,20 +197,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
   )
 }
 
-const BUNDLE_ID = 'com.tokinets.jpelmanager'
-// 強制アップデート判定用の現在バージョン。appMeta の表示バージョン（例 'v1.0.7'）を唯一の情報源にして
-// 上げ忘れを防ぐ。先頭の 'v' を除いて '1.0.7' 形式にする（App Store の version 文字列と比較するため）。
-const APP_VERSION = APP_VERSION_LABEL.replace(/^v/, '')
-
-function compareVersions(a: string, b: string): number {
-  const toArr = (v: string) => v.split('.').map(Number)
-  const [a1, a2, a3] = toArr(a)
-  const [b1, b2, b3] = toArr(b)
-  if (a1 !== b1) return a1 - b1
-  if (a2 !== b2) return a2 - b2
-  return a3 - b3
-}
-
 export default function App() {
   const { isInitialized, draftState, resetGame } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
@@ -221,7 +205,6 @@ export default function App() {
   const twitterIntroSeen = useGameStore(s => s.twitterIntroSeen ?? false)
   const markTwitterIntroSeen = useGameStore(s => s.markTwitterIntroSeen)
   const [titleShown, setTitleShown] = useState(false)
-  const [forceUpdate, setForceUpdate] = useState(false)
   const [showTwitter, setShowTwitter] = useState(false)
   // セーブ読み込み（非同期）完了までタイトルから先へ進めない。
   // 完了前に isInitialized=false の初期状態を見て新規ゲーム画面を出すと、既存セーブを上書きする事故になるため
@@ -250,21 +233,6 @@ export default function App() {
       ) queueMicrotask(() => { void flushSaveNow() })
     })
     return unsub
-  }, [])
-
-  useEffect(() => {
-    // アップデート通知は一旦停止中。再開するには UPDATE_NOTICE_ENABLED を true にする。
-    const UPDATE_NOTICE_ENABLED = false
-    if (!UPDATE_NOTICE_ENABLED) return
-    fetch(`https://itunes.apple.com/jp/lookup?bundleId=${BUNDLE_ID}`)
-      .then(r => r.json())
-      .then(data => {
-        const storeVersion: string | undefined = data.results?.[0]?.version
-        if (storeVersion && compareVersions(storeVersion, APP_VERSION) > 0) {
-          setForceUpdate(true)
-        }
-      })
-      .catch(() => {})
   }, [])
 
   useEffect(() => { initAds(adsRemoved) }, [])
@@ -322,8 +290,7 @@ export default function App() {
       {content}
       {/* 選手詳細シートは最上位に常時マウント（ドラフト画面など Layout 外でも openPlayerSheet で開ける） */}
       <PlayerSheet />
-      {showTwitter && !forceUpdate && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
-      {forceUpdate && <ForceUpdateModal />}
+      {showTwitter && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
     </BrowserRouter>
   )
 }
