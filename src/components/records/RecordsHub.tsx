@@ -7,14 +7,12 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function RecordsHub() {
   const navigate = useNavigate()
-  const { currentSeason, pastSeasons, teams, playerTeamId, achievements } = useGameStore()
+  const { currentSeason, pastSeasons, teams, playerTeamId } = useGameStore()
 
   const myTeam = teams.find(t => t.id === playerTeamId)
   const championships = myTeam?.history.championships ?? 0
   const completedRaces = currentSeason.races.filter(r => r.results).length
   const myStanding = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === playerTeamId) + 1
-
-  const achievementsEarned = achievements?.length ?? 0
 
   const SECTIONS = [
     {
@@ -65,21 +63,7 @@ export default function RecordsHub() {
         </svg>
       ),
     },
-    {
-      key: '/records/achievements',
-      label: '実績 / トロフィー',
-      desc: '達成した実績と称号の一覧',
-      countLabel: achievementsEarned > 0 ? `${achievementsEarned}個獲得済み` : 'まだ獲得なし',
-      badge: 0,
-      color: '#ff9f1c',
-      shadow: '#7a3b00',
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M8 21h8M12 17v4M17 3H7v8a5 5 0 0010 0V3z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M7 5H3v2a4 4 0 004 4M17 5h4v2a4 4 0 01-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      ),
-    },
+    // 実績/トロフィーは「今シーズンの目標」と役割が被るためメニューから廃止（データと獲得処理は残す）
   ]
 
   return (

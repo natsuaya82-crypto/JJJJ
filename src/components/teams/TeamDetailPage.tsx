@@ -8,6 +8,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { C } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 
@@ -90,6 +91,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     if (fromPlayerSheet) openPlayerSheet(fromPlayerSheet)
   }
   const scrollRef = useRef<HTMLDivElement>(null)
+  const longPressP = usePlayerLongPress()
   const [activePage, setActivePage] = useState(0)
   const [moveTab, setMoveTab] = useState<'in' | 'out'>('in')
 
@@ -548,12 +550,17 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                     return (
                       <div
                         key={`${row.playerId}-${row.year}`}
-                        onClick={() => openPlayerSheet(p.id)}
+                        {...longPressP(p.id)}
                         style={{ background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '14px 16px 12px', cursor: 'pointer' }}
                       >
-                        {/* 真ん中に顔 */}
+                        {/* 真ん中に顔（右下にOVR） */}
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
-                          <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
+                          <div style={{ position: 'relative' }}>
+                            <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
+                            <div style={{ position: 'absolute', bottom: -2, right: -6, background: 'rgba(0,0,0,0.88)', padding: '0 4px', borderRadius: '6px', fontFamily: SAIRA, fontSize: '11px', fontWeight: 900, color: ratingColor(ovr(p)), lineHeight: '15px', border: '1px solid #1A1828' }}>
+                              {ovr(p)}
+                            </div>
+                          </div>
                         </div>
                         <div style={{ fontSize: '14px', fontWeight: '700', color: '#F0EDE8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '10px' }}>{p.name}</div>
                         {/* 下に 移籍元 / 契約期間 / 移籍金 */}

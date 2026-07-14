@@ -92,34 +92,34 @@ export default function CardSelectPage() {
           </div>
         </div>
 
-        {/* 選択中（タップで外す） */}
-        {selectedCards.length > 0 && (
-          <div style={{ padding: '0 14px 10px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中（タップで外す）</div>
-            {combo && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px', borderRadius: 9, background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo.color }}>{combo.name}</span>
-                {isMenu && distinctCount >= 2 && (
-                  <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
-                )}
-                {fatigueDelta > 0 && (
-                  <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
-                )}
-                {combo.name === '通常合成' && (
-                  <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
-                )}
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {selectedCards.map(card => (
-                <button key={card.id} onClick={() => removeFusionCard(card.id)}
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
-                  <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={50} selected kind={card.kind} value={card.value} />
-                </button>
-              ))}
+        {/* 選択中（タップで外す）。常時表示：後から出現するとリストが押し下がり、連打時に違うカードを誤選択するため */}
+        <div style={{ padding: '0 14px 10px' }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中 {selectedCards.length}/{MAX_FUSION_CARDS}{selectedCards.length > 0 ? '（タップで外す）' : ''}</div>
+          {combo && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px', borderRadius: 9, background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
+              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo.color }}>{combo.name}</span>
+              {isMenu && distinctCount >= 2 && (
+                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+              )}
+              {fatigueDelta > 0 && (
+                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
+              )}
+              {combo.name === '通常合成' && (
+                <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
+              )}
             </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 70, alignItems: 'center' }}>
+            {selectedCards.length === 0 ? (
+              <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textGhost }}>下のカードをタップして選択</span>
+            ) : selectedCards.map(card => (
+              <button key={card.id} onClick={() => removeFusionCard(card.id)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                <TrainingCardSVG statKey={card.statKey} rarity={card.rarity} width={50} selected kind={card.kind} value={card.value} />
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* 絞り込み（種類＋レア度） */}
         <div style={{ padding: '0 14px 10px', display: 'flex', gap: 8 }}>

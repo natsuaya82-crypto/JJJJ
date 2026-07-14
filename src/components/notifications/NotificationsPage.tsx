@@ -799,18 +799,32 @@ export default function NotificationsPage() {
             <section style={{ marginTop: '20px' }}>
               <SectionHead label="交渉期限切れ" color={C.red} count={expiredNegotiations.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {expiredNegotiations.map(neg => (
-                  <div key={neg.id} style={cardStyle(alpha(C.red, 0.45), '#3d0000')}>
-                    <div style={inset}/>
-                    <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                      <div>
-                        <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{neg.playerName}選手が移籍を拒否しました</div>
-                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>来季まで交渉できません</div>
+                {expiredNegotiations.map(neg => {
+                  // 名前だけでは誰か分からないので、顔・OVR・所属チーム（ロゴ+フルネーム）を出す（費用合意通知と同じ見た目）
+                  const negP = players.find(pl => pl.id === neg.playerId)
+                  const negTeam = negP ? (teams.find(t => t.id === negP.teamId) ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === negP.teamId)) : undefined
+                  return (
+                    <div key={neg.id} style={cardStyle(alpha(C.red, 0.45), '#3d0000')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                          {negP && <FaceOvr playerId={negP.id} nationality={negP.nationality} pOvr={ovr(negP)} accentColor={C.red} />}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{neg.playerName}選手が移籍を拒否しました</div>
+                            {negTeam && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px', minWidth: 0 }}>
+                                <TeamLogoSVG primary={negTeam.colors.primary} secondary={negTeam.colors.secondary} shortName={negTeam.shortName} teamId={negTeam.id} size={14}/>
+                                <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{negTeam.name}</span>
+                              </div>
+                            )}
+                            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>来季まで交渉できません</div>
+                          </div>
+                          <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissExpiredNegotiation(neg.id)}>確認</Btn>
+                        </div>
                       </div>
-                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissExpiredNegotiation(neg.id)}>確認</Btn>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </section>
           )}

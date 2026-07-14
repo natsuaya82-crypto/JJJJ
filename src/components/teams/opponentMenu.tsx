@@ -55,7 +55,7 @@ export function useOpponentMenu() {
     onClick: () => {
       if (lp.current.long) { lp.current.long = false; return }
       const tp = players.find(x => x.id === pid)
-      if (tp && tp.teamId === playerTeamId) { openPlayerSheet(pid); return }  // 自チーム選手は詳細へ
+      if (tp && tp.teamId === playerTeamId) return  // 自チーム選手の詳細は長押しに統一（タップでは開かない）
       setMenuId(pid)
     },
   })

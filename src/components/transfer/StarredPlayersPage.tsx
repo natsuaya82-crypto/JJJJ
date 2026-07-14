@@ -4,6 +4,7 @@ import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from 
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useOpponentMenu } from '../teams/opponentMenu'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -22,8 +23,8 @@ export default function StarredPlayersPage() {
   const starredProspectIds = useGameStore(s => s.starredProspects ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const playerTeamId = useGameStore(s => s.playerTeamId)
+  const longPressP = usePlayerLongPress()
   // 相手チームタブと同じ操作：タップ=契約メニュー(移籍/レンタル)、長押し=詳細
   const { rowHandlers, overlay } = useOpponentMenu()
 
@@ -78,9 +79,9 @@ export default function StarredPlayersPage() {
           const isFA     = p.teamId === ''
           const value    = isFA ? faMarketSalary(p) : calcTransferValue(p)
           const valueLabel = isFA ? '市場' : '価値'
-          // 他チーム所属の現役選手だけタップで契約メニュー。自チーム/FA/ドラフト候補はタップで詳細。
+          // 他チーム所属の現役選手はタップ=契約メニュー/長押し=詳細。自チーム/FA/ドラフト候補は長押し=詳細のみ
           const isOpp = !isProspect && !isFA && p.teamId !== playerTeamId && p.status === 'active'
-          const rowProps = isOpp ? rowHandlers(p.id) : { onClick: () => openPlayerSheet(p.id) }
+          const rowProps = isOpp ? rowHandlers(p.id) : longPressP(p.id)
 
           return (
             <div key={p.id} style={{ marginBottom: '7px' }}>

@@ -521,15 +521,25 @@ const SLOT_MONTHS = [3, 4, 5, 6, 9, 10, 11]
 export function generateSecondTeamRaces(year: number): Race[] {
   const used = new Set<number>()
   const picked: Race[] = []
+  // リザーブファイナルは毎年必ず最終戦（第7戦）に固定。他スロットの抽選からは除外する
+  const finalIdx = RESERVE_RACE_POOL.findIndex(t => t.name === 'リザーブファイナル')
+  if (finalIdx >= 0) used.add(finalIdx)
   for (let slot = 0; slot < 7; slot++) {
     const month = SLOT_MONTHS[slot] ?? 10
-    // 開催時期の合うレースだけから抽選（名前の季節と実開催月がズレないように）。足りなければ全体から
-    const indexed = RESERVE_RACE_POOL.map((t, i) => ({ t, i })).filter(x => !used.has(x.i))
-    const fits = indexed.filter(x => x.t.months == null || x.t.months.includes(month))
-    const pool = fits.length > 0 ? fits : indexed
-    const pick = pool[seededIdx(year, slot, pool.length)]
-    used.add(pick.i)
-    const { months: _months, ...tmpl } = pick.t
+    const isLastSlot = slot === 6
+    let pickIdx: number
+    if (isLastSlot && finalIdx >= 0) {
+      pickIdx = finalIdx
+    } else {
+      // 開催時期の合うレースだけから抽選（名前の季節と実開催月がズレないように）。足りなければ全体から
+      const indexed = RESERVE_RACE_POOL.map((t, i) => ({ t, i })).filter(x => !used.has(x.i))
+      const fits = indexed.filter(x => x.t.months == null || x.t.months.includes(month))
+      const pool = fits.length > 0 ? fits : indexed
+      const pick = pool[seededIdx(year, slot, pool.length)]
+      pickIdx = pick.i
+      used.add(pick.i)
+    }
+    const { months: _months, ...tmpl } = RESERVE_RACE_POOL[pickIdx]
     picked.push({
       ...tmpl,
       id: `r2-${year}-${String(slot + 1).padStart(2, '0')}`,

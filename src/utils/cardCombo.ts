@@ -102,11 +102,10 @@ export function generateDropCards(rank: number, _totalTeams: number, segWinCount
   else if (rank <= 10) { cards.push(generateTrainingCard('rare'), generateTrainingCard('rare')) }
   else if (rank <= 15) { cards.push(generateTrainingCard('rare'), generateTrainingCard('normal')) }
   else { cards.push(generateTrainingCard('normal'), generateTrainingCard('normal')) }
-  // 25%で完全休養カードを1枚（順位でレア度）
-  if (Math.random() < 0.25) {
-    const restRarity: CardRarity = rank === 1 ? 'epic' : rank <= 3 ? 'rare' : 'normal'
-    cards.push(generateRestCard(restRarity))
-  }
+  // 完全休養カード：毎レース必ず1枚（別枠）。レア度は固定確率（順位に依存しない）
+  const rr = Math.random()
+  const restRarity: CardRarity = rr < 0.50 ? 'normal' : rr < 0.80 ? 'rare' : rr < 0.95 ? 'epic' : 'legendary'
+  cards.push(generateRestCard(restRarity))
   return cards
 }
 

@@ -179,6 +179,8 @@ function ChatView({
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
     openPlayerSheet, resolveEvent, finalizeTransfer, rejectTransferBid,
   } = useGameStore()
+  const longPress = usePlayerLongPress()
+  void openPlayerSheet
 
   // この選手のチャットで決着させる選手イベント（疲労・モラール・出場機会・マイルストーン等）
   const chatEvent = (currentSeason.events ?? []).find(e => e.playerId === player.id && isChatEvent(e))
@@ -610,7 +612,7 @@ function ChatView({
     <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif" }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
         <BackButton onClick={onClose} />
-        <div onClick={() => openPlayerSheet(player.id)} style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', border: `2px solid ${alpha(specCol, 0.4)}`, flexShrink: 0, cursor: 'pointer' }}>
+        <div {...longPress(player.id)} style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', border: `2px solid ${alpha(specCol, 0.4)}`, flexShrink: 0, cursor: 'pointer' }}>
           <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -626,7 +628,7 @@ function ChatView({
         {chatMessages.map((msg, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: msg.from === 'player' ? 'row' : 'row-reverse', alignItems: 'flex-end', gap: 8 }}>
             {msg.from === 'player' && (
-              <div onClick={() => openPlayerSheet(player.id)} style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, border: `1.5px solid ${alpha(specCol, 0.35)}`, cursor: 'pointer' }}>
+              <div {...longPress(player.id)} style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, border: `1.5px solid ${alpha(specCol, 0.35)}`, cursor: 'pointer' }}>
                 <PlayerFace playerId={player.id} nationality={player.nationality} size={32} />
               </div>
             )}
@@ -1263,7 +1265,8 @@ export default function ChatPage() {
         style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${borderColor}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
-          <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(player.id) }} style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
+          {/* 詳細は行の長押しに統一（顔タップの個別詳細は廃止） */}
+          <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
             <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1312,7 +1315,8 @@ export default function ChatPage() {
         style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(statusCol, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
-          <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(player.id) }} style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
+          {/* 詳細は行の長押しに統一（顔タップの個別詳細は廃止） */}
+          <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
             <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>

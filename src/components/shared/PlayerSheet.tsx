@@ -138,15 +138,17 @@ export default function PlayerSheet() {
   const goToTeamPage = (teamId: string) => {
     if (teamJumpBlocked) return
     const returnId = openPlayerId
+    // 先に遷移し、シートは次フレームで閉じる。先に閉じると下の旧画面が1フレーム見えてチラつく
+    const closeNextFrame = () => requestAnimationFrame(() => openPlayerSheet(null))
     if (teams.some(t => t.id === teamId)) {
-      openPlayerSheet(null)
       navigate(`/teams/detail/${teamId}`, { state: { fromPlayerSheet: returnId } })
+      closeNextFrame()
       return
     }
     const league = foreignLeagues.find(l => l.clubs.some(c => c.id === teamId))
     if (league) {
-      openPlayerSheet(null)
       navigate(`/teams/foreign/${league.id}/${teamId}`, { state: { fromPlayerSheet: returnId } })
+      closeNextFrame()
     }
   }
   const [page, setPage] = useState(1)
@@ -319,11 +321,12 @@ export default function PlayerSheet() {
       if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, tier: z.tier, races: 0, wins: 0 })
     }
   }
-  // 現行シーズンは未出場でも「今年・現チーム・現在の1軍2軍」を必ず1行出す（0レースで空にしない）
+  // 現行シーズンは未出場でも「今年・現チーム」を必ず1行出す（0レースで空にしない）。
+  // ルール: 1軍(A)にも2軍(B)にも出ていない選手はB行で表示。既にA/Bどちらかの出場行があれば追加しない
+  // （Bのみ出場の選手に空のA行が生えるのを防ぐ）
   {
-    const curTier: 'main' | 'second' = player.rosterTier === 'second' ? 'second' : 'main'
-    const key = `${currentSeason.year}|${player.teamId}|${curTier}`
-    if (!historyMap.has(key)) historyMap.set(key, { year: currentSeason.year, teamId: player.teamId, tier: curTier, races: 0, wins: 0 })
+    const anyThisYear = [...historyMap.keys()].some(k => k.startsWith(`${currentSeason.year}|${player.teamId}|`))
+    if (!anyThisYear) historyMap.set(`${currentSeason.year}|${player.teamId}|second`, { year: currentSeason.year, teamId: player.teamId, tier: 'second', races: 0, wins: 0 })
   }
   // 同じ年に2チーム（シーズン中の移籍）がある場合は、現所属チームを必ず上にする
   const historyRows = [...historyMap.values()].sort(
@@ -591,7 +594,8 @@ export default function PlayerSheet() {
                     const teamName = t?.name ?? t?.shortName ?? ''
                     const isLoan = (player.loanTeamYears ?? []).some(l => l.year === row.year && l.teamId === row.teamId)
                       || (row.year === currentSeason.year && !!player.loan && row.teamId === player.teamId)
-                    const suffix = `${row.tier === 'second' ? '(B)' : ''}${isLoan ? '(L)' : ''}`
+                    // 出走0の年はB表示（未出場の在籍はB扱い）
+                    const suffix = `${row.tier === 'second' || row.races === 0 ? '(B)' : ''}${isLoan ? '(L)' : ''}`
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                         <span style={{ width: '40px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
