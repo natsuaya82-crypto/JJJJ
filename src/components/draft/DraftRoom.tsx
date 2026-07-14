@@ -7,6 +7,7 @@ import { ovr, SPEC_COLOR, ratingColor, faMarketSalary, statCapBand } from '../..
 import { C, alpha } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import NumberDial from '../ui/NumberDial'
 import { audio } from '../../utils/audio'
 
@@ -151,6 +152,7 @@ function PickedPlayerSheet({ playerId, players, onClose }: {
 
 export default function DraftRoom() {
   const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason, openPlayerSheet } = useGameStore()
+  const longPress = usePlayerLongPress()
   const navigate = useNavigate()
   const adH = useAdHeight()
   const [tab, setTab]           = useState<TabKey>('players')
@@ -579,7 +581,7 @@ export default function DraftRoom() {
                     const isCurr    = pickNum === currentPick + 1
                     const accentColor = isMe ? C.gold : (t?.colors.primary ?? C.border2)
                     return (
-                      <div key={pickNum} onClick={() => pk && openPlayerSheet(pk.playerId)} style={{
+                      <div key={pickNum} {...(pk ? longPress(pk.playerId) : {})} style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
                         padding: '7px 12px', marginBottom: '2px', borderRadius: '10px',
                         background: isCurr ? alpha(accentColor, 0.12) : pk ? (isMe ? alpha(C.gold, 0.05) : C.surface) : 'transparent',
@@ -669,7 +671,7 @@ export default function DraftRoom() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {teamPicks.map(pk => {
                         return (
-                          <div key={pk.pickNum} onClick={() => openPlayerSheet(pk.playerId)} style={{
+                          <div key={pk.pickNum} {...longPress(pk.playerId)} style={{
                             display: 'flex', alignItems: 'center', gap: '3px',
                             padding: '2px 7px', borderRadius: '7px',
                             backgroundColor: C.surface2,
@@ -732,7 +734,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
   player: Player; isMyPick: boolean; onPick: (id: string) => void
   isScouted?: boolean; isRecommend?: boolean; buzz?: number
 }) {
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const longPress = usePlayerLongPress()
   const starredProspects = useGameStore(s => s.starredProspects ?? [])
   const isStarred = starredProspects.includes(p.id)
   const specCol  = SPEC_COLOR[p.specialty]
@@ -753,7 +755,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
   return (
     <div style={{ marginBottom: '8px' }}>
       <div
-        onClick={() => openPlayerSheet(p.id)}
+        {...longPress(p.id)}
         style={{
           borderRadius: '14px',
           background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
@@ -898,7 +900,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
     <div style={{
       minHeight: '100svh', backgroundColor: C.bg,
       maxWidth: '480px', margin: '0 auto',
-      display: 'flex', flexDirection: 'column', padding: '0 0 130px',
+      display: 'flex', flexDirection: 'column', padding: `0 0 calc(${adH}px + env(safe-area-inset-bottom) + 104px)`,
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
     }}>
       {/* 実機のAdMobバナーはsafe-areaの上に出るため、帯も同じ位置に合わせる（Layoutと同じ配置） */}

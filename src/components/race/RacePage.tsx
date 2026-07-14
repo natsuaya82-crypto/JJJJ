@@ -6,6 +6,7 @@ import { runWithLoading } from '../../store/loadingStore'
 import type { RaceResults, IndividualEvent, Player, Team } from '../../types'
 import BackButton from '../ui/BackButton'
 import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import { TeamLogoSVG } from '../icons/Icons'
 import { LineupPhase } from './LineupPhase'
@@ -39,7 +40,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   onRun: (skipPlayerIds: string[]) => void
   onDone: () => void
 }) {
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const longPress = usePlayerLongPress()
   const adH = useAdHeight()
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   // 記録会には来季のドラフト候補（scoutProspects＝players外）も出るので、そちらからも名前/出身を解決する
@@ -109,7 +110,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                 const fat = p.fatigue ?? 0
                 const isResting = resting.has(p.id)
                 return (
-                  <div key={p.id} onClick={() => openPlayerSheet(p.id)}
+                  <div key={p.id} {...longPress(p.id)}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px 7px 12px', borderRadius: 9, cursor: 'pointer', width: '100%', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, opacity: isResting ? 0.45 : 1 }}>
                     <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={32} />
@@ -121,7 +122,8 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                       </div>
                       <span style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 700, color: fat < 40 ? C.green : fat < 70 ? C.gold : C.red }}>疲{fat}</span>
                     </div>
-                    <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ability), flexShrink: 0 }}>{ability}</span>
+                    {/* 表示は正規OVR（種目適性値は紛らわしいのでソート専用に） */}
+                    <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(p)), flexShrink: 0 }}>{ovr(p)}</span>
                     <button onClick={(e) => { e.stopPropagation(); toggleResting(p.id) }}
                       style={{ flexShrink: 0, padding: '5px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, fontWeight: 800, background: isResting ? 'transparent' : alpha(TT_COLOR, 0.14), border: `1.5px solid ${isResting ? C.border2 : alpha(TT_COLOR, 0.5)}`, color: isResting ? C.textDim : TT_COLOR }}>
                       {isResting ? '休む' : '出走'}
@@ -144,7 +146,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
             <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位10名</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {topTen.map((r, i) => (
-                <button key={r.playerId} onClick={() => openPlayerSheet(r.playerId)}
+                <button key={r.playerId} {...longPress(r.playerId)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
                     background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -199,7 +201,7 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                 const p = players.find(pl => pl.id === r.playerId)
                 const isPB = p?.eventBests?.[bestKey]?.timeSec === r.timeSec
                 return (
-                  <button key={r.playerId} onClick={() => openPlayerSheet(r.playerId)}
+                  <button key={r.playerId} {...longPress(r.playerId)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
                       background: isPB ? alpha(C.green, 0.06) : C.surface2,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useAdHeight } from '../layout/Layout'
@@ -128,9 +128,15 @@ export default function PlayerSheet() {
   const adH = useAdHeight()
   const navigate = useNavigate()
 
+  // レース進行画面(/race・/reserve)の上ではチーム詳細へ飛ばない。
+  // 飛ぶとレース画面がアンマウントされ、戻った時に結果画面が消えて次レースの選手選定から始まってしまうため
+  const location = useLocation()
+  const teamJumpBlocked = location.pathname === '/race' || location.pathname === '/reserve'
+
   // 在籍履歴のチーム欄タップでそのチームの詳細ページへ（国内/海外で遷移先が異なる）。
   // 遷移先の「戻る」で元の選手詳細に戻れるよう、開いていた選手IDを履歴stateに載せる。
   const goToTeamPage = (teamId: string) => {
+    if (teamJumpBlocked) return
     const returnId = openPlayerId
     if (teams.some(t => t.id === teamId)) {
       openPlayerSheet(null)
@@ -590,15 +596,15 @@ export default function PlayerSheet() {
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                         <span style={{ width: '40px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
                         <div
-                          onClick={t ? () => goToTeamPage(row.teamId) : undefined}
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, cursor: t ? 'pointer' : 'default' }}
+                          onClick={t && !teamJumpBlocked ? () => goToTeamPage(row.teamId) : undefined}
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, cursor: t && !teamJumpBlocked ? 'pointer' : 'default' }}
                         >
                           {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={20} />}
                           <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {teamName}
                             {suffix && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>{suffix}</span>}
                           </span>
-                          {t && (
+                          {t && !teamJumpBlocked && (
                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0 }}>
                               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
                             </svg>

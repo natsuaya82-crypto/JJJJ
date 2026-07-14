@@ -3,6 +3,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { computeNextSeasonBudget, rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -36,7 +37,7 @@ function Row({ label, value, color, sub }: { label: string; value: string; color
 export default function BudgetPage() {
   const navigate = useNavigate()
   const { teams, players, playerTeamId, currentSeason, sponsors } = useGameStore()
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const longPress = usePlayerLongPress()
 
   const myTeam = teams.find(t => t.id === playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
@@ -265,7 +266,7 @@ export default function BudgetPage() {
             {topSalaries.map((p, i) => (
               <div
                 key={p.id}
-                onClick={() => openPlayerSheet(p.id)}
+                {...longPress(p.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 0',

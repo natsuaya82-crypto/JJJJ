@@ -1,6 +1,6 @@
 import type { Player, Team } from '../../types'
 import { useNavigate } from 'react-router-dom'
-import { useGameStore } from '../../store/gameStore'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, FORM_LABELS, FORM_COLORS, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
@@ -14,7 +14,7 @@ interface Props {
 
 export default function KeyPlayersSection({ players, team }: Props) {
   const navigate = useNavigate()
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const longPress = usePlayerLongPress()
   const top = [...players].sort((a, b) => ovr(b) - ovr(a)).slice(0, 3)
 
   return (
@@ -37,7 +37,7 @@ export default function KeyPlayersSection({ players, team }: Props) {
           return (
             <div
               key={p.id}
-              onClick={() => openPlayerSheet(p.id)}
+              {...longPress(p.id)}
               className="btn-press"
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,

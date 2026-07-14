@@ -8,6 +8,7 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -94,16 +95,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // 選手行の長押しで選手詳細（PlayerSheet）を開く共通ハンドラ
-function usePlayerLongPress() {
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  return (pid: string) => ({
-    onPointerDown: () => { timer.current = setTimeout(() => openPlayerSheet(pid), 450) },
-    onPointerUp: () => { if (timer.current) clearTimeout(timer.current) },
-    onPointerLeave: () => { if (timer.current) clearTimeout(timer.current) },
-    onPointerMove: () => { if (timer.current) clearTimeout(timer.current) },
-  })
-}
+// 長押し=詳細の共有フックへ移行（../player/usePlayerLongPress）
 
 // 種目別記録の距離切替タブ（5000m/10000m/ハーフ/マラソン）
 type EvDist = 5000 | 10000 | 21097 | 42195

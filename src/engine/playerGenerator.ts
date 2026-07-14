@@ -1,7 +1,7 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
 import type { TraitId } from '../utils/traitUtils'
 import { rankBudgetGrant } from '../data/economy'
-import { SPEC_STRONG_STATS } from '../utils/playerUtils'
+import { SPEC_STRONG_STATS, getStatPotentials } from '../utils/playerUtils'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -1069,6 +1069,28 @@ export function refreshForeignLeagues(
   return { newPlayers, updatedLeagues }
 }
 
+// 生成時に「年齢分の成長」を焼き込む（gameStoreのgrowPlayer年次成長と同じ式・同じレート）。
+// 海外選手は再生成のたび素体OVRで生まれるため、毎年成長している国内選手に対して
+// 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
+function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number): void {
+  const peakAge = growthCurve === 'early' ? 24 : growthCurve === 'normal' ? 27 : 30
+  const years = Math.max(0, Math.min(age, peakAge) - 22)
+  if (years === 0) return
+  const caps = getStatPotentials({ id, ratings, specialty, potential } as unknown as Player)
+  const potFactor = potential >= 87 ? 1.4 : potential >= 75 ? 1.0 : 0.6
+  const keys = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const
+  for (let y = 0; y < years; y++) {
+    for (const stat of keys) {
+      const cur = ratings[stat]
+      const cap = (caps as Record<string, number>)[stat]
+      if (cur >= cap) continue
+      const diff = cur >= 80 ? 0.35 : cur >= 70 ? 0.6 : 1.0
+      const gain = Math.round(rng(0, 2) * potFactor * diff)
+      if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
+    }
+  }
+}
+
 export function generateForeignLeaguePlayers(
   leagues: ForeignLeague[],
   year: number,
@@ -1124,6 +1146,10 @@ export function generateForeignLeaguePlayers(
         const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
         clubPlayerIds.push(id)
 
+        // 年齢分の成長を焼き込んでから登録（22歳超で生成された選手が素体のままにならないように）
+        const potentialVal = rng(potential[0], potential[1])
+        bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
+
         players.push({
           id,
           name: nameEntry.name,
@@ -1135,7 +1161,7 @@ export function generateForeignLeaguePlayers(
           draftPick: null,
           ratings,
           specialty,
-          potential: rng(potential[0], potential[1]),
+          potential: potentialVal,
           growthCurve,
           teamId: club.id,
           rosterTier: 'main',

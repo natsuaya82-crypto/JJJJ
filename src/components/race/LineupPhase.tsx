@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import type { Player, Race, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
+import { calcBaseAbility, calcAffinity, calcConditionModifier } from '../../engine/raceEngine'
 import { ovr, effSegOvr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { terrainColor, terrainLabel } from './raceUtils'
@@ -38,8 +38,10 @@ function autoFill(
     let bestId = '', bestScore = -1
     for (const p of players) {
       if (assignedIds.has(p.id)) continue
+      // CPUのラインナップ(buildAILineup)と同じく疲労・士気・調子も加味する（能力だけで疲労90を置かない）
       let score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
                 * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+                * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
       if (p.nationality === maxNat && currentMax >= 5) score *= 1.04
       if (score > bestScore) { bestScore = score; bestId = p.id }
     }
@@ -102,8 +104,10 @@ export function LineupPhase({
     const pairs: { segIndex: number; playerId: string; score: number }[] = []
     for (const seg of race.segments) {
       for (const p of availablePlayers) {
+        // おすすめ(最適)表示も自動配置と同じ基準（疲労・士気・調子込み）で算出する
         const score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
                     * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+                    * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
         pairs.push({ segIndex: seg.index, playerId: p.id, score })
       }
     }

@@ -56,6 +56,7 @@ import BudgetPage from './components/budget/BudgetPage'
 import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
 import JewelsPage from './components/jewels/JewelsPage'
+import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -201,7 +202,9 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
 }
 
 const BUNDLE_ID = 'com.tokinets.jpelmanager'
-const APP_VERSION = '1.0.6'
+// 強制アップデート判定用の現在バージョン。appMeta の表示バージョン（例 'v1.0.7'）を唯一の情報源にして
+// 上げ忘れを防ぐ。先頭の 'v' を除いて '1.0.7' 形式にする（App Store の version 文字列と比較するため）。
+const APP_VERSION = APP_VERSION_LABEL.replace(/^v/, '')
 
 function compareVersions(a: string, b: string): number {
   const toArr = (v: string) => v.split('.').map(Number)

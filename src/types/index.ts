@@ -142,6 +142,7 @@ export type ContractRequest = {
   initiatedBy: 'player' | 'gm'
   round: number
   status: 'pending_gm' | 'countered' | 'accepted' | 'rejected'
+  expiresAtRace?: number  // pending_gmのままこのレース番号に達したら自動失効（通知が永久に残るのを防ぐ）
   demandSalary: number
   demandYears: number
   offerSalary: number

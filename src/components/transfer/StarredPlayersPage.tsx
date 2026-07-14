@@ -19,16 +19,26 @@ export default function StarredPlayersPage() {
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects ?? [])
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
+  const starredProspectIds = useGameStore(s => s.starredProspects ?? [])
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
+  const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const playerTeamId = useGameStore(s => s.playerTeamId)
   // 相手チームタブと同じ操作：タップ=契約メニュー(移籍/レンタル)、長押し=詳細
   const { rowHandlers, overlay } = useOpponentMenu()
 
-  // 通常選手に加え、スカウトのドラフト候補も解決する（★を付けたのに出ない問題の解消）
-  const starredPlayers = starredOpponents
-    .map(id => players.find(p => p.id === id) ?? scoutProspects.find(p => p.id === id))
-    .filter((p): p is NonNullable<typeof p> => p != null)
+  // ★は選手詳細から starredOpponents（通常選手）/ starredProspects（ドラフト候補）の
+  // 2系統に保存されるため、両方を合流して表示する（候補に★を付けたのに出ない問題の解消）。
+  // 外す時に正しいリストへ返すため、どちら由来かを持ち回る
+  const starredPlayers = [
+    ...starredOpponents.map(id => ({ id, fromProspectList: false })),
+    ...starredProspectIds.filter(id => !starredOpponents.includes(id)).map(id => ({ id, fromProspectList: true })),
+  ]
+    .map(({ id, fromProspectList }) => {
+      const p = players.find(pl => pl.id === id) ?? scoutProspects.find(pl => pl.id === id)
+      return p ? { p, fromProspectList } : null
+    })
+    .filter((e): e is NonNullable<typeof e> => e != null)
 
   function getTeamName(teamId: string): string {
     if (teamId === '') return '未所属'
@@ -60,7 +70,7 @@ export default function StarredPlayersPage() {
           <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textGhost, fontSize: 12, backgroundColor: C.surface, borderRadius: 14, border: `1px solid ${C.border}` }}>
             選手ページで ☆ を押すとここに表示されます
           </div>
-        ) : starredPlayers.map(p => {
+        ) : starredPlayers.map(({ p, fromProspectList }) => {
           const rating   = ovr(p)
           const specCol  = SPEC_COLOR[p.specialty]
           const isProspect = !players.some(pp => pp.id === p.id)
@@ -102,7 +112,7 @@ export default function StarredPlayersPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                       <button
                         onPointerDown={e => e.stopPropagation()}
-                        onClick={e => { e.stopPropagation(); toggleStarOpponent(p.id) }}
+                        onClick={e => { e.stopPropagation(); if (fromProspectList) toggleStarProspect(p.id); else toggleStarOpponent(p.id) }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: C.gold, fontSize: 18, lineHeight: 1 }}
                       >
                         ★

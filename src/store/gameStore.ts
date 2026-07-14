@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow } from './saveStorage'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -1329,6 +1329,38 @@ export const useGameStore = create<GameStore>()(
           })
           const existingTrades = (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.expiresAtRace > raceIndex + 1)
 
+          // CPUからのトレード打診を低頻度で生成（打診が既に無い時だけ・1件まで）。
+          // 相手の余剰選手と自チーム選手の価値が釣り合う1対1交換を提案する
+          const newTradeOffers: AITradeOffer[] = []
+          if (existingTrades.length === 0 && Math.random() < 0.25) {
+            const myTradables = state.players.filter(p =>
+              p.teamId === playerTeamId && p.rosterTier === 'main' && p.status === 'active' && !p.loan && !p.noSale)
+            const cpuIds = state.teams.map(t => t.id).filter(id => id !== playerTeamId)
+            const fromId = cpuIds[Math.floor(Math.random() * cpuIds.length)]
+            const theirRoster = state.players.filter(p =>
+              p.teamId === fromId && p.rosterTier === 'main' && p.status === 'active' && !p.loan)
+            outer:
+            for (const mine of [...myTradables].sort(() => Math.random() - 0.5)) {
+              const myVal = calcTransferValue(mine)
+              for (const theirs of [...theirRoster].sort(() => Math.random() - 0.5)) {
+                const r = calcTransferValue(theirs) / Math.max(1, myVal)
+                // 相手がやや上乗せする範囲だけ提案（受ける価値のある打診に絞る）
+                if (r >= 0.95 && r <= 1.3) {
+                  const fromShort = state.teams.find(t => t.id === fromId)?.shortName ?? ''
+                  newTradeOffers.push({
+                    id: `aito-${raceIndex + 1}-${mine.id}`,
+                    fromTeamId: fromId,
+                    offeredPlayerIds: [theirs.id],
+                    requestedPlayerIds: [mine.id],
+                    expiresAtRace: raceIndex + 5,
+                    message: `${fromShort}が${mine.name}との交換に${theirs.name}を提示しています`,
+                  })
+                  break outer
+                }
+              }
+            }
+          }
+
           // Accumulate race income (prizes + attendance) to carry over to next season's budget
           const raceIncomeAccum = (racePrize > 0 ? racePrize : 0) + segPrize + attendanceRevenue
           const teamsWithPrize = state.teams
@@ -1719,7 +1751,7 @@ export const useGameStore = create<GameStore>()(
               scoutProspects: updatedScoutProspects,
               newsFeed: [...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
               events: [...(state.currentSeason.events ?? []), ...newEvents],
-              pendingTradeOffers: existingTrades,
+              pendingTradeOffers: [...existingTrades, ...newTradeOffers],
               transferListings: transferData.listings,
               incomingOffers: mergedIncomingOffers,
               incomingLoanOffers: mergedLoanOffers,
@@ -1727,6 +1759,12 @@ export const useGameStore = create<GameStore>()(
               loanResponses: [...(state.currentSeason.loanResponses ?? []), ...newLoanResponses],
               transferBids: processedBids,
               transferRequests: [...(state.currentSeason.transferRequests ?? []).filter(r => finalPlayers.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')), ...newTransferReqs],
+              // 契約更新の要求は放置で自動失効させる（応対できないまま通知が永久に残るのを防ぐ）。
+              // 旧セーブの期限なし要求(expiresAtRaceなし)もここで失効する
+              contractRequests: (state.currentSeason.contractRequests ?? []).map(r =>
+                r.status === 'pending_gm' && (r.expiresAtRace ?? 0) <= nextRaceIndex
+                  ? { ...r, status: 'rejected' as const }
+                  : r),
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
               expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs],
               freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],
@@ -2388,6 +2426,13 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const offer = (state.currentSeason.pendingTradeOffers ?? []).find(o => o.id === offerId)
           if (!offer) return state
+          // 打診後に対象選手が移籍/引退していた古い打診は成立させず破棄する（ロスター破壊防止）
+          const stillValid =
+            offer.offeredPlayerIds.every(pid => state.players.some(p => p.id === pid && p.teamId === offer.fromTeamId && p.status === 'active')) &&
+            offer.requestedPlayerIds.every(pid => state.players.some(p => p.id === pid && p.teamId === state.playerTeamId && p.status === 'active'))
+          if (!stillValid) {
+            return { currentSeason: { ...state.currentSeason, pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId) } }
+          }
           let players = state.players
           let teams = state.teams
 
@@ -2588,6 +2633,7 @@ export const useGameStore = create<GameStore>()(
             initiatedBy: 'gm',
             round: 1,
             status: 'pending_gm',
+            expiresAtRace: (state.currentSeason.currentRaceIndex ?? 0) + 6,
             demandSalary: Math.round(player.contract.annualSalary * 1.12 / 500000) * 500000,
             demandYears: 2,
             offerSalary: Math.round(player.contract.annualSalary * 1.05 / 500000) * 500000,
@@ -2616,6 +2662,7 @@ export const useGameStore = create<GameStore>()(
               initiatedBy: 'player' as const,
               round: 1,
               status: 'pending_gm' as const,
+              expiresAtRace: racesPlayed + 6,
               demandSalary: Math.round(p.contract.annualSalary * mult / 500000) * 500000,
               demandYears: personality === 'loyalty' ? 3 : 2,
               offerSalary: 0,
@@ -2761,7 +2808,7 @@ export const useGameStore = create<GameStore>()(
             ...state.currentSeason,
             contractRequests: (state.currentSeason.contractRequests ?? []).map(r =>
               r.id === requestId && (r.status === 'countered' || r.status === 'rejected')
-                ? { ...r, round: r.round + 1, status: 'pending_gm' as const, offerSalary: r.counterSalary ?? r.offerSalary, offerYears: r.counterYears ?? r.offerYears }
+                ? { ...r, round: r.round + 1, status: 'pending_gm' as const, expiresAtRace: (state.currentSeason.currentRaceIndex ?? 0) + 6, offerSalary: r.counterSalary ?? r.offerSalary, offerYears: r.counterYears ?? r.offerYears }
                 : r
             )
           }
@@ -4129,6 +4176,12 @@ export const useGameStore = create<GameStore>()(
           return { ...t, draftPicks: [...keptFuture, ...newPicks] }
         })
 
+        // 今年のドラフトで各チームに入る人数（保有指名権数）。総在籍30の上限は
+        // ドラフト加入分を先に差し引いておき、ドラフト後に30を超えないようにする（32人問題の修正）
+        const draftPickCounts = new Map<string, number>()
+        for (const tid of pickOrder) draftPickCounts.set(tid, (draftPickCounts.get(tid) ?? 0) + 1)
+        const rosterCapFor = (teamId: string) => 30 - (draftPickCounts.get(teamId) ?? 0)
+
         // CPU teams release declining/surplus players
         // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
         // ロスター概念の無い海外側との取引で国内名簿が壊れる）
@@ -4158,22 +4211,25 @@ export const useGameStore = create<GameStore>()(
               })
               sorted.slice(0, remaining.length - 23).forEach(p => releaseSet.add(p.id))
             }
-            // 総在籍（1軍+2軍・引退除く）が30を超えるチームはOVR下位から解雇して30以下に収める。
-            // 既に膨らんだセーブもここを通れば毎年是正される
+            // 総在籍（1軍+2軍・引退除く）が上限（30−ドラフト加入予定数）を超えるチームは
+            // OVR下位から解雇して収める。既に膨らんだセーブもここを通れば毎年是正される
+            const cpuCap = rosterCapFor(teamId)
             const totalRoster = state.players.filter(x => x.teamId === teamId && x.status === 'active' && !releaseSet.has(x.id))
-            if (totalRoster.length > 30) {
+            if (totalRoster.length > cpuCap) {
               const sortedAll = [...totalRoster].sort((a, b) => {
                 const scoreA = ovr(a) - (a.age > 30 ? 8 : 0) - (a.age > 33 ? 8 : 0)
                 const scoreB = ovr(b) - (b.age > 30 ? 8 : 0) - (b.age > 33 ? 8 : 0)
                 return scoreA - scoreB
               })
-              sortedAll.slice(0, totalRoster.length - 30).forEach(p => releaseSet.add(p.id))
+              sortedAll.slice(0, totalRoster.length - cpuCap).forEach(p => releaseSet.add(p.id))
             }
           }
-          // 自チーム：シーズン中に整理しなかった超過分を、OVR下位から強制的にFAへ（警告で猶予を与えた上での最終処理）
+          // 自チーム：シーズン中に整理しなかった超過分を、OVR下位から強制的にFAへ（警告で猶予を与えた上での最終処理）。
+          // ドラフト加入分も差し引いておかないと、指名後に30を超えてしまう
+          const myCap = rosterCapFor(state.playerTeamId)
           const myRoster = state.players.filter(x => x.teamId === state.playerTeamId && x.status === 'active' && !releaseSet.has(x.id))
-          if (myRoster.length > 30) {
-            [...myRoster].sort((a, b) => ovr(a) - ovr(b)).slice(0, myRoster.length - 30).forEach(p => releaseSet.add(p.id))
+          if (myRoster.length > myCap) {
+            [...myRoster].sort((a, b) => ovr(a) - ovr(b)).slice(0, myRoster.length - myCap).forEach(p => releaseSet.add(p.id))
           }
           releaseSet.forEach(id => cpuReleasedIds.add(id))
           return state.players.map(p => releaseSet.has(p.id) ? { ...p, teamId: '', } : p)
@@ -4208,7 +4264,7 @@ export const useGameStore = create<GameStore>()(
             let remainBudget = Math.max(0, teamsAfterCpuTransfer.find(t => t.id === buyTeam.id)?.finance.budget ?? 0)
             const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.rosterTier === 'main' && p.status === 'active')
             const buyTotal = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.status === 'active').length
-            if (buyRoster.length >= 23 || buyTotal >= 30) continue
+            if (buyRoster.length >= 23 || buyTotal >= rosterCapFor(buyTeam.id)) continue
             if ((transferPurchases[buyTeam.id] ?? 0) >= 2) continue
 
             const otherCpuIds = cpuTeamsForTransfer.map(x => x.team.id).filter(id => id !== buyTeam.id)
@@ -4358,12 +4414,12 @@ export const useGameStore = create<GameStore>()(
         const totalTeams = state.teams.length
         const rankOf = (teamId: string) => { const i = lastStandings.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeams / 2) }
         for (const team of cpuTeamsSorted) {
-          const currentRoster = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.rosterTier === 'main' && p.status === 'active')
+          // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
+          const currentRoster = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.status === 'active')
           const tier = cpuTeamTier(team.id, playersAfterCpuTransfer)
           const minOvr = tier === 'elite' ? 74 : tier === 'mid' ? 67 : 58
-          // 1軍登録は23人まで。ただし総在籍（1軍+2軍）30人の上限も守る
-          const totalNow = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.status === 'active').length
-          const slotsNeeded = Math.max(0, Math.min(23 - currentRoster.length, 30 - totalNow))
+          const totalNow = currentRoster.length
+          const slotsNeeded = Math.max(0, rosterCapFor(team.id) - totalNow)
           if (slotsNeeded <= 0) continue
 
           // 運用方針と予算
@@ -4371,8 +4427,11 @@ export const useGameStore = create<GameStore>()(
           const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
           const committedSalary = playersAfterCpuTransfer.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
           const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
-          // 残高がマイナス（赤字）のチームは補強を自粛（ロスター16人未満の緊急補強のみ budgetOk 側で許容）
-          const spendable = team.finance.budget < 0 ? 0 : Math.max(0, rankBudgetGrant(rankOf(team.id)) - committedSalary) * spendFactor
+          // 補強原資 ＝ 年俸原資の余り（グラント−既存年俸）＋ 実残高の一部。
+          // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く
+          const grantRoom = Math.max(0, rankBudgetGrant(rankOf(team.id)) - committedSalary)
+          const budgetRoom = Math.max(0, team.finance.budget) * 0.3
+          const spendable = team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor
           let spent = 0
           const estCost = (fa: Player) => faMarketSalary(fa)
 
@@ -4382,8 +4441,8 @@ export const useGameStore = create<GameStore>()(
           let foreignSigned = 0, signed = 0
           // contendはベテランも可、rebuildは若手のみ
           const ageCap = strat === 'contend' ? 36 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 32 : 35)
-          // ロスター16人未満の間は予算に関係なく最低限補強（戦力崩壊防止）
-          const budgetOk = (fa: Player) => (currentRoster.length + signed) < 16 || (spent + estCost(fa) <= spendable)
+          // 総在籍24人未満の間は予算に関係なく最低限補強（戦力崩壊防止）。それ以上は予算内でのみ
+          const budgetOk = (fa: Player) => (totalNow + signed) < 24 || (spent + estCost(fa) <= spendable)
           const canSign = (fa: Player) =>
             !signedFAIds.has(fa.id) &&
             !(fa.nationality === 'FOREIGN' && foreignOnTeam + foreignSigned >= 3) &&
@@ -4421,10 +4480,11 @@ export const useGameStore = create<GameStore>()(
             if (!canSign(fa) || ovr(fa) < pass2Floor || !budgetOk(fa)) continue
             doSign(fa)
           }
-          // Pass 3: 安全確保 — 予算/OVRに関係なくロスターを最低限まで埋める（弱小は20まで）
-          const floorFill = tier === 'weak' ? 20 : 16
+          // Pass 3: 安全確保 — 予算/OVRに関係なく総在籍24人（下限）までは埋める。
+          // それ以上の頭数合わせはしない（数合わせの弱いFAを抱えない。多く抱えるのは予算のあるチームだけ）
+          const floorFill = 24
           for (const fa of availableFAs) {
-            if (currentRoster.length + signed >= floorFill) break
+            if (totalNow + signed >= floorFill) break
             if (!canSign(fa)) continue
             doSign(fa)
           }
@@ -4445,30 +4505,9 @@ export const useGameStore = create<GameStore>()(
           },
         }))
 
-        // CPU second-team FA signing (target 15 players per team)
+        // フラットロスター化に伴い「2軍を15人まで埋める」補充は廃止（数合わせのFA大量署名をやめる）。
+        // 総在籍24人（下限）まではメインの補強パス(Pass3)が保証する
         const cpuSecondSignings: { playerId: string; teamId: string; num: number }[] = []
-        for (const team of cpuTeamsSorted) {
-          const secondRoster = playersWithCpuSigns.filter(p => p.teamId === team.id && p.rosterTier === 'second' && p.status === 'active')
-          // 2軍は15人目安。ただし総在籍30人の上限を守る
-          const totalNow2 = playersWithCpuSigns.filter(p => p.teamId === team.id && p.status === 'active').length
-          const slotsNeeded = Math.max(0, Math.min(15 - secondRoster.length, 30 - totalNow2))
-          if (slotsNeeded <= 0) continue
-          const foreignOnTeam = playersWithCpuSigns.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
-          const usedNums = new Set<number>()
-          let foreignSigned2 = 0, signed2 = 0
-          for (const fa of availableFAs) {
-            if (signed2 >= slotsNeeded) break
-            if (signedFAIds.has(fa.id)) continue
-            if (ovr(fa) > 72) continue
-            if (fa.nationality === 'FOREIGN' && foreignOnTeam + foreignSigned2 >= 2) continue
-            if (fa.age > 34) continue
-            let num = 21; while (usedNums.has(num)) num++; usedNums.add(num)
-            if (fa.nationality === 'FOREIGN') foreignSigned2++
-            signedFAIds.add(fa.id)
-            cpuSecondSignings.push({ playerId: fa.id, teamId: team.id, num })
-            signed2++
-          }
-        }
         const playersWithAllCpuSigns = playersWithCpuSigns.map(p => {
           const s2 = cpuSecondSignings.find(x => x.playerId === p.id)
           if (!s2) return p
@@ -4482,19 +4521,32 @@ export const useGameStore = create<GameStore>()(
           },
         }))
 
-        // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）
+        // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）。海外クラブも総在籍30を超えないようにする
         const foreignClubsList = (state.foreignLeagues ?? []).flatMap(l => l.clubs)
         let playersWithForeignSigns = playersWithAllCpuSigns
         if (foreignClubsList.length > 0) {
+          const clubCount = new Map<string, number>()
+          for (const p of playersWithAllCpuSigns) {
+            if (p.status === 'active' && foreignClubsList.some(c => c.id === p.teamId)) {
+              clubCount.set(p.teamId, (clubCount.get(p.teamId) ?? 0) + 1)
+            }
+          }
           const remainForeignFAs = playersWithAllCpuSigns
             .filter(p => p.teamId === '' && p.status === 'active' && p.nationality === 'FOREIGN')
             .sort((a, b) => ovr(b) - ovr(a))
           let clubIdx = 0
           for (const fa of remainForeignFAs) {
-            const club = foreignClubsList[clubIdx % foreignClubsList.length]
-            clubIdx++
+            // 30人未満のクラブを順番に探す。全クラブ満杯ならFAのまま残す
+            let club: typeof foreignClubsList[0] | null = null
+            for (let tries = 0; tries < foreignClubsList.length; tries++) {
+              const cand = foreignClubsList[clubIdx % foreignClubsList.length]
+              clubIdx++
+              if ((clubCount.get(cand.id) ?? 0) < 30) { club = cand; break }
+            }
+            if (!club) break
+            clubCount.set(club.id, (clubCount.get(club.id) ?? 0) + 1)
             playersWithForeignSigns = playersWithForeignSigns.map(p =>
-              p.id !== fa.id ? p : { ...p, teamId: club.id }
+              p.id !== fa.id ? p : { ...p, teamId: club!.id }
             )
           }
         }
@@ -6364,7 +6416,7 @@ const IND_ANCHORS: Record<number, [number, number][]> = {
   5000:  [[50, 870], [70, 825], [90, 780], [99, 750]],
   10000: [[50, 1770], [70, 1695], [90, 1620], [99, 1560]],
   21097: [[50, 3900], [70, 3720], [90, 3540], [99, 3420]],
-  42195: [[50, 7980], [70, 7740], [90, 7440], [99, 7200]],
+  42195: [[50, 7980], [70, 7740], [90, 7470], [99, 7200]],  // 90は2:04:30（日本記録級が量産されない傾きに）。99=世界記録レベルは設計通り
 }
 
 // 種目別のステータス比率。OVRではなくこの加重平均（種目適性値）で基準タイムを引く。

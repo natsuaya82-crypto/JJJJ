@@ -41,7 +41,9 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   const fatigue = player.fatigue ?? 0
   const pForm = player.form ?? 0
   const fColor = formColor(pForm)
-  const isLastYear = player.contract.yearsLeft <= 1
+  // 無所属（FA）と「所属あり・残り1年（FA間近）」は別物なのでバッジを分ける
+  const isFreeAgent = player.teamId === ''
+  const isLastYear = !isFreeAgent && player.contract.yearsLeft <= 1
   const isElite = rating >= 80
   const r = player.ratings
   const ctType = player.contract.contractType
@@ -87,6 +89,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
                 {SPECIALTY_LABELS[player.specialty]}
               </span>
               <span style={{ fontSize: 10, color: C.textDim }}>{player.age}歳</span>
+              {isFreeAgent && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.25)}`, color: C.orange, fontWeight: 700, flexShrink: 0 }}>FA</span>}
               {isLastYear && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>FA間近</span>}
               {pForm !== 0 && <span style={{ fontSize: 9, color: fColor, fontWeight: 800 }}>{pForm > 0 ? '↑' : '↓'}</span>}
               {fatigue > 0 && <span style={{ fontSize: 9, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA }}>疲{fatigue}</span>}

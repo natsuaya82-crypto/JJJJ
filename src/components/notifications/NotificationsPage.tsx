@@ -8,6 +8,8 @@ import { loginTodayKey } from '../../utils/loginDate'
 import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
+import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import type { IncomingOffer, TransferBid, Player } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
@@ -288,6 +290,7 @@ export default function NotificationsPage() {
   const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
   const dismissJoinNotice = useGameStore(s => s.dismissJoinNotice)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const longPress = usePlayerLongPress()
   const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
   const claimGift = useGameStore(s => s.claimGift)
 
@@ -316,6 +319,12 @@ export default function NotificationsPage() {
   const contactedPlayerIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
   const sponsorOffers = currentSeason.sponsorOffers ?? []
+  // CPUからのトレード打診。対象選手が移籍/引退した古い打診は表示しない
+  const acceptTradeOffer = useGameStore(s => s.acceptTradeOffer)
+  const rejectTradeOffer = useGameStore(s => s.rejectTradeOffer)
+  const tradeOffers = (currentSeason.pendingTradeOffers ?? []).filter(o =>
+    o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status === 'active')) &&
+    o.requestedPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === playerTeamId && p.status === 'active')))
 
   // 加入通知（全経路：FA/移籍/レンタル/トレード/ドラフト）。今季加入(joinedYear===今季)かつ未確認の選手。
   const joinNotices = players
@@ -351,6 +360,7 @@ export default function NotificationsPage() {
   const dismissLoanResponse = useGameStore(s => s.dismissLoanResponse)
 
   const total = incomingOffers.length
+    + tradeOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + (renewalNeeded > 0 ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
@@ -485,6 +495,50 @@ export default function NotificationsPage() {
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, #4ab8ea, #1a8bbf)`, color: '#fff' }} onClick={() => navigate('/login-bonus')}>受け取る</Btn>
                   </div>
                 </div>
+              </div>
+            </section>
+          )}
+
+          {/* CPUからのトレード打診 */}
+          {tradeOffers.length > 0 && (
+            <section>
+              <SectionHead label="トレード打診" color={C.orange} count={tradeOffers.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {tradeOffers.map(o => {
+                  const fromTeam = teams.find(t => t.id === o.fromTeamId)
+                  const getP = players.find(p => p.id === o.offeredPlayerIds[0])
+                  const giveP = players.find(p => p.id === o.requestedPlayerIds[0])
+                  if (!fromTeam || !getP || !giveP) return null
+                  return (
+                    <div key={o.id} style={cardStyle(alpha(C.orange, 0.45), '#5a2800')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                          <TeamLogoSVG primary={fromTeam.colors.primary} secondary={fromTeam.colors.secondary} shortName={fromTeam.shortName} teamId={fromTeam.id} size={20}/>
+                          <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '800', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fromTeam.name}</span>
+                          <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: '10px', fontWeight: '700', color: C.orange, flexShrink: 0 }}>1対1交換</span>
+                        </div>
+                        {[
+                          { p: getP, tag: '獲得', col: C.green },
+                          { p: giveP, tag: '放出', col: C.red },
+                        ].map(({ p, tag, col }) => (
+                          <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 8px', borderRadius: '10px', background: alpha(col, 0.06), border: `1px solid ${alpha(col, 0.2)}`, marginBottom: '6px', cursor: 'pointer' }}>
+                            <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '900', color: col, width: '26px', flexShrink: 0 }}>{tag}</span>
+                            <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={col} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: SAIRA, fontSize: '14px', fontWeight: '700', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                              <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>{p.age}歳 / 価値 {fmtYen(calcTransferValue(p))}</div>
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                          <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => acceptTradeOffer(o.id)}>承諾する</Btn>
+                          <Btn style={{ flex: 1 }} onClick={() => rejectTradeOffer(o.id)}>断る</Btn>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </section>
           )}

@@ -235,7 +235,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                     return (
                       <div key={req.id} style={card(alpha(C.gold, 0.4), '#5a3500')}>
                         <div style={inset}/>
-                        <button onClick={() => { navigate('/team/chat'); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => { navigate(`/team/chat?player=${p.id}`); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.gold} />
                           <div style={{ flex: 1, textAlign: 'left' }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{p.name}</div>
@@ -334,6 +334,10 @@ export function useNotifCount() {
   const sponsorOffers = (currentSeason.sponsorOffers ?? []).length
   const expiredNegotiations = (currentSeason.expiredNegotiations ?? []).length
   const loanResponses = (currentSeason.loanResponses ?? []).length
+  // CPUからのトレード打診（NotificationsPageと同じ有効性チェック）
+  const tradeOffers = (currentSeason.pendingTradeOffers ?? []).filter(o =>
+    o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status === 'active')) &&
+    o.requestedPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === playerTeamId && p.status === 'active'))).length
 
   const joinNotices = players
     .filter(p => p.teamId === playerTeamId && p.joinedYear === currentSeason.year)
@@ -354,7 +358,7 @@ export function useNotifCount() {
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
-  return incomingOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
+  return incomingOffers + tradeOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
     + (renewalNeeded > 0 ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)

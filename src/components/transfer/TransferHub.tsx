@@ -10,6 +10,7 @@ export default function TransferHub() {
   const { currentSeason, players, playerTeamId, getTransferWindow, gmRep } = useGameStore()
   const loanSlots = players.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length
   const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
+  const starredProspects = useGameStore(s => s.starredProspects ?? [])
 
   const win = getTransferWindow()
   const tradeNegs = currentSeason.tradeNegotiations ?? []
@@ -24,7 +25,8 @@ export default function TransferHub() {
   const activeBidsNeedAction = transferBids.filter(b => b.status === 'fee_accepted' || b.status === 'countered' || b.status === 'player_neg')
 
 
-  const starredCount = starredOpponents.length
+  // ★はドラフト候補(starredProspects)にも付くので合算（ウォッチリストページの表示件数と揃える）
+  const starredCount = starredOpponents.length + starredProspects.filter(id => !starredOpponents.includes(id)).length
 
   const SECTIONS = [
     {
