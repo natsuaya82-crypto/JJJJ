@@ -21,6 +21,7 @@ import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canRele
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
+import { computeSeasonAwards } from '../utils/awards'
 
 type DraftState = {
   pool: Player[]
@@ -338,6 +339,7 @@ export type GameStore = GameState & {
   scoutOpponentPlayer: (playerId: string) => void
   toggleStarOpponent: (playerId: string) => void
   toggleStarProspect: (prospectId: string) => void
+  setDisplayBadge: (playerId: string, badgeKey: string | null) => void
 
   // Training plan
   setTrainingPlan: (plan: string | null) => void
@@ -3478,6 +3480,13 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
+      // ロスターの名前横に表示する記録パッチを選ぶ（null で非表示）
+      setDisplayBadge: (playerId, badgeKey) => {
+        set(state => ({
+          players: state.players.map(p => p.id === playerId ? { ...p, displayBadge: badgeKey ?? undefined } : p),
+        }))
+      },
+
       setTrainingPlan: (plan) => {
         set(state => ({
           currentSeason: { ...state.currentSeason, trainingPlan: plan },
@@ -4983,44 +4992,11 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          // League MVP・新人王: 6レース以上出場した選手のうち「平均区間順位」が最良の選手。
-          // タイブレークは 区間賞数 → 出走数。新人王はその年のドラフト指名選手が対象で、
-          // 6戦該当者がいなければ3戦以上に緩和、それでもいなければ該当なし
-          const seasonRankStats = new Map<string, { races: number; rankSum: number; segWins: number }>()
-          for (const race of state.currentSeason.races) {
-            if (!race.results) continue
-            for (const seg of race.results.segmentResults) {
-              for (const r of seg.runners) {
-                const st = seasonRankStats.get(r.playerId) ?? { races: 0, rankSum: 0, segWins: 0 }
-                st.races += 1
-                st.rankSum += r.rank
-                if (r.rank === 1) st.segWins += 1
-                seasonRankStats.set(r.playerId, st)
-              }
-            }
-          }
-          const pickBestByAvgRank = (candidates: string[], minRaces: number) => {
-            const rows = candidates
-              .map(id => ({ id, st: seasonRankStats.get(id) }))
-              .filter((x): x is { id: string; st: { races: number; rankSum: number; segWins: number } } => !!x.st && x.st.races >= minRaces)
-              .map(x => ({ id: x.id, avg: x.st.rankSum / x.st.races, segWins: x.st.segWins, races: x.st.races }))
-              .sort((a, b) => a.avg - b.avg || b.segWins - a.segWins || b.races - a.races)
-            return rows[0] ?? null
-          }
-          const allRunnerIds = [...seasonRankStats.keys()]
-          const mvpPick = pickBestByAvgRank(allRunnerIds, 6)
-          const leagueMvpId = mvpPick?.id
+          // League MVP・新人王（選出ルールは utils/awards.ts に一元化。画面表示側と同じ実装を使う）
+          const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year)
+          const leagueMvpId = newSeasonAward.mvpId
           const leagueMvpPlayer = leagueMvpId ? grownPlayers.find(p => p.id === leagueMvpId) : null
-          const leagueMvpAvg = mvpPick?.avg ?? 0
-          // 新人王：その年のドラフト指名選手（draftYear=今季 & 指名あり）
-          const rookieIds = grownPlayers.filter(p => p.draftYear === state.currentSeason.year && p.draftRound != null).map(p => p.id)
-          const rookiePick = pickBestByAvgRank(rookieIds, 6) ?? pickBestByAvgRank(rookieIds, 3)
-          const rookiePlayer = rookiePick ? grownPlayers.find(p => p.id === rookiePick.id) : null
-          const newSeasonAward: SeasonAward = {
-            year: state.currentSeason.year,
-            ...(leagueMvpPlayer ? { mvpId: leagueMvpPlayer.id, mvpName: leagueMvpPlayer.name, mvpAvgRank: Math.round(leagueMvpAvg * 10) / 10 } : {}),
-            ...(rookiePlayer && rookiePick ? { rookieId: rookiePlayer.id, rookieName: rookiePlayer.name, rookieAvgRank: Math.round(rookiePick.avg * 10) / 10 } : {}),
-          }
+          const rookiePlayer = newSeasonAward.rookieId ? grownPlayers.find(p => p.id === newSeasonAward.rookieId) : null
 
           let bonusTotalPayout = 0
           const bonusPayoutNews: { date: string; headline: string; category: 'race'; relatedIds: string[] }[] = []
@@ -5194,18 +5170,19 @@ export const useGameStore = create<GameStore>()(
             existing: state.achievements ?? [],
           })
 
+          // 選出基準（平均区間順位）は内部の話なのでニュースには出さない。誰が選ばれたかだけ伝える
           const mvpNews = leagueMvpPlayer
             ? [{
                 date: `${state.currentSeason.year}-10-28`,
-                headline: `${state.currentSeason.year}シーズンMVP：${leagueMvpPlayer.name}（平均区間順位${(Math.round(leagueMvpAvg * 10) / 10).toFixed(1)}位）`,
+                headline: `${state.currentSeason.year}シーズンMVP：${leagueMvpPlayer.name}`,
                 category: 'race' as const,
                 relatedIds: [leagueMvpPlayer.id],
               }]
             : []
-          const rookieNews = rookiePlayer && rookiePick
+          const rookieNews = rookiePlayer
             ? [{
                 date: `${state.currentSeason.year}-10-28`,
-                headline: `${state.currentSeason.year}シーズン新人王：${rookiePlayer.name}（平均区間順位${(Math.round(rookiePick.avg * 10) / 10).toFixed(1)}位）`,
+                headline: `${state.currentSeason.year}シーズン新人王：${rookiePlayer.name}`,
                 category: 'race' as const,
                 relatedIds: [rookiePlayer.id],
               }]

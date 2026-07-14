@@ -7,7 +7,8 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, getStatPotentials, statCapBand, isStatMaxed } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, isStatMaxed } from '../../utils/playerUtils'
+import { getPlayerBadges, BADGE_COLOR } from '../../utils/badges'
 import { formatTime } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
@@ -125,6 +126,11 @@ export default function PlayerSheet() {
   const starredProspects = useGameStore(s => s.starredProspects ?? [])
   const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
   const segmentRecords = useGameStore(s => s.segmentRecords ?? {})
+  // 記録パッチ（世界/日本記録・MVP・新人王・区間記録）の解決用
+  const worldRecords = useGameStore(s => s.worldRecords)
+  const japanRecords = useGameStore(s => s.japanRecords)
+  const seasonAwards = useGameStore(s => s.seasonAwards)
+  const setDisplayBadge = useGameStore(s => s.setDisplayBadge)
   const adH = useAdHeight()
   const navigate = useNavigate()
 
@@ -210,6 +216,8 @@ export default function PlayerSheet() {
 
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
+  // 記録パッチ（最大5個・優先順: 世界>日本>MVP>新人王>区間記録）
+  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords })
   const handleShare = async () => {
     if (!shareCardRef.current) return
     try {

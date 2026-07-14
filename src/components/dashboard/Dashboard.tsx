@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { runWithLoading } from '../../store/loadingStore'
 import { showInterstitialAd } from '../../utils/ads'
@@ -11,6 +11,8 @@ import { SectionLabel } from '../ui'
 import HeroCard from './HeroCard'
 import KeyPlayersSection from './KeyPlayersSection'
 import NextRaceCard from './NextRaceCard'
+import SeasonReviewOverlay from './SeasonReviewOverlay'
+import { computeSeasonAwards } from '../../utils/awards'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 
@@ -272,11 +274,19 @@ export default function Dashboard() {
   } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const navigate = useNavigate()
+  // シーズン振り返りオーバーレイ。「次のシーズンへ」でインタースティシャル広告→シーズン更新
+  const [showReview, setShowReview] = useState(false)
   useEffect(() => {
     initObjectivesIfEmpty()
   }, [])
   const team = teams.find(t => t.id === playerTeamId)
   if (!team) return null
+
+  const goNextSeason = async () => {
+    setShowReview(false)
+    if (!adsRemoved) await showInterstitialAd()
+    runWithLoading('シーズンを更新中…', endSeason, 800)
+  }
 
   const gmRepVal = gmRep ?? 50
   const mainPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
@@ -306,17 +316,10 @@ export default function Dashboard() {
 
   /* Season end */
   const isChampion = seasonDone && sorted[0]?.teamId === playerTeamId
-  const segWins = currentSeason.races.filter(r => r.results)
-    .flatMap(r => r.results!.segmentResults)
-    .filter(sr => sr.runners[0]?.teamId === playerTeamId)
-    .reduce((acc, sr) => { const w = sr.runners[0]?.playerId; if (w) acc[w] = (acc[w] ?? 0) + 1; return acc }, {} as Record<string, number>)
-  const mvpEntry = Object.entries(segWins).sort((a, b) => b[1] - a[1])[0]
-  const mvp = mvpEntry ? players.find(p => p.id === mvpEntry[0]) : null
-  const mvpWins = mvpEntry?.[1] ?? 0
-  const rookie = (() => {
-    const pool = mainPlayers.filter(p => p.draftYear >= currentSeason.year - 1)
-    return pool.length > 0 ? [...pool].sort((a, b) => ovr(b) - ovr(a))[0] : null
-  })()
+  // リーグMVP・新人王（endSeasonで保存されるのと同じルール: 6戦以上・平均区間順位）
+  const seasonAward = seasonDone ? computeSeasonAwards(currentSeason.races, players, currentSeason.year) : null
+  const mvp = seasonAward?.mvpId ? players.find(p => p.id === seasonAward.mvpId) : null
+  const rookie = seasonAward?.rookieId ? players.find(p => p.id === seasonAward.rookieId) : null
 
   const RANK_COLOR = (r: number) => r === 1 ? C.gold : r === 2 ? '#c5c5d4' : r === 3 ? '#cd7f32' : C.textDim
 
@@ -329,6 +332,7 @@ export default function Dashboard() {
 
   return (
     <div className="page-enter" style={{ paddingBottom: 8 }}>
+      {showReview && <SeasonReviewOverlay onClose={() => setShowReview(false)} onNextSeason={goNextSeason} />}
 
 
       {/* ── HERO ── */}
@@ -418,18 +422,19 @@ export default function Dashboard() {
             </div>
             {(mvp || rookie) && (
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
-                {mvp && mvpWins > 0 && (
+                {/* 選出基準（平均区間順位）は内部ロジック。表示は誰が選ばれたかだけ */}
+                {mvp && (
                   <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.gold, 0.3)}` }}>
                     <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{mvp.name}</div>
-                    <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>区間賞 {mvpWins}回</div>
+                    <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === mvp.teamId)?.shortName ?? ''}</div>
                   </div>
                 )}
                 {rookie && (
-                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.green, 0.3)}` }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.green, letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
+                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha('#4FC3F7', 0.3)}` }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: 9, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{rookie.name}</div>
-                    <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>OVR {ovr(rookie)}</div>
+                    <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === rookie.teamId)?.shortName ?? ''}</div>
                   </div>
                 )}
               </div>
@@ -461,13 +466,17 @@ export default function Dashboard() {
                   契約未解決の選手が{unresolvedMandatoryCount}人います — 契約管理で対応してください
                 </div>
               )}
+              {/* 今シーズンの振り返り（全駅伝結果・記録更新・大型移籍など） */}
+              <button
+                className="btn-game btn-game--blue"
+                onClick={() => setShowReview(true)}
+                style={{ width: '100%', marginBottom: 10 }}
+              >
+                <span className="btn-game__inner">今シーズンの振り返り</span>
+              </button>
               <button
                 className="btn-game btn-game--gold"
-                onClick={async () => {
-                  // シーズン終了の瞬間にインタースティシャル広告（買い切り版は出さない）→ その後シーズン更新
-                  if (!adsRemoved) await showInterstitialAd()
-                  runWithLoading('シーズンを更新中…', endSeason, 800)
-                }}
+                onClick={goNextSeason}
                 style={{ width: '100%' }}
               >
                 <span className="btn-game__inner">{currentSeason.year + 1}シーズン開幕へ →</span>

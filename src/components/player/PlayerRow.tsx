@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import type { Player, Team, CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, formColor, isStatMaxed } from '../../utils/playerUtils'
+import { getPlayerBadges, BADGE_COLOR } from '../../utils/badges'
+import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
@@ -38,6 +40,15 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
 }) {
   const rating = ovr(player)
   const specColor = SPEC_COLOR[player.specialty]
+  // 選択中の記録パッチ（displayBadge）。選手詳細1ページ目で選んだ1個だけ名前横に出す。
+  // 記録を抜かれた等で保持者でなくなったパッチは自動で消える（getPlayerBadgesが現保持のみ返すため）
+  const worldRecords = useGameStore(s => s.worldRecords)
+  const japanRecords = useGameStore(s => s.japanRecords)
+  const seasonAwards = useGameStore(s => s.seasonAwards)
+  const segmentRecords = useGameStore(s => s.segmentRecords)
+  const displayBadge = player.displayBadge
+    ? getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords }, 99).find(b => b.key === player.displayBadge)
+    : undefined
   const fatigue = player.fatigue ?? 0
   const pForm = player.form ?? 0
   const fColor = formColor(pForm)
@@ -77,6 +88,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
               }}>
                 {player.name}
               </span>
+              {displayBadge && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: `linear-gradient(180deg, ${BADGE_COLOR[displayBadge.kind]}2E, ${BADGE_COLOR[displayBadge.kind]}14)`, border: `1px solid ${alpha(BADGE_COLOR[displayBadge.kind], 0.5)}`, color: BADGE_COLOR[displayBadge.kind], fontWeight: 900, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>{displayBadge.label}</span>}
               {player.nationality === 'FOREIGN' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: C.blue, fontWeight: 700, flexShrink: 0 }}>外</span>}
               {player.status === 'injured' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.09), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>負傷</span>}
               {player.dualRegistered && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.25)}`, color: C.green, fontWeight: 700, flexShrink: 0 }}>両方</span>}

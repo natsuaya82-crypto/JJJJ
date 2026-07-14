@@ -8,6 +8,7 @@ import { C, alpha } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
+import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { audio } from '../../utils/audio'
 
@@ -161,6 +162,10 @@ export default function DraftRoom() {
   const [pickLog, setPickLog]   = useState<PickLog[]>([])
   const [myTurnFlash, setMyTurnFlash] = useState(false)
   const [pickAnnounce, setPickAnnounce] = useState<{ teamName: string; playerName: string; teamColor: string } | null>(null)
+  // ドラフトロッタリー結果発表：ドラフト開始時（まだ誰も指名していない時）に一度だけ表示。
+  // 5位→1位の順にタップでリビールしていく
+  const [showLottery, setShowLottery] = useState(() => (useGameStore.getState().draftState?.picks.length ?? 0) === 0)
+  const [lotteryRevealed, setLotteryRevealed] = useState(0)
   const orderStripRef = useRef<HTMLDivElement>(null)
   const prevIsMyPickRef = useRef(false)
 
@@ -187,7 +192,7 @@ export default function DraftRoom() {
   }, [currentPick])
 
   useEffect(() => {
-    if (isComplete || isMyPick) return
+    if (isComplete || isMyPick || showLottery) return
     const t = setTimeout(() => {
       const state = useGameStore.getState()
       const ds = state.draftState
@@ -213,9 +218,57 @@ export default function DraftRoom() {
       }
     }, 1800)
     return () => clearTimeout(t)
-  }, [currentPick, isComplete, isMyPick]) // eslint-disable-line
+  }, [currentPick, isComplete, isMyPick, showLottery]) // eslint-disable-line
 
   if (!draftState) return null
+
+  // ロッタリー結果発表オーバーレイ（全体1〜5位＝下位5チームの加重抽選結果を5位→1位でリビール）
+  if (showLottery && !isComplete && picks.length === 0) {
+    const topFive = pickOrder.slice(0, 5)
+    const revealNext = () => setLotteryRevealed(n => Math.min(5, n + 1))
+    return (
+      <div onClick={lotteryRevealed < 5 ? revealNext : undefined} style={{ position: 'fixed', inset: 0, zIndex: 400, background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', fontFamily: "'Noto Sans JP', system-ui, sans-serif", cursor: lotteryRevealed < 5 ? 'pointer' : 'default' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: '4px', fontWeight: 900, marginBottom: 4 }}>DRAFT LOTTERY</div>
+        <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 20 }}>ドラフトロッタリー結果発表</div>
+        <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[5, 4, 3, 2, 1].map(pos => {
+            const revealed = lotteryRevealed >= 6 - pos
+            const t = teams.find(tm => tm.id === topFive[pos - 1])
+            const isMine = t?.id === playerTeamId
+            return (
+              <div key={pos} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12,
+                background: revealed ? (isMine ? alpha(C.gold, 0.12) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`) : C.surface,
+                border: `2px solid ${revealed ? (pos === 1 ? C.gold : isMine ? alpha(C.gold, 0.6) : C.border2) : C.border}`,
+                boxShadow: revealed && pos === 1 ? `0 0 14px ${alpha(C.gold, 0.35)}` : 'none',
+                transition: 'all 0.25s',
+              }}>
+                <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: pos === 1 ? C.gold : C.textSub, width: 62, flexShrink: 0 }}>全体{pos}位</span>
+                {revealed && t ? (
+                  <>
+                    <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={24}/>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                    {isMine && <span style={{ fontSize: 9, fontWeight: 900, color: C.gold, padding: '2px 6px', borderRadius: 5, background: alpha(C.gold, 0.15), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>自チーム</span>}
+                  </>
+                ) : (
+                  <span style={{ flex: 1, fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.textGhost, letterSpacing: 4 }}>？？？</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ marginTop: 22, width: '100%', maxWidth: 360 }}>
+          {lotteryRevealed < 5 ? (
+            <div style={{ textAlign: 'center', fontSize: 12, color: C.textDim }}>タップして発表（{5 - lotteryRevealed}チーム残り）</div>
+          ) : (
+            <button className="btn-game btn-game--gold" onClick={() => setShowLottery(false)} style={{ width: '100%' }}>
+              <span className="btn-game__inner">ドラフト開始 →</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const currentTeam  = teams.find(t => t.id === pickOrder[currentPick])
   const round        = currentPick < 20 ? 1 : 2
