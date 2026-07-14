@@ -898,9 +898,9 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
 
   return (
     <div style={{
-      minHeight: '100svh', backgroundColor: C.bg,
+      position: 'fixed', inset: 0, backgroundColor: C.bg,
       maxWidth: '480px', margin: '0 auto',
-      display: 'flex', flexDirection: 'column', padding: `0 0 calc(${adH}px + env(safe-area-inset-bottom) + 104px)`,
+      display: 'flex', flexDirection: 'column',
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
     }}>
       {/* 実機のAdMobバナーはsafe-areaの上に出るため、帯も同じ位置に合わせる（Layoutと同じ配置） */}
@@ -913,6 +913,8 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
         }}/>
       )}
 
+      {/* スクロール領域（ヘッダー＋契約リスト）。ボタンは下段に分離するので被らない */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
       <div style={{
         padding: '40px 24px 28px', textAlign: 'center',
         background: `radial-gradient(ellipse at top, ${alpha(C.gold, 0.16)} 0%, transparent 60%)`,
@@ -987,12 +989,14 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
         })}
       </div>
 
+      </div>
+
+      {/* ボタン下段（flexで分離）。広告バナーはsafe-area基点なので下paddingにadH+safeを足す */}
       <div style={{
-        // 広告バナーはsafe-area基点で描画されるので、ボタンもsafe-area分を足さないと重なる
-        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px', zIndex: 61,
-        padding: '10px 16px 12px',
-        background: `linear-gradient(180deg, transparent, ${C.bg} 28%)`,
+        flexShrink: 0,
+        padding: `10px 16px calc(${adH}px + env(safe-area-inset-bottom) + 12px)`,
+        background: C.bg,
+        borderTop: `1px solid ${alpha(C.gold, 0.12)}`,
       }}>
         <button className="btn-game btn-game--gold" onClick={handleFinish} style={{ width: '100%' }}>
           <span className="btn-game__inner">契約を確定してシーズン開幕へ！</span>
