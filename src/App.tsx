@@ -201,7 +201,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
 }
 
 const BUNDLE_ID = 'com.tokinets.jpelmanager'
-const APP_VERSION = '1.0.5'
+const APP_VERSION = '1.0.6'
 
 function compareVersions(a: string, b: string): number {
   const toArr = (v: string) => v.split('.').map(Number)
@@ -252,6 +252,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // アップデート通知は一旦停止中。再開するには UPDATE_NOTICE_ENABLED を true にする。
+    const UPDATE_NOTICE_ENABLED = false
+    if (!UPDATE_NOTICE_ENABLED) return
     fetch(`https://itunes.apple.com/jp/lookup?bundleId=${BUNDLE_ID}`)
       .then(r => r.json())
       .then(data => {
