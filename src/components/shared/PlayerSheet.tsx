@@ -444,32 +444,33 @@ export default function PlayerSheet() {
           {/* Page 1: プロフィール */}
           {page === 1 && (
             <div style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* 記録パッチ（世界/日本記録・MVP・新人王・区間記録、最大5個）。
+                  自チーム選手はタップでロスター名前横に表示するパッチを選べる */}
+              {badges.length > 0 && (
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', paddingTop: '10px' }}>
+                  {badges.map(b => {
+                    const col = BADGE_COLOR[b.kind]
+                    const selected = player.displayBadge === b.key
+                    return (
+                      <span
+                        key={b.key}
+                        onClick={isMyPlayer ? () => setDisplayBadge(player.id, selected ? null : b.key) : undefined}
+                        style={{
+                          fontSize: '9px', fontWeight: 900, padding: '3px 8px', borderRadius: '7px',
+                          background: `linear-gradient(180deg, ${col}2E, ${col}14)`,
+                          color: col, border: `1px solid ${selected ? col : `${col}55`}`,
+                          boxShadow: selected ? `0 0 8px ${col}66` : 'none',
+                          cursor: isMyPlayer ? 'pointer' : 'default', flexShrink: 0,
+                        }}
+                      >
+                        {b.label}{selected ? ' ✓' : ''}
+                      </span>
+                    )
+                  })}
+                  {isMyPlayer && <span style={{ width: '100%', textAlign: 'center', fontSize: '8px', color: '#5C5870' }}>タップでロスターに表示するパッチを選択</span>}
+                </div>
+              )}
               {isScouted && <RadarChart ratings={player.ratings} color={specCol} player={player} />}
-              {isScouted && !isProspect && (() => {
-                const caps = getStatPotentials(player)
-                return (
-                  <div style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
-                    <div style={{ fontSize: '8px', color: '#5C5870', letterSpacing: '1px', marginBottom: '6px' }}>伸びしろ（成長上限の目安）</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
-                      {RADAR_KEYS.map(({ key, abbr }) => {
-                        const cur = player.ratings[key] ?? 0
-                        const cap = (caps as Record<string, number>)[key] ?? 99
-                        const maxed = cur >= cap
-                        const band = statCapBand(cap)
-                        return (
-                          <div key={key} style={{ textAlign: 'center', padding: '4px 2px', borderRadius: '6px', background: maxed ? `${'#C9A84C'}14` : '#100E1A', border: `1px solid ${maxed ? '#C9A84C40' : '#1E1B2E'}` }}>
-                            <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '1px' }}>{abbr}</div>
-                            <div style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: '11px', fontWeight: '900', color: maxed ? '#C9A84C' : '#9B97A8' }}>{cur}</div>
-                            <div style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: '8px', color: maxed ? '#C9A84C' : '#5C5870' }}>
-                              {maxed ? 'MAX' : `~${band.lo}-${band.hi}`}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })()}
               {isProspect ? (
                 <>
                   <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>

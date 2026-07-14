@@ -3,7 +3,7 @@
 // Team.logoId にこのIDを保存し、TeamLogoSVG が最優先で表示する。
 
 export const LOGO_PRESETS: string[] = Array.from(
-  { length: 28 },
+  { length: 27 },
   (_, i) => `logo_${String(i + 1).padStart(2, '0')}`,
 )
 

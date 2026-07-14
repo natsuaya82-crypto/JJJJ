@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow } from './saveStorage'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -36,6 +36,8 @@ type SetupData = {
   teamId: string
   gmName: string
   logoId?: string
+  region?: string   // プレイヤーが自由入力した本拠地・地域（表示専用。未指定なら選んだ枠のまま）
+  city?: string     // プレイヤーが自由入力した本拠地・市（表示専用）
 }
 
 // 契約形態→データ上の rosterTier。1軍契約(standard)/2way(dual)→main、育成(development)→second。
@@ -206,7 +208,7 @@ export type GameStore = GameState & {
   // Setup
   startSetup: (setup: SetupData) => void
   beginInauguralDraft: () => void
-  updateMyTeam: (patch: { name?: string; shortName?: string; gmName?: string; logoId?: string }) => void
+  updateMyTeam: (patch: { name?: string; shortName?: string; gmName?: string; logoId?: string; region?: string; city?: string }) => void
 
   // Draft
   playerPick: (playerId: string) => void
@@ -686,6 +688,9 @@ export const useGameStore = create<GameStore>()(
                 shortName: setup.teamShortName,
                 gmName: setup.gmName,
                 logoId: setup.logoId,
+                // 本拠地はプレイヤーが自由入力した値で上書き（表示専用。空なら枠の元値のまま）
+                region: setup.region?.trim() ? setup.region.trim() : t.region,
+                city: setup.city?.trim() ? setup.city.trim() : t.city,
                 isPlayerControlled: true,
                 roster: { main: baseIds, second: [] },
                 finance: { ...t.finance, salaryTotal: baseSalary },
@@ -4978,11 +4983,44 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          // League MVP: most segment wins this season
-          const leagueMvpEntry = Object.entries(leagueSegWinsSeason).sort((a, b) => b[1] - a[1])[0]
-          const leagueMvpId = leagueMvpEntry?.[0]
+          // League MVP・新人王: 6レース以上出場した選手のうち「平均区間順位」が最良の選手。
+          // タイブレークは 区間賞数 → 出走数。新人王はその年のドラフト指名選手が対象で、
+          // 6戦該当者がいなければ3戦以上に緩和、それでもいなければ該当なし
+          const seasonRankStats = new Map<string, { races: number; rankSum: number; segWins: number }>()
+          for (const race of state.currentSeason.races) {
+            if (!race.results) continue
+            for (const seg of race.results.segmentResults) {
+              for (const r of seg.runners) {
+                const st = seasonRankStats.get(r.playerId) ?? { races: 0, rankSum: 0, segWins: 0 }
+                st.races += 1
+                st.rankSum += r.rank
+                if (r.rank === 1) st.segWins += 1
+                seasonRankStats.set(r.playerId, st)
+              }
+            }
+          }
+          const pickBestByAvgRank = (candidates: string[], minRaces: number) => {
+            const rows = candidates
+              .map(id => ({ id, st: seasonRankStats.get(id) }))
+              .filter((x): x is { id: string; st: { races: number; rankSum: number; segWins: number } } => !!x.st && x.st.races >= minRaces)
+              .map(x => ({ id: x.id, avg: x.st.rankSum / x.st.races, segWins: x.st.segWins, races: x.st.races }))
+              .sort((a, b) => a.avg - b.avg || b.segWins - a.segWins || b.races - a.races)
+            return rows[0] ?? null
+          }
+          const allRunnerIds = [...seasonRankStats.keys()]
+          const mvpPick = pickBestByAvgRank(allRunnerIds, 6)
+          const leagueMvpId = mvpPick?.id
           const leagueMvpPlayer = leagueMvpId ? grownPlayers.find(p => p.id === leagueMvpId) : null
-          const leagueMvpWins = leagueMvpEntry?.[1] ?? 0
+          const leagueMvpAvg = mvpPick?.avg ?? 0
+          // 新人王：その年のドラフト指名選手（draftYear=今季 & 指名あり）
+          const rookieIds = grownPlayers.filter(p => p.draftYear === state.currentSeason.year && p.draftRound != null).map(p => p.id)
+          const rookiePick = pickBestByAvgRank(rookieIds, 6) ?? pickBestByAvgRank(rookieIds, 3)
+          const rookiePlayer = rookiePick ? grownPlayers.find(p => p.id === rookiePick.id) : null
+          const newSeasonAward: SeasonAward = {
+            year: state.currentSeason.year,
+            ...(leagueMvpPlayer ? { mvpId: leagueMvpPlayer.id, mvpName: leagueMvpPlayer.name, mvpAvgRank: Math.round(leagueMvpAvg * 10) / 10 } : {}),
+            ...(rookiePlayer && rookiePick ? { rookieId: rookiePlayer.id, rookieName: rookiePlayer.name, rookieAvgRank: Math.round(rookiePick.avg * 10) / 10 } : {}),
+          }
 
           let bonusTotalPayout = 0
           const bonusPayoutNews: { date: string; headline: string; category: 'race'; relatedIds: string[] }[] = []
@@ -5159,9 +5197,17 @@ export const useGameStore = create<GameStore>()(
           const mvpNews = leagueMvpPlayer
             ? [{
                 date: `${state.currentSeason.year}-10-28`,
-                headline: `${state.currentSeason.year}シーズンMVP：${leagueMvpPlayer.name}（区間賞${leagueMvpWins}回）`,
+                headline: `${state.currentSeason.year}シーズンMVP：${leagueMvpPlayer.name}（平均区間順位${(Math.round(leagueMvpAvg * 10) / 10).toFixed(1)}位）`,
                 category: 'race' as const,
                 relatedIds: [leagueMvpPlayer.id],
+              }]
+            : []
+          const rookieNews = rookiePlayer && rookiePick
+            ? [{
+                date: `${state.currentSeason.year}-10-28`,
+                headline: `${state.currentSeason.year}シーズン新人王：${rookiePlayer.name}（平均区間順位${(Math.round(rookiePick.avg * 10) / 10).toFixed(1)}位）`,
+                category: 'race' as const,
+                relatedIds: [rookiePlayer.id],
               }]
             : []
 
@@ -5287,6 +5333,8 @@ export const useGameStore = create<GameStore>()(
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
             gmRep: newGmRep,
             achievements: [...(state.achievements ?? []), ...seasonAchievements],
+            // 年度別MVP・新人王（選手プロフィールのパッチ・シーズン振り返り用）
+            seasonAwards: [...(state.seasonAwards ?? []), newSeasonAward],
             draftState: null,
             sponsors: updatedSponsors,
             // 過去シーズンはレース結果・順位・世界駅伝など「記録として見返すもの」だけ残す。
@@ -5366,6 +5414,7 @@ export const useGameStore = create<GameStore>()(
                 seasonPrizeNews,
                 ...(objBonus > 0 ? [{ date: `${state.currentSeason.year}-11-01`, headline: `目標達成ボーナス：スカウトPt+${objBonus}・予算+${Math.round(objBudgetBonus / 10000)}万`, category: 'draft' as const, relatedIds: [] }] : []),
                 ...mvpNews,
+                ...rookieNews,
                 ...dynastyNews,
                 ...retirementNews,
                 ...bonusPayoutNews,
@@ -5752,6 +5801,35 @@ export const useGameStore = create<GameStore>()(
             relatedIds: [myBestPlayer.id],
           } : null
 
+          // 世界記録・日本記録の更新（種目別の歴代1位。名前焼き込みで永続）。
+          // 世界記録＝全走者の最速、日本記録＝JPN国籍走者の最速。更新時はニュースにも流す
+          const allPById = new Map([...state.players, ...(state.currentSeason.scoutProspects ?? [])].map(p => [p.id, p]))
+          let newWorldRecords = state.worldRecords
+          let newJapanRecords = state.japanRecords
+          const recordNewsItems: typeof state.currentSeason.newsFeed = []
+          {
+            const evYear0 = state.currentSeason.year
+            const fastest = ranked[0]
+            const fastestP = fastest ? allPById.get(fastest.playerId) : undefined
+            const distName = event.distance === 5000 ? '5000m' : event.distance === 10000 ? '10000m' : event.distance === 21097 ? 'ハーフマラソン' : 'マラソン'
+            if (fastest && fastestP) {
+              const curWr = state.worldRecords?.[bestKey]
+              if (!curWr || fastest.timeSec < curWr.timeSec) {
+                newWorldRecords = { ...newWorldRecords, [bestKey]: { playerId: fastest.playerId, playerName: fastestP.name, timeSec: fastest.timeSec, year: evYear0 } }
+                recordNewsItems.push({ date: event.date, headline: `【世界新記録】${distName} ${fastestP.name} ${fmtTime(fastest.timeSec)}`, category: 'race' as const, relatedIds: [fastest.playerId] })
+              }
+            }
+            const fastestJpn = ranked.find(r => allPById.get(r.playerId)?.nationality === 'JPN')
+            const fastestJpnP = fastestJpn ? allPById.get(fastestJpn.playerId) : undefined
+            if (fastestJpn && fastestJpnP) {
+              const curJr = state.japanRecords?.[bestKey]
+              if (!curJr || fastestJpn.timeSec < curJr.timeSec) {
+                newJapanRecords = { ...newJapanRecords, [bestKey]: { playerId: fastestJpn.playerId, playerName: fastestJpnP.name, timeSec: fastestJpn.timeSec, year: evYear0 } }
+                recordNewsItems.push({ date: event.date, headline: `【日本新記録】${distName} ${fastestJpnP.name} ${fmtTime(fastestJpn.timeSec)}`, category: 'race' as const, relatedIds: [fastestJpn.playerId] })
+              }
+            }
+          }
+
           // チーム歴代記録：走った選手のタイムを当時所属チームに永続記録（選手ごと最速・距離別）。
           // 名前・国籍も焼き込む（選手データが長期整理で削除されても記録が名前ごと残る）
           const playerById = new Map(state.players.map(p => [p.id, p]))
@@ -5778,15 +5856,19 @@ export const useGameStore = create<GameStore>()(
           return {
             players: updatedPlayers,
             teams: updatedTeams,
+            worldRecords: newWorldRecords,
+            japanRecords: newJapanRecords,
             trainingCards: rewardCards.length > 0 ? [...(state.trainingCards ?? []), ...rewardCards] : state.trainingCards,
             currentSeason: {
               ...state.currentSeason,
               individualEvents: state.currentSeason.individualEvents?.map(e =>
                 e.id === eventId ? { ...e, results: ranked, rewardCards } : e
               ),
-              newsFeed: newsItem
-                ? [...(state.currentSeason.newsFeed ?? []), newsItem]
-                : state.currentSeason.newsFeed ?? [],
+              newsFeed: [
+                ...recordNewsItems,
+                ...(newsItem ? [newsItem] : []),
+                ...(state.currentSeason.newsFeed ?? []),
+              ],
               scoutProspects: updatedProspects,
             },
           }
@@ -6204,6 +6286,8 @@ export const useGameStore = create<GameStore>()(
             ...(patch.shortName !== undefined ? { shortName: patch.shortName } : {}),
             ...(patch.gmName !== undefined ? { gmName: patch.gmName } : {}),
             ...(patch.logoId !== undefined ? { logoId: patch.logoId } : {}),
+            ...(patch.region !== undefined ? { region: patch.region } : {}),
+            ...(patch.city !== undefined ? { city: patch.city } : {}),
           } : t),
         }))
       },

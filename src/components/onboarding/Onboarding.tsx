@@ -12,6 +12,8 @@ export default function Onboarding() {
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [teamName, setTeamName] = useState('')
   const [teamShortName, setTeamShortName] = useState('')
+  const [region, setRegion] = useState('')   // 本拠地・地域（自由入力）
+  const [city, setCity] = useState('')       // 本拠地・市（自由入力）
   const [gmName, setGmName] = useState('')
   const [selectedLogoId, setSelectedLogoId] = useState('')
   const [logoSheetOpen, setLogoSheetOpen] = useState(false)
@@ -24,7 +26,7 @@ export default function Onboarding() {
     if (!teamShortName.trim()) { setNameError('略称を入力してください'); return }
     if (!gmName.trim()) { setNameError('GM名を入力してください'); return }
     setNameError('')
-    startSetup({ teamId: selectedTeamId, teamName: teamName.trim(), teamShortName: teamShortName.trim(), gmName: gmName.trim(), logoId: selectedLogoId || undefined })
+    startSetup({ teamId: selectedTeamId, teamName: teamName.trim(), teamShortName: teamShortName.trim(), gmName: gmName.trim(), logoId: selectedLogoId || undefined, region: region.trim() || undefined, city: city.trim() || undefined })
     beginInauguralDraft()
   }
 
@@ -124,6 +126,8 @@ export default function Onboarding() {
                           setSelectedTeamId(team.id)
                           setTeamName(team.name)
                           setTeamShortName(team.shortName)
+                          setRegion(team.region)
+                          setCity(team.city)
                           setStep('customize')
                         }}
                         style={{
@@ -213,7 +217,7 @@ export default function Onboarding() {
           }}>
             <TeamLogoSVG primary={selectedTeam.colors.primary} secondary={selectedTeam.colors.secondary} shortName={selectedTeam.shortName} teamId={selectedTeam.id} logoId={selectedLogoId} size={56}/>
             <div>
-              <div style={{ fontSize: '12px', color: selectedTeam.colors.secondary, opacity: 0.8 }}>{selectedTeam.city} / {selectedTeam.region}</div>
+              <div style={{ fontSize: '12px', color: selectedTeam.colors.secondary, opacity: 0.8 }}>{(city || selectedTeam.city)} / {(region || selectedTeam.region)}</div>
               <div style={{ fontSize: '16px', fontWeight: '800', color: '#F0EDE8' }}>{teamName || selectedTeam.name}</div>
             </div>
           </div>
@@ -282,6 +286,48 @@ export default function Onboarding() {
                 boxSizing: 'border-box',
               }}
             />
+          </div>
+
+          {/* 本拠地（地域・市）自由入力 */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '11px', color: '#9B97A8', letterSpacing: '2px', display: 'block', marginBottom: '8px' }}>
+                地域
+              </label>
+              <input
+                type="text"
+                value={region}
+                onChange={e => setRegion(e.target.value)}
+                maxLength={10}
+                placeholder="例：九州"
+                style={{
+                  width: '100%', padding: '14px 16px', borderRadius: '12px', border: 'none',
+                  backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: '16px',
+                  fontFamily: 'inherit', outline: 'none',
+                  boxShadow: 'inset 0 0 0 1px #2E2B42',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '11px', color: '#9B97A8', letterSpacing: '2px', display: 'block', marginBottom: '8px' }}>
+                本拠地
+              </label>
+              <input
+                type="text"
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                maxLength={12}
+                placeholder="例：福岡"
+                style={{
+                  width: '100%', padding: '14px 16px', borderRadius: '12px', border: 'none',
+                  backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: '16px',
+                  fontFamily: 'inherit', outline: 'none',
+                  boxShadow: 'inset 0 0 0 1px #2E2B42',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
           </div>
 
           {/* GM name */}

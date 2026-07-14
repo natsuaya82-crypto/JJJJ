@@ -161,17 +161,19 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
   const [shortName, setShortName] = useState(team?.shortName ?? '')
   const [gmName, setGmName] = useState(team?.gmName ?? '')
   const [logoId, setLogoId] = useState(team?.logoId ?? '')
+  const [region, setRegion] = useState(team?.region ?? '')
+  const [city, setCity] = useState(team?.city ?? '')
   const [saved, setSaved] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   if (!team) return null
 
-  const dirty = name.trim() !== team.name || shortName.trim() !== team.shortName || gmName.trim() !== team.gmName || logoId !== (team.logoId ?? '')
+  const dirty = name.trim() !== team.name || shortName.trim() !== team.shortName || gmName.trim() !== team.gmName || logoId !== (team.logoId ?? '') || region.trim() !== team.region || city.trim() !== team.city
   const valid = name.trim() !== '' && shortName.trim() !== '' && gmName.trim() !== ''
 
   const handleSave = () => {
     if (!dirty || !valid) return
-    updateMyTeam({ name: name.trim(), shortName: shortName.trim(), gmName: gmName.trim(), logoId: logoId || undefined })
+    updateMyTeam({ name: name.trim(), shortName: shortName.trim(), gmName: gmName.trim(), logoId: logoId || undefined, region: region.trim() || team.region, city: city.trim() || team.city })
     audio.playSe('tap')
     setSaved(true)
     setTimeout(() => setSaved(false), 1600)
@@ -212,6 +214,18 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
       {/* 略称 */}
       <div style={labelStyle}>略称（3文字まで）</div>
       <input type="text" value={shortName} onChange={e => setShortName(e.target.value)} maxLength={3} style={{ ...inputStyle, marginBottom: 14 }}/>
+
+      {/* 本拠地（地域・市）自由入力 */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div style={labelStyle}>地域</div>
+          <input type="text" value={region} onChange={e => setRegion(e.target.value)} maxLength={10} placeholder="例：九州" style={inputStyle}/>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={labelStyle}>本拠地</div>
+          <input type="text" value={city} onChange={e => setCity(e.target.value)} maxLength={12} placeholder="例：福岡" style={inputStyle}/>
+        </div>
+      </div>
 
       {/* GM名 */}
       <div style={labelStyle}>GM名</div>

@@ -244,6 +244,7 @@ export type Player = {
   loan?: { ownerTeamId: string; untilYear: number }
   loanTeamYears?: { year: number; teamId: string }[]  // 在籍履歴用：その年そのチームでレンタル出場した記録（今後のシーズンから蓄積）
   eventBests?: Partial<Record<'d5000' | 'd10000' | 'half' | 'marathon', { timeSec: number; year: number }>>  // 記録会の種目別自己ベスト
+  displayBadge?: string  // ロスターの名前横に表示する記録パッチのキー（複数保持者はどれを出すか選べる）
   status: PlayerStatus
   fatigue: number
   morale: number
@@ -717,6 +718,22 @@ export type TransferRecord = {
   years?: number
 }
 
+// 記録会の種目キー（eventBests と同じ）
+export type EventDistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
+// 種目別の歴代最高記録（世界記録/日本記録）。名前を焼き込み、選手データが消えても記録は残る
+export type EventTimeRecord = { playerId: string; playerName: string; timeSec: number; year: number }
+// 年度別の表彰（MVP・新人王）。6レース以上出場かつ平均区間順位が最良の選手。
+// 新人王はその年のドラフト指名選手が対象（6戦該当ゼロなら3戦に緩和、それでもゼロなら該当なし）
+export type SeasonAward = {
+  year: number
+  mvpId?: string
+  mvpName?: string
+  mvpAvgRank?: number
+  rookieId?: string
+  rookieName?: string
+  rookieAvgRank?: number
+}
+
 export type GameState = {
   playerTeamId: string
   currentSeason: Season
@@ -748,6 +765,9 @@ export type GameState = {
   adsWatchedToday?: number
   segmentRecords?: Record<string, SegmentRecord[]>
   transferHistory?: TransferRecord[]   // 移籍の成立記録（チーム詳細の移籍ページで移籍金・契約期間を表示するため）
+  worldRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 世界記録（全選手の歴代1位）
+  japanRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 日本記録（JPN選手の歴代1位）
+  seasonAwards?: SeasonAward[]   // 年度別MVP・新人王（選手プロフィールのパッチ表示用）
   adsRemoved?: boolean   // 買い切り版（広告なし・ログインボーナス常時2倍）を購入済みか
   twitterIntroSeen?: boolean   // 公式Xフォロー案内ポップを一度表示済みか（初回起動のみ表示）
 }
