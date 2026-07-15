@@ -1108,10 +1108,10 @@ export function generateForeignLeaguePlayers(
   // minRank=そのリーグの最低ランク。海外クラブは格上なので、ベンチでもこのランク以上にする
   // （下位が D=52 みたいにならないように）。強い地域ほど底も高い。
   const REGION: Record<string, { budget: number; potBonus: number; minRank: Rank }> = {
-    AFRICA:  { budget: 950_000_000, potBonus: 12, minRank: 'A' },  // 最強・ベンチもA以上、才能が育つと90〜99へ
+    AFRICA:  { budget: 950_000_000, potBonus: 12, minRank: 'S' },  // 最強・ベンチもS位、才能が育つと90〜99へ
     EUR_USA: { budget: 850_000_000, potBonus: 6,  minRank: 'A' },
-    OTHER:   { budget: 780_000_000, potBonus: 3,  minRank: 'B' },
-    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B' },  // 平均は日本と同等だが、下位でもB以上
+    OTHER:   { budget: 780_000_000, potBonus: 3,  minRank: 'A' },
+    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B' },  // 下位でもB以上
   }
   function regionFor(country: string): { budget: number; potBonus: number; minRank: Rank } {
     if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return REGION.AFRICA
