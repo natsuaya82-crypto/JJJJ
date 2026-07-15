@@ -9,6 +9,7 @@ import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
 import { useAdHeight } from '../layout/Layout'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
@@ -152,6 +153,7 @@ export function RaceTrack({
   currentSegIdx: number
   race: Race
 }) {
+  const longPress = usePlayerLongPress()
   const positions = calcRunnerPositions(teams, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative, kmRatio, distanceKm)
   // positions[0] が総合首位
   const leaderTotal = positions[0]?.overallTotal ?? 0
@@ -227,13 +229,14 @@ export function RaceTrack({
             const player = players?.find(p => p.id === playerId)
 
             return (
-              <div key={pos.teamId} style={{
+              <div key={pos.teamId} {...(playerId ? longPress(playerId) : {})} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '7px 12px',
                 background: isMe ? alpha(segCol, 0.07) : 'transparent',
                 borderLeft: isMe ? `3px solid ${segCol}` : '3px solid transparent',
                 borderBottom: `1px solid ${C.border}`,
                 position: 'relative', overflow: 'hidden',
+                cursor: playerId ? 'pointer' : 'default',
               }}>
                 {/* オーバーテイクフラッシュ */}
                 {isMe && showOvertake && (
@@ -327,6 +330,7 @@ export function SimPhase({
   // 選択後は最低でも少しの間トラックを見せてから結果を表示する。
   const [resultDwellDone, setResultDwellDone] = useState(false)
   const [skipped, setSkipped] = useState(false)  // 「この区間をスキップ」押下：待ち時間なしで即結果へ
+  const [manualPause, setManualPause] = useState(false)  // 手動の一時停止
   const rafRef = useRef<number>(0)
   const segDurationRef = useRef(25000)
   const animSegRef = useRef(-1)
@@ -356,7 +360,7 @@ export function SimPhase({
     cumulativeTime,
     playerTeamId,
   )
-  pausedRef.current = atEvent
+  pausedRef.current = atEvent || manualPause
 
   // 区間ごとの距離に比例したアニメーション（イベント地点で一時停止）。最後まで再生してから区間結果を表示
   useEffect(() => {
@@ -365,6 +369,7 @@ export function SimPhase({
     setAnimKmRatio(0)
     setAnimDone(false)
     setSkipped(false)
+    setManualPause(false)
     const duration = segDurationRef.current
     let elapsed = 0
     let lastTs = performance.now()
@@ -576,7 +581,22 @@ export function SimPhase({
 
       {/* 区間スキップ（最上部・トラック表示中は常時） */}
       {currentSeg && showTrack && (
-        <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <button
+            onClick={() => setManualPause(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+              background: manualPause ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `1px solid ${manualPause ? C.gold : C.border2}`, color: manualPause ? C.bg : C.textSub,
+              fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
+            }}
+          >
+            {manualPause ? '再生' : '一時停止'}
+            {manualPause
+              ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="currentColor"/></svg>
+              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/></svg>}
+          </button>
           <button
             onClick={() => { cancelAnimationFrame(rafRef.current); setAnimKmRatio(1); setAnimDone(true); setSkipped(true); onSkipSegment?.() }}
             style={{
@@ -678,6 +698,7 @@ function SegmentResultCard({
   isLastSeg: boolean
   onAdvance: () => void
 }) {
+  const longPress = usePlayerLongPress()
   const raceSegData = race.segments.find(s => s.index === seg.segmentIndex)
   const segCol = raceSegData ? terrainColor(raceSegData.uphillPct, raceSegData.downhillPct) : C.blue
   const winner = seg.runners[0]
@@ -708,16 +729,22 @@ function SegmentResultCard({
             <div style={{ fontSize: 9, color: isMyWin ? C.gold : C.textDim, letterSpacing: 2 }}>{isMyWin ? '★ 区間賞！' : '区間結果'}</div>
           </div>
         </div>
-        {seg.runners.slice(0, 5).map((r) => {
+        {/* 必ず5行：自チームが4位以内なら1〜5位、それ以外は1〜4位＋自チーム */}
+        {(() => {
+          const top4 = seg.runners.slice(0, 4)
+          const mine = seg.runners.find(r => r.teamId === playerTeamId)
+          return (!mine || top4.some(r => r.teamId === playerTeamId)) ? seg.runners.slice(0, 5) : [...top4, mine]
+        })().map((r) => {
           const t = teamMap.get(r.teamId)
           const p = playerMap.get(r.playerId)
           const isMe = r.teamId === playerTeamId
           const rCol = rankColors[r.rank] ?? C.textGhost
           return (
-            <div key={r.teamId} style={{
+            <div key={r.teamId} {...(p ? longPress(p.id) : {})} style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '9px 14px', borderBottom: `1px solid ${C.border}`,
               background: isMe ? alpha(C.gold, 0.06) : 'transparent',
+              cursor: p ? 'pointer' : 'default',
             }}>
               <div style={{ width: 24, textAlign: 'center', flexShrink: 0, fontSize: r.rank <= 3 ? 18 : 14, fontWeight: 900, color: rCol, fontFamily: SAIRA, lineHeight: 1 }}>{r.rank}</div>
               <FaceOrDot playerId={p?.id} nationality={p?.nationality} size={26} />
