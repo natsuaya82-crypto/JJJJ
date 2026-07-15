@@ -1101,26 +1101,29 @@ export function generateForeignLeaguePlayers(
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
 
-  // 地域別の仮想予算。JPELと同じく8割を22人の年俸に充て、年俸から強さを決める。
-  // アフリカ（ETH/KEN/UGA/TAN）はJPEL首位（グラント7億）を上回る
-  const REGION_BUDGET: Record<string, number> = {
-    AFRICA: 850_000_000,
-    EUR_USA: 700_000_000,
-    ASIA: 400_000_000,
+  // 地域別の強さ。budget=年俸分配(ランク分布)、bonus=現在値の底上げ(潜在99を活かして90超のスターを作る)。
+  // 強さ順：アフリカ ＞ 欧州/欧米 ＞ その他 ＞ アジア(=日本と同等)。
+  // tierRangeだけだとOVR84止まりなので、bonusで現在値を上乗せして海外上位を格上に見せる。
+  const REGION: Record<string, { budget: number; bonus: number }> = {
+    AFRICA:  { budget: 950_000_000, bonus: 12 },  // 最強・現役90〜99のスターがゴロゴロ
+    EUR_USA: { budget: 850_000_000, bonus: 6 },   // 旧アフリカくらい
+    OTHER:   { budget: 780_000_000, bonus: 3 },   // アジアと欧州の間
+    ASIA:    { budget: 700_000_000, bonus: 0 },   // 日本(首位700M)と同等
   }
-  function budgetFor(country: string): number {
-    if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return REGION_BUDGET.AFRICA
-    if (['EUR', 'USA'].includes(country)) return REGION_BUDGET.EUR_USA
-    if (['CHN', 'KOR', 'TWN'].includes(country)) return REGION_BUDGET.ASIA
-    return REGION_BUDGET.EUR_USA
+  function regionFor(country: string): { budget: number; bonus: number } {
+    if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return REGION.AFRICA
+    if (['EUR', 'USA'].includes(country)) return REGION.EUR_USA
+    if (['CHN', 'KOR', 'TWN'].includes(country)) return REGION.ASIA
+    return REGION.OTHER
   }
 
   const updatedLeagues = leagues.map(league => ({
     ...league,
     clubs: league.clubs.map(club => {
       const clubPlayerIds: string[] = []
+      const region = regionFor(club.country)
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
-      const salaries = distributeSalaries(Math.round(budgetFor(club.country) * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
+      const salaries = distributeSalaries(Math.round(region.budget * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
       const namePools = FOREIGN_LEAGUE_POOLS[club.country as string] ?? FOREIGN_LEAGUE_POOLS.EUR
       const clubUsedNames = new Set<string>()
 
@@ -1151,6 +1154,15 @@ export function generateForeignLeaguePlayers(
         // 年齢分の成長を焼き込んでから登録（22歳超で生成された選手が素体のままにならないように）
         const potentialVal = rng(potential[0], potential[1])
         bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
+        // 地域ボーナスで現在値を底上げ（潜在99を活かし、海外上位に現役90〜99のスターを作る）
+        if (region.bonus > 0) {
+          for (const k of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const) {
+            ratings[k] = Math.min(99, ratings[k] + region.bonus)
+          }
+        }
+        // 底上げした現在値が潜在を超えないよう potential を引き上げる（生成直後にすぐ衰えないように）
+        const flOvr = Math.round((ratings.speed + ratings.stamina + ratings.mountainUp + ratings.mountainDown + ratings.pacing + ratings.mental + ratings.recovery) / 7)
+        const flPotential = Math.max(potentialVal, flOvr)
 
         players.push({
           id,
@@ -1163,7 +1175,7 @@ export function generateForeignLeaguePlayers(
           draftPick: null,
           ratings,
           specialty,
-          potential: potentialVal,
+          potential: flPotential,
           growthCurve,
           teamId: club.id,
           rosterTier: 'main',
