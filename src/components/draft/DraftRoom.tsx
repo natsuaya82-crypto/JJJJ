@@ -969,16 +969,16 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
       {/* スクロール領域（ヘッダー＋契約リスト）。ボタンは下段に分離するので被らない */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
       <div style={{
-        padding: '40px 24px 28px', textAlign: 'center',
+        padding: '18px 24px 12px', textAlign: 'center',
         background: `radial-gradient(ellipse at top, ${alpha(C.gold, 0.16)} 0%, transparent 60%)`,
       }}>
         <div style={{ fontSize: '10px', color: C.gold, letterSpacing: '3px', marginBottom: '6px', fontWeight: '800', fontFamily: SAIRA }}>DRAFT COMPLETE</div>
-        <div style={{ fontSize: '28px', fontWeight: '900', color: C.text, marginBottom: '4px', fontFamily: SAIRA }}>ドラフト終了</div>
+        <div style={{ fontSize: '22px', fontWeight: '900', color: C.text, marginBottom: '2px', fontFamily: SAIRA }}>ドラフト終了</div>
         <div style={{ fontSize: '13px', color: C.textSub }}>{playerTeam?.name} 指名 {myPicks.length}名</div>
       </div>
 
-      <div style={{ padding: '0 16px 24px' }}>
-        <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '12px', padding: '0 2px', fontFamily: SAIRA }}>契約を決める（年俸・役割・契約形態・年数）</div>
+      <div style={{ padding: '0 16px 16px' }}>
+        <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px', padding: '0 2px', fontFamily: SAIRA }}>契約を決める（年俸・役割・年数）</div>
         {myDrafted.map(p => {
           const rating = ovr(p)
           const ovrCol = ratingColor(rating)
@@ -992,19 +992,19 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
           })
           return (
             <div key={p.id} style={{
-              padding: '12px 14px', borderRadius: '14px', marginBottom: '10px',
+              padding: '9px 11px', borderRadius: '12px', marginBottom: '8px',
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `2px solid ${C.goldDark ?? '#b8860b'}`,
               boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4)`,
-              display: 'flex', flexDirection: 'column', gap: 8,
+              display: 'flex', flexDirection: 'column', gap: 6,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <PlayerFaceCard playerId={p.id} nationality={p.nationality} color={ovrCol} size={34}/>
+                <PlayerFaceCard playerId={p.id} nationality={p.nationality} color={ovrCol} size={30}/>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '14px', fontWeight: '700', color: C.text }}>{p.name}</div>
                   <div style={{ fontSize: '10px', color: C.textDim }}>{SPECIALTY_LABELS[p.specialty]} / {p.age}歳 · {GROWTH_LABEL[p.growthCurve]}</div>
                 </div>
-                <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: ovrCol }}>{rating}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: '19px', fontWeight: '900', color: ovrCol }}>{rating}</div>
               </div>
 
               {/* 年俸 */}
