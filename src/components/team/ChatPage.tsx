@@ -689,19 +689,7 @@ function ChatView({
               })}
             </div>
             )}
-            {composeMode !== 'transfer' && (
-            <div style={{ display: 'flex', gap: 4 }}>
-              {TEAM_ROLE_OPTS.map(({ key, label }) => {
-                const sel = offerTeamRole === key
-                return (
-                  <button key={key} onClick={() => setOfferTeamRole(sel ? null : key)}
-                    style={{ flex: 1, padding: '5px 2px', borderRadius: 6, border: sel ? 'none' : `1px solid ${C.border2}`, cursor: 'pointer', backgroundColor: sel ? C.gold : 'transparent', color: sel ? '#0A0912' : C.textDim, fontSize: 9, fontWeight: sel ? 900 : 500, fontFamily: 'inherit' }}>
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-            )}
+            {/* 役割選択UIは非表示（役割は裏で自動保持）。offerTeamRole は未指定のまま提示される */}
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={composeMode === 'transfer' ? handleSubmitTransferOffer : composeMode === 'acq' ? handleSubmitAcqOffer : handleSubmitOffer}
                 style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.blue, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>

@@ -1030,13 +1030,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
                 ))}
               </div>
               )}
-              {/* 役割 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>役割</span>
-                {DC_ROLE_OPTS.map(o => (
-                  <button key={o.key} onClick={() => upd(p.id, { teamRole: o.key })} style={btn(c.teamRole === o.key)}>{o.label}</button>
-                ))}
-              </div>
+              {/* 役割UIは非表示（役割は自動設定で裏で保持）。効果ロジックはgameStoreに残す */}
             </div>
           )
         })}

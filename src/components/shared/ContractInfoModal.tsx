@@ -79,7 +79,6 @@ export default function ContractInfoModal() {
           <InfoRow label="契約形態" value={CONTRACT_TYPE_LABEL[ct] ?? '本契約'} color={C.text} />
           <InfoRow label="年俸" value={fmt(player.contract.annualSalary)} color={C.gold} />
           <InfoRow label="契約残り" value={`${player.contract.yearsLeft}年`} color={player.contract.yearsLeft <= 1 ? C.red : C.textSub} />
-          {player.teamRole && <InfoRow label="立ち位置" value={TEAM_ROLE_LABEL[player.teamRole]} color={C.text} />}
         </div>
 
         <button

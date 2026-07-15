@@ -460,7 +460,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                       </div>
                       <div style={{ fontSize: '10px', color: '#5C5870' }}>
                         {isScouted ? `${ace.age}歳` : '?歳'}
-                        {isScouted && ace.teamRole ? ` • ${TEAM_ROLE_LABEL[ace.teamRole] ?? ace.teamRole}` : ''}
                       </div>
                     </div>
                     <div style={{ fontFamily: SAIRA, fontSize: '26px', fontWeight: '900', color: isScouted ? ratingColor(rating) : '#3A3758', flexShrink: 0 }}>
