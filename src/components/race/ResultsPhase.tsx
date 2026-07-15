@@ -227,7 +227,7 @@ export function ResultsPhase({
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 10, fontFamily: SAIRA, color: isMe ? C.text : C.textDim }}>{formatTime(runner.timeSec)}</div>
-                  {diff > 0 && <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>+{formatDiff(diff)}</div>}
+                  {diff > 0 && <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatDiff(diff)}</div>}
                 </div>
               </div>
             )
