@@ -163,8 +163,11 @@ export default function DraftRoom() {
   const [myTurnFlash, setMyTurnFlash] = useState(false)
   const [pickAnnounce, setPickAnnounce] = useState<{ teamName: string; playerName: string; teamColor: string } | null>(null)
   // ドラフトロッタリー結果発表：ドラフト開始時（まだ誰も指名していない時）に一度だけ表示。
-  // 5位→1位の順にタップでリビールしていく
-  const [showLottery, setShowLottery] = useState(() => (useGameStore.getState().draftState?.picks.length ?? 0) === 0)
+  // 5位→1位の順にタップでリビールしていく。初年度（前季の順位が無い＝抽選の根拠が無い）は出さない
+  const [showLottery, setShowLottery] = useState(() => {
+    const s = useGameStore.getState()
+    return (s.draftState?.picks.length ?? 0) === 0 && (s.pastSeasons?.length ?? 0) > 0
+  })
   const [lotteryRevealed, setLotteryRevealed] = useState(0)
   const orderStripRef = useRef<HTMLDivElement>(null)
   const prevIsMyPickRef = useRef(false)

@@ -603,7 +603,9 @@ function ChatView({
       { label: '契約更新の話をする', color: C.blue, action: openCompose },
     ]
 
+    // 契約残が2年以上あっても前倒しで延長交渉できる（複数年契約が多い海外選手が更新に入れない問題の解消）
     return [
+      { label: '契約延長の話をする（前倒し）', color: C.blue, action: openCompose },
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
   })()

@@ -228,6 +228,7 @@ export type Player = {
     faEligibleYear: number
     contractType?: 'standard' | 'development' | 'dual'
     bonusClauses?: BonusClause[]
+    rookieDeal?: boolean   // ドラフト直後の初回契約（相場より安い）。次の更新では相場基準の要求になる
   }
   nationality: Nationality
   origin: string
@@ -755,6 +756,8 @@ export type GameState = {
   pendingGifts: Gift[]
   giftGivenVersions: string[]
   raceExpGains?: Record<string, Partial<Record<CardStatKey, number>>>
+  // 直近のレースで区間新記録が出た区間×選手（結果画面の「区間新！」バッジ用。次のレースで上書き）
+  raceNewSegmentRecords?: { segmentIndex: number; playerId: string }[]
   jewels: number
   achievements?: Achievement[]
   starredOpponents?: string[]

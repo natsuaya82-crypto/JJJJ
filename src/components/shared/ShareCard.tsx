@@ -1,6 +1,8 @@
 import type { Player, Team } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
+import { useGameStore } from '../../store/gameStore'
+import { getPlayerBadges, BADGE_COLOR } from '../../utils/badges'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 
@@ -21,6 +23,13 @@ export default function ShareCard({ player, team }: { player: Player; team?: Tea
   const rating = ovr(player)
   const specCol = SPEC_COLOR[player.specialty]
   const GOLD = '#C9A84C'
+  // 記録パッチ（世界記録・日本記録・MVP・区間記録など）。選択中があればそれ、無ければ優先順の最上位を1個
+  const worldRecords = useGameStore(s => s.worldRecords)
+  const japanRecords = useGameStore(s => s.japanRecords)
+  const seasonAwards = useGameStore(s => s.seasonAwards)
+  const segmentRecords = useGameStore(s => s.segmentRecords)
+  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords }, 99)
+  const shareBadge = (player.displayBadge ? badgeList.find(b => b.key === player.displayBadge) : undefined) ?? badgeList[0]
 
   return (
     <div style={{
@@ -51,9 +60,14 @@ export default function ShareCard({ player, team }: { player: Player; team?: Tea
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, marginBottom: 6 }}>{player.name}</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 15, fontWeight: 900, color: specCol }}>{SPECIALTY_LABELS[player.specialty]}</span>
             <span style={{ fontSize: 14, color: '#8C93A5' }}>{player.age}歳</span>
+            {shareBadge && (
+              <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px', borderRadius: 6, background: `${BADGE_COLOR[shareBadge.kind]}26`, border: `1px solid ${BADGE_COLOR[shareBadge.kind]}88`, color: BADGE_COLOR[shareBadge.kind] }}>
+                {shareBadge.label}
+              </span>
+            )}
           </div>
         </div>
         <div style={{ textAlign: 'center', flexShrink: 0 }}>

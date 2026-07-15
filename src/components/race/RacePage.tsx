@@ -43,6 +43,10 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   const longPress = usePlayerLongPress()
   const adH = useAdHeight()
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  // 世界新/日本新バッジ用（記録は結果確定時に更新済みなので「今年・この選手・このタイム」が現行記録なら今大会の樹立）
+  const worldRecords = useGameStore(s => s.worldRecords)
+  const japanRecords = useGameStore(s => s.japanRecords)
+  const seasonYear = useGameStore(s => s.currentSeason.year)
   // 記録会には来季のドラフト候補（scoutProspects＝players外）も出るので、そちらからも名前/出身を解決する
   const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects ?? [])
   const findP = (id: string) => players.find(p => p.id === id) ?? scoutProspects.find(p => p.id === id)
@@ -160,7 +164,18 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                     <PlayerFace playerId={r.playerId} nationality={findP(r.playerId)?.nationality ?? 'JPN'} size={30} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</span>
+                      {(() => {
+                        const wr = worldRecords?.[bestKey]
+                        const jr = japanRecords?.[bestKey]
+                        if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                        if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                        return null
+                      })()}
+                    </div>
                     {(() => {
                       const t = resolveTeam(r.teamId)
                       if (t) return (
@@ -213,7 +228,15 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                       <PlayerFace playerId={r.playerId} nationality={p?.nationality ?? 'JPN'} size={26} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
-                    {isPB && <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span>}
+                    {(() => {
+                      const wr = worldRecords?.[bestKey]
+                      const jr = japanRecords?.[bestKey]
+                      if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                      if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                      return isPB ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span> : null
+                    })()}
                     <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub, flexShrink: 0 }}>{formatRaceTime(r.timeSec)}</span>
                   </button>
                 )
@@ -298,15 +321,24 @@ export default function RacePage() {
   const race = (phase !== 'lineup' && lockedRace) ? lockedRace : currentRace
   const activeRaceIndex = (phase !== 'lineup' && lockedRace) ? lockedRaceIndex : raceIndex
 
-  const mainPlayers = players.filter(
+  const segCount = race?.segments.length ?? 6
+  let mainPlayers = players.filter(
     p => p.teamId === playerTeamId && p.status !== 'retired'
       // 1軍契約(main) or レンタル枠（1軍・2軍どちらのレースにも出場制限なし）
       && (p.rosterTier === 'main' || !!p.loan)
   )
+  // 【進行不可の安全弁1】出走できる選手が区間数に満たない場合はフラットロスター全員に拡張する
+  // （獲得・トレード経路で rosterTier 'second' が付いたまま残る選手が出走リストから漏れるため）
+  if (mainPlayers.filter(p => p.status !== 'injured').length < segCount) {
+    mainPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired')
+  }
+  // 【進行不可の安全弁2】それでも健常者が区間数未満なら、負傷者の出走も許可する
+  // （全区間を埋められないと「開始」も「スキップ」も出せず完全に詰むため）
+  const allowInjured = mainPlayers.filter(p => p.status !== 'injured').length < segCount
   // 出走不可の選手（リストには表示するが選択不可）: playerId → 理由ラベル
   const unavailableMap: Record<string, string> = {}
   for (const p of mainPlayers) {
-    if (p.status === 'injured') {
+    if (p.status === 'injured' && !allowInjured) {
       const left = p.injuredUntilRace != null ? p.injuredUntilRace - raceIndex : 0
       unavailableMap[p.id] = left > 0 ? `故障中・復帰まで約${left}戦` : '故障中'
     }
@@ -374,7 +406,8 @@ export default function RacePage() {
       if (tid !== playerTeamId) cumulativeTimes[tid] = t
     }
 
-    const events = playerObj
+    // 設定でレース中の選択イベントをオフ（流し見モード）にしていたらイベントを出さない
+    const events = (playerObj && (useGameStore.getState().raceEventsEnabled ?? true))
       ? generateSegmentEvents({
           seg,
           playerBaseTime,

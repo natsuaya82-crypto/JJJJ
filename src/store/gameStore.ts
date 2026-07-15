@@ -157,6 +157,13 @@ function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFr
   return Math.round(desired / 500000) * 500000
 }
 
+// 補強禁止判定：前季までの連続赤字ペナルティ中、または現在の残高がマイナスの間は
+// 新規補強（FA・移籍金・引き抜き・レンタル・海外獲得）を止める。ドラフト・契約更新は可。
+export function reinforcementBanned(team: { finance: { budget: number; deficitStreak?: number } } | undefined): boolean {
+  if (!team) return false
+  return (team.finance.deficitStreak ?? 0) >= 1 || team.finance.budget < 0
+}
+
 // 獲得成立時の署名処理。旧チームから外し自チームへ。tier満杯(1軍20/2軍18)なら null（契約不可）。
 function buildAcquisitionSigning(
   players: Player[], teams: Team[], playerTeamId: string, currentRaceIndex: number, year: number,
@@ -418,6 +425,9 @@ export type GameStore = GameState & {
 
   // 買い切り版（広告なし）
   setAdsRemoved: (v: boolean) => void
+  // レース中の選択イベントを出すか（オフ＝流し見モード。トラック再生と結果だけ進む）
+  raceEventsEnabled?: boolean
+  setRaceEventsEnabled: (v: boolean) => void
   // 公式Xフォロー案内ポップを表示済みにする（初回のみ表示するためのフラグ）
   markTwitterIntroSeen: () => void
   dismissExpiredNegotiation: (id: string) => void
@@ -1342,31 +1352,46 @@ export const useGameStore = create<GameStore>()(
           // 相手の余剰選手と自チーム選手の価値が釣り合う1対1交換を提案する
           const newTradeOffers: AITradeOffer[] = []
           if (existingTrades.length === 0 && Math.random() < 0.25) {
+            // トレード提案の質を上げる：
+            // - 相手チームは「自チームの手薄なポジションを埋められるチーム」を優先
+            // - 欲しがるのは相手（CPU）の補強ニーズに合う自チーム選手、差し出すのは自チームの穴に合う選手
+            // - 価値が釣り合う候補の中から「もらえる選手のOVRが最も高い」1件を提案（低OVR同士の消化試合をなくす）
             const myTradables = state.players.filter(p =>
-              p.teamId === playerTeamId && p.rosterTier === 'main' && p.status === 'active' && !p.loan && !p.noSale)
+              p.teamId === playerTeamId && p.rosterTier === 'main' && p.status === 'active' && !p.loan && !p.noSale && ovr(p) >= 62)
+            const myNeeds = cpuSpecialtyNeeds(playerTeamId, state.players)
             const cpuIds = state.teams.map(t => t.id).filter(id => id !== playerTeamId)
-            const fromId = cpuIds[Math.floor(Math.random() * cpuIds.length)]
+            // 自チームの穴を埋められる選手(OVR68+)を持つチームを優先。いなければランダム
+            const teamsWithFit = cpuIds.filter(id => state.players.some(p =>
+              p.teamId === id && p.rosterTier === 'main' && p.status === 'active' && !p.loan && myNeeds.includes(p.specialty) && ovr(p) >= 68))
+            const fromId = teamsWithFit.length > 0
+              ? teamsWithFit[Math.floor(Math.random() * teamsWithFit.length)]
+              : cpuIds[Math.floor(Math.random() * cpuIds.length)]
+            const theirNeeds = cpuSpecialtyNeeds(fromId, state.players)
             const theirRoster = state.players.filter(p =>
-              p.teamId === fromId && p.rosterTier === 'main' && p.status === 'active' && !p.loan)
-            outer:
-            for (const mine of [...myTradables].sort(() => Math.random() - 0.5)) {
+              p.teamId === fromId && p.rosterTier === 'main' && p.status === 'active' && !p.loan && ovr(p) >= 65 && p.age <= 33)
+            // 相手が欲しがるのは補強ニーズに合う自チーム選手（いなければ全員から）
+            const wantedByThem = myTradables.filter(p => theirNeeds.includes(p.specialty))
+            const askPool = wantedByThem.length > 0 ? wantedByThem : myTradables
+            // 価値が釣り合う全組み合わせから、もらえる選手のOVR最上位を選ぶ
+            let best: { mine: Player; theirs: Player } | null = null
+            for (const mine of askPool) {
               const myVal = calcTransferValue(mine)
-              for (const theirs of [...theirRoster].sort(() => Math.random() - 0.5)) {
+              for (const theirs of theirRoster) {
                 const r = calcTransferValue(theirs) / Math.max(1, myVal)
-                // 相手がやや上乗せする範囲だけ提案（受ける価値のある打診に絞る）
-                if (r >= 0.95 && r <= 1.3) {
-                  const fromShort = state.teams.find(t => t.id === fromId)?.shortName ?? ''
-                  newTradeOffers.push({
-                    id: `aito-${raceIndex + 1}-${mine.id}`,
-                    fromTeamId: fromId,
-                    offeredPlayerIds: [theirs.id],
-                    requestedPlayerIds: [mine.id],
-                    expiresAtRace: raceIndex + 5,
-                    message: `${fromShort}が${mine.name}との交換に${theirs.name}を提示しています`,
-                  })
-                  break outer
-                }
+                if (r < 0.95 || r > 1.3) continue
+                if (!best || ovr(theirs) > ovr(best.theirs)) best = { mine, theirs }
               }
+            }
+            if (best) {
+              const fromShort = state.teams.find(t => t.id === fromId)?.shortName ?? ''
+              newTradeOffers.push({
+                id: `aito-${raceIndex + 1}-${best.mine.id}`,
+                fromTeamId: fromId,
+                offeredPlayerIds: [best.theirs.id],
+                requestedPlayerIds: [best.mine.id],
+                expiresAtRace: raceIndex + 5,
+                message: `${fromShort}が${best.mine.name}との交換に${best.theirs.name}を提示しています`,
+              })
             }
           }
 
@@ -1460,7 +1485,11 @@ export const useGameStore = create<GameStore>()(
             // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）
             const flApps = seasonAppearances(pl.id, updatedRaces)
             const flFrac = flApps / Math.max(1, nextRaceIndex)
-            const leaves = pl.contract.yearsLeft > 1 ? false : freeContactConsent(pl, suitorRank, state.teams.length, flFrac, nextRaceIndex)
+            // 受け手が総在籍上限（30人）なら移籍は成立しない＝残留（31人化の防止）
+            const suitorSize = finalPlayers.filter(p => p.teamId === suitor.id && p.status === 'active').length
+            const leaves = suitorSize >= 30 ? false
+              : pl.contract.yearsLeft > 1 ? false
+              : freeContactConsent(pl, suitorRank, state.teams.length, flFrac, nextRaceIndex)
             freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
             if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
           })
@@ -1475,7 +1504,7 @@ export const useGameStore = create<GameStore>()(
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
           const foreignClubs = (state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, playerIds: c.playerIds }))
           const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextRaceIndex && finalPlayers.some(p => p.id === o.playerId))
-          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, windowOpen: isWindowOpenNow, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers })
+          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, windowOpen: isWindowOpenNow, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
           const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
@@ -1538,6 +1567,8 @@ export const useGameStore = create<GameStore>()(
           const updatedSegmentRecords = { ...(state.segmentRecords ?? {}) }
           // 区間新記録が出たらニュースにする（過去記録がある区間で更新された場合のみ）
           const segRecordNewsItems: typeof newsItems = []
+          // 結果画面の「区間新！」バッジ用（このレースで従来記録を破った区間×選手）
+          const newSegRecordMarks: { segmentIndex: number; playerId: string }[] = []
           for (const sr of results.segmentResults) {
             const key = `${race.name}-${sr.segmentIndex}`
             const existing = updatedSegmentRecords[key] ?? []
@@ -1553,6 +1584,7 @@ export const useGameStore = create<GameStore>()(
             if (prevBest != null && fastestNew && fastestNew.timeSec < prevBest) {
               const fastestRunner = sr.runners.find(r => r.timeSec === fastestNew.timeSec)
               const isMine = fastestRunner?.teamId === playerTeamId
+              if (fastestRunner) newSegRecordMarks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
               segRecordNewsItems.push({
                 date: race.date,
                 headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${fastestNew.playerName}（${fastestNew.teamShort}）${fmtTime(fastestNew.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
@@ -1698,6 +1730,16 @@ export const useGameStore = create<GameStore>()(
                 const un = (50 - (p.morale ?? 70)) * 0.8
                 if (un > score) { score = un; reason = 'unhappy' }
               }
+              // 年俸重視の性格：相場の7割未満で使われていると「安すぎる」と不満を持つ（純粋なお金理由の移籍希望）。
+              // ドラフト初回契約（rookieDeal）は安いのが前提なので対象外＝更新交渉で適正化する流れに乗せる
+              if ((p.personality ?? 'salary') === 'salary' && !p.contract.rookieDeal) {
+                const market = faMarketSalary(p)
+                const payRatio = market > 0 ? p.contract.annualSalary / market : 1
+                if (payRatio < 0.7) {
+                  const money = (0.7 - payRatio) * 50
+                  if (money > score) { score = money; reason = 'unhappy' }
+                }
+              }
               return { id: p.id, score, reason }
             })
             .filter(c => c.score > 0)
@@ -1748,6 +1790,7 @@ export const useGameStore = create<GameStore>()(
             trainingCards: [...(state.trainingCards ?? []), ...droppedCards],
             raceDroppedCards: droppedCards,
             raceExpGains: raceExpGainsMap,
+            raceNewSegmentRecords: newSegRecordMarks,
             achievements: [...(state.achievements ?? []), ...raceAchievements],
             gmRep: state.gmRep ?? 50,   // 評判はシーズン終了時の目標達成率でのみ変動
             segmentRecords: updatedSegmentRecords,
@@ -2063,6 +2106,7 @@ export const useGameStore = create<GameStore>()(
         if (!player || player.teamId !== '') return false
         const team = st.teams.find(t => t.id === st.playerTeamId)
         if (!team) return false
+        if (reinforcementBanned(team)) return false  // 赤字ペナルティ中・残高マイナスは補強不可
         const finalSalary = salary ?? player.contract.annualSalary
         const finalYears = years ?? Math.max(player.contract.yearsLeft, 2)
         const finalContractType = contractType ?? 'standard'
@@ -2106,7 +2150,8 @@ export const useGameStore = create<GameStore>()(
               ...p,
               rosterTier: tier,
               teamRole: teamRole ?? p.teamRole,
-              contract: { ...p.contract, annualSalary: salary, yearsLeft: years, contractType },
+              // rookieDeal: ドラフト初回契約は相場の半分まで下げられるが、次の更新では相場基準の要求になる
+              contract: { ...p.contract, annualSalary: salary, yearsLeft: years, contractType, rookieDeal: true },
             } : p),
             teams: state.teams.map(t => {
               if (t.id !== state.playerTeamId) return t
@@ -2537,7 +2582,8 @@ export const useGameStore = create<GameStore>()(
         if (!player || player.teamId !== listing.fromTeamId) return false
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!myTeam || myTeam.finance.budget < price) return false
-        if ((myTeam.finance.deficitStreak ?? 0) >= 1) return false  // 赤字ペナルティ中は新規補強不可（ドラフト・契約更新は可）
+        if (reinforcementBanned(myTeam)) return false  // 赤字ペナルティ中・残高マイナスは新規補強不可（ドラフト・契約更新は可）
+        if (!canSignContract(state.players, state.playerTeamId)) return false  // 総在籍30人の上限（31人化の防止）
         const mktMainFull = myTeam.roster.main.length >= 23
         set(state => ({
           players: state.players.map(p => p.id === listing.playerId ? {
@@ -2645,7 +2691,8 @@ export const useGameStore = create<GameStore>()(
             round: 1,
             status: 'pending_gm',
             expiresAtRace: (state.currentSeason.currentRaceIndex ?? 0) + 6,
-            demandSalary: Math.round(player.contract.annualSalary * 1.12 / 500000) * 500000,
+            // ルーキー契約（相場の半分まで下げられる初回契約）の次の更新は相場基準の要求になる
+            demandSalary: Math.round(Math.max(player.contract.annualSalary * 1.12, player.contract.rookieDeal ? faMarketSalary(player) : 0) / 500000) * 500000,
             demandYears: 2,
             offerSalary: Math.round(player.contract.annualSalary * 1.05 / 500000) * 500000,
             offerYears: 2,
@@ -2674,7 +2721,8 @@ export const useGameStore = create<GameStore>()(
               round: 1,
               status: 'pending_gm' as const,
               expiresAtRace: racesPlayed + 6,
-              demandSalary: Math.round(p.contract.annualSalary * mult / 500000) * 500000,
+              // ルーキー契約明けは相場基準で要求（安い初回年俸を基準にしない）
+              demandSalary: Math.round(Math.max(p.contract.annualSalary * mult, p.contract.rookieDeal ? faMarketSalary(p) : 0) / 500000) * 500000,
               demandYears: personality === 'loyalty' ? 3 : 2,
               offerSalary: 0,
               offerYears: 0,
@@ -2762,8 +2810,8 @@ export const useGameStore = create<GameStore>()(
               ...p,
               rosterTier: placed.tier,
               teamRole: teamRole ?? p.teamRole,
-              // 枠不足で階層移動できなかった場合は契約形態も変えない（形態と所属のズレを防ぐ）
-              contract: { ...p.contract, annualSalary: salary, yearsLeft: newYears, contractType: placed.tier === desiredTier ? (contractType ?? p.contract.contractType) : p.contract.contractType, faEligibleYear: state.currentSeason.year + newYears },
+              // 枠不足で階層移動できなかった場合は契約形態も変えない（形態と所属のズレを防ぐ）。更新成立でルーキー契約は終了
+              contract: { ...p.contract, annualSalary: salary, yearsLeft: newYears, contractType: placed.tier === desiredTier ? (contractType ?? p.contract.contractType) : p.contract.contractType, faEligibleYear: state.currentSeason.year + newYears, rookieDeal: false },
             } : p)
           } else if (newStatus === 'rejected' && isLastRound) {
             // 最終ラウンドで拒否 → 更新を拒み退団へ（移籍リスト入り＝契約満了でFA、他チームはフリー移籍で獲得可）
@@ -2799,8 +2847,8 @@ export const useGameStore = create<GameStore>()(
               ...p,
               rosterTier: placed.tier,
               teamRole: req.offerTeamRole ?? p.teamRole,
-              // 枠不足で階層移動できなかった場合は契約形態も変えない（形態と所属のズレを防ぐ）
-              contract: { ...p.contract, annualSalary: req.counterSalary!, yearsLeft: cNewYears, contractType: placed.tier === desiredTier ? (req.offerContractType ?? p.contract.contractType) : p.contract.contractType, faEligibleYear: state.currentSeason.year + cNewYears },
+              // 枠不足で階層移動できなかった場合は契約形態も変えない（形態と所属のズレを防ぐ）。更新成立でルーキー契約は終了
+              contract: { ...p.contract, annualSalary: req.counterSalary!, yearsLeft: cNewYears, contractType: placed.tier === desiredTier ? (req.offerContractType ?? p.contract.contractType) : p.contract.contractType, faEligibleYear: state.currentSeason.year + cNewYears, rookieDeal: false },
             } : p),
             teams: placed.teams,
             currentSeason: {
@@ -2845,7 +2893,7 @@ export const useGameStore = create<GameStore>()(
           if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return state
           // 赤字ペナルティ中は新規補強(FA/引き抜き)不可（ドラフト・契約更新は可）
           const myTeam0 = state.teams.find(t => t.id === state.playerTeamId)
-          if ((myTeam0?.finance.deficitStreak ?? 0) >= 1) return state
+          if (reinforcementBanned(myTeam0)) return state
           const offers = state.currentSeason.acquisitionOffers ?? []
           const active = offers.find(o => o.playerId === playerId && (o.status === 'pending' || o.status === 'countered'))
           if (active) return state
@@ -3212,6 +3260,7 @@ export const useGameStore = create<GameStore>()(
 
       loanInPlayer: (playerId, years, force = false) => {
         const st = get()
+        if (reinforcementBanned(st.teams.find(t => t.id === st.playerTeamId))) return false  // 赤字・残高マイナスは補強不可
         const player = st.players.find(p => p.id === playerId)
         if (!player || player.teamId === '' || player.teamId === st.playerTeamId || player.loan) return false
         // レンタル枠 最大3（借りている選手＝loan.ownerTeamId が自分でない）
@@ -3252,6 +3301,9 @@ export const useGameStore = create<GameStore>()(
         const st = get()
         const player = st.players.find(p => p.id === playerId)
         if (!player || player.teamId !== st.playerTeamId || player.loan) return false
+        // 借り手の総在籍が上限（30人）なら貸せない（31人化の防止）
+        const toSize = st.players.filter(p => p.teamId === toTeamId && p.status === 'active').length
+        if (toSize >= 30) return false
         const yrs = Math.max(1, Math.min(2, years))
         set(state => ({
           players: state.players.map(p => p.id === playerId ? {
@@ -3272,6 +3324,7 @@ export const useGameStore = create<GameStore>()(
       submitLoanRequest: (playerId, years) => {
         const st = get()
         if (!st.getTransferWindow().open) return false
+        if (reinforcementBanned(st.teams.find(t => t.id === st.playerTeamId))) return false  // 赤字・残高マイナスは補強不可
         const player = st.players.find(p => p.id === playerId)
         if (!player || player.teamId === st.playerTeamId || player.teamId === '' || player.loan) return false
         const usedSlots = st.players.filter(p => p.teamId === st.playerTeamId && p.loan && p.loan.ownerTeamId !== st.playerTeamId).length
@@ -3314,7 +3367,7 @@ export const useGameStore = create<GameStore>()(
         if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return
         // 赤字ペナルティ中は新規補強(入札)不可（ドラフト・契約更新は可）
         const myTeamBid = state.teams.find(t => t.id === state.playerTeamId)
-        if ((myTeamBid?.finance.deficitStreak ?? 0) >= 1) return
+        if (reinforcementBanned(myTeamBid)) return
         const existing = (state.currentSeason.transferBids ?? []).find(b => b.playerId === playerId && (b.status === 'pending' || b.status === 'fee_accepted' || b.status === 'countered' || b.status === 'player_neg'))
         if (existing) return
         // 同一選手への入札は今季3回まで。roundは過去の入札数を引き継ぐ（取り下げ→再入札の無限ループ防止）
@@ -4025,6 +4078,8 @@ export const useGameStore = create<GameStore>()(
             teams: res.teams,
             players: res.players,
             foreignLeagues: res.foreignLeagues,
+            // シーズン中の日本↔海外移籍も履歴に記録（移籍ページで日付・移籍金が出るように）
+            transferHistory: [...(state.transferHistory ?? []), ...res.records].slice(-800),
             currentSeason: { ...state.currentSeason, newsFeed: [...res.news, ...state.currentSeason.newsFeed].slice(0, 40) },
           }
         })
@@ -4453,10 +4508,12 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // FA補強（受け皿）：移籍市場で動けなかった選手・チームの補完
+        // FA補強（受け皿）：移籍市場で動けなかった選手・チームの補完。
+        // 高齢選手は実力どおりに評価しない（33歳以上は年齢ぶん減点した「年齢調整OVR」順で選ぶ＝35歳の高OVRに飛びつかない）
+        const ageAdjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
         const availableFAs = playersAfterCpuTransfer
           .filter(p => p.teamId === '' && p.status === 'active')
-          .sort((a, b) => ovr(b) - ovr(a))
+          .sort((a, b) => ageAdjOvr(b) - ageAdjOvr(a))
         const signedFAIds = new Set<string>()
         const cpuSignings: { playerId: string; teamId: string; num: number }[] = []
         // Elite teams pick first
@@ -4496,8 +4553,8 @@ export const useGameStore = create<GameStore>()(
           const foreignOnTeam = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
           const usedNums = new Set<number>()
           let foreignSigned = 0, signed = 0
-          // contendはベテランも可、rebuildは若手のみ
-          const ageCap = strat === 'contend' ? 36 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 32 : 35)
+          // contendはベテランも可、rebuildは若手のみ。35歳以上とは原則契約しない
+          const ageCap = strat === 'contend' ? 35 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 32 : 34)
           // 総在籍24人未満の間は予算に関係なく最低限補強（戦力崩壊防止）。それ以上は予算内でのみ
           const budgetOk = (fa: Player) => (totalNow + signed) < 24 || (spent + estCost(fa) <= spendable)
           const canSign = (fa: Player) =>
@@ -5156,10 +5213,35 @@ export const useGameStore = create<GameStore>()(
           })
 
           // Remove expired draft picks (older than the upcoming draft year)
-          const teamsWithCleanedPicks = teamsWithFuturePicks.map(t => ({
+          let teamsWithCleanedPicks = teamsWithFuturePicks.map(t => ({
             ...t,
             draftPicks: (t.draftPicks ?? []).filter(pk => pk.year >= newYear),
           }))
+
+          // ── 赤字ペナルティ：3年以上連続赤字はドラフト制限 ──
+          // 来季ドラフトの自チーム最上位指名権が、資金力のあるチームへ強制売却される（売却額は補填として入金）
+          const pickPenaltyNews: { date: string; headline: string; category: 'finance'; relatedIds: string[] }[] = []
+          if (newStreakMe >= 3) {
+            const meT = teamsWithCleanedPicks.find(t => t.id === state.playerTeamId)
+            const myNextPicks = (meT?.draftPicks ?? []).filter(pk => pk.year === newYear)
+            const soldPick = [...myNextPicks].sort((a, b) => a.round - b.round || a.pickNumber - b.pickNumber)[0]
+            const buyer = [...teamsWithCleanedPicks].filter(t => t.id !== state.playerTeamId).sort((a, b) => b.finance.budget - a.finance.budget)[0]
+            if (soldPick && buyer) {
+              const price = draftPickValue(soldPick.round, soldPick.pickNumber)
+              const samePick = (pk: typeof soldPick) => pk.year === soldPick.year && pk.round === soldPick.round && pk.originallyOwnedBy === soldPick.originallyOwnedBy
+              teamsWithCleanedPicks = teamsWithCleanedPicks.map(t => {
+                if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + price }, draftPicks: (t.draftPicks ?? []).filter(pk => !samePick(pk)) }
+                if (t.id === buyer.id) return { ...t, finance: { ...t.finance, budget: t.finance.budget - price }, draftPicks: [...(t.draftPicks ?? []), soldPick] }
+                return t
+              })
+              pickPenaltyNews.push({
+                date: `${state.currentSeason.year}-10-31`,
+                headline: `【赤字ペナルティ】${newStreakMe}年連続赤字により、${newYear}年ドラフト${soldPick.round}巡目指名権が${buyer.shortName}へ売却されました（${Math.round(price / 10000)}万円が予算に補填）`,
+                category: 'finance' as const,
+                relatedIds: [],
+              })
+            }
+          }
 
           const seasonPrizeNews = {
             date: `${state.currentSeason.year}-10-30`,
@@ -5256,7 +5338,7 @@ export const useGameStore = create<GameStore>()(
           // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
           // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。
           const foreignBasePlayers = [...playersWithForeignChamp, ...foreignRefresh.newPlayers]
-          let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[] }
+          let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[]; records: TransferRecord[] }
           try {
             foreignTx = simulateForeignTransferMarket({
               foreignLeagues: foreignRefresh.updatedLeagues,
@@ -5265,11 +5347,11 @@ export const useGameStore = create<GameStore>()(
             })
           } catch (e) {
             console.error('simulateForeignTransferMarket failed', e)
-            foreignTx = { foreignLeagues: foreignRefresh.updatedLeagues, players: foreignBasePlayers, news: [] }
+            foreignTx = { foreignLeagues: foreignRefresh.updatedLeagues, players: foreignBasePlayers, news: [], records: [] }
           }
 
           // シーズンオフの日本↔海外クロスボーダー移籍（CPU同士）。プレイヤーのチームは対象外。
-          let crossTx: { teams: typeof teamsWithCleanedPicks; foreignLeagues: typeof foreignTx.foreignLeagues; players: typeof foreignTx.players; news: typeof foreignTx.news }
+          let crossTx: { teams: typeof teamsWithCleanedPicks; foreignLeagues: typeof foreignTx.foreignLeagues; players: typeof foreignTx.players; news: typeof foreignTx.news; records: TransferRecord[] }
           try {
             crossTx = simulateCrossBorderTransfers({
               teams: teamsWithCleanedPicks,
@@ -5280,18 +5362,33 @@ export const useGameStore = create<GameStore>()(
             })
           } catch (e) {
             console.error('simulateCrossBorderTransfers failed', e)
-            crossTx = { teams: teamsWithCleanedPicks, foreignLeagues: foreignTx.foreignLeagues, players: foreignTx.players, news: [] }
+            crossTx = { teams: teamsWithCleanedPicks, foreignLeagues: foreignTx.foreignLeagues, players: foreignTx.players, news: [], records: [] }
           }
 
           // ── 長期プレイでの肥大化対策（記録は名前焼き込みで残るため消えない） ──
-          // 1) 海外クラブは30人上限：あふれた分はOVR下位から外し、選手データごと削除
+          // 1) 海外クラブ名簿を「teamId起点」で毎年完全に再構築する（30人上限もここで適用）。
+          //    海外選手がFA化・国内移籍しても旧クラブのplayerIdsに残存し、翌年の海外間移籍が
+          //    その亡霊名簿を動かしてteamIdを海外へ書き戻す（国内名簿と二重所属になる）バグの根治。
+          //    毎年通るので既存セーブの汚れも自動修復される
           const playerByIdCl = new Map(crossTx.players.map(p => [p.id, p]))
           const foreignDropIds = new Set<string>()
+          const clubMembers = new Map<string, string[]>()
+          {
+            const clubIdsAll = new Set(crossTx.foreignLeagues.flatMap(l => l.clubs.map(c => c.id)))
+            for (const p of crossTx.players) {
+              if (p.status === 'active' && clubIdsAll.has(p.teamId)) {
+                const arr = clubMembers.get(p.teamId) ?? []
+                arr.push(p.id)
+                clubMembers.set(p.teamId, arr)
+              }
+            }
+          }
           const cappedForeignLeagues = crossTx.foreignLeagues.map(l => ({
             ...l,
             clubs: l.clubs.map(c => {
-              if (c.playerIds.length <= 30) return c
-              const sorted = [...c.playerIds].sort((a, b) => {
+              const ids = clubMembers.get(c.id) ?? []
+              if (ids.length <= 30) return { ...c, playerIds: ids }
+              const sorted = [...ids].sort((a, b) => {
                 const pa = playerByIdCl.get(a); const pb = playerByIdCl.get(b)
                 return (pb ? ovr(pb) : 0) - (pa ? ovr(pa) : 0)
               })
@@ -5328,6 +5425,11 @@ export const useGameStore = create<GameStore>()(
               const to = now.teamId === '' ? null : departureClubName(now.teamId)
               return [{ id: `dep-${oldP.id}-${newYear}`, playerId: oldP.id, playerName: oldP.name, toTeamName: to ?? '', reason: to ? 'transfer' : 'fa' }]
             })
+          // 退団（FA流出・移籍）を移籍履歴にも記録する（移籍ページの「出」に日付付きで出るように）
+          const departureRecords: TransferRecord[] = departureNotices.map(n => {
+            const now = cleanedPlayers.find(p => p.id === n.playerId)
+            return { year: newYear, date: `${state.currentSeason.year}-11-05`, playerId: n.playerId, fromTeamId: state.playerTeamId, toTeamId: now?.teamId ?? '', fee: 0, kind: 'free' as const }
+          })
 
           // 海外クラブ在籍で今季出場ゼロの選手にも0戦のエントリを埋めて保存する。
           // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
@@ -5350,10 +5452,24 @@ export const useGameStore = create<GameStore>()(
             .filter(p => p.status === 'active' && domesticTeamIds.has(p.teamId) && !appearedIds.has(p.id))
             .map(p => ({ playerId: p.id, teamId: p.teamId, tier: (p.rosterTier === 'second' ? 'second' : 'main') as 'main' | 'second' }))
 
+          // 国内チームの名簿もteamId起点で毎年完全に同期する（海外クラブと同じ自動修復）。
+          // 契約満了のFA化（teamId=''）や長期整理での選手削除がroster配列に残存し、
+          // 「名簿に居るのにteamIdが違う/存在しない」不整合になるのを根治する
+          // レンタル中（loanあり）の選手は名簿外が正規仕様（teamId=借り手だが借り手の名簿には載せない）
+          const syncedTeams = crossTx.teams.map(t => ({
+            ...t,
+            roster: {
+              main: cleanedPlayers.filter(p => p.teamId === t.id && p.status === 'active' && !p.loan).map(p => p.id),
+              second: [] as string[],
+            },
+          }))
+
           return {
             players: cleanedPlayers,
-            teams: crossTx.teams,
+            teams: syncedTeams,
             foreignLeagues: cappedForeignLeagues,
+            // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
+            transferHistory: [...(state.transferHistory ?? []), ...departureRecords, ...foreignTx.records, ...crossTx.records].slice(-800),
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
             gmRep: newGmRep,
             achievements: [...(state.achievements ?? []), ...seasonAchievements],
@@ -5436,6 +5552,7 @@ export const useGameStore = create<GameStore>()(
                 ...foreignTx.news,
                 { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year}シーズン王者：${champion?.name ?? ''}！`, category: 'race' as const, relatedIds: [] },
                 seasonPrizeNews,
+                ...pickPenaltyNews,
                 ...(objBonus > 0 ? [{ date: `${state.currentSeason.year}-11-01`, headline: `目標達成ボーナス：スカウトPt+${objBonus}・予算+${Math.round(objBudgetBonus / 10000)}万`, category: 'draft' as const, relatedIds: [] }] : []),
                 ...mvpNews,
                 ...rookieNews,
@@ -5590,6 +5707,7 @@ export const useGameStore = create<GameStore>()(
         const player = state.players.find(p => p.id === playerId)
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!player || !myTeam) return false
+        if (reinforcementBanned(myTeam)) return false  // 赤字ペナルティ中・残高マイナスは補強不可
 
         const foreignCat: ForeignCategory = player.foreignCategory ?? nationalityToForeignCategory(player.nationality)
 
@@ -5634,7 +5752,9 @@ export const useGameStore = create<GameStore>()(
                 status: 'active',
                 joinedYear: s.currentSeason.year,
                 foreignCategory: foreignCat,
-                contract: { yearsLeft: years, annualSalary: salary, faEligibleYear: s.currentSeason.year + years },
+                // contractType/personality を明示（未設定だと契約更新UIの初期値・判定が欠ける）
+                contract: { yearsLeft: years, annualSalary: salary, faEligibleYear: s.currentSeason.year + years, contractType: 'standard' as const },
+                personality: p.personality ?? 'salary',
               }
             : p
           ),
@@ -6300,6 +6420,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       setAdsRemoved: (v) => set({ adsRemoved: v }),
+      setRaceEventsEnabled: (v) => set({ raceEventsEnabled: v }),
       markTwitterIntroSeen: () => set({ twitterIntroSeen: true }),
       dismissExpiredNegotiation: (id) => set(s => ({ currentSeason: { ...s.currentSeason, expiredNegotiations: (s.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== id) } })),
       dismissFreeTransferNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, freeTransferNotices: (s.currentSeason.freeTransferNotices ?? []).filter(n => n.id !== id) } })),
@@ -6668,8 +6789,9 @@ function generateForeignAndLoanOffers(params: {
   windowOpen: boolean
   existingIncoming: IncomingOffer[]
   existingLoans: IncomingLoanOffer[]
+  races?: Race[]   // 出場機会の判定用（borrow_in打診は出番のない選手から選ぶ）
 }): { foreignIncoming: IncomingOffer[]; loanOffers: IncomingLoanOffer[] } {
-  const { players, teams, foreignClubs, playerTeamId, raceIndex, windowOpen, existingIncoming, existingLoans } = params
+  const { players, teams, foreignClubs, playerTeamId, raceIndex, windowOpen, existingIncoming, existingLoans, races } = params
   const foreignIncoming: IncomingOffer[] = []
   const loanOffers: IncomingLoanOffer[] = []
   if (!windowOpen) return { foreignIncoming, loanOffers }
@@ -6685,7 +6807,8 @@ function generateForeignAndLoanOffers(params: {
 
   // 1) 海外クラブからの移籍オファー（自チームの上位選手を狙う）
   if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.30) {
-    const target = [...myMain].filter(p => !offeredIds.has(p.id) && !p.noSale && ovr(p) >= 74).sort((a, b) => ovr(b) - ovr(a))[0]
+    // 高齢選手（33歳以上）は狙わない（移籍金を払ってまで獲得しない）
+    const target = [...myMain].filter(p => !offeredIds.has(p.id) && !p.noSale && ovr(p) >= 74 && p.age <= 32).sort((a, b) => ovr(b) - ovr(a))[0]
     if (target) {
       const club = foreignClubs[(ovr(target) + raceIndex) % foreignClubs.length]
       const tv = calcTransferValue(target)
@@ -6710,12 +6833,20 @@ function generateForeignAndLoanOffers(params: {
     }
   }
 
-  // 3) レンタル打診：相手が自チームに選手を貸したい（borrow_in・国内チームのみ／控え選手）
+  // 3) レンタル打診：相手が自チームに選手を貸したい（borrow_in・国内チームのみ）。
+  // クラブが貸しに出すのは「出番のない選手」：出場率が低い26歳以下から、こちらの補強ニーズに合う選手を優先して提示
   if (aiTeams.length > 0 && Math.random() < 0.20) {
-    const team = aiTeams[raceIndex % aiTeams.length]
-    const cand = players.filter(p => p.teamId === team.id && p.status === 'active' && !p.loan && (p.rosterTier === 'second' || p.age <= 23) && !loanTargetIds.has(p.id)).sort((a, b) => ovr(b) - ovr(a))[0]
+    const myNeedsLoan = cpuSpecialtyNeeds(playerTeamId, players)
+    const playFrac = (pid: string) => raceIndex > 0 && races ? seasonAppearances(pid, races) / raceIndex : 0
+    const cands = players.filter(p =>
+      p.teamId !== playerTeamId && p.teamId !== '' && aiTeams.some(t => t.id === p.teamId)
+      && p.status === 'active' && !p.loan && p.age <= 26 && ovr(p) < 76 && !loanTargetIds.has(p.id)
+      && playFrac(p.id) < 0.35)   // 出場率3.5割未満＝現所属で干されている選手だけが貸しに出される
+    const fits = cands.filter(p => myNeedsLoan.includes(p.specialty))
+    // 干され組の中では実力上位を提示（借りる価値のある選手にする）
+    const cand = (fits.length > 0 ? fits : cands).sort((a, b) => ovr(b) - ovr(a))[0]
     if (cand) {
-      loanOffers.push({ id: `loanin-${raceIndex}-${team.id}-${cand.id}`, fromTeamId: team.id, playerId: cand.id, direction: 'borrow_in', years: 1, expiresAtRace: raceIndex + 3 })
+      loanOffers.push({ id: `loanin-${raceIndex}-${cand.teamId}-${cand.id}`, fromTeamId: cand.teamId, playerId: cand.id, direction: 'borrow_in', years: 1, expiresAtRace: raceIndex + 3 })
     }
   }
 
@@ -6820,7 +6951,8 @@ function generateTransferActivity(
       ? (tier === 'elite' ? 72 : 65)
       : (tier === 'elite' ? 78 : 73)
 
-    let targets = playerTeamPlayers.filter(p => !offerTargets.has(p.id) && ovr(p) >= minTargetOvr)
+    // 高齢選手（34歳超）は移籍金オファーの対象外。並びも年齢調整OVR（33歳以上は減点）で若い実力者を優先
+    let targets = playerTeamPlayers.filter(p => !offerTargets.has(p.id) && ovr(p) >= minTargetOvr && p.age <= 34)
     // Prioritize players who want to leave
     const wantLeaveTargets = targets.filter(p => wantToLeaveIds.has(p.id))
     if (wantLeaveTargets.length > 0) targets = wantLeaveTargets
@@ -6829,7 +6961,8 @@ function generateTransferActivity(
       if (specTargets.length > 0) targets = specTargets
     }
     if (targets.length === 0) continue
-    targets.sort((a, b) => ovr(b) - ovr(a))
+    const adjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
+    targets.sort((a, b) => adjOvr(b) - adjOvr(a))
     const target = targets[0]
     const tv = calcTransferValue(target)
     // Realistic offer: 85-105% for elite, 80-97% for others
@@ -7028,13 +7161,15 @@ function growPlayer(p: Player, allowAnnualGrowth = false): Player {
     ratings.mental = Math.max(20, ratings.mental - rnd(0, 2))
     ratings.pacing = Math.max(20, ratings.pacing - rnd(0, 2))
   } else if (ageDiff >= 4) {
-    // ピーク超過（35歳未満）：中程度の衰え
-    ratings[primary] = Math.max(20, ratings[primary] - rnd(1, 2))
-    if (Math.random() < 0.70) ratings.stamina = Math.max(20, ratings.stamina - rnd(1, 2))
-    if (Math.random() < 0.50) ratings.recovery = Math.max(20, ratings.recovery - 1)
-    if (Math.random() < 0.40) ratings.speed = Math.max(20, ratings.speed - 1)
-    if (Math.random() < 0.30) ratings.mountainUp = Math.max(20, ratings.mountainUp - 1)
-    if (Math.random() < 0.30) ratings.mountainDown = Math.max(20, ratings.mountainDown - 1)
+    // ピーク超過（35歳未満）：中程度の衰え。ピークから離れるほど加速する
+    // （33〜34歳の高OVRがほぼ落ちず「いつ衰えるねん」となる問題の対策）
+    const sev = ageDiff >= 6 ? 2 : 1
+    ratings[primary] = Math.max(20, ratings[primary] - rnd(1, 2) * sev)
+    if (Math.random() < 0.70) ratings.stamina = Math.max(20, ratings.stamina - rnd(1, 2) * sev)
+    if (Math.random() < 0.50) ratings.recovery = Math.max(20, ratings.recovery - sev)
+    if (Math.random() < 0.40) ratings.speed = Math.max(20, ratings.speed - sev)
+    if (Math.random() < 0.30) ratings.mountainUp = Math.max(20, ratings.mountainUp - sev)
+    if (Math.random() < 0.30) ratings.mountainDown = Math.max(20, ratings.mountainDown - sev)
   } else if (ageDiff >= 1) {
     // 初期衰え: 身体系がわずかに落ちるが経験でカバー
     if (Math.random() < 0.30) ratings[primary] = Math.max(20, ratings[primary] - 1)

@@ -26,6 +26,7 @@ const CARD: React.CSSProperties = {
 // ── アイコン ──
 const IcTeam = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>
 const IcSound = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+const IcRace = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 4v16M4 5h13l-2.5 3.5L17 12H4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcX = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
 const IcHome = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcTrash = <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -105,6 +106,8 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   const teams = useGameStore(s => s.teams)
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const myTeam = teams.find(t => t.id === playerTeamId)
+  const raceEventsEnabled = useGameStore(s => s.raceEventsEnabled ?? true)
+  const setRaceEventsEnabled = useGameStore(s => s.setRaceEventsEnabled)
 
   const [detail, setDetail] = useState<Detail>(null)
 
@@ -124,6 +127,12 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       <div>
         <SettingRow icon={IcTeam} label="チーム編集" sub={myTeam ? `${myTeam.name}・GM ${myTeam.gmName}` : undefined} onClick={() => setDetail('team')} />
         <SettingRow icon={IcSound} label="サウンド" sub="SE・BGMの音量" onClick={() => setDetail('sound')} />
+        <SettingRow
+          icon={IcRace}
+          label="レース中の選択イベント"
+          sub={raceEventsEnabled ? 'オン（区間ごとに監督判断あり）' : 'オフ（流し見・自動進行）'}
+          onClick={() => setRaceEventsEnabled(!raceEventsEnabled)}
+        />
         <SettingRow icon={IcX} label="公式X（@JPEL_MANAGER）" sub="アップデート情報・お問い合わせ" onClick={() => window.open('https://x.com/JPEL_MANAGER', '_blank')} />
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />

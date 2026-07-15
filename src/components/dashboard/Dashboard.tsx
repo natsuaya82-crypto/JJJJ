@@ -537,7 +537,7 @@ export default function Dashboard() {
               </div>
               {/* CTA */}
               <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2 }}>
-                <button className="btn-game btn-game--green" style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
+                <button className="btn-game btn-game--gold" style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
                   <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>
                     記録会を開催
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>

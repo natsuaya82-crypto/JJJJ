@@ -10,6 +10,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
 import { useAdHeight } from '../layout/Layout'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
+import { useGameStore } from '../../store/gameStore'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
@@ -703,6 +704,10 @@ function SegmentResultCard({
   const segCol = raceSegData ? terrainColor(raceSegData.uphillPct, raceSegData.downhillPct) : C.blue
   const winner = seg.runners[0]
   const isMyWin = winner?.teamId === playerTeamId
+  // 区間新の判定：この時点の歴代記録（レース確定前なので従来記録のまま）を1位が上回っていれば区間新
+  const segRecords = useGameStore(s => s.segmentRecords) ?? {}
+  const prevBestSec = (segRecords[`${race.name}-${seg.segmentIndex}`] ?? [])[0]?.timeSec ?? null
+  const isNewRecord = prevBestSec != null && winner != null && winner.timeSec < prevBestSec
   const myRunner = seg.runners.find(r => r.teamId === playerTeamId)
   const myRankCol = !myRunner ? C.textGhost : myRunner.rank === 1 ? C.gold : myRunner.rank <= 3 ? C.green : myRunner.rank <= 6 ? C.textSub : C.textGhost
 
@@ -749,7 +754,12 @@ function SegmentResultCard({
               <div style={{ width: 24, textAlign: 'center', flexShrink: 0, fontSize: r.rank <= 3 ? 18 : 14, fontWeight: 900, color: rCol, fontFamily: SAIRA, lineHeight: 1 }}>{r.rank}</div>
               <FaceOrDot playerId={p?.id} nationality={p?.nationality} size={26} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.gold : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? r.teamId}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.gold : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? r.teamId}</span>
+                  {isNewRecord && r.rank === 1 && (
+                    <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
+                  )}
+                </div>
                 {p && <div style={{ fontSize: 9, color: C.textSub }}>{p.name}</div>}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
