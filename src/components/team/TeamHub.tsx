@@ -66,11 +66,11 @@ export default function TeamHub() {
     },
     {
       key: '/team/nosale',
-      label: '非売リスト',
-      desc: '指定した選手には他クラブから買い取りオファーが来なくなる',
+      label: '移籍方針',
+      desc: '選手ごとに非売・貸出歓迎・売出を設定する',
       countLabel: (() => {
-        const n = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && p.noSale).length
-        return n > 0 ? `${n}名指定中` : '指定なし'
+        const n = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && (p.noSale || p.loanListed || p.transferListed)).length
+        return n > 0 ? `${n}名設定中` : '設定なし'
       })(),
       badge: 0,
       color: C.red,

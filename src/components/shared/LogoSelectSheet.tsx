@@ -1,5 +1,6 @@
 import { LOGO_PRESETS, logoPresetSrc } from '../../data/logoPresets'
 import { TeamLogoSVG } from '../icons/Icons'
+import { useAdHeight } from '../layout/Layout'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -13,6 +14,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
   onSelect: (id: string) => void
   onClose: () => void
 }) {
+  const adH = useAdHeight()
   const pick = (id: string) => { onSelect(id); onClose() }
 
   const tile = (selected: boolean): React.CSSProperties => ({
@@ -48,8 +50,8 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
         <div style={{ fontSize: 18, fontWeight: 900, color: C.text }}>チームロゴ</div>
       </div>
 
-      {/* グリッド */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      {/* グリッド（下タブ・広告に最終行が隠れないよう、下に余白を確保してスクロールで抜けられるように） */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingBottom: `calc(${58 + adH + 24}px + env(safe-area-inset-bottom))` }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {/* デフォルト（元チームロゴ） */}
           <button type="button" onClick={() => pick('')} style={tile(value === '')}>

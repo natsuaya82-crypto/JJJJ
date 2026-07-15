@@ -318,7 +318,9 @@ export default function NotificationsPage() {
   // フリー移籍で接触中の選手の契約要求は出さない（接触カードに一本化。用件の二重表示を防ぐ）
   const contactedPlayerIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
-  const sponsorOffers = currentSeason.sponsorOffers ?? []
+  // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
+  const sponsorSlotsLeft = 3 - (teams.find(t => t.id === playerTeamId)?.sponsors?.length ?? 0)
+  const sponsorOffers = sponsorSlotsLeft > 0 ? (currentSeason.sponsorOffers ?? []) : []
   // CPUからのトレード打診。対象選手が移籍/引退した古い打診は表示しない
   const acceptTradeOffer = useGameStore(s => s.acceptTradeOffer)
   const rejectTradeOffer = useGameStore(s => s.rejectTradeOffer)
@@ -775,11 +777,14 @@ export default function NotificationsPage() {
             <section style={{ marginTop: '20px' }}>
               <SectionHead label="フリー移籍の決断" color={C.orange} count={freeTransferNotices.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {freeTransferNotices.map(n => (
+                {freeTransferNotices.map(n => {
+                  const ftP = players.find(pl => pl.id === n.playerId)
+                  return (
                   <div key={n.id} style={cardStyle(alpha(n.left ? C.red : C.green, 0.45), n.left ? '#3d0000' : '#0d3d22')}>
                     <div style={inset}/>
                     <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                      <div>
+                      {ftP && <FaceOvr playerId={ftP.id} nationality={ftP.nationality} pOvr={ovr(ftP)} accentColor={n.left ? C.red : C.green} />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
                           {n.left ? `${n.playerName}が${n.toTeamName}へのフリー移籍を決めました` : `${n.playerName}は残留を選びました`}
                         </div>
@@ -790,7 +795,8 @@ export default function NotificationsPage() {
                       <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissFreeTransferNotice(n.id)}>確認</Btn>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </section>
           )}
@@ -837,11 +843,13 @@ export default function NotificationsPage() {
                 {loanResponses.map(resp => {
                   const accent = resp.accepted ? C.green : C.red
                   const shadow = resp.accepted ? '#0d3d22' : '#3d0000'
+                  const loanP = players.find(pl => pl.id === resp.playerId)
                   return (
                     <div key={resp.id} style={cardStyle(alpha(accent, 0.45), shadow)}>
                       <div style={inset}/>
                       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                        <div>
+                        {loanP && <FaceOvr playerId={loanP.id} nationality={loanP.nationality} pOvr={ovr(loanP)} accentColor={accent} />}
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
                             {resp.accepted
                               ? `${resp.ownerShort}が${resp.playerName}のレンタルを承諾`

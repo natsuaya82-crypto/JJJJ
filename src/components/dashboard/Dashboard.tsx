@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { runWithLoading } from '../../store/loadingStore'
 import { showInterstitialAd } from '../../utils/ads'
 import PressButton from '../ui/PressButton'
+import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
@@ -424,17 +425,27 @@ export default function Dashboard() {
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
                 {/* 選出基準（平均区間順位）は内部ロジック。表示は誰が選ばれたかだけ */}
                 {mvp && (
-                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.gold, 0.3)}` }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{mvp.name}</div>
-                    <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === mvp.teamId)?.shortName ?? ''}</div>
+                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.gold, 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha(C.gold, 0.4)}` }}>
+                      <PlayerFace playerId={mvp.id} nationality={mvp.nationality} size={36}/>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mvp.name}</div>
+                      <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === mvp.teamId)?.shortName ?? ''}</div>
+                    </div>
                   </div>
                 )}
                 {rookie && (
-                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha('#4FC3F7', 0.3)}` }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 9, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{rookie.name}</div>
-                    <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === rookie.teamId)?.shortName ?? ''}</div>
+                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha('#4FC3F7', 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha('#4FC3F7', 0.4)}` }}>
+                      <PlayerFace playerId={rookie.id} nationality={rookie.nationality} size={36}/>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: SAIRA, fontSize: 9, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rookie.name}</div>
+                      <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === rookie.teamId)?.shortName ?? ''}</div>
+                    </div>
                   </div>
                 )}
               </div>

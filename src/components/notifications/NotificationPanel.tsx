@@ -313,7 +313,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
 // NotificationsPage.tsx の total 計算をそのまま同じ集合・同じ数え方で複製している。
 // 片方だけ変えるとズレるので、通知ページの total を変えたらここも合わせること。
 export function useNotifCount() {
-  const { currentSeason, players, playerTeamId, lastLoginDate } = useGameStore()
+  const { currentSeason, players, teams, playerTeamId, lastLoginDate } = useGameStore()
   const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
   const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
 
@@ -331,7 +331,9 @@ export function useNotifCount() {
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId)).length
   const contactedIdsC = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsC.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')).length
-  const sponsorOffers = (currentSeason.sponsorOffers ?? []).length
+  // スポンサー枠（3）が満杯なら数えない（NotificationsPageと同じ基準）
+  const sponsorSlotsLeftN = 3 - (teams.find(t => t.id === playerTeamId)?.sponsors?.length ?? 0)
+  const sponsorOffers = sponsorSlotsLeftN > 0 ? (currentSeason.sponsorOffers ?? []).length : 0
   const expiredNegotiations = (currentSeason.expiredNegotiations ?? []).length
   const loanResponses = (currentSeason.loanResponses ?? []).length
   // CPUからのトレード打診（NotificationsPageと同じ有効性チェック）

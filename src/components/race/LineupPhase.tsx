@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useGameStore } from '../../store/gameStore'
 import BackButton from '../ui/BackButton'
 import type { Player, Race, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
@@ -88,6 +89,17 @@ export function LineupPhase({
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  // 長押し(450ms)で選手詳細。発火した直後のタップ（選択）は打ち消す
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lpFired = useRef(false)
+  const pickerRowHandlers = (pid: string, onTap: () => void) => ({
+    onPointerDown: () => { lpFired.current = false; lpTimer.current = setTimeout(() => { lpFired.current = true; openPlayerSheet(pid) }, 450) },
+    onPointerUp: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerLeave: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
+    onClick: () => { if (lpFired.current) { lpFired.current = false; return } onTap() },
+  })
   const [segTactics] = useState<Record<number, string>>({})
   const [pickerSort, setPickerSort] = useState<'seg' | 'ovr' | 'age' | 'fatigue' | 'speed' | 'stamina' | 'mountainUp' | 'mountainDown' | 'pacing' | 'mental' | 'recovery'>('seg')
 
@@ -258,7 +270,7 @@ export function LineupPhase({
                 <PlayerRow
                   player={p}
                   selected={isSelected}
-                  handlers={{ onClick: () => { if (!blockReason) selectPlayer(pickerSeg, p.id) } }}
+                  handlers={pickerRowHandlers(p.id, () => { if (!blockReason) selectPlayer(pickerSeg, p.id) })}
                   extra={<>
                     {isRec && !isSelected && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(pickerSegCol, 0.15), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>最適</span>}
                     {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄{assignedSeg}区</span>}

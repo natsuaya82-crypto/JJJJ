@@ -503,7 +503,6 @@ export default function PlayerSheet() {
                       { label: '契約残', val: isScouted ? `${player.contract.yearsLeft}年` : '?' },
                       { label: '年俸', val: isScouted ? fmt(player.contract.annualSalary) : '?' },
                       { label: 'ドラフト', val: isScouted ? (player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外') : '?' },
-                      { label: '立ち位置', val: isScouted ? (player.teamRole ? TEAM_ROLE_LABEL[player.teamRole] : '—') : '?' },
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
                         <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>{label}</div>

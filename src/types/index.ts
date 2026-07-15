@@ -239,7 +239,8 @@ export type Player = {
   transferRequestDismissedYear?: number  // 移籍希望に「残ってほしい」で対応した年。その年は再抽選しない
   faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
   transferListed?: boolean    // 「移籍を認める」で移籍リスト入り（他チームのオファー対象・シーズン内に決まらなければFA）
-  noSale?: boolean            // 非売リスト：他クラブ（国内・海外）からの買い取りオファーが一切来なくなる
+  noSale?: boolean            // 移籍方針・非売：他クラブ（国内・海外）からの買い取りオファーが一切来なくなる
+  loanListed?: boolean        // 移籍方針・貸出歓迎：レンタル打診（lend_out）が優先的・高確率で来る
   // レンタル移籍：ownerTeamId が保有元、teamId は現在プレー中（借り手）。untilYear シーズン終了で自動返却。
   loan?: { ownerTeamId: string; untilYear: number }
   loanTeamYears?: { year: number; teamId: string }[]  // 在籍履歴用：その年そのチームでレンタル出場した記録（今後のシーズンから蓄積）

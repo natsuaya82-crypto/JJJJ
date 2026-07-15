@@ -84,6 +84,8 @@ export async function initAds(adsRemoved: boolean): Promise<void> {
 // iOS以外（ブラウザ開発時）や失敗時は即解決して進行を止めない。
 export async function showInterstitialAd(): Promise<void> {
   if (Capacitor.getPlatform() !== 'ios') return
+  // オフラインなら読み込みを試さず即スキップ（12秒待たせない）
+  if (!navigator.onLine) return
 
   useLoadingStore.getState().show('広告を読み込み中…')
   try {
@@ -96,11 +98,16 @@ export async function showInterstitialAd(): Promise<void> {
     useLoadingStore.getState().hide()  // 準備完了→広告表示へ
 
     await new Promise<void>((resolve) => {
+      // SDKがDismissed/FailedToShowイベントを取りこぼすと永久に待って進行が止まるため、
+      // 一定時間でかならず解決する安全弁を入れる（二重解決は done で防ぐ）
+      let done = false
       const handles: Array<Promise<{ remove: () => void }>> = []
       const cleanup = () => handles.forEach(h => h.then(l => l.remove()))
-      handles.push(AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => { cleanup(); resolve() }))
-      handles.push(AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, () => { cleanup(); resolve() }))
-      AdMob.showInterstitial().catch(() => { cleanup(); resolve() })
+      const finish = () => { if (done) return; done = true; clearTimeout(guard); cleanup(); resolve() }
+      const guard = setTimeout(finish, 90000)
+      handles.push(AdMob.addListener(InterstitialAdPluginEvents.Dismissed, finish))
+      handles.push(AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, finish))
+      AdMob.showInterstitial().catch(finish)
     })
   } catch (e) {
     useLoadingStore.getState().hide()
@@ -113,6 +120,13 @@ export async function showInterstitialAd(): Promise<void> {
 // iOS以外（ブラウザ開発時）は実広告が無いので true を返す（従来のモック挙動を維持）。
 export async function showRewardAd(): Promise<boolean> {
   if (Capacitor.getPlatform() !== 'ios') return true
+  // オフラインなら12秒待たせず、理由を見せてすぐ返す（報酬なし）
+  if (!navigator.onLine) {
+    const { show, hide } = useLoadingStore.getState()
+    show('オフラインのため広告を再生できません')
+    setTimeout(hide, 1800)
+    return false
+  }
 
   useLoadingStore.getState().show('広告を読み込み中…')
   try {
@@ -125,15 +139,20 @@ export async function showRewardAd(): Promise<boolean> {
     useLoadingStore.getState().hide()  // 準備完了→動画表示へ
 
     return await new Promise<boolean>((resolve) => {
+      // SDKがDismissed/FailedToShowイベントを取りこぼすと永久に待って進行が止まるため、
+      // 一定時間でかならず解決する安全弁を入れる（報酬済みなら true のまま返す）
       let rewarded = false
+      let done = false
       const handles: Array<Promise<{ remove: () => void }>> = []
       const cleanup = () => handles.forEach(h => h.then(l => l.remove()))
+      const finish = (v: boolean) => { if (done) return; done = true; clearTimeout(guard); cleanup(); resolve(v) }
+      const guard = setTimeout(() => finish(rewarded), 120000)
 
       handles.push(AdMob.addListener(RewardAdPluginEvents.Rewarded, () => { rewarded = true }))
-      handles.push(AdMob.addListener(RewardAdPluginEvents.Dismissed, () => { cleanup(); resolve(rewarded) }))
-      handles.push(AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => { cleanup(); resolve(false) }))
+      handles.push(AdMob.addListener(RewardAdPluginEvents.Dismissed, () => finish(rewarded)))
+      handles.push(AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => finish(false)))
 
-      AdMob.showRewardVideoAd().catch(() => { cleanup(); resolve(false) })
+      AdMob.showRewardVideoAd().catch(() => finish(false))
     })
   } catch (e) {
     useLoadingStore.getState().hide()

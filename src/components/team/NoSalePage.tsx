@@ -1,23 +1,31 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import PlayerRow from '../player/PlayerRow'
+import PlayerFace from '../player/PlayerFace'
+import ActionSheet from '../ui/ActionSheet'
 import BackButton from '../ui/BackButton'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-// 非売リスト：指定した選手には他クラブ（国内・海外）からの買い取りオファーが一切来なくなる。
-// タップでON/OFF、長押しで選手詳細。レンタル・フリー接触（契約切れ間近の勧誘）は対象外。
+// 移籍方針：選手ごとに 非売 / 貸出歓迎 / 売出 を設定する。
+// - 非売: 他クラブからの買い取りオファーを全ブロック
+// - 貸出: レンタル打診（借りたい）が優先的・高確率で来る
+// - 売出: 市場価値で移籍リストへ。CPUが買い取ると即入金＋退団通知（チャット対応なし）
+// タップで方針シート、長押しで選手詳細。非売+貸出は併用可、売出は他と排他。
 export default function NoSalePage() {
-  const { players, playerTeamId, toggleNoSale, openPlayerSheet } = useGameStore()
+  const { players, playerTeamId, toggleNoSale, toggleLoanListed, allowPlayerTransfer, cancelSellListing, openPlayerSheet } = useGameStore()
+  const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null)
 
   const myPlayers = players
     .filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan)
-    .sort((a, b) => (b.noSale ? 1 : 0) - (a.noSale ? 1 : 0) || ovr(b) - ovr(a))
-  const noSaleCount = myPlayers.filter(p => p.noSale).length
+    .sort((a, b) =>
+      ((b.noSale || b.loanListed || b.transferListed) ? 1 : 0) - ((a.noSale || a.loanListed || a.transferListed) ? 1 : 0)
+      || ovr(b) - ovr(a))
+  const setCount = myPlayers.filter(p => p.noSale || p.loanListed || p.transferListed).length
 
-  // 長押しで詳細（PlayerRowの押下と両立させる）
+  // 長押しで詳細（タップ＝方針シートと両立させる）
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lpFired = useRef(false)
   const rowHandlers = (pid: string) => ({
@@ -25,22 +33,29 @@ export default function NoSalePage() {
     onPointerUp: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
     onPointerLeave: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
     onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
-    onClick: () => { if (lpFired.current) { lpFired.current = false; return } toggleNoSale(pid) },
+    onClick: () => { if (lpFired.current) { lpFired.current = false; return } setSheetPlayerId(pid) },
   })
+
+  const badge = (label: string, color: string) => (
+    <span key={label} style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.45)}`, color, fontWeight: 800, flexShrink: 0 }}>{label}</span>
+  )
+
+  const sheetPlayer = sheetPlayerId ? myPlayers.find(p => p.id === sheetPlayerId) ?? null : null
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100%' }}>
       <div style={{ padding: '12px 16px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
           <BackButton />
-          <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>非売リスト</div>
+          <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>移籍方針</div>
         </div>
         <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
-          タップで非売指定のON/OFF（長押しで詳細）。指定した選手には他クラブからの買い取りオファーが一切来なくなります。
-          レンタルの打診と、契約切れ間近のフリー移籍の勧誘（本人の意思）は止められません。
+          タップで方針を設定（長押しで詳細）。
+          非売＝買い取りオファーを止める／貸出＝レンタル打診が来やすくなる／売出＝市場価値で売りに出し、成立すると入金と退団通知だけが届きます。
+          契約切れ間近のフリー移籍の勧誘（本人の意思）は止められません。
         </div>
-        <div style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: noSaleCount > 0 ? C.red : C.textDim }}>
-          非売指定 {noSaleCount}名
+        <div style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: setCount > 0 ? C.gold : C.textDim }}>
+          方針設定中 {setCount}名
         </div>
       </div>
 
@@ -50,16 +65,60 @@ export default function NoSalePage() {
             key={p.id}
             player={p}
             handlers={rowHandlers(p.id)}
-            extra={p.noSale ? (
-              <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.45)}`, color: C.red, fontWeight: 800, flexShrink: 0 }}>非売</span>
-            ) : undefined}
-            selected={!!p.noSale}
+            extra={<>
+              {p.noSale && badge('非売', C.red)}
+              {p.loanListed && badge('貸出', C.blue)}
+              {p.transferListed && badge('売出中', C.orange)}
+            </>}
+            selected={!!(p.noSale || p.loanListed || p.transferListed)}
           />
         ))}
         {myPlayers.length === 0 && (
           <div style={{ padding: '40px 0', textAlign: 'center', color: C.textGhost, fontSize: 13 }}>対象の選手がいません</div>
         )}
       </div>
+
+      {sheetPlayer && (
+        <ActionSheet
+          open={!!sheetPlayer}
+          onClose={() => setSheetPlayerId(null)}
+          header={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                <PlayerFace playerId={sheetPlayer.id} nationality={sheetPlayer.nationality} size={44} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{sheetPlayer.name}</div>
+                <div style={{ fontSize: 10, color: C.textDim }}>
+                  {sheetPlayer.noSale ? '非売 ' : ''}{sheetPlayer.loanListed ? '貸出歓迎 ' : ''}{sheetPlayer.transferListed ? '売出中' : ''}
+                  {!sheetPlayer.noSale && !sheetPlayer.loanListed && !sheetPlayer.transferListed ? '方針未設定' : ''}
+                </div>
+              </div>
+            </div>
+          }
+          items={[
+            {
+              label: sheetPlayer.noSale ? '非売を解除する' : '非売にする（買い取りオファーを止める）',
+              color: C.red,
+              onClick: () => { toggleNoSale(sheetPlayer.id); setSheetPlayerId(null) },
+            },
+            {
+              label: sheetPlayer.loanListed ? '貸出歓迎を解除する' : '貸出歓迎にする（レンタル打診が来やすくなる）',
+              color: C.blue,
+              onClick: () => { toggleLoanListed(sheetPlayer.id); setSheetPlayerId(null) },
+            },
+            {
+              label: sheetPlayer.transferListed ? '売出を取り下げる' : '売出する（市場価値で自動売却・成立時に通知）',
+              color: C.orange,
+              onClick: () => {
+                if (sheetPlayer.transferListed) cancelSellListing(sheetPlayer.id)
+                else allowPlayerTransfer(sheetPlayer.id)
+                setSheetPlayerId(null)
+              },
+            },
+          ]}
+        />
+      )}
     </div>
   )
 }

@@ -320,7 +320,9 @@ export type GameStore = GameState & {
   acceptRetirement: (playerId: string) => void
   dismissTransferRequest: (playerId: string) => void
   allowPlayerTransfer: (playerId: string) => void  // 移籍を認める→移籍リスト入り（他チームがオファー・決まらなければFA）
-  toggleNoSale: (playerId: string) => void  // 非売リストのON/OFF（ONで他クラブからの買い取りオファーをブロック）
+  toggleNoSale: (playerId: string) => void  // 移籍方針・非売のON/OFF（ONで他クラブからの買い取りオファーをブロック）
+  toggleLoanListed: (playerId: string) => void  // 移籍方針・貸出歓迎のON/OFF（ONでレンタル打診が優先的に来る）
+  cancelSellListing: (playerId: string) => void  // 移籍方針・売出の解除（出品取り下げ＋退団予定フラグ解除）
   // レンタル移籍（レンタル枠 最大3・別枠・移籍金なし・給与は借り手負担・期間後自動返却）
   loanInPlayer: (playerId: string, years: number, force?: boolean) => boolean   // 他チームから借りる（forceで主力判定スキップ＝相手が貸す打診済み）
   loanOutPlayer: (playerId: string, toTeamId: string, years: number) => boolean  // 自チームの選手を貸す
@@ -1630,7 +1632,9 @@ export const useGameStore = create<GameStore>()(
               const apps = seasonAppearances(pl.id, updatedRaces)
               const frac = trIdx > 0 ? apps / trIdx : (pl.rosterTier === 'main' ? 0.5 : 0)
               const loanable = !isDataKeyPlayer(pl, frac, trIdx)
-              const ownerShort = teamsWithCpuTx.find(t => t.id === pl.teamId)?.shortName ?? '相手クラブ'
+              const ownerShort = teamsWithCpuTx.find(t => t.id === pl.teamId)?.shortName
+                ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pl.teamId)?.shortName
+                ?? '相手クラブ'
               if (loanable && freeSlots > 0) {
                 accepted.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
                 loanRespNews.push({ date: race.date, headline: `${ownerShort}が${pl.name}のレンタル要請を承諾。${req.years}年で借用`, category: 'trade', relatedIds: [pl.id] })
@@ -2922,6 +2926,8 @@ export const useGameStore = create<GameStore>()(
             return {
               players: signed.players,
               teams: signed.teams,
+              // 海外クラブ所属だった場合、そのクラブの名簿からも外す（残ると自チームと二重所属＝増殖する）
+              foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(player.id) ? { ...c, playerIds: c.playerIds.filter(id => id !== player.id) } : c) })),
               transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date, playerId: player.id, fromTeamId: player.teamId, toTeamId: state.playerTeamId, fee: 0, kind: 'free' as const, years }].slice(-400),
               currentSeason: {
                 ...state.currentSeason,
@@ -2974,6 +2980,8 @@ export const useGameStore = create<GameStore>()(
           return {
             players: signed.players,
             teams: signed.teams,
+            // 海外クラブ所属だった場合、そのクラブの名簿からも外す（残ると自チームと二重所属＝増殖する）
+            foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(offer.playerId) ? { ...c, playerIds: c.playerIds.filter(id => id !== offer.playerId) } : c) })),
             transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date, playerId: offer.playerId, fromTeamId: player?.teamId ?? '', toTeamId: state.playerTeamId, fee: 0, kind: 'free' as const, years: offer.counterYears }].slice(-400),
             currentSeason: {
               ...state.currentSeason,
@@ -3145,7 +3153,8 @@ export const useGameStore = create<GameStore>()(
         }
         const alreadyListed = (state.currentSeason.transferListings ?? []).some(l => l.playerId === playerId)
         return {
-          players: state.players.map(p => p.id === playerId ? { ...p, transferListed: true } : p),
+          // 売出は非売・貸出歓迎と排他（自動で解除して切り替える）
+          players: state.players.map(p => p.id === playerId ? { ...p, transferListed: true, noSale: false, loanListed: false } : p),
           currentSeason: {
             ...state.currentSeason,
             transferListings: alreadyListed ? state.currentSeason.transferListings : [...(state.currentSeason.transferListings ?? []), allowListing],
@@ -3159,15 +3168,45 @@ export const useGameStore = create<GameStore>()(
       toggleNoSale: (playerId) => set(state => {
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId !== state.playerTeamId) return state
-        if (player.transferListed) return state  // 退団予定（移籍リスト入り）の選手は非売にできない
         const next = !player.noSale
         return {
-          players: state.players.map(p => p.id === playerId ? { ...p, noSale: next } : p),
+          // 売出（移籍リスト入り）とは矛盾するので、非売ONで売出は自動解除
+          players: state.players.map(p => p.id === playerId ? { ...p, noSale: next, ...(next ? { transferListed: false } : {}) } : p),
           currentSeason: next ? {
             ...state.currentSeason,
-            // ONにした瞬間、既に届いている買い取りオファー（移籍金付き）も取り下げる。フリー接触（0円）は本人の話なので残す
+            // ONにした瞬間、既に届いている買い取りオファー（移籍金付き）も取り下げ、出品も下げる。フリー接触（0円）は本人の話なので残す
             incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === playerId && o.offeredPrice > 0)),
+            transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
           } : state.currentSeason,
+        }
+      }),
+
+      // 移籍方針・貸出歓迎のON/OFF。ONの選手にはレンタル打診（lend_out）が優先的に来る
+      toggleLoanListed: (playerId) => set(state => {
+        const player = state.players.find(p => p.id === playerId)
+        if (!player || player.teamId !== state.playerTeamId) return state
+        if (player.loan) return state  // レンタル中（借入・貸出とも）は設定不可
+        const next = !player.loanListed
+        return {
+          // 売出とは排他（売る気の選手を貸しには出さない）。貸出ONで売出は自動解除
+          players: state.players.map(p => p.id === playerId ? { ...p, loanListed: next, ...(next ? { transferListed: false } : {}) } : p),
+          currentSeason: next ? {
+            ...state.currentSeason,
+            transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
+          } : state.currentSeason,
+        }
+      }),
+
+      // 移籍方針・売出の解除（出品を取り下げて退団予定フラグも外す）
+      cancelSellListing: (playerId) => set(state => {
+        const player = state.players.find(p => p.id === playerId)
+        if (!player || player.teamId !== state.playerTeamId) return state
+        return {
+          players: state.players.map(p => p.id === playerId ? { ...p, transferListed: false } : p),
+          currentSeason: {
+            ...state.currentSeason,
+            transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
+          },
         }
       }),
 
@@ -3706,7 +3745,9 @@ export const useGameStore = create<GameStore>()(
         const activity = (p: Player) => { const apps = seasonAppearances(p.id, state.currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : 0; return 1 + frac * 0.4 }
         const pval = (p: Player) => calcTransferValue(p) * activity(p)
         const valOf = (ids: string[], picks: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + picks.reduce((s, k) => s + pickKeyValue(k), 0)
-        const theirName = state.teams.find(t => t.id === targetTeamId)?.shortName ?? '相手クラブ'
+        const theirName = state.teams.find(t => t.id === targetTeamId)?.shortName
+          ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === targetTeamId)?.shortName
+          ?? '相手クラブ'
         // 主力（データ上よく出場・やる気あり）は無条件拒否ではなく1.5倍の価値を要求する
         const keyPremium = (p: Player) => {
           const apps = seasonAppearances(p.id, state.currentSeason.races)
@@ -4037,7 +4078,9 @@ export const useGameStore = create<GameStore>()(
             const apps = seasonAppearances(pl.id, races)
             const frac = raceIdx > 0 ? apps / raceIdx : (pl.rosterTier === 'main' ? 0.5 : 0)
             const loanable = !isDataKeyPlayer(pl, frac, raceIdx)
-            const ownerShort = state.teams.find(t => t.id === pl.teamId)?.shortName ?? '相手クラブ'
+            const ownerShort = state.teams.find(t => t.id === pl.teamId)?.shortName
+              ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pl.teamId)?.shortName
+              ?? '相手クラブ'
             if (loanable && freeSlots > 0) {
               acceptedLoans.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
               newLoanResponses.push({ id: `lresp_${pl.id}_${raceIdx}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: true, years: req.years })
@@ -4684,9 +4727,13 @@ export const useGameStore = create<GameStore>()(
           // レンタル中の選手は保有元チーム基準で判定する（借り手チーム基準だと、貸し出した自チーム選手が勝手にFA化し、
           // 借りている他人の選手の更新判断をユーザーがさせられる）
           const contractOwner = (p: Player) => p.loan?.ownerTeamId ?? p.teamId
+          // レンタル中の選手は契約満了によるFA化の対象外（レンタル期間を必ず全うさせる）。
+          // これが無いと「元契約残り1年の選手を2年レンタル」した場合に、1年目の終わりでFA化して
+          // 借り手からも保有元からも消える（＝2年契約が1年で消える）バグになる。
+          // 満了は返却後、保有元チーム側で改めて処理される
           const expiredIds = new Set(
             grownPlayers
-              .filter(p => p.contract.yearsLeft === 0 && p.teamId && p.teamId !== '__pool__' && contractOwner(p) !== state.playerTeamId && p.status === 'active')
+              .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && p.teamId !== '__pool__' && contractOwner(p) !== state.playerTeamId && p.status === 'active')
               .map(p => p.id)
           )
           // Player-team expiring players: queued for user decision
@@ -6148,6 +6195,21 @@ export const useGameStore = create<GameStore>()(
             giftGivenVersions: [...(state.giftGivenVersions ?? []), ID_MARK],
           }
         })
+        // 二重所属の掃除：国内チームに所属している選手が海外クラブの名簿にも残っている「増殖」を毎起動で是正する
+        // （FA/引き抜き獲得が海外名簿から除去し損ねていた既存セーブの救済。冪等で軽いので毎回実行）
+        set(state => {
+          const domesticIds = new Set(state.players.filter(p => p.teamId !== '' && state.teams.some(t => t.id === p.teamId)).map(p => p.id))
+          let changed = false
+          const leagues = (state.foreignLeagues ?? []).map(l => ({
+            ...l,
+            clubs: l.clubs.map(c => {
+              const kept = c.playerIds.filter(id => !domesticIds.has(id))
+              if (kept.length !== c.playerIds.length) { changed = true; return { ...c, playerIds: kept } }
+              return c
+            }),
+          }))
+          return changed ? { foreignLeagues: leagues } : state
+        })
       },
 
       claimGift: (id) => {
@@ -6614,7 +6676,9 @@ function generateForeignAndLoanOffers(params: {
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
   const myMain = myPlayers.filter(p => p.rosterTier === 'main' && !p.loan)
-  const myYoung = myPlayers.filter(p => !p.loan && (p.rosterTier === 'second' || p.age <= 22))
+  // 貸出歓迎（移籍方針）に設定した選手。年齢・立場の制限なしで打診対象になる
+  const myLoanListed = myPlayers.filter(p => !p.loan && p.loanListed && !p.transferListed)
+  const myYoung = myPlayers.filter(p => !p.loan && p.age <= 23)
   const offeredIds = new Set(existingIncoming.map(o => o.playerId))
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
@@ -6629,9 +6693,14 @@ function generateForeignAndLoanOffers(params: {
     }
   }
 
-  // 2) レンタル打診：相手（国内/海外）が自チームの若手を借りたい（lend_out）
-  if (myYoung.length > 0 && Math.random() < 0.25) {
-    const target = [...myYoung].filter(p => !loanTargetIds.has(p.id)).sort((a, b) => ovr(b) - ovr(a))[0]
+  // 2) レンタル打診：相手（国内/海外）が自チームの選手を借りたい（lend_out）。
+  // 貸出歓迎に設定した選手がいれば優先的・高確率（70%）でその中から。いなければ従来どおり低確率で若手に
+  {
+    const listedCands = myLoanListed.filter(p => !loanTargetIds.has(p.id))
+    const youngCands = myYoung.filter(p => !loanTargetIds.has(p.id)).sort((a, b) => ovr(b) - ovr(a))
+    const target = listedCands.length > 0 && Math.random() < 0.70
+      ? listedCands[(raceIndex + listedCands.length) % listedCands.length]
+      : (youngCands.length > 0 && Math.random() < 0.25 ? youngCands[0] : null)
     if (target) {
       const pool: { id: string; fromForeign: boolean }[] = [...aiTeams.map(t => ({ id: t.id, fromForeign: false })), ...foreignClubs.map(c => ({ id: c.id, fromForeign: true }))]
       if (pool.length > 0) {
@@ -6771,7 +6840,9 @@ function generateTransferActivity(
   }
 
   // Competing bids for player-listed players (more likely for high-OVR players)
-  const myListings = [...validListings, ...newListings].filter(l => l.fromTeamId === playerTeamId)
+  // 自チームの出品への入札（オファーチャット）。
+  // lst-allow-（移籍を認めた／移籍方針の売出）はチャット対応なしの自動売却専用なのでオファーを生成しない
+  const myListings = [...validListings, ...newListings].filter(l => l.fromTeamId === playerTeamId && !l.id.startsWith('lst-allow-'))
   const alreadyOfferedIds = new Set([...validIncoming, ...newIncoming].map(o => o.playerId))
   for (const listing of myListings) {
     if (alreadyOfferedIds.has(listing.playerId)) continue
