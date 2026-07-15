@@ -6996,11 +6996,11 @@ function growPlayer(p: Player, allowAnnualGrowth = false): Player {
   const ratings = { ...p.ratings }
   const primary = getPrimaryKey(p.specialty)
 
-  // 加齢でポテンシャル上限自体が下がる（ピーク超過後・高齢ほど速く）。max85→83→…のイメージ。
+  // 加齢でポテンシャル上限自体が下がる。35歳以降は急に（37歳でエースが85のまま等を防ぐ）。
   let potential = p.potential
-  if (ageDiff >= 1) {
-    potential = Math.max(50, potential - (ageDiff >= 6 ? 2 : 1))
-  }
+  if (nextAge >= 37) potential = Math.max(45, potential - 3)
+  else if (nextAge >= 35) potential = Math.max(45, potential - 2)
+  else if (ageDiff >= 1) potential = Math.max(50, potential - (ageDiff >= 6 ? 2 : 1))
   const caps = getStatPotentials({ ...p, potential })  // 減衰後の上限で頭打ち
 
   // CPU/海外の年次成長：成長期(ピーク前)のみ、各能力を上限へ向けて少しずつ。
@@ -7017,20 +7017,30 @@ function growPlayer(p: Player, allowAnnualGrowth = false): Player {
     }
   }
 
-  if (ageDiff >= 1 && ageDiff < 4) {
+  // 衰え。35歳以降は絶対年齢で急激に落とす（37歳で85バリバリを防ぐ）。身体系を大きく、経験系はやや。
+  const PHYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'recovery']
+  if (nextAge >= 37) {
+    for (const s of PHYS) ratings[s] = Math.max(20, ratings[s] - rnd(3, 6))
+    ratings.mental = Math.max(20, ratings.mental - rnd(1, 3))
+    ratings.pacing = Math.max(20, ratings.pacing - rnd(1, 3))
+  } else if (nextAge >= 35) {
+    for (const s of PHYS) ratings[s] = Math.max(20, ratings[s] - rnd(2, 4))
+    ratings.mental = Math.max(20, ratings.mental - rnd(0, 2))
+    ratings.pacing = Math.max(20, ratings.pacing - rnd(0, 2))
+  } else if (ageDiff >= 4) {
+    // ピーク超過（35歳未満）：中程度の衰え
+    ratings[primary] = Math.max(20, ratings[primary] - rnd(1, 2))
+    if (Math.random() < 0.70) ratings.stamina = Math.max(20, ratings.stamina - rnd(1, 2))
+    if (Math.random() < 0.50) ratings.recovery = Math.max(20, ratings.recovery - 1)
+    if (Math.random() < 0.40) ratings.speed = Math.max(20, ratings.speed - 1)
+    if (Math.random() < 0.30) ratings.mountainUp = Math.max(20, ratings.mountainUp - 1)
+    if (Math.random() < 0.30) ratings.mountainDown = Math.max(20, ratings.mountainDown - 1)
+  } else if (ageDiff >= 1) {
     // 初期衰え: 身体系がわずかに落ちるが経験でカバー
     if (Math.random() < 0.30) ratings[primary] = Math.max(20, ratings[primary] - 1)
     if (Math.random() < 0.20) ratings.stamina = Math.max(20, ratings.stamina - 1)
     if (Math.random() < 0.35) ratings.mental = Math.min(caps.mental, ratings.mental + 1)
     if (Math.random() < 0.30) ratings.pacing = Math.min(caps.pacing, ratings.pacing + 1)
-  } else if (ageDiff >= 4) {
-    // 本格的な衰え
-    ratings[primary] = Math.max(20, ratings[primary] - rnd(1, 2))
-    if (Math.random() < 0.60) ratings.stamina = Math.max(20, ratings.stamina - 1)
-    if (Math.random() < 0.40) ratings.recovery = Math.max(20, ratings.recovery - 1)
-    if (Math.random() < 0.20) ratings.speed = Math.max(20, ratings.speed - 1)
-    if (Math.random() < 0.20) ratings.mental = Math.min(caps.mental, ratings.mental + 1)
-    if (Math.random() < 0.15) ratings.pacing = Math.min(caps.pacing, ratings.pacing + 1)
   }
   // 成長期・ピーク前後: レース/カードEXPに委ねる（growPlayerでは変化なし）
 

@@ -514,14 +514,16 @@ function assignTraits(rank: Rank, specialty: Specialty, age: number): TraitId[] 
 
 let idCounter = 1000
 
+// 指名される上位40人(2巡×20)が全員A以上になるよう、A+を46人用意する。
+// 残り(B/C/D)は指名漏れ＝FAに回る（＝下位でも使い物にならない選手を指名しなくて済む）。
 const DRAFT_RANK_POOL: Rank[] = [
   'SSS', 'SSS',
-  'SS', 'SS', 'SS', 'SS', 'SS',
-  'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S',
-  'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
-  'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B',
-  'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C',
-  'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D',
+  'SS', 'SS', 'SS', 'SS', 'SS', 'SS',
+  'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S',
+  'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
+  'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B',
+  'C', 'C', 'C', 'C', 'C', 'C',
+  'D', 'D', 'D', 'D',
 ]
 
 type OriginType = 'university' | 'high_school' | 'foreign' | 'development'
