@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Race, RaceResults, Team, Player, Season, Nationality } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
@@ -72,10 +72,12 @@ export function ResultsPhase({
   const adH = useAdHeight()
   const [view, setView] = useState<'main' | 'segments' | 'exp'>('main')
   const [segView, setSegView] = useState(0)  // 区間タイム詳細で表示中の区間index
+  const segTopRef = useRef<HTMLDivElement>(null)
 
-  // 区間タイム詳細を開いた瞬間・タブ切替時は先頭（1位）が見えるようスクロールを戻す
+  // 区間タイム詳細を開いた瞬間・タブ切替時は先頭（1位）が見えるようスクロールを戻す。
+  // スクロールコンテナはLayoutの<main>なのでwindowでは効かず、要素基準のscrollIntoViewで戻す。
   useEffect(() => {
-    if (view === 'segments') window.scrollTo({ top: 0 })
+    if (view === 'segments') segTopRef.current?.scrollIntoView({ block: 'start' })
   }, [view, segView])
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
@@ -238,7 +240,7 @@ export function ResultsPhase({
   // 区間タイム詳細：別ビュー（結果画面が長いので分離）
   if (view === 'segments') {
     return (
-      <div style={{ fontFamily: SAIRA, paddingBottom: '40px', background: C.bg, minHeight: '100dvh' }}>
+      <div ref={segTopRef} style={{ fontFamily: SAIRA, paddingBottom: '40px', background: C.bg, minHeight: '100dvh' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.surface2, borderBottom: `1px solid ${C.border}`, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => setView('main')} style={{
             background: 'none', border: 'none', cursor: 'pointer', color: C.textSub,
