@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Race, RaceResults, Team, Player, Season, Nationality } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
@@ -72,6 +72,11 @@ export function ResultsPhase({
   const adH = useAdHeight()
   const [view, setView] = useState<'main' | 'segments' | 'exp'>('main')
   const [segView, setSegView] = useState(0)  // 区間タイム詳細で表示中の区間index
+
+  // 区間タイム詳細を開いた瞬間・タブ切替時は先頭（1位）が見えるようスクロールを戻す
+  useEffect(() => {
+    if (view === 'segments') window.scrollTo({ top: 0 })
+  }, [view, segView])
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const raceExpGains = useGameStore(s => s.raceExpGains ?? {})
