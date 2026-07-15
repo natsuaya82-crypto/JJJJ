@@ -71,9 +71,12 @@ export function ResultsPhase({
   const navigate = useNavigate()
   const adH = useAdHeight()
   const [view, setView] = useState<'main' | 'segments' | 'exp'>('main')
+  const [segView, setSegView] = useState(0)  // 区間タイム詳細で表示中の区間index
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const raceExpGains = useGameStore(s => s.raceExpGains ?? {})
+  // このレースで出た区間新記録（区間×選手）。「区間新！」バッジ表示用
+  const newSegRecords = useGameStore(s => s.raceNewSegmentRecords) ?? []
   const teamMap = new Map(teams.map(t => [t.id, t]))
   const playerMap = new Map(players.map(p => [p.id, p]))
   const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
@@ -124,12 +127,8 @@ export function ResultsPhase({
     const myRunner = sr.runners.find(r => r.teamId === playerTeamId)
     const isMyWin = sr.runners[0]?.teamId === playerTeamId
 
-    // top3 + my runner if not in top3
-    const displayed = (() => {
-      const top3 = sr.runners.slice(0, 3)
-      if (!myRunner || top3.some(r => r.teamId === playerTeamId)) return top3
-      return [...top3, myRunner]
-    })()
+    // 区間タブで1区間ずつ表示するので、その区間の全順位（1〜最下位）を出す
+    const displayed = sr.runners
 
     return (
       <div key={sr.segmentIndex} style={{
@@ -208,7 +207,12 @@ export function ResultsPhase({
                   )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {p && <div style={{ fontSize: 11, fontWeight: isMe ? 800 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                    {p && <div style={{ fontSize: 11, fontWeight: isMe ? 800 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>}
+                    {newSegRecords.some(m => m.segmentIndex === sr.segmentIndex && m.playerId === runner.playerId) && (
+                      <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
                     <span style={{ fontSize: 9, color: C.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>{t?.name ?? '?'}</span>
                     {highFatigue && <span style={{ fontSize: 8, color: C.red, fontWeight: 700, fontFamily: SAIRA, flexShrink: 0 }}>疲{myRunnerPlayer!.fatigue}</span>}
@@ -244,8 +248,26 @@ export function ResultsPhase({
             <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
           </div>
         </div>
-        <div style={{ padding: '14px 12px' }}>
-          {segmentDetailCards}
+        {/* 区間タブ（上部・横スクロール） */}
+        <div style={{ display: 'flex', overflowX: 'auto', gap: 6, padding: '10px 12px 6px', WebkitOverflowScrolling: 'touch' }}>
+          {results.segmentResults.map((sr, i) => {
+            const sel = i === segView
+            return (
+              <button key={sr.segmentIndex} onClick={() => setSegView(i)} style={{
+                flexShrink: 0, padding: '7px 14px', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA,
+                fontSize: 13, fontWeight: sel ? 900 : 700,
+                background: sel ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : C.surface2,
+                color: sel ? C.bg : C.textDim,
+                border: `1px solid ${sel ? C.gold : C.border2}`,
+              }}>
+                {sr.segmentIndex}区
+              </button>
+            )
+          })}
+        </div>
+        {/* 選択区間の全順位（1〜最下位） */}
+        <div style={{ padding: '6px 12px 14px' }}>
+          {segmentDetailCards[segView]}
         </div>
       </div>
     )
