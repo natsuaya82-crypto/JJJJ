@@ -1086,7 +1086,8 @@ function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specia
       const cur = ratings[stat]
       const cap = (caps as Record<string, number>)[stat]
       if (cur >= cap) continue
-      const diff = cur >= 80 ? 0.35 : cur >= 70 ? 0.6 : 1.0
+      // 高ポテンシャルの年長者がちゃんと90-99近くまで育つよう、高数値域の伸びを強めに。
+      const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
       const gain = Math.round(rng(0, 2) * potFactor * diff)
       if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
     }
@@ -1101,16 +1102,16 @@ export function generateForeignLeaguePlayers(
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
 
-  // 地域別の強さ。budget=年俸分配(ランク分布)、bonus=現在値の底上げ(潜在99を活かして90超のスターを作る)。
-  // 強さ順：アフリカ ＞ 欧州/欧米 ＞ その他 ＞ アジア(=日本と同等)。
-  // tierRangeだけだとOVR84止まりなので、bonusで現在値を上乗せして海外上位を格上に見せる。
-  const REGION: Record<string, { budget: number; bonus: number }> = {
-    AFRICA:  { budget: 950_000_000, bonus: 12 },  // 最強・現役90〜99のスターがゴロゴロ
-    EUR_USA: { budget: 850_000_000, bonus: 6 },   // 旧アフリカくらい
-    OTHER:   { budget: 780_000_000, bonus: 3 },   // アジアと欧州の間
-    ASIA:    { budget: 700_000_000, bonus: 0 },   // 日本(首位700M)と同等
+  // 地域別の強さ。budget=年俸分配(ランク分布)、potBonus=ポテンシャルの底上げ。
+  // 現在値をいきなり90-99にはしない。若手を高ポテンシャルで生成し、bakeAgeGrowth（年長者）＋
+  // 毎年の成長（若手）で90-99へ育つ。強さ順：アフリカ ＞ 欧州/欧米 ＞ その他 ＞ アジア(=日本と同等)。
+  const REGION: Record<string, { budget: number; potBonus: number }> = {
+    AFRICA:  { budget: 950_000_000, potBonus: 12 },  // 最強・才能が育つと90〜99へ
+    EUR_USA: { budget: 850_000_000, potBonus: 6 },
+    OTHER:   { budget: 780_000_000, potBonus: 3 },
+    ASIA:    { budget: 700_000_000, potBonus: 0 },   // 日本(首位700M)と同等
   }
-  function regionFor(country: string): { budget: number; bonus: number } {
+  function regionFor(country: string): { budget: number; potBonus: number } {
     if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return REGION.AFRICA
     if (['EUR', 'USA'].includes(country)) return REGION.EUR_USA
     if (['CHN', 'KOR', 'TWN'].includes(country)) return REGION.ASIA
@@ -1151,18 +1152,10 @@ export function generateForeignLeaguePlayers(
         const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
         clubPlayerIds.push(id)
 
-        // 年齢分の成長を焼き込んでから登録（22歳超で生成された選手が素体のままにならないように）
-        const potentialVal = rng(potential[0], potential[1])
+        // 地域でポテンシャルを底上げ（若手は高ポテンシャルで生成 → 成長で90-99へ）。現在値はいきなり上げない。
+        const potentialVal = Math.min(99, rng(potential[0], potential[1]) + region.potBonus)
+        // 年齢分の成長を焼き込む（年長者は既にポテンシャル近くまで育っている）
         bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
-        // 地域ボーナスで現在値を底上げ（潜在99を活かし、海外上位に現役90〜99のスターを作る）
-        if (region.bonus > 0) {
-          for (const k of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const) {
-            ratings[k] = Math.min(99, ratings[k] + region.bonus)
-          }
-        }
-        // 底上げした現在値が潜在を超えないよう potential を引き上げる（生成直後にすぐ衰えないように）
-        const flOvr = Math.round((ratings.speed + ratings.stamina + ratings.mountainUp + ratings.mountainDown + ratings.pacing + ratings.mental + ratings.recovery) / 7)
-        const flPotential = Math.max(potentialVal, flOvr)
 
         players.push({
           id,
@@ -1175,7 +1168,7 @@ export function generateForeignLeaguePlayers(
           draftPick: null,
           ratings,
           specialty,
-          potential: flPotential,
+          potential: potentialVal,
           growthCurve,
           teamId: club.id,
           rosterTier: 'main',
