@@ -1061,7 +1061,7 @@ export function refreshForeignLeagues(
         const kept = club.playerIds.filter(id => !removedIds.has(id))
         const freshClub = freshL?.clubs.find(fc => fc.id === club.id)
         // クラブ人数は30人上限（無制限に膨らんでセーブが肥大するのを防ぐ）
-        const addN = Math.min(3 + (Math.random() < 0.5 ? 1 : 0), Math.max(0, 30 - kept.length))
+        const addN = Math.min(3, Math.max(0, 30 - kept.length))
         const adds = (freshClub?.playerIds ?? []).slice(0, addN)
         for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
         return { ...club, playerIds: [...kept, ...adds] }

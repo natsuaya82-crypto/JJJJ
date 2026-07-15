@@ -187,10 +187,12 @@ export default function PlayerSheet() {
     const dx = e.changedTouches[0].clientX - touchStart.current.x
     const dy = e.changedTouches[0].clientY - touchStart.current.y
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 48) {
-      // ドラフト候補（通常選手リスト外）は2ページまで
-      const maxPage = players.some(p => p.id === openPlayerId) ? 3 : 2
+      // ドラフト候補（通常選手リスト外）は2ページまで。引退選手は1ページ目を出さないので2から。
+      const cur = players.find(p => p.id === openPlayerId)
+      const maxPage = cur ? 3 : 2
+      const minPage = cur?.status === 'retired' ? 2 : 1
       if (dx < 0) goToPage(Math.min(page + 1, maxPage))
-      if (dx > 0) goToPage(Math.max(page - 1, 1))
+      if (dx > 0) goToPage(Math.max(page - 1, minPage))
     }
   }
 
@@ -200,7 +202,8 @@ export default function PlayerSheet() {
     ?? draftPool.find(p => p.id === openPlayerId)
 
   useEffect(() => {
-    setPage(1)
+    // 引退選手は1ページ目を出さないので2ページ目から開く
+    setPage(player?.status === 'retired' ? 2 : 1)
     setSelectedRaceName(null)
   }, [openPlayerId])
 
@@ -231,6 +234,7 @@ export default function PlayerSheet() {
   const isProspect = player.status === 'draft_eligible'
     || player.teamId === '__pool__'
     || !players.some(p => p.id === player.id)
+  const isRetired = player.status === 'retired'
   const isScouted = isMyPlayer || isProspect || isOpponentScouted(player.id, currentSeason)
 
   // ドラフト候補の予想指名順位。生成時に焼き込んだ player.predictedPick を使う（ドラフト中も不変）。
@@ -332,7 +336,8 @@ export default function PlayerSheet() {
   // 現行シーズンは未出場でも「今年・現チーム」を必ず1行出す（0レースで空にしない）。
   // ルール: 1軍(A)にも2軍(B)にも出ていない選手はB行で表示。既にA/Bどちらかの出場行があれば追加しない
   // （Bのみ出場の選手に空のA行が生えるのを防ぐ）
-  {
+  // 引退選手は現行シーズンの所属が無い（teamId空）ので、引退後の年に空行を生やさない
+  if (!isRetired) {
     const anyThisYear = [...historyMap.keys()].some(k => k.startsWith(`${currentSeason.year}|${player.teamId}|`))
     if (!anyThisYear) historyMap.set(`${currentSeason.year}|${player.teamId}|second`, { year: currentSeason.year, teamId: player.teamId, tier: 'second', races: 0, wins: 0 })
   }
@@ -381,7 +386,7 @@ export default function PlayerSheet() {
             {page === 4 ? (
               <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8' }}>{selectedRaceName}</span>
             ) : (
-              (isProspect ? [1, 2] : [1, 2, 3]).map(p => (
+              (isProspect ? [1, 2] : isRetired ? [2, 3] : [1, 2, 3]).map(p => (
                 <div key={p} onClick={() => goToPage(p)} style={{
                   width: page === p ? '20px' : '6px', height: '6px', borderRadius: '3px',
                   backgroundColor: page === p ? specCol : '#2E2B42',
@@ -450,7 +455,7 @@ export default function PlayerSheet() {
         <div key={pageKey} className={pageAnim}>
 
           {/* Page 1: プロフィール */}
-          {page === 1 && (
+          {page === 1 && !isRetired && (
             <div style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {/* 記録パッチ（世界/日本記録・MVP・新人王・区間記録、最大5個）。
                   自チーム選手はタップでロスター名前横に表示するパッチを選べる */}
@@ -518,6 +523,16 @@ export default function PlayerSheet() {
           {/* Page 2: 駅伝データ */}
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              {/* 引退選手は1ページ目を出さないので、ドラフト情報をここに移植 */}
+              {isRetired && (
+                <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>
+                    {player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外'}
+                  </div>
+                </div>
+              )}
 
               {/* 自己ベスト（種目別・記録会で走った実タイムのみ）。種目を横に並べてタイムを下に置く */}
               <div>
@@ -615,6 +630,7 @@ export default function PlayerSheet() {
                           <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {teamName}
                             {suffix && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>{suffix}</span>}
+                            {isRetired && i === 0 && <span style={{ fontSize: '9px', fontWeight: 800, color: '#E8462A', marginLeft: '5px', padding: '1px 5px', borderRadius: 4, background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
                           </span>
                           {t && !teamJumpBlocked && (
                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0 }}>
