@@ -391,15 +391,14 @@ function clamp(v: number, min: number, max: number) {
 }
 
 function tierRange(rank: Rank): { min: number; max: number } {
-  // 下限を引き上げ（弱すぎる選手を無くす）。最弱のDでも約60〜66、上位はほぼ据え置き。
   const ranges: Record<Rank, [number, number]> = {
-    'D':   [60, 66],
-    'C':   [63, 69],
-    'B':   [66, 72],
-    'A':   [68, 74],
-    'S':   [71, 77],
-    'SS':  [74, 80],
-    'SSS': [77, 85],
+    'D':   [48, 55],
+    'C':   [52, 59],
+    'B':   [57, 64],
+    'A':   [61, 68],
+    'S':   [65, 72],
+    'SS':  [70, 77],
+    'SSS': [76, 84],
   }
   const [min, max] = ranges[rank] ?? ranges['A']
   return { min, max }
@@ -1106,18 +1105,22 @@ export function generateForeignLeaguePlayers(
   // 地域別の強さ。budget=年俸分配(ランク分布)、potBonus=ポテンシャルの底上げ。
   // 現在値をいきなり90-99にはしない。若手を高ポテンシャルで生成し、bakeAgeGrowth（年長者）＋
   // 毎年の成長（若手）で90-99へ育つ。強さ順：アフリカ ＞ 欧州/欧米 ＞ その他 ＞ アジア(=日本と同等)。
-  const REGION: Record<string, { budget: number; potBonus: number }> = {
-    AFRICA:  { budget: 950_000_000, potBonus: 12 },  // 最強・才能が育つと90〜99へ
-    EUR_USA: { budget: 850_000_000, potBonus: 6 },
-    OTHER:   { budget: 780_000_000, potBonus: 3 },
-    ASIA:    { budget: 700_000_000, potBonus: 0 },   // 日本(首位700M)と同等
+  // minRank=そのリーグの最低ランク。海外クラブは格上なので、ベンチでもこのランク以上にする
+  // （下位が D=52 みたいにならないように）。強い地域ほど底も高い。
+  const REGION: Record<string, { budget: number; potBonus: number; minRank: Rank }> = {
+    AFRICA:  { budget: 950_000_000, potBonus: 12, minRank: 'A' },  // 最強・ベンチもA以上、才能が育つと90〜99へ
+    EUR_USA: { budget: 850_000_000, potBonus: 6,  minRank: 'A' },
+    OTHER:   { budget: 780_000_000, potBonus: 3,  minRank: 'B' },
+    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B' },  // 平均は日本と同等だが、下位でもB以上
   }
-  function regionFor(country: string): { budget: number; potBonus: number } {
+  function regionFor(country: string): { budget: number; potBonus: number; minRank: Rank } {
     if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return REGION.AFRICA
     if (['EUR', 'USA'].includes(country)) return REGION.EUR_USA
     if (['CHN', 'KOR', 'TWN'].includes(country)) return REGION.ASIA
     return REGION.OTHER
   }
+  const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
+  const rankAtLeast = (r: Rank, min: Rank): Rank => RANK_ORDER.indexOf(r) >= RANK_ORDER.indexOf(min) ? r : min
 
   const updatedLeagues = leagues.map(league => ({
     ...league,
@@ -1130,7 +1133,8 @@ export function generateForeignLeaguePlayers(
       const clubUsedNames = new Set<string>()
 
       salaries.forEach((clubSalary) => {
-        const rank = rankForSalary(clubSalary)
+        // 海外クラブは格上なので、ベンチでも地域の最低ランク以上にする（下位が52みたいにならない）
+        const rank = rankAtLeast(rankForSalary(clubSalary), region.minRank)
         foreignIdCounter++
         const specialty = specialties[rng(0, specialties.length - 1)]
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
