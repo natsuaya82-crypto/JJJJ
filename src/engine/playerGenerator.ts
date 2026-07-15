@@ -391,14 +391,15 @@ function clamp(v: number, min: number, max: number) {
 }
 
 function tierRange(rank: Rank): { min: number; max: number } {
+  // 下限を引き上げ（弱すぎる選手を無くす）。最弱のDでも約60〜66、上位はほぼ据え置き。
   const ranges: Record<Rank, [number, number]> = {
-    'D':   [48, 55],
-    'C':   [52, 59],
-    'B':   [57, 64],
-    'A':   [61, 68],
-    'S':   [65, 72],
-    'SS':  [70, 77],
-    'SSS': [76, 84],
+    'D':   [60, 66],
+    'C':   [63, 69],
+    'B':   [66, 72],
+    'A':   [68, 74],
+    'S':   [71, 77],
+    'SS':  [74, 80],
+    'SSS': [77, 85],
   }
   const [min, max] = ranges[rank] ?? ranges['A']
   return { min, max }
