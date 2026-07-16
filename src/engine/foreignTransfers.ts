@@ -13,6 +13,10 @@ const FOREIGN_LEAGUE_MIN_OVR: Record<string, number> = {
 }
 const foreignMinOvr = (country: string): number => FOREIGN_LEAGUE_MIN_OVR[country] ?? 75  // その他
 
+// 年齢を加味した実効OVR。33歳から1歳ごとに3下げる（35歳の85は実効79相当＝格上には打診されない）。
+// 「高齢の高OVRは翌年急落するので海外から打診されない」を表現する。
+const effectiveOvr = (p: Player): number => ovr(p) - Math.max(0, (p.age - 33) * 3)
+
 type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[]; major?: boolean }
 // 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す
 type TxRecord = { year: number; date: string; playerId: string; fromTeamId: string; toTeamId: string; fee: number; kind?: 'free' | 'trade'; years?: number }
@@ -67,8 +71,8 @@ export function simulateForeignTransferMarket(params: {
       .slice(0, 10)   // 上位10人が引き抜き対象
     if (candidates.length === 0) continue
     const target = candidates[Math.floor(Math.random() * candidates.length)]
-    // buyer のリーグの格にOVRが届かない選手は引き抜かない（弱い選手が格上リーグへ行かない）
-    if (ovr(target) < foreignMinOvr(buyer.country ?? '')) continue
+    // buyer のリーグの格に実効OVR（年齢加味）が届かない選手は引き抜かない（弱い/高齢の選手が格上へ行かない）
+    if (effectiveOvr(target) < foreignMinOvr(buyer.country ?? '')) continue
 
     // 実行
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
@@ -228,7 +232,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const target = surplusTarget([...jpnRoster[seller.id], ...jpnSecond[seller.id]])
     if (!target || moved.has(target.id)) continue
     // 買う側（海外クラブ）は上限(30)未満＋リーグの格にOVRが届くクラブのみ（弱い選手は格上リーグに行かない）
-    const tOvr = ovr(target)
+    const tOvr = effectiveOvr(target)
     const buyerPool = foreignClubs.filter(c => fRoster[c.id].length < ROSTER_MAX && tOvr >= foreignMinOvr(clubCountry.get(c.id) ?? ''))
     if (buyerPool.length === 0) continue
     const buyer = pick(buyerPool)
