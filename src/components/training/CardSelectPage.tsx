@@ -30,7 +30,8 @@ export default function CardSelectPage() {
   const [filterRarity, setFilterRarity] = useState<CardRarity | 'all'>('all')
 
   const fusionFull = fusionCardIds.length >= MAX_FUSION_CARDS
-  // 合成対象の選手（能力別ポテンシャル上限に達した能力のカードは使えない＝無駄防止）
+  // 合成対象の選手。上限到達能力のカードも選択可（レシピの種類数を揃えるため）。
+  // その能力自体は伸びない（EXPは上限でクランプ）が、「上限」スタンプで無駄になることは示す。
   const targetPlayer = fusionPlayerId ? players.find(p => p.id === fusionPlayerId) ?? null : null
   const isCardMaxed = (statKey: CardStatKey, kind?: 'rest') => kind !== 'rest' && !!targetPlayer && isStatMaxed(targetPlayer, statKey)
 
@@ -74,7 +75,6 @@ export default function CardSelectPage() {
     if (fusionFull) return
     const next = cards.find(c => !fusionCardIds.includes(c.id))
     if (!next) return
-    if (isCardMaxed(next.statKey, next.kind)) return  // 上限到達能力は追加不可
     addFusionCard(next.id)
   }
 
@@ -161,7 +161,7 @@ export default function CardSelectPage() {
               const selCount = group.cards.filter(c => fusionCardIds.includes(c.id)).length
               const remaining = group.cards.length - selCount
               const statMaxed = isCardMaxed(group.statKey, group.kind)
-              const disabled = remaining <= 0 || fusionFull || statMaxed
+              const disabled = remaining <= 0 || fusionFull
               return (
                 <button
                   key={group.key}

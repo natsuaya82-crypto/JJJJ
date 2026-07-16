@@ -524,15 +524,49 @@ export default function PlayerSheet() {
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* 引退選手は1ページ目を出さないので、ドラフト情報をここに移植 */}
-              {isRetired && (
-                <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>
-                    {player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外'}
-                  </div>
+              {/* 引退選手は1ページ目（パッチ表示）を出さないので、記録パッチをここにも表示（閲覧のみ） */}
+              {isRetired && badges.length > 0 && (
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {badges.map(b => {
+                    const col = BADGE_COLOR[b.kind]
+                    return (
+                      <span key={b.key} style={{
+                        fontSize: '9px', fontWeight: 900, padding: '3px 8px', borderRadius: '7px',
+                        background: `linear-gradient(180deg, ${col}2E, ${col}14)`,
+                        color: col, border: `1px solid ${col}55`, flexShrink: 0,
+                      }}>
+                        {b.label}
+                      </span>
+                    )
+                  })}
                 </div>
               )}
+
+              {/* 引退選手は1ページ目を出さないので、ドラフト情報をここに移植 */}
+              {isRetired && (() => {
+                // 引退年：retiredYear が無い旧セーブは最後に出走した年から推定
+                let lastRaceYear: number | null = null
+                for (const es of raceGroupMap.values()) for (const e of es) {
+                  if (lastRaceYear == null || e.year > lastRaceYear) lastRaceYear = e.year
+                }
+                const retYear = player.retiredYear ?? lastRaceYear
+                return (
+                  <>
+                    <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: 'rgba(232,70,42,0.08)', border: '1px solid rgba(232,70,42,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '8px', color: '#5C5870' }}>引退</div>
+                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#E8462A' }}>
+                        {retYear != null ? `${retYear}年 引退` : '引退済み'}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>
+                        {player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外'}
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
 
               {/* 自己ベスト（種目別・記録会で走った実タイムのみ）。種目を横に並べてタイムを下に置く */}
               <div>
@@ -614,11 +648,12 @@ export default function PlayerSheet() {
                   </div>
                   {historyRows.map((row, i) => {
                     const t = resolveTeam(row.teamId)
-                    const teamName = t?.name ?? t?.shortName ?? ''
+                    // 無所属(FA)の年はチーム名なし＝「未所属」表示（(B)を付けると引退と紛らわしい）
+                    const teamName = t?.name ?? t?.shortName ?? (row.teamId === '' ? '未所属' : '')
                     const isLoan = (player.loanTeamYears ?? []).some(l => l.year === row.year && l.teamId === row.teamId)
                       || (row.year === currentSeason.year && !!player.loan && row.teamId === player.teamId)
                     // 出走0の年はB表示（未出場の在籍はB扱い）
-                    const suffix = `${row.tier === 'second' || row.races === 0 ? '(B)' : ''}${isLoan ? '(L)' : ''}`
+                    const suffix = row.teamId === '' ? '' : `${row.tier === 'second' || row.races === 0 ? '(B)' : ''}${isLoan ? '(L)' : ''}`
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                         <span style={{ width: '40px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>

@@ -4,7 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { computeNextSeasonBudget, rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost } from '../../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT, DUTY_RESERVE_GRANT_CUT } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -88,6 +88,10 @@ export default function BudgetPage() {
   ) * racesLeft
   const estimatedSponsorRemaining = racesLeft > 0 ? Math.round(sponsorAnnual / racesTotal) * racesLeft : 0
 
+  // 育成義務ペナルティの見込み（在籍22人以下 or リザーブリーグ不参加で来季グラント減額）
+  const reserveJoined = (currentSeason.secondTeamRaces ?? []).length === 0 || currentSeason.reserveLeagueJoined === true
+  const dutyCut = leagueDutyGrantCut(rosterPlayers.length, reserveJoined)
+
   // 来季予算の見込み（現順位を最終順位と仮定・実モデルと同じ計算）
   const seasonRaceIncomeSoFar = currentSeason.seasonRaceIncome ?? 0
   const projectedSeasonRaceIncome = seasonRaceIncomeSoFar + estimatedRemainingRacePrize + estimatedRemainingAttendance
@@ -101,6 +105,7 @@ export default function BudgetPage() {
     bonusPayout: 0,
     salaryTotal: squadSalaryTotal,
     runningCost: facRunningCost,
+    dutyGrantCut: dutyCut,
   })
 
   // 今シーズンの収支＝お金関係を全部合計（予算繰越＋グラント＋スポンサー＋賞金観客 − 年俸 − 運営費 − 施設維持費）。
@@ -203,6 +208,20 @@ export default function BudgetPage() {
             <div style={{ fontSize: 10, color: C.textDim, padding: '2px 0 6px', lineHeight: 1.6 }}>
               賞金・観客・スポンサー収入や順位グラントは<b style={{ color: C.textSub }}>来期の予算に反映</b>（シーズン終了時に確定）。
             </div>
+            {dutyCut > 0 && (
+              <div style={{
+                margin: '0 0 10px', padding: '8px 10px', borderRadius: 8,
+                background: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.3)}`,
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 3 }}>
+                  リーグ規定違反 — 来季グラント-{Math.round(dutyCut * 100)}%
+                </div>
+                <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.6 }}>
+                  {rosterPlayers.length <= DUTY_ROSTER_THRESHOLD && <div>在籍{rosterPlayers.length}名（{DUTY_ROSTER_THRESHOLD}名以下）: -{Math.round(DUTY_ROSTER_GRANT_CUT * 100)}%</div>}
+                  {!reserveJoined && <div>リザーブリーグ不参加: -{Math.round(DUTY_RESERVE_GRANT_CUT * 100)}%</div>}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

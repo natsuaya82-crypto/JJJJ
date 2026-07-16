@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, isStatMaxed, getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
 import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
@@ -36,7 +36,7 @@ export default function CardTrainingPage() {
   const {
     trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
-    openPlayerSheet,
+    openPlayerSheet, jewels, breakStatLimit,
   } = useGameStore()
 
   const [searchParams] = useSearchParams()
@@ -80,6 +80,8 @@ export default function CardTrainingPage() {
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; traitGranted: boolean; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
   const [adWatched, setAdWatched] = useState(false)
   const [adConfirmOpen, setAdConfirmOpen] = useState(false)
+  // 上限解放：MAXの能力をタップ→確認ダイアログでジュエル消費して上限+1
+  const [limitBreakStat, setLimitBreakStat] = useState<CardStatKey | null>(null)
   const [barAnimated, setBarAnimated] = useState(false)
 
   useEffect(() => {
@@ -227,6 +229,30 @@ export default function CardTrainingPage() {
           onCancel={() => setAdConfirmOpen(false)}
         />
       )}
+      {limitBreakStat && (() => {
+        const cap = (getStatPotentials(targetPlayer) as Record<string, number>)[limitBreakStat]
+        if (cap >= 99) return null
+        const cost = limitBreakCost(cap + 1)
+        const enough = (jewels ?? 0) >= cost
+        return (
+          <ConfirmDialog
+            title={enough ? '上限解放' : 'ジュエルが足りません'}
+            message={enough
+              ? `${CARD_STAT_LABELS[limitBreakStat]}の上限を ${cap} から ${cap + 1} に解放します。${cost}ジュエルを消費します（所持 ${jewels}）。`
+              : `${CARD_STAT_LABELS[limitBreakStat]}の上限解放には ${cost}ジュエル必要です（所持 ${jewels ?? 0}）。`}
+            confirmLabel={enough ? '解放する' : '閉じる'}
+            accent={C.gold}
+            onConfirm={() => {
+              if (enough) {
+                breakStatLimit(targetPlayer.id, limitBreakStat)
+                audio.playSe('levelup')
+              }
+              setLimitBreakStat(null)
+            }}
+            onCancel={() => setLimitBreakStat(null)}
+          />
+        )
+      })()}
       {sharedHeader(() => navigate(-1))}
 
       {/* Selected player banner */}
@@ -260,11 +286,14 @@ export default function CardTrainingPage() {
             const gainExp = Math.min(curExp + delta, req)
             const gainPct = req > 0 ? Math.max(0, gainExp / req - basePct) : 0
             const levelUp = req > 0 && curExp + delta >= req
+            const cap = (getStatPotentials(targetPlayer) as Record<string, number>)[k]
+            const canBreak = maxed && cap < 99
             return (
-              <div key={k} style={{
+              <div key={k} onClick={canBreak ? () => setLimitBreakStat(k) : undefined} style={{
                 padding: '5px 6px', borderRadius: 6, textAlign: 'center',
                 background: maxed ? alpha(C.gold, 0.1) : delta > 0 ? alpha('#9FE88D', 0.12) : alpha(C.surface, 0.8),
                 border: `1px solid ${maxed ? alpha(C.gold, 0.4) : delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
+                cursor: canBreak ? 'pointer' : 'default',
               }}>
                 <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>{CARD_STAT_LABELS[k]}</div>
                 <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: maxed ? C.gold : delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
@@ -274,6 +303,7 @@ export default function CardTrainingPage() {
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${maxed ? 100 : basePct * 100}%`, background: maxed ? alpha(C.gold, 0.6) : alpha(C.textSub, 0.5), borderRadius: 2, transition: 'width 0.25s ease' }}/>
                   <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${maxed ? 0 : gainPct * 100}%`, background: '#9FE88D', borderRadius: 2, transition: 'left 0.25s ease, width 0.25s ease' }}/>
                 </div>
+                {canBreak && <div style={{ fontFamily: SAIRA, fontSize: 7, color: C.gold, marginTop: 3 }}>タップで上限解放</div>}
               </div>
             )
           })}

@@ -29,6 +29,19 @@ export function rankBudgetGrant(finalRank: number): number {
   return RANK_BUDGET[finalRank] ?? 340_000_000
 }
 
+// ── リーグの育成義務ペナルティ ──
+// 少人数の緊縮経営（年俸を絞って黒字を貯める）への対抗策。
+// 在籍22人以下は翌季グラント-20%、リザーブリーグ不参加はさらに-10%（合計最大-30%）。
+export const DUTY_ROSTER_THRESHOLD = 22
+export const DUTY_ROSTER_GRANT_CUT = 0.20
+export const DUTY_RESERVE_GRANT_CUT = 0.10
+export function leagueDutyGrantCut(rosterSize: number, reserveJoined: boolean): number {
+  let cut = 0
+  if (rosterSize <= DUTY_ROSTER_THRESHOLD) cut += DUTY_ROSTER_GRANT_CUT
+  if (!reserveJoined) cut += DUTY_RESERVE_GRANT_CUT
+  return cut
+}
+
 // 指名権の市場価値：ドラ1級選手の実価値(約1.2億)×0.9^指名位置。
 // 全体1位≈1.08億、5位≈7100万、10位≈4200万、20位≈1450万。2巡は500〜1000万。
 // pickNumber は 1巡=1〜20。旧データの2巡(21〜40)でも2巡側はほぼ一律なので誤差は出ない。
@@ -67,10 +80,11 @@ export function computeNextSeasonBudget(args: {
   bonusPayout: number
   salaryTotal: number       // ロスター総年俸
   runningCost?: number      // 施設維持費＋運営費（ランニングコスト）
+  dutyGrantCut?: number     // 育成義務ペナルティ（leagueDutyGrantCut の結果。0〜0.3）
 }): number {
   // 2年連続赤字でグラント-20%、3年以上で-35%（万年赤字への締め付け）
   const grantMult = args.deficitStreak >= 3 ? 0.65 : args.deficitStreak >= 2 ? 0.80 : 1.0
-  const grant = Math.round(rankBudgetGrant(args.finalRank) * grantMult)
+  const grant = Math.round(rankBudgetGrant(args.finalRank) * grantMult * (1 - (args.dutyGrantCut ?? 0)))
   const income = grant + args.sponsorAnnual + args.seasonRaceIncome + args.objBudgetBonus
   const expenses = args.bonusPayout + args.salaryTotal + (args.runningCost ?? 0)
   const raw = args.prevBalance + income - expenses

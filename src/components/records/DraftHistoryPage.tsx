@@ -25,7 +25,7 @@ function CardPanel({ children }: { children: React.ReactNode }) {
 }
 
 export default function DraftHistoryPage() {
-  const { players, teams, playerTeamId, openPlayerSheet } = useGameStore()
+  const { players, teams, playerTeamId, openPlayerSheet, foreignLeagues } = useGameStore()
   const navigate = useNavigate()
   const { year } = useParams<{ year?: string }>()
   const selectedYear = year != null ? Number(year) : null
@@ -62,7 +62,9 @@ export default function DraftHistoryPage() {
         <div style={{ padding: '12px 16px 0' }}>
           <CardPanel>
             {list.map((p, i) => {
+              // 海外クラブへ移籍した選手も所属が出るよう、国内チーム→海外クラブの順で解決
               const team = teams.find(t => t.id === p.teamId)
+                ?? (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === p.teamId)
               const isRetired = p.status === 'retired'
               const isMine = p.teamId === playerTeamId
               const o = ovr(p)

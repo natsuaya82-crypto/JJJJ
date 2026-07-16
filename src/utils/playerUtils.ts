@@ -32,11 +32,17 @@ export function getStatPotentials(p: Player): Ratings {
   for (const stat of ALL_STAT_KEYS) {
     // 頭打ちを能力ごとに固定でずらす（同じ選手でも非得意が全部同じ値に揃わない）。id+statで決定的。
     const jitter = (hashStr(p.id + stat) % 9) - 6   // -6〜+2
-    const ceil = (strong.has(stat) ? p.potential + 12 : p.potential - 5) + jitter
+    const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0   // ジュエルの上限解放分
+    const ceil = (strong.has(stat) ? p.potential + 12 : p.potential - 5) + jitter + boost
     const cur = (p.ratings as Record<string, number>)[stat] ?? 0
     ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, Math.round(ceil)))
   }
   return out
+}
+
+// 上限解放のジュエルコスト（解放後の上限値で段階制）。99が天井。
+export function limitBreakCost(nextCap: number): number {
+  return nextCap >= 95 ? 3000 : nextCap >= 90 ? 1000 : nextCap >= 80 ? 300 : 100
 }
 
 // その能力が上限に達しているか（カード合成のブロック・表示用）。

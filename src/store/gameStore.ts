@@ -14,9 +14,9 @@ import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings
 import { simulateEclEvent } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials } from '../utils/playerUtils'
+import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase } from '../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -418,6 +418,8 @@ export type GameStore = GameState & {
 
   // Card training
   applyTrainingCards: (playerId: string, cardIds: string[], grantTrait?: boolean, multiplier?: number) => void
+  // ジュエルで能力1つの上限を+1する（コストは playerUtils.limitBreakCost。99が天井）
+  breakStatLimit: (playerId: string, stat: CardStatKey) => void
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
 
@@ -2477,7 +2479,7 @@ export const useGameStore = create<GameStore>()(
               const retPlayer = players.find(p => p.id === pid)
               if (retPlayer) {
                 const isLegend = retPlayer.career.segmentWins >= 5 || retPlayer.career.championships >= 1 || retPlayer.yearsPro >= 4
-                players = players.map(p => p.id === pid ? { ...p, status: 'retired' as const, teamId: '' } : p)
+                players = players.map(p => p.id === pid ? { ...p, status: 'retired' as const, teamId: '', retiredYear: state.currentSeason.year } : p)
                 players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
                 if (isLegend) {
                   teams = teams.map(t => {
@@ -3212,7 +3214,7 @@ export const useGameStore = create<GameStore>()(
             return { ...base, history: { ...base.history, legends: [...(base.history.legends ?? []), legend] } }
           })
           return {
-            players: state.players.map(p => p.id === playerId ? { ...p, status: 'retired' as const, teamId: '', } : p),
+            players: state.players.map(p => p.id === playerId ? { ...p, status: 'retired' as const, teamId: '', retiredYear: state.currentSeason.year } : p),
             teams: newTeams,
             currentSeason: { ...state.currentSeason, retirementRequests: (state.currentSeason.retirementRequests ?? []).filter(r => r.playerId !== playerId) }
           }
@@ -4911,7 +4913,7 @@ export const useGameStore = create<GameStore>()(
 
           // Apply retirements to player array
           const playersAfterRetire = playersAfterFA.map(p =>
-            retiringIds.has(p.id) ? { ...p, status: 'retired' as const, teamId: '' } : p
+            retiringIds.has(p.id) ? { ...p, status: 'retired' as const, teamId: '', retiredYear: state.currentSeason.year } : p
           )
 
           // Auto contract renewal events for player-team players with yearsLeft === 1 after growth
@@ -5192,6 +5194,10 @@ export const useGameStore = create<GameStore>()(
           // 施設Lv合計→維持費。強い＝施設充実で維持費が高い。
           const facLevelSum = (f?: Record<string, number>) => Object.values(f ?? {}).reduce((s, v) => s + (v ?? 0), 0)
           const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), rankBudgetGrant(finalRank))
+          // 育成義務ペナルティ：在籍22人以下 or リザーブリーグ不参加でグラント減額（自チームのみ。CPUは常時24人以上＋参加扱い）
+          const myRosterSize = playersAfterMorale.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
+          const reserveJoinedMe = (state.currentSeason.secondTeamRaces ?? []).length === 0 || state.currentSeason.reserveLeagueJoined === true
+          const dutyCutMe = leagueDutyGrantCut(myRosterSize, reserveJoinedMe)
           const newBudget = computeNextSeasonBudget({
             finalRank,
             prevBalance: playerBudgetAtSeasonEnd,
@@ -5202,6 +5208,7 @@ export const useGameStore = create<GameStore>()(
             bonusPayout: bonusTotalPayout,
             salaryTotal: playerSalaryTotal,
             runningCost: runningCostVal,
+            dutyGrantCut: dutyCutMe,
           })
           // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。グラントは連続赤字ペナルティ適用後の実額。
           // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
@@ -5209,7 +5216,7 @@ export const useGameStore = create<GameStore>()(
           const grantMultForBudget = prevStreakMe >= 3 ? 0.65 : prevStreakMe >= 2 ? 0.80 : 1.0
           const newBudgetBreakdown = {
             carryover: playerBudgetAtSeasonEnd - (bonusTotalPayout + playerSalaryTotal + runningCostVal),
-            grant: Math.round(rankBudgetGrant(finalRank) * grantMultForBudget),
+            grant: Math.round(rankBudgetGrant(finalRank) * grantMultForBudget * (1 - dutyCutMe)),
             raceIncome: prevRaceIncome,
             sponsor: sponsorAnnual,
             objBonus: objBudgetBonus,
@@ -5439,7 +5446,7 @@ export const useGameStore = create<GameStore>()(
               if (p.status === 'retired') return [leanRetired(p)]
               if (p.status === 'active' && p.teamId === '') {
                 const since = p.faSinceYear ?? state.currentSeason.year
-                if (newYear - since >= 2) return p.draftRound != null ? [leanRetired(p)] : []
+                if (newYear - since >= 2) return p.draftRound != null ? [leanRetired({ ...p, retiredYear: p.retiredYear ?? since })] : []
                 return [{ ...p, faSinceYear: since }]
               }
               return [p.faSinceYear != null ? { ...p, faSinceYear: undefined } : p]
@@ -6260,6 +6267,27 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
+      breakStatLimit: (playerId, stat) => {
+        set(state => {
+          const player = state.players.find(p => p.id === playerId)
+          if (!player) return state
+          const cap = (getStatPotentials(player) as Record<string, number>)[stat]
+          if (cap >= 99) return state
+          const cost = limitBreakCost(cap + 1)
+          if ((state.jewels ?? 0) < cost) return state
+          // 上限が確実に+1されるまでboostを積む（現在値>基礎上限のエッジケースで空振りしないように）
+          let np: Player = { ...player, potentialBoosts: { ...(player.potentialBoosts ?? {}), [stat]: (player.potentialBoosts?.[stat] ?? 0) + 1 } }
+          let guard = 0
+          while ((getStatPotentials(np) as Record<string, number>)[stat] <= cap && guard++ < 30) {
+            np = { ...np, potentialBoosts: { ...np.potentialBoosts, [stat]: (np.potentialBoosts?.[stat] ?? 0) + 1 } }
+          }
+          return {
+            jewels: state.jewels - cost,
+            players: state.players.map(p => p.id === playerId ? np : p),
+          }
+        })
+      },
+
       dismissDroppedCards: () => set({ raceDroppedCards: [], raceExpGains: {} }),
 
       dismissBudgetNotice: () => set({ seasonBudgetNotice: null }),
@@ -6361,7 +6389,30 @@ export const useGameStore = create<GameStore>()(
           }
           const w = fix(state.worldRecords, BASELINE_WORLD_RECORDS)
           const j = fix(state.japanRecords, BASELINE_JAPAN_RECORDS)
-          if (!w.changed && !j.changed) return state
+          // 過去に出した自己ベスト（eventBests）が現記録より速いのに保持者になっていないセーブを是正。
+          // 記録データ導入前のタイムはworldRecordsに反映されておらず、
+          // 「ランキングでは世界一なのに記録パッチが付かない」状態になるため
+          let wChanged = w.changed
+          let jChanged = j.changed
+          for (const k of ['d5000', 'd10000', 'half', 'marathon'] as const) {
+            for (const p of state.players) {
+              const b = p.eventBests?.[k]
+              if (!b) continue
+              const cw = w.out[k]
+              if (!cw || b.timeSec < cw.timeSec) {
+                w.out[k] = { playerId: p.id, playerName: p.name, timeSec: b.timeSec, year: b.year }
+                wChanged = true
+              }
+              if (p.nationality === 'JPN') {
+                const cj = j.out[k]
+                if (!cj || b.timeSec < cj.timeSec) {
+                  j.out[k] = { playerId: p.id, playerName: p.name, timeSec: b.timeSec, year: b.year }
+                  jChanged = true
+                }
+              }
+            }
+          }
+          if (!wChanged && !jChanged) return state
           return { worldRecords: w.out, japanRecords: j.out }
         })
         // 海外クラブの名簿に載っているのに teamId が ''（未所属）になった選手を復元する
