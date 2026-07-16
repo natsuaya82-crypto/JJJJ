@@ -1409,18 +1409,19 @@ export const useGameStore = create<GameStore>()(
             // 相手が欲しがるのは補強ニーズに合う自チーム選手（いなければ全員から）
             const wantedByThem = myTradables.filter(p => theirNeeds.includes(p.specialty))
             const askPool = wantedByThem.length > 0 ? wantedByThem : myTradables
-            // 価値が釣り合う全組み合わせから選ぶ。優先順位は「補強ニーズ＞額面OVR差」：
-            // もらえる選手が自チームの弱点ポジに合うならOVR差±10まで許容（弱点を埋める価値がある）、
-            // ニーズ外なら±6以内に制限（若手⇄ベテランの等価交換が額面詐欺に見えるのを防ぐ）。
-            // 同条件ならニーズ適合を最優先し、その中でOVR最上位を選ぶ
+            // 価値が釣り合う全組み合わせから選ぶ。
+            // もらう選手が出す選手よりOVRで明確に下回る提案は不成立（弱点ポジ適合でも、
+            // 数値が低ければ結局使わないので意味がない。市場価値の年齢補正で「若手60⇄ベテラン75」が
+            // 等価になっても、額面で損する交換は提示しない）。上回る分は制限なし。
+            // 選定はニーズ適合を最優先し、その中でOVR最上位
             let best: { mine: Player; theirs: Player; fits: boolean } | null = null
             for (const mine of askPool) {
               const myVal = calcTransferValue(mine)
               for (const theirs of offerPool) {
                 const r = calcTransferValue(theirs) / Math.max(1, myVal)
                 if (r < 0.95 || r > 1.3) continue
+                if (ovr(theirs) < ovr(mine) - 3) continue
                 const fits = myNeeds.includes(theirs.specialty)
-                if (Math.abs(ovr(theirs) - ovr(mine)) > (fits ? 10 : 6)) continue
                 const better = !best
                   || (fits && !best.fits)
                   || (fits === best.fits && ovr(theirs) > ovr(best.theirs))
