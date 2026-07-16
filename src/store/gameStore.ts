@@ -4308,6 +4308,7 @@ export const useGameStore = create<GameStore>()(
 
         // 区間記録の更新（JPELの駅伝と同じ仕組み。コースは固定10種なので年をまたいで記録が競われ、保持者には区間記録パッチが付く）
         const updatedSegmentRecords = { ...(state.segmentRecords ?? {}) }
+        const newSegRecordMarksEcl: { segmentIndex: number; playerId: string }[] = []
         const shortById = new Map(participants.map(pt => [pt.id, pt.shortName]))
         for (const sr of result.raceResults?.segmentResults ?? []) {
           const key = `${race.name}-${sr.segmentIndex}`
@@ -4329,6 +4330,7 @@ export const useGameStore = create<GameStore>()(
               category: 'race' as const,
               relatedIds: fastestNew.playerId ? [fastestNew.playerId] : [],
             })
+            if (fastestNew.playerId) newSegRecordMarksEcl.push({ segmentIndex: sr.segmentIndex, playerId: fastestNew.playerId })
           }
           // 同一選手は最速の1本だけ残す（同じ選手が何行も並ばないように）
           const bestByPlayer = new Map<string, (typeof existing)[0]>()
@@ -4410,6 +4412,8 @@ export const useGameStore = create<GameStore>()(
           teams: updatedTeams,
           players: updatedPlayers,
           segmentRecords: updatedSegmentRecords,
+          // このレースで出た区間新に張り替える（前のリーグ戦のバッジ記録が残って誤表示されるのを防ぐ）
+          raceNewSegmentRecords: newSegRecordMarksEcl,
           achievements: [...(state.achievements ?? []), ...newAch],
           eclHistory: [...(state.eclHistory ?? []), ...historyEntry],
           currentSeason: {

@@ -25,12 +25,12 @@ export default function ChampionsHistoryPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, pastSeasons, foreignLeagues, playerTeamId, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords } = useGameStore()
 
-  // 現在の世界記録/日本記録の保持者に記録パッチを出す（ロスターのパッチと同じ保持者基準）
-  const recordBadge = (dist: DistKey, playerId: string) => {
+  // 記録パッチは選手ではなく「記録そのもの」に付ける：その走りのタイムが現行の世界/日本記録である行だけに出す
+  const recordBadge = (dist: DistKey, playerId: string, timeSec: number) => {
     const wr = worldRecords?.[dist]
-    if (wr && wr.playerId === playerId) return { label: '世界記録', color: '#FF5C8A' }
+    if (wr && wr.playerId === playerId && wr.timeSec === timeSec) return { label: '世界記録', color: '#FF5C8A' }
     const jr = japanRecords?.[dist]
-    if (jr && jr.playerId === playerId) return { label: '日本記録', color: '#F5C842' }
+    if (jr && jr.playerId === playerId && jr.timeSec === timeSec) return { label: '日本記録', color: '#F5C842' }
     return null
   }
 
@@ -290,7 +290,7 @@ export default function ChampionsHistoryPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first ? (first.playerName || resolvePlayer(first.playerId)?.name || '—') : '—'}</span>
                     {first && (() => {
-                      const rb = recordBadge(ttDist, first.playerId)
+                      const rb = recordBadge(ttDist, first.playerId, first.timeSec)
                       return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
                     })()}
                   </div>
@@ -331,7 +331,7 @@ export default function ChampionsHistoryPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.playerName || pl?.name || '—'}</span>
                       {(() => {
-                        const rb = recordBadge(ttDist, e.playerId)
+                        const rb = recordBadge(ttDist, e.playerId, e.timeSec)
                         return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
                       })()}
                     </div>

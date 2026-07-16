@@ -256,6 +256,11 @@ export function ReserveSimPhase({ race, results, teams, players, playerTeamId, o
     if (r.teamId === playerTeamId) playerBaseTime = r.timeSec
     else cpuTimesForSeg[r.teamId] = r.timeSec
   }
+  // 観戦（自チームが走っていないレース＝ECLの観戦など）ではトラック描画の基準タイムが0になり
+  // 棒グラフが一切出なくなるため、区間トップのタイムを基準にして全チームを描画する
+  if (playerBaseTime === 0 && currentResult.runners.length > 0) {
+    playerBaseTime = Math.min(...currentResult.runners.map(r => r.timeSec))
+  }
 
   const completedSegs = orderedResults.slice(0, step + 1)
 

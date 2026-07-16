@@ -334,6 +334,11 @@ export default function EclPage() {
             })}
           </div>
         </div>
+        <div style={{ margin: '14px 12px 0' }}>
+          <button onClick={() => navigate('/')} className="btn-game btn-game--gold" style={{ width: '100%', padding: '14px', fontFamily: SAIRA, fontSize: 14, fontWeight: 800 }}>
+            ホームに戻る
+          </button>
+        </div>
       </div>
     )
   }

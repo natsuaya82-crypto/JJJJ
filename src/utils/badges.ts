@@ -41,9 +41,8 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
       out.push({ key: `jr-${d}`, label: `${DIST_LABEL[d]}日本記録`, kind: 'japan' })
     }
   }
-  // ECL制覇：優勝チームで出走した選手に付く（世界一メンバーの証）。MVPは大会で最も突出した走り
+  // ECL MVP（大会で最も突出した走り）。優勝はチーム詳細の「ECL優勝 ×N」に付けるので選手パッチにはしない
   for (const e of src.eclHistory ?? []) {
-    if (e.winnerPlayerIds.includes(p.id)) out.push({ key: `ecl-${e.year}`, label: `${e.year}年ECL制覇`, kind: 'cl' })
     if (e.mvpPlayerId === p.id) out.push({ key: `eclmvp-${e.year}`, label: `${e.year}年ECL MVP`, kind: 'cl' })
   }
   for (const a of src.seasonAwards ?? []) {
