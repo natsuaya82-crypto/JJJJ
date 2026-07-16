@@ -10,12 +10,14 @@ import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-type Category = 'overall' | 'jpel' | 'ecl' | 'reserve' | 'tt'
+type Category = 'jpel' | 'ecl' | 'reserve' | 'tt'
+const OVERALL = '__overall__'   // 総合優勝を表す特別なraceName
 type RaceRef = { year: number; race: Race }
 type DistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 
-const CAT_LABEL: Record<Category, string> = { overall: 'JPEL総合優勝', jpel: 'JPEL', ecl: 'ECL', reserve: 'リザーブ駅伝', tt: '記録会' }
-const CAT_COLOR: Record<Category, string> = { overall: '#FFD700', jpel: '#C9A84C', ecl: '#2ECC71', reserve: '#AB8ED6', tt: '#4FC3F7' }
+const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', reserve: 'リザーブ駅伝', tt: '記録会' }
+const CAT_COLOR: Record<Category, string> = { jpel: '#C9A84C', ecl: '#2ECC71', reserve: '#AB8ED6', tt: '#4FC3F7' }
+const GOLD = '#FFD700'
 const DIST_LABEL: Record<DistKey, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
 const DIST_KEYS: DistKey[] = ['d5000', 'd10000', 'half', 'marathon']
 const DIST_TO_KEY: Record<number, DistKey> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
@@ -51,7 +53,7 @@ export default function ChampionsHistoryPage() {
 
   // カテゴリ別：大会名 → 開催一覧（結果のある年だけ・年昇順）
   const byCategory = useMemo(() => {
-    const maps: Record<Category, Map<string, RaceRef[]>> = { overall: new Map(), jpel: new Map(), ecl: new Map(), reserve: new Map(), tt: new Map() }
+    const maps: Record<Category, Map<string, RaceRef[]>> = { jpel: new Map(), ecl: new Map(), reserve: new Map(), tt: new Map() }
     const add = (c: Category, races: Race[] | undefined, y: number) => {
       for (const r of races ?? []) {
         if (!r.results) continue
@@ -75,13 +77,27 @@ export default function ChampionsHistoryPage() {
     teams.find(t => t.id === tid)
     ?? (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === tid)
 
-  // JPEL年間総合優勝（各シーズンの最終順位表1位）。新しい年が上。
-  const overallChampions = useMemo(() =>
-    [...pastSeasons].reverse().map(ps => {
-      const champ = [...(ps.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)[0]
-      return { year: ps.year, champ }
-    }).filter((x): x is { year: number; champ: NonNullable<typeof x.champ> } => !!x.champ)
-  , [pastSeasons])
+  // カテゴリ別・シーズン別の年間総合順位（正規化）。jpel/reserve=勝点、ecl=EclStandingのpoints。
+  type OverallRow = { rank: number; teamId: string; name: string; colors?: { primary: string; secondary: string }; score: number; isMe: boolean }
+  const overallStandingsFor = (c: Category, ps: typeof pastSeasons[number]): OverallRow[] => {
+    const mk = (teamId: string, i: number, score: number) => {
+      const t = resolveClub(teamId)
+      return { rank: i + 1, teamId, name: t?.name ?? '—', colors: t?.colors, score, isMe: teamId === playerTeamId }
+    }
+    if (c === 'jpel') return [...(ps.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
+    if (c === 'reserve') return [...(ps.secondTeamStandings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
+    if (c === 'ecl') {
+      const es = ps.eclSeries
+      if (!es) return []
+      return [...es.participants].sort((a, b) => (es.points[b.id] ?? 0) - (es.points[a.id] ?? 0))
+        .map((p, i) => ({ rank: i + 1, teamId: p.id, name: p.name, colors: p.colors, score: es.points[p.id] ?? 0, isMe: p.isPlayerTeam }))
+    }
+    return []
+  }
+  // 総合優勝の年度一覧（各年の1位）。新しい年が上。
+  const overallChampYears = (c: Category) =>
+    [...pastSeasons].reverse().map(ps => ({ year: ps.year, champ: overallStandingsFor(c, ps)[0] as OverallRow | undefined }))
+      .filter((x): x is { year: number; champ: OverallRow } => !!x.champ)
 
   // 記録会：種目 → シーズン別トップ3（過去分はendSeasonで軽量保存、今季分はその場で集計）
   const ttByDist = useMemo(() => {
@@ -156,7 +172,7 @@ export default function ChampionsHistoryPage() {
         </div>
         {!lockScreen && (
           <div style={{ fontSize: '11px', color: C.textDim, padding: '4px 16px 10px' }}>
-            {cat === 'overall' ? 'JPEL 年間総合優勝'
+            {raceName === OVERALL ? (year != null ? `${year}年 ${cat ? CAT_LABEL[cat] : ''} 総合順位` : `${cat ? CAT_LABEL[cat] : ''} 総合優勝`)
               : cat === 'tt'
               ? (ttDist != null ? `${DIST_LABEL[ttDist]} — 年度を選択` : '記録会 — 種目を選択')
               : year != null ? `${year}年 ${raceName} — 順位表`
@@ -170,7 +186,7 @@ export default function ChampionsHistoryPage() {
       {/* Level 0: カテゴリ（横長ボタンを縦に並べる。見た目は歴代ドラフト等の一覧ボタンと同じ） */}
       {cat == null && (
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(['overall', 'jpel', 'ecl', 'reserve', 'tt'] as Category[]).map(c => (
+          {(['jpel', 'ecl', 'reserve', 'tt'] as Category[]).map(c => (
             <button key={c} onClick={() => setCat(c)} style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
               padding: '14px 16px', borderRadius: 12,
@@ -186,39 +202,71 @@ export default function ChampionsHistoryPage() {
         </div>
       )}
 
-      {/* 総合優勝: JPEL年間王者（最終順位表1位）の歴代一覧 */}
-      {cat === 'overall' && (
+      {/* 総合優勝: 年度別の年間王者一覧（年度タップでその年の総合順位表へ） */}
+      {cat != null && cat !== 'tt' && raceName === OVERALL && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.overall, paddingLeft: 2, marginBottom: 2 }}>JPEL 年間総合優勝</div>
-          {overallChampions.length === 0 ? (
-            <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ総合優勝の記録がありません</div>
-          ) : overallChampions.map(({ year: y, champ }) => {
-            const t = resolveClub(champ.teamId)
-            const isMe = champ.teamId === playerTeamId
-            return (
-              <div key={y} style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '12px 14px', borderRadius: 12,
-                background: isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
-              }}>
-                <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.overall }}>{y}</span>
-                {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={26} />}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t?.name ?? '—'}</div>
-                  <div style={{ fontSize: 8, color: C.textGhost }}>年間総合優勝</div>
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 800, color: C.textSub }}>{champ.totalPoints}pt</span>
+          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 2 }}>{CAT_LABEL[cat]} 総合優勝</div>
+          {overallChampYears(cat).length === 0 ? (
+            <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ記録がありません</div>
+          ) : overallChampYears(cat).map(({ year: y, champ }) => (
+            <button key={y} onClick={() => setYear(y)} style={{
+              display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
+              padding: '12px 14px', borderRadius: 12,
+              background: champ.isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `2px solid ${champ.isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
+              boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
+            }}>
+              <span style={{ fontSize: 17, fontWeight: 900, color: GOLD }}>{y}</span>
+              {champ.colors && <TeamLogoSVG primary={champ.colors.primary} secondary={champ.colors.secondary} shortName={champ.name} teamId={champ.teamId} size={24} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: champ.isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{champ.name}</div>
+                <div style={{ fontSize: 8, color: C.textGhost }}>年間総合優勝</div>
               </div>
-            )
-          })}
+              <span style={{ fontSize: 12, fontWeight: 800, color: C.textSub }}>{champ.score}pt</span>
+              <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Level 1: 大会一覧 */}
-      {cat != null && cat !== 'tt' && cat !== 'overall' && raceName == null && (
+      {/* 総合優勝: その年の総合順位表（全チーム） */}
+      {cat != null && cat !== 'tt' && raceName === OVERALL && year != null && (() => {
+        const ps = pastSeasons.find(p => p.year === year)
+        const rows = ps ? overallStandingsFor(cat, ps) : []
+        return (
+          <div style={{ padding: '0 14px' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 8 }}>{year}年 {CAT_LABEL[cat]} 総合順位</div>
+            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+              {rows.map((r, i, arr) => (
+                <div key={r.teamId} style={{
+                  display: 'flex', alignItems: 'center', gap: 9, padding: '9px 12px',
+                  background: r.isMe ? alpha(C.gold, 0.1) : i % 2 === 0 ? C.surface : 'transparent',
+                  borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.textSub : C.textGhost }}>{r.rank}</span>
+                  {r.colors && <TeamLogoSVG primary={r.colors.primary} secondary={r.colors.secondary} shortName={r.name} teamId={r.teamId} size={20} />}
+                  <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: r.isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: r.rank === 1 ? C.gold : C.textSub }}>{r.score}pt</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Level 1: 大会一覧（先頭に総合優勝） */}
+      {cat != null && cat !== 'tt' && raceName == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button onClick={() => setRaceName(OVERALL)} style={{
+            display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
+            padding: '14px 16px', borderRadius: 12,
+            background: `linear-gradient(180deg, ${alpha(GOLD, 0.18)}, ${C.surface2})`,
+            border: `2px solid ${alpha(GOLD, 0.5)}`, color: C.text,
+            boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)', fontFamily: SAIRA,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: GOLD, flex: 1 }}>総合優勝（年間王者）</span>
+            <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+          </button>
           {byCategory[cat].size === 0 ? (
             <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ大会結果がありません</div>
           ) : [...byCategory[cat].entries()].map(([name, rows]) => (
@@ -349,7 +397,7 @@ export default function ChampionsHistoryPage() {
       )}
 
       {/* Level 2: 年度一覧（優勝チーム付き） */}
-      {cat != null && cat !== 'tt' && raceName != null && year == null && (
+      {cat != null && cat !== 'tt' && raceName != null && raceName !== OVERALL && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: accent, paddingLeft: 2, marginBottom: 2 }}>{raceName}</div>
           {[...raceEntries].reverse().map(({ year: y, race }) => {
