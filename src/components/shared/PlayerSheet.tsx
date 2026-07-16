@@ -6,7 +6,7 @@ import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole, Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
-import { TeamLogoSVG } from '../icons/Icons'
+import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, isStatMaxed } from '../../utils/playerUtils'
 import { getPlayerBadges, BADGE_COLOR } from '../../utils/badges'
 import { formatTime } from '../../engine/raceEngine'
@@ -378,10 +378,15 @@ export default function PlayerSheet() {
       || (a.teamId === b.teamId ? 0 : a.teamId === player.teamId ? -1 : b.teamId === player.teamId ? 1 : 0)
   )
   const histCompLabel = (c: HistoryRow) =>
-    c.comp === 'main' ? '1軍リーグ'
-    : c.comp === 'second' ? 'リザーブ(B)'
+    c.comp === 'main' ? 'JPEL'
+    : c.comp === 'second' ? 'JPELリザーブリーグ'
     : c.comp === 'ecl' ? 'ECL'
     : (foreignLeagues.find(l => l.clubs.some(cl => cl.id === c.teamId))?.name ?? '海外リーグ')
+  // 内訳行のリーグロゴ（リザーブはJPELロゴを使う。海外は所属リーグのロゴ）
+  const histCompLogoId = (c: HistoryRow) =>
+    c.comp === 'main' || c.comp === 'second' ? 'jpel'
+    : c.comp === 'ecl' ? 'ecl'
+    : (foreignLeagues.find(l => l.clubs.some(cl => cl.id === c.teamId))?.id ?? null)
   // 平均区間順位（データの無い海外出場分は分母に入れない）
   const histAvg = (r: { rankSum: number; rankedRaces: number }) => r.rankedRaces > 0 ? r.rankSum / r.rankedRaces : null
   const histAvgColor = (v: number) => v <= 3 ? '#2ECC71' : v <= 6 ? '#C9A84C' : '#5C5870'
@@ -758,7 +763,10 @@ export default function PlayerSheet() {
                           return (
                             <div key={c.comp} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#0B0A12', borderBottom: ci < row.comps.length - 1 || i < historyRows.length - 1 ? '1px solid #1A1828' : 'none' }}>
                               <span style={{ width: '36px', flexShrink: 0 }}/>
-                              <span style={{ flex: 1, fontSize: '11px', fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{histCompLabel(c)}</span>
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+                                {histCompLogoId(c) && <LeagueLogoSVG leagueId={histCompLogoId(c)!} size={16} />}
+                                <span style={{ fontSize: '11px', fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{histCompLabel(c)}</span>
+                              </div>
                               <span style={{ width: '28px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{c.races}</span>
                               <span style={{ width: '32px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.wins}</span>
                               <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>

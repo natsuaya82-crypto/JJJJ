@@ -4425,11 +4425,40 @@ export const useGameStore = create<GameStore>()(
         // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。
         // これで endSeason 側で引き継いだ視察済みプールがドラフトに使われ、シーズン中の視察は常に新しい代になる。
         const freshScoutPool = generateDraftPool(state.currentSeason.year + 1)
+
+        // 契約満了で更新判断待ちのまま開幕した選手は、契約切れとして退団（FA化）させる。
+        // 放置すると「残り0ヶ月なのに在籍・交渉できる」状態が永久に続いてしまうため
+        const unresolvedIds = (state.currentSeason.pendingRenewalDecisions ?? [])
+          .filter(id => state.players.some(p => p.id === id && p.teamId === state.playerTeamId && p.contract.yearsLeft <= 0))
+        const players = unresolvedIds.length > 0
+          ? state.players.map(p => unresolvedIds.includes(p.id) ? { ...p, teamId: '', faSinceYear: state.currentSeason.year } : p)
+          : state.players
+        const teams = unresolvedIds.length > 0
+          ? state.teams.map(t => t.id !== state.playerTeamId ? t : {
+              ...t,
+              roster: {
+                main: t.roster.main.filter(id => !unresolvedIds.includes(id)),
+                second: t.roster.second.filter(id => !unresolvedIds.includes(id)),
+              },
+            })
+          : state.teams
+        const departureNotices = unresolvedIds.map(id => {
+          const p = state.players.find(pl => pl.id === id)
+          return { id: `dep-expire-${id}-${state.currentSeason.year}`, playerId: id, playerName: p?.name ?? '', toTeamName: '', reason: 'fa' as const }
+        })
+
+        const base = {
+          ...state.currentSeason,
+          phase: 'regular' as const,
+          scoutProspects: freshScoutPool,
+          pendingRenewalDecisions: [],
+          departureNotices: [...(state.currentSeason.departureNotices ?? []), ...departureNotices],
+        }
         if ((state.currentSeason.objectives ?? []).length === 0) {
           const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length)
-          return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives, scoutProspects: freshScoutPool } }
+          return { players, teams, currentSeason: { ...base, objectives: firstObjectives } }
         }
-        return { currentSeason: { ...state.currentSeason, phase: 'regular', scoutProspects: freshScoutPool } }
+        return { players, teams, currentSeason: base }
       }),
 
       initObjectivesIfEmpty: () => set(state => {
