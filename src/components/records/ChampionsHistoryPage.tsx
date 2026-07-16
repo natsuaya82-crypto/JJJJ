@@ -27,12 +27,13 @@ export default function ChampionsHistoryPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, pastSeasons, foreignLeagues, playerTeamId, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords } = useGameStore()
 
-  // 記録パッチは選手ではなく「記録そのもの」に付ける：その走りのタイムが現行の世界/日本記録である行だけに出す
+  // 記録パッチは選手ではなく「記録そのもの」に付ける：その走りのタイムが現行の世界/日本記録である行だけに出す。
+  // 同タイムの共同保持者（coHolders）にも付く
+  const holds = (rec: { playerId: string; timeSec: number; coHolders?: { playerId: string }[] } | undefined, playerId: string, timeSec: number) =>
+    !!rec && rec.timeSec === timeSec && (rec.playerId === playerId || (rec.coHolders ?? []).some(c => c.playerId === playerId))
   const recordBadge = (dist: DistKey, playerId: string, timeSec: number) => {
-    const wr = worldRecords?.[dist]
-    if (wr && wr.playerId === playerId && wr.timeSec === timeSec) return { label: '世界記録', color: '#FF5C8A' }
-    const jr = japanRecords?.[dist]
-    if (jr && jr.playerId === playerId && jr.timeSec === timeSec) return { label: '日本記録', color: '#F5C842' }
+    if (holds(worldRecords?.[dist], playerId, timeSec)) return { label: '世界記録', color: '#FF5C8A' }
+    if (holds(japanRecords?.[dist], playerId, timeSec)) return { label: '日本記録', color: '#F5C842' }
     return null
   }
 

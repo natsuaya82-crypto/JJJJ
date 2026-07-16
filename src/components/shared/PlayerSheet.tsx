@@ -799,10 +799,9 @@ export default function PlayerSheet() {
                   <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                     {entries.map((e, i) => {
                       const rankCol = e.rank === 1 ? '#C9A84C' : e.rank <= 3 ? '#9B97A8' : '#5C5870'
-                      // この大会×区間の区間記録保持者で、かつこの行がその記録更新の走りなら「区間記録」パッチ
+                      // この大会×区間の記録タイムと同タイムの走りなら「区間記録」パッチ（同タイムの共同保持もタイ記録として付く）
                       const rec = (segmentRecords[`${selectedRaceName}-${e.segIdx}`] ?? [])[0]
-                      const isSegRecord = !!rec && rec.timeSec === e.timeSec &&
-                        (rec.playerId ? rec.playerId === player.id : rec.playerName === player.name)
+                      const isSegRecord = !!rec && rec.timeSec === e.timeSec
                       return (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < entries.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                           <span style={{ fontSize: '12px', color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>

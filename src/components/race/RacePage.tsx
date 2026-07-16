@@ -169,10 +169,15 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                       {(() => {
                         const wr = worldRecords?.[bestKey]
                         const jr = japanRecords?.[bestKey]
+                        // 保持者本人は「新！」、同タイムの共同保持者は「タイ！」
                         if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
                           return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                        if (wr && wr.timeSec === r.timeSec && (wr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
                         if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
                           return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                        if (jr && jr.timeSec === r.timeSec && (jr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
                         return null
                       })()}
                     </div>
@@ -233,8 +238,12 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
                       const jr = japanRecords?.[bestKey]
                       if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
                         return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                      if (wr && wr.timeSec === r.timeSec && (wr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
                       if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
                         return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                      if (jr && jr.timeSec === r.timeSec && (jr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
                       return isPB ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span> : null
                     })()}
                     <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub, flexShrink: 0 }}>{formatRaceTime(r.timeSec)}</span>

@@ -31,13 +31,16 @@ type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'seasonAwar
 export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): PlayerBadge[] {
   const out: PlayerBadge[] = []
 
+  // 共同保持者（同タイムのタイ記録）にも同じパッチを付ける
+  const holdsRecord = (rec?: { playerId: string; coHolders?: { playerId: string }[] }) =>
+    !!rec && (rec.playerId === p.id || (rec.coHolders ?? []).some(c => c.playerId === p.id))
   for (const d of DIST_KEYS) {
-    if (src.worldRecords?.[d]?.playerId === p.id) {
+    if (holdsRecord(src.worldRecords?.[d])) {
       out.push({ key: `wr-${d}`, label: `${DIST_LABEL[d]}世界記録`, kind: 'world' })
     }
   }
   for (const d of DIST_KEYS) {
-    if (src.japanRecords?.[d]?.playerId === p.id) {
+    if (holdsRecord(src.japanRecords?.[d])) {
       out.push({ key: `jr-${d}`, label: `${DIST_LABEL[d]}日本記録`, kind: 'japan' })
     }
   }
@@ -51,11 +54,13 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
   for (const a of src.seasonAwards ?? []) {
     if (a.rookieId === p.id) out.push({ key: `rookie-${a.year}`, label: `${a.year}年度新人王`, kind: 'rookie' })
   }
-  // 区間記録: segmentRecords のキーは `${大会名}-${区番号}`、[0]が歴代1位（現在の保持者）
+  // 区間記録: segmentRecords のキーは `${大会名}-${区番号}`、[0]が歴代1位。
+  // 同タイムで並んでいる選手は全員保持者（タイ記録）
   for (const [key, entries] of Object.entries(src.segmentRecords ?? {})) {
     const top = entries[0]
     if (!top) continue
-    const isHolder = top.playerId ? top.playerId === p.id : top.playerName === p.name
+    const isHolder = entries.some(e =>
+      e.timeSec === top.timeSec && (e.playerId ? e.playerId === p.id : e.playerName === p.name))
     if (!isHolder) continue
     const sep = key.lastIndexOf('-')
     const raceName = sep > 0 ? key.slice(0, sep) : key

@@ -4866,12 +4866,13 @@ export const useGameStore = create<GameStore>()(
             .sort((a, b) => ovr(b) - ovr(a))
           let clubIdx = 0
           for (const fa of remainForeignFAs) {
-            // 30人未満のクラブを順番に探す。全クラブ満杯ならFAのまま残す
+            // FA補強は「下限(20人)を割っているクラブの救済」だけ。上限まで埋める強制はしない
+            // （全クラブが常時30人満杯になると空き枠が無くなり、海外間の移籍市場が窒息する）
             let club: typeof foreignClubsList[0] | null = null
             for (let tries = 0; tries < foreignClubsList.length; tries++) {
               const cand = foreignClubsList[clubIdx % foreignClubsList.length]
               clubIdx++
-              if ((clubCount.get(cand.id) ?? 0) < 30) { club = cand; break }
+              if ((clubCount.get(cand.id) ?? 0) < 20) { club = cand; break }
             }
             if (!club) break
             clubCount.set(club.id, (clubCount.get(club.id) ?? 0) + 1)
@@ -6263,20 +6264,41 @@ export const useGameStore = create<GameStore>()(
             const fastest = ranked[0]
             const fastestP = fastest ? allPById.get(fastest.playerId) : undefined
             const distName = event.distance === 5000 ? '5000m' : event.distance === 10000 ? '10000m' : event.distance === 21097 ? 'ハーフマラソン' : 'マラソン'
+            // 同タイムは共同保持（タイ記録）。同レース内で並んだ場合も、後日並ばれた場合も全員が保持者になる
+            const coOf = (r: { playerId: string }) => ({ playerId: r.playerId, playerName: allPById.get(r.playerId)?.name ?? '', year: evYear0 })
             if (fastest && fastestP) {
               const curWr = state.worldRecords?.[bestKey]
               if (!curWr || fastest.timeSec < curWr.timeSec) {
-                newWorldRecords = { ...newWorldRecords, [bestKey]: { playerId: fastest.playerId, playerName: fastestP.name, timeSec: fastest.timeSec, year: evYear0 } }
+                const ties = ranked.filter(r => r.playerId !== fastest.playerId && r.timeSec === fastest.timeSec).map(coOf)
+                newWorldRecords = { ...newWorldRecords, [bestKey]: { playerId: fastest.playerId, playerName: fastestP.name, timeSec: fastest.timeSec, year: evYear0, ...(ties.length > 0 ? { coHolders: ties } : {}) } }
                 recordNewsItems.push({ date: event.date, headline: `【世界新記録】${distName} ${fastestP.name} ${fmtTime(fastest.timeSec)}`, category: 'race' as const, relatedIds: [fastest.playerId] })
+                for (const c of ties) recordNewsItems.push({ date: event.date, headline: `【世界新記録】${distName} ${c.playerName} ${fmtTime(fastest.timeSec)}（同タイムで共同保持）`, category: 'race' as const, relatedIds: [c.playerId] })
+              } else if (fastest.timeSec === curWr.timeSec) {
+                const holderIds = new Set([curWr.playerId, ...(curWr.coHolders ?? []).map(c => c.playerId)])
+                const newCo = ranked.filter(r => r.timeSec === curWr.timeSec && !holderIds.has(r.playerId)).map(coOf)
+                if (newCo.length > 0) {
+                  newWorldRecords = { ...newWorldRecords, [bestKey]: { ...curWr, coHolders: [...(curWr.coHolders ?? []), ...newCo] } }
+                  for (const c of newCo) recordNewsItems.push({ date: event.date, headline: `【世界タイ記録】${distName} ${c.playerName} ${fmtTime(curWr.timeSec)}`, category: 'race' as const, relatedIds: [c.playerId] })
+                }
               }
             }
-            const fastestJpn = ranked.find(r => allPById.get(r.playerId)?.nationality === 'JPN')
+            const isJpn = (r: { playerId: string }) => allPById.get(r.playerId)?.nationality === 'JPN'
+            const fastestJpn = ranked.find(isJpn)
             const fastestJpnP = fastestJpn ? allPById.get(fastestJpn.playerId) : undefined
             if (fastestJpn && fastestJpnP) {
               const curJr = state.japanRecords?.[bestKey]
               if (!curJr || fastestJpn.timeSec < curJr.timeSec) {
-                newJapanRecords = { ...newJapanRecords, [bestKey]: { playerId: fastestJpn.playerId, playerName: fastestJpnP.name, timeSec: fastestJpn.timeSec, year: evYear0 } }
+                const ties = ranked.filter(r => isJpn(r) && r.playerId !== fastestJpn.playerId && r.timeSec === fastestJpn.timeSec).map(coOf)
+                newJapanRecords = { ...newJapanRecords, [bestKey]: { playerId: fastestJpn.playerId, playerName: fastestJpnP.name, timeSec: fastestJpn.timeSec, year: evYear0, ...(ties.length > 0 ? { coHolders: ties } : {}) } }
                 recordNewsItems.push({ date: event.date, headline: `【日本新記録】${distName} ${fastestJpnP.name} ${fmtTime(fastestJpn.timeSec)}`, category: 'race' as const, relatedIds: [fastestJpn.playerId] })
+                for (const c of ties) recordNewsItems.push({ date: event.date, headline: `【日本新記録】${distName} ${c.playerName} ${fmtTime(fastestJpn.timeSec)}（同タイムで共同保持）`, category: 'race' as const, relatedIds: [c.playerId] })
+              } else if (fastestJpn.timeSec === curJr.timeSec) {
+                const holderIds = new Set([curJr.playerId, ...(curJr.coHolders ?? []).map(c => c.playerId)])
+                const newCo = ranked.filter(r => isJpn(r) && r.timeSec === curJr.timeSec && !holderIds.has(r.playerId)).map(coOf)
+                if (newCo.length > 0) {
+                  newJapanRecords = { ...newJapanRecords, [bestKey]: { ...curJr, coHolders: [...(curJr.coHolders ?? []), ...newCo] } }
+                  for (const c of newCo) recordNewsItems.push({ date: event.date, headline: `【日本タイ記録】${distName} ${c.playerName} ${fmtTime(curJr.timeSec)}`, category: 'race' as const, relatedIds: [c.playerId] })
+                }
               }
             }
           }

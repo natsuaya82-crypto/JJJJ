@@ -757,7 +757,8 @@ export type TransferRecord = {
 // 記録会の種目キー（eventBests と同じ）
 export type EventDistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 // 種目別の歴代最高記録（世界記録/日本記録）。名前を焼き込み、選手データが消えても記録は残る
-export type EventTimeRecord = { playerId: string; playerName: string; timeSec: number; year: number }
+// coHolders: 同タイムで記録に並んだ共同保持者（タイ記録）。記録が破られたら丸ごと入れ替わる
+export type EventTimeRecord = { playerId: string; playerName: string; timeSec: number; year: number; coHolders?: { playerId: string; playerName: string; year: number }[] }
 // 年度別の表彰（MVP・新人王）。6レース以上出場かつ平均区間順位が最良の選手。
 // 新人王はその年のドラフト指名選手が対象（6戦該当ゼロなら3戦に緩和、それでもゼロなら該当なし）
 export type SeasonAward = {
