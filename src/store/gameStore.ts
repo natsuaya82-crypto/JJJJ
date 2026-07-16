@@ -6728,6 +6728,18 @@ export const useGameStore = create<GameStore>()(
           if (!state.players.some(p => p.rosterTier === 'second')) return state
           return { players: state.players.map(p => p.rosterTier === 'second' ? { ...p, rosterTier: 'main' as const } : p) }
         })
+        // 未来年の記録の掃除：セーブ破損（時間が巻き戻った状態での上書き）で現在より先の年の
+        // 受賞・記録が残ると、2028年に「2030年MVP」パッチが付くような矛盾が起きるため除去する
+        set(state => {
+          const year = state.currentSeason.year
+          const awards = (state.seasonAwards ?? []).filter(a => a.year <= year)
+          const ecl = (state.eclHistory ?? []).filter(e => e.year <= year)
+          const tops = (state.eventSeasonTops ?? []).filter(t => t.year <= year)
+          if (awards.length === (state.seasonAwards ?? []).length
+            && ecl.length === (state.eclHistory ?? []).length
+            && tops.length === (state.eventSeasonTops ?? []).length) return state
+          return { seasonAwards: awards, eclHistory: ecl, eventSeasonTops: tops }
+        })
         // 海外クラブの名簿に載っているのに teamId が ''（未所属）になった選手を復元する
         // （旧バージョンで契約満了FA化が海外選手にも効いてしまっていたセーブの救済）
         set(state => {

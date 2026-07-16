@@ -11,6 +11,7 @@ import PlayerFace from '../player/PlayerFace'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
 import { useAdHeight } from '../layout/Layout'
+import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -147,7 +148,7 @@ export default function EclPage() {
         <StandingsTable rows={standRows} onRowClick={goTeam} />
         {/* 下タブ(58px)＋広告の上に固定 */}
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-          <button onClick={() => run()} className="btn-game btn-game--red" style={{ width: '100%' }}>
+          <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--red" style={{ width: '100%' }}>
             <span className="btn-game__inner" style={{ fontSize: 15, fontWeight: 900 }}>観戦する</span>
           </button>
         </div>
@@ -170,8 +171,8 @@ export default function EclPage() {
         setPickerSeg={setPickerSeg}
         setRaceLineup={(i, id) => setLineupState(prev => ({ ...prev, [i]: id }))}
         clearRaceLineup={() => setLineupState({})}
-        onStart={() => run(lineup)}
-        onSkipRace={() => run()}
+        onStart={() => runWithLoading('レース準備中…', () => run(lineup), 500)}
+        onSkipRace={() => runWithLoading('結果を計算中…', () => run(), 500)}
         onBack={() => setPhase('entry')}
         weatherLabel={weatherLabel}
         raceStrategy={raceStrategy}
@@ -179,6 +180,7 @@ export default function EclPage() {
         teamTalk=""
         setTeamTalk={() => {}}
         unavailable={unavailableMap}
+        btnClass="btn-game--red"
       />
     )
   }
@@ -214,6 +216,7 @@ export default function EclPage() {
         }))}
         hideCards
         standingsLabel="ECL シリーズ順位（暫定）"
+        btnClass="btn-game--red"
       />
     )
   }
@@ -335,8 +338,8 @@ export default function EclPage() {
           </div>
         </div>
         <div style={{ margin: '14px 12px 0' }}>
-          <button onClick={() => navigate('/')} className="btn-game btn-game--gold" style={{ width: '100%', padding: '14px', fontFamily: SAIRA, fontSize: 14, fontWeight: 800 }}>
-            ホームに戻る
+          <button onClick={() => navigate('/')} className="btn-game btn-game--red" style={{ width: '100%' }}>
+            <span className="btn-game__inner" style={{ fontSize: 14, fontWeight: 800 }}>ホームに戻る</span>
           </button>
         </div>
       </div>
@@ -390,8 +393,8 @@ export default function EclPage() {
                 リーグ戦の進行に合わせて {nextRace.date.replace(/-/g, '/')} に開催
               </div>
             ) : playerQualified ? (
-              <button onClick={() => setPhase('lineup')} className="btn-game btn-game--gold" style={{ width: '100%', padding: '13px', fontFamily: SAIRA, fontSize: 14, fontWeight: 800 }}>
-                出走メンバーを組む
+              <button onClick={() => setPhase('lineup')} className="btn-game btn-game--red" style={{ width: '100%' }}>
+                <span className="btn-game__inner" style={{ fontSize: 14, fontWeight: 800 }}>出走メンバーを組む</span>
               </button>
             ) : null}
           </div>

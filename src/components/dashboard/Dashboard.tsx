@@ -324,7 +324,7 @@ export default function Dashboard() {
       variant="ecl"
       ctaLabel={eclQualified ? undefined : '観戦する'}
       secondaryCtaLabel={!eclQualified && eclDue ? 'スキップ' : undefined}
-      onSecondaryClick={!eclQualified && eclDue ? () => useGameStore.getState().advanceEclRace() : undefined}
+      onSecondaryClick={!eclQualified && eclDue ? () => runWithLoading('結果を計算中…', () => useGameStore.getState().advanceEclRace(), 500) : undefined}
       onClick={() => navigate('/ecl')}
     />
   ) : null

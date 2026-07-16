@@ -63,7 +63,7 @@ const ALL_STATS: [string, keyof import('../../types').Player['ratings']][] = [
 export function LineupPhase({
   race, raceNumber, totalRaces, mainPlayers, raceLineup, allSegsFilled,
   pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart, onSkipRace,
-  onBack, lastLineup, unavailable,
+  onBack, lastLineup, unavailable, btnClass,
 }: {
   race: Race
   raceNumber: number
@@ -86,6 +86,7 @@ export function LineupPhase({
   onBack?: () => void
   lastLineup?: Record<number, string>
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
+  btnClass?: string   // スタートボタンの色クラス差し替え（ECL＝btn-game--red）
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -438,7 +439,7 @@ export function LineupPhase({
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 4l8 8-8 8M13 4l8 8-8 8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
             )}
-            <button className="btn-game btn-game--gold" onClick={() => onStart(segTactics)} style={{ flex: 1 }}>
+            <button className={`btn-game ${btnClass ?? 'btn-game--gold'}`} onClick={() => onStart(segTactics)} style={{ flex: 1 }}>
               <span className="btn-game__inner">レース開始！</span>
             </button>
           </>

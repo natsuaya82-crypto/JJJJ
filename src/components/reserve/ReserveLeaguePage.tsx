@@ -8,6 +8,7 @@ import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
 import { SimPhase } from '../race/SimPhase'
 import { isDataKeyPlayer, seasonAppearances } from '../../utils/playerUtils'
+import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -171,14 +172,14 @@ export default function ReserveLeaguePage() {
       setPickerSeg={setPickerSeg}
       setRaceLineup={setRaceLineup}
       clearRaceLineup={clearRaceLineup}
-      onStart={startSimulation}
+      onStart={(tactics) => runWithLoading('レース準備中…', () => startSimulation(tactics), 500)}
       weatherLabel={weatherLabel}
       raceStrategy={raceStrategy}
       setRaceStrategy={setRaceStrategy}
       teamTalk=""
       setTeamTalk={() => {}}
       unavailable={unavailableMap}
-      onSkipRace={skipRace}
+      onSkipRace={() => runWithLoading('結果を計算中…', () => skipRace(), 500)}
     />
   )
 

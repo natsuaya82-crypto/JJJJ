@@ -277,14 +277,20 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const movesOut = moveEntries.filter(r => r.dir === 'out')
   const resolveAnyTeam = (tid: string) => teams.find(t => t.id === tid) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === tid)
 
+  // ページ確定はスクロールが止まってから。スワイプ中に activePage を切り替えると
+  // 非表示ページの高さ畳み（maxHeight）が発火してレイアウトが動き、スナップが効かなくなる
+  const scrollEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const handleScroll = () => {
-    if (!scrollRef.current) return
-    const { scrollLeft, clientWidth } = scrollRef.current
-    const next = Math.round(scrollLeft / clientWidth)
-    if (next !== activePage) {
-      setActivePage(next)
-      window.scrollTo({ top: 0 })  // ページを切り替えたら縦スクロールを先頭に戻す
-    }
+    if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current)
+    scrollEndTimer.current = setTimeout(() => {
+      if (!scrollRef.current) return
+      const { scrollLeft, clientWidth } = scrollRef.current
+      const next = Math.round(scrollLeft / clientWidth)
+      if (next !== activePage) {
+        setActivePage(next)
+        window.scrollTo({ top: 0 })  // ページを切り替えたら縦スクロールを先頭に戻す
+      }
+    }, 90)
   }
 
   // 表示中でないページは高さを畳む：縦スクロールの長さが常に「今見ているページ」の高さになる

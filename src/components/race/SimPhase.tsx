@@ -275,7 +275,7 @@ export function RaceTrack({
                     <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={16} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: isMe ? segCol : t.colors.primary, flexShrink: 0 }}>{t.shortName}</span>
                     {player && (
-                      <span style={{ fontSize: 11, fontWeight: isMe ? 800 : 400, color: isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: isMe ? 800 : 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {player.name}
                       </span>
                     )}
@@ -700,6 +700,15 @@ function SegmentResultCard({
   onAdvance: () => void
 }) {
   const longPress = usePlayerLongPress()
+  // イベントオフ（流し見・自動進行）のときは結果カードを少し見せて自動で次の区間へ進む。
+  // 最終区間だけは「最終結果を見る」を手動に残す（勝手に結果画面へ飛ばない）
+  const eventsOn = useGameStore(s => s.raceEventsEnabled ?? true)
+  useEffect(() => {
+    if (eventsOn || isLastSeg) return
+    const t = setTimeout(onAdvance, 1800)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seg.segmentIndex, eventsOn, isLastSeg])
   const raceSegData = race.segments.find(s => s.index === seg.segmentIndex)
   const segCol = raceSegData ? terrainColor(raceSegData.uphillPct, raceSegData.downhillPct) : C.blue
   const winner = seg.runners[0]
