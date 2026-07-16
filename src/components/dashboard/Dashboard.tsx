@@ -270,7 +270,7 @@ export default function Dashboard() {
     gmRep,
     endSeason, growthReport, beginSeasonDraft, draftState,
     claimPreseasonCards, setReserveLeagueJoined,
-    startRegularSeason, initObjectivesIfEmpty,
+    startRegularSeason, initObjectivesIfEmpty, getTeamPlayers,
   } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const navigate = useNavigate()
@@ -287,7 +287,9 @@ export default function Dashboard() {
   }
 
   const gmRepVal = gmRep ?? 50
-  const mainPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired')
+  // ロスター（team.roster.main）と同じソースに統一。players.teamIdベースだと
+  // roster配列と不整合な選手が「注目にいるのにロスターにいない」状態になるため。
+  const mainPlayers = getTeamPlayers(playerTeamId, 'main').filter(p => p.status !== 'retired')
   const avgMorale = mainPlayers.length > 0
     ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? 70), 0) / mainPlayers.length) : 70
 
