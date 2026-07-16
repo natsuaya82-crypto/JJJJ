@@ -5,9 +5,17 @@ import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 
 const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
 
+// リーグの格ごとのOVR下限。これ未満の選手はそのリーグへ海外移籍しない（弱いベンチ選手が格上へ流出しないように）
+const FOREIGN_LEAGUE_MIN_OVR: Record<string, number> = {
+  ETH: 85, KEN: 85, UGA: 85, TAN: 85,   // アフリカ
+  EUR: 80, USA: 80,                       // 欧州・米国（オセアニア/南米もこの2つの国コード）
+  KOR: 70, CHN: 70, TWN: 70,             // アジア
+}
+const foreignMinOvr = (country: string): number => FOREIGN_LEAGUE_MIN_OVR[country] ?? 75  // その他
+
 type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[]; major?: boolean }
 // 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す
-type TxRecord = { year: number; date: string; playerId: string; fromTeamId: string; toTeamId: string; fee: number; kind?: 'free' | 'trade' }
+type TxRecord = { year: number; date: string; playerId: string; fromTeamId: string; toTeamId: string; fee: number; kind?: 'free' | 'trade'; years?: number }
 
 // シーズンオフに海外クラブ間の移籍（引き抜き）を発生させる。強いクラブが他クラブの
 // 主力を引き抜き、選手が国境・リーグを越えて移動する。プレイヤーは干渉しない（結果のみ）。
@@ -59,6 +67,8 @@ export function simulateForeignTransferMarket(params: {
       .slice(0, 10)   // 上位10人が引き抜き対象
     if (candidates.length === 0) continue
     const target = candidates[Math.floor(Math.random() * candidates.length)]
+    // buyer のリーグの格にOVRが届かない選手は引き抜かない（弱い選手が格上リーグへ行かない）
+    if (ovr(target) < foreignMinOvr(buyer.country ?? '')) continue
 
     // 実行
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
@@ -95,7 +105,7 @@ export function simulateForeignTransferMarket(params: {
       relatedIds: [p.id],
     }))
 
-  const records: TxRecord[] = moves.map(m => ({ year, date: `${year}-01-20`, playerId: m.playerId, fromTeamId: m.fromClubId, toTeamId: m.toClubId, fee: 0, kind: 'free' as const }))
+  const records: TxRecord[] = moves.map(m => ({ year, date: `${year}-01-20`, playerId: m.playerId, fromTeamId: m.fromClubId, toTeamId: m.toClubId, fee: 0, kind: 'free' as const, years: playerById.get(m.playerId)?.contract.yearsLeft }))
   return { foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }
 }
 
@@ -113,6 +123,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
 }): { teams: T[]; foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
   const { teams, foreignLeagues, players, playerTeamId, year } = params
   const foreignClubs = foreignLeagues.flatMap(l => l.clubs)
+  const clubCountry = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, c.country as string])))
   const cpuTeams = teams.filter(t => t.id !== playerTeamId)
   if (foreignClubs.length === 0 || cpuTeams.length === 0) return { teams, foreignLeagues, players, news: [], records: [] }
 
@@ -216,8 +227,9 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     // 候補はmain/second合わせた全在籍から（除去漏れ防止のため両方から外す）
     const target = surplusTarget([...jpnRoster[seller.id], ...jpnSecond[seller.id]])
     if (!target || moved.has(target.id)) continue
-    // 買う側（海外クラブ）は上限(30)未満のみ
-    const buyerPool = foreignClubs.filter(c => fRoster[c.id].length < ROSTER_MAX)
+    // 買う側（海外クラブ）は上限(30)未満＋リーグの格にOVRが届くクラブのみ（弱い選手は格上リーグに行かない）
+    const tOvr = ovr(target)
+    const buyerPool = foreignClubs.filter(c => fRoster[c.id].length < ROSTER_MAX && tOvr >= foreignMinOvr(clubCountry.get(c.id) ?? ''))
     if (buyerPool.length === 0) continue
     const buyer = pick(buyerPool)
     const fee = calcTransferValue(target)
@@ -247,7 +259,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const feeStr = (v: number) => v >= 100_000_000 ? `${(v / 100_000_000).toFixed(1)}億` : `${Math.round(v / 10_000)}万`
   // 日本より格上のリーグ（アフリカ・欧州・USA）への移籍は「日本人が世界最高峰へ挑む」大ニュースにする
   const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'EUR', 'USA'])
-  const clubCountry = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, c.country as string])))
   const news: NewsItem[] = moves
     .map(m => ({ m, p: playerById.get(m.playerId) }))
     .filter((x): x is { m: typeof moves[0]; p: Player } => !!x.p)
@@ -276,6 +287,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       }
     })
 
-  const records: TxRecord[] = moves.map(m => ({ year, date: `${year}-01-25`, playerId: m.playerId, fromTeamId: m.fromId, toTeamId: m.toId, fee: m.fee }))
+  const records: TxRecord[] = moves.map(m => ({ year, date: `${year}-01-25`, playerId: m.playerId, fromTeamId: m.fromId, toTeamId: m.toId, fee: m.fee, years: playerById.get(m.playerId)?.contract.yearsLeft }))
   return { teams: updatedTeams, foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }
 }
