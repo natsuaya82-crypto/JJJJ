@@ -287,7 +287,7 @@ export default function Dashboard() {
   }
 
   const gmRepVal = gmRep ?? 50
-  const mainPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
+  const mainPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired')
   const avgMorale = mainPlayers.length > 0
     ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? 70), 0) / mainPlayers.length) : 70
 
