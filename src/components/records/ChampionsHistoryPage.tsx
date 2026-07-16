@@ -78,6 +78,13 @@ export default function ChampionsHistoryPage() {
     teams.find(t => t.id === tid)
     ?? (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === tid)
 
+  // チーム/クラブの詳細ページへ遷移（国内=teams/detail、海外=teams/foreign）
+  const goToTeam = (tid: string) => {
+    if (teams.some(t => t.id === tid)) { navigate(`/teams/detail/${tid}`); return }
+    const league = (foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === tid))
+    if (league) navigate(`/teams/foreign/${league.id}/${tid}`)
+  }
+
   // カテゴリ別・シーズン別の年間総合順位（正規化）。jpel/reserve=勝点、ecl=EclStandingのpoints。
   type OverallRow = { rank: number; teamId: string; name: string; colors?: { primary: string; secondary: string }; score: number; isMe: boolean }
   const overallStandingsFor = (c: Category, ps: typeof pastSeasons[number]): OverallRow[] => {
@@ -96,9 +103,12 @@ export default function ChampionsHistoryPage() {
     return []
   }
   // 総合優勝の年度一覧（各年の1位）。新しい年が上。
-  const overallChampYears = (c: Category) =>
-    [...pastSeasons].reverse().map(ps => ({ year: ps.year, champ: overallStandingsFor(c, ps)[0] as OverallRow | undefined }))
+  const overallChampYears = (c: Category) => {
+    const seen = new Set<number>()
+    return [...pastSeasons].reverse().map(ps => ({ year: ps.year, champ: overallStandingsFor(c, ps)[0] as OverallRow | undefined }))
       .filter((x): x is { year: number; champ: OverallRow } => !!x.champ)
+      .filter(x => { if (seen.has(x.year)) return false; seen.add(x.year); return true })   // 同一年の重複を除去
+  }
 
   // 記録会：種目 → シーズン別トップ3（過去分はendSeasonで軽量保存、今季分はその場で集計）
   const ttByDist = useMemo(() => {
@@ -239,16 +249,17 @@ export default function ChampionsHistoryPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 8 }}>{year}年 {CAT_LABEL[cat]} 総合順位</div>
             <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {rows.map((r, i, arr) => (
-                <div key={r.teamId} style={{
-                  display: 'flex', alignItems: 'center', gap: 9, padding: '9px 12px',
+                <button key={r.teamId} onClick={() => goToTeam(r.teamId)} style={{
+                  display: 'flex', alignItems: 'center', gap: 9, padding: '9px 12px', width: '100%', textAlign: 'left', cursor: 'pointer',
                   background: r.isMe ? alpha(C.gold, 0.1) : i % 2 === 0 ? C.surface : 'transparent',
-                  borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+                  border: 'none', borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+                  color: C.text, fontFamily: SAIRA,
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.textSub : C.textGhost }}>{r.rank}</span>
                   {r.colors && <TeamLogoSVG primary={r.colors.primary} secondary={r.colors.secondary} shortName={r.name} teamId={r.teamId} size={20} />}
                   <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: r.isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
                   <span style={{ fontSize: 11, fontWeight: 800, color: r.rank === 1 ? C.gold : C.textSub }}>{r.score}pt</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
