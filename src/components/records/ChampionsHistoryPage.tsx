@@ -51,7 +51,7 @@ export default function ChampionsHistoryPage() {
 
   // カテゴリ別：大会名 → 開催一覧（結果のある年だけ・年昇順）
   const byCategory = useMemo(() => {
-    const maps: Record<Category, Map<string, RaceRef[]>> = { jpel: new Map(), ecl: new Map(), reserve: new Map() }
+    const maps: Record<Category, Map<string, RaceRef[]>> = { jpel: new Map(), ecl: new Map(), reserve: new Map(), tt: new Map() }
     const add = (c: Category, races: Race[] | undefined, y: number) => {
       for (const r of races ?? []) {
         if (!r.results) continue
@@ -62,11 +62,11 @@ export default function ChampionsHistoryPage() {
     for (const ps of pastSeasons) {
       add('jpel', ps.races, ps.year)
       add('reserve', ps.secondTeamRaces, ps.year)
-      add('ecl', ps.eclRace ? [ps.eclRace] : [], ps.year)
+      add('ecl', [...(ps.eclSeries?.races ?? []), ...(ps.eclRace ? [ps.eclRace] : [])], ps.year)
     }
     add('jpel', currentSeason.races, currentSeason.year)
     add('reserve', currentSeason.secondTeamRaces, currentSeason.year)
-    add('ecl', currentSeason.eclRace ? [currentSeason.eclRace] : [], currentSeason.year)
+    add('ecl', [...(currentSeason.eclSeries?.races ?? []), ...(currentSeason.eclRace ? [currentSeason.eclRace] : [])], currentSeason.year)
     for (const m of Object.values(maps)) for (const rows of m.values()) rows.sort((a, b) => a.year - b.year)
     return maps
   }, [pastSeasons, currentSeason])

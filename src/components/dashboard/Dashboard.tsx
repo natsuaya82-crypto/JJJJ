@@ -307,6 +307,23 @@ export default function Dashboard() {
   const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
   const sorted = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sorted.findIndex(s => s.teamId === playerTeamId) + 1
+
+  // ECL（シーズン中の5戦シリーズ）：NEXTカードは常に1枚だけ。日付が最も早いイベントだけを出す
+  const eclS = currentSeason.eclSeries
+  const nextEclRace = eclS && eclS.raceIndex < eclS.races.length ? eclS.races[eclS.raceIndex] : null
+  const eclQualified = !!eclS?.participants.some(pt => pt.isPlayerTeam)
+  const eclDue = !!nextEclRace && (!nextMainRace || nextEclRace.date <= nextMainRace.date)
+  // 他の駅伝と全く同じ見た目のNextRaceCard（赤基準）。出場しない年はCTAを「観戦する」に
+  const eclNextCard = nextEclRace && eclS ? (
+    <NextRaceCard
+      race={nextEclRace}
+      raceNumber={eclS.raceIndex + 1}
+      totalRaces={eclS.races.length}
+      variant="ecl"
+      ctaLabel={eclQualified ? undefined : '観戦する'}
+      onClick={() => navigate('/ecl')}
+    />
+  ) : null
   const lastSeason = pastSeasons[pastSeasons.length - 1]
   const lastRank = lastSeason?.standings?.length
     ? [...lastSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === playerTeamId) + 1
@@ -400,38 +417,14 @@ export default function Dashboard() {
           onStart={startRegularSeason}
           navigate={navigate}
         />
+      ) : seasonDone && nextEclRace ? (
+        /* ECLの残り戦：これを消化するとシーズン終了カードになる */
+        <div style={{ margin: '0 12px 16px' }}>
+          {eclNextCard}
+        </div>
       ) : seasonDone ? (
         /* シーズン終了 */
         <div style={{ margin: '0 12px 16px' }}>
-          {/* ECL 世界一決定戦：最終戦後〜シーズン終了前に開催（未開催のまま次シーズンへ進むと自動開催） */}
-          <button onClick={() => navigate('/ecl')} style={{
-            width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 12,
-            background: `linear-gradient(180deg, ${alpha('#2ECC71', 0.16)}, ${C.surface2})`,
-            border: `2px solid ${currentSeason.eclResult ? C.border2 : '#2ECC71'}`, borderRadius: 16,
-            boxShadow: currentSeason.eclResult ? '0 3px 0 rgba(0,0,0,0.4)' : '0 4px 0 #14663a, 0 6px 16px rgba(46,204,113,0.25)',
-            padding: '14px 16px', color: C.text, fontFamily: 'inherit',
-          }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: '#2ECC71', letterSpacing: '3px', fontWeight: 900, marginBottom: 3 }}>EKIDEN CHAMPIONS LEAGUE</div>
-            {currentSeason.eclResult ? (
-              <>
-                <div style={{ fontSize: 14, fontWeight: 900 }}>
-                  世界一：{currentSeason.eclResult.standings[0]?.name ?? '—'}
-                </div>
-                <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
-                  {currentSeason.eclResult.playerRank != null ? `自チームは${currentSeason.eclResult.playerRank}位 — ` : ''}タップで結果を見る
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 900 }}>ECL 世界一決定戦</div>
-                <div style={{ fontSize: 11, color: C.textSub, marginTop: 2 }}>
-                  {myRank <= 2
-                    ? '出場権獲得！各リーグの優勝・準優勝と世界一を懸けて戦う'
-                    : '各リーグの優勝・準優勝が世界一を懸けて激突'}
-                </div>
-              </>
-            )}
-          </button>
           <div style={{
             background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
             border: `3px solid ${C.gold}`, borderRadius: 20,
@@ -512,9 +505,10 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-        /* 通常シーズン */
+        /* 通常シーズン：NEXTカードは日付が最も早いイベント1枚だけ */
         <div style={{ padding: '0 12px 16px' }}>
-          {showTTNext && dueTT ? (() => {
+          {eclDue && eclNextCard && (!showTTNext || !dueTT || nextEclRace!.date <= dueTT.date) ? eclNextCard
+          : showTTNext && dueTT ? (() => {
             const distLabel = dueTT.distance === 5000 ? '5000m' : dueTT.distance === 10000 ? '10000m' : dueTT.distance === 21097 ? 'ハーフ' : 'マラソン'
             const distKm = (dueTT.distance / 1000).toFixed(dueTT.distance >= 10000 ? 0 : 1)
             return (

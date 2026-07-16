@@ -40,14 +40,17 @@ export default function SchedulePage() {
   // カレンダー進行: 次のリーグ戦の前に未実施の記録会があればNEXTはそちら
   const dueTT = getDueIndividualEvent(currentSeason)
 
-  // 進行は日付順。1軍とリザーブの次戦が両方NEXTになって順番を飛ばせてしまわないよう、
-  // 日付が早い方だけを光らせる（同日は1軍優先）。
+  // 進行は日付順。1軍・リザーブ・ECLの次戦が同時にNEXTにならないよう、日付が最も早いものだけを光らせる。
   const nextMainObj = currentSeason.races[currentSeason.currentRaceIndex]
   const nextMainDate = (nextMainObj && !nextMainObj.results) ? nextMainObj.date : null
   const nextReserveObj = hasReserve ? (currentSeason.secondTeamRaces ?? [])[stIdx] : undefined
   const nextReserveDate = (nextReserveObj && !nextReserveObj.results) ? nextReserveObj.date : null
-  const mainIsEarliest = !!nextMainDate && (!nextReserveDate || nextMainDate <= nextReserveDate)
-  const reserveIsEarliest = !!nextReserveDate && (!nextMainDate || nextReserveDate < nextMainDate)
+  const eclS = currentSeason.eclSeries
+  const nextEclObj = eclS && eclS.raceIndex < eclS.races.length ? eclS.races[eclS.raceIndex] : undefined
+  const nextEclDate = (nextEclObj && !nextEclObj.results) ? nextEclObj.date : null
+  const mainIsEarliest = !!nextMainDate && (!nextReserveDate || nextMainDate <= nextReserveDate) && (!nextEclDate || nextMainDate < nextEclDate)
+  const reserveIsEarliest = !!nextReserveDate && (!nextMainDate || nextReserveDate < nextMainDate) && (!nextEclDate || nextReserveDate < nextEclDate)
+  const eclIsEarliest = !!nextEclDate && (!nextMainDate || nextEclDate <= nextMainDate) && (!nextReserveDate || nextEclDate <= nextReserveDate)
 
   const mainRaces = currentSeason.races.map((r, i) => ({
     race: r,
@@ -69,15 +72,25 @@ export default function SchedulePage() {
       }))
     : []
 
+  // ECL（前年上位2チームの国際シリーズ）も同じ時系列に混ぜる（赤アクセント）
+  const eclRaces = (eclS?.races ?? []).map((r, i) => ({
+    race: r,
+    kind: 'ecl' as const,
+    roundNum: i + 1,
+    isNext: !!eclS && i === eclS.raceIndex && !r.results && eclIsEarliest,
+    isDone: !!r.results,
+    myRank: r.results?.teamRankings.find(tr => tr.teamId === playerTeamId)?.rank ?? null,
+  }))
+
   // 記録会（タイムトライアル）をレースと同じ時系列に混ぜる
   const ttItems = (currentSeason.individualEvents ?? []).map(ev => ({
     type: 'tt' as const, date: ev.date, ev, isDone: !!ev.results,
   }))
-  const raceItems = [...mainRaces, ...stRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
+  const raceItems = [...mainRaces, ...stRaces, ...eclRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
   const timeline = [...raceItems, ...ttItems].sort((a, b) => a.date.localeCompare(b.date))
 
-  const totalDone = currentSeason.currentRaceIndex + (hasReserve ? stIdx : 0)
-  const totalRaces = currentSeason.races.length + (hasReserve ? (currentSeason.secondTeamRaces ?? []).length : 0)
+  const totalDone = currentSeason.currentRaceIndex + (hasReserve ? stIdx : 0) + (eclS?.raceIndex ?? 0)
+  const totalRaces = currentSeason.races.length + (hasReserve ? (currentSeason.secondTeamRaces ?? []).length : 0) + (eclS?.races.length ?? 0)
 
   function rankColor(rank: number | null) {
     if (rank === null) return C.textDim
@@ -150,6 +163,12 @@ export default function SchedulePage() {
             <span style={{ fontSize: '11px', color: C.textSub }}>リザーブ</span>
           </div>
         )}
+        {eclS && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.red }}/>
+            <span style={{ fontSize: '11px', color: C.textSub }}>ECL</span>
+          </div>
+        )}
       </div>
 
       <div style={{ paddingBottom: '24px' }}>
@@ -206,9 +225,9 @@ export default function SchedulePage() {
           }
 
           const { race, kind, roundNum, isNext, isDone, myRank } = it.r
-          const accentColor = kind === 'main' ? C.gold : C.blue
-          const accentShadow = kind === 'main' ? '#5a3500' : '#1a2050'
-          const labelText = `第${roundNum}戦`
+          const accentColor = kind === 'main' ? C.gold : kind === 'ecl' ? C.red : C.blue
+          const accentShadow = kind === 'main' ? '#5a3500' : kind === 'ecl' ? '#5a1010' : '#1a2050'
+          const labelText = kind === 'ecl' ? 'ECL' : `第${roundNum}戦`
           const rColor = rankColor(myRank)
 
           const canEnter = false   // 予定表は閲覧専用。出走はホームのNEXT RACEカードから。

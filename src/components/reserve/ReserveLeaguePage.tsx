@@ -213,7 +213,8 @@ export default function ReserveLeaguePage() {
 
 // リザーブ用シミュ：1軍と同じ SimPhase を「選択肢なし」で駆動する。
 // 区間アニメ→区間結果カード→暫定順位→「次の区間へ」まで通常リーグと同構成。イベント選択のみ無し。
-function ReserveSimPhase({ race, results, teams, players, playerTeamId, onDone }: {
+// ECLのレース再生でも同じものを使う（exportはそのため）
+export function ReserveSimPhase({ race, results, teams, players, playerTeamId, onDone }: {
   race: Race
   results: RaceResults
   teams: Team[]

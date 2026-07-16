@@ -116,7 +116,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null)
 
   // レース準備(lineup)〜進行(simulating)〜結果発表(results)中は下ナビを隠して集中させる（勝手にホーム等へ抜けさせない）
-  const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup' || activeRacePhase === 'results') && (location.pathname === '/race' || location.pathname === '/reserve')
+  const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup' || activeRacePhase === 'results') && (location.pathname === '/race' || location.pathname === '/reserve' || location.pathname === '/ecl')
 
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)

@@ -15,6 +15,7 @@ import type { IncomingOffer, TransferBid, Player } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const EMPTY_IDS: string[] = []
 
 const fmtYen = (v: number) => v >= 100000000 ? `${(v / 100000000).toFixed(1)}億` : `${Math.round(v / 10000)}万`
 
@@ -355,8 +356,13 @@ export default function NotificationsPage() {
   const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
   const rosterOver = Math.max(0, myRosterCount - ROSTER_MAX)
 
-  // 負傷者情報：自チームの負傷中の選手（負傷名・全治・復帰までのレース数を常に表示）
-  const injuredPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'injured')
+  // 負傷者情報：自チームの負傷中の選手（OKで確認済みにでき、復帰でも自動で消える）
+  // ※セレクタで `?? []` すると毎回新配列になり無限レンダリングするので、フィールドをそのまま取る
+  const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
+  const seenInjuryIds = seenInjuryIdsRaw ?? EMPTY_IDS
+  const dismissInjuryNotice = useGameStore(s => s.dismissInjuryNotice)
+  const injuryKey = (p: { id: string; injuredUntilRace?: number }) => `${p.id}-${p.injuredUntilRace ?? 0}`
+  const injuredPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'injured' && !seenInjuryIds.includes(injuryKey(p)))
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
@@ -610,6 +616,7 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>で復帰</div>
                           </div>
                         </div>
+                        <Btn variant="ghost" style={{ width: '100%', marginTop: '10px' }} onClick={() => dismissInjuryNotice(injuryKey(p))}>OK</Btn>
                       </div>
                     </div>
                   )

@@ -56,7 +56,7 @@ const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties =>
 
 export function ResultsPhase({
   race, results, teams, players, playerTeamId, currentSeason, isLastRace,
-  reserveStandings, onContinue,
+  reserveStandings, onContinue, hideCards,
 }: {
   race: Race
   results: RaceResults
@@ -67,6 +67,7 @@ export function ResultsPhase({
   isLastRace: boolean
   reserveStandings?: Season['secondTeamStandings']
   onContinue?: () => void
+  hideCards?: boolean   // ECL等、カード報酬のないレースで前レースの獲得カードが出ないように
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -640,7 +641,7 @@ export function ResultsPhase({
         </div>
       </div>
 
-      {raceDroppedCards.length > 0 && (
+      {!hideCards && raceDroppedCards.length > 0 && (
         <div style={{ margin: '14px 12px 0' }}>
           <div style={{
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,

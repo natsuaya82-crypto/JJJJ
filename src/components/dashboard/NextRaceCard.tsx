@@ -25,14 +25,23 @@ interface Props {
   raceNumber: number
   totalRaces: number
   onClick: () => void
-  variant?: 'main' | 'reserve'   // reserve=リザーブリーグは青系にして1軍と区別
+  variant?: 'main' | 'reserve' | 'ecl'   // reserve=青 / ecl=赤 にして1軍と区別
+  ctaLabel?: string   // CTAの文言を差し替える（例：出場権のないECLは「観戦する」）
 }
 
-export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, variant = 'main' }: Props) {
+export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, variant = 'main', ctaLabel }: Props) {
   const totalDist = race.segments.reduce((s, sg) => s + sg.distanceKm, 0).toFixed(1)
   const isReserve = variant === 'reserve'
-  // アクセント色一式（金＝1軍 / 青＝リザーブ）
-  const AC = isReserve ? {
+  // アクセント色一式（金＝1軍 / 青＝リザーブ / 赤＝ECL）
+  const AC = variant === 'ecl' ? {
+    border: C.red, shadowDeep: '#5a1010', frame: 'rgba(232,70,42,0.35)',
+    headerGrad: `linear-gradient(90deg, ${alpha(C.red, 0.20)}, ${alpha(C.red, 0.04)})`,
+    headerBorder: alpha(C.red, 0.20),
+    badgeGrad: `linear-gradient(180deg, #ff8a75 0%, ${C.red} 60%, #7a1610 100%)`,
+    badgeBorder: '#5a1010', badgeShadow: '#3f0c08',
+    divider: '#7a1610', tileBorder: alpha(C.red, 0.15), btnClass: 'btn-game--red',
+    typeLabel: 'ECL',
+  } : isReserve ? {
     border: C.blue, shadowDeep: '#2f3a7a', frame: 'rgba(121,134,203,0.35)',
     headerGrad: `linear-gradient(90deg, ${alpha(C.blue, 0.20)}, ${alpha(C.blue, 0.04)})`,
     headerBorder: alpha(C.blue, 0.20),
@@ -150,7 +159,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
       <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2 }}>
         <button className={`btn-game ${AC.btnClass}`} style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
           <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12, fontWeight: 900 }}>
-            出走メンバーを組む
+            {ctaLabel ?? '出走メンバーを組む'}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
             </svg>

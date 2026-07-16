@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow } from './saveStorage'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -213,6 +213,8 @@ export type GameStore = GameState & {
   raceLineup: Record<number, string>   // segmentIndex → playerId (for current race)
   lastRaceLineup: Record<number, string>  // saved from previous race for "前回" restore
   seenJoinIds: string[]   // 加入通知を確認済みの選手キー（`playerId-joinedYear`）
+  seenInjuryIds?: string[]   // 負傷通知を確認済みのキー（`playerId-injuredUntilRace`）。OKで消せる
+  dismissInjuryNotice: (key: string) => void
 
   // Setup
   startSetup: (setup: SetupData) => void
@@ -366,11 +368,10 @@ export type GameStore = GameState & {
   advanceForeignLeagues: () => void
   runMidSeasonForeignTransfers: () => void   // 移籍ウィンドウ中、レース毎に低確率で日本↔海外の移籍を少数発生
   advanceMarketOneRace: () => void           // 本編以外(リザーブ/記録会)のレースでも入札・レンタル要請の応答を進める
-  // ECL：日本上位2＋海外各リーグ上位2の16チームがランダムな国際コースで一発勝負（シーズン終了前に1回）。
-  // 自チームが出場権を持つ場合は lineup（区間→選手id）で区間配置できる
-  simulateEcl: (playerLineup?: Record<number, string>) => void
-  // ECLの開催レース（コース・天候）を事前確定する（冪等）。区間配置画面でコースを見せるため
-  prepareEcl: () => void
+  // ECL：前年の各リーグ上位2（計16チーム）がシーズン中の5戦をポイント制で争う。
+  // 次の1戦を開催する（自チーム出場時は lineup で区間配置。未指定はOVR上位を自動配置）。
+  // 5戦目の消化で最終順位・賞金・パッチ・歴代記録が確定する
+  advanceEclRace: (playerLineup?: Record<number, string>) => void
 
   // Season
   beginSeasonDraft: () => void
@@ -469,6 +470,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     rivalTeamId: null,
     gmRep: 50,
     seenJoinIds: [],
+    seenInjuryIds: [],
     playerTeamId: 'fukuoka',
     currentSeason: {
       year: 2027,
@@ -936,6 +938,18 @@ export const useGameStore = create<GameStore>()(
       clearRaceLineup: () => set({ raceLineup: {} }),
 
       runRace: (lineup, segmentTactics, preComputedResults) => {
+        // 期日を過ぎたECL戦を先に自動消化する（自チーム出場でも未実施のままリーグ戦へ進んだらAI配置で開催）
+        {
+          let guard = 0
+          while (guard++ < 6) {
+            const cs = get().currentSeason
+            const es = cs.eclSeries
+            const nextLeague = cs.races[cs.currentRaceIndex]
+            if (!es || es.raceIndex >= es.races.length || !nextLeague) break
+            if (es.races[es.raceIndex].date > nextLeague.date) break
+            get().advanceEclRace()
+          }
+        }
         const state = get()
         const { currentSeason, teams, players, playerTeamId } = state
         const raceIndex = currentSeason.currentRaceIndex
@@ -2025,7 +2039,7 @@ export const useGameStore = create<GameStore>()(
             potential: prospect.potential,
             growthCurve: 'normal',
             teamId: state.playerTeamId,
-            rosterTier: 'second',
+            rosterTier: 'main',
             joinedYear: state.currentSeason.year,
             dualRegistered: false,
             contract: {
@@ -3761,10 +3775,11 @@ export const useGameStore = create<GameStore>()(
           const myMainAfterTrade = state.teams.find(t => t.id === state.playerTeamId)?.roster.main.filter(id => !offeredIds.includes(id)) ?? []
           const incomingIds = requestedIds.filter(id => !myMainAfterTrade.includes(id))
 
-          // 獲得選手は即1軍にせず必ず2軍で加入し、加入レースを記録（加入後2戦は出走不可）。1軍昇格はロスター管理で行う。
+          // 獲得選手はフラットロスター(main)で加入し、加入レースを記録（加入後2戦は出走不可）。
+          // 旧2軍(second)で加えるとロスター一覧（main表示）から消えるバグになる
           const players = state.players.map(p => {
             if (offeredIds.includes(p.id)) return { ...p, teamId: targetTeamId, rosterTier: 'main' as const }
-            if (incomingIds.includes(p.id)) return { ...p, teamId: state.playerTeamId, rosterTier: 'second' as const, acquiredRaceIndex: state.currentSeason.currentRaceIndex, joinedYear: state.currentSeason.year }
+            if (incomingIds.includes(p.id)) return { ...p, teamId: state.playerTeamId, rosterTier: 'main' as const, acquiredRaceIndex: state.currentSeason.currentRaceIndex, joinedYear: state.currentSeason.year }
             return p
           })
           const myTeamPicks = state.teams.find(t => t.id === state.playerTeamId)?.draftPicks ?? []
@@ -4222,112 +4237,121 @@ export const useGameStore = create<GameStore>()(
         }
       }),
 
-      // ECLの開催レースを事前確定（冪等）。コースを10種から抽選し、区間配置画面で見せる
-      prepareEcl: () => set(state => {
-        if (state.currentSeason.eclResult || state.currentSeason.eclRace) return {}
+      // ECLの次の1戦を開催する。5戦目の消化で最終順位（累計ポイント）・賞金・パッチ・歴代記録を確定
+      advanceEclRace: (playerLineup) => set(state => {
+        const series = state.currentSeason.eclSeries
+        if (!series || series.raceIndex >= series.races.length) return {}
+        const race = series.races[series.raceIndex]
         const year = state.currentSeason.year
-        const course = ECL_COURSES[Math.floor(Math.random() * ECL_COURSES.length)]
-        const weathers = ['sunny', 'cloudy', 'rainy', 'windy'] as const
-        const race: Race = {
-          id: `ecl-${year}`,
-          name: 'ECL 世界一決定戦',
-          date: `${year}-12-30`,
-          location: course.location,
-          type: 'league',
-          segments: course.segments,
-          conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
-          participants: [],
-        }
-        return { currentSeason: { ...state.currentSeason, eclRace: race, eclCourseId: course.id } }
-      }),
 
-      // ECLを開催（冪等）。日本リーグ上位2＋海外各リーグ上位2＝16チームが、
-      // 10コースからランダムに選ばれた国際コースを一発勝負で走り世界一を決める。
-      simulateEcl: (playerLineup) => set(state => {
-        if (state.currentSeason.eclResult) return {}
-        const std = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
-        const participants: EclParticipant[] = []
-        std.slice(0, 2).forEach(s => {
-          const t = state.teams.find(tm => tm.id === s.teamId)
-          if (t) participants.push({ id: t.id, name: t.name, shortName: t.shortName, isForeign: false, isPlayerTeam: t.id === state.playerTeamId, leagueName: 'JPEL', colors: t.colors, playerIds: state.players.filter(p => p.teamId === t.id && p.status === 'active').map(p => p.id) })
-        })
-        const fs = state.currentSeason.foreignStandings ?? {}
-        for (const league of state.foreignLeagues ?? []) {
-          const top2 = [...(fs[league.id] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 2)
-          top2.forEach(s => {
-            const club = league.clubs.find(c => c.id === s.clubId)
-            if (club) participants.push({ id: club.id, name: club.name, shortName: club.shortName, isForeign: true, isPlayerTeam: false, leagueName: league.name, colors: club.colors, playerIds: club.playerIds })
-          })
-        }
-        if (participants.length < 2) return {}
-
-        const year = state.currentSeason.year
-        // prepareEcl 済みならそのレース（コース・天候）を使う。未準備（endSeasonからの自動開催）ならここで抽選
-        const course = ECL_COURSES.find(c => c.id === state.currentSeason.eclCourseId)
-          ?? ECL_COURSES[Math.floor(Math.random() * ECL_COURSES.length)]
-        const weathers = ['sunny', 'cloudy', 'rainy', 'windy'] as const
-        const eclRace: Race = state.currentSeason.eclRace ?? {
-          id: `ecl-${year}`,
-          name: `ECL 世界一決定戦`,
-          date: `${year}-12-30`,
-          location: course.location,
-          type: 'league',
-          segments: course.segments,
-          conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
-          participants: participants.map(p => p.id),
+        // ロスターは開催時点の在籍で解決（シーズン中の移籍・負傷を反映）
+        const participants: EclParticipant[] = series.participants.map(pt => ({
+          ...pt,
+          playerIds: pt.isForeign
+            ? ((state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pt.id)?.playerIds ?? [])
+            : state.players.filter(p => p.teamId === pt.id && p.status === 'active').map(p => p.id),
+        })).filter(pt => pt.playerIds.length >= race.segments.length)
+        if (participants.length < 2) {
+          // 開催不能（消滅チーム等）でも戦は消化して先へ進める
+          return { currentSeason: { ...state.currentSeason, eclSeries: { ...series, raceIndex: series.raceIndex + 1 } } }
         }
 
         const iAmIn = participants.some(p => p.isPlayerTeam)
         const result = simulateEclEvent({
-          year, participants, races: [eclRace], teams: state.teams, players: state.players,
+          year, participants, races: [race], teams: state.teams, players: state.players,
           playerLineup: iAmIn && playerLineup ? { teamId: state.playerTeamId, lineup: playerLineup } : undefined,
         })
-        result.courseName = course.name
-        result.location = course.location
-        result.courseCharacter = course.character
 
-        // 賞金：優勝2億／準優勝1億／出場5000万（自チームが出場していた場合のみ財務反映）
-        const myRank = result.standings.findIndex(s => s.id === state.playerTeamId) + 1
-        const prize = myRank === 1 ? 200_000_000 : myRank === 2 ? 100_000_000 : myRank > 0 ? 50_000_000 : 0
-        result.playerRank = myRank > 0 ? myRank : undefined
-        result.prize = prize
-        const updatedTeams = prize > 0
-          ? state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + prize } } : t)
-          : state.teams
+        // ポイント累積（順位点＋区間点）
+        const newPoints = { ...series.points }
+        for (const tr of result.raceResults?.teamRankings ?? []) {
+          newPoints[tr.teamId] = (newPoints[tr.teamId] ?? 0) + tr.positionPoints + tr.segmentPoints
+        }
+        const newRaces = series.races.map((r, i) => i === series.raceIndex ? { ...r, results: result.raceResults } : r)
+        const nextIndex = series.raceIndex + 1
+        const isFinal = nextIndex >= series.races.length
 
-        const won = result.championId === state.playerTeamId
-        const newAch = won
-          ? [{ id: `ecl-champion-${year}`, name: 'ECL制覇', desc: `${year}年 ECL世界一決定戦で優勝`, earnedAtYear: year, rarity: 'legendary' as const }]
-          : []
-
-        // 歴代記録（優勝パッチ・MVPパッチ・記録室用）
-        const champion = result.standings[0]
-        const historyEntry = champion ? [{
-          year,
-          championId: champion.id,
-          championName: champion.name,
-          courseName: course.name,
-          timeSec: champion.timeSec ?? 0,
-          winnerPlayerIds: result.winnerPlayerIds ?? [],
-          mvpPlayerId: result.mvpPlayerId,
-        }] : []
-
-        // 出走したら通算出走数に加算、区間1位は通算区間賞に加算（選手詳細の出走数・区間賞に反映）
+        // 出走で通算出走数、区間1位で通算区間賞（選手詳細に反映）
         const ranIds = new Set((result.raceResults?.segmentResults ?? []).flatMap(sr => sr.runners.map(r => r.playerId)))
         const segWinIds = new Set((result.raceResults?.segmentResults ?? []).map(sr => [...sr.runners].sort((a, b) => a.timeSec - b.timeSec)[0]?.playerId).filter(Boolean))
-        const updatedPlayers = ranIds.size > 0
+        let updatedPlayers = ranIds.size > 0
           ? state.players.map(p => ranIds.has(p.id)
             ? { ...p, career: { ...p.career, totalRaces: p.career.totalRaces + 1, segmentWins: p.career.segmentWins + (segWinIds.has(p.id) ? 1 : 0) } }
             : p)
           : state.players
 
-        const newsItem = {
-          date: eclRace.date,
-          headline: won
-            ? `【世界一】ECL世界一決定戦（${course.location}）：自チームが世界の頂点に立つ！`
-            : `ECL世界一決定戦（${course.location}）：${champion?.name ?? ''}が世界一に${myRank > 0 ? `。自チームは${myRank}位` : ''}`,
+        // この戦のニュース
+        const raceWinner = result.standings[0]
+        const myRaceRank = result.standings.findIndex(s => s.isPlayerTeam) + 1
+        const newsItems: typeof state.currentSeason.newsFeed = [{
+          date: race.date,
+          headline: `${race.name}（${race.location}）：${raceWinner?.name ?? ''}が制す${myRaceRank > 0 ? `。自チームは${myRaceRank}位` : ''}`,
           category: 'race' as const,
-          relatedIds: [eclRace.id],
+          relatedIds: [race.id],
+        }]
+
+        let updatedTeams = state.teams
+        let newAch: NonNullable<GameState['achievements']> = []
+        let historyEntry: NonNullable<GameState['eclHistory']> = []
+        let eclResult = state.currentSeason.eclResult
+
+        if (isFinal) {
+          // 最終順位＝累計ポイント降順
+          const finalStandings: EclStanding[] = series.participants
+            .map(pt => ({ ...pt, points: newPoints[pt.id] ?? 0 }))
+            .sort((a, b) => b.points - a.points)
+          const champion = finalStandings[0]
+          const myRank = finalStandings.findIndex(s => s.isPlayerTeam) + 1
+          const prize = myRank === 1 ? 200_000_000 : myRank === 2 ? 100_000_000 : myRank > 0 ? 50_000_000 : 0
+          if (prize > 0) {
+            updatedTeams = state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + prize } } : t)
+          }
+          const won = champion?.id === state.playerTeamId
+          if (won) newAch = [{ id: `ecl-champion-${year}`, name: 'ECL制覇', desc: `${year}年 ECLで優勝`, earnedAtYear: year, rarity: 'legendary' as const }]
+
+          // 優勝チームの出走メンバー（全5戦の延べ）と大会MVP（全戦の区間で最も突出した走り）
+          const winnerPlayerIds = champion
+            ? [...new Set(newRaces.flatMap(r => (r.results?.segmentResults ?? []).flatMap(sr => sr.runners.filter(x => x.teamId === champion.id).map(x => x.playerId))))]
+            : []
+          let mvpPlayerId: string | undefined
+          let bestGap = -1
+          for (const r of newRaces) {
+            for (const sr of r.results?.segmentResults ?? []) {
+              const sorted = [...sr.runners].sort((a, b) => a.timeSec - b.timeSec)
+              const top = sorted[0]
+              if (!top) continue
+              const gap = (sorted[1]?.timeSec ?? top.timeSec) - top.timeSec
+              if (gap > bestGap) { bestGap = gap; mvpPlayerId = top.playerId }
+            }
+          }
+
+          eclResult = {
+            year,
+            championId: champion?.id ?? '',
+            standings: finalStandings,
+            races: newRaces.map(r => ({ name: r.name, raceId: r.id })),
+            winnerPlayerIds,
+            mvpPlayerId,
+            playerRank: myRank > 0 ? myRank : undefined,
+            prize,
+          }
+          historyEntry = champion ? [{
+            year,
+            championId: champion.id,
+            championName: champion.name,
+            courseName: `5戦シリーズ（${newPoints[champion.id] ?? 0}pt）`,
+            timeSec: 0,
+            winnerPlayerIds,
+            mvpPlayerId,
+          }] : []
+          newsItems.push({
+            date: race.date,
+            headline: won
+              ? `【世界一】ECL最終戦を終え、自チームが年間王者に！世界の頂点に立つ`
+              : `ECL：全5戦を終え${champion?.name ?? ''}が年間王者に${myRank > 0 ? `。自チームは総合${myRank}位` : ''}`,
+            category: 'race' as const,
+            relatedIds: [race.id],
+          })
         }
 
         return {
@@ -4337,10 +4361,9 @@ export const useGameStore = create<GameStore>()(
           eclHistory: [...(state.eclHistory ?? []), ...historyEntry],
           currentSeason: {
             ...state.currentSeason,
-            eclResult: result,
-            // 結果をレースにも焼き込む（選手詳細の駅伝データ・在籍履歴の出走数に反映される）
-            eclRace: { ...eclRace, results: result.raceResults },
-            newsFeed: [newsItem, ...state.currentSeason.newsFeed].slice(0, 30),
+            eclSeries: { ...series, races: newRaces, raceIndex: nextIndex, points: newPoints },
+            eclResult,
+            newsFeed: [...newsItems, ...state.currentSeason.newsFeed].slice(0, 30),
           },
         }
       }),
@@ -4834,9 +4857,14 @@ export const useGameStore = create<GameStore>()(
       },
 
       endSeason: () => {
-        // ECL未開催のままシーズンを終えようとした場合は自動開催（自チームはOVR上位を自動配置）
-        if (!get().currentSeason.eclResult) {
-          try { get().simulateEcl() } catch (e) { console.error('simulateEcl failed', e) }
+        // ECLの残り戦が未消化ならAI配置で自動開催してからシーズンを締める
+        {
+          let guard = 0
+          while (guard++ < 8) {
+            const es = get().currentSeason.eclSeries
+            if (!es || es.raceIndex >= es.races.length) break
+            try { get().advanceEclRace() } catch (e) { console.error('advanceEclRace failed', e); break }
+          }
         }
         set(state => {
           const newYear = state.currentSeason.year + 1
@@ -4949,10 +4977,10 @@ export const useGameStore = create<GameStore>()(
             if (p.transferListed && p.teamId === state.playerTeamId && p.status === 'active') {
               return { ...p, teamId: '',  transferListed: false, transferLockedUntilYear: state.currentSeason.year + 2 }
             }
-            // レンタル期間終了 → 保有元チームへ自動返却（ロスター配列は2軍側へ戻すのでtierも揃える）
+            // レンタル期間終了 → 保有元チームへ自動返却（フラットロスター＝mainで戻す。secondだと一覧から消える）
             if (p.loan && p.loan.untilYear <= state.currentSeason.year + 1) {
               loanReturnIds.set(p.id, p.loan.ownerTeamId)
-              return { ...p, teamId: p.loan.ownerTeamId, loan: undefined, rosterTier: 'second' as const }
+              return { ...p, teamId: p.loan.ownerTeamId, loan: undefined, rosterTier: 'main' as const }
             }
             return p
           })
@@ -5699,6 +5727,42 @@ export const useGameStore = create<GameStore>()(
               foreignStandings: initForeignStandings(foreignRefresh.updatedLeagues),
               foreignRaceIndex: 0,
               foreignAppearances: {},
+              // 来季のECL：今季（＝前年）の各リーグ上位2チームで開催。4/6/7/9/11月の5戦、コースは10種から重複なし抽選。
+              // 初年度は前年成績が無いためこの経路でしか生成されない＝1年目は開催なし
+              eclSeries: (() => {
+                const parts = [] as { id: string; name: string; shortName: string; isForeign: boolean; isPlayerTeam: boolean; leagueName: string; colors: { primary: string; secondary: string } }[]
+                sortedStandings.slice(0, 2).forEach(s => {
+                  const t = state.teams.find(tm => tm.id === s.teamId)
+                  if (t) parts.push({ id: t.id, name: t.name, shortName: t.shortName, isForeign: false, isPlayerTeam: t.id === state.playerTeamId, leagueName: 'JPEL', colors: t.colors })
+                })
+                const fsEnd = state.currentSeason.foreignStandings ?? {}
+                for (const league of foreignRefresh.updatedLeagues) {
+                  const top2 = [...(fsEnd[league.id] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 2)
+                  top2.forEach(s => {
+                    const club = league.clubs.find(c => c.id === s.clubId)
+                    if (club) parts.push({ id: club.id, name: club.name, shortName: club.shortName, isForeign: true, isPlayerTeam: false, leagueName: league.name, colors: club.colors })
+                  })
+                }
+                if (parts.length < 4) return undefined
+                const courses = [...ECL_COURSES].sort(() => Math.random() - 0.5).slice(0, 5)
+                const months = ['04', '06', '07', '09', '11']
+                const weathers = ['sunny', 'cloudy', 'rainy', 'windy'] as const
+                return {
+                  participants: parts,
+                  races: courses.map((course, i) => ({
+                    id: `ecl-${newYear}-r${i + 1}`,
+                    name: `ECL 第${i + 1}戦`,
+                    date: `${newYear}-${months[i]}-20`,
+                    location: course.location,
+                    type: 'league' as const,
+                    segments: course.segments,
+                    conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
+                    participants: parts.map(p => p.id),
+                  })),
+                  raceIndex: 0,
+                  points: {},
+                }
+              })(),
               standings: state.teams.map(t => ({
                 teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
               })),
@@ -6409,6 +6473,9 @@ export const useGameStore = create<GameStore>()(
 
       dismissJoinNotice: (key) => set(s => ({ seenJoinIds: s.seenJoinIds.includes(key) ? s.seenJoinIds : [...s.seenJoinIds, key] })),
 
+      // 負傷通知をOKで確認済みにする（復帰で自動的に対象からも消える。キーは playerId-injuredUntilRace）
+      dismissInjuryNotice: (key) => set(s => ({ seenInjuryIds: (s.seenInjuryIds ?? []).includes(key) ? s.seenInjuryIds : [...(s.seenInjuryIds ?? []), key].slice(-100) })),
+
       // アップデートギフト配布＋期限切れギフトの掃除（毎回起動時に呼ばれる・冪等）。
       // 1.0.6：不具合のお詫びとしてジュエル1000個を配布（受け取り期間1か月）。
       grantUpdateGifts: () => {
@@ -6527,6 +6594,12 @@ export const useGameStore = create<GameStore>()(
           }
           if (!wChanged && !jChanged) return state
           return { worldRecords: w.out, japanRecords: j.out }
+        })
+        // フラットロスター化の残骸救済：rosterTier 'second' のままの選手はロスター一覧（main表示）から
+        // 消えてしまう（トレード獲得・レンタル返却の旧コード経由）。全員 main に揃える
+        set(state => {
+          if (!state.players.some(p => p.rosterTier === 'second')) return state
+          return { players: state.players.map(p => p.rosterTier === 'second' ? { ...p, rosterTier: 'main' as const } : p) }
         })
         // 海外クラブの名簿に載っているのに teamId が ''（未所属）になった選手を復元する
         // （旧バージョンで契約満了FA化が海外選手にも効いてしまっていたセーブの救済）

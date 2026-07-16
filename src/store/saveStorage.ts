@@ -19,6 +19,17 @@ async function flushWrite() {
   const data = pending
   pending = null
   try {
+    // セーブ破壊ガード（ファイル直前）：新規状態を書く前に、既存ファイルが進行中セーブなら中止する。
+    // 起動時の読み込みが一時的に失敗すると「新規状態で起動→そのまま上書き」でセーブが1年目に戻るため。
+    if (!data.includes('"isInitialized":true')) {
+      try {
+        const cur = await Filesystem.readFile({ path: FILE, directory: Directory.Data, encoding: Encoding.UTF8 })
+        if (typeof cur.data === 'string' && cur.data.includes('"isInitialized":true')) {
+          console.error('[save] BLOCKED: file has an initialized save; refusing to overwrite with fresh state')
+          return
+        }
+      } catch { /* ファイルなし＝新規でOK */ }
+    }
     await Filesystem.writeFile({ path: FILE, data, directory: Directory.Data, encoding: Encoding.UTF8 })
 
   } catch (e) {
@@ -46,13 +57,27 @@ export async function flushSaveNow(): Promise<void> {
   await flushWrite()
 }
 
+// ── セーブ破壊ガード ──
+// 「進行中のセーブ（isInitialized:true）」の上に「新規状態（isInitialized:false）」を書き込もうと
+// したら拒否する。起動時の一瞬（復元完了前）に初期状態が保存されてセーブが1年目に戻る事故を防ぐ。
+// リセット（データ削除）は removeItem がファイル/localStorage を消してガードも解除するので通る。
+let loadedInitialized = false
+const isInit = (v: string | null) => !!v && v.includes('"isInitialized":true')
+
 export const saveStorage: StateStorage = {
   getItem: (name) => {
-    if (!isNative) return localStorage.getItem(name)
+    if (!isNative) {
+      const v = localStorage.getItem(name)
+      if (isInit(v)) loadedInitialized = true
+      return v
+    }
     return (async () => {
       try {
         const res = await Filesystem.readFile({ path: FILE, directory: Directory.Data, encoding: Encoding.UTF8 })
-        if (typeof res.data === 'string' && res.data.length > 0) return res.data
+        if (typeof res.data === 'string' && res.data.length > 0) {
+          if (isInit(res.data)) loadedInitialized = true
+          return res.data
+        }
       } catch { /* ファイル未作成＝初回起動 or 旧セーブからの移行前 */ }
       // 旧セーブ(localStorage)からの移行：ファイルへコピーし、読み戻して一致を確認できた時だけ採用。
       // 旧データは消さない（切り替え後は書き込まれなくなるだけ）。失敗時も旧セーブをそのまま返すので消失しない。
@@ -68,16 +93,24 @@ export const saveStorage: StateStorage = {
           console.error('[save] migration failed, keep using localStorage data', e)
         }
       }
+      if (isInit(legacy)) loadedInitialized = true
       return legacy
     })()
   },
   setItem: (name, value) => {
+    // セーブ破壊ガード：進行中セーブがあるのに新規状態を書こうとしたら拒否
+    if (loadedInitialized && !isInit(value)) {
+      console.error('[save] BLOCKED: attempted to overwrite an initialized save with a fresh (uninitialized) state')
+      return
+    }
+    if (isInit(value)) loadedInitialized = true
     if (!isNative) { localStorage.setItem(name, value); return }
     pending = value
     if (timer) clearTimeout(timer)
     timer = setTimeout(() => { timer = null; void flushWrite() }, 400)
   },
   removeItem: (name) => {
+    loadedInitialized = false   // データ削除＝ガード解除（新規ゲームを保存できるように）
     if (!isNative) { localStorage.removeItem(name); return }
     return (async () => {
       pending = null

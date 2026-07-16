@@ -358,8 +358,11 @@ export function useNotifCount() {
   // ロスター超過警告（NotificationsPageと同じ基準）
   const rosterOver = Math.max(0, players.filter(p => p.teamId === playerTeamId && p.status === 'active').length - ROSTER_MAX)
 
-  // 負傷者情報（NotificationsPageと同じ基準）
-  const injuredCount = players.filter(p => p.teamId === playerTeamId && p.status === 'injured').length
+  // 負傷者情報（NotificationsPageと同じ基準：OKで確認済みにしたものは数えない）
+  // ※セレクタで `?? []` すると毎回新配列になり無限レンダリングするので、フィールドをそのまま取る
+  const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
+  const seenInjuryIdsC = seenInjuryIdsRaw ?? []
+  const injuredCount = players.filter(p => p.teamId === playerTeamId && p.status === 'injured' && !seenInjuryIdsC.includes(`${p.id}-${p.injuredUntilRace ?? 0}`)).length
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 

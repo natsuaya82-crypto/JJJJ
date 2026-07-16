@@ -662,9 +662,17 @@ export type Season = {
   // 国内在籍で今季1度も出走しなかった選手の所属（シーズン終了時に保存）。
   // 在籍履歴は出走記録から行を作るため、これが無いと出なかった年の所属が消える
   zeroAppearances?: { playerId: string; teamId: string; tier: 'main' | 'second' }[]
-  eclResult?: EclResult                                  // ECL開催結果（ポストシーズンに1回）
-  eclRace?: Race                                         // 今季のECL開催レース（コース・天候を事前確定して区間配置で見せる）
-  eclCourseId?: string                                   // 開催コースのid（10コースからランダム）
+  eclResult?: EclResult                                  // ECL最終結果（5戦消化後に確定）
+  eclRace?: Race                                         // 旧・一発勝負時代のレース（旧セーブ互換のため残す）
+  eclCourseId?: string                                   // 旧フィールド（互換のため残す）
+  // ECL本体：前年の各リーグ上位2チームが、シーズン中の5戦（4/6/7/9/11月）をポイント制で争う。
+  // 初年度は前年成績が無いので開催されない（endSeasonで翌季分を組む）
+  eclSeries?: {
+    participants: { id: string; name: string; shortName: string; isForeign: boolean; isPlayerTeam: boolean; leagueName: string; colors: { primary: string; secondary: string } }[]
+    races: Race[]              // 5戦。resultsが入っていれば消化済み
+    raceIndex: number          // 次に走る戦のindex
+    points: Record<string, number>   // チームid → 累計ポイント（順位点+区間点）
+  }
   expiredNegotiations?: { id: string; playerId: string; playerName: string }[]
   // フリー移籍（移籍金0の接触）の決断結果。left=移籍した/false=残留。確認で消す
   freeTransferNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[]

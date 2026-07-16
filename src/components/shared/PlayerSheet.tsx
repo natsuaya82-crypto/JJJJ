@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
-import type { Player, TeamRole } from '../../types'
+import type { Player, TeamRole, Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, isStatMaxed } from '../../utils/playerUtils'
@@ -269,16 +269,21 @@ export default function PlayerSheet() {
       addEntry(race.name, { year, segIdx: sr.segmentIndex, distKm: seg?.distanceKm, rank: runner.rank, timeSec: runner.timeSec })
     }
   }
+  // ECL（5戦シリーズ＋旧一発勝負）の結果レース
+  const eclRacesOf = (s: { eclSeries?: { races: Race[] }; eclRace?: Race }) => [
+    ...(s.eclSeries?.races.filter(r => r.results) ?? []),
+    ...(s.eclRace?.results ? [s.eclRace] : []),
+  ]
   for (const ps of pastSeasons) {
     processRaces(ps.races, ps.year)
     processRaces(ps.secondTeamRaces ?? [], ps.year)   // リザーブ駅伝の結果も履歴に含める
     processRaces(ps.collegeRaces ?? [], ps.year)
-    processRaces(ps.eclRace?.results ? [ps.eclRace] : [], ps.year)   // ECLの出走も駅伝データに含める
+    processRaces(eclRacesOf(ps), ps.year)   // ECLの出走も駅伝データに含める
   }
   processRaces(currentSeason.races, currentSeason.year)
   processRaces(currentSeason.secondTeamRaces ?? [], currentSeason.year)
   processRaces(currentSeason.collegeRaces ?? [], currentSeason.year)
-  processRaces(currentSeason.eclRace?.results ? [currentSeason.eclRace] : [], currentSeason.year)
+  processRaces(eclRacesOf(currentSeason), currentSeason.year)
 
   // 2軍駅伝は年ごとに開催大会が入れ替わるため、「このセーブで実際に開催されたことのある大会」だけを一覧に出す
   // （未出場の開催大会は空欄で並ぶ。プールにあるだけで一度も開催されていない大会は出さない）
@@ -313,11 +318,11 @@ export default function PlayerSheet() {
   for (const ps of pastSeasons) {
     addHistory(ps.year, 'main', ps.races)
     addHistory(ps.year, 'second', ps.secondTeamRaces)
-    addHistory(ps.year, 'main', ps.eclRace?.results ? [ps.eclRace] : [])   // ECL出走も出場数に含める
+    addHistory(ps.year, 'main', eclRacesOf(ps))   // ECL出走も出場数に含める
   }
   addHistory(currentSeason.year, 'main', currentSeason.races)
   addHistory(currentSeason.year, 'second', currentSeason.secondTeamRaces)
-  addHistory(currentSeason.year, 'main', currentSeason.eclRace?.results ? [currentSeason.eclRace] : [])
+  addHistory(currentSeason.year, 'main', eclRacesOf(currentSeason))
   // 海外リーグの出場（国内レースには出ないので foreignAppearances から年×クラブで積む）
   const addForeignHistory = (year: number, appMap: Record<string, { clubId: string; races: number; wins: number }> | undefined) => {
     const a = appMap?.[player.id]
@@ -616,20 +621,26 @@ export default function PlayerSheet() {
               </div>}
 
               {/* ECL（出走歴がある選手だけ表示）。1軍駅伝とリザーブの間に置く */}
-              {!isProspect && (raceGroupMap.get('ECL 世界一決定戦') ?? []).length > 0 && (
-                <div>
-                  <div style={{ fontSize: '9px', fontWeight: '800', color: '#2ECC71', letterSpacing: '2px', marginBottom: '6px' }}>ECL</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                    <div onClick={() => openRaceDetail('ECL 世界一決定戦')} style={{
-                      padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(46,204,113,0.35)', backgroundColor: '#14121F',
-                      cursor: 'pointer', textAlign: 'center', minHeight: 44,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>ECL 世界一決定戦</span>
+              {!isProspect && (() => {
+                const eclNames = [...raceGroupMap.keys()].filter(n => n.startsWith('ECL'))
+                if (eclNames.length === 0) return null
+                return (
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#2ECC71', letterSpacing: '2px', marginBottom: '6px' }}>ECL</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                      {eclNames.sort().map(name => (
+                        <div key={name} onClick={() => openRaceDetail(name)} style={{
+                          padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(46,204,113,0.35)', backgroundColor: '#14121F',
+                          cursor: 'pointer', textAlign: 'center', minHeight: 44,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{name}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* 2軍 races（ドラフト候補では非表示。加入後は通常詳細に切り替わり表示される） */}
               {!isProspect && reserveRaceNames.length > 0 && (
