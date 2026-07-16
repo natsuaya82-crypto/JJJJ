@@ -93,10 +93,16 @@ export default function ChampionsHistoryPage() {
       return { rank: i + 1, teamId, name: t?.name ?? '—', colors: t?.colors, score, isMe: teamId === playerTeamId }
     }
     if (c === 'jpel') return [...(ps.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
-    if (c === 'reserve') return [...(ps.secondTeamStandings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
+    if (c === 'reserve') {
+      const st = ps.secondTeamStandings ?? []
+      // その年リザーブ戦を1度も開催していない（全チームraceResults空）なら総合優勝なし
+      if (!st.some(s => (s.raceResults?.length ?? 0) > 0)) return []
+      return [...st].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
+    }
     if (c === 'ecl') {
       const es = ps.eclSeries
-      if (!es) return []
+      // ECLシリーズが無い/一度もポイントが動いていない年は総合優勝なし
+      if (!es || !es.participants.some(p => (es.points[p.id] ?? 0) > 0)) return []
       return [...es.participants].sort((a, b) => (es.points[b.id] ?? 0) - (es.points[a.id] ?? 0))
         .map((p, i) => ({ rank: i + 1, teamId: p.id, name: p.name, colors: p.colors, score: es.points[p.id] ?? 0, isMe: p.isPlayerTeam }))
     }
