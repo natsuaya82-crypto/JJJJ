@@ -19,7 +19,7 @@ import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonApp
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
-import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard } from '../utils/cardCombo'
+import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
 import { computeSeasonAwards } from '../utils/awards'
@@ -410,6 +410,9 @@ export type GameStore = GameState & {
   applyTrainingCards: (playerId: string, cardIds: string[], grantTrait?: boolean, multiplier?: number) => void
   // ジュエルで能力1つの上限を+1する（コストは playerUtils.limitBreakCost。99が天井）
   breakStatLimit: (playerId: string, stat: CardStatKey) => void
+  // 余ったカードを上位レアへEXP等価で一括変換（ノーマル4→レア1／レア10→エピック3／エピック5→レジェンド2）。
+  // 変換できた枚数を返す（束が組めなければ0）
+  convertCards: (rarity: 'normal' | 'rare' | 'epic') => number
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
 
@@ -1406,17 +1409,22 @@ export const useGameStore = create<GameStore>()(
             // 相手が欲しがるのは補強ニーズに合う自チーム選手（いなければ全員から）
             const wantedByThem = myTradables.filter(p => theirNeeds.includes(p.specialty))
             const askPool = wantedByThem.length > 0 ? wantedByThem : myTradables
-            // 価値が釣り合う全組み合わせから、もらえる選手のOVR最上位を選ぶ。
-            // 市場価値は年齢補正が強く「若手60台⇄ベテラン75」でも等価になり得るが、
-            // 額面OVRがかけ離れた提案は不自然に見えるのでOVR差±6以内に制限する
-            let best: { mine: Player; theirs: Player } | null = null
+            // 価値が釣り合う全組み合わせから選ぶ。優先順位は「補強ニーズ＞額面OVR差」：
+            // もらえる選手が自チームの弱点ポジに合うならOVR差±10まで許容（弱点を埋める価値がある）、
+            // ニーズ外なら±6以内に制限（若手⇄ベテランの等価交換が額面詐欺に見えるのを防ぐ）。
+            // 同条件ならニーズ適合を最優先し、その中でOVR最上位を選ぶ
+            let best: { mine: Player; theirs: Player; fits: boolean } | null = null
             for (const mine of askPool) {
               const myVal = calcTransferValue(mine)
               for (const theirs of offerPool) {
                 const r = calcTransferValue(theirs) / Math.max(1, myVal)
                 if (r < 0.95 || r > 1.3) continue
-                if (Math.abs(ovr(theirs) - ovr(mine)) > 6) continue
-                if (!best || ovr(theirs) > ovr(best.theirs)) best = { mine, theirs }
+                const fits = myNeeds.includes(theirs.specialty)
+                if (Math.abs(ovr(theirs) - ovr(mine)) > (fits ? 10 : 6)) continue
+                const better = !best
+                  || (fits && !best.fits)
+                  || (fits === best.fits && ovr(theirs) > ovr(best.theirs))
+                if (better) best = { mine, theirs, fits }
               }
             }
             if (best) {
@@ -4109,7 +4117,11 @@ export const useGameStore = create<GameStore>()(
         const foreignAppearances = { ...(state.currentSeason.foreignAppearances ?? {}) }
         for (const [id, add] of Object.entries(appearances)) {
           const cur = foreignAppearances[id] ?? { clubId: add.clubId, races: 0, wins: 0 }
-          foreignAppearances[id] = { clubId: add.clubId || cur.clubId, races: cur.races + add.races, wins: cur.wins + add.wins }
+          foreignAppearances[id] = {
+            clubId: add.clubId || cur.clubId, races: cur.races + add.races, wins: cur.wins + add.wins,
+            // 平均区間順位用。導入前から積まれたレース分は rankedRaces に入れない（平均が狂わないように）
+            rankSum: (cur.rankSum ?? 0) + add.rankSum, rankedRaces: (cur.rankedRaces ?? 0) + add.rankedRaces,
+          }
         }
         return {
           players,
@@ -4293,6 +4305,42 @@ export const useGameStore = create<GameStore>()(
           relatedIds: [race.id],
         }]
 
+        // 区間記録の更新（JPELの駅伝と同じ仕組み。コースは固定10種なので年をまたいで記録が競われ、保持者には区間記録パッチが付く）
+        const updatedSegmentRecords = { ...(state.segmentRecords ?? {}) }
+        const shortById = new Map(participants.map(pt => [pt.id, pt.shortName]))
+        for (const sr of result.raceResults?.segmentResults ?? []) {
+          const key = `${race.name}-${sr.segmentIndex}`
+          const existing = updatedSegmentRecords[key] ?? []
+          const prevBest = existing[0]?.timeSec ?? null
+          const newEntries = sr.runners.map(r => {
+            const pl = state.players.find(x => x.id === r.playerId)
+            return { playerName: pl?.name ?? '不明', teamShort: shortById.get(r.teamId) ?? '?', playerId: r.playerId, teamId: r.teamId, timeSec: r.timeSec, year }
+          })
+          const fastestNew = newEntries.length > 0
+            ? newEntries.reduce((min, e) => e.timeSec < min.timeSec ? e : min, newEntries[0])
+            : null
+          // 区間新記録が出たらニュースにする（過去記録がある区間で更新された場合のみ）
+          if (prevBest != null && fastestNew && fastestNew.timeSec < prevBest) {
+            const isMine = fastestNew.teamId === state.playerTeamId
+            newsItems.push({
+              date: race.date,
+              headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${fastestNew.playerName}（${fastestNew.teamShort}）${fmtTime(fastestNew.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
+              category: 'race' as const,
+              relatedIds: fastestNew.playerId ? [fastestNew.playerId] : [],
+            })
+          }
+          // 同一選手は最速の1本だけ残す（同じ選手が何行も並ばないように）
+          const bestByPlayer = new Map<string, (typeof existing)[0]>()
+          for (const e of [...existing, ...newEntries]) {
+            const pkey = e.playerId ?? e.playerName
+            const cur = bestByPlayer.get(pkey)
+            if (!cur || e.timeSec < cur.timeSec) bestByPlayer.set(pkey, e)
+          }
+          updatedSegmentRecords[key] = [...bestByPlayer.values()]
+            .sort((a, b) => a.timeSec - b.timeSec)
+            .slice(0, 10)
+        }
+
         let updatedTeams = state.teams
         let newAch: NonNullable<GameState['achievements']> = []
         let historyEntry: NonNullable<GameState['eclHistory']> = []
@@ -4360,6 +4408,7 @@ export const useGameStore = create<GameStore>()(
         return {
           teams: updatedTeams,
           players: updatedPlayers,
+          segmentRecords: updatedSegmentRecords,
           achievements: [...(state.achievements ?? []), ...newAch],
           eclHistory: [...(state.eclHistory ?? []), ...historyEntry],
           currentSeason: {
@@ -6481,6 +6530,22 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
+      // 余りカードの一括変換（EXP等価・ロスなし）。完全休養カードは対象外
+      convertCards: (rarity) => {
+        const RATE = {
+          normal: { need: 4, produce: 1, to: 'rare' as const },
+          rare:   { need: 10, produce: 3, to: 'epic' as const },
+          epic:   { need: 5, produce: 2, to: 'legendary' as const },
+        }[rarity]
+        const pool = (get().trainingCards ?? []).filter(c => c.rarity === rarity && c.kind !== 'rest')
+        const bundles = Math.floor(pool.length / RATE.need)
+        if (bundles === 0) return 0
+        const consumeIds = new Set(pool.slice(0, bundles * RATE.need).map(c => c.id))
+        const produced = Array.from({ length: bundles * RATE.produce }, () => generateTrainingCard(RATE.to))
+        set(s => ({ trainingCards: [...(s.trainingCards ?? []).filter(c => !consumeIds.has(c.id)), ...produced] }))
+        return produced.length
+      },
+
       breakStatLimit: (playerId, stat) => {
         set(state => {
           const player = state.players.find(p => p.id === playerId)
@@ -7019,7 +7084,29 @@ export const useGameStore = create<GameStore>()(
             },
           }
         }
-        if (p.currentSeason) p.currentSeason = renameEcl(p.currentSeason)
+        // ECL開催日を「リーグ戦の中間日」へ再配置（生成時の修正は来季からしか効かないので、既存セーブもここで直す。消化済みの戦は動かさない）
+        const fixEclDates = (season: typeof currentState.currentSeason): typeof currentState.currentSeason => {
+          const series = season.eclSeries
+          if (!series?.races?.length || !season.races?.length) return season
+          const leagueDates = season.races.map(r => r.date).sort()
+          const midDate = (target: string): string => {
+            const prev = [...leagueDates].filter(d => d <= target).pop()
+            const next = leagueDates.find(d => d > target)
+            if (!prev || !next) return target
+            const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
+            return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
+          }
+          let changed = false
+          const races = series.races.map(r => {
+            if (r.results) return r
+            const d = midDate(r.date)
+            if (d === r.date) return r
+            changed = true
+            return { ...r, date: d }
+          })
+          return changed ? { ...season, eclSeries: { ...series, races } } : season
+        }
+        if (p.currentSeason) p.currentSeason = fixEclDates(renameEcl(p.currentSeason))
         if (Array.isArray(p.pastSeasons)) p.pastSeasons = p.pastSeasons.map(renameEcl)
         return {
           ...currentState,
@@ -7413,9 +7500,9 @@ type RatingsKey = keyof import('../types').Ratings
 
 // ── EXP システム（設計書準拠） ─────────────────────────────────────────────
 
-/** L→L+1 に必要なEXP。L<80: ×1 / 80≤L<90: ×2 / 90≤L: ×4 */
+/** L→L+1 に必要なEXP。L<80: ×1 / 80≤L<90: ×2 / 90≤L: ×4（設計書どおり。緩和版1.5/2は廃止） */
 function requiredExpForLevel(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 1.5 : 2
+  const dull = level < 80 ? 1 : level < 90 ? 2 : 4
   return Math.floor(0.5 * level * level * dull)
 }
 

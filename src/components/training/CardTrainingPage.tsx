@@ -26,7 +26,7 @@ const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown
 const MENU_MULT_LABEL: Record<number, string> = { 2: '1.2', 3: '1.4', 4: '1.6', 5: '1.8' }
 
 function requiredExp(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 1.5 : 2
+  const dull = level < 80 ? 1 : level < 90 ? 2 : 4   // gameStoreのrequiredExpForLevelと常に一致させる
   return Math.floor(0.5 * level * level * dull)
 }
 

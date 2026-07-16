@@ -19,7 +19,7 @@ export default function TeamsHub() {
       icon: <LeagueLogoSVG leagueId="jpel" size={40} />,
     },
     {
-      key: 'ecl', path: '/ecl', label: 'ECL', desc: 'エリート・チャンピオンズリーグ',
+      key: 'ecl', path: '/teams/ecl', label: 'ECL', desc: 'エキデン・チャンピオンズリーグ',
       icon: <LeagueLogoSVG leagueId="ecl" size={40} />,
     },
     ...leagues.map(l => ({

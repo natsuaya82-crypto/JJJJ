@@ -165,6 +165,10 @@ export default function PlayerSheet() {
   const touchStart = useRef({ x: 0, y: 0 })
   const sheetRef = useRef<HTMLDivElement>(null)
   const shareCardRef = useRef<HTMLDivElement>(null)
+  // 在籍履歴：タップで大会別内訳を開閉、長押しでチーム詳細へ
+  const [openHist, setOpenHist] = useState<Record<string, boolean>>({})
+  const histLpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const histLpFired = useRef(false)
 
   const goToPage = (next: number) => {
     if (next === page) return
@@ -296,20 +300,24 @@ export default function PlayerSheet() {
   }
   const reserveRaceNames = RESERVE_RACE_POOL_NAMES.filter(n => seenReserveNames.has(n))
 
-  // 在籍履歴（移籍情報）集計：年 × teamId × tier(1軍/2軍) ごとに 出場数・区間賞数
-  type HistoryRow = { year: number; teamId: string; tier: 'main' | 'second'; races: number; wins: number }
+  // 在籍履歴（移籍情報）集計：年 × teamId × 大会(1軍/リザーブ/ECL/海外) ごとに 出場数・区間賞数・平均区間順位。
+  // 表示は年×チームの親行に集約し、タップで大会別の内訳を開く
+  type HistComp = 'main' | 'second' | 'ecl' | 'foreign'
+  type HistoryRow = { year: number; teamId: string; comp: HistComp; races: number; wins: number; rankSum: number; rankedRaces: number }
   const historyMap = new Map<string, HistoryRow>()
-  const addHistory = (year: number, tier: 'main' | 'second', raceList: typeof currentSeason.races | undefined) => {
+  const addHistory = (year: number, comp: HistComp, raceList: typeof currentSeason.races | undefined) => {
     if (!raceList) return
     for (const race of raceList) {
       if (!race.results) continue
       for (const sr of race.results.segmentResults) {
         for (const runner of sr.runners) {
           if (runner.playerId !== player.id) continue
-          const key = `${year}|${runner.teamId}|${tier}`
+          const key = `${year}|${runner.teamId}|${comp}`
           let row = historyMap.get(key)
-          if (!row) { row = { year, teamId: runner.teamId, tier, races: 0, wins: 0 }; historyMap.set(key, row) }
+          if (!row) { row = { year, teamId: runner.teamId, comp, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 }; historyMap.set(key, row) }
           row.races += 1
+          row.rankSum += runner.rank
+          row.rankedRaces += 1
           if (runner.rank === 1) row.wins += 1
         }
       }
@@ -318,20 +326,23 @@ export default function PlayerSheet() {
   for (const ps of pastSeasons) {
     addHistory(ps.year, 'main', ps.races)
     addHistory(ps.year, 'second', ps.secondTeamRaces)
-    addHistory(ps.year, 'main', eclRacesOf(ps))   // ECL出走も出場数に含める
+    addHistory(ps.year, 'ecl', eclRacesOf(ps))
   }
   addHistory(currentSeason.year, 'main', currentSeason.races)
   addHistory(currentSeason.year, 'second', currentSeason.secondTeamRaces)
-  addHistory(currentSeason.year, 'main', eclRacesOf(currentSeason))
+  addHistory(currentSeason.year, 'ecl', eclRacesOf(currentSeason))
   // 海外リーグの出場（国内レースには出ないので foreignAppearances から年×クラブで積む）
-  const addForeignHistory = (year: number, appMap: Record<string, { clubId: string; races: number; wins: number }> | undefined) => {
+  const addForeignHistory = (year: number, appMap: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }> | undefined) => {
     const a = appMap?.[player.id]
     if (!a || !a.clubId) return
-    const key = `${year}|${a.clubId}|main`
+    const key = `${year}|${a.clubId}|foreign`
     let row = historyMap.get(key)
-    if (!row) { row = { year, teamId: a.clubId, tier: 'main', races: 0, wins: 0 }; historyMap.set(key, row) }
+    if (!row) { row = { year, teamId: a.clubId, comp: 'foreign', races: 0, wins: 0, rankSum: 0, rankedRaces: 0 }; historyMap.set(key, row) }
     row.races += a.races
     row.wins += a.wins
+    // 区間順位はrankSum導入後の出場分だけ平均に使う（旧データは「—」のまま）
+    row.rankSum += a.rankSum ?? 0
+    row.rankedRaces += a.rankedRaces ?? 0
   }
   for (const ps of pastSeasons) addForeignHistory(ps.year, ps.foreignAppearances)
   addForeignHistory(currentSeason.year, currentSeason.foreignAppearances)
@@ -340,23 +351,40 @@ export default function PlayerSheet() {
     const z = (ps.zeroAppearances ?? []).find(e => e.playerId === player.id)
     if (z) {
       const key = `${ps.year}|${z.teamId}|${z.tier}`
-      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, tier: z.tier, races: 0, wins: 0 })
+      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, comp: z.tier, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
     }
   }
   // 現行シーズンは未出場でも「今年・現チーム」を必ず1行出す（0レースで空にしない）。
-  // ルール: 1軍(A)にも2軍(B)にも出ていない選手はB行で表示。既にA/Bどちらかの出場行があれば追加しない
-  // （Bのみ出場の選手に空のA行が生えるのを防ぐ）
   // 引退選手は現行シーズンの所属が無い（teamId空）ので、引退後の年に空行を生やさない
   if (!isRetired) {
     const anyThisYear = [...historyMap.keys()].some(k => k.startsWith(`${currentSeason.year}|${player.teamId}|`))
-    if (!anyThisYear) historyMap.set(`${currentSeason.year}|${player.teamId}|second`, { year: currentSeason.year, teamId: player.teamId, tier: 'second', races: 0, wins: 0 })
+    if (!anyThisYear) historyMap.set(`${currentSeason.year}|${player.teamId}|second`, { year: currentSeason.year, teamId: player.teamId, comp: 'second', races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
   }
+  // 年×チームの親行へ集約（内訳は 1軍→リザーブ→ECL→海外 の順）
+  type HistParent = { year: number; teamId: string; races: number; wins: number; rankSum: number; rankedRaces: number; comps: HistoryRow[] }
+  const COMP_ORDER: Record<HistComp, number> = { main: 0, second: 1, ecl: 2, foreign: 3 }
+  const histParentMap = new Map<string, HistParent>()
+  for (const r of historyMap.values()) {
+    const key = `${r.year}|${r.teamId}`
+    let p = histParentMap.get(key)
+    if (!p) { p = { year: r.year, teamId: r.teamId, races: 0, wins: 0, rankSum: 0, rankedRaces: 0, comps: [] }; histParentMap.set(key, p) }
+    p.races += r.races; p.wins += r.wins; p.rankSum += r.rankSum; p.rankedRaces += r.rankedRaces
+    p.comps.push(r)
+  }
+  for (const p of histParentMap.values()) p.comps.sort((a, b) => COMP_ORDER[a.comp] - COMP_ORDER[b.comp])
   // 同じ年に2チーム（シーズン中の移籍）がある場合は、現所属チームを必ず上にする
-  const historyRows = [...historyMap.values()].sort(
+  const historyRows = [...histParentMap.values()].sort(
     (a, b) => b.year - a.year
       || (a.teamId === b.teamId ? 0 : a.teamId === player.teamId ? -1 : b.teamId === player.teamId ? 1 : 0)
-      || (a.tier === b.tier ? 0 : a.tier === 'main' ? -1 : 1)
   )
+  const histCompLabel = (c: HistoryRow) =>
+    c.comp === 'main' ? '1軍リーグ'
+    : c.comp === 'second' ? 'リザーブ(B)'
+    : c.comp === 'ecl' ? 'ECL'
+    : (foreignLeagues.find(l => l.clubs.some(cl => cl.id === c.teamId))?.name ?? '海外リーグ')
+  // 平均区間順位（データの無い海外出場分は分母に入れない）
+  const histAvg = (r: { rankSum: number; rankedRaces: number }) => r.rankedRaces > 0 ? r.rankSum / r.rankedRaces : null
+  const histAvgColor = (v: number) => v <= 3 ? '#2ECC71' : v <= 6 ? '#C9A84C' : '#5C5870'
 
   return (
     <>
@@ -511,7 +539,7 @@ export default function PlayerSheet() {
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {[
-                      { label: '所属', val: team?.name ?? (player.teamId === '' ? '未所属' : '—') },
+                      { label: '所属', val: resolveTeam(player.teamId)?.name ?? (player.teamId === '' ? '未所属' : '—') },
                       { label: '出身', val: player.origin },
                       { label: '成長タイプ', val: isScouted ? (player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準') : '?' },
                       { label: '市場価値', val: isScouted ? fmt(calcTransferValue(player)) : '?' },
@@ -672,41 +700,78 @@ export default function PlayerSheet() {
               {historyRows.length > 0 ? (
                 <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                   {/* header */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
-                    <span style={{ width: '40px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
+                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
                     <span style={{ flex: 1, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>チーム名</span>
-                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
-                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
+                    <span style={{ width: '28px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
+                    <span style={{ width: '32px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
+                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>平均</span>
+                    <span style={{ width: '10px', flexShrink: 0 }}/>
                   </div>
                   {historyRows.map((row, i) => {
                     const t = resolveTeam(row.teamId)
-                    // 無所属(FA)の年はチーム名なし＝「未所属」表示（(B)を付けると引退と紛らわしい）
+                    // 無所属(FA)の年はチーム名なし＝「未所属」表示
                     const teamName = t?.name ?? t?.shortName ?? (row.teamId === '' ? '未所属' : '')
                     const isLoan = (player.loanTeamYears ?? []).some(l => l.year === row.year && l.teamId === row.teamId)
                       || (row.year === currentSeason.year && !!player.loan && row.teamId === player.teamId)
-                    // 出走0の年はB表示（未出場の在籍はB扱い）
-                    const suffix = row.teamId === '' ? '' : `${row.tier === 'second' || row.races === 0 ? '(B)' : ''}${isLoan ? '(L)' : ''}`
+                    const histKey = `${row.year}|${row.teamId}`
+                    const open = !!openHist[histKey]
+                    const canJump = !!t && !teamJumpBlocked
+                    const avg = histAvg(row)
+                    // タップ=内訳の開閉 / 長押し=チーム詳細へ
+                    const cancelLp = () => { if (histLpTimer.current) clearTimeout(histLpTimer.current) }
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
-                        <span style={{ width: '40px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
+                      <div key={histKey}>
                         <div
-                          onClick={t && !teamJumpBlocked ? () => goToTeamPage(row.teamId) : undefined}
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, cursor: t && !teamJumpBlocked ? 'pointer' : 'default' }}
+                          onPointerDown={() => { histLpFired.current = false; if (canJump) histLpTimer.current = setTimeout(() => { histLpFired.current = true; goToTeamPage(row.teamId) }, 450) }}
+                          onPointerUp={cancelLp}
+                          onPointerLeave={cancelLp}
+                          onPointerMove={cancelLp}
+                          onClick={() => { if (!histLpFired.current) setOpenHist(prev => ({ ...prev, [histKey]: !prev[histKey] })) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 || open ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent', cursor: 'pointer' }}
                         >
-                          {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={20} />}
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {teamName}
-                            {suffix && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>{suffix}</span>}
-                            {isRetired && i === 0 && <span style={{ fontSize: '9px', fontWeight: 800, color: '#E8462A', marginLeft: '5px', padding: '1px 5px', borderRadius: 4, background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
+                          <span style={{ width: '36px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                            {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={20} />}
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {teamName}
+                              {isLoan && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>(L)</span>}
+                              {isRetired && i === 0 && <span style={{ fontSize: '9px', fontWeight: 800, color: '#E8462A', marginLeft: '5px', padding: '1px 5px', borderRadius: 4, background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
+                            </span>
+                          </div>
+                          <span style={{ width: '28px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
+                          <span style={{ width: '32px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
+                          <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
+                            {avg != null ? (
+                              <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px', borderRadius: 5, background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                            )}
                           </span>
-                          {t && !teamJumpBlocked && (
-                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0 }}>
-                              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                            </svg>
-                          )}
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                          </svg>
                         </div>
-                        <span style={{ width: '36px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
-                        <span style={{ width: '36px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
+                        {/* 大会別の内訳（1軍リーグ / リザーブ / ECL / 海外リーグ） */}
+                        {open && row.comps.map((c, ci) => {
+                          const cavg = histAvg(c)
+                          return (
+                            <div key={c.comp} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#0B0A12', borderBottom: ci < row.comps.length - 1 || i < historyRows.length - 1 ? '1px solid #1A1828' : 'none' }}>
+                              <span style={{ width: '36px', flexShrink: 0 }}/>
+                              <span style={{ flex: 1, fontSize: '11px', fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{histCompLabel(c)}</span>
+                              <span style={{ width: '28px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{c.races}</span>
+                              <span style={{ width: '32px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.wins}</span>
+                              <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
+                                {cavg != null ? (
+                                  <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px', borderRadius: 4, background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
+                                ) : (
+                                  <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                                )}
+                              </span>
+                              <span style={{ width: '10px', flexShrink: 0 }}/>
+                            </div>
+                          )
+                        })}
                       </div>
                     )
                   })}

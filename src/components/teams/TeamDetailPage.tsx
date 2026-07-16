@@ -82,6 +82,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const foreignLeaguesRaw = useGameStore(s => s.foreignLeagues)
   const foreignLeagues = foreignLeaguesRaw ?? []
   const transferHistory = useGameStore(s => s.transferHistory)
+  const eclHistory = useGameStore(s => s.eclHistory)
   const location = useLocation()
   const navigate = useNavigate()
   // 選手詳細から飛んできた場合は、戻るで元の選手詳細（モーダル）を開き直す
@@ -173,6 +174,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     if (jpelTitles > 0) titles.push({ label: 'JPEL優勝', count: jpelTitles, color: '#C9A84C' })
     if (reserveTitles > 0) titles.push({ label: 'リザーブリーグ優勝', count: reserveTitles, color: '#9B97A8' })
   }
+  // ECL優勝（歴代優勝から集計。国内チーム・海外クラブ共通）
+  const eclTitles = (eclHistory ?? []).filter(e => e.championId === id).length
+  if (eclTitles > 0) titles.push({ label: 'ECL優勝', count: eclTitles, color: '#2ECC71' })
 
   // TEAM INFO（本拠地行 + 創設年/優勝回数/最高順位）
   const infoLocation = isForeign

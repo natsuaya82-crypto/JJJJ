@@ -10,6 +10,7 @@ import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_N
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
+import StandingsTable from '../teams/StandingsTable'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -28,7 +29,7 @@ function FaceOrDot({ playerId, nationality, size = 40 }: { playerId?: string; na
 }
 
 function requiredExp(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 1.5 : 2
+  const dull = level < 80 ? 1 : level < 90 ? 2 : 4   // gameStoreのrequiredExpForLevelと常に一致させる
   return Math.floor(0.5 * level * level * dull)
 }
 
@@ -56,7 +57,7 @@ const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties =>
 
 export function ResultsPhase({
   race, results, teams, players, playerTeamId, currentSeason, isLastRace,
-  reserveStandings, onContinue, hideCards,
+  reserveStandings, onContinue, hideCards, standingsLabel,
 }: {
   race: Race
   results: RaceResults
@@ -68,6 +69,7 @@ export function ResultsPhase({
   reserveStandings?: Season['secondTeamStandings']
   onContinue?: () => void
   hideCards?: boolean   // ECL等、カード報酬のないレースで前レースの獲得カードが出ないように
+  standingsLabel?: string   // 順位表の見出し差し替え（ECL＝「ECL シリーズ順位」等）
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -115,7 +117,8 @@ export function ResultsPhase({
   const finish = async () => {
     // 契約満了間近の選手がいる場合は先に対応させる。
     // シーズン最終戦・リザーブリーグ（reserveStandings/onContinue経由）では誘導しない。
-    if (urgentRenewalExists && !isLastRace && !reserveStandings && !onContinue) { navigate('/notifications'); return }
+    // replace遷移にして、通知から「戻る」を押したときにレース画面（次の記録会等）ではなくホームへ戻す
+    if (urgentRenewalExists && !isLastRace && !reserveStandings && !onContinue) { navigate('/notifications', { replace: true }); return }
     // 最終戦直後の広告は廃止（「次シーズン開幕へ」で1回だけ流す。2連続で広告が出るのを防ぐ）
     onContinue ? onContinue() : navigate('/')
   }
@@ -597,7 +600,7 @@ export function ResultsPhase({
       <div style={{ padding: '0 12px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px' }}>
-            {reserveStandings ? 'リザーブ順位（暫定）' : 'シーズン順位（暫定）'}
+            {standingsLabel ?? (reserveStandings ? 'リザーブ順位（暫定）' : 'シーズン順位（暫定）')}
           </span>
           {!reserveStandings && playerSeasonRank > 0 && (
             <span style={{ fontSize: '10px', color: C.textDim }}>
@@ -607,37 +610,18 @@ export function ResultsPhase({
             </span>
           )}
         </div>
-        <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border2}`, background: C.surface2 }}>
-          {seasonRows.map(({ s, rank }, idx) => {
+        {/* 順位表はJPEL順位表と同じ共通コンポーネント（見た目を全画面で統一） */}
+        <div style={{ margin: '0 -12px' }}>
+          <StandingsTable rows={seasonRows.map(({ s }) => {
             const t = teamMap.get(s.teamId)
-            const isPlayer = s.teamId === playerTeamId
-            const rowStyle = RANK_ROW_STYLE(rank, isPlayer)
-            const trGain = results.teamRankings.find(tr => tr.teamId === s.teamId)
-            const raceGain = trGain ? trGain.positionPoints + trGain.segmentPoints : 0
-            return (
-              <div key={s.teamId} style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '5px 12px',
-                borderBottom: idx < seasonRows.length - 1 ? `1px solid ${C.border}` : 'none',
-                ...rowStyle,
-              }}>
-                <div style={{ width: '18px', textAlign: 'center', flexShrink: 0, fontSize: '11px', fontWeight: '800', fontFamily: SAIRA, color: rank <= 3 ? rankColors[rank] : C.textGhost, textShadow: rank === 1 ? `0 0 10px ${alpha(C.gold, 0.5)}` : 'none' }}>
-                  {rank}
-                </div>
-                {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={16} />}
-                <div style={{ flex: 1, minWidth: 0, fontSize: '12px', color: isPlayer ? C.text : C.textSub, fontWeight: isPlayer ? '700' : '400', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {t?.name ?? s.teamId}
-                </div>
-                {raceGain > 0 && (
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: C.green, fontFamily: SAIRA, flexShrink: 0 }}>+{raceGain}</span>
-                )}
-                <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 38 }}>
-                  <span style={{ fontSize: '13px', fontWeight: '800', fontFamily: SAIRA, color: isPlayer ? C.gold : C.textDim, textShadow: isPlayer ? `0 0 10px ${alpha(C.gold, 0.5)}` : 'none' }}>{s.totalPoints}</span>
-                  <span style={{ fontSize: '8px', color: C.textGhost, marginLeft: 2 }}>pt</span>
-                </div>
-              </div>
-            )
-          })}
+            return {
+              id: s.teamId, name: t?.name ?? s.teamId, shortName: t?.shortName ?? '?',
+              primary: t?.colors.primary ?? C.blue, secondary: t?.colors.secondary ?? '#777', teamId: t?.id,
+              points: s.totalPoints,
+              recentForm: (s.raceResults ?? []).map(r => r.rank),
+              isMe: s.teamId === playerTeamId,
+            }
+          })} />
         </div>
       </div>
 

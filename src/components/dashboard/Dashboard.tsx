@@ -323,6 +323,8 @@ export default function Dashboard() {
       totalRaces={eclS.races.length}
       variant="ecl"
       ctaLabel={eclQualified ? undefined : '観戦する'}
+      secondaryCtaLabel={!eclQualified && eclDue ? 'スキップ' : undefined}
+      onSecondaryClick={!eclQualified && eclDue ? () => useGameStore.getState().advanceEclRace() : undefined}
       onClick={() => navigate('/ecl')}
     />
   ) : null

@@ -34,8 +34,8 @@ export function simulateForeignLeagueRound(
   players: Player[],
   standingsByLeague: Record<string, ForeignStanding[]>,
   seasonProgress: number,
-): { standingsByLeague: Record<string, ForeignStanding[]>; players: Player[]; appearances: Record<string, { clubId: string; races: number; wins: number }> } {
-  const careerAdd: Record<string, { races: number; segWins: number }> = {}
+): { standingsByLeague: Record<string, ForeignStanding[]>; players: Player[]; appearances: Record<string, { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }> } {
+  const careerAdd: Record<string, { races: number; segWins: number; rankSum: number }> = {}
   const clubOf: Record<string, string> = {}   // playerId → 今走ったクラブ
   const newStandings: Record<string, ForeignStanding[]> = { ...standingsByLeague }
 
@@ -64,8 +64,10 @@ export function simulateForeignLeagueRound(
       for (const id of Object.values(lineup)) {
         clubOf[id] = clubId
         const segWins = results.segmentResults.filter(sr => sr.runners[0]?.playerId === id).length
-        const cur = careerAdd[id] ?? { races: 0, segWins: 0 }
-        careerAdd[id] = { races: cur.races + 1, segWins: cur.segWins + segWins }
+        // 平均区間順位の算出用に区間順位も積む（1レース1区間走る）
+        const myRank = results.segmentResults.flatMap(sr => sr.runners).find(r => r.playerId === id)?.rank ?? 0
+        const cur = careerAdd[id] ?? { races: 0, segWins: 0, rankSum: 0 }
+        careerAdd[id] = { races: cur.races + 1, segWins: cur.segWins + segWins, rankSum: cur.rankSum + myRank }
       }
     }
   }
@@ -76,10 +78,10 @@ export function simulateForeignLeagueRound(
     return { ...p, career: { ...p.career, totalRaces: p.career.totalRaces + add.races, segmentWins: p.career.segmentWins + add.segWins } }
   })
 
-  // このマッチデーの出場記録（playerId → クラブ・出場数・区間賞数）。呼び出し側で今季分に加算する。
-  const appearances: Record<string, { clubId: string; races: number; wins: number }> = {}
+  // このマッチデーの出場記録（playerId → クラブ・出場数・区間賞数・区間順位合計）。呼び出し側で今季分に加算する。
+  const appearances: Record<string, { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }> = {}
   for (const [id, add] of Object.entries(careerAdd)) {
-    appearances[id] = { clubId: clubOf[id] ?? '', races: add.races, wins: add.segWins }
+    appearances[id] = { clubId: clubOf[id] ?? '', races: add.races, wins: add.segWins, rankSum: add.rankSum, rankedRaces: add.races }
   }
 
   return { standingsByLeague: newStandings, players: updatedPlayers, appearances }

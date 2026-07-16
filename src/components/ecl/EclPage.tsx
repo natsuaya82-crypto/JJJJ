@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Race, RaceResults, Team } from '../../types'
@@ -9,6 +10,7 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import PlayerFace from '../player/PlayerFace'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
+import { useAdHeight } from '../layout/Layout'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -20,7 +22,16 @@ type Phase = 'entry' | 'lineup' | 'simulating' | 'results' | 'view'
 // ECL：前年の各リーグ上位2チーム（16）がシーズン中の5戦をポイント制で争う。
 // レース体験は1軍リーグ戦と全く同じ（区間配置 → レース再生 → 結果画面）
 export default function EclPage() {
-  const { players, playerTeamId, currentSeason, advanceEclRace, openPlayerSheet, setActiveRacePhase } = useGameStore()
+  const navigate = useNavigate()
+  const adH = useAdHeight()
+  const { players, playerTeamId, currentSeason, advanceEclRace, openPlayerSheet, setActiveRacePhase, teams, foreignLeagues } = useGameStore()
+
+  // 順位表の行タップでチーム詳細へ（国内チーム／海外クラブで遷移先を出し分け）
+  const goTeam = (id: string) => {
+    if (teams.some(t => t.id === id)) { navigate(`/teams/detail/${id}`); return }
+    const lg = (foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === id))
+    if (lg) navigate(`/teams/foreign/${lg.id}/${id}`)
+  }
 
   // 長押しで選手詳細
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -80,23 +91,13 @@ export default function EclPage() {
     if (ran?.results) {
       setLockedRace(ran)
       setResults(ran.results)
-      // 出場したときだけレース再生（自チームが走らない観戦は順位表→ラインナップ閲覧）
-      setPhase(playerQualified ? 'simulating' : 'view')
+      // 観戦でもレース再生を流す（再生後、出場年は結果画面・観戦年は順位表閲覧へ）
+      setPhase('simulating')
     } else {
       setPhase('entry')
     }
     setLineupState({})
   }
-
-  // 出場権がない年は「観戦」：開催期日なら開いた瞬間にレースが始まる
-  const autoRan = useRef(false)
-  useEffect(() => {
-    if (!autoRan.current && series && nextRace && eclDue && !playerQualified) {
-      autoRan.current = true
-      run()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // シリーズ順位（累計ポイント）
   const standings = useMemo(() => {
@@ -105,6 +106,15 @@ export default function EclPage() {
       .map(pt => ({ ...pt, points: series.points[pt.id] ?? 0 }))
       .sort((a, b) => b.points - a.points)
   }, [series])
+
+  // 順位表の行データ（開催前プレビューとシリーズ概要で共用）
+  const standRows: StandRow[] = standings.map(s => ({
+    id: s.id, name: s.name, shortName: s.shortName,
+    primary: s.colors.primary, secondary: s.colors.secondary, teamId: s.id,
+    points: s.points,
+    recentForm: (series?.races ?? []).filter(r => r.results).map(r => r.results!.teamRankings.find(tr => tr.teamId === s.id)?.rank ?? 99),
+    isMe: s.isPlayerTeam,
+  }))
 
   if (!series) {
     return (
@@ -115,6 +125,31 @@ export default function EclPage() {
         </div>
         <div style={{ padding: '50px 24px', textAlign: 'center', fontSize: 13, color: C.textDim, lineHeight: 1.8 }}>
           今シーズンのECLは開催されません。<br/>前年の各リーグ上位2チームに出場権が与えられます。
+        </div>
+      </div>
+    )
+  }
+
+  // ── 観戦年の開催前：シリーズ順位表だけ見せる。行タップで既存のチーム詳細（ロスター）へ、
+  //    下固定の赤ボタン「観戦する」でレーススタート。自チーム出場年は普通の駅伝と同じ（開いたら区間配置）──
+  if (phase === 'entry' && nextRace && eclDue && !playerQualified) {
+    return (
+      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
+        <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <BackButton/>
+          <LeagueLogoSVG leagueId="ecl" size={36} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.red, letterSpacing: 2, fontWeight: 900 }}>第{series.raceIndex + 1}戦／全{series.races.length}戦 — {nextRace.date.replace(/-/g, '/')}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nextRace.name}</div>
+          </div>
+        </div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
+        <StandingsTable rows={standRows} onRowClick={goTeam} />
+        {/* 下タブ(58px)＋広告の上に固定 */}
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+          <button onClick={() => run()} className="btn-game btn-game--red" style={{ width: '100%' }}>
+            <span className="btn-game__inner" style={{ fontSize: 15, fontWeight: 900 }}>観戦する</span>
+          </button>
         </div>
       </div>
     )
@@ -157,7 +192,7 @@ export default function EclPage() {
         teams={pseudoTeams}
         players={players}
         playerTeamId={playerTeamId}
-        onDone={() => setPhase('results')}
+        onDone={() => setPhase(playerQualified ? 'results' : 'view')}
       />
     )
   }
@@ -173,8 +208,12 @@ export default function EclPage() {
         playerTeamId={playerTeamId}
         currentSeason={currentSeason}
         isLastRace={false}
-        reserveStandings={standings.map(s => ({ teamId: s.id, totalPoints: s.points, raceResults: [] }))}
+        reserveStandings={standings.map(s => ({
+          teamId: s.id, totalPoints: s.points,
+          raceResults: series.races.filter(r => r.results).map(r => ({ raceId: r.id, rank: r.results!.teamRankings.find(tr => tr.teamId === s.id)?.rank ?? 99, points: 0 })),
+        }))}
         hideCards
+        standingsLabel="ECL シリーズ順位（暫定）"
       />
     )
   }
@@ -335,12 +374,12 @@ export default function EclPage() {
       {/* 次戦（出場権なしの観戦・開催ボタン） */}
       {nextRace && (
         <div style={{ margin: '8px 14px 14px', padding: '14px 16px', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.goldDark}`, boxShadow: '0 4px 0 #5a3500' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>NEXT — {nextRace.date.replace(/-/g, '/')}</div>
-          <div style={{ fontSize: 15, fontWeight: 900 }}>{nextRace.name}<span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, fontWeight: 700 }}>／{series.races.length}</span></div>
+          <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>NEXT 第{series.raceIndex + 1}戦／全{series.races.length}戦 — {nextRace.date.replace(/-/g, '/')}</div>
+          <div style={{ fontSize: 15, fontWeight: 900 }}>{nextRace.name}</div>
           <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
             {nextRace.location}・{nextRace.segments.length}区間 {Math.round(nextRace.segments.reduce((s, x) => s + x.distanceKm, 0) * 10) / 10}km・{weatherLabel[nextRace.conditions.weather]}
           </div>
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {!eclDue ? (
               <div style={{ textAlign: 'center', fontSize: 11, color: C.textDim, padding: '6px 0' }}>
                 リーグ戦の進行に合わせて {nextRace.date.replace(/-/g, '/')} に開催
@@ -349,11 +388,7 @@ export default function EclPage() {
               <button onClick={() => setPhase('lineup')} className="btn-game btn-game--gold" style={{ width: '100%', padding: '13px', fontFamily: SAIRA, fontSize: 14, fontWeight: 800 }}>
                 出走メンバーを組む
               </button>
-            ) : (
-              <button onClick={() => run()} className="btn-game btn-game--gold" style={{ width: '100%', padding: '13px', fontFamily: SAIRA, fontSize: 14, fontWeight: 800 }}>
-                観戦する
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
       )}
@@ -361,13 +396,7 @@ export default function EclPage() {
       {/* シリーズ順位表（JPEL順位表と同じ共通コンポーネント） */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8, padding: '0 14px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
-        <StandingsTable rows={standings.map((s): StandRow => ({
-          id: s.id, name: s.name, shortName: s.shortName,
-          primary: s.colors.primary, secondary: s.colors.secondary, teamId: s.id,
-          points: s.points,
-          recentForm: series.races.filter(r => r.results).map(r => r.results!.teamRankings.find(tr => tr.teamId === s.id)?.rank ?? 99),
-          isMe: s.isPlayerTeam,
-        }))} />
+        <StandingsTable rows={standRows} onRowClick={goTeam} />
       </div>
 
       {/* 開催スケジュール（消化済みの戦はタップで結果再生） */}
@@ -390,12 +419,14 @@ export default function EclPage() {
                   <div style={{ fontSize: 8, color: C.textGhost }}>{r.date.slice(5).replace('-', '/')}</div>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.location}</div>
-                  {done && wt && (
+                  <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
+                  {done && wt ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
                       <TeamLogoSVG primary={wt.colors.primary} secondary={wt.colors.secondary} shortName={wt.shortName} teamId={wt.id} size={12} />
                       <span style={{ fontSize: 8, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>優勝 {wt.name}</span>
                     </div>
+                  ) : (
+                    <div style={{ fontSize: 8, color: C.textGhost, marginTop: 1 }}>{r.location}</div>
                   )}
                 </div>
                 <span style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 800, color: done ? C.gold : i === series.raceIndex ? C.gold : C.textGhost }}>

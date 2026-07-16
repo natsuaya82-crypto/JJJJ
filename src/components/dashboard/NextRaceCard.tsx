@@ -27,9 +27,11 @@ interface Props {
   onClick: () => void
   variant?: 'main' | 'reserve' | 'ecl'   // reserve=青 / ecl=赤 にして1軍と区別
   ctaLabel?: string   // CTAの文言を差し替える（例：出場権のないECLは「観戦する」）
+  secondaryCtaLabel?: string   // CTAの横に置く副ボタン（例：ECL観戦の「スキップ」）
+  onSecondaryClick?: () => void
 }
 
-export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, variant = 'main', ctaLabel }: Props) {
+export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, variant = 'main', ctaLabel, secondaryCtaLabel, onSecondaryClick }: Props) {
   const totalDist = race.segments.reduce((s, sg) => s + sg.distanceKm, 0).toFixed(1)
   const isReserve = variant === 'reserve'
   // アクセント色一式（金＝1軍 / 青＝リザーブ / 赤＝ECL）
@@ -40,7 +42,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     badgeGrad: `linear-gradient(180deg, #ff8a75 0%, ${C.red} 60%, #7a1610 100%)`,
     badgeBorder: '#5a1010', badgeShadow: '#3f0c08',
     divider: '#7a1610', tileBorder: alpha(C.red, 0.15), btnClass: 'btn-game--red',
-    typeLabel: 'ECL',
+    typeLabel: 'ECL', nextColor: C.red,
   } : isReserve ? {
     border: C.blue, shadowDeep: '#2f3a7a', frame: 'rgba(121,134,203,0.35)',
     headerGrad: `linear-gradient(90deg, ${alpha(C.blue, 0.20)}, ${alpha(C.blue, 0.04)})`,
@@ -48,7 +50,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     badgeGrad: `linear-gradient(180deg, #aab3e6 0%, ${C.blue} 60%, #4a56a8 100%)`,
     badgeBorder: '#2f3a7a', badgeShadow: '#232c5e',
     divider: '#4a56a8', tileBorder: alpha(C.blue, 0.15), btnClass: 'btn-game--blue',
-    typeLabel: 'RESERVE',
+    typeLabel: 'RESERVE', nextColor: C.cyan,
   } : {
     border: C.gold, shadowDeep: '#8b6914', frame: 'rgba(245,200,66,0.28)',
     headerGrad: `linear-gradient(90deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.04)})`,
@@ -56,7 +58,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     badgeGrad: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
     badgeBorder: '#8b6914', badgeShadow: '#5a3500',
     divider: C.goldDark, tileBorder: alpha(C.gold, 0.12), btnClass: 'btn-game--gold',
-    typeLabel: RACE_TYPE_LABEL[race.type] ?? race.type.toUpperCase(),
+    typeLabel: RACE_TYPE_LABEL[race.type] ?? race.type.toUpperCase(), nextColor: C.cyan,
   }
 
   return (
@@ -93,8 +95,8 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.cyan, boxShadow: `0 0 8px ${C.cyan}` }}/>
-              <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: '0.22em', fontWeight: 900 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: AC.nextColor, boxShadow: `0 0 8px ${AC.nextColor}` }}/>
+              <span style={{ fontFamily: SAIRA, fontSize: 10, color: AC.nextColor, letterSpacing: '0.22em', fontWeight: 900 }}>
                 NEXT RACE — {raceNumber}/{totalRaces}
               </span>
             </div>
@@ -156,8 +158,8 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
       </div>
 
       {/* CTA：白文字＋共通の縁取り（金・青とも btn-game のCSSに準拠） */}
-      <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2 }}>
-        <button className={`btn-game ${AC.btnClass}`} style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
+      <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2, display: 'flex', gap: 8 }}>
+        <button className={`btn-game ${AC.btnClass}`} style={{ flex: 1, minWidth: 0, border: 'none', cursor: 'pointer' }}>
           <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12, fontWeight: 900 }}>
             {ctaLabel ?? '出走メンバーを組む'}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
@@ -165,6 +167,24 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
             </svg>
           </span>
         </button>
+        {secondaryCtaLabel && onSecondaryClick && (
+          <button
+            onClick={e => { e.stopPropagation(); onSecondaryClick() }}
+            style={{
+              flexShrink: 0, padding: '0 14px', borderRadius: 12,
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `2px solid ${AC.border}`, color: C.text,
+              boxShadow: `0 3px 0 ${AC.shadowDeep}, inset 0 1px 0 rgba(255,255,255,0.12)`,
+              fontFamily: SAIRA, fontSize: 13, fontWeight: 900, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            {secondaryCtaLabel}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M5 18l6-6-6-6M13 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   )

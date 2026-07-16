@@ -656,9 +656,10 @@ export type Season = {
   // 海外リーグの裏進行（プレイヤーの本編レースに同期して1戦ずつ進む）
   foreignStandings?: Record<string, ForeignStanding[]>   // leagueId → 順位表
   foreignRaceIndex?: number                              // 消化した海外マッチデー数
-  // 海外リーグの選手ごとの出場記録（playerId → 所属クラブ・今季の出場数・区間賞数）。
+  // 海外リーグの選手ごとの出場記録（playerId → 所属クラブ・今季の出場数・区間賞数・区間順位の合計）。
+  // rankSum/rankedRaces は平均区間順位の算出用（後から追加。無い旧データは平均を出さない）。
   // currentSeason に積み、シーズン終了で pastSeasons に乗る（選手詳細の在籍履歴に海外クラブ行として表示）。
-  foreignAppearances?: Record<string, { clubId: string; races: number; wins: number }>
+  foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
   // 国内在籍で今季1度も出走しなかった選手の所属（シーズン終了時に保存）。
   // 在籍履歴は出走記録から行を作るため、これが無いと出なかった年の所属が消える
   zeroAppearances?: { playerId: string; teamId: string; tier: 'main' | 'second' }[]

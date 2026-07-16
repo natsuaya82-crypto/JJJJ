@@ -38,7 +38,12 @@ export default function NewsPage() {
   const newsFeed  = useGameStore(s => s.currentSeason.newsFeed)
   const players   = useGameStore(s => s.players)
   const teams     = useGameStore(s => s.teams)
+  const foreignLeagues = useGameStore(s => s.foreignLeagues)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  // 所属の解決は国内チーム→海外クラブの順（海外移籍ニュースで所属が「—」にならないように）
+  const resolveAnyTeam = (tid?: string) => tid
+    ? (teams.find(t => t.id === tid) ?? (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === tid))
+    : undefined
 
   // 長押しで選手詳細
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -94,11 +99,11 @@ export default function NewsPage() {
             : undefined
           const relOvr = relPlayer ? ovr(relPlayer) : 0
           const showDetail = !!relPlayer
-          const fromTeam = news.fromTeamId ? teams.find(t => t.id === news.fromTeamId) : undefined
-          const toTeam = news.toTeamId ? teams.find(t => t.id === news.toTeamId) : undefined
+          const fromTeam = resolveAnyTeam(news.fromTeamId)
+          const toTeam = resolveAnyTeam(news.toTeamId)
 
           if (showDetail && relPlayer) {
-            const team = teams.find(t => t.id === relPlayer.teamId)
+            const team = resolveAnyTeam(relPlayer.teamId)
             const specCol = SPEC_COLOR[relPlayer.specialty]
             const salary = relPlayer.contract.annualSalary
             const market = faMarketSalary(relPlayer)

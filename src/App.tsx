@@ -24,6 +24,7 @@ import TransferHub from './components/transfer/TransferHub'
 import TeamHub from './components/team/TeamHub'
 import TeamsHub from './components/teams/TeamsHub'
 import JpelStandingsPage from './components/teams/JpelStandingsPage'
+import EclStandingsPage from './components/teams/EclStandingsPage'
 import TeamDetailPage from './components/teams/TeamDetailPage'
 import ForeignLeagueDetailPage from './components/teams/ForeignLeagueDetailPage'
 import ChatPage from './components/team/ChatPage'
@@ -52,6 +53,7 @@ import WECSimPage from './components/international/WECSimPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
 import CardTrainingPage from './components/training/CardTrainingPage'
 import CardInventoryPage from './components/training/CardInventoryPage'
+import CardConvertPage from './components/training/CardConvertPage'
 import CardSelectPage from './components/training/CardSelectPage'
 import BudgetPage from './components/budget/BudgetPage'
 import LoginBonusPage from './components/login/LoginBonusPage'
@@ -162,6 +164,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
 
           <Route path="/teams" element={<TeamsHub />} />
           <Route path="/teams/jpel" element={<JpelStandingsPage />} />
+          <Route path="/teams/ecl" element={<EclStandingsPage />} />
           <Route path="/teams/detail/:teamId" element={<TeamDetailPage />} />
           <Route path="/teams/foreign/:leagueId" element={<ForeignLeagueDetailPage />} />
           <Route path="/teams/foreign/:leagueId/:clubId" element={<TeamDetailPage />} />
@@ -191,6 +194,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/cards" element={<CardTrainingPage />} />
           <Route path="/cards/list" element={<CardInventoryPage />} />
+          <Route path="/cards/convert" element={<CardConvertPage />} />
           <Route path="/cards/select" element={<CardSelectPage />} />
           <Route path="/budget" element={<BudgetPage />} />
           <Route path="/login-bonus" element={<LoginBonusPage />} />
