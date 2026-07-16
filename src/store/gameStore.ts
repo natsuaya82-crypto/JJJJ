@@ -1476,8 +1476,9 @@ export const useGameStore = create<GameStore>()(
               const buyer = state.teams.find(t => t.id === buyerTeamId)
               if (!p || !seller || !buyer) continue
               // 出品後に選手が移籍していた古い出品は成立させない（現所属と出品元が一致するときのみ）。
-              // 同一レース内で同じ選手が二重に動くのも防ぐ。レンタル中・買い手が現所属と同じ場合も対象外
-              if (p.teamId !== listing.fromTeamId || p.loan || movedThisRace.has(p.id) || buyerTeamId === p.teamId) {
+              // 同一レース内で同じ選手が二重に動くのも防ぐ。レンタル中・買い手が現所属と同じ場合も対象外。
+              // 今季すでに移籍済み（joinedYear=今年）の選手も対象外＝1シーズンに何度も移籍しない
+              if (p.teamId !== listing.fromTeamId || p.loan || movedThisRace.has(p.id) || buyerTeamId === p.teamId || p.joinedYear === state.currentSeason.year) {
                 cpuTxListingIds.add(listing.id)  // 無効な出品は掃除する
                 continue
               }
@@ -1662,8 +1663,8 @@ export const useGameStore = create<GameStore>()(
           const listedIdSet = new Set(transferData.listings.map(l => l.playerId))
           const playersWithCpuTx = recoveredPlayers.map(p => {
             const tx = cpuTxList.find(t => t.playerId === p.id)
-            // 自チームから出て行った選手とは1年間交渉不可
-            if (tx) return { ...p, teamId: tx.toTeamId, rosterTier: 'main' as const, transferListed: false, ...(p.teamId === playerTeamId ? { transferLockedUntilYear: state.currentSeason.year + 1 } : {}) }
+            // 自チームから出て行った選手とは1年間交渉不可。joinedYearを刻んで同一シーズン内の再移籍を防ぐ
+            if (tx) return { ...p, teamId: tx.toTeamId, rosterTier: 'main' as const, transferListed: false, joinedYear: state.currentSeason.year, ...(p.teamId === playerTeamId ? { transferLockedUntilYear: state.currentSeason.year + 1 } : {}) }
             const listed = listedIdSet.has(p.id)
             const nextListed = listed ? true : (p.teamId === playerTeamId ? (p.transferListed ?? false) : false)
             return nextListed === (p.transferListed ?? false) ? p : { ...p, transferListed: nextListed }
@@ -4136,6 +4137,27 @@ export const useGameStore = create<GameStore>()(
         const st = get()
         if (!st.getTransferWindow().open) return
         if ((st.foreignLeagues ?? []).length === 0) return
+        // 海外クラブ同士の引き抜きも低確率で1件（オフの一括と同じロジック。OVR下限もそのまま効く）
+        if (Math.random() < 0.20) {
+          set(state => {
+            const raceDate = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
+            const res = simulateForeignTransferMarket({
+              foreignLeagues: state.foreignLeagues ?? [],
+              players: state.players,
+              year: state.currentSeason.year,
+              maxMoves: 1,
+              includeDecline: false,
+              date: raceDate,
+            })
+            if (res.records.length === 0) return {}
+            return {
+              players: res.players,
+              foreignLeagues: res.foreignLeagues,
+              transferHistory: [...(state.transferHistory ?? []), ...res.records].slice(-800),
+              currentSeason: { ...state.currentSeason, newsFeed: [...res.news, ...state.currentSeason.newsFeed].slice(0, 40) },
+            }
+          })
+        }
         if (Math.random() > 0.30) return   // 発生率 約30%/レース
         const nIn = Math.random() < 0.55 ? 1 : 0
         const nOut = Math.random() < 0.55 ? 1 : 0
@@ -4599,6 +4621,7 @@ export const useGameStore = create<GameStore>()(
               const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
               return sellRoster.slice(3).filter(p =>
                 !cpuTransferIds.has(p.id) &&
+                p.joinedYear !== state.currentSeason.year &&   // クロスボーダー等で今オフ移籍済みなら動かさない
                 (ovr(p) < sellMinOvr || sellRoster.length > 21)
               )
             }).sort((a, b) => ovr(b) - ovr(a))
@@ -4615,7 +4638,7 @@ export const useGameStore = create<GameStore>()(
               offseasonTxRecords.push({ year: txYear, date: `${txYear}-02-01`, playerId: target.id, fromTeamId: target.teamId, toTeamId: buyTeam.id, fee, years: 2 })
               playersAfterCpuTransfer = playersAfterCpuTransfer.map(p =>
                 p.id !== target.id ? p : {
-                  ...p, teamId: buyTeam.id,
+                  ...p, teamId: buyTeam.id, joinedYear: txYear,
                   contract: { ...p.contract, annualSalary: newSalary, yearsLeft: 2, faEligibleYear: txYear + 2 },
                 }
               )
@@ -4630,9 +4653,10 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // ⑤ CPU間トレード（予算不足でも価値が近い選手同士を交換）
+        // ⑤ CPU間トレード（予算不足でも価値が近い選手同士を交換）。
+        // 同じオフに移籍済みの選手（cpuTransferIds）は対象外＝移籍→トレードの連鎖を防ぐ
         {
-          const tradedIds = new Set<string>()
+          const tradedIds = cpuTransferIds
           const tradeCount: Record<string, number> = {}
           const cpuIdsForTrade = [...new Set(
             playersAfterCpuTransfer
@@ -4646,7 +4670,7 @@ export const useGameStore = create<GameStore>()(
             const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyerId && p.rosterTier === 'main' && p.status === 'active')
             if (buyRoster.length >= 23) continue
             const buyerSurplus = buyRoster
-              .filter(p => !tradedIds.has(p.id) && ovr(p) < buyMinOvr)
+              .filter(p => !tradedIds.has(p.id) && p.joinedYear !== state.currentSeason.year && ovr(p) < buyMinOvr)
               .sort((a, b) => calcTransferValue(b) - calcTransferValue(a))
             if (buyerSurplus.length === 0) continue
             const offered = buyerSurplus[0]
@@ -4660,6 +4684,7 @@ export const useGameStore = create<GameStore>()(
                 .sort((a, b) => ovr(b) - ovr(a))
               const target = sellRoster.slice(3).find(p =>
                 !tradedIds.has(p.id) &&
+                p.joinedYear !== state.currentSeason.year &&
                 ovr(p) >= buyMinOvr && ovr(p) < sellMinOvr &&
                 calcTransferValue(p) <= offeredVal * 1.3
               )
@@ -4670,8 +4695,8 @@ export const useGameStore = create<GameStore>()(
               offseasonTxRecords.push({ year: state.currentSeason.year, date: `${state.currentSeason.year}-02-01`, playerId: offered.id, fromTeamId: buyerId, toTeamId: sellerId, fee: 0, kind: 'trade' })
               offseasonTxRecords.push({ year: state.currentSeason.year, date: `${state.currentSeason.year}-02-01`, playerId: target.id, fromTeamId: sellerId, toTeamId: buyerId, fee: 0, kind: 'trade' })
               playersAfterCpuTransfer = playersAfterCpuTransfer.map(p => {
-                if (p.id === offered.id) return { ...p, teamId: sellerId }
-                if (p.id === target.id) return { ...p, teamId: buyerId }
+                if (p.id === offered.id) return { ...p, teamId: sellerId, joinedYear: state.currentSeason.year }
+                if (p.id === target.id) return { ...p, teamId: buyerId, joinedYear: state.currentSeason.year }
                 return p
               })
               teamsAfterCpuTransfer = teamsAfterCpuTransfer.map(t => {
@@ -4684,9 +4709,10 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // ④ CPU間レンタル（ロスター過多チームから不足チームへ1年貸し出し）
+        // ④ CPU間レンタル（ロスター過多チームから不足チームへ1年貸し出し）。
+        // 同じオフに移籍・トレード済みの選手は貸し出さない（1オフ1移動）
         {
-          const loanedIds = new Set<string>()
+          const loanedIds = cpuTransferIds
           const loanYear = state.currentSeason.year + 1
           const cpuIdsForLoan = [...new Set(
             playersAfterCpuTransfer
@@ -4702,14 +4728,14 @@ export const useGameStore = create<GameStore>()(
             const receiver = cpuIdsForLoan.find(id => id !== senderId && mainCount(id) < 17 && (receivedLoan[id] ?? 0) < 1)
             if (!receiver) continue
             const candidate = playersAfterCpuTransfer
-              .filter(p => p.teamId === senderId && p.rosterTier === 'main' && p.status === 'active' && !p.loan && !loanedIds.has(p.id))
+              .filter(p => p.teamId === senderId && p.rosterTier === 'main' && p.status === 'active' && !p.loan && !loanedIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
               .sort((a, b) => ovr(a) - ovr(b))[0]
             if (!candidate) continue
             loanedIds.add(candidate.id)
             givenLoan[senderId] = (givenLoan[senderId] ?? 0) + 1
             receivedLoan[receiver] = (receivedLoan[receiver] ?? 0) + 1
             playersAfterCpuTransfer = playersAfterCpuTransfer.map(p =>
-              p.id !== candidate.id ? p : { ...p, teamId: receiver, loan: { ownerTeamId: senderId, untilYear: loanYear } }
+              p.id !== candidate.id ? p : { ...p, teamId: receiver, joinedYear: state.currentSeason.year, loan: { ownerTeamId: senderId, untilYear: loanYear } }
             )
             teamsAfterCpuTransfer = teamsAfterCpuTransfer.map(t => {
               if (t.id === senderId) return { ...t, roster: { ...t.roster, main: t.roster.main.filter(id => id !== candidate.id) } }

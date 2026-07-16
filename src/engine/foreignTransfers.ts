@@ -23,12 +23,17 @@ type TxRecord = { year: number; date: string; playerId: string; fromTeamId: stri
 
 // シーズンオフに海外クラブ間の移籍（引き抜き）を発生させる。強いクラブが他クラブの
 // 主力を引き抜き、選手が国境・リーグを越えて移動する。プレイヤーは干渉しない（結果のみ）。
+// maxMoves/includeDecline/date はシーズン中の少量発生用（省略時はオフの一括想定）
 export function simulateForeignTransferMarket(params: {
   foreignLeagues: ForeignLeague[]
   players: Player[]
   year: number
+  maxMoves?: number        // 引き抜き件数の上書き（省略時はクラブ数比例）
+  includeDecline?: boolean // 都落ち移籍も回すか（省略時true。シーズン中はfalse）
+  date?: string            // ニュース・履歴の日付（省略時は1/20）
 }): { foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
   const { foreignLeagues, players, year } = params
+  const txDate = params.date ?? `${year}-01-20`
   const allClubs = foreignLeagues.flatMap(l => l.clubs)
   if (allClubs.length < 2) return { foreignLeagues, players, news: [], records: [] }
 
@@ -49,14 +54,21 @@ export function simulateForeignTransferMarket(params: {
 
   const moves: { playerId: string; fromClubId: string; toClubId: string }[] = []
   const movedPlayers = new Set<string>()
-  const MOVE_COUNT = 14 + Math.floor(Math.random() * 8)  // 14〜21件/年
+  // 件数はクラブ数に比例（110クラブなら約27〜41件/年）。FA補填だけでなく引き抜きでも名簿が動くように
+  const MOVE_BASE = Math.max(8, Math.round(allClubs.length * 0.25))
+  const MOVE_COUNT = params.maxMoves ?? (MOVE_BASE + Math.floor(Math.random() * (MOVE_BASE * 0.5)))
+  const weightedPick = <U,>(arr: U[], w: (x: U) => number): U => {
+    const total = arr.reduce((s, x) => s + Math.max(1, w(x)), 0)
+    let r = Math.random() * total
+    for (const x of arr) { r -= Math.max(1, w(x)); if (r <= 0) return x }
+    return arr[arr.length - 1]
+  }
 
   for (let i = 0; i < MOVE_COUNT; i++) {
-    // 引き抜く側：ランダムなクラブ（枠に余裕がない超大所帯は避ける程度）
-    // 引き抜く側は上限(30)未満のクラブのみ
+    // 引き抜く側：上限(30)未満のクラブ。引退等で人数が減ったクラブほど動く（穴埋め型の補強）
     const buyerPool = allClubs.filter(c => roster[c.id].length < ROSTER_MAX)
     if (buyerPool.length === 0) continue
-    const buyer = buyerPool[Math.floor(Math.random() * buyerPool.length)]
+    const buyer = weightedPick(buyerPool, c => (ROSTER_MAX - roster[c.id].length) * (roster[c.id].length < 22 ? 3 : 1))
     // 売る側：buyer 以外で下限(18)超のクラブから、buyerより平均が低い相手を優先（放出しても18で止まる）
     const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length > FOREIGN_ROSTER_MIN)
     if (sellers.length === 0) continue
@@ -85,7 +97,7 @@ export function simulateForeignTransferMarket(params: {
   // 出場機会を求めて自クラブより平均OVRの低いクラブへ移る（年2〜4件）。
   // 「若手台頭→ベテラン序列陥落→格下へ移籍 or 日本行き」のキャリア循環を作る
   const declineMoved = new Set<string>()
-  const DECLINE_MOVES = 2 + Math.floor(Math.random() * 3)
+  const DECLINE_MOVES = params.includeDecline === false ? 0 : 2 + Math.floor(Math.random() * 3)
   for (let i = 0; i < DECLINE_MOVES; i++) {
     const sellers = allClubs.filter(c => roster[c.id].length > FOREIGN_ROSTER_MIN)
     if (sellers.length === 0) break
@@ -132,7 +144,7 @@ export function simulateForeignTransferMarket(params: {
     .sort((a, b) => ovr(b.p) - ovr(a.p))
     .slice(0, 6)
     .map(({ m, p }) => ({
-      date: `${year}-01-20`,
+      date: txDate,
       headline: declineMoved.has(p.id)
         ? `【海外移籍】${p.name}（OVR${ovr(p)}・${p.age}歳）が出場機会を求め${nameById.get(m.fromClubId) ?? ''}から${nameById.get(m.toClubId) ?? ''}へ移籍`
         : `【海外移籍】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromClubId) ?? ''}から${nameById.get(m.toClubId) ?? ''}へ移籍`,
@@ -140,7 +152,7 @@ export function simulateForeignTransferMarket(params: {
       relatedIds: [p.id],
     }))
 
-  const records: TxRecord[] = moves.map(m => ({ year, date: `${year}-01-20`, playerId: m.playerId, fromTeamId: m.fromClubId, toTeamId: m.toClubId, fee: 0, kind: 'free' as const, years: playerById.get(m.playerId)?.contract.yearsLeft }))
+  const records: TxRecord[] = moves.map(m => ({ year, date: txDate, playerId: m.playerId, fromTeamId: m.fromClubId, toTeamId: m.toClubId, fee: 0, kind: 'free' as const, years: playerById.get(m.playerId)?.contract.yearsLeft }))
   return { foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }
 }
 
@@ -155,8 +167,9 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   year: number
   maxIn?: number   // 海外→日本の件数（省略時はオフシーズン想定で2〜4）
   maxOut?: number  // 日本→海外の件数（省略時はオフシーズン想定で2〜4）
+  excludeIds?: Set<string>   // このオフに既に移籍済みの選手（1オフ1移動を守るため対象外にする）
 }): { teams: T[]; foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
-  const { teams, foreignLeagues, players, playerTeamId, year } = params
+  const { teams, foreignLeagues, players, playerTeamId, year, excludeIds } = params
   const foreignClubs = foreignLeagues.flatMap(l => l.clubs)
   const clubCountry = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, c.country as string])))
   const cpuTeams = teams.filter(t => t.id !== playerTeamId)
@@ -167,8 +180,9 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const MIN_BUY_BUDGET = 30_000_000   // これ未満の予算では獲得に動かない
   const SPECS = Object.keys(SPECIALTY_LABELS) as Specialty[]
   const playerById = new Map(players.map(p => [p.id, p]))
+  // 同じオフに移籍済み（joinedYear=今オフの年）の選手は動かさない＝1オフ1移動
   const runnable = (p: Player | undefined): p is Player =>
-    !!p && p.status !== 'retired' && p.status !== 'injured' && !p.loan
+    !!p && p.status !== 'retired' && p.status !== 'injured' && !p.loan && !excludeIds?.has(p.id) && p.joinedYear !== year
 
   // main/secondを別々に持ち、人数はその合計で判定・除去は両方から行う
   const jpnRoster: Record<string, string[]> = {}
