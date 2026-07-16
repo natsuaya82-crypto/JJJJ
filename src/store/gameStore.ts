@@ -4791,9 +4791,12 @@ export const useGameStore = create<GameStore>()(
           },
         }))
 
-        // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）。海外クラブも総在籍30を超えないようにする
+        // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）。海外クラブも総在籍30を超えないようにする。
+        // ※クラブ名簿(playerIds)にも必ず同期追加する。teamIdだけ変えると名簿が実人数より少なく見え、
+        //   シーズン中の日本→海外移籍の満杯チェックをすり抜けて31人になるバグの原因だった
         const foreignClubsList = (state.foreignLeagues ?? []).flatMap(l => l.clubs)
         let playersWithForeignSigns = playersWithAllCpuSigns
+        const foreignFaAssign = new Map<string, string[]>()   // clubId → 追加する選手ID
         if (foreignClubsList.length > 0) {
           const clubCount = new Map<string, number>()
           for (const p of playersWithAllCpuSigns) {
@@ -4815,6 +4818,7 @@ export const useGameStore = create<GameStore>()(
             }
             if (!club) break
             clubCount.set(club.id, (clubCount.get(club.id) ?? 0) + 1)
+            foreignFaAssign.set(club.id, [...(foreignFaAssign.get(club.id) ?? []), fa.id])
             playersWithForeignSigns = playersWithForeignSigns.map(p =>
               p.id !== fa.id ? p : { ...p, teamId: club!.id }
             )
@@ -4843,6 +4847,14 @@ export const useGameStore = create<GameStore>()(
           isInitialized: false,
           players: [...playersWithForeignSigns, ...pool],
           teams: teamsWithAllCpuSigns,
+          // 海外FA補強で獲得した選手をクラブ名簿にも反映（teamIdと名簿の同期）
+          foreignLeagues: foreignFaAssign.size === 0 ? state.foreignLeagues : (state.foreignLeagues ?? []).map(l => ({
+            ...l,
+            clubs: l.clubs.map(c => {
+              const add = foreignFaAssign.get(c.id)
+              return add && add.length > 0 ? { ...c, playerIds: [...c.playerIds, ...add] } : c
+            }),
+          })),
           // 直近10シーズン分だけ残して古い移籍記録は捨てる
           transferHistory: [
             ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),
@@ -5580,15 +5592,25 @@ export const useGameStore = create<GameStore>()(
             }),
           }))
           // 2) 引退選手の軽量化（能力履歴・特性などを落として名前と実績だけ残す）
-          //    ＋無所属FAの整理（2季続けて無所属：ドラフト歴ありは引退・なしは削除）
+          //    ＋整理のルールは国内・海外で共通：「実績（出走・区間賞・記録会ベスト）のある選手は絶対に消さず引退として残す」。
+          //    実績ゼロの選手だけ削除する。これでニュース・記録・歴代優勝から選手詳細が必ず開ける
           const leanRetired = (p: Player): Player => ({ ...p, status: 'retired', teamId: '', ovrHistory: [], traits: [], fatigue: 0, form: 0, loan: undefined, faSinceYear: undefined })
+          const hasCareerRecord = (p: Player) =>
+            p.career.totalRaces > 0 || p.career.segmentWins > 0 || Object.keys(p.eventBests ?? {}).length > 0
           const cleanedPlayers = crossTx.players
-            .filter(p => !foreignDropIds.has(p.id))
             .flatMap((p): Player[] => {
+              // 海外クラブの名簿から溢れた選手：実績があれば引退として残す（従来は完全削除→詳細が開けなかった）
+              if (foreignDropIds.has(p.id)) {
+                return hasCareerRecord(p) ? [leanRetired({ ...p, retiredYear: p.retiredYear ?? state.currentSeason.year })] : []
+              }
               if (p.status === 'retired') return [leanRetired(p)]
               if (p.status === 'active' && p.teamId === '') {
                 const since = p.faSinceYear ?? state.currentSeason.year
-                if (newYear - since >= 2) return p.draftRound != null ? [leanRetired({ ...p, retiredYear: p.retiredYear ?? since })] : []
+                if (newYear - since >= 2) {
+                  return (p.draftRound != null || hasCareerRecord(p))
+                    ? [leanRetired({ ...p, retiredYear: p.retiredYear ?? since })]
+                    : []
+                }
                 return [{ ...p, faSinceYear: since }]
               }
               return [p.faSinceYear != null ? { ...p, faSinceYear: undefined } : p]
@@ -5758,9 +5780,10 @@ export const useGameStore = create<GameStore>()(
                 }
                 return {
                   participants: parts,
+                  // 大会名はコース名でくくる（第X戦にすると年ごとに別コースが同名になり、距離や記録の比較が壊れる）
                   races: courses.map((course, i) => ({
                     id: `ecl-${newYear}-r${i + 1}`,
-                    name: `ECL 第${i + 1}戦`,
+                    name: `ECL ${course.name}`,
                     date: midDate(`${newYear}-${months[i]}-20`),
                     location: course.location,
                     type: 'league' as const,
@@ -6622,16 +6645,34 @@ export const useGameStore = create<GameStore>()(
           })
           return changed ? { players } : state
         })
-        // 二重所属の掃除：国内チームに所属している選手が海外クラブの名簿にも残っている「増殖」を毎起動で是正する
-        // （FA/引き抜き獲得が海外名簿から除去し損ねていた既存セーブの救済。冪等で軽いので毎回実行）
+        // 二重所属の掃除＋名簿とteamIdの完全同期（毎起動・冪等）。
+        // 海外クラブは「クラブ側の名簿(playerIds)」と「選手側のteamId」の二重管理のため、移籍処理で
+        // 片方だけ更新されると「所属なし」表示や増殖が起きる。teamId を正として両方向を揃える：
+        //  1) 国内チーム所属の選手は海外名簿から除去（増殖の是正）
+        //  2) teamId が別のクラブ/無所属なのに名簿に残っている選手は名簿から除去
+        //  3) teamId がそのクラブなのに名簿に載っていない選手は名簿へ追加
         set(state => {
           const domesticIds = new Set(state.players.filter(p => p.teamId !== '' && state.teams.some(t => t.id === p.teamId)).map(p => p.id))
+          const playerTeamById = new Map(state.players.map(p => [p.id, p.teamId]))
+          const playersByClub = new Map<string, string[]>()
+          for (const p of state.players) {
+            if (p.status !== 'active' || p.teamId === '') continue
+            if (!playersByClub.has(p.teamId)) playersByClub.set(p.teamId, [])
+            playersByClub.get(p.teamId)!.push(p.id)
+          }
           let changed = false
           const leagues = (state.foreignLeagues ?? []).map(l => ({
             ...l,
             clubs: l.clubs.map(c => {
-              const kept = c.playerIds.filter(id => !domesticIds.has(id))
-              if (kept.length !== c.playerIds.length) { changed = true; return { ...c, playerIds: kept } }
+              // 1)+2) teamId がこのクラブでない選手を名簿から外す
+              const kept = c.playerIds.filter(id => !domesticIds.has(id) && playerTeamById.get(id) === c.id)
+              // 3) teamId がこのクラブなのに名簿に無い選手を加える
+              const inClub = playersByClub.get(c.id) ?? []
+              const missing = inClub.filter(id => !kept.includes(id))
+              if (kept.length !== c.playerIds.length || missing.length > 0) {
+                changed = true
+                return { ...c, playerIds: [...kept, ...missing] }
+              }
               return c
             }),
           }))

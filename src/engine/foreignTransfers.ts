@@ -133,7 +133,12 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     jpnSecond[t.id] = [...(t.roster?.second ?? [])]
     budget[t.id] = t.finance?.budget ?? 0
   }
-  const jpnSize = (teamId: string) => jpnRoster[teamId].length + jpnSecond[teamId].length
+  // 人数はroster配列でなくplayers基準で数える。レンタル返却直後などはplayers側（teamId）に
+  // 反映済みでもroster配列が未反映のことがあり、配列基準だと過小評価して30人チームに獲得を許してしまう
+  const sizeCount: Record<string, number> = {}
+  for (const t of cpuTeams) sizeCount[t.id] = 0
+  for (const p of players) if (p.status === 'active' && sizeCount[p.teamId] !== undefined) sizeCount[p.teamId]++
+  const jpnSize = (teamId: string) => sizeCount[teamId] ?? 0
   const fRoster: Record<string, string[]> = {}
   for (const c of foreignClubs) fRoster[c.id] = [...c.playerIds]
 
@@ -197,6 +202,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const fee = calcTransferValue(target)
     fRoster[clubId] = fRoster[clubId].filter(id => id !== target.id)
     jpnRoster[buyer.id] = [...jpnRoster[buyer.id], target.id]
+    sizeCount[buyer.id] = (sizeCount[buyer.id] ?? 0) + 1
     budget[buyer.id] -= fee
     moved.add(target.id)
     moves.push({ playerId: target.id, fromId: clubId, toId: buyer.id, dir: 'in', fee })
@@ -217,6 +223,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const fee = calcTransferValue(target)
     jpnRoster[seller.id] = jpnRoster[seller.id].filter(id => id !== target.id)
     jpnSecond[seller.id] = jpnSecond[seller.id].filter(id => id !== target.id)
+    sizeCount[seller.id] = Math.max(0, (sizeCount[seller.id] ?? 0) - 1)
     fRoster[buyer.id] = [...fRoster[buyer.id], target.id]
     budget[seller.id] += fee
     moved.add(target.id)
