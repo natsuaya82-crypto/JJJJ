@@ -83,7 +83,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
             <PlayerFace playerId={player.id} nationality={player.nationality} size={50} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3, minWidth: 0, overflow: 'hidden' }}>
               <span style={{
                 fontSize: 14, fontWeight: 700,
                 color: player.status === 'injured' ? C.red : C.text,
@@ -91,7 +91,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
               }}>
                 {player.name}
               </span>
-              {displayBadge && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: `linear-gradient(180deg, ${BADGE_COLOR[displayBadge.kind]}2E, ${BADGE_COLOR[displayBadge.kind]}14)`, border: `1px solid ${alpha(BADGE_COLOR[displayBadge.kind], 0.5)}`, color: BADGE_COLOR[displayBadge.kind], fontWeight: 900, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>{displayBadge.label}</span>}
+              {displayBadge && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: `linear-gradient(180deg, ${BADGE_COLOR[displayBadge.kind]}2E, ${BADGE_COLOR[displayBadge.kind]}14)`, border: `1px solid ${alpha(BADGE_COLOR[displayBadge.kind], 0.5)}`, color: BADGE_COLOR[displayBadge.kind], fontWeight: 900, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>{displayBadge.label}</span>}
               {player.nationality === 'FOREIGN' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: C.blue, fontWeight: 700, flexShrink: 0 }}>外</span>}
               {player.status === 'injured' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.09), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>負傷</span>}
               {player.dualRegistered && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.25)}`, color: C.green, fontWeight: 700, flexShrink: 0 }}>両方</span>}

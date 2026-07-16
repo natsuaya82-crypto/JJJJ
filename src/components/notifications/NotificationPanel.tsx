@@ -352,7 +352,7 @@ export function useNotifCount() {
     if (p.teamId !== playerTeamId || p.status !== 'active') return false
     const remaining = Math.max(0, totalRaces - raceIndex)
     const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
-    return months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedIdsC.has(p.id)
+    return months < 6 && !p.transferListed && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedIdsC.has(p.id)
   }).length
 
   // ロスター超過警告（NotificationsPageと同じ基準）

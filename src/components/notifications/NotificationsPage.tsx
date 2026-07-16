@@ -346,7 +346,8 @@ export default function NotificationsPage() {
       const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
       return { p, months }
     })
-    .filter(({ p, months }) => months < 6 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedPlayerIds.has(p.id))
+    // 退団予定（移籍リスト入り）の選手は更新できないのでリマインダーに出さない
+    .filter(({ p, months }) => months < 6 && !p.transferListed && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedPlayerIds.has(p.id))
     .sort((a, b) => a.months - b.months)
   const renewalNeeded = renewalPlayers.length
 

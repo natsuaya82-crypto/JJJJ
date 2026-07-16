@@ -370,6 +370,7 @@ function ChatView({
   }
 
   const replyButtons = (() => {
+    const base = (() => {
     // 獲得成立直後：契約更新フローに落ちないよう終了ボタンだけ出す
     if (justAcquired) return [
       { label: '閉じる', color: C.green, action: onClose },
@@ -608,6 +609,11 @@ function ChatView({
       { label: '契約延長の話をする（前倒し）', color: C.blue, action: openCompose },
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
+    })()
+    // どの会話にも必ず「閉じる」を出す（出る画面と出ない画面が混在していたのを統一）。
+    // イベントの選択肢だけの場面でも、選ばず閉じてOK（戻るボタンと同じ扱い）
+    if (!base.some(b => b.label === '閉じる')) base.push({ label: '閉じる', color: C.textSub, action: onClose })
+    return base
   })()
 
   return (
