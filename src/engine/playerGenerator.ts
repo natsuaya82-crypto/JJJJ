@@ -784,21 +784,15 @@ export function generateCpuRosters(
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
     const ratings = generateRatings(rank, specialty)
     const { potential } = rankToBaseRange(rank, growthCurve)
-    const age = tier === 'main' ? rng(22, 31) : rng(19, 25)
+    // 年俸上位4人（各チームのエース格）はピーク年齢寄りにして、初年度から完成した選手にする
+    const age = tier === 'main' ? (i < 4 ? rng(25, 31) : rng(22, 31)) : rng(19, 25)
     const yearsPro = Math.max(0, age - 22)
     const potentialVal = isForeign ? rng(potential[0], potential[1]) : Math.min(92, rng(potential[0], potential[1]))
 
-    // 経験年数に応じて各能力値を底上げ。ただし能力別上限で頭打ち（得意は99まで伸び、苦手は抑える＝全能力が同じ値に揃わない）。
-    if (yearsPro > 0) {
-      const bonus = Math.floor(yearsPro * 1.6)
-      const strongSet = new Set(SPEC_STRONG_STATS[specialty] ?? [])
-      ;(Object.keys(ratings) as Array<keyof typeof ratings>).forEach(key => {
-        // 頭打ちを能力ごとに揺らす（同じ選手でも非得意が全部同じ値に揃わない）
-        const capBase = strongSet.has(key) ? potentialVal + 12 : potentialVal - 5
-        const cap = Math.min(99, Math.max(35, capBase + rng(-7, 2)))
-        ratings[key] = Math.min(cap, Math.min(99, ratings[key] + bonus + rng(-3, 5)))
-      })
-    }
+    const id = `ai${tier === 'second' ? '2' : ''}-${teamId}-${cpuIdCounter}`
+    // 年齢分の成長を焼き込む（海外リーグ生成と同じ処理）。
+    // 初年度のリーグが定常状態（毎年の成長・衰え・世代交代が回った後）と同じ厚みで始まるようにする
+    bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
 
     let name: string
     let origin: string
@@ -820,7 +814,6 @@ export function generateCpuRosters(
       usedNames.add(name)
     }
 
-    const id = `ai${tier === 'second' ? '2' : ''}-${teamId}-${cpuIdCounter}`
     void contractType   // 契約形態は廃止（フラット化）。tier は年齢分布のためだけに使う
     return {
       id, name, nameKana: '', age, yearsPro,
@@ -855,13 +848,16 @@ export function generateCpuRosters(
     const secondIds: string[] = [] // 育成(development) 13
 
     // 本契約(standard) 12人 — 年俸上位から。外国人は2人まで
+    // 主力はランクを一段引き上げる：初年度のリーグが定常状態（強豪で80超7〜8人・リーグ85+約18人）
+    // と同じ厚みで始まるようにするため（土台が低いと成長焼き込みでも85に届かない）
+    const RANK_UP: Record<Rank, Rank> = { D: 'C', C: 'B', B: 'A', A: 'S', S: 'SS', SS: 'SSS', SSS: 'SSS' }
     let teamForeignCount = 0
     for (let i = 0; i < 12; i++) {
       const sal = salaries[i]
       const canBeForeign = teamForeignCount < 2
       const isForeign = canBeForeign && (i < 1 ? Math.random() < 0.55 : Math.random() < 0.08)
       if (isForeign) teamForeignCount++
-      const p = makePlayer(rankForSalary(sal), i, team.id, 'main', isForeign, 'standard', sal)
+      const p = makePlayer(RANK_UP[rankForSalary(sal)], i, team.id, 'main', isForeign, 'standard', sal)
       cpuPlayers.push(p); mainIds.push(p.id)
     }
     // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）
@@ -1079,7 +1075,8 @@ function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specia
   const years = Math.max(0, Math.min(age, peakAge) - 22)
   if (years === 0) return
   const caps = getStatPotentials({ id, ratings, specialty, potential } as unknown as Player)
-  const potFactor = potential >= 87 ? 1.4 : potential >= 75 ? 1.0 : 0.6
+  // 毎年の成長(growPlayer)と同じ係数に揃える（ズレると初年度と定常状態で層の厚みが変わる）
+  const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.0 : 0.6
   const keys = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const
   for (let y = 0; y < years; y++) {
     for (const stat of keys) {

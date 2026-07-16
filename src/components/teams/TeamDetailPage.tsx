@@ -276,8 +276,19 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const handleScroll = () => {
     if (!scrollRef.current) return
     const { scrollLeft, clientWidth } = scrollRef.current
-    setActivePage(Math.round(scrollLeft / clientWidth))
+    const next = Math.round(scrollLeft / clientWidth)
+    if (next !== activePage) {
+      setActivePage(next)
+      window.scrollTo({ top: 0 })  // ページを切り替えたら縦スクロールを先頭に戻す
+    }
   }
+
+  // 表示中でないページは高さを畳む：縦スクロールの長さが常に「今見ているページ」の高さになる
+  // （畳まないと一番長いページに引きずられ、短いページで何もない所まで延々スクロールできてしまう）
+  const pageStyle = (i: number): React.CSSProperties => ({
+    minWidth: '100%', scrollSnapAlign: 'start',
+    ...(activePage === i ? {} : { maxHeight: '70vh', overflow: 'hidden' }),
+  })
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
@@ -356,7 +367,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         }}
       >
         {/* Page 1: 概要（歴代成績グラフ・トロフィー） */}
-        <div style={{ minWidth: '100%', scrollSnapAlign: 'start' }}>
+        <div style={pageStyle(0)}>
           <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '10px', paddingBottom: '10px' }}>
 
             <div>
@@ -474,7 +485,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         </div>
 
         {/* Page 2: ロスター */}
-        <div style={{ minWidth: '100%', scrollSnapAlign: 'start' }}>
+        <div style={pageStyle(1)}>
           <div style={{ padding: '0 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8' }}>ロスター</span>
@@ -496,7 +507,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         </div>
 
         {/* Page 3: 移籍（入/出をスライド切替、カード表示） */}
-        <div style={{ minWidth: '100%', scrollSnapAlign: 'start' }}>
+        <div style={pageStyle(2)}>
           <div style={{ padding: '0 12px 80px' }}>
             <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8', marginBottom: '10px', paddingLeft: '4px' }}>移籍</div>
 
