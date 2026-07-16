@@ -1406,13 +1406,16 @@ export const useGameStore = create<GameStore>()(
             // 相手が欲しがるのは補強ニーズに合う自チーム選手（いなければ全員から）
             const wantedByThem = myTradables.filter(p => theirNeeds.includes(p.specialty))
             const askPool = wantedByThem.length > 0 ? wantedByThem : myTradables
-            // 価値が釣り合う全組み合わせから、もらえる選手のOVR最上位を選ぶ
+            // 価値が釣り合う全組み合わせから、もらえる選手のOVR最上位を選ぶ。
+            // 市場価値は年齢補正が強く「若手60台⇄ベテラン75」でも等価になり得るが、
+            // 額面OVRがかけ離れた提案は不自然に見えるのでOVR差±6以内に制限する
             let best: { mine: Player; theirs: Player } | null = null
             for (const mine of askPool) {
               const myVal = calcTransferValue(mine)
               for (const theirs of offerPool) {
                 const r = calcTransferValue(theirs) / Math.max(1, myVal)
                 if (r < 0.95 || r > 1.3) continue
+                if (Math.abs(ovr(theirs) - ovr(mine)) > 6) continue
                 if (!best || ovr(theirs) > ovr(best.theirs)) best = { mine, theirs }
               }
             }
@@ -1424,7 +1427,7 @@ export const useGameStore = create<GameStore>()(
                 offeredPlayerIds: [best.theirs.id],
                 requestedPlayerIds: [best.mine.id],
                 expiresAtRace: raceIndex + 5,
-                message: `${fromShort}が${best.mine.name}との交換に${best.theirs.name}を提示しています`,
+                message: `${fromShort}が${best.mine.name}（OVR${ovr(best.mine)}）との交換に${best.theirs.name}（OVR${ovr(best.theirs)}）を提示しています`,
               })
             }
           }
@@ -1841,7 +1844,7 @@ export const useGameStore = create<GameStore>()(
             // 移籍成立記録（チーム詳細の移籍ページ用）。CPU間売買とフリー移籍の決断をここで記録
             transferHistory: [
               ...(state.transferHistory ?? []),
-              ...cpuTxList.map(tx => ({ year: state.currentSeason.year, date: race.date, playerId: tx.playerId, fromTeamId: tx.fromTeamId, toTeamId: tx.toTeamId, fee: tx.fee })),
+              ...cpuTxList.map(tx => ({ year: state.currentSeason.year, date: race.date, playerId: tx.playerId, fromTeamId: tx.fromTeamId, toTeamId: tx.toTeamId, fee: tx.fee, years: state.players.find(p => p.id === tx.playerId)?.contract.yearsLeft })),
               ...freeMoves.map(m => ({ year: state.currentSeason.year, date: race.date, playerId: m.playerId, fromTeamId: playerTeamId, toTeamId: m.toTeamId, fee: 0, kind: 'free' as const })),
             ].slice(-400),
             jewels: state.jewels + (playerRank > 0 ? raceJewels : 0) + midRaceObjJewels,
@@ -2613,8 +2616,8 @@ export const useGameStore = create<GameStore>()(
             players, teams,
             transferHistory: [
               ...(state.transferHistory ?? []),
-              ...offer.offeredPlayerIds.map(pid => ({ year: state.currentSeason.year, date: tradeNews.date, playerId: pid, fromTeamId: offer.fromTeamId, toTeamId: state.playerTeamId, fee: 0, kind: 'trade' as const })),
-              ...offer.requestedPlayerIds.map(pid => ({ year: state.currentSeason.year, date: tradeNews.date, playerId: pid, fromTeamId: state.playerTeamId, toTeamId: offer.fromTeamId, fee: 0, kind: 'trade' as const })),
+              ...offer.offeredPlayerIds.map(pid => ({ year: state.currentSeason.year, date: tradeNews.date, playerId: pid, fromTeamId: offer.fromTeamId, toTeamId: state.playerTeamId, fee: 0, kind: 'trade' as const, years: state.players.find(p => p.id === pid)?.contract.yearsLeft })),
+              ...offer.requestedPlayerIds.map(pid => ({ year: state.currentSeason.year, date: tradeNews.date, playerId: pid, fromTeamId: state.playerTeamId, toTeamId: offer.fromTeamId, fee: 0, kind: 'trade' as const, years: state.players.find(p => p.id === pid)?.contract.yearsLeft })),
             ].slice(-400),
             currentSeason: {
               ...state.currentSeason,
@@ -3840,8 +3843,8 @@ export const useGameStore = create<GameStore>()(
           return { players, teams, foreignLeagues,
             transferHistory: [
               ...(state.transferHistory ?? []),
-              ...offeredIds.map(id => ({ year: state.currentSeason.year, date: tradeDate, playerId: id, fromTeamId: state.playerTeamId, toTeamId: targetTeamId, fee: 0, kind: 'trade' as const })),
-              ...incomingIds.map(id => ({ year: state.currentSeason.year, date: tradeDate, playerId: id, fromTeamId: targetTeamId, toTeamId: state.playerTeamId, fee: 0, kind: 'trade' as const })),
+              ...offeredIds.map(id => ({ year: state.currentSeason.year, date: tradeDate, playerId: id, fromTeamId: state.playerTeamId, toTeamId: targetTeamId, fee: 0, kind: 'trade' as const, years: state.players.find(p => p.id === id)?.contract.yearsLeft })),
+              ...incomingIds.map(id => ({ year: state.currentSeason.year, date: tradeDate, playerId: id, fromTeamId: targetTeamId, toTeamId: state.playerTeamId, fee: 0, kind: 'trade' as const, years: state.players.find(p => p.id === id)?.contract.yearsLeft })),
             ].slice(-400),
             currentSeason: {
             ...state.currentSeason,
@@ -6817,7 +6820,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 11,
+      version: 13,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
@@ -6977,6 +6980,23 @@ export const useGameStore = create<GameStore>()(
             }
           }
         }
+        // v13: ECL戦名を「ECL 第X戦」→「ECL コース名」へ（生成側の命名変更に既存セーブを合わせる）。
+        // 選手詳細の出走履歴は過去シーズンのECL戦名も読むので、currentSeasonだけでなくpastSeasonsも全部直す
+        if (version < 13) {
+          const renameRaces = (races: { name: string; location: string }[]) =>
+            races.map(r => {
+              if (!/^ECL 第\d+戦$/.test(r.name)) return r
+              const course = ECL_COURSES.find(c => c.location === r.location)
+              return course ? { ...r, name: `ECL ${course.name}` } : r
+            })
+          const renameSeason = (season: Record<string, unknown>) => {
+            const series = season.eclSeries as { races?: { name: string; location: string }[] } | undefined
+            if (!series?.races) return season
+            return { ...season, eclSeries: { ...series, races: renameRaces(series.races) } }
+          }
+          if (s.currentSeason) s.currentSeason = renameSeason(s.currentSeason as Record<string, unknown>)
+          if (Array.isArray(s.pastSeasons)) s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(renameSeason)
+        }
         return s
       },
       // 古いセーブで currentSeason に欠けているフィールドを初期値で補完する。
@@ -6984,6 +7004,23 @@ export const useGameStore = create<GameStore>()(
       //   クラッシュ→ボタン無反応・進行不可になるため、ロード時に一括で埋める）
       merge: (persistedState, currentState) => {
         const p = (persistedState ?? {}) as Partial<typeof currentState>
+        // ECL戦名「ECL 第X戦」→「ECL コース名」（migrateはバージョンスタンプ済みだと走らないので、毎回ここで冪等に直す）
+        const renameEcl = <T extends { eclSeries?: { races: { name: string; location: string }[] } }>(season: T): T => {
+          if (!season?.eclSeries?.races?.some(r => /^ECL 第\d+戦$/.test(r.name))) return season
+          return {
+            ...season,
+            eclSeries: {
+              ...season.eclSeries,
+              races: season.eclSeries.races.map(r => {
+                if (!/^ECL 第\d+戦$/.test(r.name)) return r
+                const course = ECL_COURSES.find(c => c.location === r.location)
+                return course ? { ...r, name: `ECL ${course.name}` } : r
+              }),
+            },
+          }
+        }
+        if (p.currentSeason) p.currentSeason = renameEcl(p.currentSeason)
+        if (Array.isArray(p.pastSeasons)) p.pastSeasons = p.pastSeasons.map(renameEcl)
         return {
           ...currentState,
           ...p,
