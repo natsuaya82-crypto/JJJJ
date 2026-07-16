@@ -81,6 +81,35 @@ export function simulateForeignTransferMarket(params: {
     moves.push({ playerId: target.id, fromClubId: seller.id, toClubId: buyer.id })
   }
 
+  // 都落ち移籍：30歳以上でクラブ内序列が上位10から陥落した元スター/中堅が、
+  // 出場機会を求めて自クラブより平均OVRの低いクラブへ移る（年2〜4件）。
+  // 「若手台頭→ベテラン序列陥落→格下へ移籍 or 日本行き」のキャリア循環を作る
+  const declineMoved = new Set<string>()
+  const DECLINE_MOVES = 2 + Math.floor(Math.random() * 3)
+  for (let i = 0; i < DECLINE_MOVES; i++) {
+    const sellers = allClubs.filter(c => roster[c.id].length > FOREIGN_ROSTER_MIN)
+    if (sellers.length === 0) break
+    const seller = sellers[Math.floor(Math.random() * sellers.length)]
+    const sorted = roster[seller.id]
+      .map(id => playerById.get(id))
+      .filter((p): p is Player => !!p && p.status === 'active' && !movedPlayers.has(p.id))
+      .sort((a, b) => ovr(b) - ovr(a))
+    const fallen = sorted.slice(10).filter(p => p.age >= 30)
+    if (fallen.length === 0) continue
+    const target = fallen[Math.floor(Math.random() * fallen.length)]
+    // 行き先は自クラブより平均の低い（＝出番を得やすい）空きのあるクラブ。行き先の格にも届いていること
+    const dests = allClubs.filter(c =>
+      c.id !== seller.id && roster[c.id].length < ROSTER_MAX && clubAvg[c.id] < clubAvg[seller.id]
+      && effectiveOvr(target) >= foreignMinOvr(c.country ?? ''))
+    if (dests.length === 0) continue
+    const dest = dests[Math.floor(Math.random() * dests.length)]
+    roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
+    roster[dest.id] = [...roster[dest.id], target.id]
+    movedPlayers.add(target.id)
+    declineMoved.add(target.id)
+    moves.push({ playerId: target.id, fromClubId: seller.id, toClubId: dest.id })
+  }
+
   if (moves.length === 0) return { foreignLeagues, players, news: [], records: [] }
 
   // players の teamId を更新
@@ -104,7 +133,9 @@ export function simulateForeignTransferMarket(params: {
     .slice(0, 6)
     .map(({ m, p }) => ({
       date: `${year}-01-20`,
-      headline: `【海外移籍】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromClubId) ?? ''}から${nameById.get(m.toClubId) ?? ''}へ移籍`,
+      headline: declineMoved.has(p.id)
+        ? `【海外移籍】${p.name}（OVR${ovr(p)}・${p.age}歳）が出場機会を求め${nameById.get(m.fromClubId) ?? ''}から${nameById.get(m.toClubId) ?? ''}へ移籍`
+        : `【海外移籍】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromClubId) ?? ''}から${nameById.get(m.toClubId) ?? ''}へ移籍`,
       category: 'trade' as const,
       relatedIds: [p.id],
     }))
