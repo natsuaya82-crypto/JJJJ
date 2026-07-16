@@ -3,7 +3,7 @@ import { SPECIALTY_LABELS } from '../types'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 
-type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[] }
+type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[]; major?: boolean }
 // 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す
 type TxRecord = { year: number; date: string; playerId: string; fromTeamId: string; toTeamId: string; fee: number; kind?: 'free' | 'trade' }
 
@@ -230,19 +230,36 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   }))
 
   const feeStr = (v: number) => v >= 100_000_000 ? `${(v / 100_000_000).toFixed(1)}億` : `${Math.round(v / 10_000)}万`
+  // 日本より格上のリーグ（アフリカ・欧州・USA）への移籍は「日本人が世界最高峰へ挑む」大ニュースにする
+  const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'EUR', 'USA'])
+  const clubCountry = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, c.country as string])))
   const news: NewsItem[] = moves
     .map(m => ({ m, p: playerById.get(m.playerId) }))
     .filter((x): x is { m: typeof moves[0]; p: Player } => !!x.p)
     .sort((a, b) => ovr(b.p) - ovr(a.p))
     .slice(0, 6)
-    .map(({ m, p }) => ({
-      date: `${year}-01-25`,
-      headline: m.dir === 'in'
-        ? `【海外→日本】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${feeStr(m.fee)}）`
-        : `【日本→海外】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${feeStr(m.fee)}）`,
-      category: 'trade' as const,
-      relatedIds: [p.id],
-    }))
+    .map(({ m, p }) => {
+      const toStrongLeague = m.dir === 'out' && STRONG_COUNTRIES.has(clubCountry.get(m.toId) ?? '')
+      if (toStrongLeague && ovr(p) >= 76) {
+        return {
+          date: `${year}-01-25`,
+          headline: `【世界へ挑戦】${p.name}（OVR${ovr(p)}）が世界最高峰・${nameById.get(m.toId) ?? ''}へ電撃移籍！日本人ランナーの歴史的な挑戦に列島が沸く（移籍金${feeStr(m.fee)}）`,
+          category: 'trade' as const,
+          relatedIds: [p.id],
+          major: true,
+        }
+      }
+      return {
+        date: `${year}-01-25`,
+        headline: m.dir === 'in'
+          ? `【海外→日本】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${feeStr(m.fee)}）`
+          : toStrongLeague
+          ? `【日本→海外】${p.name}（OVR${ovr(p)}）が格上の${nameById.get(m.toId) ?? ''}へ移籍。世界の舞台で腕試し（移籍金${feeStr(m.fee)}）`
+          : `【日本→海外】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${feeStr(m.fee)}）`,
+        category: 'trade' as const,
+        relatedIds: [p.id],
+      }
+    })
 
   const records: TxRecord[] = moves.map(m => ({ year, date: `${year}-01-25`, playerId: m.playerId, fromTeamId: m.fromId, toTeamId: m.toId, fee: m.fee }))
   return { teams: updatedTeams, foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }

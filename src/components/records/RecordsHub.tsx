@@ -49,6 +49,22 @@ export default function RecordsHub() {
       ),
     },
     {
+      key: '/records/champions',
+      label: '歴代優勝',
+      desc: '大会別の歴代優勝チームと優勝タイム・ECLの記録',
+      countLabel: '大会別に一覧',
+      badge: 0,
+      color: C.gold,
+      shadow: '#5a4200',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+          <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M12 14v4M8 21h8M10 18h4v3h-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
       key: '/records/draft',
       label: '歴代ドラフト',
       desc: '2027年度からの歴代ドラフト指名選手',

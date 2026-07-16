@@ -403,6 +403,35 @@ export default function Dashboard() {
       ) : seasonDone ? (
         /* シーズン終了 */
         <div style={{ margin: '0 12px 16px' }}>
+          {/* ECL 世界一決定戦：最終戦後〜シーズン終了前に開催（未開催のまま次シーズンへ進むと自動開催） */}
+          <button onClick={() => navigate('/ecl')} style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 12,
+            background: `linear-gradient(180deg, ${alpha('#2ECC71', 0.16)}, ${C.surface2})`,
+            border: `2px solid ${currentSeason.eclResult ? C.border2 : '#2ECC71'}`, borderRadius: 16,
+            boxShadow: currentSeason.eclResult ? '0 3px 0 rgba(0,0,0,0.4)' : '0 4px 0 #14663a, 0 6px 16px rgba(46,204,113,0.25)',
+            padding: '14px 16px', color: C.text, fontFamily: 'inherit',
+          }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 9, color: '#2ECC71', letterSpacing: '3px', fontWeight: 900, marginBottom: 3 }}>EKIDEN CHAMPIONS LEAGUE</div>
+            {currentSeason.eclResult ? (
+              <>
+                <div style={{ fontSize: 14, fontWeight: 900 }}>
+                  世界一：{currentSeason.eclResult.standings[0]?.name ?? '—'}
+                </div>
+                <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
+                  {currentSeason.eclResult.playerRank != null ? `自チームは${currentSeason.eclResult.playerRank}位 — ` : ''}タップで結果を見る
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 900 }}>ECL 世界一決定戦</div>
+                <div style={{ fontSize: 11, color: C.textSub, marginTop: 2 }}>
+                  {myRank <= 2
+                    ? '出場権獲得！各リーグの優勝・準優勝と世界一を懸けて戦う'
+                    : '各リーグの優勝・準優勝が世界一を懸けて激突'}
+                </div>
+              </>
+            )}
+          </button>
           <div style={{
             background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
             border: `3px solid ${C.gold}`, borderRadius: 20,

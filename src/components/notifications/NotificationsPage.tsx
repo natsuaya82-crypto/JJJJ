@@ -355,6 +355,9 @@ export default function NotificationsPage() {
   const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
   const rosterOver = Math.max(0, myRosterCount - ROSTER_MAX)
 
+  // 負傷者情報：自チームの負傷中の選手（負傷名・全治・復帰までのレース数を常に表示）
+  const injuredPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'injured')
+
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
   const expiredNegotiations = currentSeason.expiredNegotiations ?? []
@@ -368,6 +371,7 @@ export default function NotificationsPage() {
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + (renewalNeeded > 0 ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
+    + (injuredPlayers.length > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers.length > 0 ? 1 : 0)
     + pendingGifts.length
@@ -573,6 +577,39 @@ export default function NotificationsPage() {
                           </div>
                         </div>
                         <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${urgent ? '#FF6B6B' : '#FFA726'})`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* 負傷者情報（負傷名・全治・復帰までのレース数） */}
+          {injuredPlayers.length > 0 && (
+            <section>
+              <SectionHead label="負傷者情報" color={C.red} count={injuredPlayers.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {injuredPlayers.map(p => {
+                  const pOvr = ovr(p)
+                  const left = p.injuredUntilRace != null ? Math.max(0, p.injuredUntilRace - raceIndex) : null
+                  return (
+                    <div key={p.id} style={cardStyle(alpha(C.red, 0.45), '#5a1010')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.red} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginTop: '2px' }}>
+                              {p.injuryName ?? '負傷'}で離脱中
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.red }}>{left != null ? `あと${left}戦` : '離脱中'}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>で復帰</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )

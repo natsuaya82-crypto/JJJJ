@@ -358,11 +358,15 @@ export function useNotifCount() {
   // ロスター超過警告（NotificationsPageと同じ基準）
   const rosterOver = Math.max(0, players.filter(p => p.teamId === playerTeamId && p.status === 'active').length - ROSTER_MAX)
 
+  // 負傷者情報（NotificationsPageと同じ基準）
+  const injuredCount = players.filter(p => p.teamId === playerTeamId && p.status === 'injured').length
+
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
   return incomingOffers + tradeOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
     + (renewalNeeded > 0 ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
+    + (injuredCount > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers > 0 ? 1 : 0)
     + pendingGifts.length

@@ -32,6 +32,8 @@ import RecordsHub from './components/records/RecordsHub'
 import RecordsPage from './components/records/RecordsPage'
 import PlayersStatsPage from './components/records/PlayersStatsPage'
 import DraftHistoryPage from './components/records/DraftHistoryPage'
+import ChampionsHistoryPage from './components/records/ChampionsHistoryPage'
+import EclPage from './components/ecl/EclPage'
 import ReserveLeaguePage from './components/reserve/ReserveLeaguePage'
 import PlayerSheet from './components/shared/PlayerSheet'
 import ContractInfoModal from './components/shared/ContractInfoModal'
@@ -176,7 +178,9 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/records/players" element={<PlayersStatsPage />} />
           <Route path="/records/draft" element={<DraftHistoryPage />} />
           <Route path="/records/draft/:year" element={<DraftHistoryPage />} />
+          <Route path="/records/champions" element={<ChampionsHistoryPage />} />
           <Route path="/records/:section" element={<Placeholder title="coming soon" />} />
+          <Route path="/ecl" element={<EclPage />} />
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/sponsors" element={<SponsorPage />} />
           <Route path="/reserve" element={<ReserveLeaguePage />} />

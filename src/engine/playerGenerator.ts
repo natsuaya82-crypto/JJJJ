@@ -860,16 +860,16 @@ export function generateCpuRosters(
       const p = makePlayer(RANK_UP[rankForSalary(sal)], i, team.id, 'main', isForeign, 'standard', sal)
       cpuPlayers.push(p); mainIds.push(p.id)
     }
-    // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）
+    // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）。控えも一段引き上げてプロ水準に
     for (let i = 0; i < 3; i++) {
       const sal = salaries[12 + i]
-      const p = makePlayer(rankForSalary(sal), 12 + i, team.id, 'main', false, 'dual', sal)
+      const p = makePlayer(RANK_UP[rankForSalary(sal)], 12 + i, team.id, 'main', false, 'dual', sal)
       cpuPlayers.push(p); dualIds.push(p.id)
     }
-    // 育成(development) 13人（国内・年俸下位）
+    // 育成(development) 13人（国内・年俸下位）。最低ランクだと50前後に密集するので一段引き上げる
     for (let i = 0; i < 13; i++) {
       const sal = salaries[15 + i]
-      const p = makePlayer(rankForSalary(sal), i, team.id, 'second', false, 'development', sal)
+      const p = makePlayer(RANK_UP[rankForSalary(sal)], i, team.id, 'second', false, 'development', sal)
       cpuPlayers.push(p); secondIds.push(p.id)
     }
 

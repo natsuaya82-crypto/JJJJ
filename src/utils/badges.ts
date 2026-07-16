@@ -6,7 +6,7 @@ import type { Player, GameState, SegmentRecord, EventDistKey } from '../types'
 export type PlayerBadge = {
   key: string      // 一意キー（Player.displayBadge に保存する値）
   label: string    // 表示名（例: 5000m日本記録 / 東北桜駅伝3区区間記録 / 2027年度MVP）
-  kind: 'world' | 'japan' | 'mvp' | 'rookie' | 'segment'
+  kind: 'world' | 'japan' | 'cl' | 'mvp' | 'rookie' | 'segment'
 }
 
 const DIST_LABEL: Record<EventDistKey, string> = {
@@ -17,12 +17,13 @@ const DIST_KEYS: EventDistKey[] = ['d5000', 'd10000', 'half', 'marathon']
 export const BADGE_COLOR: Record<PlayerBadge['kind'], string> = {
   world: '#FF5C8A',    // 世界記録: ピンクレッド
   japan: '#F5C842',    // 日本記録: 金
+  cl: '#2ECC71',       // ECL制覇: エメラルド
   mvp: '#F5C842',      // MVP: 金
   rookie: '#4FC3F7',   // 新人王: 水色
   segment: '#C9A84C',  // 区間記録: 落ち着いた金
 }
 
-type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'seasonAwards'> & {
+type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'seasonAwards' | 'eclHistory'> & {
   segmentRecords?: Record<string, SegmentRecord[]>
 }
 
@@ -39,6 +40,11 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     if (src.japanRecords?.[d]?.playerId === p.id) {
       out.push({ key: `jr-${d}`, label: `${DIST_LABEL[d]}日本記録`, kind: 'japan' })
     }
+  }
+  // ECL制覇：優勝チームで出走した選手に付く（世界一メンバーの証）。MVPは大会で最も突出した走り
+  for (const e of src.eclHistory ?? []) {
+    if (e.winnerPlayerIds.includes(p.id)) out.push({ key: `ecl-${e.year}`, label: `${e.year}年ECL制覇`, kind: 'cl' })
+    if (e.mvpPlayerId === p.id) out.push({ key: `eclmvp-${e.year}`, label: `${e.year}年ECL MVP`, kind: 'cl' })
   }
   for (const a of src.seasonAwards ?? []) {
     if (a.mvpId === p.id) out.push({ key: `mvp-${a.year}`, label: `${a.year}年度MVP`, kind: 'mvp' })

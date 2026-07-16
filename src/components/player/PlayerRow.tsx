@@ -46,8 +46,10 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   const japanRecords = useGameStore(s => s.japanRecords)
   const seasonAwards = useGameStore(s => s.seasonAwards)
   const segmentRecords = useGameStore(s => s.segmentRecords)
+  const eclHistory = useGameStore(s => s.eclHistory)
   const playerTeamId = useGameStore(s => s.playerTeamId)
-  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords }, 99)
+  const raceIdx = useGameStore(s => s.currentSeason.currentRaceIndex)
+  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory }, 99)
   const displayBadge = player.displayBadge
     ? badgeList.find(b => b.key === player.displayBadge)
     // 相手チームの選手は自分でパッチを選べないので、優先順（世界記録>日本記録>MVP>新人王>区間記録）の最上位を自動表示
@@ -93,7 +95,11 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
               </span>
               {displayBadge && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: `linear-gradient(180deg, ${BADGE_COLOR[displayBadge.kind]}2E, ${BADGE_COLOR[displayBadge.kind]}14)`, border: `1px solid ${alpha(BADGE_COLOR[displayBadge.kind], 0.5)}`, color: BADGE_COLOR[displayBadge.kind], fontWeight: 900, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>{displayBadge.label}</span>}
               {player.nationality === 'FOREIGN' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: C.blue, fontWeight: 700, flexShrink: 0 }}>外</span>}
-              {player.status === 'injured' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.09), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>負傷</span>}
+              {player.status === 'injured' && (() => {
+                // 復帰までの残りレース数を明記（injuredUntilRace は「このレース消化後に復帰」のindex）
+                const left = player.injuredUntilRace != null ? Math.max(0, player.injuredUntilRace - raceIdx) : null
+                return <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.09), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>負傷{left != null ? ` あと${left}戦` : ''}</span>
+              })()}
               {player.dualRegistered && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.25)}`, color: C.green, fontWeight: 700, flexShrink: 0 }}>両方</span>}
               {ctType === 'development' && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.cyan, 0.08), border: `1px solid ${alpha(C.cyan, 0.25)}`, color: C.cyan, fontWeight: 700, flexShrink: 0 }}>育成</span>}
               {loanOwner && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px 1px 3px', borderRadius: 3, backgroundColor: alpha('#AB8ED6', 0.14), border: `1px solid ${alpha('#AB8ED6', 0.45)}`, color: '#C4AEE8', fontWeight: 700, flexShrink: 0 }}><TeamLogoSVG primary={loanOwner.colors.primary} secondary={loanOwner.colors.secondary} shortName={loanOwner.shortName} teamId={loanOwner.id} size={11} />レンタル</span>}

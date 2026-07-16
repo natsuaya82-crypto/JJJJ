@@ -130,6 +130,7 @@ export default function PlayerSheet() {
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
   const seasonAwards = useGameStore(s => s.seasonAwards)
+  const eclHistory = useGameStore(s => s.eclHistory)
   const setDisplayBadge = useGameStore(s => s.setDisplayBadge)
   const adH = useAdHeight()
   const navigate = useNavigate()
@@ -220,7 +221,7 @@ export default function PlayerSheet() {
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
   // 記録パッチ（最大5個・優先順: 世界>日本>MVP>新人王>区間記録）
-  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords })
+  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory })
   const handleShare = async () => {
     if (!shareCardRef.current) return
     try {
@@ -272,10 +273,12 @@ export default function PlayerSheet() {
     processRaces(ps.races, ps.year)
     processRaces(ps.secondTeamRaces ?? [], ps.year)   // リザーブ駅伝の結果も履歴に含める
     processRaces(ps.collegeRaces ?? [], ps.year)
+    processRaces(ps.eclRace?.results ? [ps.eclRace] : [], ps.year)   // ECLの出走も駅伝データに含める
   }
   processRaces(currentSeason.races, currentSeason.year)
   processRaces(currentSeason.secondTeamRaces ?? [], currentSeason.year)
   processRaces(currentSeason.collegeRaces ?? [], currentSeason.year)
+  processRaces(currentSeason.eclRace?.results ? [currentSeason.eclRace] : [], currentSeason.year)
 
   // 2軍駅伝は年ごとに開催大会が入れ替わるため、「このセーブで実際に開催されたことのある大会」だけを一覧に出す
   // （未出場の開催大会は空欄で並ぶ。プールにあるだけで一度も開催されていない大会は出さない）
@@ -310,9 +313,11 @@ export default function PlayerSheet() {
   for (const ps of pastSeasons) {
     addHistory(ps.year, 'main', ps.races)
     addHistory(ps.year, 'second', ps.secondTeamRaces)
+    addHistory(ps.year, 'main', ps.eclRace?.results ? [ps.eclRace] : [])   // ECL出走も出場数に含める
   }
   addHistory(currentSeason.year, 'main', currentSeason.races)
   addHistory(currentSeason.year, 'second', currentSeason.secondTeamRaces)
+  addHistory(currentSeason.year, 'main', currentSeason.eclRace?.results ? [currentSeason.eclRace] : [])
   // 海外リーグの出場（国内レースには出ないので foreignAppearances から年×クラブで積む）
   const addForeignHistory = (year: number, appMap: Record<string, { clubId: string; races: number; wins: number }> | undefined) => {
     const a = appMap?.[player.id]
@@ -609,6 +614,22 @@ export default function PlayerSheet() {
                   })}
                 </div>
               </div>}
+
+              {/* ECL（出走歴がある選手だけ表示）。1軍駅伝とリザーブの間に置く */}
+              {!isProspect && (raceGroupMap.get('ECL 世界一決定戦') ?? []).length > 0 && (
+                <div>
+                  <div style={{ fontSize: '9px', fontWeight: '800', color: '#2ECC71', letterSpacing: '2px', marginBottom: '6px' }}>ECL</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                    <div onClick={() => openRaceDetail('ECL 世界一決定戦')} style={{
+                      padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(46,204,113,0.35)', backgroundColor: '#14121F',
+                      cursor: 'pointer', textAlign: 'center', minHeight: 44,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>ECL 世界一決定戦</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 2軍 races（ドラフト候補では非表示。加入後は通常詳細に切り替わり表示される） */}
               {!isProspect && reserveRaceNames.length > 0 && (

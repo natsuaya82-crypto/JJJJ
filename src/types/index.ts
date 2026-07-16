@@ -221,6 +221,7 @@ export type Player = {
   rosterTier: RosterTier
   dualRegistered?: boolean
   injuredUntilRace?: number   // race index until player is available (injury system)
+  injuryName?: string         // 負傷名（通知・ニュース表示用。復帰で消える）
   segmentPBs?: SegmentPB[]   // personal best times per terrain profile
   contract: {
     yearsLeft: number
@@ -440,12 +441,32 @@ export type EclStanding = {
   leagueName: string
   colors: { primary: string; secondary: string }
   points: number
+  timeSec?: number   // 一発勝負の総合タイム（順位はこの昇順）
 }
 export type EclResult = {
   year: number
   championId: string
-  standings: EclStanding[]           // 勝点降順
+  standings: EclStanding[]           // タイム昇順（=最終順位）
   races: { name: string; raceId: string }[]
+  courseName?: string                // 開催コース（10コースからランダム）
+  location?: string
+  courseCharacter?: string
+  raceResults?: RaceResults          // 一発勝負の全区間結果（結果画面用）
+  winnerPlayerIds?: string[]         // 優勝チームの出走メンバー（記録パッチ付与用）
+  mvpPlayerId?: string               // 大会MVP（区間で最も突出した走りをした選手）
+  playerRank?: number                // 自チームの最終順位（不出場は undefined）
+  prize?: number                     // 自チームが得た賞金
+}
+
+// ECLの歴代記録（シーズンをまたいで永続。優勝パッチと記録室の歴代優勝で使う）
+export type EclHistoryEntry = {
+  year: number
+  championId: string
+  championName: string
+  courseName: string
+  timeSec: number
+  winnerPlayerIds: string[]
+  mvpPlayerId?: string   // ECL MVP（パッチ付与用）
 }
 
 export type NationalTeam = {
@@ -642,6 +663,8 @@ export type Season = {
   // 在籍履歴は出走記録から行を作るため、これが無いと出なかった年の所属が消える
   zeroAppearances?: { playerId: string; teamId: string; tier: 'main' | 'second' }[]
   eclResult?: EclResult                                  // ECL開催結果（ポストシーズンに1回）
+  eclRace?: Race                                         // 今季のECL開催レース（コース・天候を事前確定して区間配置で見せる）
+  eclCourseId?: string                                   // 開催コースのid（10コースからランダム）
   expiredNegotiations?: { id: string; playerId: string; playerName: string }[]
   // フリー移籍（移籍金0の接触）の決断結果。left=移籍した/false=残留。確認で消す
   freeTransferNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[]
@@ -774,6 +797,10 @@ export type GameState = {
   worldRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 世界記録（全選手の歴代1位）
   japanRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 日本記録（JPN選手の歴代1位）
   seasonAwards?: SeasonAward[]   // 年度別MVP・新人王（選手プロフィールのパッチ表示用）
+  eclHistory?: EclHistoryEntry[]   // ECLの歴代優勝（優勝パッチ・記録室の歴代優勝表示用）
+  // 記録会のシーズン別上位記録（歴代優勝ページ用の軽量アーカイブ。記録会全結果はシーズン終了で
+  // 破棄されるため、種目別トップ10だけ名前焼き込みで永続する）
+  eventSeasonTops?: { year: number; dist: EventDistKey; top: { playerId: string; playerName: string; teamId: string; timeSec: number }[] }[]
   adsRemoved?: boolean   // 買い切り版（広告なし・ログインボーナス常時2倍）を購入済みか
   twitterIntroSeen?: boolean   // 公式Xフォロー案内ポップを一度表示済みか（初回起動のみ表示）
 }
