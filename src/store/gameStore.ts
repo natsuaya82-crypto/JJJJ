@@ -157,6 +157,21 @@ function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFr
   return Math.round(desired / 500000) * 500000
 }
 
+// 世界記録・日本記録の初期ベースライン（架空の歴代保持者）。
+// これより速く走らないと記録扱いにならない。保持者は実在選手ではないのでバッジは誰にも付かない
+const BASELINE_WORLD_RECORDS: NonNullable<GameState['worldRecords']> = {
+  d5000:    { playerId: '', playerName: '（歴代記録）', timeSec: 12 * 60 + 50, year: 2020 },   // 12:50
+  d10000:   { playerId: '', playerName: '（歴代記録）', timeSec: 26 * 60 + 30, year: 2020 },   // 26:30
+  half:     { playerId: '', playerName: '（歴代記録）', timeSec: 58 * 60 + 30, year: 2020 },   // 58:30
+  marathon: { playerId: '', playerName: '（歴代記録）', timeSec: 2 * 3600 + 2 * 60, year: 2020 }, // 2:02:00
+}
+const BASELINE_JAPAN_RECORDS: NonNullable<GameState['japanRecords']> = {
+  d5000:    { playerId: '', playerName: '（歴代記録）', timeSec: 13 * 60 + 10, year: 2020 },   // 13:10
+  d10000:   { playerId: '', playerName: '（歴代記録）', timeSec: 27 * 60 + 20, year: 2020 },   // 27:20
+  half:     { playerId: '', playerName: '（歴代記録）', timeSec: 60 * 60 + 30, year: 2020 },   // 1:00:30
+  marathon: { playerId: '', playerName: '（歴代記録）', timeSec: 2 * 3600 + 5 * 60 + 30, year: 2020 }, // 2:05:30
+}
+
 // 補強禁止判定：前季までの連続赤字ペナルティ中、または現在の残高がマイナスの間は
 // 新規補強（FA・移籍金・引き抜き・レンタル・海外獲得）を止める。ドラフト・契約更新は可。
 export function reinforcementBanned(team: { finance: { budget: number; deficitStreak?: number } } | undefined): boolean {
@@ -526,6 +541,10 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     starredOpponents: [],
     starredProspects: [],
     segmentRecords: {},
+    // 世界記録・日本記録は現実的なベースラインから始める。
+    // これが無いと「セーブ内で一番速いだけの平凡なタイム」が日本記録扱いになる
+    worldRecords: BASELINE_WORLD_RECORDS,
+    japanRecords: BASELINE_JAPAN_RECORDS,
     transferHistory: [],
     lastLoginDate: undefined as unknown as string,
     loginStreak: undefined as unknown as number,
@@ -1775,6 +1794,29 @@ export const useGameStore = create<GameStore>()(
               })
             : teamsAfterLoan
 
+          // シーズン最終戦なら、表彰（MVP/新人王）と引退表明を「そのシーズンのニュース」として流す
+          // （実際の引退・表彰の確定処理は次シーズン開幕時のまま。発表だけ前倒しして年内に見えるようにする）
+          const isFinalRace = raceIndex + 1 >= state.currentSeason.races.length
+          const seasonEndNews: typeof newsItems = []
+          if (isFinalRace) {
+            const award = computeSeasonAwards(updatedRaces, finalPlayers, state.currentSeason.year)
+            const mvpP = award.mvpId ? finalPlayers.find(p => p.id === award.mvpId) : undefined
+            const rookieP = award.rookieId ? finalPlayers.find(p => p.id === award.rookieId) : undefined
+            if (mvpP) seasonEndNews.push({ date: race.date, headline: `【シーズンMVP】${state.teams.find(t => t.id === mvpP.teamId)?.shortName ?? ''}の${mvpP.name}が受賞`, category: 'race' as const, relatedIds: [mvpP.id] })
+            if (rookieP) seasonEndNews.push({ date: race.date, headline: `【新人王】${state.teams.find(t => t.id === rookieP.teamId)?.shortName ?? ''}の${rookieP.name}が受賞`, category: 'race' as const, relatedIds: [rookieP.id] })
+            // 引退表明（次シーズン開幕時の引退判定と同じ決定式を1歳先で評価）。自チームは全員、他チームは実力者を上位6人まで
+            const idHashN = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h }
+            const retAgeN = (p: Player) => { const o = ovr(p); const bonus = o >= 80 ? 2 : o >= 72 ? 1 : 0; return Math.min(40, 32 + (idHashN(p.id) % 7) + bonus) }
+            const domesticIdsRet = new Set(state.teams.map(t => t.id))
+            const retiring = finalPlayers.filter(p => p.status === 'active' && domesticIdsRet.has(p.teamId) && (p.age + 1) >= retAgeN(p))
+            const mineRet = retiring.filter(p => p.teamId === playerTeamId)
+            const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort((a, b) => ovr(b) - ovr(a)).slice(0, 6)
+            for (const p of [...mineRet, ...othersRet]) {
+              const tn = state.teams.find(t => t.id === p.teamId)?.shortName ?? ''
+              seasonEndNews.push({ date: race.date, headline: `【引退表明】${tn}の${p.name}（${p.age}歳）が今季限りでの現役引退を表明`, category: 'race' as const, relatedIds: [p.id] })
+            }
+          }
+
           return {
             players: playersAfterFreeMoves,
             teams: teamsAfterFreeMoves,
@@ -1803,7 +1845,7 @@ export const useGameStore = create<GameStore>()(
               objectives: updatedObjectives,
               scoutMissions: activeMissions,
               scoutProspects: updatedScoutProspects,
-              newsFeed: [...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
+              newsFeed: [...seasonEndNews, ...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
               events: [...(state.currentSeason.events ?? []), ...newEvents],
               pendingTradeOffers: [...existingTrades, ...newTradeOffers],
               transferListings: transferData.listings,
@@ -4516,12 +4558,14 @@ export const useGameStore = create<GameStore>()(
           .sort((a, b) => ageAdjOvr(b) - ageAdjOvr(a))
         const signedFAIds = new Set<string>()
         const cpuSignings: { playerId: string; teamId: string; num: number }[] = []
-        // Elite teams pick first
+        // Elite teams pick first（同格内は毎年シャッフル＝特定チームだけが毎年良いFAを総取りしないように）
+        const tierJitter = new Map(teamsAfterCpuTransfer.map(t => [t.id, Math.random()]))
         const cpuTeamsSorted = teamsAfterCpuTransfer
           .filter(t => t.id !== state.playerTeamId)
           .sort((a, b) => {
             const order = { elite: 0, mid: 1, weak: 2 }
-            return order[cpuTeamTier(a.id, playersAfterCpuTransfer)] - order[cpuTeamTier(b.id, playersAfterCpuTransfer)]
+            const d = order[cpuTeamTier(a.id, playersAfterCpuTransfer)] - order[cpuTeamTier(b.id, playersAfterCpuTransfer)]
+            return d !== 0 ? d : (tierJitter.get(a.id)! - tierJitter.get(b.id)!)
           })
         // 前年順位（運用方針・予算の基準）
         const lastStandings = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
@@ -4553,8 +4597,8 @@ export const useGameStore = create<GameStore>()(
           const foreignOnTeam = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
           const usedNums = new Set<number>()
           let foreignSigned = 0, signed = 0
-          // contendはベテランも可、rebuildは若手のみ。35歳以上とは原則契約しない
-          const ageCap = strat === 'contend' ? 35 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 32 : 34)
+          // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
+          const ageCap = strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33)
           // 総在籍24人未満の間は予算に関係なく最低限補強（戦力崩壊防止）。それ以上は予算内でのみ
           const budgetOk = (fa: Player) => (totalNow + signed) < 24 || (spent + estCost(fa) <= spendable)
           const canSign = (fa: Player) =>
@@ -4788,9 +4832,12 @@ export const useGameStore = create<GameStore>()(
           // これが無いと「元契約残り1年の選手を2年レンタル」した場合に、1年目の終わりでFA化して
           // 借り手からも保有元からも消える（＝2年契約が1年で消える）バグになる。
           // 満了は返却後、保有元チーム側で改めて処理される
+          // 契約満了FA化は「国内リーグ所属」だけが対象。海外クラブの選手を含めると
+          // クラブ名簿に残ったまま teamId だけ '' になり「未所属」表示のバグになる（海外の名簿は海外リーグ側の更新で管理）
+          const domesticIdsFA = new Set(state.teams.map(t => t.id))
           const expiredIds = new Set(
             grownPlayers
-              .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && p.teamId !== '__pool__' && contractOwner(p) !== state.playerTeamId && p.status === 'active')
+              .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && domesticIdsFA.has(p.teamId) && contractOwner(p) !== state.playerTeamId && p.status === 'active')
               .map(p => p.id)
           )
           // Player-team expiring players: queued for user decision
@@ -5299,23 +5346,7 @@ export const useGameStore = create<GameStore>()(
             existing: state.achievements ?? [],
           })
 
-          // 選出基準（平均区間順位）は内部の話なのでニュースには出さない。誰が選ばれたかだけ伝える
-          const mvpNews = leagueMvpPlayer
-            ? [{
-                date: `${state.currentSeason.year}-10-28`,
-                headline: `${state.currentSeason.year}シーズンMVP：${leagueMvpPlayer.name}`,
-                category: 'race' as const,
-                relatedIds: [leagueMvpPlayer.id],
-              }]
-            : []
-          const rookieNews = rookiePlayer
-            ? [{
-                date: `${state.currentSeason.year}-10-28`,
-                headline: `${state.currentSeason.year}シーズン新人王：${rookiePlayer.name}`,
-                category: 'race' as const,
-                relatedIds: [rookiePlayer.id],
-              }]
-            : []
+          // MVP/新人王ニュースはシーズン最終戦の直後（そのシーズンのニュース）で流すため、ここでは出さない（二重表示防止）
 
           // 在籍履歴（(L)レンタル）用：現在レンタル中の選手について、この年その所属チームでの出場記録を追記
           const seasonYear = state.currentSeason.year
@@ -5554,8 +5585,6 @@ export const useGameStore = create<GameStore>()(
                 seasonPrizeNews,
                 ...pickPenaltyNews,
                 ...(objBonus > 0 ? [{ date: `${state.currentSeason.year}-11-01`, headline: `目標達成ボーナス：スカウトPt+${objBonus}・予算+${Math.round(objBudgetBonus / 10000)}万`, category: 'draft' as const, relatedIds: [] }] : []),
-                ...mvpNews,
-                ...rookieNews,
                 ...dynastyNews,
                 ...retirementNews,
                 ...bonusPayoutNews,
@@ -6314,6 +6343,35 @@ export const useGameStore = create<GameStore>()(
             foreignLeagues: leagues,
             giftGivenVersions: [...(state.giftGivenVersions ?? []), ID_MARK],
           }
+        })
+        // 世界記録・日本記録がベースラインより遅い（＝初期記録なしで平凡なタイムが記録扱いされていた）
+        // 既存セーブを毎起動で是正する。ベースラインより速い正当な記録はそのまま
+        set(state => {
+          const fix = (cur: GameState['worldRecords'], base: NonNullable<GameState['worldRecords']>) => {
+            let changed = false
+            const out = { ...(cur ?? {}) }
+            for (const k of ['d5000', 'd10000', 'half', 'marathon'] as const) {
+              const c = out[k]
+              if (!c || c.timeSec > base[k]!.timeSec) { out[k] = base[k]; changed = true }
+            }
+            return { out, changed }
+          }
+          const w = fix(state.worldRecords, BASELINE_WORLD_RECORDS)
+          const j = fix(state.japanRecords, BASELINE_JAPAN_RECORDS)
+          if (!w.changed && !j.changed) return state
+          return { worldRecords: w.out, japanRecords: j.out }
+        })
+        // 海外クラブの名簿に載っているのに teamId が ''（未所属）になった選手を復元する
+        // （旧バージョンで契約満了FA化が海外選手にも効いてしまっていたセーブの救済）
+        set(state => {
+          const clubByPlayer = new Map<string, string>()
+          for (const l of (state.foreignLeagues ?? [])) for (const c of l.clubs) for (const pid of c.playerIds) clubByPlayer.set(pid, c.id)
+          let changed = false
+          const players = state.players.map(p => {
+            if (p.teamId === '' && p.status === 'active' && clubByPlayer.has(p.id)) { changed = true; return { ...p, teamId: clubByPlayer.get(p.id)!, faSinceYear: undefined } }
+            return p
+          })
+          return changed ? { players } : state
         })
         // 二重所属の掃除：国内チームに所属している選手が海外クラブの名簿にも残っている「増殖」を毎起動で是正する
         // （FA/引き抜き獲得が海外名簿から除去し損ねていた既存セーブの救済。冪等で軽いので毎回実行）
@@ -7137,14 +7195,18 @@ function growPlayer(p: Player, allowAnnualGrowth = false): Player {
   const caps = getStatPotentials({ ...p, potential })  // 減衰後の上限で頭打ち
 
   // CPU/海外の年次成長：成長期(ピーク前)のみ、各能力を上限へ向けて少しずつ。
-  // 高数値ほど伸びにくく（80台は特に遅い）、potentialが高いほど速い＝プレイヤーと同じ難度。
+  // カーブは初期生成(bakeAgeGrowth)と同一に揃える。以前は80以上でほぼ停止するカーブだったため、
+  // ポテンシャル85級の新人が72前後で頭打ちになり、初期生成の強い世代が引退する7〜8年目に
+  // リーグのエース層(OVR85+)が枯れて「同じメンバーで余裕で勝てる」状態になっていた
   if (allowAnnualGrowth && nextAge < peakAge) {
-    const potFactor = potential >= 87 ? 1.4 : potential >= 75 ? 1.0 : 0.6
+    // 高ポテンシャル(87+)の伸びを強化(1.8)：エース級(85+)の定常在庫が約18人・80+が約85人
+    // ＝強豪CPUで80超が7〜8人並び、カード育成したプレイヤーのチームと張り合える水準（世代シムで検証済み）
+    const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.0 : 0.6
     for (const stat of GROW_KEYS) {
       const cur = ratings[stat]
       const cap = caps[stat]
       if (cur >= cap) continue
-      const diff = cur >= 80 ? 0.35 : cur >= 70 ? 0.6 : 1.0
+      const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
       const gain = Math.round(rnd(0, 2) * potFactor * diff)
       if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
     }

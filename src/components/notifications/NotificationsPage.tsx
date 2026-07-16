@@ -317,7 +317,8 @@ export default function NotificationsPage() {
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId))
   // フリー移籍で接触中の選手の契約要求は出さない（接触カードに一本化。用件の二重表示を防ぐ）
   const contactedPlayerIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
+  // 退団予定（移籍リスト入り）の選手は契約更新の対象外なので数えない
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active' && !p.transferListed))
   // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
   const sponsorSlotsLeft = 3 - (teams.find(t => t.id === playerTeamId)?.sponsors?.length ?? 0)
   const sponsorOffers = sponsorSlotsLeft > 0 ? (currentSeason.sponsorOffers ?? []) : []

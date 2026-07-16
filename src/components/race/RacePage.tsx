@@ -246,9 +246,8 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
 
         </div>
         <div style={{ position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 10px', background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`, zIndex: 35 }}>
-          <button onClick={onDone}
-            style={{ width: '100%', padding: 15, borderRadius: 12, border: 'none', background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>
-            ホームに戻る
+          <button className="btn-game btn-game--gold" onClick={onDone} style={{ width: '100%' }}>
+            <span className="btn-game__inner">ホームに戻る</span>
           </button>
         </div>
         </>

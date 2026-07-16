@@ -64,7 +64,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId))
   const contactedIdsP = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsP.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active'))
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsP.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active' && !p.transferListed))
   const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
     + pendingGifts.length
@@ -330,7 +330,7 @@ export function useNotifCount() {
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId)).length
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId)).length
   const contactedIdsC = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsC.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')).length
+  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsC.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active' && !p.transferListed)).length
   // スポンサー枠（3）が満杯なら数えない（NotificationsPageと同じ基準）
   const sponsorSlotsLeftN = 3 - (teams.find(t => t.id === playerTeamId)?.sponsors?.length ?? 0)
   const sponsorOffers = sponsorSlotsLeftN > 0 ? (currentSeason.sponsorOffers ?? []).length : 0

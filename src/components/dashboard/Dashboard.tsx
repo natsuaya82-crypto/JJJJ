@@ -12,7 +12,6 @@ import { SectionLabel } from '../ui'
 import HeroCard from './HeroCard'
 import KeyPlayersSection from './KeyPlayersSection'
 import NextRaceCard from './NextRaceCard'
-import SeasonReviewOverlay from './SeasonReviewOverlay'
 import { computeSeasonAwards } from '../../utils/awards'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
@@ -275,16 +274,14 @@ export default function Dashboard() {
   } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const navigate = useNavigate()
-  // シーズン振り返りオーバーレイ。「次のシーズンへ」でインタースティシャル広告→シーズン更新
-  const [showReview, setShowReview] = useState(false)
   useEffect(() => {
     initObjectivesIfEmpty()
   }, [])
   const team = teams.find(t => t.id === playerTeamId)
   if (!team) return null
 
+  // 「次のシーズンへ」でインタースティシャル広告→シーズン更新
   const goNextSeason = async () => {
-    setShowReview(false)
     if (!adsRemoved) await showInterstitialAd()
     runWithLoading('シーズンを更新中…', endSeason, 800)
   }
@@ -333,8 +330,6 @@ export default function Dashboard() {
 
   return (
     <div className="page-enter" style={{ paddingBottom: 8 }}>
-      {showReview && <SeasonReviewOverlay onClose={() => setShowReview(false)} onNextSeason={goNextSeason} />}
-
 
       {/* ── HERO ── */}
       <HeroCard
@@ -477,14 +472,6 @@ export default function Dashboard() {
                   契約未解決の選手が{unresolvedMandatoryCount}人います — 契約管理で対応してください
                 </div>
               )}
-              {/* 今シーズンの振り返り（全駅伝結果・記録更新・大型移籍など） */}
-              <button
-                className="btn-game btn-game--blue"
-                onClick={() => setShowReview(true)}
-                style={{ width: '100%', marginBottom: 10 }}
-              >
-                <span className="btn-game__inner">今シーズンの振り返り</span>
-              </button>
               <button
                 className="btn-game btn-game--gold"
                 onClick={goNextSeason}
