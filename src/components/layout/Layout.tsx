@@ -41,7 +41,7 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    to: '/teams', label: '他チーム',
+    to: '/teams', label: 'リーグ',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>

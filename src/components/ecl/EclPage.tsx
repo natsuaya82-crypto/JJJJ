@@ -5,8 +5,9 @@ import type { Race, RaceResults, Team } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
 import { ReserveSimPhase } from '../reserve/ReserveLeaguePage'
-import { TeamLogoSVG } from '../icons/Icons'
+import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import PlayerFace from '../player/PlayerFace'
+import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
 import { C, alpha } from '../../styles/tokens'
 
@@ -247,29 +248,48 @@ export default function EclPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900 }}>{lockedRace.name}（{lockedRace.location}）</div>
           </div>
         </div>
-        <div style={{ padding: '8px 14px 0' }}>
-          <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+        <div style={{ padding: '8px 12px 0' }}>
+          <div style={{ borderRadius: '14px', overflow: 'hidden', border: `2px solid ${C.goldDark}`, boxShadow: '0 6px 0 #5a3500, 0 10px 28px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.08)', position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.25)', borderRadius: 10, pointerEvents: 'none', zIndex: 1 }}/>
+            <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 40px 74px', gap: '4px', padding: '7px 12px', background: C.surface3, borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700' }}>#</span>
+              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>
+              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', textAlign: 'center' }}>獲得pt</span>
+              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', textAlign: 'right' }}>タイム</span>
+            </div>
             {[...results.teamRankings].sort((a, b) => a.rank - b.rank).map((tr, i, arr) => {
               const t = teamById2.get(tr.teamId)
               const isMe = tr.teamId === playerTeamId
               const diff = tr.totalTimeSec - arr[0].totalTimeSec
+              const rankColor = i === 0 ? C.gold : i <= 2 ? C.textSub : C.textGhost
               return (
                 <button key={tr.teamId} onClick={() => setViewTeamId(tr.teamId)} style={{
-                  display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px', width: '100%', cursor: 'pointer', textAlign: 'left',
-                  background: isMe ? alpha(C.gold, 0.1) : i % 2 === 0 ? C.surface : 'transparent',
+                  display: 'grid', gridTemplateColumns: '28px 1fr 40px 74px', gap: '4px', padding: '9px 12px', width: '100%', cursor: 'pointer', textAlign: 'left',
+                  background: isMe ? alpha(t?.colors.primary ?? C.blue, 0.1) : i % 2 === 0 ? C.surface2 : C.surface,
                   border: 'none', borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
-                  color: C.text, fontFamily: SAIRA,
+                  borderLeft: isMe ? `3px solid ${t?.colors.primary ?? C.blue}` : '3px solid transparent',
+                  color: C.text, fontFamily: SAIRA, alignItems: 'center',
                 }}>
-                  <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: tr.rank === 1 ? C.gold : tr.rank <= 3 ? C.textSub : C.textGhost }}>{tr.rank}</span>
-                  {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={20} />}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t?.name ?? '—'}</div>
-                    <div style={{ fontSize: 8, color: C.textGhost }}>{t?.leagueName ?? ''}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {tr.rank === 1 ? (
+                      <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>★</span>
+                    ) : (
+                      <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor }}>{tr.rank}</span>
+                    )}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: tr.rank === 1 ? C.gold : C.textSub }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                    {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={24} />}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t?.name ?? '—'}{isMe && <span style={{ marginLeft: '4px', fontSize: '8px', color: t?.colors.primary ?? C.blue }}>自</span>}
+                      </div>
+                      <div style={{ fontSize: '8px', color: C.textGhost }}>{t?.leagueName ?? ''}</div>
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: 800, color: C.green, textAlign: 'center' }}>+{tr.positionPoints + tr.segmentPoints}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: 800, color: tr.rank === 1 ? C.gold : C.textSub, textAlign: 'right' }}>
                     {tr.rank === 1 ? formatRaceTime(tr.totalTimeSec) : `+${formatRaceTime(diff)}`}
                   </span>
-                  <span style={{ color: C.textGhost, fontSize: 14 }}>›</span>
                 </button>
               )
             })}
@@ -284,6 +304,7 @@ export default function EclPage() {
     <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
       <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton/>
+        <LeagueLogoSVG leagueId="ecl" size={36} />
         <div>
           <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>EKIDEN CHAMPIONS LEAGUE</div>
           <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900 }}>ECL {currentSeason.year}</div>
@@ -337,26 +358,16 @@ export default function EclPage() {
         </div>
       )}
 
-      {/* シリーズ順位表（累計ポイント） */}
-      <div style={{ margin: '0 14px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
-        <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-          {standings.map((s, i) => (
-            <div key={s.id} style={{
-              display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px',
-              background: s.isPlayerTeam ? alpha(C.gold, 0.1) : i % 2 === 0 ? C.surface : 'transparent',
-              borderBottom: i < standings.length - 1 ? `1px solid ${C.border}` : 'none',
-            }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: i === 0 ? C.gold : i < 3 ? C.textSub : C.textGhost }}>{i + 1}</span>
-              <TeamLogoSVG primary={s.colors.primary} secondary={s.colors.secondary} shortName={s.shortName} teamId={s.id} size={22} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: s.isPlayerTeam ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-                <div style={{ fontSize: 8, color: C.textGhost }}>{s.leagueName}</div>
-              </div>
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: i === 0 ? C.gold : C.textSub }}>{s.points}<span style={{ fontSize: 9, color: C.textGhost }}>pt</span></span>
-            </div>
-          ))}
-        </div>
+      {/* シリーズ順位表（JPEL順位表と同じ共通コンポーネント） */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8, padding: '0 14px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
+        <StandingsTable rows={standings.map((s): StandRow => ({
+          id: s.id, name: s.name, shortName: s.shortName,
+          primary: s.colors.primary, secondary: s.colors.secondary, teamId: s.id,
+          points: s.points,
+          recentForm: series.races.filter(r => r.results).map(r => r.results!.teamRankings.find(tr => tr.teamId === s.id)?.rank ?? 99),
+          isMe: s.isPlayerTeam,
+        }))} />
       </div>
 
       {/* 開催スケジュール（消化済みの戦はタップで結果再生） */}

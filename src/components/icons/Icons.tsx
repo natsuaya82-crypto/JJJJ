@@ -741,6 +741,8 @@ export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, 
 }
 
 const LEAGUE_COLORS: Record<string, { primary: string; secondary: string }> = {
+  jpel:           { primary: '#C9A84C', secondary: '#14121F' },
+  ecl:            { primary: '#B01E10', secondary: '#F5C842' },
   k_league:       { primary: '#CD2E3A', secondary: '#FFFFFF' },
   china_distance: { primary: '#DE2910', secondary: '#FFDE00' },
   africa_elite:   { primary: '#078930', secondary: '#FCDD09' },
@@ -751,6 +753,23 @@ const LEAGUE_COLORS: Record<string, { primary: string; secondary: string }> = {
 }
 
 const LEAGUE_LOGOS: Record<string, (p: string, s: string) => React.ReactElement> = {
+  // JPEL：金の盾に襷の斜めラインとトラックの円
+  jpel: (p, s) => <>
+    <path d="M24 3 L43 9 V26 Q43 38 24 45 Q5 38 5 26 V9 Z" fill={s} stroke={p} strokeWidth="2.5"/>
+    <path d="M10 38 L31 9 H39 L18 41 Z" fill={p} fillOpacity="0.95"/>
+    <circle cx="14" cy="15" r="4.5" fill={p}/>
+    <circle cx="33" cy="33" r="6" fill="none" stroke={p} strokeWidth="2" strokeOpacity="0.8"/>
+  </>,
+  // ECL：深紅の地球儀と月桂樹のスウッシュ（世界一決定戦）
+  ecl: (p, s) => <>
+    <circle cx="24" cy="24" r="21" fill={p}/>
+    <circle cx="24" cy="21" r="11" fill="none" stroke={s} strokeWidth="2"/>
+    <ellipse cx="24" cy="21" rx="5" ry="11" fill="none" stroke={s} strokeWidth="1.5" strokeOpacity="0.85"/>
+    <line x1="13" y1="21" x2="35" y2="21" stroke={s} strokeWidth="1.5" strokeOpacity="0.85"/>
+    <path d="M9 32 Q24 41 39 32" stroke={s} strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+    <path d="M12 30 L9 35 M36 30 L39 35 M18 34 L16 39 M30 34 L32 39" stroke={s} strokeWidth="2" strokeLinecap="round" strokeOpacity="0.85"/>
+    <path d="M24 6 L25.4 9 L28.5 9.3 L26.2 11.4 L26.9 14.5 L24 12.9 L21.1 14.5 L21.8 11.4 L19.5 9.3 L22.6 9 Z" fill={s}/>
+  </>,
   k_league: (p, s) => <>
     <circle cx="24" cy="24" r="21" fill={p}/>
     <path d="M24 3 A21 21 0 0 1 24 45 A10.5 10.5 0 0 1 24 24 A10.5 10.5 0 0 0 24 3 Z" fill={s} fillOpacity="0.65"/>

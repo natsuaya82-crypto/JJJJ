@@ -5747,12 +5747,21 @@ export const useGameStore = create<GameStore>()(
                 const courses = [...ECL_COURSES].sort(() => Math.random() - 0.5).slice(0, 5)
                 const months = ['04', '06', '07', '09', '11']
                 const weathers = ['sunny', 'cloudy', 'rainy', 'windy'] as const
+                // 開催日はリーグ戦の合間の「中間日」に置く（リーグ戦の前日にECLが来るような殺人日程を防ぐ）
+                const leagueDates = newRaces.map(r => r.date).sort()
+                const midDate = (target: string): string => {
+                  const prev = [...leagueDates].filter(d => d <= target).pop()
+                  const next = leagueDates.find(d => d > target)
+                  if (!prev || !next) return target
+                  const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
+                  return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
+                }
                 return {
                   participants: parts,
                   races: courses.map((course, i) => ({
                     id: `ecl-${newYear}-r${i + 1}`,
                     name: `ECL 第${i + 1}戦`,
-                    date: `${newYear}-${months[i]}-20`,
+                    date: midDate(`${newYear}-${months[i]}-20`),
                     location: course.location,
                     type: 'league' as const,
                     segments: course.segments,
