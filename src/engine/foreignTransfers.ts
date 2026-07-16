@@ -3,6 +3,8 @@ import { SPECIALTY_LABELS } from '../types'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 
+const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
+
 type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[]; major?: boolean }
 // 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す
 type TxRecord = { year: number; date: string; playerId: string; fromTeamId: string; toTeamId: string; fee: number; kind?: 'free' | 'trade' }
@@ -39,9 +41,12 @@ export function simulateForeignTransferMarket(params: {
 
   for (let i = 0; i < MOVE_COUNT; i++) {
     // 引き抜く側：ランダムなクラブ（枠に余裕がない超大所帯は避ける程度）
-    const buyer = allClubs[Math.floor(Math.random() * allClubs.length)]
-    // 売る側：buyer 以外で在籍18人以上のクラブから、buyerより平均が低い相手を優先
-    const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length >= 18)
+    // 引き抜く側は上限(30)未満のクラブのみ
+    const buyerPool = allClubs.filter(c => roster[c.id].length < ROSTER_MAX)
+    if (buyerPool.length === 0) continue
+    const buyer = buyerPool[Math.floor(Math.random() * buyerPool.length)]
+    // 売る側：buyer 以外で下限(18)超のクラブから、buyerより平均が低い相手を優先（放出しても18で止まる）
+    const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length > FOREIGN_ROSTER_MIN)
     if (sellers.length === 0) continue
     const weaker = sellers.filter(c => clubAvg[c.id] <= clubAvg[buyer.id])
     const seller = (weaker.length > 0 ? weaker : sellers)[Math.floor(Math.random() * (weaker.length > 0 ? weaker.length : sellers.length))]
@@ -176,7 +181,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // 海外→日本CPU：予算に余裕のあるチームが、自分の弱いタイプ（穴）を海外から補強。移籍金を支払う。
   for (let i = 0; i < N_IN; i++) {
     const buyers = cpuTeams.filter(t => jpnSize(t.id) < ROSTER_MAX && budget[t.id] >= MIN_BUY_BUDGET)
-    const sellers = foreignClubs.filter(c => fRoster[c.id].length > 18)
+    const sellers = foreignClubs.filter(c => fRoster[c.id].length > FOREIGN_ROSTER_MIN)
     if (buyers.length === 0 || sellers.length === 0) break
     const buyer = weightedPick(buyers, t => budget[t.id])   // 予算が多いほど動く
     const spec = weakestSpec(jpnRoster[buyer.id])
@@ -205,7 +210,10 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     // 候補はmain/second合わせた全在籍から（除去漏れ防止のため両方から外す）
     const target = surplusTarget([...jpnRoster[seller.id], ...jpnSecond[seller.id]])
     if (!target || moved.has(target.id)) continue
-    const buyer = pick(foreignClubs)
+    // 買う側（海外クラブ）は上限(30)未満のみ
+    const buyerPool = foreignClubs.filter(c => fRoster[c.id].length < ROSTER_MAX)
+    if (buyerPool.length === 0) continue
+    const buyer = pick(buyerPool)
     const fee = calcTransferValue(target)
     jpnRoster[seller.id] = jpnRoster[seller.id].filter(id => id !== target.id)
     jpnSecond[seller.id] = jpnSecond[seller.id].filter(id => id !== target.id)
