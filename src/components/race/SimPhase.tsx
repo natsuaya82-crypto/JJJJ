@@ -700,15 +700,6 @@ function SegmentResultCard({
   onAdvance: () => void
 }) {
   const longPress = usePlayerLongPress()
-  // イベントオフ（流し見・自動進行）のときは結果カードを少し見せて自動で次の区間へ進む。
-  // 最終区間だけは「最終結果を見る」を手動に残す（勝手に結果画面へ飛ばない）
-  const eventsOn = useGameStore(s => s.raceEventsEnabled ?? true)
-  useEffect(() => {
-    if (eventsOn || isLastSeg) return
-    const t = setTimeout(onAdvance, 1800)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seg.segmentIndex, eventsOn, isLastSeg])
   const raceSegData = race.segments.find(s => s.index === seg.segmentIndex)
   const segCol = raceSegData ? terrainColor(raceSegData.uphillPct, raceSegData.downhillPct) : C.blue
   const winner = seg.runners[0]

@@ -564,6 +564,16 @@ export default function RacePage() {
     })
   }
 
+  // イベントが無い区間（イベントオフ設定・抽選でイベント0件）は選択待ちが発生しないため、自動で区間を確定する。
+  // 従来はイベント選択の完了時にしか確定されず、流し見モードでスキップを押すまで止まってしまっていた。
+  // 結果の「表示」はSimPhase側がアニメ完了まで待つので、先に確定しても走りは最後まで見える
+  useEffect(() => {
+    if (!iSim || !race || phase !== 'simulating') return
+    if (iSim.showingSegResult || iSim.pendingEvents.length > 0) return
+    finalizeCurrentSeg(iSim)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iSim, phase])
+
   function handleAdvance() {
     if (!iSim || !race) return
 
