@@ -1,6 +1,24 @@
 export type Specialty = 'ace' | 'mountain_up' | 'mountain_down' | 'sprinter' | 'long' | 'allrounder' | 'kick' | 'grinder'
 export type GrowthCurve = 'early' | 'normal' | 'late_bloomer'
-export type Nationality = 'JPN' | 'KOR' | 'CHN' | 'TWN' | 'ETH' | 'KEN' | 'UGA' | 'TAN' | 'USA' | 'EUR' | 'FOREIGN'
+export type Nationality =
+  // 東アジア
+  | 'JPN' | 'KOR' | 'CHN' | 'TWN' | 'HKG' | 'MGL'
+  // 東南アジア
+  | 'THA' | 'VIE' | 'INA' | 'MAS' | 'PHI' | 'SGP'
+  // 南アジア・中央アジア
+  | 'IND' | 'SRI' | 'NEP' | 'KAZ'
+  // 西アジア
+  | 'BRN' | 'QAT' | 'KSA'
+  // オセアニア
+  | 'AUS' | 'NZL'
+  // アフリカ
+  | 'ETH' | 'KEN' | 'UGA' | 'TAN' | 'MAR' | 'ERI' | 'RSA'
+  // ヨーロッパ
+  | 'GBR' | 'GER' | 'FRA' | 'ITA' | 'ESP' | 'NED' | 'SWE' | 'DEN' | 'AUT' | 'POR'
+  // アメリカ大陸
+  | 'USA' | 'CAN' | 'MEX' | 'BRA' | 'COL' | 'ARG' | 'ECU' | 'PER' | 'CHI' | 'URU' | 'VEN'
+  // バケツ（後方互換・フォールバック）
+  | 'EUR' | 'FOREIGN'
 export type ForeignCategory = 'domestic' | 'asian' | 'foreign'
 export type PlayerStatus = 'active' | 'injured' | 'retired' | 'draft_eligible'
 export type SeasonPhase = 'preseason' | 'regular' | 'postseason' | 'draft' | 'free_agency'

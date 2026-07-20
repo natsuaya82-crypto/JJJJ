@@ -1,4 +1,5 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
+import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import { rankBudgetGrant } from '../data/economy'
 import { SPEC_STRONG_STATS, getStatPotentials } from '../utils/playerUtils'
@@ -359,9 +360,7 @@ function generateJpelForeignName(usedNames: Set<string>): { name: string; origin
 }
 
 export function nationalityToForeignCategory(nat: Nationality): ForeignCategory {
-  if (nat === 'JPN') return 'domestic'
-  if (nat === 'KOR' || nat === 'CHN' || nat === 'TWN') return 'asian'
-  return 'foreign'
+  return natCategory(nat)
 }
 
 const UNIVERSITIES = [
@@ -1114,10 +1113,7 @@ export function generateForeignLeaguePlayers(
     ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B' },  // 下位でもB以上
   }
   function regionFor(country: string): { budget: number; potBonus: number; minRank: Rank } {
-    if (['ETH', 'KEN', 'UGA', 'TAN'].includes(country)) return REGION.AFRICA
-    if (['EUR', 'USA'].includes(country)) return REGION.EUR_USA
-    if (['CHN', 'KOR', 'TWN'].includes(country)) return REGION.ASIA
-    return REGION.OTHER
+    return REGION[natStrengthRegion(country as Nationality)] ?? REGION.OTHER
   }
   const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
   const rankAtLeast = (r: Rank, min: Rank): Rank => RANK_ORDER.indexOf(r) >= RANK_ORDER.indexOf(min) ? r : min

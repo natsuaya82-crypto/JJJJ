@@ -1,4 +1,5 @@
 import type { Nationality } from '../../types'
+import { natFaceRegion } from '../../data/nationalities'
 
 // Python face_generator.py と同じ定数
 const CW = 260
@@ -18,16 +19,16 @@ const EYE_CFG: [number, number, number][] = [
 type HairColor = 'black_light' | 'black_dark' | 'brown_light' | 'blond_light'
 
 function hairColorFromNationality(nat: Nationality, styleIndex: number): HairColor {
-  if (nat === 'ETH' || nat === 'KEN' || nat === 'UGA' || nat === 'TAN') return 'black_dark'
-  if (nat === 'EUR') return 'blond_light'
-  if (nat === 'JPN' || nat === 'KOR' || nat === 'CHN' || nat === 'TWN') {
-    return styleIndex % 3 === 0 ? 'brown_light' : 'black_light'
-  }
-  if (nat === 'USA') {
+  const region = natFaceRegion(nat)
+  if (region === 'africa') return 'black_dark'
+  if (region === 'east_asia') return styleIndex % 3 === 0 ? 'brown_light' : 'black_light'
+  if (region === 'south_asia') return styleIndex % 2 === 0 ? 'black_dark' : 'black_light'
+  if (region === 'europe' || region === 'oceania') return 'blond_light'
+  if (region === 'americas') {
     const choices: HairColor[] = ['black_light', 'brown_light', 'blond_light', 'black_dark', 'blond_light']
     return choices[styleIndex % choices.length]
   }
-  // FOREIGN etc
+  // other
   const choices: HairColor[] = ['black_light', 'brown_light', 'blond_light', 'black_dark']
   return choices[styleIndex % choices.length]
 }

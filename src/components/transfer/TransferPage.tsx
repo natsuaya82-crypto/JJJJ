@@ -15,23 +15,10 @@ import LoanSheet from './LoanSheet'
 import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
 import { draftPickValue } from '../../data/economy'
+import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-
-const NAT_LABELS: Record<Nationality, string> = {
-  JPN: '日本',
-  KOR: '韓国',
-  CHN: '中国',
-  TWN: '台湾',
-  ETH: 'エチオピア',
-  KEN: 'ケニア',
-  UGA: 'ウガンダ',
-  TAN: 'タンザニア',
-  USA: 'アメリカ',
-  EUR: 'ヨーロッパ',
-  FOREIGN: 'その他外国',
-}
 
 type Tab = 'market' | 'market-results' | 'trade' | 'listings'
 
