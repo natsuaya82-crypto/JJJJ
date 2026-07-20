@@ -54,9 +54,14 @@ export function simulateForeignTransferMarket(params: {
 
   const moves: { playerId: string; fromClubId: string; toClubId: string }[] = []
   const movedPlayers = new Set<string>()
-  // 件数はクラブ数に比例（110クラブなら約27〜41件/年）。FA補填だけでなく引き抜きでも名簿が動くように
-  const MOVE_BASE = Math.max(8, Math.round(allClubs.length * 0.25))
+  // 件数はクラブ数に比例（移籍を活発化：180クラブなら約72〜108件/年）。
+  const MOVE_BASE = Math.max(12, Math.round(allClubs.length * 0.4))
   const MOVE_COUNT = params.maxMoves ?? (MOVE_BASE + Math.floor(Math.random() * (MOVE_BASE * 0.5)))
+  // 4大リーグ（北米/アフリカ東/アフリカ北南/欧州西南）。ここが世界のスターを引き抜く＝サッカー式。
+  const ELITE_LEAGUE_IDS = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
+  const isEliteClub = (c: { leagueId?: string }) => ELITE_LEAGUE_IDS.has(c.leagueId ?? '')
+  // 格上リーグへ行ける実効OVRの下限：4大は高く（弱い選手は入れない）、他は緩め
+  const leagueFloor = (c: { leagueId?: string }) => isEliteClub(c) ? 84 : 74
   const weightedPick = <U,>(arr: U[], w: (x: U) => number): U => {
     const total = arr.reduce((s, x) => s + Math.max(1, w(x)), 0)
     let r = Math.random() * total
@@ -68,7 +73,8 @@ export function simulateForeignTransferMarket(params: {
     // 引き抜く側：上限(30)未満のクラブ。引退等で人数が減ったクラブほど動く（穴埋め型の補強）
     const buyerPool = allClubs.filter(c => roster[c.id].length < ROSTER_MAX)
     if (buyerPool.length === 0) continue
-    const buyer = weightedPick(buyerPool, c => (ROSTER_MAX - roster[c.id].length) * (roster[c.id].length < 22 ? 3 : 1))
+    // 4大リーグのクラブほど積極的に引き抜く（世界のスターが集まる）
+    const buyer = weightedPick(buyerPool, c => (ROSTER_MAX - roster[c.id].length) * (roster[c.id].length < 22 ? 3 : 1) * (isEliteClub(c) ? 2.4 : 1))
     // 売る側：buyer 以外で下限(18)超のクラブから、buyerより平均が低い相手を優先（放出しても18で止まる）
     const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length > FOREIGN_ROSTER_MIN)
     if (sellers.length === 0) continue
@@ -84,7 +90,7 @@ export function simulateForeignTransferMarket(params: {
     if (candidates.length === 0) continue
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     // buyer のリーグの格に実効OVR（年齢加味）が届かない選手は引き抜かない（弱い/高齢の選手が格上へ行かない）
-    if (effectiveOvr(target) < foreignMinOvr(buyer.country ?? '')) continue
+    if (effectiveOvr(target) < leagueFloor(buyer)) continue
 
     // 実行
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
