@@ -8,7 +8,7 @@ import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster } from '../engine/playerGenerator'
-import { simulateRace, buildAILineup, calcWeatherModifier } from '../engine/raceEngine'
+import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { simulateEclEvent } from '../engine/ecl'
@@ -942,7 +942,9 @@ export const useGameStore = create<GameStore>()(
       clearRaceLineup: () => set({ raceLineup: {} }),
 
       runRace: (lineup, segmentTactics, preComputedResults) => {
-        // 期日を過ぎたECL戦を先に自動消化する（自チーム出場でも未実施のままリーグ戦へ進んだらAI配置で開催）
+        // 期日を過ぎたECL戦を先に自動消化する。
+        // ただし自チームが出場するシリーズは自動消化しない（AI配置で勝手に走らせず、プレイヤーに配置させる）。
+        // 観戦（非出場）のシリーズだけAIで裏消化する。
         {
           let guard = 0
           while (guard++ < 6) {
@@ -950,6 +952,7 @@ export const useGameStore = create<GameStore>()(
             const es = cs.eclSeries
             const nextLeague = cs.races[cs.currentRaceIndex]
             if (!es || es.raceIndex >= es.races.length || !nextLeague) break
+            if (es.participants?.some(pt => pt.isPlayerTeam)) break   // 自チーム出場シリーズは自動消化しない
             if (es.races[es.raceIndex].date > nextLeague.date) break
             get().advanceEclRace()
           }
@@ -3990,12 +3993,8 @@ export const useGameStore = create<GameStore>()(
           const pool = [...team.roster.main, ...team.roster.second]
             .map(id => players.find(p => p.id === id))
             .filter((p): p is Player => !!p && p.status === 'active' && !mainRunnerIds.has(p.id) && !isMainRegular(p))
-            .sort((a, b) => ovr(b) - ovr(a))   // 1軍戦の出場者・主力は除外済み。残り＝控えの中から上位を起用。
-          const cpuLineup: Record<number, string> = {}
-          for (let i = 0; i < race.segments.length; i++) {
-            if (pool[i]) cpuLineup[race.segments[i].index] = pool[i].id
-          }
-          lineups[team.id] = cpuLineup
+          // OVR順の機械割当ではなく、区間の地形に合った選手を配置（全チーム共通・全区間充填）
+          lineups[team.id] = assignLineupByTerrain(pool, race)
         }
 
         const results = simulateRace(race, lineups, teams, players, seasonProgress)
@@ -6474,17 +6473,20 @@ export const useGameStore = create<GameStore>()(
               participants: [],
             }
 
-            // Japan runners
+            // Japan runners：意図した走者を優先しつつ、見つからない選手がいても全捨てにせず控えで補完。
+            // さらに区間の地形に合った配置にする（全区間充填）。
             const rawIds = nt.racePlayerIds?.[raceIdx] ?? []
-            const rawRunners = rawIds.map(id => state.players.find(p => p.id === id)).filter(Boolean) as Player[]
-            const japanRunners = rawRunners.length >= segCount
-              ? rawRunners.slice(0, segCount)
-              : nt.squadIds.map(id => state.players.find(p => p.id === id)).filter(Boolean)
-                  .sort((a, b) => ovr(b as Player) - ovr(a as Player))
-                  .slice(0, segCount) as Player[]
+            const intended = rawIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
+            const usedIntended = new Set(intended.map(p => p.id))
+            const squadFill = nt.squadIds.map(id => state.players.find(p => p.id === id))
+              .filter((p): p is Player => !!p && !usedIntended.has(p.id))
+              .sort((a, b) => ovr(b) - ovr(a))
+            const jpnPool = [...intended, ...squadFill]
 
-            const lineups: Record<string, Record<number, string>> = { 'wec_JPN': {} }
-            japanRunners.forEach((p, i) => { lineups['wec_JPN'][i + 1] = p.id })
+            const lineups: Record<string, Record<number, string>> = { 'wec_JPN': assignLineupByTerrain(jpnPool, wecRace) }
+            const japanRunners = Object.values(lineups['wec_JPN'])
+              .map(id => state.players.find(p => p.id === id))
+              .filter((p): p is Player => !!p)
 
             // Virtual players for foreign nations
             const avgJpnOvr = japanRunners.reduce((s, p) => s + ovr(p), 0) / Math.max(1, japanRunners.length)
