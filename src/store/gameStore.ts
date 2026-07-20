@@ -7036,7 +7036,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 13,
+      version: 14,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
@@ -7212,6 +7212,40 @@ export const useGameStore = create<GameStore>()(
           }
           if (s.currentSeason) s.currentSeason = renameSeason(s.currentSeason as Record<string, unknown>)
           if (Array.isArray(s.pastSeasons)) s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(renameSeason)
+        }
+        // v14: 世界陸上に向けた地域拡張。定義に追加した新リーグ（アジア駅伝／アジア・中東駅伝）と、
+        // 既存リーグへ足したクラブ（アフリカ+9・欧州+6・アメリカ+5）を既存セーブにも補完し、選手を生成する。
+        // v11と同じ「定義にあってセーブに無いリーグ/クラブだけ生成して合流」ロジック（冪等）。
+        if (version < 14) {
+          if (s.isInitialized && Array.isArray(s.foreignLeagues) && Array.isArray(s.players)) {
+            const saved = s.foreignLeagues as { id: string; clubs: { id: string }[] }[]
+            const toGenerate = FOREIGN_LEAGUES.flatMap(def => {
+              const sl = saved.find(l => l.id === def.id)
+              const missingClubs = sl ? def.clubs.filter(c => !sl.clubs.some(sc => sc.id === c.id)) : def.clubs
+              return missingClubs.length > 0 ? [{ ...def, clubs: missingClubs.map(c => ({ ...c, playerIds: [] as string[] })) }] : []
+            })
+            if (toGenerate.length > 0) {
+              const year = ((s.currentSeason as Record<string, unknown>)?.year as number) ?? 2027
+              const gen = generateForeignLeaguePlayers(toGenerate, year)
+              s.players = [...(s.players as unknown[]), ...gen.players]
+              const genByLeague = new Map(gen.updatedLeagues.map(l => [l.id, l]))
+              const merged = saved.map(sl => {
+                const gl = genByLeague.get(sl.id)
+                return gl ? { ...sl, clubs: [...sl.clubs, ...gl.clubs] } : sl
+              })
+              for (const gl of gen.updatedLeagues) {
+                if (!merged.some(l => l.id === gl.id)) merged.push(gl as unknown as (typeof merged)[0])
+              }
+              s.foreignLeagues = merged
+              const cs = (s.currentSeason ?? {}) as Record<string, unknown>
+              const standings = { ...((cs.foreignStandings as Record<string, unknown>) ?? {}) }
+              const initAll = initForeignStandings(merged as Parameters<typeof initForeignStandings>[0])
+              for (const [lid, st] of Object.entries(initAll)) {
+                if (!standings[lid]) standings[lid] = st
+              }
+              s.currentSeason = { ...cs, foreignStandings: standings }
+            }
+          }
         }
         return s
       },
