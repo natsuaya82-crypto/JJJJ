@@ -387,7 +387,7 @@ const POOL_VEN: ForeignNamePool = { origin: 'ベネズエラ', given: ES_GIVEN, 
 const POOL_POR: ForeignNamePool = { origin: 'ポルトガル', given: PT_GIVEN, family: PT_FAMILY }
 const POOL_AUT: ForeignNamePool = { origin: 'オーストリア', given: DE_GIVEN, family: DE_FAMILY }
 const POOL_DEN: ForeignNamePool = { origin: 'デンマーク', given: SCAN_GIVEN, family: SCAN_FAMILY }
-// リーグ無し国の代表プール用
+// 新設アジア／中東リーグ・既存リーグ追加国のクラブ用
 const POOL_MGL: ForeignNamePool = { origin: 'モンゴル',       given: MGL_GIVEN, family: MGL_FAMILY, familyFirst: true }
 const POOL_HKG: ForeignNamePool = { origin: '香港',           given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
 const POOL_THA: ForeignNamePool = { origin: 'タイ',           given: THA_GIVEN, family: THA_FAMILY }
@@ -459,6 +459,28 @@ const FOREIGN_LEAGUE_POOLS: Record<string, ForeignNamePool[]> = {
   CHI: [POOL_CHI],
   URU: [POOL_URU],
   VEN: [POOL_VEN],
+  // 新設アジア／中東リーグ
+  HKG: [POOL_HKG],
+  MGL: [POOL_MGL],
+  THA: [POOL_THA],
+  VIE: [POOL_VIE],
+  INA: [POOL_INA],
+  MAS: [POOL_MAS],
+  PHI: [POOL_PHI],
+  SGP: [POOL_SGP],
+  IND: [POOL_IND],
+  SRI: [POOL_SRI],
+  NEP: [POOL_NEP],
+  KAZ: [POOL_KAZ],
+  BRN: [POOL_BRN],
+  QAT: [POOL_QAT],
+  KSA: [POOL_KSA],
+  // 既存リーグへ追加した国
+  MAR: [POOL_MAR],
+  ERI: [POOL_ERI],
+  RSA: [POOL_RSA],
+  CAN: [POOL_CAN],
+  MEX: [POOL_MEX],
   // フォールバック（未定義国コード用）
   EUR: weightedPools([
     [POOL_GBR, 6], [POOL_FRA, 5], [POOL_GER, 5], [POOL_ITA, 5], [POOL_ESP, 4],
@@ -1236,17 +1258,22 @@ export function generateForeignLeaguePlayers(
   // 毎年の成長（若手）で90-99へ育つ。強さ順：アフリカ ＞ 欧州/欧米 ＞ その他 ＞ アジア(=日本と同等)。
   // minRank=そのリーグの最低ランク。海外クラブは格上なので、ベンチでもこのランク以上にする
   // （下位が D=52 みたいにならないように）。強い地域ほど底も高い。
-  const REGION: Record<string, { budget: number; potBonus: number; minRank: Rank }> = {
-    AFRICA:  { budget: 950_000_000, potBonus: 12, minRank: 'S' },  // 最強・ベンチもS位、才能が育つと90〜99へ
-    EUR_USA: { budget: 850_000_000, potBonus: 6,  minRank: 'A' },
-    OTHER:   { budget: 780_000_000, potBonus: 3,  minRank: 'A' },
-    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B' },  // 下位でもB以上
+  // minRank=ベンチの底、maxRank/potCap=主力の天井。天井は地域で差をつけ、90台に届くのはアフリカ勢(帰化の
+  // バーレーン/カタール含む)だけ。欧州/米/豪は80台後半、その他・アジアは80台前半で頭打ち（日本は国内生成なので無関係）。
+  const REGION: Record<string, { budget: number; potBonus: number; minRank: Rank; maxRank: Rank; potCap: number }> = {
+    AFRICA:  { budget: 950_000_000, potBonus: 12, minRank: 'S', maxRank: 'SSS', potCap: 99 },  // 最強・90〜99へ
+    EUR_USA: { budget: 850_000_000, potBonus: 6,  minRank: 'A', maxRank: 'SS',  potCap: 90 },
+    OTHER:   { budget: 780_000_000, potBonus: 3,  minRank: 'A', maxRank: 'S',   potCap: 86 },
+    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B', maxRank: 'S',   potCap: 85 },
   }
-  function regionFor(country: string): { budget: number; potBonus: number; minRank: Rank } {
+  function regionFor(country: string) {
     return REGION[natStrengthRegion(country as Nationality)] ?? REGION.OTHER
   }
   const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
-  const rankAtLeast = (r: Rank, min: Rank): Rank => RANK_ORDER.indexOf(r) >= RANK_ORDER.indexOf(min) ? r : min
+  const clampRank = (r: Rank, min: Rank, max: Rank): Rank => {
+    const i = Math.max(RANK_ORDER.indexOf(min), Math.min(RANK_ORDER.indexOf(max), RANK_ORDER.indexOf(r)))
+    return RANK_ORDER[i]
+  }
 
   const updatedLeagues = leagues.map(league => ({
     ...league,
@@ -1259,8 +1286,9 @@ export function generateForeignLeaguePlayers(
       const clubUsedNames = new Set<string>()
 
       salaries.forEach((clubSalary) => {
-        // 海外クラブは格上なので、ベンチでも地域の最低ランク以上にする（下位が52みたいにならない）
-        const rank = rankAtLeast(rankForSalary(clubSalary), region.minRank)
+        // 海外クラブは格上なので、ベンチでも地域の最低ランク以上にする（下位が52みたいにならない）。
+        // 上限ランクで主力の天井も抑える（弱い地域が90を出さない）。
+        const rank = clampRank(rankForSalary(clubSalary), region.minRank, region.maxRank)
         foreignIdCounter++
         const specialty = specialties[rng(0, specialties.length - 1)]
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
@@ -1283,8 +1311,9 @@ export function generateForeignLeaguePlayers(
         const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
         clubPlayerIds.push(id)
 
-        // 地域でポテンシャルを底上げ（若手は高ポテンシャルで生成 → 成長で90-99へ）。現在値はいきなり上げない。
-        const potentialVal = Math.min(99, rng(potential[0], potential[1]) + region.potBonus)
+        // 地域でポテンシャルを底上げ（若手は高ポテンシャルで生成 → 成長で伸びる）。現在値はいきなり上げない。
+        // potCap で地域ごとの実効OVR天井を決める（bakeAgeGrowth の焼き込み上限）。
+        const potentialVal = Math.min(region.potCap, rng(potential[0], potential[1]) + region.potBonus)
         // 年齢分の成長を焼き込む（年長者は既にポテンシャル近くまで育っている）
         bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
 
@@ -1326,148 +1355,4 @@ export function generateForeignLeaguePlayers(
   }))
 
   return { players, updatedLeagues }
-}
-
-// ───────────────────────────────────────────────────────────────
-// 代表プール（リーグを持たない実在国）
-// リーグ所属国の代表は既存選手を国籍でグルーピングすれば足りるので、
-// ここではリーグにも国内にも選手が居ない国だけ、代表候補プールを生成する。
-// 選手は teamId = `nat-<国コード>` に所属させる（実クラブではないので既存の
-// 移籍・FA・引退処理には拾われない）。
-// ───────────────────────────────────────────────────────────────
-
-// リーグ無し実在国 → 名前プール
-const NATIONAL_POOLS: Partial<Record<Nationality, ForeignNamePool>> = {
-  TWN: POOL_TWN, HKG: POOL_HKG, MGL: POOL_MGL,
-  THA: POOL_THA, VIE: POOL_VIE, INA: POOL_INA, MAS: POOL_MAS, PHI: POOL_PHI, SGP: POOL_SGP,
-  IND: POOL_IND, SRI: POOL_SRI, NEP: POOL_NEP, KAZ: POOL_KAZ,
-  BRN: POOL_BRN, QAT: POOL_QAT, KSA: POOL_KSA,
-  MAR: POOL_MAR, ERI: POOL_ERI, RSA: POOL_RSA,
-  CAN: POOL_CAN, MEX: POOL_MEX,
-}
-
-// 代表プールを持つ国コードの一覧（UI・補充で使う）
-export const NATIONAL_POOL_CODES = Object.keys(NATIONAL_POOLS) as Nationality[]
-
-// 代表チームの teamId
-export const nationalTeamId = (code: Nationality): string => `nat-${code}`
-export const isNationalTeamId = (teamId: string): boolean => teamId.startsWith('nat-')
-export const nationFromTeamId = (teamId: string): Nationality | null =>
-  isNationalTeamId(teamId) ? (teamId.slice(4) as Nationality) : null
-
-// 代表プールの1チーム人数
-const NATIONAL_SQUAD_SIZE = 20
-
-// 代表プールの強さ。
-// 下限(minRank)＝「20人全員プロ水準」の底、上限(maxRank/potCap)＝「その国の主力がどこまで強いか」の天井。
-// 天井は地域で明確に差をつける：アフリカだけが90台に届く。日本/欧州は80台後半、その他は70台後半、
-// 弱いアジア勢は70台前半で頭打ち（=リーグに出てくる怪物はアフリカだけ、という体感に合わせる）。
-// potCap=ポテンシャル上限。bakeAgeGrowth が年長者をここまでしか育てないので実効OVRの天井になる。
-// アフリカ帰化（バーレーン/カタール）やアフリカ勢（モロッコ/エリトリア）は AFRICA 扱いで強く出る。
-const NAT_REGION: Record<string, { budget: number; potBonus: number; minRank: Rank; maxRank: Rank; potCap: number }> = {
-  AFRICA:  { budget: 900_000_000, potBonus: 8, minRank: 'A', maxRank: 'SSS', potCap: 99 },
-  EUR_USA: { budget: 720_000_000, potBonus: 0, minRank: 'B', maxRank: 'S',   potCap: 86 },
-  OTHER:   { budget: 640_000_000, potBonus: 0, minRank: 'B', maxRank: 'S',   potCap: 79 },
-  ASIA:    { budget: 600_000_000, potBonus: 0, minRank: 'B', maxRank: 'A',   potCap: 75 },
-}
-
-let nationalIdCounter = 20000
-
-// 指定した国の代表候補を count 人生成する
-function generateNationForPool(code: Nationality, pool: ForeignNamePool, year: number, count: number): Player[] {
-  const out: Player[] = []
-  const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
-  const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
-  const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
-  const clampRank = (r: Rank, min: Rank, max: Rank): Rank => {
-    const i = Math.max(RANK_ORDER.indexOf(min), Math.min(RANK_ORDER.indexOf(max), RANK_ORDER.indexOf(r)))
-    return RANK_ORDER[i]
-  }
-
-  const region = NAT_REGION[natStrengthRegion(code)] ?? NAT_REGION.OTHER
-  const salaries = distributeSalaries(Math.round(region.budget * 0.8), count, 3_000_000).sort(() => Math.random() - 0.5)
-  const usedNames = new Set<string>()
-  const tid = nationalTeamId(code)
-  const foreignCat = nationalityToForeignCategory(code)
-
-  salaries.forEach((salary) => {
-    const rank = clampRank(rankForSalary(salary), region.minRank, region.maxRank)
-    nationalIdCounter++
-    const specialty = specialties[rng(0, specialties.length - 1)]
-    const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    const ratings = generateRatings(rank, specialty)
-    const { potential } = rankToBaseRange(rank, growthCurve)
-    const age = rng(22, 31)
-
-    let nameEntry = pickForeignName(pool)
-    let attempts = 0
-    while (usedNames.has(nameEntry.name) && attempts < 60) { nameEntry = pickForeignName(pool); attempts++ }
-    usedNames.add(nameEntry.name)
-
-    const id = `np-${code}-${year}-${nationalIdCounter}-${Math.random().toString(36).slice(2, 7)}`
-    const potentialVal = Math.min(region.potCap, rng(potential[0], potential[1]) + region.potBonus)
-    bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
-
-    out.push({
-      id,
-      name: nameEntry.name,
-      nameKana: '',
-      age,
-      yearsPro: age - 22,
-      draftYear: year - (age - 22),
-      draftRound: null,
-      draftPick: null,
-      ratings,
-      specialty,
-      potential: potentialVal,
-      growthCurve,
-      teamId: tid,
-      rosterTier: 'main',
-      contract: {
-        yearsLeft: rng(1, 3),
-        annualSalary: salary,
-        faEligibleYear: year + rng(1, 3),
-      },
-      nationality: code,
-      foreignCategory: foreignCat,
-      origin: nameEntry.origin,
-      status: 'active',
-      fatigue: 0,
-      morale: rng(65, 85),
-      form: 0,
-      career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-      traits: assignTraits(rank, specialty, age),
-      personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
-    })
-  })
-  return out
-}
-
-// 初期生成：リーグ無し全実在国に代表候補プールを作る
-export function generateNationalPoolPlayers(year: number): Player[] {
-  const players: Player[] = []
-  for (const code of NATIONAL_POOL_CODES) {
-    const pool = NATIONAL_POOLS[code]
-    if (!pool) continue
-    players.push(...generateNationForPool(code, pool, year, NATIONAL_SQUAD_SIZE))
-  }
-  return players
-}
-
-// 年次補充：引退等で減った代表プールを NATIONAL_SQUAD_SIZE 人まで戻す。
-// allPlayers は現在の全選手（引退済みを除いた active 相当を想定）。
-export function refillNationalPools(allPlayers: Player[], year: number): Player[] {
-  const counts = new Map<Nationality, number>()
-  for (const p of allPlayers) {
-    const code = nationFromTeamId(p.teamId)
-    if (code && p.status !== 'retired') counts.set(code, (counts.get(code) ?? 0) + 1)
-  }
-  const additions: Player[] = []
-  for (const code of NATIONAL_POOL_CODES) {
-    const pool = NATIONAL_POOLS[code]
-    if (!pool) continue
-    const need = NATIONAL_SQUAD_SIZE - (counts.get(code) ?? 0)
-    if (need > 0) additions.push(...generateNationForPool(code, pool, year, need))
-  }
-  return additions
 }
