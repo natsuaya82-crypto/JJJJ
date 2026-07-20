@@ -275,6 +275,84 @@ const PT_FAMILY = [
   'モウラ','バティスタ','カンポス','ドゥアルテ','メンドンサ','パチェコ','ヴィエイラ','マチャド','ファリアス','ブランダン',
 ]
 
+// ── リーグ無し国の姓名（代表プール用）。近隣言語で流用できる国は既存配列を使う ──
+const MGL_GIVEN = [
+  'バトエルデネ','ガンバータル','ボルド','オトゴンバヤル','テムーレン','ムンフバット','エンフバヤル','ダワースレン','ツェレンドルジ','バヤルサイハン',
+  'ガントゥムル','ナランバータル','オユーンボルド','スフバータル','ビャンバスレン','アルタンフヤグ',
+]
+const MGL_FAMILY = [
+  'ボルドバータル','ダムディン','チョイジルスレン','ジャルガル','ドルジ','バザル','ナツァグ','オチル','ツォグト','ムンフ',
+  'エルデネ','バト','ガンボルド','セレンゲ','フレルバータル','アマル',
+]
+const THA_GIVEN = [
+  'ソムチャイ','ウィチャイ','アヌチャ','ナロン','プラウィット','サムット','テーラサック','チャイヤポン','ウドム','ピヤポン',
+  'スィティチャイ','ナタポン','カンポン','ウィーラポン','タナポン','ソムポン',
+]
+const THA_FAMILY = [
+  'サエンチャイ','ブンヤラタ','ラッタナポン','スワンナプーム','チャローンサック','プロムチャン','インタラウォン','シリチャイ','タウィーサック','ウォンサワン',
+  'ジャルーンスック','ナコンサワン','ブンマー','サックダーウォン','カセムスック','ピヤワット',
+]
+const VIE_GIVEN = [
+  'ヴァン','ミン','フン','タン','クアン','ズン','トゥアン','フォン','ロン','ナム',
+  'ソン','ヒエウ','チュン','カイン','ヴー','ハイ',
+]
+const VIE_FAMILY = [
+  'グエン','チャン','レー','ファム','ホアン','ファン','ヴォー','ダン','ブイ','ドー',
+  'ホー','ゴー','ズオン','リー','チュオン','ダオ',
+]
+const INA_GIVEN = [
+  'アグス','ブディ','デディ','エコ','ファジャル','ハリ','イワン','ジョコ','リョ','プトラ',
+  'リザル','スリスティオ','トリ','ワユ','ユディ','バユ',
+]
+const INA_FAMILY = [
+  'ウィボウォ','スサント','プラタマ','ハルタント','クルニアワン','ヌグロホ','サプトラ','ウィジャヤ','ハキム','スティアワン',
+  'ラハルジョ','プルノモ','マウラナ','ラマダン','フィルマンシャ','グナワン',
+]
+const MAS_GIVEN = [
+  'アズラン','ファイザル','ハフィズ','イルファン','カイルル','ムハンマド','ナズリ','リドワン','シャフィク','ザイナル',
+  'アミルル','ハリス','イズワン','ロスラン','サイフル','ワワン',
+]
+const MAS_FAMILY = [
+  'ビンアフマド','ビンイスマイル','ビンユソフ','ビンオスマン','ビンハッサン','ビンラーマン','ビンアブドラ','ビンザカリア','ビンイブラヒム','ビンムサ',
+  'ビンサレー','ビンダウド','ビンラティフ','ビンサマド','ビンハミド','ビンヌール',
+]
+const IND_GIVEN = [
+  'ラジェシュ','アミット','スニル','ヴィカス','アルジュン','ラフル','サンディープ','マノジ','プラディープ','アショク',
+  'ヴィジャイ','ディネシュ','ゴビンド','ハリシュ','キラン','ナレシュ',
+]
+const IND_FAMILY = [
+  'シン','クマール','パテル','シャルマ','ヤダフ','レッディ','ラオ','グプタ','ヴァルマ','ナイル',
+  'メフタ','チャウハン','ジョシ','デサイ','ピライ','ラトール',
+]
+const SRI_GIVEN = [
+  'ナリン','スニル','チャミンダ','ルワン','カピラ','プラディープ','アジット','ダミス','サマン','ラサンガ',
+  'ニルマル','スダット','ジャナカ','ティラク','ウペル','マヒンダ',
+]
+const SRI_FAMILY = [
+  'ペレラ','フェルナンド','シルバ','ジャヤスリヤ','バンダラ','ウィクラマシンハ','ディサナヤカ','ラナシンハ','グナワルダナ','アベイセケラ',
+  'ラトナヤカ','ヘラト','ウィジェスーリヤ','クマラ','サマラウィーラ','マドゥシャンカ',
+]
+const NEP_GIVEN = [
+  'ラム','ハリ','ビノド','スレシュ','ディペシュ','プラカシュ','サンジブ','ラジャン','ビカシュ','ゴビンダ',
+  'マニシュ','プルナ','ディリップ','ケシャブ','ニルマル','サガル',
+]
+const NEP_FAMILY = [
+  'グルン','タマン','シェルパ','ライ','マガル','タパ','アディカリ','カドカ','バスネット','ポカレル',
+  'シュレスタ','ラミチャネ','ラマ','カルキ','ボハラ','ネウパネ',
+]
+const KAZ_GIVEN = [
+  'エルラン','ヌルラン','ダウレト','アルマン','カイラト','セリク','アスハト','ティムール','バウルジャン','ルスラン',
+  'ガリム','ムラト','サケン','ダニヤル','アイベク','エルジャン',
+]
+const KAZ_FAMILY = [
+  'ヌルスルタノフ','アビロフ','ジャクシュベコフ','オスパノフ','サドウカソフ','テミルバエフ','ケネソフ','アルタンベコフ','ムサエフ','ベクタノフ',
+  'イスカコフ','スルタノフ','オマロフ','セイトカリ','ジュマバエフ','タシュケノフ',
+]
+const SAUDI_FAMILY = [
+  'アルガムディ','アルハルビ','アルシェフリ','アルカフタニ','アルドサリ','アルオタイビ','アルマトラフィ','アルズハラニ','アルシャムラニ','アルバカミ',
+  'アルジュハニ','アルアンジ','アルムタイリ','アルラシディ','アルサハリ','アルバルガ',
+]
+
 const POOL_KEN: ForeignNamePool = { origin: 'ケニア', given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
 const POOL_UGA: ForeignNamePool = { origin: 'ウガンダ', given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
 const POOL_TAN: ForeignNamePool = { origin: 'タンザニア', given: SWAHILI_GIVEN, family: TAN_FAMILY }
@@ -309,6 +387,25 @@ const POOL_VEN: ForeignNamePool = { origin: 'ベネズエラ', given: ES_GIVEN, 
 const POOL_POR: ForeignNamePool = { origin: 'ポルトガル', given: PT_GIVEN, family: PT_FAMILY }
 const POOL_AUT: ForeignNamePool = { origin: 'オーストリア', given: DE_GIVEN, family: DE_FAMILY }
 const POOL_DEN: ForeignNamePool = { origin: 'デンマーク', given: SCAN_GIVEN, family: SCAN_FAMILY }
+// リーグ無し国の代表プール用
+const POOL_MGL: ForeignNamePool = { origin: 'モンゴル',       given: MGL_GIVEN, family: MGL_FAMILY, familyFirst: true }
+const POOL_HKG: ForeignNamePool = { origin: '香港',           given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
+const POOL_THA: ForeignNamePool = { origin: 'タイ',           given: THA_GIVEN, family: THA_FAMILY }
+const POOL_VIE: ForeignNamePool = { origin: 'ベトナム',       given: VIE_GIVEN, family: VIE_FAMILY, familyFirst: true }
+const POOL_INA: ForeignNamePool = { origin: 'インドネシア',   given: INA_GIVEN, family: INA_FAMILY }
+const POOL_MAS: ForeignNamePool = { origin: 'マレーシア',     given: MAS_GIVEN, family: MAS_FAMILY }
+const POOL_PHI: ForeignNamePool = { origin: 'フィリピン',     given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_SGP: ForeignNamePool = { origin: 'シンガポール',   given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
+const POOL_IND: ForeignNamePool = { origin: 'インド',         given: IND_GIVEN, family: IND_FAMILY }
+const POOL_SRI: ForeignNamePool = { origin: 'スリランカ',     given: SRI_GIVEN, family: SRI_FAMILY }
+const POOL_NEP: ForeignNamePool = { origin: 'ネパール',       given: NEP_GIVEN, family: NEP_FAMILY }
+const POOL_KAZ: ForeignNamePool = { origin: 'カザフスタン',   given: KAZ_GIVEN, family: KAZ_FAMILY }
+const POOL_KSA: ForeignNamePool = { origin: 'サウジアラビア', given: ARABIC_GIVEN, family: SAUDI_FAMILY }
+const POOL_BRN: ForeignNamePool = { origin: 'バーレーン',     given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
+const POOL_QAT: ForeignNamePool = { origin: 'カタール',       given: HORN_GIVEN, family: ETH_FAMILY }
+const POOL_RSA: ForeignNamePool = { origin: '南アフリカ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_CAN: ForeignNamePool = { origin: 'カナダ',         given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_MEX: ForeignNamePool = { origin: 'メキシコ',       given: ES_GIVEN,  family: ES_FAMILY }
 
 // 重みに応じてプールを展開する（重みが大きい国ほど選ばれやすい）
 function weightedPools(entries: [ForeignNamePool, number][]): ForeignNamePool[] {
@@ -1229,4 +1326,141 @@ export function generateForeignLeaguePlayers(
   }))
 
   return { players, updatedLeagues }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 代表プール（リーグを持たない実在国）
+// リーグ所属国の代表は既存選手を国籍でグルーピングすれば足りるので、
+// ここではリーグにも国内にも選手が居ない国だけ、代表候補プールを生成する。
+// 選手は teamId = `nat-<国コード>` に所属させる（実クラブではないので既存の
+// 移籍・FA・引退処理には拾われない）。
+// ───────────────────────────────────────────────────────────────
+
+// リーグ無し実在国 → 名前プール
+const NATIONAL_POOLS: Partial<Record<Nationality, ForeignNamePool>> = {
+  TWN: POOL_TWN, HKG: POOL_HKG, MGL: POOL_MGL,
+  THA: POOL_THA, VIE: POOL_VIE, INA: POOL_INA, MAS: POOL_MAS, PHI: POOL_PHI, SGP: POOL_SGP,
+  IND: POOL_IND, SRI: POOL_SRI, NEP: POOL_NEP, KAZ: POOL_KAZ,
+  BRN: POOL_BRN, QAT: POOL_QAT, KSA: POOL_KSA,
+  MAR: POOL_MAR, ERI: POOL_ERI, RSA: POOL_RSA,
+  CAN: POOL_CAN, MEX: POOL_MEX,
+}
+
+// 代表プールを持つ国コードの一覧（UI・補充で使う）
+export const NATIONAL_POOL_CODES = Object.keys(NATIONAL_POOLS) as Nationality[]
+
+// 代表チームの teamId
+export const nationalTeamId = (code: Nationality): string => `nat-${code}`
+export const isNationalTeamId = (teamId: string): boolean => teamId.startsWith('nat-')
+export const nationFromTeamId = (teamId: string): Nationality | null =>
+  isNationalTeamId(teamId) ? (teamId.slice(4) as Nationality) : null
+
+// 代表プールの1チーム人数
+const NATIONAL_SQUAD_SIZE = 20
+
+// 代表プールの強さ。リーグ非所属国なのでクラブより一段控えめ。
+// ただしアフリカ帰化（バーレーン/カタール）やアフリカ勢（モロッコ/エリトリア）は強く出る。
+const NAT_REGION: Record<string, { budget: number; potBonus: number; minRank: Rank }> = {
+  AFRICA:  { budget: 900_000_000, potBonus: 10, minRank: 'A' },
+  EUR_USA: { budget: 700_000_000, potBonus: 4,  minRank: 'B' },
+  OTHER:   { budget: 600_000_000, potBonus: 2,  minRank: 'C' },
+  ASIA:    { budget: 550_000_000, potBonus: 0,  minRank: 'C' },
+}
+
+let nationalIdCounter = 20000
+
+// 指定した国の代表候補を count 人生成する
+function generateNationForPool(code: Nationality, pool: ForeignNamePool, year: number, count: number): Player[] {
+  const out: Player[] = []
+  const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+  const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
+  const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
+  const rankAtLeast = (r: Rank, min: Rank): Rank => RANK_ORDER.indexOf(r) >= RANK_ORDER.indexOf(min) ? r : min
+
+  const region = NAT_REGION[natStrengthRegion(code)] ?? NAT_REGION.OTHER
+  const salaries = distributeSalaries(Math.round(region.budget * 0.8), count, 3_000_000).sort(() => Math.random() - 0.5)
+  const usedNames = new Set<string>()
+  const tid = nationalTeamId(code)
+  const foreignCat = nationalityToForeignCategory(code)
+
+  salaries.forEach((salary) => {
+    const rank = rankAtLeast(rankForSalary(salary), region.minRank)
+    nationalIdCounter++
+    const specialty = specialties[rng(0, specialties.length - 1)]
+    const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
+    const ratings = generateRatings(rank, specialty)
+    const { potential } = rankToBaseRange(rank, growthCurve)
+    const age = rng(22, 31)
+
+    let nameEntry = pickForeignName(pool)
+    let attempts = 0
+    while (usedNames.has(nameEntry.name) && attempts < 60) { nameEntry = pickForeignName(pool); attempts++ }
+    usedNames.add(nameEntry.name)
+
+    const id = `np-${code}-${year}-${nationalIdCounter}-${Math.random().toString(36).slice(2, 7)}`
+    const potentialVal = Math.min(99, rng(potential[0], potential[1]) + region.potBonus)
+    bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
+
+    out.push({
+      id,
+      name: nameEntry.name,
+      nameKana: '',
+      age,
+      yearsPro: age - 22,
+      draftYear: year - (age - 22),
+      draftRound: null,
+      draftPick: null,
+      ratings,
+      specialty,
+      potential: potentialVal,
+      growthCurve,
+      teamId: tid,
+      rosterTier: 'main',
+      contract: {
+        yearsLeft: rng(1, 3),
+        annualSalary: salary,
+        faEligibleYear: year + rng(1, 3),
+      },
+      nationality: code,
+      foreignCategory: foreignCat,
+      origin: nameEntry.origin,
+      status: 'active',
+      fatigue: 0,
+      morale: rng(65, 85),
+      form: 0,
+      career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
+      traits: assignTraits(rank, specialty, age),
+      personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
+    })
+  })
+  return out
+}
+
+// 初期生成：リーグ無し全実在国に代表候補プールを作る
+export function generateNationalPoolPlayers(year: number): Player[] {
+  const players: Player[] = []
+  for (const code of NATIONAL_POOL_CODES) {
+    const pool = NATIONAL_POOLS[code]
+    if (!pool) continue
+    players.push(...generateNationForPool(code, pool, year, NATIONAL_SQUAD_SIZE))
+  }
+  return players
+}
+
+// 年次補充：引退等で減った代表プールを NATIONAL_SQUAD_SIZE 人まで戻す。
+// allPlayers は現在の全選手（引退済みを除いた active 相当を想定）。
+export function refillNationalPools(allPlayers: Player[], year: number): Player[] {
+  const counts = new Map<Nationality, number>()
+  for (const p of allPlayers) {
+    const code = nationFromTeamId(p.teamId)
+    if (code && p.status !== 'retired') counts.set(code, (counts.get(code) ?? 0) + 1)
+  }
+  const additions: Player[] = []
+  for (const code of NATIONAL_POOL_CODES) {
+    const pool = NATIONAL_POOLS[code]
+    if (!pool) continue
+    const need = NATIONAL_SQUAD_SIZE - (counts.get(code) ?? 0)
+    if (need > 0) additions.push(...generateNationForPool(code, pool, year, need))
+  }
+  return additions
 }

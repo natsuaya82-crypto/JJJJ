@@ -7,7 +7,7 @@ import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
-import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster } from '../engine/playerGenerator'
+import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateNationalPoolPlayers, refillNationalPools } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
@@ -789,10 +789,13 @@ export const useGameStore = create<GameStore>()(
           state.currentSeason.year,
         )
 
+        // Generate national-team pools for nations without a league (代表プール)
+        const nationalPlayers = generateNationalPoolPlayers(state.currentSeason.year)
+
         // startSetup で teamId を付与した BASE_PLAYERS を除外し、prPlayersWithTeam に置き換える
         const players = [
           ...state.players.filter(p => p.teamId !== state.playerTeamId),
-          ...cpuPlayers, ...pool, ...foreignPlayers, ...prPlayersWithTeam,
+          ...cpuPlayers, ...pool, ...foreignPlayers, ...nationalPlayers, ...prPlayersWithTeam,
         ]
         set({ draftState, players, teams, foreignLeagues: updatedLeagues })
       },
@@ -5653,7 +5656,9 @@ export const useGameStore = create<GameStore>()(
 
           // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
           // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。
-          const foreignBasePlayers = [...playersWithForeignChamp, ...foreignRefresh.newPlayers]
+          // 代表プール（リーグ無し国）の年次補充：引退等で20人を割った国を埋め戻す
+          const nationalRefill = refillNationalPools(playersWithForeignChamp, newYear)
+          const foreignBasePlayers = [...playersWithForeignChamp, ...foreignRefresh.newPlayers, ...nationalRefill]
           let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[]; records: TransferRecord[] }
           try {
             foreignTx = simulateForeignTransferMarket({
