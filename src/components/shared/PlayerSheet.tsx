@@ -162,6 +162,7 @@ export default function PlayerSheet() {
   const [pageAnim, setPageAnim] = useState('')
   const [pageKey, setPageKey] = useState(0)
   const [selectedRaceName, setSelectedRaceName] = useState<string | null>(null)
+  const [showBadges, setShowBadges] = useState(false)
   const touchStart = useRef({ x: 0, y: 0 })
   const sheetRef = useRef<HTMLDivElement>(null)
   const shareCardRef = useRef<HTMLDivElement>(null)
@@ -210,6 +211,7 @@ export default function PlayerSheet() {
     // 引退選手は1ページ目を出さないので2ページ目から開く
     setPage(player?.status === 'retired' ? 2 : 1)
     setSelectedRaceName(null)
+    setShowBadges(false)
   }, [openPlayerId])
 
   // シート表示中は背景ページのスクロールをロックする
@@ -401,6 +403,50 @@ export default function PlayerSheet() {
         onClick={() => openPlayerSheet(null)}
         style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 200 }}
       />
+      {/* 記録パッチ専用パネル（閲覧＋自チームは表示パッチ選択） */}
+      {showBadges && (
+        <div style={{
+          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`,
+          left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 210,
+          background: '#0E0D17', borderRadius: '16px 16px 0 0', overflowY: 'auto',
+          fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif",
+        }}>
+          <div style={{ padding: '10px 12px 2px' }}><BackButton onClick={() => setShowBadges(false)} /></div>
+          <div style={{ padding: '0 20px 4px' }}>
+            <div style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 20, fontWeight: 900, color: '#F0EDE8' }}>記録パッチ</div>
+            <div style={{ fontSize: 10, color: '#5C5870', marginTop: 2 }}>
+              {player.name} · {badges.length}個{isMyPlayer ? ' · タップでロスターに表示するパッチを選択' : ''}
+            </div>
+          </div>
+          <div style={{ padding: '14px 20px 48px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {badges.map(b => {
+              const col = BADGE_COLOR[b.kind]
+              const selected = player.displayBadge === b.key
+              return (
+                <div
+                  key={b.key}
+                  onClick={isMyPlayer ? () => setDisplayBadge(player.id, selected ? null : b.key) : undefined}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12,
+                    background: `linear-gradient(180deg, ${col}22, ${col}0C)`,
+                    border: `1px solid ${selected ? col : `${col}44`}`,
+                    boxShadow: selected ? `0 0 10px ${col}55` : 'none',
+                    cursor: isMyPlayer ? 'pointer' : 'default',
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: col }}>{b.label}</span>
+                  {isMyPlayer && (
+                    <span style={{ fontSize: 10, fontWeight: 900, color: selected ? col : '#5C5870' }}>
+                      {selected ? '表示中 ✓' : '選択'}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
       <div
         ref={sheetRef}
         onTouchStart={handleTouchStart}
@@ -481,6 +527,20 @@ export default function PlayerSheet() {
                 </span>
                 <span style={{ fontSize: '10px', color: '#5C5870' }}>{isScouted ? `${player.age}歳 / ${player.yearsPro + 1}年目` : '?'}</span>
               </div>
+              {isScouted && badges.length > 0 && (
+                <button
+                  onClick={() => setShowBadges(true)}
+                  style={{
+                    marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+                    padding: '4px 10px', borderRadius: 8, background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
+                    border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: 10,
+                  }}
+                >
+                  パッチを確認する
+                  <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontWeight: 900 }}>{badges.length}</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                </button>
+              )}
             </div>
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
               <div style={{ fontSize: '32px', fontWeight: '900', color: isScouted ? ratingColor(playerOvr) : '#5C5870', fontFamily: 'monospace', lineHeight: 1 }}>{isScouted ? playerOvr : '?'}</div>
@@ -500,32 +560,7 @@ export default function PlayerSheet() {
           {/* Page 1: プロフィール */}
           {page === 1 && !isRetired && (
             <div style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* 記録パッチ（世界/日本記録・MVP・新人王・区間記録、最大5個）。
-                  自チーム選手はタップでロスター名前横に表示するパッチを選べる */}
-              {badges.length > 0 && (
-                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', paddingTop: '10px' }}>
-                  {badges.map(b => {
-                    const col = BADGE_COLOR[b.kind]
-                    const selected = player.displayBadge === b.key
-                    return (
-                      <span
-                        key={b.key}
-                        onClick={isMyPlayer ? () => setDisplayBadge(player.id, selected ? null : b.key) : undefined}
-                        style={{
-                          fontSize: '9px', fontWeight: 900, padding: '3px 8px', borderRadius: '7px',
-                          background: `linear-gradient(180deg, ${col}2E, ${col}14)`,
-                          color: col, border: `1px solid ${selected ? col : `${col}55`}`,
-                          boxShadow: selected ? `0 0 8px ${col}66` : 'none',
-                          cursor: isMyPlayer ? 'pointer' : 'default', flexShrink: 0,
-                        }}
-                      >
-                        {b.label}{selected ? ' ✓' : ''}
-                      </span>
-                    )
-                  })}
-                  {isMyPlayer && <span style={{ width: '100%', textAlign: 'center', fontSize: '8px', color: '#5C5870' }}>タップでロスターに表示するパッチを選択</span>}
-                </div>
-              )}
+              {/* 記録パッチは「パッチを確認する」から専用パネルで閲覧・選択（詳細画面には列挙しない） */}
               {isScouted && <RadarChart ratings={player.ratings} color={specCol} player={player} />}
               {isProspect ? (
                 <>
@@ -567,23 +602,7 @@ export default function PlayerSheet() {
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* 引退選手は1ページ目（パッチ表示）を出さないので、記録パッチをここにも表示（閲覧のみ） */}
-              {isRetired && badges.length > 0 && (
-                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  {badges.map(b => {
-                    const col = BADGE_COLOR[b.kind]
-                    return (
-                      <span key={b.key} style={{
-                        fontSize: '9px', fontWeight: 900, padding: '3px 8px', borderRadius: '7px',
-                        background: `linear-gradient(180deg, ${col}2E, ${col}14)`,
-                        color: col, border: `1px solid ${col}55`, flexShrink: 0,
-                      }}>
-                        {b.label}
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
+              {/* 記録パッチは「パッチを確認する」から専用パネルで閲覧（引退選手も同様） */}
 
               {/* 引退選手は1ページ目を出さないので、ドラフト情報をここに移植 */}
               {isRetired && (() => {

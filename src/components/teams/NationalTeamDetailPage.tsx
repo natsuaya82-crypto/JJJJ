@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
@@ -12,8 +12,8 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 代表候補として表示する上位人数（全選手ではなく代表クラスだけ）
 const SQUAD_SIZE = 30
 
-export default function NationalTeamDetailPage() {
-  const { code } = useParams<{ code: string }>()
+// 代表ロスター本体（ルートからもTeamsHubのドリルダウンからも使う）。onBack で戻り先を差し込む。
+export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () => void }) {
   const players = useGameStore(s => s.players)
   const teams = useGameStore(s => s.teams)
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
@@ -22,15 +22,13 @@ export default function NationalTeamDetailPage() {
   const nat = (code ?? '') as Nationality
   const label = NAT_LABEL[nat] ?? nat
 
-  // 代表候補は「その国籍の中で強い上位30人」に絞る（全員だと数百人になる）
   const roster = players
     .filter(p => p.nationality === nat && p.status !== 'retired')
     .sort((a, b) => ovr(b) - ovr(a))
     .slice(0, SQUAD_SIZE)
 
-  // teamId → クラブ名。国内チーム＋海外クラブ。代表プール(nat-)や無所属は含めない → 「-」表示
   const clubName = (teamId: string): string => {
-    if (!teamId || teamId.startsWith('nat-')) return '-'
+    if (!teamId) return '-'
     const t = teams.find(t => t.id === teamId)
     if (t) return t.shortName || t.name
     for (const l of foreignLeagues) {
@@ -40,9 +38,7 @@ export default function NationalTeamDetailPage() {
     return '-'
   }
 
-  // タップ＝選手詳細（読み取り専用。代表は交渉対象ではない）
   const handlers = (pid: string) => ({ onClick: () => openPlayerSheet(pid) })
-
   const clubTag = (teamId: string) => (
     <span style={{ fontSize: 9, color: clubName(teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700, flexShrink: 0 }}>
       {clubName(teamId)}
@@ -52,15 +48,13 @@ export default function NationalTeamDetailPage() {
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
       <div style={{ padding: '10px 16px 4px' }}>
-        <BackButton/>
+        <BackButton onClick={onBack} />
       </div>
 
       <div style={{
-        margin: '8px 12px 12px',
-        borderRadius: '16px',
+        margin: '8px 12px 12px', borderRadius: '16px',
         background: `linear-gradient(135deg, ${C.gold}22, #14121F)`,
-        border: `1px solid ${C.goldDark}55`,
-        padding: '16px',
+        border: `1px solid ${C.goldDark}55`, padding: '16px',
       }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>NATIONAL TEAM</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -88,4 +82,11 @@ export default function NationalTeamDetailPage() {
       </div>
     </div>
   )
+}
+
+// ルート /teams/national/:code 用の薄いラッパ（外部遷移・直リンク用）
+export default function NationalTeamDetailPage() {
+  const { code } = useParams<{ code: string }>()
+  const navigate = useNavigate()
+  return <NationalTeamRoster code={code ?? ''} onBack={() => navigate(-1)} />
 }
