@@ -678,6 +678,7 @@ export type Season = {
   // 海外リーグの裏進行（プレイヤーの本編レースに同期して1戦ずつ進む）
   foreignStandings?: Record<string, ForeignStanding[]>   // leagueId → 順位表
   foreignRaceIndex?: number                              // 消化した海外マッチデー数
+  pendingForeignRestructure?: boolean                    // 旧セーブの海外リーグ大再編を次の年度更新で適用するフラグ
   // 海外リーグの選手ごとの出場記録（playerId → 所属クラブ・今季の出場数・区間賞数・区間順位の合計）。
   // rankSum/rankedRaces は平均区間順位の算出用（後から追加。無い旧データは平均を出さない）。
   // currentSeason に積み、シーズン終了で pastSeasons に乗る（選手詳細の在籍履歴に海外クラブ行として表示）。

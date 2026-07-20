@@ -5129,8 +5129,16 @@ export const useGameStore = create<GameStore>()(
               .map(p => p.id)
           )
 
-          // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）
-          const foreignRefresh = refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1)
+          // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）。
+          // ただし旧セーブの大再編が保留中なら、この年度更新で新9リーグへ丸ごと置換し旧海外選手は退場させる。
+          const pendingRestructure = (state.currentSeason as unknown as { pendingForeignRestructure?: boolean }).pendingForeignRestructure === true
+          const oldForeignClubIds = new Set((state.foreignLeagues ?? []).flatMap(l => l.clubs.map(c => c.id)))
+          const removedForeignPlayerIds = pendingRestructure
+            ? new Set(state.players.filter(p => oldForeignClubIds.has(p.teamId)).map(p => p.id))
+            : new Set<string>()
+          const foreignRefresh = pendingRestructure
+            ? (() => { const g = generateForeignLeaguePlayers(FOREIGN_LEAGUES, state.currentSeason.year + 1); return { newPlayers: g.players, updatedLeagues: g.updatedLeagues } })()
+            : refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1)
 
           // Pre-retirement consideration events (age 34-36, didn't retire, active on player team)
           const considerRetirement = grownPlayers.filter(p =>
@@ -5653,7 +5661,10 @@ export const useGameStore = create<GameStore>()(
 
           // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
           // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。
-          const foreignBasePlayers = [...playersWithForeignChamp, ...foreignRefresh.newPlayers]
+          const foreignBasePlayers = [
+            ...(removedForeignPlayerIds.size > 0 ? playersWithForeignChamp.filter(p => !removedForeignPlayerIds.has(p.id)) : playersWithForeignChamp),
+            ...foreignRefresh.newPlayers,
+          ]
           let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[]; records: TransferRecord[] }
           try {
             foreignTx = simulateForeignTransferMarket({
@@ -5870,6 +5881,7 @@ export const useGameStore = create<GameStore>()(
               foreignStandings: initForeignStandings(foreignRefresh.updatedLeagues),
               foreignRaceIndex: 0,
               foreignAppearances: {},
+              pendingForeignRestructure: false,  // 再編を適用したのでフラグ解除
               // 来季のECL：今季（＝前年）の各リーグ上位2チームで開催。4/6/7/9/11月の5戦、コースは10種から重複なし抽選。
               // 初年度は前年成績が無いためこの経路でしか生成されない＝1年目は開催なし
               eclSeries: (() => {
@@ -7036,7 +7048,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 15,
+      version: 16,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
@@ -7213,54 +7225,15 @@ export const useGameStore = create<GameStore>()(
           if (s.currentSeason) s.currentSeason = renameSeason(s.currentSeason as Record<string, unknown>)
           if (Array.isArray(s.pastSeasons)) s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(renameSeason)
         }
-        // v15: 世界陸上に向けた地域拡張。(a)既存海外選手を所属クラブの現定義の国籍へ付け替え（旧セーブは
-        // 欧州=EUR・南米=USA等のバケツのまま＝代表に出ない問題の解消）。(b)新リーグ（アジア駅伝／アジア・中東駅伝）と
-        // 既存リーグへ足したクラブ（アフリカ+9・欧州+6・アメリカ+5）を補完し選手生成。すべて冪等。
-        // ※v14で(b)だけ入れたが、既存テストセーブがv14で止まり(a)が走らないため、v15で両方まとめて再実行する。
-        if (version < 15) {
-          if (s.isInitialized && Array.isArray(s.foreignLeagues) && Array.isArray(s.players)) {
-            // (a) 既存の海外選手を「所属クラブの現定義の国籍」へ付け替える。
-            //     旧セーブは欧州=EUR・南米=USA等のバケツ国籍のままなので、これをやらないと代表に出ない。
-            const clubCountry = new Map<string, Nationality>()
-            for (const def of FOREIGN_LEAGUES) for (const c of def.clubs) clubCountry.set(c.id, c.country)
-            s.players = (s.players as Player[]).map(p => {
-              const cc = clubCountry.get(p.teamId)
-              if (!cc || p.nationality === cc) return p
-              return { ...p, nationality: cc, foreignCategory: nationalityToForeignCategory(cc) }
-            })
-            // 既存クラブの country も現定義に合わせる（表示・以後の生成用）
-            s.foreignLeagues = (s.foreignLeagues as { clubs: { id: string; country: Nationality }[] }[]).map(l => ({
-              ...l,
-              clubs: l.clubs.map(c => { const cc = clubCountry.get(c.id); return cc ? { ...c, country: cc } : c }),
-            })) as typeof s.foreignLeagues
-
-            // (b) 定義にあってセーブに無いリーグ/クラブを補完（新リーグ・拡張クラブ）
-            const saved = s.foreignLeagues as { id: string; clubs: { id: string }[] }[]
-            const toGenerate = FOREIGN_LEAGUES.flatMap(def => {
-              const sl = saved.find(l => l.id === def.id)
-              const missingClubs = sl ? def.clubs.filter(c => !sl.clubs.some(sc => sc.id === c.id)) : def.clubs
-              return missingClubs.length > 0 ? [{ ...def, clubs: missingClubs.map(c => ({ ...c, playerIds: [] as string[] })) }] : []
-            })
-            if (toGenerate.length > 0) {
-              const year = ((s.currentSeason as Record<string, unknown>)?.year as number) ?? 2027
-              const gen = generateForeignLeaguePlayers(toGenerate, year)
-              s.players = [...(s.players as unknown[]), ...gen.players]
-              const genByLeague = new Map(gen.updatedLeagues.map(l => [l.id, l]))
-              const merged = saved.map(sl => {
-                const gl = genByLeague.get(sl.id)
-                return gl ? { ...sl, clubs: [...sl.clubs, ...gl.clubs] } : sl
-              })
-              for (const gl of gen.updatedLeagues) {
-                if (!merged.some(l => l.id === gl.id)) merged.push(gl as unknown as (typeof merged)[0])
-              }
-              s.foreignLeagues = merged
+        // v16: 海外リーグ大再編（9リーグ×20クラブ）。リーグIDが全面刷新されたため、旧セーブは現シーズンは
+        // 旧リーグのまま走らせ、次の年度更新で新9リーグへ丸ごと置換する（pendingForeignRestructure→rolloverで処理）。
+        // ※現シーズンの順位を壊さないための「次年度反映」。新規ゲームは最初から新リーグ。
+        if (version < 16) {
+          if (s.isInitialized && Array.isArray(s.foreignLeagues)) {
+            const hasNew = (s.foreignLeagues as { id: string }[]).some(l => l.id === 'asia_league')
+            if (!hasNew) {
               const cs = (s.currentSeason ?? {}) as Record<string, unknown>
-              const standings = { ...((cs.foreignStandings as Record<string, unknown>) ?? {}) }
-              const initAll = initForeignStandings(merged as Parameters<typeof initForeignStandings>[0])
-              for (const [lid, st] of Object.entries(initAll)) {
-                if (!standings[lid]) standings[lid] = st
-              }
-              s.currentSeason = { ...cs, foreignStandings: standings }
+              s.currentSeason = { ...cs, pendingForeignRestructure: true }
             }
           }
         }
