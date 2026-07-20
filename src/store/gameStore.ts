@@ -5801,7 +5801,7 @@ export const useGameStore = create<GameStore>()(
             eventSeasonTops: [...(state.eventSeasonTops ?? []), ...newEventTops],
             draftState: null,
             sponsors: updatedSponsors,
-            // 過去シーズンはレース結果・順位・世界駅伝など「記録として見返すもの」だけ残す。
+            // 過去シーズンはレース結果・順位・世界陸上など「記録として見返すもの」だけ残す。
             // 記録会の全結果（毎年約1MB）・ニュース・チャットログ等は一度も読まれないため空にして保存する
             pastSeasons: [...state.pastSeasons, {
               ...state.currentSeason,
@@ -6425,7 +6425,7 @@ export const useGameStore = create<GameStore>()(
             nt = { coachTeamId: state.playerTeamId ?? '', year, squadIds, racePlan, racePlayerIds, isPlayerCoach: false }
           }
 
-          const cityIdx = Math.max(0, Math.floor((year - 2027) / 4) % WEC_CITIES.length)
+          const cityIdx = Math.max(0, Math.floor((year - 2027) / 2) % WEC_CITIES.length)
           const cityInfo = WEC_CITIES[cityIdx]
 
           const RACE_POINTS = [15, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1]
@@ -6459,7 +6459,7 @@ export const useGameStore = create<GameStore>()(
             // Race object: apply courseMult via distance scaling
             const wecRace: import('../types').Race = {
               id: `wec_${year}_r${raceIdx + 1}`,
-              name: `世界駅伝選手権 第${raceIdx + 1}レース`,
+              name: `世界陸上 第${raceIdx + 1}レース`,
               date: `${year}-12-01`,
               location: cityInfo.city,
               type: 'league' as const,
@@ -6566,7 +6566,7 @@ export const useGameStore = create<GameStore>()(
           const resultLabel = japanFinalRank === 1 ? '金メダル獲得！' : japanFinalRank <= 3 ? `${japanFinalRank}位入賞！` : `${japanFinalRank}位`
           const newsItem = {
             date: `${year}-12-01`,
-            headline: `世界駅伝選手権（${cityInfo.city}）3レース制：日本${resultLabel}`,
+            headline: `世界陸上（${cityInfo.city}）3レース制：日本${resultLabel}`,
             category: 'race' as const,
             relatedIds: [],
           }
@@ -7073,7 +7073,7 @@ export const useGameStore = create<GameStore>()(
         // v10: セーブ肥大化の掃除（既に膨らんだセーブの救済）。
         //  - 過去シーズンから一度も読まれない重いデータ（記録会全結果・ニュース・チャットログ等）を空にする
         //  - チーム歴代記録に選手名を焼き込む（今後の選手データ整理で名前が消えないように）
-        //  ※レース結果・順位・世界駅伝・自己ベスト・歴代記録は全て残る
+        //  ※レース結果・順位・世界陸上・自己ベスト・歴代記録は全て残る
         if (version < 10) {
           if (Array.isArray(s.pastSeasons)) {
             s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => ({

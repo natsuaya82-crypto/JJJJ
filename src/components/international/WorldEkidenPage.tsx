@@ -10,7 +10,8 @@ import PlayerFace from '../player/PlayerFace'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-function isWorldEkidenYear(year: number) { return (year - 2027) % 4 === 0 }
+// 世界陸上は2年に1度（シーズン終わりに開催）
+function isWorldEkidenYear(year: number) { return (year - 2027) % 2 === 0 }
 function nextWorldEkidenYear(year: number) { let y = year + 1; while (!isWorldEkidenYear(y)) y++; return y }
 
 const rankColor = (rank: number) =>
@@ -226,7 +227,7 @@ export default function WorldEkidenPage() {
           <BackButton />
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 900 }}>INTERNATIONAL</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>世界駅伝選手権</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>世界陸上</div>
           </div>
           <div style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 8, background: isWEYear ? alpha(C.gold, 0.12) : C.surface2, border: `1px solid ${isWEYear ? alpha(C.gold, 0.3) : C.border}` }}>
             <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: isWEYear ? C.gold : C.textDim }}>{year}年{isWEYear ? ' 開催年' : ''}</span>
@@ -283,7 +284,7 @@ export default function WorldEkidenPage() {
             <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 14, border: `1px solid ${alpha(C.gold, 0.4)}`, background: `linear-gradient(160deg, ${alpha(C.gold, 0.1)} 0%, ${C.surface2} 100%)` }}>
               <div style={{ padding: '16px 16px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.gold, 0.15)}` }}>
                 <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: '4px', fontWeight: 900, marginBottom: 4 }}>JAPAN NATIONAL TEAM</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 2 }}>{year} 世界駅伝選手権</div>
+                <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 2 }}>{year} 世界陸上</div>
                 <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub }}>代表メンバー発表</div>
               </div>
               <div style={{ display: 'flex' }}>
@@ -387,7 +388,7 @@ export default function WorldEkidenPage() {
                     className="btn-game btn-game--gold"
                     style={{ width: '100%' }}
                   >
-                    <span className="btn-game__inner">代表確定 — 世界駅伝選手権へ</span>
+                    <span className="btn-game__inner">代表確定 — 世界陸上へ</span>
                   </button>
                 )}
               </>
