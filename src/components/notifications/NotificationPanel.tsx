@@ -359,6 +359,10 @@ export function useNotifCount() {
   // ロスター超過警告（NotificationsPageと同じ基準）
   const rosterOver = Math.max(0, players.filter(p => p.teamId === playerTeamId && p.status === 'active').length - ROSTER_MAX)
 
+  // 補強禁止（NotificationsPageと同じ基準：3シーズン連続赤字 or 残高マイナス）
+  const bannedFinance = teams.find(t => t.id === playerTeamId)?.finance
+  const signingBanned = ((bannedFinance?.deficitStreak ?? 0) >= 3) || ((bannedFinance?.budget ?? 0) < 0)
+
   // 負傷者情報（NotificationsPageと同じ基準：OKで確認済みにしたものは数えない）
   // ※セレクタで `?? []` すると毎回新配列になり無限レンダリングするので、フィールドをそのまま取る
   const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
@@ -369,6 +373,7 @@ export function useNotifCount() {
 
   return incomingOffers + tradeOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
     + renewalNeeded
+    + (signingBanned ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
     + (injuredCount > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)

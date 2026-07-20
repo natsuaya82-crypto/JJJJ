@@ -5,7 +5,7 @@
 import type { Player } from '../types'
 
 export const ROSTER_MAX = 30          // ロスター人数上限（フラット）
-export const ROSTER_MIN = 20          // ロスター人数下限（これ未満になる放出・解雇は不可）
+export const ROSTER_MIN = 15          // ロスター人数下限（15人はOK・14人にしようとするとブロック）
 
 // チームの在籍人数（引退除く）。放出・解雇の下限判定に使う。
 export function teamRosterSize(players: Player[], teamId: string): number {

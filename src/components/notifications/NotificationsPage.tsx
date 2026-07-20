@@ -356,6 +356,10 @@ export default function NotificationsPage() {
   const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
   const rosterOver = Math.max(0, myRosterCount - ROSTER_MAX)
 
+  // 補強禁止の通知（3シーズン連続赤字、または残高マイナス＝reinforcementBannedと同基準）
+  const myTeamFinance = teams.find(t => t.id === playerTeamId)?.finance
+  const signingBanned = ((myTeamFinance?.deficitStreak ?? 0) >= 3) || ((myTeamFinance?.budget ?? 0) < 0)
+
   // 負傷者情報：自チームの負傷中の選手（OKで確認済みにでき、復帰でも自動で消える）
   // ※セレクタで `?? []` すると毎回新配列になり無限レンダリングするので、フィールドをそのまま取る
   const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
@@ -376,6 +380,7 @@ export default function NotificationsPage() {
     + tradeOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + renewalNeeded
+    + (signingBanned ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
     + (injuredPlayers.length > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
@@ -621,6 +626,23 @@ export default function NotificationsPage() {
                     </div>
                   )
                 })}
+              </div>
+            </section>
+          )}
+
+          {/* 補強禁止の警告（赤字ペナルティ中） */}
+          {signingBanned && (
+            <section>
+              <SectionHead label="補強禁止" color={C.red} count={1}/>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.red, 0.45), '#5a1010')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>赤字が解消するまで補強できません</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginBottom: '14px' }}>{(myTeamFinance?.budget ?? 0) < 0 ? '残高がマイナスです。' : '3シーズン連続の赤字です。'}FA・移籍金・引き抜き・レンタル・海外獲得による新規補強が禁止されています（ドラフト・契約更新は可）。収支を黒字に戻すと解除されます。</div>
+                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.red}, #FF6B6B)`, color: C.bg }} onClick={() => navigate('/budget')}>財務を確認する</Btn>
+                  </div>
+                </div>
               </div>
             </section>
           )}

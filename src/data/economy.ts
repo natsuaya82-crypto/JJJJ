@@ -30,6 +30,27 @@ export function rankBudgetGrant(finalRank: number): number {
   return RANK_BUDGET[finalRank] ?? 368_000_000
 }
 
+// レース賞金（プレイヤーのそのレース着順に応じた1戦あたり賞金・円）。
+// 1位2000万 / 2〜3位1800万 / 4〜5位1500万 / 6〜10位1200万 / 11〜13位1000万 / 14〜17位800万 / 18〜20位500万。
+// 下位のfloorを引き上げ、上位との差を緩やかにして下位も潤うようにする。
+export function racePrizeByRank(rank: number): number {
+  if (rank <= 0) return 0
+  const man =
+    rank <= 1 ? 2000 :
+    rank <= 3 ? 1800 :
+    rank <= 5 ? 1500 :
+    rank <= 10 ? 1200 :
+    rank <= 13 ? 1000 :
+    rank <= 17 ? 800 : 500
+  return man * 10000
+}
+
+// CPUチームはレース賞金・観客収入が入らない分、確定予算（グラント）の10%を補填income扱いで加える。
+export const CPU_INCOME_SUPPLEMENT_RATE = 0.10
+export function cpuIncomeSupplement(finalRank: number): number {
+  return Math.round(rankBudgetGrant(finalRank) * CPU_INCOME_SUPPLEMENT_RATE)
+}
+
 // ── リーグの育成義務ペナルティ ──
 // 少人数の緊縮経営（年俸を絞って黒字を貯める）への対抗策。
 // 在籍22人以下は翌季グラント-20%、リザーブリーグ不参加はさらに-10%（合計最大-30%）。
@@ -91,6 +112,16 @@ export function computeNextSeasonBudget(args: {
   const raw = args.prevBalance + income - expenses
   // 下限の大盤振る舞いは廃止。赤字は許容するが DEFICIT_LIMIT で底打ち（不足分は別途強制売却で補う）。
   return Math.max(DEFICIT_LIMIT, raw)
+}
+
+// そのシーズン単年の営業収支（income − expenses、繰越残高は含めない）。
+// 連続赤字カウントの判定に使う。残高がプラスでも単年で赤字ならペナルティ対象にする。
+export function seasonOperatingResult(args: Parameters<typeof computeNextSeasonBudget>[0]): number {
+  const grantMult = args.deficitStreak >= 3 ? 0.65 : args.deficitStreak >= 2 ? 0.80 : 1.0
+  const grant = Math.round(rankBudgetGrant(args.finalRank) * grantMult * (1 - (args.dutyGrantCut ?? 0)))
+  const income = grant + args.sponsorAnnual + args.seasonRaceIncome + args.objBudgetBonus
+  const expenses = args.bonusPayout + args.salaryTotal + (args.runningCost ?? 0)
+  return income - expenses
 }
 
 // ── 移籍入札：相手が受けるかの判定基準（UI の成立確率表示と store の合否判定で共有）──

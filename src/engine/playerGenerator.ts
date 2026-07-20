@@ -1074,11 +1074,12 @@ export function refreshForeignLeagues(
 // 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
 function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number): void {
   const peakAge = growthCurve === 'early' ? 24 : growthCurve === 'normal' ? 27 : 30
-  const years = Math.max(0, Math.min(age, peakAge) - 22)
+  const years = Math.max(0, Math.min(age, peakAge + 1) - 22)
   if (years === 0) return
   const caps = getStatPotentials({ id, ratings, specialty, potential } as unknown as Player)
   // 毎年の成長(growPlayer)と同じ係数に揃える（ズレると初年度と定常状態で層の厚みが変わる）
-  const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.0 : 0.6
+  // 若手成長の底上げに合わせて中・低ポテンシャルを強化し、成長窓もピーク+1年に延長（growPlayerと同一）
+  const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.3 : 0.85
   const keys = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const
   for (let y = 0; y < years; y++) {
     for (const stat of keys) {

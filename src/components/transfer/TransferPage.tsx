@@ -118,9 +118,8 @@ export default function TransferPage() {
   if (!myTeam) return null
 
   const window = getTransferWindow()
-  // 赤字ペナルティ中は新規補強不可（startAcquisitionOfferが内部で弾くため、ボタン側でも明示する）
-  // 赤字ペナルティ中、または現在の残高がマイナスの間は補強不可
-  const signingBanned = (myTeam.finance.deficitStreak ?? 0) >= 1 || myTeam.finance.budget < 0
+  // 補強不可判定（reinforcementBannedと同基準）：3シーズン連続赤字、または残高マイナスの間は新規補強不可
+  const signingBanned = (myTeam.finance.deficitStreak ?? 0) >= 3 || myTeam.finance.budget < 0
 
   // 移籍市場カードの押下：タップ＝メニュー / 長押し(450ms)＝選手詳細。
   // ※この関数より下で `window` が getTransferWindow() の結果に shadow されるため、bare の setTimeout/clearTimeout を使う。

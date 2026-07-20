@@ -17,7 +17,7 @@ import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut } from '../data/economy'
+import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuIncomeSupplement } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -162,7 +162,8 @@ function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFr
 // 新規補強（FA・移籍金・引き抜き・レンタル・海外獲得）を止める。ドラフト・契約更新は可。
 export function reinforcementBanned(team: { finance: { budget: number; deficitStreak?: number } } | undefined): boolean {
   if (!team) return false
-  return (team.finance.deficitStreak ?? 0) >= 1 || team.finance.budget < 0
+  // 3シーズン連続赤字で補強禁止。または現在の残高がマイナスの間も禁止。
+  return (team.finance.deficitStreak ?? 0) >= 3 || team.finance.budget < 0
 }
 
 // 獲得成立時の署名処理。旧チームから外し自チームへ。tier満杯(1軍20/2軍18)なら null（契約不可）。
@@ -1140,10 +1141,8 @@ export const useGameStore = create<GameStore>()(
             }
           })
 
-          // Race prize money for player team
-          const PRIZE_TABLE = [2000, 1500, 1000, 700, 500, 300, 300, 300]
-          const racePrizePct = PRIZE_TABLE[Math.min(playerRank - 1, PRIZE_TABLE.length - 1)] ?? 200
-          const racePrize = racePrizePct * 10000
+          // Race prize money for player team（順位別の新テーブル。economy.tsに集約）
+          const racePrize = racePrizeByRank(playerRank)
 
           // Segment prize money (top 3 per segment — goes to team)
           const SEG_PRIZE = [5000000, 3000000, 1500000]
@@ -2685,6 +2684,7 @@ export const useGameStore = create<GameStore>()(
         const player = state.players.find(p => p.id === offer.playerId)
         if (!player || player.teamId !== state.playerTeamId) return false
         if (player.loan && player.loan.ownerTeamId !== state.playerTeamId) return false  // レンタルで借りている選手は保有権が無く売却不可
+        if (!canReleaseFromRoster(state.players, state.playerTeamId)) return false  // ロスター下限(15人)を割る売却は不可
         // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
         if (offer.fromForeign) {
           const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
@@ -2754,6 +2754,16 @@ export const useGameStore = create<GameStore>()(
           if ((player.renewalLockedUntilYear ?? 0) > state.currentSeason.year) return state  // 最終拒否後1年は更新不可
           const existing = (state.currentSeason.contractRequests ?? []).find(r => r.playerId === playerId && r.status !== 'accepted' && r.status !== 'rejected')
           if (existing) return state
+          // 要求額は市場価値(OVR×年齢)×出場割合スケール×性格で算出（自動昇給を廃止し市場価値連動に）
+          const gmRacesPlayed = state.currentSeason.currentRaceIndex ?? 0
+          const gmSeasonRaces = state.currentSeason.races ?? []
+          const gmPersonality = player.personality ?? 'salary'
+          const gmMarket = faMarketSalary(player)
+          const gmApps = seasonAppearances(player.id, gmSeasonRaces)
+          const gmPlayFraction = gmRacesPlayed > 0 ? gmApps / gmRacesPlayed : 0
+          const gmPlayFactor = 0.6 + 0.4 * Math.min(1, gmPlayFraction / 0.6)
+          const gmPersoFactor = gmPersonality === 'salary' ? 1.05 : gmPersonality === 'winning' ? 1.0 : 0.95
+          const gmDemand = Math.max(3_000_000, gmMarket * gmPlayFactor * gmPersoFactor)
           const req: ContractRequest = {
             id: `cr_${Date.now()}`,
             playerId,
@@ -2761,10 +2771,9 @@ export const useGameStore = create<GameStore>()(
             round: 1,
             status: 'pending_gm',
             expiresAtRace: (state.currentSeason.currentRaceIndex ?? 0) + 6,
-            // ルーキー契約（相場の半分まで下げられる初回契約）の次の更新は相場基準の要求になる
-            demandSalary: Math.round(Math.max(player.contract.annualSalary * 1.12, player.contract.rookieDeal ? faMarketSalary(player) : 0) / 500000) * 500000,
+            demandSalary: Math.round(gmDemand / 500000) * 500000,
             demandYears: 2,
-            offerSalary: Math.round(player.contract.annualSalary * 1.05 / 500000) * 500000,
+            offerSalary: Math.round(Math.min(gmDemand, player.contract.annualSalary * 1.05) / 500000) * 500000,
             offerYears: 2,
           }
           return { currentSeason: { ...state.currentSeason, contractRequests: [...(state.currentSeason.contractRequests ?? []), req] } }
@@ -2781,9 +2790,17 @@ export const useGameStore = create<GameStore>()(
             && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !contactedIds.has(p.id))
           // 拒否済みも含めて「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）
           const existing = new Set((state.currentSeason.contractRequests ?? []).map(r => r.playerId))
+          const seasonRaces = state.currentSeason.races ?? []
           const newReqs: ContractRequest[] = myPlayers.filter(p => !existing.has(p.id)).map(p => {
             const personality = p.personality ?? 'salary'
-            const mult = personality === 'salary' ? 1.2 : personality === 'winning' ? 1.1 : 1.06
+            // 要求額は「市場価値(OVR×年齢) × 出場割合スケール × 性格」で決める。
+            // 旧仕様の『現年俸×1.2の自動昇給』を廃止。活躍・出場がない選手は市場価値未満＝据え置き〜減額しか要求できない。
+            const market = faMarketSalary(p)
+            const apps = seasonAppearances(p.id, seasonRaces)
+            const playFraction = racesPlayed > 0 ? apps / racesPlayed : 0
+            const playFactor = 0.6 + 0.4 * Math.min(1, playFraction / 0.6)   // 出場0→0.6倍, 6割以上出場→1.0倍
+            const persoFactor = personality === 'salary' ? 1.05 : personality === 'winning' ? 1.0 : 0.95
+            const demand = Math.max(3_000_000, market * playFactor * persoFactor)
             return {
               id: `cr_${Date.now()}_${p.id}`,
               playerId: p.id,
@@ -2791,8 +2808,7 @@ export const useGameStore = create<GameStore>()(
               round: 1,
               status: 'pending_gm' as const,
               expiresAtRace: racesPlayed + 6,
-              // ルーキー契約明けは相場基準で要求（安い初回年俸を基準にしない）
-              demandSalary: Math.round(Math.max(p.contract.annualSalary * mult, p.contract.rookieDeal ? faMarketSalary(p) : 0) / 500000) * 500000,
+              demandSalary: Math.round(demand / 500000) * 500000,
               demandYears: personality === 'loyalty' ? 3 : 2,
               offerSalary: 0,
               offerYears: 0,
@@ -5433,7 +5449,7 @@ export const useGameStore = create<GameStore>()(
           const myRosterSize = playersAfterMorale.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
           const reserveJoinedMe = (state.currentSeason.secondTeamRaces ?? []).length === 0 || state.currentSeason.reserveLeagueJoined === true
           const dutyCutMe = leagueDutyGrantCut(myRosterSize, reserveJoinedMe)
-          const newBudget = computeNextSeasonBudget({
+          const playerBudgetArgs = {
             finalRank,
             prevBalance: playerBudgetAtSeasonEnd,
             deficitStreak: prevStreakMe,
@@ -5444,7 +5460,8 @@ export const useGameStore = create<GameStore>()(
             salaryTotal: playerSalaryTotal,
             runningCost: runningCostVal,
             dutyGrantCut: dutyCutMe,
-          })
+          }
+          const newBudget = computeNextSeasonBudget(playerBudgetArgs)
           // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。グラントは連続赤字ペナルティ適用後の実額。
           // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
           // 前季の支出は前季で完結しているため、内訳に支出行は出さない
@@ -5457,8 +5474,8 @@ export const useGameStore = create<GameStore>()(
             objBonus: objBudgetBonus,
             expenses: 0,  // 精算済みのためcarryoverに織り込み（旧セーブの表示互換のためフィールドは残す）
           }
-          // 残高がマイナスなら連続赤字カウント+1、黒字なら0にリセット
-          const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
+          // 単年の営業収支が赤字なら連続赤字カウント+1、黒字なら0にリセット（残高ではなく単年収支で判定）
+          const newStreakMe = seasonOperatingResult(playerBudgetArgs) < 0 ? prevStreakMe + 1 : 0
 
           // 全チームの来季予算を順位連動に（自チームと同じ computeNextSeasonBudget）。
           const teamSalaryTotal = (teamId: string) => playersAfterMorale
@@ -5475,18 +5492,22 @@ export const useGameStore = create<GameStore>()(
             const rank = sortedStandings.findIndex(s => s.teamId === t.id) + 1
             const sal = teamSalaryTotal(t.id)
             const prevStreak = t.finance.deficitStreak ?? 0
-            const b = computeNextSeasonBudget({
+            const cpuBudgetArgs = {
               finalRank: rank,
               prevBalance: t.finance.budget,
               deficitStreak: prevStreak,
               sponsorAnnual: teamSponsorAnnual(t),
-              seasonRaceIncome: 0,
+              // CPUは賞金・観客収入が入らないので、確定予算(グラント)の10%を補填income扱いで加える
+              seasonRaceIncome: cpuIncomeSupplement(rank),
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
               runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), rankBudgetGrant(rank)),
-            })
-            return { ...t, finance: { ...t.finance, budget: b, salaryTotal: sal, deficitStreak: b < 0 ? prevStreak + 1 : 0 } }
+            }
+            const b = computeNextSeasonBudget(cpuBudgetArgs)
+            // 単年収支が赤字なら連続赤字+1（残高ではなく単年で判定）
+            const cpuStreak = seasonOperatingResult(cpuBudgetArgs) < 0 ? prevStreak + 1 : 0
+            return { ...t, finance: { ...t.finance, budget: b, salaryTotal: sal, deficitStreak: cpuStreak } }
           })
 
           // Generate future draft picks (next 2 seasons) for each team based on final rank
@@ -7676,10 +7697,10 @@ function growPlayer(p: Player, allowAnnualGrowth = false): Player {
   // カーブは初期生成(bakeAgeGrowth)と同一に揃える。以前は80以上でほぼ停止するカーブだったため、
   // ポテンシャル85級の新人が72前後で頭打ちになり、初期生成の強い世代が引退する7〜8年目に
   // リーグのエース層(OVR85+)が枯れて「同じメンバーで余裕で勝てる」状態になっていた
-  if (allowAnnualGrowth && nextAge < peakAge) {
-    // 高ポテンシャル(87+)の伸びを強化(1.8)：エース級(85+)の定常在庫が約18人・80+が約85人
-    // ＝強豪CPUで80超が7〜8人並び、カード育成したプレイヤーのチームと張り合える水準（世代シムで検証済み）
-    const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.0 : 0.6
+  if (allowAnnualGrowth && nextAge <= peakAge + 1) {
+    // 若手の成長を底上げ（⑤：一斉引退後にドラフト/FA補充された若手が育ち切らず、強豪が急落して戻れない対策）。
+    // 中ポテンシャル(75+)を1.0→1.3、低(＜75)を0.6→0.85に強化。成長窓もピーク+1年まで延長。
+    const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.3 : 0.85
     for (const stat of GROW_KEYS) {
       const cur = ratings[stat]
       const cap = caps[stat]
