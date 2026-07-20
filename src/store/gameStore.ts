@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow } from './saveStorage'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -7036,7 +7036,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 14,
+      version: 15,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
@@ -7213,11 +7213,28 @@ export const useGameStore = create<GameStore>()(
           if (s.currentSeason) s.currentSeason = renameSeason(s.currentSeason as Record<string, unknown>)
           if (Array.isArray(s.pastSeasons)) s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(renameSeason)
         }
-        // v14: 世界陸上に向けた地域拡張。定義に追加した新リーグ（アジア駅伝／アジア・中東駅伝）と、
-        // 既存リーグへ足したクラブ（アフリカ+9・欧州+6・アメリカ+5）を既存セーブにも補完し、選手を生成する。
-        // v11と同じ「定義にあってセーブに無いリーグ/クラブだけ生成して合流」ロジック（冪等）。
-        if (version < 14) {
+        // v15: 世界陸上に向けた地域拡張。(a)既存海外選手を所属クラブの現定義の国籍へ付け替え（旧セーブは
+        // 欧州=EUR・南米=USA等のバケツのまま＝代表に出ない問題の解消）。(b)新リーグ（アジア駅伝／アジア・中東駅伝）と
+        // 既存リーグへ足したクラブ（アフリカ+9・欧州+6・アメリカ+5）を補完し選手生成。すべて冪等。
+        // ※v14で(b)だけ入れたが、既存テストセーブがv14で止まり(a)が走らないため、v15で両方まとめて再実行する。
+        if (version < 15) {
           if (s.isInitialized && Array.isArray(s.foreignLeagues) && Array.isArray(s.players)) {
+            // (a) 既存の海外選手を「所属クラブの現定義の国籍」へ付け替える。
+            //     旧セーブは欧州=EUR・南米=USA等のバケツ国籍のままなので、これをやらないと代表に出ない。
+            const clubCountry = new Map<string, Nationality>()
+            for (const def of FOREIGN_LEAGUES) for (const c of def.clubs) clubCountry.set(c.id, c.country)
+            s.players = (s.players as Player[]).map(p => {
+              const cc = clubCountry.get(p.teamId)
+              if (!cc || p.nationality === cc) return p
+              return { ...p, nationality: cc, foreignCategory: nationalityToForeignCategory(cc) }
+            })
+            // 既存クラブの country も現定義に合わせる（表示・以後の生成用）
+            s.foreignLeagues = (s.foreignLeagues as { clubs: { id: string; country: Nationality }[] }[]).map(l => ({
+              ...l,
+              clubs: l.clubs.map(c => { const cc = clubCountry.get(c.id); return cc ? { ...c, country: cc } : c }),
+            })) as typeof s.foreignLeagues
+
+            // (b) 定義にあってセーブに無いリーグ/クラブを補完（新リーグ・拡張クラブ）
             const saved = s.foreignLeagues as { id: string; clubs: { id: string }[] }[]
             const toGenerate = FOREIGN_LEAGUES.flatMap(def => {
               const sl = saved.find(l => l.id === def.id)
