@@ -1358,15 +1358,17 @@ export const nationFromTeamId = (teamId: string): Nationality | null =>
 // 代表プールの1チーム人数
 const NATIONAL_SQUAD_SIZE = 20
 
-// 代表プールの強さ。リーグ非所属国なのでクラブより一段控えめだが、
-// 代表候補は「最低でも20人全員がプロ水準」になるよう下限ランクは B 以上にする。
-// 強弱の差は上限（budget・potBonus＝上位に何人スターが出るか）で付ける。
-// アフリカ帰化（バーレーン/カタール）やアフリカ勢（モロッコ/エリトリア）は強く出る。
-const NAT_REGION: Record<string, { budget: number; potBonus: number; minRank: Rank }> = {
-  AFRICA:  { budget: 900_000_000, potBonus: 10, minRank: 'A' },
-  EUR_USA: { budget: 750_000_000, potBonus: 4,  minRank: 'B' },
-  OTHER:   { budget: 680_000_000, potBonus: 2,  minRank: 'B' },
-  ASIA:    { budget: 640_000_000, potBonus: 0,  minRank: 'B' },
+// 代表プールの強さ。
+// 下限(minRank)＝「20人全員プロ水準」の底、上限(maxRank/potCap)＝「その国の主力がどこまで強いか」の天井。
+// 天井は地域で明確に差をつける：アフリカだけが90台に届く。日本/欧州は80台後半、その他は70台後半、
+// 弱いアジア勢は70台前半で頭打ち（=リーグに出てくる怪物はアフリカだけ、という体感に合わせる）。
+// potCap=ポテンシャル上限。bakeAgeGrowth が年長者をここまでしか育てないので実効OVRの天井になる。
+// アフリカ帰化（バーレーン/カタール）やアフリカ勢（モロッコ/エリトリア）は AFRICA 扱いで強く出る。
+const NAT_REGION: Record<string, { budget: number; potBonus: number; minRank: Rank; maxRank: Rank; potCap: number }> = {
+  AFRICA:  { budget: 900_000_000, potBonus: 8, minRank: 'A', maxRank: 'SSS', potCap: 99 },
+  EUR_USA: { budget: 720_000_000, potBonus: 0, minRank: 'B', maxRank: 'S',   potCap: 86 },
+  OTHER:   { budget: 640_000_000, potBonus: 0, minRank: 'B', maxRank: 'S',   potCap: 79 },
+  ASIA:    { budget: 600_000_000, potBonus: 0, minRank: 'B', maxRank: 'A',   potCap: 75 },
 }
 
 let nationalIdCounter = 20000
@@ -1377,7 +1379,10 @@ function generateNationForPool(code: Nationality, pool: ForeignNamePool, year: n
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
   const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
-  const rankAtLeast = (r: Rank, min: Rank): Rank => RANK_ORDER.indexOf(r) >= RANK_ORDER.indexOf(min) ? r : min
+  const clampRank = (r: Rank, min: Rank, max: Rank): Rank => {
+    const i = Math.max(RANK_ORDER.indexOf(min), Math.min(RANK_ORDER.indexOf(max), RANK_ORDER.indexOf(r)))
+    return RANK_ORDER[i]
+  }
 
   const region = NAT_REGION[natStrengthRegion(code)] ?? NAT_REGION.OTHER
   const salaries = distributeSalaries(Math.round(region.budget * 0.8), count, 3_000_000).sort(() => Math.random() - 0.5)
@@ -1386,7 +1391,7 @@ function generateNationForPool(code: Nationality, pool: ForeignNamePool, year: n
   const foreignCat = nationalityToForeignCategory(code)
 
   salaries.forEach((salary) => {
-    const rank = rankAtLeast(rankForSalary(salary), region.minRank)
+    const rank = clampRank(rankForSalary(salary), region.minRank, region.maxRank)
     nationalIdCounter++
     const specialty = specialties[rng(0, specialties.length - 1)]
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
@@ -1400,7 +1405,7 @@ function generateNationForPool(code: Nationality, pool: ForeignNamePool, year: n
     usedNames.add(nameEntry.name)
 
     const id = `np-${code}-${year}-${nationalIdCounter}-${Math.random().toString(36).slice(2, 7)}`
-    const potentialVal = Math.min(99, rng(potential[0], potential[1]) + region.potBonus)
+    const potentialVal = Math.min(region.potCap, rng(potential[0], potential[1]) + region.potBonus)
     bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
 
     out.push({
