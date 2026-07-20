@@ -45,10 +45,29 @@ export function racePrizeByRank(rank: number): number {
   return man * 10000
 }
 
-// CPUチームはレース賞金・観客収入が入らない分、確定予算（グラント）の10%を補填income扱いで加える。
+// CPUの不足分補填：確定予算（グラント）の10%を上乗せ。
 export const CPU_INCOME_SUPPLEMENT_RATE = 0.10
 export function cpuIncomeSupplement(finalRank: number): number {
   return Math.round(rankBudgetGrant(finalRank) * CPU_INCOME_SUPPLEMENT_RATE)
+}
+
+// 順位別の1戦あたり観客収入の目安（プレイヤーの計算式と同じ段階。乱数は除いた期待値）。
+export function attendanceRevenueByRank(rank: number): number {
+  const base = 2_750_000   // 全順位共通のベース（約275万・乱数の期待値）
+  const rankBonus =
+    rank === 1 ? 8_000_000 :
+    rank <= 3 ? 4_500_000 :
+    rank <= 6 ? 1_800_000 :
+    rank <= 10 ? 600_000 : 0
+  return base + rankBonus
+}
+
+// CPUのシーズン収入：プレイヤー同様に「レース賞金＋観客収入」を最終順位ベースで1シーズン分(racesCount戦)概算し、
+// さらに足りない分としてグラントの10%を上乗せする。
+export function cpuSeasonRaceIncome(finalRank: number, racesCount: number): number {
+  const races = Math.max(1, racesCount)
+  const perRace = racePrizeByRank(finalRank) + attendanceRevenueByRank(finalRank)
+  return perRace * races + cpuIncomeSupplement(finalRank)
 }
 
 // ── リーグの育成義務ペナルティ ──

@@ -17,7 +17,7 @@ import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuIncomeSupplement } from '../data/economy'
+import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -5485,6 +5485,7 @@ export const useGameStore = create<GameStore>()(
             .map(id => (state.sponsors ?? []).find(s => s.id === id))
             .filter(Boolean)
             .reduce((s, sp) => s + sp!.annualPayment, 0)
+          const seasonRacesCount = state.currentSeason.races?.length ?? 10
           const teamsWithSeasonRewards = teamsWithFA.map(t => {
             if (t.id === state.playerTeamId) {
               return { ...t, finance: { ...t.finance, budget: newBudget, salaryTotal: playerSalaryTotal, deficitStreak: newStreakMe } }
@@ -5497,8 +5498,8 @@ export const useGameStore = create<GameStore>()(
               prevBalance: t.finance.budget,
               deficitStreak: prevStreak,
               sponsorAnnual: teamSponsorAnnual(t),
-              // CPUは賞金・観客収入が入らないので、確定予算(グラント)の10%を補填income扱いで加える
-              seasonRaceIncome: cpuIncomeSupplement(rank),
+              // CPUにも賞金＋観客収入を最終順位ベースで加え、さらに足りない分としてグラントの10%を上乗せ
+              seasonRaceIncome: cpuSeasonRaceIncome(rank, seasonRacesCount),
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
