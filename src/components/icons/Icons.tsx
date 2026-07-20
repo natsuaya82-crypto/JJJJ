@@ -691,6 +691,15 @@ const DEFAULT_LOGO: LogoFn = (p, s) => <>
   <circle cx="24" cy="24" r="4" fill={s} fillOpacity="0.35"/>
 </>
 
+// 専用ロゴを持たないクラブ（海外クラブ等）用の紋章プール。全部同じ六角形にならないよう、
+// クラブIDのハッシュで多彩なデザインを割り当てる。
+const LOGO_POOL: LogoFn[] = Object.values(LOGOS)
+function logoHash(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
 const PNG_TEAM_IDS = new Set([
   'sapporo', 'morioka', 'aomori', 'sendai', 'tokyo',
   'yokohama', 'chiba', 'saitama', 'nagano', 'niigata',
@@ -726,7 +735,9 @@ export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, 
   }
   const uid = teamId ?? shortName ?? 'x'
   const p = `url(#lg-${uid})`
-  const logoFn = (teamId && LOGOS[teamId]) || DEFAULT_LOGO
+  // 専用ロゴがあれば最優先。無ければ全部同じ六角形にせず、ID/名からハッシュでプールから多彩に割り当てる。
+  const logoFn = (teamId && LOGOS[teamId])
+    || (LOGO_POOL.length > 0 ? LOGO_POOL[logoHash(uid) % LOGO_POOL.length] : DEFAULT_LOGO)
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
       <defs>
@@ -750,6 +761,8 @@ const LEAGUE_COLORS: Record<string, { primary: string; secondary: string }> = {
   usa_running:    { primary: '#B22234', secondary: '#FFFFFF' },
   oceania_cup:    { primary: '#003087', secondary: '#FFD700' },
   south_america:  { primary: '#009C3B', secondary: '#FFDF00' },
+  asia_ekiden:    { primary: '#0E7C7B', secondary: '#F4C430' },
+  asia_me_ekiden: { primary: '#8A1538', secondary: '#E8C36B' },
 }
 
 const LEAGUE_LOGOS: Record<string, (p: string, s: string) => React.ReactElement> = {
@@ -838,6 +851,19 @@ const LEAGUE_LOGOS: Record<string, (p: string, s: string) => React.ReactElement>
     <path d="M4 40 L13 24 L19 33 L24 19 L29 33 L35 24 L44 40 Z" fill={s} fillOpacity="0.42"/>
     <path d="M24 17 C20 14 7 16 3 21 C7 23 15 22 19 24 C21 25 21 30 24 32 C27 30 27 25 29 24 C33 22 41 23 45 21 C41 16 28 14 24 17 Z" fill={s} fillOpacity="0.77"/>
     <circle cx="24" cy="11" r="5.5" fill={s} fillOpacity="0.72"/>
+  </>,
+  // アジア駅伝（東・東南）：昇る朝日と放射
+  asia_ekiden: (p, s) => <>
+    <circle cx="24" cy="24" r="21" fill={p}/>
+    <circle cx="24" cy="27" r="8.5" fill={s} fillOpacity="0.9"/>
+    <path d="M24 9 V15 M11 13 L15 17 M37 13 L33 17 M6 24 H12 M42 24 H36" stroke={s} strokeWidth="2.4" strokeLinecap="round" strokeOpacity="0.85"/>
+    <path d="M6 37 Q24 31 42 37" stroke={s} strokeWidth="2" fill="none" strokeLinecap="round" strokeOpacity="0.55"/>
+  </>,
+  // アジア・中東駅伝（南中央＋湾岸）：三日月と星
+  asia_me_ekiden: (p, s) => <>
+    <circle cx="24" cy="24" r="21" fill={p}/>
+    <path d="M31 8 A18 18 0 1 0 31 40 A13.5 13.5 0 1 1 31 8 Z" fill={s} fillOpacity="0.9"/>
+    <path d="M33 20 L35 25.5 H40.8 L36 29 L37.8 34.5 L33 31 L28.2 34.5 L30 29 L25.2 25.5 H31 Z" fill={s} fillOpacity="0.92"/>
   </>,
 }
 
