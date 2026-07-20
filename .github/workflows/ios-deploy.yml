@@ -2,6 +2,9 @@ name: iOS Deploy to App Store
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'build-*'
 
 jobs:
   deploy:
