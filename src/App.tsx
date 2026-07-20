@@ -27,6 +27,7 @@ import JpelStandingsPage from './components/teams/JpelStandingsPage'
 import EclStandingsPage from './components/teams/EclStandingsPage'
 import TeamDetailPage from './components/teams/TeamDetailPage'
 import ForeignLeagueDetailPage from './components/teams/ForeignLeagueDetailPage'
+import NationalTeamDetailPage from './components/teams/NationalTeamDetailPage'
 import ChatPage from './components/team/ChatPage'
 import NoSalePage from './components/team/NoSalePage'
 import FriendsPage from './components/friends/FriendsPage'
@@ -168,6 +169,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/teams/detail/:teamId" element={<TeamDetailPage />} />
           <Route path="/teams/foreign/:leagueId" element={<ForeignLeagueDetailPage />} />
           <Route path="/teams/foreign/:leagueId/:clubId" element={<TeamDetailPage />} />
+          <Route path="/teams/national/:code" element={<NationalTeamDetailPage />} />
           <Route path="/teams/:section" element={<Placeholder title="coming soon" />} />
           <Route path="/transfer" element={<TransferHub />} />
           <Route path="/transfer/starred" element={<StarredPlayersPage />} />
