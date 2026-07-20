@@ -337,18 +337,18 @@ export default function NotificationsPage() {
     .filter(x => !seenJoinIds.includes(x.key))
 
   const raceIndex = currentSeason.currentRaceIndex ?? 0
-  // 契約満了の2シーズン前から事前通知（残り1シーズン=緊急、残り2シーズン=注意）。
-  // 以前は「残り6ヶ月未満」判定で、残り2年以上の選手は永久に通知されず最終年後半にしか出なかった。
+  // 契約満了の最終年（残り1シーズン）に通知する。更新交渉のチャットが来るのが最終年のため、
+  // それより早く通知しても動けず邪魔になる（残り2年通知はやめる）。
   const renewalPlayers = players
     .filter(p => p.teamId === playerTeamId && p.status === 'active')
     .map(p => ({ p, seasonsLeft: p.contract.yearsLeft }))
     .filter(({ p, seasonsLeft }) =>
-      seasonsLeft <= 2
+      seasonsLeft <= 1
       // 退団予定（移籍リスト入り）や確認済みの選手はリマインダーに出さない
       && !p.transferListed
       && !contactedPlayerIds.has(p.id)
-      // 最終年ですでに更新交渉が始まっている選手だけ除外（残り2年の事前通知は残す）
-      && !(seasonsLeft === 1 && (currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)))
+      // すでに更新交渉が始まっている選手は除外（更新カード側に用件が移るため）
+      && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
     .sort((a, b) => a.seasonsLeft - b.seasonsLeft)
   const renewalNeeded = renewalPlayers.length
 

@@ -346,14 +346,14 @@ export function useNotifCount() {
     .filter(p => !seenJoinIds.includes(`${p.id}-${p.joinedYear}`))
     .length
 
-  // 契約満了の2シーズン前から事前通知（NotificationsPageと同じ基準）
+  // 契約満了の最終年（残り1シーズン）に通知（NotificationsPageと同じ基準）
   const renewalNeeded = players.filter(p => {
     if (p.teamId !== playerTeamId || p.status !== 'active') return false
     const seasonsLeft = p.contract.yearsLeft
-    return seasonsLeft <= 2
+    return seasonsLeft <= 1
       && !p.transferListed
       && !contactedIdsC.has(p.id)
-      && !(seasonsLeft === 1 && (currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
+      && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
   }).length
 
   // ロスター超過警告（NotificationsPageと同じ基準）
