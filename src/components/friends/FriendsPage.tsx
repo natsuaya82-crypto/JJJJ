@@ -18,7 +18,7 @@ export default function FriendsPage() {
         <div style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: 1 }}>フレンド</div>
         <div style={{ fontSize: 13, color: C.textDim, marginTop: 8, lineHeight: 1.7 }}>
           Coming Soon<br/>
-          ver 1.10 で実装予定
+          ver 1.13 で実装予定
         </div>
       </div>
     </div>
