@@ -86,9 +86,12 @@ export default function EclPage() {
 
   function run(withLineup?: Record<number, string>, skipPlayback = false) {
     if (!series || !eclDue) return   // 期日前は開催しない
-    const idx = series.raceIndex
     advanceEclRace(withLineup)
-    const ran = useGameStore.getState().currentSeason.eclSeries?.races[idx]
+    // 消化された戦を確実に参照する（raceIndexが1進むので、消化直後は raceIndex-1）。
+    // render時クロージャの series.raceIndex を使うと、万一ズレたとき別の戦の結果を映してしまうため。
+    const afterSeries = useGameStore.getState().currentSeason.eclSeries
+    const ranIdx = afterSeries ? afterSeries.raceIndex - 1 : series.raceIndex
+    const ran = afterSeries?.races[ranIdx]
     if (ran?.results) {
       setLockedRace(ran)
       setResults(ran.results)
