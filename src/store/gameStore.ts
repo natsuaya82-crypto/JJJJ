@@ -968,19 +968,16 @@ export const useGameStore = create<GameStore>()(
           lineups[team.id] = buildAILineup(team.id, players, race)
         }
 
-        // Tactics room: boost runners' effective OVR (CPUも自チームの施設Lv分だけ強化される)
+        // Tactics room: データ分析でレース中のペース配分とメンタルのみ強化（全能力+ではなく2能力に限定）。
+        // 以前は全7能力に+Lvしていて実質OVR+5相当と壊れ性能だったため、効果範囲を絞ってバランス調整。
         const tacticsLvByTeam = new Map(teams.map(t => [t.id, t.facilities?.tacticsRoom ?? 0]))
         const playersForSim = players.map(p => {
           const boost = tacticsLvByTeam.get(p.teamId) ?? 0
           if (boost <= 0) return p
           return { ...p, ratings: {
-            speed: Math.min(99, p.ratings.speed + boost),
-            stamina: Math.min(99, p.ratings.stamina + boost),
-            mountainUp: Math.min(99, p.ratings.mountainUp + boost),
-            mountainDown: Math.min(99, p.ratings.mountainDown + boost),
+            ...p.ratings,
             pacing: Math.min(99, p.ratings.pacing + boost),
             mental: Math.min(99, p.ratings.mental + boost),
-            recovery: Math.min(99, p.ratings.recovery + boost),
           }}
         })
 

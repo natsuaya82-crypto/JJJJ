@@ -110,7 +110,7 @@ export function calcTraitModifier(
 ): number {
   const flatPct = Math.max(0, 100 - uphillPct - downhillPct)
   let mod = 1.0
-  const isLast = segIndex === totalSegs - 1
+  const isLast = segIndex === totalSegs   // seg.index は1始まりなので最終区は totalSegs
   const isLate = segIndex >= Math.floor(totalSegs / 2)
   for (const t of traits) {
     if (t === 'clutch'        && isLast)                                mod *= 1.05
@@ -180,6 +180,30 @@ export function formatDiff(diffSec: number): string {
   const s = abs % 60
   if (m > 0) return `${sign}${m}分${s}秒`
   return `${sign}${s}秒`
+}
+
+// 出場可能な選手リストを地形（登坂/下りの急な区間を優先）に応じて各区間へ貪欲割当する汎用版。
+// buildAILineup のチーム非依存版で、ECL・海外リーグの配置でも共用する。
+export function assignLineupByTerrain(roster: Player[], race: Race): Record<number, string> {
+  const sortedSegs = [...race.segments].sort((a, b) => Math.max(b.uphillPct, b.downhillPct) - Math.max(a.uphillPct, a.downhillPct))
+  const used = new Set<string>()
+  const lineup: Record<number, string> = {}
+  for (const seg of sortedSegs) {
+    if (roster.length === used.size) break
+    const candidates = roster
+      .filter(p => !used.has(p.id))
+      .map(p => ({
+        id: p.id,
+        score: calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
+             * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+             * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0),
+      }))
+      .sort((a, b) => b.score - a.score)
+    if (candidates.length === 0) continue
+    lineup[seg.index] = candidates[0].id
+    used.add(candidates[0].id)
+  }
+  return lineup
 }
 
 export function buildAILineup(teamId: string, players: Player[], race: Race): Record<number, string> {
@@ -319,7 +343,7 @@ export function simulateRace(
         ? calcWeatherModifier(race.conditions.weather, player.specialty, effectiveRatings.stamina, effectiveRatings.mental)
         : 1.0
       const score    = base * aff * clubMod * rand * condMod * traitMod * kickMod * tacticMod * weatherMod
-      const isLastSeg = seg.index === totalSegs - 1
+      const isLastSeg = seg.index === totalSegs   // seg.index は1始まりなので最終区は totalSegs
       const eventMult = resolveSegmentEvents(effectiveRatings, isLastSeg)
       runners.push({ playerId, teamId, timeSec: Math.round(scoreToTime(score, seg.distanceKm, seg.uphillPct, seg.downhillPct) * eventMult), rank: 0 })
     }

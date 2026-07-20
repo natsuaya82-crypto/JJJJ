@@ -337,19 +337,19 @@ export default function NotificationsPage() {
     .filter(x => !seenJoinIds.includes(x.key))
 
   const raceIndex = currentSeason.currentRaceIndex ?? 0
-  const totalRaces = currentSeason.races?.length ?? 1
-  // 契約満了までの残り月数を推定（最終年 yearsLeft=1 でシーズン開始時=12ヶ月、消化で減少）。
-  // 6ヶ月を切った選手を個別に通知する。
+  // 契約満了の2シーズン前から事前通知（残り1シーズン=緊急、残り2シーズン=注意）。
+  // 以前は「残り6ヶ月未満」判定で、残り2年以上の選手は永久に通知されず最終年後半にしか出なかった。
   const renewalPlayers = players
     .filter(p => p.teamId === playerTeamId && p.status === 'active')
-    .map(p => {
-      const remaining = Math.max(0, totalRaces - raceIndex)
-      const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
-      return { p, months }
-    })
-    // 退団予定（移籍リスト入り）の選手は更新できないのでリマインダーに出さない
-    .filter(({ p, months }) => months < 6 && !p.transferListed && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedPlayerIds.has(p.id))
-    .sort((a, b) => a.months - b.months)
+    .map(p => ({ p, seasonsLeft: p.contract.yearsLeft }))
+    .filter(({ p, seasonsLeft }) =>
+      seasonsLeft <= 2
+      // 退団予定（移籍リスト入り）や確認済みの選手はリマインダーに出さない
+      && !p.transferListed
+      && !contactedPlayerIds.has(p.id)
+      // 最終年ですでに更新交渉が始まっている選手だけ除外（残り2年の事前通知は残す）
+      && !(seasonsLeft === 1 && (currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)))
+    .sort((a, b) => a.seasonsLeft - b.seasonsLeft)
   const renewalNeeded = renewalPlayers.length
 
   // ロスター超過警告：自チームがロスター上限を超えている場合（旧セーブ救済）。強制解雇はせず整理を促すだけ
@@ -375,7 +375,7 @@ export default function NotificationsPage() {
   const total = incomingOffers.length
     + tradeOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
-    + (renewalNeeded > 0 ? 1 : 0)
+    + renewalNeeded
     + (rosterOver > 0 ? 1 : 0)
     + (injuredPlayers.length > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
@@ -557,14 +557,14 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 契約更新リマインダー（6ヶ月を切った選手を個別通知） */}
+          {/* 契約更新リマインダー（満了2シーズン前から事前通知） */}
           {renewalNeeded > 0 && (
             <section>
               <SectionHead label="契約満了間近" color={C.orange} count={renewalNeeded}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {renewalPlayers.map(({ p, months }) => {
+                {renewalPlayers.map(({ p, seasonsLeft }) => {
                   const pOvr = ovr(p)
-                  const urgent = months < 3
+                  const urgent = seasonsLeft === 1
                   const accent = urgent ? C.red : C.orange
                   const shadow = urgent ? '#660e10' : '#5a2800'
                   return (
@@ -578,8 +578,8 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳</div>
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>残り{Math.max(0, months)}ヶ月</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: urgent ? C.red : C.textDim }}>{urgent ? '早急に対応を' : '契約満了が近い'}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>残り{Math.max(0, seasonsLeft)}シーズン</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: urgent ? C.red : C.textDim }}>{urgent ? '今季で満了・早急に更新を' : '来季で満了・早めの更新を'}</div>
                           </div>
                         </div>
                         <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${urgent ? '#FF6B6B' : '#FFA726'})`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>

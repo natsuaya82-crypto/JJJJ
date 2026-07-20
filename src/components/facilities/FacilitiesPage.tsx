@@ -90,10 +90,10 @@ const FACILITY_META: {
   {
     key: 'tacticsRoom',
     name: '戦術分析室',
-    desc: 'データ分析でレース戦略を最適化し選手の実力を引き出す',
+    desc: 'データ分析でレース中のペース配分とメンタルを最適化する',
     color: C.blue,
     shadow: '#2a3580',
-    effects: ['Lv1: レース時全能力+1', 'Lv2: +2', 'Lv3: +3', 'Lv4: +4', 'Lv5: +5'],
+    effects: ['Lv1: レース時ペース+1・メンタル+1', 'Lv2: +2', 'Lv3: +3', 'Lv4: +4', 'Lv5: +5'],
   },
 ]
 

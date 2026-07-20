@@ -84,7 +84,7 @@ export default function EclPage() {
   const assignedIds = new Set(Object.values(lineup).filter(Boolean))
   const allSegsFilled = (nextRace?.segments ?? []).every(s => !!lineup[s.index])
 
-  function run(withLineup?: Record<number, string>) {
+  function run(withLineup?: Record<number, string>, skipPlayback = false) {
     if (!series || !eclDue) return   // 期日前は開催しない
     const idx = series.raceIndex
     advanceEclRace(withLineup)
@@ -92,8 +92,8 @@ export default function EclPage() {
     if (ran?.results) {
       setLockedRace(ran)
       setResults(ran.results)
-      // 観戦でもレース再生を流す（再生後、出場年は結果画面・観戦年は順位表閲覧へ）
-      setPhase('simulating')
+      // 通常は再生を流す。スキップ時は再生を飛ばして直接（出場年→結果画面 / 観戦年→順位表閲覧）へ。
+      setPhase(skipPlayback ? (playerQualified ? 'results' : 'view') : 'simulating')
     } else {
       setPhase('entry')
     }
@@ -172,7 +172,7 @@ export default function EclPage() {
         setRaceLineup={(i, id) => setLineupState(prev => ({ ...prev, [i]: id }))}
         clearRaceLineup={() => setLineupState({})}
         onStart={() => runWithLoading('レース準備中…', () => run(lineup), 500)}
-        onSkipRace={() => runWithLoading('結果を計算中…', () => run(), 500)}
+        onSkipRace={() => runWithLoading('結果を計算中…', () => run(lineup, true), 500)}
         onBack={() => setPhase('entry')}
         weatherLabel={weatherLabel}
         raceStrategy={raceStrategy}

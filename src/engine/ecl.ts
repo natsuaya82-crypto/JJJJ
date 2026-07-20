@@ -1,20 +1,16 @@
 import type { EclResult, EclStanding, Player, Race, Team } from '../types'
-import { simulateRace } from './raceEngine'
-import { ovr } from '../utils/playerUtils'
+import { simulateRace, assignLineupByTerrain } from './raceEngine'
 
-// ECL出場チーム（日本チーム or 海外クラブ）。playerIds から各区間にOVR上位を割り当てて走らせる。
+// ECL出場チーム（日本チーム or 海外クラブ）。playerIds から各区間へ地形適性に応じて割り当てて走らせる。
 export type EclParticipant = Omit<EclStanding, 'points'> & { playerIds: string[] }
 
 function lineupFor(playerIds: string[], players: Player[], race: Race): Record<number, string> {
+  // 出場不可（引退/負傷）だけ除外。status未設定の海外選手も走れるようにする。
   const roster = playerIds
     .map(id => players.find(p => p.id === id))
-    .filter((p): p is Player => !!p && p.status === 'active')
-    .sort((a, b) => ovr(b) - ovr(a))
-  const lineup: Record<number, string> = {}
-  race.segments.forEach((seg, i) => {
-    if (roster[i]) lineup[seg.index] = roster[i].id
-  })
-  return lineup
+    .filter((p): p is Player => !!p && p.status !== 'retired' && p.status !== 'injured')
+  // OVR順の機械配置ではなく、区間の地形（山・下り）に応じて専門選手を最適配置する。
+  return assignLineupByTerrain(roster, race)
 }
 
 // ECLを開催（一発勝負）。16チームが1つの国際コースを走り、総合タイムで世界一を決める。

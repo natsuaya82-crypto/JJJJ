@@ -1,6 +1,5 @@
 import type { ForeignLeague, ForeignStanding, Player, Race } from '../types'
-import { simulateRace } from './raceEngine'
-import { ovr } from '../utils/playerUtils'
+import { simulateRace, assignLineupByTerrain } from './raceEngine'
 
 // 海外リーグの順位表を初期化（全クラブ 0pt）。
 export function initForeignStandings(foreignLeagues: ForeignLeague[]): Record<string, ForeignStanding[]> {
@@ -11,19 +10,15 @@ export function initForeignStandings(foreignLeagues: ForeignLeague[]): Record<st
   return out
 }
 
-// 各クラブのOVR上位選手を race の各区間に割り当てる。
+// 各クラブの選手を race の各区間へ地形適性に応じて割り当てる。
 function buildClubLineup(clubPlayerIds: string[], players: Player[], race: Race): Record<number, string> {
   const roster = clubPlayerIds
     .map(id => players.find(p => p.id === id))
     // 出場不可（引退/負傷）だけ除外。status未設定(undefined)の海外選手も走れるようにする
     // （status==='active'で絞ると、statusが付いていない海外選手が全員弾かれ空ラインナップ＝出走0になる）
     .filter((p): p is Player => !!p && p.status !== 'retired' && p.status !== 'injured')
-    .sort((a, b) => ovr(b) - ovr(a))
-  const lineup: Record<number, string> = {}
-  race.segments.forEach((seg, i) => {
-    if (roster[i]) lineup[seg.index] = roster[i].id
-  })
-  return lineup
+  // OVR順の機械配置ではなく、区間の地形に応じて専門選手を最適配置する（プレイヤーとの非対称を解消）。
+  return assignLineupByTerrain(roster, race)
 }
 
 // 海外リーグを1マッチデー進める。全リーグの各クラブが race を走り、順位表と

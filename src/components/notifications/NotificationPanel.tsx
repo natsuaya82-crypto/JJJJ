@@ -346,13 +346,14 @@ export function useNotifCount() {
     .filter(p => !seenJoinIds.includes(`${p.id}-${p.joinedYear}`))
     .length
 
-  const raceIndex = currentSeason.currentRaceIndex ?? 0
-  const totalRaces = currentSeason.races?.length ?? 1
+  // 契約満了の2シーズン前から事前通知（NotificationsPageと同じ基準）
   const renewalNeeded = players.filter(p => {
     if (p.teamId !== playerTeamId || p.status !== 'active') return false
-    const remaining = Math.max(0, totalRaces - raceIndex)
-    const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
-    return months < 6 && !p.transferListed && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id) && !contactedIdsC.has(p.id)
+    const seasonsLeft = p.contract.yearsLeft
+    return seasonsLeft <= 2
+      && !p.transferListed
+      && !contactedIdsC.has(p.id)
+      && !(seasonsLeft === 1 && (currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
   }).length
 
   // ロスター超過警告（NotificationsPageと同じ基準）
@@ -367,7 +368,7 @@ export function useNotifCount() {
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
   return incomingOffers + tradeOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
-    + (renewalNeeded > 0 ? 1 : 0)
+    + renewalNeeded
     + (rosterOver > 0 ? 1 : 0)
     + (injuredCount > 0 ? 1 : 0)
     + (loginUnclaimed ? 1 : 0)
