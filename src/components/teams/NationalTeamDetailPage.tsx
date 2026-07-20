@@ -4,10 +4,13 @@ import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import { C } from '../../styles/tokens'
 import PlayerRow from '../player/PlayerRow'
+import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+// 代表候補として表示する上位人数（全選手ではなく代表クラスだけ）
+const SQUAD_SIZE = 30
 
 export default function NationalTeamDetailPage() {
   const { code } = useParams<{ code: string }>()
@@ -19,9 +22,11 @@ export default function NationalTeamDetailPage() {
   const nat = (code ?? '') as Nationality
   const label = NAT_LABEL[nat] ?? nat
 
+  // 代表候補は「その国籍の中で強い上位30人」に絞る（全員だと数百人になる）
   const roster = players
     .filter(p => p.nationality === nat && p.status !== 'retired')
     .sort((a, b) => ovr(b) - ovr(a))
+    .slice(0, SQUAD_SIZE)
 
   // teamId → クラブ名。国内チーム＋海外クラブ。代表プール(nat-)や無所属は含めない → 「-」表示
   const clubName = (teamId: string): string => {
@@ -57,15 +62,17 @@ export default function NationalTeamDetailPage() {
         border: `1px solid ${C.goldDark}55`,
         padding: '16px',
       }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 2 }}>NATIONAL TEAM</div>
-        <div style={{ fontSize: '20px', fontWeight: '900', color: C.text }}>{label} 代表</div>
-        <div style={{ fontSize: '11px', color: C.textDim, marginTop: 2 }}>{roster.length}名</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>NATIONAL TEAM</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Flag code={nat} width={40} radius={4} />
+          <div style={{ fontSize: '20px', fontWeight: '900', color: C.text }}>{label} 代表</div>
+        </div>
       </div>
 
       <div style={{ padding: '0 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
           <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>代表候補</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
+          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>上位{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
           <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>タップ=詳細</span>
         </div>
 
