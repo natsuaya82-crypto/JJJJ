@@ -492,7 +492,15 @@ export default function Dashboard() {
               </div>
             )}
             <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1 }}>
-              {null /* TODO: 世界駅伝選手権（未実装） */}
+              {(() => {
+                const weYear = (currentSeason.year - 2027) % 2 === 0
+                return (
+                  <button onClick={() => navigate('/international')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10, borderRadius: 10, border: `1px solid ${weYear ? alpha(C.gold, 0.4) : C.border}`, background: weYear ? alpha(C.gold, 0.1) : C.surface2, cursor: 'pointer' }}>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: weYear ? C.gold : C.text }}>世界陸上</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: weYear ? C.gold : C.textDim }}>{weYear ? '今年開催 ›' : '›'}</span>
+                  </button>
+                )
+              })()}
               {unresolvedMandatoryCount > 0 && (
                 <div style={{ fontSize: 11, color: C.orange, textAlign: 'center', marginBottom: 10 }}>
                   契約未解決の選手が{unresolvedMandatoryCount}人います — 契約管理で対応してください

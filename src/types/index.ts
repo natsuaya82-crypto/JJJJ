@@ -476,6 +476,7 @@ export type NationalTeam = {
   racePlan: WECRacePlan[]
   racePlayerIds: string[][]
   isPlayerCoach: boolean
+  coachDeclined?: boolean   // 監督を断った＝AIおまかせ配置で走る
   playerIds?: string[]  // legacy
 }
 

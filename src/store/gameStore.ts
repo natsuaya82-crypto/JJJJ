@@ -397,6 +397,9 @@ export type GameStore = GameState & {
   updateNationalTeam: () => void
   confirmSquad: (ids: string[]) => void
   setRacePlayerIds: (raceIdx: number, ids: string[]) => void
+  toggleWorldRacePlayer: (raceIdx: number, playerId: string) => void
+  autoSelectWorldRace: (raceIdx: number) => void
+  setWorldCoachDeclined: (declined: boolean) => void
 
   // Facilities
   upgradeFacility: (key: FacilityKey) => boolean
@@ -6164,9 +6167,9 @@ export const useGameStore = create<GameStore>()(
       // ── National team ─────────────────────────────────────────────────
       updateNationalTeam: () => {
         const state = get()
-        const standingsSorted = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
-        const coachTeamId = standingsSorted[0]?.teamId ?? state.playerTeamId
-        const isPlayerCoach = coachTeamId === state.playerTeamId
+        // プレイヤーが常に日本代表の駅伝監督を務める（断ることも可能。断ればAIおまかせ配置になる）
+        const coachTeamId = state.playerTeamId
+        const isPlayerCoach = true
         const domesticIds = new Set(state.teams.map(t => t.id))
         const sorted = state.players
           .filter(p => p.nationality === 'JPN' && p.status === 'active' && domesticIds.has(p.teamId))
@@ -6193,6 +6196,44 @@ export const useGameStore = create<GameStore>()(
           newRacePlayerIds[raceIdx] = ids
           return { nationalTeam: { ...state.nationalTeam, racePlayerIds: newRacePlayerIds } }
         })
+      },
+
+      // 監督采配：指定レースの区間走者トグル（選択済みなら外す、未選択なら末尾に追加。区間数上限まで）
+      toggleWorldRacePlayer: (raceIdx: number, playerId: string) => {
+        set(state => {
+          const nt = state.nationalTeam
+          if (!nt) return state
+          const segCount = nt.racePlan[raceIdx]?.segments.length ?? 0
+          const cur = [...(nt.racePlayerIds?.[raceIdx] ?? [])]
+          const at = cur.indexOf(playerId)
+          if (at >= 0) cur.splice(at, 1)
+          else if (cur.length < segCount) cur.push(playerId)
+          const next = [...(nt.racePlayerIds ?? [])]
+          next[raceIdx] = cur
+          return { nationalTeam: { ...nt, racePlayerIds: next } }
+        })
+      },
+
+      // 監督采配：指定レースをおまかせ自動選出（スカッドから区間数ぶん、地形適性で割当）
+      autoSelectWorldRace: (raceIdx: number) => {
+        set(state => {
+          const nt = state.nationalTeam
+          if (!nt) return state
+          const plan = nt.racePlan[raceIdx]
+          if (!plan) return state
+          const roster = nt.squadIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
+          const wecRace = { id: 'wecsel', name: '', location: '', type: 'league' as const, segments: plan.segments.map((s, i) => ({ index: i + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct })), conditions: { temperature: 15, weather: 'sunny' as const, elevation: 0 }, participants: [] } as unknown as Race
+          const lineup = assignLineupByTerrain(roster, wecRace)
+          const ids = wecRace.segments.map(seg => lineup[seg.index]).filter(Boolean)
+          const next = [...(nt.racePlayerIds ?? [])]
+          next[raceIdx] = ids
+          return { nationalTeam: { ...nt, racePlayerIds: next } }
+        })
+      },
+
+      // 監督を引き受ける/断る（断ればAIおまかせ配置で走る）
+      setWorldCoachDeclined: (declined: boolean) => {
+        set(state => state.nationalTeam ? { nationalTeam: { ...state.nationalTeam, coachDeclined: declined } } : state)
       },
 
       // ── Facilities ────────────────────────────────────────────────────
@@ -6483,7 +6524,15 @@ export const useGameStore = create<GameStore>()(
               .sort((a, b) => ovr(b) - ovr(a))
             const jpnPool = [...intended, ...squadFill]
 
-            const lineups: Record<string, Record<number, string>> = { 'wec_JPN': assignLineupByTerrain(jpnPool, wecRace) }
+            // 監督（プレイヤー）の采配：racePlayerIds の並び順を区間順として尊重する。
+            // 監督を断った(coachDeclined)場合のみ、AIおまかせ（地形適性配置）にする。
+            const jpnLineup: Record<number, string> = {}
+            if (nt.coachDeclined) {
+              Object.assign(jpnLineup, assignLineupByTerrain(jpnPool, wecRace))
+            } else {
+              wecRace.segments.forEach((seg, i) => { if (jpnPool[i]) jpnLineup[seg.index] = jpnPool[i].id })
+            }
+            const lineups: Record<string, Record<number, string>> = { 'wec_JPN': jpnLineup }
             const japanRunners = Object.values(lineups['wec_JPN'])
               .map(id => state.players.find(p => p.id === id))
               .filter((p): p is Player => !!p)

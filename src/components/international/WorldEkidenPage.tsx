@@ -193,7 +193,7 @@ export default function WorldEkidenPage() {
   const [started, setStarted] = useState(false)
 
   const { currentSeason, pastSeasons, players, teams, nationalTeam, playerTeamId,
-    simulateWorldEkiden, updateNationalTeam } = useGameStore()
+    simulateWorldEkiden, updateNationalTeam, toggleWorldRacePlayer, autoSelectWorldRace, setWorldCoachDeclined } = useGameStore()
   const gmName = teams.find(t => t.id === playerTeamId)?.gmName ?? ''
 
   const year = currentSeason.year
@@ -204,6 +204,7 @@ export default function WorldEkidenPage() {
 
   const thisYearNT = (nationalTeam?.year === year) ? nationalTeam : null
   const isPlayerCoach = thisYearNT?.isPlayerCoach ?? false
+  const coachDeclined = thisYearNT?.coachDeclined ?? false
 
   const cityIdx = Math.max(0, Math.floor((year - 2027) / 2) % WEC_CITIES.length)
   const cityInfo = WEC_CITIES[cityIdx]
@@ -216,8 +217,8 @@ export default function WorldEkidenPage() {
   const racePlan = thisYearNT?.racePlan ?? []
   const racePlayerIds = thisYearNT?.racePlayerIds ?? []
   const [activeRace, setActiveRace] = useState(0)
-  const toggleRacePlayer = () => {}
-  const autoSelectRace = () => {}
+  const toggleRacePlayer = (raceIdx: number, playerId: string) => toggleWorldRacePlayer(raceIdx, playerId)
+  const autoSelectRace = (raceIdx: number) => autoSelectWorldRace(raceIdx)
 
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
@@ -383,13 +384,26 @@ export default function WorldEkidenPage() {
                     <span className="btn-game__inner">次の選手を発表</span>
                   </button>
                 ) : (
-                  <button
-                    onClick={() => { simulateWorldEkiden(); navigate('/international/sim') }}
-                    className="btn-game btn-game--gold"
-                    style={{ width: '100%' }}
-                  >
-                    <span className="btn-game__inner">代表確定 — 世界陸上へ</span>
-                  </button>
+                  <>
+                    {/* 監督采配：自分で組む or おまかせ */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <button onClick={() => setWorldCoachDeclined(false)} style={{ flex: 1, padding: '8px', borderRadius: 8, fontFamily: SAIRA, fontSize: 12, fontWeight: 800, cursor: 'pointer', border: `1px solid ${!coachDeclined ? C.gold : C.border}`, background: !coachDeclined ? alpha(C.gold, 0.12) : C.surface2, color: !coachDeclined ? C.gold : C.textDim }}>監督として采配する</button>
+                      <button onClick={() => setWorldCoachDeclined(true)} style={{ flex: 1, padding: '8px', borderRadius: 8, fontFamily: SAIRA, fontSize: 12, fontWeight: 800, cursor: 'pointer', border: `1px solid ${coachDeclined ? C.blue : C.border}`, background: coachDeclined ? alpha(C.blue, 0.12) : C.surface2, color: coachDeclined ? C.blue : C.textDim }}>おまかせ（監督を断る）</button>
+                    </div>
+                    {!coachDeclined && (
+                      <div style={{ marginBottom: 12 }}>
+                        <RaceTabs interactive racePlan={racePlan} racePlayerIds={racePlayerIds} activeRace={activeRace} onSetActiveRace={setActiveRace} />
+                        <RaceCard raceIdx={activeRace} interactive racePlan={racePlan} racePlayerIds={racePlayerIds} players={players} squadPlayers={squadPlayers} onToggleRacePlayer={toggleRacePlayer} onAutoSelectRace={autoSelectRace} />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => { simulateWorldEkiden(); navigate('/international/sim') }}
+                      className="btn-game btn-game--gold"
+                      style={{ width: '100%' }}
+                    >
+                      <span className="btn-game__inner">{coachDeclined ? 'おまかせで世界陸上へ' : '采配確定 — 世界陸上へ'}</span>
+                    </button>
+                  </>
                 )}
               </>
             )}
