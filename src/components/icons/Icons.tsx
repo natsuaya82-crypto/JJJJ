@@ -763,6 +763,15 @@ const LEAGUE_COLORS: Record<string, { primary: string; secondary: string }> = {
   south_america:  { primary: '#009C3B', secondary: '#FFDF00' },
   asia_ekiden:    { primary: '#0E7C7B', secondary: '#F4C430' },
   asia_me_ekiden: { primary: '#8A1538', secondary: '#E8C36B' },
+  // 再編後の9リーグ
+  asia_league:     { primary: '#0E7C7B', secondary: '#F4C430' },
+  africa_east:     { primary: '#006600', secondary: '#FCDD09' },
+  africa_ns:       { primary: '#C1272D', secondary: '#006233' },
+  europe_ws:       { primary: '#003399', secondary: '#FFCC00' },
+  europe_ne:       { primary: '#006AA7', secondary: '#FECC02' },
+  north_america:   { primary: '#B22234', secondary: '#3C3B6E' },
+  central_america: { primary: '#002B7F', secondary: '#CE1126' },
+  oceania:         { primary: '#00843D', secondary: '#FFCD00' },
 }
 
 const LEAGUE_LOGOS: Record<string, (p: string, s: string) => React.ReactElement> = {

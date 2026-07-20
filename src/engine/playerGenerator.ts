@@ -1312,12 +1312,17 @@ export function generateForeignLeaguePlayers(
   // minRank=ベンチの底、maxRank/potCap=主力の天井。天井は地域で差をつけ、90台に届くのはアフリカ勢(帰化の
   // バーレーン/カタール含む)だけ。欧州/米/豪は80台後半、その他・アジアは80台前半で頭打ち（日本は国内生成なので無関係）。
   const REGION: Record<string, { budget: number; potBonus: number; minRank: Rank; maxRank: Rank; potCap: number }> = {
-    AFRICA:  { budget: 950_000_000, potBonus: 12, minRank: 'S', maxRank: 'SSS', potCap: 99 },  // 最強・90〜99へ
-    EUR_USA: { budget: 850_000_000, potBonus: 6,  minRank: 'A', maxRank: 'SS',  potCap: 90 },
-    OTHER:   { budget: 780_000_000, potBonus: 3,  minRank: 'A', maxRank: 'S',   potCap: 86 },
-    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B', maxRank: 'S',   potCap: 85 },
+    // ELITE=4大リーグ（北米/アフリカ東/アフリカ北南/欧州西南）。所属選手はすごい＝天井99・底も高い。
+    ELITE:   { budget: 980_000_000, potBonus: 13, minRank: 'S', maxRank: 'SSS', potCap: 99 },
+    AFRICA:  { budget: 900_000_000, potBonus: 10, minRank: 'A', maxRank: 'SSS', potCap: 96 },
+    EUR_USA: { budget: 820_000_000, potBonus: 5,  minRank: 'A', maxRank: 'SS',  potCap: 89 },
+    OTHER:   { budget: 760_000_000, potBonus: 3,  minRank: 'A', maxRank: 'S',   potCap: 85 },
+    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B', maxRank: 'S',   potCap: 84 },
   }
-  function regionFor(country: string) {
+  // 4大リーグのID（ここ所属＝エリート強度）
+  const ELITE_LEAGUES = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
+  function strengthFor(leagueId: string, country: string) {
+    if (ELITE_LEAGUES.has(leagueId)) return REGION.ELITE
     return REGION[natStrengthRegion(country as Nationality)] ?? REGION.OTHER
   }
   const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
@@ -1330,7 +1335,7 @@ export function generateForeignLeaguePlayers(
     ...league,
     clubs: league.clubs.map(club => {
       const clubPlayerIds: string[] = []
-      const region = regionFor(club.country)
+      const region = strengthFor(league.id, club.country)
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
       const salaries = distributeSalaries(Math.round(region.budget * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
       const namePools = FOREIGN_LEAGUE_POOLS[club.country as string] ?? FOREIGN_LEAGUE_POOLS.EUR
