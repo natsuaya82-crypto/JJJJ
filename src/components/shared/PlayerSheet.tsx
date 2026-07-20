@@ -527,7 +527,7 @@ export default function PlayerSheet() {
                 </span>
                 <span style={{ fontSize: '10px', color: '#5C5870' }}>{isScouted ? `${player.age}歳 / ${player.yearsPro + 1}年目` : '?'}</span>
               </div>
-              {isScouted && badges.length > 0 && (
+              {isScouted && !isRetired && badges.length > 0 && (
                 <button
                   onClick={() => setShowBadges(true)}
                   style={{
@@ -602,7 +602,23 @@ export default function PlayerSheet() {
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* 記録パッチは「パッチを確認する」から専用パネルで閲覧（引退選手も同様） */}
+              {/* 引退選手は1ページ目（パッチ表示）を出さないので、記録パッチをここにも表示（閲覧のみ）。引退は従来どおり */}
+              {isRetired && badges.length > 0 && (
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {badges.map(b => {
+                    const col = BADGE_COLOR[b.kind]
+                    return (
+                      <span key={b.key} style={{
+                        fontSize: '9px', fontWeight: 900, padding: '3px 8px', borderRadius: '7px',
+                        background: `linear-gradient(180deg, ${col}2E, ${col}14)`,
+                        color: col, border: `1px solid ${col}55`, flexShrink: 0,
+                      }}>
+                        {b.label}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* 引退選手は1ページ目を出さないので、ドラフト情報をここに移植 */}
               {isRetired && (() => {
