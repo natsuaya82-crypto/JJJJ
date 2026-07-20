@@ -13,10 +13,13 @@ export type Nationality =
   | 'AUS' | 'NZL'
   // アフリカ
   | 'ETH' | 'KEN' | 'UGA' | 'TAN' | 'MAR' | 'ERI' | 'RSA'
+  | 'RWA' | 'BDI' | 'ALG' | 'SOM' | 'DJI' | 'SDN' | 'TUN' | 'ZIM' | 'NGA'
   // ヨーロッパ
   | 'GBR' | 'GER' | 'FRA' | 'ITA' | 'ESP' | 'NED' | 'SWE' | 'DEN' | 'AUT' | 'POR'
+  | 'NOR' | 'BEL' | 'SUI' | 'POL' | 'IRL' | 'FIN'
   // アメリカ大陸
   | 'USA' | 'CAN' | 'MEX' | 'BRA' | 'COL' | 'ARG' | 'ECU' | 'PER' | 'CHI' | 'URU' | 'VEN'
+  | 'GUA' | 'BOL' | 'CRC' | 'CUB' | 'JAM'
   // バケツ（後方互換・フォールバック）
   | 'EUR' | 'FOREIGN'
 export type ForeignCategory = 'domestic' | 'asian' | 'foreign'

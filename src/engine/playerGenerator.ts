@@ -352,6 +352,14 @@ const SAUDI_FAMILY = [
   'アルガムディ','アルハルビ','アルシェフリ','アルカフタニ','アルドサリ','アルオタイビ','アルマトラフィ','アルズハラニ','アルシャムラニ','アルバカミ',
   'アルジュハニ','アルアンジ','アルムタイリ','アルラシディ','アルサハリ','アルバルガ',
 ]
+const POL_GIVEN = [
+  'ヤクブ','カミル','ミハウ','ピオトル','マルチン','パヴェウ','トマシュ','クシシュトフ','マテウシュ','バルトシュ',
+  'ダミアン','グジェゴシュ','ラファウ','シモン','アダム','マレク',
+]
+const POL_FAMILY = [
+  'コヴァルスキ','ノヴァク','ヴィシニェフスキ','ヴイチク','カミンスキ','レヴァンドフスキ','ゼリンスキ','シマンスキ','ヴォイチェホフスキ','カチマレク',
+  'マズル','クラフチク','ピオトロフスキ','グラボフスキ','ノヴァコフスキ','パヴロフスキ',
+]
 
 const POOL_KEN: ForeignNamePool = { origin: 'ケニア', given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
 const POOL_UGA: ForeignNamePool = { origin: 'ウガンダ', given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
@@ -406,6 +414,24 @@ const POOL_QAT: ForeignNamePool = { origin: 'カタール',       given: HORN_GI
 const POOL_RSA: ForeignNamePool = { origin: '南アフリカ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
 const POOL_CAN: ForeignNamePool = { origin: 'カナダ',         given: EN_GIVEN,  family: ANGLO_FAMILY }
 const POOL_MEX: ForeignNamePool = { origin: 'メキシコ',       given: ES_GIVEN,  family: ES_FAMILY }
+// 60か国化で追加（アフリカ／ヨーロッパ／アメリカ大陸を各16へ）
+const POOL_RWA: ForeignNamePool = { origin: 'ルワンダ',       given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
+const POOL_BDI: ForeignNamePool = { origin: 'ブルンジ',       given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
+const POOL_ALG: ForeignNamePool = { origin: 'アルジェリア',   given: ARABIC_GIVEN, family: MAR_FAMILY }
+const POOL_DJI: ForeignNamePool = { origin: 'ジブチ',         given: HORN_GIVEN, family: SOM_FAMILY }
+const POOL_SDN: ForeignNamePool = { origin: 'スーダン',       given: ARABIC_GIVEN, family: SAUDI_FAMILY }
+const POOL_TUN: ForeignNamePool = { origin: 'チュニジア',     given: ARABIC_GIVEN, family: MAR_FAMILY }
+const POOL_ZIM: ForeignNamePool = { origin: 'ジンバブエ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_NGA: ForeignNamePool = { origin: 'ナイジェリア',   given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_SUI: ForeignNamePool = { origin: 'スイス',         given: DE_GIVEN,  family: DE_FAMILY }
+const POOL_POL: ForeignNamePool = { origin: 'ポーランド',     given: POL_GIVEN, family: POL_FAMILY }
+const POOL_IRL: ForeignNamePool = { origin: 'アイルランド',   given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_FIN: ForeignNamePool = { origin: 'フィンランド',   given: SCAN_GIVEN, family: SCAN_FAMILY }
+const POOL_GUA: ForeignNamePool = { origin: 'グアテマラ',     given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_BOL: ForeignNamePool = { origin: 'ボリビア',       given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_CRC: ForeignNamePool = { origin: 'コスタリカ',     given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_CUB: ForeignNamePool = { origin: 'キューバ',       given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_JAM: ForeignNamePool = { origin: 'ジャマイカ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
 
 // 重みに応じてプールを展開する（重みが大きい国ほど選ばれやすい）
 function weightedPools(entries: [ForeignNamePool, number][]): ForeignNamePool[] {
@@ -481,6 +507,27 @@ const FOREIGN_LEAGUE_POOLS: Record<string, ForeignNamePool[]> = {
   RSA: [POOL_RSA],
   CAN: [POOL_CAN],
   MEX: [POOL_MEX],
+  // 60か国化で追加
+  RWA: [POOL_RWA],
+  BDI: [POOL_BDI],
+  ALG: [POOL_ALG],
+  DJI: [POOL_DJI],
+  SOM: [POOL_SOM],
+  SDN: [POOL_SDN],
+  TUN: [POOL_TUN],
+  ZIM: [POOL_ZIM],
+  NGA: [POOL_NGA],
+  NOR: [POOL_NOR],
+  BEL: [POOL_BEL],
+  SUI: [POOL_SUI],
+  POL: [POOL_POL],
+  IRL: [POOL_IRL],
+  FIN: [POOL_FIN],
+  GUA: [POOL_GUA],
+  BOL: [POOL_BOL],
+  CRC: [POOL_CRC],
+  CUB: [POOL_CUB],
+  JAM: [POOL_JAM],
   // フォールバック（未定義国コード用）
   EUR: weightedPools([
     [POOL_GBR, 6], [POOL_FRA, 5], [POOL_GER, 5], [POOL_ITA, 5], [POOL_ESP, 4],
