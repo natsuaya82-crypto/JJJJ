@@ -1358,13 +1358,15 @@ export const nationFromTeamId = (teamId: string): Nationality | null =>
 // 代表プールの1チーム人数
 const NATIONAL_SQUAD_SIZE = 20
 
-// 代表プールの強さ。リーグ非所属国なのでクラブより一段控えめ。
-// ただしアフリカ帰化（バーレーン/カタール）やアフリカ勢（モロッコ/エリトリア）は強く出る。
+// 代表プールの強さ。リーグ非所属国なのでクラブより一段控えめだが、
+// 代表候補は「最低でも20人全員がプロ水準」になるよう下限ランクは B 以上にする。
+// 強弱の差は上限（budget・potBonus＝上位に何人スターが出るか）で付ける。
+// アフリカ帰化（バーレーン/カタール）やアフリカ勢（モロッコ/エリトリア）は強く出る。
 const NAT_REGION: Record<string, { budget: number; potBonus: number; minRank: Rank }> = {
   AFRICA:  { budget: 900_000_000, potBonus: 10, minRank: 'A' },
-  EUR_USA: { budget: 700_000_000, potBonus: 4,  minRank: 'B' },
-  OTHER:   { budget: 600_000_000, potBonus: 2,  minRank: 'C' },
-  ASIA:    { budget: 550_000_000, potBonus: 0,  minRank: 'C' },
+  EUR_USA: { budget: 750_000_000, potBonus: 4,  minRank: 'B' },
+  OTHER:   { budget: 680_000_000, potBonus: 2,  minRank: 'B' },
+  ASIA:    { budget: 640_000_000, potBonus: 0,  minRank: 'B' },
 }
 
 let nationalIdCounter = 20000

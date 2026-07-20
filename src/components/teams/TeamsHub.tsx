@@ -4,13 +4,14 @@ import { useGameStore } from '../../store/gameStore'
 import { LeagueLogoSVG } from '../icons/Icons'
 import { C } from '../../styles/tokens'
 import { ovr } from '../../utils/playerUtils'
-import { NAT_LABEL } from '../../data/nationalities'
+import { NAT_LABEL, natGeoRegion, natFlag, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type HubCard = { key: string; path: string; label: string; desc: string; icon: React.ReactNode }
-type NatCard = { code: Nationality; label: string; count: number; top: number }
+type NatCard = { code: Nationality; label: string; flag: string; count: number; top: number }
+type RegionGroup = { region: GeoRegion; nations: NatCard[]; top: number }
 
 // 代表チームに載せない国籍（実在国ではないバケツ）
 const NON_NATION = new Set<string>(['FOREIGN', 'EUR'])
@@ -21,6 +22,12 @@ export default function TeamsHub() {
   const leagues = foreignLeagues ?? []
   const completedRaces = currentSeason.races.filter(r => r.results).length
   const [tab, setTab] = useState<'league' | 'national'>('league')
+  const [openRegions, setOpenRegions] = useState<Set<GeoRegion>>(new Set())
+  const toggleRegion = (r: GeoRegion) => setOpenRegions(prev => {
+    const next = new Set(prev)
+    next.has(r) ? next.delete(r) : next.add(r)
+    return next
+  })
 
   const cards: HubCard[] = [
     {
@@ -38,8 +45,8 @@ export default function TeamsHub() {
     })),
   ]
 
-  // 代表チーム：全 active 選手を国籍でグルーピング（バケツ国籍は除外）
-  const natCards: NatCard[] = useMemo(() => {
+  // 代表チーム：全 active 選手を国籍でグルーピングし、さらに地域でまとめる（バケツ国籍は除外）
+  const regionGroups: RegionGroup[] = useMemo(() => {
     const by = new Map<Nationality, { count: number; top: number }>()
     for (const p of players) {
       if (p.status === 'retired') continue
@@ -51,10 +58,25 @@ export default function TeamsHub() {
       if (o > cur.top) cur.top = o
       by.set(code, cur)
     }
-    return Array.from(by.entries())
-      .map(([code, v]) => ({ code, label: NAT_LABEL[code] ?? code, count: v.count, top: v.top }))
-      .sort((a, b) => b.top - a.top || b.count - a.count)
+    const cards: NatCard[] = Array.from(by.entries())
+      .map(([code, v]) => ({ code, label: NAT_LABEL[code] ?? code, flag: natFlag(code), count: v.count, top: v.top }))
+
+    const byRegion = new Map<GeoRegion, NatCard[]>()
+    for (const c of cards) {
+      const r = natGeoRegion(c.code)
+      const arr = byRegion.get(r) ?? []
+      arr.push(c)
+      byRegion.set(r, arr)
+    }
+    return GEO_REGION_ORDER
+      .filter(r => byRegion.has(r))
+      .map(region => {
+        const nations = (byRegion.get(region) ?? []).sort((a, b) => b.top - a.top || b.count - a.count)
+        return { region, nations, top: nations[0]?.top ?? 0 }
+      })
   }, [players])
+
+  const totalNations = regionGroups.reduce((s, g) => s + g.nations.length, 0)
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
@@ -115,31 +137,59 @@ export default function TeamsHub() {
         </div>
       ) : (
         <div style={{ padding: '0 16px' }}>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 8, paddingLeft: 4 }}>全 {natCards.length} 代表 • 国籍別の選手を表示</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {natCards.map((n, i) => (
-              <button
-                key={n.code}
-                onClick={() => navigate(`/teams/national/${n.code}`)}
-                className="btn-press"
-                style={{
-                  width: '100%', padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
-                  background: C.surface2, border: `1px solid ${C.border}`,
-                  display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit', textAlign: 'left',
-                } as React.CSSProperties}
-              >
-                <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.textDim, width: 22, textAlign: 'center' }}>{i + 1}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: C.text }}>{n.label}</div>
-                  <div style={{ fontSize: '10px', color: C.textDim }}>{n.count}名</div>
+          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 8, paddingLeft: 4 }}>{regionGroups.length}地域 • 全 {totalNations} 代表（地域をタップで展開）</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {regionGroups.map(g => {
+              const open = openRegions.has(g.region)
+              return (
+                <div key={g.region}>
+                  {/* 地域ヘッダー */}
+                  <button
+                    onClick={() => toggleRegion(g.region)}
+                    className="btn-press"
+                    style={{
+                      width: '100%', padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                      background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+                      border: `2px solid ${C.goldDark}`,
+                      display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit', textAlign: 'left',
+                    } as React.CSSProperties}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.gold, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                    <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text, flex: 1 }}>{g.region}</span>
+                    <span style={{ fontSize: 10, color: C.textDim }}>{g.nations.length}か国</span>
+                  </button>
+
+                  {/* 展開時：国リスト */}
+                  {open && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', margin: '6px 0 2px 10px' }}>
+                      {g.nations.map(n => (
+                        <button
+                          key={n.code}
+                          onClick={() => navigate(`/teams/national/${n.code}`)}
+                          className="btn-press"
+                          style={{
+                            width: '100%', padding: '10px 12px', borderRadius: 11, cursor: 'pointer',
+                            background: C.surface2, border: `1px solid ${C.border}`,
+                            display: 'flex', alignItems: 'center', gap: 11, fontFamily: 'inherit', textAlign: 'left',
+                          } as React.CSSProperties}
+                        >
+                          <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{n.flag}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '14px', fontWeight: '800', color: C.text }}>{n.label}</div>
+                            <div style={{ fontSize: '10px', color: C.textDim }}>{n.count}名</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 8, color: C.textDim }}>最高</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{n.top}</div>
+                          </div>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 8, color: C.textDim }}>最高</div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{n.top}</div>
-                </div>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-              </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

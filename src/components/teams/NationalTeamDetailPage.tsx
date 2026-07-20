@@ -12,6 +12,8 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 export default function NationalTeamDetailPage() {
   const { code } = useParams<{ code: string }>()
   const players = useGameStore(s => s.players)
+  const teams = useGameStore(s => s.teams)
+  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
 
   const nat = (code ?? '') as Nationality
@@ -21,8 +23,26 @@ export default function NationalTeamDetailPage() {
     .filter(p => p.nationality === nat && p.status !== 'retired')
     .sort((a, b) => ovr(b) - ovr(a))
 
+  // teamId → クラブ名。国内チーム＋海外クラブ。代表プール(nat-)や無所属は含めない → 「-」表示
+  const clubName = (teamId: string): string => {
+    if (!teamId || teamId.startsWith('nat-')) return '-'
+    const t = teams.find(t => t.id === teamId)
+    if (t) return t.shortName || t.name
+    for (const l of foreignLeagues) {
+      const c = l.clubs.find(c => c.id === teamId)
+      if (c) return c.shortName || c.name
+    }
+    return '-'
+  }
+
   // タップ＝選手詳細（読み取り専用。代表は交渉対象ではない）
   const handlers = (pid: string) => ({ onClick: () => openPlayerSheet(pid) })
+
+  const clubTag = (teamId: string) => (
+    <span style={{ fontSize: 9, color: clubName(teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700, flexShrink: 0 }}>
+      {clubName(teamId)}
+    </span>
+  )
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
@@ -55,7 +75,7 @@ export default function NationalTeamDetailPage() {
           </div>
         ) : (
           <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
-            {roster.map(p => <PlayerRow key={p.id} player={p} handlers={handlers(p.id)} />)}
+            {roster.map(p => <PlayerRow key={p.id} player={p} handlers={handlers(p.id)} extra={clubTag(p.teamId)} />)}
           </div>
         )}
       </div>
