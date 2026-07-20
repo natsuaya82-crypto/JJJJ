@@ -1244,7 +1244,8 @@ export function refreshForeignLeagues(
   removedIds: Set<string>,
   year: number,
 ): { newPlayers: Player[]; updatedLeagues: ForeignLeague[] } {
-  const fresh = generateForeignLeaguePlayers(leagues, year)
+  // 補充は伸びしろ持ちの若手(19〜22)だけ。数年かけてそのティアのエースに育つ。
+  const fresh = generateForeignLeaguePlayers(leagues, year, [19, 22])
   const byId = new Map(fresh.players.map(p => [p.id, p]))
   const newPlayers: Player[] = []
   const updatedLeagues = leagues.map(l => {
@@ -1295,6 +1296,9 @@ function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specia
 export function generateForeignLeaguePlayers(
   leagues: ForeignLeague[],
   year: number,
+  // 年齢範囲。初期ロスターは完成したチームに見せるため22〜30の分布。
+  // 毎年の補充(refreshForeignLeagues)は伸びしろ持ちの若手だけを入れるので[19,22]を渡す。
+  ageRange: [number, number] = [22, 30],
 ): { players: Player[]; updatedLeagues: ForeignLeague[] } {
   const players: Player[] = []
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
@@ -1341,7 +1345,7 @@ export function generateForeignLeaguePlayers(
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
         const ratings = generateRatings(rank, specialty)
         const { potential } = rankToBaseRange(rank, growthCurve)
-        const age = rng(22, 30)
+        const age = rng(ageRange[0], ageRange[1])
         const nat: Nationality = club.country
         const foreignCat = nationalityToForeignCategory(nat)
 
