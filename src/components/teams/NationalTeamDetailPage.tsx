@@ -6,7 +6,9 @@ import { C } from '../../styles/tokens'
 import PlayerRow from '../player/PlayerRow'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
-import type { Nationality } from '../../types'
+import { WA_EVENTS, WA_EVENT_LABEL, recentBest, distanceScore, individualStarIds, type WAEvent } from '../../engine/worldAthletics'
+import { formatRaceTime } from '../../utils/eventTime'
+import type { Nationality, Player } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 代表候補として表示する上位人数（全選手ではなく代表クラスだけ）
@@ -17,15 +19,31 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const players = useGameStore(s => s.players)
   const teams = useGameStore(s => s.teams)
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const year = useGameStore(s => s.currentSeason.year)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
 
   const nat = (code ?? '') as Nationality
   const label = NAT_LABEL[nat] ?? nat
 
-  const roster = players
-    .filter(p => p.nationality === nat && p.status !== 'retired')
-    .sort((a, b) => ovr(b) - ovr(a))
-    .slice(0, SQUAD_SIZE)
+  const natPlayers = players.filter(p => p.nationality === nat && p.status !== 'retired')
+  // 持ちタイム(eventBests)がある選手＝代表候補は持ちタイム順（世界陸上の選考基準）。
+  // まだ持ちタイムが無い選手はOVR順で後ろに並べる。
+  const withTime = natPlayers.filter(p => distanceScore(p, year) > 0).sort((a, b) => distanceScore(b, year) - distanceScore(a, year))
+  const noTime = natPlayers.filter(p => distanceScore(p, year) === 0).sort((a, b) => ovr(b) - ovr(a))
+  const roster = [...withTime, ...noTime].slice(0, SQUAD_SIZE)
+  const stars = individualStarIds(natPlayers, nat, year)
+
+  // その選手の一番速い持ちタイム（種目＋タイム）
+  const bestPB = (p: Player): { ev: WAEvent; t: number } | null => {
+    let best: { ev: WAEvent; t: number } | null = null
+    for (const ev of WA_EVENTS) {
+      const t = recentBest(p, ev, year)
+      if (t == null) continue
+      const s = 1 / t
+      if (!best || s > 1 / best.t) best = { ev, t }
+    }
+    return best
+  }
 
   const clubName = (teamId: string): string => {
     if (!teamId) return '-'
@@ -39,11 +57,22 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   }
 
   const handlers = (pid: string) => ({ onClick: () => openPlayerSheet(pid) })
-  const clubTag = (teamId: string) => (
-    <span style={{ fontSize: 9, color: clubName(teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700, flexShrink: 0 }}>
-      {clubName(teamId)}
-    </span>
-  )
+  const rowExtra = (p: Player) => {
+    const pb = bestPB(p)
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {pb && (
+          <span style={{ fontSize: 9, fontFamily: SAIRA, fontWeight: 800, color: C.gold }}>
+            {WA_EVENT_LABEL[pb.ev]} <span style={{ color: C.text }}>{formatRaceTime(pb.t)}</span>
+          </span>
+        )}
+        {stars.has(p.id) && (
+          <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: `${C.purple}22`, border: `1px solid ${C.purple}66`, color: C.purple, fontWeight: 800 }}>選考</span>
+        )}
+        <span style={{ fontSize: 9, color: clubName(p.teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700 }}>{clubName(p.teamId)}</span>
+      </span>
+    )
+  }
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
@@ -67,7 +96,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
           <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>代表候補</span>
           <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>上位{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
-          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>タップ=詳細</span>
+          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>持ちタイム順・タップ=詳細</span>
         </div>
 
         {roster.length === 0 ? (
@@ -76,7 +105,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
           </div>
         ) : (
           <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
-            {roster.map(p => <PlayerRow key={p.id} player={p} handlers={handlers(p.id)} extra={clubTag(p.teamId)} />)}
+            {roster.map(p => <PlayerRow key={p.id} player={p} handlers={handlers(p.id)} extra={rowExtra(p)} />)}
           </div>
         )}
       </div>
