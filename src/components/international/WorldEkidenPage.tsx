@@ -205,7 +205,7 @@ export default function WorldEkidenPage() {
   const thisYearNT = (nationalTeam?.year === year) ? nationalTeam : null
   const isPlayerCoach = thisYearNT?.isPlayerCoach ?? false
 
-  const cityIdx = Math.max(0, Math.floor((year - 2027) / 4) % WEC_CITIES.length)
+  const cityIdx = Math.max(0, Math.floor((year - 2027) / 2) % WEC_CITIES.length)
   const cityInfo = WEC_CITIES[cityIdx]
 
   const pastWEResults = pastSeasons
