@@ -303,6 +303,12 @@ const POOL_COL: ForeignNamePool = { origin: 'コロンビア', given: ES_GIVEN, 
 const POOL_ECU: ForeignNamePool = { origin: 'エクアドル', given: ES_GIVEN, family: ES_FAMILY }
 const POOL_ARG: ForeignNamePool = { origin: 'アルゼンチン', given: ES_GIVEN, family: ES_FAMILY }
 const POOL_CHI: ForeignNamePool = { origin: 'チリ', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_PER: ForeignNamePool = { origin: 'ペルー', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_URU: ForeignNamePool = { origin: 'ウルグアイ', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_VEN: ForeignNamePool = { origin: 'ベネズエラ', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_POR: ForeignNamePool = { origin: 'ポルトガル', given: PT_GIVEN, family: PT_FAMILY }
+const POOL_AUT: ForeignNamePool = { origin: 'オーストリア', given: DE_GIVEN, family: DE_FAMILY }
+const POOL_DEN: ForeignNamePool = { origin: 'デンマーク', given: SCAN_GIVEN, family: SCAN_FAMILY }
 
 // 重みに応じてプールを展開する（重みが大きい国ほど選ばれやすい）
 function weightedPools(entries: [ForeignNamePool, number][]): ForeignNamePool[] {
@@ -318,21 +324,48 @@ const JPEL_FOREIGN_POOLS: ForeignNamePool[] = weightedPools([
   [POOL_NED, 2], [POOL_BEL, 1], [POOL_BRA, 4], [POOL_USA, 4],
 ])
 
-// 海外リーグ用: 国コードごとのプール（重みは従来の構成比を踏襲）
+// 海外リーグ用: クラブの国籍(club.country)ごとの名前プール。
+// クラブ国籍を実国籍化したので、各国コードに対応する専用プールを引く。
+// キーが無い国は下の EUR にフォールバックする（安全弁）。
 const FOREIGN_LEAGUE_POOLS: Record<string, ForeignNamePool[]> = {
+  // アジア
   KOR: [POOL_KOR],
   CHN: [POOL_CHN],
   TWN: [POOL_TWN],
+  // アフリカ
   ETH: weightedPools([[POOL_ETH, 4], [POOL_ERI, 1]]),
   KEN: [POOL_KEN],
   UGA: [POOL_UGA],
   TAN: [POOL_TAN],
+  // ヨーロッパ（各国クラブ＝その国の名前）
+  GBR: [POOL_GBR],
+  GER: [POOL_GER],
+  FRA: [POOL_FRA],
+  ITA: [POOL_ITA],
+  ESP: [POOL_ESP],
+  NED: [POOL_NED],
+  SWE: [POOL_SWE],
+  POR: [POOL_POR],
+  AUT: [POOL_AUT],
+  DEN: [POOL_DEN],
+  // 北米
+  USA: [POOL_USA],
+  // オセアニア
+  AUS: [POOL_AUS],
+  NZL: [POOL_NZL],
+  // 南米
+  BRA: [POOL_BRA],
+  COL: [POOL_COL],
+  ECU: [POOL_ECU],
+  PER: [POOL_PER],
+  ARG: [POOL_ARG],
+  CHI: [POOL_CHI],
+  URU: [POOL_URU],
+  VEN: [POOL_VEN],
+  // フォールバック（未定義国コード用）
   EUR: weightedPools([
     [POOL_GBR, 6], [POOL_FRA, 5], [POOL_GER, 5], [POOL_ITA, 5], [POOL_ESP, 4],
     [POOL_NED, 2], [POOL_SWE, 2], [POOL_NOR, 2], [POOL_AUS, 3], [POOL_NZL, 2],
-  ]),
-  USA: weightedPools([
-    [POOL_USA, 20], [POOL_BRA, 2], [POOL_COL, 2], [POOL_ECU, 2], [POOL_ARG, 1], [POOL_CHI, 1],
   ]),
 }
 
