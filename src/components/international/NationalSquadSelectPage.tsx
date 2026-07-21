@@ -10,6 +10,7 @@ import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import { ekidenCandidatesWithFit, type Candidate } from '../../engine/worldAthletics'
 import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
+import { useAdHeight } from '../layout/Layout'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SQUAD = 20
@@ -24,6 +25,9 @@ const ALL_STATS: [string, keyof Player['ratings']][] = [
 // 初期状態は前年代表ベース（不足は持ちタイム上位）で全枠埋まっていて、入れ替えたい枠だけ触ればいい。
 export default function NationalSquadSelectPage() {
   const navigate = useNavigate()
+  const adH = useAdHeight()
+  // タブバー(58px)＋広告の上に確定バーを置く（下端に置くとタブバーと広告の裏に隠れて押せない）
+  const barBottom = `calc(${adH + 58}px + env(safe-area-inset-bottom))`
   const players = useGameStore(s => s.players)
   const teams = useGameStore(s => s.teams)
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
@@ -170,7 +174,7 @@ export default function NationalSquadSelectPage() {
   // ── 候補ピッカー（区間配置のピッカーと同じ構造・ロスターと同じ全数値行・一括選択制）──
   if (pickerSlot !== null) {
     return (
-      <div style={{ fontFamily: SAIRA, background: C.bg, minHeight: '100dvh', paddingBottom: 'calc(88px + env(safe-area-inset-bottom))' }}>
+      <div style={{ fontFamily: SAIRA, background: C.bg, minHeight: '100dvh', paddingBottom: `calc(${adH + 58 + 96}px + env(safe-area-inset-bottom))` }}>
         {/* ピッカーヘッダー */}
         <div style={{
           background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`,
@@ -239,10 +243,10 @@ export default function NationalSquadSelectPage() {
           )}
         </div>
 
-        {/* 選出バー（固定） */}
+        {/* 選出バー（固定・タブバーと広告の上） */}
         <div style={{
-          position: 'fixed', left: 0, right: 0, bottom: 0, margin: '0 auto', maxWidth: 480,
-          padding: '10px 16px calc(10px + env(safe-area-inset-bottom))',
+          position: 'fixed', left: 0, right: 0, bottom: barBottom, margin: '0 auto', maxWidth: 480,
+          padding: '10px 16px 10px',
           background: `linear-gradient(180deg, transparent, ${C.bg} 30%)`,
           display: 'flex', alignItems: 'center', gap: 12, zIndex: 35,
         }}>
@@ -264,7 +268,7 @@ export default function NationalSquadSelectPage() {
 
   // ── メイン画面（20枠一覧・区間配置の区リストと同じ構造）──
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif", background: C.bg, minHeight: '100dvh', paddingBottom: 'calc(88px + env(safe-area-inset-bottom))' }}>
+    <div style={{ fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif", background: C.bg, minHeight: '100dvh', paddingBottom: `calc(${adH + 58 + 96}px + env(safe-area-inset-bottom))` }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本代表 選考</span>
@@ -398,9 +402,9 @@ export default function NationalSquadSelectPage() {
         })}
       </div>
 
-      {/* ボトムバー（区間配置と同じ構造：クリア＋確定） */}
+      {/* ボトムバー（区間配置と同じ構造：クリア＋確定）。タブバー(58px)＋広告の上に固定 */}
       <div style={{
-        position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: barBottom, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
         padding: '8px 14px 10px',
         background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,
