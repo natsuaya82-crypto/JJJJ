@@ -811,6 +811,10 @@ export const useGameStore = create<GameStore>()(
         const { draftState, playerTeamId } = state
         const { currentPick, pool, pickOrder, picks } = draftState
 
+        // 連打・二重指名ガード：今が自チームの指名番でなければ無視（CPU番の横取り防止）
+        if (currentPick >= pickOrder.length) return
+        if (pickOrder[currentPick] !== playerTeamId) return
+
         const player = pool.find(p => p.id === playerId)
         if (!player) return
 
@@ -2673,7 +2677,8 @@ export const useGameStore = create<GameStore>()(
             if (t.id === state.playerTeamId) return mktMainFull
               ? { ...t, finance: { ...t.finance, budget: t.finance.budget - price }, roster: { ...t.roster, second: [...t.roster.second, listing.playerId] } }
               : { ...t, finance: { ...t.finance, budget: t.finance.budget - price }, roster: { ...t.roster, main: [...t.roster.main, listing.playerId] } }
-            if (t.id === listing.fromTeamId) return { ...t, roster: { ...t.roster, main: t.roster.main.filter(id => id !== listing.playerId) } }
+            // 売却側にも移籍金を入金する（以前は入金されず消滅していたバグ）。売却益はCPUの補強原資になる
+            if (t.id === listing.fromTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + price }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== listing.playerId) } }
             return t
           }),
           transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date, playerId: listing.playerId, fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId, fee: price, years: Math.max(player.contract.yearsLeft, 2) }].slice(-400),
@@ -3228,7 +3233,8 @@ export const useGameStore = create<GameStore>()(
               players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId,  rosterTier: 'main' as const, transferLockedUntilYear: state.currentSeason.year + 1 } : p),
               teams: state.teams.map(t => {
                 if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + counterPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } }
-                if (t.id === offer.fromTeamId) return { ...t, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
+                // 買い手CPUの予算からも支払わせる（acceptIncomingOfferと同じ両建て。以前は片建てだった不整合の修正）
+                if (t.id === offer.fromTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget - counterPrice }, roster: { ...t.roster, main: [...t.roster.main, offer.playerId] } }
                 return t
               }),
               currentSeason: { ...state.currentSeason, transferIncome: (state.currentSeason.transferIncome ?? 0) + counterPrice, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) }
@@ -3546,7 +3552,10 @@ export const useGameStore = create<GameStore>()(
           ),
           teams: signed.teams.map(t => t.id === s.playerTeamId
             ? { ...t, finance: { ...t.finance, budget: t.finance.budget - bid.offeredFee } }
-            : t
+            // 売却側（国内クラブ）にも移籍金を入金（以前は消滅していたバグ）。海外クラブはbudgetを持たないのでteamsに現れない
+            : t.id === bid.targetTeamId
+              ? { ...t, finance: { ...t.finance, budget: t.finance.budget + bid.offeredFee } }
+              : t
           ),
           // 海外クラブから獲得した場合、そのクラブの選手リストからも外す
           foreignLeagues: (s.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(bid.playerId) ? { ...c, playerIds: c.playerIds.filter(id => id !== bid.playerId) } : c) })),
@@ -7531,6 +7540,27 @@ export const useGameStore = create<GameStore>()(
         }
         if (p.currentSeason) p.currentSeason = fixEclDates(renameEcl(p.currentSeason))
         if (Array.isArray(p.pastSeasons)) p.pastSeasons = p.pastSeasons.map(renameEcl)
+        // 世界陸上の旧レース名（「アジア＋オセアニア予選 駅伝 第1戦」等）を現行形式へ冪等に直す。
+        // 旧セーブは大会生成時の名前で凍結されているため、コード側のリネームだけでは直らない
+        {
+          const OLD_WA = /アジア[＋+]オセアニア予選/
+          const fixWaName = (name: string, year: number, kind: 'qualifier' | 'main', host: Nationality | undefined, i: number): string => {
+            if (!OLD_WA.test(name) && !/^世界陸上 駅伝 第\d+戦$/.test(name)) return name
+            const city = host ? (WA_HOST_CITY[host] ?? '') : ''
+            return kind === 'main'
+              ? `${year} 世界陸上${city ? ` ${city}` : ''} 第${i + 1}戦`
+              : `${year} 世界陸上アジア予選${city ? ` ${city}` : ''} 第${i + 1}戦`
+          }
+          if (p.worldTournament?.races) {
+            const t = p.worldTournament
+            p.worldTournament = { ...t, races: t.races.map((r, i) => ({ ...r, name: fixWaName(r.name, t.year, t.kind, t.host, i) })) }
+          }
+          if (Array.isArray(p.worldAthleticsResults)) {
+            p.worldAthleticsResults = p.worldAthleticsResults.map(res => res.races
+              ? { ...res, races: res.races.map((r, i) => ({ ...r, name: fixWaName(r.name, res.year, res.kind, res.kind === 'qualifier' ? res.host : res.host, i) })) }
+              : res)
+          }
+        }
         return {
           ...currentState,
           ...p,

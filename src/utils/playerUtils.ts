@@ -40,9 +40,11 @@ export function getStatPotentials(p: Player): Ratings {
   return out
 }
 
-// 上限解放のジュエルコスト（解放後の上限値で段階制）。99が天井。
+// 上限解放のジュエルコスト（「現在の上限値」の帯で段階制）。99が天井。
+// 79→80=100 / 80〜89→300 / 90〜94→1000 / 95以上→3000（X9→X0の境界で高くならない）
 export function limitBreakCost(nextCap: number): number {
-  return nextCap >= 95 ? 3000 : nextCap >= 90 ? 1000 : nextCap >= 80 ? 300 : 100
+  const cur = nextCap - 1 // 現在の上限値基準で判定
+  return cur >= 95 ? 3000 : cur >= 90 ? 1000 : cur >= 80 ? 300 : 100
 }
 
 // その能力が上限に達しているか（カード合成のブロック・表示用）。

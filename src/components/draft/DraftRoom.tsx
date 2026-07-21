@@ -328,6 +328,9 @@ export default function DraftRoom() {
   }
 
   function handlePlayerPick(playerId: string) {
+    // 連打対策：自分の番でなければ何もしない（storeにも同じガードあり。SE/ログの重複も防ぐ）
+    const pre = useGameStore.getState().draftState
+    if (!pre || pre.pickOrder[pre.currentPick] !== playerTeamId) return
     playerPick(playerId)
     audio.playSe('great_success')
     const state = useGameStore.getState()

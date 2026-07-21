@@ -11,6 +11,7 @@ import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
 import ActionSheet from '../ui/ActionSheet'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
+import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -76,7 +77,8 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
 }
 
 
-const TIER_MAX: Record<RosterTier, number> = { main: 40, second: 20 }
+// 表示上限は単一情報源 ROSTER_MAX(30) を使う（旧40表示バグの修正）
+const TIER_MAX: Record<RosterTier, number> = { main: ROSTER_MAX, second: ROSTER_MAX }
 
 type SortKey = 'ovr' | 'age'
 
@@ -322,8 +324,10 @@ export default function TeamManagement() {
       {/* ロスター見出し：人数・総年俸・（あれば）レンタルトグルを1行に集約 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px 8px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.text }}>ロスター</span>
-        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: C.gold }}>
+        {/* 20人未満は赤字で警告（下限15に近づいている） */}
+        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: team.roster.main.length < 20 ? C.red : C.gold }}>
           {team.roster.main.length}<span style={{ fontSize: 11, color: C.textDim }}>/{TIER_MAX.main}</span>
+          {team.roster.main.length < 20 && <span style={{ fontSize: 9, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
         </span>
         <span style={{ fontSize: 11, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
         <div style={{ flex: 1 }} />
