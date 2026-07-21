@@ -15,6 +15,7 @@ import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 import ShareCard from './ShareCard'
 import Flag from '../ui/Flag'
 import { natLabel } from '../../data/nationalities'
+import { WA_HOST_CITY } from '../../engine/worldAthletics'
 
 const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
   ace: 'エース',
@@ -724,15 +725,21 @@ export default function PlayerSheet() {
                 )
               })()}
 
-              {/* 世界陸上（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる */}
+              {/* 世界陸上（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる。
+                  駅伝の下に個人種目（世界陸上 5000m 等）のカードも並べる */}
               {!isProspect && (() => {
                 const waNames = [...raceGroupMap.keys()].filter(n => n.includes('世界陸上') || n.includes('アジア＋オセアニア予選'))
-                if (waNames.length === 0) return null
+                const indLabels = (['5000m', '10000m', 'マラソン'] as const).filter(label => {
+                  const ev = label === '5000m' ? 'd5000' : label === '10000m' ? 'd10000' : 'marathon'
+                  return (worldAthleticsResults ?? []).some(wr =>
+                    wr.kind === 'main' && wr.meet.individuals.some(ir => ir.event === ev && ir.placings.some(pl => pl.playerId === player.id)))
+                })
+                if (waNames.length === 0 && indLabels.length === 0) return null
                 return (
                   <div>
                     <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界陸上</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                      {waNames.sort().map(name => (
+                      {[...waNames.sort(), ...indLabels.map(l => `世界陸上 ${l}`)].map(name => (
                         <div key={name} onClick={() => openRaceDetail(name)} style={{
                           padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.35)', backgroundColor: '#14121F',
                           cursor: 'pointer', textAlign: 'center', minHeight: 44,
@@ -888,15 +895,11 @@ export default function PlayerSheet() {
                     if (runner.rank != null) { c.rankSum += runner.rank; c.ranked += 1 }
                   }
                 }
-                // 個人種目の出場（5000m/10000m/マラソン。順位は内訳の右端に出す）
+                // 在籍テーブルは駅伝のみ（個人種目は2ページ目の世界陸上セクションで見る）。
+                // レース詳細が無い旧データでも駅伝代表の年の行だけは出す
                 for (const rep of worldRepresentatives ?? []) {
-                  if (rep.playerId !== player.id) continue
-                  if (rep.label === '駅伝') { touch(rep.year); continue }  // レース詳細が無い旧データでも年の行は出す
-                  const row = touch(rep.year)
-                  const key = `個人 ${rep.label}`
-                  if (row.comps.has(key)) continue
-                  row.races += 1
-                  row.comps.set(key, { label: rep.label, races: 1, wins: 0, rankSum: 0, ranked: 0, ind: true, indRank: rep.rank })
+                  if (rep.playerId !== player.id || rep.label !== '駅伝') continue
+                  touch(rep.year)
                 }
                 const natRows = [...byYear.values()].sort((a, b) => b.year - a.year)
                 if (natRows.length === 0) return null
@@ -977,6 +980,46 @@ export default function PlayerSheet() {
 
           {/* Page 4: レース詳細（ドリルダウン） */}
           {page === 4 && selectedRaceName && (() => {
+            // 世界陸上の個人種目（世界陸上 5000m 等）：年・開催都市・タイム・順位＋優勝/入賞パッチ
+            const indEv = selectedRaceName === '世界陸上 5000m' ? 'd5000'
+              : selectedRaceName === '世界陸上 10000m' ? 'd10000'
+              : selectedRaceName === '世界陸上 マラソン' ? 'marathon' : null
+            if (indEv) {
+              const rows: { year: number; city: string; timeSec: number; rank: number }[] = []
+              for (const wr of worldAthleticsResults ?? []) {
+                if (wr.kind !== 'main') continue
+                const pl = wr.meet.individuals.find(ir => ir.event === indEv)?.placings.find(p2 => p2.playerId === player.id)
+                if (pl) rows.push({ year: wr.year, city: WA_HOST_CITY[wr.host] ?? natLabel(wr.host), timeSec: pl.timeSec, rank: pl.rank })
+              }
+              rows.sort((a, b) => b.year - a.year)
+              return (
+                <div style={{ padding: '12px 20px 28px' }}>
+                  {rows.length > 0 ? (
+                    <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                      {rows.map((e, i) => {
+                        const rankCol = e.rank === 1 ? '#C9A84C' : e.rank <= 3 ? '#9B97A8' : '#5C5870'
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < rows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
+                            <span style={{ fontSize: '12px', color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
+                            <span style={{ fontSize: '12px', color: '#9B97A8', flexShrink: 0 }}>{e.city}</span>
+                            <span style={{ fontSize: '15px', fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '38px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
+                            {e.rank === 1 ? (
+                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: '4px', background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>優勝</span>
+                            ) : e.rank <= 8 ? (
+                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: '4px', background: 'linear-gradient(180deg,#C583FA,#7E22CE)', color: '#fff', flexShrink: 0 }}>入賞</span>
+                            ) : null}
+                            <span style={{ flex: 1 }} />
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>記録なし</div>
+                  )}
+                </div>
+              )
+            }
             const entries = (raceGroupMap.get(selectedRaceName) ?? []).slice().sort((a, b) => b.year - a.year)
             return (
               <div style={{ padding: '12px 20px 28px' }}>
