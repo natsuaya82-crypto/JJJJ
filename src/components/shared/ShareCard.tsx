@@ -2,7 +2,8 @@ import type { Player, Team } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
 import { useGameStore } from '../../store/gameStore'
-import { getPlayerBadges, BADGE_COLOR } from '../../utils/badges'
+import { getPlayerBadges } from '../../utils/badges'
+import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 
@@ -31,7 +32,8 @@ export default function ShareCard({ player, team }: { player: Player; team?: Tea
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
-  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops }, 99)
+  const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
+  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops, worldAthleticsResults }, 99)
   const shareBadge = (player.displayBadge ? badgeList.find(b => b.key === player.displayBadge) : undefined) ?? badgeList[0]
 
   return (
@@ -67,8 +69,8 @@ export default function ShareCard({ player, team }: { player: Player; team?: Tea
             <span style={{ fontSize: 15, fontWeight: 900, color: specCol }}>{SPECIALTY_LABELS[player.specialty]}</span>
             <span style={{ fontSize: 14, color: '#8C93A5' }}>{player.age}歳</span>
             {shareBadge && (
-              <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px', borderRadius: 6, background: `${BADGE_COLOR[shareBadge.kind]}26`, border: `1px solid ${BADGE_COLOR[shareBadge.kind]}88`, color: BADGE_COLOR[shareBadge.kind] }}>
-                {shareBadge.label}
+              <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px', borderRadius: 6, background: `${badgeColor(shareBadge)}26`, border: `1px solid ${badgeColor(shareBadge)}88`, color: badgeColor(shareBadge) }}>
+                <BadgeContent badge={shareBadge} iconSize={11} />
               </span>
             )}
           </div>

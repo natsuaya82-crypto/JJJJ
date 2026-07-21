@@ -389,7 +389,8 @@ export function simulateWorldMeet(players: Player[], nats: Nationality[], year: 
 export type QualStanding = { nat: Nationality; strength: number; rank: number; advanced: boolean }
 // races: 駅伝3戦の実レース結果。ECLのeclSeriesと同じ扱いで保持し、選手詳細の駅伝データ等に使う
 // squads: 選出された駅伝代表20人（participantId nat_XXX → playerId[]）。チームタブの代表表示・0走代表の履歴用
-export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; host?: Nationality; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[]; squads?: Record<string, string[]> }
+// bestPlayer: 年間アジア最優秀選手（予選3戦すべてに出走し区間順位平均が最良の選手。パッチの元）
+export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; host?: Nationality; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[]; squads?: Record<string, string[]>; bestPlayer?: { playerId: string; nat: Nationality; avgRank: number } }
 export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nations: Nationality[]; meet: WAMeetResult; japanRank: number | null; races?: import('../types').Race[]; squads?: Record<string, string[]> }
 export type WAYearResult = WAQualifierResult | WAMainResult
 

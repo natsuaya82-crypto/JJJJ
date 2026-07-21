@@ -6345,10 +6345,29 @@ export const useGameStore = create<GameStore>()(
             return [...set]
           }
           const rows = t.participants.map(pt => ({ nat: pt.nat, points: points[pt.id] ?? 0, runnerIds: runnersOf(pt.id) }))
+          // 年間アジア最優秀選手（予選のみ）: 3戦すべてに出走した選手のうち区間順位平均が最良。同率は合計タイムが速い方
+          const bestPlayer = (() => {
+            if (t.kind !== 'qualifier') return undefined
+            const perf = new Map<string, { nat: Nationality; ranks: number[]; time: number }>()
+            for (const r of newRaces) for (const sr of r.results?.segmentResults ?? []) for (const run of sr.runners) {
+              if (!run.teamId.startsWith('nat_')) continue
+              const e = perf.get(run.playerId) ?? { nat: run.teamId.slice(4) as Nationality, ranks: [], time: 0 }
+              e.ranks.push(run.rank ?? 99)
+              e.time += run.timeSec
+              perf.set(run.playerId, e)
+            }
+            let best: { playerId: string; nat: Nationality; avgRank: number; time: number } | undefined
+            for (const [pid, e] of perf) {
+              if (e.ranks.length < newRaces.length) continue
+              const avg = e.ranks.reduce((a, b) => a + b, 0) / e.ranks.length
+              if (!best || avg < best.avgRank || (avg === best.avgRank && e.time < best.time)) best = { playerId: pid, nat: e.nat, avgRank: avg, time: e.time }
+            }
+            return best ? { playerId: best.playerId, nat: best.nat, avgRank: best.avgRank } : undefined
+          })()
           // 駅伝3戦のレース詳細も結果に残す（ECLのeclSeriesと同じ扱い。選手詳細の駅伝データ等で使う）
           const result = {
             ...(t.kind === 'qualifier'
-              ? composeQualifierResult(t.year, rows, 3, t.host)
+              ? { ...composeQualifierResult(t.year, rows, 3, t.host), bestPlayer }
               : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows)),
             races: newRaces,
             // 選出された駅伝代表20人を恒久保存（チームタブの代表表示・0走でも代表履歴に残すための元データ）

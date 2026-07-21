@@ -8,7 +8,8 @@ import type { Player, TeamRole, Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, isStatMaxed } from '../../utils/playerUtils'
-import { getPlayerBadges, BADGE_COLOR } from '../../utils/badges'
+import { getPlayerBadges } from '../../utils/badges'
+import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import { formatTime } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
@@ -233,7 +234,7 @@ export default function PlayerSheet() {
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
   // 記録パッチ（最大5個・優先順: 世界>日本>MVP>新人王>区間記録）
-  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops })
+  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops, worldAthleticsResults })
   const handleShare = async () => {
     if (!shareCardRef.current) return
     try {
@@ -436,7 +437,7 @@ export default function PlayerSheet() {
           </div>
           <div style={{ padding: '14px 20px 48px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {badges.map(b => {
-              const col = BADGE_COLOR[b.kind]
+              const col = badgeColor(b)
               // 未選択なら優先順トップが自動表示されている（PlayerRowと同じルール）ので、それを「表示中」として見せる
               const selected = (player.displayBadge ?? badges[0]?.key) === b.key
               return (
@@ -452,7 +453,7 @@ export default function PlayerSheet() {
                   }}
                 >
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: col }}>{b.label}</span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: col }}><BadgeContent badge={b} iconSize={13} /></span>
                   {isMyPlayer && (
                     <span style={{ fontSize: 10, fontWeight: 900, color: selected ? col : '#5C5870' }}>
                       {selected ? '表示中 ✓' : '選択'}
@@ -623,14 +624,14 @@ export default function PlayerSheet() {
               {isRetired && badges.length > 0 && (
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
                   {badges.map(b => {
-                    const col = BADGE_COLOR[b.kind]
+                    const col = badgeColor(b)
                     return (
                       <span key={b.key} style={{
                         fontSize: '9px', fontWeight: 900, padding: '3px 8px', borderRadius: '7px',
                         background: `linear-gradient(180deg, ${col}2E, ${col}14)`,
                         color: col, border: `1px solid ${col}55`, flexShrink: 0,
                       }}>
-                        {b.label}
+                        <BadgeContent badge={b} iconSize={10} />
                       </span>
                     )
                   })}
