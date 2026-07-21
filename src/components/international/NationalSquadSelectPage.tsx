@@ -8,6 +8,7 @@ import { ovr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUti
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import { ekidenCandidates, type Candidate } from '../../engine/worldAthletics'
+import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SQUAD = 20
@@ -50,7 +51,23 @@ export default function NationalSquadSelectPage() {
 
   // ピッカーの絞り込み（特性）とソート（区間配置ピッカーと同じ操作系）
   const [spec, setSpec] = useState<Specialty | 'all'>('all')
-  const [pickerSort, setPickerSort] = useState<'time' | 'ovr' | 'age' | 'speed' | 'stamina' | 'mountainUp' | 'mountainDown' | 'pacing' | 'mental' | 'recovery'>('time')
+  const [pickerSort, setPickerSort] = useState<'fit' | 'ovr' | 'age' | 'speed' | 'stamina' | 'mountainUp' | 'mountainDown' | 'pacing' | 'mental' | 'recovery'>('fit')
+
+  // 大会適性：今年の3戦の全区間に対する適性（能力×特性相性）の平均。
+  // 区間配置の「区間適性順」と同じ計算を大会全体でやったもの。山型の年なら登り屋が上に来る
+  const fitScore = useMemo(() => {
+    const m = new Map<string, number>()
+    const segs = plans.flatMap(p => p.segments)
+    for (const c of candidates) {
+      let s = 0
+      for (const seg of segs) {
+        s += calcBaseAbility(c.player.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+           * calcAffinity(c.player.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+      }
+      m.set(c.player.id, segs.length > 0 ? s / segs.length : ovr(c.player))
+    }
+    return m
+  }, [candidates, plans])
 
   // 長押し(450ms)で選手詳細。発火した直後のタップ（選択）は打ち消す
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -108,14 +125,14 @@ export default function NationalSquadSelectPage() {
 
   const pickerPlayers = useMemo(() => {
     const val = (c: Candidate) =>
-      pickerSort === 'time' ? c.score
+      pickerSort === 'fit' ? (fitScore.get(c.player.id) ?? 0)
       : pickerSort === 'ovr' ? ovr(c.player)
       : pickerSort === 'age' ? -c.player.age
       : (c.player.ratings[pickerSort] as number)
     return candidates
       .filter(c => spec === 'all' || c.player.specialty === spec)
       .sort((a, b) => val(b) - val(a))
-  }, [candidates, spec, pickerSort])
+  }, [candidates, spec, pickerSort, fitScore])
 
   // ── 候補ピッカー（区間配置のピッカーと同じ構造・ロスターと同じ全数値行）──
   if (pickerSlot !== null) {
@@ -165,7 +182,7 @@ export default function NationalSquadSelectPage() {
             ))}
           </select>
           <select value={pickerSort} onChange={e => setPickerSort(e.target.value as typeof pickerSort)} style={{ flex: 1, padding: '5px 8px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
-            <option value="time">持ちタイム順</option>
+            <option value="fit">大会適性順</option>
             <option value="ovr">OVR順</option>
             <option value="age">年齢順</option>
             <option value="speed">スピード順</option>
