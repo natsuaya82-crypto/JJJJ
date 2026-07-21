@@ -246,8 +246,9 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const moves: { playerId: string; fromId: string; toId: string; dir: 'in' | 'out'; fee: number }[] = []
   const moved = new Set<string>()
 
-  const N_IN = params.maxIn ?? (2 + Math.floor(Math.random() * 3))   // 海外→日本CPU（省略時2〜4件）
-  const N_OUT = params.maxOut ?? (2 + Math.floor(Math.random() * 3))  // 日本CPU→海外（省略時2〜4件）
+  // 件数を増やして移籍市場を活性化（2〜4件→4〜7件。動くチームが毎年2〜3チームに偏る問題の緩和）
+  const N_IN = params.maxIn ?? (4 + Math.floor(Math.random() * 4))   // 海外→日本CPU（省略時4〜7件）
+  const N_OUT = params.maxOut ?? (4 + Math.floor(Math.random() * 4))  // 日本CPU→海外（省略時4〜7件）
 
   // 海外→日本CPU：予算に余裕のあるチームが、自分の弱いタイプ（穴）を海外から補強。移籍金を支払う。
   for (let i = 0; i < N_IN; i++) {
@@ -275,10 +276,11 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   }
 
   // 日本CPU→海外：海外クラブが、最低人数超のCPUチームの余剰・準主力を引き抜く。売り手は移籍金を得る。
+  // 売り手は完全ランダムではなくニーズベース：在籍が多い（余剰を抱える）チームほど売りやすい
   for (let i = 0; i < N_OUT; i++) {
     const sellers = cpuTeams.filter(t => jpnSize(t.id) > ROSTER_MIN)
     if (sellers.length === 0) break
-    const seller = pick(sellers)
+    const seller = weightedPick(sellers, t => Math.max(1, jpnSize(t.id) - ROSTER_MIN))
     // 候補はmain/second合わせた全在籍から（除去漏れ防止のため両方から外す）
     const target = surplusTarget([...jpnRoster[seller.id], ...jpnSecond[seller.id]])
     if (!target || moved.has(target.id)) continue
@@ -314,16 +316,19 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const feeStr = (v: number) => v >= 100_000_000 ? `${(v / 100_000_000).toFixed(1)}億` : `${Math.round(v / 10_000)}万`
   // 日本より格上のリーグ（アフリカ・欧州・USA）への移籍は「日本人が世界最高峰へ挑む」大ニュースにする
   const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'EUR', 'USA'])
+  // 成立日をオフシーズン期間に分散（全部同日に見える不自然さの解消）
+  const XB_DAYS = ['01-14', '01-19', '01-24', '01-29', '02-02', '02-08', '02-13', '02-19', '02-24', '03-02', '03-08', '03-14']
+  const xbDate = (i: number) => `${year}-${XB_DAYS[i % XB_DAYS.length]}`
   const news: NewsItem[] = moves
     .map(m => ({ m, p: playerById.get(m.playerId) }))
     .filter((x): x is { m: typeof moves[0]; p: Player } => !!x.p)
     .sort((a, b) => ovr(b.p) - ovr(a.p))
-    .slice(0, 6)
-    .map(({ m, p }) => {
+    .slice(0, 8)
+    .map(({ m, p }, ni) => {
       const toStrongLeague = m.dir === 'out' && STRONG_COUNTRIES.has(clubCountry.get(m.toId) ?? '')
       if (toStrongLeague && ovr(p) >= 76) {
         return {
-          date: `${year}-01-25`,
+          date: xbDate(ni),
           headline: `【世界へ挑戦】${p.name}（OVR${ovr(p)}）が世界最高峰・${nameById.get(m.toId) ?? ''}へ電撃移籍！日本人ランナーの歴史的な挑戦に列島が沸く（移籍金${feeStr(m.fee)}）`,
           category: 'trade' as const,
           relatedIds: [p.id],
@@ -331,7 +336,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
         }
       }
       return {
-        date: `${year}-01-25`,
+        date: xbDate(ni),
         headline: m.dir === 'in'
           ? `【海外→日本】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${feeStr(m.fee)}）`
           : toStrongLeague
@@ -342,6 +347,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       }
     })
 
-  const records: TxRecord[] = moves.map(m => ({ year, date: `${year}-01-25`, playerId: m.playerId, fromTeamId: m.fromId, toTeamId: m.toId, fee: m.fee, years: playerById.get(m.playerId)?.contract.yearsLeft }))
+  const records: TxRecord[] = moves.map((m, i) => ({ year, date: xbDate(i), playerId: m.playerId, fromTeamId: m.fromId, toTeamId: m.toId, fee: m.fee, years: playerById.get(m.playerId)?.contract.yearsLeft }))
   return { teams: updatedTeams, foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }
 }

@@ -1171,13 +1171,13 @@ export const useGameStore = create<GameStore>()(
             return total + (SEG_PRIZE[myRunner.rank - 1] ?? 0)
           }, 0)
 
-          // Attendance revenue: rank-proportional
+          // Attendance revenue: rank-proportional（economy.ts attendanceRevenueByRank と同じ段階に揃える）
           const attendanceBase = 2000000 + Math.random() * 1500000
           const attendanceRankBonus =
-            playerRank === 1 ? 8000000 :
-            playerRank <= 3 ? 4500000 :
-            playerRank <= 6 ? 1800000 :
-            playerRank <= 10 ? 600000 : 0
+            playerRank === 1 ? 4000000 :
+            playerRank <= 3 ? 2500000 :
+            playerRank <= 6 ? 1000000 :
+            playerRank <= 10 ? 400000 : 0
           const attendanceRevenue = Math.round((attendanceBase + attendanceRankBonus + (Math.random() - 0.5) * 500000) / 100000) * 100000
 
           const prizeNewsItem = playerRank > 0 ? {
@@ -4932,17 +4932,21 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
+        // FA契約の成立日をオフシーズン期間（1/12〜3/21）に分散させる（全員同日に5人契約のような不自然さを消す）
+        const OFF_DAYS = ['01-12', '01-16', '01-21', '01-25', '01-30', '02-03', '02-07', '02-10', '02-14', '02-18', '02-21', '02-25', '03-01', '03-05', '03-09', '03-13', '03-17', '03-21']
+        const offDate = (i: number) => `${newYear}-${OFF_DAYS[i % OFF_DAYS.length]}`
         const cpuSigningNewsItems = cpuSignings
-          .filter(s => {
+          .map((s, i) => ({ s, i }))
+          .filter(({ s }) => {
             const p = playersAfterCpuTransfer.find(x => x.id === s.playerId)
             return p && ovr(p) >= 65
           })
           .slice(0, 10)
-          .map(s => {
+          .map(({ s, i }) => {
             const p = playersAfterCpuTransfer.find(x => x.id === s.playerId)!
             const team = teamsAfterCpuTransfer.find(t => t.id === s.teamId)
             return {
-              date: `${newYear}-02-10`,
+              date: offDate(i),
               headline: `${team?.shortName ?? ''}が${p.name}（OVR${ovr(p)}）と契約合意`,
               category: 'fa' as const,
               relatedIds: [p.id],
@@ -4966,7 +4970,7 @@ export const useGameStore = create<GameStore>()(
           transferHistory: [
             ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),
             ...offseasonTxRecords,
-            ...[...cpuSignings, ...cpuSecondSignings].map(s => ({ year: newYear, date: `${newYear}-02-10`, playerId: s.playerId, fromTeamId: '', toTeamId: s.teamId, fee: 0, kind: 'free' as const, years: 2 })),
+            ...[...cpuSignings, ...cpuSecondSignings].map((s, i) => ({ year: newYear, date: offDate(i), playerId: s.playerId, fromTeamId: '', toTeamId: s.teamId, fee: 0, kind: 'free' as const, years: 2 })),
           ].slice(-800),
           currentSeason: {
             ...state.currentSeason,
@@ -7758,12 +7762,20 @@ function generateForeignAndLoanOffers(params: {
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
 
-  // 1) 海外クラブからの移籍オファー（自チームの上位選手を狙う）
-  if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.30) {
-    // 高齢選手（33歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
-    const target = [...myMain].filter(p => !offeredIds.has(p.id) && !p.noSale && ovr(p) >= 74 && p.age <= 32 && !retiringIds?.has(p.id)).sort((a, b) => ovr(b) - ovr(a))[0]
-    if (target) {
-      const club = foreignClubs[(ovr(target) + raceIndex) % foreignClubs.length]
+  // 1) 海外クラブからの移籍オファー（自チームの上位選手を狙う）。
+  // 発生率30%→55%・最大2件・対象OVR74→70に緩和（海外クラブが多数あるのに打診がほぼ来ない問題の解消）
+  if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.55) {
+    // 高齢選手（34歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
+    const targets = [...myMain]
+      .filter(p => !offeredIds.has(p.id) && !p.noSale && ovr(p) >= 70 && p.age <= 33 && !retiringIds?.has(p.id))
+      .sort((a, b) => ovr(b) - ovr(a))
+      .slice(0, 4)
+    const nOffers = targets.length > 0 ? (Math.random() < 0.35 ? 2 : 1) : 0
+    for (let oi = 0; oi < Math.min(nOffers, targets.length); oi++) {
+      // 1件目は最上位、2件目はそれ以外からランダム（同じ選手に集中させない）
+      const target = oi === 0 ? targets[0] : targets[1 + Math.floor(Math.random() * (targets.length - 1))]
+      if (!target || foreignIncoming.some(o => o.playerId === target.id)) continue
+      const club = foreignClubs[(ovr(target) + raceIndex + oi * 7) % foreignClubs.length]
       const tv = calcTransferValue(target)
       foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * (0.95 + Math.random() * 0.25) / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
@@ -7892,7 +7904,8 @@ function generateTransferActivity(
     const teamPlayers = players.filter(p => p.teamId === team.id && p.rosterTier === 'main')
     const tier = cpuTeamTier(team.id, players)
     const needsSlot = teamPlayers.length < 20
-    const wantsUpgrade = tier === 'elite' ? Math.random() < 0.35 : tier === 'mid' ? Math.random() < 0.20 : Math.random() < 0.08
+    // 打診の発生率を引き上げ（35/20/8% → 45/30/15%。自チームに打診がほぼ来ない問題の緩和）
+    const wantsUpgrade = tier === 'elite' ? Math.random() < 0.45 : tier === 'mid' ? Math.random() < 0.30 : Math.random() < 0.15
 
     // Teams are also attracted by players who have requested transfers
     const transferWantedPlayers = playerTeamPlayers.filter(p => wantToLeaveIds.has(p.id) && !offerTargets.has(p.id))
