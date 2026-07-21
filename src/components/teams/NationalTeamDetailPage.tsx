@@ -20,17 +20,28 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const teams = useGameStore(s => s.teams)
   const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   const year = useGameStore(s => s.currentSeason.year)
+  const worldTournament = useGameStore(s => s.worldTournament)
+  const waResults = useGameStore(s => s.worldAthleticsResults) ?? []
   const longPress = usePlayerLongPress()
 
   const nat = (code ?? '') as Nationality
   const label = NAT_LABEL[nat] ?? nat
+
+  // 実際に選出された代表20人を表示する（大会開催中はworldTournament、それ以外は直近の保存結果）。
+  // 予選の20人→本戦の20人は選出のたびに切り替わる。選出実績が無い国だけ候補表示にフォールバック
+  const currentSquad = worldTournament?.squads?.[`nat_${nat}`]
+  const savedSquad = waResults.find(r => (r.squads?.[`nat_${nat}`]?.length ?? 0) > 0)?.squads?.[`nat_${nat}`]
+  const squadIds = (currentSquad?.length ? currentSquad : undefined) ?? savedSquad
+  const isSquad = !!squadIds?.length
 
   const natPlayers = players.filter(p => p.nationality === nat && p.status !== 'retired')
   // 持ちタイム(eventBests)がある選手＝代表候補は持ちタイム順（世界陸上の選考基準）。
   // まだ持ちタイムが無い選手はOVR順で後ろに並べる。
   const withTime = natPlayers.filter(p => distanceScore(p, year) > 0).sort((a, b) => distanceScore(b, year) - distanceScore(a, year))
   const noTime = natPlayers.filter(p => distanceScore(p, year) === 0).sort((a, b) => ovr(b) - ovr(a))
-  const roster = [...withTime, ...noTime].slice(0, SQUAD_SIZE)
+  const roster = isSquad
+    ? squadIds!.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p && p.status !== 'retired')
+    : [...withTime, ...noTime].slice(0, SQUAD_SIZE)
 
   const clubName = (teamId: string): string => {
     if (!teamId) return '-'
@@ -75,9 +86,9 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
 
       <div style={{ padding: '0 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
-          <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>代表候補</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>上位{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
-          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>持ちタイム順・長押しで詳細</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>{isSquad ? '代表メンバー' : '代表候補'}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>{isSquad ? '選出' : '上位'}{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
+          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>{isSquad ? '長押しで詳細' : '持ちタイム順・長押しで詳細'}</span>
         </div>
 
         {roster.length === 0 ? (
