@@ -219,7 +219,7 @@ export default function NationalSquadSelectPage() {
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本代表 選考</span>
       </div>
       <div style={{ padding: '4px 16px 10px' }}>
-        <div style={{ fontSize: 11, color: C.textDim }}>枠をタップして候補から選出（ピッカー内は長押しで選手詳細）</div>
+        <div style={{ fontSize: 11, color: C.textDim }}>空き枠タップ＝選出／埋まった枠タップ＝外す（ピッカー内は長押しで選手詳細）</div>
       </div>
 
       {/* 大会コース（3戦の地形）。区間ごとの距離・登り・下りを見て編成を決める */}
@@ -262,7 +262,7 @@ export default function NationalSquadSelectPage() {
         <button onClick={autoSelect} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 8, border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動選出</button>
       </div>
 
-      {/* 20枠リスト */}
+      {/* 20枠リスト：空き枠タップ＝選出ピッカー、埋まった枠タップ＝外す（入れ替えはしない） */}
       <div style={{ margin: '0 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {Array.from({ length: SQUAD }, (_, i) => i + 1).map(idx => {
           const player = players.find(p => p.id === slots[idx])
@@ -270,7 +270,10 @@ export default function NationalSquadSelectPage() {
           return (
             <div
               key={idx}
-              onClick={() => setPickerSlot(idx)}
+              onClick={() => {
+                if (player) setSlots(prev => { const n = { ...prev }; delete n[idx]; return n })
+                else setPickerSlot(idx)
+              }}
               style={{
                 padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
                 background: player ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})` : C.surface2,
@@ -303,21 +306,23 @@ export default function NationalSquadSelectPage() {
                   )}
                 </div>
 
-                {/* OVR＋顔 or 未設定 */}
+                {/* OVR＋顔＋外す or 未設定 */}
                 {player ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, lineHeight: 1 }}>{ovr(player)}</div>
                     <div style={{ borderRadius: 6, overflow: 'hidden' }}>
                       <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
                     </div>
+                    <span style={{ padding: '4px 10px', borderRadius: 8, background: C.purple, color: '#fff', fontSize: 11, fontWeight: 900 }}>外す</span>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 11, color: C.textGhost, flexShrink: 0 }}>未設定</div>
+                  <>
+                    <div style={{ fontSize: 11, color: C.textGhost, flexShrink: 0 }}>未設定</div>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color: C.textGhost, flexShrink: 0 }}>
+                      <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </>
                 )}
-
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color: C.textGhost, flexShrink: 0 }}>
-                  <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
               </div>
 
               {/* スペシャリティ + 全ステータス */}
