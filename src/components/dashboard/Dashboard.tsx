@@ -477,28 +477,34 @@ export default function Dashboard() {
             </div>
             <div style={{ padding: '14px 18px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {waInProgress ? (
-                <button onClick={() => navigate('/national/tournament')} className="btn-press" style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
-                  background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
-                  border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 14, fontWeight: 900,
-                }}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</button>
+                <button onClick={() => navigate('/national/tournament')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</span>
+                </button>
               ) : !waJapanIn ? (
+                <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>大会を観戦する</span>
+                </button>
+              ) : (<>
+              {waSquadReady ? (
+                <button onClick={() => navigate('/national/select')} className="btn-press" style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                  background: C.surface2, border: `2px solid ${C.border2}`, color: C.textSub, fontSize: 14, fontWeight: 900,
+                }}>選考をやり直す</button>
+              ) : (
+                <button onClick={() => navigate('/national/select')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>日本代表を選考する</span>
+                </button>
+              )}
+              {waSquadReady ? (
+                <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>大会へ進む →</span>
+                </button>
+              ) : (
                 <button onClick={goWorldAthletics} className="btn-press" style={{
                   width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
-                  background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
-                  border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 14, fontWeight: 900,
-                }}>大会を観戦する</button>
-              ) : (<>
-              <button onClick={() => navigate('/national/select')} className="btn-press" style={{
-                width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
-                background: waSquadReady ? C.surface2 : `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
-                border: `2px solid ${C.purpleDark}`, color: waSquadReady ? C.textSub : '#fff', fontSize: 14, fontWeight: 900,
-              }}>{waSquadReady ? '選考をやり直す' : '日本代表を選考する'}</button>
-              <button onClick={goWorldAthletics} className="btn-press" style={{
-                width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
-                background: waSquadReady ? `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})` : C.surface2,
-                border: `2px solid ${C.purpleDark}`, color: waSquadReady ? '#fff' : C.textSub, fontSize: 14, fontWeight: 900,
-              }}>{waSquadReady ? '大会へ進む →' : 'おまかせで進む（選考しない）'}</button>
+                  background: C.surface2, border: `2px solid ${C.border2}`, color: C.textSub, fontSize: 14, fontWeight: 900,
+                }}>おまかせで進む（選考しない）</button>
+              )}
               </>)}
             </div>
           </div>

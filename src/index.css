@@ -404,6 +404,23 @@ button { font-family: inherit; }
     inset 0 2px 0 rgba(255,255,255,0.3),
     inset 0 -3px 0 rgba(0,0,0,0.2);
 }
+/* 世界陸上（プレステージ紫） */
+.btn-game--purple .btn-game__inner {
+  background: linear-gradient(180deg, #C583FA 0%, #A855F7 50%, #7E22CE 100%);
+  border: 2px solid #581C87;
+  box-shadow:
+    0 6px 0 #3B1265,
+    0 8px 20px rgba(168,85,247,0.28),
+    inset 0 2px 0 rgba(255,255,255,0.32),
+    inset 0 -3px 0 rgba(0,0,0,0.2);
+  /* 金と同じ8方向1.25pxの均一な縁取り */
+  text-shadow:
+    -1.25px 0     0 var(--stroke-dark),  1.25px 0     0 var(--stroke-dark),
+     0     -1.25px 0 var(--stroke-dark),  0      1.25px 0 var(--stroke-dark),
+    -1.25px -1.25px 0 var(--stroke-dark),  1.25px -1.25px 0 var(--stroke-dark),
+    -1.25px  1.25px 0 var(--stroke-dark),  1.25px  1.25px 0 var(--stroke-dark),
+     0      1px    2px rgba(0,0,0,0.5);
+}
 
 /* ── Progress Bar ─────────────────────────── */
 .progress-track {

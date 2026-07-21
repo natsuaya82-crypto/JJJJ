@@ -209,12 +209,17 @@ export default function NationalSquadSelectPage() {
       {/* 確定バー */}
       <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, padding: '10px 16px calc(10px + env(safe-area-inset-bottom))', background: `linear-gradient(180deg, transparent, ${C.bg} 30%)`, display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: full ? C.purple : C.text }}>{picked.size}<span style={{ fontSize: 11, color: C.textDim }}>/{SQUAD}</span></div>
-        <button onClick={save} disabled={picked.size === 0} style={{
-          flex: 1, padding: '13px 0', borderRadius: 12, cursor: picked.size === 0 ? 'default' : 'pointer',
-          background: picked.size === 0 ? C.surface2 : `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
-          border: `2px solid ${C.purpleDark}`, color: picked.size === 0 ? C.textDim : '#fff',
-          fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
-        }}>この{picked.size}人で確定</button>
+        {picked.size === 0 ? (
+          <button disabled style={{
+            flex: 1, padding: '13px 0', borderRadius: 12, cursor: 'default',
+            background: C.surface2, border: `2px solid ${C.border2}`, color: C.textDim,
+            fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
+          }}>この0人で確定</button>
+        ) : (
+          <button onClick={save} className="btn-game btn-game--purple" style={{ flex: 1 }}>
+            <span className="btn-game__inner">この{picked.size}人で確定</span>
+          </button>
+        )}
       </div>
     </div>
   )

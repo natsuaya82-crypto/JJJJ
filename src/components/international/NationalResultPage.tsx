@@ -116,11 +116,9 @@ export default function NationalResultPage() {
 
     {staged && step < lastStep && (
       <div style={{ padding: '0 12px' }}>
-        <button onClick={() => setStep(step + 1)} className="btn-press" style={{
-          width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA,
-          background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`, border: `2px solid ${C.purpleDark}`,
-          color: '#fff', fontSize: 15, fontWeight: 900,
-        }}>次は {sections[step + 1].title} →</button>
+        <button onClick={() => setStep(step + 1)} className="btn-game btn-game--purple" style={{ width: '100%' }}>
+          <span className="btn-game__inner">次は {sections[step + 1].title} →</span>
+        </button>
       </div>
     )}
     {isFinished && staged && (

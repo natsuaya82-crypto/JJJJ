@@ -138,9 +138,9 @@ export default function WorldTournamentPage() {
         <div style={{ padding: '14px 12px' }}>
           <button
             onClick={() => { if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1) }}
-            className="btn-press"
-            style={{ width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA, background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`, border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 15, fontWeight: 900 }}
-          >{last ? '駅伝へ →' : `次は ${WA_EVENT_LABEL[inds[indStep + 1].event]} →`}</button>
+            className="btn-game btn-game--purple"
+            style={{ width: '100%' }}
+          ><span className="btn-game__inner">{last ? '駅伝へ →' : `次は ${WA_EVENT_LABEL[inds[indStep + 1].event]} →`}</span></button>
         </div>
       </div>
     )
@@ -164,11 +164,11 @@ export default function WorldTournamentPage() {
         <StandingsTable rows={standRows} />
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           {done ? (
-            <button onClick={() => navigate('/national/result')} className="btn-press" style={{ width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA, background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`, border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 15, fontWeight: 900 }}>最終結果へ →</button>
+            <button onClick={() => navigate('/national/result')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">最終結果へ →</span></button>
           ) : t.japanIn ? (
-            <button onClick={() => setPhase('lineup')} className="btn-press" style={{ width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA, background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`, border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 15, fontWeight: 900 }}>第{t.raceIndex + 1}戦 区間配置へ →</button>
+            <button onClick={() => setPhase('lineup')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">第{t.raceIndex + 1}戦 区間配置へ →</span></button>
           ) : (
-            <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-press" style={{ width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA, background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`, border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 15, fontWeight: 900 }}>第{t.raceIndex + 1}戦を観戦する</button>
+            <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">第{t.raceIndex + 1}戦を観戦する</span></button>
           )}
         </div>
       </div>
