@@ -749,7 +749,7 @@ export const useGameStore = create<GameStore>()(
 
       beginInauguralDraft: () => {
         const state = get()
-        const pool = generateDraftPool(state.currentSeason.year)
+        const pool = generateDraftPool(state.currentSeason.year, new Set(state.players.map(pl => pl.name)))
         // 初年度は前シーズンが無いので「初期予算の逆順（貧乏なチームから）」で指名順を決める。
         // プレイヤーは最弱スタート（rank20相当=最少予算）なので全体1位固定。残りは初期予算の少ない順。
         // 2巡目はスネークで逆順（1位から）。
@@ -2152,7 +2152,7 @@ export const useGameStore = create<GameStore>()(
               ? state
               : { currentSeason: { ...state.currentSeason, scoutProspects: remaining } }
           }
-          const pool = generateDraftPool(state.currentSeason.year + 1)
+          const pool = generateDraftPool(state.currentSeason.year + 1, new Set(state.players.map(pl => pl.name)))
           return { currentSeason: { ...state.currentSeason, scoutProspects: pool } }
         })
       },
@@ -4458,7 +4458,7 @@ export const useGameStore = create<GameStore>()(
         // プレシーズンのドラフト（今季スカウトした代）が終わったので、
         // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。
         // これで endSeason 側で引き継いだ視察済みプールがドラフトに使われ、シーズン中の視察は常に新しい代になる。
-        const freshScoutPool = generateDraftPool(state.currentSeason.year + 1)
+        const freshScoutPool = generateDraftPool(state.currentSeason.year + 1, new Set(state.players.map(pl => pl.name)))
         if ((state.currentSeason.objectives ?? []).length === 0) {
           const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length)
           return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives, scoutProspects: freshScoutPool } }
@@ -4489,7 +4489,7 @@ export const useGameStore = create<GameStore>()(
         // スカウト画面で見せた候補（scoutProspects）をそのままドラフトプールにする。
         // 空のとき（旧セーブ等）だけ従来通り新規生成にフォールバック。
         const scouted = state.currentSeason.scoutProspects ?? []
-        const pool = scouted.length > 0 ? scouted : generateDraftPool(state.currentSeason.year)
+        const pool = scouted.length > 0 ? scouted : generateDraftPool(state.currentSeason.year, new Set(state.players.map(pl => pl.name)))
         const yr = state.currentSeason.year
 
         // ドラフト順は「当年分の指名権の所有」で決める：指名スロットの並びは各指名権の
@@ -5300,7 +5300,7 @@ export const useGameStore = create<GameStore>()(
           const champion = updatedTeams.find(t => t.id === sortedStandings[0]?.teamId)
           // 翌季のプレシーズンで指名される新人はその年(newYear)に加入するので draftYear=newYear にする。
           // （+1 にすると加入年より1年多い年度で記録され、歴代ドラフトが1年ズレる）
-          const nextScoutPool = generateDraftPool(newYear)
+          const nextScoutPool = generateDraftPool(newYear, new Set(state.players.map(pl => pl.name)))
 
           // FA news
           const faNews = expiredIds.size > 0
@@ -7579,6 +7579,18 @@ export const useGameStore = create<GameStore>()(
               ? { ...res, races: res.races.map((r, i) => ({ ...r, name: fixWaName(r.name, res.year, res.kind, res.kind === 'qualifier' ? res.host : res.host, i) })) }
               : res)
           }
+        }
+        // 海外クラブ名を静的データ（foreignLeagues.ts）の最新名に同期する（冪等）。
+        // 「〜AC」ばかりに平坦化された旧名を、既存セーブでも個性名へ差し替えるための処理
+        if (Array.isArray(p.foreignLeagues)) {
+          const staticClub = new Map(FOREIGN_LEAGUES.flatMap(l => l.clubs).map(c => [c.id, c]))
+          p.foreignLeagues = p.foreignLeagues.map(l => ({
+            ...l,
+            clubs: l.clubs.map(c => {
+              const sc = staticClub.get(c.id)
+              return sc && (sc.name !== c.name || sc.shortName !== c.shortName) ? { ...c, name: sc.name, shortName: sc.shortName } : c
+            }),
+          }))
         }
         return {
           ...currentState,

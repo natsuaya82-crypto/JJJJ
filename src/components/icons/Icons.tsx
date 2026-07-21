@@ -886,7 +886,34 @@ const LEAGUE_LOGOS: Record<string, (p: string, s: string) => React.ReactElement>
     <path d="M31 8 A18 18 0 1 0 31 40 A13.5 13.5 0 1 1 31 8 Z" fill={s} fillOpacity="0.9"/>
     <path d="M33 20 L35 25.5 H40.8 L36 29 L37.8 34.5 L33 31 L28.2 34.5 L30 29 L25.2 25.5 H31 Z" fill={s} fillOpacity="0.92"/>
   </>,
+  // ── 再編後の9リーグ（旧IDのままだと全部フォールバックの丸に点になるため個別デザインを割当） ──
+  // アフリカ北・南：砂丘と椰子
+  africa_ns: (p, s) => <>
+    <circle cx="24" cy="24" r="21" fill={p}/>
+    <path d="M3 36 Q14 27 24 33 Q34 39 45 31 L45 46 L3 46 Z" fill={s} fillOpacity="0.45"/>
+    <path d="M30 12 Q34 10 38 13 M30 12 Q28 8 32 5 M30 12 Q25 9 22 12 M30 12 Q33 6 38 7 M30 12 L29 24" stroke={s} strokeWidth="2" fill="none" strokeLinecap="round" strokeOpacity="0.9"/>
+    <circle cx="13" cy="14" r="3.4" fill={s} fillOpacity="0.85"/>
+  </>,
+  // ヨーロッパ北東：ノルディックのコンパス星
+  europe_ne: (p, s) => <>
+    <circle cx="24" cy="24" r="21" fill={p}/>
+    <path d="M24 5 L27 21 L43 24 L27 27 L24 43 L21 27 L5 24 L21 21 Z" fill={s} fillOpacity="0.9"/>
+    <circle cx="24" cy="24" r="4.5" fill={p} stroke={s} strokeWidth="1.6"/>
+    <circle cx="24" cy="24" r="17" fill="none" stroke={s} strokeWidth="1.4" strokeOpacity="0.4"/>
+  </>,
+  // 中央アメリカ：マヤのピラミッドと太陽
+  central_america: (p, s) => <>
+    <circle cx="24" cy="24" r="21" fill={p}/>
+    <circle cx="24" cy="13" r="4.5" fill={s} fillOpacity="0.85"/>
+    <path d="M8 39 H40 M11 34 H37 M14 29 H34 M17 24 H31 M20 24 V39 M28 24 V39" stroke={s} strokeWidth="2.4" strokeLinecap="round" strokeOpacity="0.9"/>
+  </>,
 }
+// 新リーグID → 既存デザインの流用（色はLEAGUE_COLORSでリーグごとに変わる）
+LEAGUE_LOGOS.asia_league = LEAGUE_LOGOS.asia_ekiden
+LEAGUE_LOGOS.africa_east = LEAGUE_LOGOS.africa_elite
+LEAGUE_LOGOS.europe_ws = LEAGUE_LOGOS.euro_ekiden
+LEAGUE_LOGOS.north_america = LEAGUE_LOGOS.usa_running
+LEAGUE_LOGOS.oceania = LEAGUE_LOGOS.oceania_cup
 
 export function LeagueLogoSVG({ leagueId, size = 48 }: { leagueId: string; size?: number }) {
   const colors = LEAGUE_COLORS[leagueId] ?? { primary: '#4B5563', secondary: '#FFFFFF' }

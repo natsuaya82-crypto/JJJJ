@@ -741,7 +741,8 @@ function buildOriginPool(): OriginType[] {
   return pool
 }
 
-export function generateDraftPool(year: number): Player[] {
+// avoidNames: 現役・既存選手の名前集合。渡すと同姓同名の再生成を避ける（年をまたいだ重複対策）
+export function generateDraftPool(year: number, avoidNames?: Set<string>): Player[] {
   const players: Player[] = []
   const rankPool = [...DRAFT_RANK_POOL].sort(() => Math.random() - 0.5)
   const originPool = buildOriginPool()
@@ -796,7 +797,7 @@ export function generateDraftPool(year: number): Player[] {
       do {
         name = `${FAMILY_NAMES[rng(0, FAMILY_NAMES.length - 1)]} ${GIVEN_NAMES_MALE[rng(0, GIVEN_NAMES_MALE.length - 1)]}`
         attempts++
-      } while (usedNames.has(name) && attempts < 60)
+      } while ((usedNames.has(name) || avoidNames?.has(name)) && attempts < 120)
       usedNames.add(name)
     }
 

@@ -49,7 +49,14 @@ function faceIndices(playerId: string, nationality: Nationality) {
   const eyeIndex = h2 % EYE_COUNT
   const flipH = h3 % 2 === 1
   const hairColor = hairColorFromNationality(nationality, styleIndex)
-  return { hairColor, styleIndex, eyeIndex, flipH }
+  // 顔素材が髪15×目18×反転2=540通りしか無く長期プレイで同じ顔が量産されるため、
+  // 明度・色相・目のサイズ/位置の微差をIDから決定的に加えて組み合わせを約1.5万通りに拡張する
+  const h4 = (Math.imul(h, 92837111) >>> 0)
+  const brightness = [0.93, 1, 1.07][h4 % 3]
+  const hue = [-6, 0, 6][(h4 >>> 3) % 3]
+  const eyeScale = [0.95, 1, 1.05][(h4 >>> 6) % 3]
+  const eyeShift = [-1.2, 0, 1.2][(h4 >>> 9) % 3]  // キャンバス高に対する%
+  return { hairColor, styleIndex, eyeIndex, flipH, brightness, hue, eyeScale, eyeShift }
 }
 
 type Props = {
@@ -59,16 +66,16 @@ type Props = {
 }
 
 export default function PlayerFace({ playerId, nationality, size = 52 }: Props) {
-  const { hairColor, styleIndex, eyeIndex, flipH } = faceIndices(playerId, nationality)
+  const { hairColor, styleIndex, eyeIndex, flipH, brightness, hue, eyeScale, eyeShift } = faceIndices(playerId, nationality)
   const [ew, ex, ey] = EYE_CFG[eyeIndex]
 
   const w = size
   const h = Math.round(size * CH / CW)
 
-  // 目の配置をパーセントで計算（260×320キャンバス基準）
-  const eyeLeft   = `${((CW / 2 - ew / 2 + ex) / CW) * 100}%`
-  const eyeTop    = `${(ey / CH) * 100}%`
-  const eyeWidth  = `${(ew / CW) * 100}%`
+  // 目の配置をパーセントで計算（260×320キャンバス基準）。eyeShift/eyeScaleで個体差を付ける
+  const eyeLeft   = `${((CW / 2 - (ew * eyeScale) / 2 + ex) / CW) * 100}%`
+  const eyeTop    = `${(ey / CH) * 100 + eyeShift}%`
+  const eyeWidth  = `${((ew * eyeScale) / CW) * 100}%`
 
   const hairSrc = `/faces/hair/${hairColor}_${String(styleIndex).padStart(2, '0')}.png`
   const eyeSrc  = `/faces/eyes/eye_${String(eyeIndex).padStart(2, '0')}.png`
@@ -78,7 +85,7 @@ export default function PlayerFace({ playerId, nationality, size = 52 }: Props) 
       <img
         src={hairSrc}
         alt=""
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', filter: (brightness !== 1 || hue !== 0) ? `brightness(${brightness}) hue-rotate(${hue}deg)` : undefined }}
         draggable={false}
       />
       <img

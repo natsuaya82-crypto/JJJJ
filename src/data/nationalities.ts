@@ -91,7 +91,7 @@ export const NATIONALITY_META: Record<Nationality, NatMeta> = {
   BOL: { label: 'ボリビア',     category: 'foreign',  strength: 'OTHER',   face: 'americas',   geo: 'アメリカ大陸', flag: '🇧🇴' },
   CRC: { label: 'コスタリカ',   category: 'foreign',  strength: 'OTHER',   face: 'americas',   geo: 'アメリカ大陸', flag: '🇨🇷' },
   CUB: { label: 'キューバ',     category: 'foreign',  strength: 'OTHER',   face: 'americas',   geo: 'アメリカ大陸', flag: '🇨🇺' },
-  JAM: { label: 'ジャマイカ',   category: 'foreign',  strength: 'OTHER',   face: 'americas',   geo: 'アメリカ大陸', flag: '🇯🇲' },
+  JAM: { label: 'ジャマイカ',   category: 'foreign',  strength: 'OTHER',   face: 'africa',     geo: 'アメリカ大陸', flag: '🇯🇲' },  // アフロカリブ系（金髪白人が生成されないようafricaプール）
   // バケツ（後方互換）
   EUR: { label: 'ヨーロッパ',   category: 'foreign',  strength: 'EUR_USA', face: 'europe',     geo: 'ヨーロッパ',   flag: '🇪🇺' },
   FOREIGN: { label: 'その他外国', category: 'foreign', strength: 'OTHER',  face: 'other',      geo: 'その他',       flag: '🏳' },
