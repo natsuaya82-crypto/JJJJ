@@ -6393,10 +6393,20 @@ export const useGameStore = create<GameStore>()(
       // 既存セーブ救済：今シーズンにECLが無ければ後から生成する（起動時に呼ばれる・冪等）。
       // リーグ再編をまたいだ年は旧リーグIDの順位表しか無く、ECLの生成が丸ごとスキップされていた。
       // 参加チームは JPEL=前年順位上位2、海外=各リーグのクラブ戦力（上位10人のOVR合計）上位2で構成する。
+      // 補充は日付基準：現在の進行地点より未来の開催回だけ生成し、シーズンが終わっていれば何もしない
+      // （4月のレースをシーズン末に出さない。その年のECLはもう開催できなかったものとして来季から通常開催）
       ensureEclSeries: () => {
         set(state => {
           const cs = state.currentSeason
+          const seasonDone = cs.races.length > 0 && cs.currentRaceIndex >= cs.races.length
+          // 旧救済が日付を無視して終了済みシーズンに補充してしまった未着手のECLを削除する
+          // （raceIndex=0かつ全戦結果なし＝日付的にあり得ない生成物。通常のシーズン末のECL残り戦は
+          //  シーズン中に日付順で消化が強制されるため、この状態には正規プレイでは到達しない）
+          if (cs.eclSeries && seasonDone && cs.eclSeries.raceIndex === 0 && cs.eclSeries.races.every(r => !r.results)) {
+            return { currentSeason: { ...cs, eclSeries: undefined } }
+          }
           if (cs.eclSeries) return state
+          if (seasonDone) return state // 未来の日付が残っていないので今年はもう開催できない
           if ((state.pastSeasons?.length ?? 0) === 0) return state // 初年度は開催なし（仕様）
           const leagues = state.foreignLeagues ?? []
           if (leagues.length === 0) return state
@@ -6435,21 +6445,25 @@ export const useGameStore = create<GameStore>()(
             const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
             return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
           }
+          // 日付基準のフィルタ：最後に消化したレースより未来の開催回だけを残す（過ぎた回は開催されなかった扱い）
+          const lastPlayedDate = cs.currentRaceIndex > 0 ? cs.races[cs.currentRaceIndex - 1].date : ''
+          const races = courses.map((course, i) => ({
+            id: `ecl-${cs.year}-r${i + 1}`,
+            name: `ECL ${course.name}`,
+            date: midDate(`${cs.year}-${months[i]}-20`),
+            location: course.location,
+            type: 'league' as const,
+            segments: course.segments,
+            conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
+            participants: parts.map(p => p.id),
+          })).filter(r => r.date > lastPlayedDate)
+          if (races.length === 0) return state
           return {
             currentSeason: {
               ...cs,
               eclSeries: {
                 participants: parts,
-                races: courses.map((course, i) => ({
-                  id: `ecl-${cs.year}-r${i + 1}`,
-                  name: `ECL ${course.name}`,
-                  date: midDate(`${cs.year}-${months[i]}-20`),
-                  location: course.location,
-                  type: 'league' as const,
-                  segments: course.segments,
-                  conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
-                  participants: parts.map(p => p.id),
-                })),
+                races,
                 raceIndex: 0,
                 points: {},
               },
