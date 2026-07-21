@@ -4,10 +4,10 @@ import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import { C } from '../../styles/tokens'
 import PlayerRow from '../player/PlayerRow'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
-import { WA_EVENTS, WA_EVENT_LABEL, recentBest, distanceScore, individualStarIds, type WAEvent } from '../../engine/worldAthletics'
-import { formatRaceTime } from '../../utils/eventTime'
+import { distanceScore, individualStarIds } from '../../engine/worldAthletics'
 import type { Nationality, Player } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -20,7 +20,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const teams = useGameStore(s => s.teams)
   const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   const year = useGameStore(s => s.currentSeason.year)
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const longPress = usePlayerLongPress()
 
   const nat = (code ?? '') as Nationality
   const label = NAT_LABEL[nat] ?? nat
@@ -33,18 +33,6 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const roster = [...withTime, ...noTime].slice(0, SQUAD_SIZE)
   const stars = individualStarIds(natPlayers, nat, year)
 
-  // その選手の一番速い持ちタイム（種目＋タイム）
-  const bestPB = (p: Player): { ev: WAEvent; t: number } | null => {
-    let best: { ev: WAEvent; t: number } | null = null
-    for (const ev of WA_EVENTS) {
-      const t = recentBest(p, ev, year)
-      if (t == null) continue
-      const s = 1 / t
-      if (!best || s > 1 / best.t) best = { ev, t }
-    }
-    return best
-  }
-
   const clubName = (teamId: string): string => {
     if (!teamId) return '-'
     const t = teams.find(t => t.id === teamId)
@@ -56,16 +44,12 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
     return '-'
   }
 
-  const handlers = (pid: string) => ({ onClick: () => openPlayerSheet(pid) })
+  // 詳細は長押しで（アプリ全体の統一操作）。タップは何もしない。
+  // 持ちタイムは詳細で見られるので行には出さず、パッチは PlayerRow が名前横に表示する
+  const handlers = (pid: string) => ({ ...longPress(pid), onClick: () => {} })
   const rowExtra = (p: Player) => {
-    const pb = bestPB(p)
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        {pb && (
-          <span style={{ fontSize: 9, fontFamily: SAIRA, fontWeight: 800, color: C.gold }}>
-            {WA_EVENT_LABEL[pb.ev]} <span style={{ color: C.text }}>{formatRaceTime(pb.t)}</span>
-          </span>
-        )}
         {stars.has(p.id) && (
           <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: `${C.purple}22`, border: `1px solid ${C.purple}66`, color: C.purple, fontWeight: 800 }}>選考</span>
         )}
@@ -97,7 +81,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
           <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>代表候補</span>
           <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>上位{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
-          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>持ちタイム順・タップ=詳細</span>
+          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>持ちタイム順・長押しで詳細</span>
         </div>
 
         {roster.length === 0 ? (

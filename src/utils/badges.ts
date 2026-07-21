@@ -2,6 +2,7 @@
 // 選手詳細の1ページ目（最大5個）とロスター名前横（選択した1個）で使う。
 // 記録はすべて「現在の保持者」基準：他選手に抜かれたらパッチも自然に外れる。
 import type { Player, GameState, SegmentRecord, EventDistKey } from '../types'
+import { NAT_LABEL } from '../data/nationalities'
 
 export type PlayerBadge = {
   key: string      // 一意キー（Player.displayBadge に保存する値）
@@ -69,14 +70,15 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     const segIdx = sep > 0 ? key.slice(sep + 1) : ''
     out.push({ key: `seg-${key}`, label: `${raceName}${segIdx}区区間記録`, kind: 'segment' })
   }
-  // 世界陸上 代表パッチ（例: 2028 マラソン 日本代表）。年×種目で重複排除。
+  // 世界陸上 代表パッチ（例: 2028 10000m 日本代表）。年×種目で重複排除。
   const seenNat = new Set<string>()
   for (const rep of src.worldRepresentatives ?? []) {
     if (rep.playerId !== p.id) continue
     const k = `nat-${rep.year}-${rep.label}`
     if (seenNat.has(k)) continue
     seenNat.add(k)
-    out.push({ key: k, label: `${rep.year} ${rep.label} 代表`, kind: 'national' })
+    const natName = NAT_LABEL[rep.nat] ?? ''
+    out.push({ key: k, label: `${rep.year} ${rep.label} ${natName}代表`, kind: 'national' })
   }
 
   return out.slice(0, maxCount)
