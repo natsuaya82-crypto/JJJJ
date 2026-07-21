@@ -493,11 +493,13 @@ export default function Dashboard() {
             )}
             <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1 }}>
               {(() => {
-                const weYear = (currentSeason.year - 2027) % 2 === 0
+                // 偶数年＝世界陸上本番、奇数年＝アジア＋オセアニア予選
+                const isMain = (currentSeason.year - 2027) % 2 !== 0 ? false : true
+                const label = isMain ? '世界陸上 本番' : 'アジア＋オセアニア予選'
                 return (
-                  <button onClick={() => navigate('/international')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10, borderRadius: 10, border: `1px solid ${weYear ? alpha(C.gold, 0.4) : C.border}`, background: weYear ? alpha(C.gold, 0.1) : C.surface2, cursor: 'pointer' }}>
-                    <span style={{ fontSize: 13, fontWeight: 900, color: weYear ? C.gold : C.text }}>世界陸上</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: weYear ? C.gold : C.textDim }}>{weYear ? '今年開催 ›' : '›'}</span>
+                  <button onClick={() => navigate('/national/select')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10, borderRadius: 10, border: `2px solid ${C.purpleDark}`, background: `linear-gradient(180deg, ${C.purple}22, ${C.purple}0E)`, cursor: 'pointer' }}>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>日本代表を選考</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.textDim }}>{label} ›</span>
                   </button>
                 )
               })()}

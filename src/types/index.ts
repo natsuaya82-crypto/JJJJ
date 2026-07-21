@@ -809,6 +809,8 @@ export type GameState = {
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   nationalTeam?: NationalTeam
+  // 世界陸上の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
+  worldSquad?: { year: number; playerIds: string[] }
   trainingCards: TrainingCard[]
   raceDroppedCards: TrainingCard[]
   pendingGifts: Gift[]

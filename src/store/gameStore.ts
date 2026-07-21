@@ -396,6 +396,7 @@ export type GameStore = GameState & {
   // National team
   updateNationalTeam: () => void
   confirmSquad: (ids: string[]) => void
+  setWorldSquad: (playerIds: string[]) => void
   setRacePlayerIds: (raceIdx: number, ids: string[]) => void
   toggleWorldRacePlayer: (raceIdx: number, playerId: string) => void
   autoSelectWorldRace: (raceIdx: number) => void
@@ -6199,6 +6200,11 @@ export const useGameStore = create<GameStore>()(
         const racePlan = generateWECRacePlan()
         const racePlayerIds = autoSelectRacePlayers(ids, racePlan, state.players)
         set({ nationalTeam: { ...nt, squadIds: ids, racePlan, racePlayerIds } })
+      },
+
+      // 世界陸上：日本駅伝代表20人を確定（候補50から監督が選抜）
+      setWorldSquad: (playerIds: string[]) => {
+        set(state => ({ worldSquad: { year: state.currentSeason.year, playerIds: playerIds.slice(0, 20) } }))
       },
 
       setRacePlayerIds: (raceIdx: number, ids: string[]) => {

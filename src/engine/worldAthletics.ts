@@ -3,6 +3,7 @@
 // 個人種目は参加標準記録の突破者。駅伝は候補から20人選抜（監督 or AI）。
 import type { Player, Nationality } from '../types'
 import { natGeoRegion, type GeoRegion } from '../data/nationalities'
+import { formatRaceTime } from '../utils/eventTime'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
@@ -40,6 +41,17 @@ export function distanceScore(p: Player, currentYear: number): number {
     if (s > best) best = s
   }
   return best
+}
+
+// その選手の最速持ちタイムを「種目 時計」形式で（無ければnull）
+export function bestPBLabel(p: Player, currentYear: number): string | null {
+  let best: { ev: WAEvent; t: number } | null = null
+  for (const ev of WA_EVENTS) {
+    const t = recentBest(p, ev, currentYear)
+    if (t == null) continue
+    if (!best || t / WA_REF[ev] < best.t / WA_REF[best.ev]) best = { ev, t }
+  }
+  return best ? `${WA_EVENT_LABEL[best.ev]} ${formatRaceTime(best.t)}` : null
 }
 
 export type Candidate = { player: Player; score: number; bests: Partial<Record<WAEvent, number>> }
