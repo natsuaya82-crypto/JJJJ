@@ -8,7 +8,10 @@ import { ResultsPhase } from '../race/ResultsPhase'
 import { ReserveSimPhase } from '../reserve/ReserveLeaguePage'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import Flag from '../ui/Flag'
+import PlayerFace from '../player/PlayerFace'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { WA_EVENT_LABEL } from '../../engine/worldAthletics'
+import { formatRaceTime } from '../../utils/eventTime'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
@@ -19,7 +22,8 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 type Phase = 'individuals' | 'entry' | 'lineup' | 'simulating' | 'results'
 
 // 世界陸上トーナメント（予選・本番共通）。ECLと同じ構成：エントリー→区間配置→レース再生→結果。
-// 本番は最初に個人種目（5000/10000/マラソン）の出場選手発表を挟む（結果は最終結果ページで）。
+// 本番は最初に個人種目（5000/10000/マラソン）の代表発表を挟み、
+// 競技順は 駅伝1→5000m結果→駅伝2→10000m結果→駅伝3→マラソン結果→総合 のインターリーブ。
 export default function WorldTournamentPage() {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -27,6 +31,8 @@ export default function WorldTournamentPage() {
   const t = useGameStore(s => s.worldTournament)
   const advanceWorldRace = useGameStore(s => s.advanceWorldRace)
   const markWorldIndividualsSeen = useGameStore(s => s.markWorldIndividualsSeen)
+  const markWorldIndividualRevealed = useGameStore(s => s.markWorldIndividualRevealed)
+  const longPress = usePlayerLongPress()
 
   const nextRace = t && t.raceIndex < t.races.length ? t.races[t.raceIndex] : null
   const needIndividuals = !!t && t.kind === 'main' && !t.individualsSeen
@@ -103,14 +109,14 @@ export default function WorldTournamentPage() {
 
   const title = t.kind === 'main' ? `世界陸上 ${t.year}` : `世界陸上アジア予選 ${t.year}`
 
-  // ── 個人種目の出場選手発表（本番のみ・1種目ずつめくる）──
-  // 駅伝代表が決まった時点での「代表発表」。結果はまだ出さない（最終結果ページで発表）
+  // ── 個人種目の出場選手発表（本番のみ・1種目1ページでめくる）──
+  // 駅伝代表が決まった時点での「代表発表」。結果はまだ出さない（駅伝の合間に1種目ずつ発表）
   if (phase === 'individuals' && t.individuals) {
     const inds = t.individuals
-    const shown = inds.slice(0, indStep + 1)
+    const ir = inds[Math.min(indStep, inds.length - 1)]
     const last = indStep >= inds.length - 1
     // 結果順のまま出すとネタバレになるので、日本→国コード→名前順に並べ替えて表示
-    const entrantsOf = (ir: typeof inds[number]) => [...ir.placings].sort((a, b) => {
+    const entrants = [...ir.placings].sort((a, b) => {
       if ((a.nat === 'JPN') !== (b.nat === 'JPN')) return a.nat === 'JPN' ? -1 : 1
       return a.nat.localeCompare(b.nat) || a.playerName.localeCompare(b.playerName, 'ja')
     })
@@ -118,30 +124,83 @@ export default function WorldTournamentPage() {
       <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 120 }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton onClick={() => navigate('/')} />
-          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title} 個人種目 代表発表</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title} 代表発表</span>
         </div>
-        {shown.map(ir => (
-          <div key={ir.event} style={{ margin: '12px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 出場選手</span>
-              <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textDim, marginLeft: 'auto' }}>{ir.placings.length}名</span>
-            </div>
-            <div style={{ padding: '8px 12px 12px' }}>
-              {entrantsOf(ir).map(pl => (
-                <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>
-                  <Flag code={pl.nat} width={22} />
+        <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>個人種目 {indStep + 1}/{inds.length} ・ 長押しで選手詳細</div>
+        <div style={{ margin: '4px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 出場選手</span>
+            <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textDim, marginLeft: 'auto' }}>{ir.placings.length}名</span>
+          </div>
+          <div style={{ padding: '8px 12px 12px' }}>
+            {entrants.map(pl => {
+              const p = players.find(x => x.id === pl.playerId)
+              return (
+                <div key={pl.playerId} {...(p ? longPress(p.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 6px', borderBottom: `1px solid ${C.border}`, cursor: p ? 'pointer' : 'default' }}>
+                  <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
+                  <Flag code={pl.nat} width={20} />
                   <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
                 </div>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        ))}
+        </div>
         <div style={{ padding: '14px 12px' }}>
           <button
-            onClick={() => { if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1) }}
+            onClick={() => {
+              if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1)
+              window.scrollTo(0, 0)
+            }}
             className="btn-game btn-game--purple"
             style={{ width: '100%' }}
-          ><span className="btn-game__inner">{last ? '駅伝へ →' : `次は ${WA_EVENT_LABEL[inds[indStep + 1].event]} →`}</span></button>
+          ><span className="btn-game__inner">{last ? '駅伝へ →' : `次へ（${WA_EVENT_LABEL[inds[indStep + 1].event]}）→`}</span></button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 個人種目の結果発表（駅伝第N戦後にN種目目・1種目1ページ）──
+  // 競技順: 駅伝1→5000m→駅伝2→10000m→駅伝3→マラソン→総合
+  const revealIdx = t.individualsRevealed ?? 0
+  const pendingReveal = t.kind === 'main' && !!t.individuals && revealIdx < Math.min(t.raceIndex, t.individuals.length)
+  if (phase === 'entry' && pendingReveal) {
+    const ir = t.individuals![revealIdx]
+    const medalCol = (rank: number) => rank === 1 ? C.gold : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : C.textDim
+    return (
+      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 120 }}>
+        <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <BackButton onClick={() => navigate('/')} />
+          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{WA_EVENT_LABEL[ir.event]} 決勝</span>
+        </div>
+        <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>{title} ・ 長押しで選手詳細</div>
+        <div style={{ margin: '4px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 結果</div>
+          <div style={{ padding: '8px 12px 12px' }}>
+            {ir.placings.map(pl => {
+              const p = players.find(x => x.id === pl.playerId)
+              return (
+                <div key={pl.playerId} {...(p ? longPress(p.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 6px', borderBottom: `1px solid ${C.border}`, cursor: p ? 'pointer' : 'default', background: pl.nat === 'JPN' ? alpha(C.gold, 0.05) : 'transparent' }}>
+                  <span style={{ fontFamily: SAIRA, fontSize: pl.rank <= 3 ? 16 : 13, fontWeight: 900, color: medalCol(pl.rank), width: 24, textAlign: 'center', flexShrink: 0 }}>{pl.rank}</span>
+                  <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
+                  <Flag code={pl.nat} width={20} />
+                  <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{formatRaceTime(pl.timeSec)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ padding: '14px 12px' }}>
+          <button
+            onClick={() => {
+              const isFinal = t.raceIndex >= t.races.length && revealIdx >= (t.individuals!.length - 1)
+              markWorldIndividualRevealed()
+              if (isFinal) navigate('/national/result')
+              else window.scrollTo(0, 0)
+            }}
+            className="btn-game btn-game--purple"
+            style={{ width: '100%' }}
+          ><span className="btn-game__inner">{t.raceIndex >= t.races.length && revealIdx >= (t.individuals!.length - 1) ? '総合成績へ →' : '次へ →'}</span></button>
         </div>
       </div>
     )

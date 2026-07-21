@@ -510,7 +510,8 @@ export type WorldTournament = {
   raceIndex: number
   points: Record<string, number>     // participantId → 累計ポイント
   individuals?: import('../engine/worldAthletics').WAIndividualResult[]  // 本番のみ（大会開始時に確定）
-  individualsSeen?: boolean          // 個人種目の結果発表を見たか（本番のみ）
+  individualsSeen?: boolean          // 個人種目の代表発表を見たか（本番のみ）
+  individualsRevealed?: number       // 結果発表済みの個人種目数（駅伝N戦後にN種目目を発表するインターリーブ進行用）
   japanIn: boolean
   finished: boolean
 }

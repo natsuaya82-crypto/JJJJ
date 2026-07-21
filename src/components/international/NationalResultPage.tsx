@@ -77,8 +77,10 @@ export default function NationalResultPage() {
   const totals = r.meet.totals
   const japanIn = r.nations.includes('JPN')
 
+  // 大会直後（staged）は個人種目の結果を駅伝の合間に発表済みなので、駅伝順位＋総合成績だけを出す。
+  // 記録室からの閲覧（?y=）は従来どおり全セクション一括表示
   const sections: { title: string; body: React.ReactNode }[] = [
-    ...r.meet.individuals.map(ir => ({
+    ...(staged ? [] : r.meet.individuals).map(ir => ({
       title: `${WA_EVENT_LABEL[ir.event]} 決勝`,
       body: card(`${WA_EVENT_LABEL[ir.event]} メダル`, ir.placings.slice(0, 8).map(pl => (
         <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>

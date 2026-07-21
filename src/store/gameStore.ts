@@ -403,6 +403,7 @@ export type GameStore = GameState & {
   startWorldTournament: () => void
   advanceWorldRace: (japanLineup?: Record<number, string>) => void
   markWorldIndividualsSeen: () => void
+  markWorldIndividualRevealed: () => void
   ensureWorldRacePlans: () => void
   ensureEclSeries: () => void
   setRacePlayerIds: (raceIdx: number, ids: string[]) => void
@@ -6379,6 +6380,11 @@ export const useGameStore = create<GameStore>()(
 
       markWorldIndividualsSeen: () => {
         set(state => state.worldTournament ? { worldTournament: { ...state.worldTournament, individualsSeen: true } } : state)
+      },
+
+      // 個人種目の結果発表を1つ消化（駅伝第N戦後にN種目目を発表するインターリーブ進行）
+      markWorldIndividualRevealed: () => {
+        set(state => state.worldTournament ? { worldTournament: { ...state.worldTournament, individualsRevealed: (state.worldTournament.individualsRevealed ?? 0) + 1 } } : state)
       },
 
       // その年の駅伝3戦のコースを（未生成なら）確定する。選考画面が地形を表示するために呼ぶ。
