@@ -1,6 +1,7 @@
 // 世界陸上：代表選出エンジン（OVRではなく持ちタイム=eventBests基準）。
 // 国籍で選手を集め、5000/10000/マラソンの持ちタイムで候補を作る。
-// 個人種目は参加標準記録の突破者。駅伝は候補から20人選抜（監督 or AI）。
+// 駅伝優先：まず駅伝代表20人（監督 or AI）→ 個人種目は駅伝に入らなかった選手から
+// 実物方式で選考（標準突破優先＋ランキング補充・国別3人・マラソン専任）。
 import type { Player, Nationality } from '../types'
 import { natGeoRegion, NATIONALITY_META, type GeoRegion } from '../data/nationalities'
 import { formatRaceTime } from '../utils/eventTime'
