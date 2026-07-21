@@ -31,12 +31,13 @@ function StatNum({ label, value, maxed }: { label: string; value: number; maxed:
 
 // ロスター画面・カード練習の選手選択などで共通利用する選手パネル。
 // selected を渡すと選択中ハイライト（金枠）を表示する。
-export default function PlayerRow({ player, handlers, loanOwner, selected, extra }: {
+export default function PlayerRow({ player, handlers, loanOwner, selected, extra, hideStatusBadges }: {
   player: Player
   handlers: RowHandlers
   loanOwner?: Team
   selected?: boolean
   extra?: ReactNode   // 名前行の末尾に差し込む追加バッジ（区間ピッカーの「最適」等）
+  hideStatusBadges?: boolean  // FA/FA間近/疲労を出さない（代表選考など契約・消耗が関係ない画面用）
 }) {
   const rating = ovr(player)
   const specColor = SPEC_COLOR[player.specialty]
@@ -111,10 +112,10 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
                 {SPECIALTY_LABELS[player.specialty]}
               </span>
               <span style={{ fontSize: 10, color: C.textDim }}>{player.age}歳</span>
-              {isFreeAgent && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.25)}`, color: C.orange, fontWeight: 700, flexShrink: 0 }}>FA</span>}
-              {isLastYear && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>FA間近</span>}
+              {!hideStatusBadges && isFreeAgent && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.25)}`, color: C.orange, fontWeight: 700, flexShrink: 0 }}>FA</span>}
+              {!hideStatusBadges && isLastYear && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>FA間近</span>}
               {pForm !== 0 && <span style={{ fontSize: 9, color: fColor, fontWeight: 800 }}>{pForm > 0 ? '↑' : '↓'}</span>}
-              {fatigue > 0 && <span style={{ fontSize: 9, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA }}>疲{fatigue}</span>}
+              {!hideStatusBadges && fatigue > 0 && <span style={{ fontSize: 9, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA }}>疲{fatigue}</span>}
               {(player.morale ?? 70) < 50 && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>士気{player.morale ?? 0}</span>}
             </div>
           </div>

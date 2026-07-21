@@ -88,19 +88,9 @@ export default function NationalSquadSelectPage() {
     return null
   }
 
-  // 枠に選手を入れる。他の枠にいる選手を選んだら入れ替え（区間配置と同じ挙動）
+  // 枠に選手を入れる。他の枠に入っている選手はピッカーに出さないので入れ替えは発生しない
   const selectPlayer = (slotIdx: number, pid: string) => {
-    const oldSlot = slotOf(pid)
-    setSlots(prev => {
-      const n = { ...prev }
-      const displaced = n[slotIdx]
-      if (oldSlot !== null && oldSlot !== slotIdx) {
-        if (displaced) n[oldSlot] = displaced
-        else delete n[oldSlot]
-      }
-      n[slotIdx] = pid
-      return n
-    })
+    setSlots(prev => ({ ...prev, [slotIdx]: pid }))
     setPickerSlot(null)
   }
 
@@ -195,22 +185,21 @@ export default function NationalSquadSelectPage() {
           </select>
         </div>
 
-        {/* 候補リスト（ロスターと同じ全数値付きの行） */}
+        {/* 候補リスト（ロスターと同じ全数値付きの行）。他の枠で選出済みの選手は出さない */}
         <div style={{ background: C.bg }}>
-          {pickerPlayers.map(c => {
+          {pickerPlayers.filter(c => {
+            const s = slotOf(c.player.id)
+            return s === null || s === pickerSlot
+          }).map(c => {
             const p = c.player
-            const assignedSlot = slotOf(p.id)
             const isSelected = slots[pickerSlot] === p.id
-            const isAssignedElsewhere = assignedSlot !== null && assignedSlot !== pickerSlot
             return (
               <PlayerRow
                 key={p.id}
                 player={p}
                 selected={isSelected}
+                hideStatusBadges
                 handlers={pickerRowHandlers(p.id, () => selectPlayer(pickerSlot, p.id))}
-                extra={<>
-                  {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄枠{assignedSlot}</span>}
-                </>}
               />
             )
           })}
