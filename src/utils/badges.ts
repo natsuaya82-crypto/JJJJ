@@ -54,7 +54,7 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     const k = `wag-${rep.year}-${rep.label}`
     if (seenWa.has(k)) continue
     seenWa.add(k)
-    out.push({ key: k, label: `${rep.year} ${rep.label} 優勝`, kind: 'waGold' })
+    out.push({ key: k, label: `${rep.year} 世界陸上 ${rep.label} 優勝`, kind: 'waGold' })
   }
   for (const d of DIST_KEYS) {
     if (holdsRecord(src.japanRecords?.[d])) {
@@ -74,7 +74,7 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     const k = `waf-${rep.year}-${rep.label}`
     if (seenWa.has(k)) continue
     seenWa.add(k)
-    out.push({ key: k, label: `${rep.year} ${rep.label} 入賞`, kind: 'waFinal' })
+    out.push({ key: k, label: `${rep.year} 世界陸上 ${rep.label} 入賞`, kind: 'waFinal' })
   }
   // 区間記録: segmentRecords のキーは `${大会名}-${区番号}`、[0]が歴代1位。
   // 同タイムで並んでいる選手は全員保持者（タイ記録）
