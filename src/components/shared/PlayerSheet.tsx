@@ -614,28 +614,6 @@ export default function PlayerSheet() {
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* 代表チーム（世界陸上の出場履歴。クラブとは別枠） */}
-              {(() => {
-                const myReps = (worldRepresentatives ?? []).filter(r => r.playerId === player.id)
-                  .sort((a, b) => b.year - a.year || (a.rank ?? 99) - (b.rank ?? 99))
-                if (myReps.length === 0) return null
-                const medalCol = (rank?: number) => rank === 1 ? '#F5C842' : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : '#5C5870'
-                return (
-                  <div>
-                    <div style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 11, color: '#A855F7', letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>代表チーム（世界陸上）</div>
-                    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #1E1B2E' }}>
-                      {myReps.map((r, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
-                          <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 13, fontWeight: 800, color: '#9B97A8', width: 40 }}>{r.year}</span>
-                          <span style={{ flex: 1, fontSize: 12, color: '#F0EDE8' }}>{r.label} 代表</span>
-                          <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 12, fontWeight: 900, color: medalCol(r.rank) }}>{r.rank != null ? `${r.rank}位` : '出場'}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-
               {/* 引退選手は1ページ目（パッチ表示）を出さないので、記録パッチをここにも表示（閲覧のみ）。引退は従来どおり */}
               {isRetired && badges.length > 0 && (
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -878,6 +856,28 @@ export default function PlayerSheet() {
               ) : (
                 <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>記録なし</div>
               )}
+
+              {/* 代表チーム（世界陸上の出場履歴）。クラブの在籍履歴とは分けて下に置く */}
+              {(() => {
+                const myReps = (worldRepresentatives ?? []).filter(r => r.playerId === player.id)
+                  .sort((a, b) => b.year - a.year || (a.rank ?? 99) - (b.rank ?? 99))
+                if (myReps.length === 0) return null
+                const medalCol = (rank?: number) => rank === 1 ? '#F5C842' : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : '#5C5870'
+                return (
+                  <div style={{ marginTop: '16px' }}>
+                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム（世界陸上）</div>
+                    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                      {myReps.map((r, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
+                          <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 13, fontWeight: 800, color: '#9B97A8', width: 40 }}>{r.year}</span>
+                          <span style={{ flex: 1, fontSize: 12, color: '#F0EDE8' }}>{r.label} 代表</span>
+                          <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 12, fontWeight: 900, color: medalCol(r.rank) }}>{r.rank != null ? `${r.rank}位` : '出場'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )}
 
