@@ -2,7 +2,7 @@
 // 国籍で選手を集め、5000/10000/マラソンの持ちタイムで候補を作る。
 // 個人種目は参加標準記録の突破者。駅伝は候補から20人選抜（監督 or AI）。
 import type { Player, Nationality } from '../types'
-import { natGeoRegion, type GeoRegion } from '../data/nationalities'
+import { natGeoRegion, NATIONALITY_META, type GeoRegion } from '../data/nationalities'
 import { formatRaceTime } from '../utils/eventTime'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
@@ -294,7 +294,9 @@ export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nati
 export type WAYearResult = WAQualifierResult | WAMainResult
 
 // 開催国ローテ（2年ごと）。日本も入れてドラマを作る。
-export const WA_HOSTS: Nationality[] = ['JPN', 'KEN', 'GBR', 'USA', 'ETH', 'FRA', 'AUS', 'MAR', 'BRA', 'GER']
+// 開催国は全実在国（バケツのEUR/FOREIGNを除く64カ国）で持ち回り。定義順で2年ごとに1カ国ずつ。
+// 初回2028年は日本開催（定義の先頭がJPN）。開催国は予選免除の自動出場（+1枠）。
+export const WA_HOSTS: Nationality[] = (Object.keys(NATIONALITY_META) as Nationality[]).filter(n => n !== 'EUR' && n !== 'FOREIGN')
 export function hostForYear(year: number): Nationality {
   const idx = Math.max(0, Math.floor((year - 2028) / 2)) % WA_HOSTS.length
   return WA_HOSTS[idx]
