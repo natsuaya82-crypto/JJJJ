@@ -282,7 +282,7 @@ export default function App() {
     // App Store に新しいバージョンが出ていたら強制アップデート案内を表示。
     // ストア側のバージョンが「厳密に」新しいときだけ出す（TestFlightで先行中は出ない）。
     // 配信直後はストアの反映ラグで「アップデート」を押しても旧版しか落とせない場合があり、
-    // 閉じられないモーダルで詰むため、ストア公開から3日経ってから出す。
+    // 閉じられないモーダルで詰むため、ストア公開から1日経ってから出す。
     fetch(`https://itunes.apple.com/jp/lookup?bundleId=${BUNDLE_ID}&_=${Date.now()}`)
       .then(r => r.json())
       .then(data => {
@@ -290,7 +290,7 @@ export default function App() {
         const storeVersion: string | undefined = info?.version
         if (!storeVersion || compareVersions(storeVersion, APP_VERSION) <= 0) return
         const released = Date.parse(info?.currentVersionReleaseDate ?? '')
-        if (!Number.isFinite(released) || Date.now() - released < 3 * 24 * 60 * 60 * 1000) return
+        if (!Number.isFinite(released) || Date.now() - released < 24 * 60 * 60 * 1000) return
         setForceUpdate(true)
       })
       .catch(() => {})
