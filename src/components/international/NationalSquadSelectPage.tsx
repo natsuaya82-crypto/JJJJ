@@ -42,10 +42,12 @@ export default function NationalSquadSelectPage() {
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif", background: C.bg, minHeight: '100dvh', paddingBottom: 96 }}>
-      <div style={{ padding: '8px 8px 0' }}><BackButton /></div>
+      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
+        <BackButton />
+        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本 駅伝代表 選考</span>
+      </div>
       <div style={{ padding: '2px 16px 12px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{year} WORLD ATHLETICS</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>日本 駅伝代表 選考</div>
         <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>持ちタイム上位の候補{candidates.length}人から20人を選抜。紫＝個人種目の代表（基本は駅伝に入れない）。</div>
       </div>
 

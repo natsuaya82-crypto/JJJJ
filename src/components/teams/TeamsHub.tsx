@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { LeagueLogoSVG } from '../icons/Icons'
 import { C } from '../../styles/tokens'
@@ -45,7 +45,8 @@ function RowCard({ onClick, icon, title, right }: {
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3)',
         }}>{icon}</div>
       )}
-      <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1 }}>
+      {/* アイコン無しカードも同じ高さに揃える（minHeight=アイコンと同じ40px） */}
+      <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1, minHeight: 40, display: 'flex', alignItems: 'center' }}>
         <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{title}</span>
       </div>
       {right && <div style={{ position: 'relative', zIndex: 1 }}>{right}</div>}
@@ -56,14 +57,20 @@ function RowCard({ onClick, icon, title, right }: {
   )
 }
 
+// 戻るは「‹ タイトル」の横並び（記録室と同じ流儀）。タイトルは矢印のすぐ横に置く
 function Header({ eyebrow, title, onBack }: { eyebrow: string; title: string; onBack?: () => void }) {
-  return (
-    <div style={{ padding: onBack ? '6px 8px 8px' : '12px 16px 12px' }}>
-      {onBack && <BackButton onClick={onBack} />}
-      <div style={{ padding: onBack ? '0 8px' : 0 }}>
+  if (!onBack) {
+    return (
+      <div style={{ padding: '12px 16px 12px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 2 }}>{eyebrow}</div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>{title}</div>
       </div>
+    )
+  }
+  return (
+    <div style={{ padding: '8px 8px 10px', display: 'flex', alignItems: 'center', gap: 2 }}>
+      <BackButton onClick={onBack} />
+      <div style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{title}</div>
     </div>
   )
 }
@@ -73,9 +80,15 @@ export default function TeamsHub() {
   const { currentSeason, foreignLeagues, players } = useGameStore()
   const leagues = foreignLeagues ?? []
 
-  const [section, setSection] = useState<'root' | 'leagues' | 'national'>('root')
-  const [region, setRegion] = useState<GeoRegion | null>(null)
-  const [code, setCode] = useState<Nationality | null>(null)
+  // 画面の階層はURLクエリで持つ（履歴に載せる）。リーグ詳細等から戻ったとき
+  // 「チームのルート」でなく直前の一覧（リーグ一覧・国一覧）に戻れるようにするため。
+  const [searchParams] = useSearchParams()
+  const section = (searchParams.get('s') as 'leagues' | 'national' | null) ?? 'root'
+  const region = searchParams.get('r') as GeoRegion | null
+  const code = searchParams.get('c') as Nationality | null
+  const goSection = (s: 'leagues' | 'national') => navigate(`/teams?s=${s}`)
+  const goRegion = (r: GeoRegion) => navigate(`/teams?s=national&r=${encodeURIComponent(r)}`)
+  const goCode = (c: Nationality) => navigate(`/teams?s=national&r=${encodeURIComponent(region ?? '')}&c=${c}`)
 
   const natByRegion = useMemo(() => {
     const top = new Map<Nationality, number>()
@@ -104,20 +117,20 @@ export default function TeamsHub() {
     <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>
   )
 
-  // 代表：国ロスター（インライン）→ 戻ると国一覧へ
+  // 代表：国ロスター（インライン）→ 戻ると国一覧へ（履歴で戻る）
   if (section === 'national' && code) {
-    return wrap(<NationalTeamRoster code={code} onBack={() => setCode(null)} />)
+    return wrap(<NationalTeamRoster code={code} onBack={() => navigate(-1)} />)
   }
 
   // 代表：地域内の国一覧
   if (section === 'national' && region) {
     const arr = natByRegion.get(region) ?? []
     return wrap(<>
-      <Header eyebrow="NATIONAL TEAMS" title={region} onBack={() => setRegion(null)} />
+      <Header eyebrow="NATIONAL TEAMS" title={region} onBack={() => navigate(-1)} />
       {listBox(arr.map(n => (
         <RowCard
           key={n.code}
-          onClick={() => setCode(n.code)}
+          onClick={() => goCode(n.code)}
           icon={<Flag code={n.code} width={30} />}
           title={n.label}
           right={<div style={{ textAlign: 'right' }}>
@@ -132,18 +145,17 @@ export default function TeamsHub() {
   // 代表：地域一覧
   if (section === 'national') {
     return wrap(<>
-      <Header eyebrow="NATIONAL TEAMS" title="代表" onBack={() => setSection('root')} />
+      <Header eyebrow="NATIONAL TEAMS" title="代表" onBack={() => navigate(-1)} />
       {listBox(GEO_REGION_ORDER.filter(r => natByRegion.has(r)).map(r => (
-        <RowCard key={r} onClick={() => setRegion(r)} title={r} />
+        <RowCard key={r} onClick={() => goRegion(r)} title={r} />
       )))}
     </>)
   }
 
   // リーグ（従来のハブ）
   if (section === 'leagues') {
-    const completedRaces = currentSeason.races.filter(r => r.results).length
     return wrap(<>
-      <Header eyebrow={`${currentSeason.year} STANDINGS`} title="リーグ" onBack={() => setSection('root')} />
+      <Header eyebrow={`${currentSeason.year} STANDINGS`} title="リーグ" onBack={() => navigate(-1)} />
       {listBox(<>
         <RowCard onClick={() => navigate('/teams/jpel')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" />
         <RowCard onClick={() => navigate('/teams/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" />
@@ -158,8 +170,8 @@ export default function TeamsHub() {
   return wrap(<>
     <Header eyebrow={`${currentSeason.year} TEAMS`} title="チーム" />
     {listBox(<>
-      <RowCard onClick={() => setSection('leagues')} title="リーグ" />
-      <RowCard onClick={() => { setSection('national'); setRegion(null); setCode(null) }} title="代表" />
+      <RowCard onClick={() => goSection('leagues')} title="リーグ" />
+      <RowCard onClick={() => goSection('national')} title="代表" />
     </>)}
   </>)
 }

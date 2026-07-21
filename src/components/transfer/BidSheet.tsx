@@ -24,8 +24,6 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
     ? Math.round(listing.askingPrice * 0.82 / 500000) * 500000
     : Math.round(val * 0.85 / 500000) * 500000
   const [fee, setFee] = useState(Math.max(1_000_000, initFee))
-  const base = transferBidBase(val, !!listing, player.contract.yearsLeft <= 1)
-  const chancePct = Math.round(transferAcceptChance(fee, base) * 100)
   const over = fee > budget
 
   // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
@@ -41,16 +39,18 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
     : 'refuse'
   const mindLabel = mind === 'willing' ? '前向き' : mind === 'salary12' ? '高めの年俸なら承諾' : mind === 'salary15' ? '大幅な高年俸なら承諾' : '移籍を望んでいない'
   const mindColor = mind === 'willing' ? C.green : mind === 'refuse' ? C.red : C.gold
-  // クラブの主力ガード：主力(OVR78+または出場5.5割+)×契約残2年+×士気45+ は金額に関係なく売却拒否。
-  // 合否判定(store)と同じ式。これを表示に入れないと「100%なのに拒否」の食い違いが起きる
+  // クラブの主力ガード：主力(OVR78+または出場5.5割+)×契約残2年+×士気45+ は割増移籍金(1.8倍)が必要。
+  // 合否判定(store)と同じ式・同じ倍率。ズレると「100%なのに拒否」の食い違いが起きる
   const raceIdx = currentSeason.currentRaceIndex ?? 0
   const apps = seasonAppearances(player.id, currentSeason.races)
   const frac = raceIdx > 0 ? apps / raceIdx : (player.rosterTier === 'main' ? 0.5 : 0)
-  const unpoachable = isDataKeyPlayer(player, frac, raceIdx)
+  const isKeyGuard = isDataKeyPlayer(player, frac, raceIdx)
     && player.contract.yearsLeft >= 2
     && (player.morale ?? 60) >= 45
-  // 本人が拒否 or クラブが主力を売らない → クラブと金額合意できても成立しない＝成立見込み0%
-  const overallPct = mind === 'refuse' || unpoachable ? 0 : chancePct
+  const base = transferBidBase(val, !!listing, player.contract.yearsLeft <= 1) * (isKeyGuard ? 1.8 : 1)
+  const chancePct = Math.round(transferAcceptChance(fee, base) * 100)
+  // 本人が拒否なら、クラブと金額合意できても成立しない＝成立見込み0%
+  const overallPct = mind === 'refuse' ? 0 : chancePct
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
@@ -66,8 +66,8 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
           <NumberDial value={fee} onChange={v => setFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-          <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>クラブ合意</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: unpoachable ? C.red : C.textSub }}>{unpoachable ? '主力は売却しない' : `${chancePct}%`}</span>
+          <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>クラブ合意{isKeyGuard && <span style={{ color: C.orange }}>（主力＝割増が必要）</span>}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub }}>{chancePct}%</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
           <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>本人の意向</span>

@@ -31,9 +31,12 @@ export default function NationalResultPage() {
     )
   }
 
-  const wrap = (children: React.ReactNode) => (
+  const wrap = (title: string, children: React.ReactNode) => (
     <div style={{ fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif", background: C.bg, minHeight: '100dvh', paddingBottom: 96 }}>
-      <div style={{ padding: '8px 8px 0' }}><BackButton onClick={() => navigate('/')} /></div>
+      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
+        <BackButton onClick={() => navigate('/')} />
+        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{title}</span>
+      </div>
       {children}
     </div>
   )
@@ -53,10 +56,9 @@ export default function NationalResultPage() {
   )
 
   if (r.kind === 'qualifier') {
-    return wrap(<>
+    return wrap('アジア＋オセアニア予選', <>
       <div style={{ padding: '2px 16px 12px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} QUALIFIER</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>アジア＋オセアニア予選</div>
         <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>上位3カ国が翌年の世界陸上へ。{r.advanced.map(natName).join('・')} が通過。</div>
       </div>
       {card('予選順位', r.standings.map(s => natRow(s.nat,
@@ -66,10 +68,9 @@ export default function NationalResultPage() {
 
   // main
   const totals = r.meet.totals
-  return wrap(<>
+  return wrap(`世界陸上 ${r.year}`, <>
     <div style={{ padding: '2px 16px 12px' }}>
       <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} WORLD ATHLETICS</div>
-      <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>世界陸上 {r.year}</div>
       <div style={{ fontSize: 11, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
         開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ {r.nations.length}カ国 ・ 日本総合 {r.japanRank ?? '—'}位
       </div>

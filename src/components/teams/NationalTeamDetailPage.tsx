@@ -76,8 +76,9 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
-      <div style={{ padding: '10px 16px 4px' }}>
+      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton onClick={onBack} />
+        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{label} 代表</span>
       </div>
 
       <div style={{
