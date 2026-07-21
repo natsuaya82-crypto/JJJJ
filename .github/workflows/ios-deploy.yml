@@ -29,6 +29,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # アプリ内の判定バージョン(appMeta APP_VERSION)とネイティブの MARKETING_VERSION の
+      # ズレを検出したらビルドを止める。ズレたまま配信すると「最新版なのに
+      # アップデートしてくださいが出る」事故（強制アップデート誤表示）が再発するため。
+      - name: Verify version consistency
+        run: |
+          META_VER=$(grep -o "APP_VERSION = 'v[^']*'" src/data/appMeta.ts | sed "s/.*'v\(.*\)'/\1/")
+          IOS_VER=$(grep -m1 -o 'MARKETING_VERSION = [^;]*' ios/App/App.xcodeproj/project.pbxproj | sed 's/MARKETING_VERSION = //')
+          echo "appMeta APP_VERSION=$META_VER / iOS MARKETING_VERSION=$IOS_VER"
+          if [ -z "$META_VER" ] || [ "$META_VER" != "$IOS_VER" ]; then
+            echo "::error::バージョン不一致: appMeta v$META_VER vs iOS $IOS_VER — どちらかの上げ忘れ。両方を揃えてから再ビルドしてください"
+            exit 1
+          fi
+
       - name: Build web
         run: npm run build
 

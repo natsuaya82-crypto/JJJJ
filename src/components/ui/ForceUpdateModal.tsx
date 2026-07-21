@@ -17,10 +17,15 @@ export default function ForceUpdateModal() {
         padding: '36px 28px',
         textAlign: 'center',
       }}>
-        <div style={{
-          fontSize: '32px', marginBottom: '16px',
-        }}>
-          🔄
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+          {/* 更新アイコン（絵文字禁止のためSVG） */}
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M20 12a8 8 0 1 1-2.34-5.66"
+              stroke="#F5C842" strokeWidth="2" strokeLinecap="round"
+            />
+            <path d="M18.5 2.5v4h-4" stroke="#F5C842" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
         <div style={{
           fontSize: '18px', fontWeight: 700,

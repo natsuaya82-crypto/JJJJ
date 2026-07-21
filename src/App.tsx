@@ -7,6 +7,7 @@ import { initAds, removeBanner, showBanner } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
 import { clearMarketFilters } from './utils/marketFilters'
 import LoadingOverlay from './components/ui/LoadingOverlay'
+import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
 import { useLoadingStore } from './store/loadingStore'
 import TitleScreen from './components/title/TitleScreen'
@@ -63,6 +64,29 @@ import BudgetPage from './components/budget/BudgetPage'
 import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
 import JewelsPage from './components/jewels/JewelsPage'
+import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
+
+const BUNDLE_ID = 'com.tokinets.jpelmanager'
+// 強制アップデート判定用の現在バージョン。過去に App.tsx 内の手書き定数の上げ忘れで
+// 「最新版なのにアップデートしてくださいが出る」事故があったため、リリース時に必ず上げる
+// appMeta の APP_VERSION（例 'v1.1.1'）を唯一の情報源にする。さらに CI（ios-deploy.yml）が
+// ネイティブの MARKETING_VERSION と一致することを検証し、ズレたままのリリースを構造的に防ぐ。
+const APP_VERSION = APP_VERSION_LABEL.replace(/^v/, '')
+
+// 桁数が違っても壊れない比較（'1.10' vs '1.1.1' など。欠け桁は0扱い）。
+// 解釈できない文字列は「差なし」を返す＝モーダルは出さない（誤ブロックより出さない方に倒す）
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(n => parseInt(n, 10))
+  const pb = b.split('.').map(n => parseInt(n, 10))
+  const len = Math.max(pa.length, pb.length)
+  for (let i = 0; i < len; i++) {
+    const x = pa[i] ?? 0
+    const y = pb[i] ?? 0
+    if (Number.isNaN(x) || Number.isNaN(y)) return 0
+    if (x !== y) return x - y
+  }
+  return 0
+}
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -223,6 +247,7 @@ export default function App() {
   const twitterIntroSeen = useGameStore(s => s.twitterIntroSeen ?? false)
   const markTwitterIntroSeen = useGameStore(s => s.markTwitterIntroSeen)
   const [titleShown, setTitleShown] = useState(false)
+  const [forceUpdate, setForceUpdate] = useState(false)
   const [showTwitter, setShowTwitter] = useState(false)
   // セーブ読み込み（非同期）完了までタイトルから先へ進めない。
   // 完了前に isInitialized=false の初期状態を見て新規ゲーム画面を出すと、既存セーブを上書きする事故になるため
@@ -251,6 +276,24 @@ export default function App() {
       ) queueMicrotask(() => { void flushSaveNow() })
     })
     return unsub
+  }, [])
+
+  useEffect(() => {
+    // App Store に新しいバージョンが出ていたら強制アップデート案内を表示。
+    // ストア側のバージョンが「厳密に」新しいときだけ出す（TestFlightで先行中は出ない）。
+    // 配信直後はストアの反映ラグで「アップデート」を押しても旧版しか落とせない場合があり、
+    // 閉じられないモーダルで詰むため、ストア公開から3日経ってから出す。
+    fetch(`https://itunes.apple.com/jp/lookup?bundleId=${BUNDLE_ID}&_=${Date.now()}`)
+      .then(r => r.json())
+      .then(data => {
+        const info = data.results?.[0]
+        const storeVersion: string | undefined = info?.version
+        if (!storeVersion || compareVersions(storeVersion, APP_VERSION) <= 0) return
+        const released = Date.parse(info?.currentVersionReleaseDate ?? '')
+        if (!Number.isFinite(released) || Date.now() - released < 3 * 24 * 60 * 60 * 1000) return
+        setForceUpdate(true)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => { initAds(adsRemoved) }, [])
@@ -308,7 +351,8 @@ export default function App() {
       {content}
       {/* 選手詳細シートは最上位に常時マウント（ドラフト画面など Layout 外でも openPlayerSheet で開ける） */}
       <PlayerSheet />
-      {showTwitter && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
+      {showTwitter && !forceUpdate && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
+      {forceUpdate && <ForceUpdateModal />}
     </BrowserRouter>
   )
 }
