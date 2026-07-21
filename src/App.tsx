@@ -244,6 +244,7 @@ export default function App() {
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const grantUpdateGifts = useGameStore(s => s.grantUpdateGifts)
   const ensureIndividualEvents = useGameStore(s => s.ensureIndividualEvents)
+  const ensureEclSeries = useGameStore(s => s.ensureEclSeries)
   const twitterIntroSeen = useGameStore(s => s.twitterIntroSeen ?? false)
   const markTwitterIntroSeen = useGameStore(s => s.markTwitterIntroSeen)
   const [titleShown, setTitleShown] = useState(false)
@@ -301,6 +302,8 @@ export default function App() {
   useEffect(() => { if (isInitialized) grantUpdateGifts() }, [isInitialized])
   // 既存セーブ移行：現シーズンに新しい記録会7回を注入（冪等。リセット不要で反映）
   useEffect(() => { if (isInitialized) ensureIndividualEvents() }, [isInitialized])
+  // 既存セーブ救済：リーグ再編年にECLが生成されずスキップされたセーブへ後から補充（冪等）
+  useEffect(() => { if (isInitialized) ensureEclSeries() }, [isInitialized])
   // 公式Xフォロー案内を初回起動時に一度だけ表示（タイトルを抜けてホームに入ったタイミング）
   useEffect(() => { if (titleShown && isInitialized && !twitterIntroSeen) setShowTwitter(true) }, [titleShown, isInitialized, twitterIntroSeen])
   // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
