@@ -744,6 +744,28 @@ export default function PlayerSheet() {
                 )
               })()}
 
+              {/* 世界陸上（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる */}
+              {!isProspect && (() => {
+                const waNames = [...raceGroupMap.keys()].filter(n => n.startsWith('世界陸上') || n.startsWith('アジア＋オセアニア予選'))
+                if (waNames.length === 0) return null
+                return (
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界陸上</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                      {waNames.sort().map(name => (
+                        <div key={name} onClick={() => openRaceDetail(name)} style={{
+                          padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.35)', backgroundColor: '#14121F',
+                          cursor: 'pointer', textAlign: 'center', minHeight: 44,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* 2軍 races（ドラフト候補では非表示。加入後は通常詳細に切り替わり表示される） */}
               {!isProspect && reserveRaceNames.length > 0 && (
                 <div>
