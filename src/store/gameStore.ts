@@ -403,6 +403,7 @@ export type GameStore = GameState & {
   startWorldTournament: () => void
   advanceWorldRace: (japanLineup?: Record<number, string>) => void
   markWorldIndividualsSeen: () => void
+  ensureWorldRacePlans: () => void
   setRacePlayerIds: (raceIdx: number, ids: string[]) => void
   toggleWorldRacePlayer: (raceIdx: number, playerId: string) => void
   autoSelectWorldRace: (raceIdx: number) => void
@@ -5812,6 +5813,7 @@ export const useGameStore = create<GameStore>()(
             teams: syncedTeams,
             foreignLeagues: cappedForeignLeagues,
             worldTournament: undefined,  // 世界陸上トーナメントは年度で完結（翌年は新規に開催）
+            worldRacePlans: undefined,   // コースも毎年引き直し
             // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
             transferHistory: [...(state.transferHistory ?? []), ...departureRecords, ...foreignTx.records, ...crossTx.records].slice(-800),
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
@@ -6279,7 +6281,8 @@ export const useGameStore = create<GameStore>()(
             id: `nat_${nat}`, nat, name: natLabel(nat), shortName: natLabel(nat).slice(0, 5),
             colors: clubColor(nat), isPlayerTeam: nat === 'JPN' && japanIn,
           }))
-          const plans = generateWECRacePlan()
+          // 選考画面で公開したコースをそのまま使う（無ければここで生成）
+          const plans = state.worldRacePlans?.year === year ? state.worldRacePlans.plans : generateWECRacePlan()
           const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
           const races: import('../types').Race[] = plans.map((plan, i) => ({
             id: `wa-${year}-r${i + 1}`,
@@ -6352,6 +6355,16 @@ export const useGameStore = create<GameStore>()(
 
       markWorldIndividualsSeen: () => {
         set(state => state.worldTournament ? { worldTournament: { ...state.worldTournament, individualsSeen: true } } : state)
+      },
+
+      // その年の駅伝3戦のコースを（未生成なら）確定する。選考画面が地形を表示するために呼ぶ。
+      // 大会開始(startWorldTournament)も同じコースを使うので、選考時に見た地形どおりのレースになる
+      ensureWorldRacePlans: () => {
+        set(state => {
+          const year = state.currentSeason.year
+          if (state.worldRacePlans?.year === year) return state
+          return { worldRacePlans: { year, plans: generateWECRacePlan() } }
+        })
       },
 
       setRacePlayerIds: (raceIdx: number, ids: string[]) => {

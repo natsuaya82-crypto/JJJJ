@@ -294,9 +294,45 @@ export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nati
 export type WAYearResult = WAQualifierResult | WAMainResult
 
 // 開催国ローテ（2年ごと）。日本も入れてドラマを作る。
-// 開催国は全実在国（バケツのEUR/FOREIGNを除く64カ国）で持ち回り。定義順で2年ごとに1カ国ずつ。
-// 初回2028年は日本開催（定義の先頭がJPN）。開催国は予選免除の自動出場（+1枠）。
-export const WA_HOSTS: Nationality[] = (Object.keys(NATIONALITY_META) as Nationality[]).filter(n => n !== 'EUR' && n !== 'FOREIGN')
+// 開催国は全実在国（バケツのEUR/FOREIGNを除く）で持ち回り。
+// 定義順のままだとアジアの後にまたアジア…と同じ大陸が続いて不自然なので、
+// 大陸をラウンドロビン（アジア→ヨーロッパ→アフリカ→アメリカ→オセアニア→…）で回しつつ、
+// 各大陸内は固定シードの決定的シャッフルでバラす。初回2028年は日本開催。
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const out = [...arr]
+  let s = seed >>> 0
+  const next = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296 }
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+export const WA_HOSTS: Nationality[] = (() => {
+  const all = (Object.keys(NATIONALITY_META) as Nationality[]).filter(n => n !== 'EUR' && n !== 'FOREIGN')
+  const order: GeoRegion[] = ['アジア', 'ヨーロッパ', 'アフリカ', 'アメリカ大陸', 'オセアニア']
+  const byRegion = new Map<GeoRegion, Nationality[]>()
+  for (const [i, region] of order.entries()) {
+    const list = seededShuffle(all.filter(n => natGeoRegion(n) === region), 7770 + i * 131)
+    byRegion.set(region, list)
+  }
+  // 日本を先頭へ（初回2028＝日本開催）
+  const asia = byRegion.get('アジア')!
+  byRegion.set('アジア', ['JPN', ...asia.filter(n => n !== 'JPN')])
+  const out: Nationality[] = []
+  let remaining = all.length
+  let i = 0
+  while (remaining > 0) {
+    const region = order[i % order.length]
+    const list = byRegion.get(region)!
+    const nat = list.shift()
+    if (nat) { out.push(nat); remaining-- }
+    i++
+    // 全リストが空になるまで回す（空の大陸はスキップ）
+    if (i > 10000) break
+  }
+  return out
+})()
 export function hostForYear(year: number): Nationality {
   const idx = Math.max(0, Math.floor((year - 2028) / 2)) % WA_HOSTS.length
   return WA_HOSTS[idx]

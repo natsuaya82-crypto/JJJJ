@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
@@ -19,7 +19,12 @@ export default function NationalSquadSelectPage() {
   const year = useGameStore(s => s.currentSeason.year)
   const worldSquad = useGameStore(s => s.worldSquad)
   const setWorldSquad = useGameStore(s => s.setWorldSquad)
+  const worldRacePlans = useGameStore(s => s.worldRacePlans)
+  const ensureWorldRacePlans = useGameStore(s => s.ensureWorldRacePlans)
   const longPress = usePlayerLongPress()
+  // コース（3戦の地形）を選考前に確定して見せる。地形を見て登り屋・下り屋を入れるか判断できる
+  useEffect(() => { ensureWorldRacePlans() }, [ensureWorldRacePlans])
+  const plans = worldRacePlans?.year === year ? worldRacePlans.plans : []
   // 長押しで詳細を開いた直後のタップ（指を離した時のclick）で選出/解除が発火しないようにする
   const lpFired = useRef(false)
   const lpGuard = (pid: string) => {
@@ -90,9 +95,40 @@ export default function NationalSquadSelectPage() {
         <BackButton />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本代表 選考</span>
       </div>
-      <div style={{ padding: '4px 16px 12px' }}>
+      <div style={{ padding: '4px 16px 10px' }}>
         <div style={{ fontSize: 11, color: C.textDim }}>タップで選出・外す／長押しで選手詳細</div>
       </div>
+
+      {/* 大会コース（3戦の地形）。区間ごとの距離・登り・下りを見て編成を決める */}
+      {plans.length > 0 && (
+        <div style={{ padding: '0 16px 14px' }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.purple, marginBottom: 6 }}>大会コース（全{plans.length}戦）</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {plans.map((plan, i) => {
+              const total = Math.round(plan.segments.reduce((s, x) => s + x.distanceKm, 0) * 10) / 10
+              const avgUp = Math.round(plan.segments.reduce((s, x) => s + x.uphillPct, 0) / plan.segments.length)
+              const avgDown = Math.round(plan.segments.reduce((s, x) => s + x.downhillPct, 0) / plan.segments.length)
+              const chara = avgUp >= 20 ? '山型' : avgDown >= 15 ? '下り型' : avgUp >= 12 ? 'やや起伏' : '平坦型'
+              return (
+                <div key={i} style={{ padding: '9px 12px', borderRadius: 11, background: C.surface2, border: `1px solid ${C.border2}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.text }}>第{i + 1}戦</span>
+                    <span style={{ fontSize: 10, color: C.textDim }}>{plan.segments.length}区間・{total}km</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 5, color: C.purple, background: `${C.purple}18`, border: `1px solid ${C.purple}44` }}>{chara}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {plan.segments.map((s, j) => (
+                      <span key={j} style={{ fontSize: 8.5, fontFamily: SAIRA, fontWeight: 700, color: s.uphillPct >= 20 ? C.orange : s.downhillPct >= 15 ? C.cyan : C.textSub, padding: '2px 5px', borderRadius: 4, background: C.surface, border: `1px solid ${C.border}` }}>
+                        {j + 1}区 {s.distanceKm}k{s.uphillPct >= 20 ? ' 登' : s.downhillPct >= 15 ? ' 下' : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 代表メンバー */}
       <div style={{ padding: '0 16px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>

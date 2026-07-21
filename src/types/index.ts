@@ -839,6 +839,8 @@ export type GameState = {
   worldAthleticsResults?: import('../engine/worldAthletics').WAYearResult[]
   // 進行中の世界陸上トーナメント（予選も本番も駅伝3戦を実レースで走る）。年度更新でリセット。
   worldTournament?: WorldTournament
+  // その年の駅伝3戦のコース（選考時に地形を見て選手を選べるよう、大会開始前に確定・公開）。年度更新でリセット。
+  worldRacePlans?: { year: number; plans: WECRacePlan[] }
   // 選手ごとの世界陸上 代表出場記録（パッチ・代表履歴の元）。label=種目 or 駅伝。
   worldRepresentatives?: { playerId: string; year: number; nat: Nationality; label: string; rank?: number }[]
   trainingCards: TrainingCard[]
