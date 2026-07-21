@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
-import { calcTransferValue, playerConsentToMove } from '../../utils/playerUtils'
+import { calcTransferValue, playerConsentToMove, isDataKeyPlayer, seasonAppearances } from '../../utils/playerUtils'
 import { transferBidBase, transferAcceptChance } from '../../data/economy'
 import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
@@ -41,8 +41,16 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
     : 'refuse'
   const mindLabel = mind === 'willing' ? '前向き' : mind === 'salary12' ? '高めの年俸なら承諾' : mind === 'salary15' ? '大幅な高年俸なら承諾' : '移籍を望んでいない'
   const mindColor = mind === 'willing' ? C.green : mind === 'refuse' ? C.red : C.gold
-  // 本人が拒否なら、クラブと合意できても成立しない＝成立見込みは0%
-  const overallPct = mind === 'refuse' ? 0 : chancePct
+  // クラブの主力ガード：主力(OVR78+または出場5.5割+)×契約残2年+×士気45+ は金額に関係なく売却拒否。
+  // 合否判定(store)と同じ式。これを表示に入れないと「100%なのに拒否」の食い違いが起きる
+  const raceIdx = currentSeason.currentRaceIndex ?? 0
+  const apps = seasonAppearances(player.id, currentSeason.races)
+  const frac = raceIdx > 0 ? apps / raceIdx : (player.rosterTier === 'main' ? 0.5 : 0)
+  const unpoachable = isDataKeyPlayer(player, frac, raceIdx)
+    && player.contract.yearsLeft >= 2
+    && (player.morale ?? 60) >= 45
+  // 本人が拒否 or クラブが主力を売らない → クラブと金額合意できても成立しない＝成立見込み0%
+  const overallPct = mind === 'refuse' || unpoachable ? 0 : chancePct
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
@@ -59,7 +67,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
           <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>クラブ合意</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub }}>{chancePct}%</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: unpoachable ? C.red : C.textSub }}>{unpoachable ? '主力は売却しない' : `${chancePct}%`}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
           <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>本人の意向</span>
