@@ -358,7 +358,13 @@ export default function PlayerSheet() {
   // 引退選手は現行シーズンの所属が無い（teamId空）ので、引退後の年に空行を生やさない
   if (!isRetired) {
     const anyThisYear = [...historyMap.keys()].some(k => k.startsWith(`${currentSeason.year}|${player.teamId}|`))
-    if (!anyThisYear) historyMap.set(`${currentSeason.year}|${player.teamId}|second`, { year: currentSeason.year, teamId: player.teamId, comp: 'second', races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
+    if (!anyThisYear) {
+      // 海外クラブ所属なら 'foreign'（＝所属リーグ表示）。国内チームだけ 'second'（JPELリザーブ）。
+      // これをやらないと0レースの海外選手が「JPELリザーブリーグ」と誤表示される。
+      const isForeignClub = foreignLeagues.some(l => l.clubs.some(c => c.id === player.teamId))
+      const ph: HistComp = isForeignClub ? 'foreign' : 'second'
+      historyMap.set(`${currentSeason.year}|${player.teamId}|${ph}`, { year: currentSeason.year, teamId: player.teamId, comp: ph, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
+    }
   }
   // 年×チームの親行へ集約（内訳は 1軍→リザーブ→ECL→海外 の順）
   type HistParent = { year: number; teamId: string; races: number; wins: number; rankSum: number; rankedRaces: number; comps: HistoryRow[] }

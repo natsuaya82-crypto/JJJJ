@@ -1577,22 +1577,18 @@ export const useGameStore = create<GameStore>()(
             if (bid.status !== 'pending') return bid
             const player = finalPlayers.find(p => p.id === bid.playerId)
             if (!player || player.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
-            // データ上の主力は移籍金をいくら積んでも売らない。費用に合意してから拒否するのではなく、提示の時点で拒否する。
-            {
+            // 主力ガード：以前は「いくら積んでも即拒否」だったが、移籍が渋すぎるため
+            // 「割増移籍金（1.8倍）なら売る」に変更。金を積めばスターは動く（サッカー式）。
+            const keyPremium = (() => {
               const apps = seasonAppearances(player.id, updatedRaces)
               const frac = nextRaceIndex > 0 ? apps / nextRaceIndex : (player.rosterTier === 'main' ? 0.5 : 0)
-              if (isEssentiallyUnpoachable(player, frac, nextRaceIndex)) {
-                // 「移籍拒否」通知を出し、来季まで再入札できないようロックする
-                bidExpiredNegs.push({ id: bid.id, playerId: player.id, playerName: player.name })
-                bidExpiredPlayerIds.push(player.id)
-                return { ...bid, status: 'rejected' as const }
-              }
-            }
+              return isEssentiallyUnpoachable(player, frac, nextRaceIndex) ? 1.8 : 1
+            })()
             const val = calcTransferValue(player)
             const isListed = transferData.listings.some(l => l.playerId === bid.playerId)
             const isExpiring = player.contract.yearsLeft <= 1
-            // 受諾ラインのベースは UI（成立確率表示）と共有。実際の判定はこれに±10%の揺れを乗せる。
-            const threshold = transferBidBase(val, isListed, isExpiring) * (0.9 + Math.random() * 0.2)
+            // 受諾ラインのベースは UI（成立確率表示）と共有。主力は1.8倍。実際の判定はこれに±10%の揺れを乗せる。
+            const threshold = transferBidBase(val, isListed, isExpiring) * keyPremium * (0.9 + Math.random() * 0.2)
             if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
             if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) {
               return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
@@ -3193,9 +3189,9 @@ export const useGameStore = create<GameStore>()(
           if (!player || player.teamId !== state.playerTeamId || (player.loan && player.loan.ownerTeamId !== state.playerTeamId)) {
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
-          // 海外クラブ：teams に無いので上限は提示額の1.3倍まで、合意なら海外へ放出
+          // 海外クラブ：上限は「提示額の1.3倍」か「市場価値の1.15倍」の高い方まで。合意なら海外へ放出
           if (offer.fromForeign) {
-            if (player && counterPrice <= offer.offeredPrice * 1.3) {
+            if (player && counterPrice <= Math.max(offer.offeredPrice * 1.3, calcTransferValue(player) * 1.15)) {
               const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
               outcome = 'sold'
               return {
@@ -3211,7 +3207,10 @@ export const useGameStore = create<GameStore>()(
           }
           const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
           const maxBudget = buyingTeam?.finance.budget ?? 0
-          if (counterPrice <= maxBudget) {
+          // 応じるライン：市場価値の1.15倍（か提示額の1.3倍の高い方）まで、かつ相手の予算内。
+          // 相場での逆提示は基本通る（予算が無いチームはそもそもオファーを出さない）
+          const willing = Math.min(maxBudget, Math.max(calcTransferValue(player) * 1.15, offer.offeredPrice * 1.3))
+          if (counterPrice <= willing) {
             outcome = 'sold'
             return {
               // 放出した選手とは1年間交渉不可
@@ -7541,6 +7540,9 @@ function generateTransferActivity(
     targets.sort((a, b) => adjOvr(b) - adjOvr(a))
     const target = targets[0]
     const tv = calcTransferValue(target)
+    // 相場まで払えない（予算＜市場価値）チームはオファーを出さない。
+    // これが無いと「安値で打診→相場に上げると予算不足で必ず決裂」の理不尽が起きる
+    if ((team.finance?.budget ?? 0) < tv) continue
     // Realistic offer: 85-105% for elite, 80-97% for others
     const ratio = tier === 'elite' ? (0.85 + Math.random() * 0.20) : (0.80 + Math.random() * 0.17)
     newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * ratio / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1 })
