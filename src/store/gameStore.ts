@@ -14,7 +14,7 @@ import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings
 import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
-import { natLabel, natGeoRegion } from '../data/nationalities'
+import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
@@ -7579,6 +7579,28 @@ export const useGameStore = create<GameStore>()(
               ? { ...res, races: res.races.map((r, i) => ({ ...r, name: fixWaName(r.name, res.year, res.kind, res.kind === 'qualifier' ? res.host : res.host, i) })) }
               : res)
           }
+        }
+        // 既存セーブのアジア/その他圏の海外選手を新生成レンジへ一括ブースト（1回だけ適用・balancePatch=1）。
+        // 生成側の強化（ASIA上限84→90等）は新規選手にしか効かないため、現存選手も同じ水準へ引き上げて
+        // アジア予選を即座に接戦化する。日本人と、日本リーグ所属の外国人（国内バランス維持）は対象外
+        if (Array.isArray(p.players) && ((p as { balancePatch?: number }).balancePatch ?? 0) < 1) {
+          const jpelTeamIds = new Set((p.teams ?? []).map(t => t.id))
+          p.players = p.players.map(pl => {
+            if (!pl.ratings || pl.nationality === 'JPN' || pl.status === 'retired') return pl
+            const region = natStrengthRegion(pl.nationality)
+            if (region !== 'ASIA' && region !== 'OTHER') return pl
+            if (pl.teamId && jpelTeamIds.has(pl.teamId)) return pl
+            const f = region === 'ASIA' ? 0.18 : 0.10
+            const cap = region === 'ASIA' ? 92 : 88
+            const up = (v: number) => Math.min(cap, Math.max(v, Math.round(v + Math.max(0, v - 50) * f)))
+            const r = pl.ratings
+            return {
+              ...pl,
+              ratings: { speed: up(r.speed), stamina: up(r.stamina), mountainUp: up(r.mountainUp), mountainDown: up(r.mountainDown), pacing: up(r.pacing), mental: up(r.mental), recovery: up(r.recovery) },
+              potential: Math.max(pl.potential ?? 0, Math.min(region === 'ASIA' ? 90 : 87, (pl.potential ?? 0) + (region === 'ASIA' ? 6 : 3))),
+            }
+          })
+          ;(p as { balancePatch?: number }).balancePatch = 1
         }
         // 海外クラブ名を静的データ（foreignLeagues.ts）の最新名に同期する（冪等）。
         // 「〜AC」ばかりに平坦化された旧名を、既存セーブでも個性名へ差し替えるための処理
