@@ -477,7 +477,11 @@ function ChatView({
 
     const buildTransferButtons = (): ReplyBtns | null => transferReq ? [
       { label: '移籍を認める', color: C.orange, action: () => {
-        append({ from: 'player', text: 'ありがとうございます。移籍先を探します。' })
+        // 選んだ返答を自分（GM）の吹き出しとして必ず残す（会話が一方通行に見える問題の修正）
+        append(
+          { from: 'gm', text: 'わかりました。あなたのキャリアを尊重します。移籍を認めましょう。' },
+          { from: 'player', text: 'ありがとうございます。移籍先を探します。' },
+        )
         allowPlayerTransfer(player.id)
       }},
       { label: '残ってほしい', color: C.blue, action: () => {
