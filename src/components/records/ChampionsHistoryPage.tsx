@@ -5,18 +5,21 @@ import { useGameStore } from '../../store/gameStore'
 import type { Race } from '../../types'
 import { formatRaceTime } from '../../utils/eventTime'
 import { TeamLogoSVG } from '../icons/Icons'
+import Flag from '../ui/Flag'
+import { NAT_LABEL } from '../../data/nationalities'
+import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-type Category = 'jpel' | 'ecl' | 'reserve' | 'tt'
+type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
 const OVERALL = '__overall__'   // 総合優勝を表す特別なraceName
 type RaceRef = { year: number; race: Race }
 type DistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 
-const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', reserve: 'リザーブ駅伝', tt: '記録会' }
-const CAT_COLOR: Record<Category, string> = { jpel: '#C9A84C', ecl: '#2ECC71', reserve: '#AB8ED6', tt: '#4FC3F7' }
+const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 'アジア予選', wamain: '世界陸上', reserve: 'リザーブ駅伝', tt: '記録会' }
+const CAT_COLOR: Record<Category, string> = { jpel: '#C9A84C', ecl: '#2ECC71', waqual: '#C583FA', wamain: '#A855F7', reserve: '#AB8ED6', tt: '#4FC3F7' }
 const GOLD = '#FFD700'
 const DIST_LABEL: Record<DistKey, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
 const DIST_KEYS: DistKey[] = ['d5000', 'd10000', 'half', 'marathon']
@@ -42,6 +45,16 @@ export default function ChampionsHistoryPage() {
   const [year, setYear] = useState<number | null>(null)
   const [teamId, setTeamId] = useState<string | null>(null)
   const [ttDist, setTtDist] = useState<DistKey | null>(null)
+  // 世界陸上（本線）の種目選択と、アジア予選/駅伝のレース選択
+  const [waEvent, setWaEvent] = useState<'d5000' | 'd10000' | 'marathon' | 'ekiden' | null>(null)
+  const [waRace, setWaRace] = useState<Race | null>(null)
+
+  const waResults = useGameStore(s => s.worldAthleticsResults) ?? []
+  const waQual = useMemo(() => waResults.filter(r => r.kind === 'qualifier').sort((a, b) => b.year - a.year), [waResults])
+  const waMain = useMemo(() => waResults.filter(r => r.kind === 'main').sort((a, b) => b.year - a.year), [waResults])
+  // 国別対抗（nat_XXX）の見た目：クラブロゴの代わりに国旗＋国名
+  const natOfTeamId = (tid: string): Nationality | null => tid.startsWith('nat_') ? tid.slice(4) as Nationality : null
+  const natName = (n: Nationality) => NAT_LABEL[n] ?? n
 
   // 長押しで選手詳細
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -161,8 +174,10 @@ export default function ChampionsHistoryPage() {
 
   const goBack = () => {
     if (teamId != null) return setTeamId(null)
+    if (waRace != null) return setWaRace(null)
     if (year != null) return setYear(null)
     if (ttDist != null) return setTtDist(null)
+    if (waEvent != null) return setWaEvent(null)
     if (raceName != null) return setRaceName(null)
     if (cat != null) return setCat(null)
     navigate(-1)
@@ -189,7 +204,12 @@ export default function ChampionsHistoryPage() {
         </div>
         {!lockScreen && (
           <div style={{ fontSize: '11px', color: C.textDim, padding: '4px 16px 10px' }}>
-            {raceName === OVERALL ? (year != null ? `${year}年 ${cat ? CAT_LABEL[cat] : ''} 総合順位` : `${cat ? CAT_LABEL[cat] : ''} 総合優勝`)
+            {cat === 'waqual' ? (waRace ? `${year}年 順位表` : year != null ? `${year}年 アジア予選 — レースを選択` : 'アジア予選 — 年度を選択')
+              : cat === 'wamain' ? (waRace ? `${year}年 順位表`
+                : waEvent === 'ekiden' ? (year != null ? `${year}年 駅伝 — レースを選択` : '駅伝 — 年度を選択')
+                : waEvent != null ? (year != null ? `${year}年 結果` : '年度を選択')
+                : '世界陸上 — 種目を選択')
+              : raceName === OVERALL ? (year != null ? `${year}年 ${cat ? CAT_LABEL[cat] : ''} 総合順位` : `${cat ? CAT_LABEL[cat] : ''} 総合優勝`)
               : cat === 'tt'
               ? (ttDist != null ? `${DIST_LABEL[ttDist]} — 年度を選択` : '記録会 — 種目を選択')
               : year != null ? `${year}年 ${raceName} — 順位表`
@@ -203,7 +223,7 @@ export default function ChampionsHistoryPage() {
       {/* Level 0: カテゴリ（横長ボタンを縦に並べる。見た目は歴代ドラフト等の一覧ボタンと同じ） */}
       {cat == null && (
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(['jpel', 'ecl', 'reserve', 'tt'] as Category[]).map(c => (
+          {(['jpel', 'ecl', 'waqual', 'wamain', 'reserve', 'tt'] as Category[]).map(c => (
             <button key={c} onClick={() => setCat(c)} style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
               padding: '14px 16px', borderRadius: 12,
@@ -220,7 +240,7 @@ export default function ChampionsHistoryPage() {
       )}
 
       {/* 総合優勝: 年度別の年間王者一覧（年度タップでその年の総合順位表へ） */}
-      {cat != null && cat !== 'tt' && raceName === OVERALL && year == null && (
+      {cat != null && cat !== 'tt' && cat !== 'waqual' && cat !== 'wamain' && raceName === OVERALL && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 2 }}>{CAT_LABEL[cat]} 総合優勝</div>
           {overallChampYears(cat).length === 0 ? (
@@ -247,7 +267,7 @@ export default function ChampionsHistoryPage() {
       )}
 
       {/* 総合優勝: その年の総合順位表（全チーム） */}
-      {cat != null && cat !== 'tt' && raceName === OVERALL && year != null && (() => {
+      {cat != null && cat !== 'tt' && cat !== 'waqual' && cat !== 'wamain' && raceName === OVERALL && year != null && (() => {
         const ps = pastSeasons.find(p => p.year === year)
         const rows = ps ? overallStandingsFor(cat, ps) : []
         return (
@@ -273,7 +293,7 @@ export default function ChampionsHistoryPage() {
       })()}
 
       {/* Level 1: 大会一覧（先頭に総合優勝） */}
-      {cat != null && cat !== 'tt' && raceName == null && (
+      {cat != null && cat !== 'tt' && cat !== 'waqual' && cat !== 'wamain' && raceName == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button onClick={() => setRaceName(OVERALL)} style={{
             display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
@@ -414,8 +434,288 @@ export default function ChampionsHistoryPage() {
         </div>
       )}
 
+      {/* ── アジア予選: 年度一覧（年間優勝国） ── */}
+      {cat === 'waqual' && year == null && (
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.waqual, paddingLeft: 2, marginBottom: 2 }}>アジア予選 年間優勝</div>
+          {waQual.length === 0 ? (
+            <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ記録がありません</div>
+          ) : waQual.map(r => {
+            const champ = r.standings[0]
+            const isJp = champ?.nat === 'JPN'
+            return (
+              <button key={r.year} onClick={() => setYear(r.year)} style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
+                padding: '12px 14px', borderRadius: 12,
+                background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
+                boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
+              }}>
+                <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.waqual }}>{r.year}</span>
+                {champ && <Flag code={champ.nat} width={26} radius={3} />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{champ ? natName(champ.nat) : '—'}</div>
+                  <div style={{ fontSize: 8, color: C.textGhost }}>年間優勝{r.host ? ` ・ ${natName(r.host)}開催` : ''}</div>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: C.textSub }}>{champ?.strength ?? 0}pt</span>
+                <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── 世界陸上: 種目一覧（5000m/10000m/マラソン/駅伝） ── */}
+      {cat === 'wamain' && waEvent == null && (
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {([['d5000', '5000m'], ['d10000', '10000m'], ['marathon', 'マラソン'], ['ekiden', '駅伝']] as const).map(([ev, label]) => (
+            <button key={ev} onClick={() => setWaEvent(ev)} style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
+              padding: '14px 16px', borderRadius: 12,
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `2px solid ${C.border2}`, color: C.text,
+              boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)', fontFamily: SAIRA,
+            }}>
+              <span style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>{label}</span>
+              <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(CAT_COLOR.wamain, 0.12) }}>{waMain.length}回開催</span>
+              <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── 世界陸上 個人種目: 年度一覧（優勝者付き・記録会と同じ見た目） ── */}
+      {cat === 'wamain' && (waEvent === 'd5000' || waEvent === 'd10000' || waEvent === 'marathon') && year == null && (
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 2 }}>{waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
+          {waMain.filter(r => (r.meet?.individuals ?? []).some(ir => ir.event === waEvent && ir.placings.length > 0)).length === 0 ? (
+            <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ記録がありません</div>
+          ) : waMain.map(r => {
+            const ir = (r.meet?.individuals ?? []).find(x => x.event === waEvent)
+            const first = ir?.placings[0]
+            if (!first) return null
+            const isJp = first.nat === 'JPN'
+            return (
+              <button key={r.year} onClick={() => setYear(r.year)} style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
+                padding: '12px 14px', borderRadius: 12,
+                background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
+                boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
+              }}>
+                <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.wamain }}>{r.year}</span>
+                <div style={{ width: 26, height: 26, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                  <PlayerFace playerId={first.playerId} nationality={first.nat} size={26} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first.playerName}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
+                    <Flag code={first.nat} width={13} radius={2} />
+                    <span style={{ fontSize: 8, color: C.textGhost }}>{natName(first.nat)} ・ 優勝</span>
+                  </div>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: C.textSub }}>{formatRaceTime(first.timeSec)}</span>
+                <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── 世界陸上 個人種目: その年の結果（トップ8・記録会と同じ見た目） ── */}
+      {cat === 'wamain' && (waEvent === 'd5000' || waEvent === 'd10000' || waEvent === 'marathon') && year != null && (() => {
+        const r = waMain.find(x => x.year === year)
+        const ir = (r?.meet?.individuals ?? []).find(x => x.event === waEvent)
+        const rows = (ir?.placings ?? []).slice(0, 8)
+        return (
+          <div style={{ padding: '0 14px' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 6 }}>{year}年 世界陸上 {waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
+            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+              {rows.map((e, i, arr) => {
+                const pl = resolvePlayer(e.playerId)
+                const isJp = e.nat === 'JPN'
+                return (
+                  <div key={e.playerId} {...(pl ? lp(pl.id) : {})} style={{
+                    display: 'flex', alignItems: 'center', gap: 9, padding: '6px 12px',
+                    background: isJp ? alpha(C.gold, 0.1) : i % 2 === 0 ? C.surface : 'transparent',
+                    borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+                    cursor: pl ? 'pointer' : 'default',
+                  }}>
+                    <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: i === 0 ? C.gold : i < 3 ? C.textSub : C.textGhost }}>{e.rank}</span>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                      <PlayerFace playerId={e.playerId} nationality={e.nat} size={28} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.playerName}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
+                        <Flag code={e.nat} width={13} radius={2} />
+                        <span style={{ fontSize: 8, color: C.textGhost }}>{natName(e.nat)}</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: i === 0 ? C.gold : C.textSub }}>{formatRaceTime(e.timeSec)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── 世界陸上 駅伝: 年度一覧（優勝国付き・アジア予選と同じ見た目） ── */}
+      {cat === 'wamain' && waEvent === 'ekiden' && year == null && (
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 2 }}>世界陸上 駅伝</div>
+          {waMain.length === 0 ? (
+            <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ記録がありません</div>
+          ) : waMain.map(r => {
+            const champ = (r.meet?.ekiden ?? []).find(e => e.rank === 1)
+            const isJp = champ?.nat === 'JPN'
+            return (
+              <button key={r.year} onClick={() => setYear(r.year)} style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
+                padding: '12px 14px', borderRadius: 12,
+                background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
+                boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
+              }}>
+                <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.wamain }}>{r.year}</span>
+                {champ && <Flag code={champ.nat} width={26} radius={3} />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{champ ? natName(champ.nat) : '—'}</div>
+                  <div style={{ fontSize: 8, color: C.textGhost }}>駅伝優勝{r.host ? ` ・ ${natName(r.host)}開催` : ''}</div>
+                </div>
+                <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── アジア予選/世界陸上駅伝: その年の3戦一覧 ── */}
+      {((cat === 'waqual') || (cat === 'wamain' && waEvent === 'ekiden')) && year != null && waRace == null && (() => {
+        const src = cat === 'waqual' ? waQual : waMain
+        const r = src.find(x => x.year === year)
+        const races = (r?.races ?? []).filter(rc => rc.results)
+        const accent2 = cat === 'waqual' ? CAT_COLOR.waqual : CAT_COLOR.wamain
+        return (
+          <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: accent2, paddingLeft: 2, marginBottom: 2 }}>{year}年 {cat === 'waqual' ? 'アジア予選' : '世界陸上 駅伝'} 全{races.length}戦</div>
+            {races.length === 0 ? (
+              <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>この年はレース詳細の記録がありません</div>
+            ) : races.map(rc => {
+              const top = rc.results!.teamRankings.find(tr => tr.rank === 1) ?? rc.results!.teamRankings[0]
+              const nat = top ? natOfTeamId(top.teamId) : null
+              return (
+                <button key={rc.id} onClick={() => setWaRace(rc)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
+                  padding: '12px 14px', borderRadius: 12,
+                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                  border: `2px solid ${C.border2}`, color: C.text,
+                  boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rc.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      {nat && <Flag code={nat} width={14} radius={2} />}
+                      <span style={{ fontSize: 9, color: C.textGhost }}>{nat ? `${natName(nat)} 優勝` : ''}</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: C.textSub }}>{top ? formatRaceTime(top.totalTimeSec) : ''}</span>
+                  <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+                </button>
+              )
+            })}
+          </div>
+        )
+      })()}
+
+      {/* ── アジア予選/世界陸上駅伝: 順位表（国別・タップで区間配置へ） ── */}
+      {waRace != null && teamId == null && (
+        <div style={{ padding: '0 14px' }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: cat === 'waqual' ? CAT_COLOR.waqual : CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 8 }}>{waRace.name}</div>
+          <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            {[...waRace.results!.teamRankings].sort((a, b) => a.rank - b.rank).map((tr, i, arr) => {
+              const nat = natOfTeamId(tr.teamId)
+              const isJp = nat === 'JPN'
+              const diff = tr.totalTimeSec - arr[0].totalTimeSec
+              return (
+                <button key={tr.teamId} onClick={() => setTeamId(tr.teamId)} style={{
+                  display: 'flex', alignItems: 'center', gap: 9, padding: '9px 12px', width: '100%', cursor: 'pointer', textAlign: 'left',
+                  background: isJp ? alpha(C.gold, 0.1) : i % 2 === 0 ? C.surface : 'transparent',
+                  border: 'none', borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+                  color: C.text, fontFamily: SAIRA,
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: tr.rank === 1 ? C.gold : tr.rank <= 3 ? C.textSub : C.textGhost }}>{tr.rank}</span>
+                  {nat && <Flag code={nat} width={22} radius={3} />}
+                  <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nat ? natName(nat) : '—'}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: tr.rank === 1 ? C.gold : C.textSub }}>
+                    {tr.rank === 1 ? formatRaceTime(tr.totalTimeSec) : `+${formatRaceTime(diff)}`}
+                  </span>
+                  <span style={{ color: C.textGhost, fontSize: 14 }}>›</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── アジア予選/世界陸上駅伝: 国の区間配置（選手は顔付き・長押しで詳細） ── */}
+      {waRace != null && teamId != null && (() => {
+        const nat = natOfTeamId(teamId)
+        const results = waRace.results!
+        const myRanking = results.teamRankings.find(tr => tr.teamId === teamId)
+        const segs = [...waRace.segments].sort((a, b) => a.index - b.index)
+        return (
+          <div style={{ padding: '0 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
+              {nat && <Flag code={nat} width={34} radius={4} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nat ? `${natName(nat)} 代表` : '—'}</div>
+                <div style={{ fontSize: 10, color: C.textDim }}>{waRace.name}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: myRanking?.rank === 1 ? C.gold : C.textSub }}>{myRanking?.rank ?? '—'}<span style={{ fontSize: 9, color: C.textGhost }}>位</span></div>
+                <div style={{ fontSize: 10, color: C.textDim }}>{myRanking ? formatRaceTime(myRanking.totalTimeSec) : ''}</div>
+              </div>
+            </div>
+            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+              {segs.map((seg, i) => {
+                const sr = results.segmentResults.find(x => x.segmentIndex === seg.index)
+                const runner = sr?.runners.find(x => x.teamId === teamId)
+                const pl = runner ? players.find(x => x.id === runner.playerId) : undefined
+                const isSegWin = runner?.rank === 1
+                return (
+                  <div key={seg.index} {...(pl ? lp(pl.id) : {})} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
+                    background: isSegWin ? alpha(C.gold, 0.08) : i % 2 === 0 ? C.surface : 'transparent',
+                    borderBottom: i < segs.length - 1 ? `1px solid ${C.border}` : 'none',
+                    cursor: pl ? 'pointer' : 'default',
+                  }}>
+                    <div style={{ width: 38, flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, color: C.textSub }}>{seg.index}区</div>
+                      <div style={{ fontSize: 8, color: C.textGhost }}>{seg.distanceKm}km</div>
+                    </div>
+                    {pl && (
+                      <div style={{ width: 26, height: 26, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                        <PlayerFace playerId={pl.id} nationality={pl.nationality} size={26} />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name ?? '—'}</span>
+                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px', borderRadius: 4, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: isSegWin ? C.gold : C.textDim, flexShrink: 0 }}>区間{runner?.rank ?? '—'}位</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: isSegWin ? C.gold : C.textSub, flexShrink: 0 }}>{runner ? formatRaceTime(runner.timeSec) : '—'}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Level 2: 年度一覧（優勝チーム付き） */}
-      {cat != null && cat !== 'tt' && raceName != null && raceName !== OVERALL && year == null && (
+      {cat != null && cat !== 'tt' && cat !== 'waqual' && cat !== 'wamain' && raceName != null && raceName !== OVERALL && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: accent, paddingLeft: 2, marginBottom: 2 }}>{raceName}</div>
           {[...raceEntries].reverse().map(({ year: y, race }) => {

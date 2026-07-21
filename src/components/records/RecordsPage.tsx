@@ -2,8 +2,6 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import { WA_HOST_CITY } from '../../engine/worldAthletics'
-import { NAT_LABEL } from '../../data/nationalities'
 import type { GameStore } from '../../store/gameStore'
 import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
@@ -15,7 +13,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-type Tab = 'franchise' | 'league' | 'players' | 'gm' | 'world'
+type Tab = 'franchise' | 'league' | 'players' | 'gm'
 
 export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(defaultTab ?? 'franchise')
@@ -43,7 +41,6 @@ export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
             { key: 'league', label: 'リーグ' },
             { key: 'players', label: '個人' },
             { key: 'gm', label: 'GM' },
-            { key: 'world', label: '世界陸上' },
           ] as { key: Tab; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -71,45 +68,11 @@ export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
         {tab === 'league' && <LeagueTab teams={teams} pastSeasons={pastSeasons} />}
         {tab === 'players' && <PlayersTab players={players} teams={teams} currentSeason={currentSeason} />}
         {tab === 'gm' && <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} />}
-        {tab === 'world' && <WorldTab />}
       </div>
     </div>
   )
 }
 
-function WorldTab() {
-  const navigate = useNavigate()
-  const results = useGameStore(s => s.worldAthleticsResults) ?? []
-  if (results.length === 0) {
-    return <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '30px 0', fontFamily: "'Zen Kaku Gothic New',sans-serif" }}>まだ世界陸上・予選の記録がありません</div>
-  }
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontFamily: "'Zen Kaku Gothic New',sans-serif" }}>
-      {results.map(r => {
-        const isMain = r.kind === 'main'
-        const city = r.host ? (WA_HOST_CITY[r.host] ?? NAT_LABEL[r.host] ?? '') : ''
-        const sub = isMain
-          ? `${city}開催 ・ ${r.nations.length}カ国 ・ 日本総合${r.japanRank ?? '—'}位`
-          : `${city ? `${city}開催 ・ ` : ''}通過 ${r.advanced.length}カ国`
-        return (
-          <button key={r.year} onClick={() => navigate(`/national/result?y=${r.year}`)} style={{
-            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', cursor: 'pointer',
-            padding: '13px 16px', borderRadius: 12,
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${isMain ? C.purpleDark : C.border2}`,
-          }}>
-            <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: isMain ? C.purple : C.textDim }}>{r.year}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text }}>{isMain ? '世界陸上' : '世界陸上アジア予選'}</div>
-              <div style={{ fontSize: 10, color: C.textDim }}>{sub}</div>
-            </div>
-            <span style={{ color: C.textGhost, fontSize: 18 }}>›</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 function CardPanel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
