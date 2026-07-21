@@ -436,7 +436,8 @@ export default function PlayerSheet() {
           <div style={{ padding: '14px 20px 48px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {badges.map(b => {
               const col = BADGE_COLOR[b.kind]
-              const selected = player.displayBadge === b.key
+              // 未選択なら優先順トップが自動表示されている（PlayerRowと同じルール）ので、それを「表示中」として見せる
+              const selected = (player.displayBadge ?? badges[0]?.key) === b.key
               return (
                 <div
                   key={b.key}
