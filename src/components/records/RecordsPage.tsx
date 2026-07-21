@@ -77,7 +77,7 @@ export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
 
 function WorldTab() {
   const navigate = useNavigate()
-  const results = useGameStore(s => s.worldAthleticsResults ?? [])
+  const results = useGameStore(s => s.worldAthleticsResults) ?? []
   if (results.length === 0) {
     return <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '30px 0', fontFamily: "'Zen Kaku Gothic New',sans-serif" }}>まだ世界陸上・予選の記録がありません</div>
   }
@@ -97,7 +97,7 @@ function WorldTab() {
           }}>
             <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: isMain ? C.purple : C.textDim }}>{r.year}</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text }}>{isMain ? '世界陸上' : 'アジア＋オセアニア予選'}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text }}>{isMain ? '世界陸上' : '世界陸上アジア予選'}</div>
               <div style={{ fontSize: 10, color: C.textDim }}>{sub}</div>
             </div>
             <span style={{ color: C.textGhost, fontSize: 18 }}>›</span>

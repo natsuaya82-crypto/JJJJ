@@ -121,14 +121,14 @@ export default function PlayerSheet() {
   // draftState を購読（安定参照）。pool の ?? [] はセレクタの外で行う（毎回新配列を返すと無限ループになる）
   const draftState = useGameStore(s => s.draftState)
   const draftPool = draftState?.pool ?? []
-  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   // 国内チーム or 海外クラブから所属を解決
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
-  const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
+  const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
-  const starredProspects = useGameStore(s => s.starredProspects ?? [])
+  const starredProspects = useGameStore(s => s.starredProspects) ?? []
   const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
-  const segmentRecords = useGameStore(s => s.segmentRecords ?? {})
+  const segmentRecords = useGameStore(s => s.segmentRecords) ?? {}
   // 記録パッチ（世界/日本記録・MVP・新人王・区間記録）の解決用
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
@@ -880,7 +880,7 @@ export default function PlayerSheet() {
                 }
                 // 駅伝出走（保存済みレース詳細から集計。クラブの在籍履歴と同じ 出場/区間賞/平均）
                 for (const wr of worldAthleticsResults ?? []) {
-                  const compLabel = wr.kind === 'main' ? '世界陸上 駅伝' : 'アジア＋オセアニア予選 駅伝'
+                  const compLabel = wr.kind === 'main' ? '世界陸上 駅伝' : '世界陸上アジア予選 駅伝'
                   for (const race of wr.races ?? []) {
                     if (!race.results) continue
                     const sr = race.results.segmentResults.find(s => s.runners.some(rn => rn.playerId === player.id))

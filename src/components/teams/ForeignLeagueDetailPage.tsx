@@ -11,7 +11,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 export default function ForeignLeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>()
   const navigate = useNavigate()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   const players = useGameStore(s => s.players)
   const foreignStandings = useGameStore(s => s.currentSeason.foreignStandings)
   const league = foreignLeagues.find(l => l.id === leagueId)

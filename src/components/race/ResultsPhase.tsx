@@ -83,9 +83,9 @@ export function ResultsPhase({
   useEffect(() => {
     if (view === 'segments') segTopRef.current?.scrollIntoView({ block: 'start' })
   }, [view, segView])
-  const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
+  const raceDroppedCards = useGameStore(s => s.raceDroppedCards) ?? []
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
-  const raceExpGains = useGameStore(s => s.raceExpGains ?? {})
+  const raceExpGains = useGameStore(s => s.raceExpGains) ?? {}
   // このレースで出た区間新記録（区間×選手）。「区間新！」バッジ表示用
   const newSegRecords = useGameStore(s => s.raceNewSegmentRecords) ?? []
   const teamMap = new Map(teams.map(t => [t.id, t]))

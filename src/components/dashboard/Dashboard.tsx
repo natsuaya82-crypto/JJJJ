@@ -319,7 +319,7 @@ export default function Dashboard() {
   const startWorldTournament = useGameStore(s => s.startWorldTournament)
   const waDone = (worldAthleticsResults ?? []).some(r => r.year === currentSeason.year)
   const waIsMain = (currentSeason.year - 2028) % 2 === 0
-  const waTitle = waIsMain ? `世界陸上 ${currentSeason.year}` : `アジア＋オセアニア予選 ${currentSeason.year}`
+  const waTitle = waIsMain ? `世界陸上 ${currentSeason.year}` : `世界陸上アジア予選 ${currentSeason.year}`
   const waSquadReady = worldSquad?.year === currentSeason.year && (worldSquad?.playerIds.length ?? 0) > 0
   // 本番年は前年の予選を通過していないと出場できない（開催国なら免除）。予選記録が無い場合は出場扱い
   const waPrevQual = (worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === currentSeason.year - 1)
@@ -471,7 +471,7 @@ export default function Dashboard() {
               <div style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{waTitle}</div>
               <div style={{ fontSize: 11, color: waJapanIn ? C.textSub : C.red, marginTop: 4 }}>
                 {!waJapanIn
-                  ? '前年のアジア＋オセアニア予選で敗退したため、日本は出場できません'
+                  ? '前年の世界陸上アジア予選で敗退したため、日本は出場できません'
                   : waSquadReady ? '代表選考済み。大会に進みます' : '駅伝代表20人を選考してから大会に進みます'}
               </div>
             </div>

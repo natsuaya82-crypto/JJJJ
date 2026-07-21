@@ -345,10 +345,10 @@ export function simulateIndividuals(fields: Record<WAEvent, FieldEntry[]>): WAIn
 }
 
 // 駅伝3戦の合計ポイントから予選の最終結果を組む（上位 advance カ国が通過）
-export function composeQualifierResult(year: number, rows: { nat: Nationality; points: number }[], advance = 3): WAQualifierResult {
+export function composeQualifierResult(year: number, rows: { nat: Nationality; points: number }[], advance = 3, host?: Nationality): WAQualifierResult {
   const sorted = [...rows].sort((a, b) => b.points - a.points)
   const standings: QualStanding[] = sorted.map((r, i) => ({ nat: r.nat, strength: r.points, rank: i + 1, advanced: i < advance }))
-  return { year, kind: 'qualifier', region: 'アジア＋オセアニア', standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
+  return { year, kind: 'qualifier', region: 'アジア＋オセアニア', host, standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
 }
 
 // 個人種目の結果＋駅伝3戦の合計ポイントから本番の最終結果（メダル・総合）を組む
@@ -388,7 +388,7 @@ export function simulateWorldMeet(players: Player[], nats: Nationality[], year: 
 // ───────────────────────────────────────────────────────────────
 export type QualStanding = { nat: Nationality; strength: number; rank: number; advanced: boolean }
 // races: 駅伝3戦の実レース結果。ECLのeclSeriesと同じ扱いで保持し、選手詳細の駅伝データ等に使う
-export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[] }
+export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; host?: Nationality; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[] }
 export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nations: Nationality[]; meet: WAMeetResult; japanRank: number | null; races?: import('../types').Race[] }
 export type WAYearResult = WAQualifierResult | WAMainResult
 
@@ -435,6 +435,44 @@ export const WA_HOSTS: Nationality[] = (() => {
 export function hostForYear(year: number): Nationality {
   const idx = Math.max(0, Math.floor((year - 2028) / 2)) % WA_HOSTS.length
   return WA_HOSTS[idx]
+}
+
+// 予選（世界陸上アジア予選）の開催国ローテ：アジア＋オセアニアの国で持ち回り。
+// 本番と同じ固定シードの決定的シャッフルで順番を決める（2027が初回）。
+// 2028本番が日本開催なので、予選初回が日本だと連続開催になり不自然→日本が先頭なら後ろへずらす
+export const QUAL_HOSTS: Nationality[] = (() => {
+  const list = seededShuffle(
+    (Object.keys(NATIONALITY_META) as Nationality[])
+      .filter(n => !WA_EXCLUDED_NATS.has(n))
+      .filter(n => { const g = natGeoRegion(n); return g === 'アジア' || g === 'オセアニア' }),
+    4210,
+  )
+  const jpnIdx = list.indexOf('JPN')
+  if (jpnIdx === 0) { list.splice(0, 1); list.splice(3, 0, 'JPN') }
+  return list
+})()
+export function qualHostForYear(year: number): Nationality {
+  const idx = Math.max(0, Math.floor((year - 2027) / 2)) % QUAL_HOSTS.length
+  return QUAL_HOSTS[idx]
+}
+
+// 開催国の地形プロファイル。コース生成に反映して「山の国＝起伏の激しいコース、平坦な国＝スピードコース」にする
+export type HostTerrain = 'mountain' | 'flat' | 'mixed'
+export const WA_HOST_TERRAIN: Partial<Record<Nationality, HostTerrain>> = {
+  // 山岳・高地の国
+  NEP: 'mountain', MGL: 'mountain', KAZ: 'mountain', SUI: 'mountain', AUT: 'mountain', NOR: 'mountain',
+  ETH: 'mountain', KEN: 'mountain', UGA: 'mountain', ERI: 'mountain', RWA: 'mountain', BDI: 'mountain',
+  ZIM: 'mountain', RSA: 'mountain', MEX: 'mountain', COL: 'mountain', ECU: 'mountain', PER: 'mountain',
+  BOL: 'mountain', GUA: 'mountain',
+  // 平坦・都市型コースの国
+  SGP: 'flat', HKG: 'flat', THA: 'flat', VIE: 'flat', MAS: 'flat', IND: 'flat', SRI: 'flat',
+  BRN: 'flat', QAT: 'flat', KSA: 'flat', NED: 'flat', DEN: 'flat', BEL: 'flat', POL: 'flat',
+  GER: 'flat', FRA: 'flat', GBR: 'flat', IRL: 'flat', FIN: 'flat', SWE: 'flat', URU: 'flat',
+  ARG: 'flat', JAM: 'flat', CUB: 'flat', CRC: 'flat', PHI: 'flat', TWN: 'flat',
+  // それ以外は mixed（従来のランダム）
+}
+export function hostTerrain(nat: Nationality): HostTerrain {
+  return WA_HOST_TERRAIN[nat] ?? 'mixed'
 }
 
 // 開催都市（レース名「2030 世界陸上 テグ 第1戦」用）。各国の代表的な陸上開催都市

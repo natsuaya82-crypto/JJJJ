@@ -11,7 +11,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear, hostForYear, WA_HOST_CITY, qualifyNations, ekidenCandidates, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, ekidenCandidates, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion } from '../data/nationalities'
@@ -6260,16 +6260,20 @@ export const useGameStore = create<GameStore>()(
           if ((state.worldAthleticsResults ?? []).some(r => r.year === year)) return state
           if (state.worldTournament && state.worldTournament.year === year && !state.worldTournament.finished) return state
           const isMain = (year - 2028) % 2 === 0
-          const host = isMain ? hostForYear(year) : undefined
+          // 予選も開催国ローテーション（アジア＋オセアニアの国で持ち回り。コースも開催国の地形）
+          const host = isMain ? hostForYear(year) : qualHostForYear(year)
           let nations: import('../types').Nationality[]
           if (isMain) {
             const prevQual = (state.worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === year - 1)
             nations = qualifyNations(state.players, year, host!, prevQual?.kind === 'qualifier' ? prevQual.advanced : undefined)
           } else {
-            nations = ([...new Set(state.players.filter(p => p.status !== 'retired').map(p => p.nationality))] as import('../types').Nationality[])
+            const pool = ([...new Set(state.players.filter(p => p.status !== 'retired').map(p => p.nationality))] as import('../types').Nationality[])
               .filter(n => (natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア') && nationStrength(state.players, n, year) > 0)
               .sort((a, b) => nationStrength(state.players, b, year) - nationStrength(state.players, a, year))
-              .slice(0, 20)
+            // 開催国は自動出場（選手がいる場合のみ）。残りを強い順で埋める
+            nations = pool.includes(host!)
+              ? [host!, ...pool.filter(n => n !== host)].slice(0, 20)
+              : pool.slice(0, 20)
           }
           const japanIn = nations.includes('JPN')
           // 駅伝優先：まず各国が最強20人を駅伝代表に投入（日本は手動選考があればそれ）。
@@ -6305,7 +6309,7 @@ export const useGameStore = create<GameStore>()(
             // 例: 「2030 世界陸上 テグ 第1戦」「2029 アジア＋オセアニア予選 第1戦」
             name: isMain
               ? `${year} 世界陸上 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
-              : `${year} アジア＋オセアニア予選 第${i + 1}戦`,
+              : `${year} 世界陸上アジア予選 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`,
             date: `${year}-12-1${i}`,
             location: '',
             type: 'league' as const,
@@ -6357,7 +6361,7 @@ export const useGameStore = create<GameStore>()(
           // 駅伝3戦のレース詳細も結果に残す（ECLのeclSeriesと同じ扱い。選手詳細の駅伝データ等で使う）
           const result = {
             ...(t.kind === 'qualifier'
-              ? composeQualifierResult(t.year, rows)
+              ? composeQualifierResult(t.year, rows, 3, t.host)
               : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows)),
             races: newRaces,
           }
@@ -6386,7 +6390,10 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const year = state.currentSeason.year
           if (state.worldRacePlans?.year === year) return state
-          return { worldRacePlans: { year, plans: generateWECRacePlan() } }
+          // コースは開催国の地形で作る（本番＝世界陸上の開催国、予選＝アジア予選の開催国）
+          const isMain = (year - 2028) % 2 === 0
+          const host = isMain ? hostForYear(year) : qualHostForYear(year)
+          return { worldRacePlans: { year, plans: generateWECRacePlan(hostTerrain(host)) } }
         })
       },
 
@@ -7613,14 +7620,28 @@ export const WEC_CITIES = [
   { city: 'アディスアベバ', courseChar: '超高地（標高2400m）',       courseMult: 1.07 },
 ]
 
-function generateWECRacePlan(): import('../types').WECRacePlan[] {
+// 開催国の地形プロファイルに合わせてコースを作る。
+// mountain=山の国（登り下りが激しい）/ flat=平坦な国（スピードコース）/ mixed=従来のランダム
+function generateWECRacePlan(profile: 'mountain' | 'flat' | 'mixed' = 'mixed'): import('../types').WECRacePlan[] {
   return Array.from({ length: 3 }, () => {
     const segmentCount = 4 + Math.floor(Math.random() * 5)
-    const segments = Array.from({ length: segmentCount }, () => ({
-      distanceKm: Math.round((5 + Math.random() * 10) * 10) / 10,
-      uphillPct: Math.floor(Math.random() * 35),
-      downhillPct: Math.floor(Math.random() * 25),
-    }))
+    const segments = Array.from({ length: segmentCount }, () => {
+      let uphillPct: number, downhillPct: number
+      if (profile === 'mountain') {
+        uphillPct = 8 + Math.floor(Math.random() * 37)   // 8〜44%
+        downhillPct = 5 + Math.floor(Math.random() * 28) // 5〜32%
+      } else if (profile === 'flat') {
+        uphillPct = Math.floor(Math.random() * 12)       // 0〜11%
+        downhillPct = Math.floor(Math.random() * 9)      // 0〜8%
+      } else {
+        uphillPct = Math.floor(Math.random() * 35)
+        downhillPct = Math.floor(Math.random() * 25)
+      }
+      return {
+        distanceKm: Math.round((5 + Math.random() * 10) * 10) / 10,
+        uphillPct, downhillPct,
+      }
+    })
     return { segments }
   })
 }

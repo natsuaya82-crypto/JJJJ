@@ -11,7 +11,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function ScoutPage() {
   const { currentSeason, initScoutPool, openPlayerSheet, players } = useGameStore()
-  const starredProspects = useGameStore(s => s.starredProspects ?? [])
+  const starredProspects = useGameStore(s => s.starredProspects) ?? []
 
   useEffect(() => { initScoutPool() }, [])
 

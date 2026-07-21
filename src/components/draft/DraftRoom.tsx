@@ -791,7 +791,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
   isScouted?: boolean; isRecommend?: boolean; buzz?: number
 }) {
   const longPress = usePlayerLongPress()
-  const starredProspects = useGameStore(s => s.starredProspects ?? [])
+  const starredProspects = useGameStore(s => s.starredProspects) ?? []
   const isStarred = starredProspects.includes(p.id)
   const specCol  = SPEC_COLOR[p.specialty]
   const rating   = ovr(p)

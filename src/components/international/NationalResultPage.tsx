@@ -19,7 +19,7 @@ void MEDAL
 export default function NationalResultPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const results = useGameStore(s => s.worldAthleticsResults ?? [])
+  const results = useGameStore(s => s.worldAthleticsResults) ?? []
   const yParam = params.get('y')
   const r = yParam ? results.find(x => x.year === Number(yParam)) ?? results[0] : results[0]
   // 大会直後（?y=なし）は種目ごとに1枚ずつめくる段階表示。記録室からの閲覧（?y=あり）は一括表示
@@ -60,10 +60,13 @@ export default function NationalResultPage() {
   )
 
   if (r.kind === 'qualifier') {
-    return wrap('アジア＋オセアニア予選', <>
+    return wrap('世界陸上アジア予選', <>
       <div style={{ padding: '2px 16px 12px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} QUALIFIER</div>
-        <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>上位3カ国が翌年の世界陸上へ。{r.advanced.map(natName).join('・')} が通過。</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} ASIA QUALIFIER</div>
+        <div style={{ fontSize: 11, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {r.host && <>開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ </>}
+          上位3カ国が翌年の世界陸上へ。{r.advanced.map(natName).join('・')} が通過。
+        </div>
       </div>
       {card('予選順位', r.standings.map(s => natRow(s.nat,
         <span style={{ fontSize: 10, fontWeight: 800, color: s.advanced ? C.green : C.textDim }}>{s.advanced ? '通過' : '—'}</span>, s.rank)))}

@@ -50,9 +50,9 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
     acceptIncomingOffer, declineIncomingOffer,
     acceptRetirement, dismissRetirementRequest,
   } = useGameStore()
-  const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
+  const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
   const claimGift = useGameStore(s => s.claimGift)
-  const foreignLeaguesP = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeaguesP = useGameStore(s => s.foreignLeagues) ?? []
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないためパネルには出さない（通知ページで情報表示）
@@ -310,8 +310,8 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
 // 片方だけ変えるとズレるので、通知ページの total を変えたらここも合わせること。
 export function useNotifCount() {
   const { currentSeason, players, teams, playerTeamId, lastLoginDate } = useGameStore()
-  const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
-  const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
+  const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
+  const seenJoinIds = useGameStore(s => s.seenJoinIds) ?? []
 
   // フリー移籍の接触（offeredPrice=0）は情報通知として別カウント（NotificationsPageと同じ分け方・対応済みは除外）
   // ※選手が退団・引退した「幽霊通知」はページ側と同じ基準で除外（数だけ残ってバッジがズレるのを防ぐ）

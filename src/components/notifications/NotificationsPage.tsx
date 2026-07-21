@@ -131,7 +131,7 @@ function OfferChatView({
   onMessagesChange: (msgs: OfferChatMsg[]) => void
 }) {
   const { teams, players, acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer } = useGameStore()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
   const fromTeam = teams.find(t => t.id === offer.fromTeamId)
   const fromForeignClub = fromTeam ? null : foreignLeagues.flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)
@@ -284,15 +284,15 @@ function OfferChatView({
 export default function NotificationsPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, playerTeamId, lastLoginDate } = useGameStore()
-  const foreignLeaguesAll = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeaguesAll = useGameStore(s => s.foreignLeagues) ?? []
   const acceptFeeCounter = useGameStore(s => s.acceptFeeCounter)
   const rejectTransferBid = useGameStore(s => s.rejectTransferBid)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
-  const seenJoinIds = useGameStore(s => s.seenJoinIds ?? [])
+  const seenJoinIds = useGameStore(s => s.seenJoinIds) ?? []
   const dismissJoinNotice = useGameStore(s => s.dismissJoinNotice)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const longPress = usePlayerLongPress()
-  const pendingGifts = useGameStore(s => s.pendingGifts ?? [])
+  const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
   const claimGift = useGameStore(s => s.claimGift)
 
   const [chatOfferId, setChatOfferId] = useState<string | null>(null)

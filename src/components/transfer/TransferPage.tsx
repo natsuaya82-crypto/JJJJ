@@ -37,7 +37,7 @@ export default function TransferPage() {
     listMyPlayerForSale, delistMyPlayer, sellDraftPick,
 
   } = useGameStore()
-  const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
+  const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const adH = useAdHeight()

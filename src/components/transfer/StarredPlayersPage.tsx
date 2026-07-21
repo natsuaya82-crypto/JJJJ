@@ -17,10 +17,10 @@ function fmt(yen: number) {
 export default function StarredPlayersPage() {
   const players = useGameStore(s => s.players)
   const teams = useGameStore(s => s.teams)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
-  const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects ?? [])
-  const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
-  const starredProspectIds = useGameStore(s => s.starredProspects ?? [])
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects) ?? []
+  const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
+  const starredProspectIds = useGameStore(s => s.starredProspects) ?? []
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
   const playerTeamId = useGameStore(s => s.playerTeamId)

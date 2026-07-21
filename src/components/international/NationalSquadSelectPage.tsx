@@ -30,7 +30,7 @@ export default function NationalSquadSelectPage() {
   const barBottom = `calc(${adH + 58}px + env(safe-area-inset-bottom))`
   const players = useGameStore(s => s.players)
   const teams = useGameStore(s => s.teams)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   const year = useGameStore(s => s.currentSeason.year)
   const worldSquad = useGameStore(s => s.worldSquad)
   const setWorldSquad = useGameStore(s => s.setWorldSquad)

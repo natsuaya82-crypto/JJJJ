@@ -101,7 +101,7 @@ export default function WorldTournamentPage() {
     )
   }
 
-  const title = t.kind === 'main' ? `世界陸上 ${t.year}` : `アジア＋オセアニア予選 ${t.year}`
+  const title = t.kind === 'main' ? `世界陸上 ${t.year}` : `世界陸上アジア予選 ${t.year}`
 
   // ── 個人種目の出場選手発表（本番のみ・1種目ずつめくる）──
   // 駅伝代表が決まった時点での「代表発表」。結果はまだ出さない（最終結果ページで発表）

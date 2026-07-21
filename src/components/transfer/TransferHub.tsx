@@ -9,8 +9,8 @@ export default function TransferHub() {
   const navigate = useNavigate()
   const { currentSeason, players, playerTeamId, getTransferWindow, gmRep } = useGameStore()
   const loanSlots = players.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length
-  const starredOpponents = useGameStore(s => s.starredOpponents ?? [])
-  const starredProspects = useGameStore(s => s.starredProspects ?? [])
+  const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
+  const starredProspects = useGameStore(s => s.starredProspects) ?? []
 
   const win = getTransferWindow()
   const tradeNegs = currentSeason.tradeNegotiations ?? []

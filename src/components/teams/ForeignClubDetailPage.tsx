@@ -17,7 +17,7 @@ function fmt(yen: number) {
 export default function ForeignClubDetailPage() {
   const { leagueId, clubId } = useParams<{ leagueId: string; clubId: string }>()
   const navigate = useNavigate()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   const players = useGameStore(s => s.players)
   const currentSeason = useGameStore(s => s.currentSeason)
   const scoutOpponentPlayer = useGameStore(s => s.scoutOpponentPlayer)

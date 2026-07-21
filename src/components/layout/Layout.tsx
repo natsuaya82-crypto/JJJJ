@@ -116,7 +116,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null)
 
   // レース準備(lineup)〜進行(simulating)〜結果発表(results)中は下ナビを隠して集中させる（勝手にホーム等へ抜けさせない）
-  const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup' || activeRacePhase === 'results') && (location.pathname === '/race' || location.pathname === '/reserve' || location.pathname === '/ecl')
+  // 世界陸上(/national/tournament)もECL等と同じくレース進行中はタブバーを隠す。
+  // ここに入れ忘れるとLineupPhase等の下部バー(広告の上に固定)がタブバーの裏に隠れて進行不能になる
+  const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup' || activeRacePhase === 'results') && (location.pathname === '/race' || location.pathname === '/reserve' || location.pathname === '/ecl' || location.pathname === '/national/tournament')
 
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)

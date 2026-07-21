@@ -10,8 +10,8 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 export default function TeamHub() {
   const navigate = useNavigate()
   const { teams, players, playerTeamId, currentSeason } = useGameStore()
-  const trainingCards = useGameStore(s => s.trainingCards ?? [])
-  const raceDroppedCards = useGameStore(s => s.raceDroppedCards ?? [])
+  const trainingCards = useGameStore(s => s.trainingCards) ?? []
+  const raceDroppedCards = useGameStore(s => s.raceDroppedCards) ?? []
   const myTeam = teams.find(t => t.id === playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
   const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length

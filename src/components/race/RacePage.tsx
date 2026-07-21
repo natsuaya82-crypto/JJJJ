@@ -42,13 +42,13 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
 }) {
   const longPress = usePlayerLongPress()
   const adH = useAdHeight()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   // 世界新/日本新バッジ用（記録は結果確定時に更新済みなので「今年・この選手・このタイム」が現行記録なら今大会の樹立）
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
   const seasonYear = useGameStore(s => s.currentSeason.year)
   // 記録会には来季のドラフト候補（scoutProspects＝players外）も出るので、そちらからも名前/出身を解決する
-  const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects ?? [])
+  const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects) ?? []
   const findP = (id: string) => players.find(p => p.id === id) ?? scoutProspects.find(p => p.id === id)
   // 国内チーム or 海外クラブから所属を解決（記録会に海外選手が出るため）
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
