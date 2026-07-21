@@ -416,6 +416,24 @@ export function hostForYear(year: number): Nationality {
   return WA_HOSTS[idx]
 }
 
+// 開催都市（レース名「2030 世界陸上 テグ 第1戦」用）。各国の代表的な陸上開催都市
+export const WA_HOST_CITY: Partial<Record<Nationality, string>> = {
+  JPN: '東京', KOR: 'テグ', CHN: '北京', TWN: '台北', HKG: '香港', MGL: 'ウランバートル',
+  THA: 'バンコク', VIE: 'ハノイ', INA: 'ジャカルタ', MAS: 'クアラルンプール', PHI: 'マニラ', SGP: 'シンガポール',
+  IND: 'ニューデリー', SRI: 'コロンボ', NEP: 'カトマンズ', KAZ: 'アスタナ',
+  BRN: 'マナーマ', QAT: 'ドーハ', KSA: 'リヤド',
+  AUS: 'シドニー', NZL: 'オークランド',
+  ETH: 'アディスアベバ', KEN: 'ナイロビ', UGA: 'カンパラ', TAN: 'ダルエスサラーム', MAR: 'ラバト',
+  ERI: 'アスマラ', RSA: 'ケープタウン', RWA: 'キガリ', BDI: 'ブジュンブラ', ALG: 'アルジェ',
+  DJI: 'ジブチ', SOM: 'モガディシュ', SDN: 'ハルツーム', TUN: 'チュニス', ZIM: 'ハラレ', NGA: 'ラゴス',
+  GBR: 'ロンドン', GER: 'ベルリン', FRA: 'パリ', ITA: 'ローマ', ESP: 'バルセロナ', NED: 'アムステルダム',
+  SWE: 'ストックホルム', DEN: 'コペンハーゲン', AUT: 'ウィーン', POR: 'リスボン', NOR: 'オスロ',
+  BEL: 'ブリュッセル', SUI: 'チューリッヒ', POL: 'ワルシャワ', IRL: 'ダブリン', FIN: 'ヘルシンキ',
+  USA: 'ユージーン', CAN: 'トロント', MEX: 'メキシコシティ', BRA: 'リオデジャネイロ', COL: 'ボゴタ',
+  ARG: 'ブエノスアイレス', ECU: 'キト', PER: 'リマ', CHI: 'サンティアゴ', URU: 'モンテビデオ',
+  VEN: 'カラカス', GUA: 'グアテマラシティ', BOL: 'ラパス', CRC: 'サンホセ', CUB: 'ハバナ', JAM: 'キングストン',
+}
+
 // アジア＋オセアニア予選：国の距離力（当日ブレ込み）で並べ、上位 advance カ国が本番へ。
 // 日本は選考した駅伝代表（japanSquadIds）の上位7人で戦う＝選考が予選の強さに直結する。
 export function simulateQualifier(players: Player[], year: number, advance = 3, japanSquadIds?: string[]): WAQualifierResult {

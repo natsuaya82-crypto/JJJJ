@@ -11,7 +11,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear, hostForYear, qualifyNations, ekidenCandidates, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, WA_HOST_CITY, qualifyNations, ekidenCandidates, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion } from '../data/nationalities'
@@ -6302,7 +6302,10 @@ export const useGameStore = create<GameStore>()(
           const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
           const races: import('../types').Race[] = plans.map((plan, i) => ({
             id: `wa-${year}-r${i + 1}`,
-            name: `${isMain ? '世界陸上' : 'アジア＋オセアニア予選'} 駅伝 第${i + 1}戦`,
+            // 例: 「2030 世界陸上 テグ 第1戦」「2029 アジア＋オセアニア予選 第1戦」
+            name: isMain
+              ? `${year} 世界陸上 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
+              : `${year} アジア＋オセアニア予選 第${i + 1}戦`,
             date: `${year}-12-1${i}`,
             location: '',
             type: 'league' as const,

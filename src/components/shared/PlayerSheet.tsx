@@ -724,7 +724,7 @@ export default function PlayerSheet() {
 
               {/* 世界陸上（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる */}
               {!isProspect && (() => {
-                const waNames = [...raceGroupMap.keys()].filter(n => n.startsWith('世界陸上') || n.startsWith('アジア＋オセアニア予選'))
+                const waNames = [...raceGroupMap.keys()].filter(n => n.includes('世界陸上') || n.includes('アジア＋オセアニア予選'))
                 if (waNames.length === 0) return null
                 return (
                   <div>
