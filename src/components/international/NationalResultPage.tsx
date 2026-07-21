@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
@@ -17,8 +17,10 @@ void MEDAL
 
 export default function NationalResultPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const results = useGameStore(s => s.worldAthleticsResults ?? [])
-  const r = results[0]
+  const yParam = params.get('y')
+  const r = yParam ? results.find(x => x.year === Number(yParam)) ?? results[0] : results[0]
 
   if (!r) {
     return (

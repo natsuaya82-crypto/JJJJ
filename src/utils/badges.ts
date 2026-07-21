@@ -6,7 +6,7 @@ import type { Player, GameState, SegmentRecord, EventDistKey } from '../types'
 export type PlayerBadge = {
   key: string      // 一意キー（Player.displayBadge に保存する値）
   label: string    // 表示名（例: 5000m日本記録 / 東北桜駅伝3区区間記録 / 2027年度MVP）
-  kind: 'world' | 'japan' | 'cl' | 'mvp' | 'rookie' | 'segment'
+  kind: 'world' | 'japan' | 'cl' | 'mvp' | 'rookie' | 'segment' | 'national'
 }
 
 const DIST_LABEL: Record<EventDistKey, string> = {
@@ -21,10 +21,12 @@ export const BADGE_COLOR: Record<PlayerBadge['kind'], string> = {
   mvp: '#F5C842',      // MVP: 金
   rookie: '#4FC3F7',   // 新人王: 水色
   segment: '#C9A84C',  // 区間記録: 落ち着いた金
+  national: '#A855F7', // 世界陸上 代表: 紫
 }
 
 type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'seasonAwards' | 'eclHistory'> & {
   segmentRecords?: Record<string, SegmentRecord[]>
+  worldRepresentatives?: GameState['worldRepresentatives']
 }
 
 // 優先順: 世界記録 > 日本記録 > 年度MVP > 新人王 > 区間記録。maxCount 件で打ち切り
@@ -66,6 +68,15 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     const raceName = sep > 0 ? key.slice(0, sep) : key
     const segIdx = sep > 0 ? key.slice(sep + 1) : ''
     out.push({ key: `seg-${key}`, label: `${raceName}${segIdx}区区間記録`, kind: 'segment' })
+  }
+  // 世界陸上 代表パッチ（例: 2028 マラソン 日本代表）。年×種目で重複排除。
+  const seenNat = new Set<string>()
+  for (const rep of src.worldRepresentatives ?? []) {
+    if (rep.playerId !== p.id) continue
+    const k = `nat-${rep.year}-${rep.label}`
+    if (seenNat.has(k)) continue
+    seenNat.add(k)
+    out.push({ key: k, label: `${rep.year} ${rep.label} 代表`, kind: 'national' })
   }
 
   return out.slice(0, maxCount)

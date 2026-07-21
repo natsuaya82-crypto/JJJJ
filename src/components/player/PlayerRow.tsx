@@ -47,9 +47,10 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   const seasonAwards = useGameStore(s => s.seasonAwards)
   const segmentRecords = useGameStore(s => s.segmentRecords)
   const eclHistory = useGameStore(s => s.eclHistory)
+  const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const raceIdx = useGameStore(s => s.currentSeason.currentRaceIndex)
-  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory }, 99)
+  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives }, 99)
   const displayBadge = player.displayBadge
     ? badgeList.find(b => b.key === player.displayBadge)
     // 相手チームの選手は自分でパッチを選べないので、優先順（世界記録>日本記録>MVP>新人王>区間記録）の最上位を自動表示

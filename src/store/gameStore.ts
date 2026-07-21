@@ -6217,7 +6217,18 @@ export const useGameStore = create<GameStore>()(
           if (done) return state
           const squad = state.worldSquad?.year === year ? state.worldSquad.playerIds : undefined
           const result = runWorldAthleticsYear(state.players, year, squad)
-          return { worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])] }
+          // 本番なら代表出場記録を積む（個人種目の出場者＋駅伝の走者）。パッチ・代表履歴の元。
+          const reps = [...(state.worldRepresentatives ?? [])]
+          if (result.kind === 'main') {
+            const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
+            for (const ir of result.meet.individuals) {
+              for (const pl of ir.placings) reps.push({ playerId: pl.playerId, year, nat: pl.nat, label: EV[ir.event] ?? ir.event, rank: pl.rank })
+            }
+            for (const ek of result.meet.ekiden) {
+              for (const rid of ek.runnerIds) reps.push({ playerId: rid, year, nat: ek.nat, label: '駅伝', rank: ek.rank })
+            }
+          }
+          return { worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])], worldRepresentatives: reps }
         })
       },
 

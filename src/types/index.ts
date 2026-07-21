@@ -813,6 +813,8 @@ export type GameState = {
   worldSquad?: { year: number; playerIds: string[] }
   // 世界陸上／予選の年次結果（新しい順に積む）。型はエンジン側で定義。
   worldAthleticsResults?: import('../engine/worldAthletics').WAYearResult[]
+  // 選手ごとの世界陸上 代表出場記録（パッチ・代表履歴の元）。label=種目 or 駅伝。
+  worldRepresentatives?: { playerId: string; year: number; nat: Nationality; label: string; rank?: number }[]
   trainingCards: TrainingCard[]
   raceDroppedCards: TrainingCard[]
   pendingGifts: Gift[]
