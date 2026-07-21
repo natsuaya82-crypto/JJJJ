@@ -346,11 +346,15 @@ export function useNotifCount() {
     .filter(p => !seenJoinIds.includes(`${p.id}-${p.joinedYear}`))
     .length
 
-  // 契約満了の最終年（残り1シーズン）に通知（NotificationsPageと同じ基準）
+  // 個別の契約通知は「残り半年（6ヶ月）を切った選手」だけ（NotificationsPage・チャット要対応と同じ基準）
+  const panelRaceIdx = currentSeason.currentRaceIndex ?? 0
+  const panelTotalRaces = currentSeason.races.length
   const renewalNeeded = players.filter(p => {
     if (p.teamId !== playerTeamId || p.status !== 'active') return false
     const seasonsLeft = p.contract.yearsLeft
+    const months = Math.round((seasonsLeft - 1 + Math.max(0, panelTotalRaces - panelRaceIdx) / Math.max(1, panelTotalRaces)) * 12)
     return seasonsLeft <= 1
+      && months < 6
       && !p.transferListed
       && !contactedIdsC.has(p.id)
       && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)

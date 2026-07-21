@@ -337,11 +337,16 @@ export default function NotificationsPage() {
     .filter(x => !seenJoinIds.includes(x.key))
 
   const raceIndex = currentSeason.currentRaceIndex ?? 0
-  // 契約満了の最終年（残り1シーズン）に通知する。更新交渉のチャットが来るのが最終年のため、
-  // それより早く通知しても動けず邪魔になる（残り2年通知はやめる）。
-  const renewalPlayers = players
+  // 契約残りの月数（ChatPageのcontractMonthsと同じ式）
+  const contractMonthsLeft = (yearsLeft: number, rIdx: number, total: number) =>
+    Math.round((yearsLeft - 1 + Math.max(0, total - rIdx) / Math.max(1, total)) * 12)
+  // 個別通知は「契約残り半年（6ヶ月）を切った選手」だけ。チャットの「要対応」(months<6)と同じ基準に揃える
+  // （早く個別通知を出しても、チャット側にまだ契約の用件が無く交渉に迷うため）。
+  // 最終年だがまだ半年あるうちは、下のまとめ通知1件だけにする。
+  const totalRacesN = currentSeason.races.length
+  const finalYearPlayers = players
     .filter(p => p.teamId === playerTeamId && p.status === 'active')
-    .map(p => ({ p, seasonsLeft: p.contract.yearsLeft }))
+    .map(p => ({ p, seasonsLeft: p.contract.yearsLeft, months: contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRacesN) }))
     .filter(({ p, seasonsLeft }) =>
       seasonsLeft <= 1
       // 退団予定（移籍リスト入り）や確認済みの選手はリマインダーに出さない
@@ -349,7 +354,8 @@ export default function NotificationsPage() {
       && !contactedPlayerIds.has(p.id)
       // すでに更新交渉が始まっている選手は除外（更新カード側に用件が移るため）
       && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
-    .sort((a, b) => a.seasonsLeft - b.seasonsLeft)
+  const renewalPlayers = finalYearPlayers.filter(x => x.months < 6).sort((a, b) => a.months - b.months)
+  const renewalSummary = finalYearPlayers.filter(x => x.months >= 6)
   const renewalNeeded = renewalPlayers.length
 
   // ロスター超過警告：自チームがロスター上限を超えている場合（旧セーブ救済）。強制解雇はせず整理を促すだけ
@@ -567,11 +573,10 @@ export default function NotificationsPage() {
             <section>
               <SectionHead label="契約満了間近" color={C.orange} count={renewalNeeded}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {renewalPlayers.map(({ p, seasonsLeft }) => {
+                {renewalPlayers.map(({ p, months }) => {
                   const pOvr = ovr(p)
-                  const urgent = seasonsLeft === 1
-                  const accent = urgent ? C.red : C.orange
-                  const shadow = urgent ? '#660e10' : '#5a2800'
+                  const accent = C.red
+                  const shadow = '#660e10'
                   return (
                     <div key={p.id} style={cardStyle(alpha(accent, 0.45), shadow)}>
                       <div style={inset}/>
@@ -583,15 +588,36 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳</div>
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>残り{Math.max(0, seasonsLeft)}シーズン</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: urgent ? C.red : C.textDim }}>{urgent ? '今季で満了・早急に更新を' : '来季で満了・早めの更新を'}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>残り{Math.max(0, months)}ヶ月</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.red }}>今季で満了・早急に更新を</div>
                           </div>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${urgent ? '#FF6B6B' : '#FFA726'})`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, #FF6B6B)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
                       </div>
                     </div>
                   )
                 })}
+              </div>
+            </section>
+          )}
+
+          {/* 契約が今季までの選手（まだ半年以上ある）＝1件のまとめ通知だけ。半年を切ると上の個別通知に昇格する */}
+          {renewalSummary.length > 0 && (
+            <section>
+              <SectionHead label="契約更新の予定" color={C.orange} count={renewalSummary.length}/>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.orange, 0.35), '#5a2800')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                      契約が今季までの選手が{renewalSummary.length}人います
+                    </div>
+                    <div style={{ fontSize: '11px', color: C.textSub, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {renewalSummary.map(x => x.p.name).join('・')}
+                    </div>
+                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.orange}, #FFA726)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットで交渉する</Btn>
+                  </div>
+                </div>
               </div>
             </section>
           )}
