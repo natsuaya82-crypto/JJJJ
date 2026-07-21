@@ -302,24 +302,8 @@ export default function App() {
   useEffect(() => { if (isInitialized) grantUpdateGifts() }, [isInitialized])
   // 既存セーブ移行：現シーズンに新しい記録会7回を注入（冪等。リセット不要で反映）
   useEffect(() => { if (isInitialized) ensureIndividualEvents() }, [isInitialized])
-  // 既存セーブ救済：リーグ再編年にECLが生成されずスキップされたセーブへ後から補充（冪等）。
-  // シーズン終了後に補充された場合、自チームが出場していなければ自動で全戦消化する
-  // （終わったシーズンの大会を今さら手動で5回スキップさせない。結果は記録室に残る）
-  useEffect(() => {
-    if (!isInitialized) return
-    ensureEclSeries()
-    const st = useGameStore.getState()
-    const cs = st.currentSeason
-    const seasonDone = cs.currentRaceIndex >= cs.races.length && cs.races.length > 0
-    if (!seasonDone) return
-    if (!cs.eclSeries || cs.eclSeries.participants.some(pt => pt.isPlayerTeam)) return
-    let guard = 0
-    while (guard++ < 10) {
-      const s = useGameStore.getState().currentSeason.eclSeries
-      if (!s || s.raceIndex >= s.races.length) break
-      st.advanceEclRace()
-    }
-  }, [isInitialized, ensureEclSeries])
+  // 既存セーブ救済：リーグ再編年にECLが生成されずスキップされたセーブへ後から補充（冪等）
+  useEffect(() => { if (isInitialized) ensureEclSeries() }, [isInitialized])
   // 公式Xフォロー案内を初回起動時に一度だけ表示（タイトルを抜けてホームに入ったタイミング）
   useEffect(() => { if (titleShown && isInitialized && !twitterIntroSeen) setShowTwitter(true) }, [titleShown, isInitialized, twitterIntroSeen])
   // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
