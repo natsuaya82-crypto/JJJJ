@@ -92,7 +92,10 @@ function buildMessages(
 
   if (!contractReq) {
     if (months < 12) {
-      msgs.push({ from: 'player', text: `来シーズンの契約についてなのですが、まだ何も連絡がなくて。残り${months}ヶ月が気になっています。` })
+      // 満了済み（yearsLeft=0）だと months が負になる。「残り-1ヶ月」と出るバグの修正
+      msgs.push({ from: 'player', text: months <= 0
+        ? `契約が切れたままになっています。今後どうなるのか気になっています。`
+        : `来シーズンの契約についてなのですが、まだ何も連絡がなくて。残り${months}ヶ月が気になっています。` })
     }
     return msgs
   }
