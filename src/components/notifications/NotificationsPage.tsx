@@ -354,8 +354,8 @@ export default function NotificationsPage() {
       && !contactedPlayerIds.has(p.id)
       // すでに更新交渉が始まっている選手は除外（更新カード側に用件が移るため）
       && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
+  // 1.0.8と同じ：個別通知は残り6ヶ月未満のみ。それ以外の最終年選手には通知を出さない（まとめ通知もしない）
   const renewalPlayers = finalYearPlayers.filter(x => x.months < 6).sort((a, b) => a.months - b.months)
-  const renewalSummary = finalYearPlayers.filter(x => x.months >= 6)
   const renewalNeeded = renewalPlayers.length
 
   // ロスター超過警告：自チームがロスター上限を超えている場合（旧セーブ救済）。強制解雇はせず整理を促すだけ
@@ -601,26 +601,6 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 契約が今季までの選手（まだ半年以上ある）＝1件のまとめ通知だけ。半年を切ると上の個別通知に昇格する */}
-          {renewalSummary.length > 0 && (
-            <section>
-              <SectionHead label="契約更新の予定" color={C.orange} count={renewalSummary.length}/>
-              <div style={{ padding: '0 16px' }}>
-                <div style={cardStyle(alpha(C.orange, 0.35), '#5a2800')}>
-                  <div style={inset}/>
-                  <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: C.text, marginBottom: 4 }}>
-                      契約が今季までの選手が{renewalSummary.length}人います
-                    </div>
-                    <div style={{ fontSize: '11px', color: C.textSub, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {renewalSummary.map(x => x.p.name).join('・')}
-                    </div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.orange}, #FFA726)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットで交渉する</Btn>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
 
           {/* 負傷者情報（負傷名・全治・復帰までのレース数） */}
           {injuredPlayers.length > 0 && (
