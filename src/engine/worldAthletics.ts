@@ -105,3 +105,78 @@ export function individualStarIds(players: Player[], nat: Nationality, currentYe
   }
   return ids
 }
+
+// ───────────────────────────────────────────────────────────────
+// ミート（本番）シミュレーション：個人種目＋駅伝を実選手・持ちタイムで走らせ、
+// メダル・得点・国別総合を出す。得点＝金5/銀3/銅2/入賞(8位以内)1。
+// ───────────────────────────────────────────────────────────────
+export const MEDAL_POINTS = { gold: 5, silver: 3, bronze: 2, finalist: 1 }
+
+// 乱数（0..1）。Date/Math.randomはワークフローで禁止だが本番はアプリ実行時なので Math.random でOK。
+const rnd = () => Math.random()
+// レース当日のタイム：持ちタイムに-0.5%〜+3.5%の当日ブレ（PB更新は稀）
+const raceTime = (pb: number) => pb * (1 + (rnd() * 0.04 - 0.005))
+
+export type EventPlacing = { nat: Nationality; playerId: string; playerName: string; timeSec: number; rank: number }
+export type WAIndividualResult = { event: WAEvent; placings: EventPlacing[] }
+export type WAEkidenPlacing = { nat: Nationality; timeScore: number; rank: number; runnerIds: string[] }
+export type WANationTotal = { nat: Nationality; points: number; golds: number; silvers: number; bronzes: number; rank: number }
+export type WAMeetResult = {
+  year: number
+  individuals: WAIndividualResult[]
+  ekiden: WAEkidenPlacing[]
+  totals: WANationTotal[]
+}
+
+// 個人種目：参加標準を突破した各国の選手を集め、当日タイムで順位。
+function runIndividual(players: Player[], nats: Nationality[], ev: WAEvent, year: number): WAIndividualResult {
+  const entries: { nat: Nationality; p: Player; t: number }[] = []
+  for (const nat of nats) {
+    for (const e of individualEntrants(players, nat, ev, year)) {
+      entries.push({ nat, p: e.player, t: raceTime(e.timeSec) })
+    }
+  }
+  entries.sort((a, b) => a.t - b.t)
+  const placings: EventPlacing[] = entries.map((e, i) => ({ nat: e.nat, playerId: e.p.id, playerName: e.p.name, timeSec: e.t, rank: i + 1 }))
+  return { event: ev, placings }
+}
+
+// 駅伝：各国の駅伝代表（AI選抜20）から上位7人の総合力で国別タイムスコア。個人種目スターは除外。
+function runEkiden(players: Player[], nats: Nationality[], year: number): WAEkidenPlacing[] {
+  const rows: WAEkidenPlacing[] = []
+  for (const nat of nats) {
+    const cands = ekidenCandidates(players, nat, year)
+    const stars = individualStarIds(players, nat, year)
+    const squad = autoSelectEkiden(cands, stars, 20)
+    const legs = squad.slice(0, 7)
+    // 7人の距離スコア合計に当日ブレ。高いほど速い→順位は降順。
+    const score = legs.reduce((s, p) => s + distanceScore(p, year) * (1 + (rnd() * 0.08 - 0.04)), 0)
+    rows.push({ nat, timeScore: score, rank: 0, runnerIds: legs.map(p => p.id) })
+  }
+  rows.sort((a, b) => b.timeScore - a.timeScore)
+  rows.forEach((r, i) => { r.rank = i + 1 })
+  return rows
+}
+
+// メダル・入賞から得点を積む
+function addPoints(totals: Map<Nationality, WANationTotal>, nat: Nationality, rank: number) {
+  const cur = totals.get(nat) ?? { nat, points: 0, golds: 0, silvers: 0, bronzes: 0, rank: 0 }
+  if (rank === 1) { cur.points += MEDAL_POINTS.gold; cur.golds += 1 }
+  else if (rank === 2) { cur.points += MEDAL_POINTS.silver; cur.silvers += 1 }
+  else if (rank === 3) { cur.points += MEDAL_POINTS.bronze; cur.bronzes += 1 }
+  else if (rank <= 8) { cur.points += MEDAL_POINTS.finalist }
+  totals.set(nat, cur)
+}
+
+// 本番ミート全体（20カ国）
+export function simulateWorldMeet(players: Player[], nats: Nationality[], year: number): WAMeetResult {
+  const individuals = WA_EVENTS.map(ev => runIndividual(players, nats, ev, year))
+  const ekiden = runEkiden(players, nats, year)
+  const totals = new Map<Nationality, WANationTotal>()
+  for (const nat of nats) totals.set(nat, { nat, points: 0, golds: 0, silvers: 0, bronzes: 0, rank: 0 })
+  for (const ir of individuals) for (const pl of ir.placings) addPoints(totals, pl.nat, pl.rank)
+  for (const ek of ekiden) addPoints(totals, ek.nat, ek.rank)
+  const totalsArr = [...totals.values()].sort((a, b) => b.points - a.points || b.golds - a.golds || b.silvers - a.silvers)
+  totalsArr.forEach((t, i) => { t.rank = i + 1 })
+  return { year, individuals, ekiden, totals: totalsArr }
+}
