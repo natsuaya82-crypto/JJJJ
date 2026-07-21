@@ -315,7 +315,8 @@ export default function Dashboard() {
   // 偶数年=本番 / 奇数年=アジア＋オセアニア予選。実行済み(waDone)になって初めてシーズン終了カードが出る
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
   const worldSquad = useGameStore(s => s.worldSquad)
-  const runWorldAthletics = useGameStore(s => s.runWorldAthletics)
+  const worldTournament = useGameStore(s => s.worldTournament)
+  const startWorldTournament = useGameStore(s => s.startWorldTournament)
   const waDone = (worldAthleticsResults ?? []).some(r => r.year === currentSeason.year)
   const waIsMain = (currentSeason.year - 2028) % 2 === 0
   const waTitle = waIsMain ? `世界陸上 ${currentSeason.year}` : `アジア＋オセアニア予選 ${currentSeason.year}`
@@ -326,7 +327,8 @@ export default function Dashboard() {
     || hostForYear(currentSeason.year) === 'JPN'
     || !waPrevQual || waPrevQual.kind !== 'qualifier'
     || waPrevQual.advanced.includes('JPN')
-  const goWorldAthletics = () => { runWorldAthletics(); navigate('/national/result') }
+  const waInProgress = worldTournament?.year === currentSeason.year && !worldTournament.finished
+  const goWorldAthletics = () => { startWorldTournament(); navigate('/national/tournament') }
 
   // ECL（シーズン中の5戦シリーズ）：NEXTカードは常に1枚だけ。日付が最も早いイベントだけを出す
   const eclS = currentSeason.eclSeries
@@ -474,12 +476,18 @@ export default function Dashboard() {
               </div>
             </div>
             <div style={{ padding: '14px 18px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {!waJapanIn ? (
+              {waInProgress ? (
+                <button onClick={() => navigate('/national/tournament')} className="btn-press" style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                  background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
+                  border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 14, fontWeight: 900,
+                }}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</button>
+              ) : !waJapanIn ? (
                 <button onClick={goWorldAthletics} className="btn-press" style={{
                   width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
                   background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
                   border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 14, fontWeight: 900,
-                }}>大会結果を見る（観戦）</button>
+                }}>大会を観戦する</button>
               ) : (<>
               <button onClick={() => navigate('/national/select')} className="btn-press" style={{
                 width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',

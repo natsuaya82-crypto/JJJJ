@@ -4,7 +4,7 @@ import { simulateRace, assignLineupByTerrain } from './raceEngine'
 // ECL出場チーム（日本チーム or 海外クラブ）。playerIds から各区間へ地形適性に応じて割り当てて走らせる。
 export type EclParticipant = Omit<EclStanding, 'points'> & { playerIds: string[] }
 
-function lineupFor(playerIds: string[], players: Player[], race: Race): Record<number, string> {
+export function lineupFor(playerIds: string[], players: Player[], race: Race): Record<number, string> {
   // 出場不可（引退/負傷）だけ除外。status未設定の海外選手も走れるようにする。
   const roster = playerIds
     .map(id => players.find(p => p.id === id))
@@ -16,7 +16,7 @@ function lineupFor(playerIds: string[], players: Player[], race: Race): Record<n
 // 全区間に必ず走者を立てる（空区間を控えで穴埋め）。
 // 1区間でも走者が欠けると「再生では総合タイムが少なく＝1位、結果画面ではバケット方式で最下位」という
 // 順位の食い違いが起きるため、シミュ前に必ず全区間を埋めて incomplete を発生させない。
-function ensureAllSegments(lineup: Record<number, string>, playerIds: string[], players: Player[], race: Race): Record<number, string> {
+export function ensureAllSegments(lineup: Record<number, string>, playerIds: string[], players: Player[], race: Race): Record<number, string> {
   const out: Record<number, string> = { ...lineup }
   const used = new Set(Object.values(out).filter(Boolean))
   const roster = playerIds

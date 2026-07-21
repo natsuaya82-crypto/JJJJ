@@ -241,6 +241,37 @@ function addPoints(totals: Map<Nationality, WANationTotal>, nat: Nationality, ra
   totals.set(nat, cur)
 }
 
+// 個人種目3種（5000/10000/マラソン）の結果だけを出す（駅伝は実レースで別途走らせる）
+export function simulateIndividuals(players: Player[], nats: Nationality[], year: number): WAIndividualResult[] {
+  return WA_EVENTS.map(ev => runIndividual(players, nats, ev, year))
+}
+
+// 駅伝3戦の合計ポイントから予選の最終結果を組む（上位 advance カ国が通過）
+export function composeQualifierResult(year: number, rows: { nat: Nationality; points: number }[], advance = 3): WAQualifierResult {
+  const sorted = [...rows].sort((a, b) => b.points - a.points)
+  const standings: QualStanding[] = sorted.map((r, i) => ({ nat: r.nat, strength: r.points, rank: i + 1, advanced: i < advance }))
+  return { year, kind: 'qualifier', region: 'アジア＋オセアニア', standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
+}
+
+// 個人種目の結果＋駅伝3戦の合計ポイントから本番の最終結果（メダル・総合）を組む
+export function composeMainResult(
+  year: number, host: Nationality, nations: Nationality[],
+  individuals: WAIndividualResult[],
+  ekidenRows: { nat: Nationality; points: number; runnerIds: string[] }[],
+): WAMainResult {
+  const sorted = [...ekidenRows].sort((a, b) => b.points - a.points)
+  const ekiden: WAEkidenPlacing[] = sorted.map((r, i) => ({ nat: r.nat, timeScore: r.points, rank: i + 1, runnerIds: r.runnerIds }))
+  const totals = new Map<Nationality, WANationTotal>()
+  for (const nat of nations) totals.set(nat, { nat, points: 0, golds: 0, silvers: 0, bronzes: 0, rank: 0 })
+  for (const ir of individuals) for (const pl of ir.placings) addPoints(totals, pl.nat, pl.rank)
+  for (const ek of ekiden) addPoints(totals, ek.nat, ek.rank)
+  const totalsArr = [...totals.values()].sort((a, b) => b.points - a.points || b.golds - a.golds || b.silvers - a.silvers)
+  totalsArr.forEach((t, i) => { t.rank = i + 1 })
+  const meet: WAMeetResult = { year, individuals, ekiden, totals: totalsArr }
+  const japanRank = nations.includes('JPN') ? (totalsArr.find(t => t.nat === 'JPN')?.rank ?? null) : null
+  return { year, kind: 'main', host, nations, meet, japanRank }
+}
+
 // 本番ミート全体（20カ国）。manual に国別の駅伝20人IDを渡すとその国はそれで走る（日本＝監督選抜）。
 export function simulateWorldMeet(players: Player[], nats: Nationality[], year: number, manual?: Partial<Record<Nationality, string[]>>): WAMeetResult {
   const individuals = WA_EVENTS.map(ev => runIndividual(players, nats, ev, year))

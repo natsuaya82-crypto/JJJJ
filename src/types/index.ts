@@ -490,6 +490,30 @@ export type EclHistoryEntry = {
   mvpPlayerId?: string   // ECL MVP（パッチ付与用）
 }
 
+// 世界陸上トーナメント（予選＝アジア＋オセアニア約20カ国／本番＝20カ国）。駅伝3戦は simulateRace の実レース。
+export type WorldTournamentParticipant = {
+  id: string                 // `nat_JPN` 形式
+  nat: Nationality
+  name: string
+  shortName: string
+  colors: { primary: string; secondary: string }
+  isPlayerTeam: boolean      // 日本＝プレイヤーが采配
+}
+export type WorldTournament = {
+  year: number
+  kind: 'qualifier' | 'main'
+  host?: Nationality
+  participants: WorldTournamentParticipant[]
+  squads: Record<string, string[]>   // participantId → 駅伝代表20人
+  races: Race[]                      // 3戦（消化後は results 入り）
+  raceIndex: number
+  points: Record<string, number>     // participantId → 累計ポイント
+  individuals?: import('../engine/worldAthletics').WAIndividualResult[]  // 本番のみ（大会開始時に確定）
+  individualsSeen?: boolean          // 個人種目の結果発表を見たか（本番のみ）
+  japanIn: boolean
+  finished: boolean
+}
+
 export type NationalTeam = {
   coachTeamId: string
   year: number
@@ -813,6 +837,8 @@ export type GameState = {
   worldSquad?: { year: number; playerIds: string[] }
   // 世界陸上／予選の年次結果（新しい順に積む）。型はエンジン側で定義。
   worldAthleticsResults?: import('../engine/worldAthletics').WAYearResult[]
+  // 進行中の世界陸上トーナメント（予選も本番も駅伝3戦を実レースで走る）。年度更新でリセット。
+  worldTournament?: WorldTournament
   // 選手ごとの世界陸上 代表出場記録（パッチ・代表履歴の元）。label=種目 or 駅伝。
   worldRepresentatives?: { playerId: string; year: number; nat: Nationality; label: string; rank?: number }[]
   trainingCards: TrainingCard[]

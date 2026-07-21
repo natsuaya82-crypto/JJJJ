@@ -11,9 +11,10 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear } from '../engine/worldAthletics'
-import { simulateEclEvent } from '../engine/ecl'
+import { runWorldAthleticsYear, hostForYear, qualifyNations, ekidenCandidates, individualStarIds, autoSelectEkiden, nationStrength, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
+import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
+import { natLabel, natGeoRegion } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
@@ -399,6 +400,9 @@ export type GameStore = GameState & {
   confirmSquad: (ids: string[]) => void
   setWorldSquad: (playerIds: string[]) => void
   runWorldAthletics: () => void
+  startWorldTournament: () => void
+  advanceWorldRace: (japanLineup?: Record<number, string>) => void
+  markWorldIndividualsSeen: () => void
   setRacePlayerIds: (raceIdx: number, ids: string[]) => void
   toggleWorldRacePlayer: (raceIdx: number, playerId: string) => void
   autoSelectWorldRace: (raceIdx: number) => void
@@ -5807,6 +5811,7 @@ export const useGameStore = create<GameStore>()(
             players: cleanedPlayers,
             teams: syncedTeams,
             foreignLeagues: cappedForeignLeagues,
+            worldTournament: undefined,  // 世界陸上トーナメントは年度で完結（翌年は新規に開催）
             // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
             transferHistory: [...(state.transferHistory ?? []), ...departureRecords, ...foreignTx.records, ...crossTx.records].slice(-800),
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
@@ -6231,6 +6236,122 @@ export const useGameStore = create<GameStore>()(
           }
           return { worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])], worldRepresentatives: reps }
         })
+      },
+
+      // 世界陸上トーナメント開始：出場国・各国の駅伝代表20・3戦のコースを確定。
+      // 予選＝アジア＋オセアニア（最大20カ国）／本番＝20カ国（前年予選の通過国でアジア＋オセ枠を決定）。
+      // 本番は個人種目の結果もここで確定（発表は画面側で段階表示）。
+      startWorldTournament: () => {
+        set(state => {
+          const year = state.currentSeason.year
+          if ((state.worldAthleticsResults ?? []).some(r => r.year === year)) return state
+          if (state.worldTournament && state.worldTournament.year === year && !state.worldTournament.finished) return state
+          const isMain = (year - 2028) % 2 === 0
+          const host = isMain ? hostForYear(year) : undefined
+          let nations: import('../types').Nationality[]
+          if (isMain) {
+            const prevQual = (state.worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === year - 1)
+            nations = qualifyNations(state.players, year, host!, prevQual?.kind === 'qualifier' ? prevQual.advanced : undefined)
+          } else {
+            nations = ([...new Set(state.players.filter(p => p.status !== 'retired').map(p => p.nationality))] as import('../types').Nationality[])
+              .filter(n => (natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア') && nationStrength(state.players, n, year) > 0)
+              .sort((a, b) => nationStrength(state.players, b, year) - nationStrength(state.players, a, year))
+              .slice(0, 20)
+          }
+          const japanIn = nations.includes('JPN')
+          const squads: Record<string, string[]> = {}
+          for (const nat of nations) {
+            if (nat === 'JPN' && state.worldSquad?.year === year && state.worldSquad.playerIds.length > 0) {
+              squads[`nat_${nat}`] = state.worldSquad.playerIds
+              continue
+            }
+            const cands = ekidenCandidates(state.players, nat, year)
+            const stars = isMain ? individualStarIds(state.players, nat, year) : new Set<string>()
+            squads[`nat_${nat}`] = autoSelectEkiden(cands, stars, 20).map(p => p.id)
+          }
+          // 国旗色はその国の先頭クラブのカラーを流用（日本は金）
+          const clubColor = (nat: string) => {
+            if (nat === 'JPN') return { primary: '#C9A84C', secondary: '#14121F' }
+            for (const l of state.foreignLeagues ?? []) { const c = l.clubs.find(c => c.country === nat); if (c) return c.colors }
+            return { primary: '#4B5563', secondary: '#FFFFFF' }
+          }
+          const participants = nations.map(nat => ({
+            id: `nat_${nat}`, nat, name: natLabel(nat), shortName: natLabel(nat).slice(0, 5),
+            colors: clubColor(nat), isPlayerTeam: nat === 'JPN' && japanIn,
+          }))
+          const plans = generateWECRacePlan()
+          const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
+          const races: import('../types').Race[] = plans.map((plan, i) => ({
+            id: `wa-${year}-r${i + 1}`,
+            name: `${isMain ? '世界陸上' : 'アジア＋オセアニア予選'} 駅伝 第${i + 1}戦`,
+            date: `${year}-12-1${i}`,
+            location: '',
+            type: 'league' as const,
+            segments: plan.segments.map((s, j) => ({ index: j + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct })),
+            conditions: { temperature: 12, weather: WEATHERS[Math.floor(Math.random() * WEATHERS.length)], elevation: 0 },
+            participants: nations.map(n => `nat_${n}`),
+          }))
+          const individuals = isMain ? simulateIndividuals(state.players, nations, year) : undefined
+          return {
+            worldTournament: {
+              year, kind: isMain ? 'main' as const : 'qualifier' as const, host,
+              participants, squads, races, raceIndex: 0, points: {},
+              individuals, individualsSeen: !isMain, japanIn, finished: false,
+            },
+          }
+        })
+      },
+
+      // 駅伝1戦を実レースで走らせる（日本は手動配置可）。3戦目で最終結果を確定して記録へ積む
+      advanceWorldRace: (japanLineup?: Record<number, string>) => {
+        set(state => {
+          const t = state.worldTournament
+          if (!t || t.finished || t.raceIndex >= t.races.length) return state
+          const race = t.races[t.raceIndex]
+          const lineups: Record<string, Record<number, string>> = {}
+          for (const pt of t.participants) {
+            const ids = t.squads[pt.id] ?? []
+            const base = (pt.isPlayerTeam && japanLineup && Object.keys(japanLineup).length > 0)
+              ? japanLineup
+              : terrainLineupFor(ids, state.players, race)
+            lineups[pt.id] = fillAllSegments(base, ids, state.players, race)
+          }
+          const results = simulateRace(race, lineups, [], state.players, 0.7)
+          const newRaces = t.races.map((r, i) => i === t.raceIndex ? { ...r, results } : r)
+          const points = { ...t.points }
+          for (const tr of results.teamRankings) points[tr.teamId] = (points[tr.teamId] ?? 0) + tr.positionPoints + tr.segmentPoints
+          const nextIdx = t.raceIndex + 1
+          const finished = nextIdx >= t.races.length
+          if (!finished) {
+            return { worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, finished } }
+          }
+          // 最終戦消化 → 3戦合計ポイントで最終結果を確定
+          const runnersOf = (pid: string) => {
+            const set = new Set<string>()
+            for (const r of newRaces) for (const sr of r.results?.segmentResults ?? []) for (const run of sr.runners) if (run.teamId === pid) set.add(run.playerId)
+            return [...set]
+          }
+          const rows = t.participants.map(pt => ({ nat: pt.nat, points: points[pt.id] ?? 0, runnerIds: runnersOf(pt.id) }))
+          const result = t.kind === 'qualifier'
+            ? composeQualifierResult(t.year, rows)
+            : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows)
+          // 本番なら代表出場記録（パッチ・代表履歴の元）
+          const reps = [...(state.worldRepresentatives ?? [])]
+          if (result.kind === 'main') {
+            const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
+            for (const ir of result.meet.individuals) for (const pl of ir.placings) reps.push({ playerId: pl.playerId, year: t.year, nat: pl.nat, label: EV[ir.event] ?? ir.event, rank: pl.rank })
+            for (const ek of result.meet.ekiden) for (const rid of ek.runnerIds) reps.push({ playerId: rid, year: t.year, nat: ek.nat, label: '駅伝', rank: ek.rank })
+          }
+          return {
+            worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, finished: true },
+            worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])],
+            worldRepresentatives: reps,
+          }
+        })
+      },
+
+      markWorldIndividualsSeen: () => {
+        set(state => state.worldTournament ? { worldTournament: { ...state.worldTournament, individualsSeen: true } } : state)
       },
 
       setRacePlayerIds: (raceIdx: number, ids: string[]) => {
