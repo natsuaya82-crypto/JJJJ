@@ -19,7 +19,8 @@ type RaceRef = { year: number; race: Race }
 type DistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 
 const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 'アジア予選', wamain: '世界陸上', reserve: 'リザーブ駅伝', tt: '記録会' }
-const CAT_COLOR: Record<Category, string> = { jpel: '#C9A84C', ecl: '#2ECC71', waqual: '#C583FA', wamain: '#A855F7', reserve: '#AB8ED6', tt: '#4FC3F7' }
+// 各大会の確立カラーに合わせる（JPEL=金 / ECL=赤 / アジア予選=ピンク / 世界陸上=紫 / リザーブ=青 / 記録会=緑）
+const CAT_COLOR: Record<Category, string> = { jpel: '#f5c842', ecl: '#ff4757', waqual: '#EC407A', wamain: '#A855F7', reserve: '#7986CB', tt: '#2ecc71' }
 const GOLD = '#FFD700'
 const DIST_LABEL: Record<DistKey, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
 const DIST_KEYS: DistKey[] = ['d5000', 'd10000', 'half', 'marathon']
