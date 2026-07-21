@@ -453,7 +453,11 @@ function ChatView({
 
     const buildRetirementButtons = (): ReplyBtns | null => retirementReq ? [
       { label: '引退を承認する', color: C.textSub, action: () => {
-        append({ from: 'player', text: 'ありがとうございます。長い間お世話になりました。' })
+        // 即引退ではなく「今季限りで引退」。シーズン終了時に正式に引退する
+        append(
+          { from: 'gm', text: 'わかりました。今シーズン限り、ですね。最後まで頼みます。' },
+          { from: 'player', text: 'ありがとうございます。今シーズンを最後に引退します。残りのレース、最後まで走り切ります！' },
+        )
         acceptRetirement(player.id)
         setJustRetired(true)
       }},

@@ -16,6 +16,7 @@ import { computeSeasonAwards } from '../../utils/awards'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
+import { ROSTER_MIN } from '../../data/rosterRules'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -66,7 +67,7 @@ function preseasonCardDist(rank: number) {
 
 function PreseasonHub({
   year, isFirstSeason, campBonus, reserveLeagueJoined, draftState,
-  lastRank, objectivesCount,
+  lastRank, objectivesCount, rosterCount,
   onClaimCards, onReserve, onDraft, onStart, navigate,
 }: {
   year: number
@@ -76,6 +77,7 @@ function PreseasonHub({
   draftState: DraftState
   lastRank: number
   objectivesCount: number
+  rosterCount: number
   onClaimCards: () => void
   onReserve: (v: boolean) => void
   onDraft: () => void
@@ -85,7 +87,9 @@ function PreseasonHub({
   const campDone    = !!campBonus?.applied
   const reserveDone = reserveLeagueJoined !== undefined
   const draftDone   = isFirstSeason || (!!draftState && draftState.isComplete)
-  const allReady    = campDone && (isFirstSeason || reserveDone) && draftDone
+  // ロスターが下限(15人)未満だと開幕できない（契約切れ等で割った場合はドラフト・移籍で補強してから）
+  const rosterShort = rosterCount < ROSTER_MIN
+  const allReady    = campDone && (isFirstSeason || reserveDone) && draftDone && !rosterShort
 
   return (
     <div style={{ padding: '14px 12px 0' }}>
@@ -235,7 +239,12 @@ function PreseasonHub({
         <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1,
           background: allReady ? `linear-gradient(90deg, ${alpha(C.gold, 0.1)}, transparent)` : 'transparent',
         }}>
-          {!allReady && (
+          {rosterShort && (
+            <div style={{ fontSize: 11, color: C.red, marginBottom: 10, textAlign: 'center', fontWeight: 700 }}>
+              ロスターが下限（{ROSTER_MIN}人）未満のため開幕できません（現在{rosterCount}人）。<br/>ドラフト・移籍で人数を確保してください。
+            </div>
+          )}
+          {!allReady && !rosterShort && (
             <div style={{ fontSize: 11, color: C.textDim, marginBottom: 10, textAlign: 'center' }}>
               上記の準備を済ませると開幕できます。スキップも可能です。
             </div>
@@ -243,6 +252,15 @@ function PreseasonHub({
           {allReady ? (
             <button className="btn-game btn-game--gold" onClick={() => { onStart(); navigate('/schedule') }} style={{ width: '100%' }}>
               <span className="btn-game__inner">{year}シーズン 開幕！</span>
+            </button>
+          ) : rosterShort ? (
+            <button disabled style={{
+              width: '100%', padding: 15, borderRadius: 13,
+              background: C.surface, color: C.textGhost,
+              fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
+              border: `1px solid ${C.border2}`, cursor: 'default',
+            }}>
+              {year}シーズン 開幕（補強が必要）
             </button>
           ) : (
             <button onClick={() => { onStart(); navigate('/schedule') }} style={{
@@ -435,6 +453,7 @@ export default function Dashboard() {
           draftState={draftState}
           lastRank={lastRank}
           objectivesCount={currentSeason.objectives.length}
+          rosterCount={players.filter(p => p.teamId === playerTeamId && p.status !== 'retired').length}
           onClaimCards={claimPreseasonCards}
           onReserve={setReserveLeagueJoined}
           onDraft={beginSeasonDraft}

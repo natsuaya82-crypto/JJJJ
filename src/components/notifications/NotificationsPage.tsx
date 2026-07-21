@@ -690,7 +690,8 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳 · 通算{p.career.totalRaces}レース</div>
                           </div>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #42A5F5)`, color: C.bg }} onClick={() => openPlayerSheet(req.playerId)}>選手ページで対応する</Btn>
+                        {/* 引退の承認/引き留めはチャットで行う（選手ページには承認ボタンが無い） */}
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #42A5F5)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${req.playerId}`)}>チャットで対応する</Btn>
                       </div>
                     </div>
                   )

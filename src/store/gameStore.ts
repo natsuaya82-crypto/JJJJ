@@ -2511,31 +2511,10 @@ export const useGameStore = create<GameStore>()(
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 20000000) } } : t)
             } else {
-              // Accept retirement — mark player as retired（評判は変えない：目標達成に一本化）
-              const retPlayer = players.find(p => p.id === pid)
-              if (retPlayer) {
-                const isLegend = retPlayer.career.segmentWins >= 5 || retPlayer.career.championships >= 1 || retPlayer.yearsPro >= 4
-                players = players.map(p => p.id === pid ? { ...p, status: 'retired' as const, teamId: '', retiredYear: state.currentSeason.year } : p)
-                players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
-                if (isLegend) {
-                  teams = teams.map(t => {
-                    if (t.id !== state.playerTeamId) return t
-                    const legend = {
-                      name: retPlayer.name,
-                      specialty: retPlayer.specialty,
-                      retiredAge: retPlayer.age,
-                      retiredYear: state.currentSeason.year,
-                      peakOvr: Math.max(ovr(retPlayer), ...(retPlayer.ovrHistory?.map(h => h.ovr) ?? [])),
-                      yearsInTeam: retPlayer.yearsPro,
-                      career: { segmentWins: retPlayer.career.segmentWins, championships: retPlayer.career.championships, mvpAwards: retPlayer.career.mvpAwards },
-                    }
-                    // 2軍・2way選手の引退でもゴーストIDが残らないよう両方の名簿から除去
-                    return { ...t, roster: { main: t.roster.main.filter(id => id !== pid), second: t.roster.second.filter(id => id !== pid) }, history: { ...t.history, legends: [...(t.history.legends ?? []), legend] } }
-                  })
-                } else {
-                  teams = teams.map(t => t.id === state.playerTeamId ? { ...t, roster: { main: t.roster.main.filter(id => id !== pid), second: t.roster.second.filter(id => id !== pid) } } : t)
-                }
-              }
+              // Accept retirement — 即引退はせず「今季限りで引退」フラグを立てる。
+              // 実際の引退処理（ロスター除外・レジェンド登録）はendSeasonで行う
+              players = players.map(p => p.id === pid ? { ...p, pendingRetirementYear: state.currentSeason.year } : p)
+              players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
             }
           } else if (event.type === 'budget_boost') {
             if (choiceIndex === 0) {
@@ -2832,7 +2811,7 @@ export const useGameStore = create<GameStore>()(
           const retPlayers = state.players.filter(p => p.teamId === state.playerTeamId && p.age >= 35)
           const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
           // 今季すでに引き留めた選手は再抽選しない
-          const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && Math.random() < 0.4).map(p => ({ playerId: p.id, age: p.age }))
+          const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && Math.random() < 0.4).map(p => ({ playerId: p.id, age: p.age }))
           // 移籍希望はチャットを開くたびではなくレース進行時に生成する（runRace内 generateTransferWishes）。ここでは扱わない。
           if (newReqs.length === 0 && newRet.length === 0) return state
           return {
@@ -3205,6 +3184,11 @@ export const useGameStore = create<GameStore>()(
           if (!player || player.teamId !== state.playerTeamId || (player.loan && player.loan.ownerTeamId !== state.playerTeamId)) {
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
+          // ロスター下限(15人)を割る売却は不可（acceptIncomingOfferと同じガード）
+          if (!canReleaseFromRoster(state.players, state.playerTeamId)) {
+            outcome = 'refused'
+            return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
+          }
           // 海外クラブ：上限は「提示額の1.3倍」か「市場価値の1.15倍」の高い方まで。合意なら海外へ放出
           if (offer.fromForeign) {
             if (player && counterPrice <= Math.max(offer.offeredPrice * 1.3, calcTransferValue(player) * 1.15)) {
@@ -3257,23 +3241,11 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const player = state.players.find(p => p.id === playerId)
           if (!player || player.status === 'retired') return state
-          const isLegend = player.career.segmentWins >= 5 || player.career.championships >= 1 || player.yearsPro >= 4
-          const newTeams = state.teams.map(t => {
-            if (t.id !== state.playerTeamId) return t
-            const base = { ...t, roster: { main: t.roster.main.filter(id => id !== playerId), second: t.roster.second.filter(id => id !== playerId) } }
-            if (!isLegend) return base
-            const legend = {
-              name: player.name, specialty: player.specialty, retiredAge: player.age,
-              retiredYear: state.currentSeason.year,
-              peakOvr: Math.max(ovr(player), ...(player.ovrHistory?.map(h => h.ovr) ?? [])),
-              yearsInTeam: player.yearsPro,
-              career: { segmentWins: player.career.segmentWins, championships: player.career.championships, mvpAwards: player.career.mvpAwards },
-            }
-            return { ...base, history: { ...base.history, legends: [...(base.history.legends ?? []), legend] } }
-          })
+          // 承認しても即引退はしない。「今季限りで引退」の予約フラグだけ立てて、
+          // 実際の引退（ロスター除外・レジェンド登録）は endSeason で行う。
+          // シーズン途中で選手が消える味気なさ＆戦力急落を防ぐ
           return {
-            players: state.players.map(p => p.id === playerId ? { ...p, status: 'retired' as const, teamId: '', retiredYear: state.currentSeason.year } : p),
-            teams: newTeams,
+            players: state.players.map(p => p.id === playerId ? { ...p, pendingRetirementYear: state.currentSeason.year } : p),
             currentSeason: { ...state.currentSeason, retirementRequests: (state.currentSeason.retirementRequests ?? []).filter(r => r.playerId !== playerId) }
           }
         })
@@ -4479,6 +4451,9 @@ export const useGameStore = create<GameStore>()(
       }),
 
       startRegularSeason: () => set(state => {
+        // ロスター下限ガード：15人未満では開幕できない（UI側でもブロックするが、最終防衛線としてここでも弾く）
+        const myCount = state.players.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
+        if (myCount < 15) return state
         // プレシーズンのドラフト（今季スカウトした代）が終わったので、
         // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。
         // これで endSeason 側で引き継いだ視察済みプールがドラフトに使われ、シーズン中の視察は常に新しい代になる。
@@ -5144,6 +5119,8 @@ export const useGameStore = create<GameStore>()(
               .filter(p => p.age >= retirementAge(p))
               .map(p => p.id)
           )
+          // 引退承認済み（今季限りで引退フラグ）はここで確実に引退させる（承認時は即引退しない仕様）
+          for (const p of grownPlayers) if (p.pendingRetirementYear != null && p.status === 'active') retiringIds.add(p.id)
 
           // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）。
           // ただし旧セーブの大再編が保留中なら、この年度更新で新9リーグへ丸ごと置換し旧海外選手は退場させる。

@@ -259,6 +259,7 @@ export type Player = {
   renewalLockedUntilYear?: number  // 更新交渉を最終拒否 → この年まで自チームは更新オファー不可
   transferLockedUntilYear?: number // 移籍交渉が決裂 → この年まで自チームは移籍金オファー不可
   retirementDeclinedYear?: number  // 引退を引き留めた年。その年は引退希望を再抽選しない
+  pendingRetirementYear?: number   // 引退を承認した年。今季限りで引退（実際の引退処理は endSeason で行う）
   transferRequestDismissedYear?: number  // 移籍希望に「残ってほしい」で対応した年。その年は再抽選しない
   faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
   retiredYear?: number        // 引退したシーズン年（選手詳細の「XXXX年引退」表示用。旧セーブは未設定）
