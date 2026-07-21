@@ -63,7 +63,7 @@ const ALL_STATS: [string, keyof import('../../types').Player['ratings']][] = [
 export function LineupPhase({
   race, raceNumber, totalRaces, mainPlayers, raceLineup, allSegsFilled,
   pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart, onSkipRace,
-  onBack, lastLineup, unavailable, btnClass,
+  onBack, lastLineup, unavailable, btnClass, hideRosterLimits,
 }: {
   race: Race
   raceNumber: number
@@ -87,6 +87,7 @@ export function LineupPhase({
   lastLineup?: Record<number, string>
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
   btnClass?: string   // スタートボタンの色クラス差し替え（ECL＝btn-game--red）
+  hideRosterLimits?: boolean  // アジア/外国人枠の表示を消す（世界陸上＝代表戦ではクラブの枠ルールが無関係）
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -318,8 +319,8 @@ export function LineupPhase({
           <span style={{ fontSize: '10px', color: C.textDim }}>
             配置 <span style={{ color: filledCount === race.segments.length ? C.green : C.gold, fontWeight: '700', fontFamily: SAIRA }}>{filledCount}/{race.segments.length}</span>
           </span>
-          <span style={{ fontSize: '9px', color: lineupAsianCount > 5 ? C.red : C.textDim }}>アジア {lineupAsianCount}/5</span>
-          <span style={{ fontSize: '9px', color: lineupForeignCount > 3 ? C.red : C.textDim }}>外国 {lineupForeignCount}/3</span>
+          {!hideRosterLimits && <span style={{ fontSize: '9px', color: lineupAsianCount > 5 ? C.red : C.textDim }}>アジア {lineupAsianCount}/5</span>}
+          {!hideRosterLimits && <span style={{ fontSize: '9px', color: lineupForeignCount > 3 ? C.red : C.textDim }}>外国 {lineupForeignCount}/3</span>}
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {assignedPlayers.length >= 3 && dominantNat && chemBonus > 0 && (

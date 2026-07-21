@@ -69,6 +69,7 @@ export default function WorldTournamentPage() {
       .map(({ pt, points }) => ({
         id: pt.id, name: pt.name, shortName: pt.shortName,
         primary: pt.colors.primary, secondary: pt.colors.secondary, teamId: pt.id,
+        flagCode: pt.nat,
         points,
         recentForm: t.races.filter(r => r.results).map(r => r.results!.teamRankings.find(tr => tr.teamId === pt.id)?.rank ?? 99),
         isMe: pt.isPlayerTeam,
@@ -200,6 +201,7 @@ export default function WorldTournamentPage() {
         setTeamTalk={() => {}}
         unavailable={unavailableMap}
         btnClass="btn-game--gold"
+        hideRosterLimits
       />
     )
   }

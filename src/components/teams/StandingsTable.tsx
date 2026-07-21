@@ -1,5 +1,7 @@
 import { TeamLogoSVG } from '../icons/Icons'
+import Flag from '../ui/Flag'
 import { C, alpha } from '../../styles/tokens'
+import type { Nationality } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -13,6 +15,7 @@ export type StandRow = {
   points: number
   recentForm: number[]   // 直近レースの順位（新しいほど末尾）
   isMe?: boolean
+  flagCode?: Nationality // 国別対抗（世界陸上など）ではロゴの代わりに国旗を出す
 }
 
 // 全リーグ共通の順位表（JPELと同じ見た目）。
@@ -47,7 +50,9 @@ export default function StandingsTable({ rows, onRowClick }: {
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-              <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} teamId={r.teamId} size={24} />
+              {r.flagCode
+                ? <Flag code={r.flagCode} width={24} radius={3} />
+                : <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} teamId={r.teamId} size={24} />}
               <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: r.isMe ? '800' : '500', color: r.isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.name}{r.isMe && <span style={{ marginLeft: '4px', fontSize: '8px', color: r.primary }}>自</span>}
               </span>

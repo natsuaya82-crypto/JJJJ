@@ -212,8 +212,12 @@ export function nationStrength(players: Player[], nat: Nationality, year: number
 // 本番出場20カ国を決める。hostNat は予選免除で必ず入る（+1枠）。
 // prevAdvanced＝前年のアジア＋オセアニア予選の通過国。ある場合、この地域の枠は予選結果で埋める
 // （予選を通過していない国＝日本含む は本番に出られない）。他地域は簡易処理（距離力順）。
+// 旧仕様の擬似国籍（ヨーロッパ・その他外国）。実在の国ではないので世界陸上には出さない
+export const WA_EXCLUDED_NATS = new Set<Nationality>(['EUR', 'FOREIGN'])
+
 export function qualifyNations(players: Player[], year: number, hostNat: Nationality, prevAdvanced?: Nationality[]): Nationality[] {
-  const allNats = [...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[]
+  const allNats = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
+    .filter(n => !WA_EXCLUDED_NATS.has(n))
   const strengthByNat = new Map<Nationality, number>()
   for (const nat of allNats) strengthByNat.set(nat, nationStrength(players, nat, year))
   const picked: Nationality[] = []
