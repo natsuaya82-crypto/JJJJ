@@ -9,7 +9,6 @@ import { ReserveSimPhase } from '../reserve/ReserveLeaguePage'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import Flag from '../ui/Flag'
 import { WA_EVENT_LABEL } from '../../engine/worldAthletics'
-import { formatRaceTime } from '../../utils/eventTime'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
@@ -20,7 +19,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 type Phase = 'individuals' | 'entry' | 'lineup' | 'simulating' | 'results'
 
 // 世界陸上トーナメント（予選・本番共通）。ECLと同じ構成：エントリー→区間配置→レース再生→結果。
-// 本番は最初に個人種目（5000/10000/マラソン）の結果発表を挟む。
+// 本番は最初に個人種目（5000/10000/マラソン）の出場選手発表を挟む（結果は最終結果ページで）。
 export default function WorldTournamentPage() {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -103,27 +102,34 @@ export default function WorldTournamentPage() {
 
   const title = t.kind === 'main' ? `世界陸上 ${t.year}` : `アジア＋オセアニア予選 ${t.year}`
 
-  // ── 個人種目の結果発表（本番のみ・1種目ずつめくる）──
+  // ── 個人種目の出場選手発表（本番のみ・1種目ずつめくる）──
+  // 駅伝代表が決まった時点での「代表発表」。結果はまだ出さない（最終結果ページで発表）
   if (phase === 'individuals' && t.individuals) {
     const inds = t.individuals
     const shown = inds.slice(0, indStep + 1)
     const last = indStep >= inds.length - 1
+    // 結果順のまま出すとネタバレになるので、日本→国コード→名前順に並べ替えて表示
+    const entrantsOf = (ir: typeof inds[number]) => [...ir.placings].sort((a, b) => {
+      if ((a.nat === 'JPN') !== (b.nat === 'JPN')) return a.nat === 'JPN' ? -1 : 1
+      return a.nat.localeCompare(b.nat) || a.playerName.localeCompare(b.playerName, 'ja')
+    })
     return (
       <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 120 }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton onClick={() => navigate('/')} />
-          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title} 個人種目</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title} 個人種目 代表発表</span>
         </div>
         {shown.map(ir => (
           <div key={ir.event} style={{ margin: '12px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 決勝</div>
+            <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 出場選手</span>
+              <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textDim, marginLeft: 'auto' }}>{ir.placings.length}名</span>
+            </div>
             <div style={{ padding: '8px 12px 12px' }}>
-              {ir.placings.slice(0, 8).map(pl => (
+              {entrantsOf(ir).map(pl => (
                 <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: pl.rank === 1 ? C.gold : pl.rank === 2 ? '#C0C7D0' : pl.rank === 3 ? '#CD7F32' : C.textDim, width: 22, textAlign: 'center' }}>{pl.rank}</span>
                   <Flag code={pl.nat} width={22} />
                   <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
-                  <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold }}>{formatRaceTime(pl.timeSec)}</span>
                 </div>
               ))}
             </div>

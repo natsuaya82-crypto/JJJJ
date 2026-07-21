@@ -7,7 +7,7 @@ import PlayerRow from '../player/PlayerRow'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
-import { distanceScore, individualStarIds } from '../../engine/worldAthletics'
+import { distanceScore } from '../../engine/worldAthletics'
 import type { Nationality, Player } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -31,7 +31,6 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const withTime = natPlayers.filter(p => distanceScore(p, year) > 0).sort((a, b) => distanceScore(b, year) - distanceScore(a, year))
   const noTime = natPlayers.filter(p => distanceScore(p, year) === 0).sort((a, b) => ovr(b) - ovr(a))
   const roster = [...withTime, ...noTime].slice(0, SQUAD_SIZE)
-  const stars = individualStarIds(natPlayers, nat, year)
 
   const clubName = (teamId: string): string => {
     if (!teamId) return '-'
@@ -50,9 +49,6 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const rowExtra = (p: Player) => {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        {stars.has(p.id) && (
-          <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: `${C.purple}22`, border: `1px solid ${C.purple}66`, color: C.purple, fontWeight: 800 }}>選考</span>
-        )}
         <span style={{ fontSize: 9, color: clubName(p.teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700 }}>{clubName(p.teamId)}</span>
       </span>
     )
