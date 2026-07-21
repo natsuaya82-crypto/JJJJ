@@ -437,7 +437,6 @@ export type GameStore = GameState & {
   dismissJoinNotice: (key: string) => void
 
   // Contract renewals
-  decideRenewal: (playerId: string, renew: boolean, years?: number) => void
 
   // Login bonus
   claimLoginBonus: () => { daily: number; weeklyBonus: number; streak: number } | null
@@ -5092,15 +5091,15 @@ export const useGameStore = create<GameStore>()(
           // 契約満了FA化は「国内リーグ所属」だけが対象。海外クラブの選手を含めると
           // クラブ名簿に残ったまま teamId だけ '' になり「未所属」表示のバグになる（海外の名簿は海外リーグ側の更新で管理）
           const domesticIdsFA = new Set(state.teams.map(t => t.id))
+          // 契約満了＝自チームもCPUと同じく自動FA。
+          // シーズン中に半年切り通知・チャット催促・終了カードの契約未解決警告で警告済みで、
+          // 退団は繰越時の退団通知（reason:'fa'）に載る＝気づかず消えることはない。
+          // （旧実装は自チームだけ「判断待ちキュー」に積んでいたが、判断UIが存在せず契約切れのまま残り続けるバグだった）
           const expiredIds = new Set(
             grownPlayers
-              .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && domesticIdsFA.has(p.teamId) && contractOwner(p) !== state.playerTeamId && p.status === 'active')
+              .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && domesticIdsFA.has(p.teamId) && p.status === 'active')
               .map(p => p.id)
           )
-          // Player-team expiring players: queued for user decision
-          const playerTeamExpiringIds = grownPlayers
-            .filter(p => p.contract.yearsLeft === 0 && contractOwner(p) === state.playerTeamId && p.status === 'active')
-            .map(p => p.id)
 
           // レンタル期間終了で保有元へ返却される選手（後段でロスター配列にも戻す）
           const loanReturnIds = new Map<string, string>()  // playerId → ownerTeamId
@@ -5874,7 +5873,7 @@ export const useGameStore = create<GameStore>()(
               scoutMissions: [],
               faVisits: [],
               events: [...retirementEvents, ...renewalEvents],
-              pendingRenewalDecisions: playerTeamExpiringIds,
+              pendingRenewalDecisions: [],  // 廃止：満了は自動FA（旧セーブの残キューもここで消える）
               pendingTradeOffers: [],
               scoutedOpponents: (state.currentSeason.scoutedOpponents ?? []).filter(s => s.year >= state.currentSeason.year),
               scoutedProspects: (state.currentSeason.scoutedProspects ?? []).filter(s => s.year >= state.currentSeason.year),
@@ -7093,36 +7092,6 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
-      decideRenewal: (playerId, renew, years = 2) => {
-        set(state => {
-          const player = state.players.find(p => p.id === playerId)
-          if (!player || player.teamId !== state.playerTeamId) return state
-
-          const newPending = (state.currentSeason.pendingRenewalDecisions ?? []).filter(id => id !== playerId)
-
-          if (!renew) {
-            const newPlayers = state.players.map(p =>
-              p.id === playerId ? { ...p, teamId: '', } : p
-            )
-            const newTeams = state.teams.map(t =>
-              t.id !== state.playerTeamId ? t : {
-                ...t,
-                roster: {
-                  main: t.roster.main.filter(id => id !== playerId),
-                  second: t.roster.second.filter(id => id !== playerId),
-                }
-              }
-            )
-            return { players: newPlayers, teams: newTeams, currentSeason: { ...state.currentSeason, pendingRenewalDecisions: newPending } }
-          }
-
-          const newSalary = Math.round(player.contract.annualSalary * 1.12 / 500000) * 500000
-          const newPlayers = state.players.map(p =>
-            p.id === playerId ? { ...p, contract: { ...p.contract, yearsLeft: years, annualSalary: newSalary } } : p
-          )
-          return { players: newPlayers, currentSeason: { ...state.currentSeason, pendingRenewalDecisions: newPending } }
-        })
-      },
 
       claimLoginBonus: () => {
         const state = get()
