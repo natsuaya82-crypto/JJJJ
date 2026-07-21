@@ -451,8 +451,8 @@ export default function Dashboard() {
               background: `linear-gradient(180deg, ${alpha(C.purple, 0.16)}, ${alpha(C.purple, 0.06)})`,
               border: `2px solid ${C.purpleDark}`, display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit',
             }}>
-              <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>日本代表を選考する</span>
-              <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.textDim }}>{waTitle} ›</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>{waSquadReady ? '代表選考済み ✓（変更する）' : '日本代表を選考する'}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.textDim }}>{waSquadReady ? 'ECL消化後に大会へ ›' : `${waTitle} ›`}</span>
             </button>
           )}
         </div>

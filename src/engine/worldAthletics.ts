@@ -2,9 +2,10 @@
 // 国籍で選手を集め、5000/10000/マラソンの持ちタイムで候補を作る。
 // 駅伝優先：まず駅伝代表20人（監督 or AI）→ 個人種目は駅伝に入らなかった選手から
 // 実物方式で選考（標準突破優先＋ランキング補充・国別3人・マラソン専任）。
-import type { Player, Nationality } from '../types'
+import type { Player, Nationality, WECRacePlan } from '../types'
 import { natGeoRegion, NATIONALITY_META, type GeoRegion } from '../data/nationalities'
 import { formatRaceTime } from '../utils/eventTime'
+import { calcBaseAbility, calcAffinity } from './raceEngine'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
@@ -80,6 +81,26 @@ export function ekidenCandidates(players: Player[], nat: Nationality, currentYea
   }
   out.sort((a, b) => b.score - a.score)
   return out.slice(0, limit)
+}
+
+// 日本代表の候補50人＝持ちタイム上位40＋大会適性上位10。
+// 持ちタイムだけだと登り屋・下り屋（平地タイムが平凡）が候補にすら入らないため、
+// その年の3戦のコース地形への適性（能力×特性相性）上位を必ず混ぜる。山型の年は登り屋が入る
+export function ekidenCandidatesWithFit(
+  players: Player[], nat: Nationality, year: number, plans: WECRacePlan[], limit = 50, fitSlots = 10,
+): Candidate[] {
+  const all = ekidenCandidates(players, nat, year, Number.MAX_SAFE_INTEGER)
+  if (plans.length === 0 || all.length <= limit) return all.slice(0, limit)
+  const timePick = all.slice(0, limit - fitSlots)
+  const picked = new Set(timePick.map(c => c.player.id))
+  const segs = plans.flatMap(p => p.segments)
+  const fit = (c: Candidate) => segs.reduce((s, seg) =>
+    s + calcBaseAbility(c.player.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+      * calcAffinity(c.player.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm), 0)
+  const fitPick = all.filter(c => !picked.has(c.player.id))
+    .sort((a, b) => fit(b) - fit(a))
+    .slice(0, fitSlots)
+  return [...timePick, ...fitPick].sort((a, b) => b.score - a.score)
 }
 
 export type IndividualEntry = { player: Player; timeSec: number }

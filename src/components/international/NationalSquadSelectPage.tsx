@@ -8,7 +8,7 @@ import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
-import { ekidenCandidates, type Candidate } from '../../engine/worldAthletics'
+import { ekidenCandidatesWithFit, type Candidate } from '../../engine/worldAthletics'
 import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -37,7 +37,8 @@ export default function NationalSquadSelectPage() {
   useEffect(() => { ensureWorldRacePlans() }, [ensureWorldRacePlans])
   const plans = worldRacePlans?.year === year ? worldRacePlans.plans : []
 
-  const candidates = useMemo(() => ekidenCandidates(players, 'JPN', year, 50), [players, year])
+  // 候補50人＝持ちタイム上位40＋大会適性上位10（山型の年は登り屋・下り屋が混ざる）
+  const candidates = useMemo(() => ekidenCandidatesWithFit(players, 'JPN', year, plans), [players, year, plans])
 
   // 初期状態は「自分で確定した代表」だけを枠に配置（前年代表ベース）。勝手には埋めない。
   // 初めての選考は全枠空きで、自動選出ボタン or 枠タップで埋める
