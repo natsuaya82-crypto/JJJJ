@@ -2,6 +2,7 @@
 // 国籍で選手を集め、5000/10000/マラソンの持ちタイムで候補を作る。
 // 個人種目は参加標準記録の突破者。駅伝は候補から20人選抜（監督 or AI）。
 import type { Player, Nationality } from '../types'
+import { natGeoRegion, type GeoRegion } from '../data/nationalities'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
@@ -104,6 +105,47 @@ export function individualStarIds(players: Player[], nat: Nationality, currentYe
     for (const e of individualEntrants(players, nat, ev, currentYear)) ids.add(e.player.id)
   }
   return ids
+}
+
+// ───────────────────────────────────────────────────────────────
+// 本番20カ国の選出（地域枠）。アフリカ6/ヨーロッパ6/アメリカ4/アジア+オセアニア3/開催国1。
+// 各地域は「国の距離力（持ちタイム候補上位7の合計）」が高い順。開催国は予選免除で自動枠。
+// ───────────────────────────────────────────────────────────────
+export const REGION_QUOTA: { region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸' | 'アジア+オセアニア'; slots: number }[] = [
+  { region: 'アフリカ', slots: 6 },
+  { region: 'ヨーロッパ', slots: 6 },
+  { region: 'アメリカ大陸', slots: 4 },
+  { region: 'アジア+オセアニア', slots: 3 },
+]
+// 世界陸上の選考地域（アジアとオセアニアは1枠グループに統合）
+function meetRegion(nat: Nationality): typeof REGION_QUOTA[number]['region'] | 'その他' {
+  const g: GeoRegion = natGeoRegion(nat)
+  if (g === 'アジア' || g === 'オセアニア') return 'アジア+オセアニア'
+  if (g === 'アフリカ' || g === 'ヨーロッパ' || g === 'アメリカ大陸') return g
+  return 'その他'
+}
+
+// 国の距離力（候補上位7の距離スコア合計）。持ちタイムを持つ選手が居ない国は0。
+export function nationStrength(players: Player[], nat: Nationality, year: number): number {
+  return ekidenCandidates(players, nat, year, 7).reduce((s, c) => s + c.score, 0)
+}
+
+// 本番出場20カ国を決める。hostNat は予選免除で必ず入る（+1枠）。
+export function qualifyNations(players: Player[], year: number, hostNat: Nationality): Nationality[] {
+  const allNats = [...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[]
+  const strengthByNat = new Map<Nationality, number>()
+  for (const nat of allNats) strengthByNat.set(nat, nationStrength(players, nat, year))
+  const picked: Nationality[] = []
+  // 開催国を先に確保
+  if (hostNat) picked.push(hostNat)
+  for (const { region, slots } of REGION_QUOTA) {
+    const pool = allNats
+      .filter(n => n !== hostNat && !picked.includes(n) && meetRegion(n) === region && (strengthByNat.get(n) ?? 0) > 0)
+      .sort((a, b) => (strengthByNat.get(b) ?? 0) - (strengthByNat.get(a) ?? 0))
+    // 開催国は地域枠を減らさない「+1」枠。各地域は定数どおり埋める。
+    picked.push(...pool.slice(0, slots))
+  }
+  return picked
 }
 
 // ───────────────────────────────────────────────────────────────
