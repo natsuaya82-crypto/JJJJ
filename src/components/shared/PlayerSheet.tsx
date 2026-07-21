@@ -132,6 +132,7 @@ export default function PlayerSheet() {
   const seasonAwards = useGameStore(s => s.seasonAwards)
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
+  const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
   const setDisplayBadge = useGameStore(s => s.setDisplayBadge)
   const adH = useAdHeight()
   const navigate = useNavigate()
@@ -291,6 +292,10 @@ export default function PlayerSheet() {
   processRaces(currentSeason.secondTeamRaces ?? [], currentSeason.year)
   processRaces(currentSeason.collegeRaces ?? [], currentSeason.year)
   processRaces(eclRacesOf(currentSeason), currentSeason.year)
+  // 世界陸上（予選・本番）の駅伝出走もECLと同じように駅伝データへ含める
+  for (const wr of worldAthleticsResults ?? []) {
+    processRaces((wr.races ?? []).filter(r => r.results), wr.year)
+  }
 
   // 2軍駅伝は年ごとに開催大会が入れ替わるため、「このセーブで実際に開催されたことのある大会」だけを一覧に出す
   // （未出場の開催大会は空欄で並ぶ。プールにあるだけで一度も開催されていない大会は出さない）

@@ -6351,9 +6351,13 @@ export const useGameStore = create<GameStore>()(
             return [...set]
           }
           const rows = t.participants.map(pt => ({ nat: pt.nat, points: points[pt.id] ?? 0, runnerIds: runnersOf(pt.id) }))
-          const result = t.kind === 'qualifier'
-            ? composeQualifierResult(t.year, rows)
-            : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows)
+          // 駅伝3戦のレース詳細も結果に残す（ECLのeclSeriesと同じ扱い。選手詳細の駅伝データ等で使う）
+          const result = {
+            ...(t.kind === 'qualifier'
+              ? composeQualifierResult(t.year, rows)
+              : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows)),
+            races: newRaces,
+          }
           // 本番なら代表出場記録（パッチ・代表履歴の元）
           const reps = [...(state.worldRepresentatives ?? [])]
           if (result.kind === 'main') {

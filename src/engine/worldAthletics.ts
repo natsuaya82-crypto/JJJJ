@@ -366,8 +366,9 @@ export function simulateWorldMeet(players: Player[], nats: Nationality[], year: 
 // 予選（アジア＋オセアニア）・2年周期の年次実行
 // ───────────────────────────────────────────────────────────────
 export type QualStanding = { nat: Nationality; strength: number; rank: number; advanced: boolean }
-export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; standings: QualStanding[]; advanced: Nationality[] }
-export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nations: Nationality[]; meet: WAMeetResult; japanRank: number | null }
+// races: 駅伝3戦の実レース結果。ECLのeclSeriesと同じ扱いで保持し、選手詳細の駅伝データ等に使う
+export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[] }
+export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nations: Nationality[]; meet: WAMeetResult; japanRank: number | null; races?: import('../types').Race[] }
 export type WAYearResult = WAQualifierResult | WAMainResult
 
 // 開催国ローテ（2年ごと）。日本も入れてドラマを作る。
