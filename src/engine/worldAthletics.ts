@@ -166,6 +166,11 @@ export function qualifyNations(players: Player[], year: number, hostNat: Nationa
 // ───────────────────────────────────────────────────────────────
 export const MEDAL_POINTS = { gold: 5, silver: 3, bronze: 2, finalist: 1 }
 
+// メダル表記（金2 銀1 銅0）
+export function formatMeetMedal(t: { golds: number; silvers: number; bronzes: number }): string {
+  return `金${t.golds} 銀${t.silvers} 銅${t.bronzes}`
+}
+
 // 乱数（0..1）。Date/Math.randomはワークフローで禁止だが本番はアプリ実行時なので Math.random でOK。
 const rnd = () => Math.random()
 // レース当日のタイム：持ちタイムに-0.5%〜+3.5%の当日ブレ（PB更新は稀）
@@ -195,13 +200,20 @@ function runIndividual(players: Player[], nats: Nationality[], ev: WAEvent, year
   return { event: ev, placings }
 }
 
-// 駅伝：各国の駅伝代表（AI選抜20）から上位7人の総合力で国別タイムスコア。個人種目スターは除外。
-function runEkiden(players: Player[], nats: Nationality[], year: number): WAEkidenPlacing[] {
+// 駅伝：各国の駅伝代表（AI選抜20 or 手動）から上位7人の総合力で国別タイムスコア。個人種目スターは除外。
+function runEkiden(players: Player[], nats: Nationality[], year: number, manual?: Partial<Record<Nationality, string[]>>): WAEkidenPlacing[] {
+  const byId = new Map(players.map(p => [p.id, p]))
   const rows: WAEkidenPlacing[] = []
   for (const nat of nats) {
-    const cands = ekidenCandidates(players, nat, year)
-    const stars = individualStarIds(players, nat, year)
-    const squad = autoSelectEkiden(cands, stars, 20)
+    const manualIds = manual?.[nat]
+    let squad: Player[]
+    if (manualIds && manualIds.length > 0) {
+      squad = manualIds.map(id => byId.get(id)).filter((p): p is Player => !!p && p.status !== 'retired')
+    } else {
+      const cands = ekidenCandidates(players, nat, year)
+      const stars = individualStarIds(players, nat, year)
+      squad = autoSelectEkiden(cands, stars, 20)
+    }
     const legs = squad.slice(0, 7)
     // 7人の距離スコア合計に当日ブレ。高いほど速い→順位は降順。
     const score = legs.reduce((s, p) => s + distanceScore(p, year) * (1 + (rnd() * 0.08 - 0.04)), 0)
@@ -222,10 +234,10 @@ function addPoints(totals: Map<Nationality, WANationTotal>, nat: Nationality, ra
   totals.set(nat, cur)
 }
 
-// 本番ミート全体（20カ国）
-export function simulateWorldMeet(players: Player[], nats: Nationality[], year: number): WAMeetResult {
+// 本番ミート全体（20カ国）。manual に国別の駅伝20人IDを渡すとその国はそれで走る（日本＝監督選抜）。
+export function simulateWorldMeet(players: Player[], nats: Nationality[], year: number, manual?: Partial<Record<Nationality, string[]>>): WAMeetResult {
   const individuals = WA_EVENTS.map(ev => runIndividual(players, nats, ev, year))
-  const ekiden = runEkiden(players, nats, year)
+  const ekiden = runEkiden(players, nats, year, manual)
   const totals = new Map<Nationality, WANationTotal>()
   for (const nat of nats) totals.set(nat, { nat, points: 0, golds: 0, silvers: 0, bronzes: 0, rank: 0 })
   for (const ir of individuals) for (const pl of ir.placings) addPoints(totals, pl.nat, pl.rank)
@@ -233,4 +245,43 @@ export function simulateWorldMeet(players: Player[], nats: Nationality[], year: 
   const totalsArr = [...totals.values()].sort((a, b) => b.points - a.points || b.golds - a.golds || b.silvers - a.silvers)
   totalsArr.forEach((t, i) => { t.rank = i + 1 })
   return { year, individuals, ekiden, totals: totalsArr }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 予選（アジア＋オセアニア）・2年周期の年次実行
+// ───────────────────────────────────────────────────────────────
+export type QualStanding = { nat: Nationality; strength: number; rank: number; advanced: boolean }
+export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; standings: QualStanding[]; advanced: Nationality[] }
+export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nations: Nationality[]; meet: WAMeetResult; japanRank: number | null }
+export type WAYearResult = WAQualifierResult | WAMainResult
+
+// 開催国ローテ（2年ごと）。日本も入れてドラマを作る。
+export const WA_HOSTS: Nationality[] = ['JPN', 'KEN', 'GBR', 'USA', 'ETH', 'FRA', 'AUS', 'MAR', 'BRA', 'GER']
+export function hostForYear(year: number): Nationality {
+  const idx = Math.max(0, Math.floor((year - 2028) / 2)) % WA_HOSTS.length
+  return WA_HOSTS[idx]
+}
+
+// アジア＋オセアニア予選：国の距離力（当日ブレ込み）で並べ、上位 advance カ国が本番へ。
+export function simulateQualifier(players: Player[], year: number, advance = 3): WAQualifierResult {
+  const nats = [...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[]
+  const rows = nats
+    .filter(n => natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア')
+    .map(n => ({ nat: n, strength: nationStrength(players, n, year) * (1 + (rnd() * 0.16 - 0.08)) }))
+    .filter(r => r.strength > 0)
+    .sort((a, b) => b.strength - a.strength)
+  const standings: QualStanding[] = rows.map((r, i) => ({ nat: r.nat, strength: r.strength, rank: i + 1, advanced: i < advance }))
+  return { year, kind: 'qualifier', region: 'アジア＋オセアニア', standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
+}
+
+// その年の世界陸上を実行。偶数年＝本番、奇数年＝予選。japanSquadIds があれば日本の駅伝はそれで走る。
+export function runWorldAthleticsYear(players: Player[], year: number, japanSquadIds?: string[]): WAYearResult {
+  const isMain = (year - 2028) % 2 === 0
+  if (!isMain) return simulateQualifier(players, year)
+  const host = hostForYear(year)
+  const nations = qualifyNations(players, year, host)
+  const manual = japanSquadIds && japanSquadIds.length > 0 ? { JPN: japanSquadIds } as Partial<Record<Nationality, string[]>> : undefined
+  const meet = simulateWorldMeet(players, nations, year, manual)
+  const japanRank = meet.totals.find(t => t.nat === 'JPN')?.rank ?? null
+  return { year, kind: 'main', host, nations, meet, japanRank }
 }

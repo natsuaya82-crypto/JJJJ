@@ -11,6 +11,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
+import { runWorldAthleticsYear } from '../engine/worldAthletics'
 import { simulateEclEvent } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { ECL_COURSES } from '../data/eclCourses'
@@ -397,6 +398,7 @@ export type GameStore = GameState & {
   updateNationalTeam: () => void
   confirmSquad: (ids: string[]) => void
   setWorldSquad: (playerIds: string[]) => void
+  runWorldAthletics: () => void
   setRacePlayerIds: (raceIdx: number, ids: string[]) => void
   toggleWorldRacePlayer: (raceIdx: number, playerId: string) => void
   autoSelectWorldRace: (raceIdx: number) => void
@@ -6205,6 +6207,18 @@ export const useGameStore = create<GameStore>()(
       // 世界陸上：日本駅伝代表20人を確定（候補50から監督が選抜）
       setWorldSquad: (playerIds: string[]) => {
         set(state => ({ worldSquad: { year: state.currentSeason.year, playerIds: playerIds.slice(0, 20) } }))
+      },
+
+      // 世界陸上／予選をその年ぶん実行して結果を保存（既に実行済みの年は何もしない）
+      runWorldAthletics: () => {
+        set(state => {
+          const year = state.currentSeason.year
+          const done = (state.worldAthleticsResults ?? []).some(r => r.year === year)
+          if (done) return state
+          const squad = state.worldSquad?.year === year ? state.worldSquad.playerIds : undefined
+          const result = runWorldAthleticsYear(state.players, year, squad)
+          return { worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])] }
+        })
       },
 
       setRacePlayerIds: (raceIdx: number, ids: string[]) => {

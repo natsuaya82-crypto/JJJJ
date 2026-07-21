@@ -811,6 +811,8 @@ export type GameState = {
   nationalTeam?: NationalTeam
   // 世界陸上の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
   worldSquad?: { year: number; playerIds: string[] }
+  // 世界陸上／予選の年次結果（新しい順に積む）。型はエンジン側で定義。
+  worldAthleticsResults?: import('../engine/worldAthletics').WAYearResult[]
   trainingCards: TrainingCard[]
   raceDroppedCards: TrainingCard[]
   pendingGifts: Gift[]

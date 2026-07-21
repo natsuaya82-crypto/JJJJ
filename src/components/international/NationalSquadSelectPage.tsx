@@ -16,6 +16,7 @@ export default function NationalSquadSelectPage() {
   const year = useGameStore(s => s.currentSeason.year)
   const worldSquad = useGameStore(s => s.worldSquad)
   const setWorldSquad = useGameStore(s => s.setWorldSquad)
+  const runWorldAthletics = useGameStore(s => s.runWorldAthletics)
 
   const candidates = useMemo(() => ekidenCandidates(players, 'JPN', year, 50), [players, year])
   const stars = useMemo(() => individualStarIds(players, 'JPN', year), [players, year])
@@ -37,7 +38,7 @@ export default function NationalSquadSelectPage() {
     return next
   })
 
-  const save = () => { setWorldSquad([...picked]); navigate(-1) }
+  const save = () => { setWorldSquad([...picked]); runWorldAthletics(); navigate('/national/result', { replace: true }) }
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif", background: C.bg, minHeight: '100dvh', paddingBottom: 96 }}>

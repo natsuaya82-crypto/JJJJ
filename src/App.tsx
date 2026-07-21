@@ -29,6 +29,7 @@ import TeamDetailPage from './components/teams/TeamDetailPage'
 import ForeignLeagueDetailPage from './components/teams/ForeignLeagueDetailPage'
 import NationalTeamDetailPage from './components/teams/NationalTeamDetailPage'
 import NationalSquadSelectPage from './components/international/NationalSquadSelectPage'
+import NationalResultPage from './components/international/NationalResultPage'
 import ChatPage from './components/team/ChatPage'
 import NoSalePage from './components/team/NoSalePage'
 import FriendsPage from './components/friends/FriendsPage'
@@ -172,6 +173,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/teams/foreign/:leagueId/:clubId" element={<TeamDetailPage />} />
           <Route path="/teams/national/:code" element={<NationalTeamDetailPage />} />
           <Route path="/national/select" element={<NationalSquadSelectPage />} />
+          <Route path="/national/result" element={<NationalResultPage />} />
           <Route path="/teams/:section" element={<Placeholder title="coming soon" />} />
           <Route path="/transfer" element={<TransferHub />} />
           <Route path="/transfer/starred" element={<StarredPlayersPage />} />
