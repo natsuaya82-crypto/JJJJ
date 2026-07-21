@@ -13,6 +13,8 @@ import { formatTime } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 import ShareCard from './ShareCard'
+import Flag from '../ui/Flag'
+import { natLabel } from '../../data/nationalities'
 
 const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
   ace: 'エース',
@@ -857,23 +859,115 @@ export default function PlayerSheet() {
                 <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>記録なし</div>
               )}
 
-              {/* 代表チーム（世界陸上の出場履歴）。クラブの在籍履歴とは分けて下に置く */}
+              {/* 代表チーム（世界陸上）。クラブの在籍履歴と同じテーブル形式で分けて下に置く */}
               {(() => {
-                const myReps = (worldRepresentatives ?? []).filter(r => r.playerId === player.id)
-                  .sort((a, b) => b.year - a.year || (a.rank ?? 99) - (b.rank ?? 99))
-                if (myReps.length === 0) return null
-                const medalCol = (rank?: number) => rank === 1 ? '#F5C842' : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : '#5C5870'
+                type CompLine = { label: string; races: number; wins: number; rankSum: number; ranked: number; ind?: boolean; indRank?: number }
+                type NatRow = { year: number; races: number; wins: number; rankSum: number; ranked: number; comps: Map<string, CompLine> }
+                const byYear = new Map<number, NatRow>()
+                const touch = (year: number): NatRow => {
+                  let r = byYear.get(year)
+                  if (!r) { r = { year, races: 0, wins: 0, rankSum: 0, ranked: 0, comps: new Map() }; byYear.set(year, r) }
+                  return r
+                }
+                // 駅伝出走（保存済みレース詳細から集計。クラブの在籍履歴と同じ 出場/区間賞/平均）
+                for (const wr of worldAthleticsResults ?? []) {
+                  const compLabel = wr.kind === 'main' ? '世界陸上 駅伝' : 'アジア＋オセアニア予選 駅伝'
+                  for (const race of wr.races ?? []) {
+                    if (!race.results) continue
+                    const sr = race.results.segmentResults.find(s => s.runners.some(rn => rn.playerId === player.id))
+                    if (!sr) continue
+                    const runner = sr.runners.find(rn => rn.playerId === player.id)!
+                    const row = touch(wr.year)
+                    row.races += 1
+                    if (runner.rank === 1) row.wins += 1
+                    if (runner.rank != null) { row.rankSum += runner.rank; row.ranked += 1 }
+                    let c = row.comps.get(compLabel)
+                    if (!c) { c = { label: compLabel, races: 0, wins: 0, rankSum: 0, ranked: 0 }; row.comps.set(compLabel, c) }
+                    c.races += 1
+                    if (runner.rank === 1) c.wins += 1
+                    if (runner.rank != null) { c.rankSum += runner.rank; c.ranked += 1 }
+                  }
+                }
+                // 個人種目の出場（5000m/10000m/マラソン。順位は内訳の右端に出す）
+                for (const rep of worldRepresentatives ?? []) {
+                  if (rep.playerId !== player.id) continue
+                  if (rep.label === '駅伝') { touch(rep.year); continue }  // レース詳細が無い旧データでも年の行は出す
+                  const row = touch(rep.year)
+                  const key = `個人 ${rep.label}`
+                  if (row.comps.has(key)) continue
+                  row.races += 1
+                  row.comps.set(key, { label: rep.label, races: 1, wins: 0, rankSum: 0, ranked: 0, ind: true, indRank: rep.rank })
+                }
+                const natRows = [...byYear.values()].sort((a, b) => b.year - a.year)
+                if (natRows.length === 0) return null
+                const medalCol = (rank?: number) => rank === 1 ? '#F5C842' : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : '#9B97A8'
                 return (
                   <div style={{ marginTop: '16px' }}>
-                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム（世界陸上）</div>
-                    <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #1E1B2E' }}>
-                      {myReps.map((r, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
-                          <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 13, fontWeight: 800, color: '#9B97A8', width: 40 }}>{r.year}</span>
-                          <span style={{ flex: 1, fontSize: 12, color: '#F0EDE8' }}>{r.label} 代表</span>
-                          <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 12, fontWeight: 900, color: medalCol(r.rank) }}>{r.rank != null ? `${r.rank}位` : '出場'}</span>
-                        </div>
-                      ))}
+                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム</div>
+                    <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                      {/* header（在籍履歴と同じ列構成） */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
+                        <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
+                        <span style={{ flex: 1, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>チーム名</span>
+                        <span style={{ width: '28px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
+                        <span style={{ width: '32px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
+                        <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>平均</span>
+                        <span style={{ width: '10px', flexShrink: 0 }}/>
+                      </div>
+                      {natRows.map((row, i) => {
+                        const histKey = `nat|${row.year}`
+                        const open = !!openHist[histKey]
+                        const avg = row.ranked > 0 ? row.rankSum / row.ranked : null
+                        const comps = [...row.comps.values()]
+                        return (
+                          <div key={histKey}>
+                            <div
+                              onClick={() => setOpenHist(prev => ({ ...prev, [histKey]: !prev[histKey] }))}
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', borderBottom: i < natRows.length - 1 || open ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent', cursor: 'pointer' }}
+                            >
+                              <span style={{ width: '36px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                <Flag code={player.nationality} width={20} radius={3} />
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{natLabel(player.nationality)}</span>
+                              </div>
+                              <span style={{ width: '28px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
+                              <span style={{ width: '32px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
+                              <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
+                                {avg != null ? (
+                                  <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px', borderRadius: 5, background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
+                                ) : (
+                                  <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                                )}
+                              </span>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                              </svg>
+                            </div>
+                            {/* 大会別の内訳（駅伝 / 個人種目） */}
+                            {open && comps.map((c, ci) => {
+                              const cavg = c.ranked > 0 ? c.rankSum / c.ranked : null
+                              return (
+                                <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#0B0A12', borderBottom: ci < comps.length - 1 || i < natRows.length - 1 ? '1px solid #1A1828' : 'none' }}>
+                                  <span style={{ width: '36px', flexShrink: 0 }}/>
+                                  <span style={{ flex: 1, fontSize: '11px', fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
+                                  <span style={{ width: '28px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{c.races}</span>
+                                  <span style={{ width: '32px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.ind ? '—' : c.wins}</span>
+                                  <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
+                                    {c.ind ? (
+                                      <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', color: medalCol(c.indRank) }}>{c.indRank != null ? `${c.indRank}位` : '出場'}</span>
+                                    ) : cavg != null ? (
+                                      <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px', borderRadius: 4, background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
+                                    ) : (
+                                      <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                                    )}
+                                  </span>
+                                  <span style={{ width: '10px', flexShrink: 0 }}/>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
