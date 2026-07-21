@@ -7,7 +7,7 @@ import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
-import { ekidenCandidates, bestPBLabel, type Candidate } from '../../engine/worldAthletics'
+import { ekidenCandidates, type Candidate } from '../../engine/worldAthletics'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SQUAD = 20
@@ -178,9 +178,6 @@ export default function NationalSquadSelectPage() {
                 selected={isSelected}
                 handlers={pickerRowHandlers(p.id, () => selectPlayer(pickerSlot, p.id))}
                 extra={<>
-                  {bestPBLabel(p, year) && (
-                    <span style={{ fontSize: 8, fontFamily: SAIRA, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{bestPBLabel(p, year)}</span>
-                  )}
                   {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄枠{assignedSlot}</span>}
                 </>}
               />
@@ -273,11 +270,11 @@ export default function NationalSquadSelectPage() {
                   {idx}
                 </div>
 
-                {/* 持ちタイム or 空き枠 */}
+                {/* 選手名 or 空き枠 */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {player ? (
                     <>
-                      <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: C.gold, lineHeight: 1.2 }}>{bestPBLabel(player, year) ?? '—'}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</div>
                       <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{player.age}歳</div>
                     </>
                   ) : (
@@ -285,13 +282,10 @@ export default function NationalSquadSelectPage() {
                   )}
                 </div>
 
-                {/* 選出選手 or 未設定 */}
+                {/* OVR＋顔 or 未設定 */}
                 {player ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{player.name}</div>
-                      <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, lineHeight: 1 }}>{ovr(player)}</div>
-                    </div>
+                    <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, lineHeight: 1 }}>{ovr(player)}</div>
                     <div style={{ borderRadius: 6, overflow: 'hidden' }}>
                       <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
                     </div>
