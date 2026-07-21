@@ -310,6 +310,17 @@ export default function Dashboard() {
   const sorted = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sorted.findIndex(s => s.teamId === playerTeamId) + 1
 
+  // 世界陸上：JPELファイナル後〜シーズン終了の間に挟むステップ。
+  // 偶数年=本番 / 奇数年=アジア＋オセアニア予選。実行済み(waDone)になって初めてシーズン終了カードが出る
+  const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
+  const worldSquad = useGameStore(s => s.worldSquad)
+  const runWorldAthletics = useGameStore(s => s.runWorldAthletics)
+  const waDone = (worldAthleticsResults ?? []).some(r => r.year === currentSeason.year)
+  const waIsMain = (currentSeason.year - 2028) % 2 === 0
+  const waTitle = waIsMain ? `世界陸上 ${currentSeason.year}` : `アジア＋オセアニア予選 ${currentSeason.year}`
+  const waSquadReady = worldSquad?.year === currentSeason.year && (worldSquad?.playerIds.length ?? 0) > 0
+  const goWorldAthletics = () => { runWorldAthletics(); navigate('/national/result') }
+
   // ECL（シーズン中の5戦シリーズ）：NEXTカードは常に1枚だけ。日付が最も早いイベントだけを出す
   const eclS = currentSeason.eclSeries
   const nextEclRace = eclS && eclS.raceIndex < eclS.races.length ? eclS.races[eclS.raceIndex] : null
@@ -422,9 +433,50 @@ export default function Dashboard() {
           navigate={navigate}
         />
       ) : seasonDone && nextEclRace ? (
-        /* ECLの残り戦：これを消化するとシーズン終了カードになる */
+        /* ECLの残り戦。JPELファイナル後なので代表選考にはいつでも入れる */
         <div style={{ margin: '0 12px 16px' }}>
           {eclNextCard}
+          {!waDone && (
+            <button onClick={() => navigate('/national/select')} className="btn-press" style={{
+              width: '100%', marginTop: 10, padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
+              background: `linear-gradient(180deg, ${alpha(C.purple, 0.16)}, ${alpha(C.purple, 0.06)})`,
+              border: `2px solid ${C.purpleDark}`, display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit',
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>日本代表を選考する</span>
+              <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.textDim }}>{waTitle} ›</span>
+            </button>
+          )}
+        </div>
+      ) : seasonDone && !waDone ? (
+        /* 世界陸上／予選：シーズン終了の前に必ずここを通る */
+        <div style={{ margin: '0 12px 16px' }}>
+          <div style={{
+            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+            border: `3px solid ${C.purple}`, borderRadius: 20,
+            boxShadow: `0 8px 0 ${C.purpleDark}, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15)`,
+            overflow: 'hidden', position: 'relative',
+          }}>
+            <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.purple, 0.35)}`, borderRadius: 13, pointerEvents: 'none' }}/>
+            <div style={{ padding: '18px 18px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.purple, 0.18)}`, position: 'relative' }}>
+              <div style={{ fontFamily: "'Saira Condensed', system-ui, sans-serif", fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD ATHLETICS</div>
+              <div style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{waTitle}</div>
+              <div style={{ fontSize: 11, color: C.textSub, marginTop: 4 }}>
+                {waSquadReady ? '代表選考済み。大会に進みます' : '駅伝代表20人を選考してから大会に進みます'}
+              </div>
+            </div>
+            <div style={{ padding: '14px 18px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => navigate('/national/select')} className="btn-press" style={{
+                width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                background: waSquadReady ? C.surface2 : `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
+                border: `2px solid ${C.purpleDark}`, color: waSquadReady ? C.textSub : '#fff', fontSize: 14, fontWeight: 900,
+              }}>{waSquadReady ? '選考をやり直す' : '日本代表を選考する'}</button>
+              <button onClick={goWorldAthletics} className="btn-press" style={{
+                width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                background: waSquadReady ? `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})` : C.surface2,
+                border: `2px solid ${C.purpleDark}`, color: waSquadReady ? '#fff' : C.textSub, fontSize: 14, fontWeight: 900,
+              }}>{waSquadReady ? '大会へ進む →' : 'おまかせで進む（選考しない）'}</button>
+            </div>
+          </div>
         </div>
       ) : seasonDone ? (
         /* シーズン終了 */
@@ -492,17 +544,12 @@ export default function Dashboard() {
               </div>
             )}
             <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1 }}>
-              {(() => {
-                // 偶数年＝世界陸上本番、奇数年＝アジア＋オセアニア予選
-                const isMain = (currentSeason.year - 2027) % 2 !== 0 ? false : true
-                const label = isMain ? '世界陸上 本番' : 'アジア＋オセアニア予選'
-                return (
-                  <button onClick={() => navigate('/national/select')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10, borderRadius: 10, border: `2px solid ${C.purpleDark}`, background: `linear-gradient(180deg, ${C.purple}22, ${C.purple}0E)`, cursor: 'pointer' }}>
-                    <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>日本代表を選考</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.textDim }}>{label} ›</span>
-                  </button>
-                )
-              })()}
+              {waDone && (
+                <button onClick={() => navigate(`/national/result?y=${currentSeason.year}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10, borderRadius: 10, border: `1px solid ${alpha(C.purple, 0.4)}`, background: alpha(C.purple, 0.08), cursor: 'pointer' }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>{waTitle} の結果</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: C.textDim }}>›</span>
+                </button>
+              )}
               {unresolvedMandatoryCount > 0 && (
                 <div style={{ fontSize: 11, color: C.orange, textAlign: 'center', marginBottom: 10 }}>
                   契約未解決の選手が{unresolvedMandatoryCount}人います — 契約管理で対応してください
