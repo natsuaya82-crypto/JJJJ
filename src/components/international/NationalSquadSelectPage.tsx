@@ -35,14 +35,11 @@ export default function NationalSquadSelectPage() {
 
   const candidates = useMemo(() => ekidenCandidates(players, 'JPN', year, 50), [players, year])
 
-  // 前年代表のうち今も候補にいる選手をベースに、足りなければ持ちタイム上位で埋めて20枠に配置
+  // 初期状態は「自分で確定した代表」だけを枠に配置（前年代表ベース）。勝手には埋めない。
+  // 初めての選考は全枠空きで、自動選出ボタン or 枠タップで埋める
   const initialSlots = useMemo(() => {
     const candIds = new Set(candidates.map(c => c.player.id))
     const ids = (worldSquad?.playerIds ?? []).filter(id => candIds.has(id))
-    for (const c of candidates) {
-      if (ids.length >= SQUAD) break
-      if (!ids.includes(c.player.id)) ids.push(c.player.id)
-    }
     const slots: Record<number, string> = {}
     ids.slice(0, SQUAD).forEach((id, i) => { slots[i + 1] = id })
     return slots
@@ -91,6 +88,23 @@ export default function NationalSquadSelectPage() {
   }
 
   const save = () => { setWorldSquad(Object.values(slots).filter(Boolean)); navigate(-1) }
+
+  // 自動選出：空き枠を持ちタイム上位から埋める（区間配置の「自動配置」と同じ立ち位置）
+  const autoSelect = () => {
+    setSlots(prev => {
+      const n = { ...prev }
+      const used = new Set(Object.values(n))
+      let slot = 1
+      for (const c of candidates) {
+        if (used.has(c.player.id)) continue
+        while (slot <= SQUAD && n[slot]) slot++
+        if (slot > SQUAD) break
+        n[slot] = c.player.id
+        used.add(c.player.id)
+      }
+      return n
+    })
+  }
 
   const pickerPlayers = useMemo(() => {
     const val = (c: Candidate) =>
@@ -239,6 +253,7 @@ export default function NationalSquadSelectPage() {
         <span style={{ fontSize: 10, color: C.textDim }}>
           選出 <span style={{ color: full ? C.green : C.gold, fontWeight: 700, fontFamily: SAIRA }}>{filledCount}/{SQUAD}</span>
         </span>
+        <button onClick={autoSelect} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 8, border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動選出</button>
       </div>
 
       {/* 20枠リスト */}

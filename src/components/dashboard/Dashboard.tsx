@@ -495,15 +495,10 @@ export default function Dashboard() {
                   <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>日本代表を選考する</span>
                 </button>
               )}
-              {waSquadReady ? (
+              {waSquadReady && (
                 <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
                   <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>大会へ進む →</span>
                 </button>
-              ) : (
-                <button onClick={goWorldAthletics} className="btn-press" style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
-                  background: C.surface2, border: `2px solid ${C.border2}`, color: C.textSub, fontSize: 14, fontWeight: 900,
-                }}>おまかせで進む（選考しない）</button>
               )}
               </>)}
             </div>
