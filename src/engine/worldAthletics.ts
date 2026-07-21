@@ -143,7 +143,9 @@ export function nationStrength(players: Player[], nat: Nationality, year: number
 }
 
 // 本番出場20カ国を決める。hostNat は予選免除で必ず入る（+1枠）。
-export function qualifyNations(players: Player[], year: number, hostNat: Nationality): Nationality[] {
+// prevAdvanced＝前年のアジア＋オセアニア予選の通過国。ある場合、この地域の枠は予選結果で埋める
+// （予選を通過していない国＝日本含む は本番に出られない）。他地域は簡易処理（距離力順）。
+export function qualifyNations(players: Player[], year: number, hostNat: Nationality, prevAdvanced?: Nationality[]): Nationality[] {
   const allNats = [...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[]
   const strengthByNat = new Map<Nationality, number>()
   for (const nat of allNats) strengthByNat.set(nat, nationStrength(players, nat, year))
@@ -151,6 +153,11 @@ export function qualifyNations(players: Player[], year: number, hostNat: Nationa
   // 開催国を先に確保
   if (hostNat) picked.push(hostNat)
   for (const { region, slots } of REGION_QUOTA) {
+    if (region === 'アジア+オセアニア' && prevAdvanced && prevAdvanced.length > 0) {
+      // 予選結果で決まった通過国のみ（開催国は別枠なので除外）
+      picked.push(...prevAdvanced.filter(n => n !== hostNat && !picked.includes(n)).slice(0, slots))
+      continue
+    }
     const pool = allNats
       .filter(n => n !== hostNat && !picked.includes(n) && meetRegion(n) === region && (strengthByNat.get(n) ?? 0) > 0)
       .sort((a, b) => (strengthByNat.get(b) ?? 0) - (strengthByNat.get(a) ?? 0))
@@ -263,25 +270,36 @@ export function hostForYear(year: number): Nationality {
 }
 
 // アジア＋オセアニア予選：国の距離力（当日ブレ込み）で並べ、上位 advance カ国が本番へ。
-export function simulateQualifier(players: Player[], year: number, advance = 3): WAQualifierResult {
+// 日本は選考した駅伝代表（japanSquadIds）の上位7人で戦う＝選考が予選の強さに直結する。
+export function simulateQualifier(players: Player[], year: number, advance = 3, japanSquadIds?: string[]): WAQualifierResult {
   const nats = [...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[]
+  const byId = new Map(players.map(p => [p.id, p]))
+  const japanStrength = (): number => {
+    if (!japanSquadIds || japanSquadIds.length === 0) return nationStrength(players, 'JPN', year)
+    const squad = japanSquadIds.map(id => byId.get(id)).filter((p): p is Player => !!p && p.status !== 'retired')
+    return squad.map(p => distanceScore(p, year)).sort((a, b) => b - a).slice(0, 7).reduce((s, v) => s + v, 0)
+  }
   const rows = nats
     .filter(n => natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア')
-    .map(n => ({ nat: n, strength: nationStrength(players, n, year) * (1 + (rnd() * 0.16 - 0.08)) }))
+    .map(n => ({ nat: n, strength: (n === 'JPN' ? japanStrength() : nationStrength(players, n, year)) * (1 + (rnd() * 0.16 - 0.08)) }))
     .filter(r => r.strength > 0)
     .sort((a, b) => b.strength - a.strength)
   const standings: QualStanding[] = rows.map((r, i) => ({ nat: r.nat, strength: r.strength, rank: i + 1, advanced: i < advance }))
   return { year, kind: 'qualifier', region: 'アジア＋オセアニア', standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
 }
 
-// その年の世界陸上を実行。偶数年＝本番、奇数年＝予選。japanSquadIds があれば日本の駅伝はそれで走る。
-export function runWorldAthleticsYear(players: Player[], year: number, japanSquadIds?: string[]): WAYearResult {
+// その年の世界陸上を実行。偶数年＝本番、奇数年＝予選。
+// japanSquadIds＝日本の駅伝代表（予選の強さ・本番の駅伝で使用）。
+// prevAdvanced＝前年予選の通過国（本番のアジア＋オセ枠。通過してない国＝日本含む は出場できない）。
+export function runWorldAthleticsYear(players: Player[], year: number, japanSquadIds?: string[], prevAdvanced?: Nationality[]): WAYearResult {
   const isMain = (year - 2028) % 2 === 0
-  if (!isMain) return simulateQualifier(players, year)
+  if (!isMain) return simulateQualifier(players, year, 3, japanSquadIds)
   const host = hostForYear(year)
-  const nations = qualifyNations(players, year, host)
-  const manual = japanSquadIds && japanSquadIds.length > 0 ? { JPN: japanSquadIds } as Partial<Record<Nationality, string[]>> : undefined
+  const nations = qualifyNations(players, year, host, prevAdvanced)
+  const manual = japanSquadIds && japanSquadIds.length > 0 && nations.includes('JPN')
+    ? { JPN: japanSquadIds } as Partial<Record<Nationality, string[]>>
+    : undefined
   const meet = simulateWorldMeet(players, nations, year, manual)
-  const japanRank = meet.totals.find(t => t.nat === 'JPN')?.rank ?? null
+  const japanRank = nations.includes('JPN') ? (meet.totals.find(t => t.nat === 'JPN')?.rank ?? null) : null
   return { year, kind: 'main', host, nations, meet, japanRank }
 }

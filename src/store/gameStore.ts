@@ -6215,7 +6215,9 @@ export const useGameStore = create<GameStore>()(
           const done = (state.worldAthleticsResults ?? []).some(r => r.year === year)
           if (done) return state
           const squad = state.worldSquad?.year === year ? state.worldSquad.playerIds : undefined
-          const result = runWorldAthleticsYear(state.players, year, squad)
+          // 本番年は前年のアジア＋オセアニア予選の通過国で出場を決める（予選落ちなら日本は出ない）
+          const prevQual = (state.worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === year - 1)
+          const result = runWorldAthleticsYear(state.players, year, squad, prevQual?.kind === 'qualifier' ? prevQual.advanced : undefined)
           // 本番なら代表出場記録を積む（個人種目の出場者＋駅伝の走者）。パッチ・代表履歴の元。
           const reps = [...(state.worldRepresentatives ?? [])]
           if (result.kind === 'main') {

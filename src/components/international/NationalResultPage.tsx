@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
@@ -21,6 +22,9 @@ export default function NationalResultPage() {
   const results = useGameStore(s => s.worldAthleticsResults ?? [])
   const yParam = params.get('y')
   const r = yParam ? results.find(x => x.year === Number(yParam)) ?? results[0] : results[0]
+  // 大会直後（?y=なし）は種目ごとに1枚ずつめくる段階表示。記録室からの閲覧（?y=あり）は一括表示
+  const staged = !yParam
+  const [step, setStep] = useState(0)
 
   if (!r) {
     return (
@@ -66,31 +70,66 @@ export default function NationalResultPage() {
     </>)
   }
 
-  // main
+  // main：セクションを種目→駅伝→総合の順に。段階表示なら1枚ずつ「次へ」でめくる（勝手に全部出さない）
   const totals = r.meet.totals
+  const japanIn = r.nations.includes('JPN')
+
+  const sections: { title: string; body: React.ReactNode }[] = [
+    ...r.meet.individuals.map(ir => ({
+      title: `${WA_EVENT_LABEL[ir.event]} 決勝`,
+      body: card(`${WA_EVENT_LABEL[ir.event]} メダル`, ir.placings.slice(0, 8).map(pl => (
+        <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: medalColor(pl.rank), width: 22, textAlign: 'center' }}>{pl.rank}</span>
+          <Flag code={pl.nat} width={22} />
+          <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold }}>{formatRaceTime(pl.timeSec)}</span>
+        </div>
+      ))),
+    })),
+    {
+      title: '駅伝',
+      body: card('駅伝 順位', r.meet.ekiden.map(ek => natRow(ek.nat, <span/>, ek.rank))),
+    },
+    {
+      title: '総合成績',
+      body: card('長距離部門 総合成績', totals.map(t => natRow(t.nat,
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 9, color: C.textDim }}>{formatMeetMedal(t)}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, minWidth: 30, textAlign: 'right' }}>{t.points}<span style={{ fontSize: 9, color: C.textDim }}>p</span></span>
+        </span>, t.rank))),
+    },
+  ]
+  const lastStep = sections.length - 1
+  const shown = staged ? sections.slice(0, step + 1) : sections
+  const isFinished = !staged || step >= lastStep
+
   return wrap(`世界陸上 ${r.year}`, <>
     <div style={{ padding: '2px 16px 12px' }}>
       <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} WORLD ATHLETICS</div>
       <div style={{ fontSize: 11, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-        開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ {r.nations.length}カ国 ・ 日本総合 {r.japanRank ?? '—'}位
+        開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ {r.nations.length}カ国
+        {japanIn ? (isFinished ? <span> ・ 日本総合 {r.japanRank ?? '—'}位</span> : null) : <span style={{ color: C.red }}> ・ 日本は予選敗退（観戦）</span>}
       </div>
     </div>
 
-    {card('長距離部門 総合成績', totals.map(t => natRow(t.nat,
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 9, color: C.textDim }}>{formatMeetMedal(t)}</span>
-        <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, minWidth: 30, textAlign: 'right' }}>{t.points}<span style={{ fontSize: 9, color: C.textDim }}>p</span></span>
-      </span>, t.rank)))}
+    {shown.map((s, i) => <div key={i}>{s.body}</div>)}
 
-    {r.meet.individuals.map(ir => card(`${WA_EVENT_LABEL[ir.event]} メダル`, ir.placings.slice(0, 3).map(pl => (
-      <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: medalColor(pl.rank), width: 22, textAlign: 'center' }}>{pl.rank}</span>
-        <Flag code={pl.nat} width={22} />
-        <span style={{ flex: 1, fontSize: 12, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
-        <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold }}>{formatRaceTime(pl.timeSec)}</span>
+    {staged && step < lastStep && (
+      <div style={{ padding: '0 12px' }}>
+        <button onClick={() => setStep(step + 1)} className="btn-press" style={{
+          width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA,
+          background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`, border: `2px solid ${C.purpleDark}`,
+          color: '#fff', fontSize: 15, fontWeight: 900,
+        }}>次は {sections[step + 1].title} →</button>
       </div>
-    ))))}
-
-    {card('駅伝 順位', r.meet.ekiden.slice(0, 8).map(ek => natRow(ek.nat, <span/>, ek.rank)))}
+    )}
+    {isFinished && staged && (
+      <div style={{ padding: '0 12px' }}>
+        <button onClick={() => navigate('/')} className="btn-press" style={{
+          width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA,
+          background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900,
+        }}>閉じる（シーズン終了へ）</button>
+      </div>
+    )}
   </>)
 }

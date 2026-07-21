@@ -15,6 +15,7 @@ import NextRaceCard from './NextRaceCard'
 import { computeSeasonAwards } from '../../utils/awards'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
+import { hostForYear } from '../../engine/worldAthletics'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -319,6 +320,12 @@ export default function Dashboard() {
   const waIsMain = (currentSeason.year - 2028) % 2 === 0
   const waTitle = waIsMain ? `世界陸上 ${currentSeason.year}` : `アジア＋オセアニア予選 ${currentSeason.year}`
   const waSquadReady = worldSquad?.year === currentSeason.year && (worldSquad?.playerIds.length ?? 0) > 0
+  // 本番年は前年の予選を通過していないと出場できない（開催国なら免除）。予選記録が無い場合は出場扱い
+  const waPrevQual = (worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === currentSeason.year - 1)
+  const waJapanIn = !waIsMain
+    || hostForYear(currentSeason.year) === 'JPN'
+    || !waPrevQual || waPrevQual.kind !== 'qualifier'
+    || waPrevQual.advanced.includes('JPN')
   const goWorldAthletics = () => { runWorldAthletics(); navigate('/national/result') }
 
   // ECL（シーズン中の5戦シリーズ）：NEXTカードは常に1枚だけ。日付が最も早いイベントだけを出す
@@ -436,7 +443,7 @@ export default function Dashboard() {
         /* ECLの残り戦。JPELファイナル後なので代表選考にはいつでも入れる */
         <div style={{ margin: '0 12px 16px' }}>
           {eclNextCard}
-          {!waDone && (
+          {!waDone && waJapanIn && (
             <button onClick={() => navigate('/national/select')} className="btn-press" style={{
               width: '100%', marginTop: 10, padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
               background: `linear-gradient(180deg, ${alpha(C.purple, 0.16)}, ${alpha(C.purple, 0.06)})`,
@@ -460,11 +467,20 @@ export default function Dashboard() {
             <div style={{ padding: '18px 18px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.purple, 0.18)}`, position: 'relative' }}>
               <div style={{ fontFamily: "'Saira Condensed', system-ui, sans-serif", fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD ATHLETICS</div>
               <div style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{waTitle}</div>
-              <div style={{ fontSize: 11, color: C.textSub, marginTop: 4 }}>
-                {waSquadReady ? '代表選考済み。大会に進みます' : '駅伝代表20人を選考してから大会に進みます'}
+              <div style={{ fontSize: 11, color: waJapanIn ? C.textSub : C.red, marginTop: 4 }}>
+                {!waJapanIn
+                  ? '前年のアジア＋オセアニア予選で敗退したため、日本は出場できません'
+                  : waSquadReady ? '代表選考済み。大会に進みます' : '駅伝代表20人を選考してから大会に進みます'}
               </div>
             </div>
             <div style={{ padding: '14px 18px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {!waJapanIn ? (
+                <button onClick={goWorldAthletics} className="btn-press" style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                  background: `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
+                  border: `2px solid ${C.purpleDark}`, color: '#fff', fontSize: 14, fontWeight: 900,
+                }}>大会結果を見る（観戦）</button>
+              ) : (<>
               <button onClick={() => navigate('/national/select')} className="btn-press" style={{
                 width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
                 background: waSquadReady ? C.surface2 : `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})`,
@@ -475,6 +491,7 @@ export default function Dashboard() {
                 background: waSquadReady ? `linear-gradient(180deg, ${C.purple}, ${C.purpleDark})` : C.surface2,
                 border: `2px solid ${C.purpleDark}`, color: waSquadReady ? '#fff' : C.textSub, fontSize: 14, fontWeight: 900,
               }}>{waSquadReady ? '大会へ進む →' : 'おまかせで進む（選考しない）'}</button>
+              </>)}
             </div>
           </div>
         </div>
