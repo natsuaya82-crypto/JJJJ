@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
+import { TeamLogoSVG } from '../icons/Icons'
 import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
@@ -24,6 +25,8 @@ const ALL_STATS: [string, keyof Player['ratings']][] = [
 export default function NationalSquadSelectPage() {
   const navigate = useNavigate()
   const players = useGameStore(s => s.players)
+  const teams = useGameStore(s => s.teams)
+  const foreignLeagues = useGameStore(s => s.foreignLeagues ?? [])
   const year = useGameStore(s => s.currentSeason.year)
   const worldSquad = useGameStore(s => s.worldSquad)
   const setWorldSquad = useGameStore(s => s.setWorldSquad)
@@ -82,6 +85,24 @@ export default function NationalSquadSelectPage() {
 
   const filledCount = Object.values(slots).filter(Boolean).length
   const full = filledCount >= SQUAD
+
+  // 所属チーム（JPELクラブ・海外クラブ・FA）。移籍市場と同じくロゴ＋略称のバッジで出す
+  const clubOf = (teamId: string): { name: string; team?: typeof teams[number] } => {
+    if (!teamId) return { name: '未所属' }
+    const t = teams.find(t => t.id === teamId)
+    if (t) return { name: t.shortName || t.name, team: t }
+    const c = foreignLeagues.flatMap(l => l.clubs).find(c => c.id === teamId)
+    return { name: c?.shortName || c?.name || '-' }
+  }
+  const clubBadge = (teamId: string) => {
+    const c = clubOf(teamId)
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px', borderRadius: 3, fontWeight: 700, flexShrink: 0, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: c.name === '未所属' ? C.textGhost : C.textSub }}>
+        {c.team && <TeamLogoSVG primary={c.team.colors.primary} secondary={c.team.colors.secondary} shortName={c.team.shortName} teamId={c.team.id} size={11} />}
+        {c.name}
+      </span>
+    )
+  }
 
   const slotOf = (pid: string): number | null => {
     for (const [k, v] of Object.entries(slots)) if (v === pid) return +k
@@ -200,6 +221,7 @@ export default function NationalSquadSelectPage() {
                 selected={isSelected}
                 hideStatusBadges
                 handlers={pickerRowHandlers(p.id, () => selectPlayer(pickerSlot, p.id))}
+                extra={clubBadge(p.teamId)}
               />
             )
           })}
@@ -299,7 +321,9 @@ export default function NationalSquadSelectPage() {
                   {player ? (
                     <>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</div>
-                      <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{player.age}歳</div>
+                      <div style={{ fontSize: 10, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontFamily: SAIRA }}>{player.age}歳</span>・{clubOf(player.teamId).name}
+                      </div>
                     </>
                   ) : (
                     <div style={{ fontSize: 11, color: C.textGhost }}>空き枠</div>
