@@ -497,7 +497,8 @@ export default function ChampionsHistoryPage() {
             if (!first) return null
             const isJp = first.nat === 'JPN'
             return (
-              <button key={r.year} onClick={() => setYear(r.year)} style={{
+              // タップ=年度へ / 長押し=優勝者の選手詳細
+              <button key={r.year} onClick={() => setYear(r.year)} {...lp(first.playerId)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
                 padding: '12px 14px', borderRadius: 12,
                 background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -533,14 +534,14 @@ export default function ChampionsHistoryPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 6 }}>{year}年 世界陸上 {waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
             <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {rows.map((e, i, arr) => {
-                const pl = resolvePlayer(e.playerId)
                 const isJp = e.nat === 'JPN'
                 return (
-                  <div key={e.playerId} {...(pl ? lp(pl.id) : {})} style={{
+                  // 長押しは常時有効（選手が既に削除済みの古い記録だけシートが開かない）
+                  <div key={e.playerId} {...lp(e.playerId)} style={{
                     display: 'flex', alignItems: 'center', gap: 9, padding: '6px 12px',
                     background: isJp ? alpha(C.gold, 0.1) : i % 2 === 0 ? C.surface : 'transparent',
                     borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
-                    cursor: pl ? 'pointer' : 'default',
+                    cursor: 'pointer',
                   }}>
                     <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: i === 0 ? C.gold : i < 3 ? C.textSub : C.textGhost }}>{e.rank}</span>
                     <div style={{ width: 28, height: 28, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>

@@ -220,8 +220,8 @@ export default function WorldTournamentPage() {
             ? '全3戦終了'
             : `駅伝 第${t.raceIndex + 1}戦／全${t.races.length}戦（${nextRace!.segments.length}区間）${t.japanIn ? '' : ' ・ 日本は予選敗退のため観戦'}`}
         </div>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>順位（{t.raceIndex}/{t.races.length}戦消化・合計ポイント）</div>
-        <StandingsTable rows={standRows} />
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>順位（{t.raceIndex}/{t.races.length}戦消化・合計ポイント）・国を長押しで代表詳細</div>
+        <StandingsTable rows={standRows} onRowLongPress={id => { if (id.startsWith('nat_')) navigate(`/teams/national/${id.slice(4)}`) }} />
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           {done ? (
             <button onClick={() => navigate('/national/result')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">最終結果へ →</span></button>

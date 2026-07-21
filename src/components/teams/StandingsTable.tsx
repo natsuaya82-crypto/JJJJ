@@ -19,10 +19,19 @@ export type StandRow = {
 }
 
 // 全リーグ共通の順位表（JPELと同じ見た目）。
-export default function StandingsTable({ rows, onRowClick }: {
+// onRowLongPress: チーム行の長押しでチーム詳細へ（レース結果画面など、タップを他用途に使わない画面用）
+export default function StandingsTable({ rows, onRowClick, onRowLongPress }: {
   rows: StandRow[]
   onRowClick?: (id: string) => void
+  onRowLongPress?: (id: string) => void
 }) {
+  let pressTimer: ReturnType<typeof setTimeout> | null = null
+  const lpHandlers = (id: string) => onRowLongPress ? {
+    onPointerDown: () => { pressTimer = setTimeout(() => onRowLongPress(id), 450) },
+    onPointerUp: () => { if (pressTimer) clearTimeout(pressTimer) },
+    onPointerLeave: () => { if (pressTimer) clearTimeout(pressTimer) },
+    onPointerMove: () => { if (pressTimer) clearTimeout(pressTimer) },
+  } : {}
   return (
     <div style={{ margin: '0 12px', borderRadius: '14px', overflow: 'hidden', border: `2px solid ${C.goldDark}`, boxShadow: `0 6px 0 #5a3500, 0 10px 28px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.08)`, position: 'relative' }}>
       <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.25)', borderRadius: 10, pointerEvents: 'none', zIndex: 1 }}/>
@@ -37,10 +46,10 @@ export default function StandingsTable({ rows, onRowClick }: {
         const rankColor = i === 0 ? C.gold : i <= 2 ? C.textSub : C.textGhost
         const recentForm = r.recentForm.slice(-4)
         return (
-          <div key={r.id} onClick={() => onRowClick?.(r.id)}
+          <div key={r.id} onClick={() => onRowClick?.(r.id)} {...lpHandlers(r.id)}
             style={{ display: 'grid', gridTemplateColumns: '28px 1fr 44px 60px', gap: '4px', padding: '9px 12px',
               background: r.isMe ? alpha(r.primary, 0.1) : i % 2 === 0 ? C.surface2 : C.surface,
-              borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none', cursor: onRowClick ? 'pointer' : 'default',
+              borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none', cursor: (onRowClick || onRowLongPress) ? 'pointer' : 'default',
               borderLeft: r.isMe ? `3px solid ${r.primary}` : '3px solid transparent', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {i === 0 ? (

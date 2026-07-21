@@ -85,6 +85,22 @@ export function ResultsPhase({
   }, [view, segView])
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards) ?? []
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  // チーム行の長押しでチーム詳細へ（選手の長押し詳細と同じ操作系）。
+  // 国別対抗(nat_)→代表ページ / JPELクラブ→チーム詳細 / 海外クラブ→所属リーグのクラブ詳細
+  const teamDest = (id: string): string | null => {
+    if (id.startsWith('nat_')) return `/teams/national/${id.slice(4)}`
+    if (teams.some(t => t.id === id) && !foreignLeagues.some(l => l.clubs.some(c => c.id === id))) return `/teams/detail/${id}`
+    const lg = foreignLeagues.find(l => l.clubs.some(c => c.id === id))
+    return lg ? `/teams/foreign/${lg.id}/${id}` : null
+  }
+  const teamPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const teamLp = (id: string) => ({
+    onPointerDown: () => { const d = teamDest(id); if (d) teamPressTimer.current = setTimeout(() => navigate(d), 450) },
+    onPointerUp: () => { if (teamPressTimer.current) clearTimeout(teamPressTimer.current) },
+    onPointerLeave: () => { if (teamPressTimer.current) clearTimeout(teamPressTimer.current) },
+    onPointerMove: () => { if (teamPressTimer.current) clearTimeout(teamPressTimer.current) },
+  })
   const raceExpGains = useGameStore(s => s.raceExpGains) ?? {}
   // このレースで出た区間新記録（区間×選手）。「区間新！」バッジ表示用
   const newSegRecords = useGameStore(s => s.raceNewSegmentRecords) ?? []
@@ -516,7 +532,7 @@ export function ResultsPhase({
             const isPlayer = tr.teamId === playerTeamId
             const rowStyle = RANK_ROW_STYLE(tr.rank, isPlayer)
             return (
-              <div key={tr.teamId} style={{
+              <div key={tr.teamId} {...teamLp(tr.teamId)} style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '6px 12px',
                 borderBottom: i < results.teamRankings.length - 1 ? `1px solid ${C.surface2}` : 'none',
@@ -622,7 +638,7 @@ export function ResultsPhase({
               recentForm: (s.raceResults ?? []).map(r => r.rank),
               isMe: s.teamId === playerTeamId,
             }
-          })} />
+          })} onRowLongPress={id => { const d = teamDest(id); if (d) navigate(d) }} />
         </div>
       </div>
 

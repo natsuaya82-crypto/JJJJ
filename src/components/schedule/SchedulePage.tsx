@@ -2,6 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
+import { hostForYear, qualHostForYear, WA_HOST_CITY } from '../../engine/worldAthletics'
+import { NAT_LABEL } from '../../data/nationalities'
+import Flag from '../ui/Flag'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -32,6 +35,7 @@ function getCourseColor(type: string): string {
 export default function SchedulePage() {
   const navigate = useNavigate()
   const { currentSeason, playerTeamId, players } = useGameStore()
+  const worldTournament = useGameStore(s => s.worldTournament)
   const isSeasonStart = currentSeason.currentRaceIndex === 0 && !currentSeason.races[0]?.results
 
   const stIdx = currentSeason.secondTeamRaceIndex ?? 0
@@ -87,7 +91,26 @@ export default function SchedulePage() {
     type: 'tt' as const, date: ev.date, ev, isDone: !!ev.results,
   }))
   const raceItems = [...mainRaces, ...stRaces, ...eclRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
-  const timeline = [...raceItems, ...ttItems].sort((a, b) => a.date.localeCompare(b.date))
+
+  // 世界陸上／アジア予選（12月・JPELファイナル後）。開催前から日程として載せ、開催後は済表示。
+  // 日付は開催時の実レースと同じ規約（12/10〜12/12）。開催国と都市も表示する
+  const waMainYear = (currentSeason.year - 2028) % 2 === 0
+  const waHost = waMainYear ? hostForYear(currentSeason.year) : qualHostForYear(currentSeason.year)
+  const waCity = WA_HOST_CITY[waHost] ?? (NAT_LABEL[waHost] ?? '')
+  const waTitle = waMainYear ? '世界陸上' : '世界陸上アジア予選'
+  const wt = worldTournament?.year === currentSeason.year ? worldTournament : null
+  const waItems = [0, 1, 2].map(i => {
+    const race = wt?.races?.[i]
+    return {
+      type: 'wa' as const,
+      date: race?.date ?? `${currentSeason.year}-12-1${i}`,
+      name: race?.name ?? `${currentSeason.year} ${waTitle} ${waCity} 第${i + 1}戦`,
+      isDone: !!race?.results,
+      waHost, waMainYear,
+    }
+  })
+
+  const timeline = [...raceItems, ...ttItems, ...waItems].sort((a, b) => a.date.localeCompare(b.date))
 
   const totalDone = currentSeason.currentRaceIndex + (hasReserve ? stIdx : 0) + (eclS?.raceIndex ?? 0)
   const totalRaces = currentSeason.races.length + (hasReserve ? (currentSeason.secondTeamRaces ?? []).length : 0) + (eclS?.races.length ?? 0)
@@ -169,6 +192,10 @@ export default function SchedulePage() {
             <span style={{ fontSize: '11px', color: C.textSub }}>ECL</span>
           </div>
         )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: waMainYear ? '#A855F7' : '#EC407A' }}/>
+          <span style={{ fontSize: '11px', color: C.textSub }}>{waMainYear ? '世界陸上' : 'アジア予選'}</span>
+        </div>
       </div>
 
       <div style={{ paddingBottom: '24px' }}>
@@ -220,6 +247,36 @@ export default function SchedulePage() {
                     {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
                   </div>
                 </TTCard>
+              </div>
+            )
+          }
+
+          // ── 世界陸上／アジア予選 ──
+          if (it.type === 'wa') {
+            const waColor = it.waMainYear ? '#A855F7' : '#EC407A'
+            return (
+              <div key={`wa-${it.date}`} style={{ display: 'flex', alignItems: 'stretch', padding: '0 20px', opacity: it.isDone ? 0.55 : 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0, paddingTop: '16px' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: it.isDone ? C.border2 : alpha(waColor, 0.8), flexShrink: 0, zIndex: 1 }}/>
+                  {notLast && <div style={{ flex: 1, width: 1, backgroundColor: C.border, marginTop: '4px' }}/>}
+                </div>
+                <div style={{
+                  flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px', borderRadius: '14px',
+                  border: `1px dashed ${alpha(waColor, 0.5)}`,
+                  background: it.isDone ? 'transparent' : alpha(waColor, 0.06),
+                  textAlign: 'left', width: '100%',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: waColor, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(waColor, 0.14), border: `1px solid ${alpha(waColor, 0.3)}`, fontFamily: SAIRA }}>{it.waMainYear ? '世界陸上' : 'アジア予選'}</span>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{it.name}</div>
+                      <div style={{ fontSize: '11px', color: C.textDim, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        {it.date.replace(/-/g, '/')} · 開催国 <Flag code={it.waHost} width={16} /> {NAT_LABEL[it.waHost] ?? ''}
+                      </div>
+                    </div>
+                    {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
+                  </div>
+                </div>
               </div>
             )
           }
