@@ -11,7 +11,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear, hostForYear, qualifyNations, ekidenCandidates, individualStarIds, autoSelectEkiden, nationStrength, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, qualifyNations, ekidenCandidates, autoSelectEkiden, nationStrength, selectIndividualFields, entrantIdSet, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion } from '../data/nationalities'
@@ -6260,15 +6260,21 @@ export const useGameStore = create<GameStore>()(
               .slice(0, 20)
           }
           const japanIn = nations.includes('JPN')
+          // 個人種目の出場者を先に確定（本番のみ）。実物方式：標準突破優先＋ランキング補充・国別3・マラソン専任。
+          // 日本の駅伝代表を手動で選んでいる場合、そのメンバーは駅伝専念＝個人種目には出ない。
+          // 個人種目に選ばれなかった選手はみんな駅伝の候補に回る
+          const japanManual = japanIn && state.worldSquad?.year === year && state.worldSquad.playerIds.length > 0
+            ? state.worldSquad.playerIds : undefined
+          const fields = isMain ? selectIndividualFields(state.players, nations, year, japanManual ? new Set(japanManual) : undefined) : undefined
+          const entrants = fields ? entrantIdSet(fields) : new Set<string>()
           const squads: Record<string, string[]> = {}
           for (const nat of nations) {
-            if (nat === 'JPN' && state.worldSquad?.year === year && state.worldSquad.playerIds.length > 0) {
-              squads[`nat_${nat}`] = state.worldSquad.playerIds
+            if (nat === 'JPN' && japanManual) {
+              squads[`nat_${nat}`] = japanManual
               continue
             }
             const cands = ekidenCandidates(state.players, nat, year)
-            const stars = isMain ? individualStarIds(state.players, nat, year) : new Set<string>()
-            squads[`nat_${nat}`] = autoSelectEkiden(cands, stars, 20).map(p => p.id)
+            squads[`nat_${nat}`] = autoSelectEkiden(cands, entrants, 20).map(p => p.id)
           }
           // 国旗色はその国の先頭クラブのカラーを流用（日本は金）
           const clubColor = (nat: string) => {
@@ -6293,7 +6299,7 @@ export const useGameStore = create<GameStore>()(
             conditions: { temperature: 12, weather: WEATHERS[Math.floor(Math.random() * WEATHERS.length)], elevation: 0 },
             participants: nations.map(n => `nat_${n}`),
           }))
-          const individuals = isMain ? simulateIndividuals(state.players, nations, year) : undefined
+          const individuals = fields ? simulateIndividuals(fields) : undefined
           return {
             worldTournament: {
               year, kind: isMain ? 'main' as const : 'qualifier' as const, host,

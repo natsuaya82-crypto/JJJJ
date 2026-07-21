@@ -9,12 +9,18 @@ export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
 export const WA_EVENT_LABEL: Record<WAEvent, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
 
-// 参加標準記録（秒）。今年＋前年の持ちタイムがこれ未満なら個人種目に出場可。
+// 参加標準記録（秒）。実際の世界陸上（東京2025）と同じ値。
+// 突破者が優先で、余った枠は持ちタイム（ランキング）順で補充する（実物と同じ選考方式）。
 export const WA_STANDARD: Record<WAEvent, number> = {
-  d5000: 13 * 60 + 30,        // 13:30
-  d10000: 28 * 60 + 20,       // 28:20
-  marathon: 2 * 3600 + 13 * 60, // 2:13:00
+  d5000: 13 * 60 + 1,               // 13:01.00
+  d10000: 27 * 60,                  // 27:00.00
+  marathon: 2 * 3600 + 6 * 60 + 30, // 2:06:30
 }
+
+// 種目ごとの出場枠（ターゲットナンバー）。実物と同じ値（20カ国・国別3人以内なので実際はもっと絞られる）
+export const WA_TARGET: Record<WAEvent, number> = { d5000: 42, d10000: 27, marathon: 100 }
+// 1カ国から出せるのは1種目につき最大3人（実物と同じ）
+export const WA_MAX_PER_NATION = 3
 
 // 総合スコア用の基準タイム（エリート≒1.0）。
 const WA_REF: Record<WAEvent, number> = {
@@ -110,12 +116,72 @@ export function autoSelectEkiden(candidates: Candidate[], individualStarIds: Set
   return picked
 }
 
-// ある国の個人種目代表（全種目）を集めて選手IDの集合を返す（駅伝除外用）。
-export function individualStarIds(players: Player[], nat: Nationality, currentYear: number): Set<string> {
-  const ids = new Set<string>()
+// ───────────────────────────────────────────────────────────────
+// 個人種目の出場者選考（実物の世界陸上方式）
+//   ・標準突破者をタイム順で優先し、枠（ターゲットナンバー）が余ればランキング＝持ちタイム順で補充
+//   ・1カ国1種目 最大3人
+//   ・マラソンはマラソン専任（一番得意な種目がマラソンの選手だけ）。5000mと10000mの掛け持ちは可
+// ───────────────────────────────────────────────────────────────
+export type FieldEntry = { nat: Nationality; player: Player; timeSec: number; byStandard: boolean }
+
+// 一番得意な種目（WA_REF比のスコア最大）がマラソンかどうか。トラックとの掛け持ち禁止の判定に使う
+function isMarathonPrimary(p: Player, year: number): boolean {
+  let bestEv: WAEvent | null = null
+  let bestS = 0
   for (const ev of WA_EVENTS) {
-    for (const e of individualEntrants(players, nat, ev, currentYear)) ids.add(e.player.id)
+    const t = recentBest(p, ev, year)
+    if (t == null) continue
+    const s = WA_REF[ev] / t
+    if (s > bestS) { bestS = s; bestEv = ev }
   }
+  return bestEv === 'marathon'
+}
+
+// 出場国全体から各種目の出場者リスト（フィールド）を確定する。
+// excludeIds は駅伝に専念させたい選手（日本の手動代表など）で、個人種目からは外す
+export function selectIndividualFields(players: Player[], nats: Nationality[], year: number, excludeIds?: Set<string>): Record<WAEvent, FieldEntry[]> {
+  const natSet = new Set(nats)
+  const out = {} as Record<WAEvent, FieldEntry[]>
+  for (const ev of WA_EVENTS) {
+    const cands: FieldEntry[] = []
+    for (const p of players) {
+      if (p.status === 'retired' || !natSet.has(p.nationality)) continue
+      if (excludeIds?.has(p.id)) continue
+      const t = recentBest(p, ev, year)
+      if (t == null) continue
+      const marPrimary = isMarathonPrimary(p, year)
+      if (ev === 'marathon' ? !marPrimary : marPrimary) continue
+      cands.push({ nat: p.nationality, player: p, timeSec: t, byStandard: t <= WA_STANDARD[ev] })
+    }
+    // 標準突破者（タイム順）→ ランキング補充（タイム順）
+    cands.sort((a, b) => (Number(b.byStandard) - Number(a.byStandard)) || a.timeSec - b.timeSec)
+    const perNat = new Map<Nationality, number>()
+    const field: FieldEntry[] = []
+    for (const c of cands) {
+      if (field.length >= WA_TARGET[ev]) break
+      const n = perNat.get(c.nat) ?? 0
+      if (n >= WA_MAX_PER_NATION) continue
+      perNat.set(c.nat, n + 1)
+      field.push(c)
+    }
+    out[ev] = field
+  }
+  return out
+}
+
+// フィールド全種目の出場選手ID（駅伝メンバーからの除外用）
+export function entrantIdSet(fields: Record<WAEvent, FieldEntry[]>): Set<string> {
+  const ids = new Set<string>()
+  for (const ev of WA_EVENTS) for (const e of fields[ev]) ids.add(e.player.id)
+  return ids
+}
+
+// ある国の「個人種目で選考圏内」の選手ID（標準突破・国別上位3・マラソン専任適用後）。
+// ランキング補充分は他国が揃わないと確定しないため含めない（代表ページの選考バッジ用の近似）
+export function individualStarIds(players: Player[], nat: Nationality, currentYear: number): Set<string> {
+  const fields = selectIndividualFields(players, [nat], currentYear)
+  const ids = new Set<string>()
+  for (const ev of WA_EVENTS) for (const e of fields[ev]) if (e.byStandard) ids.add(e.player.id)
   return ids
 }
 
@@ -241,9 +307,15 @@ function addPoints(totals: Map<Nationality, WANationTotal>, nat: Nationality, ra
   totals.set(nat, cur)
 }
 
-// 個人種目3種（5000/10000/マラソン）の結果だけを出す（駅伝は実レースで別途走らせる）
-export function simulateIndividuals(players: Player[], nats: Nationality[], year: number): WAIndividualResult[] {
-  return WA_EVENTS.map(ev => runIndividual(players, nats, ev, year))
+// 個人種目3種（5000/10000/マラソン）の結果だけを出す（駅伝は実レースで別途走らせる）。
+// 出場者は selectIndividualFields で確定済みのフィールドを使う（標準突破優先＋ランキング補充・国別3・マラソン専任）
+export function simulateIndividuals(fields: Record<WAEvent, FieldEntry[]>): WAIndividualResult[] {
+  return WA_EVENTS.map(ev => {
+    const entries = fields[ev].map(e => ({ nat: e.nat, p: e.player, t: raceTime(e.timeSec) }))
+    entries.sort((a, b) => a.t - b.t)
+    const placings: EventPlacing[] = entries.map((e, i) => ({ nat: e.nat, playerId: e.p.id, playerName: e.p.name, timeSec: e.t, rank: i + 1 }))
+    return { event: ev, placings }
+  })
 }
 
 // 駅伝3戦の合計ポイントから予選の最終結果を組む（上位 advance カ国が通過）
