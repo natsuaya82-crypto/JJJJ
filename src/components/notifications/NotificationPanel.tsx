@@ -161,14 +161,10 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                               <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>{p.age}歳 · 引退を申し出</div>
                             </div>
                           </div>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button onClick={() => acceptRetirement(p.id)} style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontFamily: SAIRA, fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
-                              引退承認
-                            </button>
-                            <button onClick={() => dismissRetirementRequest(p.id)} style={{ flex: 1, padding: '9px', borderRadius: '10px', cursor: 'pointer', border: `2px solid ${alpha(C.blue, 0.45)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, boxShadow: `0 4px 0 #2a3580, inset 0 1px 0 rgba(255,255,255,0.08)`, color: C.blue, fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                              引き留める
-                            </button>
-                          </div>
+                          {/* 引退の対応（承認・引き留め）はチャットに一本化 */}
+                          <button onClick={() => { navigate(`/team/chat?player=${p.id}`); onClose() }} style={{ width: '100%', padding: '9px', borderRadius: '10px', cursor: 'pointer', border: `2px solid ${alpha(C.blue, 0.45)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, boxShadow: `0 4px 0 #2a3580, inset 0 1px 0 rgba(255,255,255,0.08)`, color: C.blue, fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
+                            チャットで対応する
+                          </button>
                         </div>
                       </div>
                     )
