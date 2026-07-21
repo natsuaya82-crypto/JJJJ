@@ -2,6 +2,8 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { WA_HOST_CITY } from '../../engine/worldAthletics'
+import { NAT_LABEL } from '../../data/nationalities'
 import type { GameStore } from '../../store/gameStore'
 import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
@@ -85,9 +87,10 @@ function WorldTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontFamily: "'Zen Kaku Gothic New',sans-serif" }}>
       {results.map(r => {
         const isMain = r.kind === 'main'
+        const city = r.host ? (WA_HOST_CITY[r.host] ?? NAT_LABEL[r.host] ?? '') : ''
         const sub = isMain
-          ? `本番 ${r.nations.length}カ国 ・ 日本総合${r.japanRank ?? '—'}位`
-          : `アジア＋オセ予選 ・ 通過 ${r.advanced.length}カ国`
+          ? `${city}開催 ・ ${r.nations.length}カ国 ・ 日本総合${r.japanRank ?? '—'}位`
+          : `${city ? `${city}開催 ・ ` : ''}通過 ${r.advanced.length}カ国`
         return (
           <button key={r.year} onClick={() => navigate(`/national/result?y=${r.year}`)} style={{
             display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', cursor: 'pointer',
