@@ -68,7 +68,7 @@ export default function ChampionsHistoryPage() {
 
   // カテゴリ別：大会名 → 開催一覧（結果のある年だけ・年昇順）
   const byCategory = useMemo(() => {
-    const maps: Record<Category, Map<string, RaceRef[]>> = { jpel: new Map(), ecl: new Map(), reserve: new Map(), tt: new Map() }
+    const maps: Record<Category, Map<string, RaceRef[]>> = { jpel: new Map(), ecl: new Map(), waqual: new Map(), wamain: new Map(), reserve: new Map(), tt: new Map() }
     const add = (c: Category, races: Race[] | undefined, y: number) => {
       for (const r of races ?? []) {
         if (!r.results) continue
