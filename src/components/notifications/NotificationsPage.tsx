@@ -354,9 +354,8 @@ export default function NotificationsPage() {
       && !contactedPlayerIds.has(p.id)
       // すでに更新交渉が始まっている選手は除外（更新カード側に用件が移るため）
       && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
-  // 個別通知は残り6ヶ月未満のみ。半年以上残っている最終年選手は既存様式のまとめカード（◯人が…→チャットへ）に集約
+  // 1.0.8と同じ：個別通知は残り6ヶ月未満のみ。それ以外の最終年選手には通知を出さない（まとめ通知もしない）
   const renewalPlayers = finalYearPlayers.filter(x => x.months < 6).sort((a, b) => a.months - b.months)
-  const renewalUpcoming = finalYearPlayers.filter(x => x.months >= 6)
   const renewalNeeded = renewalPlayers.length
 
   // ロスター超過警告：自チームがロスター上限を超えている場合（旧セーブ救済）。強制解雇はせず整理を促すだけ
@@ -602,22 +601,6 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 契約が今季までの選手（まだ半年以上）：既存のまとめカード様式（契約交渉・移籍要望と同じ）。半年を切ると上の個別通知へ */}
-          {renewalUpcoming.length > 0 && (
-            <section style={{ marginTop: renewalNeeded > 0 ? '20px' : 0 }}>
-              <SectionHead label="契約更新" color={C.orange} count={renewalUpcoming.length}/>
-              <div style={{ padding: '0 16px' }}>
-                <div style={cardStyle(alpha(C.orange, 0.45), '#5a2800')}>
-                  <div style={inset}/>
-                  <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{renewalUpcoming.length}人の契約が今季で満了</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.orange, marginBottom: '14px' }}>チャットで対応してください</div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.orange}, #FFA726)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
 
           {/* 負傷者情報（負傷名・全治・復帰までのレース数） */}
           {injuredPlayers.length > 0 && (
@@ -707,7 +690,7 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳 · 通算{p.career.totalRaces}レース</div>
                           </div>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #42A5F5)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${req.playerId}`)}>チャットで対応する</Btn>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #42A5F5)`, color: C.bg }} onClick={() => openPlayerSheet(req.playerId)}>選手ページで対応する</Btn>
                       </div>
                     </div>
                   )
