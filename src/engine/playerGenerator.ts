@@ -1313,11 +1313,13 @@ export function generateForeignLeaguePlayers(
   // バーレーン/カタール含む)だけ。欧州/米/豪は80台後半、その他・アジアは80台前半で頭打ち（日本は国内生成なので無関係）。
   const REGION: Record<string, { budget: number; potBonus: number; minRank: Rank; maxRank: Rank; potCap: number }> = {
     // ELITE=4大リーグ（北米/アフリカ東/アフリカ北南/欧州西南）。所属選手はすごい＝天井99・底も高い。
+    // 2046調整: アジア予選が日本の一方的な無双になっていたため、ASIA/OTHERの天井と底を引き上げ
+    // （日本の国内生成トップ層≒90前後と渡り合えるレンジに。バーレーン/カタールはAFRICA帰化枠のまま）
     ELITE:   { budget: 980_000_000, potBonus: 13, minRank: 'S', maxRank: 'SSS', potCap: 99 },
     AFRICA:  { budget: 900_000_000, potBonus: 10, minRank: 'A', maxRank: 'SSS', potCap: 96 },
     EUR_USA: { budget: 820_000_000, potBonus: 5,  minRank: 'A', maxRank: 'SS',  potCap: 89 },
-    OTHER:   { budget: 760_000_000, potBonus: 3,  minRank: 'A', maxRank: 'S',   potCap: 85 },
-    ASIA:    { budget: 700_000_000, potBonus: 0,  minRank: 'B', maxRank: 'S',   potCap: 84 },
+    OTHER:   { budget: 780_000_000, potBonus: 5,  minRank: 'A', maxRank: 'S',   potCap: 87 },
+    ASIA:    { budget: 780_000_000, potBonus: 7,  minRank: 'A', maxRank: 'SS',  potCap: 90 },
   }
   // 4大リーグのID（ここ所属＝エリート強度）
   const ELITE_LEAGUES = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])

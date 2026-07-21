@@ -11,7 +11,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, ekidenCandidates, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion } from '../data/nationalities'
@@ -6271,13 +6271,17 @@ export const useGameStore = create<GameStore>()(
           // 個人種目は駅伝に入らなかった選手から選考する（標準突破優先＋ランキング補充・国別3・マラソン専任）
           const japanManual = japanIn && state.worldSquad?.year === year && state.worldSquad.playerIds.length > 0
             ? state.worldSquad.playerIds : undefined
+          // コースは選考画面で公開したものをそのまま使う（無ければここで生成）。他国の選抜もこの地形を見る
+          const plans = state.worldRacePlans?.year === year ? state.worldRacePlans.plans : generateWECRacePlan()
           const squads: Record<string, string[]> = {}
           for (const nat of nations) {
             if (nat === 'JPN' && japanManual) {
               squads[`nat_${nat}`] = japanManual
               continue
             }
-            const cands = ekidenCandidates(state.players, nat, year)
+            // 他国も日本と同じく「持ちタイム14人＋コース適性6人」の混成で20人を選抜する
+            // （タイム上位だけだと山岳コースで登り・下り専門が居ない適当な代表になるため）
+            const cands = ekidenCandidatesWithFit(state.players, nat, year, plans, 20, 6)
             squads[`nat_${nat}`] = autoSelectEkiden(cands, new Set<string>(), 20).map(p => p.id)
           }
           const ekidenIds = new Set(Object.values(squads).flat())
@@ -6292,8 +6296,6 @@ export const useGameStore = create<GameStore>()(
             id: `nat_${nat}`, nat, name: natLabel(nat), shortName: natLabel(nat).slice(0, 5),
             colors: clubColor(nat), isPlayerTeam: nat === 'JPN' && japanIn,
           }))
-          // 選考画面で公開したコースをそのまま使う（無ければここで生成）
-          const plans = state.worldRacePlans?.year === year ? state.worldRacePlans.plans : generateWECRacePlan()
           const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
           const races: import('../types').Race[] = plans.map((plan, i) => ({
             id: `wa-${year}-r${i + 1}`,
