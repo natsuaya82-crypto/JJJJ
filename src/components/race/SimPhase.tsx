@@ -755,6 +755,11 @@ function SegmentResultCard({
               <FaceOrDot playerId={p?.id} nationality={p?.nationality} size={26} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                  {/* 国別対抗（nat_）は国旗＋国名で表示 */}
+                  {r.teamId.startsWith('nat_') && (
+                    <img src={`/flags/${r.teamId.slice(4)}.svg`} alt="" width={18} height={13} draggable={false}
+                      style={{ width: 18, height: 13, borderRadius: 2, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)' }} />
+                  )}
                   <span style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.gold : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? r.teamId}</span>
                   {isNewRecord && r.rank === 1 && (
                     <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>

@@ -712,6 +712,18 @@ export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, 
 }) {
   // プレイヤーが選んだプリセットロゴを最優先。logoId を明示指定（プレビュー等）が無ければ、teamId から自チームの選択を引く。
   const storeLogoId = useGameStore(s => teamId ? s.teams.find(t => t.id === teamId)?.logoId : undefined)
+  // 国代表チーム（nat_JPN等）はクラブロゴではなく国旗を表示する（レース中・区間結果・順位表すべて共通）
+  if (teamId?.startsWith('nat_')) {
+    const w = Math.round(size * 1.2)
+    const h = Math.round((w * 3) / 4)
+    return (
+      <img
+        src={`/flags/${teamId.slice(4)}.svg`}
+        alt="" width={w} height={h} draggable={false}
+        style={{ width: w, height: h, borderRadius: 2, objectFit: 'cover', display: 'block', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }}
+      />
+    )
+  }
   const resolvedLogoId = logoId ?? storeLogoId
   if (resolvedLogoId) {
     return (
