@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
+import { SPECIALTY_LABELS, type Specialty } from '../../types'
 import { ovr } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -50,8 +51,24 @@ export default function NationalSquadSelectPage() {
   const add = (id: string) => setPicked(prev => prev.size >= SQUAD ? prev : new Set(prev).add(id))
   const remove = (id: string) => setPicked(prev => { const n = new Set(prev); n.delete(id); return n })
 
+  // 候補の絞り込み（特性）とソート（移籍市場と同じ操作系）。コースの地形に合わせて登り屋・下り屋を探せる
+  const [spec, setSpec] = useState<Specialty | 'all'>('all')
+  const [sortKey, setSortKey] = useState<'time' | 'ovr' | 'up' | 'down' | 'age'>('time')
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
+
   const members = candidates.filter(c => picked.has(c.player.id))
-  const rest = candidates.filter(c => !picked.has(c.player.id))
+  const rest = useMemo(() => {
+    const val = (c: Candidate) =>
+      sortKey === 'time' ? c.score
+      : sortKey === 'ovr' ? ovr(c.player)
+      : sortKey === 'up' ? c.player.ratings.mountainUp
+      : sortKey === 'down' ? c.player.ratings.mountainDown
+      : c.player.age
+    return candidates
+      .filter(c => !picked.has(c.player.id))
+      .filter(c => spec === 'all' || c.player.specialty === spec)
+      .sort((a, b) => sortDir === 'desc' ? val(b) - val(a) : val(a) - val(b))
+  }, [candidates, picked, spec, sortKey, sortDir])
   const full = picked.size >= SQUAD
 
   const save = () => { setWorldSquad([...picked]); navigate(-1) }
@@ -142,15 +159,49 @@ export default function NationalSquadSelectPage() {
         )}
       </div>
 
-      {/* 候補 */}
-      <div style={{ padding: '0 16px 6px' }}>
-        <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.textSub }}>候補（持ちタイム順）</span>
+      {/* 候補（絞り込み・ソート付き） */}
+      <div style={{ padding: '0 16px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.textSub }}>候補</span>
+        <span style={{ fontSize: 9, color: C.textGhost, fontFamily: SAIRA }}>{rest.length}名</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <select
+            value={spec}
+            onChange={e => setSpec(e.target.value as Specialty | 'all')}
+            style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8, color: C.textSub, fontSize: 11, fontFamily: SAIRA, padding: '4px 8px', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="all">全特性</option>
+            {(Object.keys(SPECIALTY_LABELS) as Specialty[]).map(s => (
+              <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
+            ))}
+          </select>
+          <select
+            value={sortKey}
+            onChange={e => setSortKey(e.target.value as typeof sortKey)}
+            style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8, color: C.textSub, fontSize: 11, fontFamily: SAIRA, padding: '4px 8px', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="time">持ちタイム</option>
+            <option value="ovr">総合値</option>
+            <option value="up">登り</option>
+            <option value="down">下り</option>
+            <option value="age">年齢</option>
+          </select>
+          <button
+            onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+            style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8, color: C.textSub, fontSize: 13, fontFamily: SAIRA, padding: '3px 8px', cursor: 'pointer', lineHeight: 1 }}
+          >
+            {sortDir === 'desc' ? '↓' : '↑'}
+          </button>
+        </div>
       </div>
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rest.map(c => <Row key={c.player.id} c={c} selected={false} />)}
-        {candidates.length === 0 && (
+        {candidates.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: C.textGhost, fontSize: 12, background: C.surface, borderRadius: 14 }}>
             まだ持ちタイムのある候補がいません（記録会で持ちタイムがつくと並びます）
+          </div>
+        ) : rest.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 24, color: C.textGhost, fontSize: 12, background: C.surface, borderRadius: 14 }}>
+            条件に合う候補なし
           </div>
         )}
       </div>
