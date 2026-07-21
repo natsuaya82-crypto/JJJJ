@@ -30,7 +30,8 @@ export default function ShareCard({ player, team }: { player: Player; team?: Tea
   const segmentRecords = useGameStore(s => s.segmentRecords)
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
-  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives }, 99)
+  const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
+  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops }, 99)
   const shareBadge = (player.displayBadge ? badgeList.find(b => b.key === player.displayBadge) : undefined) ?? badgeList[0]
 
   return (

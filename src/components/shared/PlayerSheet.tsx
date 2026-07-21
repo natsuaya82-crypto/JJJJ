@@ -136,6 +136,7 @@ export default function PlayerSheet() {
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
+  const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
   const setDisplayBadge = useGameStore(s => s.setDisplayBadge)
   const adH = useAdHeight()
   const navigate = useNavigate()
@@ -232,7 +233,7 @@ export default function PlayerSheet() {
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
   // 記録パッチ（最大5個・優先順: 世界>日本>MVP>新人王>区間記録）
-  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives })
+  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops })
   const handleShare = async () => {
     if (!shareCardRef.current) return
     try {

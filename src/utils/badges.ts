@@ -7,7 +7,7 @@ import { NAT_LABEL } from '../data/nationalities'
 export type PlayerBadge = {
   key: string      // 一意キー（Player.displayBadge に保存する値）
   label: string    // 表示名（例: 5000m日本記録 / 東北桜駅伝3区区間記録 / 2027年度MVP）
-  kind: 'world' | 'japan' | 'cl' | 'mvp' | 'rookie' | 'segment' | 'national' | 'waGold' | 'waFinal'
+  kind: 'world' | 'japan' | 'cl' | 'mvp' | 'rookie' | 'segment' | 'national' | 'waGold' | 'waFinal' | 'seasonFast'
 }
 
 const DIST_LABEL: Record<EventDistKey, string> = {
@@ -25,14 +25,16 @@ export const BADGE_COLOR: Record<PlayerBadge['kind'], string> = {
   national: '#A855F7', // 世界陸上 代表: 紫
   waGold: '#FFD700',   // 世界陸上 優勝: 明るい金
   waFinal: '#C583FA',  // 世界陸上 入賞: 薄紫
+  seasonFast: '#5ED4FF', // 記録会 年間最速: シアン
 }
 
 type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'seasonAwards' | 'eclHistory'> & {
   segmentRecords?: Record<string, SegmentRecord[]>
   worldRepresentatives?: GameState['worldRepresentatives']
+  eventSeasonTops?: GameState['eventSeasonTops']
 }
 
-// 優先順: 世界記録 > 世界陸上優勝 > 日本記録 > ECL MVP > 年度MVP > 世界陸上入賞 > 区間記録 > 代表 > 新人王。
+// 優先順: 世界記録 > 世界陸上優勝 > 日本記録 > ECL MVP > 年度MVP > 年間最速 > 世界陸上入賞 > 区間記録 > 代表 > 新人王。
 // maxCount 件で打ち切り
 export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): PlayerBadge[] {
   const out: PlayerBadge[] = []
@@ -67,6 +69,11 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
   }
   for (const a of src.seasonAwards ?? []) {
     if (a.mvpId === p.id) out.push({ key: `mvp-${a.year}`, label: `${a.year}年度MVP`, kind: 'mvp' })
+  }
+  // 記録会の種目別年間最速（そのシーズンの各種目トップタイム。種目ごとに別のスペシャリストが取れる）
+  for (const t of src.eventSeasonTops ?? []) {
+    if (t.top[0]?.playerId !== p.id) continue
+    out.push({ key: `est-${t.year}-${t.dist}`, label: `${t.year} ${DIST_LABEL[t.dist]} 年間最速`, kind: 'seasonFast' })
   }
   // 世界陸上 入賞（2〜8位）
   for (const rep of myReps) {
