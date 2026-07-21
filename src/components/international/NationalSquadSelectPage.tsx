@@ -51,6 +51,8 @@ export default function NationalSquadSelectPage() {
 
   const [slots, setSlots] = useState<Record<number, string>>(initialSlots)
   const [pickerSlot, setPickerSlot] = useState<number | null>(null)
+  // ピッカーは一括選択制：タップでチェックを積んで「この◯人を選出」で空き枠へまとめて流し込む
+  const [pickerPicked, setPickerPicked] = useState<Set<string>>(new Set())
 
   // ピッカーの絞り込み（特性）とソート（区間配置ピッカーと同じ操作系）
   const [spec, setSpec] = useState<Specialty | 'all'>('all')
@@ -109,9 +111,28 @@ export default function NationalSquadSelectPage() {
     return null
   }
 
-  // 枠に選手を入れる。他の枠に入っている選手はピッカーに出さないので入れ替えは発生しない
-  const selectPlayer = (slotIdx: number, pid: string) => {
-    setSlots(prev => ({ ...prev, [slotIdx]: pid }))
+  const emptySlots = Array.from({ length: SQUAD }, (_, i) => i + 1).filter(i => !slots[i])
+
+  // ピッカー内タップ＝チェックの付け外し（空き枠の数まで）
+  const togglePick = (pid: string) => {
+    setPickerPicked(prev => {
+      const n = new Set(prev)
+      if (n.has(pid)) n.delete(pid)
+      else if (n.size < emptySlots.length) n.add(pid)
+      return n
+    })
+  }
+
+  // チェックした選手を空き枠へ番号順にまとめて流し込む
+  const confirmPick = () => {
+    const ids = [...pickerPicked]
+    setSlots(prev => {
+      const n = { ...prev }
+      const empty = Array.from({ length: SQUAD }, (_, i) => i + 1).filter(i => !n[i])
+      ids.forEach((id, i) => { if (empty[i] != null) n[empty[i]] = id })
+      return n
+    })
+    setPickerPicked(new Set())
     setPickerSlot(null)
   }
 
@@ -145,42 +166,33 @@ export default function NationalSquadSelectPage() {
       .sort((a, b) => val(b) - val(a))
   }, [candidates, spec, pickerSort, fitScore])
 
-  // ── 候補ピッカー（区間配置のピッカーと同じ構造・ロスターと同じ全数値行）──
+  // ── 候補ピッカー（区間配置のピッカーと同じ構造・ロスターと同じ全数値行・一括選択制）──
   if (pickerSlot !== null) {
-    const cur = slots[pickerSlot] ? players.find(p => p.id === slots[pickerSlot]) : undefined
     return (
-      <div style={{ fontFamily: SAIRA, background: C.bg, minHeight: '100dvh', paddingBottom: 40 }}>
+      <div style={{ fontFamily: SAIRA, background: C.bg, minHeight: '100dvh', paddingBottom: 'calc(88px + env(safe-area-inset-bottom))' }}>
         {/* ピッカーヘッダー */}
         <div style={{
           background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`,
           padding: '10px 16px 12px', borderBottom: `1px solid ${C.border}`,
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          <BackButton onClick={() => setPickerSlot(null)} />
+          <BackButton onClick={() => { setPickerPicked(new Set()); setPickerSlot(null) }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
             <div style={{
               width: 40, height: 40, borderRadius: 10, flexShrink: 0,
               background: `linear-gradient(135deg, ${C.purple}, ${alpha(C.purple, 0.55)})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 20, fontWeight: 900, color: C.bg, fontFamily: SAIRA,
+              fontSize: 18, fontWeight: 900, color: C.bg, fontFamily: SAIRA,
             }}>
-              {pickerSlot}
+              {emptySlots.length}
             </div>
             <div>
-              <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.purple, lineHeight: 1.2 }}>代表 枠{pickerSlot}</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>候補から選んでこの枠へ</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.purple, lineHeight: 1.2 }}>代表メンバー選出</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>タップで選択（残り{emptySlots.length}枠）／長押しで詳細</div>
             </div>
-            {cur && (
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ borderRadius: 5, overflow: 'hidden' }}>
-                  <PlayerFace playerId={cur.id} nationality={cur.nationality} size={30} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{cur.name}</div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{ovr(cur)}</div>
-                </div>
-              </div>
-            )}
+            <div style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: pickerPicked.size > 0 ? C.purple : C.textDim }}>
+              {pickerPicked.size}<span style={{ fontSize: 10, color: C.textDim }}>/{emptySlots.length}</span>
+            </div>
           </div>
         </div>
 
@@ -206,27 +218,43 @@ export default function NationalSquadSelectPage() {
           </select>
         </div>
 
-        {/* 候補リスト（ロスターと同じ全数値付きの行）。他の枠で選出済みの選手は出さない */}
+        {/* 候補リスト（ロスターと同じ全数値付きの行）。選出済みの選手は出さない */}
         <div style={{ background: C.bg }}>
-          {pickerPlayers.filter(c => {
-            const s = slotOf(c.player.id)
-            return s === null || s === pickerSlot
-          }).map(c => {
+          {pickerPlayers.filter(c => slotOf(c.player.id) === null).map(c => {
             const p = c.player
-            const isSelected = slots[pickerSlot] === p.id
             return (
               <PlayerRow
                 key={p.id}
                 player={p}
-                selected={isSelected}
+                selected={pickerPicked.has(p.id)}
                 hideStatusBadges
-                handlers={pickerRowHandlers(p.id, () => selectPlayer(pickerSlot, p.id))}
+                handlers={pickerRowHandlers(p.id, () => togglePick(p.id))}
                 extra={clubBadge(p.teamId)}
               />
             )
           })}
           {pickerPlayers.length === 0 && (
             <div style={{ textAlign: 'center', padding: 40, color: C.textGhost, fontSize: 12 }}>条件に合う候補なし</div>
+          )}
+        </div>
+
+        {/* 選出バー（固定） */}
+        <div style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, margin: '0 auto', maxWidth: 480,
+          padding: '10px 16px calc(10px + env(safe-area-inset-bottom))',
+          background: `linear-gradient(180deg, transparent, ${C.bg} 30%)`,
+          display: 'flex', alignItems: 'center', gap: 12, zIndex: 35,
+        }}>
+          {pickerPicked.size === 0 ? (
+            <button disabled style={{
+              flex: 1, padding: '13px 0', borderRadius: 12, cursor: 'default',
+              background: C.surface2, border: `2px solid ${C.border2}`, color: C.textDim,
+              fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
+            }}>候補をタップで選択</button>
+          ) : (
+            <button onClick={confirmPick} className="btn-game btn-game--purple" style={{ flex: 1 }}>
+              <span className="btn-game__inner">この{pickerPicked.size}人を選出</span>
+            </button>
           )}
         </div>
       </div>
@@ -294,7 +322,7 @@ export default function NationalSquadSelectPage() {
               key={idx}
               onClick={() => {
                 if (player) setSlots(prev => { const n = { ...prev }; delete n[idx]; return n })
-                else setPickerSlot(idx)
+                else { setPickerPicked(new Set()); setPickerSlot(idx) }
               }}
               style={{
                 padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
