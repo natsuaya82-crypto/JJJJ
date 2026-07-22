@@ -85,10 +85,13 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
       </div>
 
       <div style={{ padding: '0 12px' }}>
+        {/* 選出済みなら「代表メンバー 20名」。未選出の国は見出しを出さずロスターだけ（「候補 上位30名」の謎表記は廃止） */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
-          <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>{isSquad ? '代表メンバー' : '代表候補'}</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>{isSquad ? '選出' : '上位'}{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
-          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>{isSquad ? '長押しで詳細' : '持ちタイム順・長押しで詳細'}</span>
+          {isSquad && <>
+            <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>代表メンバー</span>
+            <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
+          </>}
+          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>長押しで詳細</span>
         </div>
 
         {roster.length === 0 ? (

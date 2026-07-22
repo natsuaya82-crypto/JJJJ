@@ -6362,12 +6362,30 @@ export const useGameStore = create<GameStore>()(
             participants: nations.map(n => `nat_${n}`),
           }))
           const individuals = fields ? simulateIndividuals(fields) : undefined
+          // 代表は選出された時点で代表：駅伝20人＋個人種目エントリーをここで代表記録に積む
+          // （予選年も本戦年も、大会結果を待たずに「◯◯年 駅伝 [国旗]代表」パッチ・代表履歴が付く）
+          const repsAtStart = [...(state.worldRepresentatives ?? [])]
+          const repKey = (r: { playerId: string; year: number; label: string; rank?: number }) => `${r.playerId}|${r.year}|${r.label}|${r.rank ?? ''}`
+          const repSeen = new Set(repsAtStart.map(repKey))
+          const pushRep = (r: { playerId: string; year: number; nat: import('../types').Nationality; label: string; rank?: number }) => {
+            const k = repKey(r)
+            if (!repSeen.has(k)) { repsAtStart.push(r); repSeen.add(k) }
+          }
+          for (const [pid, ids] of Object.entries(squads)) {
+            const nat = pid.slice(4) as import('../types').Nationality
+            for (const id of ids) pushRep({ playerId: id, year, nat, label: '駅伝' })
+          }
+          if (individuals) {
+            const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
+            for (const ir of individuals) for (const pl of ir.placings) pushRep({ playerId: pl.playerId, year, nat: pl.nat, label: EV[ir.event] ?? ir.event })
+          }
           return {
             worldTournament: {
               year, kind: isMain ? 'main' as const : 'qualifier' as const, host,
               participants, squads, races, raceIndex: 0, points: {},
               individuals, individualsSeen: !isMain, japanIn, finished: false,
             },
+            worldRepresentatives: repsAtStart,
           }
         })
       },
@@ -6431,20 +6449,26 @@ export const useGameStore = create<GameStore>()(
             squads: t.squads,
           }
           // 代表出場記録（パッチ・代表履歴の元）。
-          // 予選・本戦とも「選出された駅伝代表20人全員」を代表として記録する（0走でも代表）。
-          // rank は本戦で実際に走った選手のみ（＝駅伝の国別順位。メダルパッチの元）。予選はrank無し
+          // 選出時点の記録（rank無し）は startWorldTournament で積み済み。ここでは成績付き（rank）を追加する。
+          // 同一エントリーの重複はキーで排除（旧セーブで選出時記録が無い場合もここで補完される）
           const reps = [...(state.worldRepresentatives ?? [])]
+          const endRepKey = (r: { playerId: string; year: number; label: string; rank?: number }) => `${r.playerId}|${r.year}|${r.label}|${r.rank ?? ''}`
+          const endRepSeen = new Set(reps.map(endRepKey))
+          const pushEndRep = (r: { playerId: string; year: number; nat: Nationality; label: string; rank?: number }) => {
+            const k = endRepKey(r)
+            if (!endRepSeen.has(k)) { reps.push(r); endRepSeen.add(k) }
+          }
           if (result.kind === 'main') {
             const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
-            for (const ir of result.meet.individuals) for (const pl of ir.placings) reps.push({ playerId: pl.playerId, year: t.year, nat: pl.nat, label: EV[ir.event] ?? ir.event, rank: pl.rank })
+            for (const ir of result.meet.individuals) for (const pl of ir.placings) pushEndRep({ playerId: pl.playerId, year: t.year, nat: pl.nat, label: EV[ir.event] ?? ir.event, rank: pl.rank })
             for (const ek of result.meet.ekiden) {
               const squad = t.squads[`nat_${ek.nat}`] ?? []
               const ran = new Set(ek.runnerIds)
-              for (const pid of squad) reps.push({ playerId: pid, year: t.year, nat: ek.nat, label: '駅伝', rank: ran.has(pid) ? ek.rank : undefined })
-              for (const rid of ek.runnerIds) if (!squad.includes(rid)) reps.push({ playerId: rid, year: t.year, nat: ek.nat, label: '駅伝', rank: ek.rank })
+              for (const pid of squad) pushEndRep({ playerId: pid, year: t.year, nat: ek.nat, label: '駅伝', rank: ran.has(pid) ? ek.rank : undefined })
+              for (const rid of ek.runnerIds) if (!squad.includes(rid)) pushEndRep({ playerId: rid, year: t.year, nat: ek.nat, label: '駅伝', rank: ek.rank })
             }
           } else {
-            for (const pt of t.participants) for (const pid of t.squads[pt.id] ?? []) reps.push({ playerId: pid, year: t.year, nat: pt.nat, label: '駅伝' })
+            for (const pt of t.participants) for (const pid of t.squads[pt.id] ?? []) pushEndRep({ playerId: pid, year: t.year, nat: pt.nat, label: '駅伝' })
           }
           return {
             worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, finished: true },
