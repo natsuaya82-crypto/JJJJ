@@ -11,7 +11,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
@@ -6448,10 +6448,12 @@ export const useGameStore = create<GameStore>()(
           // 大陸予選は大会開始時に確定済み（worldTournament.continentals）。無い旧セーブ用に念のためフォールバック
           const continentals = t.kind === 'qualifier' ? (t.continentals ?? simulateContinentalQualifiers(state.players, t.year)) : undefined
           // 駅伝3戦のレース詳細も結果に残す（ECLのeclSeriesと同じ扱い。選手詳細の駅伝データ等で使う）
+          // 駅伝の区間ポイント（全3戦の各区間で区間順位1位3/2位2/3位1）を国別に集計
+          const segPts = t.kind === 'main' ? ekidenSegmentPoints(newRaces) : undefined
           const result = {
             ...(t.kind === 'qualifier'
               ? { ...composeQualifierResult(t.year, rows, 3, t.host), bestPlayer, continentals }
-              : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows)),
+              : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows, segPts)),
             races: newRaces,
             // 選出された駅伝代表20人を恒久保存（チームタブの代表表示・0走でも代表履歴に残すための元データ）
             squads: t.squads,

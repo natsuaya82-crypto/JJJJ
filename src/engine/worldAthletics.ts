@@ -316,6 +316,26 @@ export function simulateContinentalQualifiers(players: Player[], year: number): 
 // メダル・得点・国別総合を出す。得点＝金5/銀3/銅2/入賞(8位以内)1。
 // ───────────────────────────────────────────────────────────────
 export const MEDAL_POINTS = { gold: 5, silver: 3, bronze: 2, finalist: 1 }
+// 駅伝は花形＝個人1種目より重い。「区間ポイント（各区間の区間順位）」＋「総合順位ボーナス」の合算。
+//  区間ポイント: 各区間の区間賞=3 / 2位=2 / 3位=1（全3戦の全区間で加算）
+//  総合ボーナス: 駅伝総合1位=10 / 2位=6 / 3位=4 / 4〜8位=2
+export const EKIDEN_SEG_POINTS = [0, 3, 2, 1]  // index=区間順位（1..3）
+export const EKIDEN_TOTAL_POINTS = { first: 10, second: 6, third: 4, finalist: 2 }
+
+// 全3戦の各区間で区間順位に応じたポイントを国別に合算する
+export function ekidenSegmentPoints(races: { results?: { segmentResults: { runners: { teamId: string; rank?: number }[] }[] } }[]): Map<Nationality, number> {
+  const pts = new Map<Nationality, number>()
+  for (const race of races) {
+    for (const sr of race.results?.segmentResults ?? []) {
+      for (const run of sr.runners) {
+        if (!run.teamId.startsWith('nat_')) continue
+        const p = EKIDEN_SEG_POINTS[run.rank ?? 99] ?? 0
+        if (p > 0) { const nat = run.teamId.slice(4) as Nationality; pts.set(nat, (pts.get(nat) ?? 0) + p) }
+      }
+    }
+  }
+  return pts
+}
 
 // メダル表記（金2 銀1 銅0）
 export function formatMeetMedal(t: { golds: number; silvers: number; bronzes: number }): string {
@@ -408,13 +428,24 @@ export function composeMainResult(
   year: number, host: Nationality, nations: Nationality[],
   individuals: WAIndividualResult[],
   ekidenRows: { nat: Nationality; points: number; runnerIds: string[] }[],
+  ekidenSegPts?: Map<Nationality, number>,   // 各国の駅伝区間ポイント合計（無ければ0）
 ): WAMainResult {
   const sorted = [...ekidenRows].sort((a, b) => b.points - a.points)
   const ekiden: WAEkidenPlacing[] = sorted.map((r, i) => ({ nat: r.nat, timeScore: r.points, rank: i + 1, runnerIds: r.runnerIds }))
   const totals = new Map<Nationality, WANationTotal>()
   for (const nat of nations) totals.set(nat, { nat, points: 0, golds: 0, silvers: 0, bronzes: 0, rank: 0 })
+  // 個人種目：金5/銀3/銅2/入賞1（メダルもカウント）
   for (const ir of individuals) for (const pl of ir.placings) addPoints(totals, pl.nat, pl.rank)
-  for (const ek of ekiden) addPoints(totals, ek.nat, ek.rank)
+  // 駅伝：総合順位ボーナス（メダルもカウント）＋区間ポイント合計
+  for (const ek of ekiden) {
+    const cur = totals.get(ek.nat)
+    if (!cur) continue
+    if (ek.rank === 1) { cur.points += EKIDEN_TOTAL_POINTS.first; cur.golds += 1 }
+    else if (ek.rank === 2) { cur.points += EKIDEN_TOTAL_POINTS.second; cur.silvers += 1 }
+    else if (ek.rank === 3) { cur.points += EKIDEN_TOTAL_POINTS.third; cur.bronzes += 1 }
+    else if (ek.rank <= 8) { cur.points += EKIDEN_TOTAL_POINTS.finalist }
+    cur.points += ekidenSegPts?.get(ek.nat) ?? 0
+  }
   const totalsArr = [...totals.values()].sort((a, b) => b.points - a.points || b.golds - a.golds || b.silvers - a.silvers)
   totalsArr.forEach((t, i) => { t.rank = i + 1 })
   const meet: WAMeetResult = { year, individuals, ekiden, totals: totalsArr }

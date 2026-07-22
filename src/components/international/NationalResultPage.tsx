@@ -116,11 +116,16 @@ export default function NationalResultPage() {
     },
     {
       title: '総合成績',
-      body: card('長距離部門 総合成績', totals.map(t => natRow(t.nat,
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 9, color: C.textDim }}>{formatMeetMedal(t)}</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, minWidth: 30, textAlign: 'right' }}>{t.points}<span style={{ fontSize: 9, color: C.textDim }}>p</span></span>
-        </span>, t.rank))),
+      body: <>
+        {card('長距離部門 総合成績', totals.map(t => natRow(t.nat,
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 9, color: C.textDim }}>{formatMeetMedal(t)}</span>
+            <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, minWidth: 30, textAlign: 'right' }}>{t.points}<span style={{ fontSize: 9, color: C.textDim }}>p</span></span>
+          </span>, t.rank)))}
+        <div style={{ margin: '0 12px', fontSize: 9, color: C.textGhost, lineHeight: 1.6 }}>
+          配点｜個人種目: 金5 銀3 銅2 入賞1 ／ 駅伝: 総合1位10・2位6・3位4・入賞2 ＋ 区間賞ごと3/2/1（全区間）
+        </div>
+      </>,
     },
   ]
   const lastStep = sections.length - 1

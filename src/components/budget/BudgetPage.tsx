@@ -199,11 +199,25 @@ export default function BudgetPage() {
             <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
             <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px', borderTop: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>収支</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>期末残高</div>
+                <div style={{ fontSize: 9, color: C.textGhost }}>来季へ繰り越す総額</div>
+              </div>
               <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: seasonBalance >= 0 ? C.green : C.red, textShadow: seasonBalance >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
                 {fmt(seasonBalance, true)}
               </div>
             </div>
+            {/* 「今季の純増」＝繰越を除いた今シーズン単体の損益。残高が大きくても純増は小さい、を明示する */}
+            {(() => {
+              const carryover = bd?.carryover ?? 0
+              const netThisSeason = seasonBalance - carryover
+              return (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0 6px' }}>
+                  <div style={{ fontSize: 11, color: C.textSub }}>今季の純増<span style={{ fontSize: 9, color: C.textGhost }}>（繰越を除く）</span></div>
+                  <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: netThisSeason >= 0 ? C.green : C.red }}>{fmt(netThisSeason, true)}</div>
+                </div>
+              )
+            })()}
             <div style={{ fontSize: 10, color: C.textDim, padding: '2px 0 6px', lineHeight: 1.6 }}>
               賞金・観客・スポンサー収入や順位グラントは<b style={{ color: C.textSub }}>来期の予算に反映</b>（シーズン終了時に確定）。
             </div>
