@@ -119,10 +119,11 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     for (const wr of src.worldAthleticsResults ?? []) cycles.push({ year: wr.year, squad: wr.squads?.[`nat_${natCode}`], individuals: wr.kind === 'main' ? wr.meet.individuals : undefined })
     const cur = cycles.find(c => (c.squad?.length ?? 0) > 0)
     if (cur) {
-      if (cur.squad?.includes(p.id)) out.push({ key: `natcur-${cur.year}-駅伝`, label: `${cur.year} 駅伝 `, flag: natCode, labelSuffix: '代表', kind: 'national' })
+      // 現役代表なので年は付けない（例: 「駅伝 [🇯🇵]代表」）。日本も他国も同じ
+      if (cur.squad?.includes(p.id)) out.push({ key: `natcur-${cur.year}-駅伝`, label: `駅伝 `, flag: natCode, labelSuffix: '代表', kind: 'national' })
       const EVL: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
       for (const ir of cur.individuals ?? []) {
-        if (ir.placings.some(pl => pl.playerId === p.id)) out.push({ key: `natcur-${cur.year}-${ir.event}`, label: `${cur.year} ${EVL[ir.event] ?? ir.event} `, flag: natCode, labelSuffix: '代表', kind: 'national' })
+        if (ir.placings.some(pl => pl.playerId === p.id)) out.push({ key: `natcur-${cur.year}-${ir.event}`, label: `${EVL[ir.event] ?? ir.event} `, flag: natCode, labelSuffix: '代表', kind: 'national' })
       }
     }
   }
