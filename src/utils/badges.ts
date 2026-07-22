@@ -113,10 +113,15 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
   // 現在のサイクル＝その国の直近の選考（開催中の大会 or 最新の保存結果）
   {
     const natCode = p.nationality
+    // その国の駅伝代表20人を探す。アジア/本戦は squads、欧州・アフリカ・アメリカは大陸予選の squads から
+    const contSquad = (conts?: { squads: Record<string, string[]> }[]): string[] | undefined => {
+      for (const c of conts ?? []) { const s = c.squads?.[`nat_${natCode}`]; if (s?.length) return s }
+      return undefined
+    }
     type Cycle = { year: number; squad?: string[]; individuals?: { event: string; placings: { playerId: string }[] }[] }
     const cycles: Cycle[] = []
-    if (src.worldTournament) cycles.push({ year: src.worldTournament.year, squad: src.worldTournament.squads?.[`nat_${natCode}`], individuals: src.worldTournament.individuals })
-    for (const wr of src.worldAthleticsResults ?? []) cycles.push({ year: wr.year, squad: wr.squads?.[`nat_${natCode}`], individuals: wr.kind === 'main' ? wr.meet.individuals : undefined })
+    if (src.worldTournament) cycles.push({ year: src.worldTournament.year, squad: src.worldTournament.squads?.[`nat_${natCode}`] ?? contSquad(src.worldTournament.continentals), individuals: src.worldTournament.individuals })
+    for (const wr of src.worldAthleticsResults ?? []) cycles.push({ year: wr.year, squad: wr.squads?.[`nat_${natCode}`] ?? (wr.kind === 'qualifier' ? contSquad(wr.continentals) : undefined), individuals: wr.kind === 'main' ? wr.meet.individuals : undefined })
     const cur = cycles.find(c => (c.squad?.length ?? 0) > 0)
     if (cur) {
       // 現役代表なので年は付けない（例: 「駅伝 [🇯🇵]代表」）。日本も他国も同じ

@@ -15,7 +15,7 @@ import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventT
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 import ShareCard from './ShareCard'
 import Flag from '../ui/Flag'
-import { natLabel } from '../../data/nationalities'
+import { natLabel, natGeoRegion } from '../../data/nationalities'
 import { WA_HOST_CITY } from '../../engine/worldAthletics'
 
 const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
@@ -900,10 +900,34 @@ export default function PlayerSheet() {
                   }
                 }
                 // 在籍テーブルは駅伝のみ（個人種目は2ページ目の世界陸上セクションで見る）。
-                // レース詳細が無い旧データでも駅伝代表の年の行だけは出す
+                // レース詳細が無い代表（0走・大陸予選など）も、地域に応じた大会名で行を出す。
+                //  本戦=世界陸上／アジア=世界陸上アジア予選／欧州=ユーロ予選／アフリカ=アフリカ予選／アメリカ=アメリカ予選
+                const compLabelFor = (year: number): string => {
+                  const isMainYear = (year - 2028) % 2 === 0
+                  if (isMainYear) return '世界陸上 駅伝'
+                  const g = natGeoRegion(player.nationality)
+                  if (g === 'アジア' || g === 'オセアニア') return '世界陸上アジア予選 駅伝'
+                  if (g === 'ヨーロッパ') return 'ユーロ予選 駅伝'
+                  if (g === 'アフリカ') return 'アフリカ予選 駅伝'
+                  if (g === 'アメリカ大陸') return 'アメリカ予選 駅伝'
+                  return '世界陸上予選 駅伝'
+                }
+                const addRepRow = (year: number) => {
+                  const row = touch(year)
+                  const label = compLabelFor(year)
+                  // レース出走で既にこの大会の行がある年は追加しない（重複防止）。0走の代表だけ行を作る
+                  if (!row.comps.has(label)) row.comps.set(label, { label, races: 0, wins: 0, rankSum: 0, ranked: 0 })
+                }
                 for (const rep of worldRepresentatives ?? []) {
                   if (rep.playerId !== player.id || rep.label !== '駅伝') continue
-                  touch(rep.year)
+                  addRepRow(rep.year)
+                }
+                // 大陸予選（欧州・アフリカ・アメリカ）の代表は continentals.squads に入っている（0走＝レース詳細なし）
+                for (const wr of worldAthleticsResults ?? []) {
+                  if (wr.kind !== 'qualifier') continue
+                  for (const c of wr.continentals ?? []) {
+                    if (Object.values(c.squads).some(ids => ids.includes(player.id))) { addRepRow(wr.year); break }
+                  }
                 }
                 const natRows = [...byYear.values()].sort((a, b) => b.year - a.year)
                 if (natRows.length === 0) return null

@@ -272,20 +272,41 @@ export function qualifyNations(players: Player[], year: number, hostNat: Nationa
   return picked
 }
 
+// 大陸予選の呼称（本戦=世界陸上、アジア=世界陸上アジア予選 に合わせた地域別の予選名）
+export const CONT_QUAL_LABEL: Record<'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸', string> = {
+  ヨーロッパ: 'ユーロ予選',
+  アフリカ: 'アフリカ予選',
+  アメリカ大陸: 'アメリカ予選',
+}
+
+export type ContinentalQualResult = {
+  region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'
+  standings: { nat: Nationality; rank: number }[]
+  advanced: Nationality[]
+  squads: Record<string, string[]>   // nat_XXX → 選出された駅伝代表20人（パッチ・代表履歴の元）
+}
+
 // 大陸予選（欧州・アフリカ・アメリカ）を裏で回す：レースはせず国力+当日ブレで順位を決める。
-// アジア予選（実レース）の年に同時開催され、通過国が翌年の本戦出場枠になる
-export function simulateContinentalQualifiers(players: Player[], year: number): { region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'; standings: { nat: Nationality; rank: number }[]; advanced: Nationality[] }[] {
+// アジア予選（実レース）の年に同時開催され、通過国が翌年の本戦出場枠になる。
+// 各参加国も駅伝代表20人を選出する（レースはしないが「代表に選ばれた」記録＝パッチが付く）。
+export function simulateContinentalQualifiers(players: Player[], year: number): ContinentalQualResult[] {
   const allNats = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
     .filter(n => !WA_EXCLUDED_NATS.has(n))
-  const out: { region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'; standings: { nat: Nationality; rank: number }[]; advanced: Nationality[] }[] = []
+  const out: ContinentalQualResult[] = []
   for (const { region, slots } of REGION_QUOTA) {
     if (region === 'アジア+オセアニア') continue
-    const rows = allNats
-      .filter(n => meetRegion(n) === region && nationStrength(players, n, year) > 0)
+    const nats = allNats.filter(n => meetRegion(n) === region && nationStrength(players, n, year) > 0)
+    const rows = nats
       .map(n => ({ nat: n, score: nationStrength(players, n, year) * (0.92 + rnd() * 0.16) }))  // 当日ブレで番狂わせも起きる
       .sort((a, b) => b.score - a.score)
     const standings = rows.map((r, i) => ({ nat: r.nat, rank: i + 1 }))
-    out.push({ region, standings, advanced: standings.slice(0, slots).map(s => s.nat) })
+    // 各国の駅伝代表20人（持ちタイム順）。個人種目スターは除外せず駅伝に全振り（予選は駅伝のみ）
+    const squads: Record<string, string[]> = {}
+    for (const n of nats) {
+      const cands = ekidenCandidates(players, n, year)
+      squads[`nat_${n}`] = autoSelectEkiden(cands, new Set<string>(), 20).map(p => p.id)
+    }
+    out.push({ region, standings, advanced: standings.slice(0, slots).map(s => s.nat), squads })
   }
   return out
 }
@@ -421,7 +442,7 @@ export type QualStanding = { nat: Nationality; strength: number; rank: number; a
 // races: 駅伝3戦の実レース結果。ECLのeclSeriesと同じ扱いで保持し、選手詳細の駅伝データ等に使う
 // squads: 選出された駅伝代表20人（participantId nat_XXX → playerId[]）。チームタブの代表表示・0走代表の履歴用
 // bestPlayer: 年間アジア最優秀選手（予選3戦すべてに出走し区間順位平均が最良の選手。パッチの元）
-export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; host?: Nationality; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[]; squads?: Record<string, string[]>; bestPlayer?: { playerId: string; nat: Nationality; avgRank: number }; continentals?: { region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'; standings: { nat: Nationality; rank: number }[]; advanced: Nationality[] }[] }
+export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; host?: Nationality; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[]; squads?: Record<string, string[]>; bestPlayer?: { playerId: string; nat: Nationality; avgRank: number }; continentals?: ContinentalQualResult[] }
 export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nations: Nationality[]; meet: WAMeetResult; japanRank: number | null; races?: import('../types').Race[]; squads?: Record<string, string[]> }
 export type WAYearResult = WAQualifierResult | WAMainResult
 

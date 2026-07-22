@@ -6381,11 +6381,15 @@ export const useGameStore = create<GameStore>()(
             const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
             for (const ir of individuals) for (const pl of ir.placings) pushRep({ playerId: pl.playerId, year, nat: pl.nat, label: EV[ir.event] ?? ir.event })
           }
+          // 予選年は欧州・アフリカ・アメリカの大陸予選も同時に裏開催（レースはしないが代表20人を選出）。
+          // 各国の代表はここで確定＝アジア予選と同じタイミングで「駅伝 [国旗]代表」パッチが付く。
+          // 代表20人は continentals.squads にまとめて持つ（worldRepresentativesへは重複保存しない＝セーブ肥大を回避）
+          const continentals = !isMain ? simulateContinentalQualifiers(state.players, year) : undefined
           return {
             worldTournament: {
               year, kind: isMain ? 'main' as const : 'qualifier' as const, host,
               participants, squads, races, raceIndex: 0, points: {},
-              individuals, individualsSeen: !isMain, japanIn, finished: false,
+              individuals, individualsSeen: !isMain, continentals, japanIn, finished: false,
             },
             worldRepresentatives: repsAtStart,
           }
@@ -6441,8 +6445,8 @@ export const useGameStore = create<GameStore>()(
             }
             return best ? { playerId: best.playerId, nat: best.nat, avgRank: best.avgRank } : undefined
           })()
-          // 欧州・アフリカ・アメリカの大陸予選を裏で回す（アジア予選と同年開催・通過国が翌年の本戦枠になる）
-          const continentals = t.kind === 'qualifier' ? simulateContinentalQualifiers(state.players, t.year) : undefined
+          // 大陸予選は大会開始時に確定済み（worldTournament.continentals）。無い旧セーブ用に念のためフォールバック
+          const continentals = t.kind === 'qualifier' ? (t.continentals ?? simulateContinentalQualifiers(state.players, t.year)) : undefined
           // 駅伝3戦のレース詳細も結果に残す（ECLのeclSeriesと同じ扱い。選手詳細の駅伝データ等で使う）
           const result = {
             ...(t.kind === 'qualifier'

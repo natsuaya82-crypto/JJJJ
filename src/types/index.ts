@@ -518,6 +518,7 @@ export type WorldTournament = {
   individuals?: import('../engine/worldAthletics').WAIndividualResult[]  // 本番のみ（大会開始時に確定）
   individualsSeen?: boolean          // 個人種目の代表発表を見たか（本番のみ）
   individualsRevealed?: number       // 結果発表済みの個人種目数（駅伝N戦後にN種目目を発表するインターリーブ進行用）
+  continentals?: import('../engine/worldAthletics').ContinentalQualResult[]  // 予選年に裏で開催した大陸予選（欧州・アフリカ・アメリカ）。代表パッチの元
   japanIn: boolean
   finished: boolean
 }
