@@ -260,7 +260,6 @@ export default function WorldTournamentPage() {
         setTeamTalk={() => {}}
         unavailable={unavailableMap}
         btnClass="btn-game--gold"
-        hideRosterLimits
       />
     )
   }

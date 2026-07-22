@@ -6,7 +6,6 @@ import type { Player, Race, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { calcBaseAbility, calcAffinity, calcConditionModifier } from '../../engine/raceEngine'
 import { ovr, effSegOvr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
-import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
@@ -63,7 +62,7 @@ const ALL_STATS: [string, keyof import('../../types').Player['ratings']][] = [
 export function LineupPhase({
   race, raceNumber, totalRaces, mainPlayers, raceLineup, allSegsFilled,
   pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart, onSkipRace,
-  onBack, lastLineup, unavailable, btnClass, hideRosterLimits,
+  onBack, lastLineup, unavailable, btnClass,
 }: {
   race: Race
   raceNumber: number
@@ -87,7 +86,6 @@ export function LineupPhase({
   lastLineup?: Record<number, string>
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
   btnClass?: string   // スタートボタンの色クラス差し替え（ECL＝btn-game--red）
-  hideRosterLimits?: boolean  // アジア/外国人枠の表示を消す（世界陸上＝代表戦ではクラブの枠ルールが無関係）
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -167,8 +165,7 @@ export function LineupPhase({
   const dominantNat = Object.entries(lineupNatCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
   const chemBonus = maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0
   const NAT_LABELS: Record<string, string> = { JPN: '日本', KOR: '韓国', ETH: 'エチオピア', KEN: 'ケニア', UGA: 'ウガンダ', CHN: '中国', TWN: '台湾', TAN: 'タンザニア', USA: '米国', EUR: '欧州' }
-  const lineupForeignCount = assignedPlayers.filter(p => (p.foreignCategory ?? nationalityToForeignCategory(p.nationality)) === 'foreign').length
-  const lineupAsianCount = assignedPlayers.filter(p => (p.foreignCategory ?? nationalityToForeignCategory(p.nationality)) === 'asian').length
+  // アジア/外国人の配置枠は廃止したためカウントは持たない（誰でも起用可）
 
   const pickerSegData = pickerSeg !== null ? race.segments.find(s => s.index === pickerSeg) : null
   const pickerPlayers = useMemo(() => {
@@ -319,8 +316,7 @@ export function LineupPhase({
           <span style={{ fontSize: '10px', color: C.textDim }}>
             配置 <span style={{ color: filledCount === race.segments.length ? C.green : C.gold, fontWeight: '700', fontFamily: SAIRA }}>{filledCount}/{race.segments.length}</span>
           </span>
-          {!hideRosterLimits && <span style={{ fontSize: '9px', color: lineupAsianCount > 5 ? C.red : C.textDim }}>アジア {lineupAsianCount}/5</span>}
-          {!hideRosterLimits && <span style={{ fontSize: '9px', color: lineupForeignCount > 3 ? C.red : C.textDim }}>外国 {lineupForeignCount}/3</span>}
+          {/* アジア/外国人の配置枠は廃止（誰でも起用可）。カウンター表示も削除 */}
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {assignedPlayers.length >= 3 && dominantNat && chemBonus > 0 && (
