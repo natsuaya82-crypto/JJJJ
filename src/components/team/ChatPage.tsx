@@ -60,6 +60,14 @@ function isChatEvent(e: GameEvent): boolean {
   return !e.resolved && !!e.playerId && (e.choices?.length ?? 0) > 0 && (CHAT_EVENT_INCLUDE as readonly string[]).includes(e.type)
 }
 
+// 海外挑戦の直訴メッセージ（夢の行き先はタイプで変わる）
+const OVERSEAS_DREAM: Record<string, string> = {
+  africa: 'ケニアやエチオピアの高地で、世界のトップと毎日走ってみたいんです。',
+  europe: 'ヨーロッパのトラックで、自分のスピードがどこまで通用するか試したいんです。',
+  america: '北米の大きな舞台で走ってみたいんです。',
+}
+const OVERSEAS_LABEL: Record<string, string> = { africa: 'アフリカ', europe: 'ヨーロッパ', america: '北米' }
+
 function buildMessages(
   player: ReturnType<typeof useGameStore.getState>['players'][0],
   contractReq: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['contractRequests']>[0] | undefined,
@@ -68,6 +76,7 @@ function buildMessages(
   hasTransfer: boolean,
   transferReason?: string,
   events?: GameEvent[],
+  overseasRegion?: string,
 ): ChatMessage[] {
   const msgs: ChatMessage[] = []
 
@@ -79,6 +88,11 @@ function buildMessages(
 
   if (hasRetirement) {
     msgs.push({ from: 'player', text: `${player.age}歳になりました。正直、そろそろ引退を考えています。監督はどうお思いですか？` })
+    return msgs
+  }
+
+  if (overseasRegion) {
+    msgs.push({ from: 'player', text: `監督、真剣な話があります。${OVERSEAS_DREAM[overseasRegion] ?? '海外で走ってみたいんです。'}海外挑戦を認めてもらえませんか？` })
     return msgs
   }
 
@@ -178,6 +192,7 @@ function ChatView({
     acceptContractCounter, reNegotiateContract,
     acceptRetirement, dismissRetirementRequest,
     dismissTransferRequest, allowPlayerTransfer,
+    approveOverseasChallenge, denyOverseasChallenge,
     generateContractRequests, refuseFreeContactRetention,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
     openPlayerSheet, resolveEvent, finalizeTransfer, rejectTransferBid,
@@ -201,6 +216,7 @@ function ChatView({
   const contractReq = freeContactClub ? undefined : contractReqRaw
   const retirementReq = (currentSeason.retirementRequests ?? []).find(r => r.playerId === player.id)
   const transferReq = (currentSeason.transferRequests ?? []).find(r => r.playerId === player.id)
+  const overseasReq = (currentSeason.overseasRequests ?? []).find(r => r.playerId === player.id)
   const months = contractMonths(player.contract.yearsLeft, raceIndex, totalRaces)
 
   // 獲得オファー交渉（FA・他チーム選手）。存在すれば契約更新ではなく獲得交渉モードで進める。
@@ -232,7 +248,7 @@ function ChatView({
       : isAcq
       ? buildAcqMessages(player, acqOffer!, teams.find(t => t.id === player.teamId)?.name)
       : talksHere
-      ? buildMessages(player, contractReq, freeContactClub ? 99 : months, !!retirementReq, !!transferReq, transferReq?.reason, events)
+      ? buildMessages(player, contractReq, freeContactClub ? 99 : months, !!retirementReq, !!transferReq, transferReq?.reason, events, overseasReq?.region)
       : []  // 他チーム/FA選手・レンタル選手で交渉モードでもない場合は保存ログのみ
     const built = (talksHere && !isTransfer && !isAcq && contactMsg) ? [...builtBase, contactMsg] : builtBase
     if (!initialMessages || initialMessages.length === 0) return built
@@ -243,7 +259,7 @@ function ChatView({
       player,
       contractReq && contractReq.status === 'pending_gm' && contractReq.initiatedBy === 'player' ? contractReq : undefined,
       (player.transferListed || freeContactClub) ? 99 : months,  // 退団予定・接触中の選手には契約残の催促を出さない
-      !!retirementReq, !!transferReq, transferReq?.reason, events,
+      !!retirementReq, !!transferReq, transferReq?.reason, events, overseasReq?.region,
     ) : []
     const freshSource = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
     const fresh = freshSource.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
@@ -509,6 +525,27 @@ function ChatView({
       }},
     ] : null
 
+    // 海外挑戦の直訴：認める（夢を応援）／引き留める（モラール低下・2回目は大）
+    const buildOverseasButtons = (): ReplyBtns | null => overseasReq ? [
+      { label: `海外挑戦を認める（${OVERSEAS_LABEL[overseasReq.region] ?? '海外'}）`, color: C.purple ?? '#A855F7', action: () => {
+        append(
+          { from: 'gm', text: 'わかった。お前の走りはもう世界レベルだ。夢を応援する。良いオファーを待とう。' },
+          { from: 'player', text: 'ありがとうございます！絶対に結果を出します。オファーが来たらよろしくお願いします！' },
+        )
+        approveOverseasChallenge(player.id)
+      }},
+      { label: '今季は残ってくれ', color: C.blue, action: () => {
+        const cnt = (player.overseasDeniedCount ?? 0) + 1
+        append(
+          { from: 'gm', text: 'まだチームにお前の力が必要だ。今季は残ってくれ。' },
+          { from: 'player', text: cnt >= 2
+            ? '…また、ですか。わかりました。でも、この気持ちはもう抑えられないかもしれません。'
+            : 'わかりました…。でも、夢は諦めていません。また相談させてください。' },
+        )
+        denyOverseasChallenge(player.id)
+      }},
+    ] : null
+
     // フリー移籍で心が移籍に傾いているか（契約更新を条件に関わらず断る状態）。判定は決断時と同じ freeContactConsent
     const courtedAway = (() => {
       const freeContact = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
@@ -580,6 +617,7 @@ function ChatView({
       { present: !!chatEvent, idx: chatEvent ? lastIdx(m => m.from === 'player' && m.text === chatEvent.body) : -1, build: buildEventButtons },
       { present: !!retirementReq, idx: retirementReq ? lastIdx(m => m.text.includes('引退を考えて')) : -1, build: buildRetirementButtons },
       { present: !!transferReq, idx: transferReq ? lastIdx(m => m.text.includes('移籍を考えて')) : -1, build: buildTransferButtons },
+      { present: !!overseasReq, idx: overseasReq ? lastIdx(m => m.text.includes('海外挑戦を認めて')) : -1, build: buildOverseasButtons },
       { present: !!contractReq && contractReq.status !== 'accepted', idx: contractReq ? lastIdx(m => m.text.includes('契約について') || m.text.includes('契約の件')) : -1, build: buildContractButtons },
     ].filter(t => t.present).sort((a, b) => b.idx - a.idx)
     for (const t of topicOrder) {
@@ -994,15 +1032,18 @@ function getPlayerStatus(
   events: ReturnType<typeof useGameStore.getState>['currentSeason']['events'],
   months: number,
   contacted: boolean,
+  overseasRequests?: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['overseasRequests']>,
 ) {
   const hasRetirement = (retirementRequests ?? []).some(r => r.playerId === player.id)
   const hasTransfer = (transferRequests ?? []).some(r => r.playerId === player.id)
+  const hasOverseas = (overseasRequests ?? []).some(r => r.playerId === player.id)
   const chatEvt = (events ?? []).find(e => e.playerId === player.id && isChatEvent(e))
   const hasComplaint = !!chatEvt && (COMPLAINT_EVENT_TYPES as readonly string[]).includes(chatEvt.type)
   const hasOtherEvent = !!chatEvt && !hasComplaint
   const activeReq = (contractRequests ?? []).find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected')
 
   if (hasRetirement) return { label: '引退希望', color: C.textSub, priority: 0 }
+  if (hasOverseas) return { label: '海外挑戦の相談', color: C.purple, priority: 1 }
   if (player.transferListed) return { label: '退団へ', color: C.orange, priority: 1 }
   if (hasTransfer) {
     const tr = (transferRequests ?? []).find(r => r.playerId === player.id)
@@ -1190,7 +1231,7 @@ export default function ChatPage() {
     const months = contractMonths(p.contract.yearsLeft, raceIndex, totalRaces)
     // レンタルで借りている選手の契約・引退・移籍の用件は保有元クラブの管轄なので出さない
     const isLoanedIn = !!p.loan && p.loan.ownerTeamId !== playerTeamId
-    const status = isLoanedIn ? null : getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, events, months, contactedIds.has(p.id))
+    const status = isLoanedIn ? null : getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, events, months, contactedIds.has(p.id), currentSeason.overseasRequests)
     return { player: p, months, status }
   })
 

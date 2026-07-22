@@ -1,5 +1,8 @@
 export type Specialty = 'ace' | 'mountain_up' | 'mountain_down' | 'sprinter' | 'long' | 'allrounder' | 'kick' | 'grinder'
 export type GrowthCurve = 'early' | 'normal' | 'late_bloomer'
+// 海外挑戦の希望地域（4大リーグ: アフリカ2リーグ／欧州西南／北米）
+export type OverseasRegion = 'africa' | 'europe' | 'america'
+
 export type Nationality =
   // 東アジア
   | 'JPN' | 'KOR' | 'CHN' | 'TWN' | 'HKG' | 'MGL'
@@ -260,6 +263,9 @@ export type Player = {
   transferLockedUntilYear?: number // 移籍交渉が決裂 → この年まで自チームは移籍金オファー不可
   retirementDeclinedYear?: number  // 引退を引き留めた年。その年は引退希望を再抽選しない
   pendingRetirementYear?: number   // 引退を承認した年。今季限りで引退（実際の引退処理は endSeason で行う）
+  overseasListed?: OverseasRegion  // 海外挑戦を承認済み。希望地域の1部リーグから優先的にオファーが来る
+  overseasDeniedYear?: number      // 海外挑戦を引き留めた年。その年は再直訴しない
+  overseasDeniedCount?: number     // 引き留め回数。2回目以降はモラール低下が大きい
   transferRequestDismissedYear?: number  // 移籍希望に「残ってほしい」で対応した年。その年は再抽選しない
   faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
   retiredYear?: number        // 引退したシーズン年（選手詳細の「XXXX年引退」表示用。旧セーブは未設定）
@@ -692,6 +698,7 @@ export type Season = {
   acquisitionOffers?: AcquisitionOffer[]
   retirementRequests?: { playerId: string; age: number }[]
   transferRequests?: { playerId: string; reason: 'playing_time' | 'team_performance' | 'unhappy' }[]
+  overseasRequests?: { playerId: string; region: OverseasRegion }[]  // 選手からの「海外挑戦したい」直訴（チャット対応）
   pendingRenewalDecisions?: string[]
   rosterSubmitted?: boolean
   devProspects?: DevProspect[]

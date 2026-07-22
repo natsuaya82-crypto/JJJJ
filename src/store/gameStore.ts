@@ -404,6 +404,8 @@ export type GameStore = GameState & {
   advanceWorldRace: (japanLineup?: Record<number, string>) => void
   markWorldIndividualsSeen: () => void
   markWorldIndividualRevealed: () => void
+  approveOverseasChallenge: (playerId: string) => void
+  denyOverseasChallenge: (playerId: string) => void
   ensureWorldRacePlans: () => void
   ensureEclSeries: () => void
   setRacePlayerIds: (raceIdx: number, ids: string[]) => void
@@ -1567,7 +1569,7 @@ export const useGameStore = create<GameStore>()(
           const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], isWindowOpenNow, state.currentSeason.transferRequests ?? [], retiringWishIds)
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
-          const foreignClubs = (state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, playerIds: c.playerIds }))
+          const foreignClubs = (state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, playerIds: c.playerIds, leagueId: c.leagueId, country: c.country }))
           const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextRaceIndex && finalPlayers.some(p => p.id === o.playerId))
           const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, windowOpen: isWindowOpenNow, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
@@ -1813,6 +1815,23 @@ export const useGameStore = create<GameStore>()(
             newTransferReqs = [{ playerId: picked.id, reason: picked.reason }]
           }
 
+          // ── 海外挑戦の直訴：世界レベル（OVR80+・30歳以下）が「海外でやりたい」とチャットで言い出す。
+          //    代表帰り（前年〜今年に世界陸上代表）は世界を見てきたので言い出しやすい ──
+          const existOvReq = new Set((state.currentSeason.overseasRequests ?? []).map(r => r.playerId))
+          // 夢の行き先はタイプで変わる：持久系→アフリカ高地／スピード系→欧州トラック／山・万能→北米
+          const regionForSpec = (s: Player['specialty']): import('../types').OverseasRegion =>
+            (s === 'long' || s === 'grinder') ? 'africa'
+            : (s === 'sprinter' || s === 'kick' || s === 'ace') ? 'europe'
+            : 'america'
+          const ovCands = playersAfterLoan.filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan
+            && ovr(p) >= 80 && p.age <= 30 && !p.overseasListed && !existOvReq.has(p.id)
+            && p.overseasDeniedYear !== state.currentSeason.year && !p.transferListed && !retiringWishIds.has(p.id))
+          let newOvReqs: { playerId: string; region: import('../types').OverseasRegion }[] = []
+          for (const p of ovCands) {
+            const wasRep = (state.worldRepresentatives ?? []).some(r => r.playerId === p.id && r.year >= state.currentSeason.year - 1)
+            if (Math.random() < (wasRep ? 0.10 : 0.03)) { newOvReqs = [{ playerId: p.id, region: regionForSpec(p.specialty) }]; break }
+          }
+
           // 期限切れ交渉のプレイヤーを1年間ロック
           const allExpiredPlayerIds = [...new Set([...bidExpiredPlayerIds, ...offerExpiredPlayerIds])]
           const allExpiredNegs = [...bidExpiredNegs, ...offerExpiredNegs]
@@ -1897,6 +1916,7 @@ export const useGameStore = create<GameStore>()(
               loanResponses: [...(state.currentSeason.loanResponses ?? []), ...newLoanResponses],
               transferBids: processedBids,
               transferRequests: [...(state.currentSeason.transferRequests ?? []).filter(r => finalPlayers.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')), ...newTransferReqs],
+              overseasRequests: [...(state.currentSeason.overseasRequests ?? []).filter(r => finalPlayers.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active')), ...newOvReqs],
               // 契約更新の要求は放置で自動失効させる（応対できないまま通知が永久に残るのを防ぐ）。
               // 旧セーブの期限なし要求(expiresAtRaceなし)もここで失効する
               contractRequests: (state.currentSeason.contractRequests ?? []).map(r =>
@@ -2682,14 +2702,20 @@ export const useGameStore = create<GameStore>()(
         if (!canReleaseFromRoster(state.players, state.playerTeamId)) return false  // ロスター下限(15人)を割る売却は不可
         // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
         if (offer.fromForeign) {
-          const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
+          const destLeague = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
+          const clubName = destLeague?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
+          // 4大リーグ（世界最高峰）への送り出しは大ニュース＋初回は実績を獲得
+          const isElite = ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(destLeague?.id ?? '')
           set(st => ({
             // 放出した選手とは1年間交渉不可（transferLockedUntilYear）
-            players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, transferLockedUntilYear: st.currentSeason.year + 1 } : p),
+            players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, overseasListed: undefined, transferLockedUntilYear: st.currentSeason.year + 1 } : p),
             teams: st.teams.map(t => t.id === st.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
             foreignLeagues: (st.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
             transferHistory: [...(st.transferHistory ?? []), { year: st.currentSeason.year, date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date, playerId: offer.playerId, fromTeamId: st.playerTeamId, toTeamId: offer.fromTeamId, fee: offer.offeredPrice }].slice(-400),
-            currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + offer.offeredPrice, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), { id: `dep_${offer.playerId}`, playerId: offer.playerId, playerName: player.name, toTeamName: clubName, reason: 'transfer' as const, fee: offer.offeredPrice }] },
+            achievements: isElite && !(st.achievements ?? []).some(a => a.id === 'overseas-pioneer')
+              ? [...(st.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${st.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: st.currentSeason.year, rarity: 'legendary' as const }]
+              : st.achievements,
+            currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + offer.offeredPrice, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: isElite ? `【世界へ挑戦】${player.name}（OVR${ovr(player)}）が世界最高峰・${clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${Math.round(offer.offeredPrice / 10000)}万）` : `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id], major: isElite }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), { id: `dep_${offer.playerId}`, playerId: offer.playerId, playerName: player.name, toTeamName: clubName, reason: 'transfer' as const, fee: offer.offeredPrice }] },
           }))
           return true
         }
@@ -3193,14 +3219,19 @@ export const useGameStore = create<GameStore>()(
           // 海外クラブ：上限は「提示額の1.3倍」か「市場価値の1.15倍」の高い方まで。合意なら海外へ放出
           if (offer.fromForeign) {
             if (player && counterPrice <= Math.max(offer.offeredPrice * 1.3, calcTransferValue(player) * 1.15)) {
-              const clubName = (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
+              const destLg = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
+              const clubName = destLg?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
+              const isElite = ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(destLg?.id ?? '')
               outcome = 'sold'
               return {
                 // 放出した選手とは1年間交渉不可
-                players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, transferLockedUntilYear: state.currentSeason.year + 1 } : p),
+                players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, overseasListed: undefined, transferLockedUntilYear: state.currentSeason.year + 1 } : p),
                 teams: state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + counterPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
                 foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
-                currentSeason: { ...state.currentSeason, transferIncome: (state.currentSeason.transferIncome ?? 0) + counterPrice, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(counterPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30) },
+                achievements: isElite && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
+                  ? [...(state.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${state.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
+                  : state.achievements,
+                currentSeason: { ...state.currentSeason, transferIncome: (state.currentSeason.transferIncome ?? 0) + counterPrice, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: isElite ? `【世界へ挑戦】${player.name}（OVR${ovr(player)}）が世界最高峰・${clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${Math.round(counterPrice / 10000)}万）` : `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(counterPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id], major: isElite }, ...state.currentSeason.newsFeed].slice(0, 30) },
               }
             }
             outcome = 'refused'
@@ -3251,6 +3282,26 @@ export const useGameStore = create<GameStore>()(
           }
         })
       },
+
+      // 海外挑戦を認める：希望地域の1部リーグから優先オファーが来るようになる。夢を認められて士気UP
+      approveOverseasChallenge: (playerId) => set(state => {
+        const req = (state.currentSeason.overseasRequests ?? []).find(r => r.playerId === playerId)
+        if (!req) return state
+        return {
+          players: state.players.map(p => p.id === playerId ? { ...p, overseasListed: req.region, morale: Math.min(100, (p.morale ?? 70) + 8) } : p),
+          currentSeason: { ...state.currentSeason, overseasRequests: (state.currentSeason.overseasRequests ?? []).filter(r => r.playerId !== playerId) },
+        }
+      }),
+
+      // 海外挑戦を引き留める：モラール低下（2回目以降は大）。その年は再直訴しない
+      denyOverseasChallenge: (playerId) => set(state => {
+        const cnt = ((state.players.find(p => p.id === playerId)?.overseasDeniedCount) ?? 0) + 1
+        const drop = cnt >= 2 ? 20 : 12
+        return {
+          players: state.players.map(p => p.id === playerId ? { ...p, overseasDeniedYear: state.currentSeason.year, overseasDeniedCount: cnt, morale: Math.max(0, (p.morale ?? 70) - drop) } : p),
+          currentSeason: { ...state.currentSeason, overseasRequests: (state.currentSeason.overseasRequests ?? []).filter(r => r.playerId !== playerId) },
+        }
+      }),
 
       dismissTransferRequest: (playerId) => set(state => ({
         // 対応済みの年を記録し、同じシーズン中に移籍希望を再抽選しない
@@ -7775,7 +7826,7 @@ function cpuSpecialtyNeeds(teamId: string, players: Player[]): string[] {
 function generateForeignAndLoanOffers(params: {
   players: Player[]
   teams: Team[]
-  foreignClubs: { id: string; name: string; shortName: string; playerIds: string[] }[]
+  foreignClubs: { id: string; name: string; shortName: string; playerIds: string[]; leagueId?: string; country?: string }[]
   playerTeamId: string
   raceIndex: number
   windowOpen: boolean
@@ -7798,9 +7849,39 @@ function generateForeignAndLoanOffers(params: {
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
 
+  // 1a) 海外挑戦リストの選手：希望地域の1部リーグ（4大リーグ）から高確率で指名オファー。
+  //     実力がその地域の水準（アフリカ84/欧州80/北米80）に届いていることが条件
+  const ELITE_BY_REGION: Record<string, string[]> = { africa: ['africa_east', 'africa_ns'], europe: ['europe_ws'], america: ['north_america'] }
+  const OV_MIN_OVR: Record<string, number> = { africa: 84, europe: 80, america: 80 }
+  for (const target of myMain.filter(p => p.overseasListed && !offeredIds.has(p.id) && !p.noSale && !retiringIds?.has(p.id))) {
+    if (foreignIncoming.length >= 2) break
+    const region = target.overseasListed!
+    if (ovr(target) < (OV_MIN_OVR[region] ?? 80)) continue
+    if (Math.random() > 0.75) continue
+    const clubs = foreignClubs.filter(c => (ELITE_BY_REGION[region] ?? []).includes(c.leagueId ?? ''))
+    if (clubs.length === 0) continue
+    const club = clubs[(ovr(target) + raceIndex) % clubs.length]
+    const tv = calcTransferValue(target)
+    // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示
+    foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * (1.1 + Math.random() * 0.3) / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+  }
+
+  // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでも4大リーグが放っておかない
+  if (foreignClubs.length > 0 && Math.random() < 0.6) {
+    const eliteAll = foreignClubs.filter(c => ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(c.leagueId ?? ''))
+    const star = [...myMain]
+      .filter(p => !offeredIds.has(p.id) && !p.noSale && ovr(p) >= 85 && p.age <= 34 && !retiringIds?.has(p.id) && !foreignIncoming.some(o => o.playerId === p.id))
+      .sort((a, b) => ovr(b) - ovr(a))[0]
+    if (star && eliteAll.length > 0) {
+      const club = eliteAll[(ovr(star) + raceIndex) % eliteAll.length]
+      const tv = calcTransferValue(star)
+      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: Math.max(1000000, Math.round(tv * (1.1 + Math.random() * 0.25) / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+    }
+  }
+
   // 1) 海外クラブからの移籍オファー（自チームの上位選手を狙う）。
   // 発生率30%→55%・最大2件・対象OVR74→70に緩和（海外クラブが多数あるのに打診がほぼ来ない問題の解消）
-  if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.55) {
+  if (foreignClubs.length > 0 && myMain.length > 0 && foreignIncoming.length === 0 && Math.random() < 0.55) {
     // 高齢選手（34歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
     const targets = [...myMain]
       .filter(p => !offeredIds.has(p.id) && !p.noSale && ovr(p) >= 70 && p.age <= 33 && !retiringIds?.has(p.id))
