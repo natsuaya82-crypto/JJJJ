@@ -70,6 +70,25 @@ export default function NationalResultPage() {
       </div>
       {card('予選順位', r.standings.map(s => natRow(s.nat,
         <span style={{ fontSize: 10, fontWeight: 800, color: s.advanced ? C.green : C.textDim }}>{s.advanced ? '通過' : '—'}</span>, s.rank)))}
+      {/* 他地域の大陸予選（裏で同時開催）。通過国だけを国旗付きで見せる */}
+      {r.continentals && r.continentals.length > 0 && card('他地域の予選結果', (
+        <div>
+          {r.continentals.map(c => (
+            <div key={c.region} style={{ padding: '7px 6px', borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 900, color: C.textDim, letterSpacing: 1, marginBottom: 5 }}>{c.region.replace('アメリカ大陸', 'アメリカ')}予選</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {c.advanced.map(n => (
+                  <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Flag code={n} width={20} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{natName(n)}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div style={{ fontSize: 9, color: C.textGhost, padding: '7px 6px 0' }}>通過国が翌年の世界陸上へ（欧州6・アフリカ6・アメリカ4）</div>
+        </div>
+      ))}
     </>)
   }
 

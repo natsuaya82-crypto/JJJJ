@@ -37,6 +37,7 @@ type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'seasonAwar
   worldRepresentatives?: GameState['worldRepresentatives']
   eventSeasonTops?: GameState['eventSeasonTops']
   worldAthleticsResults?: GameState['worldAthleticsResults']
+  worldTournament?: GameState['worldTournament']
 }
 
 // 優先順: 世界記録 > 世界陸上🥇 > 日本記録 > ECL MVP > 年度MVP > 年間最速 > 世界陸上🥈🥉 > アジア最優秀 > 区間記録 > 代表 > 新人王。
@@ -107,13 +108,23 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     const segIdx = sep > 0 ? key.slice(sep + 1) : ''
     out.push({ key: `seg-${key}`, label: `${raceName}${segIdx}区区間記録`, kind: 'segment' })
   }
-  // 世界陸上 代表パッチ（例: 「2044 マラソン [🇯🇵]代表」国旗入り）。年×種目で重複排除。
-  const seenNat = new Set<string>()
-  for (const rep of myReps) {
-    const k = `nat-${rep.year}-${rep.label}`
-    if (seenNat.has(k)) continue
-    seenNat.add(k)
-    out.push({ key: k, label: `${rep.year} ${rep.label} `, flag: rep.nat, labelSuffix: '代表', kind: 'national' })
+  // 世界陸上 代表パッチは「現役代表」のみ（選ばれている間だけ付く。次の選考で外れたら自然に外れる）。
+  // 過去の代表歴は選手詳細の代表チーム表とメダルパッチで残る。
+  // 現在のサイクル＝その国の直近の選考（開催中の大会 or 最新の保存結果）
+  {
+    const natCode = p.nationality
+    type Cycle = { year: number; squad?: string[]; individuals?: { event: string; placings: { playerId: string }[] }[] }
+    const cycles: Cycle[] = []
+    if (src.worldTournament) cycles.push({ year: src.worldTournament.year, squad: src.worldTournament.squads?.[`nat_${natCode}`], individuals: src.worldTournament.individuals })
+    for (const wr of src.worldAthleticsResults ?? []) cycles.push({ year: wr.year, squad: wr.squads?.[`nat_${natCode}`], individuals: wr.kind === 'main' ? wr.meet.individuals : undefined })
+    const cur = cycles.find(c => (c.squad?.length ?? 0) > 0)
+    if (cur) {
+      if (cur.squad?.includes(p.id)) out.push({ key: `natcur-${cur.year}-駅伝`, label: `${cur.year} 駅伝 `, flag: natCode, labelSuffix: '代表', kind: 'national' })
+      const EVL: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
+      for (const ir of cur.individuals ?? []) {
+        if (ir.placings.some(pl => pl.playerId === p.id)) out.push({ key: `natcur-${cur.year}-${ir.event}`, label: `${cur.year} ${EVL[ir.event] ?? ir.event} `, flag: natCode, labelSuffix: '代表', kind: 'national' })
+      }
+    }
   }
   // 新人王（最下位）
   for (const a of src.seasonAwards ?? []) {

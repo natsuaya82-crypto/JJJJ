@@ -53,8 +53,9 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
+  const worldTournament = useGameStore(s => s.worldTournament)
   const raceIdx = useGameStore(s => s.currentSeason.currentRaceIndex)
-  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops, worldAthleticsResults }, 99)
+  const badgeList = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops, worldAthleticsResults, worldTournament }, 99)
   const displayBadge = (player.displayBadge ? badgeList.find(b => b.key === player.displayBadge) : undefined) ?? badgeList[0]
   const fatigue = player.fatigue ?? 0
   const pForm = player.form ?? 0

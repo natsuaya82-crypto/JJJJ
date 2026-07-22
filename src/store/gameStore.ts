@@ -11,7 +11,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
@@ -6307,7 +6307,9 @@ export const useGameStore = create<GameStore>()(
           let nations: import('../types').Nationality[]
           if (isMain) {
             const prevQual = (state.worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === year - 1)
-            nations = qualifyNations(state.players, year, host!, prevQual?.kind === 'qualifier' ? prevQual.advanced : undefined)
+            const pq = prevQual?.kind === 'qualifier' ? prevQual : undefined
+            // アジアは実レース予選、欧州・アフリカ・アメリカは前年に裏で回した大陸予選の通過国から
+            nations = qualifyNations(state.players, year, host!, pq?.advanced, pq?.continentals)
           } else {
             const pool = ([...new Set(state.players.filter(p => p.status !== 'retired').map(p => p.nationality))] as import('../types').Nationality[])
               .filter(n => (natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア') && nationStrength(state.players, n, year) > 0)
@@ -6439,10 +6441,12 @@ export const useGameStore = create<GameStore>()(
             }
             return best ? { playerId: best.playerId, nat: best.nat, avgRank: best.avgRank } : undefined
           })()
+          // 欧州・アフリカ・アメリカの大陸予選を裏で回す（アジア予選と同年開催・通過国が翌年の本戦枠になる）
+          const continentals = t.kind === 'qualifier' ? simulateContinentalQualifiers(state.players, t.year) : undefined
           // 駅伝3戦のレース詳細も結果に残す（ECLのeclSeriesと同じ扱い。選手詳細の駅伝データ等で使う）
           const result = {
             ...(t.kind === 'qualifier'
-              ? { ...composeQualifierResult(t.year, rows, 3, t.host), bestPlayer }
+              ? { ...composeQualifierResult(t.year, rows, 3, t.host), bestPlayer, continentals }
               : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows)),
             races: newRaces,
             // 選出された駅伝代表20人を恒久保存（チームタブの代表表示・0走でも代表履歴に残すための元データ）
@@ -6470,10 +6474,20 @@ export const useGameStore = create<GameStore>()(
           } else {
             for (const pt of t.participants) for (const pid of t.squads[pt.id] ?? []) pushEndRep({ playerId: pid, year: t.year, nat: pt.nat, label: '駅伝' })
           }
+          // 大陸予選の結果をニュースに流す（通過国を国名で）
+          const contNews = (result.kind === 'qualifier' && result.continentals)
+            ? [{
+                date: `${t.year}-12-13`,
+                headline: `世界陸上 大陸予選が閉幕 — ${result.continentals.map(c => `${c.region.replace('アメリカ大陸', 'アメリカ')}: ${c.advanced.map(n => natLabel(n)).join('・')}`).join(' ／ ')} が本戦へ`,
+                category: 'race' as const,
+                relatedIds: [] as string[],
+              }]
+            : []
           return {
             worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, finished: true },
             worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])],
             worldRepresentatives: reps,
+            ...(contNews.length > 0 ? { currentSeason: { ...state.currentSeason, newsFeed: [...contNews, ...state.currentSeason.newsFeed].slice(0, 30) } } : {}),
           }
         })
       },

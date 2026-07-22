@@ -236,7 +236,7 @@ export function nationStrength(players: Player[], nat: Nationality, year: number
 // 旧仕様の擬似国籍（ヨーロッパ・その他外国）。実在の国ではないので世界陸上には出さない
 export const WA_EXCLUDED_NATS = new Set<Nationality>(['EUR', 'FOREIGN'])
 
-export function qualifyNations(players: Player[], year: number, hostNat: Nationality, prevAdvanced?: Nationality[]): Nationality[] {
+export function qualifyNations(players: Player[], year: number, hostNat: Nationality, prevAdvanced?: Nationality[], continentals?: { region: string; advanced: Nationality[] }[]): Nationality[] {
   const allNats = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
     .filter(n => !WA_EXCLUDED_NATS.has(n))
   const strengthByNat = new Map<Nationality, number>()
@@ -250,6 +250,19 @@ export function qualifyNations(players: Player[], year: number, hostNat: Nationa
       picked.push(...prevAdvanced.filter(n => n !== hostNat && !picked.includes(n)).slice(0, slots))
       continue
     }
+    // 前年に裏で回した大陸予選の結果があればそれを使う（欧州・アフリカ・アメリカ）
+    const cont = continentals?.find(c => c.region === region)
+    if (cont && cont.advanced.length > 0) {
+      picked.push(...cont.advanced.filter(n => n !== hostNat && !picked.includes(n)).slice(0, slots))
+      // 大陸予選通過国が開催国重複等で不足したら国力順で補充
+      const shortfall = slots - cont.advanced.filter(n => n !== hostNat).length
+      if (shortfall > 0) {
+        const fill = allNats.filter(n => n !== hostNat && !picked.includes(n) && meetRegion(n) === region && (strengthByNat.get(n) ?? 0) > 0)
+          .sort((a, b) => (strengthByNat.get(b) ?? 0) - (strengthByNat.get(a) ?? 0))
+        picked.push(...fill.slice(0, shortfall))
+      }
+      continue
+    }
     const pool = allNats
       .filter(n => n !== hostNat && !picked.includes(n) && meetRegion(n) === region && (strengthByNat.get(n) ?? 0) > 0)
       .sort((a, b) => (strengthByNat.get(b) ?? 0) - (strengthByNat.get(a) ?? 0))
@@ -257,6 +270,24 @@ export function qualifyNations(players: Player[], year: number, hostNat: Nationa
     picked.push(...pool.slice(0, slots))
   }
   return picked
+}
+
+// 大陸予選（欧州・アフリカ・アメリカ）を裏で回す：レースはせず国力+当日ブレで順位を決める。
+// アジア予選（実レース）の年に同時開催され、通過国が翌年の本戦出場枠になる
+export function simulateContinentalQualifiers(players: Player[], year: number): { region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'; standings: { nat: Nationality; rank: number }[]; advanced: Nationality[] }[] {
+  const allNats = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
+    .filter(n => !WA_EXCLUDED_NATS.has(n))
+  const out: { region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'; standings: { nat: Nationality; rank: number }[]; advanced: Nationality[] }[] = []
+  for (const { region, slots } of REGION_QUOTA) {
+    if (region === 'アジア+オセアニア') continue
+    const rows = allNats
+      .filter(n => meetRegion(n) === region && nationStrength(players, n, year) > 0)
+      .map(n => ({ nat: n, score: nationStrength(players, n, year) * (0.92 + rnd() * 0.16) }))  // 当日ブレで番狂わせも起きる
+      .sort((a, b) => b.score - a.score)
+    const standings = rows.map((r, i) => ({ nat: r.nat, rank: i + 1 }))
+    out.push({ region, standings, advanced: standings.slice(0, slots).map(s => s.nat) })
+  }
+  return out
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -390,7 +421,7 @@ export type QualStanding = { nat: Nationality; strength: number; rank: number; a
 // races: 駅伝3戦の実レース結果。ECLのeclSeriesと同じ扱いで保持し、選手詳細の駅伝データ等に使う
 // squads: 選出された駅伝代表20人（participantId nat_XXX → playerId[]）。チームタブの代表表示・0走代表の履歴用
 // bestPlayer: 年間アジア最優秀選手（予選3戦すべてに出走し区間順位平均が最良の選手。パッチの元）
-export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; host?: Nationality; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[]; squads?: Record<string, string[]>; bestPlayer?: { playerId: string; nat: Nationality; avgRank: number } }
+export type WAQualifierResult = { year: number; kind: 'qualifier'; region: 'アジア＋オセアニア'; host?: Nationality; standings: QualStanding[]; advanced: Nationality[]; races?: import('../types').Race[]; squads?: Record<string, string[]>; bestPlayer?: { playerId: string; nat: Nationality; avgRank: number }; continentals?: { region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'; standings: { nat: Nationality; rank: number }[]; advanced: Nationality[] }[] }
 export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nations: Nationality[]; meet: WAMeetResult; japanRank: number | null; races?: import('../types').Race[]; squads?: Record<string, string[]> }
 export type WAYearResult = WAQualifierResult | WAMainResult
 
