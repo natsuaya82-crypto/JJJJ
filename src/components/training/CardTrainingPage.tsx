@@ -255,6 +255,10 @@ export default function CardTrainingPage() {
       })()}
       {sharedHeader(() => navigate(-1))}
 
+      {/* 本文はスクロール領域に入れる：カード選択で下部が伸びても選手バナー（EXPバー）が潰れて隠れないように。
+          縦が足りない端末ではこの領域だけスクロールし、実行バーは常に下部に固定 */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+
       {/* Selected player banner */}
       <div style={{
         margin: '12px 14px 0',
@@ -262,7 +266,7 @@ export default function CardTrainingPage() {
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
         border: `2px solid ${C.goldDark}`,
         boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)`,
-        position: 'relative', overflow: 'hidden',
+        position: 'relative', overflow: 'hidden', flexShrink: 0,
       }}>
         <div style={{ position: 'absolute', inset: 3, border: `1px solid rgba(245,200,66,0.18)`, borderRadius: 9, pointerEvents: 'none' }}/>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(C.gold, 0.4)}, transparent)`, pointerEvents: 'none' }}/>
@@ -403,9 +407,11 @@ export default function CardTrainingPage() {
         </div>
       )}
 
-      {/* 下部固定の実行バー（フレックスで最下部へ・下タブ＋広告の上に出す） */}
+      {/* スクロール領域ここまで */}
+      </div>
+
+      {/* 下部固定の実行バー（スクロール領域の外・下タブ＋広告の上に常に表示） */}
       <div style={{
-        marginTop: 'auto',
         padding: '12px 14px calc(14px + env(safe-area-inset-bottom, 0px))',
         background: `linear-gradient(180deg, ${alpha(C.bg, 0)}, ${C.bg} 24%)`,
         borderTop: `1px solid ${C.border}`,
