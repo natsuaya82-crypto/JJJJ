@@ -221,6 +221,46 @@ export default function ChampionsHistoryPage() {
         )}
       </div>
 
+      {/* Level 0: リーグ歴代優勝回数ランキング（旧・リーグ記録タブから統合） */}
+      {cat == null && (() => {
+        const champRanking = [...teams]
+          .map(t => ({ team: t, championships: t.history.championships }))
+          .filter(c => c.championships > 0)
+          .sort((a, b) => b.championships - a.championships)
+        if (champRanking.length === 0) return null
+        return (
+          <div style={{ padding: '0 16px 12px' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>JPEL 歴代優勝回数</div>
+            <div style={{
+              borderRadius: 12, overflow: 'hidden',
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `2px solid ${C.border2}`,
+              boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
+            }}>
+              {champRanking.map(({ team, championships }, i, arr) => {
+                const isMe = team.id === playerTeamId
+                return (
+                  <div key={team.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    background: isMe ? alpha(C.gold, 0.1) : 'transparent',
+                    borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+                  }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, width: 20, textAlign: 'center', color: i === 0 ? C.gold : i <= 2 ? C.textSub : C.textGhost, textShadow: i === 0 ? `0 0 6px ${alpha(C.gold, 0.5)}` : 'none' }}>{i + 1}</span>
+                    <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={22} />
+                    <span style={{ flex: 1, fontFamily: SAIRA, fontSize: 13, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</span>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <span style={{ fontFamily: SAIRA, fontSize: 15, color: C.gold, textShadow: `0 0 5px ${alpha(C.gold, 0.4)}` }}>★</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.gold }}>×{championships}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, margin: '14px 0 2px' }}>大会別の記録</div>
+          </div>
+        )
+      })()}
+
       {/* Level 0: カテゴリ（横長ボタンを縦に並べる。見た目は歴代ドラフト等の一覧ボタンと同じ） */}
       {cat == null && (
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>

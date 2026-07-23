@@ -6,6 +6,7 @@ import type { GameStore } from '../../store/gameStore'
 import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
 import { SPECIALTY_LABELS } from '../../types'
+import type { SeasonAward } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -13,63 +14,51 @@ import { TeamLogoSVG } from '../icons/Icons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-type Tab = 'franchise' | 'league' | 'players' | 'gm'
-
-export default function RecordsPage({ defaultTab }: { defaultTab?: Tab }) {
-  const [tab, setTab] = useState<Tab>(defaultTab ?? 'franchise')
-  const { teams, players, pastSeasons, currentSeason, playerTeamId, gmRep, growthReport } = useGameStore()
-  const navigate = useNavigate()
-
+// 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
+function PageShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ padding: '0 0 16px', fontFamily: SAIRA, background: C.bg, minHeight: '100dvh' }}>
-      <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BackButton/>
-        <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.text }}>記録室</div>
-      </div>
-      <div style={{ padding: '16px 16px 0' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '12px' }}>
-          RECORDS
-        </div>
-
-        <div style={{
-          display: 'flex', gap: '2px',
-          background: C.surface, borderRadius: '12px', padding: '3px',
-          border: `1px solid ${C.border}`,
-        }}>
-          {([
-            { key: 'franchise', label: '自チーム' },
-            { key: 'league', label: 'リーグ' },
-            { key: 'players', label: '個人' },
-            { key: 'gm', label: 'GM' },
-          ] as { key: Tab; label: string }[]).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              style={{
-                flex: 1, padding: '8px 0', border: 'none', cursor: 'pointer',
-                borderRadius: '9px', fontFamily: SAIRA,
-                fontSize: '12px', fontWeight: tab === key ? '700' : '400',
-                background: tab === key
-                  ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`
-                  : 'none',
-                color: tab === key ? C.gold : C.textDim,
-                boxShadow: tab === key ? `0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)` : 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {label}
-            </button>
-          ))}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>RECORDS</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: '10px' }}>
+          <BackButton/>
+          <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>{title}</div>
         </div>
       </div>
-
-      <div style={{ padding: '14px 16px 0' }}>
-        {tab === 'franchise' && <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} />}
-        {tab === 'league' && <LeagueTab teams={teams} pastSeasons={pastSeasons} />}
-        {tab === 'players' && <PlayersTab players={players} teams={teams} currentSeason={currentSeason} />}
-        {tab === 'gm' && <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} />}
+      <div style={{ padding: '2px 16px 0' }}>
+        {children}
       </div>
     </div>
+  )
+}
+
+// 自チーム記録（優勝記録・歴代種目別記録・シーズン成績）
+export default function FranchiseRecordsPage() {
+  const { teams, players, pastSeasons, currentSeason, playerTeamId, seasonAwards } = useGameStore()
+  return (
+    <PageShell title="自チーム記録">
+      <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} seasonAwards={seasonAwards ?? []} />
+    </PageShell>
+  )
+}
+
+// 個人ランキング（通算区間賞・MVP・歴代種目別記録会）
+export function IndividualRecordsPage() {
+  const { teams, players, currentSeason } = useGameStore()
+  return (
+    <PageShell title="個人ランキング">
+      <PlayersTab players={players} teams={teams} currentSeason={currentSeason} />
+    </PageShell>
+  )
+}
+
+// GMキャリア（評判・キャリア統計・順位推移・育成実績）
+export function GmCareerPage() {
+  const { teams, players, pastSeasons, currentSeason, playerTeamId, gmRep, growthReport } = useGameStore()
+  return (
+    <PageShell title="GMキャリア">
+      <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} />
+    </PageShell>
   )
 }
 
@@ -123,12 +112,13 @@ function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDis
   )
 }
 
-function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players }: {
+function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players, seasonAwards }: {
   teams: GameStore['teams']
   pastSeasons: GameStore['pastSeasons']
   currentSeason: GameStore['currentSeason']
   playerTeamId: string
   players: GameStore['players']
+  seasonAwards: SeasonAward[]
 }) {
   const myTeam = teams.find(t => t.id === playerTeamId)
   const longPress = usePlayerLongPress()
@@ -192,6 +182,73 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       </CardPanel>
 
       <CardPanel>
+        <SectionLabel>シーズン成績</SectionLabel>
+        {allSeasons.length === 0 ? (
+          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>記録なし</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            {[...allSeasons].reverse().map(season => {
+              const sorted = [...(season.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+              const myStanding = sorted.findIndex(s => s.teamId === playerTeamId) + 1
+              const myRow = season.standings?.find(s => s.teamId === playerTeamId)
+              const myPoints = myRow?.totalPoints ?? 0
+              const wins = myRow?.raceResults?.filter(r => r.rank === 1).length ?? 0
+              const isCurrent = season.year === currentSeason.year
+              const rankCol = myStanding === 1 ? C.gold : myStanding <= 3 ? C.green : myStanding <= 5 ? C.textSub : C.textDim
+              // 年間表彰（MVP・新人王）。名前が焼き込まれているので選手が抜けても表示できる
+              const award = seasonAwards.find(a => a.year === season.year)
+              const mvpName = award?.mvpName ?? (award?.mvpId ? players.find(p => p.id === award.mvpId)?.name : undefined)
+              const rookieName = award?.rookieName ?? (award?.rookieId ? players.find(p => p.id === award.rookieId)?.name : undefined)
+
+              return (
+                <div key={season.year} style={{
+                  display: 'flex', flexDirection: 'column', gap: '5px',
+                  padding: '10px 0', borderBottom: `1px solid ${C.border}`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, width: '44px', flexShrink: 0, fontWeight: '700' }}>
+                      {season.year}
+                    </span>
+                    {isCurrent && (
+                      <span style={{
+                        fontFamily: SAIRA, fontSize: '8px', padding: '1px 5px', borderRadius: '3px',
+                        background: alpha(C.gold, 0.12), color: C.gold, fontWeight: '700',
+                      }}>進行中</span>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.green, minWidth: '34px', textAlign: 'right' }}>
+                      {wins}勝
+                    </span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: rankCol, lineHeight: 1, textShadow: myStanding <= 3 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>
+                      {myStanding > 0 ? myStanding : '—'}
+                    </span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>位</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textDim, minWidth: '44px', textAlign: 'right' }}>
+                      {myPoints}pt
+                    </span>
+                  </div>
+                  {(mvpName || rookieName) && (
+                    <div style={{ display: 'flex', gap: '10px', paddingLeft: '44px', flexWrap: 'wrap' }}>
+                      {mvpName && (
+                        <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>
+                          <span style={{ color: C.gold, fontWeight: '900' }}>MVP</span> {mvpName}
+                        </span>
+                      )}
+                      {rookieName && (
+                        <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>
+                          <span style={{ color: C.blue, fontWeight: '900' }}>新人王</span> {rookieName}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </CardPanel>
+
+      <CardPanel>
         <SectionLabel>歴代 種目別記録（自チーム）</SectionLabel>
         <EventDistTabs value={evDist} onChange={setEvDist} />
         {(() => {
@@ -217,47 +274,6 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
         })()}
       </CardPanel>
 
-      <CardPanel>
-        <SectionLabel>シーズン成績</SectionLabel>
-        {allSeasons.length === 0 ? (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>記録なし</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-            {allSeasons.map(season => {
-              const sorted = [...(season.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
-              const myStanding = sorted.findIndex(s => s.teamId === playerTeamId) + 1
-              const myPoints = season.standings?.find(s => s.teamId === playerTeamId)?.totalPoints ?? 0
-              const isCurrent = season.year === currentSeason.year
-              const rankCol = myStanding === 1 ? C.gold : myStanding <= 3 ? C.green : myStanding <= 5 ? C.textSub : C.textDim
-
-              return (
-                <div key={season.year} style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '10px 0', borderBottom: `1px solid ${C.border}`,
-                }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, width: '44px', flexShrink: 0 }}>
-                    {season.year}
-                  </span>
-                  {isCurrent && (
-                    <span style={{
-                      fontFamily: SAIRA, fontSize: '8px', padding: '1px 5px', borderRadius: '3px',
-                      background: alpha(C.gold, 0.12), color: C.gold, fontWeight: '700',
-                    }}>進行中</span>
-                  )}
-                  <div style={{ flex: 1 }} />
-                  <span style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: rankCol, lineHeight: 1, textShadow: myStanding <= 3 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>
-                    {myStanding > 0 ? myStanding : '—'}
-                  </span>
-                  <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>位</span>
-                  <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textDim, minWidth: '40px', textAlign: 'right' }}>
-                    {myPoints}pt
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </CardPanel>
     </div>
   )
 }
@@ -506,44 +522,49 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
         </div>
       </CardPanel>
 
-      {allSeasons.length > 0 && (
-        <CardPanel>
-          <SectionLabel>シーズン別順位推移</SectionLabel>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '60px' }}>
-            {allSeasons.map(s => {
-              const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
-              const rank = sorted.findIndex(x => x.teamId === playerTeamId) + 1
-              const totalTeams = sorted.length || 10
-              const barH = rank > 0 ? Math.round(((totalTeams - rank + 1) / totalTeams) * 56) : 4
-              const barCol = rank === 1 ? C.gold : rank <= 3 ? C.green : rank <= 5 ? C.blue : C.textGhost
-              const isCurrent = s.year === currentSeason.year
-              return (
-                <div key={s.year} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '4px' }}>
-                  <div style={{
-                    width: '100%', height: `${barH}px`,
-                    background: isCurrent ? `linear-gradient(180deg, ${barCol}, ${alpha(barCol, 0.55)})` : barCol,
-                    borderRadius: '3px 3px 0 0',
-                    opacity: isCurrent ? 1 : 0.75,
-                    border: isCurrent ? `1px solid ${barCol}` : 'none',
-                  }}/>
-                  <div style={{ fontFamily: SAIRA, fontSize: '9px', color: rank === 1 ? C.gold : C.textDim, fontWeight: rank <= 3 ? '700' : '400' }}>
-                    {rank > 0 ? rank : '—'}
-                  </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost }}>{String(s.year).slice(2)}</div>
+      {allSeasons.length > 0 && (() => {
+        // 直近10季の順位を折れ線で表示（1位が上）
+        const chartSeasons = allSeasons.slice(-10)
+        const pts = chartSeasons.map(s => {
+          const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+          const rank = sorted.findIndex(x => x.teamId === playerTeamId) + 1
+          return { year: s.year, rank: rank > 0 ? rank : null, totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
+        })
+        const maxTeams = Math.max(8, ...pts.map(p => p.totalTeams))
+        const n = pts.length
+        const xFor = (i: number) => n <= 1 ? 50 : (i / (n - 1)) * 100
+        const yFor = (rank: number) => 12 + ((rank - 1) / Math.max(1, maxTeams - 1)) * 74
+        const rankCol = (rank: number) => rank === 1 ? C.gold : rank <= 3 ? C.green : rank <= 5 ? C.blue : C.textGhost
+        const linePts = pts.map((p, i) => p.rank != null ? `${xFor(i)},${yFor(p.rank)}` : null).filter((x): x is string => x != null).join(' ')
+        return (
+          <CardPanel>
+            <SectionLabel>シーズン別順位推移（直近{n}季）</SectionLabel>
+            <div style={{ position: 'relative', height: '138px', margin: '6px 4px 4px' }}>
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+                <line x1="0" y1={yFor(1)} x2="100" y2={yFor(1)} stroke={alpha(C.gold, 0.28)} strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />
+                {linePts && <polyline points={linePts} fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+              </svg>
+              {pts.map((p, i) => p.rank != null ? (
+                <div key={p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: `${yFor(p.rank)}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none' }}>
+                  <div style={{ position: 'absolute', left: '50%', bottom: '9px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: '9px', fontWeight: 900, color: rankCol(p.rank), textShadow: p.rank <= 3 ? `0 0 5px ${alpha(rankCol(p.rank), 0.6)}` : 'none' }}>{p.rank}</div>
+                  <div style={{ width: p.isCurrent ? '11px' : '9px', height: p.isCurrent ? '11px' : '9px', borderRadius: '50%', background: rankCol(p.rank), border: `2px solid ${C.bg}`, boxShadow: `0 0 0 1.5px ${rankCol(p.rank)}` }} />
                 </div>
-              )
-            })}
-          </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap' }}>
-            {[[C.gold, '1位'], [C.green, '2-3位'], [C.blue, '4-5位'], [C.textGhost, '6位以下']].map(([col, label]) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: col }}/>
-                <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </CardPanel>
-      )}
+              ) : null)}
+              {pts.map((p, i) => (
+                <div key={'yr' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, bottom: '-4px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: '8px', color: p.isCurrent ? C.gold : C.textGhost, fontWeight: p.isCurrent ? 700 : 400 }}>'{String(p.year).slice(2)}</div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
+              {([[C.gold, '1位'], [C.green, '2-3位'], [C.blue, '4-5位'], [C.textGhost, '6位以下']] as [string, string][]).map(([col, label]) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: col }}/>
+                  <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </CardPanel>
+        )
+      })()}
 
       {(() => {
         const myPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
@@ -586,29 +607,52 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
         )
       })()}
 
-      <CardPanel>
-        <SectionLabel>育成実績{growthReport ? `（${growthReport.year}シーズン）` : ''}</SectionLabel>
-        {!growthReport || growthReport.entries.length === 0 ? (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>シーズン終了後に育成実績が表示されます</div>
-        ) : growthReport.entries.slice(0, 8).map(e => {
-          const delta = e.ovrAfter - e.ovrBefore
-          const deltaColor = delta >= 3 ? C.green : delta >= 1 ? C.gold : delta < 0 ? C.red : C.textDim
-          return (
-            <div key={e.playerId} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{e.name}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{SPECIALTY_LABELS[e.specialty]} / {e.age}歳</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub }}>{e.ovrBefore} → {e.ovrAfter}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: deltaColor, textShadow: `0 0 6px ${alpha(deltaColor, 0.4)}` }}>
-                  {delta >= 0 ? `+${delta}` : `${delta}`}
+      {(() => {
+        // 通算成績（自チームの全シーズン駅伝結果を集計）
+        let totalRaces = 0, totalWins = 0, podiums = 0, totalPts = 0
+        for (const s of allSeasons) {
+          const my = (s.standings ?? []).find(x => x.teamId === playerTeamId)
+          if (!my) continue
+          totalPts += my.totalPoints ?? 0
+          for (const rr of (my.raceResults ?? [])) {
+            totalRaces += 1
+            if (rr.rank === 1) totalWins += 1
+            if (rr.rank <= 3) podiums += 1
+          }
+        }
+        const winRate = totalRaces > 0 ? Math.round((totalWins / totalRaces) * 100) : 0
+        const tiles: { label: string; value: string; sub: string; color: string }[] = [
+          { label: '通算レース', value: `${totalRaces}`, sub: '戦', color: C.textSub },
+          { label: '通算勝利', value: `${totalWins}`, sub: '勝', color: totalWins > 0 ? C.gold : C.textDim },
+          { label: '表彰台', value: `${podiums}`, sub: '回', color: podiums > 0 ? C.green : C.textDim },
+        ]
+        return (
+          <CardPanel>
+            <SectionLabel>通算成績</SectionLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              {tiles.map(t => (
+                <div key={t.label} style={{ padding: '10px 8px', borderRadius: '10px', background: C.surface, border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textDim, marginBottom: '4px' }}>{t.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px' }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: t.color, lineHeight: 1, textShadow: t.color !== C.textDim && t.color !== C.textSub ? `0 0 8px ${alpha(t.color, 0.4)}` : 'none' }}>{t.value}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>{t.sub}</span>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          )
-        })}
-      </CardPanel>
+            <div style={{ marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '5px' }}>
+                <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>勝率</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: C.gold }}>{winRate}<span style={{ fontSize: '9px', color: C.textDim }}>%</span></span>
+              </div>
+              <div style={{ height: '7px', background: C.surface, borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${winRate}%`, background: `linear-gradient(90deg, ${alpha(C.gold, 0.55)}, ${C.gold})`, borderRadius: '4px' }}/>
+              </div>
+              <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '8px', textAlign: 'right' }}>通算獲得ポイント {totalPts}pt</div>
+            </div>
+          </CardPanel>
+        )
+      })()}
     </div>
   )
 }

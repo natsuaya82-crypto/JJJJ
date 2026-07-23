@@ -16,19 +16,33 @@ export default function RecordsHub() {
 
   const SECTIONS = [
     {
-      key: '/records/season',
-      label: 'シーズン記録',
-      desc: '今季のレース結果と順位推移',
+      key: '/records/franchise',
+      label: '自チーム記録',
+      desc: '優勝記録・歴代種目別記録・シーズン成績',
       countLabel: `${completedRaces}戦 / ${currentSeason.races.length}戦`,
       badge: 0,
       color: C.gold,
       shadow: '#5a3500',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.8"/>
-          <path d="M3 9h18" stroke="currentColor" strokeWidth="1.8"/>
-          <path d="M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          <path d="M7 14h3v3H7z" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M12 3l7 3v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6l7-3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+          <path d="M9.5 12l1.8 1.8L15 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/records/individual',
+      label: '個人ランキング',
+      desc: '通算区間賞・MVP・歴代種目別記録会',
+      countLabel: '選手ランキング',
+      badge: 0,
+      color: C.green,
+      shadow: '#0f3a24',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M17 13l1.5 3 3-.5-2 2.5 2 2.5-3-.5-1.5 3-1.5-3-3 .5 2-2.5-2-2.5 3 .5 1.5-3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
         </svg>
       ),
     },
@@ -42,16 +56,16 @@ export default function RecordsHub() {
       shadow: '#1a2050',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
-          <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          <path d="M17 13l1.5 3 3-.5-2 2.5 2 2.5-3-.5-1.5 3-1.5-3-3 .5 2-2.5-2-2.5 3 .5 1.5-3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+          <circle cx="12" cy="13" r="8" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M12 13V9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M9 2h6M12 5V2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
         </svg>
       ),
     },
     {
       key: '/records/champions',
       label: '歴代優勝',
-      desc: '大会別の歴代優勝チームと優勝タイム・ECLの記録',
+      desc: '大会別の歴代優勝・優勝回数ランキング・ECLの記録',
       countLabel: '大会別に一覧',
       badge: 0,
       color: C.gold,
@@ -61,6 +75,22 @@ export default function RecordsHub() {
           <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
           <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3" stroke="currentColor" strokeWidth="1.5"/>
           <path d="M12 14v4M8 21h8M10 18h4v3h-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
+      key: '/records/gm',
+      label: 'GMキャリア',
+      desc: 'GM評判・キャリア統計・順位推移・育成実績',
+      countLabel: 'あなたの実績',
+      badge: 0,
+      color: C.cyan,
+      shadow: '#0d3a4a',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M3 12h18" stroke="currentColor" strokeWidth="1.6"/>
         </svg>
       ),
     },

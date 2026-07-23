@@ -9,7 +9,8 @@ import Layout from './src/components/layout/Layout'
 import NationalSquadSelectPage from './src/components/international/NationalSquadSelectPage'
 import WorldTournamentPage from './src/components/international/WorldTournamentPage'
 import NationalResultPage from './src/components/international/NationalResultPage'
-import RecordsPage from './src/components/records/RecordsPage'
+import RecordsPage, { IndividualRecordsPage, GmCareerPage } from './src/components/records/RecordsPage'
+import RecordsHub from './src/components/records/RecordsHub'
 import ChampionsHistoryPage from './src/components/records/ChampionsHistoryPage'
 import CreateMyPlayerPage from './src/components/player/CreateMyPlayerPage'
 import PlayerSheet from './src/components/shared/PlayerSheet'
@@ -103,7 +104,49 @@ function seedAndMount() {
   } as never)
 
   const hash = location.hash.replace('#', '') || 'select'
-  const path = hash === 'tournament' ? '/national/tournament' : hash === 'result' ? '/national/result' : hash === 'records' ? '/records/season' : hash === 'champions' ? '/records/champions' : hash === 'roster' ? '/preview/roster' : hash === 'create' ? '/create-player' : '/national/select'
+  const path = hash === 'tournament' ? '/national/tournament' : hash === 'result' ? '/national/result'
+    : hash === 'hub' ? '/records' : hash === 'franchise' ? '/records/franchise' : hash === 'individual' ? '/records/individual' : hash === 'gm' ? '/records/gm'
+    : hash === 'records' ? '/records/franchise' : hash === 'champions' ? '/records/champions'
+    : hash === 'roster' ? '/preview/roster' : hash === 'create' ? '/create-player' : '/national/select'
+
+  // 記録室系ハッシュ: 過去シーズン・年間表彰・優勝回数など記録データをモックで仕込む
+  if (['hub', 'franchise', 'individual', 'gm', 'records', 'champions'].includes(hash)) {
+    const st2 = useGameStore.getState() as unknown as { teams: any[]; players: { id: string; name: string }[]; currentSeason: object }
+    const nm = (id: string) => st2.players.find(p => p.id === id)?.name ?? '選手'
+    const champCounts = [3, 1, 0, 0]
+    const withHist = st2.teams.map((t, i) => ({
+      ...t,
+      history: { ...t.history, championships: champCounts[i] ?? 0, bestStreak: i === 0 ? 4 : i === 1 ? 2 : 0, currentStreak: i === 0 ? 2 : 0 },
+      eventRecords: i === 0 ? {
+        d5000: ['JPN_0', 'JPN_3', 'JPN_7', 'JPN_12', 'JPN_5'].map((id, k) => ({ playerId: id, playerName: nm(id), nationality: 'JPN', timeSec: 13 * 60 + 6 + k * 5, year: 2043 - k })),
+        d10000: ['JPN_1', 'JPN_2', 'JPN_8'].map((id, k) => ({ playerId: id, playerName: nm(id), nationality: 'JPN', timeSec: 27 * 60 + 20 + k * 9, year: 2043 - k })),
+        half: [],
+        marathon: ['JPN_4', 'JPN_6'].map((id, k) => ({ playerId: id, playerName: nm(id), nationality: 'JPN', timeSec: 2 * 3600 + 6 * 60 + k * 20, year: 2043 - k })),
+      } : (t.eventRecords ?? {}),
+    }))
+    // 自チーム(t_tokyo)の年ごとの順位を変動させて折れ線が動くようにする
+    const years = [2035, 2036, 2037, 2038, 2039, 2040, 2041, 2042, 2043]
+    const tokyoPtsByYear: Record<number, number> = { 2035: 82, 2036: 70, 2037: 92, 2038: 60, 2039: 95, 2040: 84, 2041: 74, 2042: 96, 2043: 90, 2044: 100 }
+    const mkStandings = (year: number) => st2.teams.map((t, ti) => {
+      // 他チームは固定ポイント、東京だけ年で変動 → 年ごとに東京の順位が変わる
+      const otherPts = [0, 88, 76, 64][ti] ?? 50
+      const totalPoints = ti === 0 ? (tokyoPtsByYear[year] ?? 85) : otherPts
+      const ranks = ti === 0 ? (totalPoints >= 90 ? [1, 1, 2, 1, 3] : totalPoints >= 78 ? [2, 1, 3, 2, 1] : [3, 4, 2, 3, 5]) : [0, 1, 2, 3, 4].map(r => (((ti * 2 + r + (year - 2040)) % 4) + 1))
+      return { teamId: t.id, leaguePoints: totalPoints, segmentPoints: 0, totalPoints, raceResults: ranks.map((rk, k) => ({ raceId: `r${k}`, rank: rk, points: (6 - rk) * 2 })) }
+    })
+    const pastSeasons = years.map(year => ({ year, currentRaceIndex: 5, phase: 'postseason', races: [], collegeRaces: [], draftPool: [], scoutPoints: 0, scoutProspects: [], newsFeed: [], objectives: [], trainingAssignments: {}, scoutMissions: [], standings: mkStandings(year) }))
+    const seasonAwards = years.map((year, i) => ({ year, mvpId: `JPN_${i}`, mvpName: nm(`JPN_${i}`), mvpAvgRank: 1.3 + i * 0.1, rookieId: `JPN_${10 + i}`, rookieName: nm(`JPN_${10 + i}`), rookieAvgRank: 2.2 + i * 0.1 }))
+    const growthReport = { year: 2043, entries: ['JPN_0', 'JPN_1', 'JPN_2', 'JPN_10', 'JPN_11'].map((id, k) => ({ playerId: id, name: nm(id), specialty: 'ace', age: 22 + k, ovrBefore: 78 + k, ovrAfter: 78 + k + [5, 3, 2, 6, 1][k] })) }
+    useGameStore.setState({
+      teams: withHist,
+      pastSeasons,
+      seasonAwards,
+      gmRep: 72,
+      growthReport,
+      currentSeason: { ...st2.currentSeason, year: 2044, currentRaceIndex: 3, standings: mkStandings(2044), races: [0, 1, 2, 3, 4].map(k => ({ id: `cr${k}`, name: `第${k + 1}戦`, results: k < 3 ? { segmentResults: [] } : undefined })) },
+    } as never)
+  }
+
   if (hash === 'roster') {
     // パッチ確認用のモック実績を仕込む（金/銀/銅メダル・国旗代表・アジア最優秀・年間最速）
     const mut = (id: string, patch: object) => {
@@ -147,6 +190,10 @@ function seedAndMount() {
           <Route path="/national/select" element={<NationalSquadSelectPage />} />
           <Route path="/national/tournament" element={<WorldTournamentPage />} />
           <Route path="/national/result" element={<NationalResultPage />} />
+          <Route path="/records" element={<RecordsHub />} />
+          <Route path="/records/franchise" element={<RecordsPage />} />
+          <Route path="/records/individual" element={<IndividualRecordsPage />} />
+          <Route path="/records/gm" element={<GmCareerPage />} />
           <Route path="/records/season" element={<RecordsPage />} />
           <Route path="/records/champions" element={<ChampionsHistoryPage />} />
           <Route path="/create-player" element={<CreateMyPlayerPage />} />

@@ -36,7 +36,7 @@ import ChatPage from './components/team/ChatPage'
 import NoSalePage from './components/team/NoSalePage'
 import FriendsPage from './components/friends/FriendsPage'
 import RecordsHub from './components/records/RecordsHub'
-import RecordsPage from './components/records/RecordsPage'
+import FranchiseRecordsPage, { IndividualRecordsPage, GmCareerPage } from './components/records/RecordsPage'
 import PlayersStatsPage from './components/records/PlayersStatsPage'
 import DraftHistoryPage from './components/records/DraftHistoryPage'
 import ChampionsHistoryPage from './components/records/ChampionsHistoryPage'
@@ -212,7 +212,10 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/international" element={<WorldEkidenPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/records" element={<RecordsHub />} />
-          <Route path="/records/season" element={<RecordsPage />} />
+          <Route path="/records/franchise" element={<FranchiseRecordsPage />} />
+          <Route path="/records/individual" element={<IndividualRecordsPage />} />
+          <Route path="/records/gm" element={<GmCareerPage />} />
+          <Route path="/records/season" element={<FranchiseRecordsPage />} />
           <Route path="/records/players" element={<PlayersStatsPage />} />
           <Route path="/records/draft" element={<DraftHistoryPage />} />
           <Route path="/records/draft/:year" element={<DraftHistoryPage />} />
