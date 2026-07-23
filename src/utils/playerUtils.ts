@@ -27,6 +27,17 @@ function hashStr(s: string): number {
 }
 
 export function getStatPotentials(p: Player): Ratings {
+  // マイプレイヤーは能力別の成長上限を明示指定（現在値未満にはしない・99天井）。ジュエル解放分は加算
+  if (p.customCaps) {
+    const out = {} as Ratings
+    for (const stat of ALL_STAT_KEYS) {
+      const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0
+      const cap = (p.customCaps as Record<string, number>)[stat] ?? 0
+      const cur = (p.ratings as Record<string, number>)[stat] ?? 0
+      ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, cap + boost))
+    }
+    return out
+  }
   const strong = new Set(SPEC_STRONG_STATS[p.specialty] ?? [])
   const out = {} as Ratings
   for (const stat of ALL_STAT_KEYS) {

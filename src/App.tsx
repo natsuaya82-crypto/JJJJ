@@ -57,6 +57,7 @@ import WorldEkidenPage from './components/international/WorldEkidenPage'
 import WECSimPage from './components/international/WECSimPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
 import CardTrainingPage from './components/training/CardTrainingPage'
+import CreateMyPlayerPage from './components/player/CreateMyPlayerPage'
 import CardInventoryPage from './components/training/CardInventoryPage'
 import CardConvertPage from './components/training/CardConvertPage'
 import CardSelectPage from './components/training/CardSelectPage'
@@ -225,6 +226,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/help" element={<HelpPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/cards" element={<CardTrainingPage />} />
+          <Route path="/create-player" element={<CreateMyPlayerPage />} />
           <Route path="/cards/list" element={<CardInventoryPage />} />
           <Route path="/cards/convert" element={<CardConvertPage />} />
           <Route path="/cards/select" element={<CardSelectPage />} />

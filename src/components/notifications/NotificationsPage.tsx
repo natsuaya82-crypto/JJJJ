@@ -382,7 +382,11 @@ export default function NotificationsPage() {
   const loanResponses = currentSeason.loanResponses ?? []
   const dismissLoanResponse = useGameStore(s => s.dismissLoanResponse)
 
+  // アップデート記念：マイプレイヤー未作成なら1件表示
+  const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
+  const canCreateMyPlayer = !myPlayerCreated
   const total = incomingOffers.length
+    + (canCreateMyPlayer ? 1 : 0)
     + tradeOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
     + renewalNeeded
@@ -444,6 +448,21 @@ export default function NotificationsPage() {
         <div style={{ padding: '80px 20px', textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: '14px' }}>通知なし</div>
       ) : (
         <div style={{ paddingBottom: '24px' }}>
+
+          {/* アップデート記念：マイプレイヤー作成 */}
+          {canCreateMyPlayer && (
+            <section>
+              <SectionHead label="アップデート記念" color={C.purple} count={1}/>
+              <div style={{ padding: '0 16px', marginBottom: 8 }}>
+                <button onClick={() => navigate('/create-player')} style={{ width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: 16, overflow: 'hidden', position: 'relative', background: `linear-gradient(135deg, ${alpha(C.purple, 0.22)}, ${C.surface2})`, border: `2px solid ${C.purple}`, padding: '14px 16px', fontFamily: 'inherit' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>🎉 UPDATE GIFT</div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: C.text, marginBottom: 3 }}>好きな選手を1人作れます</div>
+                  <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>名前・年齢・型・能力・顔をすべて自分好みに。アップデート記念で1回きり。マイチームに加入します。</div>
+                  <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: C.purple }}>作成する →</div>
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* アップデート記念プレゼント */}
           {pendingGifts.length > 0 && (

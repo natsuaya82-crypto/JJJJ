@@ -1,0 +1,223 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import BackButton from '../ui/BackButton'
+import PlayerFace from './PlayerFace'
+import { useGameStore } from '../../store/gameStore'
+import { SPECIALTY_LABELS } from '../../types'
+import type { Specialty, Ratings } from '../../types'
+import { C, alpha } from '../../styles/tokens'
+
+const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const FONT = "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif"
+
+const STATS: { key: keyof Ratings; label: string }[] = [
+  { key: 'speed', label: '速力' },
+  { key: 'stamina', label: '持久' },
+  { key: 'mountainUp', label: '登り' },
+  { key: 'mountainDown', label: '下り' },
+  { key: 'pacing', label: 'ペース' },
+  { key: 'mental', label: '精神' },
+  { key: 'recovery', label: '回復' },
+]
+const SPECS: Specialty[] = ['ace', 'sprinter', 'mountain_up', 'mountain_down', 'long', 'kick', 'grinder', 'allrounder']
+// 型ごとのレース相性ひとこと
+const SPEC_HINT: Record<Specialty, string> = {
+  ace: '全区間で安定・オールラウンド',
+  sprinter: '平坦・短い区間で強い／登り苦手',
+  mountain_up: '登り区間で強い',
+  mountain_down: '下り区間で強い',
+  long: '長い区間（15km〜）で強い',
+  kick: '平坦区間でスパートが効く',
+  grinder: '長め・平坦で粘る',
+  allrounder: 'どの区間もそつなく',
+}
+const HAIRS = ['black_light', 'black_dark', 'brown_light', 'blond_light'] as const
+const HAIR_LABEL: Record<string, string> = { black_light: '黒', black_dark: '黒(濃)', brown_light: '茶', blond_light: '金' }
+const TOTAL = 560
+const STAT_MAX = 99
+
+export default function CreateMyPlayerPage() {
+  const navigate = useNavigate()
+  const createMyPlayer = useGameStore(s => s.createMyPlayer)
+  const alreadyCreated = useGameStore(s => s.myPlayerCreated)
+
+  const [name, setName] = useState('')
+  const [age, setAge] = useState(20)
+  const [specialty, setSpecialty] = useState<Specialty>('ace')
+  const [ratings, setRatings] = useState<Ratings>({ speed: 80, stamina: 80, mountainUp: 80, mountainDown: 80, pacing: 80, mental: 80, recovery: 80 })
+  const [face, setFace] = useState({ style: 3, eye: 5, hair: 'black_light' as typeof HAIRS[number], flip: false })
+  const [done, setDone] = useState(false)
+
+  const used = STATS.reduce((s, st) => s + ratings[st.key], 0)
+  const remaining = TOTAL - used
+
+  const setStat = (key: keyof Ratings, v: number) => {
+    const clamped = Math.max(1, Math.min(STAT_MAX, v))
+    // 合計560を超えないよう、増やす分は残りポイントまで
+    const delta = clamped - ratings[key]
+    if (delta > 0 && delta > remaining) return
+    setRatings(r => ({ ...r, [key]: clamped }))
+  }
+
+  // 育て切った時の平均92（合計644）を試算表示：低い能力から水割り
+  const grownCaps = (() => {
+    const caps: Record<string, number> = {}
+    for (const st of STATS) caps[st.key] = ratings[st.key]
+    let budget = 644 - used
+    let guard = 0
+    while (budget > 0 && guard++ < 1000) {
+      let low: string | null = null
+      for (const st of STATS) { if (caps[st.key] < 92 && (low === null || caps[st.key] < caps[low])) low = st.key }
+      if (!low) break
+      caps[low] += 1; budget -= 1
+    }
+    return caps
+  })()
+
+  const canConfirm = name.trim().length > 0 && remaining === 0 && !alreadyCreated
+
+  const confirm = () => {
+    if (!canConfirm) return
+    const ok = createMyPlayer({ name: name.trim(), age, specialty, ratings, customFace: face })
+    if (ok) setDone(true)
+  }
+
+  if (alreadyCreated && !done) {
+    return (
+      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, padding: 16 }}>
+        <BackButton onClick={() => navigate('/')} />
+        <div style={{ textAlign: 'center', padding: 40, color: C.textDim }}>マイプレイヤーは作成済みです（1回きり）。</div>
+      </div>
+    )
+  }
+
+  if (done) {
+    return (
+      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>MY PLAYER CREATED</div>
+        <div style={{ borderRadius: 16, overflow: 'hidden', border: `3px solid ${C.purple}`, boxShadow: `0 0 24px ${alpha(C.purple, 0.5)}` }}>
+          <PlayerFace playerId="preview" nationality="JPN" size={120} customFace={face} />
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 900 }}>{name}</div>
+        <div style={{ fontSize: 13, color: C.textSub }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]} ・ マイチームに加入</div>
+        <button onClick={() => navigate('/team/roster')} className="btn-game btn-game--purple" style={{ width: '80%', marginTop: 8 }}><span className="btn-game__inner">ロスターで確認 →</span></button>
+        <button onClick={() => navigate('/')} className="btn-press" style={{ width: '80%', padding: '12px 0', borderRadius: 12, background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>ホームへ</button>
+      </div>
+    )
+  }
+
+  const card = (title: string, children: React.ReactNode) => (
+    <div style={{ margin: '0 12px 12px', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
+      <div style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.purple, letterSpacing: 1 }}>{title}</div>
+      <div style={{ padding: '10px 12px 12px' }}>{children}</div>
+    </div>
+  )
+
+  return (
+    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: `calc(${50 + 58 + 84}px + env(safe-area-inset-bottom))` }}>
+      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
+        <BackButton onClick={() => navigate('/')} />
+        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>マイプレイヤー作成</span>
+      </div>
+      <div style={{ padding: '2px 16px 10px', fontSize: 11, color: C.textDim }}>アップデート記念・1回きり。好きな選手を1人作れます。</div>
+
+      {/* プレビュー */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 12px 12px', padding: 12, borderRadius: 14, background: `linear-gradient(135deg, ${alpha(C.purple, 0.14)}, ${C.surface2})`, border: `2px solid ${C.purpleDark}` }}>
+        <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${alpha(C.purple, 0.5)}`, flexShrink: 0 }}>
+          <PlayerFace playerId="preview" nationality="JPN" size={72} customFace={face} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: name ? C.text : C.textGhost }}>{name || '（名前未入力）'}</div>
+          <div style={{ fontSize: 11, color: C.textSub, marginTop: 2 }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]}</div>
+          <div style={{ fontSize: 10, color: C.textDim, marginTop: 3 }}>現OVR {Math.round(used / 7)} → 育成上限 平均{Math.round(Object.values(grownCaps).reduce((a, b) => a + b, 0) / 7)}</div>
+        </div>
+      </div>
+
+      {card('名前・年齢', (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <input value={name} onChange={e => setName(e.target.value.slice(0, 8))} placeholder="選手名（8文字まで）" maxLength={8}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: 15, fontFamily: FONT }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: C.textDim, width: 40 }}>年齢</span>
+            {[18, 19, 20, 21, 22].map(a => (
+              <button key={a} onClick={() => setAge(a)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, cursor: 'pointer', fontFamily: SAIRA, fontSize: 14, fontWeight: 800, border: 'none', background: age === a ? C.purple : C.surface, color: age === a ? '#fff' : C.textDim }}>{a}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {card('型（レース相性に影響）', (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+          {SPECS.map(sp => (
+            <button key={sp} onClick={() => setSpecialty(sp)} style={{ textAlign: 'left', padding: '8px 10px', borderRadius: 9, cursor: 'pointer', background: specialty === sp ? alpha(C.purple, 0.18) : C.surface, border: `1.5px solid ${specialty === sp ? C.purple : C.border}`, fontFamily: FONT }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: specialty === sp ? C.purple : C.text }}>{SPECIALTY_LABELS[sp]}</div>
+              <div style={{ fontSize: 8.5, color: C.textDim, marginTop: 2, lineHeight: 1.4 }}>{SPEC_HINT[sp]}</div>
+            </button>
+          ))}
+        </div>
+      ))}
+
+      {card(`能力を振り分け（残り ${remaining}）`, (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 2 }}>合計{TOTAL}を振り分け。育て切ると全体平均が92（合計644）になるよう、低い能力から自動で伸びます。尖らせるほど残りの伸びしろが減ります。</div>
+          {STATS.map(st => {
+            const v = ratings[st.key]
+            const cap = grownCaps[st.key]
+            return (
+              <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: C.textSub, width: 36, flexShrink: 0 }}>{st.label}</span>
+                <button onClick={() => setStat(st.key, v - 1)} style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}>−</button>
+                <div style={{ flex: 1, position: 'relative', height: 8, borderRadius: 4, background: C.border2, overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${cap}%`, background: alpha(C.green, 0.35) }} />
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${v}%`, background: C.purple }} />
+                </div>
+                <button onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0} style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border2}`, background: remaining <= 0 ? C.surface2 : C.surface, color: remaining <= 0 ? C.textGhost : C.text, fontSize: 16, cursor: remaining <= 0 ? 'default' : 'pointer', flexShrink: 0 }}>＋</button>
+                <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text, width: 46, textAlign: 'right', flexShrink: 0 }}>{v}<span style={{ fontSize: 9, color: C.green }}>→{cap}</span></span>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+
+      {card('顔', (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border2}`, flexShrink: 0 }}>
+            <PlayerFace playerId="preview" nationality="JPN" size={64} customFace={face} />
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <FaceRow label="髪型" onPrev={() => setFace(f => ({ ...f, style: (f.style + 14) % 15 }))} onNext={() => setFace(f => ({ ...f, style: (f.style + 1) % 15 }))} value={`${face.style + 1}/15`} />
+            <FaceRow label="目" onPrev={() => setFace(f => ({ ...f, eye: (f.eye + 17) % 18 }))} onNext={() => setFace(f => ({ ...f, eye: (f.eye + 1) % 18 }))} value={`${face.eye + 1}/18`} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 10, color: C.textDim, width: 30 }}>髪色</span>
+              {HAIRS.map(h => (
+                <button key={h} onClick={() => setFace(f => ({ ...f, hair: h }))} style={{ flex: 1, padding: '5px 0', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700, border: `1px solid ${face.hair === h ? C.purple : C.border}`, background: face.hair === h ? alpha(C.purple, 0.18) : C.surface, color: face.hair === h ? C.purple : C.textDim }}>{HAIR_LABEL[h]}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setFace(f => ({ ...f, flip: !f.flip }))} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 700, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub }}>左右反転</button>
+              <button onClick={() => setFace({ style: Math.floor(Math.random() * 15), eye: Math.floor(Math.random() * 18), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 800, border: `1px solid ${C.purpleDark}`, background: alpha(C.purple, 0.12), color: C.purple }}>ランダム</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* 確定バー（下部固定） */}
+      <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${50 + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+        <button onClick={confirm} disabled={!canConfirm} className={`btn-game ${canConfirm ? 'btn-game--purple' : ''}`} style={{ width: '100%', opacity: canConfirm ? 1 : 0.5 }}>
+          <span className="btn-game__inner">{remaining !== 0 ? `残り ${remaining} を振り分けてください` : !name.trim() ? '名前を入力してください' : 'この選手で確定'}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FaceRow({ label, value, onPrev, onNext }: { label: string; value: string; onPrev: () => void; onNext: () => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 10, color: C.textDim, width: 30 }}>{label}</span>
+      <button onClick={onPrev} style={{ width: 30, height: 26, borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: 13, cursor: 'pointer' }}>◀</button>
+      <span style={{ flex: 1, textAlign: 'center', fontFamily: SAIRA, fontSize: 12, color: C.textSub }}>{value}</span>
+      <button onClick={onNext} style={{ width: 30, height: 26, borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: 13, cursor: 'pointer' }}>▶</button>
+    </div>
+  )
+}

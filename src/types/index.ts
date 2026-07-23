@@ -270,6 +270,9 @@ export type Player = {
   faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
   retiredYear?: number        // 引退したシーズン年（選手詳細の「XXXX年引退」表示用。旧セーブは未設定）
   potentialBoosts?: Partial<Record<CardStatKey, number>>  // ジュエルの上限解放で能力別上限に加算する値
+  customCaps?: Ratings  // マイプレイヤー作成で明示指定した能力別成長上限（あれば getStatPotentials はこれを使う）
+  customFace?: { style: number; eye: number; hair: 'black_light' | 'black_dark' | 'brown_light' | 'blond_light'; flip: boolean }  // マイプレイヤーの手動指定顔
+  isMyPlayer?: boolean  // アップデート記念のマイプレイヤー（作成した自作選手）
   transferListed?: boolean    // 「移籍を認める」で移籍リスト入り（他チームのオファー対象・シーズン内に決まらなければFA）
   noSale?: boolean            // 移籍方針・非売：他クラブ（国内・海外）からの買い取りオファーが一切来なくなる
   loanListed?: boolean        // 移籍方針・貸出歓迎：レンタル打診（lend_out）が優先的・高確率で来る
@@ -881,6 +884,7 @@ export type GameState = {
   eventSeasonTops?: { year: number; dist: EventDistKey; top: { playerId: string; playerName: string; teamId: string; timeSec: number }[] }[]
   adsRemoved?: boolean   // 買い切り版（広告なし・ログインボーナス常時2倍）を購入済みか
   twitterIntroSeen?: boolean   // 公式Xフォロー案内ポップを一度表示済みか（初回起動のみ表示）
+  myPlayerCreated?: boolean     // アップデート記念のマイプレイヤーを作成済みか（1回きり）
 }
 
 export const SPECIALTY_LABELS: Record<Specialty, string> = {

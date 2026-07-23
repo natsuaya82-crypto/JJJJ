@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow } from './saveStorage'
-import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality } from '../types'
+import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -464,6 +464,7 @@ export type GameStore = GameState & {
 
   // Dev reset
   resetGame: () => void
+  createMyPlayer: (params: { name: string; age: number; specialty: Specialty; ratings: Ratings; customFace: NonNullable<Player['customFace']> }) => boolean
 }
 
 function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
@@ -564,6 +565,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     adsWatchedToday: undefined as unknown as number,
     adsRemoved: false,
     twitterIntroSeen: false,
+    myPlayerCreated: false,
   } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
 }
 
@@ -7400,6 +7402,58 @@ export const useGameStore = create<GameStore>()(
             ...(patch.city !== undefined ? { city: patch.city } : {}),
           } : t),
         }))
+      },
+
+      // アップデート記念：好きな選手を1人自作してロスターに加える（1回きり）。
+      // ratings=振り分けた560、customCaps=育て切ると合計644(平均92)になる能力別上限（低い能力から水割り）
+      createMyPlayer: (params: {
+        name: string; age: number; specialty: import('../types').Specialty
+        ratings: import('../types').Ratings
+        customFace: NonNullable<import('../types').Player['customFace']>
+      }) => {
+        const state = get()
+        if (state.myPlayerCreated) return false
+        const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+        if (!myTeam) return false
+        const STAT_KEYS: (keyof import('../types').Ratings)[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+        // 能力別成長上限：現在値スタートで、合計が644(平均92)になるまで低い能力から+1ずつ水割り（各92天井）
+        const caps: Record<string, number> = {}
+        for (const k of STAT_KEYS) caps[k] = Math.round((params.ratings as Record<string, number>)[k] ?? 0)
+        let budget = 644 - STAT_KEYS.reduce((s, k) => s + caps[k], 0)
+        // budget<0（振り分け超過）はあり得ないが念のため0でクランプ
+        let guard = 0
+        while (budget > 0 && guard++ < 1000) {
+          // 92未満で最も低い能力を+1
+          let lowKey: string | null = null
+          for (const k of STAT_KEYS) { if (caps[k] < 92 && (lowKey === null || caps[k] < caps[lowKey])) lowKey = k }
+          if (!lowKey) break
+          caps[lowKey] += 1; budget -= 1
+        }
+        const id = `myplayer-${state.currentSeason.year}`
+        const newPlayer: import('../types').Player = {
+          id, name: params.name, nameKana: '', age: params.age,
+          nationality: 'JPN', origin: 'マイプレイヤー',
+          ratings: { ...params.ratings },
+          specialty: params.specialty,
+          potential: 92,
+          growthCurve: 'normal',
+          teamId: state.playerTeamId, rosterTier: 'main',
+          status: 'active',
+          contract: { yearsLeft: 4, annualSalary: faMarketSalary({ ratings: params.ratings, age: params.age } as import('../types').Player), totalYears: 4, contractType: 'standard', faEligibleYear: state.currentSeason.year + 4, rookieDeal: false },
+          career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
+          fatigue: 0, form: 0, morale: 90,
+          joinedYear: state.currentSeason.year,
+          customCaps: caps as unknown as import('../types').Ratings,
+          customFace: params.customFace,
+          isMyPlayer: true,
+          yearsPro: 0,
+        } as unknown as import('../types').Player
+        set({
+          players: [...state.players, newPlayer],
+          teams: state.teams.map(t => t.id === state.playerTeamId ? { ...t, roster: { ...t.roster, main: [...t.roster.main, id] } } : t),
+          myPlayerCreated: true,
+        })
+        return true
       },
 
       resetGame: () => {

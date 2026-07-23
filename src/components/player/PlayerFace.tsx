@@ -1,5 +1,6 @@
 import type { Nationality } from '../../types'
 import { natFaceRegion } from '../../data/nationalities'
+import { useGameStore } from '../../store/gameStore'
 
 // Python face_generator.py と同じ定数
 const CW = 260
@@ -59,14 +60,28 @@ function faceIndices(playerId: string, nationality: Nationality) {
   return { hairColor, styleIndex, eyeIndex, flipH, brightness, hue, eyeScale, eyeShift }
 }
 
+type CustomFace = { style: number; eye: number; hair: HairColor; flip: boolean }
 type Props = {
   playerId: string
   nationality: Nationality
   size?: number  // 表示幅px（高さは比率で自動）
+  customFace?: CustomFace  // マイプレイヤーの手動指定顔（あれば自動生成を上書き）
 }
 
-export default function PlayerFace({ playerId, nationality, size = 52 }: Props) {
-  const { hairColor, styleIndex, eyeIndex, flipH, brightness, hue, eyeScale, eyeShift } = faceIndices(playerId, nationality)
+export default function PlayerFace({ playerId, nationality, size = 52, customFace }: Props) {
+  // propで来なければストアから引く（マイプレイヤーの顔を全画面で反映）。通常選手はundefinedで安定＝再描画ループなし
+  const storeFace = useGameStore(s => customFace ? undefined : s.players.find(p => p.id === playerId)?.customFace)
+  const face = customFace ?? storeFace
+  const auto = faceIndices(playerId, nationality)
+  // 手動指定顔があればそれを使う（明度/色相/目の微揺らぎは無し＝指定通りに描画）
+  const hairColor = face ? face.hair : auto.hairColor
+  const styleIndex = face ? (face.style % HAIR_STYLES) : auto.styleIndex
+  const eyeIndex = face ? (face.eye % EYE_COUNT) : auto.eyeIndex
+  const flipH = face ? face.flip : auto.flipH
+  const brightness = face ? 1 : auto.brightness
+  const hue = face ? 0 : auto.hue
+  const eyeScale = face ? 1 : auto.eyeScale
+  const eyeShift = face ? 0 : auto.eyeShift
   const [ew, ex, ey] = EYE_CFG[eyeIndex]
 
   const w = size
