@@ -452,13 +452,13 @@ export default function NotificationsPage() {
           {/* アップデート記念：マイプレイヤー作成 */}
           {canCreateMyPlayer && (
             <section>
-              <SectionHead label="アップデート記念" color={C.purple} count={1}/>
+              <SectionHead label="アップデート記念" color={C.gold} count={1}/>
               <div style={{ padding: '0 16px', marginBottom: 8 }}>
-                <button onClick={() => navigate('/create-player')} style={{ width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: 16, overflow: 'hidden', position: 'relative', background: `linear-gradient(135deg, ${alpha(C.purple, 0.22)}, ${C.surface2})`, border: `2px solid ${C.purple}`, padding: '14px 16px', fontFamily: 'inherit' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>🎉 UPDATE GIFT</div>
+                <button onClick={() => navigate('/create-player')} style={{ width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: 16, overflow: 'hidden', position: 'relative', background: `linear-gradient(135deg, ${alpha(C.gold, 0.22)}, ${C.surface2})`, border: `2px solid ${C.gold}`, padding: '14px 16px', fontFamily: 'inherit' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>🎉 UPDATE GIFT</div>
                   <div style={{ fontSize: 15, fontWeight: 900, color: C.text, marginBottom: 3 }}>好きな選手を1人作れます</div>
                   <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>名前・年齢・型・能力・顔をすべて自分好みに。アップデート記念で1回きり。マイチームに加入します。</div>
-                  <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: C.purple }}>作成する →</div>
+                  <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: C.gold }}>作成する →</div>
                 </button>
               </div>
             </section>

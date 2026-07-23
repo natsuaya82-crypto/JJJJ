@@ -94,21 +94,21 @@ export default function CreateMyPlayerPage() {
   if (done) {
     return (
       <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>MY PLAYER CREATED</div>
-        <div style={{ borderRadius: 16, overflow: 'hidden', border: `3px solid ${C.purple}`, boxShadow: `0 0 24px ${alpha(C.purple, 0.5)}` }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>MY PLAYER CREATED</div>
+        <div style={{ borderRadius: 16, overflow: 'hidden', border: `3px solid ${C.gold}`, boxShadow: `0 0 24px ${alpha(C.gold, 0.5)}` }}>
           <PlayerFace playerId="preview" nationality="JPN" size={120} customFace={face} />
         </div>
         <div style={{ fontSize: 22, fontWeight: 900 }}>{name}</div>
         <div style={{ fontSize: 13, color: C.textSub }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]} ・ マイチームに加入</div>
-        <button onClick={() => navigate('/team/roster')} className="btn-game btn-game--purple" style={{ width: '80%', marginTop: 8 }}><span className="btn-game__inner">ロスターで確認 →</span></button>
+        <button onClick={() => navigate('/team/roster')} className="btn-game btn-game--gold" style={{ width: '80%', marginTop: 8 }}><span className="btn-game__inner">ロスターで確認 →</span></button>
         <button onClick={() => navigate('/')} className="btn-press" style={{ width: '80%', padding: '12px 0', borderRadius: 12, background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>ホームへ</button>
       </div>
     )
   }
 
   const card = (title: string, children: React.ReactNode) => (
-    <div style={{ margin: '0 12px 12px', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
-      <div style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.purple, letterSpacing: 1 }}>{title}</div>
+    <div style={{ margin: '0 12px 12px', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.goldDark}`, overflow: 'hidden' }}>
+      <div style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.gold, letterSpacing: 1 }}>{title}</div>
       <div style={{ padding: '10px 12px 12px' }}>{children}</div>
     </div>
   )
@@ -122,8 +122,8 @@ export default function CreateMyPlayerPage() {
       <div style={{ padding: '2px 16px 10px', fontSize: 11, color: C.textDim }}>アップデート記念・1回きり。好きな選手を1人作れます。</div>
 
       {/* プレビュー */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 12px 12px', padding: 12, borderRadius: 14, background: `linear-gradient(135deg, ${alpha(C.purple, 0.14)}, ${C.surface2})`, border: `2px solid ${C.purpleDark}` }}>
-        <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${alpha(C.purple, 0.5)}`, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 12px 12px', padding: 12, borderRadius: 14, background: `linear-gradient(135deg, ${alpha(C.gold, 0.14)}, ${C.surface2})`, border: `2px solid ${C.goldDark}` }}>
+        <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>
           <PlayerFace playerId="preview" nationality="JPN" size={72} customFace={face} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -140,7 +140,7 @@ export default function CreateMyPlayerPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: C.textDim, width: 40 }}>年齢</span>
             {[18, 19, 20, 21, 22].map(a => (
-              <button key={a} onClick={() => setAge(a)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, cursor: 'pointer', fontFamily: SAIRA, fontSize: 14, fontWeight: 800, border: 'none', background: age === a ? C.purple : C.surface, color: age === a ? '#fff' : C.textDim }}>{a}</button>
+              <button key={a} onClick={() => setAge(a)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, cursor: 'pointer', fontFamily: SAIRA, fontSize: 14, fontWeight: 800, border: 'none', background: age === a ? C.gold : C.surface, color: age === a ? '#fff' : C.textDim }}>{a}</button>
             ))}
           </div>
         </div>
@@ -149,8 +149,8 @@ export default function CreateMyPlayerPage() {
       {card('型（レース相性に影響）', (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
           {SPECS.map(sp => (
-            <button key={sp} onClick={() => setSpecialty(sp)} style={{ textAlign: 'left', padding: '8px 10px', borderRadius: 9, cursor: 'pointer', background: specialty === sp ? alpha(C.purple, 0.18) : C.surface, border: `1.5px solid ${specialty === sp ? C.purple : C.border}`, fontFamily: FONT }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: specialty === sp ? C.purple : C.text }}>{SPECIALTY_LABELS[sp]}</div>
+            <button key={sp} onClick={() => setSpecialty(sp)} style={{ textAlign: 'left', padding: '8px 10px', borderRadius: 9, cursor: 'pointer', background: specialty === sp ? alpha(C.gold, 0.18) : C.surface, border: `1.5px solid ${specialty === sp ? C.gold : C.border}`, fontFamily: FONT }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: specialty === sp ? C.gold : C.text }}>{SPECIALTY_LABELS[sp]}</div>
               <div style={{ fontSize: 8.5, color: C.textDim, marginTop: 2, lineHeight: 1.4 }}>{SPEC_HINT[sp]}</div>
             </button>
           ))}
@@ -169,7 +169,7 @@ export default function CreateMyPlayerPage() {
                 <button onClick={() => setStat(st.key, v - 1)} style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}>−</button>
                 <div style={{ flex: 1, position: 'relative', height: 8, borderRadius: 4, background: C.border2, overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${cap}%`, background: alpha(C.green, 0.35) }} />
-                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${v}%`, background: C.purple }} />
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${v}%`, background: C.gold }} />
                 </div>
                 <button onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0} style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border2}`, background: remaining <= 0 ? C.surface2 : C.surface, color: remaining <= 0 ? C.textGhost : C.text, fontSize: 16, cursor: remaining <= 0 ? 'default' : 'pointer', flexShrink: 0 }}>＋</button>
                 <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text, width: 46, textAlign: 'right', flexShrink: 0 }}>{v}<span style={{ fontSize: 9, color: C.green }}>→{cap}</span></span>
@@ -190,12 +190,12 @@ export default function CreateMyPlayerPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 10, color: C.textDim, width: 30 }}>髪色</span>
               {HAIRS.map(h => (
-                <button key={h} onClick={() => setFace(f => ({ ...f, hair: h }))} style={{ flex: 1, padding: '5px 0', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700, border: `1px solid ${face.hair === h ? C.purple : C.border}`, background: face.hair === h ? alpha(C.purple, 0.18) : C.surface, color: face.hair === h ? C.purple : C.textDim }}>{HAIR_LABEL[h]}</button>
+                <button key={h} onClick={() => setFace(f => ({ ...f, hair: h }))} style={{ flex: 1, padding: '5px 0', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700, border: `1px solid ${face.hair === h ? C.gold : C.border}`, background: face.hair === h ? alpha(C.gold, 0.18) : C.surface, color: face.hair === h ? C.gold : C.textDim }}>{HAIR_LABEL[h]}</button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setFace(f => ({ ...f, flip: !f.flip }))} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 700, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub }}>左右反転</button>
-              <button onClick={() => setFace({ style: Math.floor(Math.random() * 15), eye: Math.floor(Math.random() * 18), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 800, border: `1px solid ${C.purpleDark}`, background: alpha(C.purple, 0.12), color: C.purple }}>ランダム</button>
+              <button onClick={() => setFace({ style: Math.floor(Math.random() * 15), eye: Math.floor(Math.random() * 18), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 800, border: `1px solid ${C.goldDark}`, background: alpha(C.gold, 0.12), color: C.gold }}>ランダム</button>
             </div>
           </div>
         </div>
@@ -203,7 +203,7 @@ export default function CreateMyPlayerPage() {
 
       {/* 確定バー（下部固定） */}
       <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${50 + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-        <button onClick={confirm} disabled={!canConfirm} className={`btn-game ${canConfirm ? 'btn-game--purple' : ''}`} style={{ width: '100%', opacity: canConfirm ? 1 : 0.5 }}>
+        <button onClick={confirm} disabled={!canConfirm} className={`btn-game ${canConfirm ? 'btn-game--gold' : ''}`} style={{ width: '100%', opacity: canConfirm ? 1 : 0.5 }}>
           <span className="btn-game__inner">{remaining !== 0 ? `残り ${remaining} を振り分けてください` : !name.trim() ? '名前を入力してください' : 'この選手で確定'}</span>
         </button>
       </div>
