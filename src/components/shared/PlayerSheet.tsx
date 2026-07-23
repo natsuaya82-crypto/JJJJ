@@ -235,7 +235,8 @@ export default function PlayerSheet() {
   const team = teams.find(t => t.id === player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
   // 記録パッチ（最大5個・優先順: 世界>日本>MVP>新人王>区間記録）
-  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops, worldAthleticsResults, worldTournament })
+  // パッチ選択は専用ページ（スクロール可）なので上限なしで全部出す（5個で打ち切らない）
+  const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops, worldAthleticsResults, worldTournament }, 99)
   const handleShare = async () => {
     if (!shareCardRef.current) return
     try {
