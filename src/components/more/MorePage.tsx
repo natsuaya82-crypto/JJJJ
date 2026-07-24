@@ -11,8 +11,8 @@ import { APP_VERSION } from '../../data/appMeta'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-// 広告なし版IAPの表示フラグ（有料アプリ契約が有効になったら true に戻す）
-const IAP_ENABLED = false
+// GMパス（買い切りIAP）の表示フラグ（有料アプリ契約が有効になったら true に戻す）
+const IAP_ENABLED = true
 
 const OVERLAY_BG = C.bg
 const HEADER_H = 49  // Layout.tsx のヘッダー高と同値。詳細画面をヘッダーの下から始める
@@ -31,6 +31,12 @@ const IcX = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
 const IcHome = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcTrash = <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const Chevron = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: C.textDim, flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+
+// ── 課金カードの特典アイコン ──
+const IcBannerOff = <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="14" width="19" height="6" rx="1.6" stroke="currentColor" strokeWidth="1.7"/><path d="M4 21.5L20 4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/></svg>
+const IcFullOff = <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="17" height="17" rx="2.4" stroke="currentColor" strokeWidth="1.7"/><path d="M4 20.5L20.5 3.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/></svg>
+const IcStarBadge = <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3.2l2.5 5.7 6.2.5-4.7 4 1.4 6-5.4-3.2-5.4 3.2 1.4-6-4.7-4 6.2-.5z" fill="currentColor"/></svg>
+const IcTwoX = <span style={{ fontSize: 13, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '-0.5px' }}>×2</span>
 
 // 設定リストの1行（独立カード）
 function SettingRow({ icon, label, sub, onClick, danger }: {
@@ -123,6 +129,9 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         </div>
       </div>
 
+      {/* GMパス（買い切り）：一番目に付く位置に置く。IAP_ENABLED で表示を切り替え */}
+      {IAP_ENABLED && <PremiumCard />}
+
       {/* 設定リスト */}
       <div>
         <SettingRow icon={IcTeam} label="チーム編集" sub={myTeam ? `${myTeam.name}・GM ${myTeam.gmName}` : undefined} onClick={() => setDetail('team')} />
@@ -137,9 +146,6 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />
       </div>
-
-      {/* 広告なし版IAP：契約が通るまで一時非表示。復活時は IAP_ENABLED を true に */}
-      {IAP_ENABLED && <div style={{ marginTop: 16 }}><PremiumCard /></div>}
 
       {/* フッター */}
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
@@ -406,7 +412,7 @@ function PremiumCard() {
       if (res === 'purchased') {
         setAdsRemoved(true)
         audio.playSe('reward')
-        setMsg('ありがとうございます！広告なし版が有効になりました。')
+        setMsg('ありがとうございます！GMパスが有効になりました。')
       } else if (res === 'cancelled') {
         setMsg('購入をキャンセルしました。')
       } else if (res === 'pending') {
@@ -433,97 +439,109 @@ function PremiumCard() {
     }
   }
 
-  const CY = '#6dd5fa'
+  const G = C.gold
 
   return (
     <div style={{
       position: 'relative', overflow: 'hidden',
-      background: `linear-gradient(160deg, #0c2035 0%, #071525 60%, #0e1e2e 100%)`,
-      border: `2px solid ${alpha(CY, 0.55)}`,
+      background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+      border: `1.5px solid ${alpha(G, 0.42)}`,
       borderRadius: 16,
-      boxShadow: `0 4px 0 #040e1a, 0 8px 28px ${alpha(CY, 0.18)}, inset 0 1px 0 ${alpha(CY, 0.12)}`,
-      padding: '18px 16px 16px',
-      marginBottom: '12px',
+      boxShadow: `0 3px 0 rgba(0,0,0,0.45), 0 10px 26px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.05)`,
+      padding: '16px 15px 15px',
+      marginBottom: '18px',
     }}>
-      {/* 上端のシアングロー */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent 0%, ${alpha(CY, 0.6)} 50%, transparent 100%)`, pointerEvents: 'none' }} />
-      {/* 右上コーナーグロー */}
-      <div style={{ position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: '50%', background: `radial-gradient(circle, ${alpha(CY, 0.12)} 0%, transparent 70%)`, pointerEvents: 'none' }} />
+      {/* 上端の金のハイライト（設定カードと同じ質感で、少し格を上げる） */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent 0%, ${alpha(G, 0.55)} 50%, transparent 100%)`, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -50, right: -50, width: 150, height: 150, borderRadius: '50%', background: `radial-gradient(circle, ${alpha(G, 0.10)} 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
-        {/* ヘッダー：タイトルと価格を横並び */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div>
-            <div style={{ fontSize: 9, color: CY, letterSpacing: '3px', fontWeight: 900, fontFamily: SAIRA, marginBottom: 4, textShadow: `0 0 10px ${alpha(CY, 0.5)}` }}>AD FREE</div>
-            <div style={{ fontSize: 21, fontWeight: 900, color: '#fff', fontFamily: SAIRA, lineHeight: 1.1 }}>広告なし版</div>
-            <div style={{ fontSize: 10, color: alpha(CY, 0.6), fontFamily: SAIRA, marginTop: 3 }}>買い切り — 月額なし</div>
+        {/* ヘッダー：ページ見出しと同じ「縦バー＋EYEBROW＋タイトル」の型 */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+            <div style={{ width: 4, height: 34, borderRadius: 2, background: `linear-gradient(180deg, ${G}, ${alpha(G, 0.25)})`, flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 9, color: alpha(G, 0.5), letterSpacing: '4px', marginBottom: 3 }}>GM PASS</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>GMパス</div>
+            </div>
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 32, fontWeight: 900, color: CY, fontFamily: SAIRA, lineHeight: 1, textShadow: `0 0 20px ${alpha(CY, 0.7)}` }}>¥500</div>
+            <div style={{
+              fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.5px',
+              background: `linear-gradient(180deg, ${C.goldHi} 0%, ${G} 52%, ${C.goldDark} 100%)`,
+              WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              filter: `drop-shadow(0 2px 8px ${alpha(G, 0.28)})`,
+            }}>¥600</div>
+            <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1px', marginTop: 3 }}>買い切り・月額なし</div>
           </div>
         </div>
 
-        {/* メリット一覧 */}
-        <div style={{ borderRadius: 11, background: alpha('#000', 0.28), border: `1px solid ${alpha(CY, 0.14)}`, padding: '12px', marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* 特典一覧：設定カードのアイコンタイルと同じ形で揃える */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 13 }}>
           {[
-            { badge: 'OFF', label: 'バナー広告を完全削除', sub: '画面下のスペースがすっきり' },
-            { badge: '×2', label: 'ログインボーナス毎日2倍', sub: 'ジュエルの貯まり方が変わる' },
-          ].map(({ badge, label, sub }, i) => (
+            { icon: IcBannerOff, label: 'バナー広告を削除', sub: '画面下のスペースがすっきり' },
+            { icon: IcFullOff, label: 'シーズン更新の全画面広告なし', sub: '「次のシーズンへ」がそのまま進む' },
+            { icon: IcStarBadge, label: '大成功を1日1回タダで確約', sub: '合成画面のボタンから。毎朝10時に復活' },
+            { icon: IcTwoX, label: 'ログインボーナス毎日2倍', sub: '100→200・7日目 1100→2200ジュエル' },
+          ].map(({ icon, label, sub }, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
-                width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                background: `linear-gradient(180deg, ${alpha(CY, 0.22)} 0%, ${alpha(CY, 0.08)} 100%)`,
-                border: `1.5px solid ${alpha(CY, 0.4)}`,
+                width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                background: `linear-gradient(180deg, ${alpha(G, 0.22)} 0%, ${alpha(G, 0.06)} 100%)`,
+                border: `1px solid ${alpha(G, 0.3)}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: CY, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
-                boxShadow: `0 2px 8px ${alpha(CY, 0.15)}`,
+                color: G, boxShadow: `0 2px 8px ${alpha(G, 0.12)}`,
               }}>
-                {badge}
+                {icon}
               </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#e8f8ff', fontFamily: SAIRA, marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 10, color: alpha('#fff', 0.38), fontFamily: SAIRA }}>{sub}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 10, color: C.textDim }}>{sub}</div>
               </div>
             </div>
           ))}
-          <div style={{ fontSize: 10, color: alpha('#fff', 0.25), fontFamily: SAIRA, marginTop: 2, paddingTop: 8, borderTop: `1px solid ${alpha('#fff', 0.08)}` }}>
-            ※大成功・ジュエル追加の動画広告は従来通り
-          </div>
         </div>
+
+        <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${alpha(G, 0.16)}, transparent)`, marginBottom: 12 }} />
 
         {adsRemoved ? (
           <div style={{
-            padding: '14px', borderRadius: 12, textAlign: 'center',
-            background: alpha(CY, 0.1), border: `1.5px solid ${alpha(CY, 0.4)}`,
-            color: CY, fontSize: 14, fontWeight: 900, fontFamily: SAIRA,
-            letterSpacing: '1px', textShadow: `0 0 14px ${alpha(CY, 0.5)}`,
+            padding: '14px', borderRadius: 13, textAlign: 'center',
+            background: `linear-gradient(180deg, ${alpha(G, 0.16)}, ${alpha(G, 0.05)})`,
+            border: `1.5px solid ${alpha(G, 0.45)}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
-            購入済み
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <path d="M4 12.5l5 5L20 6.5" stroke={G} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 900, color: G, letterSpacing: '1px' }}>購入済み — ありがとうございます</span>
           </div>
         ) : (
           <>
             <button
               onClick={handlePurchase}
               disabled={busy}
+              className="btn-press"
               style={{
                 position: 'relative', overflow: 'hidden',
-                width: '100%', padding: '16px', borderRadius: 13, cursor: busy ? 'default' : 'pointer',
-                background: `linear-gradient(180deg, #1e6fa0 0%, #0f3d60 50%, #071e30 100%)`,
-                border: `2px solid ${CY}`,
-                boxShadow: `0 5px 0 #030d16, 0 8px 28px ${alpha(CY, 0.35)}, inset 0 1px 0 rgba(255,255,255,0.18)`,
-                fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: '#fff', opacity: busy ? 0.6 : 1,
+                width: '100%', padding: '15px', borderRadius: 13, cursor: busy ? 'default' : 'pointer',
+                background: `linear-gradient(180deg, ${C.goldHi} 0%, ${G} 46%, ${C.goldDark} 100%)`,
+                border: `1.5px solid ${alpha('#fff5d0', 0.85)}`,
+                boxShadow: `0 5px 0 #5a3500, 0 9px 24px ${alpha(G, 0.28)}, inset 0 1px 0 rgba(255,255,255,0.55)`,
+                fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: '#3a2400', opacity: busy ? 0.6 : 1,
                 letterSpacing: '0.5px',
               }}
             >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)`, pointerEvents: 'none' }} />
-              {busy ? '処理中…' : '今すぐ購入　¥500'}
+              {/* 上半分の艶 */}
+              <span style={{ position: 'absolute', top: 1, left: 5, right: 5, height: '44%', background: 'linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0))', borderRadius: '9px 9px 40% 40%', pointerEvents: 'none' }} />
+              <span style={{ position: 'relative' }}>{busy ? '処理中…' : '購入する　¥600'}</span>
             </button>
             <button
               onClick={handleRestore}
               disabled={busy}
               style={{
-                width: '100%', padding: '9px', marginTop: 8, borderRadius: 10, cursor: busy ? 'default' : 'pointer',
-                background: 'transparent', border: `1px solid ${alpha('#fff', 0.1)}`, color: alpha('#fff', 0.28),
+                width: '100%', padding: '10px', marginTop: 9, borderRadius: 11, cursor: busy ? 'default' : 'pointer',
+                background: 'transparent', border: `1px solid ${alpha(G, 0.14)}`, color: C.textDim,
                 fontSize: 11, fontWeight: 700, fontFamily: SAIRA, opacity: busy ? 0.6 : 1,
               }}
             >
@@ -532,7 +550,11 @@ function PremiumCard() {
           </>
         )}
 
-        {msg && <div style={{ marginTop: 10, fontSize: 11, color: alpha(CY, 0.8), lineHeight: 1.5, fontFamily: SAIRA, textAlign: 'center' }}>{msg}</div>}
+        <div style={{ fontSize: 9.5, color: C.textGhost, lineHeight: 1.6, marginTop: 10, textAlign: 'center' }}>
+          ※動画広告（ジュエル追加・2回目以降の大成功）は任意で見られます
+        </div>
+
+        {msg && <div style={{ marginTop: 8, fontSize: 11, color: alpha(G, 0.85), lineHeight: 1.5, textAlign: 'center' }}>{msg}</div>}
       </div>
     </div>
   )

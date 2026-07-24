@@ -442,6 +442,8 @@ export type GameStore = GameState & {
 
   // 買い切り版（広告なし）
   setAdsRemoved: (v: boolean) => void
+  // 買い切り版の特典：1日1回、カード合成を大成功にする権利を消費する（使えたら true）
+  useDailyGreatSuccess: () => boolean
   // レース中の選択イベントを出すか（オフ＝流し見モード。トラック再生と結果だけ進む）
   raceEventsEnabled?: boolean
   setRaceEventsEnabled: (v: boolean) => void
@@ -7363,6 +7365,18 @@ export const useGameStore = create<GameStore>()(
       },
 
       setAdsRemoved: (v) => set({ adsRemoved: v }),
+
+      // 買い切り版の特典：カード合成の大成功(×1.5)を1日1回だけ無料で確約。
+      // 区切りは動画広告と同じ getAdDay()＝朝10時。未購入・当日消費済みなら false。
+      useDailyGreatSuccess: () => {
+        const state = get()
+        if (!state.adsRemoved) return false
+        const today = getAdDay()
+        if (state.premiumGreatDate === today) return false
+        set({ premiumGreatDate: today })
+        return true
+      },
+
       setRaceEventsEnabled: (v) => set({ raceEventsEnabled: v }),
       markTwitterIntroSeen: () => set({ twitterIntroSeen: true }),
       dismissExpiredNegotiation: (id) => set(s => ({ currentSeason: { ...s.currentSeason, expiredNegotiations: (s.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== id) } })),

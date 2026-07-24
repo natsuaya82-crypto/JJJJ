@@ -15,7 +15,7 @@ import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import TrainingCardSVG from './TrainingCardSVG'
 import { audio } from '../../utils/audio'
-import { showRewardAd } from '../../utils/ads'
+import { showRewardAd, getAdDay } from '../../utils/ads'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { useAdHeight } from '../layout/Layout'
 
@@ -36,8 +36,12 @@ export default function CardTrainingPage() {
   const {
     trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
-    openPlayerSheet, jewels, breakStatLimit,
+    openPlayerSheet, jewels, breakStatLimit, useDailyGreatSuccess,
   } = useGameStore()
+  // 買い切り版の「大成功確約 1日1回」が今日まだ残っているか（区切りは朝10時）
+  const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
+  const premiumGreatDate = useGameStore(s => s.premiumGreatDate)
+  const freeGreatReady = adsRemoved && premiumGreatDate !== getAdDay()
 
   const [searchParams] = useSearchParams()
 
@@ -80,6 +84,8 @@ export default function CardTrainingPage() {
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; traitGranted: boolean; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
   const [adWatched, setAdWatched] = useState(false)
   const [adConfirmOpen, setAdConfirmOpen] = useState(false)
+  // 買い切り版の無料確約を「この合成に使う」と選んだ状態（実行時に消費）
+  const [useFreeGreat, setUseFreeGreat] = useState(false)
   // 上限解放：MAXの能力をタップ→確認ダイアログでジュエル消費して上限+1
   const [limitBreakStat, setLimitBreakStat] = useState<CardStatKey | null>(null)
   const [barAnimated, setBarAnimated] = useState(false)
@@ -133,12 +139,15 @@ export default function CardTrainingPage() {
       preRatings[k] = (targetPlayer.ratings as Record<CardStatKey, number>)[k] ?? 0
       preExp[k] = (targetPlayer.exp ?? {})[k] ?? 0
     })
-    const greatSuccess = adWatched || Math.random() < 0.05
+    // 広告視聴済みならそちらで確約。無料確約(買い切り版1日1回)は選んだときだけ消費する
+    const freeUsed = !adWatched && useFreeGreat && useDailyGreatSuccess()
+    const greatSuccess = adWatched || freeUsed || Math.random() < 0.05
     const multiplier = greatSuccess ? 1.5 : 1.0
     const willTrait = !!(combo.traitGrant && combo.traitChance && Math.random() < combo.traitChance)
     applyTrainingCards(targetPlayer.id, cardIds, willTrait, multiplier)
     setApplied({ combo, traitGranted: willTrait, greatSuccess, preRatings, preExp })
     setAdWatched(false)
+    setUseFreeGreat(false)
     // 選手は残してカードだけクリア（合成完了オーバーレイを表示し続けるため。選手を消すとSTEP1に戻って結果が消える）
     setFusionPlayer(targetPlayer.id)
     audio.playSe(greatSuccess ? 'great_success' : 'levelup')
@@ -381,27 +390,65 @@ export default function CardTrainingPage() {
       {/* Ad option */}
       {canApply && (
         <div style={{ margin: '14px 14px 0', textAlign: 'center' }}>
-          {!adWatched ? (
-            <button
-              onClick={() => setAdConfirmOpen(true)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '6px 4px',
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                <rect x="2" y="4" width="20" height="16" rx="2.5" stroke={C.textDim} strokeWidth="1.8"/>
-                <path d="M10 9.5l5 2.5-5 2.5z" fill={C.textDim}/>
-              </svg>
-              <span style={{ fontSize: 11, color: C.textSub, textDecoration: 'underline', textUnderlineOffset: 2 }}>
-                広告を見て大成功（通常5%）
-              </span>
-            </button>
-          ) : (
+          {adWatched ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 4px' }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={{ fontSize: 11, color: C.gold }}>広告視聴済み</span>
+              <span style={{ fontSize: 11, color: C.gold }}>広告視聴済み — 大成功確定</span>
+            </div>
+          ) : useFreeGreat ? (
+            // 買い切り版の無料確約をこの合成に使う（実行するまでは取り消せる）
+            <button
+              onClick={() => setUseFreeGreat(false)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+                padding: '7px 14px', borderRadius: 999,
+                background: `linear-gradient(180deg, ${alpha(C.gold, 0.22)}, ${alpha(C.gold, 0.08)})`,
+                border: `1px solid ${alpha(C.gold, 0.5)}`,
+                boxShadow: `0 2px 10px ${alpha(C.gold, 0.18)}`,
+                fontFamily: 'inherit',
+              }}
+            >
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.gold }}>大成功確定（GMパス・本日1回）</span>
+              <span style={{ fontSize: 10, color: alpha(C.gold, 0.55) }}>取消</span>
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              {freeGreatReady && (
+                <button
+                  onClick={() => { setUseFreeGreat(true); audio.playSe('tap') }}
+                  className="btn-press"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+                    padding: '8px 16px', borderRadius: 999, marginBottom: 2,
+                    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                    border: `1.5px solid ${alpha(C.gold, 0.6)}`,
+                    boxShadow: `0 3px 0 #5a3500, 0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07)`,
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M12 3l2.4 5.6 6 .5-4.6 3.9 1.4 5.9L12 15.8 6.8 18.9l1.4-5.9L3.6 9.1l6-.5z" fill={C.gold} />
+                  </svg>
+                  <span style={{ fontSize: 12, fontWeight: 900, color: C.gold }}>無料で大成功にする（本日1回）</span>
+                </button>
+              )}
+              <button
+                onClick={() => setAdConfirmOpen(true)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 4px',
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                  <rect x="2" y="4" width="20" height="16" rx="2.5" stroke={C.textDim} strokeWidth="1.8"/>
+                  <path d="M10 9.5l5 2.5-5 2.5z" fill={C.textDim}/>
+                </svg>
+                <span style={{ fontSize: 11, color: C.textSub, textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                  広告を見て大成功（通常5%）
+                </span>
+              </button>
             </div>
           )}
         </div>

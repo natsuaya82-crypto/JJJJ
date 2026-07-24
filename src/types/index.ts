@@ -883,6 +883,7 @@ export type GameState = {
   // 破棄されるため、種目別トップ10だけ名前焼き込みで永続する）
   eventSeasonTops?: { year: number; dist: EventDistKey; top: { playerId: string; playerName: string; teamId: string; timeSec: number }[] }[]
   adsRemoved?: boolean   // 買い切り版（広告なし・ログインボーナス常時2倍）を購入済みか
+  premiumGreatDate?: string   // 買い切り版「大成功確約 1日1回」を使った日（getAdDay基準＝朝10時区切り）
   twitterIntroSeen?: boolean   // 公式Xフォロー案内ポップを一度表示済みか（初回起動のみ表示）
   myPlayerCreated?: boolean     // アップデート記念のマイプレイヤーを作成済みか（1回きり）
 }
