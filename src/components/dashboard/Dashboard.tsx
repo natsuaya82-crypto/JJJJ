@@ -9,6 +9,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { SectionLabel } from '../ui'
+import JewelGainPopup from '../ui/JewelGainPopup'
 import HeroCard from './HeroCard'
 import KeyPlayersSection from './KeyPlayersSection'
 import NextRaceCard from './NextRaceCard'
@@ -785,6 +786,9 @@ export default function Dashboard() {
           </div>
         )
       })()}
+
+      {/* レース／シーズン終了で得たジュエルの内訳。結果画面では出さず、ホームに戻ったここで知らせる */}
+      <JewelGainPopup />
 
     </div>
   )

@@ -432,6 +432,8 @@ export type GameStore = GameState & {
   convertCards: (rarity: 'normal' | 'rare' | 'epic') => number
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
+  // ホームで出したジュエル獲得ポップアップを閉じる
+  dismissJewelGains: () => void
 
   // Update gifts (通知から受け取るプレゼント)
   grantUpdateGifts: () => void
@@ -1770,6 +1772,20 @@ export const useGameStore = create<GameStore>()(
             .filter(o => o.done && !prevDoneIds.has(o.id))
             .reduce((s, o) => s + (o.rewardJewels ?? 30), 0)
 
+          // ジュエル獲得の内訳（ホームに戻ったときのポップアップ用）。加算そのものは下の jewels: と midRaceObjJewels が担当し、
+          // ここは表示用の明細を組み立てるだけ。合計が一致するよう同じ計算式から作る
+          const raceJewelGains: { label: string; amount: number }[] = []
+          if (playerRank > 0) {
+            const rankJ = playerRank === 1 ? 20 : playerRank === 2 ? 10 : playerRank === 3 ? 5 : 0
+            if (rankJ > 0) raceJewelGains.push({ label: `レース${playerRank}位`, amount: rankJ })
+            if (mySegWinCount > 0) raceJewelGains.push({ label: `区間賞×${mySegWinCount}`, amount: mySegWinCount * 5 })
+            for (const a of raceAchievements) {
+              const j = ACHIEVEMENT_JEWELS[a.rarity] ?? 0
+              if (j > 0) raceJewelGains.push({ label: `実績「${a.name}」`, amount: j })
+            }
+          }
+          if (midRaceObjJewels > 0) raceJewelGains.push({ label: '目標達成', amount: midRaceObjJewels })
+
           // ── 移籍希望：契約残り2年切った(≤1)選手から毎レース最大1人。理由は出場機会/強豪志向/待遇不満。 ──
           const existTrReq = new Set((state.currentSeason.transferRequests ?? []).map(r => r.playerId))
           const trTotalTeams = state.teams.length
@@ -1898,6 +1914,8 @@ export const useGameStore = create<GameStore>()(
               ...freeMoves.map(m => ({ year: state.currentSeason.year, date: race.date, playerId: m.playerId, fromTeamId: playerTeamId, toTeamId: m.toTeamId, fee: 0, kind: 'free' as const })),
             ].slice(-400),
             jewels: state.jewels + (playerRank > 0 ? raceJewels : 0) + midRaceObjJewels,
+            // 直前にECL戦が裏で消化されている場合があるので、既存の未表示ぶんに足す（ホームで見たら空になる）
+            jewelGains: [...(state.jewelGains ?? []), ...raceJewelGains].slice(-20),
             raceLineup: {},
             lastRaceLineup: { ...state.raceLineup },
             trainingCards: [...(state.trainingCards ?? []), ...droppedCards],
@@ -4432,6 +4450,7 @@ export const useGameStore = create<GameStore>()(
         let newAch: NonNullable<GameState['achievements']> = []
         let historyEntry: NonNullable<GameState['eclHistory']> = []
         let eclResult = state.currentSeason.eclResult
+        let eclFinalRank = 0   // 最終戦のみ確定する年間総合順位（ジュエルの総合ボーナス用）
 
         if (isFinal) {
           // 最終順位＝累計ポイント降順
@@ -4440,6 +4459,7 @@ export const useGameStore = create<GameStore>()(
             .sort((a, b) => b.points - a.points)
           const champion = finalStandings[0]
           const myRank = finalStandings.findIndex(s => s.isPlayerTeam) + 1
+          eclFinalRank = myRank
           const prize = myRank === 1 ? 200_000_000 : myRank === 2 ? 100_000_000 : myRank > 0 ? 50_000_000 : 0
           if (prize > 0) {
             updatedTeams = state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + prize } } : t)
@@ -4492,10 +4512,37 @@ export const useGameStore = create<GameStore>()(
           })
         }
 
+        // ── ジュエル：国内レース（runRace）の1.5倍。順位20/10/5→30/15/7、区間賞5→7、実績も1.5倍。
+        //    7.5は切り捨てて7。年間総合順位のボーナスだけは国内のシーズン終了と同じ200/100/50（1.5倍しない）。
+        //    二軍（advanceSecondTeamRace）と世界陸上はこれまで通り付与なし。 ──
+        const myEclSegWins = myRaceRank > 0
+          ? state.players.filter(p => p.teamId === state.playerTeamId && segWinIds.has(p.id)).length
+          : 0
+        const eclJewelGains: { label: string; amount: number }[] = []
+        if (myRaceRank > 0) {
+          const rankJ = myRaceRank === 1 ? 30 : myRaceRank === 2 ? 15 : myRaceRank === 3 ? 7 : 0
+          if (rankJ > 0) eclJewelGains.push({ label: `ECL${myRaceRank}位`, amount: rankJ })
+          if (myEclSegWins > 0) eclJewelGains.push({ label: `区間賞×${myEclSegWins}`, amount: myEclSegWins * 7 })
+          for (const a of newAch) {
+            const j = Math.round((ACHIEVEMENT_JEWELS[a.rarity] ?? 0) * 1.5)
+            if (j > 0) eclJewelGains.push({ label: `実績「${a.name}」`, amount: j })
+          }
+        }
+        // 年間総合（最終戦時のみ）。自チームが出ていないシリーズでは eclFinalRank が0になるので付かない
+        const eclTotalJ = eclFinalRank === 1 ? 200 : eclFinalRank === 2 ? 100 : eclFinalRank === 3 ? 50 : 0
+        if (eclTotalJ > 0) eclJewelGains.push({ label: `ECL年間総合${eclFinalRank}位`, amount: eclTotalJ })
+        const eclJewels = eclJewelGains.reduce((s, g) => s + g.amount, 0)
+
         return {
           teams: updatedTeams,
           players: updatedPlayers,
           segmentRecords: updatedSegmentRecords,
+          // 自チームが出ていない観戦シリーズは裏で自動消化されるので、獲得ゼロのときは
+          // 未表示の内訳（前のレースぶん）を消さないようキーごと書かない
+          ...(eclJewels > 0 ? {
+            jewels: state.jewels + eclJewels,
+            jewelGains: [...(state.jewelGains ?? []), ...eclJewelGains].slice(-20),
+          } : {}),
           // このレースで出た区間新に張り替える（前のリーグ戦のバッジ記録が残って誤表示されるのを防ぐ）
           raceNewSegmentRecords: newSegRecordMarksEcl,
           achievements: [...(state.achievements ?? []), ...newAch],
@@ -5711,6 +5758,15 @@ export const useGameStore = create<GameStore>()(
           const seasonAchievementJewels = seasonAchievements.reduce((s, a) => s + (ACHIEVEMENT_JEWELS[a.rarity] ?? 0), 0)
           const rankJewels = finalRank === 1 ? 200 : finalRank === 2 ? 100 : finalRank === 3 ? 50 : 0
 
+          // シーズン終了ぶんのジュエル内訳（ホームに戻ったときのポップアップ用）。加算は下の jewels: が担当
+          const seasonJewelGains: { label: string; amount: number }[] = []
+          if (rankJewels > 0) seasonJewelGains.push({ label: `シーズン${finalRank}位`, amount: rankJewels })
+          if (objJewels > 0) seasonJewelGains.push({ label: '目標達成', amount: objJewels })
+          for (const a of seasonAchievements) {
+            const j = ACHIEVEMENT_JEWELS[a.rarity] ?? 0
+            if (j > 0) seasonJewelGains.push({ label: `実績「${a.name}」`, amount: j })
+          }
+
           // 海外リーグの優勝クラブ所属選手に championships +1（今季の順位表を確定してから）
           const playersWithForeignChamp = applyForeignChampions(
             state.foreignLeagues ?? [], playersWithLoanHistory, state.currentSeason.foreignStandings ?? {},
@@ -5867,6 +5923,8 @@ export const useGameStore = create<GameStore>()(
             // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
             transferHistory: [...(state.transferHistory ?? []), ...departureRecords, ...foreignTx.records, ...crossTx.records].slice(-800),
             jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
+            // 最終戦ぶんがまだ未表示なので上書きせず足す
+            jewelGains: [...(state.jewelGains ?? []), ...seasonJewelGains].slice(-20),
             gmRep: newGmRep,
             achievements: [...(state.achievements ?? []), ...seasonAchievements],
             // 年度別MVP・新人王（選手プロフィールのパッチ・シーズン振り返り用）
@@ -7128,6 +7186,8 @@ export const useGameStore = create<GameStore>()(
       },
 
       dismissDroppedCards: () => set({ raceDroppedCards: [], raceExpGains: {} }),
+
+      dismissJewelGains: () => set({ jewelGains: [] }),
 
       dismissBudgetNotice: () => set({ seasonBudgetNotice: null }),
 

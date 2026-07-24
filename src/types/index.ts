@@ -864,6 +864,9 @@ export type GameState = {
   raceExpGains?: Record<string, Partial<Record<CardStatKey, number>>>
   // 直近のレースで区間新記録が出た区間×選手（結果画面の「区間新！」バッジ用。次のレースで上書き）
   raceNewSegmentRecords?: { segmentIndex: number; playerId: string }[]
+  // 直近のレース・シーズン終了で獲得したジュエルの内訳。ホームに戻ったときにポップアップで出す。
+  // 結果画面ではヘッダーのジュエル表示自体が隠れていて増減が見えないため、ホーム到達まで持ち越す
+  jewelGains?: { label: string; amount: number }[]
   jewels: number
   achievements?: Achievement[]
   starredOpponents?: string[]

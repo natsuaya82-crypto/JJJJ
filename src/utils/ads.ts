@@ -21,9 +21,20 @@ export const ADS_PER_DAY = 3
 let started = false
 let bannerShown = false
 
+// GMパス購入者に広告を絶対に出さないための最終防衛線。
+// 呼び出し側の分岐だけに任せると、セーブ読み込み(非同期)が終わる前に広告初期化が走った場合に
+// 「購入済みなのにバナーが出る」事故が起きる。表示の直前でかならずここを見る。
+let adsDisabled = false
+export function setAdsDisabled(v: boolean): void {
+  adsDisabled = v
+  // 初期化の途中で購入済みと判明した場合に備え、すでに出ていれば即座に消す。
+  if (v) void removeBanner()
+}
+
 // バナーを表示する（買い切り版では呼ばない）。
 export async function showBanner(): Promise<void> {
   if (Capacitor.getPlatform() !== 'ios') return
+  if (adsDisabled) return
   if (bannerShown) return
   try {
     const { AdMob, BannerAdSize, BannerAdPosition } = await import('@capacitor-community/admob')
@@ -53,6 +64,7 @@ export async function removeBanner(): Promise<void> {
 
 // adsRemoved=true（買い切り版）のときはバナーを出さない。
 export async function initAds(adsRemoved: boolean): Promise<void> {
+  if (adsRemoved) adsDisabled = true
   if (started) return
   if (Capacitor.getPlatform() !== 'ios') return
   started = true
@@ -84,6 +96,7 @@ export async function initAds(adsRemoved: boolean): Promise<void> {
 // iOS以外（ブラウザ開発時）や失敗時は即解決して進行を止めない。
 export async function showInterstitialAd(): Promise<void> {
   if (Capacitor.getPlatform() !== 'ios') return
+  if (adsDisabled) return
   // オフラインなら読み込みを試さず即スキップ（12秒待たせない）
   if (!navigator.onLine) return
 

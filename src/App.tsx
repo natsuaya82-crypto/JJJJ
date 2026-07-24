@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from './store/gameStore'
 import { flushSaveNow } from './store/saveStorage'
 import { audio } from './utils/audio'
-import { initAds, removeBanner, showBanner } from './utils/ads'
+import { initAds, removeBanner, showBanner, setAdsDisabled } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
 import { clearMarketFilters } from './utils/marketFilters'
 import LoadingOverlay from './components/ui/LoadingOverlay'
@@ -302,7 +302,17 @@ export default function App() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => { initAds(adsRemoved) }, [])
+  // 広告の初期化はセーブ読み込み(hydration)が終わってから行う。
+  // マウント直後の adsRemoved はまだ初期値 false なので、ここで初期化すると
+  // GMパス購入者にも initAds(false) が走る。しかも initAds は ATT ダイアログを挟む
+  // 非同期処理のため、後追いの removeBanner() が「まだ出ていないバナー」に空振りし、
+  // その後 showBanner() が走って課金者に広告が出たまま残る。
+  useEffect(() => {
+    if (!hydrated) return
+    const paid = useGameStore.getState().adsRemoved ?? false
+    setAdsDisabled(paid)
+    initAds(paid)
+  }, [hydrated])
   // アップデート記念プレゼントを配布（冪等。ゲーム開始済みのときだけ）
   useEffect(() => { if (isInitialized) grantUpdateGifts() }, [isInitialized])
   // 既存セーブ移行：現シーズンに新しい記録会7回を注入（冪等。リセット不要で反映）
@@ -318,6 +328,7 @@ export default function App() {
   useEffect(() => {
     if (adsRemoved === adsRemovedInit.current) return
     adsRemovedInit.current = adsRemoved
+    setAdsDisabled(adsRemoved)
     if (adsRemoved) removeBanner()
     else showBanner()
   }, [adsRemoved])

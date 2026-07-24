@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { loginTodayKey } from '../../utils/loginDate'
 import { C, alpha } from '../../styles/tokens'
+import { useAdHeight, HEADER_H, NAV_H, MAIN_GAP } from '../layout/Layout'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -19,6 +20,37 @@ function JewelIcon({ size = 14 }: { size?: number }) {
         </linearGradient>
       </defs>
     </svg>
+  )
+}
+
+// ヘルプ・設定など他ページと同じカードの型（グラデ地＋下影＋アクセント帯の見出し）。
+// このページだけ平坦なべた塗りで浮いていたので、見た目だけ揃える。
+// grow: 画面に余った縦幅を各カードで分け合うときの比率（指定しなければ中身なりの高さ）。
+//       flex-basis は auto・flex-shrink は 0 なので、画面が狭い端末では縮まずに従来どおりスクロールする。
+function Card({ label, accent, right, grow, bodyJustify, children }: { label: string; accent: string; right?: React.ReactNode; grow?: number; bodyJustify?: 'center' | 'space-between'; children: React.ReactNode }) {
+  return (
+    <div style={{
+      borderRadius: 14, overflow: 'hidden',
+      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+      border: `1px solid ${alpha(accent, 0.35)}`,
+      boxShadow: `0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
+      display: 'flex', flexDirection: 'column',
+      flex: grow ? `${grow} 0 auto` : undefined,
+    }}>
+      <div style={{
+        padding: '10px 14px 9px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+        borderBottom: `1px solid ${alpha(accent, 0.15)}`,
+        background: `linear-gradient(90deg, ${alpha(accent, 0.1)}, transparent)`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+          <div style={{ width: 3, height: 14, borderRadius: 2, background: accent, flexShrink: 0 }} />
+          <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: accent, letterSpacing: '3px' }}>{label}</div>
+        </div>
+        {right}
+      </div>
+      <div style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: bodyJustify }}>{children}</div>
+    </div>
   )
 }
 
@@ -38,7 +70,10 @@ export default function LoginBonusPage() {
   const displayWeekPos = justCompletedWeek ? 7 : streak
   const weekComplete = displayWeekPos === 7
 
-  const totalJewels = total * 100 + Math.floor(total / 7) * 1000
+  // ヘッダー・下タブ・広告バナーを引いた「実際に見えている高さ」。
+  // main が position:fixed で上下を固定しているので、ここで 100dvh を使うとその分だけ縦に溢れる。
+  const adH = useAdHeight()
+  const pageMinHeight = `calc(100dvh - ${HEADER_H + NAV_H + MAIN_GAP + adH}px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))`
 
   const handleClaim = () => {
     const result = claimLoginBonus()
@@ -59,8 +94,8 @@ export default function LoginBonusPage() {
   ]
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', background: C.bg, minHeight: '100dvh' }}>
-      <div style={{ padding: '10px 16px 0' }}>
+    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", background: C.bg, minHeight: pageMinHeight, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '10px 16px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '12px' }}>
           <BackButton />
           <div>
@@ -70,7 +105,7 @@ export default function LoginBonusPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ padding: '0 16px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
         {/* Claim result */}
         {claimResult && (
@@ -96,8 +131,9 @@ export default function LoginBonusPage() {
         {claimedToday && !claimResult && (
           <div style={{
             padding: '14px 16px', borderRadius: 14,
-            background: alpha(C.surface2, 0.8),
+            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${C.border}`,
+            boxShadow: `0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
             textAlign: 'center',
           }}>
             <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, letterSpacing: '1px' }}>本日受取済み</div>
@@ -124,21 +160,13 @@ export default function LoginBonusPage() {
         )}
 
         {/* Weekly calendar */}
-        <div style={{
-          background: alpha(C.surface2, 0.8),
-          border: `1px solid ${C.border}`,
-          borderRadius: 14, padding: '11px 12px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700 }}>
-              WEEKLY STREAK
-            </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#6dd5fa' }}>
-              {displayWeekPos} / 7
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+        <Card
+          label="WEEKLY STREAK"
+          accent="#6dd5fa"
+          grow={1}
+          right={<div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#6dd5fa' }}>{displayWeekPos} / 7</div>}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, flex: 1 }}>
             {days.map(({ day, reward, isBonus }) => {
               const claimed = day <= displayWeekPos
               const isToday = claimedToday && day === displayWeekPos
@@ -160,7 +188,7 @@ export default function LoginBonusPage() {
                 <div key={day} style={{
                   background: bg, border: `1px solid ${border}`,
                   borderRadius: 8, padding: '7px 3px 6px',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
                   position: 'relative',
                 }}>
                   {isToday && (
@@ -218,17 +246,16 @@ export default function LoginBonusPage() {
               <span style={{ fontSize: 11, color: alpha('#6dd5fa', 0.8) }}>毎日10時に更新されます</span>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Reward info */}
-        <div style={{
-          background: alpha(C.surface2, 0.8),
-          border: `1px solid ${C.border}`,
-          borderRadius: 14, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 6,
-        }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700, marginBottom: 1 }}>
-            REWARD DETAILS
-          </div>
+        <Card
+          label="REWARD DETAILS"
+          accent="#6dd5fa"
+          grow={1}
+          bodyJustify="space-between"
+          right={adsRemoved ? <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '1px' }}>GM PASS ×2</div> : undefined}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 12, color: C.textSub }}>毎日ログイン{adsRemoved ? '（2倍中）' : ''}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -244,43 +271,26 @@ export default function LoginBonusPage() {
               <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: '#ffd700' }}>+{1000 * mult}</span>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Total stats */}
-        <div style={{
-          background: alpha(C.surface2, 0.8),
-          border: `1px solid ${C.border}`,
-          borderRadius: 14, padding: '11px 16px',
-        }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, letterSpacing: '2px', fontWeight: 700, marginBottom: 10 }}>
-            TOTAL STATS
-          </div>
+        <Card label="TOTAL STATS" accent={C.gold} grow={1} bodyJustify="center">
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 26, fontWeight: 900, color: C.text, lineHeight: 1 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 30, fontWeight: 900, color: C.text, lineHeight: 1 }}>
                 {total}
               </div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>累計ログイン日数</div>
+              <div style={{ fontSize: 11, color: C.textDim, marginTop: 6, whiteSpace: 'nowrap' }}>累計ログイン日数</div>
             </div>
             <div style={{ width: 1, background: C.border }} />
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 26, fontWeight: 900, color: C.gold, lineHeight: 1 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: 30, fontWeight: 900, color: C.gold, lineHeight: 1 }}>
                 {streak}
               </div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>連続ログイン日数</div>
-            </div>
-            <div style={{ width: 1, background: C.border }} />
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <JewelIcon size={18} />
-                <span style={{ fontFamily: SAIRA, fontSize: 26, fontWeight: 900, color: '#6dd5fa', lineHeight: 1 }}>
-                  {totalJewels}
-                </span>
-              </div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>累計取得ジュエル</div>
+              <div style={{ fontSize: 11, color: C.textDim, marginTop: 6, whiteSpace: 'nowrap' }}>連続ログイン日数</div>
             </div>
           </div>
-        </div>
+        </Card>
 
       </div>
     </div>
