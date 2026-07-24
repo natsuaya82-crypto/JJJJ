@@ -42,6 +42,30 @@ jobs:
             exit 1
           fi
 
+      # ビルド番号(CFBundleVersion)は「タグ名 build-NN の NN」を唯一の正とする。
+      # pbxproj の CURRENT_PROJECT_VERSION を手で上げ忘れると、ビルドもアーカイブも
+      # 全部成功したうえで最後のアップロードだけが 409
+      # 「The bundle version must be higher than the previously uploaded version」で落ちる。
+      # タグは毎回必ず上げるので、そこから機械的に書き込めば上げ忘れが起こらない。
+      - name: Set build number from tag
+        run: |
+          REF="${GITHUB_REF_NAME}"
+          case "$REF" in
+            build-*) BUILD_NO="${REF#build-}" ;;
+            *) BUILD_NO="" ;;
+          esac
+          if [ -z "$BUILD_NO" ]; then
+            echo "タグ起動ではないため pbxproj の値をそのまま使います"
+            grep -m1 -o 'CURRENT_PROJECT_VERSION = [^;]*' ios/App/App.xcodeproj/project.pbxproj
+            exit 0
+          fi
+          case "$BUILD_NO" in
+            ''|*[!0-9]*) echo "::error::タグ名から数値のビルド番号を取り出せません: $REF （build-65 の形式にしてください）"; exit 1 ;;
+          esac
+          sed -i '' -e "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = ${BUILD_NO};/g" ios/App/App.xcodeproj/project.pbxproj
+          echo "CFBundleVersion = ${BUILD_NO}"
+          grep -n 'CURRENT_PROJECT_VERSION' ios/App/App.xcodeproj/project.pbxproj
+
       - name: Build web
         run: npm run build
 
