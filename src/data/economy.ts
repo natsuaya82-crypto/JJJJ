@@ -156,3 +156,10 @@ export function transferAcceptChance(fee: number, base: number): number {
   if (base <= 0) return 1
   return Math.max(0, Math.min(1, (fee / base - 0.9) / 0.2))
 }
+// 出品中(クラブ希望額あり)の受諾確率。クラブが提示した希望額(askingPrice)満額で必ず成立=100%、
+// 下回るほど下がり 0.85倍で0%。主力割増は乗せない（クラブ自ら売りに出している額なので）。
+// 本処理側の threshold = askingPrice×(0.85 + rand*0.15) と同じ分布。ズレると「100%表示なのに拒否」になる。
+export function listedAcceptChance(fee: number, askingPrice: number): number {
+  if (askingPrice <= 0) return 1
+  return Math.max(0, Math.min(1, (fee / askingPrice - 0.85) / 0.15))
+}

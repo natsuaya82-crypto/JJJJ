@@ -17,7 +17,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
+import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
@@ -132,14 +132,6 @@ function pickKeyValue(key: string): number {
   return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000
 }
 
-// 獲得交渉での選手の希望年俸（厳しめ）。市場年俸に実績プレミアムを乗せ、引き抜きは現年俸からの昇給を要求。
-// 相手チームが選手を手放すか。年俸ではなく「出場データ（よく出ている＝主力）」で判断。
-// playFraction=消化レースでの出場割合, teamRaces=消化レース数。
-function isEssentiallyUnpoachable(player: Player, playFraction: number, teamRaces: number): boolean {
-  return isDataKeyPlayer(player, playFraction, teamRaces)
-    && player.contract.yearsLeft >= 2
-    && (player.morale ?? 60) >= 45
-}
 
 // 引き抜き選手の希望年俸。市場相場に、出場データ（主力ほど高い）と現年俸からの昇給要求を反映。
 function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFraction = 0.5, teamRaces = 0): number {
@@ -1597,18 +1589,25 @@ export const useGameStore = create<GameStore>()(
             if (bid.status !== 'pending') return bid
             const player = finalPlayers.find(p => p.id === bid.playerId)
             if (!player || player.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
-            // 主力ガード：以前は「いくら積んでも即拒否」だったが、移籍が渋すぎるため
-            // 「割増移籍金（1.8倍）なら売る」に変更。金を積めばスターは動く（サッカー式）。
-            const keyPremium = (() => {
-              const apps = seasonAppearances(player.id, updatedRaces)
-              const frac = nextRaceIndex > 0 ? apps / nextRaceIndex : (player.rosterTier === 'main' ? 0.5 : 0)
-              return isEssentiallyUnpoachable(player, frac, nextRaceIndex) ? 1.8 : 1
-            })()
+            // 出品中(移籍リスト掲載)：クラブが提示した希望額(askingPrice)が受諾ライン。
+            // 満額払えば成立（主力割増は乗せない＝クラブ自ら売りに出している額なので）。
+            const listedFor = transferData.listings.find(l => l.playerId === bid.playerId)
+            if (listedFor) {
+              const ask = listedFor.askingPrice
+              const thr = ask * (0.85 + Math.random() * 0.15)
+              if (bid.offeredFee >= thr) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
+              if (bid.offeredFee >= ask * 0.7 && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: Math.round(ask / 1000000) * 1000000 }
+              return { ...bid, status: 'rejected' as const }
+            }
+            // 主力ガード：出場データ(複数年)＋ECL経験で判定。
+            //  locked=新人・データ不足で完全に取れない / key=割増1.8倍なら売る（サッカー式）/ open=普通。
+            const kStatus = keyPlayerStatus(player, { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries }, state.pastSeasons)
+            if (kStatus === 'locked') return { ...bid, status: 'rejected' as const }
+            const keyPremium = kStatus === 'key' ? 1.8 : 1
             const val = calcTransferValue(player)
-            const isListed = transferData.listings.some(l => l.playerId === bid.playerId)
             const isExpiring = player.contract.yearsLeft <= 1
             // 受諾ラインのベースは UI（成立確率表示）と共有。主力は1.8倍。実際の判定はこれに±10%の揺れを乗せる。
-            const threshold = transferBidBase(val, isListed, isExpiring) * keyPremium * (0.9 + Math.random() * 0.2)
+            const threshold = transferBidBase(val, false, isExpiring) * keyPremium * (0.9 + Math.random() * 0.2)
             if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
             if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) {
               return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
@@ -1726,9 +1725,7 @@ export const useGameStore = create<GameStore>()(
             for (const req of pendingLoanReqs) {
               const pl = playersWithCpuTx.find(p => p.id === req.playerId)
               if (!pl || pl.teamId !== req.targetTeamId || pl.loan) { continue }
-              const apps = seasonAppearances(pl.id, updatedRaces)
-              const frac = trIdx > 0 ? apps / trIdx : (pl.rosterTier === 'main' ? 0.5 : 0)
-              const loanable = !isDataKeyPlayer(pl, frac, trIdx)
+              const loanable = keyPlayerStatus(pl, { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries }, state.pastSeasons) === 'open'
               const ownerShort = teamsWithCpuTx.find(t => t.id === pl.teamId)?.shortName
                 ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pl.teamId)?.shortName
                 ?? '相手クラブ'
@@ -3040,8 +3037,8 @@ export const useGameStore = create<GameStore>()(
                 : o),
             },
           })
-          // 相手チームがデータ上の主力（よく出場）を手放さない（引き抜き）
-          if (offer.source === 'scout' && isEssentiallyUnpoachable(player, playFraction, teamRaces)) return rejectWith('team_refused')
+          // 相手チームがデータ上の主力（複数年の出場＋ECL経験で判定）を手放さない（引き抜き）
+          if (offer.source === 'scout' && keyPlayerStatus(player, state.currentSeason, state.pastSeasons) !== 'open') return rejectWith('team_refused')
           // 契約形態：良い選手は2軍(2way/育成)契約では納得しない
           const isQuality = ovr(player) >= 68 || (teamRaces >= 3 && playFraction >= 0.5)
           if (contractType !== 'standard' && isQuality) return rejectWith('demotion')
@@ -3397,11 +3394,8 @@ export const useGameStore = create<GameStore>()(
         // レンタル枠 最大3（借りている選手＝loan.ownerTeamId が自分でない）
         const usedSlots = st.players.filter(p => p.teamId === st.playerTeamId && p.loan && p.loan.ownerTeamId !== st.playerTeamId).length
         if (usedSlots >= 3) return false
-        // 相手チームの主力（データ判定）は貸さない（forceなら相手が貸す打診済みなのでスキップ）
-        const teamRaces = st.currentSeason.currentRaceIndex
-        const apps = seasonAppearances(playerId, st.currentSeason.races)
-        const frac = teamRaces > 0 ? apps / teamRaces : (player.rosterTier === 'main' ? 0.5 : 0)
-        if (!force && isDataKeyPlayer(player, frac, teamRaces) && (player.morale ?? 60) >= 45) return false
+        // 相手チームの主力（複数年の出場＋ECL経験で判定）は貸さない（forceなら相手が貸す打診済みなのでスキップ）
+        if (!force && keyPlayerStatus(player, st.currentSeason, st.pastSeasons) !== 'open') return false
         const ownerId = player.teamId
         const yrs = Math.max(1, Math.min(2, years))
         set(state => {
@@ -3821,11 +3815,7 @@ export const useGameStore = create<GameStore>()(
           const frac = teamRaces > 0 ? apps / teamRaces : 0
           return 1 + frac * 0.4  // よく出場している選手は価値プレミアム
         }
-        const keyPremium = (p: Player) => {
-          const apps = seasonAppearances(p.id, state.currentSeason.races)
-          const frac = teamRaces > 0 ? apps / teamRaces : (p.rosterTier === 'main' ? 0.5 : 0)
-          return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
-        }
+        const keyPremium = (p: Player) => keyPlayerStatus(p, state.currentSeason, state.pastSeasons) !== 'open' ? 1.5 : 1
         const offeredVal = offered.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p), 0)
           + offerPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, transferFee)
         const requestedVal = requested.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p) * keyPremium(p), 0)
@@ -3937,11 +3927,7 @@ export const useGameStore = create<GameStore>()(
           ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === targetTeamId)?.shortName
           ?? '相手クラブ'
         // 主力（データ上よく出場・やる気あり）は無条件拒否ではなく1.5倍の価値を要求する
-        const keyPremium = (p: Player) => {
-          const apps = seasonAppearances(p.id, state.currentSeason.races)
-          const frac = teamRaces > 0 ? apps / teamRaces : (p.rosterTier === 'main' ? 0.5 : 0)
-          return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
-        }
+        const keyPremium = (p: Player) => keyPlayerStatus(p, state.currentSeason, state.pastSeasons) !== 'open' ? 1.5 : 1
         const cpuGain = valOf(giveIds, givePickKeys)  // 相手が受け取る
         const cpuLoss = getIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p) * keyPremium(p), 0) + getPickKeys.reduce((s, k) => s + pickKeyValue(k), 0)  // 相手が手放す（主力プレミアム込み）
 
@@ -4261,17 +4247,24 @@ export const useGameStore = create<GameStore>()(
           if (bid.status !== 'pending') return bid
           const player = state.players.find(p => p.id === bid.playerId)
           if (!player || player.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
-          const apps = seasonAppearances(player.id, races)
-          const frac = raceIdx > 0 ? apps / raceIdx : (player.rosterTier === 'main' ? 0.5 : 0)
-          if (isEssentiallyUnpoachable(player, frac, raceIdx)) {
+          // 出品中：クラブ希望額(askingPrice)が受諾ライン。満額で成立（主力割増なし）。本編側と同じ扱い。
+          const listedFor = (cs.transferListings ?? []).find(l => l.playerId === bid.playerId)
+          if (listedFor) {
+            const ask = listedFor.askingPrice
+            const thr = ask * (0.85 + Math.random() * 0.15)
+            if (bid.offeredFee >= thr) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: raceIdx }
+            if (bid.offeredFee >= ask * 0.7 && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: Math.round(ask / 1000000) * 1000000 }
+            return { ...bid, status: 'rejected' as const }
+          }
+          const kStatus = keyPlayerStatus(player, { year: cs.year, races, eclSeries: cs.eclSeries }, state.pastSeasons)
+          if (kStatus === 'locked') {
             expiredNegs.push({ id: bid.id, playerId: player.id, playerName: player.name })
             lockedIds.push(player.id)
             return { ...bid, status: 'rejected' as const }
           }
           const val = calcTransferValue(player)
-          const isListed = (cs.transferListings ?? []).some(l => l.playerId === bid.playerId)
           const isExpiring = player.contract.yearsLeft <= 1
-          const threshold = transferBidBase(val, isListed, isExpiring) * (0.9 + Math.random() * 0.2)
+          const threshold = transferBidBase(val, false, isExpiring) * (kStatus === 'key' ? 1.8 : 1) * (0.9 + Math.random() * 0.2)
           if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: raceIdx }
           if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
           return { ...bid, status: 'rejected' as const }
@@ -4286,9 +4279,7 @@ export const useGameStore = create<GameStore>()(
           for (const req of pendingLoanReqs) {
             const pl = state.players.find(p => p.id === req.playerId)
             if (!pl || pl.teamId !== req.targetTeamId || pl.loan) continue
-            const apps = seasonAppearances(pl.id, races)
-            const frac = raceIdx > 0 ? apps / raceIdx : (pl.rosterTier === 'main' ? 0.5 : 0)
-            const loanable = !isDataKeyPlayer(pl, frac, raceIdx)
+            const loanable = keyPlayerStatus(pl, { year: cs.year, races, eclSeries: cs.eclSeries }, state.pastSeasons) === 'open'
             const ownerShort = state.teams.find(t => t.id === pl.teamId)?.shortName
               ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pl.teamId)?.shortName
               ?? '相手クラブ'

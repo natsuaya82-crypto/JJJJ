@@ -140,12 +140,62 @@ export function seasonAppearances(playerId: string, races: readonly RaceLike[]):
 
 // 主力かどうかを「データ」で判定（年俸ではなく、よく出場しているか）。
 // playFraction=そのチームの消化レースに対する出場割合(0..1), teamRaces=消化レース数。
-export function isDataKeyPlayer(p: Player, playFraction: number, teamRaces: number): boolean {
-  if (p.rosterTier !== 'main') return false
-  // 高OVRのスターは出場割合・シーズン序盤に関係なく常に主力扱い（簡単に引き抜けない）。
-  if (ovr(p) >= 78) return true
-  // それ以外は「3戦以降で出場5.5割以上」で主力判定。
+export function isDataKeyPlayer(_p: Player, playFraction: number, teamRaces: number): boolean {
+  // 主力かどうかは「出場数」だけで判断する。
+  // ・OVRの高さでは判断しない（高OVRでもあまり出ていないなら主力ではない＝普通に引き抜ける）
+  // ・1軍/2軍の区分は廃止済み（ロスターはフラット）なので在籍区分では判断しない
+  // 3戦以降で出場割合5.5割以上を主力とみなす（序盤は出場データが無いので主力扱いしない）。
   return teamRaces >= 3 && playFraction >= 0.55
+}
+
+type SeasonLike = { year: number; races?: readonly RaceLike[]; eclSeries?: { races?: readonly RaceLike[] } }
+
+// 引き抜き耐性ステータス（複数年の本編駅伝 出場データ＋ECL経験で判定）。
+//   'locked' = 完全に取れない（1年未満で本編3戦以下＝新人・データ不足を保護。いくら積んでも不可）
+//   'key'    = 主力（引き抜きに割増1.8倍が必要／レンタル・トレードでも保護）
+//   'open'   = 普通に動かせる
+// P = その選手が本編に1度でも出場した過去シーズン数。
+//   P>=3 : 直近3年の本編出場率 >= 60%
+//   P=1〜2: 直近1年の出場率     >= 70%
+//   P=0  : 今季3戦以下は locked、4戦目以降は「直近3戦で2回以上出場」で主力
+//   ECL出場経験あり → 率の閾値を-0.10緩和 / P=0の必要回数を2→1に緩和。
+// ・契約残1年以下 or 士気45未満は保護しない（不満・満了間近は普通に動く）。
+export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastSeasons: readonly SeasonLike[]): 'locked' | 'key' | 'open' {
+  if (player.contract.yearsLeft <= 1 || (player.morale ?? 60) < 45) return 'open'
+
+  // ECL出場経験（過去＋今季）→ 閾値を10%緩和
+  const eclRaces: RaceLike[] = [
+    ...pastSeasons.flatMap(s => [...(s.eclSeries?.races ?? [])]),
+    ...(currentSeason.eclSeries?.races ?? []),
+  ]
+  const relief = seasonAppearances(player.id, eclRaces) > 0 ? 0.10 : 0
+
+  // その選手が本編に1度でも出た過去シーズン（新しい順）
+  const activePast = pastSeasons
+    .filter(s => (s.races?.length ?? 0) > 0 && seasonAppearances(player.id, s.races ?? []) > 0)
+    .slice()
+    .sort((a, b) => b.year - a.year)
+  const P = activePast.length
+
+  const rateOver = (seasons: readonly SeasonLike[]) => {
+    let apps = 0, total = 0
+    for (const s of seasons) {
+      apps += seasonAppearances(player.id, s.races ?? [])
+      total += (s.races ?? []).filter(r => r.results).length
+    }
+    return total > 0 ? apps / total : 0
+  }
+
+  if (P >= 3) return rateOver(activePast.slice(0, 3)) >= (0.60 - relief) ? 'key' : 'open'
+  if (P >= 1) return rateOver(activePast.slice(0, 1)) >= (0.70 - relief) ? 'key' : 'open'
+
+  // P === 0：1年未満（新人・ドラ1など）
+  const done = (currentSeason.races ?? []).filter(r => r.results)
+  if (done.length <= 3) return 'locked'   // 本編3戦以下＝データ不足で守る（いくら積んでも取れない）
+  const last3 = done.slice(-3)
+  const recentApps = last3.filter(r => (r.results?.segmentResults.some(sg => sg.runners.some(rn => rn.playerId === player.id))) ?? false).length
+  const need = relief > 0 ? 1 : 2   // ECL経験ありなら1回でも主力
+  return recentApps >= need ? 'key' : 'open'
 }
 
 // 移籍・トレードで動く選手本人が「移籍先チームに行くことに納得するか」。

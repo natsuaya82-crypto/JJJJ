@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
-import { calcTransferValue, playerConsentToMove, isDataKeyPlayer, seasonAppearances } from '../../utils/playerUtils'
-import { transferBidBase, transferAcceptChance } from '../../data/economy'
+import { calcTransferValue, playerConsentToMove, keyPlayerStatus } from '../../utils/playerUtils'
+import { transferBidBase, transferAcceptChance, listedAcceptChance } from '../../data/economy'
 import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
@@ -20,14 +20,15 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
 }) {
   const adH = useAdHeight()
   const val = calcTransferValue(player)
+  // 出品中はクラブ希望額(askingPrice)が受諾ライン。デフォルト入札額も希望額に合わせる（満額＝ほぼ成立）。
   const initFee = listing
-    ? Math.round(listing.askingPrice * 0.82 / 500000) * 500000
+    ? Math.round(listing.askingPrice / 500000) * 500000
     : Math.round(val * 0.85 / 500000) * 500000
   const [fee, setFee] = useState(Math.max(1_000_000, initFee))
   const over = fee > budget
 
   // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
-  const { currentSeason, teams, playerTeamId } = useGameStore()
+  const { currentSeason, pastSeasons, teams, playerTeamId } = useGameStore()
   const standings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = standings.findIndex(s => s.teamId === playerTeamId) + 1
   const scoutLv = teams.find(t => t.id === playerTeamId)?.facilities?.scoutOffice ?? 0
@@ -39,16 +40,16 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
     : 'refuse'
   const mindLabel = mind === 'willing' ? '前向き' : mind === 'salary12' ? '高めの年俸なら承諾' : mind === 'salary15' ? '大幅な高年俸なら承諾' : '移籍を望んでいない'
   const mindColor = mind === 'willing' ? C.green : mind === 'refuse' ? C.red : C.gold
-  // クラブの主力ガード：主力(OVR78+または出場5.5割+)×契約残2年+×士気45+ は割増移籍金(1.8倍)が必要。
-  // 合否判定(store)と同じ式・同じ倍率。ズレると「100%なのに拒否」の食い違いが起きる
-  const raceIdx = currentSeason.currentRaceIndex ?? 0
-  const apps = seasonAppearances(player.id, currentSeason.races)
-  const frac = raceIdx > 0 ? apps / raceIdx : (player.rosterTier === 'main' ? 0.5 : 0)
-  const isKeyGuard = isDataKeyPlayer(player, frac, raceIdx)
-    && player.contract.yearsLeft >= 2
-    && (player.morale ?? 60) >= 45
-  const base = transferBidBase(val, !!listing, player.contract.yearsLeft <= 1) * (isKeyGuard ? 1.8 : 1)
-  const chancePct = Math.round(transferAcceptChance(fee, base) * 100)
+  // 引き抜き耐性：出場データ(複数年)＋ECL経験で判定。合否判定(store)と同じ関数を使い、ズレを防ぐ。
+  // 出品中は割増を適用しない（クラブが希望額を提示して売りに出しているため open 扱い）。
+  const kStatus = listing ? 'open' : keyPlayerStatus(player, currentSeason, pastSeasons)
+  const isKeyGuard = kStatus === 'key'  // 主力＝割増1.8倍
+  const isLocked = kStatus === 'locked' // 新人・データ不足で獲得不可
+  const base = transferBidBase(val, false, player.contract.yearsLeft <= 1) * (isKeyGuard ? 1.8 : 1)
+  const chancePct = listing
+    ? Math.round(listedAcceptChance(fee, listing.askingPrice) * 100)
+    : isLocked ? 0
+    : Math.round(transferAcceptChance(fee, base) * 100)
   // 本人が拒否なら、クラブと金額合意できても成立しない＝成立見込み0%
   const overallPct = mind === 'refuse' ? 0 : chancePct
 
@@ -66,7 +67,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
           <NumberDial value={fee} onChange={v => setFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-          <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>クラブ合意{isKeyGuard && <span style={{ color: C.orange }}>（主力＝割増が必要）</span>}</span>
+          <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>クラブ合意{isKeyGuard && <span style={{ color: C.orange }}>（主力＝割増が必要）</span>}{isLocked && <span style={{ color: C.red }}>（新人・データ不足で獲得不可）</span>}</span>
           <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub }}>{chancePct}%</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
