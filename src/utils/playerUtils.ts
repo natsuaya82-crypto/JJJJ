@@ -104,11 +104,14 @@ export function effSegOvr(p: Player, uphillPct: number, downhillPct: number, dis
   return Math.round(segOvr(p, uphillPct, downhillPct, distanceKm, statWeights) * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0))
 }
 
-// OVR→市場給与(円)。非線形（スターほど跳ね上がる）。区分線形で下記アンカーを通す。
-//  60→600万 / 70→1500万 / 80→3500万 / 90→7000万 / 95→1億 / 99→1.4億
+// OVR→市場給与の「素体」(円)。非線形（スターほど跳ね上がる）。区分線形で下記アンカーを通す。
+// 2046調整: 90以上を寝かせた（旧 90→5000万 / 95→8000万 / 99→1億）。
+// ここに実績倍率(salaryPerfFactor・上限1.45)が掛かるので、素体を据え置くと実額が1億超になってしまう。
+// 圧縮後は実額でリーグ最高が8000万前後、理論上限(OVR99×上限倍率)でちょうど1億に収まる。
+// 80以下は国内初期ロスターの年俸配分がこの帯に較正されているので触らない。
 const SALARY_ANCHORS: [number, number][] = [
   [45, 3_000_000], [50, 4_000_000], [60, 6_000_000], [70, 10_000_000],
-  [80, 30_000_000], [90, 50_000_000], [95, 80_000_000], [99, 100_000_000],
+  [80, 30_000_000], [90, 45_000_000], [95, 55_000_000], [99, 70_000_000],
 ]
 function ovrSalary(o: number): number {
   const pts = SALARY_ANCHORS
@@ -121,11 +124,82 @@ function ovrSalary(o: number): number {
   return pts[pts.length - 1][1]
 }
 
-// 市場給与＝OVRベース×年齢補正。能力が落ちれば下がる（衰えを反映）。
-export function faMarketSalary(p: Player): number {
+// ── 活躍データ（年俸と移籍金が共通で見る素材）──
+// 出場割合・平均区間順位・今季の区間賞。国内リーグは races から、海外リーグは
+// currentSeason.foreignAppearances から作る（どちらも同じ物差しで評価するため）。
+// 区間順位は1区間につき1チーム1人なので 1〜20位。リーグ平均はちょうど10.5。
+export type PerfProfile = {
+  playFraction: number    // 今季の出場割合 0..1（チームの消化レース数に対する出走数）
+  avgSegRank?: number     // 今季の平均区間順位。1度も走っていなければ undefined
+  seasonSegWins: number   // 今季の区間賞
+}
+
+type SegRaceLike = { results?: { segmentResults: { runners: { playerId: string; rank: number }[] }[] } }
+
+// 国内リーグの今季成績から活躍データを作る（MVP選考 utils/awards.ts と同じ集計軸）
+export function seasonPerfProfile(playerId: string, races: readonly SegRaceLike[], teamRaces: number): PerfProfile {
+  let apps = 0, rankSum = 0, segWins = 0
+  for (const r of races) {
+    if (!r.results) continue
+    for (const seg of r.results.segmentResults) {
+      const run = seg.runners.find(rn => rn.playerId === playerId)
+      if (!run) continue
+      apps++; rankSum += run.rank
+      if (run.rank === 1) segWins++
+    }
+  }
+  return {
+    playFraction: teamRaces > 0 ? Math.min(1, apps / teamRaces) : 0,
+    avgSegRank: apps > 0 ? rankSum / apps : undefined,
+    seasonSegWins: segWins,
+  }
+}
+
+// 海外リーグの今季成績（foreignAppearances の1件）から同じ形の活躍データを作る
+export function foreignPerfProfile(
+  entry: { races: number; wins: number; rankSum?: number; rankedRaces?: number } | undefined,
+  teamRaces: number,
+): PerfProfile | undefined {
+  if (!entry) return undefined
+  const ranked = entry.rankedRaces ?? 0
+  return {
+    playFraction: teamRaces > 0 ? Math.min(1, entry.races / teamRaces) : 0,
+    avgSegRank: ranked > 0 ? (entry.rankSum ?? 0) / ranked : undefined,
+    seasonSegWins: entry.wins,
+  }
+}
+
+// 実績倍率（年俸用）。移籍金 calcTransferValue より意図的に弱く効かせる。
+// 「値札(移籍金)は実績で大きく動いてよいが、給料はそこまで動かさない」という住み分け。
+// 通算のカウントは移籍金側のおよそ半分の効きにし、合計を 0.55〜1.45 に収める。
+export function salaryPerfFactor(p: Player, perf?: PerfProfile): number {
+  const c = p.career
+  // 通算実績（移籍金側は 出走+25% / 区間賞+15% / 優勝+8%回 / MVP+6%回）
+  const appF   = 1 + Math.min((c?.totalRaces   ?? 0) * 0.002, 0.12)
+  const segF   = 1 + Math.min((c?.segmentWins  ?? 0) * 0.007, 0.07)
+  const champF = 1 + (c?.championships ?? 0) * 0.04
+  const mvpF   = 1 + (c?.mvpAwards     ?? 0) * 0.03
+  let f = appF * segF * champF * mvpF
+  if (perf) {
+    // 出場割合：出場0で0.6倍、6割以上出場で1.0倍
+    f *= 0.6 + 0.4 * Math.min(1, perf.playFraction / 0.6)
+    // 平均区間順位：1位で+15%、リーグ平均(10.5位)で±0、最下位(20位)で-15%
+    if (perf.avgSegRank != null) {
+      f *= 1 + 0.15 * Math.max(-1, Math.min(1, (10.5 - perf.avgSegRank) / 9.5))
+    }
+    // 今季の区間賞：1回+1%（上限+8%）
+    f *= 1 + Math.min(perf.seasonSegWins * 0.01, 0.08)
+  }
+  return Math.max(0.55, Math.min(1.45, f))
+}
+
+// 市場給与＝素体(OVR×年齢)×実績倍率。
+// 能力が落ちれば下がり（衰えを反映）、走って結果を出していれば上がる。
+// perf を渡さない経路（CPUの更新・ドラフト・FA一括処理など）は通算実績だけで評価する。
+export function faMarketSalary(p: Player, perf?: PerfProfile): number {
   const age = p.age
   const ageFactor = age <= 23 ? 1.08 : age <= 27 ? 1.0 : age <= 30 ? 0.9 : age <= 33 ? 0.72 : 0.55
-  return Math.round(ovrSalary(ovr(p)) * ageFactor / 500000) * 500000
+  return Math.round(ovrSalary(ovr(p)) * ageFactor * salaryPerfFactor(p, perf) / 500000) * 500000
 }
 
 // 選手がそのシーズンに何レース出場したか（データ判定用）

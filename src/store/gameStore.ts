@@ -17,7 +17,8 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, faMarketSalary, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
+import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
+import type { PerfProfile } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
@@ -133,11 +134,19 @@ function pickKeyValue(key: string): number {
 }
 
 
+// 今季の活躍データの取得口。海外リーグ在籍中の選手は国内レースに出ないので、
+// foreignAppearances 側から同じ形（PerfProfile）で作る。国内・海外を同じ物差しで見るための1本化。
+function perfOf(season: { races: Race[]; currentRaceIndex: number; foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>; foreignRaceIndex?: number }, playerId: string, teamRaces?: number): PerfProfile | undefined {
+  const fa = season.foreignAppearances?.[playerId]
+  if (fa && fa.races > 0) return foreignPerfProfile(fa, season.foreignRaceIndex ?? fa.races)
+  return seasonPerfProfile(playerId, season.races, teamRaces ?? season.currentRaceIndex)
+}
+
 // 引き抜き選手の希望年俸。市場相場に、出場データ（主力ほど高い）と現年俸からの昇給要求を反映。
-function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFraction = 0.5, teamRaces = 0): number {
-  // 市場給与(OVR/年齢ベース・非線形)と現年俸のブレンド。市場中心＋現年俸で急変を防ぐ。
+function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFraction = 0.5, teamRaces = 0, perf?: PerfProfile): number {
+  // 市場給与(素体×実績倍率)と現年俸のブレンド。市場中心＋現年俸で急変を防ぐ。
   // → 衰えれば市場給与が下がって希望も下がる／現在高給でもすぐ暴落しない。
-  const market = faMarketSalary(player)
+  const market = faMarketSalary(player, perf)
   const cur = player.contract.annualSalary
   const c = player.career
   const achieve = 1 + Math.min(0.20, c.championships * 0.04 + c.mvpAwards * 0.03)
@@ -1797,7 +1806,7 @@ export const useGameStore = create<GameStore>()(
               // 年俸重視の性格：相場の7割未満で使われていると「安すぎる」と不満を持つ（純粋なお金理由の移籍希望）。
               // ドラフト初回契約（rookieDeal）は安いのが前提なので対象外＝更新交渉で適正化する流れに乗せる
               if ((p.personality ?? 'salary') === 'salary' && !p.contract.rookieDeal) {
-                const market = faMarketSalary(p)
+                const market = faMarketSalary(p, seasonPerfProfile(p.id, updatedRaces, raceIndex + 1))
                 const payRatio = market > 0 ? p.contract.annualSalary / market : 1
                 if (payRatio < 0.7) {
                   const money = (0.7 - payRatio) * 50
@@ -2776,16 +2785,14 @@ export const useGameStore = create<GameStore>()(
           if ((player.renewalLockedUntilYear ?? 0) > state.currentSeason.year) return state  // 最終拒否後1年は更新不可
           const existing = (state.currentSeason.contractRequests ?? []).find(r => r.playerId === playerId && r.status !== 'accepted' && r.status !== 'rejected')
           if (existing) return state
-          // 要求額は市場価値(OVR×年齢)×出場割合スケール×性格で算出（自動昇給を廃止し市場価値連動に）
+          // 要求額は市場価値×性格で算出（自動昇給は廃止）。市場価値の中に
+          // 出場割合・平均区間順位・今季の区間賞・通算実績が畳み込まれている（faMarketSalary）
           const gmRacesPlayed = state.currentSeason.currentRaceIndex ?? 0
           const gmSeasonRaces = state.currentSeason.races ?? []
           const gmPersonality = player.personality ?? 'salary'
-          const gmMarket = faMarketSalary(player)
-          const gmApps = seasonAppearances(player.id, gmSeasonRaces)
-          const gmPlayFraction = gmRacesPlayed > 0 ? gmApps / gmRacesPlayed : 0
-          const gmPlayFactor = 0.6 + 0.4 * Math.min(1, gmPlayFraction / 0.6)
+          const gmMarket = faMarketSalary(player, seasonPerfProfile(player.id, gmSeasonRaces, gmRacesPlayed))
           const gmPersoFactor = gmPersonality === 'salary' ? 1.05 : gmPersonality === 'winning' ? 1.0 : 0.95
-          const gmDemand = Math.max(3_000_000, gmMarket * gmPlayFactor * gmPersoFactor)
+          const gmDemand = Math.max(3_000_000, gmMarket * gmPersoFactor)
           const req: ContractRequest = {
             id: `cr_${Date.now()}`,
             playerId,
@@ -2809,20 +2816,19 @@ export const useGameStore = create<GameStore>()(
           // フリー移籍で接触中の選手は契約更新の要求を出さない（用件が二重になるのを防ぐ。引き留めは接触カード経由の提示で行う）
           const contactedIds = new Set((state.currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
           const myPlayers = state.players.filter(p => p.teamId === state.playerTeamId && p.contract.yearsLeft === 1
-            && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !contactedIds.has(p.id))
+            && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !p.overseasListed && !contactedIds.has(p.id))
           // 拒否済みも含めて「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）
           const existing = new Set((state.currentSeason.contractRequests ?? []).map(r => r.playerId))
           const seasonRaces = state.currentSeason.races ?? []
           const newReqs: ContractRequest[] = myPlayers.filter(p => !existing.has(p.id)).map(p => {
             const personality = p.personality ?? 'salary'
-            // 要求額は「市場価値(OVR×年齢) × 出場割合スケール × 性格」で決める。
-            // 旧仕様の『現年俸×1.2の自動昇給』を廃止。活躍・出場がない選手は市場価値未満＝据え置き〜減額しか要求できない。
-            const market = faMarketSalary(p)
-            const apps = seasonAppearances(p.id, seasonRaces)
-            const playFraction = racesPlayed > 0 ? apps / racesPlayed : 0
-            const playFactor = 0.6 + 0.4 * Math.min(1, playFraction / 0.6)   // 出場0→0.6倍, 6割以上出場→1.0倍
+            // 要求額は「市場価値 × 性格」で決める。
+            // 市場価値(faMarketSalary)＝素体(OVR×年齢)×実績倍率で、実績倍率の中に
+            // 今季の出場割合・平均区間順位・区間賞と、通算の出走/区間賞/優勝/MVPが入っている。
+            // 旧仕様の『現年俸×1.2の自動昇給』は廃止のまま。走っていない選手は減額しか要求できない。
+            const market = faMarketSalary(p, seasonPerfProfile(p.id, seasonRaces, racesPlayed))
             const persoFactor = personality === 'salary' ? 1.05 : personality === 'winning' ? 1.0 : 0.95
-            const demand = Math.max(3_000_000, market * playFactor * persoFactor)
+            const demand = Math.max(3_000_000, market * persoFactor)
             return {
               id: `cr_${Date.now()}_${p.id}`,
               playerId: p.id,
@@ -3045,7 +3051,7 @@ export const useGameStore = create<GameStore>()(
           const isQuality = ovr(player) >= 68 || (teamRaces >= 3 && playFraction >= 0.5)
           if (contractType !== 'standard' && isQuality) return rejectWith('demotion')
 
-          const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces)
+          const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces, perfOf(state.currentSeason, player.id, teamRaces))
           const ratio = desired > 0 ? salary / desired : 2
           const personality = player.personality ?? 'salary'
           // 視察情報：未視察だと選手は慎重（厳しめ）
@@ -3290,7 +3296,13 @@ export const useGameStore = create<GameStore>()(
         if (!req) return state
         return {
           players: state.players.map(p => p.id === playerId ? { ...p, overseasListed: req.region, morale: Math.min(100, (p.morale ?? 70) + 8) } : p),
-          currentSeason: { ...state.currentSeason, overseasRequests: (state.currentSeason.overseasRequests ?? []).filter(r => r.playerId !== playerId) },
+          currentSeason: {
+            ...state.currentSeason,
+            overseasRequests: (state.currentSeason.overseasRequests ?? []).filter(r => r.playerId !== playerId),
+            // 海外挑戦を認めた選手の契約更新交渉は取り下げる。
+            // （残したままだと「海外行っていいよ」の直後に同じ選手から年俸の話が始まる）
+            contractRequests: (state.currentSeason.contractRequests ?? []).filter(r => r.playerId !== playerId || r.status === 'accepted'),
+          },
         }
       }),
 
@@ -3544,7 +3556,7 @@ export const useGameStore = create<GameStore>()(
         const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
         const scoutLvT = myTeam.facilities?.scoutOffice ?? 0
         // 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）
-        const marketSalary = faMarketSalary(player)
+        const marketSalary = faMarketSalary(player, perfOf(state.currentSeason, player.id))
         const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
         // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
         // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
@@ -4697,7 +4709,8 @@ export const useGameStore = create<GameStore>()(
               for (const { p: target, surplus } of candidates) {
                 // 余剰は通常額、主力の引き抜きは割増移籍金＋昇給要求＋本人同意
                 const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * 1.4)
-                const newSalary = surplus ? faMarketSalary(target) : acquisitionDesiredSalary(target, 'scout')
+                const tgtPerf = perfOf(state.currentSeason, target.id)
+                const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
                 if (remainBudget < fee + newSalary) continue
                 // 引き抜きは本人が移籍先の魅力で納得するか判定（クラブは割増で合意済み＝clubBlessed）
                 if (!surplus && !playerConsentToMove(target, rankOfTx(buyTeam.id), totalTeamsTx, 0.5, 0, 0, true).ok) continue
@@ -4860,7 +4873,7 @@ export const useGameStore = create<GameStore>()(
           const budgetRoom = Math.max(0, team.finance.budget) * 0.3
           const spendable = team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor
           let spent = 0
-          const estCost = (fa: Player) => faMarketSalary(fa)
+          const estCost = (fa: Player) => faMarketSalary(fa, perfOf(state.currentSeason, fa.id))
 
           const needs = cpuSpecialtyNeeds(team.id, playersAfterCpuTransfer)
           const foreignOnTeam = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
@@ -4917,7 +4930,7 @@ export const useGameStore = create<GameStore>()(
           if (!s) return p
           // 1軍名簿に入れるので rosterTier/contractType も1軍契約に揃える
           // （元2軍のままだとCPUのラインナップ・戦力評価から不可視になり出走枠が欠ける）
-          return { ...p, teamId: s.teamId, rosterTier: 'main' as const, contract: { ...p.contract, yearsLeft: 2, annualSalary: faMarketSalary(p), faEligibleYear: newYear + 2, contractType: 'standard' as const } }
+          return { ...p, teamId: s.teamId, rosterTier: 'main' as const, contract: { ...p.contract, yearsLeft: 2, annualSalary: faMarketSalary(p, perfOf(state.currentSeason, p.id)), faEligibleYear: newYear + 2, contractType: 'standard' as const } }
         })
         const teamsWithCpuSigns = teamsAfterCpuTransfer.map(t => ({
           ...t,
@@ -5045,7 +5058,7 @@ export const useGameStore = create<GameStore>()(
           // CPUチーム：予算ベースの契約更新（今季満了の主力を予算内で延長）
           // CPUの契約更新も自チームと同じ市場カーブ（faMarketSalary）で。
           // 旧式(ovr×110000)は約1000万で頭打ちになり、OVR90の主力が激安になる不具合があった。
-          const cpuRenewalSalary = (p: Player) => faMarketSalary(p)
+          const cpuRenewalSalary = (p: Player) => faMarketSalary(p, perfOf(state.currentSeason, p.id))
           const cpuRenewIds = new Set<string>()
           {
             const curStandings = [...(state.currentSeason.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)

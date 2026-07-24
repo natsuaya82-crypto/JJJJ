@@ -96,6 +96,13 @@ function buildMessages(
     return msgs
   }
 
+  // 海外挑戦を認めた後：来季契約の話には戻らない。オファー待ちの状態として閉じる
+  // （認めた直後に同じ選手から年俸交渉が始まってしまうのを防ぐ）
+  if (player.overseasListed) {
+    msgs.push({ from: 'player', text: `海外挑戦を認めていただき、ありがとうございます。${OVERSEAS_LABEL[player.overseasListed] ?? '海外'}のクラブからの話を待ちます。` })
+    return msgs
+  }
+
   if (hasTransfer) {
     const reason = transferReason === 'playing_time'
       ? '最近、出場機会が思ったより少なくて...'
@@ -560,6 +567,10 @@ function ChatView({
 
     const buildContractButtons = (): ReplyBtns | null => {
       if (!contractReq) return null
+      // 海外挑戦を認めた選手からは、こちらから切り出さない限り年俸の話をさせない。
+      // （承認した直後に同じ選手が「年俸○○で更新したい」と言い出すのを防ぐ。
+      //   GM側から契約延長を持ちかける導線は後段に残してあるので、行き先が決まらなくても塩漬けにはならない）
+      if (player.overseasListed) return null
       if (contractReq.status === 'rejected') {
         // 心が移籍に傾いている／退団予定なら再提示させない（後段の既定フローで閉じるだけになる）
         if (courtedAway || player.transferListed) return null

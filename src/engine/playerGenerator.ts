@@ -2,7 +2,7 @@
 import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import { rankBudgetGrant } from '../data/economy'
-import { SPEC_STRONG_STATS, getStatPotentials } from '../utils/playerUtils'
+import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary } from '../utils/playerUtils'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -1014,7 +1014,8 @@ export function generateCpuRosters(
     }
 
     void contractType   // 契約形態は廃止（フラット化）。tier は年齢分布のためだけに使う
-    return {
+    void salary         // 予算配分(distributeSalaries)はランク＝強さの割り当てにだけ使う。年俸は下で相場から出す
+    const made: Player = {
       id, name, nameKana: '', age, yearsPro,
       draftYear: year - yearsPro, draftRound: null, draftPick: null,
       ratings, specialty,
@@ -1023,7 +1024,7 @@ export function generateCpuRosters(
       teamId, rosterTier: 'main',
       contract: {
         yearsLeft: rng(2, 4),
-        annualSalary: salary ?? calculateRookieSalary(rank),
+        annualSalary: 0,
         faEligibleYear: year + rng(2, 4),
         contractType: 'standard',
       },
@@ -1033,6 +1034,11 @@ export function generateCpuRosters(
       traits: assignTraits(rank, specialty, age),
       personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
     }
+    // 年俸は国内・海外・契約更新すべて共通の相場式で決める（faMarketSalary）。
+    // 旧仕様はチーム予算の分配額をそのまま年俸にしていたため、同じOVRでもチームや
+    // 国内/海外で額が食い違っていた（海外は最高8650万・国内は最高3550万）。
+    made.contract.annualSalary = faMarketSalary(made)
+    return made
   }
 
   for (const team of teams) {
@@ -1376,7 +1382,7 @@ export function generateForeignLeaguePlayers(
         // 年齢分の成長を焼き込む（年長者は既にポテンシャル近くまで育っている）
         bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
 
-        players.push({
+        const madeF: Player = {
           id,
           name: nameEntry.name,
           nameKana: '',
@@ -1393,7 +1399,7 @@ export function generateForeignLeaguePlayers(
           rosterTier: 'main',
           contract: {
             yearsLeft: rng(1, 3),
-            annualSalary: clubSalary,
+            annualSalary: 0,
             faEligibleYear: year + rng(1, 3),
           },
           nationality: nat,
@@ -1406,7 +1412,11 @@ export function generateForeignLeaguePlayers(
           career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
           traits: assignTraits(rank, specialty, age),
           personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
-        })
+        }
+        // 年俸は国内リーグと完全に同じ相場式で決める（クラブ予算 clubSalary はランク＝強さの割り当て専用）。
+        // 「海外と日本で同じ選手の額が違うのはおかしい」への対応：物差しは1本、違うのはレースだけ。
+        madeF.contract.annualSalary = faMarketSalary(madeF)
+        players.push(madeF)
       })
 
       return { ...club, playerIds: clubPlayerIds }
