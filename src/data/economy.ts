@@ -76,10 +76,14 @@ export function cpuSeasonRaceIncome(finalRank: number, racesCount: number): numb
 // ── リーグの育成義務ペナルティ ──
 // 少人数の緊縮経営（年俸を絞って黒字を貯める）への対抗策。
 // 在籍22人以下は翌季グラント-20%、リザーブリーグ不参加はさらに-10%（合計最大-30%）。
+//
+// banned=true（補強禁止中）は免除する。補強禁止からの脱出手段は「選手を売って年俸を削る」しか
+// 無いのに、削って22人以下になると更にグラントが減って赤字が深まる二重の罠になっていたため。
 export const DUTY_ROSTER_THRESHOLD = 22
 export const DUTY_ROSTER_GRANT_CUT = 0.20
 export const DUTY_RESERVE_GRANT_CUT = 0.10
-export function leagueDutyGrantCut(rosterSize: number, reserveJoined: boolean): number {
+export function leagueDutyGrantCut(rosterSize: number, reserveJoined: boolean, banned = false): number {
+  if (banned) return 0
   let cut = 0
   if (rosterSize <= DUTY_ROSTER_THRESHOLD) cut += DUTY_ROSTER_GRANT_CUT
   if (!reserveJoined) cut += DUTY_RESERVE_GRANT_CUT
@@ -109,8 +113,24 @@ export function runningCost(facilityLevelSum: number, grant: number): number {
   return facilityLevelSum * FACILITY_UPKEEP_PER_LEVEL + operatingCost(grant)
 }
 
+// ── 連続赤字のグラントペナルティ ──
+// 2年連続赤字でグラント-20%、3年以上で-35%（万年赤字への締め付け）。
+// 以前は computeNextSeasonBudget / seasonOperatingResult に同じ式が別々に書かれていた。
+export function deficitGrantMult(deficitStreak: number): number {
+  return deficitStreak >= 3 ? 0.65 : deficitStreak >= 2 ? 0.80 : 1.0
+}
+// 実際に受け取るグラント額（連続赤字ペナルティ・育成義務ペナルティ適用後）。
+// 運営費(10%)もこの実額を基準にする。ペナルティで収入が減るのに運営費だけ満額のままだと、
+// 赤字→減額→さらに赤字、が永久に抜け出せないデススパイラルになるため。
+export function effectiveGrant(finalRank: number, deficitStreak: number, dutyGrantCut = 0): number {
+  return Math.round(rankBudgetGrant(finalRank) * deficitGrantMult(deficitStreak) * (1 - dutyGrantCut))
+}
+
 // 赤字を許容する下限（借金の底）。これ以下は endSeason 側で指名権/選手の強制売却で補填する。
 export const DEFICIT_LIMIT = -100_000_000  // 最大 -1億まで赤字を持ち越せる
+
+// 旧仕様の判定バグで詰んだセーブの救済ライン（残高マイナスのチームをここまで戻す）。
+export const DEFICIT_RESCUE_BUDGET = 50_000_000
 
 // 来季予算 = 前季残高の繰り越し + 収入 - 支出（下限は救済せず、赤字は DEFICIT_LIMIT まで許容）。
 // 連続赤字が2年以上ならグラントを段階的にカット（ペナルティ）。
@@ -127,8 +147,7 @@ export function computeNextSeasonBudget(args: {
   dutyGrantCut?: number     // 育成義務ペナルティ（leagueDutyGrantCut の結果。0〜0.3）
 }): number {
   // 2年連続赤字でグラント-20%、3年以上で-35%（万年赤字への締め付け）
-  const grantMult = args.deficitStreak >= 3 ? 0.65 : args.deficitStreak >= 2 ? 0.80 : 1.0
-  const grant = Math.round(rankBudgetGrant(args.finalRank) * grantMult * (1 - (args.dutyGrantCut ?? 0)))
+  const grant = effectiveGrant(args.finalRank, args.deficitStreak, args.dutyGrantCut ?? 0)
   const income = grant + args.sponsorAnnual + args.seasonRaceIncome + args.objBudgetBonus
   const expenses = args.bonusPayout + args.salaryTotal + (args.runningCost ?? 0)
   const raw = args.prevBalance + income - expenses
@@ -138,12 +157,22 @@ export function computeNextSeasonBudget(args: {
 
 // そのシーズン単年の営業収支（income − expenses、繰越残高は含めない）。
 // 連続赤字カウントの判定に使う。残高がプラスでも単年で赤字ならペナルティ対象にする。
+//
+// 【重要】判定のグラントは「連続赤字ペナルティ適用前」の額を使う。
+// ペナルティ後の減った額で判定すると、一度赤字になった時点で判定ラインが自動的に上がり、
+// 同じ経営内容でも永久に赤字扱いのままになる（＝補強禁止が二度と解除されない）。
+// 罰は computeNextSeasonBudget 側の実予算だけに効かせ、判定は常に素の基準で行う。
 export function seasonOperatingResult(args: Parameters<typeof computeNextSeasonBudget>[0]): number {
-  const grantMult = args.deficitStreak >= 3 ? 0.65 : args.deficitStreak >= 2 ? 0.80 : 1.0
-  const grant = Math.round(rankBudgetGrant(args.finalRank) * grantMult * (1 - (args.dutyGrantCut ?? 0)))
+  const grant = Math.round(rankBudgetGrant(args.finalRank) * (1 - (args.dutyGrantCut ?? 0)))
   const income = grant + args.sponsorAnnual + args.seasonRaceIncome + args.objBudgetBonus
   const expenses = args.bonusPayout + args.salaryTotal + (args.runningCost ?? 0)
   return income - expenses
+}
+
+// 補強禁止の解除にあと何円必要か（0以下なら解除条件クリア）。
+// seasonOperatingResult と同じ引数を渡す。UI 表示用。
+export function deficitGapToBreakEven(args: Parameters<typeof computeNextSeasonBudget>[0]): number {
+  return Math.max(0, -seasonOperatingResult(args))
 }
 
 // ── 移籍入札：相手が受けるかの判定基準（UI の成立確率表示と store の合否判定で共有）──

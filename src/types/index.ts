@@ -857,6 +857,7 @@ export type GameState = {
   // 選手ごとの世界陸上 代表出場記録（パッチ・代表履歴の元）。label=種目 or 駅伝。
   worldRepresentatives?: { playerId: string; year: number; nat: Nationality; label: string; rank?: number }[]
   balancePatch?: number   // 一括バランス調整の適用済みバージョン（1=アジア/その他圏の既存海外選手ブースト）
+  deficitRescue?: number  // 赤字判定バグの救済適用済みバージョン（1=連続赤字リセット＋残高マイナス補填）
   trainingCards: TrainingCard[]
   raceDroppedCards: TrainingCard[]
   pendingGifts: Gift[]

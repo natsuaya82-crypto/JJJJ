@@ -20,7 +20,7 @@ import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../
 import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
 import type { PerfProfile } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome } from '../data/economy'
+import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -5574,11 +5574,15 @@ export const useGameStore = create<GameStore>()(
           const prevStreakMe = playerTeamObj?.finance.deficitStreak ?? 0
           // 施設Lv合計→維持費。強い＝施設充実で維持費が高い。
           const facLevelSum = (f?: Record<string, number>) => Object.values(f ?? {}).reduce((s, v) => s + (v ?? 0), 0)
-          const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), rankBudgetGrant(finalRank))
           // 育成義務ペナルティ：在籍22人以下 or リザーブリーグ不参加でグラント減額（自チームのみ。CPUは常時24人以上＋参加扱い）
+          // 補強禁止中は免除（選手を売って年俸を削る＝人数が減る、しか脱出手段が無いのに、
+          // 減らすと更にグラントが減って赤字が深まる二重の罠になっていたため）
           const myRosterSize = playersAfterMorale.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
           const reserveJoinedMe = (state.currentSeason.secondTeamRaces ?? []).length === 0 || state.currentSeason.reserveLeagueJoined === true
-          const dutyCutMe = leagueDutyGrantCut(myRosterSize, reserveJoinedMe)
+          const bannedMe = prevStreakMe >= 3 || playerBudgetAtSeasonEnd < 0
+          const dutyCutMe = leagueDutyGrantCut(myRosterSize, reserveJoinedMe, bannedMe)
+          // 運営費はペナルティ後の「実際に受け取るグラント」基準。満額基準のままだと収入だけ減って抜け出せない
+          const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), effectiveGrant(finalRank, prevStreakMe, dutyCutMe))
           const playerBudgetArgs = {
             finalRank,
             prevBalance: playerBudgetAtSeasonEnd,
@@ -5595,10 +5599,9 @@ export const useGameStore = create<GameStore>()(
           // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。グラントは連続赤字ペナルティ適用後の実額。
           // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
           // 前季の支出は前季で完結しているため、内訳に支出行は出さない
-          const grantMultForBudget = prevStreakMe >= 3 ? 0.65 : prevStreakMe >= 2 ? 0.80 : 1.0
           const newBudgetBreakdown = {
             carryover: playerBudgetAtSeasonEnd - (bonusTotalPayout + playerSalaryTotal + runningCostVal),
-            grant: Math.round(rankBudgetGrant(finalRank) * grantMultForBudget * (1 - dutyCutMe)),
+            grant: effectiveGrant(finalRank, prevStreakMe, dutyCutMe),
             raceIncome: prevRaceIncome,
             sponsor: sponsorAnnual,
             objBonus: objBudgetBonus,
@@ -5633,7 +5636,7 @@ export const useGameStore = create<GameStore>()(
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
-              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), rankBudgetGrant(rank)),
+              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), effectiveGrant(rank, prevStreak)),
             }
             const b = computeNextSeasonBudget(cpuBudgetArgs)
             // 単年収支が赤字なら連続赤字+1（残高ではなく単年で判定）
@@ -5972,7 +5975,7 @@ export const useGameStore = create<GameStore>()(
               draftPool: [],
               scoutPoints: 5 + objBonus + (state.teams.find(t => t.id === state.playerTeamId)?.facilities?.scoutOffice ?? 0),
               initialBudget: newBudget,   // 来期の開始予算（＝繰越+グラント+賞金観客スポンサー）。収支表示の基準。
-              seasonGrant: rankBudgetGrant(finalRank),   // 来期の順位グラント額（前年＝今季順位ベース）。運営費＝この10%。
+              seasonGrant: newBudgetBreakdown.grant,   // 来期の実グラント額（順位＋ペナルティ適用後）。運営費＝この10%。内訳表示と一致させる。
               budgetBreakdown: newBudgetBreakdown,       // 初期予算の内訳（財務ページで表示）
               // 今季スカウトした候補（＝来季プレシーズンで指名する代）をそのまま引き継ぐ。
               // 視察した選手がそのままドラフトに並ぶようにする。空のとき（一度もスカウトを開いていない等）だけ新規生成。
@@ -7840,6 +7843,55 @@ export const useGameStore = create<GameStore>()(
               return sc && (sc.name !== c.name || sc.shortName !== c.shortName) ? { ...c, name: sc.name, shortName: sc.shortName } : c
             }),
           }))
+        }
+        // ── 旧仕様の赤字判定バグで詰んだセーブの救済（1回だけ・deficitRescue=1）──
+        // 旧 seasonOperatingResult は連続赤字ペナルティ適用「後」の減額グラントで黒字/赤字を判定していたため、
+        // 一度赤字になると判定ラインが毎年上がり続け、年俸を削っても連続赤字が解除されない＝
+        // 補強禁止が永久に続き、さらに毎年ドラフト最上位指名権を失う状態に陥っていた。
+        // 修正版の判定に切り替えるだけでは既に積み上がったカウントと借金は消えないため、
+        // 全チームの連続赤字カウントをリセットし、残高マイナスのチームを救済ラインまで戻す。
+        if (Array.isArray(p.teams) && ((p as { deficitRescue?: number }).deficitRescue ?? 0) < 1) {
+          let rescuedMe = false
+          let myStreak = 0
+          let myOldBudget = 0
+          p.teams = p.teams.map(t => {
+            const streak = t.finance?.deficitStreak ?? 0
+            const bal = t.finance?.budget ?? 0
+            if (streak === 0 && bal >= 0) return t
+            if (t.id === p.playerTeamId) {
+              rescuedMe = true
+              myStreak = streak
+              myOldBudget = bal
+            }
+            return {
+              ...t,
+              finance: {
+                ...t.finance,
+                deficitStreak: 0,
+                budget: bal < 0 ? DEFICIT_RESCUE_BUDGET : bal,
+              },
+            }
+          })
+          ;(p as { deficitRescue?: number }).deficitRescue = 1
+          if (rescuedMe && p.currentSeason) {
+            const y = p.currentSeason.year ?? 2046
+            const parts: string[] = []
+            if (myStreak > 0) parts.push(`連続赤字${myStreak}年をリセット`)
+            if (myOldBudget < 0) parts.push(`残高を${Math.round(DEFICIT_RESCUE_BUDGET / 10000)}万円へ補填`)
+            p.currentSeason = {
+              ...p.currentSeason,
+              newsFeed: [
+                {
+                  date: `${y}-01-01`,
+                  headline: `【不具合修正】赤字判定の不具合により補強禁止が解除されない問題を修正しました（${parts.join('・')}）。以後は「単年営業収支」が黒字になれば解除されます`,
+                  category: 'finance' as const,
+                  relatedIds: [],
+                  major: true,
+                },
+                ...(p.currentSeason.newsFeed ?? []),
+              ],
+            }
+          }
         }
         return {
           ...currentState,

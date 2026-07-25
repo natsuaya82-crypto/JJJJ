@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
-import { useGameStore } from '../../store/gameStore'
+import { useGameStore, reinforcementBanned } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { computeNextSeasonBudget, rankBudgetGrant, racePrizeByRank, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT, DUTY_RESERVE_GRANT_CUT } from '../../data/economy'
+import { computeNextSeasonBudget, seasonOperatingResult, deficitGapToBreakEven, rankBudgetGrant, racePrizeByRank, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT, DUTY_RESERVE_GRANT_CUT } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -88,16 +88,20 @@ export default function BudgetPage() {
   const estimatedSponsorRemaining = racesLeft > 0 ? Math.round(sponsorAnnual / racesTotal) * racesLeft : 0
 
   // 育成義務ペナルティの見込み（在籍22人以下 or リザーブリーグ不参加で来季グラント減額）
+  // 補強禁止中は免除される（選手を売るしか脱出手段が無いのに人数減で更に減額される罠を防ぐ）
+  const banned = reinforcementBanned(myTeam)
+  const deficitStreak = myTeam?.finance.deficitStreak ?? 0
   const reserveJoined = (currentSeason.secondTeamRaces ?? []).length === 0 || currentSeason.reserveLeagueJoined === true
-  const dutyCut = leagueDutyGrantCut(rosterPlayers.length, reserveJoined)
+  const dutyCut = leagueDutyGrantCut(rosterPlayers.length, reserveJoined, banned)
 
   // 来季予算の見込み（現順位を最終順位と仮定・実モデルと同じ計算）
   const seasonRaceIncomeSoFar = currentSeason.seasonRaceIncome ?? 0
   const projectedSeasonRaceIncome = seasonRaceIncomeSoFar + estimatedRemainingRacePrize + estimatedRemainingAttendance
-  const projectedNextBudget = computeNextSeasonBudget({
+  // 判定・見込みで同じ引数を共有する（store の endSeason と同じ形）
+  const budgetArgs = {
     finalRank: myRank || teams.length,
     prevBalance: budget,
-    deficitStreak: myTeam?.finance.deficitStreak ?? 0,
+    deficitStreak,
     sponsorAnnual,
     seasonRaceIncome: projectedSeasonRaceIncome,
     objBudgetBonus: 0,
@@ -105,7 +109,11 @@ export default function BudgetPage() {
     salaryTotal: squadSalaryTotal,
     runningCost: facRunningCost,
     dutyGrantCut: dutyCut,
-  })
+  }
+  const projectedNextBudget = computeNextSeasonBudget(budgetArgs)
+  // 連続赤字＝補強禁止の判定に使っている値そのもの（繰越残高を含まない単年の営業収支）
+  const operatingResult = seasonOperatingResult(budgetArgs)
+  const gapToBreakEven = deficitGapToBreakEven(budgetArgs)
 
   // 今シーズンの収支＝お金関係を全部合計（予算繰越＋グラント＋スポンサー＋賞金観客 − 年俸 − 運営費 − 施設維持費）。
   const seasonNet = budget + nextGrant + sponsorAnnual + projectedSeasonRaceIncome - squadSalaryTotal - facRunningCost
@@ -213,11 +221,51 @@ export default function BudgetPage() {
               const netThisSeason = seasonBalance - carryover
               return (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0 6px' }}>
-                  <div style={{ fontSize: 11, color: C.textSub }}>今季の純増<span style={{ fontSize: 9, color: C.textGhost }}>（繰越を除く）</span></div>
+                  <div style={{ fontSize: 11, color: C.textSub }}>今季の純増<span style={{ fontSize: 9, color: C.textGhost }}>（繰越・移籍金を含む）</span></div>
                   <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: netThisSeason >= 0 ? C.green : C.red }}>{fmt(netThisSeason, true)}</div>
                 </div>
               )
             })()}
+
+            {/* ── 単年営業収支：連続赤字＝補強禁止の判定に使っている値そのもの ── */}
+            {/* 「毎季黒字なのに補強禁止」の原因は、残高（繰越込み）と判定値（単年・繰越なし）が別物だったこと。 */}
+            <div style={{
+              margin: '8px 0 10px', padding: '10px 12px', borderRadius: 10,
+              background: alpha(operatingResult >= 0 ? C.green : C.red, 0.08),
+              border: `1px solid ${alpha(operatingResult >= 0 ? C.green : C.red, 0.35)}`,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: C.text }}>単年営業収支</div>
+                  <div style={{ fontSize: 9, color: C.textGhost, marginTop: 2, lineHeight: 1.5 }}>
+                    繰越・移籍金を除いた今季単体の収支。<b style={{ color: C.textSub }}>連続赤字（＝補強禁止）はこの値で判定</b>
+                  </div>
+                </div>
+                <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: operatingResult >= 0 ? C.green : C.red, marginLeft: 8 }}>
+                  {fmt(operatingResult, true)}
+                </div>
+              </div>
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.textDim, lineHeight: 1.7 }}>
+                <div>連続赤字: <b style={{ color: deficitStreak > 0 ? C.red : C.textSub, fontFamily: SAIRA, fontSize: 12 }}>{deficitStreak}年</b>
+                  <span style={{ color: C.textGhost }}>（2年でグラント-20%／3年で-35%＋ドラフト指名権の強制売却）</span>
+                </div>
+                {gapToBreakEven > 0 ? (
+                  <div style={{ marginTop: 3, color: C.red }}>
+                    黒字化にあと<b style={{ fontFamily: SAIRA, fontSize: 12 }}>{fmt(gapToBreakEven)}円</b> — 総年俸を下げるか、収入を増やしてください
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 3, color: C.green }}>
+                    このままシーズンを終えれば黒字。連続赤字カウントは0にリセットされます
+                  </div>
+                )}
+                {banned && (
+                  <div style={{ marginTop: 3, color: C.orange }}>
+                    現在<b>補強禁止中</b>（{budget < 0 ? '残高マイナス' : `${deficitStreak}年連続赤字`}）。単年営業収支を黒字に戻し、かつ残高をプラスにすると解除されます
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div style={{ fontSize: 10, color: C.textDim, padding: '2px 0 6px', lineHeight: 1.6 }}>
               賞金・観客・スポンサー収入や順位グラントは<b style={{ color: C.textSub }}>来期の予算に反映</b>（シーズン終了時に確定）。
             </div>
@@ -232,6 +280,16 @@ export default function BudgetPage() {
                 <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.6 }}>
                   {rosterPlayers.length <= DUTY_ROSTER_THRESHOLD && <div>在籍{rosterPlayers.length}名（{DUTY_ROSTER_THRESHOLD}名以下）: -{Math.round(DUTY_ROSTER_GRANT_CUT * 100)}%</div>}
                   {!reserveJoined && <div>リザーブリーグ不参加: -{Math.round(DUTY_RESERVE_GRANT_CUT * 100)}%</div>}
+                </div>
+              </div>
+            )}
+            {dutyCut === 0 && banned && (rosterPlayers.length <= DUTY_ROSTER_THRESHOLD || !reserveJoined) && (
+              <div style={{
+                margin: '0 0 10px', padding: '8px 10px', borderRadius: 8,
+                background: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.3)}`,
+              }}>
+                <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.6 }}>
+                  リーグ規定（在籍{DUTY_ROSTER_THRESHOLD}名以下・リザーブ不参加）のグラント減額は、<b style={{ color: C.green }}>補強禁止中は免除</b>されています。
                 </div>
               </div>
             )}

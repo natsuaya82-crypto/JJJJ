@@ -664,7 +664,18 @@ export default function NotificationsPage() {
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>赤字が解消するまで補強できません</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginBottom: '14px' }}>{(myTeamFinance?.budget ?? 0) < 0 ? '残高がマイナスです。' : '3シーズン連続の赤字です。'}FA・移籍金・引き抜き・レンタル・海外獲得による新規補強が禁止されています（ドラフト・契約更新は可）。収支を黒字に戻すと解除されます。</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginBottom: '8px' }}>
+                      理由: {(myTeamFinance?.budget ?? 0) < 0 ? '予算残高がマイナスです。' : `${myTeamFinance?.deficitStreak ?? 0}シーズン連続で単年の営業収支が赤字です。`}
+                    </div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '10px', lineHeight: 1.7 }}>
+                      <div>・禁止されるもの: FA・移籍金での獲得・引き抜き・レンタル・海外獲得</div>
+                      <div>・引き続き可能: ドラフト指名・契約更新・選手の売却／放出</div>
+                      <div style={{ color: C.orange }}>・3シーズン連続赤字が続く間は、<b>毎年ドラフトの最上位指名権が強制売却</b>されます</div>
+                      <div style={{ color: C.textSub, marginTop: 4 }}>
+                        解除条件: <b>単年の営業収支</b>（繰越・移籍金を含まない今季単体の収支）を黒字にし、かつ残高をプラスに戻すこと。
+                        判定に使っている金額と、黒字化に必要な額は財務画面に表示されています。
+                      </div>
+                    </div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.red}, #FF6B6B)`, color: C.bg }} onClick={() => navigate('/budget')}>財務を確認する</Btn>
                   </div>
                 </div>
