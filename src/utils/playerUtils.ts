@@ -1,5 +1,5 @@
 import type { Player, Specialty, Ratings, CardStatKey } from '../types'
-import { calcBaseAbility, calcAffinity, calcConditionModifier } from '../engine/raceEngine'
+import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
 
 // ── 能力別ポテンシャル（各能力ごとの成長上限）──
 // 単一の potential と特性から各能力の上限を導出する（保存はせず都度算出＝既存セーブもそのまま動く）。
@@ -27,13 +27,14 @@ function hashStr(s: string): number {
 }
 
 export function getStatPotentials(p: Player): Ratings {
+  const ratings = safeRatings(p.ratings) as Record<string, number>
   // マイプレイヤーは能力別の成長上限を明示指定（現在値未満にはしない・99天井）。ジュエル解放分は加算
   if (p.customCaps) {
     const out = {} as Ratings
     for (const stat of ALL_STAT_KEYS) {
       const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0
       const cap = (p.customCaps as Record<string, number>)[stat] ?? 0
-      const cur = (p.ratings as Record<string, number>)[stat] ?? 0
+      const cur = ratings[stat] ?? 0
       ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, cap + boost))
     }
     return out
@@ -45,7 +46,7 @@ export function getStatPotentials(p: Player): Ratings {
     const jitter = (hashStr(p.id + stat) % 9) - 6   // -6〜+2
     const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0   // ジュエルの上限解放分
     const ceil = (strong.has(stat) ? p.potential + 12 : p.potential - 5) + jitter + boost
-    const cur = (p.ratings as Record<string, number>)[stat] ?? 0
+    const cur = ratings[stat] ?? 0
     ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, Math.round(ceil)))
   }
   return out
@@ -60,7 +61,7 @@ export function limitBreakCost(nextCap: number): number {
 
 // その能力が上限に達しているか（カード合成のブロック・表示用）。
 export function isStatMaxed(p: Player, stat: CardStatKey): boolean {
-  const cur = (p.ratings as Record<string, number>)[stat] ?? 0
+  const cur = (safeRatings(p.ratings) as Record<string, number>)[stat] ?? 0
   return cur >= (getStatPotentials(p) as Record<string, number>)[stat]
 }
 
@@ -81,7 +82,8 @@ export const SPEC_COLOR: Record<Specialty, string> = {
 }
 
 export function ovr(p: Player): number {
-  const r = p.ratings
+  // ratings が欠けたデータでも落とさない（欠損は0扱い＝OVRが下がるので気づける）
+  const r = safeRatings(p.ratings)
   return Math.round((r.speed + r.stamina + r.mountainUp + r.mountainDown + r.pacing + r.mental + r.recovery) / 7)
 }
 

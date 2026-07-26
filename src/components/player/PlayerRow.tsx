@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Player, Team, CardStatKey } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, formColor, isStatMaxed } from '../../utils/playerUtils'
+import { safeRatings } from '../../engine/raceEngine'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from './BadgeContent'
 import { useGameStore } from '../../store/gameStore'
@@ -62,10 +63,11 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   const fColor = formColor(pForm)
   // 無所属（FA）と「所属あり・残り1年（FA間近）」は別物なのでバッジを分ける
   const isFreeAgent = player.teamId === ''
-  const isLastYear = !isFreeAgent && player.contract.yearsLeft <= 1
+  // contract / ratings が欠けたデータでも一覧描画が落ちないようにする（落ちると画面全体が真っ白になるため）
+  const isLastYear = !isFreeAgent && (player.contract?.yearsLeft ?? 99) <= 1
   const isElite = rating >= 80
-  const r = player.ratings
-  const ctType = player.contract.contractType
+  const r = safeRatings(player.ratings)
+  const ctType = player.contract?.contractType
 
   return (
     <div style={{

@@ -78,7 +78,7 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
   }
   // 記録会の種目別年間最速（そのシーズンの各種目トップタイム。種目ごとに別のスペシャリストが取れる）
   for (const t of src.eventSeasonTops ?? []) {
-    if (t.top[0]?.playerId !== p.id) continue
+    if (t.top?.[0]?.playerId !== p.id) continue
     out.push({ key: `est-${t.year}-${t.dist}`, label: `${t.year} ${DIST_LABEL[t.dist]} 年間最速`, kind: 'seasonFast' })
   }
   // 世界陸上 銀・銅メダル（2〜3位。旧「入賞」パッチは廃止）
@@ -98,7 +98,7 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
   // 区間記録: segmentRecords のキーは `${大会名}-${区番号}`、[0]が歴代1位。
   // 同タイムで並んでいる選手は全員保持者（タイ記録）
   for (const [key, entries] of Object.entries(src.segmentRecords ?? {})) {
-    const top = entries[0]
+    const top = entries?.[0]
     if (!top) continue
     const isHolder = entries.some(e =>
       e.timeSec === top.timeSec && (e.playerId ? e.playerId === p.id : e.playerName === p.name))
@@ -121,14 +121,14 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     type Cycle = { year: number; squad?: string[]; individuals?: { event: string; placings: { playerId: string }[] }[] }
     const cycles: Cycle[] = []
     if (src.worldTournament) cycles.push({ year: src.worldTournament.year, squad: src.worldTournament.squads?.[`nat_${natCode}`] ?? contSquad(src.worldTournament.continentals), individuals: src.worldTournament.individuals })
-    for (const wr of src.worldAthleticsResults ?? []) cycles.push({ year: wr.year, squad: wr.squads?.[`nat_${natCode}`] ?? (wr.kind === 'qualifier' ? contSquad(wr.continentals) : undefined), individuals: wr.kind === 'main' ? wr.meet.individuals : undefined })
+    for (const wr of src.worldAthleticsResults ?? []) cycles.push({ year: wr.year, squad: wr.squads?.[`nat_${natCode}`] ?? (wr.kind === 'qualifier' ? contSquad(wr.continentals) : undefined), individuals: wr.kind === 'main' ? wr.meet?.individuals : undefined })
     const cur = cycles.find(c => (c.squad?.length ?? 0) > 0)
     if (cur) {
       // 現役代表なので年は付けない（例: 「駅伝 [🇯🇵]代表」）。日本も他国も同じ
       if (cur.squad?.includes(p.id)) out.push({ key: `natcur-${cur.year}-駅伝`, label: `駅伝 `, flag: natCode, labelSuffix: '代表', kind: 'national' })
       const EVL: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
       for (const ir of cur.individuals ?? []) {
-        if (ir.placings.some(pl => pl.playerId === p.id)) out.push({ key: `natcur-${cur.year}-${ir.event}`, label: `${EVL[ir.event] ?? ir.event} `, flag: natCode, labelSuffix: '代表', kind: 'national' })
+        if (ir?.placings?.some(pl => pl.playerId === p.id)) out.push({ key: `natcur-${cur.year}-${ir.event}`, label: `${EVL[ir.event] ?? ir.event} `, flag: natCode, labelSuffix: '代表', kind: 'national' })
       }
     }
   }

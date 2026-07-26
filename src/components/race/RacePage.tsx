@@ -329,7 +329,7 @@ export default function RacePage() {
   const race = (phase !== 'lineup' && lockedRace) ? lockedRace : currentRace
   const activeRaceIndex = (phase !== 'lineup' && lockedRace) ? lockedRaceIndex : raceIndex
 
-  const segCount = race?.segments.length ?? 6
+  const segCount = race?.segments?.length ?? 6
   let mainPlayers = players.filter(
     p => p.teamId === playerTeamId && p.status !== 'retired'
       // 1軍契約(main) or レンタル枠（1軍・2軍どちらのレースにも出場制限なし）
@@ -421,7 +421,7 @@ export default function RacePage() {
           playerBaseTime,
           cpuTimesForSeg,
           cumulativeTimes,
-          isFirstSeg: segIdx === activeRace.segments[0].index,
+          isFirstSeg: segIdx === activeRace.segments[0]?.index,
           player: playerObj,
           totalSegs,
           players,
@@ -446,6 +446,7 @@ export default function RacePage() {
 
   function startInteractiveSim(_tactics: Record<number, string>) {
     if (!allSegsFilled || !currentRace) return
+    if (!currentRace.segments?.length) return
 
     setLockedRace(currentRace)
     setLockedRaceIndex(raceIndex)

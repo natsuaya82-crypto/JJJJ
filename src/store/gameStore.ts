@@ -8,7 +8,7 @@ import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster } from '../engine/playerGenerator'
-import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
+import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier, safeRatings } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints } from '../engine/worldAthletics'
@@ -7893,6 +7893,47 @@ export const useGameStore = create<GameStore>()(
             }
           }
         }
+        // ── 壊れた選手データの自動修復（毎回・冪等）──
+        // ratings や contract が欠けた選手が1人でも混ざると、一覧や出走メンバー選択の描画中に
+        // 例外が飛んでルートごとアンマウントされ「画面が真っ白・タップは効く」状態になる。
+        // 描画側にも防御を入れてあるが、元データもここで直しておく（正常時は同じ配列をそのまま返す）。
+        if (Array.isArray(p.players)) {
+          let repaired = 0
+          const players = p.players.map(pl => {
+            if (!pl || typeof pl !== 'object') return pl
+            const badRatings = !pl.ratings || typeof pl.ratings !== 'object'
+              || !['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+                .every(k => Number.isFinite((pl.ratings as unknown as Record<string, number>)[k]))
+            const badContract = !pl.contract || typeof pl.contract !== 'object'
+              || !Number.isFinite(pl.contract.yearsLeft) || !Number.isFinite(pl.contract.annualSalary)
+            if (!badRatings && !badContract) return pl
+            repaired++
+            const base = Math.max(40, Math.min(80, Math.round(pl.potential ?? 60)))
+            const c = (pl.contract ?? {}) as Partial<Player['contract']>
+            return {
+              ...pl,
+              // 生きている能力値はそのまま残し、欠けている分だけ potential 基準で埋める
+              ratings: badRatings ? (() => {
+                const src = (pl.ratings ?? {}) as Record<string, number>
+                const out = {} as Record<string, number>
+                for (const k of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']) {
+                  out[k] = Number.isFinite(src[k]) ? src[k] : base
+                }
+                return out as unknown as Player['ratings']
+              })() : pl.ratings,
+              contract: badContract ? {
+                yearsLeft: Number.isFinite(c.yearsLeft) ? c.yearsLeft as number : 2,
+                annualSalary: Number.isFinite(c.annualSalary) ? c.annualSalary as number : 5_000_000,
+                faEligibleYear: Number.isFinite(c.faEligibleYear) ? c.faEligibleYear as number : (p.currentSeason?.year ?? 2027) + 2,
+                ...(c.contractType ? { contractType: c.contractType } : {}),
+              } : pl.contract,
+            }
+          })
+          if (repaired > 0) {
+            console.error(`[save] repaired ${repaired} broken player record(s)`)
+            p.players = players
+          }
+        }
         return {
           ...currentState,
           ...p,
@@ -7931,8 +7972,8 @@ const IND_STAT_WEIGHTS: Record<number, { speed: number; stamina: number; pacing:
 
 // 種目適性値: 種目ごとのステータス加重平均
 export function individualEventAbility(player: Player, distance: 5000 | 10000 | 21097 | 42195): number {
-  const w = IND_STAT_WEIGHTS[distance]
-  const r = player.ratings
+  const w = IND_STAT_WEIGHTS[distance] ?? IND_STAT_WEIGHTS[10000]
+  const r = safeRatings(player.ratings)
   return r.speed * w.speed + r.stamina * w.stamina + r.pacing * w.pacing + r.mental * w.mental + r.recovery * w.recovery
 }
 

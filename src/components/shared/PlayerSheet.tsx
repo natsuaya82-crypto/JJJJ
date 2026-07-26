@@ -10,7 +10,7 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, isStatMaxed } from '../../utils/playerUtils'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
-import { formatTime } from '../../engine/raceEngine'
+import { formatTime, safeRatings } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 import ShareCard from './ShareCard'
@@ -36,7 +36,8 @@ const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
   { key: 'recovery', abbr: '回' },
 ]
 
-function RadarChart({ ratings, color, player }: { ratings: Player['ratings']; color: string; player: Player }) {
+function RadarChart({ ratings: ratingsIn, color, player }: { ratings: Player['ratings']; color: string; player: Player }) {
+  const ratings = safeRatings(ratingsIn)   // 能力欠損データでも描画を落とさない
   const cx = 100, cy = 100, R = 66, labelR = 88
   const n = RADAR_KEYS.length
   const ang = (i: number) => ((-90 + (360 / n) * i) * Math.PI) / 180
@@ -280,13 +281,13 @@ export default function PlayerSheet() {
       const sr = race.results.segmentResults.find(s => s.runners.some(r => r.playerId === player.id))
       if (!sr) continue
       const runner = sr.runners.find(r => r.playerId === player.id)!
-      const seg = race.segments.find(s => s.index === sr.segmentIndex)
+      const seg = race.segments?.find(s => s.index === sr.segmentIndex)
       addEntry(race.name, { year, segIdx: sr.segmentIndex, distKm: seg?.distanceKm, rank: runner.rank, timeSec: runner.timeSec })
     }
   }
   // ECL（5戦シリーズ＋旧一発勝負）の結果レース
   const eclRacesOf = (s: { eclSeries?: { races: Race[] }; eclRace?: Race }) => [
-    ...(s.eclSeries?.races.filter(r => r.results) ?? []),
+    ...(s.eclSeries?.races?.filter(r => r.results) ?? []),
     ...(s.eclRace?.results ? [s.eclRace] : []),
   ]
   for (const ps of pastSeasons) {
@@ -603,8 +604,8 @@ export default function PlayerSheet() {
                       { label: '出身', val: player.origin },
                       { label: '成長タイプ', val: isScouted ? (player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準') : '?' },
                       { label: '市場価値', val: isScouted ? fmt(calcTransferValue(player)) : '?' },
-                      { label: '契約残', val: isScouted ? `${player.contract.yearsLeft}年` : '?' },
-                      { label: '年俸', val: isScouted ? fmt(player.contract.annualSalary) : '?' },
+                      { label: '契約残', val: isScouted ? (player.contract ? `${player.contract.yearsLeft}年` : '—') : '?' },
+                      { label: '年俸', val: isScouted ? (player.contract ? fmt(player.contract.annualSalary) : '—') : '?' },
                       { label: 'ドラフト', val: isScouted ? (player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外') : '?' },
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
@@ -1017,7 +1018,7 @@ export default function PlayerSheet() {
               const rows: { year: number; city: string; timeSec: number; rank: number }[] = []
               for (const wr of worldAthleticsResults ?? []) {
                 if (wr.kind !== 'main') continue
-                const pl = wr.meet.individuals.find(ir => ir.event === indEv)?.placings.find(p2 => p2.playerId === player.id)
+                const pl = wr.meet?.individuals?.find(ir => ir.event === indEv)?.placings?.find(p2 => p2.playerId === player.id)
                 if (pl) rows.push({ year: wr.year, city: WA_HOST_CITY[wr.host] ?? natLabel(wr.host), timeSec: pl.timeSec, rank: pl.rank })
               }
               rows.sort((a, b) => b.year - a.year)

@@ -1,13 +1,33 @@
 import type { Player, Specialty, RaceResults, Race, Team } from '../types'
 import type { TraitId } from '../utils/traitUtils'
 
+// セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
+// 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
+// 正常なデータでは同じオブジェクトをそのまま返すのでコストは実質ゼロ。
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+export function safeRatings(r: Player['ratings'] | undefined | null): Player['ratings'] {
+  if (r && isNum(r.speed) && isNum(r.stamina) && isNum(r.mountainUp) && isNum(r.mountainDown)
+    && isNum(r.pacing) && isNum(r.mental) && isNum(r.recovery)) return r
+  const p = (r ?? {}) as Partial<Player['ratings']>
+  return {
+    speed: isNum(p.speed) ? p.speed : 0,
+    stamina: isNum(p.stamina) ? p.stamina : 0,
+    mountainUp: isNum(p.mountainUp) ? p.mountainUp : 0,
+    mountainDown: isNum(p.mountainDown) ? p.mountainDown : 0,
+    pacing: isNum(p.pacing) ? p.pacing : 0,
+    mental: isNum(p.mental) ? p.mental : 0,
+    recovery: isNum(p.recovery) ? p.recovery : 0,
+  }
+}
+
 export function calcBaseAbility(
-  ratings: Player['ratings'],
+  ratingsIn: Player['ratings'],
   uphillPct: number,
   downhillPct: number,
   distanceKm: number,
   statWeights?: Partial<Record<keyof Player['ratings'], number>>,
 ): number {
+  const ratings = safeRatings(ratingsIn)
   if (statWeights) {
     return (Object.keys(statWeights) as (keyof typeof ratings)[]).reduce((sum, key) => {
       return sum + ratings[key] * (statWeights[key] ?? 0)

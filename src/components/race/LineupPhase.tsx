@@ -107,14 +107,26 @@ export function LineupPhase({
     setPickerSeg(null)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const totalDist = race.segments.reduce((s, sg) => s + sg.distanceKm, 0)
+  // セーブ破損・想定外データで segments / conditions が欠けていても、
+  // ここで例外を投げるとルートごとアンマウントされて画面が真っ白になるため必ず正規化して使う。
+  const segments = useMemo(
+    () => (Array.isArray(race?.segments) ? race.segments : []).filter(sg => sg && typeof sg.index === 'number')
+      .map(sg => ({
+        ...sg,
+        distanceKm: Number.isFinite(sg.distanceKm) ? sg.distanceKm : 0,
+        uphillPct: Number.isFinite(sg.uphillPct) ? sg.uphillPct : 0,
+        downhillPct: Number.isFinite(sg.downhillPct) ? sg.downhillPct : 0,
+      })),
+    [race?.segments],
+  )
+  const totalDist = segments.reduce((s, sg) => s + sg.distanceKm, 0)
   const filledCount = Object.values(raceLineup).filter(Boolean).length
 
   const availablePlayers = useMemo(() => mainPlayers.filter(p => !unavailable?.[p.id]), [mainPlayers, unavailable])
 
   const greedyRec = useMemo(() => {
     const pairs: { segIndex: number; playerId: string; score: number }[] = []
-    for (const seg of race.segments) {
+    for (const seg of segments) {
       for (const p of availablePlayers) {
         // おすすめ(最適)表示も自動配置と同じ基準（疲労・士気・調子込み）で算出する
         const score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
@@ -133,7 +145,7 @@ export function LineupPhase({
       usedPlayers.add(playerId)
     }
     return rec
-  }, [race.segments, availablePlayers])
+  }, [segments, availablePlayers])
 
   function getPlayerSegment(playerId: string): number | null {
     for (const [k, v] of Object.entries(raceLineup)) {
@@ -154,9 +166,9 @@ export function LineupPhase({
   }
 
   const avgUp = totalDist > 0
-    ? Math.round(race.segments.reduce((s, sg) => s + sg.uphillPct * sg.distanceKm, 0) / totalDist) : 0
+    ? Math.round(segments.reduce((s, sg) => s + sg.uphillPct * sg.distanceKm, 0) / totalDist) : 0
   const avgDown = totalDist > 0
-    ? Math.round(race.segments.reduce((s, sg) => s + sg.downhillPct * sg.distanceKm, 0) / totalDist) : 0
+    ? Math.round(segments.reduce((s, sg) => s + sg.downhillPct * sg.distanceKm, 0) / totalDist) : 0
 
   const assignedPlayers = Object.values(raceLineup).filter(Boolean).map(id => mainPlayers.find(p => p.id === id)).filter((p): p is Player => !!p)
   const lineupNatCounts: Record<string, number> = {}
@@ -167,7 +179,7 @@ export function LineupPhase({
   const NAT_LABELS: Record<string, string> = { JPN: '日本', KOR: '韓国', ETH: 'エチオピア', KEN: 'ケニア', UGA: 'ウガンダ', CHN: '中国', TWN: '台湾', TAN: 'タンザニア', USA: '米国', EUR: '欧州' }
   // アジア/外国人の配置枠は廃止したためカウントは持たない（誰でも起用可）
 
-  const pickerSegData = pickerSeg !== null ? race.segments.find(s => s.index === pickerSeg) : null
+  const pickerSegData = pickerSeg !== null ? segments.find(s => s.index === pickerSeg) : null
   const pickerPlayers = useMemo(() => {
     if (!pickerSegData) return []
     return mainPlayers.map(p => {
@@ -296,8 +308,8 @@ export function LineupPhase({
           <div style={{ fontSize: '20px', fontWeight: '900', color: C.text, lineHeight: 1.1, marginBottom: 8 }}>{race.name}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '5px' }}>
             {[
-              { label: '天候', value: weatherLabel[race.conditions.weather] },
-              { label: '気温', value: `${race.conditions.temperature}℃` },
+              { label: '天候', value: weatherLabel[race.conditions?.weather] ?? '—' },
+              { label: '気温', value: race.conditions?.temperature != null ? `${race.conditions.temperature}℃` : '—' },
               { label: '平均上り', value: `${avgUp}%` },
               { label: '平均下り', value: `${avgDown}%` },
             ].map(({ label, value }) => (
@@ -314,7 +326,7 @@ export function LineupPhase({
       <div style={{ padding: '8px 16px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: '10px', color: C.textDim }}>
-            配置 <span style={{ color: filledCount === race.segments.length ? C.green : C.gold, fontWeight: '700', fontFamily: SAIRA }}>{filledCount}/{race.segments.length}</span>
+            配置 <span style={{ color: filledCount === segments.length ? C.green : C.gold, fontWeight: '700', fontFamily: SAIRA }}>{filledCount}/{segments.length}</span>
           </span>
           {/* アジア/外国人の配置枠は廃止（誰でも起用可）。カウンター表示も削除 */}
         </div>
@@ -324,13 +336,13 @@ export function LineupPhase({
               {NAT_LABELS[dominantNat] ?? dominantNat} 士気+{chemBonus}
             </div>
           )}
-          <button onClick={() => autoFill(race.segments, availablePlayers, raceLineup, setRaceLineup)} style={{ fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動配置</button>
+          <button onClick={() => autoFill(segments, availablePlayers, raceLineup, setRaceLineup)} style={{ fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動配置</button>
         </div>
       </div>
 
       {/* 区リスト */}
       <div style={{ margin: '0 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {race.segments.map(seg => {
+        {segments.map(seg => {
           const player = mainPlayers.find(p => p.id === raceLineup[seg.index])
           const segCol = terrainColor(seg.uphillPct, seg.downhillPct)
           const playerOvr = player ? ovr(player) : 0
@@ -442,7 +454,7 @@ export function LineupPhase({
           </>
         ) : (
           <button style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: C.surface2, color: C.textGhost, fontSize: '14px', fontWeight: '700', cursor: 'default', fontFamily: 'inherit' }}>
-            {race.segments.length - filledCount}区間未設定
+            {segments.length - filledCount}区間未設定
           </button>
         )}
       </div>

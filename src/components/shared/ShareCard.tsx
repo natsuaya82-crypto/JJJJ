@@ -85,7 +85,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Tea
       {/* 能力バー */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px', position: 'relative' }}>
         {STATS.map(({ key, label }) => {
-          const v = player.ratings[key] ?? 0
+          const v = player.ratings?.[key] ?? 0
           const maxed = isStatMaxed(player, key)
           const col = ratingColor(v, maxed)
           return (

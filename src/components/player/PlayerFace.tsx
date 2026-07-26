@@ -75,14 +75,17 @@ export default function PlayerFace({ playerId, nationality, size = 52, customFac
   const auto = faceIndices(playerId, nationality)
   // 手動指定顔があればそれを使う（明度/色相/目の微揺らぎは無し＝指定通りに描画）
   const hairColor = face ? face.hair : auto.hairColor
-  const styleIndex = face ? (face.style % HAIR_STYLES) : auto.styleIndex
-  const eyeIndex = face ? (face.eye % EYE_COUNT) : auto.eyeIndex
+  // 壊れた値（NaN・範囲外）が入っていても必ず有効なインデックスに落とす
+  const inRange = (v: number, max: number) => (Number.isInteger(v) && v >= 0 && v < max ? v : 0)
+  const styleIndex = inRange(face ? (face.style % HAIR_STYLES) : auto.styleIndex, HAIR_STYLES)
+  const eyeIndex = inRange(face ? (face.eye % EYE_COUNT) : auto.eyeIndex, EYE_COUNT)
   const flipH = face ? face.flip : auto.flipH
   const brightness = face ? 1 : auto.brightness
   const hue = face ? 0 : auto.hue
   const eyeScale = face ? 1 : auto.eyeScale
   const eyeShift = face ? 0 : auto.eyeShift
-  const [ew, ex, ey] = EYE_CFG[eyeIndex]
+  // customFace の値が壊れている（NaN・範囲外）と undefined を分割代入して例外＝画面が真っ白になるため保険をかける
+  const [ew, ex, ey] = EYE_CFG[eyeIndex] ?? EYE_CFG[0]
 
   const w = size
   const h = Math.round(size * CH / CW)
