@@ -1,6 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow } from './saveStorage'
+import { setSaveHealth } from './saveHealth'
 import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
@@ -7558,386 +7559,419 @@ export const useGameStore = create<GameStore>()(
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
-        const s = persistedState as Record<string, unknown>
-        // v1→v2: undrafted pool players that were never converted to FA
-        if (version < 2 && s.isInitialized && Array.isArray(s.players)) {
-          s.players = (s.players as Record<string, unknown>[]).map(p => {
-            if (p.status === 'draft_eligible' && (p.teamId === '__pool__' || p.teamId === '')) {
-              return { ...p, status: 'active', teamId: '' }
-            }
-            return p
-          })
-        }
-        // v3→v4: reset ALL pre-populated career stats (wipes fake initial values for base/ai/fp players)
-        if (version < 4 && Array.isArray(s.players)) {
-          s.players = (s.players as Record<string, unknown>[]).map(p => ({
-            ...p,
-            career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-          }))
-        }
-        // v4→v5: reset career for not-yet-started saves (base players had fake career values hardcoded)
-        if (version < 5 && !s.isInitialized && Array.isArray(s.players)) {
-          s.players = (s.players as Record<string, unknown>[]).map(p => ({
-            ...p,
-            career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-          }))
-        }
-        // v5→v6: initialRank を追加、budget を新グラント額に更新
-        if (version < 6 && Array.isArray(s.teams)) {
-          const RANK_MAP: Record<string, number> = {
-            sapporo: 9, morioka: 16, aomori: 18, sendai: 10,
-            tokyo: 1, yokohama: 4, chiba: 8, saitama: 7,
-            nagano: 14, niigata: 20, shizuoka: 11, nagoya: 3,
-            kyoto: 13, osaka: 2, kobe: 6,
-            hiroshima: 12, okayama: 19,
-            fukuoka: 5, kagoshima: 15, okinawa: 17,
-          }
-          s.teams = (s.teams as Record<string, unknown>[]).map(t => {
-            const id = t.id as string
-            const isPlayer = t.isPlayerControlled as boolean
-            const initialRank = RANK_MAP[id] ?? 10
-            const newBudget = isPlayer ? 400_000_000 : (RANK_BUDGET[initialRank] ?? 400_000_000)
-            return {
-              ...t,
-              initialRank,
-              finance: { ...(t.finance as Record<string, unknown>), budget: newBudget },
-            }
-          })
-        }
-        // v7: ロスターをフラット化（1軍/2軍・契約種別を廃止し、単一ロスター(main)へ統合）
-        if (version < 7) {
-          if (Array.isArray(s.teams)) {
-            s.teams = (s.teams as Record<string, unknown>[]).map(t => {
-              const roster = (t.roster ?? {}) as { main?: string[]; second?: string[] }
-              const merged = Array.from(new Set([...(roster.main ?? []), ...(roster.second ?? [])]))
-              return { ...t, roster: { main: merged, second: [] } }
-            })
-          }
-          if (Array.isArray(s.players)) {
+        try {
+          const s = persistedState as Record<string, unknown>
+          // v1→v2: undrafted pool players that were never converted to FA
+          if (version < 2 && s.isInitialized && Array.isArray(s.players)) {
             s.players = (s.players as Record<string, unknown>[]).map(p => {
-              const contract = (p.contract ?? {}) as Record<string, unknown>
-              return { ...p, rosterTier: 'main', dualRegistered: false, contract: { ...contract, contractType: 'standard' } }
+              if (p.status === 'draft_eligible' && (p.teamId === '__pool__' || p.teamId === '')) {
+                return { ...p, status: 'active', teamId: '' }
+              }
+              return p
             })
           }
-        }
-        // v8: 既存セーブの予算を新グラント表に合わせる（プレイヤーは最下位20位＝最弱スタート、CPUはinitialRank連動）
-        if (version < 8 && Array.isArray(s.teams)) {
-          const pid = s.playerTeamId as string | undefined
-          s.teams = (s.teams as Record<string, unknown>[]).map(t => {
-            const initialRank = (t.initialRank as number) ?? 10
-            const isPlayer = t.id === pid || t.isPlayerControlled === true
-            const budget = isPlayer ? rankBudgetGrant(20) : rankBudgetGrant(initialRank)
-            return { ...t, finance: { ...(t.finance as Record<string, unknown>), budget } }
-          })
-        }
-        // v9: currentSeason.initialBudget が無い旧セーブは、現在のプレイヤー予算を初期予算とみなす（3.5億で埋めないため）
-        if (version < 9 && s.currentSeason && (s.currentSeason as Record<string, unknown>).initialBudget == null) {
-          const pid = s.playerTeamId as string | undefined
-          const myTeam = Array.isArray(s.teams) ? (s.teams as Record<string, unknown>[]).find(t => t.id === pid) : undefined
-          const curBudget = myTeam ? ((myTeam.finance as Record<string, unknown>)?.budget as number) : undefined
-          s.currentSeason = { ...(s.currentSeason as Record<string, unknown>), initialBudget: curBudget ?? rankBudgetGrant(20) }
-        }
-        // v10: セーブ肥大化の掃除（既に膨らんだセーブの救済）。
-        //  - 過去シーズンから一度も読まれない重いデータ（記録会全結果・ニュース・チャットログ等）を空にする
-        //  - チーム歴代記録に選手名を焼き込む（今後の選手データ整理で名前が消えないように）
-        //  ※レース結果・順位・世界陸上・自己ベスト・歴代記録は全て残る
-        if (version < 10) {
-          if (Array.isArray(s.pastSeasons)) {
-            s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => ({
-              ...ps,
-              individualEvents: [], newsFeed: [], chatLogs: {}, scoutProspects: [], draftPool: [],
-              transferListings: [], incomingOffers: [], transferBids: [], contractRequests: [],
-              acquisitionOffers: [], retirementRequests: [], transferRequests: [], events: [],
-              scoutMissions: [], faVisits: [], pendingTradeOffers: [], scoutedOpponents: [],
+          // v3→v4: reset ALL pre-populated career stats (wipes fake initial values for base/ai/fp players)
+          if (version < 4 && Array.isArray(s.players)) {
+            s.players = (s.players as Record<string, unknown>[]).map(p => ({
+              ...p,
+              career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
             }))
           }
-          if (Array.isArray(s.teams) && Array.isArray(s.players)) {
-            const nameById = new Map((s.players as Record<string, unknown>[]).map(p => [p.id as string, { name: p.name as string, nationality: p.nationality }]))
+          // v4→v5: reset career for not-yet-started saves (base players had fake career values hardcoded)
+          if (version < 5 && !s.isInitialized && Array.isArray(s.players)) {
+            s.players = (s.players as Record<string, unknown>[]).map(p => ({
+              ...p,
+              career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
+            }))
+          }
+          // v5→v6: initialRank を追加、budget を新グラント額に更新
+          if (version < 6 && Array.isArray(s.teams)) {
+            const RANK_MAP: Record<string, number> = {
+              sapporo: 9, morioka: 16, aomori: 18, sendai: 10,
+              tokyo: 1, yokohama: 4, chiba: 8, saitama: 7,
+              nagano: 14, niigata: 20, shizuoka: 11, nagoya: 3,
+              kyoto: 13, osaka: 2, kobe: 6,
+              hiroshima: 12, okayama: 19,
+              fukuoka: 5, kagoshima: 15, okinawa: 17,
+            }
             s.teams = (s.teams as Record<string, unknown>[]).map(t => {
-              const er = t.eventRecords as Record<string, { playerId: string; playerName?: string; nationality?: unknown; timeSec: number; year: number }[]> | undefined
-              if (!er) return t
-              const filled = Object.fromEntries(Object.entries(er).map(([k, recs]) => [k, (recs ?? []).map(r => {
-                if (r.playerName) return r
-                const info = nameById.get(r.playerId)
-                return info ? { ...r, playerName: info.name, nationality: info.nationality } : r
-              })]))
-              return { ...t, eventRecords: filled }
-            })
-          }
-        }
-        // v11:
-        //  - 区間記録の重複掃除（同一選手は最速の1本だけ残す。以後は保存時に集約される）
-        //  - 旧セーブに現行定義のリーグ/クラブが欠けている場合の補完（クラブごと消えて見える問題の救済）
-        if (version < 11) {
-          if (s.segmentRecords && typeof s.segmentRecords === 'object') {
-            type SegRec = { playerId?: string; playerName?: string; timeSec: number }
-            s.segmentRecords = Object.fromEntries(Object.entries(s.segmentRecords as Record<string, SegRec[]>).map(([k, recs]) => {
-              const best = new Map<string, SegRec>()
-              for (const r of recs ?? []) {
-                const pkey = r.playerId ?? r.playerName ?? '?'
-                const cur = best.get(pkey)
-                if (!cur || r.timeSec < cur.timeSec) best.set(pkey, r)
+              const id = t.id as string
+              const isPlayer = t.isPlayerControlled as boolean
+              const initialRank = RANK_MAP[id] ?? 10
+              const newBudget = isPlayer ? 400_000_000 : (RANK_BUDGET[initialRank] ?? 400_000_000)
+              return {
+                ...t,
+                initialRank,
+                finance: { ...(t.finance as Record<string, unknown>), budget: newBudget },
               }
-              return [k, [...best.values()].sort((a, b) => a.timeSec - b.timeSec).slice(0, 10)]
-            }))
-          }
-          if (s.isInitialized && Array.isArray(s.foreignLeagues) && Array.isArray(s.players)) {
-            const saved = s.foreignLeagues as { id: string; clubs: { id: string }[] }[]
-            // 定義にあるのにセーブに無いリーグ/クラブを洗い出す
-            const toGenerate = FOREIGN_LEAGUES.flatMap(def => {
-              const sl = saved.find(l => l.id === def.id)
-              const missingClubs = sl ? def.clubs.filter(c => !sl.clubs.some(sc => sc.id === c.id)) : def.clubs
-              return missingClubs.length > 0 ? [{ ...def, clubs: missingClubs.map(c => ({ ...c, playerIds: [] as string[] })) }] : []
             })
-            if (toGenerate.length > 0) {
-              const year = ((s.currentSeason as Record<string, unknown>)?.year as number) ?? 2027
-              const gen = generateForeignLeaguePlayers(toGenerate, year)
-              s.players = [...(s.players as unknown[]), ...gen.players]
-              // 生成済みクラブを既存リーグへ合流（リーグごと無ければ丸ごと追加）
-              const genByLeague = new Map(gen.updatedLeagues.map(l => [l.id, l]))
-              const merged = saved.map(sl => {
-                const gl = genByLeague.get(sl.id)
-                return gl ? { ...sl, clubs: [...sl.clubs, ...gl.clubs] } : sl
+          }
+          // v7: ロスターをフラット化（1軍/2軍・契約種別を廃止し、単一ロスター(main)へ統合）
+          if (version < 7) {
+            if (Array.isArray(s.teams)) {
+              s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+                const roster = (t.roster ?? {}) as { main?: string[]; second?: string[] }
+                const merged = Array.from(new Set([...(roster.main ?? []), ...(roster.second ?? [])]))
+                return { ...t, roster: { main: merged, second: [] } }
               })
-              for (const gl of gen.updatedLeagues) {
-                if (!merged.some(l => l.id === gl.id)) merged.push(gl as unknown as (typeof merged)[0])
-              }
-              s.foreignLeagues = merged
-              // 補完したリーグの順位表が currentSeason に無いと表示が壊れるので、欠けている分だけ初期化して足す
-              const cs = (s.currentSeason ?? {}) as Record<string, unknown>
-              const standings = { ...((cs.foreignStandings as Record<string, unknown>) ?? {}) }
-              const initAll = initForeignStandings(merged as Parameters<typeof initForeignStandings>[0])
-              for (const [lid, st] of Object.entries(initAll)) {
-                if (!standings[lid]) standings[lid] = st
-              }
-              s.currentSeason = { ...cs, foreignStandings: standings }
+            }
+            if (Array.isArray(s.players)) {
+              s.players = (s.players as Record<string, unknown>[]).map(p => {
+                const contract = (p.contract ?? {}) as Record<string, unknown>
+                return { ...p, rosterTier: 'main', dualRegistered: false, contract: { ...contract, contractType: 'standard' } }
+              })
             }
           }
-        }
-        // v13: ECL戦名を「ECL 第X戦」→「ECL コース名」へ（生成側の命名変更に既存セーブを合わせる）。
-        // 選手詳細の出走履歴は過去シーズンのECL戦名も読むので、currentSeasonだけでなくpastSeasonsも全部直す
-        if (version < 13) {
-          const renameRaces = (races: { name: string; location: string }[]) =>
-            races.map(r => {
-              if (!/^ECL 第\d+戦$/.test(r.name)) return r
-              const course = ECL_COURSES.find(c => c.location === r.location)
-              return course ? { ...r, name: `ECL ${course.name}` } : r
+          // v8: 既存セーブの予算を新グラント表に合わせる（プレイヤーは最下位20位＝最弱スタート、CPUはinitialRank連動）
+          if (version < 8 && Array.isArray(s.teams)) {
+            const pid = s.playerTeamId as string | undefined
+            s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+              const initialRank = (t.initialRank as number) ?? 10
+              const isPlayer = t.id === pid || t.isPlayerControlled === true
+              const budget = isPlayer ? rankBudgetGrant(20) : rankBudgetGrant(initialRank)
+              return { ...t, finance: { ...(t.finance as Record<string, unknown>), budget } }
             })
-          const renameSeason = (season: Record<string, unknown>) => {
-            const series = season.eclSeries as { races?: { name: string; location: string }[] } | undefined
-            if (!series?.races) return season
-            return { ...season, eclSeries: { ...series, races: renameRaces(series.races) } }
           }
-          if (s.currentSeason) s.currentSeason = renameSeason(s.currentSeason as Record<string, unknown>)
-          if (Array.isArray(s.pastSeasons)) s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(renameSeason)
-        }
-        // v16: 海外リーグ大再編（9リーグ×20クラブ）。リーグIDが全面刷新されたため、旧セーブは現シーズンは
-        // 旧リーグのまま走らせ、次の年度更新で新9リーグへ丸ごと置換する（pendingForeignRestructure→rolloverで処理）。
-        // ※現シーズンの順位を壊さないための「次年度反映」。新規ゲームは最初から新リーグ。
-        if (version < 16) {
-          if (s.isInitialized && Array.isArray(s.foreignLeagues)) {
-            const hasNew = (s.foreignLeagues as { id: string }[]).some(l => l.id === 'asia_league')
-            if (!hasNew) {
-              const cs = (s.currentSeason ?? {}) as Record<string, unknown>
-              s.currentSeason = { ...cs, pendingForeignRestructure: true }
+          // v9: currentSeason.initialBudget が無い旧セーブは、現在のプレイヤー予算を初期予算とみなす（3.5億で埋めないため）
+          if (version < 9 && s.currentSeason && (s.currentSeason as Record<string, unknown>).initialBudget == null) {
+            const pid = s.playerTeamId as string | undefined
+            const myTeam = Array.isArray(s.teams) ? (s.teams as Record<string, unknown>[]).find(t => t.id === pid) : undefined
+            const curBudget = myTeam ? ((myTeam.finance as Record<string, unknown>)?.budget as number) : undefined
+            s.currentSeason = { ...(s.currentSeason as Record<string, unknown>), initialBudget: curBudget ?? rankBudgetGrant(20) }
+          }
+          // v10: セーブ肥大化の掃除（既に膨らんだセーブの救済）。
+          //  - 過去シーズンから一度も読まれない重いデータ（記録会全結果・ニュース・チャットログ等）を空にする
+          //  - チーム歴代記録に選手名を焼き込む（今後の選手データ整理で名前が消えないように）
+          //  ※レース結果・順位・世界陸上・自己ベスト・歴代記録は全て残る
+          if (version < 10) {
+            if (Array.isArray(s.pastSeasons)) {
+              s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => ({
+                ...ps,
+                individualEvents: [], newsFeed: [], chatLogs: {}, scoutProspects: [], draftPool: [],
+                transferListings: [], incomingOffers: [], transferBids: [], contractRequests: [],
+                acquisitionOffers: [], retirementRequests: [], transferRequests: [], events: [],
+                scoutMissions: [], faVisits: [], pendingTradeOffers: [], scoutedOpponents: [],
+              }))
+            }
+            if (Array.isArray(s.teams) && Array.isArray(s.players)) {
+              const nameById = new Map((s.players as Record<string, unknown>[]).map(p => [p.id as string, { name: p.name as string, nationality: p.nationality }]))
+              s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+                const er = t.eventRecords as Record<string, { playerId: string; playerName?: string; nationality?: unknown; timeSec: number; year: number }[]> | undefined
+                if (!er) return t
+                const filled = Object.fromEntries(Object.entries(er).map(([k, recs]) => [k, (recs ?? []).map(r => {
+                  if (r.playerName) return r
+                  const info = nameById.get(r.playerId)
+                  return info ? { ...r, playerName: info.name, nationality: info.nationality } : r
+                })]))
+                return { ...t, eventRecords: filled }
+              })
             }
           }
+          // v11:
+          //  - 区間記録の重複掃除（同一選手は最速の1本だけ残す。以後は保存時に集約される）
+          //  - 旧セーブに現行定義のリーグ/クラブが欠けている場合の補完（クラブごと消えて見える問題の救済）
+          if (version < 11) {
+            if (s.segmentRecords && typeof s.segmentRecords === 'object') {
+              type SegRec = { playerId?: string; playerName?: string; timeSec: number }
+              s.segmentRecords = Object.fromEntries(Object.entries(s.segmentRecords as Record<string, SegRec[]>).map(([k, recs]) => {
+                const best = new Map<string, SegRec>()
+                for (const r of recs ?? []) {
+                  const pkey = r.playerId ?? r.playerName ?? '?'
+                  const cur = best.get(pkey)
+                  if (!cur || r.timeSec < cur.timeSec) best.set(pkey, r)
+                }
+                return [k, [...best.values()].sort((a, b) => a.timeSec - b.timeSec).slice(0, 10)]
+              }))
+            }
+            if (s.isInitialized && Array.isArray(s.foreignLeagues) && Array.isArray(s.players)) {
+              const saved = s.foreignLeagues as { id: string; clubs: { id: string }[] }[]
+              // 定義にあるのにセーブに無いリーグ/クラブを洗い出す
+              const toGenerate = FOREIGN_LEAGUES.flatMap(def => {
+                const sl = saved.find(l => l.id === def.id)
+                const missingClubs = sl ? def.clubs.filter(c => !sl.clubs.some(sc => sc.id === c.id)) : def.clubs
+                return missingClubs.length > 0 ? [{ ...def, clubs: missingClubs.map(c => ({ ...c, playerIds: [] as string[] })) }] : []
+              })
+              if (toGenerate.length > 0) {
+                const year = ((s.currentSeason as Record<string, unknown>)?.year as number) ?? 2027
+                const gen = generateForeignLeaguePlayers(toGenerate, year)
+                s.players = [...(s.players as unknown[]), ...gen.players]
+                // 生成済みクラブを既存リーグへ合流（リーグごと無ければ丸ごと追加）
+                const genByLeague = new Map(gen.updatedLeagues.map(l => [l.id, l]))
+                const merged = saved.map(sl => {
+                  const gl = genByLeague.get(sl.id)
+                  return gl ? { ...sl, clubs: [...sl.clubs, ...gl.clubs] } : sl
+                })
+                for (const gl of gen.updatedLeagues) {
+                  if (!merged.some(l => l.id === gl.id)) merged.push(gl as unknown as (typeof merged)[0])
+                }
+                s.foreignLeagues = merged
+                // 補完したリーグの順位表が currentSeason に無いと表示が壊れるので、欠けている分だけ初期化して足す
+                const cs = (s.currentSeason ?? {}) as Record<string, unknown>
+                const standings = { ...((cs.foreignStandings as Record<string, unknown>) ?? {}) }
+                const initAll = initForeignStandings(merged as Parameters<typeof initForeignStandings>[0])
+                for (const [lid, st] of Object.entries(initAll)) {
+                  if (!standings[lid]) standings[lid] = st
+                }
+                s.currentSeason = { ...cs, foreignStandings: standings }
+              }
+            }
+          }
+          // v13: ECL戦名を「ECL 第X戦」→「ECL コース名」へ（生成側の命名変更に既存セーブを合わせる）。
+          // 選手詳細の出走履歴は過去シーズンのECL戦名も読むので、currentSeasonだけでなくpastSeasonsも全部直す
+          if (version < 13) {
+            const renameRaces = (races: { name: string; location: string }[]) =>
+              races.map(r => {
+                if (!/^ECL 第\d+戦$/.test(r.name)) return r
+                const course = ECL_COURSES.find(c => c.location === r.location)
+                return course ? { ...r, name: `ECL ${course.name}` } : r
+              })
+            const renameSeason = (season: Record<string, unknown>) => {
+              const series = season.eclSeries as { races?: { name: string; location: string }[] } | undefined
+              if (!series?.races) return season
+              return { ...season, eclSeries: { ...series, races: renameRaces(series.races) } }
+            }
+            if (s.currentSeason) s.currentSeason = renameSeason(s.currentSeason as Record<string, unknown>)
+            if (Array.isArray(s.pastSeasons)) s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(renameSeason)
+          }
+          // v16: 海外リーグ大再編（9リーグ×20クラブ）。リーグIDが全面刷新されたため、旧セーブは現シーズンは
+          // 旧リーグのまま走らせ、次の年度更新で新9リーグへ丸ごと置換する（pendingForeignRestructure→rolloverで処理）。
+          // ※現シーズンの順位を壊さないための「次年度反映」。新規ゲームは最初から新リーグ。
+          if (version < 16) {
+            if (s.isInitialized && Array.isArray(s.foreignLeagues)) {
+              const hasNew = (s.foreignLeagues as { id: string }[]).some(l => l.id === 'asia_league')
+              if (!hasNew) {
+                const cs = (s.currentSeason ?? {}) as Record<string, unknown>
+                s.currentSeason = { ...cs, pendingForeignRestructure: true }
+              }
+            }
+          }
+          return s
+        } catch (e) {
+          // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。
+          // ここで throw すると persist の内部の .catch に吸われ、セーブが無かったことになる。
+          console.error('[save] migrate failed; using the persisted state as-is', e)
+          return persistedState as Record<string, unknown>
         }
-        return s
       },
       // 古いセーブで currentSeason に欠けているフィールドを初期値で補完する。
       // （新バージョンで追加された配列フィールド等が undefined のままだと、参照時に
       //   クラッシュ→ボタン無反応・進行不可になるため、ロード時に一括で埋める）
       merge: (persistedState, currentState) => {
-        const p = (persistedState ?? {}) as Partial<typeof currentState>
-        // ECL戦名「ECL 第X戦」→「ECL コース名」（migrateはバージョンスタンプ済みだと走らないので、毎回ここで冪等に直す）
-        const renameEcl = <T extends { eclSeries?: { races: { name: string; location: string }[] } }>(season: T): T => {
-          if (!season?.eclSeries?.races?.some(r => /^ECL 第\d+戦$/.test(r.name))) return season
-          return {
-            ...season,
-            eclSeries: {
-              ...season.eclSeries,
-              races: season.eclSeries.races.map(r => {
-                if (!/^ECL 第\d+戦$/.test(r.name)) return r
-                const course = ECL_COURSES.find(c => c.location === r.location)
-                return course ? { ...r, name: `ECL ${course.name}` } : r
-              }),
-            },
-          }
-        }
-        // ECL開催日を「リーグ戦の中間日」へ再配置（生成時の修正は来季からしか効かないので、既存セーブもここで直す。消化済みの戦は動かさない）
-        const fixEclDates = (season: typeof currentState.currentSeason): typeof currentState.currentSeason => {
-          const series = season.eclSeries
-          if (!series?.races?.length || !season.races?.length) return season
-          const leagueDates = season.races.map(r => r.date).sort()
-          const midDate = (target: string): string => {
-            const prev = [...leagueDates].filter(d => d <= target).pop()
-            const next = leagueDates.find(d => d > target)
-            if (!prev || !next) return target
-            const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
-            return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
-          }
-          let changed = false
-          const races = series.races.map(r => {
-            if (r.results) return r
-            const d = midDate(r.date)
-            if (d === r.date) return r
-            changed = true
-            return { ...r, date: d }
-          })
-          return changed ? { ...season, eclSeries: { ...series, races } } : season
-        }
-        if (p.currentSeason) p.currentSeason = fixEclDates(renameEcl(p.currentSeason))
-        if (Array.isArray(p.pastSeasons)) p.pastSeasons = p.pastSeasons.map(renameEcl)
-        // 世界陸上の旧レース名（「アジア＋オセアニア予選 駅伝 第1戦」等）を現行形式へ冪等に直す。
-        // 旧セーブは大会生成時の名前で凍結されているため、コード側のリネームだけでは直らない
-        {
-          const OLD_WA = /アジア[＋+]オセアニア予選/
-          const fixWaName = (name: string, year: number, kind: 'qualifier' | 'main', host: Nationality | undefined, i: number): string => {
-            if (!OLD_WA.test(name) && !/^世界陸上 駅伝 第\d+戦$/.test(name)) return name
-            const city = host ? (WA_HOST_CITY[host] ?? '') : ''
-            return kind === 'main'
-              ? `${year} 世界陸上${city ? ` ${city}` : ''} 第${i + 1}戦`
-              : `${year} 世界陸上アジア予選${city ? ` ${city}` : ''} 第${i + 1}戦`
-          }
-          if (p.worldTournament?.races) {
-            const t = p.worldTournament
-            p.worldTournament = { ...t, races: t.races.map((r, i) => ({ ...r, name: fixWaName(r.name, t.year, t.kind, t.host, i) })) }
-          }
-          if (Array.isArray(p.worldAthleticsResults)) {
-            p.worldAthleticsResults = p.worldAthleticsResults.map(res => res.races
-              ? { ...res, races: res.races.map((r, i) => ({ ...r, name: fixWaName(r.name, res.year, res.kind, res.kind === 'qualifier' ? res.host : res.host, i) })) }
-              : res)
-          }
-        }
-        // 既存セーブのアジア/その他圏の海外選手を新生成レンジへ一括ブースト（1回だけ適用・balancePatch=1）。
-        // 生成側の強化（ASIA上限84→90等）は新規選手にしか効かないため、現存選手も同じ水準へ引き上げて
-        // アジア予選を即座に接戦化する。日本人と、日本リーグ所属の外国人（国内バランス維持）は対象外
-        if (Array.isArray(p.players) && ((p as { balancePatch?: number }).balancePatch ?? 0) < 1) {
-          const jpelTeamIds = new Set((p.teams ?? []).map(t => t.id))
-          p.players = p.players.map(pl => {
-            if (!pl.ratings || pl.nationality === 'JPN' || pl.status === 'retired') return pl
-            const region = natStrengthRegion(pl.nationality)
-            if (region !== 'ASIA' && region !== 'OTHER') return pl
-            if (pl.teamId && jpelTeamIds.has(pl.teamId)) return pl
-            const f = region === 'ASIA' ? 0.18 : 0.10
-            const cap = region === 'ASIA' ? 92 : 88
-            const up = (v: number) => Math.min(cap, Math.max(v, Math.round(v + Math.max(0, v - 50) * f)))
-            const r = pl.ratings
+        try {
+          const p = (persistedState ?? {}) as Partial<typeof currentState>
+          // ECL戦名「ECL 第X戦」→「ECL コース名」（migrateはバージョンスタンプ済みだと走らないので、毎回ここで冪等に直す）
+          const renameEcl = <T extends { eclSeries?: { races: { name: string; location: string }[] } }>(season: T): T => {
+            if (!season?.eclSeries?.races?.some(r => /^ECL 第\d+戦$/.test(r.name))) return season
             return {
-              ...pl,
-              ratings: { speed: up(r.speed), stamina: up(r.stamina), mountainUp: up(r.mountainUp), mountainDown: up(r.mountainDown), pacing: up(r.pacing), mental: up(r.mental), recovery: up(r.recovery) },
-              potential: Math.max(pl.potential ?? 0, Math.min(region === 'ASIA' ? 90 : 87, (pl.potential ?? 0) + (region === 'ASIA' ? 6 : 3))),
-            }
-          })
-          ;(p as { balancePatch?: number }).balancePatch = 1
-        }
-        // 海外クラブ名を静的データ（foreignLeagues.ts）の最新名に同期する（冪等）。
-        // 「〜AC」ばかりに平坦化された旧名を、既存セーブでも個性名へ差し替えるための処理
-        if (Array.isArray(p.foreignLeagues)) {
-          const staticClub = new Map(FOREIGN_LEAGUES.flatMap(l => l.clubs).map(c => [c.id, c]))
-          p.foreignLeagues = p.foreignLeagues.map(l => ({
-            ...l,
-            clubs: l.clubs.map(c => {
-              const sc = staticClub.get(c.id)
-              return sc && (sc.name !== c.name || sc.shortName !== c.shortName) ? { ...c, name: sc.name, shortName: sc.shortName } : c
-            }),
-          }))
-        }
-        // ── 旧仕様の赤字判定バグで詰んだセーブの救済（1回だけ・deficitRescue=1）──
-        // 旧 seasonOperatingResult は連続赤字ペナルティ適用「後」の減額グラントで黒字/赤字を判定していたため、
-        // 一度赤字になると判定ラインが毎年上がり続け、年俸を削っても連続赤字が解除されない＝
-        // 補強禁止が永久に続き、さらに毎年ドラフト最上位指名権を失う状態に陥っていた。
-        // 修正版の判定に切り替えるだけでは既に積み上がったカウントと借金は消えないため、
-        // 全チームの連続赤字カウントをリセットし、残高マイナスのチームを救済ラインまで戻す。
-        if (Array.isArray(p.teams) && ((p as { deficitRescue?: number }).deficitRescue ?? 0) < 1) {
-          let rescuedMe = false
-          let myStreak = 0
-          let myOldBudget = 0
-          p.teams = p.teams.map(t => {
-            const streak = t.finance?.deficitStreak ?? 0
-            const bal = t.finance?.budget ?? 0
-            if (streak === 0 && bal >= 0) return t
-            if (t.id === p.playerTeamId) {
-              rescuedMe = true
-              myStreak = streak
-              myOldBudget = bal
-            }
-            return {
-              ...t,
-              finance: {
-                ...t.finance,
-                deficitStreak: 0,
-                budget: bal < 0 ? DEFICIT_RESCUE_BUDGET : bal,
+              ...season,
+              eclSeries: {
+                ...season.eclSeries,
+                races: season.eclSeries.races.map(r => {
+                  if (!/^ECL 第\d+戦$/.test(r.name)) return r
+                  const course = ECL_COURSES.find(c => c.location === r.location)
+                  return course ? { ...r, name: `ECL ${course.name}` } : r
+                }),
               },
             }
-          })
-          ;(p as { deficitRescue?: number }).deficitRescue = 1
-          if (rescuedMe && p.currentSeason) {
-            const y = p.currentSeason.year ?? 2046
-            const parts: string[] = []
-            if (myStreak > 0) parts.push(`連続赤字${myStreak}年をリセット`)
-            if (myOldBudget < 0) parts.push(`残高を${Math.round(DEFICIT_RESCUE_BUDGET / 10000)}万円へ補填`)
-            p.currentSeason = {
-              ...p.currentSeason,
-              newsFeed: [
-                {
-                  date: `${y}-01-01`,
-                  headline: `【不具合修正】赤字判定の不具合により補強禁止が解除されない問題を修正しました（${parts.join('・')}）。以後は「単年営業収支」が黒字になれば解除されます`,
-                  category: 'finance' as const,
-                  relatedIds: [],
-                  major: true,
+          }
+          // ECL開催日を「リーグ戦の中間日」へ再配置（生成時の修正は来季からしか効かないので、既存セーブもここで直す。消化済みの戦は動かさない）
+          const fixEclDates = (season: typeof currentState.currentSeason): typeof currentState.currentSeason => {
+            const series = season.eclSeries
+            if (!series?.races?.length || !season.races?.length) return season
+            const leagueDates = season.races.map(r => r.date).sort()
+            const midDate = (target: string): string => {
+              const prev = [...leagueDates].filter(d => d <= target).pop()
+              const next = leagueDates.find(d => d > target)
+              if (!prev || !next) return target
+              const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
+              return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
+            }
+            let changed = false
+            const races = series.races.map(r => {
+              if (r.results) return r
+              const d = midDate(r.date)
+              if (d === r.date) return r
+              changed = true
+              return { ...r, date: d }
+            })
+            return changed ? { ...season, eclSeries: { ...series, races } } : season
+          }
+          if (p.currentSeason) p.currentSeason = fixEclDates(renameEcl(p.currentSeason))
+          if (Array.isArray(p.pastSeasons)) p.pastSeasons = p.pastSeasons.map(renameEcl)
+          // 世界陸上の旧レース名（「アジア＋オセアニア予選 駅伝 第1戦」等）を現行形式へ冪等に直す。
+          // 旧セーブは大会生成時の名前で凍結されているため、コード側のリネームだけでは直らない
+          {
+            const OLD_WA = /アジア[＋+]オセアニア予選/
+            const fixWaName = (name: string, year: number, kind: 'qualifier' | 'main', host: Nationality | undefined, i: number): string => {
+              if (!OLD_WA.test(name) && !/^世界陸上 駅伝 第\d+戦$/.test(name)) return name
+              const city = host ? (WA_HOST_CITY[host] ?? '') : ''
+              return kind === 'main'
+                ? `${year} 世界陸上${city ? ` ${city}` : ''} 第${i + 1}戦`
+                : `${year} 世界陸上アジア予選${city ? ` ${city}` : ''} 第${i + 1}戦`
+            }
+            if (p.worldTournament?.races) {
+              const t = p.worldTournament
+              p.worldTournament = { ...t, races: t.races.map((r, i) => ({ ...r, name: fixWaName(r.name, t.year, t.kind, t.host, i) })) }
+            }
+            if (Array.isArray(p.worldAthleticsResults)) {
+              p.worldAthleticsResults = p.worldAthleticsResults.map(res => res.races
+                ? { ...res, races: res.races.map((r, i) => ({ ...r, name: fixWaName(r.name, res.year, res.kind, res.kind === 'qualifier' ? res.host : res.host, i) })) }
+                : res)
+            }
+          }
+          // 既存セーブのアジア/その他圏の海外選手を新生成レンジへ一括ブースト（1回だけ適用・balancePatch=1）。
+          // 生成側の強化（ASIA上限84→90等）は新規選手にしか効かないため、現存選手も同じ水準へ引き上げて
+          // アジア予選を即座に接戦化する。日本人と、日本リーグ所属の外国人（国内バランス維持）は対象外
+          if (Array.isArray(p.players) && ((p as { balancePatch?: number }).balancePatch ?? 0) < 1) {
+            const jpelTeamIds = new Set((p.teams ?? []).map(t => t.id))
+            p.players = p.players.map(pl => {
+              if (!pl.ratings || pl.nationality === 'JPN' || pl.status === 'retired') return pl
+              const region = natStrengthRegion(pl.nationality)
+              if (region !== 'ASIA' && region !== 'OTHER') return pl
+              if (pl.teamId && jpelTeamIds.has(pl.teamId)) return pl
+              const f = region === 'ASIA' ? 0.18 : 0.10
+              const cap = region === 'ASIA' ? 92 : 88
+              const up = (v: number) => Math.min(cap, Math.max(v, Math.round(v + Math.max(0, v - 50) * f)))
+              const r = pl.ratings
+              return {
+                ...pl,
+                ratings: { speed: up(r.speed), stamina: up(r.stamina), mountainUp: up(r.mountainUp), mountainDown: up(r.mountainDown), pacing: up(r.pacing), mental: up(r.mental), recovery: up(r.recovery) },
+                potential: Math.max(pl.potential ?? 0, Math.min(region === 'ASIA' ? 90 : 87, (pl.potential ?? 0) + (region === 'ASIA' ? 6 : 3))),
+              }
+            })
+            ;(p as { balancePatch?: number }).balancePatch = 1
+          }
+          // 海外クラブ名を静的データ（foreignLeagues.ts）の最新名に同期する（冪等）。
+          // 「〜AC」ばかりに平坦化された旧名を、既存セーブでも個性名へ差し替えるための処理
+          if (Array.isArray(p.foreignLeagues)) {
+            const staticClub = new Map(FOREIGN_LEAGUES.flatMap(l => l.clubs).map(c => [c.id, c]))
+            p.foreignLeagues = p.foreignLeagues.map(l => ({
+              ...l,
+              clubs: l.clubs.map(c => {
+                const sc = staticClub.get(c.id)
+                return sc && (sc.name !== c.name || sc.shortName !== c.shortName) ? { ...c, name: sc.name, shortName: sc.shortName } : c
+              }),
+            }))
+          }
+          // ── 旧仕様の赤字判定バグで詰んだセーブの救済（1回だけ・deficitRescue=1）──
+          // 旧 seasonOperatingResult は連続赤字ペナルティ適用「後」の減額グラントで黒字/赤字を判定していたため、
+          // 一度赤字になると判定ラインが毎年上がり続け、年俸を削っても連続赤字が解除されない＝
+          // 補強禁止が永久に続き、さらに毎年ドラフト最上位指名権を失う状態に陥っていた。
+          // 修正版の判定に切り替えるだけでは既に積み上がったカウントと借金は消えないため、
+          // 全チームの連続赤字カウントをリセットし、残高マイナスのチームを救済ラインまで戻す。
+          if (Array.isArray(p.teams) && ((p as { deficitRescue?: number }).deficitRescue ?? 0) < 1) {
+            let rescuedMe = false
+            let myStreak = 0
+            let myOldBudget = 0
+            p.teams = p.teams.map(t => {
+              const streak = t.finance?.deficitStreak ?? 0
+              const bal = t.finance?.budget ?? 0
+              if (streak === 0 && bal >= 0) return t
+              if (t.id === p.playerTeamId) {
+                rescuedMe = true
+                myStreak = streak
+                myOldBudget = bal
+              }
+              return {
+                ...t,
+                finance: {
+                  ...t.finance,
+                  deficitStreak: 0,
+                  budget: bal < 0 ? DEFICIT_RESCUE_BUDGET : bal,
                 },
-                ...(p.currentSeason.newsFeed ?? []),
-              ],
+              }
+            })
+            ;(p as { deficitRescue?: number }).deficitRescue = 1
+            if (rescuedMe && p.currentSeason) {
+              const y = p.currentSeason.year ?? 2046
+              const parts: string[] = []
+              if (myStreak > 0) parts.push(`連続赤字${myStreak}年をリセット`)
+              if (myOldBudget < 0) parts.push(`残高を${Math.round(DEFICIT_RESCUE_BUDGET / 10000)}万円へ補填`)
+              p.currentSeason = {
+                ...p.currentSeason,
+                newsFeed: [
+                  {
+                    date: `${y}-01-01`,
+                    headline: `【不具合修正】赤字判定の不具合により補強禁止が解除されない問題を修正しました（${parts.join('・')}）。以後は「単年営業収支」が黒字になれば解除されます`,
+                    category: 'finance' as const,
+                    relatedIds: [],
+                    major: true,
+                  },
+                  ...(p.currentSeason.newsFeed ?? []),
+                ],
+              }
             }
           }
-        }
-        // ── 壊れた選手データの自動修復（毎回・冪等）──
-        // ratings や contract が欠けた選手が1人でも混ざると、一覧や出走メンバー選択の描画中に
-        // 例外が飛んでルートごとアンマウントされ「画面が真っ白・タップは効く」状態になる。
-        // 描画側にも防御を入れてあるが、元データもここで直しておく（正常時は同じ配列をそのまま返す）。
-        if (Array.isArray(p.players)) {
-          let repaired = 0
-          const players = p.players.map(pl => {
-            if (!pl || typeof pl !== 'object') return pl
-            const badRatings = !pl.ratings || typeof pl.ratings !== 'object'
-              || !['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-                .every(k => Number.isFinite((pl.ratings as unknown as Record<string, number>)[k]))
-            const badContract = !pl.contract || typeof pl.contract !== 'object'
-              || !Number.isFinite(pl.contract.yearsLeft) || !Number.isFinite(pl.contract.annualSalary)
-            if (!badRatings && !badContract) return pl
-            repaired++
-            const base = Math.max(40, Math.min(80, Math.round(pl.potential ?? 60)))
-            const c = (pl.contract ?? {}) as Partial<Player['contract']>
-            return {
-              ...pl,
-              // 生きている能力値はそのまま残し、欠けている分だけ potential 基準で埋める
-              ratings: badRatings ? (() => {
-                const src = (pl.ratings ?? {}) as Record<string, number>
-                const out = {} as Record<string, number>
-                for (const k of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']) {
-                  out[k] = Number.isFinite(src[k]) ? src[k] : base
-                }
-                return out as unknown as Player['ratings']
-              })() : pl.ratings,
-              contract: badContract ? {
-                yearsLeft: Number.isFinite(c.yearsLeft) ? c.yearsLeft as number : 2,
-                annualSalary: Number.isFinite(c.annualSalary) ? c.annualSalary as number : 5_000_000,
-                faEligibleYear: Number.isFinite(c.faEligibleYear) ? c.faEligibleYear as number : (p.currentSeason?.year ?? 2027) + 2,
-                ...(c.contractType ? { contractType: c.contractType } : {}),
-              } : pl.contract,
+          // ── 壊れた選手データの自動修復（毎回・冪等）──
+          // ratings や contract が欠けた選手が1人でも混ざると、一覧や出走メンバー選択の描画中に
+          // 例外が飛んでルートごとアンマウントされ「画面が真っ白・タップは効く」状態になる。
+          // 描画側にも防御を入れてあるが、元データもここで直しておく（正常時は同じ配列をそのまま返す）。
+          if (Array.isArray(p.players)) {
+            let repaired = 0
+            const players = p.players.map(pl => {
+              if (!pl || typeof pl !== 'object') return pl
+              const badRatings = !pl.ratings || typeof pl.ratings !== 'object'
+                || !['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+                  .every(k => Number.isFinite((pl.ratings as unknown as Record<string, number>)[k]))
+              const badContract = !pl.contract || typeof pl.contract !== 'object'
+                || !Number.isFinite(pl.contract.yearsLeft) || !Number.isFinite(pl.contract.annualSalary)
+              if (!badRatings && !badContract) return pl
+              repaired++
+              const base = Math.max(40, Math.min(80, Math.round(pl.potential ?? 60)))
+              const c = (pl.contract ?? {}) as Partial<Player['contract']>
+              return {
+                ...pl,
+                // 生きている能力値はそのまま残し、欠けている分だけ potential 基準で埋める
+                ratings: badRatings ? (() => {
+                  const src = (pl.ratings ?? {}) as Record<string, number>
+                  const out = {} as Record<string, number>
+                  for (const k of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']) {
+                    out[k] = Number.isFinite(src[k]) ? src[k] : base
+                  }
+                  return out as unknown as Player['ratings']
+                })() : pl.ratings,
+                contract: badContract ? {
+                  yearsLeft: Number.isFinite(c.yearsLeft) ? c.yearsLeft as number : 2,
+                  annualSalary: Number.isFinite(c.annualSalary) ? c.annualSalary as number : 5_000_000,
+                  faEligibleYear: Number.isFinite(c.faEligibleYear) ? c.faEligibleYear as number : (p.currentSeason?.year ?? 2027) + 2,
+                  ...(c.contractType ? { contractType: c.contractType } : {}),
+                } : pl.contract,
+              }
+            })
+            if (repaired > 0) {
+              console.error(`[save] repaired ${repaired} broken player record(s)`)
+              p.players = players
             }
-          })
-          if (repaired > 0) {
-            console.error(`[save] repaired ${repaired} broken player record(s)`)
-            p.players = players
+          }
+          return {
+            ...currentState,
+            ...p,
+            currentSeason: { ...currentState.currentSeason, ...(p.currentSeason ?? {}) },
+          }
+        } catch (e) {
+          // 互換処理のどれかが例外を投げても、読み込み自体は失敗させない（変換なしのデータで続行する）。
+          // ここで throw すると persist の内部の .catch に吸われ、hasHydrated も onFinishHydration も
+          // 更新されないまま「セーブが無い」のと同じ状態になり、新規ゲーム画面が出てしまう。
+          console.error('[save] merge failed; falling back to a plain merge', e)
+          const fb = (persistedState && typeof persistedState === 'object' ? persistedState : {}) as Partial<typeof currentState>
+          return {
+            ...currentState,
+            ...fb,
+            currentSeason: { ...currentState.currentSeason, ...(fb.currentSeason ?? {}) },
           }
         }
-        return {
-          ...currentState,
-          ...p,
-          currentSeason: { ...currentState.currentSeason, ...(p.currentSeason ?? {}) },
+      },
+      // 読み込み（hydration）の成否をアプリ側へ伝える唯一のフック。
+      // zustand は読み込み中の例外を内部で握り潰し、そのとき hasHydrated を true にせず
+      // onFinishHydration も発火しない。ここで失敗を拾わないと
+      // 「セーブが無い（＝新規）」と「読めなかった」の区別がつかず、新規ゲーム画面を出して
+      // 本物のセーブを上書きしてしまう。
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error('[save] hydration failed', error)
+          setSaveHealth('failed', error instanceof Error ? `${error.name}: ${error.message}` : String(error))
+        } else {
+          setSaveHealth('ok', '')
         }
       },
     }

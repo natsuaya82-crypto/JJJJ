@@ -2,6 +2,8 @@ import { MemoryRouter as BrowserRouter, Routes, Route, useLocation, useNavigate 
 import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from './store/gameStore'
 import { flushSaveNow } from './store/saveStorage'
+import { getSaveHealth, onSaveHealthChange, setSaveHealth } from './store/saveHealth'
+import SaveRecoveryScreen from './components/ui/SaveRecoveryScreen'
 import { audio } from './utils/audio'
 import { initAds, removeBanner, showBanner, setAdsDisabled } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
@@ -73,6 +75,10 @@ const BUNDLE_ID = 'com.tokinets.jpelmanager'
 // appMeta の APP_VERSION（例 'v1.1.1'）を唯一の情報源にする。さらに CI（ios-deploy.yml）が
 // ネイティブの MARKETING_VERSION と一致することを検証し、ズレたままのリリースを構造的に防ぐ。
 const APP_VERSION = APP_VERSION_LABEL.replace(/^v/, '')
+// セーブ読み込みがこの時間を過ぎても完了しなかったら、復旧画面へ回す（新規ゲーム画面は絶対に出さない）。
+// アップデート直後の初回起動はキャッシュが冷えていて数MBのセーブ読み込みに時間がかかるため、
+// 「遅いだけ」を失敗と誤判定しないよう十分に長く取る。
+const HYDRATE_STALL_MS = 20_000
 
 // 桁数が違っても壊れない比較（'1.10' vs '1.1.1' など。欠け桁は0扱い）。
 // 解釈できない文字列は「差なし」を返す＝モーダルは出さない（誤ブロックより出さない方に倒す）
@@ -258,15 +264,28 @@ export default function App() {
   // セーブ読み込み（非同期）完了までタイトルから先へ進めない。
   // 完了前に isInitialized=false の初期状態を見て新規ゲーム画面を出すと、既存セーブを上書きする事故になるため
   const [hydrated, setHydrated] = useState(() => useGameStore.persist.hasHydrated())
+  // 読み込みの成否。'failed' のときは絶対に新規ゲーム画面へ進めず、復旧画面を出す。
+  const [saveHealth, setSaveHealthState] = useState(getSaveHealth)
+  useEffect(() => onSaveHealthChange(setSaveHealthState), [])
   useEffect(() => {
     if (hydrated) return
     // 購読前に読み込みが完了しているケース（実機のファイル読込は速い）。
     // ここで再確認しないと完了通知を永遠に待ち続けてタイトルから進めなくなる
     if (useGameStore.persist.hasHydrated()) { setHydrated(true); return }
     const unsub = useGameStore.persist.onFinishHydration(() => setHydrated(true))
-    // 保険：読み込みが失敗しても5秒で必ず先へ進める（無限に詰まないように）
-    const failsafe = setTimeout(() => setHydrated(true), 5000)
-    return () => { unsub(); clearTimeout(failsafe) }
+    // 【重要】かつてここには「5秒で必ず先へ進める」保険があったが、これが
+    //   アップデート後にセーブが消える最大の原因だった。読み込みの成否を見ずにゲートを開けるため、
+    //   読み込みが失敗／遅延しているだけの状態で初期状態（isInitialized=false）が見え、
+    //   新規ゲーム画面が出る → ユーザーが新チームを作る → 本物のセーブが上書きされて復元不能、
+    //   という流れになっていた。
+    //   そこで時間による強制進行はやめ、読み込みが終わらないまま長時間経った場合は
+    //   新規ゲーム画面ではなく復旧画面（＝書き込み停止・再試行できる）へ回す。
+    const stall = setTimeout(() => {
+      if (useGameStore.persist.hasHydrated()) return
+      console.error('[save] hydration did not finish in time')
+      setSaveHealth('failed', 'セーブの読み込みが完了しませんでした（タイムアウト）')
+    }, HYDRATE_STALL_MS)
+    return () => { unsub(); clearTimeout(stall) }
   }, [hydrated])
 
   // 重要操作（レース確定=currentRaceIndex / シーズン更新=year / 購入=adsRemoved / 開始・リセット=isInitialized）の
@@ -347,12 +366,22 @@ export default function App() {
     }
     if (useGameStore.persist.hasHydrated()) finish()
     else {
-      const unsub = useGameStore.persist.onFinishHydration(() => { unsub(); finish() })
+      const unsub = useGameStore.persist.onFinishHydration(() => { unsub(); unsubHealth(); finish() })
+      // 読み込みが失敗した場合は完了通知が来ないので、ここでもロード表示を必ず閉じる
+      // （閉じないとロード画面のまま操作不能になり、復旧画面が見えない）
+      const unsubHealth = onSaveHealthChange(s => {
+        if (s !== 'failed') return
+        unsub(); unsubHealth(); hide()
+      })
     }
   }
 
   let content
-  if (!titleShown || !hydrated) {
+  if (saveHealth === 'failed') {
+    // 読み込みが失敗した起動。ここで新規ゲーム画面を出すと本物のセーブが上書きされるため、
+    // 必ず復旧画面（書き込み停止中・再試行できる）だけを見せる。
+    content = <SaveRecoveryScreen />
+  } else if (!titleShown || !hydrated) {
     content = <TitleScreen onStart={handleTitleStart} />
   } else if (!isInitialized && !draftState) {
     content = <Onboarding />

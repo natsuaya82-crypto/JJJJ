@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 import type { StateStorage } from 'zustand/middleware'
+import { getSaveHealth, setSaveHealth } from './saveHealth'
 
 // セーブの保存先。
 // ネイティブ(iOS): アプリ専用領域のファイル（容量制限なし・非同期・iCloudバックアップ対象）。
@@ -25,11 +26,17 @@ let lastBackupAt = 0
 const BACKUP_INTERVAL_MS = 60_000
 
 // ── セーフモード ──
-// 起動時に「セーブファイルは存在するのに読み込めなかった」場合に立つ。
-// この状態で書き込むと読めなかっただけの正常なセーブを上書きして本当に消してしまうため、
-// この起動中は一切書き込まない（アプリを再起動すればもう一度読み込みを試す）。
+// 次のどちらかで立つ。
+//  (a) 起動時に「セーブファイルは存在するのに読み込めなかった」（このモジュール内で検知）
+//  (b) 読み込み（hydration）が正常に完了しなかった（saveHealth === 'failed'）
+//      ※ファイル自体は読めても migrate / merge の途中で例外が出た場合がこれに当たる
+// どちらの場合もストアの中身は初期状態（＝本物のセーブとは無関係）になっている。
+// そこで書き込むと本物のセーブを上書きして本当に消してしまうため、この起動中は一切書き込まない。
+// 【重要】isInitialized:true の書き込み（＝新規ゲーム作成）も必ず止める。
+//   ここを通すと「消えたと思ったユーザーが新チームを作る」→本物のセーブが物理的に消えて復元不能になる。
+//   既存セーブの上書きが許されるのは、明示的なデータ削除（removeItem）を通ったときだけ。
 let safeMode = false
-export function isSaveSafeMode(): boolean { return safeMode }
+export function isSaveSafeMode(): boolean { return safeMode || getSaveHealth() === 'failed' }
 
 // ── セーブ破壊ガード ──
 // 「進行中のセーブ（isInitialized:true）」の上に「新規状態（isInitialized:false）」を書き込もうと
@@ -75,7 +82,7 @@ async function flushWrite() {
   if (pending == null) return
   const data = pending
   pending = null
-  if (safeMode) {
+  if (isSaveSafeMode()) {
     console.error('[save] SAFE MODE: 読み込みに失敗した起動のため書き込みを停止しています')
     return
   }
@@ -196,6 +203,8 @@ export const saveStorage: StateStorage = {
         // ファイルはあるのに1つも読めない／壊れている。ここで上書きすると本当に消えるので、
         // この起動中は保存を完全に停止する（再起動すればもう一度読み込みを試す）。
         safeMode = true
+        // 新規ゲーム画面ではなく復旧画面へ回す（新規作成させると本物のセーブが消える）
+        setSaveHealth('failed', 'セーブファイルを読み込めませんでした')
         console.error('[save] SAFE MODE: セーブファイルは存在するが読み込めませんでした。書き込みを停止します')
         return null
       }
@@ -218,7 +227,11 @@ export const saveStorage: StateStorage = {
     })()
   },
   setItem: (name, value) => {
-    if (safeMode) return
+    // セーフモード中は isInitialized:true（新規ゲーム）も含めて全ての書き込みを拒否する
+    if (isSaveSafeMode()) {
+      console.error('[save] BLOCKED: セーフモード中のため書き込みを行いません')
+      return
+    }
     // セーブ破壊ガード：進行中セーブがあるのに新規状態を書こうとしたら拒否
     if (loadedInitialized && !isInit(value)) {
       console.error('[save] BLOCKED: attempted to overwrite an initialized save with a fresh (uninitialized) state')
@@ -233,6 +246,7 @@ export const saveStorage: StateStorage = {
   removeItem: (name) => {
     loadedInitialized = false   // データ削除＝ガード解除（新規ゲームを保存できるように）
     safeMode = false
+    setSaveHealth('ok', '')
     lastBackupAt = 0
     if (!isNative) { localStorage.removeItem(name); return }
     return (async () => {
@@ -243,4 +257,11 @@ export const saveStorage: StateStorage = {
       await removeIfExists(BAK)
     })()
   },
+}
+
+// 復旧画面から「セーブを削除して新しく始める」を選んだときだけ呼ぶ。
+// セーフモード中の書き込み禁止を解除できる唯一の経路（＝ユーザーの明示的な同意）。
+export async function deleteSaveForRecovery(): Promise<void> {
+  await Promise.resolve(saveStorage.removeItem('jpel-manager-save'))
+  try { localStorage.removeItem('jpel-manager-save') } catch { /* 使えない環境では何もしない */ }
 }
