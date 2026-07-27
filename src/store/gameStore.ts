@@ -1,6 +1,6 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { saveStorage, flushSaveNow } from './saveStorage'
+import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { setSaveHealth } from './saveHealth'
 import type { GameState, Player, Team, RosterTier, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty } from '../types'
 import type { ISim } from '../engine/interactiveRace'
@@ -18,11 +18,11 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
+import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
 import type { PerfProfile } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, seasonOperatingResult, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
-import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster } from '../data/rosterRules'
+import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
+import { tierForContract, canSignContract, MAIN_REG_MAX, SECOND_REG_MAX, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
@@ -168,6 +168,54 @@ export function reinforcementBanned(team: { finance: { budget: number; deficitSt
   if (!team) return false
   // 3シーズン連続赤字で補強禁止。または現在の残高がマイナスの間も禁止。
   return (team.finance.deficitStreak ?? 0) >= 3 || team.finance.budget < 0
+}
+
+// 補強禁止中でも、ロスターが下限(15人)以下のときはFA獲得だけ通す。
+// 契約満了・引退で15人を割ると開幕できないのに、補強禁止中はドラフト(年2人)しか手段が無く、
+// シーズンが進まない＝収入も入らないので永久に抜け出せない詰みになるため。
+// 対象はFAのみ。引き抜き・移籍金・トレード・レンタル・海外獲得は禁止のまま。
+function faAllowedDespiteBan(players: Player[], teamId: string): boolean {
+  return teamRosterSize(players, teamId) <= ROSTER_MIN
+}
+
+// レースのタイム計算に乗せる補正をまとめて適用した選手配列を返す。
+//   1) 戦術分析室：所属チームの施設Lvぶん「ペース配分」「メンタル」を強化
+//      （以前は全7能力に+Lvしていて実質OVR+5相当と壊れ性能だったため2能力に限定）
+//   2) 国籍ケミストリー：自チームの出走メンバーの最多国籍が7人以上なら、その国籍の選手の士気を加算
+// 以前は runRace の中だけでこの補正を作っていたが、リーグ戦は画面側（interactiveRace）で
+// タイムを計算してから preComputedResults として渡すため、補正が一切反映されていなかった。
+// 画面と store の両方からこの関数を呼ぶことで、施設とケミストリーの効果を必ず効かせる。
+export function applyRaceBoosts(
+  players: Player[], teams: Team[], playerTeamId: string, lineup: Record<number, string>,
+): Player[] {
+  const tacticsLvByTeam = new Map(teams.map(t => [t.id, t.facilities?.tacticsRoom ?? 0]))
+  const boosted = players.map(p => {
+    const boost = tacticsLvByTeam.get(p.teamId) ?? 0
+    if (boost <= 0) return p
+    return { ...p, ratings: {
+      ...p.ratings,
+      pacing: Math.min(99, p.ratings.pacing + boost),
+      mental: Math.min(99, p.ratings.mental + boost),
+    }}
+  })
+
+  const lineupPlayerIds = Object.values(lineup).filter(Boolean)
+  if (lineupPlayerIds.length === 0) return boosted
+  const lineupIdSet = new Set(lineupPlayerIds)
+  const natCounts: Record<string, number> = {}
+  for (const id of lineupPlayerIds) {
+    const lp = boosted.find(p => p.id === id)
+    if (lp) natCounts[lp.nationality] = (natCounts[lp.nationality] ?? 0) + 1
+  }
+  const maxNatCount = Math.max(0, ...Object.values(natCounts))
+  const chemBonus = maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0
+  if (chemBonus <= 0) return boosted
+
+  const dominantNat = Object.entries(natCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+  return boosted.map(p => {
+    if (p.teamId !== playerTeamId || !lineupIdSet.has(p.id) || p.nationality !== dominantNat) return p
+    return { ...p, morale: Math.min(100, (p.morale ?? 70) + chemBonus) }
+  })
 }
 
 // 獲得成立時の署名処理。旧チームから外し自チームへ。tier満杯(1軍20/2軍18)なら null（契約不可）。
@@ -477,6 +525,10 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
   const basePlayers = BASE_PLAYERS.map(p => ({ ...p, teamId: '', career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 } }))
   return {
     isInitialized: false,
+    // 既存セーブ向けの1回限りの補正（migrate内で実行）は、新規ゲームでは適用済み扱いにする。
+    // 未設定だと新品のセーブにも走ってしまい、初期予算の書き換えなどが起きていた。
+    balancePatch: 1,
+    deficitRescue: 1,
     setupData: null,
     draftState: null,
     raceLineup: {},
@@ -998,35 +1050,7 @@ export const useGameStore = create<GameStore>()(
           lineups[team.id] = buildAILineup(team.id, players, race)
         }
 
-        // Tactics room: データ分析でレース中のペース配分とメンタルのみ強化（全能力+ではなく2能力に限定）。
-        // 以前は全7能力に+Lvしていて実質OVR+5相当と壊れ性能だったため、効果範囲を絞ってバランス調整。
-        const tacticsLvByTeam = new Map(teams.map(t => [t.id, t.facilities?.tacticsRoom ?? 0]))
-        const playersForSim = players.map(p => {
-          const boost = tacticsLvByTeam.get(p.teamId) ?? 0
-          if (boost <= 0) return p
-          return { ...p, ratings: {
-            ...p.ratings,
-            pacing: Math.min(99, p.ratings.pacing + boost),
-            mental: Math.min(99, p.ratings.mental + boost),
-          }}
-        })
-
-        // Chemistry: nationality cohesion bonus for player team lineup
-        const lineupPlayerIds = Object.values(lineup)
-        const lineupPlayers = lineupPlayerIds.map(id => playersForSim.find(p => p.id === id)).filter(Boolean) as typeof playersForSim
-        const natCounts: Record<string, number> = {}
-        for (const lp of lineupPlayers) natCounts[lp.nationality] = (natCounts[lp.nationality] ?? 0) + 1
-        const maxNatCount = Math.max(0, ...Object.values(natCounts))
-        const chemBonus = maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0
-        const playersForSimFinal = chemBonus > 0
-          ? (() => {
-              const dominantNat = Object.entries(natCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
-              return playersForSim.map(p => {
-                if (p.teamId !== playerTeamId || !lineupPlayerIds.includes(p.id) || p.nationality !== dominantNat) return p
-                return { ...p, morale: Math.min(100, (p.morale ?? 70) + chemBonus) }
-              })
-            })()
-          : playersForSim
+        const playersForSimFinal = applyRaceBoosts(players, teams, playerTeamId, lineup)
 
         const results = preComputedResults ?? simulateRace(race, lineups, teams, playersForSimFinal, seasonProgress, playerTeamId, segmentTactics)
 
@@ -2214,6 +2238,8 @@ export const useGameStore = create<GameStore>()(
           if (!canReleaseFromRoster(state.players, state.playerTeamId)) return state
           // 契約期間が残っているなら解約金（残年俸×(残年-1)）。満了(残1年以下)は無償。
           const buyout = player.contract.annualSalary * Math.max(0, player.contract.yearsLeft - 1)
+          // 支払いは Math.max(0, ...) で挟まない。挟むと残高がマイナスのときに
+          // 「払ったら0円に戻る（＝実質チャージ）」になってしまう。赤字はそのまま深くする。
           return {
             players: state.players.map(p =>
               p.id === playerId ? { ...p, teamId: '', } : p
@@ -2222,7 +2248,7 @@ export const useGameStore = create<GameStore>()(
               if (t.id !== state.playerTeamId) return t
               return {
                 ...t,
-                finance: { ...t.finance, budget: Math.max(0, t.finance.budget - buyout) },
+                finance: { ...t.finance, budget: t.finance.budget - buyout },
                 roster: {
                   main: t.roster.main.filter(id => id !== playerId),
                   second: t.roster.second.filter(id => id !== playerId),
@@ -2239,7 +2265,8 @@ export const useGameStore = create<GameStore>()(
         if (!player || player.teamId !== '') return false
         const team = st.teams.find(t => t.id === st.playerTeamId)
         if (!team) return false
-        if (reinforcementBanned(team)) return false  // 赤字ペナルティ中・残高マイナスは補強不可
+        // 赤字ペナルティ中・残高マイナスは補強不可。ただしロスター15人以下ならFAだけ通す
+        if (reinforcementBanned(team) && !faAllowedDespiteBan(st.players, st.playerTeamId)) return false
         const finalSalary = salary ?? player.contract.annualSalary
         const finalYears = years ?? Math.max(player.contract.yearsLeft, 2)
         const finalContractType = contractType ?? 'standard'
@@ -2437,7 +2464,7 @@ export const useGameStore = create<GameStore>()(
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 25) } : p)
             } else if (choiceIndex === 1) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 2000000) } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
             } else {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 15) } : p)
             }
@@ -2496,7 +2523,7 @@ export const useGameStore = create<GameStore>()(
             const reqPlayer = players.find(p => p.id === pid)
             if (choiceIndex === 0) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 3000000) } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
             } else if (choiceIndex === 2 && reqPlayer) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 25) } : p)
               const escalation = {
@@ -2542,7 +2569,7 @@ export const useGameStore = create<GameStore>()(
           } else if (event.type === 'ai_poaching' && pid) {
             if (choiceIndex === 0) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 3000000) } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
             } else if (choiceIndex === 1) {
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 5) } : p)
             } else {
@@ -2553,13 +2580,13 @@ export const useGameStore = create<GameStore>()(
               players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 10), fatigue: Math.min(100, p.fatigue + 3) } : p)
             } else if (choiceIndex === 1) {
               players = players.map(p => p.teamId === state.playerTeamId && p.rosterTier === 'main' ? { ...p, morale: Math.min(100, p.morale + 20), fatigue: Math.min(100, p.fatigue + 8) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 2000000) } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
             }
           } else if (event.type === 'player_retirement' && pid) {
             if (choiceIndex === 0) {
               // Stay bonus — pay 20M, player morale up
               players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
-              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: Math.max(0, t.finance.budget - 20000000) } } : t)
+              teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 20000000 } } : t)
             } else {
               // Accept retirement — 即引退はせず「今季限りで引退」フラグを立てる。
               // 実際の引退処理（ロスター除外・レジェンド登録）はendSeasonで行う
@@ -3024,9 +3051,10 @@ export const useGameStore = create<GameStore>()(
           if (source === 'scout' && (player.teamId === '' || player.teamId === state.playerTeamId)) return state
           // 自チームから移籍・FA流出した選手とは1年間交渉不可（移籍金オファーと同じロック）
           if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return state
-          // 赤字ペナルティ中は新規補強(FA/引き抜き)不可（ドラフト・契約更新は可）
+          // 赤字ペナルティ中は新規補強(FA/引き抜き)不可（ドラフト・契約更新は可）。
+          // ただしロスター15人以下のときはFAだけ通す（開幕できず詰むのを防ぐ／引き抜きは禁止のまま）
           const myTeam0 = state.teams.find(t => t.id === state.playerTeamId)
-          if (reinforcementBanned(myTeam0)) return state
+          if (reinforcementBanned(myTeam0) && !(source === 'fa' && faAllowedDespiteBan(state.players, state.playerTeamId))) return state
           const offers = state.currentSeason.acquisitionOffers ?? []
           const active = offers.find(o => o.playerId === playerId && (o.status === 'pending' || o.status === 'countered'))
           if (active) return state
@@ -3214,7 +3242,7 @@ export const useGameStore = create<GameStore>()(
               if (t.id !== state.playerTeamId) return t
               return {
                 ...t,
-                finance: { ...t.finance, budget: Math.max(0, t.finance.budget - buyoutCost) },
+                finance: { ...t.finance, budget: t.finance.budget - buyoutCost },
                 roster: {
                   main: t.roster.main.filter(id => id !== playerId),
                   second: t.roster.second.filter(id => id !== playerId),
@@ -3427,6 +3455,10 @@ export const useGameStore = create<GameStore>()(
         // レンタル枠 最大3（借りている選手＝loan.ownerTeamId が自分でない）
         const usedSlots = st.players.filter(p => p.teamId === st.playerTeamId && p.loan && p.loan.ownerTeamId !== st.playerTeamId).length
         if (usedSlots >= 3) return false
+        // ロスター上限チェック。借入も1人ぶん枠を食う。以前は判定が無く、上限を超えたうえに
+        // レンタル選手は解雇できないため人数を戻せない詰み状態になっていた。
+        const myRosterNow = st.players.filter(p => p.teamId === st.playerTeamId && p.status !== 'retired').length
+        if (myRosterNow >= ROSTER_MAX) return false
         // 相手チームの主力（複数年の出場＋ECL経験で判定）は貸さない（forceなら相手が貸す打診済みなのでスキップ）
         if (!force && keyPlayerStatus(player, st.currentSeason, st.pastSeasons) !== 'open') return false
         const ownerId = player.teamId
@@ -3830,6 +3862,11 @@ export const useGameStore = create<GameStore>()(
         const hasRequest = requested.length > 0 || requestPickKeys.length > 0
         if (!hasContent || !hasRequest) return false
 
+        // ロスター上限チェック。以前は無かったため、2対1のトレードを重ねると31人・32人…と
+        // 上限を超えて増え、解雇下限やレンタル枠と噛み合って詰む状態になっていた。
+        const myRosterNow = state.players.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
+        if (myRosterNow - offered.length + requested.length > ROSTER_MAX) return false
+
         // 移籍金を払う場合は予算チェック（予算が無条件にマイナスへ落ちるのを防ぐ）
         if (transferFee > 0) {
           const myBudget = state.teams.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
@@ -3887,7 +3924,9 @@ export const useGameStore = create<GameStore>()(
           const teams = state.teams.map(t => {
             if (t.id === state.playerTeamId) return {
               ...t,
-              roster: { main: myMainAfterTrade, second: [...t.roster.second.filter(id => !offeredIds.includes(id)), ...incomingIds] },
+              // 獲得選手は main に入れる。以前は second に入れていたため rosterTier:'main' と食い違い、
+              // ロスター一覧に出ないのに年俸と枠だけ食う「見えない選手」になっていた。
+              roster: { main: [...myMainAfterTrade, ...incomingIds], second: t.roster.second.filter(id => !offeredIds.includes(id)) },
               finance: { ...t.finance, budget: (t.finance.budget ?? 0) - transferFee },
               draftPicks: [...(t.draftPicks ?? []).filter(pk => !offeredPicks.includes(pk)), ...requestedPicks],
             }
@@ -4047,16 +4086,21 @@ export const useGameStore = create<GameStore>()(
             for (const rr of seg.runners) mainRunnerIds.add(rr.playerId)
           }
         }
-        // 1軍の主力（OVR78以上、または3戦以降で1軍出場率55%以上）はリザーブに出せない（格上の無双を防ぐ）。
-        const mainRacesConsumed = currentSeason.currentRaceIndex
-        const isMainRegular = (p: Player) =>
-          isDataKeyPlayer(p, mainRacesConsumed > 0 ? seasonAppearances(p.id, currentSeason.races) / mainRacesConsumed : 0, mainRacesConsumed)
+        // 1軍の主力（本編＋海外リーグの直近3年出場率60%以上。ECL・リザーブは数えない）は
+        // リザーブに出せない（格上の無双を防ぐ）。
+        const isMainRegular = (p: Player) => isMainSquadRegular(p.id, currentSeason, state.pastSeasons)
         const lineups: Record<string, Record<number, string>> = { [playerTeamId]: lineup }
         for (const team of teams) {
           if (team.id === playerTeamId) continue
-          const pool = [...team.roster.main, ...team.roster.second]
+          const roster = [...team.roster.main, ...team.roster.second]
             .map(id => players.find(p => p.id === id))
-            .filter((p): p is Player => !!p && p.status === 'active' && !mainRunnerIds.has(p.id) && !isMainRegular(p))
+            .filter((p): p is Player => !!p && p.status === 'active')
+          // 人数が足りないときだけ段階的に制限を外す（プレイヤー側の画面と同じ順序）。
+          // ①控えのみ → ②主力も解禁 → ③その週の1軍出走者も解禁
+          const needed = race.segments.length
+          const bench = roster.filter(p => !mainRunnerIds.has(p.id) && !isMainRegular(p))
+          const noRegularLimit = roster.filter(p => !mainRunnerIds.has(p.id))
+          const pool = bench.length >= needed ? bench : noRegularLimit.length >= needed ? noRegularLimit : roster
           // OVR順の機械割当ではなく、区間の地形に合った選手を配置（全チーム共通・全区間充填）
           lineups[team.id] = assignLineupByTerrain(pool, race)
         }
@@ -4647,13 +4691,16 @@ export const useGameStore = create<GameStore>()(
         const cpuReleasedIds = new Set<string>()
         const playersAfterCpuRelease = (() => {
           const releaseSet = new Set<string>()
+          // 他チームから借りている選手は解雇できない（保有権が無い）。以前は対象に含まれていて、
+          // 強制解雇でよそのクラブの選手をFAにしてしまっていた。返却はレンタル期間の処理に任せる。
+          const isLoanedIn = (x: Player) => !!x.loan && x.loan.ownerTeamId !== x.teamId
           const cpuTeamIds = [...new Set(
             state.players
               .filter(p => p.teamId !== state.playerTeamId && p.teamId !== '' && p.teamId !== '__pool__' && domesticTeamIdSet.has(p.teamId))
               .map(p => p.teamId)
           )]
           for (const teamId of cpuTeamIds) {
-            const roster = state.players.filter(x => x.teamId === teamId && x.rosterTier === 'main' && x.status === 'active')
+            const roster = state.players.filter(x => x.teamId === teamId && x.rosterTier === 'main' && x.status === 'active' && !isLoanedIn(x))
             const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + ovr(x), 0) / roster.length : 60
             // Release aging veterans whose OVR dropped below team average and contract is expiring
             for (const p of roster) {
@@ -4672,7 +4719,7 @@ export const useGameStore = create<GameStore>()(
             // 総在籍（1軍+2軍・引退除く）が上限（30−ドラフト加入予定数）を超えるチームは
             // OVR下位から解雇して収める。既に膨らんだセーブもここを通れば毎年是正される
             const cpuCap = rosterCapFor(teamId)
-            const totalRoster = state.players.filter(x => x.teamId === teamId && x.status === 'active' && !releaseSet.has(x.id))
+            const totalRoster = state.players.filter(x => x.teamId === teamId && x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
             if (totalRoster.length > cpuCap) {
               const sortedAll = [...totalRoster].sort((a, b) => {
                 const scoreA = ovr(a) - (a.age > 30 ? 8 : 0) - (a.age > 33 ? 8 : 0)
@@ -4685,7 +4732,7 @@ export const useGameStore = create<GameStore>()(
           // 自チーム：シーズン中に整理しなかった超過分を、OVR下位から強制的にFAへ（警告で猶予を与えた上での最終処理）。
           // ドラフト加入分も差し引いておかないと、指名後に30を超えてしまう
           const myCap = rosterCapFor(state.playerTeamId)
-          const myRoster = state.players.filter(x => x.teamId === state.playerTeamId && x.status === 'active' && !releaseSet.has(x.id))
+          const myRoster = state.players.filter(x => x.teamId === state.playerTeamId && x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
           if (myRoster.length > myCap) {
             [...myRoster].sort((a, b) => ovr(a) - ovr(b)).slice(0, myRoster.length - myCap).forEach(p => releaseSet.add(p.id))
           }
@@ -5060,9 +5107,12 @@ export const useGameStore = create<GameStore>()(
             }
           })
 
+        // isInitialized は true のまま維持する。以前ここで false に落としていたため、
+        // セーブ破壊ガード（進行中セーブの上に初期状態を書かない仕組み）が全ての保存を拒否し、
+        // ドラフト中は一切セーブされず、落ちるとドラフト前まで巻き戻っていた。
+        // ドラフト画面への遷移は App.tsx 側で draftState を見て判定する。
         set({
           draftState: { pool, pickOrder, currentPick: 0, picks: [], isComplete: false },
-          isInitialized: false,
           players: [...playersWithForeignSigns, ...pool],
           teams: teamsWithAllCpuSigns,
           // 海外FA補強で獲得した選手をクラブ名簿にも反映（teamIdと名簿の同期）
@@ -5561,12 +5611,17 @@ export const useGameStore = create<GameStore>()(
           }
 
           // 1軍・2軍とも年俸を予算から控除（以前は main のみで二軍が実質無料だった）
-          const playerSalaryTotal = playersAfterMorale
+          // 集計元は state.players（契約満了・引退を処理する前）。playersAfterMorale だと
+          // 今季で退団する選手の teamId が空になっているため、今季1年ぶんの年俸が請求されず消えていた。
+          const playerSalaryTotal = state.players
             .filter(p => p.teamId === state.playerTeamId && (p.rosterTier === 'main' || p.rosterTier === 'second'))
             .reduce((s, p) => s + p.contract.annualSalary, 0)
 
           const playerTeamObj = teamsWithFA.find(t => t.id === state.playerTeamId)
-          const sponsorAnnual = (playerTeamObj?.sponsors ?? [])
+          // スポンサー収入は myActiveSponsorIds（契約満了を反映する前のリスト）が基準。
+          // teamsWithFA からだと今季で満了したスポンサーが既に外れていて、
+          // 最終年ぶんの協賛金をまるごと受け取れていなかった。
+          const sponsorAnnual = myActiveSponsorIds
             .map(id => (state.sponsors ?? []).find(s => s.id === id))
             .filter(Boolean)
             .reduce((s, sp) => s + sp!.annualPayment, 0)
@@ -5608,8 +5663,10 @@ export const useGameStore = create<GameStore>()(
             objBonus: objBudgetBonus,
             expenses: 0,  // 精算済みのためcarryoverに織り込み（旧セーブの表示互換のためフィールドは残す）
           }
-          // 単年の営業収支が赤字なら連続赤字カウント+1、黒字なら0にリセット（残高ではなく単年収支で判定）
-          const newStreakMe = seasonOperatingResult(playerBudgetArgs) < 0 ? prevStreakMe + 1 : 0
+          // シーズンを終えた時点の残高がマイナスなら連続赤字+1、プラスなら0にリセット。
+          // 判定は「精算後に残高が残っているか」だけ。以前は「単年営業収支」という別指標で判定していたが、
+          // 残高はプラスなのに赤字扱いという食い違いを生むだけだったため、元の残高判定に戻した。
+          const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
 
           // 全チームの来季予算を順位連動に（自チームと同じ computeNextSeasonBudget）。
           const teamSalaryTotal = (teamId: string) => playersAfterMorale
@@ -5640,8 +5697,8 @@ export const useGameStore = create<GameStore>()(
               runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), effectiveGrant(rank, prevStreak)),
             }
             const b = computeNextSeasonBudget(cpuBudgetArgs)
-            // 単年収支が赤字なら連続赤字+1（残高ではなく単年で判定）
-            const cpuStreak = seasonOperatingResult(cpuBudgetArgs) < 0 ? prevStreak + 1 : 0
+            // 自チームと同じ判定：精算後の残高がマイナスなら連続赤字+1、プラスなら0
+            const cpuStreak = b < 0 ? prevStreak + 1 : 0
             return { ...t, finance: { ...t.finance, budget: b, salaryTotal: sal, deficitStreak: cpuStreak } }
           })
 
@@ -7546,11 +7603,15 @@ export const useGameStore = create<GameStore>()(
         // 公式Xフォロー案内は「この端末で一度見たか」の記録なので、リセット（新規ゲーム）でも保持する。
         // これをリセットすると毎回案内が出てしまう（最初の起動時1回だけにする）。
         const twSeen = get().twitterIntroSeen
-        set({ ...(emptyState() as unknown as GameStore), adsRemoved: paid, twitterIntroSeen: twSeen })
-        // ファイル保存(native)はlocalStorageを消しても残るため、初期化状態を即時フラッシュして確定させる。
-        // （旧セーブ掃除のため localStorage も従来どおり削除）
-        localStorage.removeItem('jpel-manager-save')
-        void flushSaveNow()
+        // native のセーブはファイル保存なので localStorage を消しても残る。以前はファイルを消さずに
+        // 初期状態を flush していただけで、セーブ破壊ガード（進行中セーブに初期状態を書かせない仕組み）に
+        // 弾かれて何も書かれず、再起動すると削除したはずの古いセーブが復活していた。
+        // 先にファイルを削除してガードを解除してから初期状態を書き込む。
+        void (async () => {
+          await deleteSaveForRecovery()
+          set({ ...(emptyState() as unknown as GameStore), adsRemoved: paid, twitterIntroSeen: twSeen })
+          await flushSaveNow()
+        })()
       },
     }),
     {
@@ -7954,11 +8015,18 @@ export const useGameStore = create<GameStore>()(
           // 更新されないまま「セーブが無い」のと同じ状態になり、新規ゲーム画面が出てしまう。
           console.error('[save] merge failed; falling back to a plain merge', e)
           const fb = (persistedState && typeof persistedState === 'object' ? persistedState : {}) as Partial<typeof currentState>
-          return {
+          const merged = {
             ...currentState,
             ...fb,
             currentSeason: { ...currentState.currentSeason, ...(fb.currentSeason ?? {}) },
           }
+          // セーブの中身はあるのに isInitialized を取り出せなかった場合、そのまま返すと
+          // 新規ゲーム画面が出る。しかもセーブ破壊ガードで書き込みは拒否されるため、
+          // 「チームを作り直したのに何も保存されない」状態になっていた。復旧画面へ回す。
+          if (!merged.isInitialized && (Array.isArray(fb.players) ? fb.players.length > 0 : fb.playerTeamId != null)) {
+            setSaveHealth('failed', 'セーブの変換に失敗しました')
+          }
+          return merged
         }
       },
       // 読み込み（hydration）の成否をアプリ側へ伝える唯一のフック。

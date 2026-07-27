@@ -293,6 +293,12 @@ export default function Dashboard() {
     startRegularSeason, initObjectivesIfEmpty, getTeamPlayers,
   } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
+  // 世界陸上関連のstate。early return（!team）より後ろで useGameStore を呼ぶとフック数が変わり、
+  // 「Rendered fewer hooks than expected」で白画面になるため必ずここで取る。
+  const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
+  const worldSquad = useGameStore(s => s.worldSquad)
+  const worldTournament = useGameStore(s => s.worldTournament)
+  const startWorldTournament = useGameStore(s => s.startWorldTournament)
   const navigate = useNavigate()
   useEffect(() => {
     initObjectivesIfEmpty()
@@ -332,10 +338,6 @@ export default function Dashboard() {
 
   // 世界陸上：JPELファイナル後〜シーズン終了の間に挟むステップ。
   // 偶数年=本番 / 奇数年=アジア＋オセアニア予選。実行済み(waDone)になって初めてシーズン終了カードが出る
-  const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
-  const worldSquad = useGameStore(s => s.worldSquad)
-  const worldTournament = useGameStore(s => s.worldTournament)
-  const startWorldTournament = useGameStore(s => s.startWorldTournament)
   const waDone = (worldAthleticsResults ?? []).some(r => r.year === currentSeason.year)
   const waIsMain = (currentSeason.year - 2028) % 2 === 0
   const waTitle = waIsMain ? `世界陸上 ${currentSeason.year}` : `世界陸上アジア予選 ${currentSeason.year}`

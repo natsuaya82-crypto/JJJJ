@@ -224,6 +224,42 @@ export function isDataKeyPlayer(_p: Player, playFraction: number, teamRaces: num
   return teamRaces >= 3 && playFraction >= 0.55
 }
 
+// ── リザーブリーグの出場資格：「1軍の主力」判定 ──
+// 引き抜き耐性(keyPlayerStatus)と同じ「複数年の出場率」で決める。ただし契約残・士気による
+// 抜け道（引き抜き専用のルール）は入れないので、契約最終年の主力もリザーブには出せない。
+// 数えるのは本編リーグと海外リーグだけ。ECL・リザーブ・世界陸上・大学は分母にも分子にも入れない
+// （ECLは出場枠が狭くて率が暴れる／リザーブを数えると若手が出ただけで主力になってしまう）。
+// 出場歴のあるシーズンが無い＝1年目・新人は主力扱いしない（自由にリザーブへ出せる）。
+export const RESERVE_MAIN_RATE = 0.60      // この率以上で1軍の主力＝リザーブ不可
+const RESERVE_MIN_SAMPLE = 5               // 判定に必要な最低消化レース数（1戦だけ出て主力扱いを防ぐ）
+
+type SquadSeasonLike = {
+  year: number
+  races?: readonly RaceLike[]
+  foreignAppearances?: Record<string, { races: number }>
+  foreignRaceIndex?: number
+}
+
+// そのシーズンの「リーグ出場数 / リーグ開催数」。海外在籍の年は海外リーグの数字を使う
+// （海外は国内レースに出ないので races からは拾えない。foreignRaceIndex＝消化マッチデー数が分母）。
+function leagueAppearanceRate(playerId: string, s: SquadSeasonLike): { apps: number; total: number } {
+  const fa = s.foreignAppearances?.[playerId]
+  if (fa && fa.races > 0) return { apps: fa.races, total: Math.max(fa.races, s.foreignRaceIndex ?? fa.races) }
+  return { apps: seasonAppearances(playerId, s.races ?? []), total: (s.races ?? []).filter(r => r.results).length }
+}
+
+export function isMainSquadRegular(playerId: string, currentSeason: SquadSeasonLike, pastSeasons: readonly SquadSeasonLike[]): boolean {
+  // 出場歴のあるシーズンを新しい順に最大3年ぶん合算する
+  const seasons = [...pastSeasons, currentSeason]
+    .filter(s => leagueAppearanceRate(playerId, s).apps > 0)
+    .sort((a, b) => b.year - a.year)
+    .slice(0, 3)
+  let apps = 0, total = 0
+  for (const s of seasons) { const r = leagueAppearanceRate(playerId, s); apps += r.apps; total += r.total }
+  if (total < RESERVE_MIN_SAMPLE) return false
+  return apps / total >= RESERVE_MAIN_RATE
+}
+
 type SeasonLike = { year: number; races?: readonly RaceLike[]; eclSeries?: { races?: readonly RaceLike[] } }
 
 // 引き抜き耐性ステータス（複数年の本編駅伝 出場データ＋ECL経験で判定）。

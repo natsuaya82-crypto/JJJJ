@@ -3,17 +3,18 @@
 
 import { Capacitor } from '@capacitor/core'
 import { useLoadingStore } from '../store/loadingStore'
+import { loginTodayKey } from './loginDate'
 
 const BANNER_AD_ID = 'ca-app-pub-7463045893100088/8946193510'
 const REWARD_AD_ID = 'ca-app-pub-7463045893100088/5817804007'
 const INTERSTITIAL_AD_ID = 'ca-app-pub-7463045893100088/6600640316'
 
 // 広告の「1日」の区切り（朝10時締め）。store と画面表示で同じ日付を使うために共通化する。
+// 以前はローカル時刻で前日補正したあと toISOString()（UTC）で文字列化していたため、
+// 日本時間だと 00:00 / 09:00 / 10:00 の3回キーが変わり、1日3回のはずの回数制限が
+// 実質9回になっていた。ログインボーナスと同じローカル日付キーに統一する。
 export function getAdDay(): string {
-  const now = new Date()
-  const base = new Date(now)
-  if (base.getHours() < 10) base.setDate(base.getDate() - 1)
-  return base.toISOString().slice(0, 10)
+  return loginTodayKey()
 }
 
 export const ADS_PER_DAY = 3

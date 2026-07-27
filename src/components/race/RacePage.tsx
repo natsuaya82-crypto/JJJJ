@@ -1,6 +1,6 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useGameStore, individualEventAbility } from '../../store/gameStore'
+import { useGameStore, individualEventAbility, applyRaceBoosts } from '../../store/gameStore'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { runWithLoading } from '../../store/loadingStore'
 import type { RaceResults, IndividualEvent, Player, Team } from '../../types'
@@ -299,6 +299,14 @@ export default function RacePage() {
     simulateIndividualEvent,
   } = useGameStore()
 
+  // タイム計算に使う選手配列。戦術分析室（ペース配分・メンタル+Lv）と国籍ケミストリー（士気+）を反映する。
+  // リーグ戦のタイムはこの画面で計算して store に渡すため、ここで補正を掛けないと施設の効果が消える。
+  // 表示用（ロスター一覧・記録会）には素の players を使い、能力値の見た目は変えない。
+  const racePlayers = useMemo(
+    () => applyRaceBoosts(players, teams, playerTeamId, raceLineup),
+    [players, teams, playerTeamId, raceLineup],
+  )
+
   const [phase, setPhaseLocal] = useState<Phase>('lineup')
   const [pickerSeg, setPickerSeg] = useState<number | null>(null)
   const [results, setResults] = useState<RaceResults | null>(null)
@@ -364,6 +372,18 @@ export default function RacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, raceLineup])
 
+  // イベントが無い区間（イベントオフ設定・抽選でイベント0件）は選択待ちが発生しないため、自動で区間を確定する。
+  // 従来はイベント選択の完了時にしか確定されず、流し見モードでスキップを押すまで止まってしまっていた。
+  // 結果の「表示」はSimPhase側がアニメ完了まで待つので、先に確定しても走りは最後まで見える
+  // ※このフックは early return より前に置く。後ろだとレース未設定時にフック数が変わって
+  //   「Rendered fewer hooks than expected」で白画面になる（finalizeCurrentSegは関数宣言なので巻き上げで呼べる）。
+  useEffect(() => {
+    if (!iSim || !race || phase !== 'simulating') return
+    if (iSim.showingSegResult || iSim.pendingEvents.length > 0) return
+    finalizeCurrentSeg(iSim)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iSim, phase])
+
   if (!currentRace && phase === 'lineup') {
     return (
       <div style={{
@@ -388,13 +408,13 @@ export default function RacePage() {
     if (!seg) return sim
 
     const playerPlayerId = raceLineup[segIdx]
-    const playerObj = players.find(p => p.id === playerPlayerId)
+    const playerObj = racePlayers.find(p => p.id === playerPlayerId)
     const playerTeam = teams.find(t => t.id === playerTeamId)
     const seasonProgress = raceIndex / currentSeason.races.length
     const totalSegs = activeRace.segments.length
 
     const cpuTimesForSeg = calcCpuTimesForSeg(
-      seg, teams, sim.cpuLineups, players, playerTeamId,
+      seg, teams, sim.cpuLineups, racePlayers, playerTeamId,
       activeRace, seasonProgress, totalSegs,
     )
 
@@ -424,7 +444,7 @@ export default function RacePage() {
           isFirstSeg: segIdx === activeRace.segments[0]?.index,
           player: playerObj,
           totalSegs,
-          players,
+          players: racePlayers,
           cpuLineups: sim.cpuLineups,
           teams,
         })
@@ -487,7 +507,7 @@ export default function RacePage() {
     if (!event) return
 
     const playerPlayerId = raceLineup[iSim.currentSegIdx]
-    const playerObj = players.find(p => p.id === playerPlayerId)
+    const playerObj = racePlayers.find(p => p.id === playerPlayerId)
     if (!playerObj) return
 
     const { staminaDelta: _sd, timeDelta, newStamina } = resolveChoice(event, choiceIdx, iSim.segStamina, iSim.playerBaseTime)
@@ -521,7 +541,7 @@ export default function RacePage() {
     if (sim.showingSegResult || sim.completedSegs.some(s => s.segmentIndex === sim.currentSegIdx)) return
 
     const playerPlayerId = raceLineup[sim.currentSegIdx]
-    const playerObj2 = players.find(p => p.id === playerPlayerId)
+    const playerObj2 = racePlayers.find(p => p.id === playerPlayerId)
     const playerTeam2 = teams.find(t => t.id === playerTeamId)
     const seg2 = race.segments.find(s => s.index === sim.currentSegIdx)
     const seasonProgress2 = raceIndex / currentSeason.races.length
@@ -564,16 +584,6 @@ export default function RacePage() {
       pendingEvents: [],
     })
   }
-
-  // イベントが無い区間（イベントオフ設定・抽選でイベント0件）は選択待ちが発生しないため、自動で区間を確定する。
-  // 従来はイベント選択の完了時にしか確定されず、流し見モードでスキップを押すまで止まってしまっていた。
-  // 結果の「表示」はSimPhase側がアニメ完了まで待つので、先に確定しても走りは最後まで見える
-  useEffect(() => {
-    if (!iSim || !race || phase !== 'simulating') return
-    if (iSim.showingSegResult || iSim.pendingEvents.length > 0) return
-    finalizeCurrentSeg(iSim)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [iSim, phase])
 
   function handleAdvance() {
     if (!iSim || !race) return
@@ -660,10 +670,10 @@ export default function RacePage() {
     for (const seg of segs) {
       if (doneSeg.has(seg.index)) continue
       const pid = raceLineup[seg.index]
-      const playerObj = players.find(p => p.id === pid)
+      const playerObj = racePlayers.find(p => p.id === pid)
       const playerTeam = teams.find(t => t.id === playerTeamId)
 
-      const cpuTimes = calcCpuTimesForSeg(seg, teams, sim.cpuLineups, players, playerTeamId, race, seasonProgress, totalSegs)
+      const cpuTimes = calcCpuTimesForSeg(seg, teams, sim.cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
       // スキップ区間もCPUと同じ消耗込み計算で見積もる
       const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
       const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
@@ -719,9 +729,9 @@ export default function RacePage() {
     const segPts: Record<string, number> = {}
     for (const seg of race.segments) {
       const pid = raceLineup[seg.index]
-      const playerObj = players.find(p => p.id === pid)
+      const playerObj = racePlayers.find(p => p.id === pid)
       const playerTeam = teams.find(t => t.id === playerTeamId)
-      const cpuTimes = calcCpuTimesForSeg(seg, teams, cpuLineups, players, playerTeamId, race, seasonProgress, totalSegs)
+      const cpuTimes = calcCpuTimesForSeg(seg, teams, cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
       const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
       const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
       const pBase = playerObj
@@ -797,7 +807,7 @@ export default function RacePage() {
     }
 
     // ライブ表示用：現在のスタミナ・イベント補正を反映した投影最終タイム（実結果と一致させる）
-    const livePlayerObj = players.find(p => p.id === raceLineup[segIdx])
+    const livePlayerObj = racePlayers.find(p => p.id === raceLineup[segIdx])
     const livePlayerTeam = teams.find(t => t.id === playerTeamId)
     const liveSeg = race.segments.find(s => s.index === segIdx)
     const liveSeasonProgress = raceIndex / currentSeason.races.length

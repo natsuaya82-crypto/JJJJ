@@ -15,6 +15,7 @@ import ChampionsHistoryPage from './src/components/records/ChampionsHistoryPage'
 import CreateMyPlayerPage from './src/components/player/CreateMyPlayerPage'
 import PlayerSheet from './src/components/shared/PlayerSheet'
 import PlayerRow from './src/components/player/PlayerRow'
+import MorePage from './src/components/more/MorePage'
 import { NATIONALITY_META } from './src/data/nationalities'
 import './src/index.css'
 
@@ -107,7 +108,11 @@ function seedAndMount() {
   const path = hash === 'tournament' ? '/national/tournament' : hash === 'result' ? '/national/result'
     : hash === 'hub' ? '/records' : hash === 'franchise' ? '/records/franchise' : hash === 'individual' ? '/records/individual' : hash === 'gm' ? '/records/gm'
     : hash === 'records' ? '/records/franchise' : hash === 'champions' ? '/records/champions'
-    : hash === 'roster' ? '/preview/roster' : hash === 'create' ? '/create-player' : '/national/select'
+    : hash === 'roster' ? '/preview/roster' : hash === 'create' ? '/create-player'
+    : hash === 'more' || hash === 'more-owned' ? '/more' : '/national/select'
+
+  // 課金カード確認用: 購入済み状態も見る
+  if (hash === 'more-owned') useGameStore.setState({ adsRemoved: true } as never)
 
   // 記録室系ハッシュ: 過去シーズン・年間表彰・優勝回数など記録データをモックで仕込む
   if (['hub', 'franchise', 'individual', 'gm', 'records', 'champions'].includes(hash)) {
@@ -198,6 +203,7 @@ function seedAndMount() {
           <Route path="/records/champions" element={<ChampionsHistoryPage />} />
           <Route path="/create-player" element={<CreateMyPlayerPage />} />
           <Route path="/preview/roster" element={<RosterPreview />} />
+          <Route path="/more" element={<MorePage />} />
         </Routes>
       </Layout>
       <PlayerSheet />

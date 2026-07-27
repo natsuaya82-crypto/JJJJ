@@ -4,7 +4,7 @@ import { useGameStore, reinforcementBanned } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { computeNextSeasonBudget, seasonOperatingResult, deficitGapToBreakEven, rankBudgetGrant, racePrizeByRank, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT, DUTY_RESERVE_GRANT_CUT } from '../../data/economy'
+import { rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT, DUTY_RESERVE_GRANT_CUT } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -68,55 +68,21 @@ export default function BudgetPage() {
   const initialBudget = currentSeason.initialBudget ?? budget
   const transferIncome = currentSeason.transferIncome ?? 0
   const transferSpend = currentSeason.transferSpend ?? 0
-  const seasonBalance = initialBudget + transferIncome - transferSpend - squadSalaryTotal - opCost - facilityUpkeep
+  // 期末残高は「今の残高 − シーズン終了時に精算する固定支出」。
+  // 以前は初期予算＋移籍金収支から組み立て直していたため、ECL賞金・イベント・海外移籍金などが
+  // 一切乗らず、来季の初期予算と数字が合わなかった。実際の残高を基準にする。
+  const otherIncome = budget - (initialBudget + transferIncome - transferSpend)
+  const seasonBalance = budget - squadSalaryTotal - opCost - facilityUpkeep
   // 初期予算の内訳（2年目以降。前季endSeasonで確定）。何が合わさって初期予算かを表示。
   // 旧形式（繰越=精算前の期末残高・支出が別行）のセーブは、表示時に精算後の最終収支へ変換する
   const bdRaw = currentSeason.budgetBreakdown
   const bd = bdRaw ? { ...bdRaw, carryover: bdRaw.carryover - (bdRaw.expenses ?? 0), expenses: 0 } : undefined
-  const prizePerRace = racePrizeByRank(myRank || teams.length)
-  const racesLeft = Math.max(0, (currentSeason.races?.length ?? 10) - currentSeason.currentRaceIndex)
-  const racesTotal = currentSeason.races?.length ?? 10
-
-  const estimatedSeasonPrize = (() => {
-    const SEASON_PRIZE: Record<number, number> = { 1: 50000000, 2: 30000000, 3: 20000000, 4: 10000000, 5: 10000000 }
-    return SEASON_PRIZE[myRank] ?? 5000000
-  })()
-  const estimatedRemainingRacePrize = prizePerRace * racesLeft
-  const estimatedRemainingAttendance = (
-    myRank === 1 ? 1800000 : myRank <= 3 ? 1100000 : myRank <= 6 ? 600000 : myRank <= 10 ? 400000 : 300000
-  ) * racesLeft
-  const estimatedSponsorRemaining = racesLeft > 0 ? Math.round(sponsorAnnual / racesTotal) * racesLeft : 0
-
   // 育成義務ペナルティの見込み（在籍22人以下 or リザーブリーグ不参加で来季グラント減額）
   // 補強禁止中は免除される（選手を売るしか脱出手段が無いのに人数減で更に減額される罠を防ぐ）
   const banned = reinforcementBanned(myTeam)
   const deficitStreak = myTeam?.finance.deficitStreak ?? 0
   const reserveJoined = (currentSeason.secondTeamRaces ?? []).length === 0 || currentSeason.reserveLeagueJoined === true
   const dutyCut = leagueDutyGrantCut(rosterPlayers.length, reserveJoined, banned)
-
-  // 来季予算の見込み（現順位を最終順位と仮定・実モデルと同じ計算）
-  const seasonRaceIncomeSoFar = currentSeason.seasonRaceIncome ?? 0
-  const projectedSeasonRaceIncome = seasonRaceIncomeSoFar + estimatedRemainingRacePrize + estimatedRemainingAttendance
-  // 判定・見込みで同じ引数を共有する（store の endSeason と同じ形）
-  const budgetArgs = {
-    finalRank: myRank || teams.length,
-    prevBalance: budget,
-    deficitStreak,
-    sponsorAnnual,
-    seasonRaceIncome: projectedSeasonRaceIncome,
-    objBudgetBonus: 0,
-    bonusPayout: 0,
-    salaryTotal: squadSalaryTotal,
-    runningCost: facRunningCost,
-    dutyGrantCut: dutyCut,
-  }
-  const projectedNextBudget = computeNextSeasonBudget(budgetArgs)
-  // 連続赤字＝補強禁止の判定に使っている値そのもの（繰越残高を含まない単年の営業収支）
-  const operatingResult = seasonOperatingResult(budgetArgs)
-  const gapToBreakEven = deficitGapToBreakEven(budgetArgs)
-
-  // 今シーズンの収支＝お金関係を全部合計（予算繰越＋グラント＋スポンサー＋賞金観客 − 年俸 − 運営費 − 施設維持費）。
-  const seasonNet = budget + nextGrant + sponsorAnnual + projectedSeasonRaceIncome - squadSalaryTotal - facRunningCost
 
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 
@@ -203,6 +169,7 @@ export default function BudgetPage() {
             )}
             {transferIncome > 0 && <Row label="移籍金収入" value={`+${fmt(transferIncome)}`} color={C.green} sub="選手・指名権の売却" />}
             {transferSpend > 0 && <Row label="移籍金支出" value={`-${fmt(transferSpend)}`} color={C.red} sub="移籍金での選手獲得" />}
+            {otherIncome !== 0 && <Row label="その他収支" value={`${otherIncome >= 0 ? '+' : '-'}${fmt(Math.abs(otherIncome))}`} color={otherIncome >= 0 ? C.green : C.red} sub="ECL賞金・イベント・海外移籍など" />}
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
             <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
@@ -227,43 +194,18 @@ export default function BudgetPage() {
               )
             })()}
 
-            {/* ── 単年営業収支：連続赤字＝補強禁止の判定に使っている値そのもの ── */}
-            {/* 「毎季黒字なのに補強禁止」の原因は、残高（繰越込み）と判定値（単年・繰越なし）が別物だったこと。 */}
-            <div style={{
-              margin: '8px 0 10px', padding: '10px 12px', borderRadius: 10,
-              background: alpha(operatingResult >= 0 ? C.green : C.red, 0.08),
-              border: `1px solid ${alpha(operatingResult >= 0 ? C.green : C.red, 0.35)}`,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: C.text }}>単年営業収支</div>
-                  <div style={{ fontSize: 9, color: C.textGhost, marginTop: 2, lineHeight: 1.5 }}>
-                    繰越・移籍金を除いた今季単体の収支。<b style={{ color: C.textSub }}>連続赤字（＝補強禁止）はこの値で判定</b>
-                  </div>
-                </div>
-                <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: operatingResult >= 0 ? C.green : C.red, marginLeft: 8 }}>
-                  {fmt(operatingResult, true)}
-                </div>
+            {/* 連続赤字＝補強禁止のカウント。判定はシーズン終了時の「期末残高がマイナスかどうか」だけ。
+                以前ここに置いていた「単年営業収支」の見込み表示は、確定値ではなく画面を開くたびに
+                今季の先を計算し直す予測だったため、上の期末残高と食い違って見えるだけの表示になっていた。撤去。 */}
+            <div style={{ marginTop: 6, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.textDim, lineHeight: 1.7 }}>
+              <div>連続赤字: <b style={{ color: deficitStreak > 0 ? C.red : C.textSub, fontFamily: SAIRA, fontSize: 12 }}>{deficitStreak}年</b>
+                <span style={{ color: C.textGhost }}>（シーズン終了時に期末残高がマイナスなら+1年。2年でグラント-20%／3年で-35%＋ドラフト指名権の強制売却）</span>
               </div>
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.textDim, lineHeight: 1.7 }}>
-                <div>連続赤字: <b style={{ color: deficitStreak > 0 ? C.red : C.textSub, fontFamily: SAIRA, fontSize: 12 }}>{deficitStreak}年</b>
-                  <span style={{ color: C.textGhost }}>（2年でグラント-20%／3年で-35%＋ドラフト指名権の強制売却）</span>
+              {banned && (
+                <div style={{ marginTop: 3, color: C.orange }}>
+                  現在<b>補強禁止中</b>（{budget < 0 ? '残高マイナス' : `${deficitStreak}年連続赤字`}）。期末残高をプラスで終えると解除されます
                 </div>
-                {gapToBreakEven > 0 ? (
-                  <div style={{ marginTop: 3, color: C.red }}>
-                    黒字化にあと<b style={{ fontFamily: SAIRA, fontSize: 12 }}>{fmt(gapToBreakEven)}円</b> — 総年俸を下げるか、収入を増やしてください
-                  </div>
-                ) : (
-                  <div style={{ marginTop: 3, color: C.green }}>
-                    このままシーズンを終えれば黒字。連続赤字カウントは0にリセットされます
-                  </div>
-                )}
-                {banned && (
-                  <div style={{ marginTop: 3, color: C.orange }}>
-                    現在<b>補強禁止中</b>（{budget < 0 ? '残高マイナス' : `${deficitStreak}年連続赤字`}）。単年営業収支を黒字に戻し、かつ残高をプラスにすると解除されます
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
             <div style={{ fontSize: 10, color: C.textDim, padding: '2px 0 6px', lineHeight: 1.6 }}>

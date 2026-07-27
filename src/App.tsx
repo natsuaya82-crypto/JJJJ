@@ -385,7 +385,9 @@ export default function App() {
     content = <TitleScreen onStart={handleTitleStart} />
   } else if (!isInitialized && !draftState) {
     content = <Onboarding />
-  } else if (!isInitialized && draftState && !draftState.isComplete) {
+  } else if (draftState && !draftState.isComplete) {
+    // 進行中のドラフトは isInitialized を見ずに draftState だけで判定する。
+    // 2年目以降のドラフトでも isInitialized=true のままセーブを効かせるため（途中で落ちても巻き戻らない）。
     content = <DraftRoom />
   } else if (!isInitialized && draftState?.isComplete) {
     content = <DraftRoom />

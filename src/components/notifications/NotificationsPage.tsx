@@ -665,7 +665,7 @@ export default function NotificationsPage() {
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>赤字が解消するまで補強できません</div>
                     <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginBottom: '8px' }}>
-                      理由: {(myTeamFinance?.budget ?? 0) < 0 ? '予算残高がマイナスです。' : `${myTeamFinance?.deficitStreak ?? 0}シーズン連続で単年の営業収支が赤字です。`}
+                      理由: {(myTeamFinance?.budget ?? 0) < 0 ? '予算残高がマイナスです。' : `${myTeamFinance?.deficitStreak ?? 0}シーズン連続で期末残高がマイナスです。`}
                     </div>
                     <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '10px', lineHeight: 1.7 }}>
                       <div>・禁止されるもの: FA・移籍金での獲得・引き抜き・レンタル・海外獲得</div>

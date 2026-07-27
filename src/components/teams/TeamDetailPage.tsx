@@ -95,6 +95,13 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const longPressP = usePlayerLongPress()
   const [activePage, setActivePage] = useState(0)
   const [moveTab, setMoveTab] = useState<'in' | 'out'>('in')
+  // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細（共有フック）
+  const { rowHandlers, overlay } = useOpponentMenu()
+  // ページ確定はスクロールが止まってから。スワイプ中に activePage を切り替えると
+  // 非表示ページの高さ畳み（maxHeight）が発火してレイアウトが動き、スナップが効かなくなる
+  const scrollEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // ※上記のフックは「チームが見つかりません」の early return より前に置く。
+  //   後ろに置くとフック数が変わって「Rendered fewer hooks than expected」で白画面になる。
 
   const isForeign = !!clubId
   const league = isForeign ? foreignLeagues.find(l => l.id === leagueId) : undefined
@@ -114,9 +121,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const shortName = found.shortName
 
   const isMyTeam = !isForeign && id === playerTeamId
-
-  // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細（共有フック）
-  const { rowHandlers, overlay } = useOpponentMenu()
 
   // ロスター（1軍/2軍の区別なし）
   const mainPlayers = (isForeign
@@ -277,9 +281,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const movesOut = moveEntries.filter(r => r.dir === 'out')
   const resolveAnyTeam = (tid: string) => teams.find(t => t.id === tid) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === tid)
 
-  // ページ確定はスクロールが止まってから。スワイプ中に activePage を切り替えると
-  // 非表示ページの高さ畳み（maxHeight）が発火してレイアウトが動き、スナップが効かなくなる
-  const scrollEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const handleScroll = () => {
     if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current)
     scrollEndTimer.current = setTimeout(() => {

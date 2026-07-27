@@ -308,7 +308,7 @@
 					"@executable_path/Frameworks",
 				);
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.1.2;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tokinets.jpelmanager;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -334,7 +334,7 @@
 					"@executable_path/Frameworks",
 				);
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.tokinets.jpelmanager;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

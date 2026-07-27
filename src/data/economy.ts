@@ -155,25 +155,9 @@ export function computeNextSeasonBudget(args: {
   return Math.max(DEFICIT_LIMIT, raw)
 }
 
-// そのシーズン単年の営業収支（income − expenses、繰越残高は含めない）。
-// 連続赤字カウントの判定に使う。残高がプラスでも単年で赤字ならペナルティ対象にする。
-//
-// 【重要】判定のグラントは「連続赤字ペナルティ適用前」の額を使う。
-// ペナルティ後の減った額で判定すると、一度赤字になった時点で判定ラインが自動的に上がり、
-// 同じ経営内容でも永久に赤字扱いのままになる（＝補強禁止が二度と解除されない）。
-// 罰は computeNextSeasonBudget 側の実予算だけに効かせ、判定は常に素の基準で行う。
-export function seasonOperatingResult(args: Parameters<typeof computeNextSeasonBudget>[0]): number {
-  const grant = Math.round(rankBudgetGrant(args.finalRank) * (1 - (args.dutyGrantCut ?? 0)))
-  const income = grant + args.sponsorAnnual + args.seasonRaceIncome + args.objBudgetBonus
-  const expenses = args.bonusPayout + args.salaryTotal + (args.runningCost ?? 0)
-  return income - expenses
-}
-
-// 補強禁止の解除にあと何円必要か（0以下なら解除条件クリア）。
-// seasonOperatingResult と同じ引数を渡す。UI 表示用。
-export function deficitGapToBreakEven(args: Parameters<typeof computeNextSeasonBudget>[0]): number {
-  return Math.max(0, -seasonOperatingResult(args))
-}
+// 連続赤字の判定は computeNextSeasonBudget の結果（＝精算後の残高）がマイナスかどうかだけで行う。
+// かつてここに seasonOperatingResult / deficitGapToBreakEven という「単年営業収支」の指標があったが、
+// 残高はプラスなのに赤字扱いになる、財務画面で予測値と実績値が食い違う、といった混乱を生むだけだったため撤去した。
 
 // ── 移籍入札：相手が受けるかの判定基準（UI の成立確率表示と store の合否判定で共有）──
 // 「受諾ライン」のベース額。実際の判定では threshold = base × (0.9〜1.1 の揺れ) となる。
