@@ -5,16 +5,18 @@
 -- ============================================================
 
 -- ── 後片付け（再実行用） ────────────────────────────────
-drop function if exists public.remove_friend(uuid);
-drop function if exists public.accept_friend_request(uuid);
-drop function if exists public.send_friend_request(text);
-drop function if exists public.find_by_code(text);
-drop table if exists public.friend_requests;
-drop table if exists public.friendships;
-drop table if exists public.rosters;
-drop table if exists public.profiles;
-drop function if exists public.new_friend_code();
-drop function if exists public.touch_updated_at();
+-- cascade を付けるのは、テーブル同士がポリシーで参照し合っているため。
+-- （例：profiles のポリシーが friend_requests を見ているので、素の drop では消せない）
+drop function if exists public.remove_friend(uuid)          cascade;
+drop function if exists public.accept_friend_request(uuid)  cascade;
+drop function if exists public.send_friend_request(text)    cascade;
+drop function if exists public.find_by_code(text)           cascade;
+drop table    if exists public.friend_requests              cascade;
+drop table    if exists public.friendships                  cascade;
+drop table    if exists public.rosters                      cascade;
+drop table    if exists public.profiles                     cascade;
+drop function if exists public.new_friend_code()            cascade;
+drop function if exists public.touch_updated_at()           cascade;
 
 -- ── プロフィール（フレンド一覧・詳細のヘッダーに出る情報） ──
 create table public.profiles (
