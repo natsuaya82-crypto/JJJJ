@@ -8,8 +8,8 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 記録室（RecordsHub）と同じカード意匠でフレンド各画面への入口をまとめる。
 export default function FriendsPage() {
   const navigate = useNavigate()
-  const friends = useFriendsQuery(listFriends)
-  const received = useFriendsQuery(listReceived)
+  const friends = useFriendsQuery(listFriends, [], 'friends')
+  const received = useFriendsQuery(listReceived, [], 'received')
 
   const SECTIONS = [
     {
@@ -25,18 +25,9 @@ export default function FriendsPage() {
       ),
     },
     {
-      key: '/friends/received', label: '承認',
-      count: 0, badge: received.data?.length ?? 0, color: C.green,
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M4 6h16v12H4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-          <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-        </svg>
-      ),
-    },
-    {
-      key: '/friends/sent', label: '申請',
-      count: 0, badge: 0, color: C.cyan,
+      // 申請と承認は同じ画面。分けていると申請のたびに行き来が要って面倒なため
+      key: '/friends/requests', label: '申請・承認',
+      count: 0, badge: received.data?.length ?? 0, color: C.cyan,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <circle cx="10" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8"/>

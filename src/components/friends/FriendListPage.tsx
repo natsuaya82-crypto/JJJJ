@@ -9,7 +9,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function FriendListPage() {
   const navigate = useNavigate()
-  const { data, loading, error, reload } = useFriendsQuery(listFriends)
+  const { data, loading, error, reload } = useFriendsQuery(listFriends, [], 'friends')
   const friends = data ?? []
 
   return (
@@ -22,7 +22,7 @@ export default function FriendListPage() {
       <div style={{ padding: '10px 12px 0' }}>
         <div style={{ fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {loading || error ? '' : friends.length}</div>
         {loading ? <LoadingBox /> : error ? <ErrorBox onRetry={reload} /> : friends.length === 0 ? (
-          <EmptyBox label="まだフレンドがいません。「申請」からコードで追加できます" />
+          <EmptyBox label="まだフレンドがいません。「申請・承認」からコードで追加できます" />
         ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {friends.map(f => (

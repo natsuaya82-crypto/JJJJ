@@ -11,6 +11,7 @@ export default function ConfirmDialog({
   accent = C.cyan,
   onConfirm,
   onCancel,
+  children,
 }: {
   title: string
   message?: string
@@ -19,6 +20,8 @@ export default function ConfirmDialog({
   accent?: string
   onConfirm: () => void
   onCancel: () => void
+  /** タイトルの下に差し込む追加表示（相手のチームカードなど） */
+  children?: React.ReactNode
 }) {
   return (
     <div
@@ -41,7 +44,8 @@ export default function ConfirmDialog({
         onClick={e => e.stopPropagation()}
       >
         <div style={{ fontSize: 9, color: accent, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>確認</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: message ? 8 : 18, lineHeight: 1.4 }}>{title}</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
+        {children && <div style={{ marginBottom: message ? 10 : 18 }}>{children}</div>}
         {message && <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6, marginBottom: 18 }}>{message}</div>}
         <div style={{ display: 'flex', gap: 10 }}>
           <button

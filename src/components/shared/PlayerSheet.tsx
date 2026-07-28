@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { usePreviewStore } from '../../store/previewStore'
 import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole, Race } from '../../types'
@@ -124,6 +125,8 @@ export default function PlayerSheet() {
   const draftState = useGameStore(s => s.draftState)
   const draftPool = draftState?.pool ?? []
   const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  // フレンドのロスターなど、通常の players に居ない選手（画面側が一時登録したもの）
+  const previewPlayers = usePreviewStore(s => s.players)
   // 国内チーム or 海外クラブから所属を解決
   const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
@@ -211,10 +214,12 @@ export default function PlayerSheet() {
     }
   }
 
-  // 通常の選手に加え、スカウトのドラフト候補・ドラフト進行中のプール選手も詳細表示できるよう解決する
+  // 通常の選手に加え、スカウトのドラフト候補・ドラフト進行中のプール選手・
+  // フレンドのロスター（previewStore に一時登録されたもの）も詳細表示できるよう解決する
   const player = players.find(p => p.id === openPlayerId)
     ?? (currentSeason.scoutProspects ?? []).find(p => p.id === openPlayerId)
     ?? draftPool.find(p => p.id === openPlayerId)
+    ?? previewPlayers.find(p => p.id === openPlayerId)
 
   useEffect(() => {
     // 引退選手は1ページ目を出さないので2ページ目から開く
@@ -248,11 +253,17 @@ export default function PlayerSheet() {
   // ドラフト候補は詳細ページを簡略表示にする。
   // ドラフト進行中は候補が state.players に teamId '__pool__' / status 'draft_eligible' で入るため、
   // 「playersに居ない」だけだと判定できずフル詳細が開いてしまう。status で確実に候補と判定する。
-  const isProspect = player.status === 'draft_eligible'
+  // ただしフレンドのロスター（previewStore に一時登録した選手）は、自分の players に居ないだけで
+  // ドラフト候補ではない。除外しないと「所属＝出身校／予想指名順位」のドラフト用画面が出てしまう。
+  const isPreview = previewPlayers.some(p => p.id === player.id)
+  const isProspect = !isPreview && (
+    player.status === 'draft_eligible'
     || player.teamId === '__pool__'
     || !players.some(p => p.id === player.id)
+  )
   const isRetired = player.status === 'retired'
-  const isScouted = isMyPlayer || isProspect || isOpponentScouted(player.id, currentSeason)
+  // フレンドが共有したロスターは中身まで出す（相手が公開しているものなので伏せる理由がない）
+  const isScouted = isMyPlayer || isProspect || isPreview || isOpponentScouted(player.id, currentSeason)
 
   // ドラフト候補の予想指名順位。生成時に焼き込んだ player.predictedPick を使う（ドラフト中も不変）。
   // predictedPick が無い旧セーブだけ、その場で母集団から推定する（scout/draftどちらのプールでも）。

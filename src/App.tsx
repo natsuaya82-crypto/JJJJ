@@ -40,8 +40,7 @@ import NoSalePage from './components/team/NoSalePage'
 import FriendsPage from './components/friends/FriendsPage'
 import FriendListPage from './components/friends/FriendListPage'
 import FriendDetailPage from './components/friends/FriendDetailPage'
-import FriendReceivedPage from './components/friends/FriendReceivedPage'
-import FriendSentPage from './components/friends/FriendSentPage'
+import FriendRequestsPage from './components/friends/FriendRequestsPage'
 import FriendClubPage from './components/friends/FriendClubPage'
 import RecordsHub from './components/records/RecordsHub'
 import FranchiseRecordsPage, { IndividualRecordsPage, GmCareerPage } from './components/records/RecordsPage'
@@ -224,8 +223,10 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/international" element={<WorldEkidenPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/friends/list" element={<FriendListPage />} />
-          <Route path="/friends/received" element={<FriendReceivedPage />} />
-          <Route path="/friends/sent" element={<FriendSentPage />} />
+          {/* 申請と承認は1画面にまとめてある。旧パスは念のため同じ画面へ通す */}
+          <Route path="/friends/requests" element={<FriendRequestsPage />} />
+          <Route path="/friends/received" element={<FriendRequestsPage />} />
+          <Route path="/friends/sent" element={<FriendRequestsPage />} />
           <Route path="/friends/club" element={<FriendClubPage />} />
           <Route path="/friends/team/:id" element={<FriendDetailPage />} />
           <Route path="/records" element={<RecordsHub />} />

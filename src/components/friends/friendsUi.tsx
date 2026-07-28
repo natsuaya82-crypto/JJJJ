@@ -13,20 +13,51 @@ export type QueryState<T> = {
   setData: (v: T) => void
 }
 
-/** 非同期取得の状態管理。マウント時に1回走り、reload() で再取得できる。 */
-export function useFriendsQuery<T>(fn: () => Promise<T>, deps: unknown[] = []): QueryState<T> {
-  const [data, setData] = useState<T | undefined>(undefined)
-  const [loading, setLoading] = useState(true)
+// 取得済みの内容をアプリ起動中だけ覚えておく。
+// これが無いと、詳細から一覧へ戻るたびに毎回「読み込み中…」に切り替わり、
+// フレンド一覧が一瞬消えてから出てくる（＝消えたように見える）。
+const cache = new Map<string, unknown>()
+
+/** 覚えている内容を捨てる（フレンドが増減したときなど） */
+export function invalidateFriendsCache(...keys: string[]) {
+  if (keys.length === 0) cache.clear()
+  else keys.forEach(k => cache.delete(k))
+}
+
+/**
+ * 非同期取得の状態管理。マウント時に1回走り、reload() で再取得できる。
+ * cacheKey を渡すと、前回取得した内容を出したまま裏側で更新する（画面が空にならない）。
+ */
+export function useFriendsQuery<T>(fn: () => Promise<T>, deps: unknown[] = [], cacheKey?: string): QueryState<T> {
+  const cached = cacheKey ? (cache.get(cacheKey) as T | undefined) : undefined
+  const [data, setDataState] = useState<T | undefined>(cached)
+  const [loading, setLoading] = useState(cached === undefined)
   const [error, setError] = useState(false)
   const [tick, setTick] = useState(0)
+
+  const setData = useCallback((v: T) => {
+    if (cacheKey) cache.set(cacheKey, v)
+    setDataState(v)
+  }, [cacheKey])
 
   // fn は毎レンダー新しくなるので依存に入れない（deps と tick で制御する）
   useEffect(() => {
     let alive = true
-    setLoading(true); setError(false)
+    const prev = cacheKey ? (cache.get(cacheKey) as T | undefined) : undefined
+    if (prev === undefined) setLoading(true)   // 中身があるうちは「読み込み中」に戻さない
+    setError(false)
     fn()
-      .then(v => { if (alive) { setData(v); setLoading(false) } })
-      .catch(() => { if (alive) { setError(true); setLoading(false) } })
+      .then(v => {
+        if (!alive) return
+        if (cacheKey) cache.set(cacheKey, v)
+        setDataState(v); setLoading(false); setError(false)
+      })
+      .catch(() => {
+        if (!alive) return
+        setLoading(false)
+        // 前回の内容があるならそれを出したままにする（一度の通信失敗で消さない）
+        if (prev === undefined) setError(true)
+      })
     return () => { alive = false }
   }, [tick, ...deps]) // eslint-disable-line react-hooks/exhaustive-deps
 

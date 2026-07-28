@@ -204,6 +204,15 @@ export async function listSent(): Promise<FriendRequest[]> {
   return rows.map(toRequest)
 }
 
+/** コードから相手を探すだけ（申請はしない）。申請前の確認画面に出す用。 */
+export async function findByCode(code: string): Promise<FriendRequest | undefined> {
+  await uid()
+  const { data, error } = await supabase.rpc('find_by_code', { p_code: code.replace(/\D/g, '') })
+  if (error) throw new FriendsOffline()
+  const row = (Array.isArray(data) ? data[0] : data) as ProfileRow | undefined
+  return row ? toRequest(row) : undefined
+}
+
 export type SendResult = 'sent' | 'accepted' | 'already_friends' | 'self' | 'not_found'
 
 /** コードで申請を送る。相手からも申請が来ていた場合はその場で成立する。 */

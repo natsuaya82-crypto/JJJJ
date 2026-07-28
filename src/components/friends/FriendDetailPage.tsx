@@ -1,11 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import NoticeDialog from '../ui/NoticeDialog'
 import PlayerRow from '../player/PlayerRow'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { getFriend, getFriendRoster, removeFriend } from '../../lib/friendsApi'
-import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
+import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
 import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
@@ -18,10 +20,14 @@ export default function FriendDetailPage() {
   const longPress = usePlayerLongPress()
   const setPreview = usePreviewStore(s => s.setPlayers)
 
-  const head = useFriendsQuery(() => getFriend(id), [id])
-  const list = useFriendsQuery(() => (id ? getFriendRoster(id) : Promise.resolve([])), [id])
+  const head = useFriendsQuery(() => getFriend(id), [id], `friend:${id}`)
+  const list = useFriendsQuery(() => (id ? getFriendRoster(id) : Promise.resolve([])), [id], `roster:${id}`)
   const friend = head.data
   const roster = list.data ?? []
+
+  // 自前のポップアップ（端末標準の alert / confirm は使わない）
+  const [askRemove, setAskRemove] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   // フレンドのロスター選手を「長押し詳細」で開けるよう、この画面の間だけプレビュー登録する
   // list.data を依存にする（roster は毎レンダー新しい配列になるため、入れると無限ループする）
@@ -58,9 +64,12 @@ export default function FriendDetailPage() {
   const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length) : 0
 
   const onRemove = async () => {
-    if (!confirm(`${friend.teamName} とのフレンドを解除しますか？`)) return
-    try { await removeFriend(friend.id); navigate('/friends/list', { replace: true }) }
-    catch { alert('通信できませんでした') }
+    setAskRemove(false)
+    try {
+      await removeFriend(friend.id)
+      invalidateFriendsCache('friends', `friend:${friend.id}`, `roster:${friend.id}`)
+      navigate('/friends/list', { replace: true })
+    } catch { setNotice('通信できませんでした') }
   }
 
   return (
@@ -70,7 +79,7 @@ export default function FriendDetailPage() {
         <BackButton />
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FRIEND</div>
         <div style={{ flex: 1 }} />
-        <button onClick={onRemove} style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>
+        <button onClick={() => setAskRemove(true)} style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>
       </div>
 
       {/* チーム情報 */}
@@ -110,6 +119,20 @@ export default function FriendDetailPage() {
         )}
       </div>
 
+      {askRemove && (
+        <ConfirmDialog
+          title="フレンドを解除しますか？"
+          message={`${friend.teamName}（GM ${friend.gmName}）とのフレンドを解除します。相手の一覧からもあなたが消えます。`}
+          confirmLabel="解除する"
+          accent={C.red}
+          onConfirm={onRemove}
+          onCancel={() => setAskRemove(false)}
+        />
+      )}
+
+      {notice && (
+        <NoticeDialog title={notice} message="電波の良い場所で、もう一度お試しください" onClose={() => setNotice(null)} />
+      )}
     </div>
   )
 }
