@@ -7609,6 +7609,19 @@ export const useGameStore = create<GameStore>()(
         // 先にファイルを削除してガードを解除してから初期状態を書き込む。
         void (async () => {
           await deleteSaveForRecovery()
+          // フレンド用のアカウント（Keychainに保存している証明書）もここで消す。
+          // アプリ削除や機種変更では残る仕様なので、消えるのはこのデータ削除のときだけ。
+          try {
+            const [{ clearIdentity }, { supabase, resetAuthCache }] = await Promise.all([
+              import('../lib/durableId'), import('../lib/supabase'),
+            ])
+            await clearIdentity()
+            await supabase.auth.signOut()
+            resetAuthCache()
+            localStorage.removeItem('jpel_friend_sync_stamp') // 新アカウントで送り直させる
+          } catch (e) {
+            console.warn('[reset] failed to clear friend identity', e)
+          }
           set({ ...(emptyState() as unknown as GameStore), adsRemoved: paid, twitterIntroSeen: twSeen })
           await flushSaveNow()
         })()
