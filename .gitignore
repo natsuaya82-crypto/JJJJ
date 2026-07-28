@@ -25,3 +25,6 @@ dist-ssr
 
 # 作業用の一時ファイル
 scratchpad/
+
+# App Store 提出用の素材・原稿（手元で作って直接アップロードするもの）
+appstore/
