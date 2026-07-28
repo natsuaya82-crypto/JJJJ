@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import PlayerRow from '../player/PlayerRow'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { getFriend, getFriendRoster } from '../../data/mockFriends'
+import { getFriend, getFriendRoster, removeFriend } from '../../lib/friendsApi'
+import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
 import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
@@ -13,17 +14,38 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function FriendDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const friend = getFriend(id)
+  const navigate = useNavigate()
   const longPress = usePlayerLongPress()
   const setPreview = usePreviewStore(s => s.setPlayers)
-  const roster = friend ? getFriendRoster(friend.id) : []
+
+  const head = useFriendsQuery(() => getFriend(id), [id])
+  const list = useFriendsQuery(() => (id ? getFriendRoster(id) : Promise.resolve([])), [id])
+  const friend = head.data
+  const roster = list.data ?? []
 
   // フレンドのロスター選手を「長押し詳細」で開けるよう、この画面の間だけプレビュー登録する
+  // list.data を依存にする（roster は毎レンダー新しい配列になるため、入れると無限ループする）
   useEffect(() => {
-    setPreview(roster)
+    setPreview(list.data ?? [])
     return () => setPreview([])
-  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, list.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (head.loading) {
+    return (
+      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%', background: C.bg }}>
+        <BackButton />
+        <div style={{ marginTop: 40 }}><LoadingBox /></div>
+      </div>
+    )
+  }
+  if (head.error) {
+    return (
+      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%', background: C.bg }}>
+        <BackButton />
+        <div style={{ marginTop: 40 }}><ErrorBox onRetry={head.reload} /></div>
+      </div>
+    )
+  }
   if (!friend) {
     return (
       <div style={{ fontFamily: SAIRA, padding: '12px 16px' }}>
@@ -35,12 +57,20 @@ export default function FriendDetailPage() {
 
   const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length) : 0
 
+  const onRemove = async () => {
+    if (!confirm(`${friend.teamName} とのフレンドを解除しますか？`)) return
+    try { await removeFriend(friend.id); navigate('/friends/list', { replace: true }) }
+    catch { alert('通信できませんでした') }
+  }
+
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: 32, minHeight: '100%', background: C.bg }}>
       {/* ヘッダー */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px 6px' }}>
         <BackButton />
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FRIEND</div>
+        <div style={{ flex: 1 }} />
+        <button onClick={onRemove} style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>
       </div>
 
       {/* チーム情報 */}
@@ -65,11 +95,19 @@ export default function FriendDetailPage() {
       {/* 現状ロスター（全員）— 既存の PlayerRow を流用。長押しで選手詳細 */}
       <div style={{ padding: '16px 0 0' }}>
         <div style={{ fontSize: 10, color: alpha(C.gold, 0.55), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 16 }}>現在のロスター（長押しで詳細）</div>
-        <div>
-          {roster.map(p => (
-            <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
-          ))}
-        </div>
+        {list.loading ? (
+          <div style={{ padding: '0 16px' }}><LoadingBox /></div>
+        ) : list.error ? (
+          <div style={{ padding: '0 16px' }}><ErrorBox onRetry={list.reload} /></div>
+        ) : roster.length === 0 ? (
+          <div style={{ padding: '0 16px' }}><EmptyBox label="相手がまだロスターを共有していません" /></div>
+        ) : (
+          <div>
+            {roster.map(p => (
+              <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

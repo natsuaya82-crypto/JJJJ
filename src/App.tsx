@@ -12,6 +12,7 @@ import LoadingOverlay from './components/ui/LoadingOverlay'
 import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
 import { useLoadingStore } from './store/loadingStore'
+import { useFriendSync } from './lib/useFriendSync'
 import TitleScreen from './components/title/TitleScreen'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
@@ -37,6 +38,11 @@ import WorldTournamentPage from './components/international/WorldTournamentPage'
 import ChatPage from './components/team/ChatPage'
 import NoSalePage from './components/team/NoSalePage'
 import FriendsPage from './components/friends/FriendsPage'
+import FriendListPage from './components/friends/FriendListPage'
+import FriendDetailPage from './components/friends/FriendDetailPage'
+import FriendReceivedPage from './components/friends/FriendReceivedPage'
+import FriendSentPage from './components/friends/FriendSentPage'
+import FriendClubPage from './components/friends/FriendClubPage'
 import RecordsHub from './components/records/RecordsHub'
 import FranchiseRecordsPage, { IndividualRecordsPage, GmCareerPage } from './components/records/RecordsPage'
 import PlayersStatsPage from './components/records/PlayersStatsPage'
@@ -217,6 +223,11 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/jewels" element={<JewelsPage />} />
           <Route path="/international" element={<WorldEkidenPage />} />
           <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/friends/list" element={<FriendListPage />} />
+          <Route path="/friends/received" element={<FriendReceivedPage />} />
+          <Route path="/friends/sent" element={<FriendSentPage />} />
+          <Route path="/friends/club" element={<FriendClubPage />} />
+          <Route path="/friends/team/:id" element={<FriendDetailPage />} />
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/franchise" element={<FranchiseRecordsPage />} />
           <Route path="/records/individual" element={<IndividualRecordsPage />} />
@@ -258,6 +269,10 @@ export default function App() {
   const ensureEclSeries = useGameStore(s => s.ensureEclSeries)
   const twitterIntroSeen = useGameStore(s => s.twitterIntroSeen ?? false)
   const markTwitterIntroSeen = useGameStore(s => s.markTwitterIntroSeen)
+  // 初回起動時に匿名アカウント（＝フレンドコード）を用意し、
+  // チームがあれば自チーム情報とロスターもサーバーへ送る（起動時＋シーズン更新時。失敗しても無視）。
+  // Layout ではなくここに置く。Layout はゲーム開始後しかマウントされず、タイトル画面では走らないため。
+  useFriendSync()
   const [titleShown, setTitleShown] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
   const [showTwitter, setShowTwitter] = useState(false)

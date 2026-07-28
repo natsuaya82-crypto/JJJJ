@@ -1,13 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { TeamLogoSVG } from '../icons/Icons'
-import { MOCK_FRIENDS } from '../../data/mockFriends'
+import { listFriends } from '../../lib/friendsApi'
+import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function FriendListPage() {
   const navigate = useNavigate()
+  const { data, loading, error, reload } = useFriendsQuery(listFriends)
+  const friends = data ?? []
 
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100%', background: C.bg }}>
@@ -17,9 +20,12 @@ export default function FriendListPage() {
       </div>
 
       <div style={{ padding: '10px 12px 0' }}>
-        <div style={{ fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {MOCK_FRIENDS.length}</div>
+        <div style={{ fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {loading || error ? '' : friends.length}</div>
+        {loading ? <LoadingBox /> : error ? <ErrorBox onRetry={reload} /> : friends.length === 0 ? (
+          <EmptyBox label="まだフレンドがいません。「申請」からコードで追加できます" />
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {MOCK_FRIENDS.map(f => (
+          {friends.map(f => (
             <button key={f.id} onClick={() => navigate(`/friends/team/${f.id}`)} className="btn-press" style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', cursor: 'pointer',
               padding: '12px', borderRadius: 14, fontFamily: SAIRA,
@@ -35,6 +41,7 @@ export default function FriendListPage() {
             </button>
           ))}
         </div>
+        )}
       </div>
     </div>
   )
