@@ -8158,7 +8158,8 @@ export const WEC_CITIES = [
 // mountain=山の国（登り下りが激しい）/ flat=平坦な国（スピードコース）/ mixed=従来のランダム
 function generateWECRacePlan(profile: 'mountain' | 'flat' | 'mixed' = 'mixed'): import('../types').WECRacePlan[] {
   return Array.from({ length: 3 }, () => {
-    const segmentCount = 4 + Math.floor(Math.random() * 5)
+    // 20人選抜しているので、区間は必ず6区間以上にする（4区間だと走る人数が少なすぎる）
+    const segmentCount = 6 + Math.floor(Math.random() * 5)   // 6〜10区間
     const segments = Array.from({ length: segmentCount }, () => {
       let uphillPct: number, downhillPct: number
       if (profile === 'mountain') {
