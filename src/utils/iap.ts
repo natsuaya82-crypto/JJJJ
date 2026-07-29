@@ -8,6 +8,9 @@ interface IAPPlugin {
 const IAP = registerPlugin<IAPPlugin>('IAP')
 
 export type PurchaseResult = 'purchased' | 'cancelled' | 'pending' | 'error' | 'unavailable' | 'timeout'
+// 復元の結果。「持っていない」と「通信できなかった」を必ず区別する。
+// 一緒くたにすると、購入済みの人に「購入が見つかりません」と嘘の案内を出してしまう。
+export type RestoreResult = 'restored' | 'none' | 'timeout' | 'error'
 
 const isIOS = () => Capacitor.getPlatform() === 'ios'
 
@@ -38,7 +41,12 @@ export async function purchaseAdFree(): Promise<PurchaseResult> {
     return 'cancelled'
   } catch (e) {
     console.warn('[iap] purchase failed', e)
-    if (e instanceof TimeoutError) return 'timeout'
+    if (e instanceof TimeoutError) {
+      // 90秒を過ぎても購入シートは開いたままなので、そのあと購入が成立していることがある。
+      // 権利を黙って確認し、買えていればそのまま有効にする（課金だけ取られる事故を防ぐ）。
+      if (await hasAdFree()) return 'purchased'
+      return 'timeout'
+    }
     // 「Product not found」＝App Store Connect側で商品が取得できない（商品未設定・契約未署名など）
     const m = e instanceof Error ? e.message : String(e)
     if (m.includes('Product not found')) return 'unavailable'
@@ -46,13 +54,29 @@ export async function purchaseAdFree(): Promise<PurchaseResult> {
   }
 }
 
-export async function restoreAdFree(): Promise<boolean> {
+export async function restoreAdFree(): Promise<RestoreResult> {
+  if (!isIOS()) return 'none'
+  try {
+    const { restored } = await withTimeout(IAP.restore(), RESTORE_TIMEOUT_MS)
+    return restored ? 'restored' : 'none'
+  } catch (e) {
+    console.warn('[iap] restore failed', e)
+    if (e instanceof TimeoutError) return 'timeout'
+    return 'error'
+  }
+}
+
+/**
+ * 購入済みかどうかを黙って確認する（購入シートもパスワード入力も出ない）。
+ * 端末に残っている権利を読むだけなので、起動時に呼んでも邪魔にならない。
+ * 家族の承認が下りた場合や、購入が途中で切れてしまった場合を自動で拾うために使う。
+ */
+export async function hasAdFree(): Promise<boolean> {
   if (!isIOS()) return false
   try {
     const { restored } = await withTimeout(IAP.restore(), RESTORE_TIMEOUT_MS)
     return restored
-  } catch (e) {
-    console.warn('[iap] restore failed', e)
+  } catch {
     return false
   }
 }

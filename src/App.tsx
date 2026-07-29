@@ -7,6 +7,7 @@ import SaveRecoveryScreen from './components/ui/SaveRecoveryScreen'
 import { audio } from './utils/audio'
 import { initAds, removeBanner, showBanner, setAdsDisabled } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
+import { hasAdFree } from './utils/iap'
 import { clearMarketFilters } from './utils/marketFilters'
 import LoadingOverlay from './components/ui/LoadingOverlay'
 import ForceUpdateModal from './components/ui/ForceUpdateModal'
@@ -357,6 +358,18 @@ export default function App() {
     const paid = useGameStore.getState().adsRemoved ?? false
     setAdsDisabled(paid)
     initAds(paid)
+  }, [hydrated])
+  // GMパスの買い忘れ救済：端末に残っている購入の権利を起動時に黙って確認する。
+  // 購入シートもパスワード入力も出ない。これがないと、
+  //   ・家族の承認待ちで購入した人（承認が下りても自分で「復元」を押すまで無効のまま）
+  //   ・購入の途中で通信が切れた人（課金だけ成立して権利が反映されない）
+  // が取り残されてしまう。すでに有効なら何もしない。
+  useEffect(() => {
+    if (!hydrated) return
+    if (useGameStore.getState().adsRemoved) return
+    void hasAdFree().then(owned => {
+      if (owned && !useGameStore.getState().adsRemoved) useGameStore.getState().setAdsRemoved(true)
+    })
   }, [hydrated])
   // アップデート記念プレゼントを配布（冪等。ゲーム開始済みのときだけ）
   useEffect(() => { if (isInitialized) grantUpdateGifts() }, [isInitialized])

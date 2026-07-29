@@ -417,11 +417,11 @@ function PremiumCard() {
       } else if (res === 'cancelled') {
         setMsg({ title: '購入をキャンセルしました' })
       } else if (res === 'pending') {
-        setMsg({ title: '承認待ちです', body: 'ご家族の承認が下りると自動で反映されます。' })
+        setMsg({ title: '承認待ちです', body: 'ご家族の承認が下りたあと、アプリを開き直すと有効になります。反映されないときは「購入を復元」を押してください。' })
       } else if (res === 'unavailable') {
         setMsg({ title: '商品情報を取得できませんでした', body: 'App Storeに接続できないか、商品が一時的に取得できない状態です。通信環境をご確認のうえ、しばらくしてから再度お試しください。' })
       } else if (res === 'timeout') {
-        setMsg({ title: '応答がありませんでした', body: 'App Storeからの返事が返ってきませんでした。通信環境をご確認のうえ、もう一度お試しください。' })
+        setMsg({ title: '応答がありませんでした', body: 'App Storeからの返事が返ってきませんでした。もし購入が完了していた場合は「購入を復元」を押すと有効になります。二重に課金されることはありません。' })
       } else {
         setMsg({ title: '購入に失敗しました', body: '時間をおいて再度お試しください。' })
       }
@@ -436,11 +436,19 @@ function PremiumCard() {
     if (busy) return
     setBusy(true); setMsg(null)
     try {
-      const owned = await restoreAdFree()
-      if (owned) { setAdsRemoved(true); setMsg({ title: '購入を復元しました' }) }
-      else setMsg({ title: '復元できる購入が見つかりませんでした', body: '購入時と同じApple IDでサインインしているかご確認ください。' })
+      const res = await restoreAdFree()
+      if (res === 'restored') {
+        setAdsRemoved(true)
+        setMsg({ title: '購入を復元しました' })
+      } else if (res === 'none') {
+        setMsg({ title: '復元できる購入が見つかりませんでした', body: '購入時と同じApple IDでサインインしているかご確認ください。' })
+      } else {
+        // 通信できなかっただけの場合に「購入がありません」と出すと、
+        // 購入済みの方に嘘の案内をしてしまうので必ず分ける。
+        setMsg({ title: '確認できませんでした', body: 'App Storeに接続できませんでした。通信環境をご確認のうえ、もう一度お試しください。' })
+      }
     } catch {
-      setMsg({ title: '復元できませんでした', body: '時間をおいて再度お試しください。' })
+      setMsg({ title: '確認できませんでした', body: '時間をおいて再度お試しください。' })
     } finally {
       setBusy(false)
     }

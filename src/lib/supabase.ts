@@ -14,11 +14,15 @@ export const SUPABASE_KEY =
   'sb_publishable_3doufkn1HomBJ00Tke7qhg_sC5KUTbf'
 
 import { createClient } from '@supabase/supabase-js'
+import { ONLINE_ENABLED } from '../data/featureFlags'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    persistSession: true,      // 端末に匿名アカウントを保存し続ける（＝実質ログイン不要）
-    autoRefreshToken: true,
+    // オンラインを公開していない間は、端末に残っているログイン情報を復元しない。
+    // ここを true のままにすると、以前のバージョンを入れていた端末では
+    // 起動時と復帰時にログインの更新通信が勝手に走ってしまう。
+    persistSession: ONLINE_ENABLED,
+    autoRefreshToken: ONLINE_ENABLED,
     detectSessionInUrl: false, // ネイティブアプリなのでURLからのセッション検出は不要
   },
 })
