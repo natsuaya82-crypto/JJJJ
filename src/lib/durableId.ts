@@ -79,7 +79,17 @@ function readLocal(): Identity | null {
  * 「読めなかった」ときは IdentityUnavailable を投げる（null は返さない）。
  */
 export async function loadIdentity(): Promise<Identity | null> {
-  const fromKeychain = await readKeychain()   // 失敗したらここで throw
+  // Keychain が読めなくても、ここで打ち切らずに下の層を探す。
+  // 実機では署名まわりの都合で読み取りに失敗することがあり、
+  // そこで全部あきらめると、手元に証明書が残っていても使えなくなってしまう。
+  let keychainError: unknown = null
+  let fromKeychain: Identity | null = null
+  try {
+    fromKeychain = await readKeychain()
+  } catch (e) {
+    keychainError = e
+    console.warn('[identity] keychain unreadable, falling back', e)
+  }
   if (fromKeychain) {
     void mirror(fromKeychain, { keychain: false })
     return fromKeychain
@@ -93,6 +103,13 @@ export async function loadIdentity(): Promise<Identity | null> {
   if (fromLocal) {
     void mirror(fromLocal)
     return fromLocal
+  }
+  // どこにも無かった。Keychain が読めていないなら「本当に無い」とは言い切れないので、
+  // 呼び出し側が新規アカウントを作ってしまわないように例外で知らせる。
+  if (keychainError) {
+    throw new IdentityUnavailable(
+      keychainError instanceof Error ? keychainError.message : String(keychainError),
+    )
   }
   return null
 }

@@ -54,17 +54,24 @@ export function resetAuthCache(): void {
 }
 
 async function run(): Promise<string | null> {
-  // 1. 保存済みの証明書を読む。読めなかった場合は例外が飛ぶ＝ここで打ち切り（新規作成しない）。
-  let stored: Identity | null
+  // 1. 保存済みの証明書を読む。読めなかった＝「無い」とは言い切れないので、新規作成だけは絶対にしない。
+  let stored: Identity | null = null
+  let unreadable = false
   try {
     stored = await loadIdentity()
   } catch (e) {
-    if (e instanceof IdentityUnavailable) console.warn('[auth] identity unreadable, aborting', e)
-    return null
+    if (!(e instanceof IdentityUnavailable)) return null
+    unreadable = true
+    console.warn('[auth] identity unreadable', e)
   }
 
   const { data } = await supabase.auth.getSession()
   const session = data.session
+
+  // 1-b. 証明書が読めなかったとき。
+  //      すでにログイン状態が残っていれば、それをそのまま使う（アカウントは作らない）。
+  //      残っていなければ何もしない＝次回また試す。
+  if (unreadable) return session?.user?.id ?? null
 
   // 2. 証明書がある → それでログイン（既にそのアカウントでログイン中なら何もしない）
   if (stored) {
