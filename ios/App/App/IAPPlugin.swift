@@ -13,7 +13,9 @@ public class IAPPlugin: CAPPlugin, CAPBridgedPlugin {
   private let productId = "com.tokinets.jpelmanager.noads"
 
   @objc func purchase(_ call: CAPPluginCall) {
-    Task {
+    // 購入シートは画面表示なので必ずメインスレッドで走らせる。
+    // ここを付けないと iPad でシートが出ないまま止まることがある。
+    Task { @MainActor in
       do {
         let products = try await Product.products(for: [self.productId])
         guard let product = products.first else {
@@ -44,7 +46,7 @@ public class IAPPlugin: CAPPlugin, CAPBridgedPlugin {
   }
 
   @objc func restore(_ call: CAPPluginCall) {
-    Task {
+    Task { @MainActor in
       var restored = false
       for await result in Transaction.currentEntitlements {
         if case .verified(let transaction) = result,

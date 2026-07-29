@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from '../friends/friendsUi'
 import { C, alpha } from '../../styles/tokens'
+import { ONLINE_ENABLED } from '../../data/featureFlags'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -9,7 +10,11 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // この下にさらにハブがある（例：フレンド → フレンド一覧／申請・承認）。
 export default function OnlinePage() {
   const navigate = useNavigate()
-  const received = useFriendsQuery(listReceived, [], 'received')
+  // 公開していない間はサーバーに一切つながない（申請件数のバッジも出さない）
+  const received = useFriendsQuery(
+    () => (ONLINE_ENABLED ? listReceived() : Promise.resolve([])),
+    [], 'received',
+  )
 
   const SECTIONS: {
     key: string; label: string; note: string; badge: number; color: string
@@ -28,8 +33,8 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/friends/club', label: '走友会', note: '準備中',
-      badge: 0, color: C.orange, soon: true,
+      key: '/friends/club', label: '走友会', note: '仲間と同じ名簿に並ぶ',
+      badge: 0, color: C.orange,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <circle cx="7" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.7"/>
@@ -62,6 +67,11 @@ export default function OnlinePage() {
     },
   ]
 
+  // 公開していない間は4つとも薄く表示して押せなくする（説明は「準備中」）
+  const sections = ONLINE_ENABLED
+    ? SECTIONS
+    : SECTIONS.map(s => ({ ...s, soon: true, note: '準備中', badge: 0 }))
+
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 14px' }}>
@@ -70,7 +80,7 @@ export default function OnlinePage() {
       </div>
 
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {SECTIONS.map(s => (
+        {sections.map(s => (
           <button
             key={s.key}
             onClick={() => { if (!s.soon) navigate(s.key) }}

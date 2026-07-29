@@ -185,8 +185,8 @@ export default function CreateMyPlayerPage() {
             <PlayerFace playerId="preview" nationality="JPN" size={64} customFace={face} />
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <FaceRow label="髪型" onPrev={() => setFace(f => ({ ...f, style: (f.style + 14) % 15 }))} onNext={() => setFace(f => ({ ...f, style: (f.style + 1) % 15 }))} value={`${face.style + 1}/15`} />
-            <FaceRow label="目" onPrev={() => setFace(f => ({ ...f, eye: (f.eye + 17) % 18 }))} onNext={() => setFace(f => ({ ...f, eye: (f.eye + 1) % 18 }))} value={`${face.eye + 1}/18`} />
+            <FaceRow label="髪型" onPrev={() => setFace(f => ({ ...f, style: (f.style + 23) % 24 }))} onNext={() => setFace(f => ({ ...f, style: (f.style + 1) % 24 }))} value={`${face.style + 1}/24`} />
+            <FaceRow label="目" onPrev={() => setFace(f => ({ ...f, eye: (f.eye + 26) % 27 }))} onNext={() => setFace(f => ({ ...f, eye: (f.eye + 1) % 27 }))} value={`${face.eye + 1}/27`} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 10, color: C.textDim, width: 30 }}>髪色</span>
               {HAIRS.map(h => (
@@ -195,7 +195,7 @@ export default function CreateMyPlayerPage() {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setFace(f => ({ ...f, flip: !f.flip }))} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 700, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub }}>左右反転</button>
-              <button onClick={() => setFace({ style: Math.floor(Math.random() * 15), eye: Math.floor(Math.random() * 18), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 800, border: `1px solid ${C.goldDark}`, background: alpha(C.gold, 0.12), color: C.gold }}>ランダム</button>
+              <button onClick={() => setFace({ style: Math.floor(Math.random() * 24), eye: Math.floor(Math.random() * 27), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 800, border: `1px solid ${C.goldDark}`, background: alpha(C.gold, 0.12), color: C.gold }}>ランダム</button>
             </div>
           </div>
         </div>

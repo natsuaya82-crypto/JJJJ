@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { ovr } from '../utils/playerUtils'
 import { ensureMyProfile, pushMyProfile, pushMyRoster } from './friendsApi'
+import { ONLINE_ENABLED } from '../data/featureFlags'
 
 const STAMP_KEY = 'jpel_friend_sync_stamp'
 
@@ -59,5 +60,6 @@ export function useFriendSync() {
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const year = useGameStore(s => s.currentSeason?.year)
 
-  useEffect(() => { void syncNow() }, [playerTeamId, year])
+  // オンライン（フレンド）を公開していない間は、アカウント作成もチーム情報の送信も一切行わない
+  useEffect(() => { if (ONLINE_ENABLED) void syncNow() }, [playerTeamId, year])
 }

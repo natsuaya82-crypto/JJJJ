@@ -144,6 +144,7 @@ export default function PlayerSheet() {
   const worldTournament = useGameStore(s => s.worldTournament)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
   const setDisplayBadge = useGameStore(s => s.setDisplayBadge)
+  const renamePlayer = useGameStore(s => s.renamePlayer)
   const adH = useAdHeight()
   const navigate = useNavigate()
 
@@ -175,6 +176,8 @@ export default function PlayerSheet() {
   const [pageKey, setPageKey] = useState(0)
   const [selectedRaceName, setSelectedRaceName] = useState<string | null>(null)
   const [showBadges, setShowBadges] = useState(false)
+  // 名前変更ダイアログ（null＝閉じている。文字列＝入力中の名前）
+  const [renameDraft, setRenameDraft] = useState<string | null>(null)
   const touchStart = useRef({ x: 0, y: 0 })
   const sheetRef = useRef<HTMLDivElement>(null)
   const shareCardRef = useRef<HTMLDivElement>(null)
@@ -545,6 +548,20 @@ export default function PlayerSheet() {
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '18px', fontWeight: '900', color: '#F0EDE8' }}>{player.name}</span>
+                {/* 自チームの選手だけ、名前の横のペンから改名できる */}
+                {isMyPlayer && !isProspect && (
+                  <button
+                    onClick={() => setRenameDraft(player.name)}
+                    title="名前を変更"
+                    data-html2canvas-ignore="true"
+                    style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5C5870" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                    </svg>
+                  </button>
+                )}
                 {player.nationality === 'FOREIGN' && (
                   <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#7986CB18', border: '1px solid #7986CB35', color: '#7986CB', fontWeight: '700' }}>外</span>
                 )}
@@ -1094,6 +1111,70 @@ export default function PlayerSheet() {
 
         </div>
       </div>
+
+      {/* 名前変更ダイアログ */}
+      {renameDraft !== null && (
+        <div
+          onClick={() => setRenameDraft(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
+            fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 340, background: 'linear-gradient(180deg, #221F33, #1A1828)',
+              border: '2px solid rgba(201,168,76,0.5)', borderRadius: 18, padding: '22px 20px 18px',
+              boxShadow: '0 0 40px rgba(201,168,76,0.2), 0 8px 32px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div style={{ fontSize: 9, color: '#C9A84C', letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: "'Saira Condensed',system-ui,sans-serif" }}>名前を変更</div>
+            <div style={{ fontSize: 12, color: '#9B97A8', lineHeight: 1.6, marginBottom: 12 }}>
+              変更した名前は移籍しても引退しても残ります（過去の記録に載っている名前は当時のままです）。
+            </div>
+            <input
+              type="text"
+              value={renameDraft}
+              autoFocus
+              onChange={e => setRenameDraft(e.target.value)}
+              maxLength={12}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', marginBottom: 16,
+                backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: 15, boxSizing: 'border-box',
+                fontFamily: "'Saira Condensed',system-ui,sans-serif", outline: 'none',
+                boxShadow: 'inset 0 0 0 1px rgba(201,168,76,0.14)',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setRenameDraft(null)}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 12, cursor: 'pointer',
+                  border: '2px solid #3A3758', background: 'transparent', color: '#9B97A8',
+                  fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 15, fontWeight: 900,
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                disabled={renameDraft.trim() === ''}
+                onClick={() => { renamePlayer(player.id, renameDraft); setRenameDraft(null) }}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 12, cursor: renameDraft.trim() === '' ? 'default' : 'pointer',
+                  border: '2px solid #C9A84C', opacity: renameDraft.trim() === '' ? 0.4 : 1,
+                  background: 'linear-gradient(180deg, rgba(201,168,76,0.25), rgba(201,168,76,0.1))',
+                  color: '#C9A84C', fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 15, fontWeight: 900,
+                  boxShadow: '0 4px 0 rgba(201,168,76,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
+                }}
+              >
+                決定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

@@ -7,19 +7,38 @@ interface IAPPlugin {
 
 const IAP = registerPlugin<IAPPlugin>('IAP')
 
-export type PurchaseResult = 'purchased' | 'cancelled' | 'pending' | 'error' | 'unavailable'
+export type PurchaseResult = 'purchased' | 'cancelled' | 'pending' | 'error' | 'unavailable' | 'timeout'
 
 const isIOS = () => Capacitor.getPlatform() === 'ios'
+
+// ネイティブ側が何も返してこないと「処理中…」のまま固まってしまう。
+// 一定時間で必ず打ち切って、理由を画面に出せるようにする。
+class TimeoutError extends Error {}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new TimeoutError('timeout')), ms)
+    p.then(
+      v => { clearTimeout(t); resolve(v) },
+      e => { clearTimeout(t); reject(e) },
+    )
+  })
+}
+
+// 購入シートを閉じずに放置される場合もあるので長めに取る
+const PURCHASE_TIMEOUT_MS = 90_000
+const RESTORE_TIMEOUT_MS = 30_000
 
 export async function purchaseAdFree(): Promise<PurchaseResult> {
   if (!isIOS()) return 'purchased'
   try {
-    const { result } = await IAP.purchase()
+    const { result } = await withTimeout(IAP.purchase(), PURCHASE_TIMEOUT_MS)
     if (result === 'purchased') return 'purchased'
     if (result === 'pending') return 'pending'  // ペアレンタルコントロール等の承認待ち
     return 'cancelled'
   } catch (e) {
     console.warn('[iap] purchase failed', e)
+    if (e instanceof TimeoutError) return 'timeout'
     // 「Product not found」＝App Store Connect側で商品が取得できない（商品未設定・契約未署名など）
     const m = e instanceof Error ? e.message : String(e)
     if (m.includes('Product not found')) return 'unavailable'
@@ -30,7 +49,7 @@ export async function purchaseAdFree(): Promise<PurchaseResult> {
 export async function restoreAdFree(): Promise<boolean> {
   if (!isIOS()) return false
   try {
-    const { restored } = await IAP.restore()
+    const { restored } = await withTimeout(IAP.restore(), RESTORE_TIMEOUT_MS)
     return restored
   } catch (e) {
     console.warn('[iap] restore failed', e)

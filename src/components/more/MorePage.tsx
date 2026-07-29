@@ -4,6 +4,7 @@ import { audio } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree } from '../../utils/iap'
 import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
+import NoticeDialog from '../ui/NoticeDialog'
 
 import { C, alpha } from '../../styles/tokens'
 
@@ -402,7 +403,7 @@ function PremiumCard() {
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const setAdsRemoved = useGameStore(s => s.setAdsRemoved)
   const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
+  const [msg, setMsg] = useState<{ title: string; body?: string } | null>(null)
 
   const handlePurchase = async () => {
     if (busy) return
@@ -412,16 +413,20 @@ function PremiumCard() {
       if (res === 'purchased') {
         setAdsRemoved(true)
         audio.playSe('reward')
-        setMsg('ありがとうございます！GMパスが有効になりました。')
+        setMsg({ title: 'ありがとうございます！', body: 'GMパスが有効になりました。' })
       } else if (res === 'cancelled') {
-        setMsg('購入をキャンセルしました。')
+        setMsg({ title: '購入をキャンセルしました' })
       } else if (res === 'pending') {
-        setMsg('購入の承認待ちです。承認されると自動で反映されます。')
+        setMsg({ title: '承認待ちです', body: 'ご家族の承認が下りると自動で反映されます。' })
       } else if (res === 'unavailable') {
-        setMsg('ストアで商品情報を取得できませんでした。しばらくしてから再度お試しください。')
+        setMsg({ title: '商品情報を取得できませんでした', body: 'App Storeに接続できないか、商品が一時的に取得できない状態です。通信環境をご確認のうえ、しばらくしてから再度お試しください。' })
+      } else if (res === 'timeout') {
+        setMsg({ title: '応答がありませんでした', body: 'App Storeからの返事が返ってきませんでした。通信環境をご確認のうえ、もう一度お試しください。' })
       } else {
-        setMsg('購入に失敗しました。時間をおいて再度お試しください。')
+        setMsg({ title: '購入に失敗しました', body: '時間をおいて再度お試しください。' })
       }
+    } catch {
+      setMsg({ title: '購入に失敗しました', body: '時間をおいて再度お試しください。' })
     } finally {
       setBusy(false)
     }
@@ -432,8 +437,10 @@ function PremiumCard() {
     setBusy(true); setMsg(null)
     try {
       const owned = await restoreAdFree()
-      if (owned) { setAdsRemoved(true); setMsg('購入を復元しました。') }
-      else setMsg('復元できる購入が見つかりませんでした。')
+      if (owned) { setAdsRemoved(true); setMsg({ title: '購入を復元しました' }) }
+      else setMsg({ title: '復元できる購入が見つかりませんでした', body: '購入時と同じApple IDでサインインしているかご確認ください。' })
+    } catch {
+      setMsg({ title: '復元できませんでした', body: '時間をおいて再度お試しください。' })
     } finally {
       setBusy(false)
     }
@@ -554,8 +561,9 @@ function PremiumCard() {
           ※動画広告（ジュエル追加・2回目以降の大成功）は任意で見られます
         </div>
 
-        {msg && <div style={{ marginTop: 8, fontSize: 11, color: alpha(G, 0.85), lineHeight: 1.5, textAlign: 'center' }}>{msg}</div>}
       </div>
+
+      {msg && <NoticeDialog title={msg.title} message={msg.body} onClose={() => setMsg(null)} />}
     </div>
   )
 }

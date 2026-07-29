@@ -409,6 +409,7 @@ export type GameStore = GameState & {
   toggleStarOpponent: (playerId: string) => void
   toggleStarProspect: (prospectId: string) => void
   setDisplayBadge: (playerId: string, badgeKey: string | null) => void
+  renamePlayer: (playerId: string, name: string) => void
 
   // Training plan
   setTrainingPlan: (plan: string | null) => void
@@ -483,6 +484,9 @@ export type GameStore = GameState & {
   // 余ったカードを上位レアへEXP等価で一括変換（ノーマル4→レア1／レア10→エピック3／エピック5→レジェンド2）。
   // 変換できた枚数を返す（束が組めなければ0）
   convertCards: (rarity: 'normal' | 'rare' | 'epic') => number
+  // 走友会の掲示板でカードを1枚渡す／もらったカードを受け取る
+  removeTrainingCard: (cardId: string) => void
+  addTrainingCards: (cards: TrainingCard[]) => void
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
   // ホームで出したジュエル獲得ポップアップを閉じる
@@ -3778,6 +3782,16 @@ export const useGameStore = create<GameStore>()(
       setDisplayBadge: (playerId, badgeKey) => {
         set(state => ({
           players: state.players.map(p => p.id === playerId ? { ...p, displayBadge: badgeKey ?? undefined } : p),
+        }))
+      },
+
+      // 自チーム選手の名前を変更する。名前は選手データそのものに書くので、
+      // 移籍しても引退してもそのまま残る（過去の記録に残っている名前は当時のまま）。
+      renamePlayer: (playerId, name) => {
+        const trimmed = name.trim().slice(0, 12)
+        if (!trimmed) return
+        set(state => ({
+          players: state.players.map(p => p.id === playerId ? { ...p, name: trimmed } : p),
         }))
       },
 
@@ -7255,6 +7269,19 @@ export const useGameStore = create<GameStore>()(
           }
         })
       },
+
+      // 走友会でカードを渡したとき（手元から1枚減らす）
+      removeTrainingCard: (cardId) =>
+        set(s => ({ trainingCards: (s.trainingCards ?? []).filter(c => c.id !== cardId) })),
+
+      // 走友会でカードをもらったとき。idがぶつかると練習で消えなくなるので付け直す
+      addTrainingCards: (cards) =>
+        set(s => {
+          const have = new Set((s.trainingCards ?? []).map(c => c.id))
+          const add = cards.map((c, i) =>
+            have.has(c.id) ? { ...c, id: `${c.id}_g${Date.now()}_${i}` } : c)
+          return { trainingCards: [...(s.trainingCards ?? []), ...add] }
+        }),
 
       dismissDroppedCards: () => set({ raceDroppedCards: [], raceExpGains: {} }),
 

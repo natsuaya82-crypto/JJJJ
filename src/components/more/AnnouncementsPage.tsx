@@ -7,6 +7,42 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type NewsItem = { date: string; title: string; body: string }
 
+// 本文の表示。【見出し】の行は金色の小見出し、・で始まる行は箇条書きとして出す。
+// それ以外はそのままの段落（古いお知らせは長文のままなのでこれで従来通り表示される）。
+function NewsBody({ body }: { body: string }) {
+  const lines = body.split('\n').filter(l => l.trim() !== '')
+  return (
+    <div style={{ padding: '0 0 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {lines.map((line, i) => {
+        const t = line.trim()
+        if (t.startsWith('【')) {
+          return (
+            <div
+              key={i}
+              style={{ fontSize: '11px', fontWeight: 700, color: C.gold, fontFamily: SAIRA, letterSpacing: '0.5px', marginTop: i === 0 ? 0 : 8, marginBottom: 2 }}
+            >
+              {t.replace(/[【】]/g, '')}
+            </div>
+          )
+        }
+        if (t.startsWith('・')) {
+          return (
+            <div key={i} style={{ display: 'flex', gap: 5, fontSize: '11px', color: C.textSub, lineHeight: 1.6, fontFamily: SAIRA }}>
+              <span style={{ flexShrink: 0, color: C.textDim }}>・</span>
+              <span style={{ flex: 1, minWidth: 0 }}>{t.slice(1)}</span>
+            </div>
+          )
+        }
+        return (
+          <div key={i} style={{ fontSize: '11px', color: C.textSub, lineHeight: 1.6, fontFamily: SAIRA, marginTop: i === 0 ? 0 : 4 }}>
+            {t}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const NEWS_FALLBACK: NewsItem[] = CHANGELOG.map(c => ({ date: c.date, title: c.title, body: c.body }))
 const NEWS_URL = 'https://tokinets.com/jpel-news.json'
 
@@ -62,9 +98,7 @@ export default function AnnouncementsPage() {
                     </div>
                     <span style={{ color: C.textDim, fontSize: 12, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>›</span>
                   </button>
-                  {open && (
-                    <div style={{ fontSize: '11px', color: C.textSub, lineHeight: 1.6, fontFamily: SAIRA, padding: '0 0 12px' }}>{item.body}</div>
-                  )}
+                  {open && <NewsBody body={item.body} />}
                 </div>
               )
             })}
