@@ -9,7 +9,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { Player } from '../../types'
 import {
   getRoom, listMembers, leaveRoom, kickMember, setReady, startRoom, formatRoomCode, getMemberRoster,
-  DEFAULT_RULES, type MatchRules, type Room, type RoomMember,
+  finishMatch, DEFAULT_RULES, type MatchRules, type MatchResultEntry, type Room, type RoomMember,
 } from '../../lib/roomsApi'
 import { openRoomChannel, RoomEvent, type RoomChannel, type ChannelStatus } from '../../lib/roomChannel'
 import { deadlineIn, serverNow } from '../../lib/serverTime'
@@ -17,7 +17,9 @@ import { randomCourseIds, courseById } from '../../data/matchCourses'
 import RulesPanel from './RulesPanel'
 import PickPanel, { autoOrder, isOrderComplete, type Order } from './PickPanel'
 import RacePanel from './RacePanel'
-import { buildRacePayload, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
+import CoursePanel from './CoursePanel'
+import FinishPanel from './FinishPanel'
+import { buildRacePayload, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -26,17 +28,24 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MIN_TEAMS = 2
 /** ホストがルールを決める持ち時間 */
 const RULES_SECONDS = 45
+/** コース発表を見せる時間 */
+const COURSE_SECONDS = 5
 /** オーダーを組む持ち時間 */
 const PICK_SECONDS = 120
 /** レース前のカウントダウン */
-const COUNTDOWN_SECONDS = 10
+const COUNTDOWN_SECONDS = 5
 /** 提出が届くまでの猶予（時間切れの取りこぼし防止） */
 const GRACE_MS = 1500
 
+/** 最初の1人が「次のレースへ」を押してから、残りを待つ上限 */
+const RACE_WAIT_MS = 30 * 1000
 /** 見終わった人を待つ上限。誰かが固まっても試合が止まらないようにする */
 const WATCH_LIMIT_MS = 5 * 60 * 1000
 
-type Phase = 'lobby' | 'rules' | 'pick' | 'race' | 'finish'
+/** CPUのチームIDにつける印。人のID（UUID）とぶつからないようにする。 */
+const CPU_PREFIX = 'cpu:'
+
+type Phase = 'lobby' | 'rules' | 'course' | 'pick' | 'race' | 'finish'
 
 // 対戦の待合室。番号を見せて人が集まるのを待つ画面。
 // 人の増減は Realtime の lobby イベントで知らせ合い、各自がDBを引き直す。
@@ -62,8 +71,10 @@ export default function RoomLobbyPage() {
 
   // ── レース ──
   const [result, setResult] = useState<MatchRacePayload | null>(null)
+  const [results, setResults] = useState<MatchRacePayload[]>([])   // 全レースぶん（最終結果で使う）
   const [seriesPts, setSeriesPts] = useState<Record<string, number>>({})
   const [waitingNext, setWaitingNext] = useState(false)
+  const [segGo, setSegGo] = useState(-1)                            // ホストが「次の区間へ」と言った区間
 
   const [askLeave, setAskLeave] = useState(false)
   const [askKick, setAskKick] = useState<RoomMember | null>(null)
@@ -89,6 +100,16 @@ export default function RoomLobbyPage() {
   const watchedRef = useRef<Record<string, boolean>>({})
   const nextStartedRef = useRef(false)
   const startNextRef = useRef<(() => void) | null>(null)
+  const resultsRef = useRef<MatchRacePayload[]>([])
+  // CPUチーム（ホストのセーブから借りてくる）。ホストの端末だけが持つ。
+  const cpuTeamsRef = useRef<MatchTeamInfo[]>([])
+  const cpuRostersRef = useRef<Record<string, Player[]>>({})
+  // 区間ごとの待ち合わせ。「どの区間ぶんを数えているか」と「誰が見終わったか」
+  const segWatchRef = useRef<{ key: string; ids: Record<string, boolean> }>({ key: '', ids: {} })
+  const nextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pickSentRef = useRef(-1)
+  const startPickRef = useRef<((n: number) => void) | null>(null)
+  const finishSentRef = useRef(false)
 
   const refresh = useCallback(async () => {
     if (!roomId) return
@@ -130,7 +151,14 @@ export default function RoomLobbyPage() {
         setDeadline(p.deadline)
         setPhase('rules')
       })
-      // ルール確定 → オーダー提出へ
+      // ルール確定 → 今回のコース発表
+      ch.on<{ rules: MatchRules; deadline: number }>(RoomEvent.COURSE, p => {
+        if (!p) return
+        setRules(p.rules)
+        setDeadline(p.deadline)
+        setPhase('course')
+      })
+      // コース発表のあと → オーダー提出へ
       ch.on<{ rules: MatchRules; deadline: number; race: number }>(RoomEvent.PICK, p => {
         if (!p) return
         setRules(p.rules)
@@ -139,10 +167,13 @@ export default function RoomLobbyPage() {
         setPhase('pick')
         setSubmitted(false)
         setWaitingNext(false)
+        setSegGo(-1)
         entriesRef.current = {}
         advancedRef.current = false
         watchedRef.current = {}
+        segWatchRef.current = { key: '', ids: {} }
         nextStartedRef.current = false
+        if (nextTimerRef.current) { clearTimeout(nextTimerRef.current); nextTimerRef.current = null }
       })
       // 誰かが提出した（ホストだけが集める）
       ch.on<{ race: number; order: Order }>(RoomEvent.ENTRY, (p, from) => {
@@ -165,20 +196,49 @@ export default function RoomLobbyPage() {
         }
         lastResultRef.current = p
         setResult(p)
+        // 全レースぶんを取っておく。最終結果はこれを各自が集計する（配り直さない）。
+        setResults(prev => {
+          const out = [...prev.filter(r => r.race !== p.race), p].sort((a, b) => a.race - b.race)
+          resultsRef.current = out
+          return out
+        })
         setRaceNo(p.race)
         setWaitingNext(false)
+        setSegGo(-1)
         setPhase('race')
         watchedRef.current = {}
+        segWatchRef.current = { key: '', ids: {} }
         nextStartedRef.current = false
+        if (nextTimerRef.current) { clearTimeout(nextTimerRef.current); nextTimerRef.current = null }
+      })
+      // 区間結果を見終わった人の集計（ホストだけ）。CPUは数えない。
+      ch.on<{ race: number; seg: number }>(RoomEvent.SEG, (p, from) => {
+        if (!p || !isHostRef.current) return
+        if (p.race !== raceNoRef.current) return
+        const key = `${p.race}:${p.seg}`
+        if (segWatchRef.current.key !== key) segWatchRef.current = { key, ids: {} }
+        segWatchRef.current.ids[from] = true
+        if (activeIdsRef.current.every(id => segWatchRef.current.ids[id])) {
+          chRef.current?.send(RoomEvent.SEGGO, { race: p.race, seg: p.seg }).catch(() => {})
+        }
+      })
+      // 全員そろった → 次の区間へ
+      ch.on<{ race: number; seg: number }>(RoomEvent.SEGGO, p => {
+        if (!p || p.race !== raceNoRef.current) return
+        setSegGo(v => Math.max(v, p.seg))
       })
       // 見終わった人の集計（ホストだけ）
       ch.on<{ race: number }>(RoomEvent.NEXT, (p, from) => {
         if (!p || !isHostRef.current) return
         if (p.race !== raceNoRef.current) return
         watchedRef.current[from] = true
-        if (activeIdsRef.current.every(id => watchedRef.current[id])) startNextRef.current?.()
+        if (activeIdsRef.current.every(id => watchedRef.current[id])) { startNextRef.current?.(); return }
+        // 最初の1人が押したら、そこから30秒で打ち切る（固まった人を待ち続けない）
+        if (!nextTimerRef.current) {
+          nextTimerRef.current = setTimeout(() => { startNextRef.current?.() }, RACE_WAIT_MS)
+        }
       })
-      // シリーズ終了（集計は次の工程）
+      // シリーズ終了
       ch.on(RoomEvent.FINISH, () => { setPhase('finish') })
       ch.onPresence(ids => setOnline(ids))
       ch.onStatus(s => setConn(s))
@@ -190,6 +250,7 @@ export default function RoomLobbyPage() {
     return () => {
       aliveRef.current = false
       if (timer) clearInterval(timer)
+      if (nextTimerRef.current) { clearTimeout(nextTimerRef.current); nextTimerRef.current = null }
       chRef.current?.close()
       chRef.current = null
     }
@@ -266,6 +327,45 @@ export default function RoomLobbyPage() {
     chRef.current?.send(RoomEvent.RULES, { rules: next, deadline }).catch(() => {})
   }
 
+  // CPUを用意する（ホストの端末だけ）。
+  // ホストのセーブにあるチームから、自分と参加者以外を必要な数だけ借りてくる。
+  const buildCpu = useCallback((count: number) => {
+    cpuTeamsRef.current = []
+    cpuRostersRef.current = {}
+    if (count <= 0) return
+    const st = useGameStore.getState()
+    const used = new Set(teamInfosRef.current.map(t => t.name))
+    const pool = (st.teams ?? []).filter(t => t.id !== st.playerTeamId && !used.has(t.name))
+    // 適当に混ぜて先頭から取る
+    const shuffled = [...pool]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    for (const t of shuffled.slice(0, count)) {
+      const id = `${CPU_PREFIX}${t.id}`
+      cpuTeamsRef.current.push({
+        id,
+        name: t.name,
+        shortName: t.shortName,
+        primary: t.colors?.primary ?? '#122440',
+        secondary: t.colors?.secondary ?? '#f5c842',
+        logoId: t.logoId ?? 'logo_01',
+      })
+      cpuRostersRef.current[id] = st.players.filter(p => p.teamId === t.id)
+    }
+  }, [])
+
+  // ホストだけが呼ぶ。オーダー提出フェーズを始める。
+  const startPick = useCallback((n: number) => {
+    if (!isHostRef.current) return
+    if (pickSentRef.current === n) return       // 二重に送らない
+    pickSentRef.current = n
+    const dl = deadlineIn(PICK_SECONDS)
+    chRef.current?.send(RoomEvent.PICK, { rules: rulesRef.current, deadline: dl, race: n }).catch(() => {})
+  }, [])
+  useEffect(() => { startPickRef.current = startPick }, [startPick])
+
   const onConfirmRules = useCallback(async () => {
     if (!roomId || confirmedRef.current) return
     confirmedRef.current = true
@@ -274,21 +374,23 @@ export default function RoomLobbyPage() {
       // 「ランダム」はここで抽選して確定させる（全員が同じコースを走るため）
       courses: rules.courses === 'random' ? randomCourseIds(rules.races) : rules.courses,
     }
-    teamCountRef.current = Math.max(2, activeIdsRef.current.length)
+    buildCpu(final.cpu)
+    teamCountRef.current = Math.max(2, activeIdsRef.current.length + cpuTeamsRef.current.length)
     setBusy(true)
     try {
       await startRoom(roomId, final)
-      const dl = deadlineIn(PICK_SECONDS)
-      await chRef.current?.send(RoomEvent.PICK, { rules: final, deadline: dl, race: 0 })
+      const dl = deadlineIn(COURSE_SECONDS)
+      rulesRef.current = final     // このあとすぐ startPick が古いルールを送らないように
+      await chRef.current?.send(RoomEvent.COURSE, { rules: final, deadline: dl })
       setRules(final)
       setDeadline(dl)
       setRaceNo(0)
-      setPhase('pick')
+      setPhase('course')
     } catch {
       confirmedRef.current = false
       setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' })
     } finally { setBusy(false) }
-  }, [roomId, rules])
+  }, [roomId, rules, buildCpu])
 
   // 45秒たったらホストが自動で確定する（ゲストは待つだけ）
   useEffect(() => {
@@ -296,6 +398,13 @@ export default function RoomLobbyPage() {
     const t = setTimeout(() => { onConfirmRules() }, Math.max(0, deadline - serverNow()))
     return () => clearTimeout(t)
   }, [phase, isHost, deadline, onConfirmRules])
+
+  // コース発表は5秒で自動的にオーダー選びへ（ホストはボタンで早送りできる）
+  useEffect(() => {
+    if (phase !== 'course' || !isHost || !deadline) return
+    const t = setTimeout(() => { startPickRef.current?.(0) }, Math.max(0, deadline - serverNow()))
+    return () => clearTimeout(t)
+  }, [phase, isHost, deadline])
 
   // ── 選手選択 ───────────────────────────────────────────
   const courseIds = rules.courses === 'random' ? [] : rules.courses
@@ -358,12 +467,19 @@ export default function RoomLobbyPage() {
         if (!got) forfeits.push(id)
       }
     }
+    // CPUのオーダーは毎回おまかせで組む
+    for (const t of cpuTeamsRef.current) {
+      orders[t.id] = autoOrder(cpuRostersRef.current[t.id] ?? [], c, raceNoRef.current + 1).lineup
+    }
     const payload = buildRacePayload({
       raceNo: raceNoRef.current,
       course: c,
       startAt: deadlineIn(COUNTDOWN_SECONDS),
-      teams: teamInfosRef.current.filter(t => activeIdsRef.current.includes(t.id)),
-      rosters: rostersRef.current,
+      teams: [
+        ...teamInfosRef.current.filter(t => activeIdsRef.current.includes(t.id)),
+        ...cpuTeamsRef.current,
+      ],
+      rosters: { ...rostersRef.current, ...cpuRostersRef.current },
       orders,
       teamCount: teamCountRef.current,
       forfeits,
@@ -395,8 +511,7 @@ export default function RoomLobbyPage() {
       chRef.current?.send(RoomEvent.FINISH, {}).catch(() => {})
       return
     }
-    const dl = deadlineIn(PICK_SECONDS)
-    chRef.current?.send(RoomEvent.PICK, { rules: rulesRef.current, deadline: dl, race: n }).catch(() => {})
+    startPickRef.current?.(n)
   }, [])
   useEffect(() => { startNextRef.current = startNext }, [startNext])
 
@@ -411,6 +526,25 @@ export default function RoomLobbyPage() {
     setWaitingNext(true)
     chRef.current?.send(RoomEvent.NEXT, { race: raceNo }).catch(() => {})
   }
+
+  // 区間結果を見終わった合図。全員そろえばホストから SEGGO が返ってくる。
+  const onSegDone = (seg: number) => {
+    chRef.current?.send(RoomEvent.SEG, { race: raceNo, seg }).catch(() => {})
+  }
+
+  // ── 通算成績をサーバーへ記録する（ホストが1回だけ） ──────
+  useEffect(() => {
+    if (phase !== 'finish' || !isHost || !roomId || finishSentRef.current) return
+    const races = resultsRef.current
+    if (!races.length) return
+    finishSentRef.current = true
+    const humans = new Set(activeIdsRef.current)
+    const entries: MatchResultEntry[] = seriesStandings(races)
+      .filter(s => humans.has(s.teamId))
+      .map(s => ({ user_id: s.teamId, rank: s.rank, points: s.points, forfeit: s.forfeit }))
+    finishMatch(roomId, { races: races.length, courses: races.map(r => r.courseId) }, entries)
+      .catch(() => { /* 記録できなくても画面は進める */ })
+  }, [phase, isHost, roomId])
 
   if (loading) {
     return (
@@ -531,6 +665,15 @@ export default function RoomLobbyPage() {
         />
       )}
 
+      {phase === 'course' && (
+        <CoursePanel
+          courses={courseIds.map(id => courseById(id))}
+          deadline={deadline}
+          isHost={isHost}
+          onNext={() => startPick(0)}
+        />
+      )}
+
       {phase === 'pick' && (
         !course || !rosters[me ?? ''] ? (
           <div style={{ marginTop: 40 }}><LoadingBox /></div>
@@ -561,21 +704,28 @@ export default function RoomLobbyPage() {
             seriesPts={seriesPts}
             waiting={waitingNext}
             onNext={onNextRace}
+            segGo={segGo}
+            onSegDone={onSegDone}
           />
         )
       )}
 
+      {/* 最終結果。まだ1レースも届いていない（途中で入り直した等）ときだけ簡易表示にする。 */}
       {phase === 'finish' && (
-        <div style={{ padding: '48px 16px 0', textAlign: 'center' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 12, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FINISH</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginTop: 8 }}>対戦終了</div>
-          <div style={{ fontSize: 12, color: C.textDim, marginTop: 10, lineHeight: 1.7 }}>お疲れさまでした。<br />結果の集計はこのあと作ります。</div>
-          <button onClick={() => setAskLeave(true)} className="btn-press" style={{
-            marginTop: 24, padding: '13px 28px', borderRadius: 12, border: `2px solid ${C.goldDark}`,
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            color: C.gold, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer',
-          }}>部屋を出る</button>
-        </div>
+        results.length > 0 ? (
+          <FinishPanel races={results} meId={me ?? ''} onLeave={() => setAskLeave(true)} />
+        ) : (
+          <div style={{ padding: '48px 16px 0', textAlign: 'center' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 12, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FINISH</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginTop: 8 }}>対戦終了</div>
+            <div style={{ fontSize: 12, color: C.textDim, marginTop: 10, lineHeight: 1.7 }}>お疲れさまでした。</div>
+            <button onClick={() => setAskLeave(true)} className="btn-press" style={{
+              marginTop: 24, padding: '13px 28px', borderRadius: 12, border: `2px solid ${C.goldDark}`,
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              color: C.gold, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer',
+            }}>部屋を出る</button>
+          </div>
+        )
       )}
 
       {askLeave && (

@@ -60,6 +60,49 @@ export type MatchRacePayload = {
   forfeits: string[]
 }
 
+/** シリーズ（全レース）の通算成績。1チーム1行。 */
+export type SeriesStanding = {
+  teamId: string
+  /** 通算得点（順位ポイント＋区間賞） */
+  points: number
+  /** 全レースの合計タイム */
+  totalTimeSec: number
+  /** 区間賞の合計 */
+  segPts: number
+  /** レースごとの順位 */
+  ranks: number[]
+  /** 1回でも不戦（未提出でおまかせ）になったか */
+  forfeit: boolean
+  /** 総合順位（1始まり） */
+  rank: number
+}
+
+/**
+ * 全レースの結果から通算成績を作る。
+ * 並びは「通算得点が多い順、同点なら合計タイムが速い順」。
+ * ホストも参加者も同じ結果を持っているので、各自がこれを呼べば必ず同じ表になる。
+ */
+export function seriesStandings(races: MatchRacePayload[]): SeriesStanding[] {
+  const map = new Map<string, SeriesStanding>()
+  for (const r of races) {
+    for (const s of r.standings) {
+      const cur = map.get(s.teamId) ?? {
+        teamId: s.teamId, points: 0, totalTimeSec: 0, segPts: 0, ranks: [], forfeit: false, rank: 0,
+      }
+      cur.points += s.points
+      cur.totalTimeSec += s.totalTimeSec
+      cur.segPts += s.segPts
+      cur.ranks.push(s.rank)
+      if (r.forfeits.includes(s.teamId)) cur.forfeit = true
+      map.set(s.teamId, cur)
+    }
+  }
+  const out = [...map.values()].sort((a, b) =>
+    b.points - a.points || a.totalTimeSec - b.totalTimeSec)
+  out.forEach((s, i) => { s.rank = i + 1 })
+  return out
+}
+
 const NS = '#'
 const nsId = (userId: string, playerId: string) => `${userId}${NS}${playerId}`
 const srcOf = (id: string) => { const i = id.indexOf(NS); return i < 0 ? id : id.slice(i + 1) }

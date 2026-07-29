@@ -690,6 +690,7 @@ export function SimPhase({
 
 export function SegmentResultCard({
   seg, race, teamMap, playerMap, playerTeamId, isLastSeg, onAdvance, showRecordBadge = true, advanceLabel,
+  nextLabel, advanceDisabled = false,
 }: {
   seg: InteractiveSegResult
   race: Race
@@ -702,6 +703,10 @@ export function SegmentResultCard({
   showRecordBadge?: boolean
   /** 最終区のボタン文字を差し替える */
   advanceLabel?: string
+  /** 最終区以外のボタン文字を差し替える（オンライン対戦の待ち合わせ表示に使う） */
+  nextLabel?: string
+  /** 押せなくする（他のチームを待っているあいだ） */
+  advanceDisabled?: boolean
 }) {
   const longPress = usePlayerLongPress()
   const raceSegData = race.segments.find(s => s.index === seg.segmentIndex)
@@ -780,12 +785,14 @@ export function SegmentResultCard({
         })}
         <div style={{ padding: '10px 12px' }}>
           {isLastSeg ? (
-            <button className="btn-game btn-game--gold" onClick={onAdvance} style={{ width: '100%' }}>
+            <button className="btn-game btn-game--gold" onClick={() => { if (!advanceDisabled) onAdvance() }}
+              style={{ width: '100%', opacity: advanceDisabled ? 0.5 : 1 }}>
               <span className="btn-game__inner">{advanceLabel ?? '最終結果を見る'}</span>
             </button>
           ) : (
-            <button className="btn-game btn-game--blue" onClick={onAdvance} style={{ width: '100%' }}>
-              <span className="btn-game__inner">次の区間へ →</span>
+            <button className="btn-game btn-game--blue" onClick={() => { if (!advanceDisabled) onAdvance() }}
+              style={{ width: '100%', opacity: advanceDisabled ? 0.5 : 1 }}>
+              <span className="btn-game__inner">{nextLabel ?? '次の区間へ →'}</span>
             </button>
           )}
         </div>

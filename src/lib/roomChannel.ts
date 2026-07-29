@@ -18,12 +18,18 @@ export const RoomEvent = {
   LOBBY: 'lobby',
   /** ホスト → ルール確定＆選択フェーズ開始（deadline付き） */
   RULES: 'rules',
+  /** ホスト → 今回走るコースの発表（deadline付き） */
+  COURSE: 'course',
   /** ホスト → 選手選択フェーズ開始（deadline付き） */
   PICK: 'pick',
   /** 参加者 → 自分のオーダー提出 */
   ENTRY: 'entry',
   /** ホスト → レース結果＋走り出す時刻（startAt）。全員これを同じタイミングで再生する */
   RACE: 'race',
+  /** 参加者 → この区間を見終わった（「次の区間へ」を押した） */
+  SEG: 'seg',
+  /** ホスト → 全員そろったので次の区間へ */
+  SEGGO: 'seggo',
   /** 参加者 → このレースを見終わった（「次へ」を押した） */
   NEXT: 'next',
   /** ホスト → シリーズ終了 */

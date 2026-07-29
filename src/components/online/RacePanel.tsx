@@ -18,8 +18,14 @@ const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F3
 
 type Stage = 'countdown' | 'track' | 'segresult' | 'final'
 
+/** 区間結果で他のチームを待つ上限。これを過ぎたら置いて先へ進む。 */
+const SEG_WAIT_SEC = 20
+/** レースの結果で他のチームを待つ上限（表示用の目安） */
+const RACE_WAIT_SEC = 30
+
 export default function RacePanel({
   payload, course, raceNo, totalRaces, meId, myPlayers, seriesPts, waiting, onNext,
+  segGo = -1, onSegDone,
 }: {
   payload: MatchRacePayload
   course: MatchCourse
@@ -33,6 +39,10 @@ export default function RacePanel({
   /** 「次へ」を押して他のチームを待っている状態 */
   waiting: boolean
   onNext: () => void
+  /** ホストが「次の区間へ進んでよい」と言った区間番号（まだなら -1） */
+  segGo?: number
+  /** 区間結果を見終わったことをホストへ伝える */
+  onSegDone?: (segmentIndex: number) => void
 }) {
   const race = useMemo(() => courseToRace(course, raceNo), [course, raceNo])
   const segIdxList = useMemo(() => payload.segments.map(s => s.segmentIndex), [payload])
@@ -44,6 +54,10 @@ export default function RacePanel({
   const [paused, setPaused] = useState(false)
   const pausedRef = useRef(false)
   const rafRef = useRef(0)
+  // 区間結果で「次の区間へ」を押したあと、他のチームがそろうのを待っている状態
+  const [segWait, setSegWait] = useState<{ seg: number; until: number } | null>(null)
+  const [segLeft, setSegLeft] = useState(SEG_WAIT_SEC)
+  const [raceLeft, setRaceLeft] = useState(RACE_WAIT_SEC)
 
   useEffect(() => { pausedRef.current = paused }, [paused])
 
@@ -51,7 +65,7 @@ export default function RacePanel({
   // 0になったら必ず止める。止め忘れると、あとで区間結果を出しても
   // 200ミリ秒ごとに走行画面へ引き戻されてしまう。
   useEffect(() => {
-    setStage('countdown'); setPos(0)
+    setStage('countdown'); setPos(0); setSegWait(null)
     let t = 0 as unknown as ReturnType<typeof setInterval>
     const tick = () => {
       const ms = payload.startAt - serverNow()
@@ -85,6 +99,37 @@ export default function RacePanel({
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
   }, [stage, pos, course, segIdxList])
+
+  // ── 区間ごとの待ち合わせ ──
+  // 全員が見終わればホストから合図（segGo）が来る。来なくても20秒たったら先へ進む。
+  // こうしておけば、誰かが固まってもこちらの画面は止まらない。
+  const goNextSeg = () => { setSegWait(null); setPos(p => p + 1); setStage('track') }
+
+  useEffect(() => {
+    if (!segWait) return
+    const tick = () => {
+      const ms = segWait.until - serverNow()
+      setSegLeft(Math.max(0, Math.ceil(ms / 1000)))
+      if (ms <= 0) goNextSeg()
+    }
+    tick()
+    const t = setInterval(tick, 300)
+    return () => clearInterval(t)
+  }, [segWait])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (segWait && segGo >= segWait.seg) goNextSeg()
+  }, [segGo, segWait])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // レース結果で待っているあいだの残り秒数（表示だけ。進めるのはホスト）
+  useEffect(() => {
+    if (!waiting) { setRaceLeft(RACE_WAIT_SEC); return }
+    const until = serverNow() + RACE_WAIT_SEC * 1000
+    const tick = () => setRaceLeft(Math.max(0, Math.ceil((until - serverNow()) / 1000)))
+    tick()
+    const t = setInterval(tick, 300)
+    return () => clearInterval(t)
+  }, [waiting])
 
   // ── 表示用のチーム・選手 ──
   const teams: Team[] = useMemo(() => payload.teams.map(asTeam), [payload])
@@ -215,7 +260,7 @@ export default function RacePanel({
             style={{ width: '100%', opacity: waiting ? 0.5 : 1 }}
           >
             <span className="btn-game__inner">
-              {waiting ? '他のチームを待っています' : raceNo >= totalRaces ? '対戦結果へ' : '次のレースへ'}
+              {waiting ? `他のチームを待っています（${raceLeft}）` : raceNo >= totalRaces ? '対戦結果へ' : '次のレースへ'}
             </span>
           </button>
         </div>
@@ -281,7 +326,15 @@ export default function RacePanel({
           isLastSeg={isLast}
           showRecordBadge={false}
           advanceLabel="このレースの結果へ"
-          onAdvance={() => { if (isLast) setStage('final'); else { setPos(p => p + 1); setStage('track') } }}
+          nextLabel={segWait ? `他のチームを待っています（${segLeft}）` : undefined}
+          advanceDisabled={!!segWait}
+          onAdvance={() => {
+            if (isLast) { setStage('final'); return }
+            if (segWait) return
+            onSegDone?.(segData.segmentIndex)
+            setSegLeft(SEG_WAIT_SEC)
+            setSegWait({ seg: segData.segmentIndex, until: serverNow() + SEG_WAIT_SEC * 1000 })
+          }}
         />
 
         <div style={{ margin: '12px 12px 0', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
