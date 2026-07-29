@@ -1880,7 +1880,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           // ── 海外挑戦の直訴：世界レベル（OVR80+・30歳以下）が「海外でやりたい」とチャットで言い出す。
-          //    代表帰り（前年〜今年に世界陸上代表）は世界を見てきたので言い出しやすい ──
+          //    代表帰り（前年〜今年に世界選手権代表）は世界を見てきたので言い出しやすい ──
           const existOvReq = new Set((state.currentSeason.overseasRequests ?? []).map(r => r.playerId))
           // 夢の行き先はタイプで変わる：持久系→アフリカ高地／スピード系→欧州トラック／山・万能→北米
           const regionForSpec = (s: Player['specialty']): import('../types').OverseasRegion =>
@@ -4582,7 +4582,7 @@ export const useGameStore = create<GameStore>()(
 
         // ── ジュエル：国内レース（runRace）の1.5倍。順位20/10/5→30/15/7、区間賞5→7、実績も1.5倍。
         //    7.5は切り捨てて7。年間総合順位のボーナスだけは国内のシーズン終了と同じ200/100/50（1.5倍しない）。
-        //    二軍（advanceSecondTeamRace）と世界陸上はこれまで通り付与なし。 ──
+        //    二軍（advanceSecondTeamRace）と世界選手権はこれまで通り付与なし。 ──
         const myEclSegWins = myRaceRank > 0
           ? state.players.filter(p => p.teamId === state.playerTeamId && segWinIds.has(p.id)).length
           : 0
@@ -6002,7 +6002,7 @@ export const useGameStore = create<GameStore>()(
             players: cleanedPlayers,
             teams: syncedTeams,
             foreignLeagues: cappedForeignLeagues,
-            worldTournament: undefined,  // 世界陸上トーナメントは年度で完結（翌年は新規に開催）
+            worldTournament: undefined,  // 世界選手権トーナメントは年度で完結（翌年は新規に開催）
             worldRacePlans: undefined,   // コースも毎年引き直し
             // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
             transferHistory: [...(state.transferHistory ?? []), ...departureRecords, ...foreignTx.records, ...crossTx.records].slice(-800),
@@ -6016,7 +6016,7 @@ export const useGameStore = create<GameStore>()(
             eventSeasonTops: [...(state.eventSeasonTops ?? []), ...newEventTops],
             draftState: null,
             sponsors: updatedSponsors,
-            // 過去シーズンはレース結果・順位・世界陸上など「記録として見返すもの」だけ残す。
+            // 過去シーズンはレース結果・順位・世界選手権など「記録として見返すもの」だけ残す。
             // 記録会の全結果（毎年約1MB）・ニュース・チャットログ等は一度も読まれないため空にして保存する
             pastSeasons: [...state.pastSeasons, {
               ...state.currentSeason,
@@ -6413,12 +6413,12 @@ export const useGameStore = create<GameStore>()(
         set({ nationalTeam: { ...nt, squadIds: ids, racePlan, racePlayerIds } })
       },
 
-      // 世界陸上：日本駅伝代表20人を確定（候補50から監督が選抜）
+      // 世界選手権：日本駅伝代表20人を確定（候補50から監督が選抜）
       setWorldSquad: (playerIds: string[]) => {
         set(state => ({ worldSquad: { year: state.currentSeason.year, playerIds: playerIds.slice(0, 20) } }))
       },
 
-      // 世界陸上／予選をその年ぶん実行して結果を保存（既に実行済みの年は何もしない）
+      // 世界選手権／予選をその年ぶん実行して結果を保存（既に実行済みの年は何もしない）
       runWorldAthletics: () => {
         set(state => {
           const year = state.currentSeason.year
@@ -6443,7 +6443,7 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
-      // 世界陸上トーナメント開始：出場国・各国の駅伝代表20・3戦のコースを確定。
+      // 世界選手権トーナメント開始：出場国・各国の駅伝代表20・3戦のコースを確定。
       // 予選＝アジア＋オセアニア（最大20カ国）／本番＝20カ国（前年予選の通過国でアジア＋オセ枠を決定）。
       // 本番は個人種目の結果もここで確定（発表は画面側で段階表示）。
       startWorldTournament: () => {
@@ -6502,10 +6502,10 @@ export const useGameStore = create<GameStore>()(
           const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
           const races: import('../types').Race[] = plans.map((plan, i) => ({
             id: `wa-${year}-r${i + 1}`,
-            // 例: 「2030 世界陸上 テグ 第1戦」「2029 アジア＋オセアニア予選 第1戦」
+            // 例: 「2030 世界選手権 テグ 第1戦」「2029 アジア＋オセアニア予選 第1戦」
             name: isMain
-              ? `${year} 世界陸上 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
-              : `${year} 世界陸上アジア予選 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`,
+              ? `${year} 世界選手権 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
+              : `${year} 世界選手権アジア予選 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`,
             // JPELグランドファイナル(12/27)の後、オフシーズンの1月開催。年をまたぐので year+1 になる
             date: waRaceDate(year, i),
             location: '',
@@ -6635,7 +6635,7 @@ export const useGameStore = create<GameStore>()(
           const contNews = (result.kind === 'qualifier' && result.continentals)
             ? [{
                 date: `${t.year + 1}${WA_CLOSING_DATE}`,
-                headline: `世界陸上 大陸予選が閉幕 — ${result.continentals.map(c => `${c.region.replace('アメリカ大陸', 'アメリカ')}: ${c.advanced.map(n => natLabel(n)).join('・')}`).join(' ／ ')} が本戦へ`,
+                headline: `世界選手権 大陸予選が閉幕 — ${result.continentals.map(c => `${c.region.replace('アメリカ大陸', 'アメリカ')}: ${c.advanced.map(n => natLabel(n)).join('・')}`).join(' ／ ')} が本戦へ`,
                 category: 'race' as const,
                 relatedIds: [] as string[],
               }]
@@ -6664,7 +6664,7 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const year = state.currentSeason.year
           if (state.worldRacePlans?.year === year) return state
-          // コースは開催国の地形で作る（本番＝世界陸上の開催国、予選＝アジア予選の開催国）
+          // コースは開催国の地形で作る（本番＝世界選手権の開催国、予選＝アジア予選の開催国）
           const isMain = (year - 2028) % 2 === 0
           const host = isMain ? hostForYear(year) : qualHostForYear(year)
           return { worldRacePlans: { year, plans: generateWECRacePlan(hostTerrain(host)) } }
@@ -7064,7 +7064,7 @@ export const useGameStore = create<GameStore>()(
             // Race object: apply courseMult via distance scaling
             const wecRace: import('../types').Race = {
               id: `wec_${year}_r${raceIdx + 1}`,
-              name: `世界陸上 第${raceIdx + 1}レース`,
+              name: `世界選手権 第${raceIdx + 1}レース`,
               date: `${year}-12-01`,
               location: cityInfo.city,
               type: 'league' as const,
@@ -7179,7 +7179,7 @@ export const useGameStore = create<GameStore>()(
           const resultLabel = japanFinalRank === 1 ? '金メダル獲得！' : japanFinalRank <= 3 ? `${japanFinalRank}位入賞！` : `${japanFinalRank}位`
           const newsItem = {
             date: `${year}-12-01`,
-            headline: `世界陸上（${cityInfo.city}）3レース制：日本${resultLabel}`,
+            headline: `世界選手権（${cityInfo.city}）3レース制：日本${resultLabel}`,
             category: 'race' as const,
             relatedIds: [],
           }
@@ -7649,10 +7649,14 @@ export const useGameStore = create<GameStore>()(
           // フレンド用のアカウント（Keychainに保存している証明書）もここで消す。
           // アプリ削除や機種変更では残る仕様なので、消えるのはこのデータ削除のときだけ。
           try {
-            const [{ clearIdentity }, { supabase, resetAuthCache }] = await Promise.all([
-              import('../lib/durableId'), import('../lib/supabase'),
-            ])
+            const [{ clearIdentity }, { supabase, resetAuthCache, markIdentityCleared, deleteServerAccount }] =
+              await Promise.all([import('../lib/durableId'), import('../lib/supabase')])
+            // サーバーに残る自分のデータ（プロフィール・フレンド関係・走友会の在籍）もここで消す。
+            // これをやらないと、相手のフレンド一覧に消えたはずの自分が残り続ける。
+            // 通信できなければ false が返るだけで、端末側の削除は止めない。
+            await deleteServerAccount()
             await clearIdentity()
+            markIdentityCleared()   // ログアウトが通り切らなくても古いアカウントに戻さない
             await supabase.auth.signOut()
             resetAuthCache()
             localStorage.removeItem('jpel_friend_sync_stamp') // 新アカウントで送り直させる
@@ -7753,7 +7757,7 @@ export const useGameStore = create<GameStore>()(
           // v10: セーブ肥大化の掃除（既に膨らんだセーブの救済）。
           //  - 過去シーズンから一度も読まれない重いデータ（記録会全結果・ニュース・チャットログ等）を空にする
           //  - チーム歴代記録に選手名を焼き込む（今後の選手データ整理で名前が消えないように）
-          //  ※レース結果・順位・世界陸上・自己ベスト・歴代記録は全て残る
+          //  ※レース結果・順位・世界選手権・自己ベスト・歴代記録は全て残る
           if (version < 10) {
             if (Array.isArray(s.pastSeasons)) {
               s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => ({
@@ -7915,16 +7919,16 @@ export const useGameStore = create<GameStore>()(
           }
           if (p.currentSeason) p.currentSeason = fixEclDates(renameEcl(p.currentSeason))
           if (Array.isArray(p.pastSeasons)) p.pastSeasons = p.pastSeasons.map(renameEcl)
-          // 世界陸上の旧レース名（「アジア＋オセアニア予選 駅伝 第1戦」等）を現行形式へ冪等に直す。
+          // 世界選手権の旧レース名（「アジア＋オセアニア予選 駅伝 第1戦」等）を現行形式へ冪等に直す。
           // 旧セーブは大会生成時の名前で凍結されているため、コード側のリネームだけでは直らない
           {
             const OLD_WA = /アジア[＋+]オセアニア予選/
             const fixWaName = (name: string, year: number, kind: 'qualifier' | 'main', host: Nationality | undefined, i: number): string => {
-              if (!OLD_WA.test(name) && !/^世界陸上 駅伝 第\d+戦$/.test(name)) return name
+              if (!OLD_WA.test(name) && !/^世界選手権 駅伝 第\d+戦$/.test(name)) return name
               const city = host ? (WA_HOST_CITY[host] ?? '') : ''
               return kind === 'main'
-                ? `${year} 世界陸上${city ? ` ${city}` : ''} 第${i + 1}戦`
-                : `${year} 世界陸上アジア予選${city ? ` ${city}` : ''} 第${i + 1}戦`
+                ? `${year} 世界選手権${city ? ` ${city}` : ''} 第${i + 1}戦`
+                : `${year} 世界選手権アジア予選${city ? ` ${city}` : ''} 第${i + 1}戦`
             }
             if (p.worldTournament?.races) {
               const t = p.worldTournament

@@ -500,7 +500,7 @@ export type EclHistoryEntry = {
   mvpPlayerId?: string   // ECL MVP（パッチ付与用）
 }
 
-// 世界陸上トーナメント（予選＝アジア＋オセアニア約20カ国／本番＝20カ国）。駅伝3戦は simulateRace の実レース。
+// 世界選手権トーナメント（予選＝アジア＋オセアニア約20カ国／本番＝20カ国）。駅伝3戦は simulateRace の実レース。
 export type WorldTournamentParticipant = {
   id: string                 // `nat_JPN` 形式
   nat: Nationality
@@ -846,15 +846,15 @@ export type GameState = {
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   nationalTeam?: NationalTeam
-  // 世界陸上の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
+  // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
   worldSquad?: { year: number; playerIds: string[] }
-  // 世界陸上／予選の年次結果（新しい順に積む）。型はエンジン側で定義。
+  // 世界選手権／予選の年次結果（新しい順に積む）。型はエンジン側で定義。
   worldAthleticsResults?: import('../engine/worldAthletics').WAYearResult[]
-  // 進行中の世界陸上トーナメント（予選も本番も駅伝3戦を実レースで走る）。年度更新でリセット。
+  // 進行中の世界選手権トーナメント（予選も本番も駅伝3戦を実レースで走る）。年度更新でリセット。
   worldTournament?: WorldTournament
   // その年の駅伝3戦のコース（選考時に地形を見て選手を選べるよう、大会開始前に確定・公開）。年度更新でリセット。
   worldRacePlans?: { year: number; plans: WECRacePlan[] }
-  // 選手ごとの世界陸上 代表出場記録（パッチ・代表履歴の元）。label=種目 or 駅伝。
+  // 選手ごとの世界選手権 代表出場記録（パッチ・代表履歴の元）。label=種目 or 駅伝。
   worldRepresentatives?: { playerId: string; year: number; nat: Nationality; label: string; rank?: number }[]
   balancePatch?: number   // 一括バランス調整の適用済みバージョン（1=アジア/その他圏の既存海外選手ブースト）
   deficitRescue?: number  // 赤字判定バグの救済適用済みバージョン（1=連続赤字リセット＋残高マイナス補填）

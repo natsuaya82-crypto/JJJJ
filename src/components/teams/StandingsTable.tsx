@@ -15,7 +15,7 @@ export type StandRow = {
   points: number
   recentForm: number[]   // 直近レースの順位（新しいほど末尾）
   isMe?: boolean
-  flagCode?: Nationality // 国別対抗（世界陸上など）ではロゴの代わりに国旗を出す
+  flagCode?: Nationality // 国別対抗（世界選手権など）ではロゴの代わりに国旗を出す
 }
 
 // 全リーグ共通の順位表（JPELと同じ見た目）。

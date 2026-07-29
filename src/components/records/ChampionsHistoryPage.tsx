@@ -18,8 +18,8 @@ const OVERALL = '__overall__'   // 総合優勝を表す特別なraceName
 type RaceRef = { year: number; race: Race }
 type DistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 
-const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 'アジア予選', wamain: '世界陸上', reserve: 'リザーブ駅伝', tt: '記録会' }
-// 各大会の確立カラーに合わせる（JPEL=金 / ECL=赤 / アジア予選=ピンク / 世界陸上=紫 / リザーブ=青 / 記録会=緑）
+const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 'アジア予選', wamain: '世界選手権', reserve: 'リザーブ駅伝', tt: '記録会' }
+// 各大会の確立カラーに合わせる（JPEL=金 / ECL=赤 / アジア予選=ピンク / 世界選手権=紫 / リザーブ=青 / 記録会=緑）
 const CAT_COLOR: Record<Category, string> = { jpel: '#f5c842', ecl: '#ff4757', waqual: '#EC407A', wamain: '#A855F7', reserve: '#7986CB', tt: '#2ecc71' }
 const GOLD = '#FFD700'
 const DIST_LABEL: Record<DistKey, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
@@ -46,7 +46,7 @@ export default function ChampionsHistoryPage() {
   const [year, setYear] = useState<number | null>(null)
   const [teamId, setTeamId] = useState<string | null>(null)
   const [ttDist, setTtDist] = useState<DistKey | null>(null)
-  // 世界陸上（本線）の種目選択と、アジア予選/駅伝のレース選択
+  // 世界選手権（本線）の種目選択と、アジア予選/駅伝のレース選択
   const [waEvent, setWaEvent] = useState<'d5000' | 'd10000' | 'marathon' | 'ekiden' | null>(null)
   const [waRace, setWaRace] = useState<Race | null>(null)
 
@@ -209,7 +209,7 @@ export default function ChampionsHistoryPage() {
               : cat === 'wamain' ? (waRace ? `${year}年 順位表`
                 : waEvent === 'ekiden' ? (year != null ? `${year}年 駅伝 — レースを選択` : '駅伝 — 年度を選択')
                 : waEvent != null ? (year != null ? `${year}年 結果` : '年度を選択')
-                : '世界陸上 — 種目を選択')
+                : '世界選手権 — 種目を選択')
               : raceName === OVERALL ? (year != null ? `${year}年 ${cat ? CAT_LABEL[cat] : ''} 総合順位` : `${cat ? CAT_LABEL[cat] : ''} 総合優勝`)
               : cat === 'tt'
               ? (ttDist != null ? `${DIST_LABEL[ttDist]} — 年度を選択` : '記録会 — 種目を選択')
@@ -506,7 +506,7 @@ export default function ChampionsHistoryPage() {
         </div>
       )}
 
-      {/* ── 世界陸上: 種目一覧（5000m/10000m/マラソン/駅伝） ── */}
+      {/* ── 世界選手権: 種目一覧（5000m/10000m/マラソン/駅伝） ── */}
       {cat === 'wamain' && waEvent == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {([['d5000', '5000m'], ['d10000', '10000m'], ['marathon', 'マラソン'], ['ekiden', '駅伝']] as const).map(([ev, label]) => (
@@ -525,7 +525,7 @@ export default function ChampionsHistoryPage() {
         </div>
       )}
 
-      {/* ── 世界陸上 個人種目: 年度一覧（優勝者付き・記録会と同じ見た目） ── */}
+      {/* ── 世界選手権 個人種目: 年度一覧（優勝者付き・記録会と同じ見た目） ── */}
       {cat === 'wamain' && (waEvent === 'd5000' || waEvent === 'd10000' || waEvent === 'marathon') && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 2 }}>{waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
@@ -564,14 +564,14 @@ export default function ChampionsHistoryPage() {
         </div>
       )}
 
-      {/* ── 世界陸上 個人種目: その年の結果（トップ8・記録会と同じ見た目） ── */}
+      {/* ── 世界選手権 個人種目: その年の結果（トップ8・記録会と同じ見た目） ── */}
       {cat === 'wamain' && (waEvent === 'd5000' || waEvent === 'd10000' || waEvent === 'marathon') && year != null && (() => {
         const r = waMain.find(x => x.year === year)
         const ir = (r?.meet?.individuals ?? []).find(x => x.event === waEvent)
         const rows = (ir?.placings ?? []).slice(0, 8)
         return (
           <div style={{ padding: '0 14px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 6 }}>{year}年 世界陸上 {waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 6 }}>{year}年 世界選手権 {waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
             <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {rows.map((e, i, arr) => {
                 const isJp = e.nat === 'JPN'
@@ -603,10 +603,10 @@ export default function ChampionsHistoryPage() {
         )
       })()}
 
-      {/* ── 世界陸上 駅伝: 年度一覧（優勝国付き・アジア予選と同じ見た目） ── */}
+      {/* ── 世界選手権 駅伝: 年度一覧（優勝国付き・アジア予選と同じ見た目） ── */}
       {cat === 'wamain' && waEvent === 'ekiden' && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 2 }}>世界陸上 駅伝</div>
+          <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 2 }}>世界選手権 駅伝</div>
           {waMain.length === 0 ? (
             <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ記録がありません</div>
           ) : waMain.map(r => {
@@ -633,7 +633,7 @@ export default function ChampionsHistoryPage() {
         </div>
       )}
 
-      {/* ── アジア予選/世界陸上駅伝: その年の3戦一覧 ── */}
+      {/* ── アジア予選/世界選手権駅伝: その年の3戦一覧 ── */}
       {((cat === 'waqual') || (cat === 'wamain' && waEvent === 'ekiden')) && year != null && waRace == null && (() => {
         const src = cat === 'waqual' ? waQual : waMain
         const r = src.find(x => x.year === year)
@@ -641,7 +641,7 @@ export default function ChampionsHistoryPage() {
         const accent2 = cat === 'waqual' ? CAT_COLOR.waqual : CAT_COLOR.wamain
         return (
           <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: accent2, paddingLeft: 2, marginBottom: 2 }}>{year}年 {cat === 'waqual' ? 'アジア予選' : '世界陸上 駅伝'} 全{races.length}戦</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: accent2, paddingLeft: 2, marginBottom: 2 }}>{year}年 {cat === 'waqual' ? 'アジア予選' : '世界選手権 駅伝'} 全{races.length}戦</div>
             {races.length === 0 ? (
               <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>この年はレース詳細の記録がありません</div>
             ) : races.map(rc => {
@@ -671,7 +671,7 @@ export default function ChampionsHistoryPage() {
         )
       })()}
 
-      {/* ── アジア予選/世界陸上駅伝: 順位表（国別・タップで区間配置へ） ── */}
+      {/* ── アジア予選/世界選手権駅伝: 順位表（国別・タップで区間配置へ） ── */}
       {waRace != null && teamId == null && (
         <div style={{ padding: '0 14px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: cat === 'waqual' ? CAT_COLOR.waqual : CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 8 }}>{waRace.name}</div>
@@ -701,7 +701,7 @@ export default function ChampionsHistoryPage() {
         </div>
       )}
 
-      {/* ── アジア予選/世界陸上駅伝: 国の区間配置（選手は顔付き・長押しで詳細） ── */}
+      {/* ── アジア予選/世界選手権駅伝: 国の区間配置（選手は顔付き・長押しで詳細） ── */}
       {waRace != null && teamId != null && (() => {
         const nat = natOfTeamId(teamId)
         const results = waRace.results!

@@ -4,7 +4,7 @@
 //   ・1軍リーグ  … SEASON_2027_RACES（10本）
 //   ・リザーブ    … RESERVE_RACE_POOL（14本）
 //   ・ECL        … ECL_COURSES（10本）
-// 世界陸上はコースが毎年その場で自動生成される仕組みなので、固定の一覧が作れず対象外。
+// 世界選手権はコースが毎年その場で自動生成される仕組みなので、固定の一覧が作れず対象外。
 import type { Race, RaceConditions, Segment } from '../types'
 import { SEASON_2027_RACES, RESERVE_RACE_POOL } from './races'
 import { ECL_COURSES } from './eclCourses'

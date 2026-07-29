@@ -92,13 +92,13 @@ export default function SchedulePage() {
   }))
   const raceItems = [...mainRaces, ...stRaces, ...eclRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
 
-  // 世界陸上／アジア予選（JPELグランドファイナルの後、オフシーズンの1月開催）。
+  // 世界選手権／アジア予選（JPELグランドファイナルの後、オフシーズンの1月開催）。
   // 開催前から日程として載せ、開催後は済表示。日付は開催時の実レースと同じ規約（waRaceDate）。
   // 年をまたぐので表示は翌年になるが、文字列の昇順ソートなので12/27の後ろに正しく並ぶ。
   const waMainYear = (currentSeason.year - 2028) % 2 === 0
   const waHost = waMainYear ? hostForYear(currentSeason.year) : qualHostForYear(currentSeason.year)
   const waCity = WA_HOST_CITY[waHost] ?? (NAT_LABEL[waHost] ?? '')
-  const waTitle = waMainYear ? '世界陸上' : '世界陸上アジア予選'
+  const waTitle = waMainYear ? '世界選手権' : '世界選手権アジア予選'
   const wt = worldTournament?.year === currentSeason.year ? worldTournament : null
   const waItems = [0, 1, 2].map(i => {
     const race = wt?.races?.[i]
@@ -195,7 +195,7 @@ export default function SchedulePage() {
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: waMainYear ? '#A855F7' : '#EC407A' }}/>
-          <span style={{ fontSize: '11px', color: C.textSub }}>{waMainYear ? '世界陸上' : 'アジア予選'}</span>
+          <span style={{ fontSize: '11px', color: C.textSub }}>{waMainYear ? '世界選手権' : 'アジア予選'}</span>
         </div>
       </div>
 
@@ -252,7 +252,7 @@ export default function SchedulePage() {
             )
           }
 
-          // ── 世界陸上／アジア予選 ──
+          // ── 世界選手権／アジア予選 ──
           if (it.type === 'wa') {
             const waColor = it.waMainYear ? '#A855F7' : '#EC407A'
             return (
@@ -269,7 +269,7 @@ export default function SchedulePage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: waColor, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(waColor, 0.14), border: `1px solid ${alpha(waColor, 0.3)}`, fontFamily: SAIRA }}>{it.waMainYear ? '世界陸上' : 'アジア予選'}</span>
+                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: waColor, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(waColor, 0.14), border: `1px solid ${alpha(waColor, 0.3)}`, fontFamily: SAIRA }}>{it.waMainYear ? '世界選手権' : 'アジア予選'}</span>
                       <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{it.name}</div>
                       <div style={{ fontSize: '11px', color: C.textDim, display: 'flex', alignItems: 'center', gap: 5 }}>
                         {it.date.replace(/-/g, '/')} · 開催国 <Flag code={it.waHost} width={16} /> {NAT_LABEL[it.waHost] ?? ''}

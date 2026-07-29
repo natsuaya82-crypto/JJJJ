@@ -57,6 +57,50 @@ export function resetAuthCache(): void {
   signInPromise = null
 }
 
+// データ削除を通った印。
+// 削除のときログアウトが通信不良で完了しきらないと、端末にログイン状態だけが残ることがある。
+// そのまま次に起動すると 3-a（テスター移行用の後付け処理）が働いて、
+// 消したはずの古いアカウントに戻り、フレンドが全部復活してしまう。
+// この印がある間は、残っているセッションを絶対に採用しない。
+const CLEARED_KEY = 'jpel_identity_cleared'
+
+/** データ削除のときに呼ぶ。新しいアカウントが出来るまで印は残る。 */
+export function markIdentityCleared(): void {
+  try { localStorage.setItem(CLEARED_KEY, '1') } catch { /* noop */ }
+}
+
+function wasCleared(): boolean {
+  try { return localStorage.getItem(CLEARED_KEY) === '1' } catch { return false }
+}
+
+function clearClearedMark(): void {
+  try { localStorage.removeItem(CLEARED_KEY) } catch { /* noop */ }
+}
+
+/**
+ * サーバーに残っている自分のデータを消す（プロフィール・フレンド関係・走友会の在籍など）。
+ * 中身は supabase/account.sql の delete_me()。
+ *
+ * ログイン状態が無いときは何もしない。消すために新しいアカウントを作ってしまうと本末転倒なので、
+ * ここでは ensureAuth() を呼ばない。
+ * 通信できなければ false を返すだけで、端末側の削除は止めない。
+ */
+export async function deleteServerAccount(): Promise<boolean> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    if (!data.session?.user?.id) return false
+    const { error } = await supabase.rpc('delete_me')
+    if (error) {
+      console.warn('[auth] delete_me failed', error)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.warn('[auth] delete_me failed', e)
+    return false
+  }
+}
+
 async function run(): Promise<string | null> {
   // 1. 保存済みの証明書を読む。読めなかった＝「無い」とは言い切れないので、新規作成だけは絶対にしない。
   let stored: Identity | null = null
@@ -75,7 +119,8 @@ async function run(): Promise<string | null> {
   // 1-b. 証明書が読めなかったとき。
   //      すでにログイン状態が残っていれば、それをそのまま使う（アカウントは作らない）。
   //      残っていなければ何もしない＝次回また試す。
-  if (unreadable) return session?.user?.id ?? null
+  //      ただしデータ削除の直後は、残っているセッションが「消したはずのアカウント」なので使わない。
+  if (unreadable) return wasCleared() ? null : (session?.user?.id ?? null)
 
   // 2. 証明書がある → それでログイン（既にそのアカウントでログイン中なら何もしない）
   if (stored) {
@@ -100,7 +145,8 @@ async function run(): Promise<string | null> {
 
   //    3-a. 既存セッションがある＝これまでの匿名アカウント。ID を変えずに証明書を後付けする。
   //         （すでにフレンドコードを配っているテスターが別人にならないための移行処理）
-  if (session?.user?.id) {
+  //         データ削除の直後だけはここを通さない。通すと消したアカウントに戻ってしまう。
+  if (session?.user?.id && !wasCleared()) {
     const { error } = await supabase.auth.updateUser(fresh)
     if (!error) {
       await persist(fresh)
@@ -110,13 +156,14 @@ async function run(): Promise<string | null> {
     return session.user.id // 失敗しても今のアカウントはそのまま使う。次回また試す。
   }
 
-  //    3-b. 本当の初回。新しいアカウントを作る。
+  //    3-b. 本当の初回（データ削除のあともここに来る）。新しいアカウントを作る。
   const { data: made, error } = await supabase.auth.signUp(fresh)
   if (error || !made.user?.id) {
     console.warn('[auth] sign-up failed', error)
-    return null
+    return null   // 印はそのまま残す。作れるまで古いセッションを拾わせない。
   }
   await persist(fresh)
+  clearClearedMark()   // 新しいアカウントが出来たので印は用済み
   return made.user.id
 }
 

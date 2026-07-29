@@ -21,7 +21,7 @@ export const C = {
   cyan:      '#5ed4ff',
   orange:    '#FF9800',
   pink:      '#EC407A',
-  purple:    '#A855F7',  // 世界陸上（プレステージ枠）
+  purple:    '#A855F7',  // 世界選手権（プレステージ枠）
   purpleDark:'#6D28D9',
 } as const
 

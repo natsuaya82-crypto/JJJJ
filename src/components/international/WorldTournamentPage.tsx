@@ -21,7 +21,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type Phase = 'individuals' | 'entry' | 'lineup' | 'simulating' | 'results'
 
-// 世界陸上トーナメント（予選・本番共通）。ECLと同じ構成：エントリー→区間配置→レース再生→結果。
+// 世界選手権トーナメント（予選・本番共通）。ECLと同じ構成：エントリー→区間配置→レース再生→結果。
 // 本番は最初に個人種目（5000/10000/マラソン）の代表発表を挟み、
 // 競技順は 駅伝1→5000m結果→駅伝2→10000m結果→駅伝3→マラソン結果→総合 のインターリーブ。
 export default function WorldTournamentPage() {
@@ -108,7 +108,7 @@ export default function WorldTournamentPage() {
     )
   }
 
-  const title = t.kind === 'main' ? `世界陸上 ${t.year}` : `世界陸上アジア予選 ${t.year}`
+  const title = t.kind === 'main' ? `世界選手権 ${t.year}` : `世界選手権アジア予選 ${t.year}`
 
   // ── 個人種目の出場選手発表（本番のみ・1種目1ページでめくる）──
   // 駅伝代表が決まった時点での「代表発表」。結果はまだ出さない（駅伝の合間に1種目ずつ発表）
@@ -304,7 +304,7 @@ export default function WorldTournamentPage() {
         }))}
         onContinue={() => { setResults(null); setLockedRace(null); setPhase('entry') }}
         hideCards
-        standingsLabel={`${t.kind === 'main' ? '世界陸上' : '予選'} 順位（暫定・合計ポイント）`}
+        standingsLabel={`${t.kind === 'main' ? '世界選手権' : '予選'} 順位（暫定・合計ポイント）`}
         btnClass="btn-game--gold"
       />
     )

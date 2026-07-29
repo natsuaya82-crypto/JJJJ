@@ -32,8 +32,23 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 const PURCHASE_TIMEOUT_MS = 90_000
 const RESTORE_TIMEOUT_MS = 30_000
 
+// App Store（StoreKit）から返ってきた元のメッセージ。ほぼ英語。
+// 失敗したときに画面へそのまま出す。日本語に言い換えると原因が分からなくなるので加工しない。
+let lastError = ''
+
+/** 直前の購入・復元でApp Storeが返した原文。無ければ空文字。 */
+export function lastIapError(): string {
+  return lastError
+}
+
+function remember(e: unknown): void {
+  const m = e instanceof Error ? e.message : String(e)
+  lastError = m.slice(0, 300)
+}
+
 export async function purchaseAdFree(): Promise<PurchaseResult> {
   if (!isIOS()) return 'purchased'
+  lastError = ''
   try {
     const { result } = await withTimeout(IAP.purchase(), PURCHASE_TIMEOUT_MS)
     if (result === 'purchased') return 'purchased'
@@ -41,6 +56,7 @@ export async function purchaseAdFree(): Promise<PurchaseResult> {
     return 'cancelled'
   } catch (e) {
     console.warn('[iap] purchase failed', e)
+    remember(e)
     if (e instanceof TimeoutError) {
       // 90秒を過ぎても購入シートは開いたままなので、そのあと購入が成立していることがある。
       // 権利を黙って確認し、買えていればそのまま有効にする（課金だけ取られる事故を防ぐ）。
@@ -56,11 +72,13 @@ export async function purchaseAdFree(): Promise<PurchaseResult> {
 
 export async function restoreAdFree(): Promise<RestoreResult> {
   if (!isIOS()) return 'none'
+  lastError = ''
   try {
     const { restored } = await withTimeout(IAP.restore(), RESTORE_TIMEOUT_MS)
     return restored ? 'restored' : 'none'
   } catch (e) {
     console.warn('[iap] restore failed', e)
+    remember(e)
     if (e instanceof TimeoutError) return 'timeout'
     return 'error'
   }

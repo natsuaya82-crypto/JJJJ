@@ -144,7 +144,7 @@ export default function WECSimPage() {
           {/* Japan result banner */}
           <div style={{ marginBottom: 14, borderRadius: 16, padding: '24px 16px', textAlign: 'center', background: `linear-gradient(180deg, ${SURFACE2}, ${SURFACE})`, border: `2px solid ${japanFinalRank <= 3 ? GOLD : BORDER}`, boxShadow: japanFinalRank <= 3 ? `0 4px 20px rgba(201,168,76,0.25)` : 'none', position: 'relative', overflow: 'hidden' }}>
             {japanFinalRank <= 3 && <div style={{ position: 'absolute', inset: 3, border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 12, pointerEvents: 'none' }} />}
-            <div style={{ fontSize: 10, color: TEXT_DIM, letterSpacing: '3px', marginBottom: 4 }}>{result.year}年 世界陸上</div>
+            <div style={{ fontSize: 10, color: TEXT_DIM, letterSpacing: '3px', marginBottom: 4 }}>{result.year}年 世界選手権</div>
             <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 6 }}>{result.hostCity} / {result.courseChar}</div>
             {medalLabel && <div style={{ fontSize: 14, color: rankColor(japanFinalRank), letterSpacing: '3px', marginBottom: 4 }}>{medalLabel}</div>}
             <div style={{ fontSize: 60, fontWeight: 900, color: rankColor(japanFinalRank), lineHeight: 1, marginBottom: 8 }}>{japanFinalRank}位</div>
@@ -282,7 +282,7 @@ export default function WECSimPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: RED, boxShadow: `0 0 6px ${RED}` }} />
             <span style={{ fontSize: 10, color: RED, fontWeight: 800, letterSpacing: '2px' }}>LIVE</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>世界陸上 第{sim.raceIdx + 1}レース / {totalRaces}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>世界選手権 第{sim.raceIdx + 1}レース / {totalRaces}</span>
             <span style={{ fontSize: 9, color: TEXT_DIM }}>({WEATHER_LABEL[race.weather]})</span>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>

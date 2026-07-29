@@ -314,7 +314,7 @@ export default function PlayerSheet() {
   processRaces(currentSeason.secondTeamRaces ?? [], currentSeason.year)
   processRaces(currentSeason.collegeRaces ?? [], currentSeason.year)
   processRaces(eclRacesOf(currentSeason), currentSeason.year)
-  // 世界陸上（予選・本番）の駅伝出走もECLと同じように駅伝データへ含める
+  // 世界選手権（予選・本番）の駅伝出走もECLと同じように駅伝データへ含める
   for (const wr of worldAthleticsResults ?? []) {
     processRaces((wr.races ?? []).filter(r => r.results), wr.year)
   }
@@ -759,10 +759,10 @@ export default function PlayerSheet() {
                 )
               })()}
 
-              {/* 世界陸上（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる。
-                  駅伝の下に個人種目（世界陸上 5000m 等）のカードも並べる */}
+              {/* 世界選手権（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる。
+                  駅伝の下に個人種目（世界選手権 5000m 等）のカードも並べる */}
               {!isProspect && (() => {
-                const waNames = [...raceGroupMap.keys()].filter(n => n.includes('世界陸上') || n.includes('アジア＋オセアニア予選'))
+                const waNames = [...raceGroupMap.keys()].filter(n => n.includes('世界選手権') || n.includes('アジア＋オセアニア予選'))
                 const indLabels = (['5000m', '10000m', 'マラソン'] as const).filter(label => {
                   const ev = label === '5000m' ? 'd5000' : label === '10000m' ? 'd10000' : 'marathon'
                   return (worldAthleticsResults ?? []).some(wr =>
@@ -771,9 +771,9 @@ export default function PlayerSheet() {
                 if (waNames.length === 0 && indLabels.length === 0) return null
                 return (
                   <div>
-                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界陸上</div>
+                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界選手権</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                      {[...waNames.sort(), ...indLabels.map(l => `世界陸上 ${l}`)].map(name => (
+                      {[...waNames.sort(), ...indLabels.map(l => `世界選手権 ${l}`)].map(name => (
                         <div key={name} onClick={() => openRaceDetail(name)} style={{
                           padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.35)', backgroundColor: '#14121F',
                           cursor: 'pointer', textAlign: 'center', minHeight: 44,
@@ -900,7 +900,7 @@ export default function PlayerSheet() {
                 <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>記録なし</div>
               )}
 
-              {/* 代表チーム（世界陸上）。クラブの在籍履歴と同じテーブル形式で分けて下に置く */}
+              {/* 代表チーム（世界選手権）。クラブの在籍履歴と同じテーブル形式で分けて下に置く */}
               {(() => {
                 type CompLine = { label: string; races: number; wins: number; rankSum: number; ranked: number; ind?: boolean; indRank?: number }
                 type NatRow = { year: number; races: number; wins: number; rankSum: number; ranked: number; comps: Map<string, CompLine> }
@@ -912,7 +912,7 @@ export default function PlayerSheet() {
                 }
                 // 駅伝出走（保存済みレース詳細から集計。クラブの在籍履歴と同じ 出場/区間賞/平均）
                 for (const wr of worldAthleticsResults ?? []) {
-                  const compLabel = wr.kind === 'main' ? '世界陸上 駅伝' : '世界陸上アジア予選 駅伝'
+                  const compLabel = wr.kind === 'main' ? '世界選手権 駅伝' : '世界選手権アジア予選 駅伝'
                   for (const race of wr.races ?? []) {
                     if (!race.results) continue
                     const sr = race.results.segmentResults.find(s => s.runners.some(rn => rn.playerId === player.id))
@@ -929,18 +929,18 @@ export default function PlayerSheet() {
                     if (runner.rank != null) { c.rankSum += runner.rank; c.ranked += 1 }
                   }
                 }
-                // 在籍テーブルは駅伝のみ（個人種目は2ページ目の世界陸上セクションで見る）。
+                // 在籍テーブルは駅伝のみ（個人種目は2ページ目の世界選手権セクションで見る）。
                 // レース詳細が無い代表（0走・大陸予選など）も、地域に応じた大会名で行を出す。
-                //  本戦=世界陸上／アジア=世界陸上アジア予選／欧州=ユーロ予選／アフリカ=アフリカ予選／アメリカ=アメリカ予選
+                //  本戦=世界選手権／アジア=世界選手権アジア予選／欧州=ユーロ予選／アフリカ=アフリカ予選／アメリカ=アメリカ予選
                 const compLabelFor = (year: number): string => {
                   const isMainYear = (year - 2028) % 2 === 0
-                  if (isMainYear) return '世界陸上 駅伝'
+                  if (isMainYear) return '世界選手権 駅伝'
                   const g = natGeoRegion(player.nationality)
-                  if (g === 'アジア' || g === 'オセアニア') return '世界陸上アジア予選 駅伝'
+                  if (g === 'アジア' || g === 'オセアニア') return '世界選手権アジア予選 駅伝'
                   if (g === 'ヨーロッパ') return 'ユーロ予選 駅伝'
                   if (g === 'アフリカ') return 'アフリカ予選 駅伝'
                   if (g === 'アメリカ大陸') return 'アメリカ予選 駅伝'
-                  return '世界陸上予選 駅伝'
+                  return '世界選手権予選 駅伝'
                 }
                 const addRepRow = (year: number) => {
                   const row = touch(year)
@@ -1038,10 +1038,10 @@ export default function PlayerSheet() {
 
           {/* Page 4: レース詳細（ドリルダウン） */}
           {page === 4 && selectedRaceName && (() => {
-            // 世界陸上の個人種目（世界陸上 5000m 等）：年・開催都市・タイム・順位＋優勝/入賞パッチ
-            const indEv = selectedRaceName === '世界陸上 5000m' ? 'd5000'
-              : selectedRaceName === '世界陸上 10000m' ? 'd10000'
-              : selectedRaceName === '世界陸上 マラソン' ? 'marathon' : null
+            // 世界選手権の個人種目（世界選手権 5000m 等）：年・開催都市・タイム・順位＋優勝/入賞パッチ
+            const indEv = selectedRaceName === '世界選手権 5000m' ? 'd5000'
+              : selectedRaceName === '世界選手権 10000m' ? 'd10000'
+              : selectedRaceName === '世界選手権 マラソン' ? 'marathon' : null
             if (indEv) {
               const rows: { year: number; city: string; timeSec: number; rank: number }[] = []
               for (const wr of worldAthleticsResults ?? []) {

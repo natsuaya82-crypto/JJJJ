@@ -1,4 +1,4 @@
-// 世界陸上：代表選出エンジン（OVRではなく持ちタイム=eventBests基準）。
+// 世界選手権：代表選出エンジン（OVRではなく持ちタイム=eventBests基準）。
 // 国籍で選手を集め、5000/10000/マラソンの持ちタイムで候補を作る。
 // 駅伝優先：まず駅伝代表20人（監督 or AI）→ 個人種目は駅伝に入らなかった選手から
 // 実物方式で選考（標準突破優先＋ランキング補充・国別3人・マラソン専任）。
@@ -11,7 +11,7 @@ export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
 export const WA_EVENT_LABEL: Record<WAEvent, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
 
-// 参加標準記録（秒）。実際の世界陸上（東京2025）と同じ値。
+// 参加標準記録（秒）。実際の世界選手権（東京2025）と同じ値。
 // 突破者が優先で、余った枠は持ちタイム（ランキング）順で補充する（実物と同じ選考方式）。
 export const WA_STANDARD: Record<WAEvent, number> = {
   d5000: 13 * 60 + 1,               // 13:01.00
@@ -24,7 +24,7 @@ export const WA_TARGET: Record<WAEvent, number> = { d5000: 42, d10000: 27, marat
 // 1カ国から出せるのは1種目につき最大3人（実物と同じ）
 export const WA_MAX_PER_NATION = 3
 
-// 世界陸上／アジア予選の開催日（3戦）。
+// 世界選手権／アジア予選の開催日（3戦）。
 // JPELグランドファイナル(12/27)が終わったあとのオフシーズン開催なので、
 // シーズン年の「翌年」1月に週1ペースで置く。日付を作るときは必ず year + 1 と組み合わせること。
 export const WA_RACE_DATES = ['-01-09', '-01-16', '-01-23']
@@ -150,7 +150,7 @@ export function autoSelectEkiden(candidates: Candidate[], individualStarIds: Set
 }
 
 // ───────────────────────────────────────────────────────────────
-// 個人種目の出場者選考（実物の世界陸上方式）
+// 個人種目の出場者選考（実物の世界選手権方式）
 //   ・標準突破者をタイム順で優先し、枠（ターゲットナンバー）が余ればランキング＝持ちタイム順で補充
 //   ・1カ国1種目 最大3人
 //   ・マラソンはマラソン専任（一番得意な種目がマラソンの選手だけ）。5000mと10000mの掛け持ちは可
@@ -228,7 +228,7 @@ export const REGION_QUOTA: { region: 'アフリカ' | 'ヨーロッパ' | 'ア�
   { region: 'アメリカ大陸', slots: 4 },
   { region: 'アジア+オセアニア', slots: 3 },
 ]
-// 世界陸上の選考地域（アジアとオセアニアは1枠グループに統合）
+// 世界選手権の選考地域（アジアとオセアニアは1枠グループに統合）
 function meetRegion(nat: Nationality): typeof REGION_QUOTA[number]['region'] | 'その他' {
   const g: GeoRegion = natGeoRegion(nat)
   if (g === 'アジア' || g === 'オセアニア') return 'アジア+オセアニア'
@@ -244,7 +244,7 @@ export function nationStrength(players: Player[], nat: Nationality, year: number
 // 本番出場20カ国を決める。hostNat は予選免除で必ず入る（+1枠）。
 // prevAdvanced＝前年のアジア＋オセアニア予選の通過国。ある場合、この地域の枠は予選結果で埋める
 // （予選を通過していない国＝日本含む は本番に出られない）。他地域は簡易処理（距離力順）。
-// 旧仕様の擬似国籍（ヨーロッパ・その他外国）。実在の国ではないので世界陸上には出さない
+// 旧仕様の擬似国籍（ヨーロッパ・その他外国）。実在の国ではないので世界選手権には出さない
 export const WA_EXCLUDED_NATS = new Set<Nationality>(['EUR', 'FOREIGN'])
 
 export function qualifyNations(players: Player[], year: number, hostNat: Nationality, prevAdvanced?: Nationality[], continentals?: { region: string; advanced: Nationality[] }[]): Nationality[] {
@@ -283,7 +283,7 @@ export function qualifyNations(players: Player[], year: number, hostNat: Nationa
   return picked
 }
 
-// 大陸予選の呼称（本戦=世界陸上、アジア=世界陸上アジア予選 に合わせた地域別の予選名）
+// 大陸予選の呼称（本戦=世界選手権、アジア=世界選手権アジア予選 に合わせた地域別の予選名）
 export const CONT_QUAL_LABEL: Record<'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸', string> = {
   ヨーロッパ: 'ユーロ予選',
   アフリカ: 'アフリカ予選',
@@ -533,7 +533,7 @@ export function hostForYear(year: number): Nationality {
   return WA_HOSTS[idx]
 }
 
-// 予選（世界陸上アジア予選）の開催国ローテ：アジア＋オセアニアの国で持ち回り。
+// 予選（世界選手権アジア予選）の開催国ローテ：アジア＋オセアニアの国で持ち回り。
 // 本番と同じ固定シードの決定的シャッフルで順番を決める（2027が初回）。
 // 2028本番が日本開催なので、予選初回が日本だと連続開催になり不自然→日本が先頭なら後ろへずらす
 export const QUAL_HOSTS: Nationality[] = (() => {
@@ -571,7 +571,7 @@ export function hostTerrain(nat: Nationality): HostTerrain {
   return WA_HOST_TERRAIN[nat] ?? 'mixed'
 }
 
-// 開催都市（レース名「2030 世界陸上 テグ 第1戦」用）。各国の代表的な陸上開催都市
+// 開催都市（レース名「2030 世界選手権 テグ 第1戦」用）。各国の代表的な陸上開催都市
 export const WA_HOST_CITY: Partial<Record<Nationality, string>> = {
   JPN: '東京', KOR: 'テグ', CHN: '北京', TWN: '台北', HKG: '香港', MGL: 'ウランバートル',
   THA: 'バンコク', VIE: 'ハノイ', INA: 'ジャカルタ', MAS: 'クアラルンプール', PHI: 'マニラ', SGP: 'シンガポール',
@@ -608,7 +608,7 @@ export function simulateQualifier(players: Player[], year: number, advance = 3, 
   return { year, kind: 'qualifier', region: 'アジア＋オセアニア', standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
 }
 
-// その年の世界陸上を実行。偶数年＝本番、奇数年＝予選。
+// その年の世界選手権を実行。偶数年＝本番、奇数年＝予選。
 // japanSquadIds＝日本の駅伝代表（予選の強さ・本番の駅伝で使用）。
 // prevAdvanced＝前年予選の通過国（本番のアジア＋オセ枠。通過してない国＝日本含む は出場できない）。
 export function runWorldAthleticsYear(players: Player[], year: number, japanSquadIds?: string[], prevAdvanced?: Nationality[]): WAYearResult {

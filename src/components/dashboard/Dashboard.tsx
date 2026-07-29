@@ -293,7 +293,7 @@ export default function Dashboard() {
     startRegularSeason, initObjectivesIfEmpty, getTeamPlayers,
   } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
-  // 世界陸上関連のstate。early return（!team）より後ろで useGameStore を呼ぶとフック数が変わり、
+  // 世界選手権関連のstate。early return（!team）より後ろで useGameStore を呼ぶとフック数が変わり、
   // 「Rendered fewer hooks than expected」で白画面になるため必ずここで取る。
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
   const worldSquad = useGameStore(s => s.worldSquad)
@@ -336,11 +336,11 @@ export default function Dashboard() {
   const sorted = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sorted.findIndex(s => s.teamId === playerTeamId) + 1
 
-  // 世界陸上：JPELファイナル後〜シーズン終了の間に挟むステップ。
+  // 世界選手権：JPELファイナル後〜シーズン終了の間に挟むステップ。
   // 偶数年=本番 / 奇数年=アジア＋オセアニア予選。実行済み(waDone)になって初めてシーズン終了カードが出る
   const waDone = (worldAthleticsResults ?? []).some(r => r.year === currentSeason.year)
   const waIsMain = (currentSeason.year - 2028) % 2 === 0
-  const waTitle = waIsMain ? `世界陸上 ${currentSeason.year}` : `世界陸上アジア予選 ${currentSeason.year}`
+  const waTitle = waIsMain ? `世界選手権 ${currentSeason.year}` : `世界選手権アジア予選 ${currentSeason.year}`
   const waSquadReady = worldSquad?.year === currentSeason.year && (worldSquad?.playerIds.length ?? 0) > 0
   // 本番年は前年の予選を通過していないと出場できない（開催国なら免除）。予選記録が無い場合は出場扱い
   const waPrevQual = (worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === currentSeason.year - 1)
@@ -479,7 +479,7 @@ export default function Dashboard() {
           )}
         </div>
       ) : seasonDone && !waDone ? (
-        /* 世界陸上／予選：シーズン終了の前に必ずここを通る */
+        /* 世界選手権／予選：シーズン終了の前に必ずここを通る */
         <div style={{ margin: '0 12px 16px' }}>
           <div style={{
             background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
@@ -489,11 +489,11 @@ export default function Dashboard() {
           }}>
             <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.purple, 0.35)}`, borderRadius: 13, pointerEvents: 'none' }}/>
             <div style={{ padding: '18px 18px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.purple, 0.18)}`, position: 'relative' }}>
-              <div style={{ fontFamily: "'Saira Condensed', system-ui, sans-serif", fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD ATHLETICS</div>
+              <div style={{ fontFamily: "'Saira Condensed', system-ui, sans-serif", fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD LONG DISTANCE</div>
               <div style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{waTitle}</div>
               <div style={{ fontSize: 11, color: waJapanIn ? C.textSub : C.red, marginTop: 4 }}>
                 {!waJapanIn
-                  ? '前年の世界陸上アジア予選で敗退したため、日本は出場できません'
+                  ? '前年の世界選手権アジア予選で敗退したため、日本は出場できません'
                   : waSquadReady ? '代表選考済み。大会に進みます' : '駅伝代表20人を選考してから大会に進みます'}
               </div>
             </div>

@@ -22,15 +22,13 @@ async function uid(): Promise<string> {
 /** ホストが決める対戦ルール。rooms.rules に jsonb でそのまま入る。 */
 export type MatchRules = {
   races: 1 | 3 | 5 | 10
-  /** 全ロースターから選ぶ / 先に20人選抜してその中から選ぶ */
-  pool: 'all' | 'select20'
   /** コースID配列（レース数ぶん）。'random' ならホストが開始時に抽選する */
   courses: 'random' | string[]
   /** CPUを足すか。0なら人間だけ */
   cpu: number
 }
 
-export const DEFAULT_RULES: MatchRules = { races: 3, pool: 'all', courses: 'random', cpu: 0 }
+export const DEFAULT_RULES: MatchRules = { races: 3, courses: 'random', cpu: 0 }
 
 export type RoomStatus = 'lobby' | 'playing' | 'closed'
 

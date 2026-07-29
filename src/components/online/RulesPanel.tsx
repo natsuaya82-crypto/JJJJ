@@ -71,16 +71,6 @@ export default function RulesPanel({ rules, isHost, deadline, teams, maxTeams, o
         />
       </Row>
 
-      {/* メンバー */}
-      <Row label="出せる選手">
-        <Segmented
-          options={[{ key: 'all', label: '全員' }, { key: 'select20', label: '20人選抜' }]}
-          value={rules.pool}
-          disabled={!isHost}
-          onChange={k => isHost && onChange({ ...rules, pool: k as MatchRules['pool'] })}
-        />
-      </Row>
-
       {/* コース */}
       <Row label="コース">
         <Segmented

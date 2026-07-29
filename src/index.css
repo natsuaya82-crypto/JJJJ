@@ -404,7 +404,7 @@ button { font-family: inherit; }
     inset 0 2px 0 rgba(255,255,255,0.3),
     inset 0 -3px 0 rgba(0,0,0,0.2);
 }
-/* 世界陸上（プレステージ紫） */
+/* 世界選手権（プレステージ紫） */
 .btn-game--purple .btn-game__inner {
   background: linear-gradient(180deg, #C583FA 0%, #A855F7 50%, #7E22CE 100%);
   border: 2px solid #581C87;

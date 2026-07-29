@@ -60,12 +60,12 @@ export default function NationalResultPage() {
   )
 
   if (r.kind === 'qualifier') {
-    return wrap('世界陸上アジア予選', <>
+    return wrap('世界選手権アジア予選', <>
       <div style={{ padding: '2px 16px 12px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} ASIA QUALIFIER</div>
         <div style={{ fontSize: 11, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {r.host && <>開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ </>}
-          上位3カ国が翌年の世界陸上へ。{r.advanced.map(natName).join('・')} が通過。
+          上位3カ国が翌年の世界選手権へ。{r.advanced.map(natName).join('・')} が通過。
         </div>
       </div>
       {card('予選順位', r.standings.map(s => natRow(s.nat,
@@ -86,7 +86,7 @@ export default function NationalResultPage() {
               </div>
             </div>
           ))}
-          <div style={{ fontSize: 9, color: C.textGhost, padding: '7px 6px 0' }}>通過国が翌年の世界陸上へ（欧州6・アフリカ6・アメリカ4）</div>
+          <div style={{ fontSize: 9, color: C.textGhost, padding: '7px 6px 0' }}>通過国が翌年の世界選手権へ（欧州6・アフリカ6・アメリカ4）</div>
         </div>
       ))}
     </>)
@@ -160,9 +160,9 @@ export default function NationalResultPage() {
   const shown = staged ? [sections[stepIdx]] : sections
   const isFinished = !staged || step >= lastStep
 
-  return wrap(`世界陸上 ${r.year}`, <>
+  return wrap(`世界選手権 ${r.year}`, <>
     <div style={{ padding: '2px 16px 12px' }}>
-      <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} WORLD ATHLETICS</div>
+      <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} WORLD LONG DISTANCE</div>
       <div style={{ fontSize: 11, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
         開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ {r.nations.length}カ国
         {japanIn ? (isFinished ? <span> ・ 日本総合 {r.japanRank ?? '—'}位</span> : null) : <span style={{ color: C.red }}> ・ 日本は予選敗退（観戦）</span>}

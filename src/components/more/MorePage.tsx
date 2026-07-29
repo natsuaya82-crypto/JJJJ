@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
-import { purchaseAdFree, restoreAdFree } from '../../utils/iap'
+import { purchaseAdFree, restoreAdFree, lastIapError } from '../../utils/iap'
 import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -399,6 +399,13 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
   )
 }
 
+// 購入・復元が失敗したとき、App Store（StoreKit）が返した原文をそのまま添える。
+// 「購入に失敗しました」だけでは何が起きたのか分からず、原因を追いかけられないため。
+function detail(e?: unknown): string {
+  const raw = (e instanceof Error ? e.message : e ? String(e) : '') || lastIapError()
+  return raw ? `（App Storeからの返答：${raw}）` : ''
+}
+
 function PremiumCard() {
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const setAdsRemoved = useGameStore(s => s.setAdsRemoved)
@@ -419,14 +426,14 @@ function PremiumCard() {
       } else if (res === 'pending') {
         setMsg({ title: '承認待ちです', body: 'ご家族の承認が下りたあと、アプリを開き直すと有効になります。反映されないときは「購入を復元」を押してください。' })
       } else if (res === 'unavailable') {
-        setMsg({ title: '商品情報を取得できませんでした', body: 'App Storeに接続できないか、商品が一時的に取得できない状態です。通信環境をご確認のうえ、しばらくしてから再度お試しください。' })
+        setMsg({ title: '商品情報を取得できませんでした', body: 'App Storeに接続できないか、商品が一時的に取得できない状態です。通信環境をご確認のうえ、しばらくしてから再度お試しください。' + detail() })
       } else if (res === 'timeout') {
         setMsg({ title: '応答がありませんでした', body: 'App Storeからの返事が返ってきませんでした。もし購入が完了していた場合は「購入を復元」を押すと有効になります。二重に課金されることはありません。' })
       } else {
-        setMsg({ title: '購入に失敗しました', body: '時間をおいて再度お試しください。' })
+        setMsg({ title: '購入に失敗しました', body: '時間をおいて再度お試しください。' + detail() })
       }
-    } catch {
-      setMsg({ title: '購入に失敗しました', body: '時間をおいて再度お試しください。' })
+    } catch (e) {
+      setMsg({ title: '購入に失敗しました', body: '時間をおいて再度お試しください。' + detail(e) })
     } finally {
       setBusy(false)
     }
@@ -445,10 +452,10 @@ function PremiumCard() {
       } else {
         // 通信できなかっただけの場合に「購入がありません」と出すと、
         // 購入済みの方に嘘の案内をしてしまうので必ず分ける。
-        setMsg({ title: '確認できませんでした', body: 'App Storeに接続できませんでした。通信環境をご確認のうえ、もう一度お試しください。' })
+        setMsg({ title: '確認できませんでした', body: 'App Storeに接続できませんでした。通信環境をご確認のうえ、もう一度お試しください。' + detail() })
       }
-    } catch {
-      setMsg({ title: '確認できませんでした', body: '時間をおいて再度お試しください。' })
+    } catch (e) {
+      setMsg({ title: '確認できませんでした', body: '時間をおいて再度お試しください。' + detail(e) })
     } finally {
       setBusy(false)
     }

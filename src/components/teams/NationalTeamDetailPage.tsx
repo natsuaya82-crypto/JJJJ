@@ -35,7 +35,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const isSquad = !!squadIds?.length
 
   const natPlayers = players.filter(p => p.nationality === nat && p.status !== 'retired')
-  // 持ちタイム(eventBests)がある選手＝代表候補は持ちタイム順（世界陸上の選考基準）。
+  // 持ちタイム(eventBests)がある選手＝代表候補は持ちタイム順（世界選手権の選考基準）。
   // まだ持ちタイムが無い選手はOVR順で後ろに並べる。
   const withTime = natPlayers.filter(p => distanceScore(p, year) > 0).sort((a, b) => distanceScore(b, year) - distanceScore(a, year))
   const noTime = natPlayers.filter(p => distanceScore(p, year) === 0).sort((a, b) => ovr(b) - ovr(a))
