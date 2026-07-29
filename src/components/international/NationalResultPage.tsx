@@ -96,6 +96,34 @@ export default function NationalResultPage() {
   const totals = r.meet.totals
   const japanIn = r.nations.includes('JPN')
 
+  // 得点の付き方の説明。小さすぎて読めなかったので、種目べつに分けて出す。
+  const ptRow = (left: string, right: string) => (
+    <div key={left} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '4px 0' }}>
+      <span style={{ width: 88, flexShrink: 0, fontSize: 11, color: C.textDim }}>{left}</span>
+      <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: C.text, lineHeight: 1.6 }}>{right}</span>
+    </div>
+  )
+  const pointsGuide = (
+    <div style={{ margin: '0 12px 12px', borderRadius: 12, background: C.surface2, border: `1px solid ${C.border}`, padding: '11px 13px' }}>
+      <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.purple, letterSpacing: 2, marginBottom: 6 }}>ポイントの付き方</div>
+      <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.7, marginBottom: 8 }}>
+        個人種目と駅伝でとった点を国ごとに全部足して、その合計で総合順位が決まります。
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 900, color: C.gold, marginBottom: 2 }}>個人種目（5000m・10000m・マラソン）</div>
+      {ptRow('順位', '金 5点 ／ 銀 3点 ／ 銅 2点 ／ 4〜8位 1点')}
+
+      <div style={{ height: 1, background: C.border, margin: '8px 0' }} />
+
+      <div style={{ fontSize: 11, fontWeight: 900, color: C.gold, marginBottom: 2 }}>駅伝（3戦）</div>
+      {ptRow('総合順位', '1位 10点 ／ 2位 6点 ／ 3位 4点 ／ 4〜8位 2点')}
+      {ptRow('区間順位', '区間賞 3点 ／ 2位 2点 ／ 3位 1点')}
+      <div style={{ fontSize: 10, color: C.textGhost, lineHeight: 1.6, marginTop: 4 }}>
+        区間順位は3戦すべての全区間ぶんが加算されます。駅伝は点の動く量が大きいので、ここが総合順位を決めます。
+      </div>
+    </div>
+  )
+
   // 大会直後（staged）は個人種目の結果を駅伝の合間に発表済みなので、駅伝順位＋総合成績だけを出す。
   // 記録室からの閲覧（?y=）は従来どおり全セクション一括表示
   const sections: { title: string; body: React.ReactNode }[] = [
@@ -122,14 +150,14 @@ export default function NationalResultPage() {
             <span style={{ fontSize: 9, color: C.textDim }}>{formatMeetMedal(t)}</span>
             <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, minWidth: 30, textAlign: 'right' }}>{t.points}<span style={{ fontSize: 9, color: C.textDim }}>p</span></span>
           </span>, t.rank)))}
-        <div style={{ margin: '0 12px', fontSize: 9, color: C.textGhost, lineHeight: 1.6 }}>
-          配点｜個人種目: 金5 銀3 銅2 入賞1 ／ 駅伝: 総合1位10・2位6・3位4・入賞2 ＋ 区間賞ごと3/2/1（全区間）
-        </div>
+        {pointsGuide}
       </>,
     },
   ]
   const lastStep = sections.length - 1
-  const shown = staged ? sections.slice(0, step + 1) : sections
+  const stepIdx = Math.min(Math.max(0, step), lastStep)
+  // 段階表示は1枚ずつ「めくる」。前のページは下に残さない（記録室から後で全部見られる）
+  const shown = staged ? [sections[stepIdx]] : sections
   const isFinished = !staged || step >= lastStep
 
   return wrap(`世界陸上 ${r.year}`, <>
