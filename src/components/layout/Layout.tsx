@@ -6,6 +6,8 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/NotificationPanel'
 import { C, alpha } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import { leaveRoom } from '../../lib/roomsApi'
 
 type MenuAction = { label: string; path?: string; action?: () => void; color?: string }
 type NavItem = { to: string; label: string; icon: () => React.ReactElement }
@@ -52,12 +54,12 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    to: '/friends', label: 'フレンド',
+    to: '/online', label: 'オンライン',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M3 20c0-3.3 2.7-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-        <path d="M21 14.5c0-1.1-.9-2-1.9-2-.6 0-1.1.3-1.4.7-.3-.4-.8-.7-1.4-.7-1 0-1.9.9-1.9 2 0 2.2 3.3 4.2 3.3 4.2s3.3-2 3.3-4.2z" fill="currentColor"/>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M3 12h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
       </svg>
     ),
   },
@@ -124,6 +126,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // ここに入れ忘れるとLineupPhase等の下部バー(広告の上に固定)がタブバーの裏に隠れて進行不能になる
   const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup' || activeRacePhase === 'results') && (location.pathname === '/race' || location.pathname === '/reserve' || location.pathname === '/ecl' || location.pathname === '/national/tournament')
 
+  // 対戦の部屋にいる間は、下タブの誤タップでそのまま抜けてしまわないように確認をはさむ。
+  const roomId = location.pathname.startsWith('/online/room/') ? location.pathname.split('/online/room/')[1] : ''
+  const [askLeaveRoom, setAskLeaveRoom] = useState<string | null>(null)   // 移動先のパス
+  const leaveRoomAndGo = async () => {
+    const to = askLeaveRoom ?? '/'
+    setAskLeaveRoom(null)
+    try { if (roomId) await leaveRoom(roomId) } catch { /* 通信できなくても画面は進める */ }
+    audio.playSe('transition')
+    navigate(to)
+  }
+
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
   }, [location.pathname])
@@ -136,7 +149,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { label: '設定', path: '/more', color: C.text },
   ]
 
-  const isActive = (to: string) => to === '/' ? location.pathname === '/' : (location.pathname === to || location.pathname.startsWith(to + '/'))
+  const isActive = (to: string) => {
+    if (to === '/') return location.pathname === '/'
+    const hit = (p: string) => location.pathname === p || location.pathname.startsWith(p + '/')
+    // フレンド・走友会は「オンライン」タブの下にぶら下がっている。
+    // パスは既存の /friends のままなので、タブの点灯だけここで面倒を見る。
+    if (to === '/online') return hit('/online') || hit('/friends')
+    return hit(to)
+  }
 
   return (
     <div style={{
@@ -292,7 +312,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           return (
             <PressButton key={to}
               data-se="transition"
-              onClick={() => { audio.playSe('transition'); navigate(to) }}
+              onClick={() => {
+                if (roomId) { setAskLeaveRoom(to); return }
+                audio.playSe('transition'); navigate(to)
+              }}
               style={{
                 flex: 1, height: '100%', border: 'none', background: 'none',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -348,6 +371,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }}>
           {/* 実機はネイティブのAdMobバナーがこの枠に表示される。Web側のプレースホルダーは出さない（二重表示防止）。 */}
         </div>
+      )}
+
+      {askLeaveRoom && (
+        <ConfirmDialog
+          title="部屋を抜けますか？"
+          message="対戦中の部屋から出ます。もう一度入るには番号が必要です。"
+          confirmLabel="抜ける"
+          cancelLabel="対戦を続ける"
+          accent={C.red}
+          onConfirm={leaveRoomAndGo}
+          onCancel={() => setAskLeaveRoom(null)}
+        />
       )}
     </div>
   )

@@ -24,6 +24,17 @@ export const WA_TARGET: Record<WAEvent, number> = { d5000: 42, d10000: 27, marat
 // 1カ国から出せるのは1種目につき最大3人（実物と同じ）
 export const WA_MAX_PER_NATION = 3
 
+// 世界陸上／アジア予選の開催日（3戦）。
+// JPELグランドファイナル(12/27)が終わったあとのオフシーズン開催なので、
+// シーズン年の「翌年」1月に週1ペースで置く。日付を作るときは必ず year + 1 と組み合わせること。
+export const WA_RACE_DATES = ['-01-09', '-01-16', '-01-23']
+// 大会閉幕（結果ニュース）の日付。最終戦の翌日。
+export const WA_CLOSING_DATE = '-01-24'
+/** 第i戦の日付。year はシーズン年（＝大会の呼び名の年）。 */
+export function waRaceDate(year: number, i: number): string {
+  return `${year + 1}${WA_RACE_DATES[i] ?? WA_RACE_DATES[0]}`
+}
+
 // 総合スコア用の基準タイム（エリート≒1.0）。
 const WA_REF: Record<WAEvent, number> = {
   d5000: 12 * 60 + 50,        // 12:50

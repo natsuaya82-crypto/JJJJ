@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import BackButton from '../ui/BackButton'
 import { listFriends, listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from './friendsUi'
 import { C, alpha } from '../../styles/tokens'
@@ -36,25 +37,15 @@ export default function FriendsPage() {
         </svg>
       ),
     },
-    {
-      key: '/friends/club', label: '走友会',
-      count: 0, badge: 0, color: C.orange,
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <circle cx="7" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.7"/>
-          <circle cx="17" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.7"/>
-          <circle cx="12" cy="6" r="2.6" stroke="currentColor" strokeWidth="1.7"/>
-          <path d="M3 19c0-2.5 1.8-4.5 4-4.5M21 19c0-2.5-1.8-4.5-4-4.5M8 20c0-3 1.8-5 4-5s4 2 4 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-        </svg>
-      ),
-    },
+    // 走友会は1つ上の「オンライン」ハブへ移した（OnlinePage.tsx）
   ]
 
   const offline = friends.error && received.error
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
-      <div style={{ padding: '12px 16px 14px' }}>
+      <div style={{ padding: '8px 12px 0' }}><BackButton /></div>
+      <div style={{ padding: '8px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>FRIENDS</div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>フレンド</div>
         {offline && (

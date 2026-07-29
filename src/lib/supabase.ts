@@ -7,9 +7,9 @@
 // Secret key（sb_secret_...）は絶対にここへ書かないこと。
 //
 // 環境変数が設定されていればそちらを優先します。
-const SUPABASE_URL =
+export const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL || 'https://yqwjmpbxkyunqjrjqtug.supabase.co'
-const SUPABASE_KEY =
+export const SUPABASE_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   'sb_publishable_3doufkn1HomBJ00Tke7qhg_sC5KUTbf'
 

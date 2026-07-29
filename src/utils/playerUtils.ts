@@ -269,7 +269,9 @@ type SeasonLike = { year: number; races?: readonly RaceLike[]; eclSeries?: { rac
 // P = その選手が本編に1度でも出場した過去シーズン数。
 //   P>=3 : 直近3年の本編出場率 >= 60%
 //   P=1〜2: 直近1年の出場率     >= 70%
-//   P=0  : 今季3戦以下は locked、4戦目以降は「直近3戦で2回以上出場」で主力
+//   P=0  : 在籍1年以上で本編出場ゼロ（リザーブのみ／出番なし）は主力外＝ open で動かしやすくする。
+//          ドラフト当年の新人だけ、今季3戦以下の間は locked（データ不足で保護）。
+//          4戦目以降は「直近3戦で2回以上出場」で主力。
 //   ECL出場経験あり → 率の閾値を-0.10緩和 / P=0の必要回数を2→1に緩和。
 // ・契約残1年以下 or 士気45未満は保護しない（不満・満了間近は普通に動く）。
 export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastSeasons: readonly SeasonLike[]): 'locked' | 'key' | 'open' {
@@ -301,7 +303,12 @@ export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastS
   if (P >= 3) return rateOver(activePast.slice(0, 3)) >= (0.60 - relief) ? 'key' : 'open'
   if (P >= 1) return rateOver(activePast.slice(0, 1)) >= (0.70 - relief) ? 'key' : 'open'
 
-  // P === 0：1年未満（新人・ドラ1など）
+  // P === 0：過去シーズンに本編出場が1度もない
+  // 在籍1年以上でこれ＝リザーブ止まり or 出番なし。主力ではないので普通に動かせる（保護しない）。
+  const tenure = currentSeason.year - (player.draftYear ?? currentSeason.year)
+  if (tenure >= 1) return 'open'
+
+  // ここから下はドラフト当年の新人のみ
   const done = (currentSeason.races ?? []).filter(r => r.results)
   if (done.length <= 3) return 'locked'   // 本編3戦以下＝データ不足で守る（いくら積んでも取れない）
   const last3 = done.slice(-3)

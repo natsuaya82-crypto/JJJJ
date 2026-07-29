@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
-import { hostForYear, qualHostForYear, WA_HOST_CITY } from '../../engine/worldAthletics'
+import { hostForYear, qualHostForYear, WA_HOST_CITY, waRaceDate } from '../../engine/worldAthletics'
 import { NAT_LABEL } from '../../data/nationalities'
 import Flag from '../ui/Flag'
 import { C, alpha } from '../../styles/tokens'
@@ -92,8 +92,9 @@ export default function SchedulePage() {
   }))
   const raceItems = [...mainRaces, ...stRaces, ...eclRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
 
-  // 世界陸上／アジア予選（12月・JPELファイナル後）。開催前から日程として載せ、開催後は済表示。
-  // 日付は開催時の実レースと同じ規約（12/10〜12/12）。開催国と都市も表示する
+  // 世界陸上／アジア予選（JPELグランドファイナルの後、オフシーズンの1月開催）。
+  // 開催前から日程として載せ、開催後は済表示。日付は開催時の実レースと同じ規約（waRaceDate）。
+  // 年をまたぐので表示は翌年になるが、文字列の昇順ソートなので12/27の後ろに正しく並ぶ。
   const waMainYear = (currentSeason.year - 2028) % 2 === 0
   const waHost = waMainYear ? hostForYear(currentSeason.year) : qualHostForYear(currentSeason.year)
   const waCity = WA_HOST_CITY[waHost] ?? (NAT_LABEL[waHost] ?? '')
@@ -103,7 +104,7 @@ export default function SchedulePage() {
     const race = wt?.races?.[i]
     return {
       type: 'wa' as const,
-      date: race?.date ?? `${currentSeason.year}-12-1${i}`,
+      date: race?.date ?? waRaceDate(currentSeason.year, i),
       name: race?.name ?? `${currentSeason.year} ${waTitle} ${waCity} 第${i + 1}戦`,
       isDone: !!race?.results,
       waHost, waMainYear,

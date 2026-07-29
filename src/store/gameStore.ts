@@ -12,7 +12,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier, safeRatings } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
@@ -34,6 +34,10 @@ type DraftState = {
   currentPick: number       // 0-based index
   picks: { pickNumber: number; teamId: string; playerId: string; playerName: string }[]
   isComplete: boolean
+  // 指名後の「契約を決める画面」まで終わったか。
+  // isComplete だけだと2年目以降（isInitialized=true）は契約画面が一瞬で閉じてしまうため、
+  // この旗が立つまで DraftRoom を表示し続ける。advanceDraft() で true にする。
+  contractsDone?: boolean
 }
 
 type SetupData = {
@@ -996,12 +1000,17 @@ export const useGameStore = create<GameStore>()(
             }
             return newPicks.length > 0 ? { ...t, draftPicks: [...(t.draftPicks ?? []), ...newPicks] } : t
           })
+          // ドラフト/オフの流れから来た時だけプレシーズンに戻す。
+          // すでに開幕後なら巻き戻さない（保険）。
+          const nextPhase = (state.currentSeason.phase === 'regular' || state.currentSeason.phase === 'postseason')
+            ? state.currentSeason.phase : 'preseason'
           set({
             isInitialized: true,
             players: updatedPlayers,
             teams: teamsWithPicks,
+            draftState: { ...state.draftState, contractsDone: true },
             currentSeason: {
-              ...state.currentSeason, phase: 'preseason',
+              ...state.currentSeason, phase: nextPhase,
               races: (state.currentSeason.races ?? []).length > 0 ? state.currentSeason.races : SEASON_2027_RACES,
               individualEvents: (state.currentSeason.individualEvents ?? []).length > 0 ? state.currentSeason.individualEvents : generateIndividualEvents(state.currentSeason.year),
               newsFeed: (state.currentSeason.newsFeed ?? []).length > 0 ? state.currentSeason.newsFeed : buildInitialNews(),
@@ -6483,7 +6492,8 @@ export const useGameStore = create<GameStore>()(
             name: isMain
               ? `${year} 世界陸上 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
               : `${year} 世界陸上アジア予選 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`,
-            date: `${year}-12-1${i}`,
+            // JPELグランドファイナル(12/27)の後、オフシーズンの1月開催。年をまたぐので year+1 になる
+            date: waRaceDate(year, i),
             location: '',
             type: 'league' as const,
             segments: plan.segments.map((s, j) => ({ index: j + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct })),
@@ -6610,7 +6620,7 @@ export const useGameStore = create<GameStore>()(
           // 大陸予選の結果をニュースに流す（通過国を国名で）
           const contNews = (result.kind === 'qualifier' && result.continentals)
             ? [{
-                date: `${t.year}-12-13`,
+                date: `${t.year + 1}${WA_CLOSING_DATE}`,
                 headline: `世界陸上 大陸予選が閉幕 — ${result.continentals.map(c => `${c.region.replace('アメリカ大陸', 'アメリカ')}: ${c.advanced.map(n => natLabel(n)).join('・')}`).join(' ／ ')} が本戦へ`,
                 category: 'race' as const,
                 relatedIds: [] as string[],
@@ -7629,7 +7639,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 16,
+      version: 17,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
@@ -7818,6 +7828,12 @@ export const useGameStore = create<GameStore>()(
                 s.currentSeason = { ...cs, pendingForeignRestructure: true }
               }
             }
+          }
+          // v17: DraftState.contractsDone を追加。既に契約まで済んでいる旧セーブに旗を立てておかないと、
+          // 起動時にドラフト完了画面へ戻ってしまうため、開始済み（isInitialized）のセーブは done 扱いにする。
+          if (version < 17) {
+            const ds = s.draftState as Record<string, unknown> | undefined
+            if (ds && ds.isComplete && s.isInitialized) s.draftState = { ...ds, contractsDone: true }
           }
           return s
         } catch (e) {

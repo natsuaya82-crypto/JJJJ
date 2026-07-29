@@ -272,7 +272,7 @@ export function RaceTrack({
                 {/* テキスト + バー */}
                 <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                    <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={16} />
+                    <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} logoId={t.logoId} size={16} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: isMe ? segCol : t.colors.primary, flexShrink: 0 }}>{t.shortName}</span>
                     {player && (
                       <span style={{ fontSize: 11, fontWeight: isMe ? 800 : 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -688,8 +688,8 @@ export function SimPhase({
   )
 }
 
-function SegmentResultCard({
-  seg, race, teamMap, playerMap, playerTeamId, isLastSeg, onAdvance,
+export function SegmentResultCard({
+  seg, race, teamMap, playerMap, playerTeamId, isLastSeg, onAdvance, showRecordBadge = true, advanceLabel,
 }: {
   seg: InteractiveSegResult
   race: Race
@@ -698,6 +698,10 @@ function SegmentResultCard({
   playerTeamId: string
   isLastSeg: boolean
   onAdvance: () => void
+  /** 区間新の表示。オンライン対戦は手元の記録と関係ないので出さない */
+  showRecordBadge?: boolean
+  /** 最終区のボタン文字を差し替える */
+  advanceLabel?: string
 }) {
   const longPress = usePlayerLongPress()
   const raceSegData = race.segments.find(s => s.index === seg.segmentIndex)
@@ -707,7 +711,7 @@ function SegmentResultCard({
   // 区間新の判定：この時点の歴代記録（レース確定前なので従来記録のまま）を1位が上回っていれば区間新
   const segRecords = useGameStore(s => s.segmentRecords) ?? {}
   const prevBestSec = (segRecords[`${race.name}-${seg.segmentIndex}`] ?? [])[0]?.timeSec ?? null
-  const isNewRecord = prevBestSec != null && winner != null && winner.timeSec < prevBestSec
+  const isNewRecord = showRecordBadge && prevBestSec != null && winner != null && winner.timeSec < prevBestSec
   const myRunner = seg.runners.find(r => r.teamId === playerTeamId)
   const myRankCol = !myRunner ? C.textGhost : myRunner.rank === 1 ? C.gold : myRunner.rank <= 3 ? C.green : myRunner.rank <= 6 ? C.textSub : C.textGhost
 
@@ -777,7 +781,7 @@ function SegmentResultCard({
         <div style={{ padding: '10px 12px' }}>
           {isLastSeg ? (
             <button className="btn-game btn-game--gold" onClick={onAdvance} style={{ width: '100%' }}>
-              <span className="btn-game__inner">最終結果を見る</span>
+              <span className="btn-game__inner">{advanceLabel ?? '最終結果を見る'}</span>
             </button>
           ) : (
             <button className="btn-game btn-game--blue" onClick={onAdvance} style={{ width: '100%' }}>

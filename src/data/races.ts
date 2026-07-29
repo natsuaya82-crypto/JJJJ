@@ -322,8 +322,8 @@ export const SEASON_2027_RACES: Race[] = [
 // ── リザーブレース (各区間も固有の重みを持つ) ────────────────────────────
 // months: 開催できる月。名前に季節が入っているレースはその季節にしか開催しない（11月に春季オープンを防ぐ）。
 // 未指定は通年OK
-type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'> & { months?: number[] }
-const RESERVE_RACE_POOL: RaceTemplate[] = [
+export type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'> & { months?: number[] }
+export const RESERVE_RACE_POOL: RaceTemplate[] = [
   {
     name: 'リザーブ春季オープン',      location: '川越',  type: 'league', months: [3, 4, 5],
     conditions: { temperature: 14, weather: 'sunny',  elevation: 30 },

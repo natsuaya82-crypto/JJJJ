@@ -63,13 +63,14 @@ export function LineupPhase({
   race, raceNumber, totalRaces, mainPlayers, raceLineup, allSegsFilled,
   pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart, onSkipRace,
   onBack, lastLineup, unavailable, btnClass,
+  startLabel, startDisabled, hideBack, bottomInset, headerNote,
 }: {
   race: Race
   raceNumber: number
   totalRaces: number
   mainPlayers: Player[]
   raceLineup: Record<number, string>
-  assignedIds: Set<string>
+  assignedIds?: Set<string>
   allSegsFilled: boolean
   pickerSeg: number | null
   setPickerSeg: (i: number | null) => void
@@ -77,15 +78,21 @@ export function LineupPhase({
   clearRaceLineup: () => void
   onStart: (tactics: Record<number, string>) => void
   onSkipRace?: () => void
-  weatherLabel: Record<string, string>
-  raceStrategy: 'aggressive' | 'balanced' | 'conservative'
-  setRaceStrategy: (s: 'aggressive' | 'balanced' | 'conservative') => void
-  teamTalk: string
-  setTeamTalk: (t: string) => void
+  weatherLabel?: Record<string, string>
+  raceStrategy?: 'aggressive' | 'balanced' | 'conservative'
+  setRaceStrategy?: (s: 'aggressive' | 'balanced' | 'conservative') => void
+  teamTalk?: string
+  setTeamTalk?: (t: string) => void
   onBack?: () => void
   lastLineup?: Record<number, string>
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
   btnClass?: string   // スタートボタンの色クラス差し替え（ECL＝btn-game--red）
+  // ここから下はオンライン対戦で使う差し替え。本編は今までどおり何も渡さない。
+  startLabel?: string      // 下の大ボタンの文字（例：このオーダーで提出）
+  startDisabled?: boolean  // 提出済みで押せない状態
+  hideBack?: boolean       // 戻るボタンを出さない（部屋から抜けてしまうため）
+  bottomInset?: number     // 下タブが出ている画面用。ボトムバーをその分だけ上げる
+  headerNote?: React.ReactNode  // 見出しの下に出す一行（残り時間など）
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -302,10 +309,11 @@ export function LineupPhase({
 
       {/* ヘッダー */}
       <div style={{ background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`, padding: '10px 16px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <BackButton onClick={onBack ?? (() => navigate(-1))} />
+        {!hideBack && <BackButton onClick={onBack ?? (() => navigate(-1))} />}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '2px' }}>第{raceNumber}戦 / 全{totalRaces}戦 — {race.date}</div>
-          <div style={{ fontSize: '20px', fontWeight: '900', color: C.text, lineHeight: 1.1, marginBottom: 8 }}>{race.name}</div>
+          <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '2px' }}>第{raceNumber}戦 / 全{totalRaces}戦{race.date ? ` — ${race.date}` : ''}</div>
+          <div style={{ fontSize: '20px', fontWeight: '900', color: C.text, lineHeight: 1.1, marginBottom: headerNote ? 4 : 8 }}>{race.name}</div>
+          {headerNote && <div style={{ marginBottom: 8 }}>{headerNote}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '5px' }}>
             {[
               { label: '天候', value: weatherLabel[race.conditions?.weather] ?? '—' },
@@ -421,7 +429,7 @@ export function LineupPhase({
 
       {/* ボトムバー（fixed：常に画面下端＝広告の上に固定。選手を何人置いても位置が動かない） */}
       <div style={{
-        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: `calc(${adH + (bottomInset ?? 0)}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
         padding: '8px 14px calc(10px)',
         background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,
@@ -448,8 +456,12 @@ export function LineupPhase({
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 4l8 8-8 8M13 4l8 8-8 8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
             )}
-            <button className={`btn-game ${btnClass ?? 'btn-game--gold'}`} onClick={() => onStart(segTactics)} style={{ flex: 1 }}>
-              <span className="btn-game__inner">レース開始！</span>
+            <button
+              className={`btn-game ${btnClass ?? 'btn-game--gold'}`}
+              onClick={() => { if (!startDisabled) onStart(segTactics) }}
+              style={{ flex: 1, opacity: startDisabled ? 0.5 : 1 }}
+            >
+              <span className="btn-game__inner">{startLabel ?? 'レース開始！'}</span>
             </button>
           </>
         ) : (

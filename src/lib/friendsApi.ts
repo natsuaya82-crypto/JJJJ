@@ -22,7 +22,7 @@ export type FriendRequest = {
   logoId: string; primary: string; secondary: string
 }
 
-type ProfileRow = {
+export type ProfileRow = {
   user_id: string
   code: string
   team_name: string
@@ -61,7 +61,7 @@ function relativeTime(iso?: string): string {
   return `${Math.floor(mon / 12)}年前`
 }
 
-function toFriend(r: ProfileRow): Friend {
+export function toFriend(r: ProfileRow): Friend {
   return {
     id: r.user_id,
     code: r.code,
@@ -153,7 +153,8 @@ export async function pushMyRoster(players: Player[]): Promise<void> {
 }
 
 // ── フレンド一覧 ──────────────────────────────────────
-async function profilesByIds(ids: string[]): Promise<ProfileRow[]> {
+/** まとめてプロフィールを引く。オンライン対戦のロビー表示でも使うので export している。 */
+export async function profilesByIds(ids: string[]): Promise<ProfileRow[]> {
   if (ids.length === 0) return []
   const { data, error } = await supabase.from('profiles').select(PROFILE_COLS).in('user_id', ids)
   if (error) throw new FriendsOffline()

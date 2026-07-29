@@ -42,6 +42,9 @@ import FriendListPage from './components/friends/FriendListPage'
 import FriendDetailPage from './components/friends/FriendDetailPage'
 import FriendRequestsPage from './components/friends/FriendRequestsPage'
 import FriendClubPage from './components/friends/FriendClubPage'
+import OnlinePage from './components/online/OnlinePage'
+import MatchEntryPage from './components/online/MatchEntryPage'
+import RoomLobbyPage from './components/online/RoomLobbyPage'
 import RecordsHub from './components/records/RecordsHub'
 import FranchiseRecordsPage, { IndividualRecordsPage, GmCareerPage } from './components/records/RecordsPage'
 import PlayersStatsPage from './components/records/PlayersStatsPage'
@@ -221,6 +224,10 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />
           <Route path="/international" element={<WorldEkidenPage />} />
+          {/* 下タブ「オンライン」。フレンド・走友会もこの下にぶら下がる（パスは互換のため /friends のまま） */}
+          <Route path="/online" element={<OnlinePage />} />
+          <Route path="/online/match" element={<MatchEntryPage />} />
+          <Route path="/online/room/:roomId" element={<RoomLobbyPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/friends/list" element={<FriendListPage />} />
           {/* 申請と承認は1画面にまとめてある。旧パスは念のため同じ画面へ通す */}
@@ -405,7 +412,9 @@ export default function App() {
     // 進行中のドラフトは isInitialized を見ずに draftState だけで判定する。
     // 2年目以降のドラフトでも isInitialized=true のままセーブを効かせるため（途中で落ちても巻き戻らない）。
     content = <DraftRoom />
-  } else if (!isInitialized && draftState?.isComplete) {
+  } else if (draftState?.isComplete && !draftState.contractsDone) {
+    // 指名は終わったが契約画面（DraftComplete）がまだ。2年目以降も必ず通す。
+    // contractsDone は advanceDraft() で立つ。
     content = <DraftRoom />
   } else {
     content = <AppRoutes resetGame={resetGame} onBackToTitle={() => setTitleShown(false)} />
