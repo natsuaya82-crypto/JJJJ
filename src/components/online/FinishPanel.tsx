@@ -3,10 +3,13 @@
 // 一気に全部出さず、下位から1タップずつ発表していく（表彰式のノリ）。
 // 最後に優勝チームを大きく出して、そのあと区間記録を見られるようにする。
 import { useMemo, useState } from 'react'
+import type { Player, Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { formatTime } from '../../engine/raceEngine'
-import { courseById } from '../../data/matchCourses'
-import { seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
+import { courseById, courseToRace } from '../../data/matchCourses'
+import { asPlayer, asTeam, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
+import { SegmentDetailCard, SegmentTabs } from '../race/SegmentDetailCard'
+import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -25,15 +28,13 @@ export default function FinishPanel({
     for (const r of races) for (const t of r.teams) if (!m.has(t.id)) m.set(t.id, t)
     return m
   }, [races])
-  const runnerMap = useMemo(() => {
-    const m = new Map<string, { name: string; teamId: string }>()
-    for (const r of races) for (const p of r.runners) m.set(p.id, { name: p.name, teamId: p.teamId })
-    return m
-  }, [races])
 
   // 下から何チームぶん発表したか
   const [shown, setShown] = useState(0)
   const [tab, setTab] = useState<'result' | 'records'>('result')
+  // 区間タイム詳細（本編と同じ画面）で見ているレースと区間
+  const [recRace, setRecRace] = useState(0)
+  const [recSeg, setRecSeg] = useState(0)
   const total = standings.length
   const done = shown >= total
   const champion = standings[0]
@@ -41,61 +42,78 @@ export default function FinishPanel({
   const revealNext = () => setShown(v => Math.min(total, v + 1))
   const nextRank = total - shown        // 次に発表される順位
 
+  // ── 区間タイム詳細（本編のレース結果と同じ画面を使う） ──
+  const allPlayers = useGameStore(s => s.players)
+  const myTeamId = useGameStore(s => s.playerTeamId)
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const myIds = useMemo(
+    () => new Set(allPlayers.filter(p => p.teamId === myTeamId).map(p => p.id)),
+    [allPlayers, myTeamId])
+
+  const rec = useMemo(() => {
+    const payload = races[Math.min(recRace, races.length - 1)]
+    if (!payload) return null
+    const course = courseById(payload.courseId)
+    if (!course) return null
+    const race = courseToRace(course, recRace + 1)
+    const teamList: Team[] = payload.teams.map(asTeam)
+    const tMap = new Map(teamList.map(t => [t.id, t]))
+    // 自分のチームだけ手元の選手をそのまま使う（顔・長押しが本編と同じになる）
+    const srcById = new Map(payload.runners.map(r => [r.id, r]))
+    const displayId = (pid: string) => {
+      const r = srcById.get(pid)
+      return r ? (r.teamId === meId ? r.srcId : r.id) : pid
+    }
+    const pList: Player[] = [...allPlayers.filter(p => p.teamId === myTeamId)]
+    for (const r of payload.runners) if (r.teamId !== meId) pList.push(asPlayer(r))
+    const pMap = new Map(pList.map(p => [p.id, p]))
+    const segs = payload.segments.map(s => ({
+      segmentIndex: s.segmentIndex,
+      runners: s.runners.map(r => ({ ...r, playerId: displayId(r.playerId) })),
+    }))
+    return { course, race, tMap, pMap, segs }
+  }, [races, recRace, meId, allPlayers, myTeamId])
+
   if (tab === 'records') {
     return (
-      <div style={{ padding: '10px 12px 0' }}>
-        <div style={{ textAlign: 'center', marginBottom: 12 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: 3, fontWeight: 900 }}>SEGMENT RECORDS</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginTop: 4 }}>区間記録</div>
+      <div style={{ paddingBottom: 4 }}>
+        <div style={{ textAlign: 'center', padding: '10px 12px 2px' }}>
+          <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: 2, fontWeight: 800 }}>SEGMENTS</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
         </div>
 
-        {races.map((r, ri) => {
-          const course = courseById(r.courseId)
-          return (
-            <div key={ri} style={{ marginBottom: 14, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-              <div style={{ padding: '8px 12px', background: C.surface2, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.gold }}>R{ri + 1}</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{course?.name ?? ''}</span>
-              </div>
-              {r.segments.map(seg => {
-                const sorted = [...seg.runners].sort((a, b) => a.rank - b.rank)
-                const best = sorted[0]
-                const mine = sorted.find(x => x.teamId === meId)
-                const bestName = best ? runnerMap.get(best.playerId)?.name ?? '—' : '—'
-                const bestTeam = best ? teamMap.get(best.teamId) : undefined
-                const myName = mine ? runnerMap.get(mine.playerId)?.name ?? '—' : null
-                return (
-                  <div key={seg.segmentIndex} style={{ padding: '8px 12px', borderBottom: `1px solid ${C.surface2}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 26, textAlign: 'center', flexShrink: 0, fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.textDim }}>
-                        {seg.segmentIndex}区
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: C.gold, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {bestName}
-                          <span style={{ fontSize: 9, color: C.textDim, marginLeft: 6, fontWeight: 500 }}>{bestTeam?.shortName ?? ''}</span>
-                        </div>
-                      </div>
-                      <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.gold, flexShrink: 0 }}>
-                        {best ? formatTime(best.timeSec) : '—'}
-                      </div>
-                    </div>
-                    {mine && best && mine.playerId !== best.playerId && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, paddingLeft: 34 }}>
-                        <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {myName}<span style={{ fontSize: 9, color: C.textDim, marginLeft: 6 }}>自分・{mine.rank}位</span>
-                        </div>
-                        <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: C.textSub, flexShrink: 0 }}>{formatTime(mine.timeSec)}</div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })}
+        {/* レース切り替え（R1 / R2 / R3） */}
+        {races.length > 1 && (
+          <SegmentTabs
+            labels={races.map((r, i) => `R${i + 1} ${courseById(r.courseId)?.name ?? ''}`)}
+            value={Math.min(recRace, races.length - 1)}
+            onChange={i => { setRecRace(i); setRecSeg(0) }}
+          />
+        )}
 
-        <div style={{ display: 'flex', gap: 8, padding: '4px 0 0' }}>
+        {rec ? (<>
+          <SegmentTabs
+            labels={rec.segs.map(s => `${s.segmentIndex}区`)}
+            value={Math.min(recSeg, rec.segs.length - 1)}
+            onChange={setRecSeg}
+          />
+          <div style={{ padding: '6px 12px 14px' }}>
+            <SegmentDetailCard
+              segResult={rec.segs[Math.min(recSeg, rec.segs.length - 1)]}
+              race={rec.race}
+              teamMap={rec.tMap}
+              playerMap={rec.pMap}
+              myTeamId={meId}
+              onPlayerTap={id => { if (myIds.has(id)) openPlayerSheet(id) }}
+            />
+          </div>
+        </>) : (
+          <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: 12, color: C.textDim }}>
+            区間記録を読み込めませんでした
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, padding: '0 12px' }}>
           <button className="btn-game btn-game--blue" onClick={() => setTab('result')} style={{ flex: 1 }}>
             <span className="btn-game__inner">結果に戻る</span>
           </button>

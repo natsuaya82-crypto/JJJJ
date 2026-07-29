@@ -1,32 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Race, RaceResults, Team, Player, Season, Nationality } from '../../types'
+import type { Race, RaceResults, Team, Player, Season } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
 import { ovr, ratingColor } from '../../utils/playerUtils'
-import { terrainColor, terrainLabel } from './raceUtils'
 import { useGameStore } from '../../store/gameStore'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
-import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
+import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-
-function FaceOrDot({ playerId, nationality, size = 40 }: { playerId?: string; nationality?: string; size?: number }) {
-  if (playerId && nationality) {
-    return <PlayerFace playerId={playerId} nationality={nationality as Nationality} size={size} />
-  }
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: `linear-gradient(135deg, ${C.surface3}, ${C.border2})`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.4, color: C.textGhost,
-    }}>?</div>
-  )
-}
 
 function requiredExp(level: number): number {
   const dull = level < 80 ? 1 : level < 90 ? 2 : 4   // gameStoreのrequiredExpForLevelと常に一致させる
@@ -148,115 +133,20 @@ export function ResultsPhase({
   const seasonRows: { s: typeof fullSorted[number]; rank: number; isBreak: boolean }[] =
     fullSorted.map((s, i) => ({ s, rank: i + 1, isBreak: false }))
 
-  const segmentDetailCards = results.segmentResults.map((sr, i) => {
-    const seg = race.segments.find(s => s.index === sr.segmentIndex)
-    const segCol = seg ? terrainColor(seg.uphillPct, seg.downhillPct) : C.blue
-    const leaderTime = sr.runners[0]?.timeSec ?? 0
-    const myRunner = sr.runners.find(r => r.teamId === playerTeamId)
-    const isMyWin = sr.runners[0]?.teamId === playerTeamId
-
-    // 区間タブで1区間ずつ表示するので、その区間の全順位（1〜最下位）を出す
-    const displayed = sr.runners
-
-    return (
-      <div key={sr.segmentIndex} style={{
-        borderRadius: 14,
-        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-        border: `2px solid ${C.goldDark}`,
-        position: 'relative', overflow: 'hidden',
-        boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-        marginBottom: i < results.segmentResults.length - 1 ? 10 : 0,
-      }}>
-        <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none' }} />
-
-        {/* Segment header */}
-        <div style={{
-          padding: '9px 12px 8px',
-          display: 'flex', alignItems: 'center', gap: 8,
-          borderBottom: `1px solid ${alpha(C.gold, 0.1)}`,
-          background: isMyWin ? `linear-gradient(90deg, ${alpha(C.gold, 0.07)}, transparent)` : undefined,
-        }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-            background: `linear-gradient(180deg, #2a4060 0%, #122440 100%)`,
-            border: `2px solid ${C.bg}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 900, color: segCol, fontFamily: SAIRA,
-          }}>
-            {sr.segmentIndex}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.textSub, fontFamily: SAIRA }}>
-              {sr.segmentIndex}区
-              {seg && <span style={{ fontSize: 9, color: C.textDim, marginLeft: 5 }}>{terrainLabel(seg.uphillPct, seg.downhillPct, seg.distanceKm)} · {seg.distanceKm}km</span>}
-            </div>
-          </div>
-          {myRunner && (
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, fontFamily: SAIRA, color: myRunner.rank === 1 ? C.gold : myRunner.rank <= 3 ? C.green : C.textSub, textShadow: myRunner.rank === 1 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
-                {myRunner.rank}位
-              </div>
-              <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatTime(myRunner.timeSec)}</div>
-            </div>
-          )}
-        </div>
-
-        {/* Runner rows */}
-        <div>
-          {displayed.map((runner, ri) => {
-            const isMe = runner.teamId === playerTeamId
-            const t = teamMap.get(runner.teamId)
-            const p = playerMap.get(runner.playerId)
-            const diff = runner.timeSec - leaderTime
-            const rankCol = runner.rank === 1 ? C.gold : runner.rank === 2 ? '#9B97A8' : runner.rank === 3 ? '#CD7F32' : isMe ? C.cyan : C.textGhost
-            const myRunnerPlayer = isMe && seg ? p : null
-            const highFatigue = myRunnerPlayer && (myRunnerPlayer.fatigue ?? 0) >= 70
-
-            return (
-              <div key={runner.playerId}
-                onClick={p ? () => openPlayerSheet(p.id) : undefined}
-                style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 12px',
-                borderBottom: ri < displayed.length - 1 ? `1px solid ${alpha(C.gold, 0.07)}` : 'none',
-                background: isMe ? `linear-gradient(90deg, ${alpha(C.cyan, 0.08)}, transparent)` : undefined,
-                borderLeft: isMe ? `3px solid ${C.cyan}` : '3px solid transparent',
-                cursor: p ? 'pointer' : 'default',
-              }}>
-                <div style={{ width: 18, textAlign: 'center', flexShrink: 0, fontSize: 11, fontWeight: 900, fontFamily: SAIRA, color: rankCol, textShadow: runner.rank === 1 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
-                  {runner.rank}
-                </div>
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <FaceOrDot playerId={p?.id} nationality={p?.nationality} size={30} />
-                  {t && (
-                    <div style={{ position: 'absolute', bottom: -2, right: -3 }}>
-                      <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={14} />
-                    </div>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                    {p && <div style={{ fontSize: 11, fontWeight: isMe ? 800 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>}
-                    {newSegRecords.some(m => m.segmentIndex === sr.segmentIndex && m.playerId === runner.playerId) && (
-                      <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
-                    <span style={{ fontSize: 9, color: C.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>{t?.name ?? '?'}</span>
-                    {highFatigue && <span style={{ fontSize: 8, color: C.red, fontWeight: 700, fontFamily: SAIRA, flexShrink: 0 }}>疲{myRunnerPlayer!.fatigue}</span>}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 10, fontFamily: SAIRA, color: isMe ? C.text : C.textDim }}>{formatTime(runner.timeSec)}</div>
-                  {diff > 0 && <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatDiff(diff)}</div>}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  })
+  // 区間タイム詳細のカードは SegmentDetailCard.tsx に切り出してある（オンライン対戦と共通）
+  const segmentDetailCards = results.segmentResults.map((sr, i) => (
+    <SegmentDetailCard
+      key={sr.segmentIndex}
+      segResult={sr}
+      race={race}
+      teamMap={teamMap}
+      playerMap={playerMap}
+      myTeamId={playerTeamId}
+      newSegRecords={newSegRecords}
+      onPlayerTap={openPlayerSheet}
+      marginBottom={i < results.segmentResults.length - 1 ? 10 : 0}
+    />
+  ))
 
   // 区間タイム詳細：別ビュー（結果画面が長いので分離）
   if (view === 'segments') {
@@ -277,22 +167,11 @@ export function ResultsPhase({
           </div>
         </div>
         {/* 区間タブ（上部・横スクロール） */}
-        <div style={{ display: 'flex', overflowX: 'auto', gap: 6, padding: '10px 12px 6px', WebkitOverflowScrolling: 'touch' }}>
-          {results.segmentResults.map((sr, i) => {
-            const sel = i === segView
-            return (
-              <button key={sr.segmentIndex} onClick={() => setSegView(i)} style={{
-                flexShrink: 0, padding: '7px 14px', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA,
-                fontSize: 13, fontWeight: sel ? 900 : 700,
-                background: sel ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : C.surface2,
-                color: sel ? C.bg : C.textDim,
-                border: `1px solid ${sel ? C.gold : C.border2}`,
-              }}>
-                {sr.segmentIndex}区
-              </button>
-            )
-          })}
-        </div>
+        <SegmentTabs
+          labels={results.segmentResults.map(sr => `${sr.segmentIndex}区`)}
+          value={segView}
+          onChange={setSegView}
+        />
         {/* 選択区間の全順位（1〜最下位） */}
         <div style={{ padding: '6px 12px 14px' }}>
           {segmentDetailCards[segView]}
