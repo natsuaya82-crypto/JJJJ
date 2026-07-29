@@ -232,31 +232,35 @@ declare r public.rooms%rowtype; v_seat integer; v_count integer;
 begin
   perform public.close_stale_rooms();
 
-  select * into r from public.rooms
-   where code = regexp_replace(coalesce(p_code, ''), '\D', '', 'g') and status <> 'closed'
+  -- ※ この関数の戻り値の列名（status / room_id / seat）と、テーブルの列名が同じなので、
+  --   中の SQL では必ずテーブルの別名を付けること。付け忘れるとPostgresが
+  --   どちらを指すのか判断できず、実行時にエラー（＝アプリでは通信エラー）になる。
+  select * into r from public.rooms rm
+   where rm.code = regexp_replace(coalesce(p_code, ''), '\D', '', 'g') and rm.status <> 'closed'
    limit 1;
   if r.id is null then return query select 'not_found'::text, null::uuid, null::integer; return; end if;
   if r.status = 'playing' then
     -- すでに参加している人の再入室（アプリを閉じて戻ってきた場合）は通す
     if exists (select 1 from public.room_members m where m.room_id = r.id and m.user_id = auth.uid()) then
-      update public.room_members set left_at = null
-       where room_id = r.id and user_id = auth.uid()
-       returning seat into v_seat;
+      update public.room_members m set left_at = null
+       where m.room_id = r.id and m.user_id = auth.uid()
+       returning m.seat into v_seat;
       return query select 'joined'::text, r.id, v_seat; return;
     end if;
     return query select 'started'::text, null::uuid, null::integer; return;
   end if;
 
   -- 既に入っている場合はそのまま席を返す
-  select seat into v_seat from public.room_members
-   where room_id = r.id and user_id = auth.uid();
+  select m.seat into v_seat from public.room_members m
+   where m.room_id = r.id and m.user_id = auth.uid();
   if v_seat is not null then
-    update public.room_members set left_at = null where room_id = r.id and user_id = auth.uid();
+    update public.room_members m set left_at = null
+     where m.room_id = r.id and m.user_id = auth.uid();
     return query select 'joined'::text, r.id, v_seat; return;
   end if;
 
-  select count(*) into v_count from public.room_members
-   where room_id = r.id and left_at is null;
+  select count(*) into v_count from public.room_members m
+   where m.room_id = r.id and m.left_at is null;
   if v_count >= r.max_players then
     return query select 'full'::text, null::uuid, null::integer; return;
   end if;
