@@ -4,6 +4,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, FORM_LABELS, FORM_COLORS, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { isForeignNat } from '../../data/nationalities'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -71,7 +72,7 @@ export default function KeyPlayersSection({ players, team }: Props) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, color: isTop ? C.text : C.textSub }}>{p.name}</span>
-                  {p.nationality === 'FOREIGN' && (
+                  {isForeignNat(p.nationality) && (
                     <span style={{ fontSize: 9, color: '#6B7BE8', fontWeight: 600,
                       padding: '1px 5px', borderRadius: 4, backgroundColor: '#6B7BE815', border: '1px solid #6B7BE830' }}>
                       海外

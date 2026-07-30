@@ -8,7 +8,7 @@ const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対�
 // リーグの格ごとのOVR下限。これ未満の選手はそのリーグへ海外移籍しない（弱いベンチ選手が格上へ流出しないように）
 const FOREIGN_LEAGUE_MIN_OVR: Record<string, number> = {
   ETH: 85, KEN: 85, UGA: 85, TAN: 85,   // アフリカ
-  EUR: 80, USA: 80,                       // 欧州・米国（オセアニア/南米もこの2つの国コード）
+  USA: 80,                               // 米国
   KOR: 70, CHN: 70, TWN: 70,             // アジア
 }
 const foreignMinOvr = (country: string): number => FOREIGN_LEAGUE_MIN_OVR[country] ?? 75  // その他
@@ -346,7 +346,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const feeStr = (v: number) => v >= 100_000_000 ? `${(v / 100_000_000).toFixed(1)}億` : `${Math.round(v / 10_000)}万`
   // 日本より格上のリーグへの移籍は「日本人が世界最高峰へ挑む」大ニュースにする。
   // 国コード（旧判定）に加えて4大リーグ所属クラブも対象（欧州の国コードGBR/GER等が漏れていた）
-  const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'EUR', 'USA'])
+  const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'USA'])
   const NEWS_ELITE_LEAGUES = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
   const newsClubLeague = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, l.id])))
   const isStrongDest = (toId: string) => STRONG_COUNTRIES.has(clubCountry.get(toId) ?? '') || NEWS_ELITE_LEAGUES.has(newsClubLeague.get(toId) ?? '')

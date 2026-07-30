@@ -8,14 +8,14 @@ import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
-import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster } from '../engine/playerGenerator'
+import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier, safeRatings } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
-import { natLabel, natGeoRegion, natStrengthRegion } from '../data/nationalities'
+import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
@@ -451,8 +451,6 @@ export type GameStore = GameState & {
   acceptForeignOffer: (playerId: string, offeringClubId: string) => void
 
   // National team
-  updateNationalTeam: () => void
-  confirmSquad: (ids: string[]) => void
   setWorldSquad: (playerIds: string[]) => void
   runWorldAthletics: () => void
   startWorldTournament: () => void
@@ -463,19 +461,12 @@ export type GameStore = GameState & {
   denyOverseasChallenge: (playerId: string) => void
   ensureWorldRacePlans: () => void
   ensureEclSeries: () => void
-  setRacePlayerIds: (raceIdx: number, ids: string[]) => void
-  toggleWorldRacePlayer: (raceIdx: number, playerId: string) => void
-  autoSelectWorldRace: (raceIdx: number) => void
-  setWorldCoachDeclined: (declined: boolean) => void
 
   // Facilities
   upgradeFacility: (key: FacilityKey) => boolean
 
   // Individual events
   simulateIndividualEvent: (eventId: string, skipPlayerIds?: string[]) => void
-
-  // World Ekiden
-  simulateWorldEkiden: () => void
 
   // Card training
   applyTrainingCards: (playerId: string, cardIds: string[], grantTrait?: boolean, multiplier?: number) => void
@@ -610,7 +601,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     version: '0.1.0',
     sponsors: [],
     foreignLeagues: FOREIGN_LEAGUES,
-    nationalTeam: undefined,
     trainingCards: [],
     raceDroppedCards: [],
     pendingGifts: [],
@@ -930,18 +920,8 @@ export const useGameStore = create<GameStore>()(
         const team = state.teams.find(t => t.id === teamId)
         if (!team) return
 
-        const foreignCount = team.roster.main
-          .map(id => state.players.find(p => p.id === id))
-          .filter(p => p?.nationality === 'FOREIGN').length
-
-        const eligibleByCap = pool.filter(p => {
-          if (p.nationality === 'FOREIGN' && foreignCount >= 3) return false
-          return true
-        })
-        // 外国人枠で全員弾かれても指名は進める（デッドロック＝ドラフト凍結・自番へスキップ不能を防ぐ）
-        const available = eligibleByCap.length > 0 ? eligibleByCap : pool
-
-        const scored = available.map(p => {
+        // 外国人枠は廃止したので国籍による指名制限は無い（誰でも指名できる）
+        const scored = pool.map(p => {
           return { p, score: ovr(p) * (0.97 + Math.random() * 0.06) }
         })
         scored.sort((a, b) => b.score - a.score)
@@ -2081,15 +2061,18 @@ export const useGameStore = create<GameStore>()(
           const NAMES = ['村上 蒼', '橋本 颯', '田中 悠馬', '小林 煌', '中村 海斗', '伊藤 涼', '山田 蓮', '佐藤 翔', '加藤 健', '鈴木 碧', '松本 楓', '渡辺 律', '井上 光', '木村 颯太', '高橋 凌', '石川 仁', '林 優斗', '近藤 葵', '前田 空', '岡田 風']
           const CITIES = ['東京', '神奈川', '大阪', '愛知', '福岡', '北海道', '宮城', '広島', '静岡', '千葉']
           const SPECS: import('../types').Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+          const usedForeignNames = new Set<string>()
           const prospects: import('../types').DevProspect[] = Array.from({ length: 12 }, (_, i) => {
             const potential = 50 + Math.floor(Math.random() * 45)
             const base = 40 + Math.floor(Math.random() * 30)
+            // 15%は外国人。国籍だけ「外国」ではなく、実際の国籍・出身国・現地名を持たせる
+            const foreign = Math.random() < 0.15 ? generateJpelForeignName(usedForeignNames) : null
             return {
               id: `dev_${state.currentSeason.year}_${i}`,
-              name: NAMES[i % NAMES.length],
+              name: foreign ? foreign.name : NAMES[i % NAMES.length],
               age: 18 + Math.floor(Math.random() * 4),
-              origin: CITIES[Math.floor(Math.random() * CITIES.length)],
-              nationality: Math.random() < 0.15 ? 'FOREIGN' : 'JPN',
+              origin: foreign ? foreign.origin : CITIES[Math.floor(Math.random() * CITIES.length)],
+              nationality: foreign ? foreign.nat : 'JPN',
               specialty: SPECS[Math.floor(Math.random() * SPECS.length)],
               potential,
               trueRatings: {
@@ -4994,20 +4977,18 @@ export const useGameStore = create<GameStore>()(
           const estCost = (fa: Player) => faMarketSalary(fa, perfOf(state.currentSeason, fa.id))
 
           const needs = cpuSpecialtyNeeds(team.id, playersAfterCpuTransfer)
-          const foreignOnTeam = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.nationality === 'FOREIGN').length
           const usedNums = new Set<number>()
-          let foreignSigned = 0, signed = 0
+          let signed = 0
           // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
           const ageCap = strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33)
           // 総在籍24人未満の間は予算に関係なく最低限補強（戦力崩壊防止）。それ以上は予算内でのみ
           const budgetOk = (fa: Player) => (totalNow + signed) < 24 || (spent + estCost(fa) <= spendable)
+          // 外国人枠は廃止したので国籍による人数制限は無い
           const canSign = (fa: Player) =>
             !signedFAIds.has(fa.id) &&
-            !(fa.nationality === 'FOREIGN' && foreignOnTeam + foreignSigned >= 3) &&
             fa.age < ageCap
           const doSign = (fa: Player) => {
             let num = 1; while (usedNums.has(num)) num++; usedNums.add(num)
-            if (fa.nationality === 'FOREIGN') foreignSigned++
             signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: team.id, num }); signed++
             spent += estCost(fa)
           }
@@ -5088,7 +5069,7 @@ export const useGameStore = create<GameStore>()(
             }
           }
           const remainForeignFAs = playersWithAllCpuSigns
-            .filter(p => p.teamId === '' && p.status === 'active' && p.nationality === 'FOREIGN')
+            .filter(p => p.teamId === '' && p.status === 'active' && isForeignNat(p.nationality))
             .sort((a, b) => ovr(b) - ovr(a))
           let clubIdx = 0
           for (const fa of remainForeignFAs) {
@@ -5923,22 +5904,88 @@ export const useGameStore = create<GameStore>()(
           // 2) 引退選手の軽量化（能力履歴・特性などを落として名前と実績だけ残す）
           //    ＋整理のルールは国内・海外で共通：「実績（出走・区間賞・記録会ベスト）のある選手は絶対に消さず引退として残す」。
           //    実績ゼロの選手だけ削除する。これでニュース・記録・歴代優勝から選手詳細が必ず開ける
-          const leanRetired = (p: Player): Player => ({ ...p, status: 'retired', teamId: '', ovrHistory: [], traits: [], fatigue: 0, form: 0, loan: undefined, faSinceYear: undefined })
-          const hasCareerRecord = (p: Player) =>
-            p.career.totalRaces > 0 || p.career.segmentWins > 0 || Object.keys(p.eventBests ?? {}).length > 0
-          const cleanedPlayers = crossTx.players
-            .flatMap((p): Player[] => {
-              // 海外クラブの名簿から溢れた選手：実績があれば引退として残す（従来は完全削除→詳細が開けなかった）
-              if (foreignDropIds.has(p.id)) {
-                return hasCareerRecord(p) ? [leanRetired({ ...p, retiredYear: p.retiredYear ?? state.currentSeason.year })] : []
+          //    引退後の選手詳細は1ページ目（能力レーダー・契約・市場価値）を表示しないので、
+          //    能力値・EXP・上限解放などは持たせない。セーブ容量の節約。
+          //    ratings は型上は必須だが、読む側は safeRatings/ovr で欠損に耐える作りにしてある。
+          //    contract は残す（引退ニュースのカードが p.contract.annualSalary を直接読むため）
+          const LEAN_DROP_KEYS = ['ratings', 'exp', 'potentialBoosts', 'customCaps', 'segmentPBs', 'personalSponsors', 'predictedPick', 'ovrHistory', 'traits'] as const
+          const leanRetired = (p: Player): Player => {
+            // 歴代ドラフト・移籍履歴では引退選手にも総合値が出るので、消す前に総合値だけ控えておく
+            const q: Record<string, unknown> = { ...p, status: 'retired', teamId: '', fatigue: 0, form: 0, loan: undefined, faSinceYear: undefined, finalOvr: p.finalOvr ?? ovr(p) }
+            for (const k of LEAN_DROP_KEYS) delete q[k]
+            return q as unknown as Player
+          }
+          // 3) 「二度と名前が出ない選手」は選手データごと削除してセーブを軽くする。
+          //    残すのは画面のどこかで名前が出る可能性がある選手だけ：
+          //      ・一度でも自チームに所属した
+          //      ・区間賞を取ったことがある（通算区間賞ランキング）
+          //      ・区間記録／記録会の歴代記録（世界記録・日本記録・種目別トップ10・チーム歴代記録）の保持者
+          //      ・駅伝代表に選ばれたことがある（全出場国の代表20人ぶんが worldRepresentatives に入る）
+          //      ・MVP・新人王・ECL優勝メンバー・ECL MVP
+          //      ・ドラフト指名歴がある（歴代ドラフトの一覧が歯抜けになる）
+          //      ・スター（★）を付けている
+          //    削除した選手は removedPlayers に「名前・国籍」だけ残すので、過去レースの区間配置や
+          //    移籍履歴では名前も顔もそのまま出る（選手詳細だけ開けなくなる）。
+          const protectedIds = new Set<string>()
+          for (const list of Object.values(state.segmentRecords ?? {})) {
+            for (const r of list) if (r.playerId) protectedIds.add(r.playerId)
+          }
+          for (const rec of [...Object.values(state.worldRecords ?? {}), ...Object.values(state.japanRecords ?? {})]) {
+            if (!rec) continue
+            protectedIds.add(rec.playerId)
+            for (const co of rec.coHolders ?? []) protectedIds.add(co.playerId)
+          }
+          for (const g of state.eventSeasonTops ?? []) for (const t of g.top) protectedIds.add(t.playerId)
+          for (const t of state.teams) {
+            for (const list of Object.values(t.eventRecords ?? {})) for (const r of list ?? []) protectedIds.add(r.playerId)
+          }
+          for (const a of state.seasonAwards ?? []) {
+            if (a.mvpId) protectedIds.add(a.mvpId)
+            if (a.rookieId) protectedIds.add(a.rookieId)
+          }
+          for (const e of state.eclHistory ?? []) {
+            if (e.mvpPlayerId) protectedIds.add(e.mvpPlayerId)
+            for (const id of e.winnerPlayerIds ?? []) protectedIds.add(id)
+          }
+          for (const r of state.worldRepresentatives ?? []) protectedIds.add(r.playerId)
+          for (const id of state.worldSquad?.playerIds ?? []) protectedIds.add(id)
+          for (const id of [...(state.starredOpponents ?? []), ...(state.starredProspects ?? [])]) protectedIds.add(id)
+          // 自チーム在籍歴：過去シーズンの出走記録・0出走記録から拾う（印が無い旧セーブぶんの救済）
+          for (const season of [...state.pastSeasons, state.currentSeason]) {
+            for (const race of [...(season.races ?? []), ...(season.secondTeamRaces ?? [])]) {
+              if (!race.results) continue
+              for (const sr of race.results.segmentResults) {
+                for (const r of sr.runners) if (r.teamId === state.playerTeamId) protectedIds.add(r.playerId)
               }
-              if (p.status === 'retired') return [leanRetired(p)]
+            }
+            for (const z of season.zeroAppearances ?? []) if (z.teamId === state.playerTeamId) protectedIds.add(z.playerId)
+          }
+          const isWorthKeeping = (p: Player) =>
+            p.wasPlayerTeam === true
+            || p.isMyPlayer === true
+            || protectedIds.has(p.id)
+            || p.career.segmentWins > 0
+            || p.draftRound != null
+          const removedPlayers: Record<string, [string, Nationality]> = { ...(state.removedPlayers ?? {}) }
+          const dropPlayer = (p: Player): Player[] => {
+            removedPlayers[p.id] = [p.name, p.nationality]
+            return []
+          }
+          const cleanedPlayers = crossTx.players
+            // 今season自チームに居た選手には在籍歴の印を付ける（以後の整理で絶対に消えない）
+            .map(p => (p.teamId === state.playerTeamId && p.wasPlayerTeam !== true ? { ...p, wasPlayerTeam: true } : p))
+            .flatMap((p): Player[] => {
+              // 海外クラブの名簿から溢れた選手
+              if (foreignDropIds.has(p.id)) {
+                return isWorthKeeping(p) ? [leanRetired({ ...p, retiredYear: p.retiredYear ?? state.currentSeason.year })] : dropPlayer(p)
+              }
+              if (p.status === 'retired') return isWorthKeeping(p) ? [leanRetired(p)] : dropPlayer(p)
               if (p.status === 'active' && p.teamId === '') {
                 const since = p.faSinceYear ?? state.currentSeason.year
                 if (newYear - since >= 2) {
-                  return (p.draftRound != null || hasCareerRecord(p))
+                  return isWorthKeeping(p)
                     ? [leanRetired({ ...p, retiredYear: p.retiredYear ?? since })]
-                    : []
+                    : dropPlayer(p)
                 }
                 return [{ ...p, faSinceYear: since }]
               }
@@ -5975,6 +6022,13 @@ export const useGameStore = create<GameStore>()(
               }
             }
           }
+          // 過去シーズンの海外リーグ順位表は「合計ポイント」しか読まれない（チーム詳細の歴代成績・
+          // リーグ優勝回数）。1戦ごとの結果は今季ぶんだけ（直近フォーム・消化数）なので保存時に落とす。
+          // セーブ容量の節約：1シーズンあたり約120KB
+          const archivedForeignStandings = Object.fromEntries(
+            Object.entries(state.currentSeason.foreignStandings ?? {})
+              .map(([lid, st]) => [lid, st.map(s2 => ({ clubId: s2.clubId, totalPoints: s2.totalPoints, raceResults: [] }))]),
+          )
           // 国内も同様：今季1度も出走しなかった在籍選手の所属を記録して保存（在籍履歴の空白防止）
           const appearedIds = new Set<string>()
           for (const race of [...state.currentSeason.races, ...(state.currentSeason.secondTeamRaces ?? [])]) {
@@ -6000,6 +6054,7 @@ export const useGameStore = create<GameStore>()(
 
           return {
             players: cleanedPlayers,
+            removedPlayers,
             teams: syncedTeams,
             foreignLeagues: cappedForeignLeagues,
             worldTournament: undefined,  // 世界選手権トーナメントは年度で完結（翌年は新規に開催）
@@ -6021,6 +6076,7 @@ export const useGameStore = create<GameStore>()(
             pastSeasons: [...state.pastSeasons, {
               ...state.currentSeason,
               foreignAppearances: archivedForeignApps,
+              foreignStandings: archivedForeignStandings,
               zeroAppearances,
               objectives: completedObjs,
               individualEvents: [],
@@ -6073,7 +6129,6 @@ export const useGameStore = create<GameStore>()(
               trainingPlan: null,
               individualEvents: generateIndividualEvents(newYear),
               departureNotices,
-              worldEkidenResult: undefined,
               sponsorOffers: newSponsorOffers,
               seasonRaceIncome: 0,
               secondTeamRaces: newSecondTeamRaces,
@@ -6304,20 +6359,9 @@ export const useGameStore = create<GameStore>()(
         if (!player || !myTeam) return false
         if (reinforcementBanned(myTeam)) return false  // 赤字ペナルティ中・残高マイナスは補強不可
 
+        // 外国人枠（外国人3人・アジア5人）は廃止。人数制限なしで獲得できる。
+        // foreignCategory は選手データの表示用に持たせるだけ。
         const foreignCat: ForeignCategory = player.foreignCategory ?? nationalityToForeignCategory(player.nationality)
-
-        // Count current foreign/asian players on main roster
-        const mainIds = new Set(myTeam.roster.main)
-        const myMainPlayers = state.players.filter(p => mainIds.has(p.id))
-        const foreignCount = myMainPlayers.filter(p =>
-          (p.foreignCategory ?? nationalityToForeignCategory(p.nationality)) === 'foreign'
-        ).length
-        const asianCount = myMainPlayers.filter(p =>
-          (p.foreignCategory ?? nationalityToForeignCategory(p.nationality)) === 'asian'
-        ).length
-
-        if (foreignCat === 'foreign' && foreignCount >= 3) return false
-        if (foreignCat === 'asian' && asianCount >= 5) return false
 
         // Transfer fee is based on player market value (independent of salary)
         const transferFee = calcTransferValue(player)
@@ -6389,30 +6433,6 @@ export const useGameStore = create<GameStore>()(
       },
 
       // ── National team ─────────────────────────────────────────────────
-      updateNationalTeam: () => {
-        const state = get()
-        // プレイヤーが常に日本代表の駅伝監督を務める（断ることも可能。断ればAIおまかせ配置になる）
-        const coachTeamId = state.playerTeamId
-        const isPlayerCoach = true
-        const domesticIds = new Set(state.teams.map(t => t.id))
-        const sorted = state.players
-          .filter(p => p.nationality === 'JPN' && p.status === 'active' && domesticIds.has(p.teamId))
-          .sort((a, b) => ovr(b) - ovr(a))
-        const squad = sorted.slice(0, 20).map(p => p.id)
-        const racePlan = generateWECRacePlan()
-        const racePlayerIds = autoSelectRacePlayers(squad, racePlan, state.players)
-        set({ nationalTeam: { coachTeamId, year: state.currentSeason.year, squadIds: squad, racePlan, racePlayerIds, isPlayerCoach } })
-      },
-
-      confirmSquad: (ids: string[]) => {
-        const state = get()
-        const nt = state.nationalTeam
-        if (!nt) return
-        const racePlan = generateWECRacePlan()
-        const racePlayerIds = autoSelectRacePlayers(ids, racePlan, state.players)
-        set({ nationalTeam: { ...nt, squadIds: ids, racePlan, racePlayerIds } })
-      },
-
       // 世界選手権：日本駅伝代表20人を確定（候補50から監督が選抜）
       setWorldSquad: (playerIds: string[]) => {
         set(state => ({ worldSquad: { year: state.currentSeason.year, playerIds: playerIds.slice(0, 20) } }))
@@ -6753,53 +6773,6 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
-      setRacePlayerIds: (raceIdx: number, ids: string[]) => {
-        set(state => {
-          if (!state.nationalTeam) return state
-          const newRacePlayerIds = [...(state.nationalTeam.racePlayerIds ?? [])]
-          newRacePlayerIds[raceIdx] = ids
-          return { nationalTeam: { ...state.nationalTeam, racePlayerIds: newRacePlayerIds } }
-        })
-      },
-
-      // 監督采配：指定レースの区間走者トグル（選択済みなら外す、未選択なら末尾に追加。区間数上限まで）
-      toggleWorldRacePlayer: (raceIdx: number, playerId: string) => {
-        set(state => {
-          const nt = state.nationalTeam
-          if (!nt) return state
-          const segCount = nt.racePlan[raceIdx]?.segments.length ?? 0
-          const cur = [...(nt.racePlayerIds?.[raceIdx] ?? [])]
-          const at = cur.indexOf(playerId)
-          if (at >= 0) cur.splice(at, 1)
-          else if (cur.length < segCount) cur.push(playerId)
-          const next = [...(nt.racePlayerIds ?? [])]
-          next[raceIdx] = cur
-          return { nationalTeam: { ...nt, racePlayerIds: next } }
-        })
-      },
-
-      // 監督采配：指定レースをおまかせ自動選出（スカッドから区間数ぶん、地形適性で割当）
-      autoSelectWorldRace: (raceIdx: number) => {
-        set(state => {
-          const nt = state.nationalTeam
-          if (!nt) return state
-          const plan = nt.racePlan[raceIdx]
-          if (!plan) return state
-          const roster = nt.squadIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
-          const wecRace = { id: 'wecsel', name: '', location: '', type: 'league' as const, segments: plan.segments.map((s, i) => ({ index: i + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct })), conditions: { temperature: 15, weather: 'sunny' as const, elevation: 0 }, participants: [] } as unknown as Race
-          const lineup = assignLineupByTerrain(roster, wecRace)
-          const ids = wecRace.segments.map(seg => lineup[seg.index]).filter(Boolean)
-          const next = [...(nt.racePlayerIds ?? [])]
-          next[raceIdx] = ids
-          return { nationalTeam: { ...nt, racePlayerIds: next } }
-        })
-      },
-
-      // 監督を引き受ける/断る（断ればAIおまかせ配置で走る）
-      setWorldCoachDeclined: (declined: boolean) => {
-        set(state => state.nationalTeam ? { nationalTeam: { ...state.nationalTeam, coachDeclined: declined } } : state)
-      },
-
       // ── Facilities ────────────────────────────────────────────────────
       upgradeFacility: (key) => {
         const state = get()
@@ -7013,188 +6986,6 @@ export const useGameStore = create<GameStore>()(
         })
         // 記録会の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
         try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
-      },
-
-      // ── World Ekiden ──────────────────────────────────────────────────
-      simulateWorldEkiden: () => {
-        set(state => {
-          if (state.currentSeason.worldEkidenResult) return state
-
-          const year = state.currentSeason.year
-          let nt = state.nationalTeam
-          if (!nt || nt.year !== year || !nt.racePlan || nt.racePlan.length < 3) {
-            const sorted = [...state.players].sort((a, b) => ovr(b) - ovr(a))
-            const squadIds = sorted.slice(0, 20).map(p => p.id)
-            const racePlan = generateWECRacePlan()
-            const racePlayerIds = autoSelectRacePlayers(squadIds, racePlan, state.players)
-            nt = { coachTeamId: state.playerTeamId ?? '', year, squadIds, racePlan, racePlayerIds, isPlayerCoach: false }
-          }
-
-          const cityIdx = Math.max(0, Math.floor((year - 2027) / 2) % WEC_CITIES.length)
-          const cityInfo = WEC_CITIES[cityIdx]
-
-          const RACE_POINTS = [15, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1]
-          const WEC_NATIONS = [
-            { country: 'KEN', name: 'ケニア',         boost: 24, variance: 30 },
-            { country: 'ETH', name: 'エチオピア',      boost: 20, variance: 35 },
-            { country: 'UGA', name: 'ウガンダ',        boost: 14, variance: 35 },
-            { country: 'BHR', name: 'バーレーン',      boost: 9,  variance: 40 },
-            { country: 'MAR', name: 'モロッコ',        boost: 7,  variance: 40 },
-            { country: 'TAN', name: 'タンザニア',      boost: 5,  variance: 45 },
-            { country: 'USA', name: 'アメリカ',        boost: 4,  variance: 45 },
-            { country: 'EUR', name: 'ヨーロッパ選抜',  boost: 2,  variance: 40 },
-            { country: 'ERI', name: 'エリトリア',      boost: 1,  variance: 50 },
-            { country: 'QAT', name: 'カタール',        boost: -2, variance: 50 },
-            { country: 'CHN', name: '中国',            boost: -4, variance: 45 },
-            { country: 'KOR', name: '韓国',            boost: -5, variance: 45 },
-            { country: 'NZL', name: 'ニュージーランド', boost: -8, variance: 50 },
-            { country: 'AUS', name: 'オーストラリア',  boost: -10, variance: 50 },
-          ]
-          const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
-          const SPEC_OPTIONS = ['long', 'ace', 'allrounder', 'long', 'grinder'] as const
-
-          const pointsAcc: Record<string, number> = {}
-          WEC_NATIONS.forEach(n => { pointsAcc[n.country] = 0 })
-          pointsAcc['JPN'] = 0
-
-          const races: import('../types').WECRaceResult[] = nt.racePlan.map((plan, raceIdx) => {
-            const weather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)]
-            const segCount = plan.segments.length
-
-            // Race object: apply courseMult via distance scaling
-            const wecRace: import('../types').Race = {
-              id: `wec_${year}_r${raceIdx + 1}`,
-              name: `世界選手権 第${raceIdx + 1}レース`,
-              date: `${year}-12-01`,
-              location: cityInfo.city,
-              type: 'league' as const,
-              segments: plan.segments.map((s, i) => ({
-                index: i + 1,
-                distanceKm: Math.round(s.distanceKm * cityInfo.courseMult * 10) / 10,
-                uphillPct: s.uphillPct,
-                downhillPct: s.downhillPct,
-              })),
-              conditions: { temperature: 15, weather, elevation: 0 },
-              participants: [],
-            }
-
-            // Japan runners：意図した走者を優先しつつ、見つからない選手がいても全捨てにせず控えで補完。
-            // さらに区間の地形に合った配置にする（全区間充填）。
-            const rawIds = nt.racePlayerIds?.[raceIdx] ?? []
-            const intended = rawIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
-            const usedIntended = new Set(intended.map(p => p.id))
-            const squadFill = nt.squadIds.map(id => state.players.find(p => p.id === id))
-              .filter((p): p is Player => !!p && !usedIntended.has(p.id))
-              .sort((a, b) => ovr(b) - ovr(a))
-            const jpnPool = [...intended, ...squadFill]
-
-            // 監督（プレイヤー）の采配：racePlayerIds の並び順を区間順として尊重する。
-            // 監督を断った(coachDeclined)場合のみ、AIおまかせ（地形適性配置）にする。
-            const jpnLineup: Record<number, string> = {}
-            if (nt.coachDeclined) {
-              Object.assign(jpnLineup, assignLineupByTerrain(jpnPool, wecRace))
-            } else {
-              wecRace.segments.forEach((seg, i) => { if (jpnPool[i]) jpnLineup[seg.index] = jpnPool[i].id })
-            }
-            const lineups: Record<string, Record<number, string>> = { 'wec_JPN': jpnLineup }
-            const japanRunners = Object.values(lineups['wec_JPN'])
-              .map(id => state.players.find(p => p.id === id))
-              .filter((p): p is Player => !!p)
-
-            // Virtual players for foreign nations
-            const avgJpnOvr = japanRunners.reduce((s, p) => s + ovr(p), 0) / Math.max(1, japanRunners.length)
-            const virtualPlayers: Player[] = []
-            WEC_NATIONS.forEach(n => {
-              const targetOvr = Math.max(40, Math.min(98, avgJpnOvr + n.boost))
-              lineups[`wec_${n.country}`] = {}
-              for (let i = 0; i < segCount; i++) {
-                const pid = `wec_${n.country}_${raceIdx}_${i}`
-                const varOvr = Math.max(35, Math.min(99, Math.round(targetOvr + (Math.random() - 0.5) * (n.variance / 3))))
-                const spec = SPEC_OPTIONS[Math.floor(Math.random() * SPEC_OPTIONS.length)]
-                virtualPlayers.push({
-                  id: pid, name: `${n.name}選手${i + 1}`, nameKana: '',
-                  age: 25, yearsPro: 5, draftYear: 0, draftRound: null, draftPick: null,
-                  ratings: { speed: varOvr, stamina: varOvr, mountainUp: varOvr, mountainDown: varOvr, pacing: varOvr, mental: varOvr, recovery: varOvr },
-                  specialty: spec, potential: 80, growthCurve: 'normal',
-                  teamId: `wec_${n.country}`, rosterTier: 'main',
-                  contract: { yearsLeft: 1, annualSalary: 0, faEligibleYear: 9999 },
-                  nationality: 'JPN', origin: n.name,  status: 'active',
-                  fatigue: 10 + Math.floor(Math.random() * 20),
-                  morale: 60 + Math.floor(Math.random() * 20),
-                  form: Math.floor(Math.random() * 3) - 1,
-                  career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-                } as Player)
-                lineups[`wec_${n.country}`][i + 1] = pid
-              }
-            })
-
-            const allPlayers = [...state.players, ...virtualPlayers]
-
-            const raceResult = simulateRace(wecRace, lineups, state.teams, allPlayers, 0.5)
-
-            const legResults: import('../types').WECRaceResult['legResults'] = raceResult.segmentResults.map(sr => {
-              const jr = sr.runners.find(r => r.teamId === 'wec_JPN')
-              const jp = jr ? state.players.find(p => p.id === jr.playerId) : null
-              const seg = wecRace.segments.find(s => s.index === sr.segmentIndex)
-              return { segmentIndex: sr.segmentIndex, playerId: jr?.playerId, playerName: jp?.name ?? '不明', distanceKm: seg?.distanceKm ?? 0, timeSec: jr?.timeSec ?? 0 }
-            })
-
-            const segmentNationTimes: import('../types').WECSegmentNationTime[] = raceResult.segmentResults.map(sr => {
-              const seg = wecRace.segments.find(s => s.index === sr.segmentIndex)
-              const nations = [
-                ...WEC_NATIONS.map(n => ({ country: n.country, name: n.name, timeSec: sr.runners.find(r => r.teamId === `wec_${n.country}`)?.timeSec ?? 0 })),
-                { country: 'JPN', name: '日本', timeSec: sr.runners.find(r => r.teamId === 'wec_JPN')?.timeSec ?? 0 },
-              ].sort((a, b) => a.timeSec - b.timeSec)
-              return { segmentIndex: sr.segmentIndex, distanceKm: seg?.distanceKm ?? 0, uphillPct: seg?.uphillPct ?? 0, downhillPct: seg?.downhillPct ?? 0, nations }
-            })
-
-            const allCountryTimes = raceResult.teamRankings.map(tr => {
-              if (tr.teamId === 'wec_JPN') return { country: 'JPN', name: '日本', totalTimeSec: tr.totalTimeSec }
-              const n = WEC_NATIONS.find(x => `wec_${x.country}` === tr.teamId)
-              return { country: n?.country ?? tr.teamId, name: n?.name ?? tr.teamId, totalTimeSec: tr.totalTimeSec }
-            }).sort((a, b) => a.totalTimeSec - b.totalTimeSec)
-
-            const countryResults = allCountryTimes.map((c, i) => ({ ...c, rank: i + 1, points: RACE_POINTS[i] ?? 1 }))
-            countryResults.forEach(c => { pointsAcc[c.country] = (pointsAcc[c.country] ?? 0) + c.points })
-
-            const japanTime = raceResult.teamRankings.find(tr => tr.teamId === 'wec_JPN')?.totalTimeSec ?? 0
-            const japanRank = countryResults.find(c => c.country === 'JPN')?.rank ?? 15
-
-            return { raceNumber: raceIdx + 1, weather, legResults, segmentNationTimes, countryResults, japanTime, japanRank }
-          })
-
-          const finalStandings: import('../types').WECFinalStanding[] = [
-            ...WEC_NATIONS.map(n => ({ country: n.country, name: n.name })),
-            { country: 'JPN', name: '日本' },
-          ]
-            .map(n => ({ ...n, totalPoints: pointsAcc[n.country] ?? 0 }))
-            .sort((a, b) => b.totalPoints - a.totalPoints)
-            .map((n, i) => ({ ...n, finalRank: i + 1 }))
-
-          const japanFinalRank = finalStandings.find(s => s.country === 'JPN')?.finalRank ?? 15
-          const japanTotalTime = races.reduce((s, r) => s + r.japanTime, 0)
-
-          const budgetBoost = japanFinalRank === 1 ? 20000000 : japanFinalRank === 2 ? 12000000 : japanFinalRank === 3 ? 8000000 : japanFinalRank <= 6 ? 3000000 : japanFinalRank <= 10 ? 1000000 : 0
-
-          const resultLabel = japanFinalRank === 1 ? '金メダル獲得！' : japanFinalRank <= 3 ? `${japanFinalRank}位入賞！` : `${japanFinalRank}位`
-          const newsItem = {
-            date: `${year}-12-01`,
-            headline: `世界選手権（${cityInfo.city}）3レース制：日本${resultLabel}`,
-            category: 'race' as const,
-            relatedIds: [],
-          }
-
-          return {
-            teams: budgetBoost > 0 ? state.teams.map(t =>
-              t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + budgetBoost } } : t
-            ) : state.teams,
-            currentSeason: {
-              ...state.currentSeason,
-              worldEkidenResult: { year, hostCity: cityInfo.city, courseChar: cityInfo.courseChar, races, finalStandings, japanFinalRank, japanTotalTime },
-              newsFeed: [...(state.currentSeason.newsFeed ?? []), newsItem],
-            },
-          }
-        })
       },
 
       applyTrainingCards: (playerId, cardIds, grantTrait, multiplier = 1.0) => {
@@ -7670,7 +7461,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 17,
+      version: 18,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       migrate: (persistedState: unknown, version: number) => {
@@ -7865,6 +7656,34 @@ export const useGameStore = create<GameStore>()(
           if (version < 17) {
             const ds = s.draftState as Record<string, unknown> | undefined
             if (ds && ds.isComplete && s.isInitialized) s.draftState = { ...ds, contractsDone: true }
+          }
+          // v18: 国籍の「バケツ」廃止。旧セーブの nationality 'FOREIGN'（国不明）/'EUR'（欧州選抜）を
+          // 実在の国コードへ直す。外国人選手は origin に出身国名が入っているので、そこから逆引きする。
+          // （旗の画像もラベルも実在国コードしか持たないため、直さないと旗が出ず国名も空になる）
+          if (version < 18) {
+            const natByLabel = new Map<string, string>(
+              (Object.entries(NAT_LABEL) as [string, string][]).map(([code, label]) => [label, code]),
+            )
+            const isBucket = (n: unknown) => n === 'FOREIGN' || n === 'EUR'
+            // 選手（players）：origin＝出身国名から逆引き。分からなければケニア扱い（外国人であることは保つ）
+            if (Array.isArray(s.players)) {
+              s.players = (s.players as Record<string, unknown>[]).map(p => {
+                if (!isBucket(p.nationality)) return p
+                const nat = natByLabel.get(String(p.origin ?? '')) ?? 'KEN'
+                return { ...p, nationality: nat, foreignCategory: nationalityToForeignCategory(nat as Nationality) }
+              })
+            }
+            // 育成選手：日本名・日本の出身地なので日本国籍に寄せる
+            const fixProspects = (season: Record<string, unknown>) => {
+              const dp = season.devProspects
+              if (!Array.isArray(dp)) return season
+              return { ...season, devProspects: (dp as Record<string, unknown>[]).map(d =>
+                isBucket(d.nationality) ? { ...d, nationality: natByLabel.get(String(d.origin ?? '')) ?? 'JPN' } : d) }
+            }
+            if (s.currentSeason) s.currentSeason = fixProspects(s.currentSeason as Record<string, unknown>)
+            // 世界駅伝は廃止したので旧セーブの残骸を落とす（残っていても使われないが容量の無駄）
+            delete s.nationalTeam
+            if (s.currentSeason) delete (s.currentSeason as Record<string, unknown>).worldEkidenResult
           }
           return s
         } catch (e) {
@@ -8174,17 +7993,6 @@ export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 
   return Math.max(400, Math.round(t))
 }
 
-export const WEC_CITIES = [
-  { city: 'ロンドン',       courseChar: 'フラットコース',           courseMult: 0.98 },
-  { city: 'ナイロビ',       courseChar: '高地コース（標高1600m）',   courseMult: 1.04 },
-  { city: 'ニューヨーク',   courseChar: '市街地・起伏あり',          courseMult: 1.01 },
-  { city: 'ベルリン',       courseChar: 'フラット・高速コース',      courseMult: 0.97 },
-  { city: '北京',           courseChar: '内陸部・大気コンディション', courseMult: 1.02 },
-  { city: 'シドニー',       courseChar: '沿岸コース・海風',          courseMult: 1.01 },
-  { city: 'バルセロナ',     courseChar: '丘陵地帯・高温多湿',        courseMult: 1.03 },
-  { city: 'アディスアベバ', courseChar: '超高地（標高2400m）',       courseMult: 1.07 },
-]
-
 // 開催国の地形プロファイルに合わせてコースを作る。
 // mountain=山の国（登り下りが激しい）/ flat=平坦な国（スピードコース）/ mixed=従来のランダム
 function generateWECRacePlan(profile: 'mountain' | 'flat' | 'mixed' = 'mixed'): import('../types').WECRacePlan[] {
@@ -8210,14 +8018,6 @@ function generateWECRacePlan(profile: 'mountain' | 'flat' | 'mixed' = 'mixed'): 
     })
     return { segments }
   })
-}
-
-function autoSelectRacePlayers(squadIds: string[], racePlan: import('../types').WECRacePlan[], players: Player[]): string[][] {
-  const sorted = squadIds
-    .map(id => players.find(p => p.id === id))
-    .filter((p): p is Player => !!p)
-    .sort((a, b) => ovr(b) - ovr(a))
-  return racePlan.map(plan => sorted.slice(0, plan.segments.length).map(p => p.id))
 }
 
 export function fmtTime(sec: number): string {

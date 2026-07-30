@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted, playerLabel } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { C } from '../../styles/tokens'
@@ -82,6 +82,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const foreignLeaguesRaw = useGameStore(s => s.foreignLeagues)
   const foreignLeagues = foreignLeaguesRaw ?? []
   const transferHistory = useGameStore(s => s.transferHistory)
+  const removedPlayers = useGameStore(s => s.removedPlayers)
   const eclHistory = useGameStore(s => s.eclHistory)
   const location = useLocation()
   const navigate = useNavigate()
@@ -224,11 +225,12 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     for (const [pid, ym] of app) {
       const years = [...ym.keys()].sort((a, b) => a - b)
       if (!years.some(y => ym.get(y)!.has(tid))) continue
+      // 長期整理で削除された選手も移籍履歴に残す（名前・顔は removedPlayers から出せる）
       const p = players.find(pl => pl.id === pid)
-      if (!p) continue
+      if (!p && !removedPlayers?.[pid]) continue
       const isLoanRec = (y: number, t: string) =>
-        (p.loanTeamYears ?? []).some(l => l.year === y && l.teamId === t)
-        || (!!p.loan && y === currentSeason.year && t === p.teamId)
+        (p?.loanTeamYears ?? []).some(l => l.year === y && l.teamId === t)
+        || (!!p?.loan && y === currentSeason.year && t === p.teamId)
       for (let i = 1; i < years.length; i++) {
         const prev = ym.get(years[i - 1])!, cur = ym.get(years[i])!
         if (cur.has(tid) && !prev.has(tid) && ![...cur].some(t => t !== tid && prev.has(t))) {
@@ -246,7 +248,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         const other = [...set].find(t => t !== tid)!
         if (isLoanRec(y, other) || isLoanRec(y, tid)) continue
         const later = years.find(yy => yy > y)
-        const endsHere = later ? ym.get(later)!.has(tid) : p.teamId === tid
+        const endsHere = later ? ym.get(later)!.has(tid) : p?.teamId === tid
         rows.push({ year: y, playerId: pid, otherTeamId: other, dir: endsHere ? 'in' : 'out' })
       }
     }
@@ -561,9 +563,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {rows.map(row => {
+                    // 長期整理で削除された選手は名前・顔だけ出し、選手詳細は開かない
                     const p = players.find(pl => pl.id === row.playerId)
+                    const pl = playerLabel(players, removedPlayers, row.playerId)
                     const other = resolveAnyTeam(row.otherTeamId)
-                    if (!p) return null
+                    if (!pl) return null
                     const otherName = other?.name ?? (row.kind === 'free' || !row.otherTeamId ? '無所属' : '不明')
                     const feeLabel = row.hasRec ? (row.kind === 'trade' ? 'トレード' : (row.fee ?? 0) > 0 ? fmt(row.fee!) : 'フリー') : '—'
                     const yearsLabel = row.years ? `${row.years}年` : '—'
@@ -571,19 +575,19 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                     return (
                       <div
                         key={`${row.playerId}-${row.year}`}
-                        {...longPressP(p.id)}
-                        style={{ background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '14px 16px 12px', cursor: 'pointer' }}
+                        {...(pl.isRemoved ? {} : longPressP(pl.id))}
+                        style={{ background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '14px 16px 12px', cursor: pl.isRemoved ? 'default' : 'pointer' }}
                       >
                         {/* 真ん中に顔（右下にOVR） */}
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                           <div style={{ position: 'relative' }}>
-                            <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
-                            <div style={{ position: 'absolute', bottom: -2, right: -6, background: 'rgba(0,0,0,0.88)', padding: '0 4px', borderRadius: '6px', fontFamily: SAIRA, fontSize: '11px', fontWeight: 900, color: ratingColor(ovr(p)), lineHeight: '15px', border: '1px solid #1A1828' }}>
-                              {ovr(p)}
+                            <PlayerFace playerId={pl.id} nationality={pl.nationality} size={52} />
+                            <div style={{ position: 'absolute', bottom: -2, right: -6, background: 'rgba(0,0,0,0.88)', padding: '0 4px', borderRadius: '6px', fontFamily: SAIRA, fontSize: '11px', fontWeight: 900, color: p ? ratingColor(ovr(p)) : C.textGhost, lineHeight: '15px', border: '1px solid #1A1828' }}>
+                              {p ? ovr(p) : '?'}
                             </div>
                           </div>
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#F0EDE8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '10px' }}>{p.name}</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#F0EDE8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '10px' }}>{pl.name}</div>
                         {/* 下に 移籍元 / 契約期間 / 移籍金 */}
                         <div style={{ borderTop: '1px solid #1A1828', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>

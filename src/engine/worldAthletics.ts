@@ -244,12 +244,8 @@ export function nationStrength(players: Player[], nat: Nationality, year: number
 // 本番出場20カ国を決める。hostNat は予選免除で必ず入る（+1枠）。
 // prevAdvanced＝前年のアジア＋オセアニア予選の通過国。ある場合、この地域の枠は予選結果で埋める
 // （予選を通過していない国＝日本含む は本番に出られない）。他地域は簡易処理（距離力順）。
-// 旧仕様の擬似国籍（ヨーロッパ・その他外国）。実在の国ではないので世界選手権には出さない
-export const WA_EXCLUDED_NATS = new Set<Nationality>(['EUR', 'FOREIGN'])
-
 export function qualifyNations(players: Player[], year: number, hostNat: Nationality, prevAdvanced?: Nationality[], continentals?: { region: string; advanced: Nationality[] }[]): Nationality[] {
   const allNats = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
-    .filter(n => !WA_EXCLUDED_NATS.has(n))
   const strengthByNat = new Map<Nationality, number>()
   for (const nat of allNats) strengthByNat.set(nat, nationStrength(players, nat, year))
   const picked: Nationality[] = []
@@ -302,7 +298,6 @@ export type ContinentalQualResult = {
 // 各参加国も駅伝代表20人を選出する（レースはしないが「代表に選ばれた」記録＝パッチが付く）。
 export function simulateContinentalQualifiers(players: Player[], year: number): ContinentalQualResult[] {
   const allNats = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
-    .filter(n => !WA_EXCLUDED_NATS.has(n))
   const out: ContinentalQualResult[] = []
   for (const { region, slots } of REGION_QUOTA) {
     if (region === 'アジア+オセアニア') continue
@@ -489,7 +484,7 @@ export type WAMainResult = { year: number; kind: 'main'; host: Nationality; nati
 export type WAYearResult = WAQualifierResult | WAMainResult
 
 // 開催国ローテ（2年ごと）。日本も入れてドラマを作る。
-// 開催国は全実在国（バケツのEUR/FOREIGNを除く）で持ち回り。
+// 開催国は全実在国で持ち回り。
 // 定義順のままだとアジアの後にまたアジア…と同じ大陸が続いて不自然なので、
 // 大陸をラウンドロビン（アジア→ヨーロッパ→アフリカ→アメリカ→オセアニア→…）で回しつつ、
 // 各大陸内は固定シードの決定的シャッフルでバラす。初回2028年は日本開催。
@@ -504,7 +499,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return out
 }
 export const WA_HOSTS: Nationality[] = (() => {
-  const all = (Object.keys(NATIONALITY_META) as Nationality[]).filter(n => n !== 'EUR' && n !== 'FOREIGN')
+  const all = (Object.keys(NATIONALITY_META) as Nationality[])
   const order: GeoRegion[] = ['アジア', 'ヨーロッパ', 'アフリカ', 'アメリカ大陸', 'オセアニア']
   const byRegion = new Map<GeoRegion, Nationality[]>()
   for (const [i, region] of order.entries()) {
@@ -539,7 +534,6 @@ export function hostForYear(year: number): Nationality {
 export const QUAL_HOSTS: Nationality[] = (() => {
   const list = seededShuffle(
     (Object.keys(NATIONALITY_META) as Nationality[])
-      .filter(n => !WA_EXCLUDED_NATS.has(n))
       .filter(n => { const g = natGeoRegion(n); return g === 'アジア' || g === 'オセアニア' }),
     4210,
   )

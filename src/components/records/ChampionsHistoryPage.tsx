@@ -4,6 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Race } from '../../types'
 import { formatRaceTime } from '../../utils/eventTime'
+import { playerLabel } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
@@ -29,7 +30,7 @@ const DIST_TO_KEY: Record<number, DistKey> = { 5000: 'd5000', 10000: 'd10000', 2
 // 大会別の歴代記録。カテゴリ → 大会 → 年度 → 順位表 → チームの区間配置、とドリルダウンで見る
 export default function ChampionsHistoryPage() {
   const navigate = useNavigate()
-  const { teams, players, currentSeason, pastSeasons, foreignLeagues, playerTeamId, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords } = useGameStore()
+  const { teams, players, currentSeason, pastSeasons, foreignLeagues, playerTeamId, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
 
   // 記録パッチは選手ではなく「記録そのもの」に付ける：その走りのタイムが現行の世界/日本記録である行だけに出す。
   // 同タイムの共同保持者（coHolders）にも付く
@@ -724,14 +725,15 @@ export default function ChampionsHistoryPage() {
               {segs.map((seg, i) => {
                 const sr = results.segmentResults.find(x => x.segmentIndex === seg.index)
                 const runner = sr?.runners.find(x => x.teamId === teamId)
-                const pl = runner ? players.find(x => x.id === runner.playerId) : undefined
+                // 長期整理で削除された選手も removedPlayers から名前・国籍を引いて同じように出す
+                const pl = playerLabel(players, removedPlayers, runner?.playerId)
                 const isSegWin = runner?.rank === 1
                 return (
-                  <div key={seg.index} {...(pl ? lp(pl.id) : {})} style={{
+                  <div key={seg.index} {...(pl && !pl.isRemoved ? lp(pl.id) : {})} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
                     background: isSegWin ? alpha(C.gold, 0.08) : i % 2 === 0 ? C.surface : 'transparent',
                     borderBottom: i < segs.length - 1 ? `1px solid ${C.border}` : 'none',
-                    cursor: pl ? 'pointer' : 'default',
+                    cursor: pl && !pl.isRemoved ? 'pointer' : 'default',
                   }}>
                     <div style={{ width: 38, flexShrink: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 900, color: C.textSub }}>{seg.index}区</div>
@@ -840,14 +842,14 @@ export default function ChampionsHistoryPage() {
               {segs.map((seg, i) => {
                 const sr = results.segmentResults.find(s => s.segmentIndex === seg.index)
                 const runner = sr?.runners.find(r => r.teamId === teamId)
-                const pl = runner ? players.find(p => p.id === runner.playerId) : undefined
+                const pl = playerLabel(players, removedPlayers, runner?.playerId)
                 const isSegWin = runner?.rank === 1
                 return (
-                  <div key={seg.index} {...(pl ? lp(pl.id) : {})} style={{
+                  <div key={seg.index} {...(pl && !pl.isRemoved ? lp(pl.id) : {})} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
                     background: isSegWin ? alpha(C.gold, 0.08) : i % 2 === 0 ? C.surface : 'transparent',
                     borderBottom: i < segs.length - 1 ? `1px solid ${C.border}` : 'none',
-                    cursor: pl ? 'pointer' : 'default',
+                    cursor: pl && !pl.isRemoved ? 'pointer' : 'default',
                   }}>
                     <div style={{ width: 38, flexShrink: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 900, color: C.textSub }}>{seg.index}区</div>

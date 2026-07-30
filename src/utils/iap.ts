@@ -3,6 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 interface IAPPlugin {
   purchase(): Promise<{ result: 'purchased' | 'cancelled' | 'pending' }>
   restore(): Promise<{ restored: boolean }>
+  available(): Promise<{ available: boolean }>
 }
 
 const IAP = registerPlugin<IAPPlugin>('IAP')
@@ -31,6 +32,8 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 // 購入シートを閉じずに放置される場合もあるので長めに取る
 const PURCHASE_TIMEOUT_MS = 90_000
 const RESTORE_TIMEOUT_MS = 30_000
+// 商品が取れるかの下見。画面を開いたときに待たせたくないので短め。
+const AVAILABLE_TIMEOUT_MS = 10_000
 
 // App Store（StoreKit）から返ってきた元のメッセージ。ほぼ英語。
 // 失敗したときに画面へそのまま出す。日本語に言い換えると原因が分からなくなるので加工しない。
@@ -89,6 +92,25 @@ export async function restoreAdFree(): Promise<RestoreResult> {
  * 端末に残っている権利を読むだけなので、起動時に呼んでも邪魔にならない。
  * 家族の承認が下りた場合や、購入が途中で切れてしまった場合を自動で拾うために使う。
  */
+/**
+ * GMパスの商品情報がApp Storeから取れるかを、購入シートを出さずに先に確かめる。
+ *
+ * 取れないまま購入ボタンを押させると「商品情報を取得できませんでした」が出るだけで、
+ * ユーザーには何もできない。だからボタンを押させないために事前に見ておく。
+ * 判断がつかないとき（通信中・iOS以外）は true を返す。
+ * ここで false を返して押せなくするのは「確かに取れなかった」ときだけにする。
+ */
+export async function isAdFreePurchasable(): Promise<boolean> {
+  if (!isIOS()) return true
+  try {
+    const { available } = await withTimeout(IAP.available(), AVAILABLE_TIMEOUT_MS)
+    return available
+  } catch (e) {
+    console.warn('[iap] available check failed', e)
+    return true   // 調べられなかっただけ。ボタンは押せるままにする
+  }
+}
+
 export async function hasAdFree(): Promise<boolean> {
   if (!isIOS()) return false
   try {

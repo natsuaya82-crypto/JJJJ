@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { playerLabel } from '../../utils/playerUtils'
 import { fmtTime } from '../../store/gameStore'
 import type { Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
@@ -19,7 +20,7 @@ type Entry = { playerId?: string; playerName?: string; teamId?: string; teamShor
 // 区間記録：歴代優勝と同じ構成。カテゴリ（JPEL/リザーブ）→ 大会一覧 → 区間を横に並べて切り替え
 export default function PlayersStatsPage() {
   const navigate = useNavigate()
-  const { segmentRecords, players, teams, openPlayerSheet, currentSeason, pastSeasons } = useGameStore()
+  const { segmentRecords, players, teams, openPlayerSheet, currentSeason, pastSeasons, removedPlayers } = useGameStore()
 
   // 選手行の長押しで選手詳細を開く
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -63,12 +64,13 @@ export default function PlayersStatsPage() {
       const segMap = new Map<number, Entry[]>()
       for (const [idx, best] of perRace) {
         segMap.set(idx, [...best.values()].sort((a, b) => a.timeSec - b.timeSec).slice(0, 10)
-          .map(e => ({ ...e, playerName: players.find(p => p.id === e.playerId)?.name ?? '—' })))
+          // 長期整理で削除された選手も removedPlayers から名前を引く
+          .map(e => ({ ...e, playerName: playerLabel(players, removedPlayers, e.playerId)?.name ?? '—' })))
       }
       out.set(name, segMap)
     }
     return out
-  }, [pastSeasons, currentSeason, players])
+  }, [pastSeasons, currentSeason, players, removedPlayers])
 
   // カテゴリ別の大会名一覧（segmentRecordsにはJPELとECLが両方入るので名前で振り分ける）
   const allRecordNames = [...new Set(Object.keys(jpelRecords).map(key => key.substring(0, key.lastIndexOf('-'))))]
@@ -185,21 +187,22 @@ export default function PlayersStatsPage() {
             return (
               <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}` }}>
                 {top.map((entry, i) => {
-                  // 旧セーブのJPEL記録にはIDが無いので名前・略称から逆引きする
-                  const player = entry.playerId
-                    ? players.find(p => p.id === entry.playerId)
-                    : players.find(p => p.name === entry.playerName)
+                  // 旧セーブのJPEL記録にはIDが無いので名前・略称から逆引きする。
+                  // 長期整理で削除された選手は removedPlayers から名前・国籍を引く（顔はIDと国籍から出る）
+                  const byName = entry.playerId ? undefined : players.find(p => p.name === entry.playerName)
+                  const player = playerLabel(players, removedPlayers, entry.playerId)
+                    ?? (byName ? { id: byName.id, name: byName.name, nationality: byName.nationality, isRemoved: false } : undefined)
                   const team = entry.teamId
                     ? teams.find(t => t.id === entry.teamId)
                     : teams.find(t => t.shortName === entry.teamShort)
                   const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
                   return (
-                    <div key={i} {...(player ? longPress(player.id) : {})}
+                    <div key={i} {...(player && !player.isRemoved ? longPress(player.id) : {})}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px',
                         background: i === 0 ? alpha(C.gold, 0.06) : i % 2 === 0 ? C.surface : 'transparent',
                         borderBottom: i < top.length - 1 ? `1px solid ${C.border}` : 'none',
-                        cursor: player ? 'pointer' : 'default',
+                        cursor: player && !player.isRemoved ? 'pointer' : 'default',
                       }}>
                       <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '20px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
                       {player && (

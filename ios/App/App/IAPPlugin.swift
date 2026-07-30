@@ -8,9 +8,26 @@ public class IAPPlugin: CAPPlugin, CAPBridgedPlugin {
   public let pluginMethods: [CAPPluginMethod] = [
     CAPPluginMethod(name: "purchase", returnType: CAPPluginReturnPromise),
     CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
+    CAPPluginMethod(name: "available", returnType: CAPPluginReturnPromise),
   ]
 
   private let productId = "com.tokinets.jpelmanager.noads"
+
+  /// 商品情報が取れるかだけを見る。購入シートは出さない。
+  ///
+  /// これが false のときに購入ボタンを押させても「商品情報を取得できませんでした」しか
+  /// 出せないので、画面を開いた時点で先に調べてボタンを止めるために使う。
+  /// 通信できなかった場合も available = false になる（購入できないのは同じなので）。
+  @objc func available(_ call: CAPPluginCall) {
+    Task {
+      do {
+        let products = try await Product.products(for: [self.productId])
+        call.resolve(["available": !products.isEmpty])
+      } catch {
+        call.resolve(["available": false])
+      }
+    }
+  }
 
   @objc func purchase(_ call: CAPPluginCall) {
     // 購入シートは画面表示なので必ずメインスレッドで走らせる。

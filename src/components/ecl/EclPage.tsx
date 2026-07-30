@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { playerLabel } from '../../utils/playerUtils'
 import type { Race, RaceResults, Team } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
@@ -25,7 +26,7 @@ type Phase = 'entry' | 'lineup' | 'simulating' | 'results' | 'view'
 export default function EclPage() {
   const navigate = useNavigate()
   const adH = useAdHeight()
-  const { players, playerTeamId, currentSeason, advanceEclRace, openPlayerSheet, setActiveRacePhase, teams, foreignLeagues } = useGameStore()
+  const { players, playerTeamId, currentSeason, advanceEclRace, openPlayerSheet, setActiveRacePhase, teams, foreignLeagues, removedPlayers } = useGameStore()
 
   // 順位表の行タップでチーム詳細へ（国内チーム／海外クラブで遷移先を出し分け）
   const goTeam = (id: string) => {
@@ -252,14 +253,15 @@ export default function EclPage() {
               {segs.map((seg, i) => {
                 const sr = results.segmentResults.find(s => s.segmentIndex === seg.index)
                 const runner = sr?.runners.find(r => r.teamId === viewTeamId)
-                const pl = runner ? players.find(p => p.id === runner.playerId) : undefined
+                // 長期整理で削除された選手も removedPlayers から名前・国籍を引いて同じように出す
+                const pl = playerLabel(players, removedPlayers, runner?.playerId)
                 const isSegWin = runner?.rank === 1
                 return (
-                  <div key={seg.index} {...(pl ? lp(pl.id) : {})} style={{
+                  <div key={seg.index} {...(pl && !pl.isRemoved ? lp(pl.id) : {})} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
                     background: isSegWin ? alpha(C.gold, 0.08) : i % 2 === 0 ? C.surface : 'transparent',
                     borderBottom: i < segs.length - 1 ? `1px solid ${C.border}` : 'none',
-                    cursor: pl ? 'pointer' : 'default',
+                    cursor: pl && !pl.isRemoved ? 'pointer' : 'default',
                   }}>
                     <div style={{ width: 38, flexShrink: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 900, color: C.textSub, fontFamily: SAIRA }}>{seg.index}区</div>

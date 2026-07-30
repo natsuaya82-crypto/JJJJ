@@ -112,6 +112,62 @@ function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDis
   )
 }
 
+// 記録室のセクション切替。
+// 中身を縦に全部積むと1画面に収まらず延々スクロールになるので、
+// 上の横タブで1つずつ出す。左右スワイプでも隣のセクションへ移れる。
+// 見た目は既にある EventDistTabs（種目の切替）と同じものを使う（新しい見た目は増やさない）。
+type Section = { label: string; node: React.ReactNode }
+
+function SectionSwitcher({ sections }: { sections: Section[] }) {
+  const [idx, setIdx] = useState(0)
+  const touch = useRef<{ x: number; y: number } | null>(null)
+  const n = sections.length
+  // 記録が無くなってセクションが減った場合にはみ出さないように丸める
+  const i = Math.min(idx, n - 1)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '2px', background: C.surface, borderRadius: '10px', padding: '3px', border: `1px solid ${C.border}`, margin: '0 0 10px' }}>
+        {sections.map((s, k) => (
+          <button key={s.label} onClick={() => setIdx(k)} style={{
+            flex: 1, padding: '8px 0', border: 'none', cursor: 'pointer', borderRadius: '8px', fontFamily: SAIRA,
+            fontSize: '10px', fontWeight: i === k ? 700 : 400, whiteSpace: 'nowrap',
+            background: i === k ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'none',
+            color: i === k ? '#5EC8B8' : C.textDim,
+            boxShadow: i === k ? `0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)` : 'none',
+          }}>{s.label}</button>
+        ))}
+      </div>
+
+      <div
+        onTouchStart={e => { const t = e.touches[0]; touch.current = { x: t.clientX, y: t.clientY } }}
+        onTouchEnd={e => {
+          const s = touch.current
+          touch.current = null
+          if (!s) return
+          const t = e.changedTouches[0]
+          const dx = t.clientX - s.x, dy = t.clientY - s.y
+          // 縦スクロールや長押しと取り違えないように、横の動きが縦よりはっきり大きいときだけ反応する
+          if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+          setIdx(dx < 0 ? Math.min(i + 1, n - 1) : Math.max(i - 1, 0))
+        }}
+      >
+        {sections[i]?.node}
+      </div>
+
+      {/* いま何枚目か。スワイプで動くことが分かるように出す */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', padding: '14px 0 20px' }}>
+        {sections.map((s, k) => (
+          <div key={s.label} style={{
+            width: '6px', height: '6px', borderRadius: '50%',
+            background: i === k ? C.gold : alpha(C.textGhost, 0.35),
+          }}/>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players, seasonAwards }: {
   teams: GameStore['teams']
   pastSeasons: GameStore['pastSeasons']
@@ -148,8 +204,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
     return { dist, label, rows }
   })
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+  const champPanel = (
       <CardPanel>
         <SectionLabel>優勝記録</SectionLabel>
         {championships > 0 ? (
@@ -180,7 +235,9 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           )}
         </div>
       </CardPanel>
+  )
 
+  const seasonPanel = (
       <CardPanel>
         <SectionLabel>シーズン成績</SectionLabel>
         {allSeasons.length === 0 ? (
@@ -247,7 +304,9 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           </div>
         )}
       </CardPanel>
+  )
 
+  const evPanel = (
       <CardPanel>
         <SectionLabel>歴代 種目別記録（自チーム）</SectionLabel>
         <EventDistTabs value={evDist} onChange={setEvDist} />
@@ -273,9 +332,13 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           })
         })()}
       </CardPanel>
-
-    </div>
   )
+
+  return <SectionSwitcher sections={[
+    { label: '優勝記録', node: champPanel },
+    { label: 'シーズン成績', node: seasonPanel },
+    { label: '種目別記録', node: evPanel },
+  ]} />
 }
 
 function LeagueTab({ teams, pastSeasons }: {
@@ -410,9 +473,7 @@ function PlayersTab({ players, teams, currentSeason }: {
     )
   }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
+  const seasonSegPanel = (
       <CardPanel>
         <SectionLabel>{currentSeason.year}シーズン 区間賞スタッツ</SectionLabel>
         {topSeasonSeg.length === 0
@@ -420,7 +481,9 @@ function PlayersTab({ players, teams, currentSeason }: {
           : topSeasonSeg.map(({ p, wins }, i) => <RankRow key={p.id} p={p} i={i} value={wins} unit="回" />)
         }
       </CardPanel>
+  )
 
+  const careerSegPanel = (
       <CardPanel>
         <SectionLabel>通算区間賞ランキング</SectionLabel>
         {topSegWins.length === 0
@@ -428,14 +491,17 @@ function PlayersTab({ players, teams, currentSeason }: {
           : topSegWins.map((p, i) => <RankRow key={p.id} p={p} i={i} value={p.career.segmentWins} unit="回" />)
         }
       </CardPanel>
+  )
 
-      {topMVP.length > 0 && (
+  // 受賞者がまだ誰もいない間はタブ自体を出さない（空のページを見せない）
+  const mvpPanel = topMVP.length > 0 ? (
         <CardPanel>
           <SectionLabel>MVP受賞ランキング</SectionLabel>
           {topMVP.map((p, i) => <RankRow key={p.id} p={p} i={i} value={p.career.mvpAwards} unit="回" />)}
         </CardPanel>
-      )}
+  ) : null
 
+  const evPanel = (
       <CardPanel>
         <SectionLabel>歴代 種目別記録（記録会）</SectionLabel>
         <EventDistTabs value={evDist} onChange={setEvDist} />
@@ -462,8 +528,14 @@ function PlayersTab({ players, teams, currentSeason }: {
           })
         })()}
       </CardPanel>
-    </div>
   )
+
+  return <SectionSwitcher sections={[
+    { label: '今季区間賞', node: seasonSegPanel },
+    { label: '通算区間賞', node: careerSegPanel },
+    ...(mvpPanel ? [{ label: 'MVP', node: mvpPanel }] : []),
+    { label: '記録会', node: evPanel },
+  ]} />
 }
 
 function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, growthReport, players }: {
@@ -490,8 +562,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
   const repColor = gmRep >= 70 ? C.green : gmRep >= 40 ? C.gold : C.red
   const repLabel = gmRep >= 80 ? '名GMの称号' : gmRep >= 60 ? '優秀なGM' : gmRep >= 40 ? '一般的なGM' : '改善が必要'
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '24px' }}>
+  const repPanel = (
       <CardPanel>
         <SectionLabel>GM評判</SectionLabel>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
@@ -505,7 +576,9 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
           <div style={{ height: '100%', width: `${gmRep}%`, background: `linear-gradient(90deg, ${alpha(repColor, 0.55)}, ${repColor})`, borderRadius: '4px', transition: 'width 0.4s' }}/>
         </div>
       </CardPanel>
+  )
 
+  const statsPanel = (
       <CardPanel>
         <SectionLabel>GMキャリア統計</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
@@ -521,8 +594,9 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
           ))}
         </div>
       </CardPanel>
+  )
 
-      {allSeasons.length > 0 && (() => {
+  const rankTrend = allSeasons.length > 0 && (() => {
         // 直近10季の順位を折れ線で表示（1位が上）
         const chartSeasons = allSeasons.slice(-10)
         const pts = chartSeasons.map(s => {
@@ -564,9 +638,9 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
             </div>
           </CardPanel>
         )
-      })()}
+      })()
 
-      {(() => {
+  const ovrTrend = (() => {
         const myPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
         const yearOvrMap: Record<number, number[]> = {}
         for (const p of myPlayers) {
@@ -605,9 +679,9 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
             </div>
           </CardPanel>
         )
-      })()}
+      })()
 
-      {(() => {
+  const totalsPanel = (() => {
         // 通算成績（自チームの全シーズン駅伝結果を集計）
         let totalRaces = 0, totalWins = 0, podiums = 0, totalPts = 0
         for (const s of allSeasons) {
@@ -652,7 +726,18 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
             </div>
           </CardPanel>
         )
-      })()}
-    </div>
-  )
+      })()
+
+  // 順位の折れ線とOVRの棒グラフは両方「推移」なので1枚にまとめる。
+  // どちらも出せない（1季目など）ときはタブ自体を出さない。
+  const trendPanel = (rankTrend || ovrTrend) ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>{rankTrend}{ovrTrend}</div>
+  ) : null
+
+  return <SectionSwitcher sections={[
+    { label: 'GM評判', node: repPanel },
+    { label: 'キャリア統計', node: statsPanel },
+    ...(trendPanel ? [{ label: '推移', node: trendPanel }] : []),
+    { label: '通算成績', node: totalsPanel },
+  ]} />
 }

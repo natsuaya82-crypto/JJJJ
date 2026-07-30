@@ -11,6 +11,7 @@ import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha } from '../../styles/tokens'
+import { natLabel } from '../../data/nationalities'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -183,7 +184,6 @@ export function LineupPhase({
   const maxNatCount = assignedPlayers.length > 0 ? Math.max(...Object.values(lineupNatCounts)) : 0
   const dominantNat = Object.entries(lineupNatCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
   const chemBonus = maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0
-  const NAT_LABELS: Record<string, string> = { JPN: '日本', KOR: '韓国', ETH: 'エチオピア', KEN: 'ケニア', UGA: 'ウガンダ', CHN: '中国', TWN: '台湾', TAN: 'タンザニア', USA: '米国', EUR: '欧州' }
   // アジア/外国人の配置枠は廃止したためカウントは持たない（誰でも起用可）
 
   const pickerSegData = pickerSeg !== null ? segments.find(s => s.index === pickerSeg) : null
@@ -341,7 +341,7 @@ export function LineupPhase({
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {assignedPlayers.length >= 3 && dominantNat && chemBonus > 0 && (
             <div style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '5px', backgroundColor: alpha('#7EC8A0', 0.08), border: `1px solid ${alpha('#7EC8A0', 0.25)}`, color: '#7EC8A0', fontWeight: '700' }}>
-              {NAT_LABELS[dominantNat] ?? dominantNat} 士気+{chemBonus}
+              {natLabel(dominantNat as Nationality)} 士気+{chemBonus}
             </div>
           )}
           <button onClick={() => autoFill(segments, availablePlayers, raceLineup, setRaceLineup)} style={{ fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動配置</button>

@@ -65,8 +65,6 @@ import StarredPlayersPage from './components/transfer/StarredPlayersPage'
 import OfferListPage from './components/transfer/OfferListPage'
 import RentalPage from './components/transfer/RentalPage'
 import FacilitiesPage from './components/facilities/FacilitiesPage'
-import WorldEkidenPage from './components/international/WorldEkidenPage'
-import WECSimPage from './components/international/WECSimPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
 import CardTrainingPage from './components/training/CardTrainingPage'
 import CreateMyPlayerPage from './components/player/CreateMyPlayerPage'
@@ -188,10 +186,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
     return () => document.removeEventListener('click', onClick)
   }, [])
 
-  if (location.pathname === '/international/sim') {
-    return <WECSimPage />
-  }
-
   return (
     <>
       <ContractInfoModal />
@@ -225,7 +219,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/transfer/:section" element={<TransferPage />} />
           <Route path="/objectives" element={<ObjectivesPage />} />
           <Route path="/jewels" element={<JewelsPage />} />
-          <Route path="/international" element={<WorldEkidenPage />} />
           {/* 下タブ「オンライン」。フレンド・走友会もこの下にぶら下がる（パスは互換のため /friends のまま）
               入口の /online だけは常に出す（中身は ONLINE_ENABLED が false の間すべてグレーアウト）。
               その先の画面は false のあいだ出さないので、直接URLでも入れない（コードは残す） */}

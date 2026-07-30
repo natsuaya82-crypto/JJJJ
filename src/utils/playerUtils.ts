@@ -1,4 +1,4 @@
-import type { Player, Specialty, Ratings, CardStatKey } from '../types'
+import type { Player, Specialty, Ratings, CardStatKey, Nationality } from '../types'
 import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
 
 /**
@@ -21,6 +21,28 @@ export function liveName(
     if (p) return p.name
   }
   return baked ?? ''
+}
+
+/**
+ * 過去レースの区間配置・移籍履歴などで選手IDから「名前と国籍」を引く。
+ *
+ * 長期整理（シーズン終了時のセーブ整理）で削除された選手は players に居ないが、
+ * removedPlayers に名前と国籍だけ残してある。顔は選手IDと国籍から自動生成しているので、
+ * この2つがあれば名前も顔も従来どおり表示できる（選手詳細だけ開けない）。
+ * 戻り値の isRemoved が true のときは長押しでの詳細表示を無効にする。
+ */
+export type PlayerLabel = { id: string; name: string; nationality: Nationality; isRemoved: boolean }
+export function playerLabel(
+  players: readonly Player[],
+  removedPlayers: Record<string, [string, Nationality]> | undefined,
+  playerId: string | undefined,
+): PlayerLabel | undefined {
+  if (!playerId) return undefined
+  const p = players.find(x => x.id === playerId)
+  if (p) return { id: p.id, name: p.name, nationality: p.nationality, isRemoved: false }
+  const r = removedPlayers?.[playerId]
+  if (r) return { id: playerId, name: r[0], nationality: r[1], isRemoved: true }
+  return undefined
 }
 
 // ── 能力別ポテンシャル（各能力ごとの成長上限）──
@@ -104,6 +126,8 @@ export const SPEC_COLOR: Record<Specialty, string> = {
 }
 
 export function ovr(p: Player): number {
+  // 引退選手は能力値を消してセーブを軽くしているので、保存してある引退時OVRを返す
+  if (!p.ratings && p.finalOvr != null) return p.finalOvr
   // ratings が欠けたデータでも落とさない（欠損は0扱い＝OVRが下がるので気づける）
   const r = safeRatings(p.ratings)
   return Math.round((r.speed + r.stamina + r.mountainUp + r.mountainDown + r.pacing + r.mental + r.recovery) / 7)

@@ -92,9 +92,15 @@ export const NATIONALITY_META: Record<Nationality, NatMeta> = {
   CRC: { label: 'コスタリカ',   category: 'foreign',  strength: 'OTHER',   face: 'americas',   geo: 'アメリカ大陸', flag: '🇨🇷' },
   CUB: { label: 'キューバ',     category: 'foreign',  strength: 'OTHER',   face: 'americas',   geo: 'アメリカ大陸', flag: '🇨🇺' },
   JAM: { label: 'ジャマイカ',   category: 'foreign',  strength: 'OTHER',   face: 'africa',     geo: 'アメリカ大陸', flag: '🇯🇲' },  // アフロカリブ系（金髪白人が生成されないようafricaプール）
-  // バケツ（後方互換）
-  EUR: { label: 'ヨーロッパ',   category: 'foreign',  strength: 'EUR_USA', face: 'europe',     geo: 'ヨーロッパ',   flag: '🇪🇺' },
-  FOREIGN: { label: 'その他外国', category: 'foreign', strength: 'OTHER',  face: 'other',      geo: 'その他',       flag: '🏳' },
+}
+
+/**
+ * 日本人以外か（＝外国人か）。
+ * 昔は国籍そのものが 'FOREIGN'（国不明）だったので「国籍が FOREIGN か」で判定していたが、
+ * 外国人にも実際の国籍を持たせたので「日本人でないか」で見る。表示（「外」マーク）用。
+ */
+export function isForeignNat(nat: Nationality): boolean {
+  return nat !== 'JPN'
 }
 
 export const NAT_LABEL: Record<Nationality, string> =

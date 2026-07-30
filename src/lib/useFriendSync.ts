@@ -41,7 +41,9 @@ export async function syncNow(): Promise<void> {
     const stamp = fingerprint(JSON.stringify({
       y: st.currentSeason?.year, n: team.name, s: team.shortName, g: team.gmName, l: team.logoId,
       c: [team.colors.primary, team.colors.secondary], ch: team.history?.championships ?? 0,
-      a: avgOvr, r: roster.map(p => `${p.id}:${ovr(p)}`).join(','),
+      // 名前も指紋に入れる。入れないと、改名しただけのときに「前と同じ」と判断されて
+      // 一生送られず、友達側にいつまでも古い名前が出たままになる。
+      a: avgOvr, r: roster.map(p => `${p.id}:${p.name}:${ovr(p)}`).join(','),
     }))
     if (localStorage.getItem(STAMP_KEY) === stamp) return
 

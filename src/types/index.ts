@@ -23,8 +23,6 @@ export type Nationality =
   // アメリカ大陸
   | 'USA' | 'CAN' | 'MEX' | 'BRA' | 'COL' | 'ARG' | 'ECU' | 'PER' | 'CHI' | 'URU' | 'VEN'
   | 'GUA' | 'BOL' | 'CRC' | 'CUB' | 'JAM'
-  // バケツ（後方互換・フォールバック）
-  | 'EUR' | 'FOREIGN'
 export type ForeignCategory = 'domestic' | 'asian' | 'foreign'
 export type PlayerStatus = 'active' | 'injured' | 'retired' | 'draft_eligible'
 export type SeasonPhase = 'preseason' | 'regular' | 'postseason' | 'draft' | 'free_agency'
@@ -268,7 +266,10 @@ export type Player = {
   overseasDeniedCount?: number     // 引き留め回数。2回目以降はモラール低下が大きい
   transferRequestDismissedYear?: number  // 移籍希望に「残ってほしい」で対応した年。その年は再抽選しない
   faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
+  wasPlayerTeam?: boolean     // 一度でも自チームに所属したことがある印。長期整理で絶対に削除しないための目印
   retiredYear?: number        // 引退したシーズン年（選手詳細の「XXXX年引退」表示用。旧セーブは未設定）
+  finalOvr?: number           // 引退時のOVR。引退選手は能力値そのものを消してセーブを軽くするので、
+                              // 歴代ドラフト・移籍履歴で出す総合値だけこの1項目で残す
   potentialBoosts?: Partial<Record<CardStatKey, number>>  // ジュエルの上限解放で能力別上限に加算する値
   customCaps?: Ratings  // マイプレイヤー作成で明示指定した能力別成長上限（あれば getStatPotentials はこれを使う）
   customFace?: { style: number; eye: number; hair: 'black_light' | 'black_dark' | 'brown_light' | 'blond_light'; flip: boolean }  // マイプレイヤーの手動指定顔
@@ -388,58 +389,8 @@ export type IndividualEvent = {
   rewardCards?: TrainingCard[]  // 開催時に自チームへ付与した練習カード（結果画面の表示用）
 }
 
-export type WorldEkidenCountryResult = {
-  country: string
-  name: string
-  totalTimeSec: number
-  rank: number
-}
-
 export type WECRacePlan = {
   segments: { distanceKm: number; uphillPct: number; downhillPct: number }[]
-}
-
-export type WECSegmentNationTime = {
-  segmentIndex: number
-  distanceKm: number
-  uphillPct: number
-  downhillPct: number
-  nations: { country: string; name: string; timeSec: number }[]
-}
-
-export type WECRaceResult = {
-  raceNumber: number
-  weather: 'sunny' | 'cloudy' | 'rainy' | 'windy'
-  // playerId は改名しても今の名前を出せるようにするため（古いセーブには無いので任意）
-  legResults: { segmentIndex: number; playerId?: string; playerName: string; distanceKm: number; timeSec: number }[]
-  segmentNationTimes: WECSegmentNationTime[]
-  countryResults: { country: string; name: string; totalTimeSec: number; rank: number; points: number }[]
-  japanTime: number
-  japanRank: number
-}
-
-export type WECFinalStanding = {
-  country: string
-  name: string
-  totalPoints: number
-  finalRank: number
-}
-
-export type WorldEkidenResult = {
-  year: number
-  hostCity: string
-  courseChar: string
-  races: WECRaceResult[]
-  finalStandings: WECFinalStanding[]
-  japanFinalRank: number
-  japanTotalTime: number
-  // Legacy fields (old saves)
-  japanRank?: number
-  japanTime?: number
-  playerIds?: string[]
-  legResults?: { segmentIndex: number; playerName: string; timeSec: number }[]
-  countryResults?: WorldEkidenCountryResult[]
-  weather?: 'sunny' | 'cloudy' | 'rainy' | 'windy'
 }
 
 export type ForeignClub = {
@@ -525,17 +476,6 @@ export type WorldTournament = {
   continentals?: import('../engine/worldAthletics').ContinentalQualResult[]  // 予選年に裏で開催した大陸予選（欧州・アフリカ・アメリカ）。代表パッチの元
   japanIn: boolean
   finished: boolean
-}
-
-export type NationalTeam = {
-  coachTeamId: string
-  year: number
-  squadIds: string[]
-  racePlan: WECRacePlan[]
-  racePlayerIds: string[][]
-  isPlayerCoach: boolean
-  coachDeclined?: boolean   // 監督を断った＝AIおまかせ配置で走る
-  playerIds?: string[]  // legacy
 }
 
 export type Team = {
@@ -709,7 +649,6 @@ export type Season = {
   devProspects?: DevProspect[]
   scoutedProspects?: { prospectId: string; year: number; raceIndex: number }[]
   individualEvents?: IndividualEvent[]
-  worldEkidenResult?: WorldEkidenResult
   sponsorOffers?: SponsorOffer[]
   seasonRaceIncome?: number
   chatLogs?: Record<string, ChatMessage[]>
@@ -846,7 +785,6 @@ export type GameState = {
   gmRep: number
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
-  nationalTeam?: NationalTeam
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
   worldSquad?: { year: number; playerIds: string[] }
   // 世界選手権／予選の年次結果（新しい順に積む）。型はエンジン側で定義。
@@ -891,6 +829,11 @@ export type GameState = {
   premiumGreatDate?: string   // 買い切り版「大成功確約 1日1回」を使った日（getAdDay基準＝朝10時区切り）
   twitterIntroSeen?: boolean   // 公式Xフォロー案内ポップを一度表示済みか（初回起動のみ表示）
   myPlayerCreated?: boolean     // アップデート記念のマイプレイヤーを作成済みか（1回きり）
+  // 長期整理で削除した選手の「名前・国籍」だけを残す辞書（[名前, 国籍]）。
+  // 顔は選手IDと国籍から自動生成しているので、この2つがあれば過去レースの区間配置や
+  // 移籍履歴で名前も顔も従来どおり表示できる（開けないのは選手詳細だけ）。
+  // 選手データ本体は1人約700Bだがこの辞書は1人約45B。
+  removedPlayers?: Record<string, [string, Nationality]>
 }
 
 export const SPECIALTY_LABELS: Record<Specialty, string> = {

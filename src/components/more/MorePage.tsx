@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
-import { purchaseAdFree, restoreAdFree, lastIapError } from '../../utils/iap'
+import { purchaseAdFree, restoreAdFree, lastIapError, isAdFreePurchasable } from '../../utils/iap'
+import { ONLINE_ENABLED } from '../../data/featureFlags'
 import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -346,6 +347,15 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
           <div style={{ fontSize: '10px', color: C.red, letterSpacing: '2px', opacity: 0.7, marginBottom: '10px', fontFamily: SAIRA }}>危険な操作</div>
           <div style={{ fontSize: '13px', color: '#8a5a5a', marginBottom: '16px', lineHeight: 1.7, fontFamily: SAIRA }}>
             セーブデータをすべて削除してゲームを最初からやり直します。この操作は取り消せません。
+            {/* オンライン（フレンド）を公開している間は、サーバー側のアカウントも一緒に消える。
+                消えるものを書かずに削除させるのは審査ガイドライン 5.1.1(v) に触れるため、
+                機能を開けたときだけ自動でこの一文が出るようにしてある。 */}
+            {ONLINE_ENABLED && (
+              <>
+                <br />
+                フレンド機能で作られたアカウント（フレンドコード・走友会の登録・友達に見えているチーム情報）も同時に削除されます。
+              </>
+            )}
           </div>
           {confirming ? (
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -411,6 +421,16 @@ function PremiumCard() {
   const setAdsRemoved = useGameStore(s => s.setAdsRemoved)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ title: string; body?: string } | null>(null)
+  // App Storeから商品情報が取れるか。取れないと分かっている間は購入ボタンを押させない。
+  // 判断がつかないうちは true（押せる）扱いにして、様子見で止めてしまわないようにする。
+  const [buyable, setBuyable] = useState(true)
+
+  useEffect(() => {
+    if (adsRemoved) return
+    let alive = true
+    void isAdFreePurchasable().then(ok => { if (alive) setBuyable(ok) })
+    return () => { alive = false }
+  }, [adsRemoved])
 
   const handlePurchase = async () => {
     if (busy) return
@@ -426,6 +446,7 @@ function PremiumCard() {
       } else if (res === 'pending') {
         setMsg({ title: '承認待ちです', body: 'ご家族の承認が下りたあと、アプリを開き直すと有効になります。反映されないときは「購入を復元」を押してください。' })
       } else if (res === 'unavailable') {
+        setBuyable(false)   // 押しても同じ結果なので、以降はボタンを止める
         setMsg({ title: '商品情報を取得できませんでした', body: 'App Storeに接続できないか、商品が一時的に取得できない状態です。通信環境をご確認のうえ、しばらくしてから再度お試しください。' + detail() })
       } else if (res === 'timeout') {
         setMsg({ title: '応答がありませんでした', body: 'App Storeからの返事が返ってきませんでした。もし購入が完了していた場合は「購入を復元」を押すと有効になります。二重に課金されることはありません。' })
@@ -542,22 +563,27 @@ function PremiumCard() {
           <>
             <button
               onClick={handlePurchase}
-              disabled={busy}
+              disabled={busy || !buyable}
               className="btn-press"
               style={{
                 position: 'relative', overflow: 'hidden',
-                width: '100%', padding: '15px', borderRadius: 13, cursor: busy ? 'default' : 'pointer',
+                width: '100%', padding: '15px', borderRadius: 13, cursor: busy || !buyable ? 'default' : 'pointer',
                 background: `linear-gradient(180deg, ${C.goldHi} 0%, ${G} 46%, ${C.goldDark} 100%)`,
                 border: `1.5px solid ${alpha('#fff5d0', 0.85)}`,
                 boxShadow: `0 5px 0 #5a3500, 0 9px 24px ${alpha(G, 0.28)}, inset 0 1px 0 rgba(255,255,255,0.55)`,
-                fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: '#3a2400', opacity: busy ? 0.6 : 1,
+                fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: '#3a2400', opacity: busy || !buyable ? 0.6 : 1,
                 letterSpacing: '0.5px',
               }}
             >
               {/* 上半分の艶 */}
               <span style={{ position: 'absolute', top: 1, left: 5, right: 5, height: '44%', background: 'linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0))', borderRadius: '9px 9px 40% 40%', pointerEvents: 'none' }} />
-              <span style={{ position: 'relative' }}>{busy ? '処理中…' : '購入する　¥600'}</span>
+              <span style={{ position: 'relative' }}>{busy ? '処理中…' : !buyable ? 'いま購入できません' : '購入する　¥600'}</span>
             </button>
+            {!buyable && (
+              <div style={{ fontSize: 10, color: C.textDim, textAlign: 'center', marginTop: 7, lineHeight: 1.6 }}>
+                App Storeから商品情報を取得できませんでした。通信環境をご確認のうえ、しばらくしてからアプリを開き直してください。
+              </div>
+            )}
             <button
               onClick={handleRestore}
               disabled={busy}

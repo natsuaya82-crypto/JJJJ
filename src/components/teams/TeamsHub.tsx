@@ -14,7 +14,6 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type NatEntry = { code: Nationality; label: string; top: number }
 
-const NON_NATION = new Set<string>(['FOREIGN', 'EUR'])
 
 // 移籍市場と同じ金枠カード。説明文は出さない（タイトルのみ）。
 function RowCard({ onClick, icon, title, right }: {
@@ -95,7 +94,7 @@ export default function TeamsHub() {
     for (const p of players) {
       if (p.status === 'retired') continue
       const c = p.nationality as Nationality
-      if (!c || NON_NATION.has(c)) continue
+      if (!c) continue
       const o = ovr(p)
       if (o > (top.get(c) ?? 0)) top.set(c, o)
     }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -18,6 +18,7 @@ import { useGameStore } from '../../store/gameStore'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import type { TrainingCard } from '../../types'
+import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { C, alpha } from '../../styles/tokens'
 
@@ -408,6 +409,17 @@ function ClubBoard() {
   const [picking, setPicking] = useState<ClubPost | null>(null)
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
 
+  // 前回の「受け取る」が途中で終わっていた場合の入れ直し。
+  // 箱に残っているもののうち、まだ手元に無いカードだけを足す（二重に増えない）。
+  useEffect(() => {
+    const left = peekGifts()
+    if (left.length === 0) return
+    const have = new Set((useGameStore.getState().trainingCards ?? []).map(c => c.id))
+    const missing = left.filter(c => !have.has(c.id))
+    if (missing.length > 0) addTrainingCards(missing)
+    clearGifts()
+  }, [addTrainingCards])
+
   const posts = feed.data ?? []
   // 今日もうお願いしたか（サーバーと同じ判定を手元でも出して、ボタンを先に止める）
   const askedToday = posts.some(p =>
@@ -465,7 +477,14 @@ function ClubBoard() {
     setBusy('claim')
     try {
       const cards = await claimClubGifts()
-      if (cards.length > 0) addTrainingCards(cards)
+      // サーバー側からはこの時点で消えている。手元に入れる前に必ず箱へ置いて、
+      // ここで落ちてもカードが消えないようにする（次に開いたときに入れ直される）。
+      if (cards.length > 0) {
+        stashGifts(cards)
+        addTrainingCards(cards)
+        // セーブの書き込みが終わるだけの間を置いてから箱を空にする
+        setTimeout(clearGifts, 2000)
+      }
       setNotice({
         title: cards.length > 0 ? `カードを${cards.length}枚 受け取りました` : '受け取るカードはありません',
         message: cards.length > 0 ? 'カード一覧に入っています' : undefined,

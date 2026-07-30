@@ -11,6 +11,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { audio } from '../../utils/audio'
+import { isForeignNat } from '../../data/nationalities'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -845,7 +846,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
               <span style={{ fontSize: '14px', fontWeight: '700', color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.name}
               </span>
-              {p.nationality === 'FOREIGN' && (
+              {isForeignNat(p.nationality) && (
                 <span style={{ padding: '1px 4px', borderRadius: '3px', backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, fontSize: '8px', color: C.blue, fontWeight: '700', flexShrink: 0 }}>外</span>
               )}
               {isRecommend && (

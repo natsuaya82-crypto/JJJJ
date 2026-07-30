@@ -33,6 +33,7 @@ const GIVEN_NAMES_MALE = [
 // 外国人名は姓プールと名プールの組み合わせで生成する
 // familyFirst が true の国（韓国・中国・台湾）は「姓・名」、それ以外は「名・姓」の順で表記する
 interface ForeignNamePool {
+  nat: Nationality   // 実際の国籍コード（JPELに来る外国人にもこれをそのまま持たせる）
   origin: string
   given: string[]
   family: string[]
@@ -105,18 +106,6 @@ const MAR_FAMILY = [
   'アムラン','ブフェン','エルバクリ','アイタラヒム','オウルド','ベンナセル','ベンスリマン','エルカディ','ブアジズ','タハリ',
   'ラムダニ','ベルカセム','アズーズ','エルアラウィ','ブラヒミ','エルハムディ','アイトサイド','サドキ','ファティヒ','ゼルアリ',
   'ベンジェルーン','エルフィラリ','ブータイブ','ハディオウイ','エルカバシュ','ジャブラン','アクナウ','ベルアビド','エルマルーフ','ウアリ',
-]
-
-const SEN_GIVEN = [
-  'ママドゥ','アブドゥライ','シェイク','ウスマン','イブラヒマ','アリウン','パパ','モクター','バブカル','サンバ',
-  'ダウダ','マリック','アマドゥ','ラミン','オマール','ドゥドゥ','エルハッジ','アダマ','ブバカル','チェルノ',
-  'サリウ','イスマイラ','マンスール','セリーニュ','イドリサ','バイ','モドゥ','セクー','ファロウ','パスカル',
-]
-
-const SEN_FAMILY = [
-  'ディアロ','ンジャイ','シセ','ンドゥール','ディオップ','フォール','サール','ゲイェ','ムベンゲ','ソウ',
-  'バ','カマラ','ケイタ','トゥーレ','マンガ','ティアム','ニアン','ワデ','セック','ダボ',
-  'バルデ','シラ','コナテ','ジェング','サニェ','サコ','クリバリ','ドラメ','バジ','マネ',
 ]
 
 const SOM_GIVEN = [
@@ -361,77 +350,76 @@ const POL_FAMILY = [
   'マズル','クラフチク','ピオトロフスキ','グラボフスキ','ノヴァコフスキ','パヴロフスキ',
 ]
 
-const POOL_KEN: ForeignNamePool = { origin: 'ケニア', given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
-const POOL_UGA: ForeignNamePool = { origin: 'ウガンダ', given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
-const POOL_TAN: ForeignNamePool = { origin: 'タンザニア', given: SWAHILI_GIVEN, family: TAN_FAMILY }
-const POOL_ETH: ForeignNamePool = { origin: 'エチオピア', given: HORN_GIVEN, family: ETH_FAMILY }
-const POOL_ERI: ForeignNamePool = { origin: 'エリトリア', given: HORN_GIVEN, family: ERI_FAMILY }
-const POOL_MAR: ForeignNamePool = { origin: 'モロッコ', given: ARABIC_GIVEN, family: MAR_FAMILY }
-const POOL_SEN: ForeignNamePool = { origin: 'セネガル', given: SEN_GIVEN, family: SEN_FAMILY }
-const POOL_SOM: ForeignNamePool = { origin: 'ソマリア', given: SOM_GIVEN, family: SOM_FAMILY }
-const POOL_KOR: ForeignNamePool = { origin: '韓国', given: KOR_GIVEN, family: KOR_FAMILY, familyFirst: true }
-const POOL_CHN: ForeignNamePool = { origin: '中国', given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
-const POOL_TWN: ForeignNamePool = { origin: '台湾', given: TWN_GIVEN, family: TWN_FAMILY, familyFirst: true }
-const POOL_GBR: ForeignNamePool = { origin: 'イギリス', given: EN_GIVEN, family: ANGLO_FAMILY }
-const POOL_USA: ForeignNamePool = { origin: 'アメリカ', given: EN_GIVEN, family: ANGLO_FAMILY }
-const POOL_AUS: ForeignNamePool = { origin: 'オーストラリア', given: EN_GIVEN, family: ANGLO_FAMILY }
-const POOL_NZL: ForeignNamePool = { origin: 'ニュージーランド', given: EN_GIVEN, family: ANGLO_FAMILY }
-const POOL_FRA: ForeignNamePool = { origin: 'フランス', given: FR_GIVEN, family: FR_FAMILY }
-const POOL_GER: ForeignNamePool = { origin: 'ドイツ', given: DE_GIVEN, family: DE_FAMILY }
-const POOL_ITA: ForeignNamePool = { origin: 'イタリア', given: IT_GIVEN, family: IT_FAMILY }
-const POOL_ESP: ForeignNamePool = { origin: 'スペイン', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_NED: ForeignNamePool = { origin: 'オランダ', given: NL_GIVEN, family: NL_FAMILY }
-const POOL_BEL: ForeignNamePool = { origin: 'ベルギー', given: NL_GIVEN, family: NL_FAMILY }
-const POOL_SWE: ForeignNamePool = { origin: 'スウェーデン', given: SCAN_GIVEN, family: SCAN_FAMILY }
-const POOL_NOR: ForeignNamePool = { origin: 'ノルウェー', given: SCAN_GIVEN, family: SCAN_FAMILY }
-const POOL_BRA: ForeignNamePool = { origin: 'ブラジル', given: PT_GIVEN, family: PT_FAMILY }
-const POOL_COL: ForeignNamePool = { origin: 'コロンビア', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_ECU: ForeignNamePool = { origin: 'エクアドル', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_ARG: ForeignNamePool = { origin: 'アルゼンチン', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_CHI: ForeignNamePool = { origin: 'チリ', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_PER: ForeignNamePool = { origin: 'ペルー', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_URU: ForeignNamePool = { origin: 'ウルグアイ', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_VEN: ForeignNamePool = { origin: 'ベネズエラ', given: ES_GIVEN, family: ES_FAMILY }
-const POOL_POR: ForeignNamePool = { origin: 'ポルトガル', given: PT_GIVEN, family: PT_FAMILY }
-const POOL_AUT: ForeignNamePool = { origin: 'オーストリア', given: DE_GIVEN, family: DE_FAMILY }
-const POOL_DEN: ForeignNamePool = { origin: 'デンマーク', given: SCAN_GIVEN, family: SCAN_FAMILY }
+const POOL_KEN: ForeignNamePool = { nat: 'KEN', origin: 'ケニア', given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
+const POOL_UGA: ForeignNamePool = { nat: 'UGA', origin: 'ウガンダ', given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
+const POOL_TAN: ForeignNamePool = { nat: 'TAN', origin: 'タンザニア', given: SWAHILI_GIVEN, family: TAN_FAMILY }
+const POOL_ETH: ForeignNamePool = { nat: 'ETH', origin: 'エチオピア', given: HORN_GIVEN, family: ETH_FAMILY }
+const POOL_ERI: ForeignNamePool = { nat: 'ERI', origin: 'エリトリア', given: HORN_GIVEN, family: ERI_FAMILY }
+const POOL_MAR: ForeignNamePool = { nat: 'MAR', origin: 'モロッコ', given: ARABIC_GIVEN, family: MAR_FAMILY }
+const POOL_SOM: ForeignNamePool = { nat: 'SOM', origin: 'ソマリア', given: SOM_GIVEN, family: SOM_FAMILY }
+const POOL_KOR: ForeignNamePool = { nat: 'KOR', origin: '韓国', given: KOR_GIVEN, family: KOR_FAMILY, familyFirst: true }
+const POOL_CHN: ForeignNamePool = { nat: 'CHN', origin: '中国', given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
+const POOL_TWN: ForeignNamePool = { nat: 'TWN', origin: '台湾', given: TWN_GIVEN, family: TWN_FAMILY, familyFirst: true }
+const POOL_GBR: ForeignNamePool = { nat: 'GBR', origin: 'イギリス', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_USA: ForeignNamePool = { nat: 'USA', origin: 'アメリカ', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_AUS: ForeignNamePool = { nat: 'AUS', origin: 'オーストラリア', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_NZL: ForeignNamePool = { nat: 'NZL', origin: 'ニュージーランド', given: EN_GIVEN, family: ANGLO_FAMILY }
+const POOL_FRA: ForeignNamePool = { nat: 'FRA', origin: 'フランス', given: FR_GIVEN, family: FR_FAMILY }
+const POOL_GER: ForeignNamePool = { nat: 'GER', origin: 'ドイツ', given: DE_GIVEN, family: DE_FAMILY }
+const POOL_ITA: ForeignNamePool = { nat: 'ITA', origin: 'イタリア', given: IT_GIVEN, family: IT_FAMILY }
+const POOL_ESP: ForeignNamePool = { nat: 'ESP', origin: 'スペイン', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_NED: ForeignNamePool = { nat: 'NED', origin: 'オランダ', given: NL_GIVEN, family: NL_FAMILY }
+const POOL_BEL: ForeignNamePool = { nat: 'BEL', origin: 'ベルギー', given: NL_GIVEN, family: NL_FAMILY }
+const POOL_SWE: ForeignNamePool = { nat: 'SWE', origin: 'スウェーデン', given: SCAN_GIVEN, family: SCAN_FAMILY }
+const POOL_NOR: ForeignNamePool = { nat: 'NOR', origin: 'ノルウェー', given: SCAN_GIVEN, family: SCAN_FAMILY }
+const POOL_BRA: ForeignNamePool = { nat: 'BRA', origin: 'ブラジル', given: PT_GIVEN, family: PT_FAMILY }
+const POOL_COL: ForeignNamePool = { nat: 'COL', origin: 'コロンビア', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_ECU: ForeignNamePool = { nat: 'ECU', origin: 'エクアドル', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_ARG: ForeignNamePool = { nat: 'ARG', origin: 'アルゼンチン', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_CHI: ForeignNamePool = { nat: 'CHI', origin: 'チリ', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_PER: ForeignNamePool = { nat: 'PER', origin: 'ペルー', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_URU: ForeignNamePool = { nat: 'URU', origin: 'ウルグアイ', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_VEN: ForeignNamePool = { nat: 'VEN', origin: 'ベネズエラ', given: ES_GIVEN, family: ES_FAMILY }
+const POOL_POR: ForeignNamePool = { nat: 'POR', origin: 'ポルトガル', given: PT_GIVEN, family: PT_FAMILY }
+const POOL_AUT: ForeignNamePool = { nat: 'AUT', origin: 'オーストリア', given: DE_GIVEN, family: DE_FAMILY }
+const POOL_DEN: ForeignNamePool = { nat: 'DEN', origin: 'デンマーク', given: SCAN_GIVEN, family: SCAN_FAMILY }
 // 新設アジア／中東リーグ・既存リーグ追加国のクラブ用
-const POOL_MGL: ForeignNamePool = { origin: 'モンゴル',       given: MGL_GIVEN, family: MGL_FAMILY, familyFirst: true }
-const POOL_HKG: ForeignNamePool = { origin: '香港',           given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
-const POOL_THA: ForeignNamePool = { origin: 'タイ',           given: THA_GIVEN, family: THA_FAMILY }
-const POOL_VIE: ForeignNamePool = { origin: 'ベトナム',       given: VIE_GIVEN, family: VIE_FAMILY, familyFirst: true }
-const POOL_INA: ForeignNamePool = { origin: 'インドネシア',   given: INA_GIVEN, family: INA_FAMILY }
-const POOL_MAS: ForeignNamePool = { origin: 'マレーシア',     given: MAS_GIVEN, family: MAS_FAMILY }
-const POOL_PHI: ForeignNamePool = { origin: 'フィリピン',     given: ES_GIVEN,  family: ES_FAMILY }
-const POOL_SGP: ForeignNamePool = { origin: 'シンガポール',   given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
-const POOL_IND: ForeignNamePool = { origin: 'インド',         given: IND_GIVEN, family: IND_FAMILY }
-const POOL_SRI: ForeignNamePool = { origin: 'スリランカ',     given: SRI_GIVEN, family: SRI_FAMILY }
-const POOL_NEP: ForeignNamePool = { origin: 'ネパール',       given: NEP_GIVEN, family: NEP_FAMILY }
-const POOL_KAZ: ForeignNamePool = { origin: 'カザフスタン',   given: KAZ_GIVEN, family: KAZ_FAMILY }
-const POOL_KSA: ForeignNamePool = { origin: 'サウジアラビア', given: ARABIC_GIVEN, family: SAUDI_FAMILY }
-const POOL_BRN: ForeignNamePool = { origin: 'バーレーン',     given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
-const POOL_QAT: ForeignNamePool = { origin: 'カタール',       given: HORN_GIVEN, family: ETH_FAMILY }
-const POOL_RSA: ForeignNamePool = { origin: '南アフリカ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
-const POOL_CAN: ForeignNamePool = { origin: 'カナダ',         given: EN_GIVEN,  family: ANGLO_FAMILY }
-const POOL_MEX: ForeignNamePool = { origin: 'メキシコ',       given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_MGL: ForeignNamePool = { nat: 'MGL', origin: 'モンゴル',       given: MGL_GIVEN, family: MGL_FAMILY, familyFirst: true }
+const POOL_HKG: ForeignNamePool = { nat: 'HKG', origin: '香港',           given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
+const POOL_THA: ForeignNamePool = { nat: 'THA', origin: 'タイ',           given: THA_GIVEN, family: THA_FAMILY }
+const POOL_VIE: ForeignNamePool = { nat: 'VIE', origin: 'ベトナム',       given: VIE_GIVEN, family: VIE_FAMILY, familyFirst: true }
+const POOL_INA: ForeignNamePool = { nat: 'INA', origin: 'インドネシア',   given: INA_GIVEN, family: INA_FAMILY }
+const POOL_MAS: ForeignNamePool = { nat: 'MAS', origin: 'マレーシア',     given: MAS_GIVEN, family: MAS_FAMILY }
+const POOL_PHI: ForeignNamePool = { nat: 'PHI', origin: 'フィリピン',     given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_SGP: ForeignNamePool = { nat: 'SGP', origin: 'シンガポール',   given: CHN_GIVEN, family: CHN_FAMILY, familyFirst: true }
+const POOL_IND: ForeignNamePool = { nat: 'IND', origin: 'インド',         given: IND_GIVEN, family: IND_FAMILY }
+const POOL_SRI: ForeignNamePool = { nat: 'SRI', origin: 'スリランカ',     given: SRI_GIVEN, family: SRI_FAMILY }
+const POOL_NEP: ForeignNamePool = { nat: 'NEP', origin: 'ネパール',       given: NEP_GIVEN, family: NEP_FAMILY }
+const POOL_KAZ: ForeignNamePool = { nat: 'KAZ', origin: 'カザフスタン',   given: KAZ_GIVEN, family: KAZ_FAMILY }
+const POOL_KSA: ForeignNamePool = { nat: 'KSA', origin: 'サウジアラビア', given: ARABIC_GIVEN, family: SAUDI_FAMILY }
+const POOL_BRN: ForeignNamePool = { nat: 'BRN', origin: 'バーレーン',     given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
+const POOL_QAT: ForeignNamePool = { nat: 'QAT', origin: 'カタール',       given: HORN_GIVEN, family: ETH_FAMILY }
+const POOL_RSA: ForeignNamePool = { nat: 'RSA', origin: '南アフリカ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_CAN: ForeignNamePool = { nat: 'CAN', origin: 'カナダ',         given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_MEX: ForeignNamePool = { nat: 'MEX', origin: 'メキシコ',       given: ES_GIVEN,  family: ES_FAMILY }
 // 60か国化で追加（アフリカ／ヨーロッパ／アメリカ大陸を各16へ）
-const POOL_RWA: ForeignNamePool = { origin: 'ルワンダ',       given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
-const POOL_BDI: ForeignNamePool = { origin: 'ブルンジ',       given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
-const POOL_ALG: ForeignNamePool = { origin: 'アルジェリア',   given: ARABIC_GIVEN, family: MAR_FAMILY }
-const POOL_DJI: ForeignNamePool = { origin: 'ジブチ',         given: HORN_GIVEN, family: SOM_FAMILY }
-const POOL_SDN: ForeignNamePool = { origin: 'スーダン',       given: ARABIC_GIVEN, family: SAUDI_FAMILY }
-const POOL_TUN: ForeignNamePool = { origin: 'チュニジア',     given: ARABIC_GIVEN, family: MAR_FAMILY }
-const POOL_ZIM: ForeignNamePool = { origin: 'ジンバブエ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
-const POOL_NGA: ForeignNamePool = { origin: 'ナイジェリア',   given: EN_GIVEN,  family: ANGLO_FAMILY }
-const POOL_SUI: ForeignNamePool = { origin: 'スイス',         given: DE_GIVEN,  family: DE_FAMILY }
-const POOL_POL: ForeignNamePool = { origin: 'ポーランド',     given: POL_GIVEN, family: POL_FAMILY }
-const POOL_IRL: ForeignNamePool = { origin: 'アイルランド',   given: EN_GIVEN,  family: ANGLO_FAMILY }
-const POOL_FIN: ForeignNamePool = { origin: 'フィンランド',   given: SCAN_GIVEN, family: SCAN_FAMILY }
-const POOL_GUA: ForeignNamePool = { origin: 'グアテマラ',     given: ES_GIVEN,  family: ES_FAMILY }
-const POOL_BOL: ForeignNamePool = { origin: 'ボリビア',       given: ES_GIVEN,  family: ES_FAMILY }
-const POOL_CRC: ForeignNamePool = { origin: 'コスタリカ',     given: ES_GIVEN,  family: ES_FAMILY }
-const POOL_CUB: ForeignNamePool = { origin: 'キューバ',       given: ES_GIVEN,  family: ES_FAMILY }
-const POOL_JAM: ForeignNamePool = { origin: 'ジャマイカ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_RWA: ForeignNamePool = { nat: 'RWA', origin: 'ルワンダ',       given: EAST_AFRICAN_GIVEN, family: KEN_FAMILY }
+const POOL_BDI: ForeignNamePool = { nat: 'BDI', origin: 'ブルンジ',       given: EAST_AFRICAN_GIVEN, family: UGA_FAMILY }
+const POOL_ALG: ForeignNamePool = { nat: 'ALG', origin: 'アルジェリア',   given: ARABIC_GIVEN, family: MAR_FAMILY }
+const POOL_DJI: ForeignNamePool = { nat: 'DJI', origin: 'ジブチ',         given: HORN_GIVEN, family: SOM_FAMILY }
+const POOL_SDN: ForeignNamePool = { nat: 'SDN', origin: 'スーダン',       given: ARABIC_GIVEN, family: SAUDI_FAMILY }
+const POOL_TUN: ForeignNamePool = { nat: 'TUN', origin: 'チュニジア',     given: ARABIC_GIVEN, family: MAR_FAMILY }
+const POOL_ZIM: ForeignNamePool = { nat: 'ZIM', origin: 'ジンバブエ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_NGA: ForeignNamePool = { nat: 'NGA', origin: 'ナイジェリア',   given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_SUI: ForeignNamePool = { nat: 'SUI', origin: 'スイス',         given: DE_GIVEN,  family: DE_FAMILY }
+const POOL_POL: ForeignNamePool = { nat: 'POL', origin: 'ポーランド',     given: POL_GIVEN, family: POL_FAMILY }
+const POOL_IRL: ForeignNamePool = { nat: 'IRL', origin: 'アイルランド',   given: EN_GIVEN,  family: ANGLO_FAMILY }
+const POOL_FIN: ForeignNamePool = { nat: 'FIN', origin: 'フィンランド',   given: SCAN_GIVEN, family: SCAN_FAMILY }
+const POOL_GUA: ForeignNamePool = { nat: 'GUA', origin: 'グアテマラ',     given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_BOL: ForeignNamePool = { nat: 'BOL', origin: 'ボリビア',       given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_CRC: ForeignNamePool = { nat: 'CRC', origin: 'コスタリカ',     given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_CUB: ForeignNamePool = { nat: 'CUB', origin: 'キューバ',       given: ES_GIVEN,  family: ES_FAMILY }
+const POOL_JAM: ForeignNamePool = { nat: 'JAM', origin: 'ジャマイカ',     given: EN_GIVEN,  family: ANGLO_FAMILY }
 
 // 重みに応じてプールを展開する（重みが大きい国ほど選ばれやすい）
 function weightedPools(entries: [ForeignNamePool, number][]): ForeignNamePool[] {
@@ -441,7 +429,7 @@ function weightedPools(entries: [ForeignNamePool, number][]): ForeignNamePool[] 
 // JPEL（ドラフト・CPU）用: 従来の国籍出現比率をおおむね維持した重み付きプール
 const JPEL_FOREIGN_POOLS: ForeignNamePool[] = weightedPools([
   [POOL_KEN, 21], [POOL_ETH, 16], [POOL_UGA, 5], [POOL_TAN, 4],
-  [POOL_MAR, 5], [POOL_ERI, 3], [POOL_SEN, 3], [POOL_SOM, 2],
+  [POOL_MAR, 5], [POOL_ERI, 3], [POOL_SOM, 2],
   [POOL_KOR, 10], [POOL_CHN, 10],
   [POOL_FRA, 5], [POOL_GER, 4], [POOL_ITA, 4], [POOL_ESP, 4], [POOL_GBR, 4],
   [POOL_NED, 2], [POOL_BEL, 1], [POOL_BRA, 4], [POOL_USA, 4],
@@ -528,25 +516,26 @@ const FOREIGN_LEAGUE_POOLS: Record<string, ForeignNamePool[]> = {
   CRC: [POOL_CRC],
   CUB: [POOL_CUB],
   JAM: [POOL_JAM],
-  // フォールバック（未定義国コード用）
-  EUR: weightedPools([
+  // フォールバック（万一キーの無い国コードが来たとき用の安全弁）
+  _default: weightedPools([
     [POOL_GBR, 6], [POOL_FRA, 5], [POOL_GER, 5], [POOL_ITA, 5], [POOL_ESP, 4],
     [POOL_NED, 2], [POOL_SWE, 2], [POOL_NOR, 2], [POOL_AUS, 3], [POOL_NZL, 2],
   ]),
 }
 
 // プールから姓と名を1つずつ選んで名前を組み立てる
-function pickForeignName(pool: ForeignNamePool): { name: string; origin: string } {
+function pickForeignName(pool: ForeignNamePool): { name: string; origin: string; nat: Nationality } {
   const given = pool.given[rng(0, pool.given.length - 1)]
   const family = pool.family[rng(0, pool.family.length - 1)]
   return {
     name: pool.familyFirst ? `${family}・${given}` : `${given}・${family}`,
     origin: pool.origin,
+    nat: pool.nat,
   }
 }
 
 // JPEL用の外国人名を生成する。usedNames と重複したらリトライする
-function generateJpelForeignName(usedNames: Set<string>): { name: string; origin: string } {
+export function generateJpelForeignName(usedNames: Set<string>): { name: string; origin: string; nat: Nationality } {
   const pool = JPEL_FOREIGN_POOLS[rng(0, JPEL_FOREIGN_POOLS.length - 1)]
   let picked = pickForeignName(pool)
   let attempts = 0
@@ -781,11 +770,14 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
 
     let origin: string
     let name: string
+    // 外国人は出身国の実国籍をそのまま持たせる（日本人は JPN）
+    let nationality: Nationality = 'JPN'
 
     if (isForeign) {
       const fn = generateJpelForeignName(usedNames)
       name = fn.name
       origin = fn.origin
+      nationality = fn.nat
     } else {
       origin = originType === 'high_school'
         ? HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
@@ -825,7 +817,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
         annualSalary: calculateRookieSalary(rank),
         faEligibleYear: year + 7,
       },
-      nationality: isForeign ? 'FOREIGN' : 'JPN',
+      nationality,
       origin,
       status: 'draft_eligible',
       fatigue: 0,
@@ -995,11 +987,11 @@ export function generateCpuRosters(
 
     let name: string
     let origin: string
-    let nationality: 'JPN' | 'FOREIGN'
+    let nationality: Nationality
 
     if (isForeign) {
       const fn = generateJpelForeignName(usedNames)
-      name = fn.name; origin = fn.origin; nationality = 'FOREIGN'
+      name = fn.name; origin = fn.origin; nationality = fn.nat
     } else {
       origin = Math.random() < 0.6
         ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
@@ -1347,7 +1339,7 @@ export function generateForeignLeaguePlayers(
       const region = strengthFor(league.id, club.country)
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
       const salaries = distributeSalaries(Math.round(region.budget * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
-      const namePools = FOREIGN_LEAGUE_POOLS[club.country as string] ?? FOREIGN_LEAGUE_POOLS.EUR
+      const namePools = FOREIGN_LEAGUE_POOLS[club.country as string] ?? FOREIGN_LEAGUE_POOLS._default
       const clubUsedNames = new Set<string>()
 
       salaries.forEach((clubSalary) => {
