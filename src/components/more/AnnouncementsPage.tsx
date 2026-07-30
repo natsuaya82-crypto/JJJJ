@@ -43,18 +43,43 @@ function NewsBody({ body }: { body: string }) {
   )
 }
 
-const NEWS_FALLBACK: NewsItem[] = CHANGELOG.map(c => ({ date: c.date, title: c.title, body: c.body }))
+// お知らせの中身はアプリ本体（appMeta.ts の CHANGELOG）が本命。
+// 通信できなくても、サーバーが落ちていても、必ず全部読める状態にしておく。
+const NEWS_BUILTIN: NewsItem[] = CHANGELOG.map(c => ({ date: c.date, title: c.title, body: c.body }))
 const NEWS_URL = 'https://tokinets.com/jpel-news.json'
+
+// 同じお知らせかどうかは「日付＋タイトル」で見る
+const newsKey = (n: NewsItem) => `${n.date}|${n.title}`
+
+/**
+ * アプリ内のお知らせに、サーバー側の新しいお知らせだけを足す。
+ *
+ * 以前はサーバーの取得が成功すると一覧をまるごと入れ替えていたので、
+ * サーバーの中身が古いとアプリが持っているお知らせが消えてしまっていた。
+ * アプリ内を基本にして、アプリが知らないものだけ足す形にすればその事故が起きない。
+ * （アプリ更新なしでお知らせを出したいとき用の入口は残しておく）
+ */
+function mergeNews(builtin: NewsItem[], remote: unknown): NewsItem[] {
+  if (!Array.isArray(remote)) return builtin
+  const have = new Set(builtin.map(newsKey))
+  const extra = (remote as NewsItem[]).filter(
+    n => n && typeof n.date === 'string' && typeof n.title === 'string' && typeof n.body === 'string'
+      && !have.has(newsKey(n)),
+  )
+  if (extra.length === 0) return builtin
+  // 日付は 2026.07.29 の形なので文字の並びで新しい順にできる
+  return [...builtin, ...extra].sort((a, b) => b.date.localeCompare(a.date))
+}
 
 export default function AnnouncementsPage() {
   const navigate = useNavigate()
-  const [news, setNews] = useState<NewsItem[]>(NEWS_FALLBACK)
+  const [news, setNews] = useState<NewsItem[]>(NEWS_BUILTIN)
   const [openIdx, setOpenIdx] = useState<number | null>(0)
 
   useEffect(() => {
     fetch(NEWS_URL)
       .then(r => r.json())
-      .then((data: NewsItem[]) => { if (Array.isArray(data) && data.length > 0) setNews(data) })
+      .then((data: unknown) => setNews(mergeNews(NEWS_BUILTIN, data)))
       .catch(() => {})
   }, [])
 
