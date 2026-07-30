@@ -410,7 +410,8 @@ export type WECSegmentNationTime = {
 export type WECRaceResult = {
   raceNumber: number
   weather: 'sunny' | 'cloudy' | 'rainy' | 'windy'
-  legResults: { segmentIndex: number; playerName: string; distanceKm: number; timeSec: number }[]
+  // playerId は改名しても今の名前を出せるようにするため（古いセーブには無いので任意）
+  legResults: { segmentIndex: number; playerId?: string; playerName: string; distanceKm: number; timeSec: number }[]
   segmentNationTimes: WECSegmentNationTime[]
   countryResults: { country: string; name: string; totalTimeSec: number; rank: number; points: number }[]
   japanTime: number

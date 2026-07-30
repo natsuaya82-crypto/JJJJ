@@ -20,6 +20,10 @@ export default function NationalResultPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const results = useGameStore(s => s.worldAthleticsResults) ?? []
+  // 記録に保存された名前ではなく今の名前を出すため、選手一覧から引き直す（改名しても過去の結果に反映される）
+  const players = useGameStore(s => s.players)
+  const liveName = (pl: { playerId: string; playerName: string }) =>
+    players.find(x => x.id === pl.playerId)?.name || pl.playerName
   const yParam = params.get('y')
   const r = yParam ? results.find(x => x.year === Number(yParam)) ?? results[0] : results[0]
   // 大会直後（?y=なし）は種目ごとに1枚ずつめくる段階表示。記録室からの閲覧（?y=あり）は一括表示
@@ -133,7 +137,7 @@ export default function NationalResultPage() {
         <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>
           <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: medalColor(pl.rank), width: 22, textAlign: 'center' }}>{pl.rank}</span>
           <Flag code={pl.nat} width={22} />
-          <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
+          <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveName(pl)}</span>
           <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold }}>{formatRaceTime(pl.timeSec)}</span>
         </div>
       ))),

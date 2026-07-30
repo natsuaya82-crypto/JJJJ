@@ -1,6 +1,28 @@
 import type { Player, Specialty, Ratings, CardStatKey } from '../types'
 import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
 
+/**
+ * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
+ *
+ * 記録を作った時点の名前を文字として保存しているため、選手の名前を変更すると
+ * 過去の記録だけ古い名前のまま残ってしまう。表示のたびに選手IDから引き直せば、
+ * すでに保存済みの記録もさかのぼって新しい名前で表示できる（保存データは触らない）。
+ *
+ * 選手データが見つからないとき（長期整理で消えた・引退した・海外選手・旧セーブでIDが無い）は、
+ * 焼き込まれた名前をそのまま使う。記録が名無しになるのを防ぐため、ここは必ず残す。
+ */
+export function liveName(
+  players: readonly { id: string; name: string }[],
+  playerId: string | undefined,
+  baked?: string,
+): string {
+  if (playerId) {
+    const p = players.find(x => x.id === playerId)
+    if (p) return p.name
+  }
+  return baked ?? ''
+}
+
 // ── 能力別ポテンシャル（各能力ごとの成長上限）──
 // 単一の potential と特性から各能力の上限を導出する（保存はせず都度算出＝既存セーブもそのまま動く）。
 // 得意能力は potential+α まで、苦手能力は低め。現在値を下回らない（既に高い能力は据え置き）。

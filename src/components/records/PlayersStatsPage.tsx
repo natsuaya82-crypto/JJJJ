@@ -208,7 +208,7 @@ export default function PlayersStatsPage() {
                         </div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: 700, color: C.text }}>{entry.playerName}</div>
+                        <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: 700, color: C.text }}>{player?.name ?? entry.playerName}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                           {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
                           <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? entry.teamShort ?? ''}{entry.year ? ` / ${entry.year}` : ''}</span>

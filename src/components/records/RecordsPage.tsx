@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { GameStore } from '../../store/gameStore'
-import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
+import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, liveName } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward } from '../../types'
@@ -138,7 +138,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
     const rows = (myTeam?.eventRecords?.[key] ?? [])
       .map(rec => {
         const p = players.find(x => x.id === rec.playerId)
-        const name = p?.name ?? rec.playerName
+        const name = liveName(players, rec.playerId, rec.playerName)
         if (!name) return null
         return { id: rec.playerId, name, nationality: p?.nationality ?? rec.nationality ?? 'JPN' as const, specialty: p?.specialty ?? null, inRoster: !!p, t: rec.timeSec, year: rec.year }
       })
@@ -197,8 +197,8 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
               const rankCol = myStanding === 1 ? C.gold : myStanding <= 3 ? C.green : myStanding <= 5 ? C.textSub : C.textDim
               // 年間表彰（MVP・新人王）。名前が焼き込まれているので選手が抜けても表示できる
               const award = seasonAwards.find(a => a.year === season.year)
-              const mvpName = award?.mvpName ?? (award?.mvpId ? players.find(p => p.id === award.mvpId)?.name : undefined)
-              const rookieName = award?.rookieName ?? (award?.rookieId ? players.find(p => p.id === award.rookieId)?.name : undefined)
+              const mvpName = liveName(players, award?.mvpId, award?.mvpName) || undefined
+              const rookieName = liveName(players, award?.rookieId, award?.rookieName) || undefined
 
               return (
                 <div key={season.year} style={{

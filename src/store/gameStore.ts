@@ -7136,7 +7136,7 @@ export const useGameStore = create<GameStore>()(
               const jr = sr.runners.find(r => r.teamId === 'wec_JPN')
               const jp = jr ? state.players.find(p => p.id === jr.playerId) : null
               const seg = wecRace.segments.find(s => s.index === sr.segmentIndex)
-              return { segmentIndex: sr.segmentIndex, playerName: jp?.name ?? '不明', distanceKm: seg?.distanceKm ?? 0, timeSec: jr?.timeSec ?? 0 }
+              return { segmentIndex: sr.segmentIndex, playerId: jr?.playerId, playerName: jp?.name ?? '不明', distanceKm: seg?.distanceKm ?? 0, timeSec: jr?.timeSec ?? 0 }
             })
 
             const segmentNationTimes: import('../types').WECSegmentNationTime[] = raceResult.segmentResults.map(sr => {

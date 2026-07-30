@@ -195,6 +195,9 @@ export default function WorldEkidenPage() {
   const { currentSeason, pastSeasons, players, teams, nationalTeam, playerTeamId,
     simulateWorldEkiden, updateNationalTeam, toggleWorldRacePlayer, autoSelectWorldRace, setWorldCoachDeclined } = useGameStore()
   const gmName = teams.find(t => t.id === playerTeamId)?.gmName ?? ''
+  // 区間記録に保存された名前ではなく今の名前を出す（改名しても過去の結果に反映される）
+  const legName = (leg: { playerId?: string; playerName: string }) =>
+    (leg.playerId ? players.find(p => p.id === leg.playerId)?.name : undefined) ?? leg.playerName
 
   const year = currentSeason.year
   const isWEYear = isWorldEkidenYear(year)
@@ -488,7 +491,7 @@ export default function WorldEkidenPage() {
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderBottom: i < r.legResults.length - 1 ? `1px solid ${C.border}` : 'none' }}>
                         <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.gold, width: 28, flexShrink: 0 }}>{leg.segmentIndex}区</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: 13, color: C.text }}>{leg.playerName}</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: 13, color: C.text }}>{legName(leg)}</div>
                           <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim }}>{leg.distanceKm}km</div>
                         </div>
                         <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 700, color: C.textSub }}>{fmtTime(leg.timeSec)}</div>

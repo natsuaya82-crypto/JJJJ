@@ -29,6 +29,10 @@ type SimState =
 export default function WECSimPage() {
   const navigate = useNavigate()
   const result = useGameStore(s => s.currentSeason.worldEkidenResult)
+  // 区間記録に保存された名前ではなく今の名前を出す（改名しても過去の結果に反映される）
+  const players = useGameStore(s => s.players)
+  const legName = (leg: { playerId?: string; playerName: string }) =>
+    (leg.playerId ? players.find(p => p.id === leg.playerId)?.name : undefined) ?? leg.playerName
 
   const [watching, setWatching] = useState(false)
   const [sim, setSim] = useState<SimState>({ phase: 'race', raceIdx: 0, revealedSegs: 0 })
@@ -185,7 +189,7 @@ export default function WECSimPage() {
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderBottom: i < race.legResults.length - 1 ? `1px solid ${BORDER}` : 'none', background: SURFACE }}>
                     <div style={{ fontSize: 12, fontWeight: 900, color: GOLD, width: 24, flexShrink: 0 }}>{leg.segmentIndex}区</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: TEXT }}>{leg.playerName}</div>
+                      <div style={{ fontSize: 12, color: TEXT }}>{legName(leg)}</div>
                       <div style={{ fontSize: 9, color: TEXT_DIM }}>{leg.distanceKm}km</div>
                     </div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_SUB, fontFamily: 'monospace' }}>{fmtTime(leg.timeSec)}</div>
@@ -358,7 +362,7 @@ export default function WECSimPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ fontSize: 22, fontWeight: 900, color: rc, lineHeight: 1 }}>{japanSegRank}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: TEXT }}>{race.legResults.find(l => l.segmentIndex === currentSNT.segmentIndex)?.playerName ?? '—'}</div>
+                    <div style={{ fontSize: 12, color: TEXT }}>{(() => { const l = race.legResults.find(x => x.segmentIndex === currentSNT.segmentIndex); return l ? legName(l) : '—' })()}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: rc, fontFamily: 'monospace' }}>{fmtTime(japanSegTime)}</div>
@@ -448,7 +452,7 @@ export default function WECSimPage() {
               <div key={leg.segmentIndex} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderBottom: `1px solid #141220` }}>
                 <div style={{ width: 20, height: 20, borderRadius: 5, background: `${sCol}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: sCol, flexShrink: 0 }}>{leg.segmentIndex}</div>
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: 10, color: TEXT_SUB }}>{leg.playerName}</span>
+                  <span style={{ fontSize: 10, color: TEXT_SUB }}>{legName(leg)}</span>
                   <span style={{ fontSize: 9, color: TEXT_DIM, marginLeft: 4 }}>{leg.distanceKm}km</span>
                 </div>
                 <div style={{ fontSize: 10, fontFamily: 'monospace', color: japanRank === 1 ? GOLD : japanRank <= 3 ? '#4CAF50' : TEXT_DIM }}>{japanRank}位</div>

@@ -415,7 +415,7 @@ export default function ChampionsHistoryPage() {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first ? (first.playerName || resolvePlayer(first.playerId)?.name || '—') : '—'}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first ? (resolvePlayer(first.playerId)?.name || first.playerName || '—') : '—'}</span>
                     {first && (() => {
                       const rb = recordBadge(ttDist, first.playerId, first.timeSec)
                       return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
@@ -456,7 +456,7 @@ export default function ChampionsHistoryPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.playerName || pl?.name || '—'}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name || e.playerName || '—'}</span>
                       {(() => {
                         const rb = recordBadge(ttDist, e.playerId, e.timeSec)
                         return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
@@ -550,7 +550,7 @@ export default function ChampionsHistoryPage() {
                   <PlayerFace playerId={first.playerId} nationality={first.nat} size={26} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first.playerName}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resolvePlayer(first.playerId)?.name || first.playerName}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
                     <Flag code={first.nat} width={13} radius={2} />
                     <span style={{ fontSize: 8, color: C.textGhost }}>{natName(first.nat)} ・ 優勝</span>
@@ -588,7 +588,7 @@ export default function ChampionsHistoryPage() {
                       <PlayerFace playerId={e.playerId} nationality={e.nat} size={28} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.playerName}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resolvePlayer(e.playerId)?.name || e.playerName}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
                         <Flag code={e.nat} width={13} radius={2} />
                         <span style={{ fontSize: 8, color: C.textGhost }}>{natName(e.nat)}</span>

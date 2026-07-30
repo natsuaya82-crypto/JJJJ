@@ -117,9 +117,12 @@ export default function WorldTournamentPage() {
     const ir = inds[Math.min(indStep, inds.length - 1)]
     const last = indStep >= inds.length - 1
     // 結果順のまま出すとネタバレになるので、日本→国コード→名前順に並べ替えて表示
+    // 名前は改名後の今の名前で並べる（画面に出ている名前と並び順をそろえる）
+    const shownName = (pl: { playerId: string; playerName: string }) =>
+      players.find(x => x.id === pl.playerId)?.name || pl.playerName
     const entrants = [...ir.placings].sort((a, b) => {
       if ((a.nat === 'JPN') !== (b.nat === 'JPN')) return a.nat === 'JPN' ? -1 : 1
-      return a.nat.localeCompare(b.nat) || a.playerName.localeCompare(b.playerName, 'ja')
+      return a.nat.localeCompare(b.nat) || shownName(a).localeCompare(shownName(b), 'ja')
     })
     return (
       <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: `calc(${adH + 58 + 88}px + env(safe-area-inset-bottom))` }}>
@@ -140,7 +143,7 @@ export default function WorldTournamentPage() {
                 <div key={pl.playerId} {...(p ? longPress(p.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 6px', borderBottom: `1px solid ${C.border}`, cursor: p ? 'pointer' : 'default' }}>
                   <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
                   <Flag code={pl.nat} width={20} />
-                  <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>
                 </div>
               )
             })}
@@ -188,7 +191,7 @@ export default function WorldTournamentPage() {
                   <span style={{ fontFamily: SAIRA, fontSize: pl.rank <= 3 ? 16 : 13, fontWeight: 900, color: medalCol(pl.rank), width: 24, textAlign: 'center', flexShrink: 0 }}>{pl.rank}</span>
                   <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
                   <Flag code={pl.nat} width={20} />
-                  <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl.playerName}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>
                   <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{formatRaceTime(pl.timeSec)}</span>
                 </div>
               )
