@@ -14,6 +14,19 @@ export type SeName = 'tap' | 'transition' | 'back' | 'title' | 'event' | 'great_
 
 const isNative = Capacitor.isNativePlatform()
 
+const BGM_NAMES: BgmName[] = ['home', 'race']
+const SE_NAMES: SeName[] = ['tap', 'transition', 'back', 'title', 'event', 'great_success', 'levelup', 'reward']
+
+/**
+ * 実機で音声ファイルを探すときの置き場所。
+ *
+ * ブラウザでは dist の直下から配信されるので `/audio/bgm/home.mp3` で届く。
+ * ところが実機では dist の中身が「public」というフォルダにまるごと入った状態で
+ * アプリに焼かれるので、`public/` を付けないとファイルが見つからない。
+ * ここを間違えると、読み込み失敗が全部だまって捨てられるので「ただの無音」になる。
+ */
+const nativePath = (rel: string) => `public/${rel}`
+
 function readVol(key: string): number {
   const raw = localStorage.getItem(key)
   const v = raw == null ? 0.5 : parseFloat(raw)
@@ -46,13 +59,16 @@ class AudioManager {
       try {
         const mod = await import('@capacitor-community/native-audio')
         const na = mod.NativeAudio
-        const bgms: BgmName[] = ['home', 'race']
-        for (const name of bgms) {
-          try { await na.preload({ assetId: `bgm_${name}`, assetPath: `audio/bgm/${name}.mp3`, audioChannelNum: 1, isUrl: false, volume: this.musicVol }) } catch { /* 未配置等は無視 */ }
+        // ゲーム音として鳴らす宣言。focus:false で他アプリの音と混ぜる設定になる。
+        // これを呼ばないと、プラグインが勝手に「音楽アプリ」扱いの設定に書き換えてしまい、
+        // ユーザーが聴いている音楽が止まり、コントロールセンターの再生中にこのアプリが出てしまう。
+        // 音楽と重なって鳴るのは想定どおり（BGM音量は設定画面で下げられる）。
+        try { await na.configure({ focus: false, fade: false }) } catch { /* 失敗しても再生自体は続ける */ }
+        for (const name of BGM_NAMES) {
+          try { await na.preload({ assetId: `bgm_${name}`, assetPath: nativePath(`audio/bgm/${name}.mp3`), audioChannelNum: 1, isUrl: false, volume: this.musicVol }) } catch { /* 未配置等は無視 */ }
         }
-        const ses: SeName[] = ['tap', 'transition', 'back', 'title', 'event', 'great_success', 'levelup', 'reward']
-        for (const name of ses) {
-          try { await na.preload({ assetId: `se_${name}`, assetPath: `audio/se/${name}.mp3`, audioChannelNum: 3, isUrl: false, volume: this.seVol }) } catch { /* 未配置等は無視 */ }
+        for (const name of SE_NAMES) {
+          try { await na.preload({ assetId: `se_${name}`, assetPath: nativePath(`audio/se/${name}.mp3`), audioChannelNum: 3, isUrl: false, volume: this.seVol }) } catch { /* 未配置等は無視 */ }
         }
         this.na = na
         return na

@@ -1,3 +1,4 @@
+import AVFoundation
 import Capacitor
 
 /// アプリ自作のプラグイン（IAP・Keychain）をブリッジに登録するための画面クラス。
@@ -20,5 +21,18 @@ class MainViewController: CAPBridgeViewController {
   override func capacitorDidLoad() {
     bridge?.registerPluginInstance(IAPPlugin())      // GMパス（広告なし）の購入・復元
     bridge?.registerPluginInstance(KeychainPlugin()) // フレンド機能のアカウント保存
+
+    // 音の設定を「ゲーム音」に戻す。
+    //
+    // AppDelegate が起動時にゲーム音（.ambient＋他アプリと混ぜる）に設定しているが、
+    // native-audio プラグインが読み込まれる瞬間に、中で無条件に「音楽アプリ」扱いへ
+    // 書き換えてしまう。プラグインの読み込みが終わったこの場所で上から塗り直す。
+    // これでユーザーが聴いている音楽が止まらず、コントロールセンターの再生中にも出ない。
+    do {
+      try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {
+      print("AVAudioSession re-apply failed: \(error)")
+    }
   }
 }
