@@ -3,6 +3,8 @@ import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import { rankBudgetGrant } from '../data/economy'
 import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary } from '../utils/playerUtils'
+// 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
+import { clubMembersByClub } from '../utils/rosterSync'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -1242,29 +1244,28 @@ export function refreshForeignLeagues(
   leagues: ForeignLeague[],
   removedIds: Set<string>,
   year: number,
+  players: Player[],
 ): { newPlayers: Player[]; updatedLeagues: ForeignLeague[] } {
   // 補充は伸びしろ持ちの若手(19〜22)だけ。数年かけてそのティアのエースに育つ。
   const fresh = generateForeignLeaguePlayers(leagues, year, [19, 22])
+  // 新人は teamId にクラブが入った状態で作られるので、クラブごとに束ねて取り出す
+  const freshByClub = clubMembersByClub(fresh.players)
   const byId = new Map(fresh.players.map(p => [p.id, p]))
+  // 今の在籍は選手側の teamId から数える（クラブ側に名簿は無い）
+  const membersByClub = clubMembersByClub(players)
   const newPlayers: Player[] = []
-  const updatedLeagues = leagues.map(l => {
-    const freshL = fresh.updatedLeagues.find(fl => fl.id === l.id)
-    return {
-      ...l,
-      clubs: l.clubs.map(club => {
-        const kept = club.playerIds.filter(id => !removedIds.has(id))
-        const freshClub = freshL?.clubs.find(fc => fc.id === club.id)
-        // 新人補充の目標は26人まで（上限30に空き枠を残す）。全クラブを毎年30人に
-        // 埋めてしまうと買い手枠が消えて海外間の移籍市場が動かなくなる。
-        // 上の空きは移籍・引き抜きで埋まり、クラブごとに人数の個性が出る
-        const addN = Math.min(3, Math.max(0, 26 - kept.length))
-        const adds = (freshClub?.playerIds ?? []).slice(0, addN)
-        for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
-        return { ...club, playerIds: [...kept, ...adds] }
-      }),
+  for (const l of leagues) {
+    for (const club of l.clubs) {
+      const kept = (membersByClub.get(club.id) ?? []).filter(id => !removedIds.has(id))
+      // 新人補充の目標は26人まで（上限30に空き枠を残す）。全クラブを毎年30人に
+      // 埋めてしまうと買い手枠が消えて海外間の移籍市場が動かなくなる。
+      // 上の空きは移籍・引き抜きで埋まり、クラブごとに人数の個性が出る
+      const addN = Math.min(3, Math.max(0, 26 - kept.length))
+      const adds = (freshByClub.get(club.id) ?? []).slice(0, addN)
+      for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
     }
-  })
-  return { newPlayers, updatedLeagues }
+  }
+  return { newPlayers, updatedLeagues: leagues }
 }
 
 // 生成時に「年齢分の成長」を焼き込む（gameStoreのgrowPlayer年次成長と同じ式・同じレート）。
@@ -1335,7 +1336,6 @@ export function generateForeignLeaguePlayers(
   const updatedLeagues = leagues.map(league => ({
     ...league,
     clubs: league.clubs.map(club => {
-      const clubPlayerIds: string[] = []
       const region = strengthFor(league.id, club.country)
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
       const salaries = distributeSalaries(Math.round(region.budget * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
@@ -1366,7 +1366,6 @@ export function generateForeignLeaguePlayers(
         clubUsedNames.add(nameEntry.name)
 
         const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
-        clubPlayerIds.push(id)
 
         // 地域でポテンシャルを底上げ（若手は高ポテンシャルで生成 → 成長で伸びる）。現在値はいきなり上げない。
         // potCap で地域ごとの実効OVR天井を決める（bakeAgeGrowth の焼き込み上限）。
@@ -1411,7 +1410,7 @@ export function generateForeignLeaguePlayers(
         players.push(madeF)
       })
 
-      return { ...club, playerIds: clubPlayerIds }
+      return club
     }),
   }))
 

@@ -2,6 +2,8 @@ import type { ForeignLeague, Player, Team, Specialty } from '../types'
 import { SPECIALTY_LABELS } from '../types'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
+// 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
+import { clubMembersByClub } from '../utils/rosterSync'
 
 const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
 
@@ -43,7 +45,8 @@ export function simulateForeignTransferMarket(params: {
 
   // 各クラブの現在の在籍（可変コピー）
   const roster: Record<string, string[]> = {}
-  for (const club of allClubs) roster[club.id] = [...club.playerIds]
+  const membersByClub = clubMembersByClub(players)
+  for (const club of allClubs) roster[club.id] = [...(membersByClub.get(club.id) ?? [])]
 
   // クラブ平均OVR（引き抜きの向き付けに使う）
   const clubAvg: Record<string, number> = {}
@@ -137,11 +140,8 @@ export function simulateForeignTransferMarket(params: {
     return dest ? { ...p, teamId: dest, joinedYear: year } : p
   })
 
-  // foreignLeagues の playerIds を更新
-  const updatedLeagues = foreignLeagues.map(l => ({
-    ...l,
-    clubs: l.clubs.map(c => ({ ...c, playerIds: roster[c.id] ?? c.playerIds })),
-  }))
+  // クラブ側の名簿は持たない（所属は上で更新した players の teamId が唯一の記録）
+  const updatedLeagues = foreignLeagues
 
   // 目立つ移籍（OVR高め）をニュース化（最大6件）
   const news: NewsItem[] = moves
@@ -206,7 +206,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   for (const p of players) if (p.status === 'active' && sizeCount[p.teamId] !== undefined) sizeCount[p.teamId]++
   const jpnSize = (teamId: string) => sizeCount[teamId] ?? 0
   const fRoster: Record<string, string[]> = {}
-  for (const c of foreignClubs) fRoster[c.id] = [...c.playerIds]
+  const fMembersByClub = clubMembersByClub(players)
+  for (const c of foreignClubs) fRoster[c.id] = [...(fMembersByClub.get(c.id) ?? [])]
 
   const nameById = new Map<string, string>()
   for (const t of teams) nameById.set(t.id, t.shortName)
@@ -339,9 +340,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const updatedTeams: T[] = teams.map(t =>
     (t.id === playerTeamId || !jpnRoster[t.id]) ? t
       : ({ ...t, roster: { ...t.roster, main: jpnRoster[t.id], second: jpnSecond[t.id] }, finance: { ...t.finance, budget: budget[t.id] } } as T))
-  const updatedLeagues = foreignLeagues.map(l => ({
-    ...l, clubs: l.clubs.map(c => ({ ...c, playerIds: fRoster[c.id] ?? c.playerIds })),
-  }))
+  // クラブ側の名簿は持たない（所属は players の teamId が唯一の記録）
+  const updatedLeagues = foreignLeagues
 
   const feeStr = (v: number) => v >= 100_000_000 ? `${(v / 100_000_000).toFixed(1)}億` : `${Math.round(v / 10_000)}万`
   // 日本より格上のリーグへの移籍は「日本人が世界最高峰へ挑む」大ニュースにする。

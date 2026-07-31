@@ -19,8 +19,8 @@ const check = (label: string, ok: boolean, detail = '') => {
 
 const teams = [{ id: 't1' }, { id: 't2' }] as unknown as Team[]
 const leagues = [
-  { id: 'kor', clubs: [{ id: 'kor_1', playerIds: [] }, { id: 'kor_2', playerIds: [] }] },
-  { id: 'ken', clubs: [{ id: 'ken_1', playerIds: [] }] },
+  { id: 'kor', clubs: [{ id: 'kor_1' }, { id: 'kor_2' }] },
+  { id: 'ken', clubs: [{ id: 'ken_1' }] },
 ] as unknown as ForeignLeague[]
 
 const P = (id: string, o: Partial<Player> = {}) => ({ id, name: id, teamId: '', status: 'active', ...o }) as unknown as Player

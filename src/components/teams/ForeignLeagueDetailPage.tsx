@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
+import { belongsToClub } from '../../utils/rosterSync'
 import { LeagueLogoSVG } from '../icons/Icons'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C } from '../../styles/tokens'
@@ -26,7 +27,7 @@ export default function ForeignLeagueDetailPage() {
   const leagueStandings = foreignStandings?.[league.id]
   const hasResults = !!leagueStandings && leagueStandings.some(s => s.raceResults.length > 0)
   const clubStandings = league.clubs.map(club => {
-    const clubPlayers = players.filter(p => club.playerIds.includes(p.id))
+    const clubPlayers = players.filter(p => belongsToClub(p, club.id))
     const avgOvr = clubPlayers.length > 0 ? Math.round(clubPlayers.reduce((s, p) => s + ovr(p), 0) / clubPlayers.length) : 0
     const st = leagueStandings?.find(s => s.clubId === club.id)
     return { club, avgOvr, points: st?.totalPoints ?? 0, form: (st?.raceResults ?? []).map(r => r.rank) }

@@ -30,7 +30,8 @@ import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 // セーブに「何を書かないか」は ephemeralState.ts に集約してある（画面の開閉状態と読まれない残骸）
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
-import { squadPlayersOf, squadIdsOf, rebuildRosters } from '../utils/rosterSync'
+import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
+import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/legacyClubRoster'
 // 引退時の所属（レンタル中なら保有元）を求める。記録室の国内限定ランキングが見る
 import { retiredFromOf } from '../utils/domesticPlayers'
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
@@ -1606,7 +1607,7 @@ export const useGameStore = create<GameStore>()(
           const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], isWindowOpenNow, state.currentSeason.transferRequests ?? [], retiringWishIds)
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
-          const foreignClubs = (state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, playerIds: c.playerIds, leagueId: c.leagueId, country: c.country }))
+          const foreignClubs = (state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, leagueId: c.leagueId, country: c.country }))
           const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextRaceIndex && finalPlayers.some(p => p.id === o.playerId))
           const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, windowOpen: isWindowOpenNow, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
@@ -2768,7 +2769,6 @@ export const useGameStore = create<GameStore>()(
             // 放出した選手とは1年間交渉不可（transferLockedUntilYear）
             players: st.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, overseasListed: undefined, transferLockedUntilYear: st.currentSeason.year + 1 } : p),
             teams: st.teams.map(t => t.id === st.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + offer.offeredPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
-            foreignLeagues: (st.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
             transferHistory: [...(st.transferHistory ?? []), { year: st.currentSeason.year, date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date, playerId: offer.playerId, fromTeamId: st.playerTeamId, toTeamId: offer.fromTeamId, fee: offer.offeredPrice }].slice(-400),
             achievements: isElite && !(st.achievements ?? []).some(a => a.id === 'overseas-pioneer')
               ? [...(st.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${st.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: st.currentSeason.year, rarity: 'legendary' as const }]
@@ -3137,8 +3137,6 @@ export const useGameStore = create<GameStore>()(
             return {
               players: signed.players,
               teams: signed.teams,
-              // 海外クラブ所属だった場合、そのクラブの名簿からも外す（残ると自チームと二重所属＝増殖する）
-              foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(player.id) ? { ...c, playerIds: c.playerIds.filter(id => id !== player.id) } : c) })),
               transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date, playerId: player.id, fromTeamId: player.teamId, toTeamId: state.playerTeamId, fee: 0, kind: 'free' as const, years }].slice(-400),
               currentSeason: {
                 ...state.currentSeason,
@@ -3191,8 +3189,6 @@ export const useGameStore = create<GameStore>()(
           return {
             players: signed.players,
             teams: signed.teams,
-            // 海外クラブ所属だった場合、そのクラブの名簿からも外す（残ると自チームと二重所属＝増殖する）
-            foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(offer.playerId) ? { ...c, playerIds: c.playerIds.filter(id => id !== offer.playerId) } : c) })),
             transferHistory: [...(state.transferHistory ?? []), { year: state.currentSeason.year, date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date, playerId: offer.playerId, fromTeamId: player?.teamId ?? '', toTeamId: state.playerTeamId, fee: 0, kind: 'free' as const, years: offer.counterYears }].slice(-400),
             currentSeason: {
               ...state.currentSeason,
@@ -3283,7 +3279,6 @@ export const useGameStore = create<GameStore>()(
                 // 放出した選手とは1年間交渉不可
                 players: state.players.map(p => p.id === offer.playerId ? { ...p, teamId: offer.fromTeamId, rosterTier: 'main' as const, loan: undefined, overseasListed: undefined, transferLockedUntilYear: state.currentSeason.year + 1 } : p),
                 teams: state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + counterPrice }, roster: { ...t.roster, main: t.roster.main.filter(id => id !== offer.playerId), second: t.roster.second.filter(id => id !== offer.playerId) } } : t),
-                foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.id === offer.fromTeamId ? { ...c, playerIds: [...c.playerIds, offer.playerId] } : c) })),
                 achievements: isElite && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
                   ? [...(state.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${state.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
                   : state.achievements,
@@ -3478,8 +3473,6 @@ export const useGameStore = create<GameStore>()(
             } : p),
             // 旧チームのroster配列から外す（レンタル中は自チームで別枠管理）
             teams: state.teams.map(t => t.id === ownerId ? { ...t, roster: { main: t.roster.main.filter(id => id !== playerId), second: t.roster.second.filter(id => id !== playerId) } } : t),
-            // 海外クラブから借りた場合はクラブの選手リストからも外す（レンタル中の二重表示防止）
-            foreignLeagues: (state.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(playerId) ? { ...c, playerIds: c.playerIds.filter(id => id !== playerId) } : c) })),
             currentSeason: {
               ...state.currentSeason,
               newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${yrs}シーズンのレンタルで獲得`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
@@ -3644,8 +3637,6 @@ export const useGameStore = create<GameStore>()(
               ? { ...t, finance: { ...t.finance, budget: t.finance.budget + bid.offeredFee } }
               : t
           ),
-          // 海外クラブから獲得した場合、そのクラブの選手リストからも外す
-          foreignLeagues: (s.foreignLeagues ?? []).map(l => ({ ...l, clubs: l.clubs.map(c => c.playerIds.includes(bid.playerId) ? { ...c, playerIds: c.playerIds.filter(id => id !== bid.playerId) } : c) })),
           transferHistory: [...(s.transferHistory ?? []), { year: s.currentSeason.year, date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date, playerId: bid.playerId, fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId, fee: bid.offeredFee, years }].slice(-400),
           currentSeason: {
             ...s.currentSeason,
@@ -3976,16 +3967,7 @@ export const useGameStore = create<GameStore>()(
           })
           const keptOffers = (state.currentSeason.acquisitionOffers ?? []).filter(o => !incomingIds.includes(o.playerId))
 
-          // 相手が海外クラブの場合、クラブ名簿（playerIds）も更新する。
-          // 放出選手をクラブ名簿へ追加、獲得選手をクラブ名簿から除去（二重所属・宙ぶらりんを防ぐ）
-          const foreignLeagues = (state.foreignLeagues ?? []).map(l => ({
-            ...l,
-            clubs: l.clubs.map(c => c.id === targetTeamId
-              ? { ...c, playerIds: [...c.playerIds.filter(id => !requestedIds.includes(id)), ...offeredIds] }
-              : c),
-          }))
-
-          return { players, teams, foreignLeagues,
+          return { players, teams,
             transferHistory: [
               ...(state.transferHistory ?? []),
               ...offeredIds.map(id => ({ year: state.currentSeason.year, date: tradeDate, playerId: id, fromTeamId: state.playerTeamId, toTeamId: targetTeamId, fee: 0, kind: 'trade' as const, years: state.players.find(p => p.id === id)?.contract.yearsLeft })),
@@ -4401,9 +4383,10 @@ export const useGameStore = create<GameStore>()(
         // ロスターは開催時点の在籍で解決（シーズン中の移籍・負傷を反映）
         const participants: EclParticipant[] = series.participants.map(pt => ({
           ...pt,
-          playerIds: pt.isForeign
-            ? ((state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pt.id)?.playerIds ?? [])
-            : state.players.filter(p => p.teamId === pt.id && p.status === 'active').map(p => p.id),
+          // 国内チームも海外クラブも同じ数え方。所属は選手側の teamId だけを見る。
+          // 負傷者もここには入れる（実際に走らせるかは ecl.ts が決める。健康な選手を先に使い、
+          // 区間が埋まらないときだけ負傷者を立てる。ここで外すと空区間や出場取り消しになる）
+          playerIds: state.players.filter(p => belongsToClub(p, pt.id)).map(p => p.id),
         })).filter(pt => pt.playerIds.length >= race.segments.length)
         if (participants.length < 2) {
           // 開催不能（消滅チーム等）でも戦は消化して先へ進める
@@ -5041,11 +5024,9 @@ export const useGameStore = create<GameStore>()(
         }))
 
         // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）。海外クラブも総在籍30を超えないようにする。
-        // ※クラブ名簿(playerIds)にも必ず同期追加する。teamIdだけ変えると名簿が実人数より少なく見え、
-        //   シーズン中の日本→海外移籍の満杯チェックをすり抜けて31人になるバグの原因だった
+        // 所属は選手側の teamId だけを書き換える（クラブ側に名簿は持たない）
         const foreignClubsList = (state.foreignLeagues ?? []).flatMap(l => l.clubs)
         let playersWithForeignSigns = playersWithAllCpuSigns
-        const foreignFaAssign = new Map<string, string[]>()   // clubId → 追加する選手ID
         if (foreignClubsList.length > 0) {
           const clubCount = new Map<string, number>()
           for (const p of playersWithAllCpuSigns) {
@@ -5068,7 +5049,6 @@ export const useGameStore = create<GameStore>()(
             }
             if (!club) break
             clubCount.set(club.id, (clubCount.get(club.id) ?? 0) + 1)
-            foreignFaAssign.set(club.id, [...(foreignFaAssign.get(club.id) ?? []), fa.id])
             playersWithForeignSigns = playersWithForeignSigns.map(p =>
               p.id !== fa.id ? p : { ...p, teamId: club!.id }
             )
@@ -5104,14 +5084,6 @@ export const useGameStore = create<GameStore>()(
           draftState: { pool, pickOrder, currentPick: 0, picks: [], isComplete: false },
           players: [...playersWithForeignSigns, ...pool],
           teams: teamsWithAllCpuSigns,
-          // 海外FA補強で獲得した選手をクラブ名簿にも反映（teamIdと名簿の同期）
-          foreignLeagues: foreignFaAssign.size === 0 ? state.foreignLeagues : (state.foreignLeagues ?? []).map(l => ({
-            ...l,
-            clubs: l.clubs.map(c => {
-              const add = foreignFaAssign.get(c.id)
-              return add && add.length > 0 ? { ...c, playerIds: [...c.playerIds, ...add] } : c
-            }),
-          })),
           // 直近10シーズン分だけ残して古い移籍記録は捨てる
           transferHistory: [
             ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),
@@ -5282,7 +5254,7 @@ export const useGameStore = create<GameStore>()(
             : new Set<string>()
           const foreignRefresh = pendingRestructure
             ? (() => { const g = generateForeignLeaguePlayers(FOREIGN_LEAGUES, state.currentSeason.year + 1); return { newPlayers: g.players, updatedLeagues: g.updatedLeagues } })()
-            : refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1)
+            : refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1, grownPlayers)
 
           // Pre-retirement consideration events (age 34-36, didn't retire, active on player team)
           const considerRetirement = grownPlayers.filter(p =>
@@ -5861,36 +5833,27 @@ export const useGameStore = create<GameStore>()(
           }
 
           // ── 長期プレイでの肥大化対策（記録は名前焼き込みで残るため消えない） ──
-          // 1) 海外クラブ名簿を「teamId起点」で毎年完全に再構築する（30人上限もここで適用）。
-          //    海外選手がFA化・国内移籍しても旧クラブのplayerIdsに残存し、翌年の海外間移籍が
-          //    その亡霊名簿を動かしてteamIdを海外へ書き戻す（国内名簿と二重所属になる）バグの根治。
-          //    毎年通るので既存セーブの汚れも自動修復される
+          // 1) 海外クラブの在籍上限(30人)をここで適用する。所属は選手側の teamId だけが記録なので、
+          //    クラブごとに数えて、はみ出したぶん（能力の低い順）を下の整理で外す
           const playerByIdCl = new Map(crossTx.players.map(p => [p.id, p]))
           const foreignDropIds = new Set<string>()
-          const clubMembers = new Map<string, string[]>()
           {
-            const clubIdsAll = new Set(crossTx.foreignLeagues.flatMap(l => l.clubs.map(c => c.id)))
-            for (const p of crossTx.players) {
-              if (p.status === 'active' && clubIdsAll.has(p.teamId)) {
-                const arr = clubMembers.get(p.teamId) ?? []
-                arr.push(p.id)
-                clubMembers.set(p.teamId, arr)
+            // 数えるのは現役だけ。負傷中の選手まで数に入れると、怪我をしただけで
+            // 上限からはみ出して引退させられてしまう
+            const membersByClub = clubMembersByClub(crossTx.players.filter(p => p.status === 'active'))
+            for (const l of crossTx.foreignLeagues) {
+              for (const c of l.clubs) {
+                const ids = membersByClub.get(c.id) ?? []
+                if (ids.length <= 30) continue
+                const sorted = [...ids].sort((a, b) => {
+                  const pa = playerByIdCl.get(a); const pb = playerByIdCl.get(b)
+                  return (pb ? ovr(pb) : 0) - (pa ? ovr(pa) : 0)
+                })
+                sorted.slice(30).forEach(id => foreignDropIds.add(id))
               }
             }
           }
-          const cappedForeignLeagues = crossTx.foreignLeagues.map(l => ({
-            ...l,
-            clubs: l.clubs.map(c => {
-              const ids = clubMembers.get(c.id) ?? []
-              if (ids.length <= 30) return { ...c, playerIds: ids }
-              const sorted = [...ids].sort((a, b) => {
-                const pa = playerByIdCl.get(a); const pb = playerByIdCl.get(b)
-                return (pb ? ovr(pb) : 0) - (pa ? ovr(pa) : 0)
-              })
-              sorted.slice(30).forEach(id => foreignDropIds.add(id))
-              return { ...c, playerIds: sorted.slice(0, 30) }
-            }),
-          }))
+          const cappedForeignLeagues = crossTx.foreignLeagues
           // 2) 引退選手の軽量化（能力履歴・特性などを落として名前と実績だけ残す）
           //    ＋整理のルールは国内・海外で共通：「実績（出走・区間賞・記録会ベスト）のある選手は絶対に消さず引退として残す」。
           //    実績ゼロの選手だけ削除する。これでニュース・記録・歴代優勝から選手詳細が必ず開ける
@@ -6006,11 +5969,11 @@ export const useGameStore = create<GameStore>()(
           // 海外クラブ在籍で今季出場ゼロの選手にも0戦のエントリを埋めて保存する。
           // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
           const archivedForeignApps = { ...(state.currentSeason.foreignAppearances ?? {}) }
-          for (const fl of (state.foreignLeagues ?? [])) {
-            for (const fc of fl.clubs) {
-              for (const pid of fc.playerIds) {
-                if (!archivedForeignApps[pid]) archivedForeignApps[pid] = { clubId: fc.id, races: 0, wins: 0 }
-              }
+          {
+            const foreignClubIds = new Set((state.foreignLeagues ?? []).flatMap(l => l.clubs.map(c => c.id)))
+            for (const p of state.players) {
+              if (!foreignClubIds.has(p.teamId)) continue
+              if (!archivedForeignApps[p.id]) archivedForeignApps[p.id] = { clubId: p.teamId, races: 0, wins: 0 }
             }
           }
           // 過去シーズンの海外リーグ順位表は「合計ポイント」しか読まれない（チーム詳細の歴代成績・
@@ -6114,12 +6077,15 @@ export const useGameStore = create<GameStore>()(
                 const fsEnd = state.currentSeason.foreignStandings ?? {}
                 // リーグ再編直後は新リーグIDの順位表が存在しない。その場合はクラブの戦力（上位10人のOVR合計）
                 // 上位2で代替し、ECLが開催されない年ができないようにする
-                const pMapEcl = new Map(foreignTx.players.map(p => [p.id, p]))
-                const clubStrength = (club: { playerIds?: string[] }) =>
-                  (club.playerIds ?? [])
-                    .map(id => pMapEcl.get(id))
-                    .filter((p): p is Player => !!p)
-                    .map(p => ovr(p)).sort((a, b) => b - a).slice(0, 10)
+                const ovrsByClubEcl = new Map<string, number[]>()
+                for (const p of foreignTx.players) {
+                  if (p.status === 'retired' || !p.teamId) continue
+                  const arr = ovrsByClubEcl.get(p.teamId)
+                  if (arr) arr.push(ovr(p))
+                  else ovrsByClubEcl.set(p.teamId, [ovr(p)])
+                }
+                const clubStrength = (club: { id: string }) =>
+                  [...(ovrsByClubEcl.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10)
                     .reduce((s, v) => s + v, 0)
                 for (const league of foreignRefresh.updatedLeagues) {
                   const st = [...(fsEnd[league.id] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 2)
@@ -6332,16 +6298,8 @@ export const useGameStore = create<GameStore>()(
         const transferFee = calcTransferValue(player)
         if (myTeam.finance.budget < transferFee) return false
 
-        // Remove player from foreign club roster
-        const fromClubId = state.foreignLeagues.flatMap(l => l.clubs).find(c => c.playerIds.includes(playerId))?.id ?? ''
-        const updatedLeagues = state.foreignLeagues.map(league => ({
-          ...league,
-          clubs: league.clubs.map(club => ({
-            ...club,
-            playerIds: club.playerIds.filter(id => id !== playerId),
-          })),
-        }))
-
+        // 移籍元の海外クラブ。所属は選手側の teamId が唯一の記録なので、下の set で上書きすれば外れる
+        const fromClubId = player.teamId
 
         // 獲得選手は必ず main（2軍の区分は廃止済み。second に入れるとロスター画面に出ない）
 
@@ -6369,7 +6327,6 @@ export const useGameStore = create<GameStore>()(
               }
             : t
           ),
-          foreignLeagues: updatedLeagues,
           transferHistory: [...(s.transferHistory ?? []), { year: s.currentSeason.year, date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date, playerId, fromTeamId: fromClubId, toTeamId: s.playerTeamId, fee: transferFee, years }].slice(-400),
           currentSeason: {
             ...s.currentSeason,
@@ -6680,12 +6637,15 @@ export const useGameStore = create<GameStore>()(
             const t = state.teams.find(tm => tm.id === s.teamId)
             if (t) parts.push({ id: t.id, name: t.name, shortName: t.shortName, isForeign: false, isPlayerTeam: t.id === state.playerTeamId, leagueName: 'JPEL', colors: t.colors })
           })
-          const pMap = new Map(state.players.map(p => [p.id, p]))
-          const clubStrength = (club: { playerIds?: string[] }) =>
-            (club.playerIds ?? [])
-              .map(id => pMap.get(id))
-              .filter((p): p is Player => !!p)
-              .map(p => ovr(p)).sort((a, b) => b - a).slice(0, 10)
+          const ovrsByClub = new Map<string, number[]>()
+          for (const p of state.players) {
+            if (p.status === 'retired' || !p.teamId) continue
+            const arr = ovrsByClub.get(p.teamId)
+            if (arr) arr.push(ovr(p))
+            else ovrsByClub.set(p.teamId, [ovr(p)])
+          }
+          const clubStrength = (club: { id: string }) =>
+            [...(ovrsByClub.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10)
               .reduce((s, v) => s + v, 0)
           for (const league of leagues) {
             const st = [...((cs.foreignStandings ?? {})[league.id] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 2)
@@ -7119,13 +7079,8 @@ export const useGameStore = create<GameStore>()(
             seen.add(p.id)
             deduped.push(p)
           }
-          const leagues = (state.foreignLeagues ?? []).map(l => ({
-            ...l,
-            clubs: l.clubs.map(c => ({ ...c, playerIds: [...new Set(c.playerIds)] })),
-          }))
           return {
             players: deduped.length !== state.players.length ? deduped : state.players,
-            foreignLeagues: leagues,
             giftGivenVersions: [...(state.giftGivenVersions ?? []), ID_MARK],
           }
         })
@@ -7185,51 +7140,8 @@ export const useGameStore = create<GameStore>()(
             && tops.length === (state.eventSeasonTops ?? []).length) return state
           return { seasonAwards: awards, eclHistory: ecl, eventSeasonTops: tops }
         })
-        // 海外クラブの名簿に載っているのに teamId が ''（未所属）になった選手を復元する
-        // （旧バージョンで契約満了FA化が海外選手にも効いてしまっていたセーブの救済）
-        set(state => {
-          const clubByPlayer = new Map<string, string>()
-          for (const l of (state.foreignLeagues ?? [])) for (const c of l.clubs) for (const pid of c.playerIds) clubByPlayer.set(pid, c.id)
-          let changed = false
-          const players = state.players.map(p => {
-            if (p.teamId === '' && p.status === 'active' && clubByPlayer.has(p.id)) { changed = true; return { ...p, teamId: clubByPlayer.get(p.id)!, faSinceYear: undefined } }
-            return p
-          })
-          return changed ? { players } : state
-        })
-        // 二重所属の掃除＋名簿とteamIdの完全同期（毎起動・冪等）。
-        // 海外クラブは「クラブ側の名簿(playerIds)」と「選手側のteamId」の二重管理のため、移籍処理で
-        // 片方だけ更新されると「所属なし」表示や増殖が起きる。teamId を正として両方向を揃える：
-        //  1) 国内チーム所属の選手は海外名簿から除去（増殖の是正）
-        //  2) teamId が別のクラブ/無所属なのに名簿に残っている選手は名簿から除去
-        //  3) teamId がそのクラブなのに名簿に載っていない選手は名簿へ追加
-        set(state => {
-          const domesticIds = new Set(state.players.filter(p => p.teamId !== '' && state.teams.some(t => t.id === p.teamId)).map(p => p.id))
-          const playerTeamById = new Map(state.players.map(p => [p.id, p.teamId]))
-          const playersByClub = new Map<string, string[]>()
-          for (const p of state.players) {
-            if (p.status !== 'active' || p.teamId === '') continue
-            if (!playersByClub.has(p.teamId)) playersByClub.set(p.teamId, [])
-            playersByClub.get(p.teamId)!.push(p.id)
-          }
-          let changed = false
-          const leagues = (state.foreignLeagues ?? []).map(l => ({
-            ...l,
-            clubs: l.clubs.map(c => {
-              // 1)+2) teamId がこのクラブでない選手を名簿から外す
-              const kept = c.playerIds.filter(id => !domesticIds.has(id) && playerTeamById.get(id) === c.id)
-              // 3) teamId がこのクラブなのに名簿に無い選手を加える
-              const inClub = playersByClub.get(c.id) ?? []
-              const missing = inClub.filter(id => !kept.includes(id))
-              if (kept.length !== c.playerIds.length || missing.length > 0) {
-                changed = true
-                return { ...c, playerIds: [...kept, ...missing] }
-              }
-              return c
-            }),
-          }))
-          return changed ? { foreignLeagues: leagues } : state
-        })
+        // 所属は player.teamId だけで持つようになったので、クラブ名簿との同期処理は不要になった
+        // （旧セーブの救済は persist の migrate v22 で1回だけ行う）
       },
 
       claimGift: (id) => {
@@ -7424,7 +7336,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 21,
+      version: 22,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7562,7 +7474,7 @@ export const useGameStore = create<GameStore>()(
               const toGenerate = FOREIGN_LEAGUES.flatMap(def => {
                 const sl = saved.find(l => l.id === def.id)
                 const missingClubs = sl ? def.clubs.filter(c => !sl.clubs.some(sc => sc.id === c.id)) : def.clubs
-                return missingClubs.length > 0 ? [{ ...def, clubs: missingClubs.map(c => ({ ...c, playerIds: [] as string[] })) }] : []
+                return missingClubs.length > 0 ? [{ ...def, clubs: missingClubs }] : []
               })
               if (toGenerate.length > 0) {
                 const year = ((s.currentSeason as Record<string, unknown>)?.year as number) ?? 2027
@@ -7683,6 +7595,14 @@ export const useGameStore = create<GameStore>()(
           if (version < 21) {
             s.players = backfillRetiredTeamIds(s.players, s.pastSeasons)
           }
+          // v22: 海外クラブが持っていた選手名簿(playerIds)を廃止。
+          // 所属は選手側の teamId だけで持つ（国内チームと同じ扱い）。
+          // 捨てる前に1回だけ、名簿にしか載っていない選手の所属を teamId へ戻す
+          // （旧バージョンで契約満了のFA化が海外選手にも効いてしまったセーブの救済）。
+          if (version < 22) {
+            s.players = restoreTeamIdsFromLegacyClubs(s.players as Player[], s.foreignLeagues)
+            dropLegacyClubRosters(s.foreignLeagues)
+          }
           return s
         } catch (e) {
           // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。
@@ -7697,6 +7617,11 @@ export const useGameStore = create<GameStore>()(
       merge: (persistedState, currentState) => {
         try {
           const p = (persistedState ?? {}) as Partial<typeof currentState>
+          // 旧セーブの海外クラブ名簿(playerIds)の取り込み。通常は migrate v22 で済むが、
+          // migrate が途中の年代変換で例外を出すと v22 まで届かないまま version だけ22になる。
+          // ここは毎回通るので、取りこぼしたセーブもここで拾える（新しいセーブでは何もしない）
+          if (Array.isArray(p.players)) p.players = restoreTeamIdsFromLegacyClubs(p.players, p.foreignLeagues)
+          dropLegacyClubRosters(p.foreignLeagues)
           // ECL戦名「ECL 第X戦」→「ECL コース名」（migrateはバージョンスタンプ済みだと走らないので、毎回ここで冪等に直す）
           const renameEcl = <T extends { eclSeries?: { races: { name: string; location: string }[] } }>(season: T): T => {
             if (!season?.eclSeries?.races?.some(r => /^ECL 第\d+戦$/.test(r.name))) return season
@@ -8072,7 +7997,7 @@ function cpuSpecialtyNeeds(teamId: string, players: Player[]): string[] {
 function generateForeignAndLoanOffers(params: {
   players: Player[]
   teams: Team[]
-  foreignClubs: { id: string; name: string; shortName: string; playerIds: string[]; leagueId?: string; country?: string }[]
+  foreignClubs: { id: string; name: string; shortName: string; leagueId?: string; country?: string }[]
   playerTeamId: string
   raceIndex: number
   windowOpen: boolean

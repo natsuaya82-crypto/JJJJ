@@ -403,7 +403,8 @@ export type ForeignClub = {
   leagueId: string
   country: Nationality
   colors: { primary: string; secondary: string }
-  playerIds: string[]
+  // 所属選手はクラブ側では持たない。player.teamId が唯一の持ち場（国内チームと同じ扱い）。
+  // 一覧が要るときは utils/rosterSync の clubMemberIds() で引く
 }
 
 export type ForeignLeague = {

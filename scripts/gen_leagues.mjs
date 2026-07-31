@@ -135,7 +135,7 @@ for (const lg of LEAGUES) {
       const id = `${code.toLowerCase()}_${i+1}`
       const name = `${city}${suf}`
       const short = city.length > 5 ? city.slice(0,5) : city
-      out += `      { id: '${id}', name: '${name}', shortName: '${short}', leagueId: '${lg.id}', country: '${code}', colors: { primary: '${p}', secondary: '${s}' }, playerIds: [] },\n`
+      out += `      { id: '${id}', name: '${name}', shortName: '${short}', leagueId: '${lg.id}', country: '${code}', colors: { primary: '${p}', secondary: '${s}' } },\n`
     }
   }
   out += `    ],\n  },\n`

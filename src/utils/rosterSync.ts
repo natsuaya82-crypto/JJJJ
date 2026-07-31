@@ -1,7 +1,9 @@
 import type { Player, Team } from '../types'
 
 // ============================================================================
-// 「どの選手がどのチームに居るか」を決める唯一の場所。
+// 「どの選手がどのクラブに居るか」を決める唯一の場所。
+// 国内(JPEL)のチームも海外リーグのクラブも、ここでは同じ「クラブ」として同じルールで扱う。
+// 国が違うだけで、やっていることは同じリーグだから。
 //
 // ■なぜ要るのか
 //   所属の持ち方が2つあった。
@@ -17,15 +19,40 @@ import type { Player, Team } from '../types'
 //   画面は下の squadPlayersOf() を通して選手を取る。
 //   セーブ読み込み時に rebuildRosters() を通すので、すでにズレているセーブもその場で直る。
 //
-// ■チーム所属の条件（ここが唯一の定義）
-//   1. player.teamId がそのチーム
-//   2. 引退していない（負傷中は在籍のまま。ロスターにも人数にも数える）
-//   3. レンタル中でない（貸し借り中の選手は roster とは別枠で管理している。
-//      借りている選手はロスター画面の「レンタル」タブに出る）
+// ■所属の条件（ここが唯一の定義）。使い分けは2つだけ。
+//   belongsToClub … そのクラブでプレーする人。teamId がそのクラブで、引退していない。
+//                   レンタルで来ている選手も含む（実際に走るのはそのクラブだから）。
+//                   出走メンバー・人数・クラブの選手一覧はこちら。
+//   isSquadMember … そのうえで「名簿(team.roster)に並べる人」。レンタル中の選手は除く。
+//                   貸し借り中の選手はロスター画面の「レンタル」タブで別に出しているため。
 // ============================================================================
 
+// そのクラブでプレーする選手か（国内チーム・海外クラブ共通）
+export function belongsToClub(p: Pick<Player, 'teamId' | 'status'>, clubId: string): boolean {
+  return p.teamId === clubId && p.status !== 'retired'
+}
+
+// そのクラブに所属する選手ID。海外クラブの名簿(旧 playerIds)の代わりに使う
+export function clubMemberIds(players: Player[], clubId: string): string[] {
+  const ids: string[] = []
+  for (const p of players) if (belongsToClub(p, clubId)) ids.push(p.id)
+  return ids
+}
+
+// クラブID → 所属選手IDの一覧。海外は180クラブあるので、まとめて1回で作る
+export function clubMembersByClub(players: Player[]): Map<string, string[]> {
+  const byClub = new Map<string, string[]>()
+  for (const p of players) {
+    if (p.status === 'retired' || !p.teamId) continue
+    const list = byClub.get(p.teamId)
+    if (list) list.push(p.id)
+    else byClub.set(p.teamId, [p.id])
+  }
+  return byClub
+}
+
 export function isSquadMember(p: Player, teamId: string): boolean {
-  return p.teamId === teamId && p.status !== 'retired' && !p.loan
+  return belongsToClub(p, teamId) && !p.loan
 }
 
 export function squadPlayersOf(players: Player[], teamId: string): Player[] {

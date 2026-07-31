@@ -281,10 +281,10 @@ export default function TransferPage() {
         const foreignClubToLeague: Record<string, string> = {}
         for (const lg of allLeagues) for (const club of lg.clubs) foreignClubToLeague[club.id] = lg.id
 
-        const allForeignPlayerIds = new Set(allLeagues.flatMap(l => l.clubs.flatMap(c => c.playerIds)))
+        const isForeignClubId = (tid: string) => foreignClubToLeague[tid] !== undefined
 
         const marketPlayers = players
-          .filter(p => p.teamId !== playerTeamId && p.status === 'active' && (p.teamId === '' || p.rosterTier === 'main' || allForeignPlayerIds.has(p.id)))
+          .filter(p => p.teamId !== playerTeamId && p.status === 'active' && (p.teamId === '' || p.rosterTier === 'main' || isForeignClubId(p.teamId)))
           .filter(p => f.search === '' || p.name.includes(f.search))
           .filter(p => f.spec === 'all' || p.specialty === f.spec)
           .filter(p => f.nat === 'all' || p.nationality === f.nat)

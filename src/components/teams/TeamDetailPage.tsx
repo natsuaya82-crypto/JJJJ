@@ -6,6 +6,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
+import { belongsToClub } from '../../utils/rosterSync'
 import { C } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -123,10 +124,8 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
   const isMyTeam = !isForeign && id === playerTeamId
 
-  // ロスター（1軍/2軍の区別なし）
-  const mainPlayers = (isForeign
-    ? players.filter(p => club!.playerIds.includes(p.id))
-    : players.filter(p => p.teamId === id && p.status !== 'retired'))
+  // ロスター（1軍/2軍の区別なし）。国内チームも海外クラブも判定は同じ
+  const mainPlayers = players.filter(p => belongsToClub(p, id))
     .sort((a, b) => ovr(b) - ovr(a))
   const teamSalary = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
 
@@ -218,8 +217,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     }
     // 今季未出走の現役選手も今季の所属として拾う（加入直後の選手を落とさない）
     for (const p of players) if (p.status !== 'retired') add(p.id, currentSeason.year, p.teamId)
-    // 海外クラブは現在の名簿からも今季所属を補う
-    if (isForeign) for (const pid of club!.playerIds) add(pid, currentSeason.year, id)
 
     const rows: MoveRow[] = []
     for (const [pid, ym] of app) {
