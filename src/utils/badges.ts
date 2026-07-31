@@ -100,8 +100,7 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
   for (const [key, entries] of Object.entries(src.segmentRecords ?? {})) {
     const top = entries?.[0]
     if (!top) continue
-    const isHolder = entries.some(e =>
-      e.timeSec === top.timeSec && (e.playerId ? e.playerId === p.id : e.playerName === p.name))
+    const isHolder = entries.some(e => e.timeSec === top.timeSec && e.playerId === p.id)
     if (!isHolder) continue
     const sep = key.lastIndexOf('-')
     const raceName = sep > 0 ? key.slice(0, sep) : key

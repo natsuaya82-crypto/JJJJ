@@ -6,6 +6,7 @@ import { safeRatings } from '../../engine/raceEngine'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from './BadgeContent'
 import { useGameStore } from '../../store/gameStore'
+import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
@@ -50,7 +51,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
   const seasonAwards = useGameStore(s => s.seasonAwards)
-  const segmentRecords = useGameStore(s => s.segmentRecords)
+  const segmentRecords = useSegmentRecords()
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)

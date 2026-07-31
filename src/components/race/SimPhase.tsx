@@ -10,7 +10,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
 import { useAdHeight } from '../layout/Layout'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { useGameStore } from '../../store/gameStore'
+import { useSegmentRecords } from '../../lib/useSegmentRecords'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
@@ -714,7 +714,7 @@ export function SegmentResultCard({
   const winner = seg.runners[0]
   const isMyWin = winner?.teamId === playerTeamId
   // 区間新の判定：この時点の歴代記録（レース確定前なので従来記録のまま）を1位が上回っていれば区間新
-  const segRecords = useGameStore(s => s.segmentRecords) ?? {}
+  const segRecords = useSegmentRecords()
   const prevBestSec = (segRecords[`${race.name}-${seg.segmentIndex}`] ?? [])[0]?.timeSec ?? null
   const isNewRecord = showRecordBadge && prevBestSec != null && winner != null && winner.timeSec < prevBestSec
   const myRunner = seg.runners.find(r => r.teamId === playerTeamId)

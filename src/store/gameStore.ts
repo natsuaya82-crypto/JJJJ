@@ -41,6 +41,7 @@ import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/l
 import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
 import { generateSponsorOffers } from '../data/sponsors'
 import { computeSeasonAwards } from '../utils/awards'
+import { segmentRecordsOf } from '../utils/segmentRecords'
 
 type DraftState = {
   pool: Player[]
@@ -563,7 +564,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     jewels: 0,
     starredOpponents: [],
     starredProspects: [],
-    segmentRecords: {},
     // 世界記録・日本記録は空から始め、ゲーム内選手の実走タイムだけで記録を作る
     // （架空のベースライン保持者は廃止。記録保持者には必ずパッチが付く）
     worldRecords: {},
@@ -1604,45 +1604,31 @@ export const useGameStore = create<GameStore>()(
             existing: state.achievements ?? [],
           })
 
-          // Update all-time segment records
-          const updatedSegmentRecords = { ...(state.segmentRecords ?? {}) }
+          // 区間新記録の判定。
+          // 歴代記録はセーブに貯めず、保存してあるレース結果から数え直す。
+          // このレースの結果はまだ currentSeason に入っていないので、これは「今走ったレースの前の記録」になる。
+          const prevSegRecords = segmentRecordsOf(state.pastSeasons, state.currentSeason)
           // 区間新記録が出たらニュースにする（過去記録がある区間で更新された場合のみ）
           const segRecordNewsItems: typeof newsItems = []
           // 結果画面の「区間新！」バッジ用（このレースで従来記録を破った区間×選手）
           const newSegRecordMarks: { segmentIndex: number; playerId: string }[] = []
           for (const sr of results.segmentResults) {
-            const key = `${race.name}-${sr.segmentIndex}`
-            const existing = updatedSegmentRecords[key] ?? []
-            const prevBest = existing[0]?.timeSec ?? null
-            const newEntries = sr.runners.map(r => {
-              const pl = state.players.find(x => x.id === r.playerId)
-              const tm = state.teams.find(x => x.id === r.teamId)
-              return { playerName: pl?.name ?? '不明', teamShort: tm?.shortName ?? '?', playerId: r.playerId, teamId: r.teamId, timeSec: r.timeSec, year: state.currentSeason.year }
-            })
-            const fastestNew = newEntries.length > 0
-              ? newEntries.reduce((min, e) => e.timeSec < min.timeSec ? e : min, newEntries[0])
+            const prevBest = (prevSegRecords[`${race.name}-${sr.segmentIndex}`] ?? [])[0]?.timeSec ?? null
+            const fastestRunner = sr.runners.length > 0
+              ? sr.runners.reduce((min, r) => r.timeSec < min.timeSec ? r : min, sr.runners[0])
               : null
-            if (prevBest != null && fastestNew && fastestNew.timeSec < prevBest) {
-              const fastestRunner = sr.runners.find(r => r.timeSec === fastestNew.timeSec)
-              const isMine = fastestRunner?.teamId === playerTeamId
-              if (fastestRunner) newSegRecordMarks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
+            if (prevBest != null && fastestRunner && fastestRunner.timeSec < prevBest) {
+              const isMine = fastestRunner.teamId === playerTeamId
+              const plName = state.players.find(x => x.id === fastestRunner.playerId)?.name ?? '不明'
+              const tmShort = state.teams.find(x => x.id === fastestRunner.teamId)?.shortName ?? '?'
+              newSegRecordMarks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
               segRecordNewsItems.push({
                 date: race.date,
-                headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${fastestNew.playerName}（${fastestNew.teamShort}）${fmtTime(fastestNew.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
+                headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${fmtTime(fastestRunner.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
                 category: 'race' as const,
-                relatedIds: fastestRunner ? [fastestRunner.playerId] : [],
+                relatedIds: [fastestRunner.playerId],
               })
             }
-            // 同一選手は最速の1本だけ残す（同じ選手が何行も並ばないように）。旧データはplayerIdが無いことがあるので名前で代用
-            const bestByPlayer = new Map<string, (typeof existing)[0]>()
-            for (const e of [...existing, ...newEntries]) {
-              const pkey = e.playerId ?? e.playerName
-              const cur = bestByPlayer.get(pkey)
-              if (!cur || e.timeSec < cur.timeSec) bestByPlayer.set(pkey, e)
-            }
-            updatedSegmentRecords[key] = [...bestByPlayer.values()]
-              .sort((a, b) => a.timeSec - b.timeSec)
-              .slice(0, 10)
           }
 
           const raceJewels =
@@ -1886,7 +1872,6 @@ export const useGameStore = create<GameStore>()(
             raceNewSegmentRecords: newSegRecordMarks,
             achievements: [...(state.achievements ?? []), ...raceAchievements],
             gmRep: state.gmRep ?? 50,   // 評判はシーズン終了時の目標達成率でのみ変動
-            segmentRecords: updatedSegmentRecords,
             // 交渉ごとの札は最後にまとめて片付ける。選手が動いていれば、その選手の話は前提が崩れている
             currentSeason: reconcileTalks({
               ...state.currentSeason,
@@ -4255,42 +4240,29 @@ export const useGameStore = create<GameStore>()(
           relatedIds: [race.id],
         }]
 
-        // 区間記録の更新（JPELの駅伝と同じ仕組み。コースは固定10種なので年をまたいで記録が競われ、保持者には区間記録パッチが付く）
-        const updatedSegmentRecords = { ...(state.segmentRecords ?? {}) }
+        // 区間記録の判定（JPELの駅伝と同じ仕組み。コースは固定10種なので年をまたいで記録が競われ、保持者には区間記録パッチが付く）。
+        // 歴代記録は保存してあるレース結果から数え直す。今走った結果はまだ入っていないので「走る前の記録」になる
+        const prevSegRecordsEcl = segmentRecordsOf(state.pastSeasons, state.currentSeason)
         const newSegRecordMarksEcl: { segmentIndex: number; playerId: string }[] = []
         const shortById = new Map(participants.map(pt => [pt.id, pt.shortName]))
         for (const sr of result.raceResults?.segmentResults ?? []) {
-          const key = `${race.name}-${sr.segmentIndex}`
-          const existing = updatedSegmentRecords[key] ?? []
-          const prevBest = existing[0]?.timeSec ?? null
-          const newEntries = sr.runners.map(r => {
-            const pl = state.players.find(x => x.id === r.playerId)
-            return { playerName: pl?.name ?? '不明', teamShort: shortById.get(r.teamId) ?? '?', playerId: r.playerId, teamId: r.teamId, timeSec: r.timeSec, year }
-          })
-          const fastestNew = newEntries.length > 0
-            ? newEntries.reduce((min, e) => e.timeSec < min.timeSec ? e : min, newEntries[0])
+          const prevBest = (prevSegRecordsEcl[`${race.name}-${sr.segmentIndex}`] ?? [])[0]?.timeSec ?? null
+          const fastestRunner = sr.runners.length > 0
+            ? sr.runners.reduce((min, r) => r.timeSec < min.timeSec ? r : min, sr.runners[0])
             : null
           // 区間新記録が出たらニュースにする（過去記録がある区間で更新された場合のみ）
-          if (prevBest != null && fastestNew && fastestNew.timeSec < prevBest) {
-            const isMine = fastestNew.teamId === state.playerTeamId
+          if (prevBest != null && fastestRunner && fastestRunner.timeSec < prevBest) {
+            const isMine = fastestRunner.teamId === state.playerTeamId
+            const plName = state.players.find(x => x.id === fastestRunner.playerId)?.name ?? '不明'
+            const tmShort = shortById.get(fastestRunner.teamId) ?? '?'
             newsItems.push({
               date: race.date,
-              headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${fastestNew.playerName}（${fastestNew.teamShort}）${fmtTime(fastestNew.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
+              headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${fmtTime(fastestRunner.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
               category: 'race' as const,
-              relatedIds: fastestNew.playerId ? [fastestNew.playerId] : [],
+              relatedIds: [fastestRunner.playerId],
             })
-            if (fastestNew.playerId) newSegRecordMarksEcl.push({ segmentIndex: sr.segmentIndex, playerId: fastestNew.playerId })
+            newSegRecordMarksEcl.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
           }
-          // 同一選手は最速の1本だけ残す（同じ選手が何行も並ばないように）
-          const bestByPlayer = new Map<string, (typeof existing)[0]>()
-          for (const e of [...existing, ...newEntries]) {
-            const pkey = e.playerId ?? e.playerName
-            const cur = bestByPlayer.get(pkey)
-            if (!cur || e.timeSec < cur.timeSec) bestByPlayer.set(pkey, e)
-          }
-          updatedSegmentRecords[key] = [...bestByPlayer.values()]
-            .sort((a, b) => a.timeSec - b.timeSec)
-            .slice(0, 10)
         }
 
         let updatedTeams = state.teams
@@ -4383,7 +4355,6 @@ export const useGameStore = create<GameStore>()(
         return {
           teams: updatedTeams,
           players: updatedPlayers,
-          segmentRecords: updatedSegmentRecords,
           // 自チームが出ていない観戦シリーズは裏で自動消化されるので、獲得ゼロのときは
           // 未表示の内訳（前のレースぶん）を消さないようキーごと書かない
           ...(eclJewels > 0 ? {
@@ -5696,8 +5667,8 @@ export const useGameStore = create<GameStore>()(
           //    削除した選手は removedPlayers に「名前・国籍」だけ残すので、過去レースの区間配置や
           //    移籍履歴では名前も顔もそのまま出る（選手詳細だけ開けなくなる）。
           const protectedIds = new Set<string>()
-          for (const list of Object.values(state.segmentRecords ?? {})) {
-            for (const r of list) if (r.playerId) protectedIds.add(r.playerId)
+          for (const list of Object.values(segmentRecordsOf(state.pastSeasons, state.currentSeason))) {
+            for (const r of list) protectedIds.add(r.playerId)
           }
           for (const rec of [...Object.values(state.worldRecords ?? {}), ...Object.values(state.japanRecords ?? {})]) {
             if (!rec) continue
@@ -7148,7 +7119,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 24,
+      version: 25,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7463,6 +7434,12 @@ export const useGameStore = create<GameStore>()(
               next.history = his
               return next
             })
+          }
+          // v25: 区間記録（segmentRecords）を保存するのをやめる。
+          // 元になるレース結果は過去シーズンに全部残っていて消えないので、記録は表示のたびに数え直す。
+          // 貯めていたのはトップ10だけだったが、数え直すほうが取りこぼしが無く、セーブも軽くなる。
+          if (version < 25) {
+            delete s.segmentRecords
           }
           return s
         } catch (e) {

@@ -753,11 +753,11 @@ export type Achievement = {
   rarity: AchievementRarity
 }
 
+// 区間記録の1行。セーブには持たず、保存してあるレース結果から毎回数え直す（utils/segmentRecords.ts）。
+// 選手名・チーム名は選手IDとチームIDから引くので、ここには持たない
 export type SegmentRecord = {
-  playerName: string
-  teamShort: string
-  playerId?: string  // 旧セーブの記録には無い。表示側は名前からのフォールバック解決をする
-  teamId?: string
+  playerId: string
+  teamId: string
   timeSec: number
   year: number
 }
@@ -838,7 +838,6 @@ export type GameState = {
   totalLoginDays?: number
   lastAdDate?: string
   adsWatchedToday?: number
-  segmentRecords?: Record<string, SegmentRecord[]>
   transferHistory?: TransferRecord[]   // 移籍の成立記録（チーム詳細の移籍ページで移籍金・契約期間を表示するため）
   worldRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 世界記録（全選手の歴代1位）
   japanRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 日本記録（JPN選手の歴代1位）

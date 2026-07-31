@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { usePreviewStore } from '../../store/previewStore'
@@ -135,7 +136,7 @@ export default function PlayerSheet() {
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const starredProspects = useGameStore(s => s.starredProspects) ?? []
   const toggleStarProspect = useGameStore(s => s.toggleStarProspect)
-  const segmentRecords = useGameStore(s => s.segmentRecords) ?? {}
+  const segmentRecords = useSegmentRecords()
   // 記録パッチ（世界/日本記録・MVP・新人王・区間記録）の解決用
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)

@@ -3,6 +3,7 @@ import type { Club } from '../../utils/clubs'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
 import { useGameStore } from '../../store/gameStore'
+import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import PlayerFace from '../player/PlayerFace'
@@ -29,7 +30,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
   const seasonAwards = useGameStore(s => s.seasonAwards)
-  const segmentRecords = useGameStore(s => s.segmentRecords)
+  const segmentRecords = useSegmentRecords()
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
