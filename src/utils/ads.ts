@@ -71,9 +71,16 @@ export async function initAds(adsRemoved: boolean): Promise<void> {
   started = true
 
   try {
-    const { AdMob } = await import('@capacitor-community/admob')
+    const { AdMob, MaxAdContentRating } = await import('@capacitor-community/admob')
 
-    await AdMob.initialize()
+    // 出せる広告を「T（ティーン向け）」までに制限する。
+    // ここを指定しないとMA（成人向け）の広告まで流れてしまい、審査で弾かれる
+    // （App Store ガイドライン 2.5.18 / build 78 のリジェクト理由）。
+    // App Store Connect の年齢レーティングは 13+ にしてある。Tを超える広告を出すと不整合になるので、
+    // レーティングを下げるときはここも必ず合わせること。
+    // バナー・全画面・リワードはこの設定を共通で見るので、指定はここ1か所でよい。
+    // AdMob管理画面側の「広告レーティングを管理」もTにしておくこと（厳しい方が採用される）。
+    await AdMob.initialize({ maxAdContentRating: MaxAdContentRating.Teen })
 
     // ATT（App Tracking Transparency）：トラッキングに使うデータを集める前に許可を求める。
     // 未決定のときだけダイアログを出す。拒否されても広告は出る（非パーソナライズ化されるだけ）。
