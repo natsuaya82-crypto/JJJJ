@@ -31,6 +31,10 @@ import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
 import { squadPlayersOf, squadIdsOf, rebuildRosters } from '../utils/rosterSync'
+// 引退時の所属（レンタル中なら保有元）を求める。記録室の国内限定ランキングが見る
+import { retiredFromOf } from '../utils/domesticPlayers'
+// 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
+import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
 import { generateSponsorOffers } from '../data/sponsors'
 import { computeSeasonAwards } from '../utils/awards'
 
@@ -5306,7 +5310,9 @@ export const useGameStore = create<GameStore>()(
 
           // Apply retirements to player array
           const playersAfterRetire = playersAfterFA.map(p =>
-            retiringIds.has(p.id) ? { ...p, status: 'retired' as const, teamId: '', retiredYear: state.currentSeason.year } : p
+            // teamId は '' になるので、引退時の所属を retiredTeamId に控えてから消す
+            // （記録室の国内限定ランキングが、海外クラブで引退した選手を見分けられなくなるため）
+            retiringIds.has(p.id) ? { ...p, status: 'retired' as const, teamId: '', retiredTeamId: retiredFromOf(p), retiredYear: state.currentSeason.year } : p
           )
 
           // Auto contract renewal events for player-team players with yearsLeft === 1 after growth
@@ -5895,7 +5901,8 @@ export const useGameStore = create<GameStore>()(
           const LEAN_DROP_KEYS = ['ratings', 'exp', 'potentialBoosts', 'customCaps', 'segmentPBs', 'personalSponsors', 'predictedPick', 'ovrHistory', 'traits'] as const
           const leanRetired = (p: Player): Player => {
             // 歴代ドラフト・移籍履歴では引退選手にも総合値が出るので、消す前に総合値だけ控えておく
-            const q: Record<string, unknown> = { ...p, status: 'retired', teamId: '', fatigue: 0, form: 0, loan: undefined, faSinceYear: undefined, finalOvr: p.finalOvr ?? ovr(p) }
+            // teamId を空にする前に、引退時の所属を控える（上の引退処理を通っていない経路もここに来る）
+            const q: Record<string, unknown> = { ...p, status: 'retired', teamId: '', retiredTeamId: retiredFromOf(p), fatigue: 0, form: 0, loan: undefined, faSinceYear: undefined, finalOvr: p.finalOvr ?? ovr(p) }
             for (const k of LEAN_DROP_KEYS) delete q[k]
             return q as unknown as Player
           }
@@ -7417,7 +7424,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 20,
+      version: 21,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7668,6 +7675,13 @@ export const useGameStore = create<GameStore>()(
             if (cs && Array.isArray(cs.events)) {
               cs.events = cs.events.filter(ev => !(typeof ev?.id === 'string' && ev.id.startsWith('promo-')))
             }
+          }
+          // v21: 引退選手の「引退時の所属」を過去シーズンから推定して入れる。
+          // これが無いと、海外クラブで現役を終えた選手が記録室の国内ランキング
+          // （通算区間賞・通算MVP・記録会の歴代）に混ざったままになる。
+          // 判断が付かない選手には何も書かないので、既存の順位が急に変わることはない
+          if (version < 21) {
+            s.players = backfillRetiredTeamIds(s.players, s.pastSeasons)
           }
           return s
         } catch (e) {

@@ -268,6 +268,9 @@ export type Player = {
   faSinceYear?: number        // 無所属(FA)になったシーズン年。2季続けて無所属なら整理（引退/削除）される
   wasPlayerTeam?: boolean     // 一度でも自チームに所属したことがある印。長期整理で絶対に削除しないための目印
   retiredYear?: number        // 引退したシーズン年（選手詳細の「XXXX年引退」表示用。旧セーブは未設定）
+  retiredTeamId?: string      // 引退した時に所属していたチーム/クラブのID。引退すると teamId は '' になるため、
+                              // これが無いと「国内の選手か海外クラブの選手か」が後から判別できない。
+                              // 記録室の通算区間賞・通算MVP・記録会歴代（国内限定）の絞り込みに使う
   finalOvr?: number           // 引退時のOVR。引退選手は能力値そのものを消してセーブを軽くするので、
                               // 歴代ドラフト・移籍履歴で出す総合値だけこの1項目で残す
   potentialBoosts?: Partial<Record<CardStatKey, number>>  // ジュエルの上限解放で能力別上限に加算する値

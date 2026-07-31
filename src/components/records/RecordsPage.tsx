@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { GameStore } from '../../store/gameStore'
 import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, liveName } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
+import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward } from '../../types'
 import { C, alpha } from '../../styles/tokens'
@@ -44,10 +45,10 @@ export default function FranchiseRecordsPage() {
 
 // 個人ランキング（通算区間賞・MVP・歴代種目別記録会）
 export function IndividualRecordsPage() {
-  const { teams, players, currentSeason } = useGameStore()
+  const { teams, players, currentSeason, foreignLeagues } = useGameStore()
   return (
     <PageShell title="個人ランキング">
-      <PlayersTab players={players} teams={teams} currentSeason={currentSeason} />
+      <PlayersTab players={players} teams={teams} foreignLeagues={foreignLeagues} currentSeason={currentSeason} />
     </PageShell>
   )
 }
@@ -402,15 +403,16 @@ function LeagueTab({ teams, pastSeasons }: {
   )
 }
 
-function PlayersTab({ players, teams, currentSeason }: {
+function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
   players: GameStore['players']
   teams: GameStore['teams']
+  foreignLeagues: GameStore['foreignLeagues']
   currentSeason: GameStore['currentSeason']
 }) {
   const longPress = usePlayerLongPress()
-  // 国内チームIDセット（海外リーグ選手を除外するため）
-  const domesticTeamIds = new Set(teams.map(t => t.id))
-  const isDomestic = (p: GameStore['players'][0]) => p.teamId === '' || domesticTeamIds.has(p.teamId)
+  // 国内（JPEL）の記録として数えてよい選手かの判定は domesticPlayers.ts に集約。
+  // 引退すると teamId が空になるので、引退時の所属（retiredTeamId）を見て海外クラブ勢を外す
+  const isDomestic = useMemo(() => makeIsDomestic(teams, foreignLeagues), [teams, foreignLeagues])
 
   // キャリア記録は引退含む国内選手のみ
   const careerPlayers = players.filter(p =>
