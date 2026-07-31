@@ -1,9 +1,11 @@
-import type { ForeignLeague, Player, Team, Specialty } from '../types'
+import type { ForeignLeague, Player, Team, Specialty, TransferRecord } from '../types'
 import { SPECIALTY_LABELS } from '../types'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub } from '../utils/rosterSync'
+// 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
+import { movePlayer } from '../utils/movePlayer'
 
 const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
 
@@ -20,8 +22,9 @@ const foreignMinOvr = (country: string): number => FOREIGN_LEAGUE_MIN_OVR[countr
 const effectiveOvr = (p: Player): number => ovr(p) - Math.max(0, (p.age - 33) * 3)
 
 type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[]; major?: boolean }
-// 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す
-type TxRecord = { year: number; date: string; playerId: string; fromTeamId: string; toTeamId: string; fee: number; kind?: 'free' | 'trade'; years?: number }
+// 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す。
+// movePlayer が作る記録をそのまま積むので、型は本体の TransferRecord に合わせる
+type TxRecord = TransferRecord
 
 // シーズンオフに海外クラブ間の移籍（引き抜き）を発生させる。強いクラブが他クラブの
 // 主力を引き抜き、選手が国境・リーグを越えて移動する。プレイヤーは干渉しない（結果のみ）。
@@ -133,12 +136,20 @@ export function simulateForeignTransferMarket(params: {
 
   if (moves.length === 0) return { foreignLeagues, players, news: [], records: [] }
 
-  // players の teamId を更新
-  const moveDest = new Map(moves.map(m => [m.playerId, m.toClubId]))
-  const updatedPlayers = players.map(p => {
-    const dest = moveDest.get(p.id)
-    return dest ? { ...p, teamId: dest, joinedYear: year } : p
-  })
+  // 海外クラブ同士なので国内の名簿・お金は動かない。それでも同じ movePlayer を通すことで、
+  // 所属・加入年・移籍リストの札はがしが国内の移籍とまったく同じ後始末になる
+  let updatedPlayers: Player[] = players
+  const records: TxRecord[] = []
+  for (const m of moves) {
+    const r = movePlayer({ players: updatedPlayers, teams: [] }, m.playerId, m.toClubId, {
+      year, date: txDate, kind: 'free',
+      years: playerById.get(m.playerId)?.contract.yearsLeft,
+      toName: nameById.get(m.toClubId) ?? '',
+    })
+    if (!r.ok) continue
+    updatedPlayers = r.players
+    if (r.record) records.push(r.record)
+  }
 
   // クラブ側の名簿は持たない（所属は上で更新した players の teamId が唯一の記録）
   const updatedLeagues = foreignLeagues
@@ -158,7 +169,6 @@ export function simulateForeignTransferMarket(params: {
       relatedIds: [p.id],
     }))
 
-  const records: TxRecord[] = moves.map(m => ({ year, date: txDate, playerId: m.playerId, fromTeamId: m.fromClubId, toTeamId: m.toClubId, fee: 0, kind: 'free' as const, years: playerById.get(m.playerId)?.contract.yearsLeft }))
   return { foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }
 }
 
@@ -327,14 +337,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
 
   if (moves.length === 0) return { teams, foreignLeagues, players, news: [], records: [] }
 
-  const dest = new Map(moves.map(m => [m.playerId, m.toId]))
-  const updatedPlayers = players.map(p => {
-    const d = dest.get(p.id)
-    return d ? { ...p, teamId: d, joinedYear: year } : p
-  })
-  const updatedTeams: T[] = teams.map(t =>
-    (t.id === playerTeamId || !jpnRoster[t.id]) ? t
-      : ({ ...t, roster: { ...t.roster, main: jpnRoster[t.id] }, finance: { ...t.finance, budget: budget[t.id] } } as T))
   // クラブ側の名簿は持たない（所属は players の teamId が唯一の記録）
   const updatedLeagues = foreignLeagues
 
@@ -376,6 +378,21 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       }
     })
 
-  const records: TxRecord[] = moves.map((m, i) => ({ year, date: xbDate(i), playerId: m.playerId, fromTeamId: m.fromId, toTeamId: m.toId, fee: m.fee, years: playerById.get(m.playerId)?.contract.yearsLeft }))
-  return { teams: updatedTeams, foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }
+  // 反映は movePlayer に一本化。国内チームだけが teams に居るので、
+  // 海外へ売れば国内側が受け取り、海外から買えば国内側が払う——片側だけ動くのが正しい
+  let updatedPlayers: Player[] = players
+  let updatedTeams: Team[] = teams
+  const records: TxRecord[] = []
+  moves.forEach((m, i) => {
+    const r = movePlayer({ players: updatedPlayers, teams: updatedTeams }, m.playerId, m.toId, {
+      year, date: xbDate(i), fee: m.fee,
+      years: playerById.get(m.playerId)?.contract.yearsLeft,
+      toName: nameById.get(m.toId) ?? '',
+    })
+    if (!r.ok) return
+    updatedPlayers = r.players
+    updatedTeams = r.teams
+    if (r.record) records.push(r.record)
+  })
+  return { teams: updatedTeams as T[], foreignLeagues: updatedLeagues, players: updatedPlayers, news, records }
 }
