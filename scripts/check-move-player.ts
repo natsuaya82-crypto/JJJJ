@@ -22,7 +22,7 @@ const P = (id: string, teamId: string, extra: Partial<Player> = {}) =>
   ({ id, name: id, teamId, status: 'active', form: 50, contract: { annualSalary: 1000, yearsLeft: 2, faEligibleYear: 2030 }, ...extra }) as unknown as Player
 
 const T = (id: string, main: string[], budget = 1_000_000) =>
-  ({ id, name: `${id}クラブ`, roster: { main }, finance: { salaryTotal: 0, budget } }) as unknown as Team
+  ({ id, name: `${id}クラブ`, roster: { main }, finance: { budget } }) as unknown as Team
 
 // a:p1,p2 / b:p3 という素の状態を毎回作る
 const world = () => ({

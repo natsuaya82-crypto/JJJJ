@@ -548,7 +548,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
         ...t,
         roster: { main: [] },
         facilities: { trainingCamp: facLv, medicalCenter: facLv, scoutOffice: facLv, tacticsRoom: facLv },
-        finance: { ...t.finance, salaryTotal: 0, budget: rankBudgetGrant(t.initialRank) },
+        finance: { ...t.finance, budget: rankBudgetGrant(t.initialRank) },
       }
     }),
     players: basePlayers,
@@ -730,7 +730,6 @@ export const useGameStore = create<GameStore>()(
       startSetup: (setup) => {
         set(state => {
           const baseIds = BASE_PLAYERS.map(p => p.id)
-          const baseSalary = BASE_PLAYERS.reduce((s, p) => s + p.contract.annualSalary, 0)
           const renamedTeams = state.teams.map(t => {
             if (t.id === setup.teamId) {
               return {
@@ -743,7 +742,6 @@ export const useGameStore = create<GameStore>()(
                 region: setup.region?.trim() ? setup.region.trim() : t.region,
                 city: setup.city?.trim() ? setup.city.trim() : t.city,
                 isPlayerControlled: true,
-                finance: { ...t.finance, salaryTotal: baseSalary },
               }
             }
             if (t.isPlayerControlled && t.id !== setup.teamId) {
@@ -796,14 +794,13 @@ export const useGameStore = create<GameStore>()(
         )
         const { players: prPlayers } = generatePlayerInitialRoster(state.currentSeason.year)
         const prPlayersWithTeam = prPlayers.map(p => ({ ...p, teamId: state.playerTeamId }))
-        const prSalaryTotal = prPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
 
         const seededTeams = state.teams.map(t => t.id === state.playerTeamId
           ? {
               ...t,
               // 最弱スタート：初期予算は最下位(20位)グラント、施設は0から自分で建てる
               facilities: {},
-              finance: { ...t.finance, budget: rankBudgetGrant(20), salaryTotal: prSalaryTotal },
+              finance: { ...t.finance, budget: rankBudgetGrant(20) },
             }
           : t)
 
@@ -5478,7 +5475,7 @@ export const useGameStore = create<GameStore>()(
           const seasonRacesCount = state.currentSeason.races?.length ?? 10
           const teamsWithSeasonRewards = teamsWithFA.map(t => {
             if (t.id === state.playerTeamId) {
-              return { ...t, finance: { ...t.finance, budget: newBudget, salaryTotal: playerSalaryTotal, deficitStreak: newStreakMe } }
+              return { ...t, finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
             }
             const rank = sortedStandings.findIndex(s => s.teamId === t.id) + 1
             const sal = teamSalaryTotal(t.id)
@@ -5498,7 +5495,7 @@ export const useGameStore = create<GameStore>()(
             const b = computeNextSeasonBudget(cpuBudgetArgs)
             // 自チームと同じ判定：精算後の残高がマイナスなら連続赤字+1、プラスなら0
             const cpuStreak = b < 0 ? prevStreak + 1 : 0
-            return { ...t, finance: { ...t.finance, budget: b, salaryTotal: sal, deficitStreak: cpuStreak } }
+            return { ...t, finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
           })
 
           // Generate future draft picks (next 2 seasons) for each team based on final rank
@@ -6154,10 +6151,7 @@ export const useGameStore = create<GameStore>()(
                 }
               : p
             ),
-            teams: moved.teams.map(t => t.id === s.playerTeamId
-              ? { ...t, finance: { ...t.finance, salaryTotal: t.finance.salaryTotal + salary } }
-              : t
-            ),
+            teams: moved.teams,
             transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
             currentSeason: {
               ...s.currentSeason,
@@ -7170,7 +7164,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 23,
+      version: 24,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7464,6 +7458,24 @@ export const useGameStore = create<GameStore>()(
                 return { ...ps, zeroAppearances: (za as Record<string, unknown>[]).map(z => ({ playerId: z.playerId, teamId: z.teamId })) }
               })
             }
+          }
+          // v24: チームから、書くだけで誰も読んでいなかった持ち物を捨てる。
+          //  - logoUrl ... いつも空文字。ロゴの表示は logoId とチームIDで決めていた
+          //  - finance.salaryTotal ... 保存していたが参照する場所が無い。年俸の合計は要る時に選手から数える
+          //  - history.cupWins ... 増やす処理も出す画面も無かった
+          // 所属・成績・記録には触らないので消える情報は無い。セーブの容量だけ減る。
+          if (version < 24 && Array.isArray(s.teams)) {
+            s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+              const next = { ...t }
+              delete next.logoUrl
+              const fin = { ...((next.finance ?? {}) as Record<string, unknown>) }
+              delete fin.salaryTotal
+              next.finance = fin
+              const his = { ...((next.history ?? {}) as Record<string, unknown>) }
+              delete his.cupWins
+              next.history = his
+              return next
+            })
           }
           return s
         } catch (e) {

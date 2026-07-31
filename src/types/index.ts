@@ -487,14 +487,12 @@ export type Team = {
   region: string
   founded: number
   colors: { primary: string; secondary: string }
-  logoUrl: string
   logoId?: string   // プレイヤーが選んだプリセットロゴ（'logo_01'〜'logo_30'）。設定時はこれを最優先で表示。未設定なら従来のteamId基準ロゴ
 
   roster: {
     main: string[]
   }
   finance: {
-    salaryTotal: number
     budget: number
     deficitStreak?: number  // 連続赤字シーズン数（0=黒字）。赤字ペナルティの段階判定に使う
   }
@@ -516,7 +514,6 @@ export type Team = {
   history: {
     seasonResults: { year: number; rank: number; points: number }[]
     championships: number
-    cupWins: number
     legends?: {
       name: string
       specialty: Specialty
