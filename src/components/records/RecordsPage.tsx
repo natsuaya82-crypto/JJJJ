@@ -341,15 +341,35 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   // 自チームに在籍したことがある選手はセーブの整理でも消えない決まりなので、選手データから毎回作れる。
   // 引退時の所属（retiredTeamId）で自チーム引退かを見る。
   // ただし古いセーブには retiredTeamId が入っていない引退選手が居るので、
-  // その場合だけ「自チーム在籍歴あり」の印で拾う。
+  // その場合は選手詳細の「在籍履歴」と同じやり方で、最後に居たチームを出走記録から拾う。
+  const lastTeamOf = useMemo(() => {
+    const last = new Map<string, { year: number; teamId: string }>()
+    const put = (year: number, playerId: string, teamId: string) => {
+      if (!teamId) return
+      const cur = last.get(playerId)
+      if (!cur || year >= cur.year) last.set(playerId, { year, teamId })
+    }
+    for (const season of [...pastSeasons, currentSeason]) {
+      for (const race of [...(season.races ?? []), ...(season.secondTeamRaces ?? [])]) {
+        if (!race.results) continue
+        for (const sr of race.results.segmentResults) {
+          for (const r of sr.runners) put(season.year, r.playerId, r.teamId)
+        }
+      }
+      // 出走ゼロの年も在籍として数える（在籍履歴が0戦の行を出しているのと同じ）
+      for (const z of season.zeroAppearances ?? []) put(season.year, z.playerId, z.teamId)
+    }
+    return last
+  }, [pastSeasons, currentSeason])
+
   const myLegends = useMemo(() => players
     .filter(p => p.status === 'retired')
-    .filter(p => p.retiredTeamId === playerTeamId || (p.retiredTeamId == null && p.wasPlayerTeam === true))
+    .filter(p => p.retiredTeamId === playerTeamId || (p.retiredTeamId == null && lastTeamOf.get(p.id)?.teamId === playerTeamId))
     // 名選手の線引きは以前と同じ（区間賞5つ以上・優勝経験あり・4年以上のどれか）
     .filter(p => p.career.segmentWins >= 5 || p.career.championships >= 1 || p.yearsPro >= 4)
     .sort((a, b) => (b.retiredYear ?? 0) - (a.retiredYear ?? 0) || (b.finalOvr ?? 0) - (a.finalOvr ?? 0))
     .slice(0, 30)
-  , [players, playerTeamId])
+  , [players, playerTeamId, lastTeamOf])
 
   const legendPanel = (
       <CardPanel>
