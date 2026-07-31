@@ -20,7 +20,7 @@ export function generateRaceEvents(params: {
 }): GameEvent[] {
   const { players, playerTeamId, raceIndex, season, gmRep } = params
   const mainPlayers = players.filter(
-    p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status === 'active'
+    p => p.teamId === playerTeamId && p.status === 'active'
   )
 
   const recentTypes = new Set<GameEventType>(

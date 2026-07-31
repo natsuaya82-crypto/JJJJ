@@ -227,7 +227,7 @@ export function assignLineupByTerrain(roster: Player[], race: Race): Record<numb
 }
 
 export function buildAILineup(teamId: string, players: Player[], race: Race): Record<number, string> {
-  const available = players.filter(p => p.teamId === teamId && p.rosterTier === 'main' && p.status === 'active')
+  const available = players.filter(p => p.teamId === teamId && p.status === 'active')
   const sortedSegs = [...race.segments].sort((a, b) => Math.max(b.uphillPct, b.downhillPct) - Math.max(a.uphillPct, a.downhillPct))
   const used = new Set<string>()
   const lineup: Record<number, string> = {}

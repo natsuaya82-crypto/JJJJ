@@ -283,10 +283,8 @@ export default function TransferPage() {
         const foreignClubToLeague: Record<string, string> = {}
         for (const lg of allLeagues) for (const club of lg.clubs) foreignClubToLeague[club.id] = lg.id
 
-        const isForeignClubId = (tid: string) => foreignClubToLeague[tid] !== undefined
-
         const marketPlayers = players
-          .filter(p => p.teamId !== playerTeamId && p.status === 'active' && (p.teamId === '' || p.rosterTier === 'main' || isForeignClubId(p.teamId)))
+          .filter(p => p.teamId !== playerTeamId && p.status === 'active')
           .filter(p => f.search === '' || p.name.includes(f.search))
           .filter(p => f.spec === 'all' || p.specialty === f.spec)
           .filter(p => f.nat === 'all' || p.nationality === f.nat)
@@ -300,7 +298,7 @@ export default function TransferPage() {
               // 主力（データ上よく出場）は自チームが更新するので「契約切れ」候補から除外（移籍リスト入りは対象）
               const tr = currentSeason.currentRaceIndex
               const apps = seasonAppearances(p.id, currentSeason.races)
-              const frac = tr > 0 ? apps / tr : (p.rosterTier === 'main' ? 0.5 : 0)
+              const frac = tr > 0 ? apps / tr : 0.5
               return !!p.transferListed || !isDataKeyPlayer(p, frac, tr)
             }
             return true

@@ -3,7 +3,7 @@ import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import type { Player, RosterTier, Team } from '../../types'
+import type { Player, Team } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, formColor } from '../../utils/playerUtils'
@@ -78,8 +78,6 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
 }
 
 
-// 表示上限は単一情報源 ROSTER_MAX(30) を使う（旧40表示バグの修正）
-const TIER_MAX: Record<RosterTier, number> = { main: ROSTER_MAX, second: ROSTER_MAX }
 
 type SortKey = 'ovr' | 'age'
 
@@ -90,7 +88,7 @@ export default function TeamManagement() {
   const { teams, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, openContractInfo, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
-  const [activeTab, setActiveTab] = useState<RosterTier | 'loan'>('main')
+  const [activeTab, setActiveTab] = useState<'main' | 'loan'>('main')
   const [sortKey, setSortKey] = useState<SortKey>('ovr')
   const [searchQuery, setSearchQuery] = useState('')
   const [specFilter, setSpecFilter] = useState<string>('all')
@@ -113,14 +111,13 @@ export default function TeamManagement() {
   const team = teams.find(t => t.id === playerTeamId)
   if (!team) return null
 
-  const activeTier: RosterTier = activeTab === 'loan' ? 'main' : activeTab
   // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
   const loanedIn = allPlayers.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId && p.status !== 'retired')
   const rosterSalary = allPlayers.filter(p => p.teamId === playerTeamId && p.status !== 'retired').reduce((s, p) => s + p.contract.annualSalary, 0)
   // ロスター人数は一覧と同じ数え方（rosterSync）。roster配列の長さだとズレたとき表示だけ食い違う
   const rosterCount = squadPlayersOf(allPlayers, playerTeamId).length
   const fmtYen = (y: number) => y >= 100000000 ? `${(y / 100000000).toFixed(1)}億` : `${Math.round(y / 10000)}万`
-  const rawPlayers = activeTab === 'loan' ? loanedIn : getTeamPlayers(playerTeamId, activeTier)
+  const rawPlayers = activeTab === 'loan' ? loanedIn : getTeamPlayers(playerTeamId)
   const players = [...rawPlayers]
     .filter(p => searchQuery === '' || p.name.includes(searchQuery) || p.nameKana.includes(searchQuery))
     .filter(p => specFilter === 'all' || p.specialty === specFilter)
@@ -199,7 +196,7 @@ export default function TeamManagement() {
 
       {section === 'training' && (() => {
         const currentPlan = currentSeason.trainingPlan
-        const myMainPlayers = allPlayers.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status === 'active')
+        const myMainPlayers = allPlayers.filter(p => p.teamId === playerTeamId && p.status === 'active')
         const PLANS = [
           { key: null, label: '通常トレーニング', desc: '標準的な練習メニュー。特定の能力を強化しない。', effect: '変化なし', color: C.textDim, shadow: '#333' },
           { key: '持久重視', label: '持久重視', desc: 'スタミナ向上に特化したトレーニング。長距離レースに強くなる。', effect: 'スタミナ +1 (確率35%)', color: C.green, shadow: '#0d3d22' },
@@ -329,7 +326,7 @@ export default function TeamManagement() {
         <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.text }}>ロスター</span>
         {/* 20人未満は赤字で警告（下限15に近づいている） */}
         <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: rosterCount < 20 ? C.red : C.gold }}>
-          {rosterCount}<span style={{ fontSize: 11, color: C.textDim }}>/{TIER_MAX.main}</span>
+          {rosterCount}<span style={{ fontSize: 11, color: C.textDim }}>/{ROSTER_MAX}</span>
           {rosterCount < 20 && <span style={{ fontSize: 9, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
         </span>
         <span style={{ fontSize: 11, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
@@ -394,7 +391,7 @@ export default function TeamManagement() {
       {(() => {
         const mp = menuPlayerId ? allPlayers.find(p => p.id === menuPlayerId) : undefined
         const isRental = !!(mp?.loan && mp.loan.ownerTeamId !== playerTeamId)
-        const cardEnabled = !!mp && mp.rosterTier === 'main' && !isRental
+        const cardEnabled = !!mp && !isRental
         return (
           <ActionSheet
             open={!!mp}

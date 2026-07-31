@@ -645,7 +645,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
       })()
 
   const ovrTrend = (() => {
-        const myPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
+        const myPlayers = players.filter(p => p.teamId === playerTeamId)
         const yearOvrMap: Record<number, number[]> = {}
         for (const p of myPlayers) {
           for (const h of (p.ovrHistory ?? [])) {

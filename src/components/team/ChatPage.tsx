@@ -6,7 +6,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
-import { canSignContract, isSecondMember } from '../../data/rosterRules'
+import { canSignContract } from '../../data/rosterRules'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, GameEvent, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -786,13 +786,11 @@ function ChatView({
   )
 }
 
-// --- 他チーム（1軍/2軍を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
+// --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
 function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
   const { players, teams, playerTeamId, currentSeason, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
-  const mainP = players.filter(p => p.teamId === team.id && p.rosterTier === 'main' && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
-  const secondP = players.filter(p => p.teamId === team.id && isSecondMember(p) && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
-  const theirPlayers = [...mainP, ...secondP]
+  const theirPlayers = players.filter(p => p.teamId === team.id && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
   const myPlayersT = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan).sort((a, b) => ovr(b) - ovr(a))
   const myTeam = teams.find(t => t.id === playerTeamId)
 
@@ -814,7 +812,7 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
     // 主力は無条件拒否ではなく1.5倍の価値を要求される
     const keyPremium = (p: Player) => {
       const apps = seasonAppearances(p.id, currentSeason.races)
-      const frac = teamRaces > 0 ? apps / teamRaces : (p.rosterTier === 'main' ? 0.5 : 0)
+      const frac = teamRaces > 0 ? apps / teamRaces : 0.5
       return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
     }
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)

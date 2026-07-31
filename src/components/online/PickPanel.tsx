@@ -16,20 +16,16 @@ export type Order = { lineup: Record<number, string> }
 
 /**
  * 出走できる選手だけに絞る。本編のレース準備と同じ考え方。
- * 引退は除外。1軍（+レンタル）が区間数に足りなければ全員に広げ、
- * それでも足りなければ故障者も出せるようにする（詰み防止）。
+ * 引退だけ除外し、所属選手は全員出走できる。
  */
-export function usableRoster(roster: Player[], segCount: number): Player[] {
-  const alive = roster.filter(p => p.status !== 'retired')
-  let list = alive.filter(p => p.rosterTier === 'main' || !!p.loan)
-  if (list.filter(p => p.status !== 'injured').length < segCount) list = alive
-  return list
+export function usableRoster(roster: Player[]): Player[] {
+  return roster.filter(p => p.status !== 'retired')
 }
 
 /** おまかせ編成。未提出・回線落ちの人はこれで埋める。 */
 export function autoOrder(roster: Player[], course: MatchCourse, raceNo = 1): Order {
   const segCount = course.segments.length
-  const list = usableRoster(roster, segCount)
+  const list = usableRoster(roster)
   const healthy = list.filter(p => p.status !== 'injured')
   const pool = healthy.length >= segCount ? healthy : list
   return { lineup: assignLineupByTerrain(pool, courseToRace(course, raceNo)) }
@@ -58,7 +54,7 @@ export default function PickPanel({
 
   const race = useMemo(() => courseToRace(course, raceNo), [course, raceNo])
   const segCount = course.segments.length
-  const mainPlayers = useMemo(() => usableRoster(roster, segCount), [roster, segCount])
+  const mainPlayers = useMemo(() => usableRoster(roster), [roster])
 
   // 故障者は選べない（健常者だけで区間が埋まらないときは解禁）
   const unavailable = useMemo(() => {

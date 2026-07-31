@@ -57,7 +57,7 @@ const PERSONALITY_COLOR: Record<string, string> = { salary: C.orange, winning: C
 
 function getTeamNeeds(teamId: string, picks: PickLog[], allPlayers: Player[]): Specialty[] {
   const drafted = picks.filter(p => p.teamId === teamId).map(p => allPlayers.find(pl => pl.id === p.playerId)).filter(Boolean) as Player[]
-  const existing = allPlayers.filter(p => p.teamId === teamId && p.rosterTier === 'main')
+  const existing = allPlayers.filter(p => p.teamId === teamId)
   const all = [...existing, ...drafted]
   const specs: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const counts = specs.reduce((acc, s) => { acc[s] = all.filter(p => p.specialty === s).length; return acc }, {} as Record<Specialty, number>)
@@ -283,7 +283,7 @@ export default function DraftRoom() {
 
   const specOrder: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const myRosterSpecs = [
-    ...players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main').map(p => p.specialty),
+    ...players.filter(p => p.teamId === playerTeamId).map(p => p.specialty),
     ...picks.filter(pk => pk.teamId === playerTeamId).map(pk => players.find(p => p.id === pk.playerId)?.specialty).filter(Boolean) as Specialty[],
   ]
   const needSpec = specOrder.reduce<Specialty>((least, s) =>

@@ -8,7 +8,7 @@ import type { Player, Team } from '../types'
 // ■なぜ要るのか
 //   所属の持ち方が2つあった。
 //     (A) 選手側の player.teamId
-//     (B) チーム側の team.roster.main / roster.second（選手IDの一覧）
+//     (B) チーム側の team.roster.main（選手IDの一覧）
 //   出走メンバー選択・カード練習・人数上限の判定など、ほとんどの画面は (A) を見ているのに、
 //   ロスター画面とダッシュボードの注目選手だけが (B) を見ていた。
 //   トレードや獲得の処理で (A) だけ更新して (B) を更新し損ねると、
@@ -81,11 +81,10 @@ export function rebuildRosters(players: Player[], teams: Team[]): Team[] {
     const cur = t.roster
     const same = cur
       && cur.main.length === main.length
-      && (cur.second?.length ?? 0) === 0
       && cur.main.every((id, i) => id === main[i])
     if (same) return t
     changed = true
-    return { ...t, roster: { main, second: [] as string[] } }
+    return { ...t, roster: { main } }
   })
   return changed ? next : teams
 }

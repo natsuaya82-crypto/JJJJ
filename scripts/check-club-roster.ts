@@ -20,7 +20,7 @@ const check = (label: string, ok: boolean, detail = '') => {
 }
 
 const P = (id: string, teamId: string, extra: Partial<Player> = {}) =>
-  ({ id, name: id, teamId, status: 'active', rosterTier: 'main', contract: { annualSalary: 1000, yearsLeft: 2, faEligibleYear: 2030 }, ...extra }) as unknown as Player
+  ({ id, name: id, teamId, status: 'active', contract: { annualSalary: 1000, yearsLeft: 2, faEligibleYear: 2030 }, ...extra }) as unknown as Player
 
 console.log('\n[1] 所属の条件（国内チームでも海外クラブでも同じルール）')
 check('そのクラブの現役選手は所属', belongsToClub(P('a', 't1'), 't1'))
@@ -71,7 +71,7 @@ console.log('\n[4] 名簿(team.roster)に並べる人は、レンタル中を除
   check('レンタル中の選手は所属だが名簿には並べない',
     belongsToClub(loaned, 't1') && !isSquadMember(loaned, 't1'))
   const players = [P('m1', 't1'), loaned]
-  const teams = [{ id: 't1', roster: { main: [], second: [] } }] as unknown as Team[]
+  const teams = [{ id: 't1', roster: { main: [] } }] as unknown as Team[]
   const rebuilt = rebuildRosters(players, teams)
   check('組み直した名簿にレンタル中は入らない',
     rebuilt[0].roster.main.length === 1 && rebuilt[0].roster.main[0] === 'm1')

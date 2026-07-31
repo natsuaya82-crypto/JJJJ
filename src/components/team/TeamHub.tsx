@@ -13,7 +13,7 @@ export default function TeamHub() {
   const trainingCards = useGameStore(s => s.trainingCards) ?? []
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards) ?? []
   const myTeam = teams.find(t => t.id === playerTeamId)
-  const myPlayers = players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main')
+  const myPlayers = players.filter(p => p.teamId === playerTeamId)
   const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
   const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
   const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1

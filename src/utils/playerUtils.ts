@@ -420,10 +420,9 @@ export function playerConsentToMove(
   if (morale < 40) score += 0.2
   else if (morale >= 75) score -= 0.1
   score += consentBonus  // スカウト拠点などの交渉成立ボーナス
-  // 出場データによる移籍意欲：2軍・出場が少ない選手は出たがる。主力は残りたい。
+  // 出場データによる移籍意欲：出場が少ない選手は出たがる。主力は残りたい。
   const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
-  if (p.rosterTier === 'second') score += 0.35
-  else if (teamRaces >= 3 && playFraction < 0.4) score += 0.25   // 1軍でもほぼ出ていない＝出場機会を求める
+  if (teamRaces >= 3 && playFraction < 0.4) score += 0.25        // ほぼ出ていない＝出場機会を求める
   else if (key) score -= 0.3                                     // 主力（よく出ている）は動きにくい
   const ok = score >= 0.5
   const reason = ok ? ''

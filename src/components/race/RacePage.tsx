@@ -338,16 +338,8 @@ export default function RacePage() {
   const activeRaceIndex = (phase !== 'lineup' && lockedRace) ? lockedRaceIndex : raceIndex
 
   const segCount = race?.segments?.length ?? 6
-  let mainPlayers = players.filter(
-    p => p.teamId === playerTeamId && p.status !== 'retired'
-      // 1軍契約(main) or レンタル枠（1軍・2軍どちらのレースにも出場制限なし）
-      && (p.rosterTier === 'main' || !!p.loan)
-  )
-  // 【進行不可の安全弁1】出走できる選手が区間数に満たない場合はフラットロスター全員に拡張する
-  // （獲得・トレード経路で rosterTier 'second' が付いたまま残る選手が出走リストから漏れるため）
-  if (mainPlayers.filter(p => p.status !== 'injured').length < segCount) {
-    mainPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired')
-  }
+  // ロスターは1つだけ。所属している選手（レンタルで借りている選手も含む）は全員出走できる
+  const mainPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired')
   // 【進行不可の安全弁2】それでも健常者が区間数未満なら、負傷者の出走も許可する
   // （全区間を埋められないと「開始」も「スキップ」も出せず完全に詰むため）
   const allowInjured = mainPlayers.filter(p => p.status !== 'injured').length < segCount

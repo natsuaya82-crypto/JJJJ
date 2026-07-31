@@ -813,7 +813,6 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
         : (Math.random() < 0.08 ? rng(86, 93) : Math.min(92, rng(potential[0], potential[1]))),
       growthCurve,
       teamId: '__pool__',
-      rosterTier: 'main',
       contract: {
         yearsLeft: 4,
         annualSalary: calculateRookieSalary(rank),
@@ -863,7 +862,6 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
       potential: rng(90, 99),
       growthCurve: gc,
       teamId: '__pool__',
-      rosterTier: 'main',
       contract: { yearsLeft: 4, annualSalary: 40000000, faEligibleYear: year + 7 },
       nationality: 'JPN',
       origin: pOrig,
@@ -905,7 +903,6 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
       potential: rng(94, 99),
       growthCurve: 'late_bloomer',
       teamId: '__pool__',
-      rosterTier: 'main',
       contract: { yearsLeft: 4, annualSalary: calculateRookieSalary('A'), faEligibleYear: year + 7 },
       nationality: 'JPN',
       origin: lbOrig,
@@ -958,9 +955,9 @@ function rankForSalary(s: number): Rank {
 export function generateCpuRosters(
   teams: { id: string; initialRank?: number }[],
   year: number,
-): { cpuPlayers: Player[]; teamRosters: Record<string, { main: string[]; second: string[] }> } {
+): { cpuPlayers: Player[]; teamRosters: Record<string, { main: string[] }> } {
   const cpuPlayers: Player[] = []
-  const teamRosters: Record<string, { main: string[]; second: string[] }> = {}
+  const teamRosters: Record<string, { main: string[] }> = {}
   const usedNames = new Set<string>()
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
@@ -1015,7 +1012,7 @@ export function generateCpuRosters(
       ratings, specialty,
       potential: potentialVal,
       growthCurve,
-      teamId, rosterTier: 'main',
+      teamId,
       contract: {
         yearsLeft: rng(2, 4),
         annualSalary: 0,
@@ -1073,7 +1070,7 @@ export function generateCpuRosters(
     }
 
     // フラット化：全員を単一ロスター(main)へ。2軍は使わない
-    teamRosters[team.id] = { main: [...mainIds, ...dualIds, ...secondIds], second: [] }
+    teamRosters[team.id] = { main: [...mainIds, ...dualIds, ...secondIds] }
   }
 
   return { cpuPlayers, teamRosters }
@@ -1123,7 +1120,7 @@ export function generatePlayerInitialRoster(year: number): {
       ratings, specialty,
       potential: Math.min(92, rng(potential[0], potential[1])),
       growthCurve,
-      teamId: '', rosterTier: 'main',
+      teamId: '',
       contract: {
         yearsLeft: rng(2, 4),
         annualSalary: calculateRookieSalary(rank),
@@ -1387,7 +1384,6 @@ export function generateForeignLeaguePlayers(
           potential: potentialVal,
           growthCurve,
           teamId: club.id,
-          rosterTier: 'main',
           contract: {
             yearsLeft: rng(1, 3),
             annualSalary: 0,

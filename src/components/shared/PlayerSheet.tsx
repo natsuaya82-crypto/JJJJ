@@ -377,8 +377,8 @@ export default function PlayerSheet() {
   for (const ps of pastSeasons) {
     const z = (ps.zeroAppearances ?? []).find(e => e.playerId === player.id)
     if (z) {
-      const key = `${ps.year}|${z.teamId}|${z.tier}`
-      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, comp: z.tier, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
+      const key = `${ps.year}|${z.teamId}|main`
+      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, comp: 'main', races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
     }
   }
   // 現行シーズンは未出場でも「今年・現チーム」を必ず1行出す（0レースで空にしない）。

@@ -19,9 +19,9 @@ const check = (label: string, ok: boolean, detail = '') => {
 }
 
 const P = (id: string, teamId: string, extra: Partial<Player> = {}) =>
-  ({ id, name: id, teamId, status: 'active', rosterTier: 'main', contract: { annualSalary: 1000, yearsLeft: 2, faEligibleYear: 2030 }, ...extra }) as unknown as Player
-const T = (id: string, main: string[], second: string[] = []) =>
-  ({ id, name: id, roster: { main, second } }) as unknown as Team
+  ({ id, name: id, teamId, status: 'active', contract: { annualSalary: 1000, yearsLeft: 2, faEligibleYear: 2030 }, ...extra }) as unknown as Player
+const T = (id: string, main: string[], stray: string[] = []) =>
+  ({ id, name: id, roster: { main, second: stray } }) as unknown as Team
 
 console.log('\n[1] 在籍の条件')
 check('自チームの現役選手は在籍', isSquadMember(P('p1', 't1'), 't1'))
@@ -49,21 +49,20 @@ check('組み直すと名簿に入る', t1.roster.main.includes('p9'))
 check('負傷中の選手も名簿に残る', t1.roster.main.includes('p2'))
 check('引退した選手は名簿から消える', !t1.roster.main.includes('p4'))
 check('レンタル中の選手は名簿に入らない', !t1.roster.main.includes('p5'))
-check('2軍(second)は常に空', t1.roster.second.length === 0)
 check('他チームの名簿も正しい', JSON.stringify(fixed.find(t => t.id === 't2')!.roster.main) === JSON.stringify(['p3']))
 
 console.log('\n[3] 画面が使う一覧と名簿が一致する')
 check('squadIdsOf と名簿が一致', JSON.stringify(squadIdsOf(players, 't1')) === JSON.stringify(t1.roster.main))
 check('squadPlayersOf の人数が一致', squadPlayersOf(players, 't1').length === t1.roster.main.length)
-check('カード練習の条件（rosterTier==="main"）を全員が満たす',
-  squadPlayersOf(players, 't1').every(p => p.rosterTier === 'main'))
+check('カード練習の条件（在籍していること）を全員が満たす',
+  squadPlayersOf(players, 't1').every(p => p.teamId === 't1'))
 
 console.log('\n[4] 何度通しても壊れない')
 const once = rebuildRosters(players, brokenTeams)
 const twice = rebuildRosters(players, once)
 check('2回流しても結果が変わらない（冪等）', JSON.stringify(once) === JSON.stringify(twice))
 check('　変化が無いときは同じ配列をそのまま返す（無駄な保存を避ける）', rebuildRosters(players, once) === once)
-check('元のデータを書き換えていない', brokenTeams[0].roster.second.includes('p9'))
+check('元のデータを書き換えていない', !brokenTeams[0].roster.main.includes('p9'))
 check('選手が0人のチームでも落ちない', rebuildRosters([], brokenTeams).every(t => t.roster.main.length === 0))
 check('所属なし（FA）の選手はどこの名簿にも入らない',
   rebuildRosters([P('fa1', '')], brokenTeams).every(t => !t.roster.main.includes('fa1')))

@@ -98,7 +98,7 @@ export default function CardTrainingPage() {
 
   const mainPlayers = useMemo(
     // レンタル加入選手(loan付き＝他チーム所有)は育成対象外。カード合成できないように除外する。
-    () => players.filter(p => p.teamId === playerTeamId && p.rosterTier === 'main' && p.status !== 'retired' && !p.loan).sort((a, b) => ovr(b) - ovr(a)),
+    () => players.filter(p => p.teamId === playerTeamId && p.status !== 'retired' && !p.loan).sort((a, b) => ovr(b) - ovr(a)),
     [players, playerTeamId]
   )
 

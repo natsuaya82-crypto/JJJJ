@@ -190,13 +190,10 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const runnable = (p: Player | undefined): p is Player =>
     !!p && p.status !== 'retired' && p.status !== 'injured' && !p.loan && !excludeIds?.has(p.id) && p.joinedYear !== year
 
-  // main/secondを別々に持ち、人数はその合計で判定・除去は両方から行う
   const jpnRoster: Record<string, string[]> = {}
-  const jpnSecond: Record<string, string[]> = {}
   const budget: Record<string, number> = {}
   for (const t of cpuTeams) {
     jpnRoster[t.id] = [...(t.roster?.main ?? [])]
-    jpnSecond[t.id] = [...(t.roster?.second ?? [])]
     budget[t.id] = t.finance?.budget ?? 0
   }
   // 人数はroster配列でなくplayers基準で数える。レンタル返却直後などはplayers側（teamId）に
@@ -283,7 +280,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     if (sellers.length === 0) break
     const seller = weightedPick(sellers, t => Math.max(1, jpnSize(t.id) - ROSTER_MIN))
     // 候補はmain/second合わせた全在籍から（除去漏れ防止のため両方から外す）
-    const target = surplusTarget([...jpnRoster[seller.id], ...jpnSecond[seller.id]])
+    const target = surplusTarget(jpnRoster[seller.id])
     if (!target || moved.has(target.id)) continue
     // 買う側（海外クラブ）は上限(30)未満＋リーグの格にOVRが届くクラブのみ（弱い選手は格上リーグに行かない）
     const tOvr = effectiveOvr(target)
@@ -292,7 +289,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const buyer = pick(buyerPool)
     const fee = calcTransferValue(target)
     jpnRoster[seller.id] = jpnRoster[seller.id].filter(id => id !== target.id)
-    jpnSecond[seller.id] = jpnSecond[seller.id].filter(id => id !== target.id)
     sizeCount[seller.id] = Math.max(0, (sizeCount[seller.id] ?? 0) - 1)
     fRoster[buyer.id] = [...fRoster[buyer.id], target.id]
     budget[seller.id] += fee
@@ -310,7 +306,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     for (let i = 0; i < N_STAR; i++) {
       const sellers = cpuTeams.filter(t => jpnSize(t.id) > ROSTER_MIN)
       if (sellers.length === 0) break
-      const starPool = sellers.flatMap(t => [...jpnRoster[t.id], ...jpnSecond[t.id]]
+      const starPool = sellers.flatMap(t => jpnRoster[t.id]
         .map(id => playerById.get(id)).filter(runnable)
         .filter(p => !moved.has(p.id) && ovr(p) >= 82 && p.age <= 32)
         .map(p => ({ p, sellerId: t.id })))
@@ -321,7 +317,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       const buyer = pick(buyerPool)
       const fee = Math.round(calcTransferValue(target) * 1.25)
       jpnRoster[sellerId] = jpnRoster[sellerId].filter(id => id !== target.id)
-      jpnSecond[sellerId] = jpnSecond[sellerId].filter(id => id !== target.id)
       sizeCount[sellerId] = Math.max(0, (sizeCount[sellerId] ?? 0) - 1)
       fRoster[buyer.id] = [...fRoster[buyer.id], target.id]
       budget[sellerId] += fee
@@ -335,11 +330,11 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const dest = new Map(moves.map(m => [m.playerId, m.toId]))
   const updatedPlayers = players.map(p => {
     const d = dest.get(p.id)
-    return d ? { ...p, teamId: d, joinedYear: year, rosterTier: 'main' as const } : p
+    return d ? { ...p, teamId: d, joinedYear: year } : p
   })
   const updatedTeams: T[] = teams.map(t =>
     (t.id === playerTeamId || !jpnRoster[t.id]) ? t
-      : ({ ...t, roster: { ...t.roster, main: jpnRoster[t.id], second: jpnSecond[t.id] }, finance: { ...t.finance, budget: budget[t.id] } } as T))
+      : ({ ...t, roster: { ...t.roster, main: jpnRoster[t.id] }, finance: { ...t.finance, budget: budget[t.id] } } as T))
   // クラブ側の名簿は持たない（所属は players の teamId が唯一の記録）
   const updatedLeagues = foreignLeagues
 

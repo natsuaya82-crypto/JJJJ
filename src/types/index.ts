@@ -26,7 +26,6 @@ export type Nationality =
 export type ForeignCategory = 'domestic' | 'asian' | 'foreign'
 export type PlayerStatus = 'active' | 'injured' | 'retired' | 'draft_eligible'
 export type SeasonPhase = 'preseason' | 'regular' | 'postseason' | 'draft' | 'free_agency'
-export type RosterTier = 'main' | 'second'
 
 export type GameEventType =
   | 'player_fatigue'
@@ -240,8 +239,6 @@ export type Player = {
   potential: number
   growthCurve: GrowthCurve
   teamId: string
-  rosterTier: RosterTier
-  dualRegistered?: boolean
   injuredUntilRace?: number   // race index until player is available (injury system)
   injuryName?: string         // 負傷名（通知・ニュース表示用。復帰で消える）
   segmentPBs?: SegmentPB[]   // personal best times per terrain profile
@@ -495,7 +492,6 @@ export type Team = {
 
   roster: {
     main: string[]
-    second: string[]
   }
   finance: {
     salaryTotal: number
@@ -670,7 +666,7 @@ export type Season = {
   foreignAppsC?: Record<string, Record<string, [number, number, number, number]>>
   // 国内在籍で今季1度も出走しなかった選手の所属（シーズン終了時に保存）。
   // 在籍履歴は出走記録から行を作るため、これが無いと出なかった年の所属が消える
-  zeroAppearances?: { playerId: string; teamId: string; tier: 'main' | 'second' }[]
+  zeroAppearances?: { playerId: string; teamId: string }[]
   eclResult?: EclResult                                  // ECL最終結果（5戦消化後に確定）
   eclRace?: Race                                         // 旧・一発勝負時代のレース（旧セーブ互換のため残す）
   eclCourseId?: string                                   // 旧フィールド（互換のため残す）
