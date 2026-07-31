@@ -128,7 +128,34 @@ console.log('\n[6] 書き忘れが起きない仕掛け')
   check('元のデータを書き換えない', src.players[0].teamId === 'a' && src.teams[0].roster.main.includes('p1') && src.teams[0].finance.budget === 1_000_000)
 }
 
-console.log('\n[7] 名簿の組み直しと結果が食い違わない')
+console.log('\n[7] 引退も「所属が無くなる」だけの分岐')
+{
+  const r = movePlayer(world(), 'p1', '', { year: 2030, retire: true })
+  check('引退の印が付く', pl(r, 'p1').status === 'retired')
+  check('所属が無くなる', pl(r, 'p1').teamId === '')
+  check('引退時の所属を控える', pl(r, 'p1').retiredTeamId === 'a')
+  check('引退年が入る', pl(r, 'p1').retiredYear === 2030)
+  check('名簿から外れる', !tm(r, 'a').roster.main.includes('p1'))
+  check('引退は移籍履歴に残さない', r.record === null)
+  check('引退で退団のお知らせは出さない', movePlayer(world(), 'p1', '', { year: 2030, retire: true, myTeamId: 'a' }).notice === null)
+  check('加入年は書き換えない', pl(r, 'p1').joinedYear === undefined)
+
+  // レンタル中に引退したら、引退時の所属は借り手ではなく保有元
+  const lent = movePlayer(world(), 'p1', 'b', { year: 2030, until: 2031 })
+  const lentRetire = movePlayer(lent, 'p1', '', { year: 2031, retire: true })
+  check('レンタル中の引退は保有元を控える', pl(lentRetire, 'p1').retiredTeamId === 'a')
+  check('レンタルの印も消える', pl(lentRetire, 'p1').loan === undefined)
+
+  // 何度通しても結果が変わらない（整理の処理は毎シーズン全員に通るため）
+  const again = movePlayer(lentRetire, 'p1', '', { year: 2035, retire: true })
+  check('もう一度通しても引退年は変わらない', pl(again, 'p1').retiredYear === 2031)
+  check('もう一度通しても引退時の所属は変わらない', pl(again, 'p1').retiredTeamId === 'a')
+
+  // 引退した選手は、引退以外の呼び出しでは動かない
+  check('引退選手は移籍させられない', !movePlayer(r, 'p1', 'b', { year: 2031 }).ok)
+}
+
+console.log('\n[8] 名簿の組み直しと結果が食い違わない')
 {
   // rebuildRosters は所属から名簿を作り直す処理。movePlayer の結果がそれと一致していれば、
   // セーブを読み直した瞬間に選手が消えたり増えたりしない
@@ -136,6 +163,7 @@ console.log('\n[7] 名簿の組み直しと結果が食い違わない')
     { label: '移籍のあと', r: movePlayer(world(), 'p1', 'b', { year: 2030, fee: 100 }) },
     { label: 'レンタルのあと', r: movePlayer(world(), 'p1', 'b', { year: 2030, until: 2031 }) },
     { label: '放出のあと', r: movePlayer(world(), 'p1', '', { year: 2030 }) },
+    { label: '引退のあと', r: movePlayer(world(), 'p1', '', { year: 2030, retire: true }) },
   ]
   for (const c of cases) {
     const rebuilt = rebuildRosters(c.r.players, c.r.teams)

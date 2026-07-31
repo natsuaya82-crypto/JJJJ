@@ -1,6 +1,8 @@
 import type { ContractType } from '../data/rosterRules'
 import { canSignContract } from '../data/rosterRules'
 import type { Player, Team, TeamRole, TransferRecord } from '../types'
+import { retiredFromOf } from './domesticPlayers'
+import { ovr } from './playerUtils'
 
 // ============================================================================
 // 「選手がクラブを移る」を扱う唯一の場所。
@@ -22,12 +24,17 @@ import type { Player, Team, TeamRole, TransferRecord } from '../types'
 //   移動元(from)は渡さずに選手の今の所属から取る。呼び出し側が古い値を渡す事故を無くすため。
 //   レンタル中の選手を戻すときも、今居るクラブ(借り手)が移動元になる。
 //
+//   引退も「所属が無くなる」だけなので、ここの分岐(retire)で扱う。
+//   引退だけ別に手書きしていたせいで、引退時の所属の控え忘れ・名簿からの外し忘れが
+//   3ヶ所でそれぞれ起きていた。
+//
 // ■ここでやること / やらないこと
 //   やる   … 所属(teamId)、名簿(roster.main)の出し入れ、移籍金の受け渡し、
 //            加入年・加入節、レンタルの設定と解除、移籍リスト/海外移籍リストの札はがし、
-//            調子リセット、再移籍の禁止期限、契約内容、移籍履歴と退団のお知らせの下書き
+//            調子リセット、再移籍の禁止期限、契約内容、移籍履歴と退団のお知らせの下書き、
+//            引退（所属を消して引退時の所属を控える）
 //   やらない… ニュース記事の文面（入口ごとに書き分けたいので呼び出し側で作る）、
-//            引退の処理（移籍ではないので別扱い）
+//            引退選手のデータ削り（セーブを軽くする話で、移動とは別）
 // ============================================================================
 
 export type MoveOptions = {
@@ -63,6 +70,8 @@ export type MoveOptions = {
   money?: boolean
   // true で人数上限（ROSTER_MAX）を超えるなら移動させない
   checkCapacity?: boolean
+  // true で引退。移動先は無視して無所属になり、引退時の所属を控える
+  retire?: boolean
 }
 
 export type DepartureNotice = {
@@ -135,23 +144,26 @@ export function movePlayer(
 
   const player = players.find(p => p.id === playerId)
   if (!player) return fail()
-  // 引退した選手は動かさない（うっかり復活させないための歯止め）
-  if (player.status === 'retired') return fail(player.teamId)
+  // 引退した選手は動かさない（うっかり復活させないための歯止め）。
+  // 引退の呼び出しだけは通す（すでに引退済みでも同じ形に整えるだけなので何度通しても同じ）
+  if (player.status === 'retired' && !opts.retire) return fail(player.teamId)
 
+  // 引退は行き先が無い。呼び出し側が何を渡しても無所属にする
+  const dest = opts.retire ? '' : toTeamId
   const fromTeamId = player.teamId
   // 同じクラブへの移動は何もしない。ただし契約更新など中身だけ変える呼び出しは通す
-  const clubChanged = fromTeamId !== toTeamId
-  if (opts.checkCapacity && clubChanged && toTeamId && !canSignContract(players, toTeamId)) return fail(fromTeamId)
+  const clubChanged = fromTeamId !== dest
+  if (opts.checkCapacity && clubChanged && dest && !canSignContract(players, dest)) return fail(fromTeamId)
 
   const fee = Math.max(0, Math.round(opts.fee ?? 0))
   const onLoan = opts.until != null
   // レンタルの期限が来て保有元へ帰るだけの移動。移籍ではないので履歴には残さない
-  const backToOwner = !onLoan && !!player.loan && toTeamId === player.loan.ownerTeamId
+  const backToOwner = !onLoan && !!player.loan && dest === player.loan.ownerTeamId
 
   const nextPlayers = players.map(p => {
     if (p.id !== playerId) return p
-    const q: Player = { ...p, teamId: toTeamId }
-    if (clubChanged) {
+    const q: Player = { ...p, teamId: dest }
+    if (clubChanged && !opts.retire) {
       q.form = 0
       q.joinedYear = opts.year
       if (opts.raceIndex != null) q.acquiredRaceIndex = opts.raceIndex
@@ -161,9 +173,21 @@ export function movePlayer(
     q.overseasListed = undefined
     // レンタルの設定と解除。保有元は「すでにレンタル中ならその保有元」を引き継ぐ
     q.loan = onLoan ? { ownerTeamId: p.loan?.ownerTeamId ?? fromTeamId, untilYear: opts.until! } : undefined
-    if (toTeamId) {
+    if (dest) {
       q.status = 'active'
       q.faSinceYear = undefined
+    }
+    if (opts.retire) {
+      // teamId を消す前に引退時の所属を控える。レンタル中なら保有元。
+      // これが無いと記録室の国内限定ランキングが、海外で引退した選手を見分けられなくなる
+      q.retiredTeamId = retiredFromOf(p)
+      q.retiredYear = p.retiredYear ?? opts.year
+      q.status = 'retired'
+      q.form = 0
+      q.fatigue = 0
+      q.faSinceYear = undefined
+      // 引退後は能力が消えるので、歴代ドラフト・移籍履歴の表示用に総合値だけ控える
+      q.finalOvr = p.finalOvr ?? ovr(p)
     }
     if (opts.contract) q.contract = { ...p.contract, ...opts.contract }
     if (opts.teamRole) q.teamRole = opts.teamRole
@@ -172,19 +196,19 @@ export function movePlayer(
   })
 
   // 名簿に載るのは「所属していて、引退でもレンタル中でもない」選手だけ
-  const inSquad = !!toTeamId && !onLoan
-  let nextTeams = withRoster(teams, playerId, toTeamId, inSquad)
-  if (opts.money !== false) nextTeams = withMoney(nextTeams, fromTeamId, toTeamId, fee)
+  const inSquad = !!dest && !onLoan
+  let nextTeams = withRoster(teams, playerId, dest, inSquad)
+  if (opts.money !== false) nextTeams = withMoney(nextTeams, fromTeamId, dest, fee)
 
   // 移籍履歴。レンタル・レンタルからの復帰・放出（無所属になるだけ）は残さない
-  const keepHistory = opts.history !== false && clubChanged && !onLoan && !backToOwner && !!toTeamId
+  const keepHistory = opts.history !== false && clubChanged && !onLoan && !backToOwner && !!dest
   const record: TransferRecord | null = keepHistory
     ? {
         year: opts.year,
         ...(opts.date ? { date: opts.date } : {}),
         playerId,
         fromTeamId,
-        toTeamId,
+        toTeamId: dest,
         fee,
         ...(opts.kind ? { kind: opts.kind } : {}),
         ...(opts.years != null ? { years: opts.years } : {}),
@@ -192,15 +216,16 @@ export function movePlayer(
     : null
 
   // 退団のお知らせは自チームから出ていくときだけ
-  const toName = opts.toName ?? teams.find(t => t.id === toTeamId)?.name ?? ''
-  const leavingMyTeam = !!opts.myTeamId && clubChanged && fromTeamId === opts.myTeamId
+  const toName = opts.toName ?? teams.find(t => t.id === dest)?.name ?? ''
+  // 引退は退団のお知らせを出さない（引退のニュースは呼び出し側で別に作っている）
+  const leavingMyTeam = !!opts.myTeamId && clubChanged && !opts.retire && fromTeamId === opts.myTeamId
   const notice: DepartureNotice | null = leavingMyTeam
     ? {
         id: `dep_${playerId}`,
         playerId,
         playerName: player.name,
         toTeamName: toName,
-        reason: opts.reason ?? (onLoan || backToOwner ? 'loan' : toTeamId ? 'transfer' : 'fa'),
+        reason: opts.reason ?? (onLoan || backToOwner ? 'loan' : dest ? 'transfer' : 'fa'),
         ...(fee > 0 ? { fee } : {}),
         ...(opts.years != null ? { years: opts.years } : {}),
       }
@@ -214,7 +239,7 @@ export function movePlayer(
     from: fromTeamId,
     record,
     notice,
-    spend: moneyOn && opts.myTeamId && toTeamId === opts.myTeamId ? fee : 0,
+    spend: moneyOn && opts.myTeamId && dest === opts.myTeamId ? fee : 0,
     income: moneyOn && opts.myTeamId && fromTeamId === opts.myTeamId ? fee : 0,
   }
 }
