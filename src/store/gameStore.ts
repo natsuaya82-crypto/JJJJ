@@ -18,7 +18,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost } from '../utils/playerUtils'
+import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import type { PerfProfile } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
@@ -1169,6 +1169,8 @@ export const useGameStore = create<GameStore>()(
           const medLvByTeam = new Map(state.teams.map(t => [t.id, t.facilities?.medicalCenter ?? 0]))
           const baseFatigueGain = Math.min(14, 4 + race.segments.length * 1.5) * stratMult
           const updatedPlayers = state.players.map(p => {
+            // 引退選手は能力値を消してセーブを軽くしてあるので、疲労計算の対象外
+            if (!p.ratings || p.status === 'retired') return p
             if (racingIds.has(p.id)) {
               const medMult = 1 - (medLvByTeam.get(p.teamId) ?? 0) * 0.08
               // recovery stat reduces fatigue gain: recovery=50→normal, recovery=90→-12%
@@ -6075,7 +6077,9 @@ export const useGameStore = create<GameStore>()(
             // 記録会の全結果（毎年約1MB）・ニュース・チャットログ等は一度も読まれないため空にして保存する
             pastSeasons: [...state.pastSeasons, {
               ...state.currentSeason,
-              foreignAppearances: archivedForeignApps,
+              // 過去ぶんは圧縮した形だけ持つ（読む側は foreignAppsOf() が両対応）
+              foreignAppearances: undefined,
+              foreignAppsC: packForeignApps(archivedForeignApps),
               foreignStandings: archivedForeignStandings,
               zeroAppearances,
               objectives: completedObjs,
@@ -7850,9 +7854,12 @@ export const useGameStore = create<GameStore>()(
             let repaired = 0
             const players = p.players.map(pl => {
               if (!pl || typeof pl !== 'object') return pl
-              const badRatings = !pl.ratings || typeof pl.ratings !== 'object'
+              // 引退選手は能力値を「わざと」消してセーブを軽くしているので、壊れている扱いにしない。
+              // ここで埋め戻すと毎回の起動でセーブが元の大きさに戻り、さらに引退時の総合値(finalOvr)ではなく
+              // でっちあげた数値が歴代ドラフト等に表示されてしまう。契約(contract)の修復は引退選手にも要る。
+              const badRatings = pl.status !== 'retired' && (!pl.ratings || typeof pl.ratings !== 'object'
                 || !['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-                  .every(k => Number.isFinite((pl.ratings as unknown as Record<string, number>)[k]))
+                  .every(k => Number.isFinite((pl.ratings as unknown as Record<string, number>)[k])))
               const badContract = !pl.contract || typeof pl.contract !== 'object'
                 || !Number.isFinite(pl.contract.yearsLeft) || !Number.isFinite(pl.contract.annualSalary)
               if (!badRatings && !badContract) return pl

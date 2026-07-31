@@ -172,6 +172,46 @@ function ovrSalary(o: number): number {
   return pts[pts.length - 1][1]
 }
 
+// ── 海外リーグ出場記録の圧縮 ──
+// 選手ごとに { clubId, races, wins, rankSum, rankedRaces } と項目名を毎回書くと
+// 1シーズンあたり約380KB、10年で約4MBになる。過去シーズンに送るときだけ
+// 「クラブID → 選手ID → [出場, 区間賞, 順位合計, 順位カウント]」の形に詰め替えて約半分にする。
+// 今季ぶん（毎レース書き足す）は今までどおりの形のまま。
+// 読む側は必ず foreignAppsOf() を通すこと。旧セーブの古い形もそのまま読める。
+export type ForeignApp = { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }
+export type ForeignAppsPacked = Record<string, Record<string, [number, number, number, number]>>
+export type ForeignAppSeasonLike = {
+  foreignAppearances?: Record<string, ForeignApp>
+  foreignAppsC?: ForeignAppsPacked
+}
+
+const foreignAppsCache = new WeakMap<object, Record<string, ForeignApp>>()
+
+export function foreignAppsOf(s: ForeignAppSeasonLike | undefined): Record<string, ForeignApp> {
+  if (!s) return {}
+  if (s.foreignAppearances) return s.foreignAppearances
+  const packed = s.foreignAppsC
+  if (!packed) return {}
+  const cached = foreignAppsCache.get(s as object)
+  if (cached) return cached
+  const out: Record<string, ForeignApp> = {}
+  for (const [clubId, byPlayer] of Object.entries(packed)) {
+    for (const [pid, v] of Object.entries(byPlayer)) {
+      out[pid] = { clubId, races: v[0], wins: v[1], rankSum: v[2], rankedRaces: v[3] }
+    }
+  }
+  foreignAppsCache.set(s as object, out)
+  return out
+}
+
+export function packForeignApps(m: Record<string, ForeignApp>): ForeignAppsPacked {
+  const out: ForeignAppsPacked = {}
+  for (const [pid, a] of Object.entries(m)) {
+    ;(out[a.clubId ?? ''] ??= {})[pid] = [a.races, a.wins, a.rankSum ?? 0, a.rankedRaces ?? 0]
+  }
+  return out
+}
+
 // ── 活躍データ（年俸と移籍金が共通で見る素材）──
 // 出場割合・平均区間順位・今季の区間賞。国内リーグは races から、海外リーグは
 // currentSeason.foreignAppearances から作る（どちらも同じ物差しで評価するため）。
@@ -279,17 +319,16 @@ export function isDataKeyPlayer(_p: Player, playFraction: number, teamRaces: num
 export const RESERVE_MAIN_RATE = 0.60      // この率以上で1軍の主力＝リザーブ不可
 const RESERVE_MIN_SAMPLE = 5               // 判定に必要な最低消化レース数（1戦だけ出て主力扱いを防ぐ）
 
-type SquadSeasonLike = {
+type SquadSeasonLike = ForeignAppSeasonLike & {
   year: number
   races?: readonly RaceLike[]
-  foreignAppearances?: Record<string, { races: number }>
   foreignRaceIndex?: number
 }
 
 // そのシーズンの「リーグ出場数 / リーグ開催数」。海外在籍の年は海外リーグの数字を使う
 // （海外は国内レースに出ないので races からは拾えない。foreignRaceIndex＝消化マッチデー数が分母）。
 function leagueAppearanceRate(playerId: string, s: SquadSeasonLike): { apps: number; total: number } {
-  const fa = s.foreignAppearances?.[playerId]
+  const fa = foreignAppsOf(s)[playerId]
   if (fa && fa.races > 0) return { apps: fa.races, total: Math.max(fa.races, s.foreignRaceIndex ?? fa.races) }
   return { apps: seasonAppearances(playerId, s.races ?? []), total: (s.races ?? []).filter(r => r.results).length }
 }
