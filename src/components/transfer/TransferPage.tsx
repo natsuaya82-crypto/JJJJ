@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { squadPlayersOf } from '../../utils/rosterSync'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import type { Player, Specialty, Nationality } from '../../types'
+import type { Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
@@ -791,7 +792,8 @@ export default function TransferPage() {
               <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '10px', padding: '0 2px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択（国内のみ）</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   {teams.filter(t => t.id !== playerTeamId).map(t => {
-                      const theirMain = t.roster.main.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
+                      // 所属は player.teamId が正（rosterSync）。roster配列だとズレたチームの平均OVRが狂う
+                      const theirMain = squadPlayersOf(players, t.id)
                       const avgOvr = theirMain.length > 0 ? Math.round(theirMain.reduce((s, p) => s + ovr(p), 0) / theirMain.length) : 0
                       return (
                         <button key={t.id} onClick={() => navigate(`/team/chat?trade=${t.id}`)} style={{

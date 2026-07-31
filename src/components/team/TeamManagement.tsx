@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
@@ -116,6 +117,8 @@ export default function TeamManagement() {
   // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
   const loanedIn = allPlayers.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId && p.status !== 'retired')
   const rosterSalary = allPlayers.filter(p => p.teamId === playerTeamId && p.status !== 'retired').reduce((s, p) => s + p.contract.annualSalary, 0)
+  // ロスター人数は一覧と同じ数え方（rosterSync）。roster配列の長さだとズレたとき表示だけ食い違う
+  const rosterCount = squadPlayersOf(allPlayers, playerTeamId).length
   const fmtYen = (y: number) => y >= 100000000 ? `${(y / 100000000).toFixed(1)}億` : `${Math.round(y / 10000)}万`
   const rawPlayers = activeTab === 'loan' ? loanedIn : getTeamPlayers(playerTeamId, activeTier)
   const players = [...rawPlayers]
@@ -325,9 +328,9 @@ export default function TeamManagement() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px 8px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.text }}>ロスター</span>
         {/* 20人未満は赤字で警告（下限15に近づいている） */}
-        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: team.roster.main.length < 20 ? C.red : C.gold }}>
-          {team.roster.main.length}<span style={{ fontSize: 11, color: C.textDim }}>/{TIER_MAX.main}</span>
-          {team.roster.main.length < 20 && <span style={{ fontSize: 9, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
+        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: rosterCount < 20 ? C.red : C.gold }}>
+          {rosterCount}<span style={{ fontSize: 11, color: C.textDim }}>/{TIER_MAX.main}</span>
+          {rosterCount < 20 && <span style={{ fontSize: 9, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
         </span>
         <span style={{ fontSize: 11, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
         <div style={{ flex: 1 }} />

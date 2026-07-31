@@ -690,6 +690,35 @@ export type Season = {
   transferSpend?: number
 }
 
+// 過去シーズン（pastSeasons）に残す項目。Season から「あとで実際に読む物」だけを抜き出した型。
+//
+// ■なぜ抜き出すのか
+//   以前は Season を丸ごと保存してから要らない物を個別に空にしていたため、Season に項目を足すたび
+//   過去シーズンが自動的に太っていった。ここを「残す物だけ書き出す（許可リスト）」に反転させたので、
+//   Season に新しい項目を足しても、ここに書き足さない限り過去シーズンには乗らない。
+//
+// ■項目を増やしたくなったら
+//   1. 下の Pick に項目名を足す / 2. gameStore の archiveSeason() の返り値に足す。この2つだけ。
+//   （過去に遡って値が入るわけではないので、読む側は undefined を許すこと）
+//
+// ■消したくなったら
+//   Pick から外すと、その項目を読んでいる箇所が全部コンパイルエラーになる。それを潰してから消すこと。
+export type ArchivedSeason = Pick<Season,
+  | 'year'
+  | 'races'                 // 1軍の駅伝結果。記録室・在籍履歴・区間記録の元データ
+  | 'collegeRaces'          // 大学駅伝の結果
+  | 'standings'             // 年間順位表。歴代優勝・チーム成績・翌季グラントの元
+  | 'secondTeamRaces'       // リザーブ駅伝の結果
+  | 'secondTeamStandings'   // リザーブの年間順位表
+  | 'foreignStandings'      // 海外リーグの年間順位表
+  | 'foreignRaceIndex'      // その年の海外マッチデー数（出場率の分母）
+  | 'foreignAppearances'    // 旧セーブ用。新しく書くのは foreignAppsC のみ（読む側は foreignAppsOf() 経由）
+  | 'foreignAppsC'          // 海外リーグの選手別出場記録（圧縮版）
+  | 'zeroAppearances'       // 出走ゼロだった年の国内所属。無いと在籍履歴に穴が空く
+  | 'eclRace'               // 旧・一発勝負時代のECL（旧セーブ互換）
+  | 'eclSeries'             // ECL5戦シリーズ。出走履歴・優勝判定に使う
+>
+
 // チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい
 // currentSeason になるため）自動的にリセットされる。
 export type ChatMessage = { from: 'player' | 'gm'; text: string }
@@ -778,7 +807,8 @@ export type SeasonAward = {
 export type GameState = {
   playerTeamId: string
   currentSeason: Season
-  pastSeasons: Season[]
+  // 終わったシーズンの記録。Season 全部ではなく ArchivedSeason（残す物だけ）で持つ
+  pastSeasons: ArchivedSeason[]
   teams: Team[]
   players: Player[]
   growthReport: { year: number; entries: GrowthEntry[] } | null
