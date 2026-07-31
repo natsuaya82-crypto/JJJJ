@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
@@ -82,6 +83,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const { teams, players, currentSeason, playerTeamId, pastSeasons, openPlayerSheet } = useGameStore()
   const foreignLeaguesRaw = useGameStore(s => s.foreignLeagues)
   const foreignLeagues = foreignLeaguesRaw ?? []
+  const clubIndex = useClubIndex()
   const transferHistory = useGameStore(s => s.transferHistory)
   const removedPlayers = useGameStore(s => s.removedPlayers)
   const eclHistory = useGameStore(s => s.eclHistory)
@@ -278,7 +280,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   })()
   const movesIn = moveEntries.filter(r => r.dir === 'in')
   const movesOut = moveEntries.filter(r => r.dir === 'out')
-  const resolveAnyTeam = (tid: string) => teams.find(t => t.id === tid) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === tid)
+  const resolveAnyTeam = (tid: string) => clubIndex.byId(tid)
 
   const handleScroll = () => {
     if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current)

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
+import { clubRoutePath } from '../../utils/clubs'
 import type { Race } from '../../types'
 import { formatRaceTime } from '../../utils/eventTime'
 import { playerLabel } from '../../utils/playerUtils'
@@ -30,7 +32,8 @@ const DIST_TO_KEY: Record<number, DistKey> = { 5000: 'd5000', 10000: 'd10000', 2
 // 大会別の歴代記録。カテゴリ → 大会 → 年度 → 順位表 → チームの区間配置、とドリルダウンで見る
 export default function ChampionsHistoryPage() {
   const navigate = useNavigate()
-  const { teams, players, currentSeason, pastSeasons, foreignLeagues, playerTeamId, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
+  const { teams, players, currentSeason, pastSeasons, playerTeamId, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
+  const clubIndex = useClubIndex()
 
   // 記録パッチは選手ではなく「記録そのもの」に付ける：その走りのタイムが現行の世界/日本記録である行だけに出す。
   // 同タイムの共同保持者（coHolders）にも付く
@@ -89,15 +92,12 @@ export default function ChampionsHistoryPage() {
     return maps
   }, [pastSeasons, currentSeason])
 
-  const resolveClub = (tid: string) =>
-    teams.find(t => t.id === tid)
-    ?? (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === tid)
+  const resolveClub = (tid: string) => clubIndex.byId(tid)
 
   // チーム/クラブの詳細ページへ遷移（国内=teams/detail、海外=teams/foreign）
   const goToTeam = (tid: string) => {
-    if (teams.some(t => t.id === tid)) { navigate(`/teams/detail/${tid}`); return }
-    const league = (foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === tid))
-    if (league) navigate(`/teams/foreign/${league.id}/${tid}`)
+    const path = clubRoutePath(clubIndex.byId(tid))
+    if (path) navigate(path)
   }
 
   // カテゴリ別・シーズン別の年間総合順位（正規化）。jpel/reserve=勝点、ecl=EclStandingのpoints。

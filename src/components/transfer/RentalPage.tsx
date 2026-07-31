@@ -1,5 +1,6 @@
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
@@ -10,11 +11,11 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MAX_SLOTS = 3
 
 export default function RentalPage() {
-  const { players, teams, playerTeamId, foreignLeagues } = useGameStore()
+  const { players, playerTeamId } = useGameStore()
+  const clubIndex = useClubIndex()
 
   const clubName = (id: string) =>
-    teams.find(t => t.id === id)?.shortName ??
-    (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === id)?.shortName ??
+    clubIndex.byId(id)?.shortName ??
     '他クラブ'
 
   // 借用中（他クラブから借りている）

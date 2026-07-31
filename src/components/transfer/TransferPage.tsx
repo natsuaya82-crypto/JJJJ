@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { squadPlayersOf } from '../../utils/rosterSync'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import type { Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
@@ -38,6 +39,7 @@ export default function TransferPage() {
     listMyPlayerForSale, delistMyPlayer, sellDraftPick,
 
   } = useGameStore()
+  const clubIndex = useClubIndex()
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
@@ -325,9 +327,6 @@ export default function TransferPage() {
             return mktSortDir === 'asc' ? -diff : diff
           })
 
-        const allClubs: Record<string, string> = {}
-        for (const t of teams) allClubs[t.id] = t.shortName
-        for (const lg of allLeagues) for (const c of lg.clubs) allClubs[c.id] = c.shortName
 
         return (
           <div style={{ padding: '0 12px' }}>
@@ -380,7 +379,7 @@ export default function TransferPage() {
                       <>
                         <span style={{ ...badge, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: C.textSub }}>
                           {ownerTeam && <TeamLogoSVG primary={ownerTeam.colors.primary} secondary={ownerTeam.colors.secondary} shortName={ownerTeam.shortName} teamId={ownerTeam.id} size={11} />}
-                          {allClubs[p.teamId] ?? '未所属'}
+                          {clubIndex.byId(p.teamId)?.shortName ?? '未所属'}
                         </span>
                         {isListed && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>出品中</span>}
                         {hasBid && <span style={{ ...badge, backgroundColor: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold }}>入札中</span>}
@@ -424,7 +423,7 @@ export default function TransferPage() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{mp.name}</div>
-                        <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · {allClubs[mp.teamId] ?? '未所属'}</div>
+                        <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · {clubIndex.byId(mp.teamId)?.shortName ?? '未所属'}</div>
                         <div style={{ fontSize: 10, color: C.textSub, marginTop: 2, fontFamily: SAIRA }}>価値 <span style={{ color: C.gold }}>{fmt(mVal)}</span>　年俸 {fmt(mp.contract.annualSalary)}</div>
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>
@@ -478,8 +477,7 @@ export default function TransferPage() {
                 {incomingOffers.map(offer => {
                   const p = players.find(pl => pl.id === offer.playerId)
                   // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
-                  const fromTeam = teams.find(t => t.id === offer.fromTeamId)
-                  const offerFrom = fromTeam?.shortName ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '他クラブ'
+                  const offerFrom = clubIndex.byId(offer.fromTeamId)?.shortName ?? '他クラブ'
                   if (!p) return null
                   const rating = ovr(p)
                   const specCol = SPEC_COLOR[p.specialty]

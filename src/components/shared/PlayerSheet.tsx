@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
+import { clubRoutePath } from '../../utils/clubs'
 import { usePreviewStore } from '../../store/previewStore'
 import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
@@ -124,11 +126,11 @@ export default function PlayerSheet() {
   // draftState を購読（安定参照）。pool の ?? [] はセレクタの外で行う（毎回新配列を返すと無限ループになる）
   const draftState = useGameStore(s => s.draftState)
   const draftPool = draftState?.pool ?? []
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   // フレンドのロスターなど、通常の players に居ない選手（画面側が一時登録したもの）
   const previewPlayers = usePreviewStore(s => s.players)
-  // 国内チーム or 海外クラブから所属を解決
-  const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
+  // 国内チーム or 海外クラブから所属を解決（国が違うだけの同じクラブとして引く）
+  const clubIndex = useClubIndex()
+  const resolveTeam = (id: string) => clubIndex.byId(id)
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const starredProspects = useGameStore(s => s.starredProspects) ?? []
@@ -160,14 +162,9 @@ export default function PlayerSheet() {
     const returnId = openPlayerId
     // 先に遷移し、シートは次フレームで閉じる。先に閉じると下の旧画面が1フレーム見えてチラつく
     const closeNextFrame = () => requestAnimationFrame(() => openPlayerSheet(null))
-    if (teams.some(t => t.id === teamId)) {
-      navigate(`/teams/detail/${teamId}`, { state: { fromPlayerSheet: returnId } })
-      closeNextFrame()
-      return
-    }
-    const league = foreignLeagues.find(l => l.clubs.some(c => c.id === teamId))
-    if (league) {
-      navigate(`/teams/foreign/${league.id}/${teamId}`, { state: { fromPlayerSheet: returnId } })
+    const path = clubRoutePath(clubIndex.byId(teamId))
+    if (path) {
+      navigate(path, { state: { fromPlayerSheet: returnId } })
       closeNextFrame()
     }
   }
@@ -391,7 +388,7 @@ export default function PlayerSheet() {
     if (!anyThisYear) {
       // 海外クラブ所属なら 'foreign'（＝所属リーグ表示）。国内チームだけ 'second'（JPELリザーブ）。
       // これをやらないと0レースの海外選手が「JPELリザーブリーグ」と誤表示される。
-      const isForeignClub = foreignLeagues.some(l => l.clubs.some(c => c.id === player.teamId))
+      const isForeignClub = clubIndex.byId(player.teamId)?.isDomestic === false
       const ph: HistComp = isForeignClub ? 'foreign' : 'second'
       historyMap.set(`${currentSeason.year}|${player.teamId}|${ph}`, { year: currentSeason.year, teamId: player.teamId, comp: ph, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
     }
@@ -413,16 +410,18 @@ export default function PlayerSheet() {
     (a, b) => b.year - a.year
       || (a.teamId === b.teamId ? 0 : a.teamId === player.teamId ? -1 : b.teamId === player.teamId ? 1 : 0)
   )
+  // 海外の内訳行だけリーグ名/リーグロゴを出す。国内チームのIDが来たら今までどおり無し扱い
+  const foreignClubOf = (tid: string) => { const cl = clubIndex.byId(tid); return cl && !cl.isDomestic ? cl : undefined }
   const histCompLabel = (c: HistoryRow) =>
     c.comp === 'main' ? 'JPEL'
     : c.comp === 'second' ? 'JPELリザーブリーグ'
     : c.comp === 'ecl' ? 'ECL'
-    : (foreignLeagues.find(l => l.clubs.some(cl => cl.id === c.teamId))?.name ?? '海外リーグ')
+    : (foreignClubOf(c.teamId)?.leagueName ?? '海外リーグ')
   // 内訳行のリーグロゴ（リザーブはJPELロゴを使う。海外は所属リーグのロゴ）
   const histCompLogoId = (c: HistoryRow) =>
     c.comp === 'main' || c.comp === 'second' ? 'jpel'
     : c.comp === 'ecl' ? 'ecl'
-    : (foreignLeagues.find(l => l.clubs.some(cl => cl.id === c.teamId))?.id ?? null)
+    : (foreignClubOf(c.teamId)?.leagueId ?? null)
   // 平均区間順位（データの無い海外出場分は分母に入れない）
   const histAvg = (r: { rankSum: number; rankedRaces: number }) => r.rankedRaces > 0 ? r.rankSum / r.rankedRaces : null
   const histAvgColor = (v: number) => v <= 3 ? '#2ECC71' : v <= 6 ? '#C9A84C' : '#5C5870'

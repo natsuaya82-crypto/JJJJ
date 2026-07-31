@@ -2,6 +2,8 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
+import type { Club } from '../../utils/clubs'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
@@ -29,8 +31,7 @@ export default function NationalSquadSelectPage() {
   // タブバー(58px)＋広告の上に確定バーを置く（下端に置くとタブバーと広告の裏に隠れて押せない）
   const barBottom = `calc(${adH + 58}px + env(safe-area-inset-bottom))`
   const players = useGameStore(s => s.players)
-  const teams = useGameStore(s => s.teams)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  const clubIndex = useClubIndex()
   const year = useGameStore(s => s.currentSeason.year)
   const worldSquad = useGameStore(s => s.worldSquad)
   const setWorldSquad = useGameStore(s => s.setWorldSquad)
@@ -94,12 +95,12 @@ export default function NationalSquadSelectPage() {
   const full = filledCount >= SQUAD
 
   // 所属チーム（JPELクラブ・海外クラブ・FA）。移籍市場と同じくロゴ＋略称のバッジで出す
-  const clubOf = (teamId: string): { name: string; team?: typeof teams[number] } => {
+  const clubOf = (teamId: string): { name: string; team?: Club } => {
     if (!teamId) return { name: '未所属' }
-    const t = teams.find(t => t.id === teamId)
-    if (t) return { name: t.shortName || t.name, team: t }
-    const c = foreignLeagues.flatMap(l => l.clubs).find(c => c.id === teamId)
-    return { name: c?.shortName || c?.name || '-' }
+    const c = clubIndex.byId(teamId)
+    if (!c) return { name: '-' }
+    // ロゴは今までどおり国内チームのみ（海外クラブは名前だけ）
+    return { name: c.shortName || c.name, team: c.isDomestic ? c : undefined }
   }
   const clubBadge = (teamId: string) => {
     const c = clubOf(teamId)

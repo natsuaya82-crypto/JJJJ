@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, faMarketSalary, SPEC_COLOR } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
@@ -38,12 +39,11 @@ export default function NewsPage() {
   const location = useLocation()
   const newsFeed  = useGameStore(s => s.currentSeason.newsFeed)
   const players   = useGameStore(s => s.players)
-  const teams     = useGameStore(s => s.teams)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues)
+  const clubIndex = useClubIndex()
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   // 所属の解決は国内チーム→海外クラブの順（海外移籍ニュースで所属が「—」にならないように）
   const resolveAnyTeam = (tid?: string) => tid
-    ? (teams.find(t => t.id === tid) ?? (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === tid))
+    ? clubIndex.byId(tid)
     : undefined
 
   // 長押しで選手詳細

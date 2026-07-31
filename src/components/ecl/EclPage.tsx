@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
+import { clubRoutePath } from '../../utils/clubs'
 import { playerLabel } from '../../utils/playerUtils'
 import type { Race, RaceResults, Team } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
@@ -26,13 +28,13 @@ type Phase = 'entry' | 'lineup' | 'simulating' | 'results' | 'view'
 export default function EclPage() {
   const navigate = useNavigate()
   const adH = useAdHeight()
-  const { players, playerTeamId, currentSeason, advanceEclRace, openPlayerSheet, setActiveRacePhase, teams, foreignLeagues, removedPlayers } = useGameStore()
+  const { players, playerTeamId, currentSeason, advanceEclRace, openPlayerSheet, setActiveRacePhase, removedPlayers } = useGameStore()
+  const clubIndex = useClubIndex()
 
   // 順位表の行タップでチーム詳細へ（国内チーム／海外クラブで遷移先を出し分け）
   const goTeam = (id: string) => {
-    if (teams.some(t => t.id === id)) { navigate(`/teams/detail/${id}`); return }
-    const lg = (foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === id))
-    if (lg) navigate(`/teams/foreign/${lg.id}/${id}`)
+    const path = clubRoutePath(clubIndex.byId(id))
+    if (path) navigate(path)
   }
 
   // 長押しで選手詳細

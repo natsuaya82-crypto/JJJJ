@@ -31,6 +31,7 @@ import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
 import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
+import { findClub } from '../utils/clubs'
 import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/legacyClubRoster'
 // 引退時の所属（レンタル中なら保有元）を求める。記録室の国内限定ランキングが見る
 import { retiredFromOf } from '../utils/domesticPlayers'
@@ -1770,8 +1771,7 @@ export const useGameStore = create<GameStore>()(
               const pl = playersWithCpuTx.find(p => p.id === req.playerId)
               if (!pl || pl.teamId !== req.targetTeamId || pl.loan) { continue }
               const loanable = keyPlayerStatus(pl, { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries }, state.pastSeasons) === 'open'
-              const ownerShort = teamsWithCpuTx.find(t => t.id === pl.teamId)?.shortName
-                ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pl.teamId)?.shortName
+              const ownerShort = findClub(teamsWithCpuTx, state.foreignLeagues, pl.teamId)?.shortName
                 ?? '相手クラブ'
               if (loanable && freeSlots > 0) {
                 accepted.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
@@ -3989,8 +3989,7 @@ export const useGameStore = create<GameStore>()(
         const activity = (p: Player) => { const apps = seasonAppearances(p.id, state.currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : 0; return 1 + frac * 0.4 }
         const pval = (p: Player) => calcTransferValue(p) * activity(p)
         const valOf = (ids: string[], picks: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + picks.reduce((s, k) => s + pickKeyValue(k), 0)
-        const theirName = state.teams.find(t => t.id === targetTeamId)?.shortName
-          ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === targetTeamId)?.shortName
+        const theirName = findClub(state.teams, state.foreignLeagues, targetTeamId)?.shortName
           ?? '相手クラブ'
         // 主力（データ上よく出場・やる気あり）は無条件拒否ではなく1.5倍の価値を要求する
         const keyPremium = (p: Player) => keyPlayerStatus(p, state.currentSeason, state.pastSeasons) !== 'open' ? 1.5 : 1
@@ -4330,8 +4329,7 @@ export const useGameStore = create<GameStore>()(
             const pl = state.players.find(p => p.id === req.playerId)
             if (!pl || pl.teamId !== req.targetTeamId || pl.loan) continue
             const loanable = keyPlayerStatus(pl, { year: cs.year, races, eclSeries: cs.eclSeries }, state.pastSeasons) === 'open'
-            const ownerShort = state.teams.find(t => t.id === pl.teamId)?.shortName
-              ?? (state.foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === pl.teamId)?.shortName
+            const ownerShort = findClub(state.teams, state.foreignLeagues, pl.teamId)?.shortName
               ?? '相手クラブ'
             if (loanable && freeSlots > 0) {
               acceptedLoans.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
@@ -5949,8 +5947,7 @@ export const useGameStore = create<GameStore>()(
           // 自チームから居なくなった選手の退団通知（契約満了のFA流出・他クラブへの移籍）。
           // ロスターから黙って消えるのを防ぐ。引退は別途セレモニー・ニュースがあるため除外
           const departureClubName = (teamId: string) =>
-            state.teams.find(t => t.id === teamId)?.shortName
-            ?? cappedForeignLeagues.flatMap(l => l.clubs).find(c => c.id === teamId)?.shortName
+            findClub(state.teams, cappedForeignLeagues, teamId)?.shortName
             ?? null
           const departureNotices = state.players
             .filter(p => p.teamId === state.playerTeamId && p.status !== 'retired')

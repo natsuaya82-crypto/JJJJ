@@ -4,6 +4,8 @@ import type { Race, RaceResults, Team, Player, Season } from '../../types'
 import { formatTime, formatDiff } from '../../engine/raceEngine'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
+import { clubRoutePath } from '../../utils/clubs'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
 import { C, alpha } from '../../styles/tokens'
@@ -70,14 +72,12 @@ export function ResultsPhase({
   }, [view, segView])
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards) ?? []
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  const clubIndex = useClubIndex()
   // チーム行の長押しでチーム詳細へ（選手の長押し詳細と同じ操作系）。
   // 国別対抗(nat_)→代表ページ / JPELクラブ→チーム詳細 / 海外クラブ→所属リーグのクラブ詳細
   const teamDest = (id: string): string | null => {
     if (id.startsWith('nat_')) return `/teams/national/${id.slice(4)}`
-    if (teams.some(t => t.id === id) && !foreignLeagues.some(l => l.clubs.some(c => c.id === id))) return `/teams/detail/${id}`
-    const lg = foreignLeagues.find(l => l.clubs.some(c => c.id === id))
-    return lg ? `/teams/foreign/${lg.id}/${id}` : null
+    return clubRoutePath(clubIndex.byId(id))
   }
   const teamPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const teamLp = (id: string) => ({

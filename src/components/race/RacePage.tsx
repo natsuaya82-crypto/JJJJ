@@ -1,9 +1,10 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore, individualEventAbility, applyRaceBoosts } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { runWithLoading } from '../../store/loadingStore'
-import type { RaceResults, IndividualEvent, Player, Team } from '../../types'
+import type { RaceResults, IndividualEvent, Player } from '../../types'
 import BackButton from '../ui/BackButton'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -32,17 +33,15 @@ const TT_COLOR = '#5EC8B8'
 const TT_DIST_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
 // 記録会画面: 未実施なら開催ボタン、実施済みなら結果を表示して次へ進む
-function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onDone }: {
+function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: {
   event: IndividualEvent
   players: Player[]
-  teams: Team[]
   playerTeamId: string
   onRun: (skipPlayerIds: string[]) => void
   onDone: () => void
 }) {
   const longPress = usePlayerLongPress()
   const adH = useAdHeight()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   // 世界新/日本新バッジ用（記録は結果確定時に更新済みなので「今年・この選手・このタイム」が現行記録なら今大会の樹立）
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
@@ -51,7 +50,8 @@ function IndividualEventScreen({ event, players, teams, playerTeamId, onRun, onD
   const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects) ?? []
   const findP = (id: string) => players.find(p => p.id === id) ?? scoutProspects.find(p => p.id === id)
   // 国内チーム or 海外クラブから所属を解決（記録会に海外選手が出るため）
-  const resolveTeam = (id: string) => teams.find(t => t.id === id) ?? foreignLeagues.flatMap(l => l.clubs).find(c => c.id === id)
+  const clubIndex = useClubIndex()
+  const resolveTeam = (id: string) => clubIndex.byId(id)
   const [resting, setResting] = useState<Set<string>>(new Set())
   const [sortKey, setSortKey] = useState<'pb' | 'fatigue' | 'ovr' | 'age'>('pb')
   const toggleResting = (id: string) => setResting(prev => {
@@ -765,7 +765,6 @@ export default function RacePage() {
       <IndividualEventScreen
         event={ttEvent as NonNullable<typeof currentSeason.individualEvents>[0]}
         players={players}
-        teams={teams}
         playerTeamId={playerTeamId}
         onRun={(skipIds) => runWithLoading('記録会 開催中…', () => { simulateIndividualEvent(ttEvent.id, skipIds); setTtViewId(ttEvent.id) }, 800)}
         onDone={() => navigate('/')}

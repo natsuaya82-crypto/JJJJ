@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr } from '../../utils/playerUtils'
 import { C } from '../../styles/tokens'
 import PlayerRow from '../player/PlayerRow'
@@ -17,8 +18,7 @@ const SQUAD_SIZE = 30
 // 代表ロスター本体（ルートからもTeamsHubのドリルダウンからも使う）。onBack で戻り先を差し込む。
 export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () => void }) {
   const players = useGameStore(s => s.players)
-  const teams = useGameStore(s => s.teams)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  const clubIndex = useClubIndex()
   const year = useGameStore(s => s.currentSeason.year)
   const worldTournament = useGameStore(s => s.worldTournament)
   const waResults = useGameStore(s => s.worldAthleticsResults) ?? []
@@ -44,14 +44,8 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
     : [...withTime, ...noTime].slice(0, SQUAD_SIZE)
 
   const clubName = (teamId: string): string => {
-    if (!teamId) return '-'
-    const t = teams.find(t => t.id === teamId)
-    if (t) return t.shortName || t.name
-    for (const l of foreignLeagues) {
-      const c = l.clubs.find(c => c.id === teamId)
-      if (c) return c.shortName || c.name
-    }
-    return '-'
+    const c = clubIndex.byId(teamId)
+    return c ? (c.shortName || c.name) : '-'
   }
 
   // 詳細は長押しで（アプリ全体の統一操作）。タップは何もしない。

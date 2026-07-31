@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
@@ -1173,9 +1174,10 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const { players, playerTeamId, currentSeason, teams, foreignLeagues, generateContractRequests,
+  const { players, playerTeamId, currentSeason, teams, generateContractRequests,
     acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer, acceptIncomingLoanOffer, declineIncomingLoanOffer, openPlayerSheet,
     acceptFeeCounter, rejectTransferBid, setChatLog } = useGameStore()
+  const clubIndex = useClubIndex()
   // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lpFired = useRef(false)
@@ -1280,8 +1282,7 @@ export default function ChatPage() {
   })
 
   // 相手から来たオファー（移籍・レンタル）＝チャットで対応
-  const foreignClubMap = new Map((foreignLeagues ?? []).flatMap(l => l.clubs).map(c => [c.id, c.shortName]))
-  const teamName = (id: string) => teams.find(t => t.id === id)?.shortName ?? foreignClubMap.get(id) ?? '他クラブ'
+  const teamName = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'
   // 引き留めを断られた接触（retentionRefused）は対応済み：一覧・件数に出さず、本人の決断を待つだけ
   const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o =>
     players.some(p => p.id === o.playerId && p.teamId === playerTeamId) && !(o.offeredPrice === 0 && o.retentionRefused))

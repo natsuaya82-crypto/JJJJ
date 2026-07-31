@@ -1,5 +1,6 @@
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
@@ -16,8 +17,7 @@ function fmt(yen: number) {
 
 export default function StarredPlayersPage() {
   const players = useGameStore(s => s.players)
-  const teams = useGameStore(s => s.teams)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  const clubIndex = useClubIndex()
   const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects) ?? []
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
   const starredProspectIds = useGameStore(s => s.starredProspects) ?? []
@@ -43,13 +43,7 @@ export default function StarredPlayersPage() {
 
   function getTeamName(teamId: string): string {
     if (teamId === '') return '未所属'
-    const domestic = teams.find(t => t.id === teamId)
-    if (domestic) return domestic.shortName
-    for (const league of foreignLeagues) {
-      const club = league.clubs.find(c => c.id === teamId)
-      if (club) return club.shortName
-    }
-    return '—'
+    return clubIndex.byId(teamId)?.shortName ?? '—'
   }
 
   return (

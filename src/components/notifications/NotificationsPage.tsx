@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { loginTodayKey } from '../../utils/loginDate'
@@ -130,12 +131,10 @@ function OfferChatView({
   initialMessages?: OfferChatMsg[]
   onMessagesChange: (msgs: OfferChatMsg[]) => void
 }) {
-  const { teams, players, acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer } = useGameStore()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
-  // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
-  const fromTeam = teams.find(t => t.id === offer.fromTeamId)
-  const fromForeignClub = fromTeam ? null : foreignLeagues.flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)
-  const fromName = fromTeam?.shortName ?? fromForeignClub?.shortName ?? '他クラブ'
+  const { players, acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer } = useGameStore()
+  // 国内チームでも海外クラブでも同じように引く（国が違うだけの同じクラブ）
+  const clubIndex = useClubIndex()
+  const fromName = clubIndex.byId(offer.fromTeamId)?.shortName ?? '他クラブ'
   const player = players.find(p => p.id === offer.playerId)
   const pOvr = player ? ovr(player) : 0
   // 移籍金0＝契約満了間近の選手へのフリー移籍オファー
@@ -284,7 +283,7 @@ function OfferChatView({
 export default function NotificationsPage() {
   const navigate = useNavigate()
   const { teams, players, currentSeason, playerTeamId, lastLoginDate } = useGameStore()
-  const foreignLeaguesAll = useGameStore(s => s.foreignLeagues) ?? []
+  const clubIndex = useClubIndex()
   const acceptFeeCounter = useGameStore(s => s.acceptFeeCounter)
   const rejectTransferBid = useGameStore(s => s.rejectTransferBid)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
@@ -755,8 +754,7 @@ export default function NotificationsPage() {
                 {counteredBids.map(bid => {
                   const p = players.find(pl => pl.id === bid.playerId)
                   // 海外クラブへの入札もあるため、国内チーム→海外クラブの順で名前を解決する
-                  const targetTeamName = teams.find(t => t.id === bid.targetTeamId)?.name
-                    ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === bid.targetTeamId)?.name ?? '海外クラブ'
+                  const targetTeamName = clubIndex.byId(bid.targetTeamId)?.name ?? '海外クラブ'
                   if (!p) return null
                   return (
                     <FeeCounterCard
@@ -784,8 +782,7 @@ export default function NotificationsPage() {
                 {feeAcceptedBids.map(bid => {
                   const p = players.find(pl => pl.id === bid.playerId)
                   // 海外クラブへの入札もあるため、国内チーム→海外クラブの順で名前を解決する
-                  const targetTeamName = teams.find(t => t.id === bid.targetTeamId)?.name
-                    ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === bid.targetTeamId)?.name ?? '海外クラブ'
+                  const targetTeamName = clubIndex.byId(bid.targetTeamId)?.name ?? '海外クラブ'
                   if (!p) return null
                   return (
                     <div key={bid.id} style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
@@ -817,7 +814,7 @@ export default function NotificationsPage() {
                 {freeContacts.map(o => {
                   const target = players.find(p => p.id === o.playerId)
                   if (!target) return null
-                  const clubName = teams.find(t => t.id === o.fromTeamId)?.shortName ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === o.fromTeamId)?.shortName ?? '他クラブ'
+                  const clubName = clubIndex.byId(o.fromTeamId)?.shortName ?? '他クラブ'
                   const decidesIn = Math.max(1, o.expiresAtRace - (currentSeason.currentRaceIndex ?? 0))
                   return (
                     <button key={o.id} onClick={() => { navigate(`/team/chat?player=${target.id}`); markFreeContactSeen(o.id) }} style={{ ...cardStyle(alpha(C.orange, 0.4), '#5a2800'), width: '100%', textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
@@ -913,7 +910,7 @@ export default function NotificationsPage() {
                 {expiredNegotiations.map(neg => {
                   // 名前だけでは誰か分からないので、顔・OVR・所属チーム（ロゴ+フルネーム）を出す（費用合意通知と同じ見た目）
                   const negP = players.find(pl => pl.id === neg.playerId)
-                  const negTeam = negP ? (teams.find(t => t.id === negP.teamId) ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === negP.teamId)) : undefined
+                  const negTeam = negP ? clubIndex.byId(negP.teamId) : undefined
                   return (
                     <div key={neg.id} style={cardStyle(alpha(C.red, 0.45), '#3d0000')}>
                       <div style={inset}/>
@@ -1014,8 +1011,7 @@ export default function NotificationsPage() {
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {incomingOffers.map(offer => {
                   // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
-                  const fromTeam = teams.find(t => t.id === offer.fromTeamId)
-                  const fromClubName = fromTeam?.shortName ?? foreignLeaguesAll.flatMap(l => l.clubs).find(c => c.id === offer.fromTeamId)?.shortName ?? '他クラブ'
+                  const fromClubName = clubIndex.byId(offer.fromTeamId)?.shortName ?? '他クラブ'
                   const target = players.find(p => p.id === offer.playerId)
                   if (!target) return null
                   const pOvr = ovr(target)

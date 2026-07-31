@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
@@ -25,7 +26,8 @@ function CardPanel({ children }: { children: React.ReactNode }) {
 }
 
 export default function DraftHistoryPage() {
-  const { players, teams, playerTeamId, openPlayerSheet, foreignLeagues } = useGameStore()
+  const { players, playerTeamId, openPlayerSheet } = useGameStore()
+  const clubIndex = useClubIndex()
   const navigate = useNavigate()
   const { year } = useParams<{ year?: string }>()
   const selectedYear = year != null ? Number(year) : null
@@ -63,8 +65,7 @@ export default function DraftHistoryPage() {
           <CardPanel>
             {list.map((p, i) => {
               // 海外クラブへ移籍した選手も所属が出るよう、国内チーム→海外クラブの順で解決
-              const team = teams.find(t => t.id === p.teamId)
-                ?? (foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === p.teamId)
+              const team = clubIndex.byId(p.teamId)
               const isRetired = p.status === 'retired'
               const isMine = p.teamId === playerTeamId
               const o = ovr(p)

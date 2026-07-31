@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { loginTodayKey } from '../../utils/loginDate'
@@ -52,7 +53,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   } = useGameStore()
   const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
   const claimGift = useGameStore(s => s.claimGift)
-  const foreignLeaguesP = useGameStore(s => s.foreignLeagues) ?? []
+  const clubIndex = useClubIndex()
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないためパネルには出さない（通知ページで情報表示）
@@ -198,15 +199,15 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                   <SectionLabel label="移籍金交渉" color={C.green} />
                   {counteredBids.map(bid => {
                     const p = players.find(pl => pl.id === bid.playerId)
-                    const targetTeam = teams.find(t => t.id === bid.targetTeamId)
                     // 海外クラブへの入札は通知ページ（移籍金交渉カード）で対応する
-                    const targetName = targetTeam?.shortName ?? foreignLeaguesP.flatMap(l => l.clubs).find(c => c.id === bid.targetTeamId)?.shortName ?? '海外クラブ'
+                    const targetClub = clubIndex.byId(bid.targetTeamId)
+                    const targetName = targetClub?.shortName ?? '海外クラブ'
                     if (!p) return null
                     const pOvr = ovr(p)
                     return (
                       <div key={bid.id} style={card(alpha(C.green, 0.45), '#0d3d22')}>
                         <div style={inset}/>
-                        <button onClick={() => { navigate(targetTeam ? `/team/chat?trade=${bid.targetTeamId}` : '/notifications'); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => { navigate(targetClub?.isDomestic ? `/team/chat?trade=${bid.targetTeamId}` : '/notifications'); onClose() }} style={{ width: '100%', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.green} />
                           <div style={{ flex: 1, textAlign: 'left' }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: C.text, marginBottom: '2px' }}>{p.name} → {targetName}</div>

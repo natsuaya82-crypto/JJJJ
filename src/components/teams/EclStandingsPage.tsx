@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
+import { clubRoutePath } from '../../utils/clubs'
 import { LeagueLogoSVG } from '../icons/Icons'
 import BackButton from '../ui/BackButton'
 import StandingsTable, { type StandRow } from './StandingsTable'
@@ -10,14 +12,14 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // ECLの順位表ページ。JPEL順位表と全く同じ構成（ヘッダー＋共通StandingsTable）
 export default function EclStandingsPage() {
   const navigate = useNavigate()
-  const { currentSeason, teams, foreignLeagues } = useGameStore()
+  const { currentSeason } = useGameStore()
+  const clubIndex = useClubIndex()
   const series = currentSeason.eclSeries
 
   // 行タップでチーム詳細へ（国内チーム／海外クラブで遷移先を出し分け）
   const goTeam = (id: string) => {
-    if (teams.some(t => t.id === id)) { navigate(`/teams/detail/${id}`); return }
-    const lg = (foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === id))
-    if (lg) navigate(`/teams/foreign/${lg.id}/${id}`)
+    const path = clubRoutePath(clubIndex.byId(id))
+    if (path) navigate(path)
   }
 
   if (!series) {

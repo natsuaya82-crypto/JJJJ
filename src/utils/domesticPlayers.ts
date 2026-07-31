@@ -1,4 +1,5 @@
 import type { ForeignLeague, Player, Team } from '../types'
+import { makeClubIndex } from './clubs'
 
 // ============================================================================
 // 「その選手を国内（JPEL）の記録として数えてよいか」を決める唯一の場所。
@@ -30,22 +31,18 @@ type DomesticInput = Pick<Player, 'teamId' | 'status' | 'retiredTeamId'>
 // 国内記録に数えてよい選手かどうかを返す関数を作る。
 // 画面側はこれを1回作って使い回す（毎回セットを作り直さないため）。
 export function makeIsDomestic(teams: Team[] | undefined, foreignLeagues: ForeignLeague[] | undefined) {
-  const domesticIds = new Set((teams ?? []).map(t => t.id))
-  const foreignIds = new Set<string>()
-  for (const l of foreignLeagues ?? []) for (const c of l.clubs ?? []) foreignIds.add(c.id)
+  // 国内か海外かは「そのクラブの国」を見るだけ。国内チームも海外クラブも同じ索引から引く
+  const index = makeClubIndex(teams, foreignLeagues)
 
   return (p: DomesticInput): boolean => {
     if (p.status === 'retired') {
       const from = p.retiredTeamId
       // 引退時の所属が分からない旧セーブの選手は今まで通り残す
       if (!from) return true
-      // 海外クラブだと分かれば外す。国内チームなら残す。
-      // どちらでもない（廃止された古い海外クラブIDなど）は海外側とみなす
-      if (domesticIds.has(from)) return true
-      if (foreignIds.has(from)) return false
-      return false
+      // 国内クラブなら残す。海外クラブ、および今は無いクラブID（廃止された旧クラブなど）は外す
+      return index.isDomestic(from)
     }
     // 現役はこれまでと同じ判定（無所属＝FAは国内扱い、ドラフト候補の '__pool__' は外れる）
-    return p.teamId === '' || domesticIds.has(p.teamId)
+    return p.teamId === '' || index.isDomestic(p.teamId)
   }
 }
