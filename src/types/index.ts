@@ -514,15 +514,6 @@ export type Team = {
   history: {
     seasonResults: { year: number; rank: number; points: number }[]
     championships: number
-    legends?: {
-      name: string
-      specialty: Specialty
-      retiredAge: number
-      retiredYear: number
-      peakOvr: number
-      yearsInTeam: number
-      career: { segmentWins: number; championships: number; mvpAwards: number }
-    }[]
     bestStreak?: number        // longest consecutive top-3 finish streak
     currentStreak?: number
   }

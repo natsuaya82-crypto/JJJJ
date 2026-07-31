@@ -5220,21 +5220,6 @@ export const useGameStore = create<GameStore>()(
             const rank = sortedStandings.findIndex(s => s.teamId === t.id) + 1
             const pts = sortedStandings.find(s => s.teamId === t.id)?.totalPoints ?? 0
 
-            // Legends: notable retiring players from this team
-            const teamRetirees = [...retiringIds]
-              .map(id => grownPlayers.find(p => p.id === id))
-              .filter((p): p is Player => !!p && p.teamId === t.id)
-              .filter(p => p.career.segmentWins >= 5 || p.career.championships >= 1 || p.yearsPro >= 4)
-            const newLegends = teamRetirees.map(p => ({
-              name: p.name,
-              specialty: p.specialty,
-              retiredAge: p.age,
-              retiredYear: state.currentSeason.year,
-              peakOvr: Math.max(ovr(p), ...(p.ovrHistory?.map(h => h.ovr) ?? [])),
-              yearsInTeam: p.yearsPro,
-              career: { segmentWins: p.career.segmentWins, championships: p.career.championships, mvpAwards: p.career.mvpAwards },
-            }))
-
             // Streak tracking (top 3 = good season)
             const isTop3 = rank > 0 && rank <= 3
             const prevStreak = t.history.currentStreak ?? 0
@@ -5247,7 +5232,6 @@ export const useGameStore = create<GameStore>()(
                 ...t.history,
                 seasonResults: [...t.history.seasonResults, { year: state.currentSeason.year, rank, points: pts }],
                 championships: rank === 1 ? t.history.championships + 1 : t.history.championships,
-                legends: [...(t.history.legends ?? []), ...newLegends],
                 currentStreak: newStreak,
                 bestStreak,
               },
@@ -7463,6 +7447,8 @@ export const useGameStore = create<GameStore>()(
           //  - logoUrl ... いつも空文字。ロゴの表示は logoId とチームIDで決めていた
           //  - finance.salaryTotal ... 保存していたが参照する場所が無い。年俸の合計は要る時に選手から数える
           //  - history.cupWins ... 増やす処理も出す画面も無かった
+          //  - history.legends ... 引退した名選手を貯めていたが出す画面が無かった。
+          //    記録室の「名選手」は選手データから作り直すので、貯めたぶんは要らない
           // 所属・成績・記録には触らないので消える情報は無い。セーブの容量だけ減る。
           if (version < 24 && Array.isArray(s.teams)) {
             s.teams = (s.teams as Record<string, unknown>[]).map(t => {
@@ -7473,6 +7459,7 @@ export const useGameStore = create<GameStore>()(
               next.finance = fin
               const his = { ...((next.history ?? {}) as Record<string, unknown>) }
               delete his.cupWins
+              delete his.legends
               next.history = his
               return next
             })

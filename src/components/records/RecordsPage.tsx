@@ -336,10 +336,64 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       </CardPanel>
   )
 
+  // 歴代の名選手（自チームで現役を終えた選手）。
+  // 以前はチーム側に legends として引退時の情報を焼き込んで貯めていたが、どの画面にも出ていなかった。
+  // 自チームに在籍したことがある選手はセーブの整理でも消えない決まりなので、選手データから毎回作れる。
+  // 引退時の所属（retiredTeamId）で自チーム引退かを見る。
+  // ただし古いセーブには retiredTeamId が入っていない引退選手が居るので、
+  // その場合だけ「自チーム在籍歴あり」の印で拾う。
+  const myLegends = useMemo(() => players
+    .filter(p => p.status === 'retired')
+    .filter(p => p.retiredTeamId === playerTeamId || (p.retiredTeamId == null && p.wasPlayerTeam === true))
+    // 名選手の線引きは以前と同じ（区間賞5つ以上・優勝経験あり・4年以上のどれか）
+    .filter(p => p.career.segmentWins >= 5 || p.career.championships >= 1 || p.yearsPro >= 4)
+    .sort((a, b) => (b.retiredYear ?? 0) - (a.retiredYear ?? 0) || (b.finalOvr ?? 0) - (a.finalOvr ?? 0))
+    .slice(0, 30)
+  , [players, playerTeamId])
+
+  const legendPanel = (
+      <CardPanel>
+        <SectionLabel>歴代の名選手（自チーム）</SectionLabel>
+        {myLegends.length === 0 ? (
+          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>まだ記録なし — 自チームで現役を終えた選手がここに並ぶ</div>
+        ) : myLegends.map(p => (
+          <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px', borderRadius: 3, background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
+                {myTeam && <TeamLogoSVG primary={myTeam.colors.primary} secondary={myTeam.colors.secondary} shortName={myTeam.shortName} teamId={myTeam.id} size={12} />}
+                <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''}{p.specialty ? ` / ${SPECIALTY_LABELS[p.specialty]}` : ''} / 通算{p.yearsPro}年</span>
+              </div>
+              {(p.career.segmentWins > 0 || p.career.championships > 0 || p.career.mvpAwards > 0) && (
+                <div style={{ display: 'flex', gap: '8px', marginTop: 2, flexWrap: 'wrap' }}>
+                  {p.career.segmentWins > 0 && <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.green }}>区間賞 {p.career.segmentWins}</span>}
+                  {p.career.championships > 0 && <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.gold }}>優勝 {p.career.championships}</span>}
+                  {p.career.mvpAwards > 0 && <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.gold }}>MVP {p.career.mvpAwards}</span>}
+                </div>
+              )}
+            </div>
+            <div style={{ flexShrink: 0, textAlign: 'right' }}>
+              {p.finalOvr != null && (
+                <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.gold }}>{p.finalOvr}</div>
+              )}
+              <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>
+                {p.retiredYear != null ? `${p.retiredYear}年` : ''}{p.age != null ? ` / ${p.age}歳` : ''}
+              </div>
+            </div>
+          </div>
+        ))}
+      </CardPanel>
+  )
+
   return <SectionSwitcher sections={[
     { label: '優勝記録', node: champPanel },
     { label: 'シーズン成績', node: seasonPanel },
     { label: '種目別記録', node: evPanel },
+    { label: '名選手', node: legendPanel },
   ]} />
 }
 
