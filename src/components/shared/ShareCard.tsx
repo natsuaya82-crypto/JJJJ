@@ -1,4 +1,5 @@
-import type { Player, Team } from '../../types'
+import type { Player } from '../../types'
+import type { Club } from '../../utils/clubs'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
 import { useGameStore } from '../../store/gameStore'
@@ -20,7 +21,7 @@ const STATS: { key: keyof Player['ratings']; label: string }[] = [
 ]
 
 // SNS共有用の選手カード（固定幅・オフスクリーンで描画してhtml2canvasでキャプチャ）。
-export default function ShareCard({ player, team }: { player: Player; team?: Team }) {
+export default function ShareCard({ player, team }: { player: Player; team?: Club }) {
   const rating = ovr(player)
   const specCol = SPEC_COLOR[player.specialty]
   const GOLD = '#C9A84C'

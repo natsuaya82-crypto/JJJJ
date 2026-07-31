@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
@@ -27,7 +28,8 @@ const BID_STATUS: Record<string, { label: string; color: string }> = {
 
 export default function OfferListPage() {
   const navigate = useNavigate()
-  const { players, teams, playerTeamId, currentSeason, acceptIncomingOffer, declineIncomingOffer, acceptFeeCounter, rejectTransferBid, cancelLoanRequest } = useGameStore()
+  const { players, playerTeamId, currentSeason, acceptIncomingOffer, declineIncomingOffer, acceptFeeCounter, rejectTransferBid, cancelLoanRequest } = useGameStore()
+  const clubIndex = useClubIndex()
   const [tab, setTab] = useState<'incoming' | 'outgoing'>('incoming')
 
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないため除外（通知ページで情報表示）
@@ -38,7 +40,7 @@ export default function OfferListPage() {
   const outgoingCount = myBids.length + acqOffers.length + loanReqs.length
 
   const findP = (id: string) => players.find(p => p.id === id)
-  const findT = (id: string) => teams.find(t => t.id === id)
+  const findT = (id: string) => clubIndex.byId(id)
 
   const tabBtn = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer', border: 'none',

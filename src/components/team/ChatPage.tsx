@@ -194,6 +194,7 @@ function ChatView({
   initialMessages?: ChatMessage[]
   onMessagesChange: (msgs: ChatMessage[]) => void
 }) {
+  const clubIndex = useClubIndex()
   const {
     currentSeason, teams, players, playerTeamId,
     initiateContractRenewal, submitContractRenewalOffer,
@@ -217,7 +218,7 @@ function ChatView({
   // フリー移籍で他クラブと接触中か（勧誘クラブ名）。接触中は契約更新の用件（要求・催促）をこの会話に出さず、
   // 「誘いを受けている」文脈に一本化する。引き留めは「契約条件を提示する」から（成立すれば接触打ち切り＝残留）
   const freeContactOffer = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0) ?? null
-  const freeContactClub = freeContactOffer ? (teams.find(t => t.id === freeContactOffer.fromTeamId)?.shortName ?? '他クラブ') : null
+  const freeContactClub = freeContactOffer ? (clubIndex.byId(freeContactOffer.fromTeamId)?.shortName ?? '他クラブ') : null
   const contractReqRaw =
     contractRequests.find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected') ??
     contractRequests.filter(r => r.playerId === player.id).at(-1)
@@ -252,9 +253,9 @@ function ChatView({
     : null
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
     const builtBase = isTransfer
-      ? buildTransferMessages(player, transferBid!, teams.find(t => t.id === transferBid!.targetTeamId)?.name)
+      ? buildTransferMessages(player, transferBid!, clubIndex.byId(transferBid!.targetTeamId)?.name)
       : isAcq
-      ? buildAcqMessages(player, acqOffer!, teams.find(t => t.id === player.teamId)?.name)
+      ? buildAcqMessages(player, acqOffer!, clubIndex.byId(player.teamId)?.name)
       : talksHere
       ? buildMessages(player, contractReq, freeContactClub ? 99 : months, !!retirementReq, !!transferReq, transferReq?.reason, events, overseasReq?.region)
       : []  // 他チーム/FA選手・レンタル選手で交渉モードでもない場合は保存ログのみ
@@ -1387,7 +1388,7 @@ export default function ChatPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {(() => {
-                const curTeam = teams.find(t => t.id === player.teamId)
+                const curTeam = clubIndex.byId(player.teamId)
                 return curTeam ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                     <TeamLogoSVG primary={curTeam.colors.primary} secondary={curTeam.colors.secondary} shortName={curTeam.shortName} teamId={curTeam.id} size={14} />
@@ -1546,7 +1547,7 @@ export default function ChatPage() {
             </div>
             {contractPendingPlayers.map(p => {
               const specCol = SPEC_COLOR[p.specialty]
-              const curTeam = teams.find(t => t.id === p.teamId)
+              const curTeam = clubIndex.byId(p.teamId)
               return (
                 <button key={p.id} {...longPress(p.id)}
                   onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(p.id) }}

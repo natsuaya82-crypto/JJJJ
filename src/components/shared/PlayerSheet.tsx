@@ -120,7 +120,7 @@ function fmt(yen: number) {
 
 export default function PlayerSheet() {
   const {
-    openPlayerId, openPlayerSheet, players, teams,
+    openPlayerId, openPlayerSheet, players,
     currentSeason, pastSeasons, playerTeamId,
   } = useGameStore()
   // draftState を購読（安定参照）。pool の ?? [] はセレクタの外で行う（毎回新配列を返すと無限ループになる）
@@ -238,7 +238,7 @@ export default function PlayerSheet() {
 
   if (!player) return null
 
-  const team = teams.find(t => t.id === player.teamId)
+  const team = clubIndex.byId(player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
   // 記録パッチ（最大5個・優先順: 世界>日本>MVP>新人王>区間記録）
   // パッチ選択は専用ページ（スクロール可）なので上限なしで全部出す（5個で打ち切らない）

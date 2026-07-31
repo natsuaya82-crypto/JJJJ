@@ -368,7 +368,7 @@ export default function TransferPage() {
               const isListed = listedIds.has(p.id)
               const hasBid = activeBids.some(b => b.playerId === p.id)
               const bidLocked = p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
-              const ownerTeam = teams.find(t => t.id === p.teamId)
+              const ownerTeam = clubIndex.byId(p.teamId)
               const badge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px', borderRadius: 3, fontWeight: 700, flexShrink: 0 }
               return (
                 <div key={p.id} style={{ opacity: bidLocked ? 0.5 : 1 }}>

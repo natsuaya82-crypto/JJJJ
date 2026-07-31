@@ -6,6 +6,7 @@ import type { GameStore } from '../../store/gameStore'
 import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, liveName } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
+import { useClubIndex } from '../../lib/useClubIndex'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward } from '../../types'
 import { C, alpha } from '../../styles/tokens'
@@ -410,6 +411,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
   currentSeason: GameStore['currentSeason']
 }) {
   const longPress = usePlayerLongPress()
+  const clubIndex = useClubIndex()
   // 国内（JPEL）の記録として数えてよい選手かの判定は domesticPlayers.ts に集約。
   // 引退すると teamId が空になるので、引退時の所属（retiredTeamId）を見て海外クラブ勢を外す
   const isDomestic = useMemo(() => makeIsDomestic(teams, foreignLeagues), [teams, foreignLeagues])
@@ -451,7 +453,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
     .filter((x): x is { p: GameStore['players'][0]; wins: number } => !!x.p)
 
   function RankRow({ p, i, value, unit, color }: { p: GameStore['players'][0]; i: number; value: number; unit: string; color?: string }) {
-    const team = teams.find(t => t.id === p.teamId)
+    const team = clubIndex.byId(p.teamId)
     const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
     const valCol = color ?? (i === 0 ? C.gold : i <= 2 ? C.green : C.textSub)
     const isRetired = p.status === 'retired'
@@ -511,7 +513,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
           const group = seasonEventTops.find(g => g.dist === evDist)
           if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
           return group.rows.map(({ p, t, year }, i) => {
-            const team = teams.find(tm => tm.id === p.teamId)
+            const team = clubIndex.byId(p.teamId)
             const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
             return (
               <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>

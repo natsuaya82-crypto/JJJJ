@@ -47,7 +47,7 @@ function Chevron() {
 export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const {
-    teams, players, currentSeason,
+    players, currentSeason,
     acceptIncomingOffer, declineIncomingOffer,
     acceptRetirement, dismissRetirementRequest,
   } = useGameStore()
@@ -251,7 +251,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                 <section style={{ marginBottom: '14px' }}>
                   <SectionLabel label="移籍オファー" color={C.red} />
                   {incomingOffers.map(offer => {
-                    const fromTeam = teams.find(t => t.id === offer.fromTeamId)
+                    const fromTeam = clubIndex.byId(offer.fromTeamId)
                     const target = players.find(p => p.id === offer.playerId)
                     if (!target) return null
                     const pOvr = ovr(target)

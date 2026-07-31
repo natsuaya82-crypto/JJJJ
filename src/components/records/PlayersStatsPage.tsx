@@ -8,6 +8,7 @@ import type { Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
+import { useClubIndex } from '../../lib/useClubIndex'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -21,6 +22,7 @@ type Entry = { playerId?: string; playerName?: string; teamId?: string; teamShor
 export default function PlayersStatsPage() {
   const navigate = useNavigate()
   const { segmentRecords, players, teams, openPlayerSheet, currentSeason, pastSeasons, removedPlayers } = useGameStore()
+  const clubIndex = useClubIndex()
 
   // 選手行の長押しで選手詳細を開く
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -193,7 +195,7 @@ export default function PlayersStatsPage() {
                   const player = playerLabel(players, removedPlayers, entry.playerId)
                     ?? (byName ? { id: byName.id, name: byName.name, nationality: byName.nationality, isRemoved: false } : undefined)
                   const team = entry.teamId
-                    ? teams.find(t => t.id === entry.teamId)
+                    ? clubIndex.byId(entry.teamId)
                     : teams.find(t => t.shortName === entry.teamShort)
                   const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
                   return (
