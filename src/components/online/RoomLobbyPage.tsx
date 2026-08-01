@@ -13,6 +13,7 @@ import {
 } from '../../lib/roomsApi'
 import { openRoomChannel, RoomEvent, type RoomChannel, type ChannelStatus } from '../../lib/roomChannel'
 import { deadlineIn, serverNow } from '../../lib/serverTime'
+import { showInterstitialAd } from '../../utils/ads'
 import { randomCourseIds, courseById } from '../../data/matchCourses'
 import RulesPanel from './RulesPanel'
 import PickPanel, { autoOrder, isOrderComplete, type Order } from './PickPanel'
@@ -44,6 +45,11 @@ const WATCH_LIMIT_MS = 5 * 60 * 1000
 
 /** CPUのチームIDにつける印。人のID（UUID）とぶつからないようにする。 */
 const CPU_PREFIX = 'cpu:'
+
+// 対戦前の広告を出し終えた部屋。1つの部屋につき1回だけにするための覚え書き。
+// 回線が切れて入り直したときも、同じ部屋で2試合目を続けたときも、二度目は出さない。
+// アプリを立ち上げ直すと消えるが、そのときは部屋も作り直しになるので問題ない。
+const adShownRooms = new Set<string>()
 
 type Phase = 'lobby' | 'rules' | 'course' | 'pick' | 'race' | 'finish'
 
@@ -110,6 +116,21 @@ export default function RoomLobbyPage() {
   const pickSentRef = useRef(-1)
   const startPickRef = useRef<((n: number) => void) | null>(null)
   const finishSentRef = useRef(false)
+
+  // ── 対戦前の広告 ────────────────────────────────────────
+  // 部屋の画面に来た直後に、各自1回だけ全画面広告を出す。ホストもゲストも出る。
+  // ここは相手が集まるのを待っている時間なので、広告のせいで相手を待たせることがない。
+  // ホストは見終わってから「開始」を、ゲストは見終わってから「準備完了」を押すので、
+  // 待ち合わせの仕組みを足さなくても自然に足並みが揃う。
+  // GMパス（買い切り）を買っている人には出さない。読み込み失敗・オフライン・iOS以外は
+  // showInterstitialAd の側で即座に何もせず返るので、進行が止まることはない。
+  const adsRemoved = useGameStore(s => s.adsRemoved)
+  useEffect(() => {
+    if (!roomId || adsRemoved) return
+    if (adShownRooms.has(roomId)) return
+    adShownRooms.add(roomId)
+    void showInterstitialAd()
+  }, [roomId, adsRemoved])
 
   const refresh = useCallback(async () => {
     if (!roomId) return
