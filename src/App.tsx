@@ -283,9 +283,10 @@ export default function App() {
   // Layout ではなくここに置く。Layout はゲーム開始後しかマウントされず、タイトル画面では走らないため。
   useFriendSync()
   const [titleShown, setTitleShown] = useState(false)
-  // 初回起動（と規約を改訂したあとの初回）だけ、タイトルの前に同意画面を出す。
+  // 初回起動（と規約を改訂したあとの初回）だけ、タイトルをタップしたときに同意の枠を出す。
   // 同意の記録はセーブデータとは別の localStorage なので、データリセットしても消えない。
   const [termsOk, setTermsOk] = useState(hasAgreedTerms)
+  const [showTerms, setShowTerms] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
   const [showTwitter, setShowTwitter] = useState(false)
   // セーブ読み込み（非同期）完了までタイトルから先へ進めない。
@@ -400,6 +401,13 @@ export default function App() {
   // 固定時間で消すと、重いセーブでは読み込み前にタイトルへ戻ってしまう（タップ→ロード→またタイトル）。
   const handleTitleStart = () => {
     audio.unlock(); audio.playSe('title')
+    // まだ規約に同意していなければ、タイトルの上に同意の枠を出して、ここで一旦止める。
+    // 同意したら beginGame() を呼んで、いつも通りの読み込みへ進む。
+    if (!termsOk) { setShowTerms(true); return }
+    beginGame()
+  }
+
+  const beginGame = () => {
     const { show, hide } = useLoadingStore.getState()
     show('ゲームを準備中…')
     const start = Date.now()
@@ -428,8 +436,6 @@ export default function App() {
     // 読み込みが失敗した起動。ここで新規ゲーム画面を出すと本物のセーブが上書きされるため、
     // 必ず復旧画面（書き込み停止中・再試行できる）だけを見せる。
     content = <SaveRecoveryScreen />
-  } else if (!termsOk) {
-    content = <TermsGate onAgree={() => { agreeTerms(); setTermsOk(true) }} />
   } else if (!titleShown || !hydrated) {
     content = <TitleScreen onStart={handleTitleStart} />
   } else if (dataUpdating) {
@@ -456,6 +462,12 @@ export default function App() {
       {content}
       {/* 選手詳細シートは最上位に常時マウント（ドラフト画面など Layout 外でも openPlayerSheet で開ける） */}
       <PlayerSheet />
+      {/* 利用規約の同意。タイトルをタップしたときだけ、その上に四角い枠で出す。 */}
+      {showTerms && (
+        <TermsGate onAgree={() => {
+          agreeTerms(); setTermsOk(true); setShowTerms(false); beginGame()
+        }} />
+      )}
       {showTwitter && !forceUpdate && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
       {forceUpdate && <ForceUpdateModal />}
     </BrowserRouter>
