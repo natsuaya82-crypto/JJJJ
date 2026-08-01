@@ -22,7 +22,13 @@ public class IAPPlugin: CAPPlugin, CAPBridgedPlugin {
     Task {
       do {
         let products = try await Product.products(for: [self.productId])
-        call.resolve(["available": !products.isEmpty])
+        guard let product = products.first else {
+          call.resolve(["available": false])
+          return
+        }
+        // displayPrice は App Store が返す表示用の値段（国ごとの通貨・書式そのまま）。
+        // アプリ側に値段を書いておくと、値上げや他国のストアで嘘の表示になる
+        call.resolve(["available": true, "price": product.displayPrice])
       } catch {
         call.resolve(["available": false])
       }

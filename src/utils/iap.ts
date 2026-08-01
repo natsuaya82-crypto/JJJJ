@@ -3,7 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 interface IAPPlugin {
   purchase(): Promise<{ result: 'purchased' | 'cancelled' | 'pending' }>
   restore(): Promise<{ restored: boolean }>
-  available(): Promise<{ available: boolean }>
+  available(): Promise<{ available: boolean; price?: string }>
 }
 
 const IAP = registerPlugin<IAPPlugin>('IAP')
@@ -92,22 +92,33 @@ export async function restoreAdFree(): Promise<RestoreResult> {
  * 端末に残っている権利を読むだけなので、起動時に呼んでも邪魔にならない。
  * 家族の承認が下りた場合や、購入が途中で切れてしまった場合を自動で拾うために使う。
  */
+/** App Storeから値段が取れなかったときに出す値（日本のストア価格） */
+export const AD_FREE_FALLBACK_PRICE = '¥600'
+
+export type AdFreeProduct = {
+  /** 購入ボタンを押させてよいか */
+  buyable: boolean
+  /** App Storeが返した表示用の値段。取れなければ上の控えの値 */
+  price: string
+}
+
 /**
- * GMパスの商品情報がApp Storeから取れるかを、購入シートを出さずに先に確かめる。
+ * GMパスの商品情報を、購入シートを出さずに先に見ておく。
  *
- * 取れないまま購入ボタンを押させると「商品情報を取得できませんでした」が出るだけで、
- * ユーザーには何もできない。だからボタンを押させないために事前に見ておく。
- * 判断がつかないとき（通信中・iOS以外）は true を返す。
- * ここで false を返して押せなくするのは「確かに取れなかった」ときだけにする。
+ * ・取れないまま購入ボタンを押させると「商品情報を取得できませんでした」が出るだけで、
+ *   ユーザーには何もできない。だからボタンを押させないために事前に見ておく。
+ *   判断がつかないとき（通信中・iOS以外）は buyable = true にして、様子見で止めない。
+ * ・値段はApp Storeが返す物をそのまま出す。アプリ側に書いておくと、
+ *   値上げしたときや日本以外のストアで嘘の値段を出してしまう。
  */
-export async function isAdFreePurchasable(): Promise<boolean> {
-  if (!isIOS()) return true
+export async function adFreeProduct(): Promise<AdFreeProduct> {
+  if (!isIOS()) return { buyable: true, price: AD_FREE_FALLBACK_PRICE }
   try {
-    const { available } = await withTimeout(IAP.available(), AVAILABLE_TIMEOUT_MS)
-    return available
+    const { available, price } = await withTimeout(IAP.available(), AVAILABLE_TIMEOUT_MS)
+    return { buyable: available, price: price || AD_FREE_FALLBACK_PRICE }
   } catch (e) {
     console.warn('[iap] available check failed', e)
-    return true   // 調べられなかっただけ。ボタンは押せるままにする
+    return { buyable: true, price: AD_FREE_FALLBACK_PRICE }
   }
 }
 

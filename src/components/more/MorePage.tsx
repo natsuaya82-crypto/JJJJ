@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
-import { purchaseAdFree, restoreAdFree, lastIapError, isAdFreePurchasable } from '../../utils/iap'
+import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import { ONLINE_ENABLED } from '../../data/featureFlags'
 import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
@@ -152,12 +152,23 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       {/* フッター */}
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
         <div style={{ fontSize: 10, color: C.textGhost, letterSpacing: '1px' }}>JPEL Manager {APP_VERSION}</div>
-        <button
-          onClick={() => window.open('https://tokinets.com/privacy.html', '_blank')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
-        >
-          <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.55) }}>プライバシーポリシー</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => window.open('https://tokinets.com/privacy.html', '_blank')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
+          >
+            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.55) }}>プライバシーポリシー</span>
+          </button>
+          <span style={{ fontSize: 10, color: alpha(C.textGhost, 0.3) }}>|</span>
+          {/* Appleの標準使用許諾契約（EULA）。App Store Connectで独自のEULAを出していないので、
+              審査で求められる「利用規約への導線」はこれを指す */}
+          <button
+            onClick={() => window.open('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/', '_blank')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
+          >
+            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.55) }}>利用規約</span>
+          </button>
+        </div>
       </div>
 
       {/* 詳細画面 */}
@@ -424,13 +435,19 @@ function PremiumCard() {
   // App Storeから商品情報が取れるか。取れないと分かっている間は購入ボタンを押させない。
   // 判断がつかないうちは true（押せる）扱いにして、様子見で止めてしまわないようにする。
   const [buyable, setBuyable] = useState(true)
+  // 値段はApp Storeが返す物を出す（取れるまでは控えの値）。
+  // アプリ側に書いておくと、値上げしたときや日本以外のストアで嘘の値段になる
+  const [price, setPrice] = useState(AD_FREE_FALLBACK_PRICE)
 
   useEffect(() => {
-    if (adsRemoved) return
     let alive = true
-    void isAdFreePurchasable().then(ok => { if (alive) setBuyable(ok) })
+    void adFreeProduct().then(p => {
+      if (!alive) return
+      setBuyable(p.buyable)
+      setPrice(p.price)
+    })
     return () => { alive = false }
-  }, [adsRemoved])
+  }, [])
 
   const handlePurchase = async () => {
     if (busy) return
@@ -514,7 +531,7 @@ function PremiumCard() {
               background: `linear-gradient(180deg, ${C.goldHi} 0%, ${G} 52%, ${C.goldDark} 100%)`,
               WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
               filter: `drop-shadow(0 2px 8px ${alpha(G, 0.28)})`,
-            }}>¥600</div>
+            }}>{price}</div>
             <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1px', marginTop: 3 }}>買い切り・月額なし</div>
           </div>
         </div>
@@ -577,26 +594,29 @@ function PremiumCard() {
             >
               {/* 上半分の艶 */}
               <span style={{ position: 'absolute', top: 1, left: 5, right: 5, height: '44%', background: 'linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0))', borderRadius: '9px 9px 40% 40%', pointerEvents: 'none' }} />
-              <span style={{ position: 'relative' }}>{busy ? '処理中…' : !buyable ? 'いま購入できません' : '購入する　¥600'}</span>
+              <span style={{ position: 'relative' }}>{busy ? '処理中…' : !buyable ? 'いま購入できません' : '購入する　' + price}</span>
             </button>
             {!buyable && (
               <div style={{ fontSize: 10, color: C.textDim, textAlign: 'center', marginTop: 7, lineHeight: 1.6 }}>
                 App Storeから商品情報を取得できませんでした。通信環境をご確認のうえ、しばらくしてからアプリを開き直してください。
               </div>
             )}
-            <button
-              onClick={handleRestore}
-              disabled={busy}
-              style={{
-                width: '100%', padding: '10px', marginTop: 9, borderRadius: 11, cursor: busy ? 'default' : 'pointer',
-                background: 'transparent', border: `1px solid ${alpha(G, 0.14)}`, color: C.textDim,
-                fontSize: 11, fontWeight: 700, fontFamily: SAIRA, opacity: busy ? 0.6 : 1,
-              }}
-            >
-              購入を復元
-            </button>
           </>
         )}
+
+        {/* 「購入を復元」は購入済みでも必ず出しておく。
+            機種変更やApple IDの入れ直しで権利が消えたときに、戻す手段が画面に無いと詰む */}
+        <button
+          onClick={handleRestore}
+          disabled={busy}
+          style={{
+            width: '100%', padding: '10px', marginTop: 9, borderRadius: 11, cursor: busy ? 'default' : 'pointer',
+            background: 'transparent', border: `1px solid ${alpha(G, 0.14)}`, color: C.textDim,
+            fontSize: 11, fontWeight: 700, fontFamily: SAIRA, opacity: busy ? 0.6 : 1,
+          }}
+        >
+          購入を復元
+        </button>
 
         <div style={{ fontSize: 9.5, color: C.textGhost, lineHeight: 1.6, marginTop: 10, textAlign: 'center' }}>
           ※動画広告（ジュエル追加・2回目以降の大成功）は任意で見られます
