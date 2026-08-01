@@ -4,6 +4,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
 import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
+import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import PlayerFace from '../player/PlayerFace'
@@ -29,7 +30,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
   // 記録パッチ（世界記録・日本記録・MVP・区間記録など）。選択中があればそれ、無ければ優先順の最上位を1個
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
-  const seasonAwards = useGameStore(s => s.seasonAwards)
+  const seasonAwards = useSeasonAwards()
   const segmentRecords = useSegmentRecords()
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)

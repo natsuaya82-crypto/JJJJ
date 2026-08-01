@@ -8,6 +8,7 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { teamHistoriesOf, teamHistoryOf } from '../../utils/teamHistory'
+import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward } from '../../types'
 import { C, alpha } from '../../styles/tokens'
@@ -37,10 +38,11 @@ function PageShell({ title, children }: { title: string; children: React.ReactNo
 
 // 自チーム記録（優勝記録・歴代種目別記録・シーズン成績）
 export default function FranchiseRecordsPage() {
-  const { teams, players, pastSeasons, currentSeason, playerTeamId, seasonAwards } = useGameStore()
+  const { teams, players, pastSeasons, currentSeason, playerTeamId } = useGameStore()
+  const seasonAwards = useSeasonAwards()
   return (
     <PageShell title="自チーム記録">
-      <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} seasonAwards={seasonAwards ?? []} />
+      <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} seasonAwards={seasonAwards} />
     </PageShell>
   )
 }

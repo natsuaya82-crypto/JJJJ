@@ -7,6 +7,7 @@ import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from './BadgeContent'
 import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
+import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
@@ -50,7 +51,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   // 記録を抜かれた等で保持者でなくなったパッチは自動で外れて次の候補に切り替わる
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
-  const seasonAwards = useGameStore(s => s.seasonAwards)
+  const seasonAwards = useSeasonAwards()
   const segmentRecords = useSegmentRecords()
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)

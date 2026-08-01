@@ -1,7 +1,7 @@
 // 選手の記録パッチ（世界記録・日本記録・年度MVP・新人王・区間記録）の解決。
 // 選手詳細の1ページ目（最大5個）とロスター名前横（選択した1個）で使う。
 // 記録はすべて「現在の保持者」基準：他選手に抜かれたらパッチも自然に外れる。
-import type { Player, GameState, SegmentRecord, EventDistKey, Nationality } from '../types'
+import type { Player, GameState, SegmentRecord, SeasonAward, EventDistKey, Nationality } from '../types'
 
 export type PlayerBadge = {
   key: string      // 一意キー（Player.displayBadge に保存する値）
@@ -32,7 +32,8 @@ export const BADGE_COLOR: Record<PlayerBadge['kind'], string> = {
   asiaBest: '#EC407A', // 年間アジア最優秀選手: ピンク（アジア予選カラー）
 }
 
-type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'seasonAwards' | 'eclHistory'> & {
+type BadgeSource = Pick<GameState, 'worldRecords' | 'japanRecords' | 'eclHistory'> & {
+  seasonAwards?: SeasonAward[]
   segmentRecords?: Record<string, SegmentRecord[]>
   worldRepresentatives?: GameState['worldRepresentatives']
   eventSeasonTops?: GameState['eventSeasonTops']

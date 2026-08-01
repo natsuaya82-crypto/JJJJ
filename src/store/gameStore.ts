@@ -40,7 +40,7 @@ import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/l
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
 import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
 import { generateSponsorOffers } from '../data/sponsors'
-import { computeSeasonAwards } from '../utils/awards'
+import { computeSeasonAwards, seasonAwardsOf } from '../utils/awards'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, buildTeamHistories, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 
@@ -5674,7 +5674,8 @@ export const useGameStore = create<GameStore>()(
           for (const t of state.teams) {
             for (const list of Object.values(t.eventRecords ?? {})) for (const r of list ?? []) protectedIds.add(r.playerId)
           }
-          for (const a of state.seasonAwards ?? []) {
+          // 年度MVP・新人王はセーブに持たず、過去シーズンのレース結果から選び直す（utils/awards.ts）
+          for (const a of seasonAwardsOf(state.pastSeasons, state.players, state.removedPlayers)) {
             if (a.mvpId) protectedIds.add(a.mvpId)
             if (a.rookieId) protectedIds.add(a.rookieId)
           }
@@ -5794,8 +5795,6 @@ export const useGameStore = create<GameStore>()(
             jewelGains: [...(state.jewelGains ?? []), ...seasonJewelGains].slice(-20),
             gmRep: newGmRep,
             achievements: [...(state.achievements ?? []), ...seasonAchievements],
-            // 年度別MVP・新人王（選手プロフィールのパッチ・シーズン振り返り用）
-            seasonAwards: [...(state.seasonAwards ?? []), newSeasonAward],
             eventSeasonTops: [...(state.eventSeasonTops ?? []), ...newEventTops],
             draftState: null,
             sponsors: updatedSponsors,
@@ -6903,13 +6902,11 @@ export const useGameStore = create<GameStore>()(
         // 受賞・記録が残ると、2028年に「2030年MVP」パッチが付くような矛盾が起きるため除去する
         set(state => {
           const year = state.currentSeason.year
-          const awards = (state.seasonAwards ?? []).filter(a => a.year <= year)
           const ecl = (state.eclHistory ?? []).filter(e => e.year <= year)
           const tops = (state.eventSeasonTops ?? []).filter(t => t.year <= year)
-          if (awards.length === (state.seasonAwards ?? []).length
-            && ecl.length === (state.eclHistory ?? []).length
+          if (ecl.length === (state.eclHistory ?? []).length
             && tops.length === (state.eventSeasonTops ?? []).length) return state
-          return { seasonAwards: awards, eclHistory: ecl, eventSeasonTops: tops }
+          return { eclHistory: ecl, eventSeasonTops: tops }
         })
         // 所属は player.teamId だけで持つようになったので、クラブ名簿との同期処理は不要になった
         // （旧セーブの救済は persist の migrate v22 で1回だけ行う）
@@ -7114,7 +7111,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 26,
+      version: 27,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7445,6 +7442,13 @@ export const useGameStore = create<GameStore>()(
               delete next.history
               return next
             })
+          }
+
+          // v27: 年度MVP・新人王（seasonAwards）を保存するのをやめる。
+          // 受賞者は過去シーズンのレース結果から選び直せる（utils/awards.ts）。
+          // 選び方は作った時から変えていないので、これまでの受賞者がそのまま出る。
+          if (version < 27) {
+            delete s.seasonAwards
           }
           return s
         } catch (e) {

@@ -837,7 +837,6 @@ export type GameState = {
   transferHistory?: TransferRecord[]   // 移籍の成立記録（チーム詳細の移籍ページで移籍金・契約期間を表示するため）
   worldRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 世界記録（全選手の歴代1位）
   japanRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 日本記録（JPN選手の歴代1位）
-  seasonAwards?: SeasonAward[]   // 年度別MVP・新人王（選手プロフィールのパッチ表示用）
   eclHistory?: EclHistoryEntry[]   // ECLの歴代優勝（優勝パッチ・記録室の歴代優勝表示用）
   // 記録会のシーズン別上位記録（歴代優勝ページ用の軽量アーカイブ。記録会全結果はシーズン終了で
   // 破棄されるため、種目別トップ10だけ名前焼き込みで永続する）

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
+import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { usePreviewStore } from '../../store/previewStore'
@@ -140,7 +141,7 @@ export default function PlayerSheet() {
   // 記録パッチ（世界/日本記録・MVP・新人王・区間記録）の解決用
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
-  const seasonAwards = useGameStore(s => s.seasonAwards)
+  const seasonAwards = useSeasonAwards()
   const eclHistory = useGameStore(s => s.eclHistory)
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
