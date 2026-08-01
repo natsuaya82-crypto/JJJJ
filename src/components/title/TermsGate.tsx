@@ -1,0 +1,152 @@
+// 初回起動時に出す、利用規約への同意画面。
+//
+// フレンド・走友会でほかの人に文字が見える以上、App Store の審査基準（1.2）で
+// 「不適切な投稿を許容しない規約に同意させること」が求められる。
+// 本文を最後まで送ってからチェック、という一般的な形にしてある。
+// タイトル画面の前に一度だけ出して、同意したら以後は出さない。
+
+import { useState } from 'react'
+import { C, R, alpha } from '../../styles/tokens'
+import { TERMS_UPDATED, TERMS_INTRO, TERMS_HIGHLIGHT, TERMS_SECTIONS } from '../../data/termsText'
+
+const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const JP = "'Noto Sans JP', system-ui, sans-serif"
+
+export default function TermsGate({ onAgree }: { onAgree: () => void }) {
+  const [reachedEnd, setReachedEnd] = useState(false)
+  const [checked, setChecked] = useState(false)
+
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) setReachedEnd(true)
+  }
+
+  // 画面が大きくてスクロールが要らない場合でも進めるようにしておく
+  const measure = (el: HTMLDivElement | null) => {
+    if (el && el.scrollHeight <= el.clientHeight + 24) setReachedEnd(true)
+  }
+
+  const canAgree = reachedEnd && checked
+
+  return (
+    <div style={{
+      height: '100svh', maxWidth: '480px', margin: '0 auto',
+      background: '#050d1c', display: 'flex', flexDirection: 'column',
+      fontFamily: JP, color: C.text, overflow: 'hidden',
+    }}>
+      {/* 上：見出し */}
+      <div style={{
+        flexShrink: 0, padding: 'calc(20px + env(safe-area-inset-top)) 24px 14px',
+        borderBottom: `1px solid ${alpha(C.gold, 0.18)}`, textAlign: 'center',
+      }}>
+        <div style={{
+          fontSize: '9px', letterSpacing: '5px', color: alpha(C.gold, 0.6),
+          fontFamily: SAIRA, fontWeight: 700, marginBottom: '8px',
+        }}>
+          JPEL MANAGER
+        </div>
+        <div style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '1px' }}>利用規約</div>
+        <div style={{ fontSize: '10px', color: C.textGhost, marginTop: '4px' }}>
+          最終更新日：{TERMS_UPDATED}
+        </div>
+      </div>
+
+      {/* 中：本文 */}
+      <div
+        ref={measure}
+        onScroll={onScroll}
+        style={{ flex: 1, overflowY: 'auto', padding: '18px 24px 28px', WebkitOverflowScrolling: 'touch' }}>
+
+        <div style={{ fontSize: '12px', lineHeight: 1.9, color: C.textSub, marginBottom: '16px' }}>
+          {TERMS_INTRO}
+        </div>
+
+        <div style={{
+          border: `1px solid ${alpha(C.gold, 0.3)}`, borderRadius: R.md,
+          background: alpha(C.gold, 0.05), padding: '13px 15px', marginBottom: '8px',
+        }}>
+          <div style={{ fontSize: '12px', lineHeight: 1.9, color: C.text, fontWeight: 700 }}>
+            {TERMS_HIGHLIGHT}
+          </div>
+        </div>
+
+        {TERMS_SECTIONS.map(sec => (
+          <div key={sec.title} style={{ marginTop: '22px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: C.gold, marginBottom: '7px' }}>
+              {sec.title}
+            </div>
+            {sec.body && (
+              <div style={{ fontSize: '12px', lineHeight: 1.9, color: C.textSub, whiteSpace: 'pre-line' }}>
+                {sec.body}
+              </div>
+            )}
+            {sec.items && (
+              <div style={{ marginTop: sec.body ? '8px' : 0 }}>
+                {sec.items.map((it, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ color: alpha(C.gold, 0.7), fontSize: '12px', lineHeight: 1.9 }}>・</span>
+                    <span style={{ fontSize: '12px', lineHeight: 1.9, color: C.textSub, flex: 1 }}>{it}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div style={{
+          marginTop: '28px', textAlign: 'center', fontSize: '10px',
+          color: C.textGhost, letterSpacing: '2px', fontFamily: SAIRA,
+        }}>
+          — END OF TERMS —
+        </div>
+      </div>
+
+      {/* 下：チェックと同意 */}
+      <div style={{
+        flexShrink: 0, padding: '14px 24px calc(20px + env(safe-area-inset-bottom))',
+        borderTop: `1px solid ${alpha(C.gold, 0.18)}`, background: '#081327',
+      }}>
+        <div
+          onClick={() => { if (reachedEnd) setChecked(v => !v) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px',
+            cursor: reachedEnd ? 'pointer' : 'default', opacity: reachedEnd ? 1 : 0.4,
+          }}>
+          <div style={{
+            width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
+            border: `1.5px solid ${checked ? C.gold : alpha(C.text, 0.35)}`,
+            background: checked ? C.gold : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#1a1200', fontSize: '14px', fontWeight: 900, lineHeight: 1,
+          }}>
+            {checked ? '✓' : ''}
+          </div>
+          <div style={{ fontSize: '13px', color: C.textSub, fontWeight: 700 }}>
+            利用規約に同意します
+          </div>
+        </div>
+
+        {!reachedEnd && (
+          <div style={{ fontSize: '10px', color: C.textGhost, marginBottom: '10px' }}>
+            最後まで読むとチェックできます
+          </div>
+        )}
+
+        <button
+          onClick={() => { if (canAgree) onAgree() }}
+          disabled={!canAgree}
+          style={{
+            width: '100%', padding: '16px', borderRadius: R.md, border: 'none',
+            background: canAgree
+              ? `linear-gradient(135deg, ${C.goldDark}, ${C.gold} 55%, ${C.goldHi})`
+              : alpha(C.text, 0.08),
+            color: canAgree ? '#1a1200' : C.textGhost,
+            fontSize: '15px', fontWeight: 900, letterSpacing: '1px',
+            fontFamily: JP, cursor: canAgree ? 'pointer' : 'default',
+          }}>
+          同意して始める
+        </button>
+      </div>
+    </div>
+  )
+}

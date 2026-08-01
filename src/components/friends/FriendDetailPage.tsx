@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
+import ActionSheet from '../ui/ActionSheet'
+import ReportSheet, { type ReportTarget } from './ReportSheet'
+import { blockUser } from '../../lib/moderationApi'
 import PlayerRow from '../player/PlayerRow'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -27,7 +30,10 @@ export default function FriendDetailPage() {
 
   // 自前のポップアップ（端末標準の alert / confirm は使わない）
   const [askRemove, setAskRemove] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
+  const [menu, setMenu] = useState(false)
+  const [reporting, setReporting] = useState<ReportTarget | null>(null)
+  const [askBlock, setAskBlock] = useState(false)
 
   // フレンドのロスター選手を「長押し詳細」で開けるよう、この画面の間だけプレビュー登録する
   // list.data を依存にする（roster は毎レンダー新しい配列になるため、入れると無限ループする）
@@ -69,7 +75,16 @@ export default function FriendDetailPage() {
       await removeFriend(friend.id)
       invalidateFriendsCache('friends', `friend:${friend.id}`, `roster:${friend.id}`)
       navigate('/friends/list', { replace: true })
-    } catch { setNotice('通信できませんでした') }
+    } catch { setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' }) }
+  }
+
+  // ブロックするとフレンドも自動で解除されるので、そのまま一覧へ戻す
+  const onBlock = async () => {
+    setAskBlock(false)
+    const ok = await blockUser(friend.id)
+    if (!ok) { setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' }); return }
+    invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed', 'myClub', `friend:${friend.id}`, `roster:${friend.id}`)
+    navigate('/friends/list', { replace: true })
   }
 
   return (
@@ -80,6 +95,7 @@ export default function FriendDetailPage() {
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FRIEND</div>
         <div style={{ flex: 1 }} />
         <button onClick={() => setAskRemove(true)} style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>
+        <button onClick={() => setMenu(true)} aria-label="メニュー" style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 13, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '1px', cursor: 'pointer' }}>···</button>
       </div>
 
       {/* チーム情報 */}
@@ -130,8 +146,41 @@ export default function FriendDetailPage() {
         />
       )}
 
+      <ActionSheet
+        open={menu}
+        onClose={() => setMenu(false)}
+        items={[
+          { label: '通報する', color: C.red, onClick: () => { setReporting({ userId: friend.id, name: friend.teamName }); setMenu(false) } },
+          { label: 'この相手をブロックする', color: C.red, onClick: () => { setAskBlock(true); setMenu(false) } },
+        ]}
+      />
+      {reporting && (
+        <ReportSheet
+          target={reporting}
+          onClose={() => setReporting(null)}
+          onDone={(message, blocked) => {
+            setReporting(null)
+            if (blocked) {
+              invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed', 'myClub', `friend:${friend.id}`, `roster:${friend.id}`)
+              navigate('/friends/list', { replace: true })
+              return
+            }
+            setNotice({ title: message })
+          }}
+        />
+      )}
+      {askBlock && (
+        <ConfirmDialog
+          title={`${friend.teamName} をブロックしますか？`}
+          message="この相手の名前と書き込みは表示されなくなります。フレンドも解除されます。"
+          confirmLabel="ブロック" accent={C.red}
+          onConfirm={() => { void onBlock() }}
+          onCancel={() => setAskBlock(false)}
+        />
+      )}
+
       {notice && (
-        <NoticeDialog title={notice} message="電波の良い場所で、もう一度お試しください" onClose={() => setNotice(null)} />
+        <NoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)} />
       )}
     </div>
   )

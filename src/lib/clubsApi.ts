@@ -5,6 +5,7 @@ import {
   FriendsOffline, ensureMyProfile, profilesByIds, toFriend,
   type Friend, type ProfileRow,
 } from './friendsApi'
+import { blockedIds, withoutBlocked } from './moderationApi'
 import { normalizeClubLogoId } from '../data/clubLogos'
 import type { TrainingCard } from '../types'
 
@@ -39,12 +40,16 @@ export type Club = ClubBrief & { ownerId: string }
 export type ClubMember = Friend & {
   role: 'owner' | 'member'
   joinedAt: string
+  /** 自分がブロックした相手。名前を伏せて出す（人数は変えたくないので一覧からは消さない） */
+  blocked: boolean
 }
 
 export type MyClub = {
   club: Club
   members: ClubMember[]
   isOwner: boolean
+  /** 自分の利用者id。メンバー一覧で自分の行にだけメニューを出さないために使う */
+  meId: string
 }
 
 /** 走友会の設定（作るときも直すときも同じ形） */
@@ -141,6 +146,7 @@ export async function myClub(): Promise<MyClub | null> {
     ownerId: (clubRow as unknown as { owner: string }).owner,
   }
 
+  const blocked = await blockedIds()
   const members: ClubMember[] = rows.map(r => {
     const p = byId.get(r.user_id)
     const base = p
@@ -149,14 +155,14 @@ export async function myClub(): Promise<MyClub | null> {
           id: r.user_id, code: '', teamName: '（読み込めません）', shortName: '—', gmName: '—',
           logoId: 'logo_01', primary: '#122440', secondary: '#f5c842', champs: 0, lastLogin: '—',
         }
-    return { ...base, role: r.role, joinedAt: r.joined_at }
+    return { ...base, role: r.role, joinedAt: r.joined_at, blocked: blocked.has(r.user_id) }
   })
   // 会長を先頭に、あとは加入が早い順
   members.sort((a, b) =>
     (a.role === 'owner' ? 0 : 1) - (b.role === 'owner' ? 0 : 1) ||
     a.joinedAt.localeCompare(b.joinedAt))
 
-  return { club, members, isOwner: club.ownerId === me }
+  return { club, members, isOwner: club.ownerId === me, meId: me }
 }
 
 // ── 作る・入る ────────────────────────────────────────
@@ -293,7 +299,8 @@ export async function clubFeed(): Promise<ClubPost[]> {
   await uid()
   const { data, error } = await supabase.rpc('club_feed')
   if (error) throw new FriendsOffline()
-  return ((data ?? []) as FeedRow[]).map(r => ({
+  const rows = await withoutBlocked((data ?? []) as FeedRow[], r => r.user_id)
+  return rows.map(r => ({
     id: r.id,
     userId: r.user_id,
     kind: r.kind,

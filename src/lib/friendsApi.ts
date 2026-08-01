@@ -3,6 +3,7 @@
 // 画面側の書き換えを最小限にしている。
 import type { Player, Team } from '../types'
 import { supabase, ensureAuth } from './supabase'
+import { withoutBlocked } from './moderationApi'
 
 export type Friend = {
   id: string
@@ -167,7 +168,8 @@ export async function listFriends(): Promise<Friend[]> {
     .from('friendships').select('friend_id').eq('user_id', me)
   if (error) throw new FriendsOffline()
   const rows = await profilesByIds((data ?? []).map(r => r.friend_id as string))
-  return rows.map(toFriend).sort((a, b) => a.teamName.localeCompare(b.teamName, 'ja'))
+  const list = rows.map(toFriend).sort((a, b) => a.teamName.localeCompare(b.teamName, 'ja'))
+  return withoutBlocked(list, f => f.id)
 }
 
 export async function getFriend(id: string | undefined): Promise<Friend | undefined> {
@@ -193,7 +195,7 @@ export async function listReceived(): Promise<FriendRequest[]> {
     .from('friend_requests').select('from_user').eq('to_user', me)
   if (error) throw new FriendsOffline()
   const rows = await profilesByIds((data ?? []).map(r => r.from_user as string))
-  return rows.map(toRequest)
+  return withoutBlocked(rows.map(toRequest), r => r.id)
 }
 
 export async function listSent(): Promise<FriendRequest[]> {
@@ -202,7 +204,7 @@ export async function listSent(): Promise<FriendRequest[]> {
     .from('friend_requests').select('to_user').eq('from_user', me)
   if (error) throw new FriendsOffline()
   const rows = await profilesByIds((data ?? []).map(r => r.to_user as string))
-  return rows.map(toRequest)
+  return withoutBlocked(rows.map(toRequest), r => r.id)
 }
 
 /** コードから相手を探すだけ（申請はしない）。申請前の確認画面に出す用。 */

@@ -3,6 +3,8 @@ import { useGameStore } from '../../store/gameStore'
 import { audio, audioDiag } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import { ONLINE_ENABLED } from '../../data/featureFlags'
+import { TERMS_URL, PRIVACY_URL } from '../../utils/termsConsent'
+import { listBlocked, unblockUser, type BlockedUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -32,6 +34,7 @@ const IcRace = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path
 const IcX = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
 const IcHome = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcTrash = <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+const IcBlock = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/><path d="M5.6 5.6l12.8 12.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 const Chevron = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: C.textDim, flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
 
 // ── 課金カードの特典アイコン ──
@@ -107,7 +110,79 @@ function DetailScreen({ title, onClose, children }: { title: string; onClose: ()
   )
 }
 
-type Detail = null | 'team' | 'sound' | 'reset'
+type Detail = null | 'team' | 'sound' | 'reset' | 'blocked'
+
+// ── ブロックした利用者 ──────────────────────────────────
+// App Store の審査基準 1.2 で「ブロックできること」が要る。
+// 解除の場所が無いと一度ブロックしたら二度と戻せないので、ここに一覧を置く。
+function BlockedScreen({ onClose }: { onClose: () => void }) {
+  const [rows, setRows] = useState<BlockedUser[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [busy, setBusy] = useState('')
+  const [round, setRound] = useState(0)
+
+  useEffect(() => {
+    let alive = true
+    listBlocked()
+      .then(r => { if (alive) setRows(r) })
+      .catch(() => { if (alive) { setRows([]); setFailed(true) } })
+    return () => { alive = false }
+  }, [round])
+
+  const onUnblock = async (u: BlockedUser) => {
+    setBusy(u.id)
+    const ok = await unblockUser(u.id)
+    setBusy('')
+    if (ok) { setFailed(false); setRound(n => n + 1) }
+    else setFailed(true)
+  }
+
+  return (
+    <DetailScreen title="ブロックした利用者" onClose={onClose}>
+      <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.7, marginBottom: 14 }}>
+        ブロックした相手の名前と書き込みは表示されません。解除してもフレンドには戻らないので、必要ならもう一度申請してください。
+      </div>
+
+      {rows === null ? (
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '40px 0' }}>読み込み中…</div>
+      ) : failed ? (
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '40px 0' }}>通信できませんでした</div>
+      ) : rows.length === 0 ? (
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '40px 0' }}>ブロックしている相手はいません</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rows.map(u => (
+            <div key={u.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12,
+              background: C.surface2, border: `1px solid ${C.border2}`,
+            }}>
+              <TeamLogoSVG primary={u.primary} secondary={u.secondary} shortName={u.shortName} logoId={u.logoId} size={38} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {u.teamName}
+                </div>
+                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>GM {u.gmName}</div>
+              </div>
+              <button
+                onClick={() => { void onUnblock(u) }}
+                disabled={busy === u.id}
+                className="btn-press"
+                style={{
+                  padding: '8px 14px', borderRadius: 9, flexShrink: 0, cursor: busy === u.id ? 'default' : 'pointer',
+                  border: `2px solid ${alpha(C.cyan, busy === u.id ? 0.25 : 0.6)}`,
+                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                  color: busy === u.id ? C.textGhost : C.cyan, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
+                }}
+              >
+                解除
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </DetailScreen>
+  )
+}
 
 export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void }) {
   const { resetGame } = useGameStore()
@@ -145,6 +220,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           onClick={() => setRaceEventsEnabled(!raceEventsEnabled)}
         />
         <SettingRow icon={IcX} label="公式X（@JPEL_MANAGER）" sub="アップデート情報・お問い合わせ" onClick={() => window.open('https://x.com/JPEL_MANAGER', '_blank')} />
+        {ONLINE_ENABLED && <SettingRow icon={IcBlock} label="ブロックした利用者" sub="オンラインで表示しない相手" onClick={() => setDetail('blocked')} />}
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />
       </div>
@@ -154,16 +230,16 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         <div style={{ fontSize: 10, color: C.textGhost, letterSpacing: '1px' }}>JPEL Manager {APP_VERSION}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
-            onClick={() => window.open('https://tokinets.com/privacy.html', '_blank')}
+            onClick={() => window.open(PRIVACY_URL, '_blank')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
           >
             <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.55) }}>プライバシーポリシー</span>
           </button>
           <span style={{ fontSize: 10, color: alpha(C.textGhost, 0.3) }}>|</span>
-          {/* Appleの標準使用許諾契約（EULA）。App Store Connectで独自のEULAを出していないので、
-              審査で求められる「利用規約への導線」はこれを指す */}
+          {/* 自前の利用規約。初回起動の同意画面で出しているものと同じ内容。
+              アプリ内の本文は src/data/termsText.ts にあるので、直すときは両方そろえること */}
           <button
-            onClick={() => window.open('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/', '_blank')}
+            onClick={() => window.open(TERMS_URL, '_blank')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
           >
             <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.55) }}>利用規約</span>
@@ -174,6 +250,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       {/* 詳細画面 */}
       {detail === 'team' && <TeamEditScreen onClose={() => setDetail(null)} />}
       {detail === 'sound' && <SoundScreen onClose={() => setDetail(null)} />}
+      {detail === 'blocked' && <BlockedScreen onClose={() => setDetail(null)} />}
       {detail === 'reset' && <ResetScreen resetGame={resetGame} onClose={() => setDetail(null)} />}
     </div>
   )

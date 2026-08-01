@@ -18,6 +18,8 @@ import { useLoadingStore } from './store/loadingStore'
 import { useFriendSync } from './lib/useFriendSync'
 import { ONLINE_ENABLED } from './data/featureFlags'
 import TitleScreen from './components/title/TitleScreen'
+import TermsGate from './components/title/TermsGate'
+import { hasAgreedTerms, agreeTerms } from './utils/termsConsent'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
 import AnnouncementsPage from './components/more/AnnouncementsPage'
@@ -281,6 +283,9 @@ export default function App() {
   // Layout ではなくここに置く。Layout はゲーム開始後しかマウントされず、タイトル画面では走らないため。
   useFriendSync()
   const [titleShown, setTitleShown] = useState(false)
+  // 初回起動（と規約を改訂したあとの初回）だけ、タイトルの前に同意画面を出す。
+  // 同意の記録はセーブデータとは別の localStorage なので、データリセットしても消えない。
+  const [termsOk, setTermsOk] = useState(hasAgreedTerms)
   const [forceUpdate, setForceUpdate] = useState(false)
   const [showTwitter, setShowTwitter] = useState(false)
   // セーブ読み込み（非同期）完了までタイトルから先へ進めない。
@@ -423,6 +428,8 @@ export default function App() {
     // 読み込みが失敗した起動。ここで新規ゲーム画面を出すと本物のセーブが上書きされるため、
     // 必ず復旧画面（書き込み停止中・再試行できる）だけを見せる。
     content = <SaveRecoveryScreen />
+  } else if (!termsOk) {
+    content = <TermsGate onAgree={() => { agreeTerms(); setTermsOk(true) }} />
   } else if (!titleShown || !hydrated) {
     content = <TitleScreen onStart={handleTitleStart} />
   } else if (dataUpdating) {

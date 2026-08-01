@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
+import ActionSheet from '../ui/ActionSheet'
+import ReportSheet, { type ReportTarget } from './ReportSheet'
+import { blockUser, unblockUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
 import { CLUB_LOGOS, CLUB_LOGO_DEFAULT, clubLogoSrc } from '../../data/clubLogos'
 import { formatCode } from '../../lib/friendsApi'
@@ -325,24 +328,35 @@ function ClubSearch({ onChanged }: { onChanged: () => void }) {
 }
 
 // ── 所属あり：走友会の中 ───────────────────────────────
-function MemberRow({ m, canKick, onKick }: { m: ClubMember; canKick: boolean; onKick: () => void }) {
+function MemberRow({ m, canKick, isMe, onKick, onMenu }: {
+  m: ClubMember; canKick: boolean; isMe: boolean; onKick: () => void; onMenu: () => void
+}) {
+  // ブロックした相手は、名前も監督名も伏せる。人数がずれるので一覧からは消さない。
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 12,
       background: C.surface2, border: `1px solid ${C.border2}`,
+      opacity: m.blocked ? 0.5 : 1,
     }}>
       <TeamLogoSVG primary={m.primary} secondary={m.secondary} shortName={m.shortName} logoId={m.logoId} size={40} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {m.teamName}
+          <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {m.blocked ? 'ブロック中の利用者' : m.teamName}
           </span>
           {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
         </div>
-        <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>GM {m.gmName} ・ {m.lastLogin}</div>
+        <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
+          {m.blocked ? 'この相手は表示していません' : `GM ${m.gmName} ・ ${m.lastLogin}`}
+        </div>
       </div>
       {canKick && (
         <button onClick={onKick} className="btn-press" style={actionButton(C.red)}>外す</button>
+      )}
+      {!isMe && (
+        <button onClick={onMenu} className="btn-press" aria-label="メニュー" style={{
+          ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px',
+        }}>···</button>
       )}
     </div>
   )
@@ -408,6 +422,9 @@ function ClubBoard() {
   const [busy, setBusy] = useState('')
   const [picking, setPicking] = useState<ClubPost | null>(null)
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
+  const [menuPost, setMenuPost] = useState<ClubPost | null>(null)
+  const [reporting, setReporting] = useState<ReportTarget | null>(null)
+  const [confirmBlock, setConfirmBlock] = useState<ClubPost | null>(null)
 
   // 前回の「受け取る」が途中で終わっていた場合の入れ直し。
   // 箱に残っているもののうち、まだ手元に無いカードだけを足す（二重に増えない）。
@@ -471,6 +488,16 @@ function ClubBoard() {
         refresh()
       }
     } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+  }
+
+  // 掲示板からブロックする。書き込みは次の読み込みから消える。
+  const onBlock = async (post: ClubPost) => {
+    setConfirmBlock(null)
+    const ok = await blockUser(post.userId)
+    if (!ok) { setNotice({ title: '通信できませんでした' }); return }
+    invalidateFriendsCache('clubFeed', 'myClub', 'friends', 'received', 'sent')
+    feed.reload()
+    setNotice({ title: 'ブロックしました', message: 'この相手の書き込みは表示されません' })
   }
 
   const onClaim = async () => {
@@ -576,6 +603,10 @@ function ClubBoard() {
                         style={actionButton(C.green, busy === p.id)}>わたす</button>
                     ) : null
                   )}
+                  {!p.mine && (
+                    <button onClick={() => setMenuPost(p)} className="btn-press" aria-label="メニュー"
+                      style={{ ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px' }}>···</button>
+                  )}
                 </div>
               )
             })}
@@ -596,13 +627,42 @@ function ClubBoard() {
           onCancel={() => setPicking(null)}
         />
       )}
+
+      <ActionSheet
+        open={!!menuPost}
+        onClose={() => setMenuPost(null)}
+        items={[
+          { label: '通報する', color: C.red, onClick: () => { if (menuPost) setReporting({ userId: menuPost.userId, name: menuPost.teamName }); setMenuPost(null) } },
+          { label: 'この相手をブロックする', color: C.red, onClick: () => { setConfirmBlock(menuPost); setMenuPost(null) } },
+        ]}
+      />
+      {reporting && (
+        <ReportSheet
+          target={reporting}
+          onClose={() => setReporting(null)}
+          onDone={(message, blocked) => {
+            setReporting(null)
+            if (blocked) { invalidateFriendsCache('clubFeed', 'myClub', 'friends', 'received', 'sent'); feed.reload() }
+            setNotice({ title: message })
+          }}
+        />
+      )}
+      {confirmBlock && (
+        <ConfirmDialog
+          title={`${confirmBlock.teamName} をブロックしますか？`}
+          message="この相手の書き込みは表示されなくなります。フレンドだった場合は解除されます。"
+          confirmLabel="ブロック" accent={C.red}
+          onCancel={() => setConfirmBlock(null)}
+          onConfirm={() => { void onBlock(confirmBlock) }}
+        />
+      )}
       {notice && <NoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)} />}
     </>
   )
 }
 
 function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) {
-  const { club, members, isOwner } = mine
+  const { club, members, isOwner, meId } = mine
   const reqs = useFriendsQuery(() => (isOwner ? listClubRequests() : Promise.resolve([])), [isOwner], 'clubReqIn')
   const [busy, setBusy] = useState('')
   const [editing, setEditing] = useState(false)
@@ -610,6 +670,9 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   const [confirmKick, setConfirmKick] = useState<ClubMember | null>(null)
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
   const [tab, setTab] = useState<'members' | 'board'>('members')
+  const [menuMember, setMenuMember] = useState<ClubMember | null>(null)
+  const [reporting, setReporting] = useState<ReportTarget | null>(null)
+  const [confirmBlock, setConfirmBlock] = useState<ClubMember | null>(null)
 
   const refresh = () => {
     invalidateFriendsCache('myClub', 'clubReco', 'clubReqIn', 'clubReqSent')
@@ -629,6 +692,27 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
     setConfirmKick(null); setBusy(m.id)
     try { await kickClubMember(m.id); refresh() }
     catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+  }
+
+  const onBlock = async (m: ClubMember) => {
+    setConfirmBlock(null); setBusy(m.id)
+    try {
+      const ok = await blockUser(m.id)
+      if (!ok) { setNotice({ title: '通信できませんでした' }); return }
+      invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed')
+      refresh()
+      setNotice({ title: 'ブロックしました', message: 'この相手の名前と書き込みは表示されません' })
+    } finally { setBusy('') }
+  }
+
+  const onUnblock = async (m: ClubMember) => {
+    setBusy(m.id)
+    try {
+      const ok = await unblockUser(m.id)
+      if (!ok) { setNotice({ title: '通信できませんでした' }); return }
+      invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed')
+      refresh()
+    } finally { setBusy('') }
   }
 
   const onApprove = async (id: string, ok: boolean) => {
@@ -750,14 +834,26 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             <SectionLabel>メンバー {members.length}人</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {members.map(m => (
-                <MemberRow key={m.id} m={m} canKick={isOwner && m.role !== 'owner'} onKick={() => setConfirmKick(m)} />
+                <MemberRow
+                  key={m.id}
+                  m={m}
+                  canKick={isOwner && m.role !== 'owner'}
+                  isMe={m.id === meId}
+                  onKick={() => setConfirmKick(m)}
+                  onMenu={() => setMenuMember(m)}
+                />
               ))}
             </div>
 
             <SectionLabel>走友会</SectionLabel>
-            <button onClick={() => setConfirmLeave(true)} disabled={busy === 'leave'} className="btn-press" style={{
-              ...actionButton(C.red, busy === 'leave'), width: '100%', padding: '12px 0',
-            }}>走友会を抜ける</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setReporting({ clubId: club.id, name: club.name })} className="btn-press" style={{
+                ...actionButton(C.textDim), flex: 1, padding: '12px 0',
+              }}>走友会を通報</button>
+              <button onClick={() => setConfirmLeave(true)} disabled={busy === 'leave'} className="btn-press" style={{
+                ...actionButton(C.red, busy === 'leave'), flex: 1, padding: '12px 0',
+              }}>走友会を抜ける</button>
+            </div>
           </>
         )}
       </div>
@@ -775,6 +871,41 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
           title={`${confirmKick.teamName} を外しますか？`}
           confirmLabel="外す" accent={C.red}
           onConfirm={() => onKick(confirmKick)} onCancel={() => setConfirmKick(null)}
+        />
+      )}
+
+      <ActionSheet
+        open={!!menuMember}
+        onClose={() => setMenuMember(null)}
+        items={
+          menuMember?.blocked
+            ? [
+                { label: 'ブロックを外す', onClick: () => { const m = menuMember; setMenuMember(null); if (m) void onUnblock(m) } },
+              ]
+            : [
+                { label: '通報する', color: C.red, onClick: () => { if (menuMember) setReporting({ userId: menuMember.id, name: menuMember.teamName }); setMenuMember(null) } },
+                { label: 'この相手をブロックする', color: C.red, onClick: () => { setConfirmBlock(menuMember); setMenuMember(null) } },
+              ]
+        }
+      />
+      {reporting && (
+        <ReportSheet
+          target={reporting}
+          onClose={() => setReporting(null)}
+          onDone={(message, blocked) => {
+            setReporting(null)
+            if (blocked) { invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed'); refresh() }
+            setNotice({ title: message })
+          }}
+        />
+      )}
+      {confirmBlock && (
+        <ConfirmDialog
+          title={`${confirmBlock.teamName} をブロックしますか？`}
+          message="この相手の名前と書き込みは表示されなくなります。フレンドだった場合は解除されます。"
+          confirmLabel="ブロック" accent={C.red}
+          onConfirm={() => { void onBlock(confirmBlock) }}
+          onCancel={() => setConfirmBlock(null)}
         />
       )}
       {notice && <NoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)} />}
