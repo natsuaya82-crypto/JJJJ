@@ -10,12 +10,19 @@ import PlayerRow from '../player/PlayerRow'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { getFriend, getFriendRoster, removeFriend } from '../../lib/friendsApi'
+import { clubsOfUsers, type UserClub } from '../../lib/clubsApi'
+import { clubLogoSrc } from '../../data/clubLogos'
+import type { Specialty } from '../../types'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
 import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+
+/** ロスターの並び替え。種目は「同じ種目でまとめて、中はOVR順」 */
+type SortKey = 'ovr' | 'age' | 'spec'
+const SPEC_ORDER: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
 
 export default function FriendDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,8 +32,17 @@ export default function FriendDetailPage() {
 
   const head = useFriendsQuery(() => getFriend(id), [id], `friend:${id}`)
   const list = useFriendsQuery(() => (id ? getFriendRoster(id) : Promise.resolve([])), [id], `roster:${id}`)
+  // 所属している走友会。取れなくても画面は普通に出す（出ないだけ）
+  const clubQ = useFriendsQuery(
+    () => (id ? clubsOfUsers([id]) : Promise.resolve(new Map<string, UserClub>())),
+    [id],
+    `clubOf:${id}`,
+  )
   const friend = head.data
   const roster = list.data ?? []
+  const club = id ? clubQ.data?.get(id) : undefined
+
+  const [sortKey, setSortKey] = useState<SortKey>('ovr')
 
   // 自前のポップアップ（端末標準の alert / confirm は使わない）
   const [askRemove, setAskRemove] = useState(false)
@@ -68,6 +84,14 @@ export default function FriendDetailPage() {
   }
 
   const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length) : 0
+
+  const sorted = [...roster].sort((a, b) => {
+    if (sortKey === 'age') return a.age - b.age || ovr(b) - ovr(a)
+    if (sortKey === 'spec') {
+      return SPEC_ORDER.indexOf(a.specialty) - SPEC_ORDER.indexOf(b.specialty) || ovr(b) - ovr(a)
+    }
+    return ovr(b) - ovr(a)
+  })
 
   const onRemove = async () => {
     setAskRemove(false)
@@ -115,11 +139,36 @@ export default function FriendDetailPage() {
             </div>
           ))}
         </div>
+        {club && (
+          // 押すと走友会の画面が、この走友会を探した状態で開く
+          <button
+            onClick={() => navigate(`/friends/club?code=${club.code}`)}
+            className="btn-press"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 10px', borderRadius: 10, background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <img src={clubLogoSrc(club.logoId)} alt="" width={22} height={22} draggable={false} style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }} />
+            <div style={{ fontSize: 9, color: C.textDim, flexShrink: 0 }}>走友会</div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{club.name}</div>
+            <div style={{ flex: 1 }} />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: C.goldDark, flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          </button>
+        )}
       </div>
 
       {/* 現状ロスター（全員）— 既存の PlayerRow を流用。長押しで選手詳細 */}
       <div style={{ padding: '16px 0 0' }}>
-        <div style={{ fontSize: 10, color: alpha(C.gold, 0.55), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 16 }}>現在のロスター（長押しで詳細）</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 16px' }}>
+          <div style={{ fontSize: 10, color: alpha(C.gold, 0.55), letterSpacing: '2px', fontWeight: 900 }}>現在のロスター（長押しで詳細）</div>
+          <div style={{ flex: 1 }} />
+          <select
+            value={sortKey}
+            onChange={e => setSortKey(e.target.value as SortKey)}
+            aria-label="並び替え"
+            style={{ padding: '5px 8px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: 11, fontFamily: SAIRA, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
+            <option value="ovr">OVR順</option>
+            <option value="age">年齢順</option>
+            <option value="spec">種目順</option>
+          </select>
+        </div>
         {list.loading ? (
           <div style={{ padding: '0 16px' }}><LoadingBox /></div>
         ) : list.error ? (
@@ -128,7 +177,7 @@ export default function FriendDetailPage() {
           <div style={{ padding: '0 16px' }}><EmptyBox label="相手がまだロスターを共有していません" /></div>
         ) : (
           <div>
-            {roster.map(p => (
+            {sorted.map(p => (
               <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
             ))}
           </div>

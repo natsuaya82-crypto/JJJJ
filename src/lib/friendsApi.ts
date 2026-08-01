@@ -95,7 +95,17 @@ const PROFILE_COLS =
 
 /** 通信エラーをUIで扱いやすい日本語にする */
 export class FriendsOffline extends Error {
-  constructor() { super('通信できませんでした') }
+  /** サーバーが返した本当の文言。原因を追うときだけ画面に小さく出す */
+  detail?: string
+  constructor(detail?: string) {
+    super('通信できませんでした')
+    this.detail = detail || undefined
+  }
+}
+
+/** 例外から、サーバーが返した本当の文言だけを取り出す（無ければ空） */
+export function offlineDetail(e: unknown): string {
+  return e instanceof FriendsOffline ? (e.detail ?? '') : ''
 }
 
 async function uid(): Promise<string> {

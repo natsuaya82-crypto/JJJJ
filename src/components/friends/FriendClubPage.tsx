@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -7,15 +8,15 @@ import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { blockUser, unblockUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
 import { CLUB_LOGOS, CLUB_LOGO_DEFAULT, clubLogoSrc } from '../../data/clubLogos'
-import { formatCode } from '../../lib/friendsApi'
+import { formatCode, offlineDetail } from '../../lib/friendsApi'
 import {
   CLUB_MAX, JOIN_TYPE_LABEL, searchClubs, myClub, myClubRequests, createClub, joinClub,
   cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
-  leaveClub, kickClubMember, updateClub,
-  CLUB_PHRASES, CLUB_REQ_CAP, clubFeed, postClubMessage, postClubRequest,
+  leaveClub, kickClubMember, updateClub, setClubRole, CLUB_ADMIN_MAX,
+  CLUB_PHRASES, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubMessage, postClubRequest,
   donateClubCard, clubGiftCount, claimClubGifts,
   type ClubBrief, type ClubForm, type ClubMember, type ClubPost, type ClubReqRarity,
-  type JoinType, type MyClub,
+  type ClubReqStat, type JoinType, type MyClub,
 } from '../../lib/clubsApi'
 import { useGameStore } from '../../store/gameStore'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
@@ -31,7 +32,30 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const JOIN_COLOR: Record<JoinType, string> = {
   open: C.green, approval: C.cyan, closed: C.textGhost,
 }
-const OVR_CHOICES = [0, 60, 65, 70, 75, 80]
+
+// 入会条件のつまみ。いちばん左（64）を「なし」として扱い、右は65〜90。
+const OVR_MIN = 64
+const OVR_MAX = 90
+const ovrLabel = (v: number) => (v <= OVR_MIN ? 'なし' : `${v} 以上`)
+
+/**
+ * 選んだものが一目で分かるボタン。
+ * 選択中＝金色で塗って黒字＋チェック、それ以外＝暗いまま。
+ * 種類ごとに色を変えると「全部光って見える」ので、選択の色は金一色にそろえてある。
+ */
+function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      flex: 1, padding: '9px 0', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA,
+      fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap',
+      color: on ? '#1a1200' : C.textGhost,
+      background: on ? C.gold : alpha('#000', 0.3),
+      border: `1px solid ${on ? C.gold : C.border3}`,
+      boxShadow: on ? `0 0 0 2px ${alpha(C.gold, 0.28)}` : 'none',
+      opacity: on ? 1 : 0.75,
+    }}>{on ? `✓ ${label}` : label}</button>
+  )
+}
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px', borderRadius: 10, boxSizing: 'border-box',
@@ -66,6 +90,7 @@ function Pill({ color, children }: { color: string; children: React.ReactNode })
     <span style={{
       padding: '1px 7px', borderRadius: 6, fontSize: 9, fontWeight: 900, fontFamily: SAIRA,
       color, border: `1px solid ${alpha(color, 0.5)}`, background: alpha(color, 0.12),
+      whiteSpace: 'nowrap', flexShrink: 0,
     }}>{children}</span>
   )
 }
@@ -155,13 +180,8 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
           <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6 }}>参加タイプ</div>
           <div style={{ display: 'flex', gap: 6 }}>
             {(['open', 'approval', 'closed'] as JoinType[]).map(t => (
-              <button key={t} type="button" onClick={() => set('joinType', t)} style={{
-                flex: 1, padding: '8px 0', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA,
-                fontSize: 11, fontWeight: 900,
-                color: f.joinType === t ? C.bg : C.textDim,
-                background: f.joinType === t ? JOIN_COLOR[t] : alpha('#000', 0.25),
-                border: `1px solid ${f.joinType === t ? JOIN_COLOR[t] : C.border3}`,
-              }}>{JOIN_TYPE_LABEL[t]}</button>
+              <ChoiceButton key={t} label={JOIN_TYPE_LABEL[t]}
+                on={f.joinType === t} onClick={() => set('joinType', t)} />
             ))}
           </div>
           <div style={{ fontSize: 9, color: C.textGhost, marginTop: 4, lineHeight: 1.5 }}>
@@ -170,17 +190,30 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
         </div>
 
         <div>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6 }}>入会条件（チーム平均OVR）</div>
-          <div style={{ display: 'flex', gap: 5 }}>
-            {OVR_CHOICES.map(v => (
-              <button key={v} type="button" onClick={() => set('minOvr', v)} style={{
-                flex: 1, padding: '7px 0', borderRadius: 8, cursor: 'pointer', fontFamily: SAIRA,
-                fontSize: 11, fontWeight: 900,
-                color: f.minOvr === v ? C.bg : C.textDim,
-                background: f.minOvr === v ? C.gold : alpha('#000', 0.25),
-                border: `1px solid ${f.minOvr === v ? C.gold : C.border3}`,
-              }}>{v === 0 ? 'なし' : `${v}+`}</button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 10, color: C.textDim }}>入会条件（チーム平均OVR）</span>
+            <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: f.minOvr > 0 ? C.gold : C.textGhost }}>
+              {ovrLabel(f.minOvr === 0 ? OVR_MIN : f.minOvr)}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={OVR_MIN}
+            max={OVR_MAX}
+            step={1}
+            value={f.minOvr === 0 ? OVR_MIN : Math.min(Math.max(f.minOvr, OVR_MIN), OVR_MAX)}
+            onChange={e => {
+              const v = Number(e.target.value)
+              set('minOvr', v <= OVR_MIN ? 0 : v)
+            }}
+            style={{ width: '100%', accentColor: C.gold, height: 26, display: 'block' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: SAIRA, fontSize: 9, color: C.textGhost }}>
+            <span>なし</span>
+            <span>{OVR_MAX}</span>
+          </div>
+          <div style={{ fontSize: 9, color: C.textGhost, marginTop: 4, lineHeight: 1.5 }}>
+            入るときだけ見る条件です。入ったあとに下回っても外れません。
           </div>
         </div>
       </div>
@@ -201,9 +234,10 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
 }
 
 // ── 未所属：検索画面 ───────────────────────────────────
-function ClubSearch({ onChanged }: { onChanged: () => void }) {
-  const [q, setQ] = useState('')
-  const [term, setTerm] = useState('')          // 実際に検索に使っている言葉
+function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; initialCode?: string }) {
+  // フレンドの走友会の行から来たときは、そのコードで検索した状態で開く
+  const [q, setQ] = useState(initialCode)
+  const [term, setTerm] = useState(initialCode) // 実際に検索に使っている言葉
   const list = useFriendsQuery(() => searchClubs(term), [term], term === '' ? 'clubReco' : undefined)
   const sent = useFriendsQuery(myClubRequests, [], 'clubReqSent')
   const [busy, setBusy] = useState('')
@@ -346,6 +380,7 @@ function MemberRow({ m, canKick, isMe, onKick, onMenu }: {
             {m.blocked ? 'ブロック中の利用者' : m.teamName}
           </span>
           {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
+          {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
         </div>
         <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
           {m.blocked ? 'この相手は表示していません' : `GM ${m.gmName} ・ ${m.lastLogin}`}
@@ -377,14 +412,15 @@ function ago(iso: string): string {
   return `${Math.floor(hour / 24)}日前`
 }
 
-/** 渡すカードを選ぶ。手持ちのうち、要求されたレアリティの通常カードだけ出す */
-function DonatePicker({ rarity, cards, busy, onPick, onCancel }: {
-  rarity: ClubReqRarity; cards: TrainingCard[]; busy: boolean
+/** 渡すカードを選ぶ。手持ちのうち、頼まれたレアリティ（と種類）のカードだけ出す */
+function DonatePicker({ rarity, stat, cards, busy, onPick, onCancel }: {
+  rarity: ClubReqRarity; stat: ClubReqStat; cards: TrainingCard[]; busy: boolean
   onPick: (c: TrainingCard) => void; onCancel: () => void
 }) {
+  const want = stat ? `${RARITY_LABELS[rarity]}の${CARD_NAMES[stat]}` : RARITY_LABELS[rarity]
   return (
     <ConfirmDialog
-      title={`${RARITY_LABELS[rarity]}カードを1枚わたす`}
+      title={`${want}カードを1枚わたす`}
       confirmLabel="やめる"
       accent={C.textDim}
       onConfirm={onCancel}
@@ -392,7 +428,7 @@ function DonatePicker({ rarity, cards, busy, onPick, onCancel }: {
     >
       {cards.length === 0 ? (
         <div style={{ marginTop: 10, fontSize: 12, color: C.textDim, lineHeight: 1.6 }}>
-          渡せる{RARITY_LABELS[rarity]}カードを持っていません。
+          渡せる{want}カードを持っていません。
         </div>
       ) : (
         <div style={{
@@ -414,6 +450,48 @@ function DonatePicker({ rarity, cards, busy, onPick, onCancel }: {
   )
 }
 
+/** お願いするカードの中身を選ぶ。おまかせなら誰でも渡せる */
+function AskPicker({ rarity, busy, onPick, onCancel }: {
+  rarity: ClubReqRarity; busy: boolean
+  onPick: (stat: ClubReqStat) => void; onCancel: () => void
+}) {
+  const [stat, setStat] = useState<ClubReqStat>('')
+  return (
+    <ConfirmDialog
+      title={`${RARITY_LABELS[rarity]}カードを${CLUB_REQ_CAP[rarity]}枚おねがいする`}
+      confirmLabel={busy ? '送信中…' : 'おねがいする'}
+      cancelLabel="やめる"
+      accent={C.gold}
+      onConfirm={() => { if (!busy) onPick(stat) }}
+      onCancel={onCancel}
+    >
+      <div style={{ marginTop: 10, fontSize: 11, color: C.textDim }}>どの練習のカードが欲しい？</div>
+      <div style={{ display: 'flex', marginTop: 6 }}>
+        <ChoiceButton label="おまかせ（なんでも）" on={stat === ''} onClick={() => setStat('')} />
+      </div>
+      <div style={{
+        marginTop: 6, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6,
+      }}>
+        {CLUB_REQ_STATS.map(s => (
+          <button key={s} type="button" onClick={() => setStat(s)} style={{
+            background: stat === s ? alpha(C.gold, 0.16) : 'none',
+            border: `1px solid ${stat === s ? C.gold : 'transparent'}`,
+            borderRadius: 9, padding: '4px 0', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            opacity: stat === s ? 1 : 0.6,
+          }}>
+            <TrainingCardSVG statKey={s} rarity={rarity} width={52} />
+            <span style={{ fontSize: 8, color: stat === s ? C.gold : C.textGhost }}>{CARD_NAMES[s]}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 9, color: C.textGhost, marginTop: 8, lineHeight: 1.6 }}>
+        種類を選ぶと、その練習のカードだけ集まります。おまかせなら何でも受け取れます。
+      </div>
+    </ConfirmDialog>
+  )
+}
+
 function ClubBoard() {
   const feed = useFriendsQuery(clubFeed, [], 'clubFeed')
   const gifts = useFriendsQuery(clubGiftCount, [], 'clubGifts')
@@ -422,6 +500,7 @@ function ClubBoard() {
   const addTrainingCards = useGameStore(s => s.addTrainingCards)
   const [busy, setBusy] = useState('')
   const [picking, setPicking] = useState<ClubPost | null>(null)
+  const [asking, setAsking] = useState<ClubReqRarity | null>(null)
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
   const [menuPost, setMenuPost] = useState<ClubPost | null>(null)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
@@ -449,8 +528,14 @@ function ClubBoard() {
     feed.reload(); gifts.reload()
   }
 
-  const cardsOf = (rarity: ClubReqRarity) =>
-    (myCards ?? []).filter(c => c.rarity === rarity && c.kind !== 'rest')
+  // 渡せる手持ち。種類の指定があるものは、その練習のカードだけに絞る
+  const cardsOf = (rarity: ClubReqRarity, stat: ClubReqStat) =>
+    (myCards ?? []).filter(c =>
+      c.rarity === rarity && c.kind !== 'rest' && (stat === '' || c.statKey === stat))
+
+  // 通信に失敗したとき用。原因が分かるようサーバーの文言もそのまま添える
+  const failed = (e: unknown) =>
+    setNotice({ title: '通信できませんでした', message: offlineDetail(e) || undefined })
 
   const onPhrase = async (i: number) => {
     setBusy('msg')
@@ -458,16 +543,17 @@ function ClubBoard() {
       const r = await postClubMessage(i)
       if (r === 'too_fast') setNotice({ title: '少し待ってください', message: '書き込みは1分に1回までです' })
       else refresh()
-    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    } catch (e) { failed(e) } finally { setBusy('') }
   }
 
-  const onAsk = async (rarity: ClubReqRarity) => {
+  const onAsk = async (rarity: ClubReqRarity, stat: ClubReqStat) => {
     setBusy('req')
     try {
-      const r = await postClubRequest(rarity)
+      const r = await postClubRequest(rarity, stat)
+      setAsking(null)
       if (r === 'today_done') setNotice({ title: '今日はもうお願いしています', message: 'カードのお願いは1日1回までです' })
       else refresh()
-    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    } catch (e) { setAsking(null); failed(e) } finally { setBusy('') }
   }
 
   const onDonate = async (post: ClubPost, card: TrainingCard) => {
@@ -489,7 +575,7 @@ function ClubBoard() {
         })
         refresh()
       }
-    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    } catch (e) { setPicking(null); failed(e) } finally { setBusy('') }
   }
 
   // 掲示板からブロックする。書き込みは次の読み込みから消える。
@@ -519,7 +605,7 @@ function ClubBoard() {
         message: cards.length > 0 ? 'カード一覧に入っています' : undefined,
       })
       refresh()
-    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    } catch (e) { failed(e) } finally { setBusy('') }
   }
 
   return (
@@ -537,14 +623,19 @@ function ClubBoard() {
         <SectionLabel>カードをお願いする（1日1回）</SectionLabel>
         <div style={{ display: 'flex', gap: 6 }}>
           {REQ_RARITIES.map(r => (
-            <button key={r} onClick={() => onAsk(r)} disabled={busy === 'req' || askedToday}
+            <button key={r} onClick={() => setAsking(r)} disabled={busy === 'req' || askedToday}
               className="btn-press" style={{
                 ...actionButton(RARITY_COLORS[r], busy === 'req' || askedToday),
-                flex: 1, padding: '11px 0',
+                flex: 1, padding: '9px 0', lineHeight: 1.35,
               }}>
-              {RARITY_LABELS[r]} {CLUB_REQ_CAP[r]}枚
+              {RARITY_LABELS[r]}を
+              <br />
+              {CLUB_REQ_CAP[r]}枚おねがい
             </button>
           ))}
+        </div>
+        <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5, lineHeight: 1.6 }}>
+          押すと、どの練習のカードが欲しいか選べます。枚数は走友会のみんなから集める合計です。
         </div>
         {askedToday && (
           <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5 }}>
@@ -593,6 +684,7 @@ function ClubBoard() {
                     ) : (
                       <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
                         <span style={{ color: col, fontWeight: 900 }}>{RARITY_LABELS[p.rarity || 'normal']}</span>
+                        {p.stat ? `の${CARD_NAMES[p.stat]}` : ''}
                         カードください
                         <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, marginLeft: 6 }}>
                           {p.filled}/{p.cap}
@@ -627,10 +719,20 @@ function ClubBoard() {
       {picking && picking.rarity && (
         <DonatePicker
           rarity={picking.rarity}
-          cards={cardsOf(picking.rarity)}
+          stat={picking.stat}
+          cards={cardsOf(picking.rarity, picking.stat)}
           busy={busy === picking.id}
           onPick={c => onDonate(picking, c)}
           onCancel={() => setPicking(null)}
+        />
+      )}
+
+      {asking && (
+        <AskPicker
+          rarity={asking}
+          busy={busy === 'req'}
+          onPick={stat => { void onAsk(asking, stat) }}
+          onCancel={() => setAsking(null)}
         />
       )}
 
@@ -668,8 +770,9 @@ function ClubBoard() {
 }
 
 function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) {
-  const { club, members, isOwner, meId } = mine
-  const reqs = useFriendsQuery(() => (isOwner ? listClubRequests() : Promise.resolve([])), [isOwner], 'clubReqIn')
+  const { club, members, isOwner, myRole, canEdit, adminCount, meId } = mine
+  // 加入申請は会長と副会長が見る
+  const reqs = useFriendsQuery(() => (canEdit ? listClubRequests() : Promise.resolve([])), [canEdit], 'clubReqIn')
   const [busy, setBusy] = useState('')
   const [editing, setEditing] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -677,6 +780,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
   const [tab, setTab] = useState<'members' | 'board'>('members')
   const [menuMember, setMenuMember] = useState<ClubMember | null>(null)
+  const [menuClub, setMenuClub] = useState(false)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
   const [confirmBlock, setConfirmBlock] = useState<ClubMember | null>(null)
 
@@ -691,6 +795,24 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
       const r = await leaveClub()
       if (r === 'disbanded') setNotice({ title: '解散しました', message: '最後の1人だったので走友会は無くなりました' })
       refresh()
+    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+  }
+
+  // 副会長にする／やめる（会長だけ）
+  const onSetRole = async (m: ClubMember, role: 'admin' | 'member') => {
+    setBusy(m.id)
+    try {
+      const r = await setClubRole(m.id, role)
+      if (r === 'ok') { refresh(); setNotice({
+        title: role === 'admin' ? `${m.teamName} を副会長にしました` : `${m.teamName} の副会長をやめました`,
+      }) }
+      else setNotice({
+        title: 'できませんでした',
+        message:
+          r === 'too_many' ? `副会長は${CLUB_ADMIN_MAX}人までです` :
+          r === 'not_owner' ? '会長だけができます' :
+          r === 'not_member' ? 'この人はもう走友会にいません' : '選べない役割です',
+      })
     } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
   }
 
@@ -789,9 +911,12 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                 {formatCode(club.code)}
               </div>
             </div>
-            {isOwner && (
+            {canEdit && (
               <button onClick={() => setEditing(true)} className="btn-press" style={actionButton(C.cyan)}>設定</button>
             )}
+            <button onClick={() => setMenuClub(true)} className="btn-press" aria-label="走友会のメニュー" style={{
+              ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px',
+            }}>···</button>
           </div>
         </div>
 
@@ -810,8 +935,8 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
 
         {tab === 'board' && <ClubBoard />}
 
-        {/* 加入申請（会長だけ） */}
-        {tab === 'members' && isOwner && (reqs.data ?? []).length > 0 && (
+        {/* 加入申請（会長と副会長） */}
+        {tab === 'members' && canEdit && (reqs.data ?? []).length > 0 && (
           <>
             <SectionLabel>加入申請 {(reqs.data ?? []).length}件</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -843,7 +968,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                 <MemberRow
                   key={m.id}
                   m={m}
-                  canKick={isOwner && m.role !== 'owner'}
+                  canKick={canEdit && m.role !== 'owner' && !(myRole === 'admin' && m.role === 'admin')}
                   isMe={m.id === meId}
                   onKick={() => setConfirmKick(m)}
                   onMenu={() => setMenuMember(m)}
@@ -852,13 +977,11 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             </div>
 
             <SectionLabel>走友会</SectionLabel>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setReporting({ clubId: club.id, name: club.name })} className="btn-press" style={{
-                ...actionButton(C.textDim), flex: 1, padding: '12px 0',
-              }}>走友会を通報</button>
-              <button onClick={() => setConfirmLeave(true)} disabled={busy === 'leave'} className="btn-press" style={{
-                ...actionButton(C.red, busy === 'leave'), flex: 1, padding: '12px 0',
-              }}>走友会を抜ける</button>
+            <button onClick={() => setConfirmLeave(true)} disabled={busy === 'leave'} className="btn-press" style={{
+              ...actionButton(C.red, busy === 'leave'), width: '100%', padding: '12px 0',
+            }}>走友会を抜ける</button>
+            <div style={{ fontSize: 9, color: C.textGhost, marginTop: 6, lineHeight: 1.6 }}>
+              この走友会を通報したいときは、上の走友会カードの「···」から。
             </div>
           </>
         )}
@@ -867,7 +990,9 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
       {confirmLeave && (
         <ConfirmDialog
           title="走友会を抜けますか？"
-          message={isOwner ? '会長は次に古いメンバーへ引き継がれます（あなた1人なら解散します）' : undefined}
+          message={isOwner
+            ? '会長は副会長のいちばん古い人へ引き継がれます。副会長がいなければ次に古いメンバーへ。あなた1人なら解散します。'
+            : undefined}
           confirmLabel="抜ける" accent={C.red}
           onConfirm={onLeave} onCancel={() => setConfirmLeave(false)}
         />
@@ -889,10 +1014,39 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                 { label: 'ブロックを外す', onClick: () => { const m = menuMember; setMenuMember(null); if (m) void onUnblock(m) } },
               ]
             : [
+                // 役割の付け外しは会長だけ。会長自身の行にはメニューが出ないので owner は入らない。
+                ...(isOwner && menuMember && menuMember.role === 'member'
+                  ? [{
+                      label: adminCount >= CLUB_ADMIN_MAX
+                        ? `副会長にする（あと0人・${CLUB_ADMIN_MAX}人まで）`
+                        : `副会長にする（あと${CLUB_ADMIN_MAX - adminCount}人）`,
+                      color: C.cyan,
+                      onClick: () => { const m = menuMember; setMenuMember(null); if (m) void onSetRole(m, 'admin') },
+                    }]
+                  : []),
+                ...(isOwner && menuMember && menuMember.role === 'admin'
+                  ? [{
+                      label: '副会長をやめてもらう',
+                      color: C.textDim,
+                      onClick: () => { const m = menuMember; setMenuMember(null); if (m) void onSetRole(m, 'member') },
+                    }]
+                  : []),
                 { label: '通報する', color: C.red, onClick: () => { if (menuMember) setReporting({ userId: menuMember.id, name: menuMember.teamName }); setMenuMember(null) } },
                 { label: 'この相手をブロックする', color: C.red, onClick: () => { setConfirmBlock(menuMember); setMenuMember(null) } },
               ]
         }
+      />
+
+      <ActionSheet
+        open={menuClub}
+        onClose={() => setMenuClub(false)}
+        items={[
+          {
+            label: 'この走友会を通報する',
+            color: C.red,
+            onClick: () => { setMenuClub(false); setReporting({ clubId: club.id, name: club.name }) },
+          },
+        ]}
       />
       {reporting && (
         <ReportSheet
@@ -922,6 +1076,9 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
 // ── 入口 ─────────────────────────────────────────────
 export default function FriendClubPage() {
   const mine = useFriendsQuery(myClub, [], 'myClub')
+  // フレンドの走友会の行から飛んできたとき用。?code=数字10桁
+  const [params] = useSearchParams()
+  const fromFriend = (params.get('code') ?? '').replace(/\D/g, '')
 
   return (
     <div style={{ fontFamily: SAIRA, minHeight: '100%', background: C.bg, paddingBottom: 80 }}>
@@ -939,7 +1096,7 @@ export default function FriendClubPage() {
       {mine.loading ? <div style={{ padding: '0 12px' }}><LoadingBox /></div> :
        mine.error ? <div style={{ padding: '0 12px' }}><ErrorBox onRetry={mine.reload} /></div> :
        mine.data ? <ClubHome mine={mine.data} onChanged={mine.reload} /> :
-       <ClubSearch onChanged={mine.reload} />}
+       <ClubSearch onChanged={mine.reload} initialCode={fromFriend} />}
     </div>
   )
 }

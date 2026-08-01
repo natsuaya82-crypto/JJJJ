@@ -7,7 +7,7 @@ import {
 } from './friendsApi'
 import { blockedIds, withoutBlocked } from './moderationApi'
 import { normalizeClubLogoId } from '../data/clubLogos'
-import type { TrainingCard } from '../types'
+import type { CardStatKey, TrainingCard } from '../types'
 
 /** 走友会の人数上限。clubs.sql の 50 とそろえること */
 export const CLUB_MAX = 50
@@ -36,9 +36,21 @@ export type ClubBrief = {
 
 export type Club = ClubBrief & { ownerId: string }
 
+/** 走友会での役割。owner＝会長 / admin＝副会長 / member＝一般 */
+export type ClubRole = 'owner' | 'admin' | 'member'
+
+export const CLUB_ROLE_LABEL: Record<ClubRole, string> = {
+  owner: '会長',
+  admin: '副会長',
+  member: '',
+}
+
+/** 副会長の人数の上限。clubs_roles.sql の 3 とそろえること */
+export const CLUB_ADMIN_MAX = 3
+
 /** メンバー1人ぶん。表示に必要なものはフレンドと同じなので Friend を土台にする */
 export type ClubMember = Friend & {
-  role: 'owner' | 'member'
+  role: ClubRole
   joinedAt: string
   /** 自分がブロックした相手。名前を伏せて出す（人数は変えたくないので一覧からは消さない） */
   blocked: boolean
@@ -48,6 +60,12 @@ export type MyClub = {
   club: Club
   members: ClubMember[]
   isOwner: boolean
+  /** 自分の役割 */
+  myRole: ClubRole
+  /** 設定・加入申請・メンバーを外す ができる人（＝会長か副会長） */
+  canEdit: boolean
+  /** いまの副会長の人数 */
+  adminCount: number
   /** 自分の利用者id。メンバー一覧で自分の行にだけメニューを出さないために使う */
   meId: string
 }
@@ -134,7 +152,7 @@ export async function myClub(): Promise<MyClub | null> {
   if (cErr || lErr) throw new FriendsOffline()
   if (!clubRow) return null
 
-  const rows = (memberRows ?? []) as { user_id: string; role: 'owner' | 'member'; joined_at: string }[]
+  const rows = (memberRows ?? []) as { user_id: string; role: ClubRole; joined_at: string }[]
   const profiles = await profilesByIds(rows.map(r => r.user_id))
   const byId = new Map(profiles.map(p => [p.user_id, p]))
 
@@ -157,12 +175,20 @@ export async function myClub(): Promise<MyClub | null> {
         }
     return { ...base, role: r.role, joinedAt: r.joined_at, blocked: blocked.has(r.user_id) }
   })
-  // 会長を先頭に、あとは加入が早い順
-  members.sort((a, b) =>
-    (a.role === 'owner' ? 0 : 1) - (b.role === 'owner' ? 0 : 1) ||
-    a.joinedAt.localeCompare(b.joinedAt))
+  // 会長・副会長・一般の順。同じ役割のなかは加入が早い順
+  const rank = (r: ClubRole) => (r === 'owner' ? 0 : r === 'admin' ? 1 : 2)
+  members.sort((a, b) => rank(a.role) - rank(b.role) || a.joinedAt.localeCompare(b.joinedAt))
 
-  return { club, members, isOwner: club.ownerId === me, meId: me }
+  const myRole: ClubRole = members.find(m => m.id === me)?.role ?? 'member'
+  return {
+    club,
+    members,
+    isOwner: club.ownerId === me,
+    myRole,
+    canEdit: myRole === 'owner' || myRole === 'admin',
+    adminCount: members.filter(m => m.role === 'admin').length,
+    meId: me,
+  }
 }
 
 // ── 作る・入る ────────────────────────────────────────
@@ -229,14 +255,24 @@ export async function leaveClub(): Promise<LeaveResult> {
   return (data as LeaveResult) ?? 'not_in_club'
 }
 
-/** メンバーを外す（会長だけ） */
+/** メンバーを外す（会長と副会長。副会長は一般しか外せない） */
 export async function kickClubMember(userId: string): Promise<void> {
   await uid()
   const { error } = await supabase.rpc('kick_club_member', { p_user: userId })
   if (error) throw new FriendsOffline()
 }
 
-/** 走友会の設定を変える（会長だけ） */
+export type SetRoleResult = 'ok' | 'not_owner' | 'not_member' | 'too_many' | 'bad_role'
+
+/** 副会長にする / 副会長をやめる（会長だけ）。副会長は3人まで */
+export async function setClubRole(userId: string, role: 'admin' | 'member'): Promise<SetRoleResult> {
+  await uid()
+  const { data, error } = await supabase.rpc('set_club_role', { p_user: userId, p_role: role })
+  if (error) throw new FriendsOffline(error.message)
+  return (data as SetRoleResult) ?? 'not_owner'
+}
+
+/** 走友会の設定を変える（会長と副会長） */
 export async function updateClub(f: ClubForm): Promise<void> {
   await uid()
   const { error } = await supabase.rpc('update_club', {
@@ -268,12 +304,20 @@ export type ClubReqRarity = 'normal' | 'rare' | 'epic'
 
 export const CLUB_REQ_CAP: Record<ClubReqRarity, number> = { normal: 5, rare: 3, epic: 1 }
 
+/** お願いするカードの種類。'' は「種類はおまかせ」 */
+export type ClubReqStat = CardStatKey | ''
+
+export const CLUB_REQ_STATS: CardStatKey[] =
+  ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+
 export type ClubPost = {
   id: string
   userId: string
   kind: 'msg' | 'req'
   phrase: number
   rarity: ClubReqRarity | ''
+  /** 欲しいカードの種類。'' なら何でもよい */
+  stat: ClubReqStat
   filled: number
   cap: number
   mine: boolean
@@ -288,7 +332,7 @@ export type ClubPost = {
 }
 
 type FeedRow = {
-  id: string; user_id: string; kind: 'msg' | 'req'; phrase: number; rarity: string
+  id: string; user_id: string; kind: 'msg' | 'req'; phrase: number; rarity: string; stat: string | null
   filled: number; cap: number; mine: boolean; donated: boolean; created_at: string
   team_name: string | null; short_name: string | null; gm_name: string | null
   logo_id: string | null; color_primary: string | null; color_secondary: string | null
@@ -298,7 +342,7 @@ type FeedRow = {
 export async function clubFeed(): Promise<ClubPost[]> {
   await uid()
   const { data, error } = await supabase.rpc('club_feed')
-  if (error) throw new FriendsOffline()
+  if (error) throw new FriendsOffline(error.message)
   const rows = await withoutBlocked((data ?? []) as FeedRow[], r => r.user_id)
   return rows.map(r => ({
     id: r.id,
@@ -306,6 +350,7 @@ export async function clubFeed(): Promise<ClubPost[]> {
     kind: r.kind,
     phrase: r.phrase ?? 0,
     rarity: (r.rarity || '') as ClubReqRarity | '',
+    stat: (r.stat || '') as ClubReqStat,
     filled: r.filled ?? 0,
     cap: r.cap ?? 0,
     mine: !!r.mine,
@@ -332,11 +377,13 @@ export async function postClubMessage(phrase: number): Promise<PostMsgResult> {
 
 export type PostReqResult = 'ok' | 'not_in_club' | 'today_done' | 'bad_rarity'
 
-/** カードをお願いする。1日1回まで */
-export async function postClubRequest(rarity: ClubReqRarity): Promise<PostReqResult> {
+/** カードをお願いする。1日1回まで。stat を渡すとその種類のカードだけを募る */
+export async function postClubRequest(
+  rarity: ClubReqRarity, stat: ClubReqStat = '',
+): Promise<PostReqResult> {
   await uid()
-  const { data, error } = await supabase.rpc('post_club_request', { p_rarity: rarity })
-  if (error) throw new FriendsOffline()
+  const { data, error } = await supabase.rpc('post_club_request', { p_rarity: rarity, p_stat: stat })
+  if (error) throw new FriendsOffline(error.message)
   return (data as PostReqResult) ?? 'not_in_club'
 }
 
@@ -346,7 +393,7 @@ export type DonateResult = 'ok' | 'not_found' | 'full' | 'already' | 'mine' | 'b
 export async function donateClubCard(postId: string, card: TrainingCard): Promise<DonateResult> {
   await uid()
   const { data, error } = await supabase.rpc('donate_club_card', { p_post: postId, p_card: card })
-  if (error) throw new FriendsOffline()
+  if (error) throw new FriendsOffline(error.message)
   return (data as DonateResult) ?? 'not_found'
 }
 
@@ -362,6 +409,29 @@ export async function clubGiftCount(): Promise<number> {
 export async function claimClubGifts(): Promise<TrainingCard[]> {
   await uid()
   const { data, error } = await supabase.rpc('claim_club_gifts')
-  if (error) throw new FriendsOffline()
+  if (error) throw new FriendsOffline(error.message)
   return ((data ?? []) as TrainingCard[]).filter(c => c && typeof c.id === 'string')
+}
+
+// ── フレンドの所属走友会 ───────────────────────────────
+/** 走友会の名前とロゴだけ。フレンド一覧・フレンド詳細に出すために使う */
+export type UserClub = { clubId: string; name: string; logoId: string; code: string }
+
+/** まとめて引く。人数ぶん呼ばずに1回で済ませること */
+export async function clubsOfUsers(ids: string[]): Promise<Map<string, UserClub>> {
+  const out = new Map<string, UserClub>()
+  if (ids.length === 0) return out
+  await uid()
+  const { data, error } = await supabase.rpc('clubs_of_users', { p_ids: ids })
+  if (error) throw new FriendsOffline(error.message)
+  type Row = { user_id: string; club_id: string; club_name: string; club_logo: string; club_code?: string }
+  for (const r of (data ?? []) as Row[]) {
+    out.set(r.user_id, {
+      clubId: r.club_id,
+      name: r.club_name,
+      logoId: normalizeClubLogoId(r.club_logo),
+      code: r.club_code ?? '',
+    })
+  }
+  return out
 }
