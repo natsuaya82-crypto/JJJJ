@@ -22,6 +22,7 @@ import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import type { TrainingCard } from '../../types'
 import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
+import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { C, alpha } from '../../styles/tokens'
 
@@ -437,7 +438,8 @@ function ClubBoard() {
     clearGifts()
   }, [addTrainingCards])
 
-  const posts = feed.data ?? []
+  // 走友会の書き込みを止めているあいだは、書き込みの行は出さない（カードのお願いだけ残す）
+  const posts = (feed.data ?? []).filter(p => CLUB_CHAT_ENABLED || p.kind !== 'msg')
   // 今日もうお願いしたか（サーバーと同じ判定を手元でも出して、ボタンを先に止める）
   const askedToday = posts.some(p =>
     p.mine && p.kind === 'req' && new Date(p.createdAt).toDateString() === new Date().toDateString())
@@ -550,20 +552,24 @@ function ClubBoard() {
           </div>
         )}
 
-        <SectionLabel>ひとこと書く</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
-          {CLUB_PHRASES.map((p, i) => (
-            <button key={p} onClick={() => onPhrase(i)} disabled={busy === 'msg'} className="btn-press" style={{
-              padding: '9px 2px', borderRadius: 9, cursor: 'pointer', fontSize: 11, fontWeight: 700,
-              border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), color: C.textSub,
-            }}>{p}</button>
-          ))}
-        </div>
+        {CLUB_CHAT_ENABLED && (
+          <>
+            <SectionLabel>ひとこと書く</SectionLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+              {CLUB_PHRASES.map((p, i) => (
+                <button key={p} onClick={() => onPhrase(i)} disabled={busy === 'msg'} className="btn-press" style={{
+                  padding: '9px 2px', borderRadius: 9, cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                  border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), color: C.textSub,
+                }}>{p}</button>
+              ))}
+            </div>
+          </>
+        )}
 
-        <SectionLabel>掲示板</SectionLabel>
+        <SectionLabel>{CLUB_CHAT_ENABLED ? '掲示板' : 'みんなのお願い'}</SectionLabel>
         {feed.loading ? <LoadingBox /> :
          feed.error ? <ErrorBox onRetry={feed.reload} /> :
-         posts.length === 0 ? <EmptyBox label="まだ何も書かれていません" /> : (
+         posts.length === 0 ? <EmptyBox label={CLUB_CHAT_ENABLED ? 'まだ何も書かれていません' : 'いまお願いは出ていません'} /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {posts.map(p => {
               const done = p.kind === 'req' && p.filled >= p.cap
@@ -791,7 +797,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
 
         {/* 横タブ */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          {([['members', 'メンバー'], ['board', '掲示板']] as const).map(([k, label]) => (
+          {([['members', 'メンバー'], ['board', CLUB_CHAT_ENABLED ? '掲示板' : 'カード']] as const).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className="btn-press" style={{
               flex: 1, padding: '9px 0', borderRadius: 10, fontFamily: SAIRA, fontSize: 12, cursor: 'pointer',
               background: tab === k ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
