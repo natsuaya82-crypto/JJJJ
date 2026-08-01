@@ -42,6 +42,7 @@ import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
 import { generateSponsorOffers } from '../data/sponsors'
 import { computeSeasonAwards, seasonAwardsOf } from '../utils/awards'
 import { eclHistoryOf } from '../utils/eclHistory'
+import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, buildTeamHistories, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 
@@ -7106,7 +7107,9 @@ export const useGameStore = create<GameStore>()(
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
       // 除外するのは画面を開いている状態（モーダル等）と、どこからも読まれない残骸だけ。
       // 何を除外するかは ephemeralState.ts の1箇所だけ見ればよい
-      partialize: (s) => stripEphemeral(s),
+      // 選手の通算成績（通算出走数・通算区間賞・MVP回数）は保存してあるレース結果から
+      // 数え直せるので書かない（utils/careerStats.ts）。優勝回数だけは復元できないので残す
+      partialize: (s) => ({ ...stripEphemeral(s), players: stripCareerForSave(s.players) }),
       migrate: (persistedState: unknown, version: number) => {
         try {
           const s = persistedState as Record<string, unknown>
@@ -7659,6 +7662,18 @@ export const useGameStore = create<GameStore>()(
           // すでにその状態になっているセーブも、ここを通るだけで直る。
           if (Array.isArray(p.players)) {
             if (Array.isArray(p.teams)) p.teams = rebuildRosters(p.players, p.teams)
+          }
+          // ── 通算成績の組み立て（毎回・冪等）──
+          // 通算出走数・通算区間賞・MVP回数はセーブに持たず、保存してあるレース結果から
+          // 数え直す（utils/careerStats.ts）。優勝回数はシーズン終了時点の在籍で決まり
+          // レース結果からは正しく戻せないので、選手が持っている数字をそのまま使う。
+          if (Array.isArray(p.players)) {
+            p.players = withCareerCounts(
+              p.players,
+              (p.pastSeasons ?? []) as never,
+              (p.currentSeason ?? undefined) as never,
+              p.removedPlayers,
+            )
           }
           return {
             ...currentState,

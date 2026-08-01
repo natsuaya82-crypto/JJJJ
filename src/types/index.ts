@@ -286,6 +286,9 @@ export type Player = {
   fatigue: number
   morale: number
   form?: number      // -2=絶不調, -1=不調, 0=普通, 1=好調, 2=絶好調
+  // 通算成績。totalRaces / segmentWins / mvpAwards はセーブに書かず、読み込み時に
+  // 保存してあるレース結果から数え直して入れる（utils/careerStats.ts）。
+  // championships（優勝回数）だけはシーズン終了時点の在籍で決まりレース結果から戻せないので保存する。
   career: {
     totalRaces: number
     segmentWins: number
