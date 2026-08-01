@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
+import { teamHistoryOf } from '../../utils/teamHistory'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 
@@ -7,10 +8,10 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function RecordsHub() {
   const navigate = useNavigate()
-  const { currentSeason, pastSeasons, teams, playerTeamId } = useGameStore()
+  const { currentSeason, pastSeasons, playerTeamId } = useGameStore()
 
-  const myTeam = teams.find(t => t.id === playerTeamId)
-  const championships = myTeam?.history.championships ?? 0
+  // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  const championships = teamHistoryOf(pastSeasons, playerTeamId).championships
   const completedRaces = currentSeason.races.filter(r => r.results).length
   const myStanding = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === playerTeamId) + 1
 

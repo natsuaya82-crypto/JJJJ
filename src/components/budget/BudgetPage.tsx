@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore, reinforcementBanned } from '../../store/gameStore'
+import { useTeamHistory } from '../../lib/useTeamHistory'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -40,6 +41,8 @@ export default function BudgetPage() {
   const longPress = usePlayerLongPress()
 
   const myTeam = teams.find(t => t.id === playerTeamId)
+  // 過去シーズンの成績はセーブに持たず、順位表から数え直す（utils/teamHistory.ts）
+  const myHistory = useTeamHistory(playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   // フラット化：1軍/2軍の区別なし。全ロスターをまとめて扱う
   const rosterPlayers = myPlayers.filter(p => p.status !== 'retired')
@@ -333,7 +336,7 @@ export default function BudgetPage() {
       </div>
 
       {(() => {
-        const pastBudgets = myTeam?.history.seasonResults ?? []
+        const pastBudgets = myHistory.seasonResults
         if (pastBudgets.length === 0) return null
         return (
           <div style={{ margin: '0 14px' }}>

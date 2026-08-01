@@ -1,5 +1,6 @@
 import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
+import { useTeamHistory } from '../../lib/useTeamHistory'
 import { C, alpha } from '../../styles/tokens'
 import { ProgressBar } from '../ui'
 
@@ -17,6 +18,8 @@ interface Props {
 }
 
 export default function HeroCard({ team, seasonYear, rank, totalRaces, completedRaces, gmRep, avgMorale, seasonDone }: Props) {
+  // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  const championships = useTeamHistory(team.id).championships
   const moraleColor = avgMorale >= 75 ? C.green : avgMorale >= 50 ? C.gold : C.red
   const rankBg = rank === 1
     ? `linear-gradient(135deg, ${C.gold}, ${C.goldHi})`
@@ -118,7 +121,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
         boxShadow: `inset 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
       }}>
         {[
-          { label: '優勝', value: `${team.history.championships}回`, color: C.gold, glow: C.gold },
+          { label: '優勝', value: `${championships}回`, color: C.gold, glow: C.gold },
           null,
           { label: 'GM評判', value: `${gmRep}`, color: gmRep >= 70 ? C.green : gmRep >= 40 ? C.gold : C.red, glow: gmRep >= 70 ? C.green : null },
           null,

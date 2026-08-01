@@ -126,7 +126,7 @@ export async function myCode(): Promise<string> {
 }
 
 /** 自チーム情報をサーバーへ反映（フレンド一覧・詳細のヘッダーに出る） */
-export async function pushMyProfile(team: Team | undefined, avgOvr: number): Promise<void> {
+export async function pushMyProfile(team: Team | undefined, avgOvr: number, champs: number): Promise<void> {
   if (!team) return
   const me = await uid()
   await ensureMyProfile()
@@ -137,7 +137,7 @@ export async function pushMyProfile(team: Team | undefined, avgOvr: number): Pro
     logo_id: team.logoId ?? 'logo_01',
     color_primary: team.colors.primary,
     color_secondary: team.colors.secondary,
-    champs: team.history?.championships ?? 0,
+    champs,
     avg_ovr: avgOvr,
   }).eq('user_id', me)
   if (error) throw new FriendsOffline()

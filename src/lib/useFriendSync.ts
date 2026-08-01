@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { ovr } from '../utils/playerUtils'
 import { ensureMyProfile, pushMyProfile, pushMyRoster } from './friendsApi'
+import { teamHistoryOf } from '../utils/teamHistory'
 import { ONLINE_ENABLED } from '../data/featureFlags'
 
 const STAMP_KEY = 'jpel_friend_sync_stamp'
@@ -38,16 +39,18 @@ export async function syncNow(): Promise<void> {
     if (roster.length === 0) return
 
     const avgOvr = Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length)
+    // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+    const champs = teamHistoryOf(st.pastSeasons, st.playerTeamId).championships
     const stamp = fingerprint(JSON.stringify({
       y: st.currentSeason?.year, n: team.name, s: team.shortName, g: team.gmName, l: team.logoId,
-      c: [team.colors.primary, team.colors.secondary], ch: team.history?.championships ?? 0,
+      c: [team.colors.primary, team.colors.secondary], ch: champs,
       // 名前も指紋に入れる。入れないと、改名しただけのときに「前と同じ」と判断されて
       // 一生送られず、友達側にいつまでも古い名前が出たままになる。
       a: avgOvr, r: roster.map(p => `${p.id}:${p.name}:${ovr(p)}`).join(','),
     }))
     if (localStorage.getItem(STAMP_KEY) === stamp) return
 
-    await pushMyProfile(team, avgOvr)
+    await pushMyProfile(team, avgOvr, champs)
     await pushMyRoster(roster)
     localStorage.setItem(STAMP_KEY, stamp)
   } catch {

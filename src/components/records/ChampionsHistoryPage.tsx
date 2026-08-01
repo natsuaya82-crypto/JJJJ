@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { teamHistoriesOf } from '../../utils/teamHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import type { Race } from '../../types'
@@ -224,8 +225,10 @@ export default function ChampionsHistoryPage() {
 
       {/* Level 0: リーグ歴代優勝回数ランキング（旧・リーグ記録タブから統合） */}
       {cat == null && (() => {
+        // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+        const histories = teamHistoriesOf(pastSeasons)
         const champRanking = [...teams]
-          .map(t => ({ team: t, championships: t.history.championships }))
+          .map(t => ({ team: t, championships: histories[t.id]?.championships ?? 0 }))
           .filter(c => c.championships > 0)
           .sort((a, b) => b.championships - a.championships)
         if (champRanking.length === 0) return null

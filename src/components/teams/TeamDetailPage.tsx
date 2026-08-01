@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
+import { teamHistoryOf } from '../../utils/teamHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
@@ -170,7 +171,8 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     }).length
     if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: '#C9A84C' })
   } else {
-    const jpelTitles = domesticTeam!.history.championships
+    // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+    const jpelTitles = teamHistoryOf(pastSeasons, id).championships
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
       if (!st || st.length === 0) return false
@@ -191,7 +193,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const infoFounded = isForeign ? '—' : String(domesticTeam!.founded)
   const infoChampions = isForeign
     ? (titles[0]?.count ?? 0)
-    : domesticTeam!.history.championships
+    : teamHistoryOf(pastSeasons, id).championships
   const infoBestRank = historyRanks.length > 0 ? Math.min(...historyRanks.map(h => h.rank)) : null
 
   // 移籍の入/出：シーズンごとの出場・在籍記録の年またぎ差分から導出する。

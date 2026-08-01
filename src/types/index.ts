@@ -511,12 +511,8 @@ export type Team = {
   // 距離キーごとに選手ベストを保持（同一選手は最速のみ）。
   // playerName/nationality は表示用に焼き込む（選手データが長期整理で削除されても記録が名前ごと残る）
   eventRecords?: Partial<Record<'d5000' | 'd10000' | 'half' | 'marathon', { playerId: string; playerName?: string; nationality?: Nationality; timeSec: number; year: number }[]>>
-  history: {
-    seasonResults: { year: number; rank: number; points: number }[]
-    championships: number
-    bestStreak?: number        // longest consecutive top-3 finish streak
-    currentStreak?: number
-  }
+  // チームの成績（順位・優勝回数・連続上位）はセーブに持たない。
+  // 過去シーズンの順位表から数え直す（utils/teamHistory.ts）
 }
 
 export type Segment = {

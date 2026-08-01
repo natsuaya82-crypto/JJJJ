@@ -1167,7 +1167,8 @@ function calculateRookieSalary(rank: Rank): number {
 // Build the draft pick order for all 20 teams (2 rounds, 40 picks)
 // Uses NBA-style weighted lottery for the top picks.
 export function buildDraftOrder(
-  teams: { id: string; history: { seasonResults: { year: number; rank: number }[] } }[],
+  // 各チームの過去成績（年と順位）。呼ぶ側が過去シーズンの順位表から作って渡す
+  teams: { id: string; seasonResults: { year: number; rank: number }[] }[],
   year: number,
   playerTeamId?: string,
 ): string[] {
@@ -1186,8 +1187,8 @@ export function buildDraftOrder(
     return result
   }
 
-  const isInaugural = teams.every(t => t.history.seasonResults.length === 0 ||
-    !t.history.seasonResults.find(r => r.year === year - 1))
+  const isInaugural = teams.every(t => t.seasonResults.length === 0 ||
+    !t.seasonResults.find(r => r.year === year - 1))
 
   let round1: string[]
 
@@ -1212,8 +1213,8 @@ export function buildDraftOrder(
   } else {
     // Subsequent years: sort teams by previous season rank (worst first = highest rank number)
     const sorted = [...teams].sort((a, b) => {
-      const rankA = a.history.seasonResults.find(r => r.year === year - 1)?.rank ?? 20
-      const rankB = b.history.seasonResults.find(r => r.year === year - 1)?.rank ?? 20
+      const rankA = a.seasonResults.find(r => r.year === year - 1)?.rank ?? 20
+      const rankB = b.seasonResults.find(r => r.year === year - 1)?.rank ?? 20
       return rankB - rankA // worst rank (highest number) first
     })
 

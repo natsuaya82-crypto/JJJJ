@@ -7,6 +7,7 @@ import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, liveName } from '.
 import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
+import { teamHistoriesOf, teamHistoryOf } from '../../utils/teamHistory'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward } from '../../types'
 import { C, alpha } from '../../styles/tokens'
@@ -180,9 +181,11 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
 }) {
   const myTeam = teams.find(t => t.id === playerTeamId)
   const longPress = usePlayerLongPress()
-  const championships = myTeam?.history.championships ?? 0
-  const bestStreak = myTeam?.history.bestStreak ?? 0
-  const currentStreak = myTeam?.history.currentStreak ?? 0
+  // 優勝回数・連続上位はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  const myHistory = teamHistoryOf(pastSeasons, playerTeamId)
+  const championships = myHistory.championships
+  const bestStreak = myHistory.bestStreak
+  const currentStreak = myHistory.currentStreak
   const allSeasons = [
     ...pastSeasons,
     ...(currentSeason.currentRaceIndex > 0 ? [currentSeason] : []),
@@ -421,9 +424,11 @@ function LeagueTab({ teams, pastSeasons }: {
   teams: GameStore['teams']
   pastSeasons: GameStore['pastSeasons']
 }) {
+  // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  const histories = teamHistoriesOf(pastSeasons)
   const champCounts = teams.map(t => ({
     team: t,
-    championships: t.history.championships,
+    championships: histories[t.id]?.championships ?? 0,
   })).sort((a, b) => b.championships - a.championships)
 
   return (
@@ -626,8 +631,8 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
   players: GameStore['players']
 }) {
   const allSeasons = [...pastSeasons, ...(currentSeason.currentRaceIndex > 0 ? [currentSeason] : [])]
-  const myTeam = teams.find(t => t.id === playerTeamId)
-  const championships = myTeam?.history.championships ?? 0
+  // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  const championships = teamHistoryOf(pastSeasons, playerTeamId).championships
   const totalSeasons = allSeasons.length
   const bestRank = allSeasons.length > 0
     ? Math.min(...allSeasons.map(s => {

@@ -1,5 +1,6 @@
 import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
+import { useTeamHistory } from '../../lib/useTeamHistory'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const GOLD = '#C9A84C'
@@ -9,8 +10,10 @@ const GOLD = '#C9A84C'
 export default function GmShareCard({ team, code }: { team?: Team; code: string }) {
   const primary = team?.colors.primary ?? '#122440'
   const secondary = team?.colors.secondary ?? GOLD
-  const champs = team?.history?.championships ?? 0
-  const seasons = team?.history?.seasonResults?.length ?? 0
+  // 通算成績はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  const history = useTeamHistory(team?.id)
+  const champs = history.championships
+  const seasons = history.seasonResults.length
 
   return (
     <div style={{
