@@ -2,6 +2,7 @@
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { setSaveHealth } from './saveHealth'
+import { markDataUpdateNeeded } from './dataUpdate'
 import type { GameState, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
@@ -7101,7 +7102,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 28,
+      version: 29,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7449,6 +7450,15 @@ export const useGameStore = create<GameStore>()(
           if (version < 28) {
             delete s.eclHistory
           }
+
+          // v29: 選手の通算成績（通算出走数・通算区間賞・MVP回数）を保存するのをやめる。
+          // 数字は保存してあるレース結果から数え直す（utils/careerStats.ts）。
+          // ここで消す必要はない（読み込みのたびに merge で入れ直し、保存時に落とす）。
+          //
+          // ここまでの v25〜v29 が「セーブに持たず数え直す」への切り替え。
+          // 変換自体は自動で終わっているが、古いセーブの初回起動だけは
+          // 数え直しを先に済ませて新しい形で書き直したいので、更新画面を出す合図を立てる。
+          if (version < 29 && s.isInitialized) markDataUpdateNeeded()
           return s
         } catch (e) {
           // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。

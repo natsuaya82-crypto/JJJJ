@@ -1,8 +1,10 @@
 import { MemoryRouter as BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from './store/gameStore'
 import { flushSaveNow } from './store/saveStorage'
 import { getSaveHealth, onSaveHealthChange, setSaveHealth } from './store/saveHealth'
+import { clearDataUpdateNeeded, isDataUpdateNeeded } from './store/dataUpdate'
+import DataUpdateScreen from './components/ui/DataUpdateScreen'
 import SaveRecoveryScreen from './components/ui/SaveRecoveryScreen'
 import { audio } from './utils/audio'
 import { initAds, removeBanner, showBanner, setAdsDisabled } from './utils/ads'
@@ -287,6 +289,11 @@ export default function App() {
   // 読み込みの成否。'failed' のときは絶対に新規ゲーム画面へ進めず、復旧画面を出す。
   const [saveHealth, setSaveHealthState] = useState(getSaveHealth)
   useEffect(() => onSaveHealthChange(setSaveHealthState), [])
+  // アップデート後の初回起動だけ「データ更新中」を出す（古いセーブを読み込んだときに migrate が合図を立てる）。
+  // 出すのはタイトルを抜けたあと。先に出すとタイトル→更新中→またタイトル、と行ったり来たりして見える。
+  // 合図が立つのは読み込みが終わってからなので、判定は下の handleTitleStart の finish で行う
+  const [dataUpdating, setDataUpdating] = useState(false)
+  const finishDataUpdate = useCallback(() => { clearDataUpdateNeeded(); setDataUpdating(false) }, [])
   useEffect(() => {
     if (hydrated) return
     // 購読前に読み込みが完了しているケース（実機のファイル読込は速い）。
@@ -393,6 +400,9 @@ export default function App() {
     const start = Date.now()
     setTitleShown(true)
     const finish = () => {
+      // アップデート後の初回だけは、続けて「データ更新中」を出す。
+      // 進み具合は向こうの画面で見せるので、ロード表示はすぐ消す
+      if (isDataUpdateNeeded()) { hide(); setDataUpdating(true); return }
       // 最低表示時間は確保しつつ、読み込み完了まで待つ
       setTimeout(hide, Math.max(0, 800 - (Date.now() - start)))
     }
@@ -415,6 +425,10 @@ export default function App() {
     content = <SaveRecoveryScreen />
   } else if (!titleShown || !hydrated) {
     content = <TitleScreen onStart={handleTitleStart} />
+  } else if (dataUpdating) {
+    // アップデート後の初回起動。数え直しを先に済ませ、新しい形でセーブを書き直す。
+    // 終わるまで先へ進めない（途中で閉じても冪等なので壊れない）
+    content = <DataUpdateScreen onDone={finishDataUpdate} />
   } else if (!isInitialized && !draftState) {
     content = <Onboarding />
   } else if (draftState && !draftState.isComplete) {
