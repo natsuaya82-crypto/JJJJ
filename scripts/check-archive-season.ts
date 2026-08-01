@@ -123,7 +123,7 @@ const storeLike = {
   currentSeason: { year: 2046 }, pastSeasons: [{ year: 2045 }], draftState: { round: 1 },
   raceLineup: { 1: 'p1' }, lastRaceLineup: { 1: 'p2' }, seenJoinIds: ['a'], seenInjuryIds: ['b'],
   raceStrategy: 'balanced', raceTeamTalk: 'best', jewels: 120, adsRemoved: true,
-  foreignLeagues: [{ id: 'l1' }], eclHistory: [{ year: 2045 }], worldAthleticsResults: [],
+  foreignLeagues: [{ id: 'l1' }], transferHistory: [], worldAthleticsResults: [],
 }
 const stripped = stripEphemeral(storeLike) as Record<string, unknown>
 for (const k of EPHEMERAL_KEYS) check(`${k} を保存しない`, !(k in stripped))

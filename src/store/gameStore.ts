@@ -41,6 +41,7 @@ import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/l
 import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
 import { generateSponsorOffers } from '../data/sponsors'
 import { computeSeasonAwards, seasonAwardsOf } from '../utils/awards'
+import { eclHistoryOf } from '../utils/eclHistory'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, buildTeamHistories, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 
@@ -4274,7 +4275,6 @@ export const useGameStore = create<GameStore>()(
 
         let updatedTeams = state.teams
         let newAch: NonNullable<GameState['achievements']> = []
-        let historyEntry: NonNullable<GameState['eclHistory']> = []
         let eclResult = state.currentSeason.eclResult
         let eclFinalRank = 0   // 最終戦のみ確定する年間総合順位（ジュエルの総合ボーナス用）
 
@@ -4319,15 +4319,6 @@ export const useGameStore = create<GameStore>()(
             playerRank: myRank > 0 ? myRank : undefined,
             prize,
           }
-          historyEntry = champion ? [{
-            year,
-            championId: champion.id,
-            championName: champion.name,
-            courseName: `5戦シリーズ（${newPoints[champion.id] ?? 0}pt）`,
-            timeSec: 0,
-            winnerPlayerIds,
-            mvpPlayerId,
-          }] : []
           newsItems.push({
             date: race.date,
             headline: won
@@ -4371,7 +4362,6 @@ export const useGameStore = create<GameStore>()(
           // このレースで出た区間新に張り替える（前のリーグ戦のバッジ記録が残って誤表示されるのを防ぐ）
           raceNewSegmentRecords: newSegRecordMarksEcl,
           achievements: [...(state.achievements ?? []), ...newAch],
-          eclHistory: [...(state.eclHistory ?? []), ...historyEntry],
           currentSeason: {
             ...state.currentSeason,
             eclSeries: { ...series, races: newRaces, raceIndex: nextIndex, points: newPoints },
@@ -5679,7 +5669,8 @@ export const useGameStore = create<GameStore>()(
             if (a.mvpId) protectedIds.add(a.mvpId)
             if (a.rookieId) protectedIds.add(a.rookieId)
           }
-          for (const e of state.eclHistory ?? []) {
+          // ECLの歴代優勝もセーブに持たず、保存してあるECLのレース結果から数え直す（utils/eclHistory.ts）
+          for (const e of eclHistoryOf(state.pastSeasons, state.currentSeason)) {
             if (e.mvpPlayerId) protectedIds.add(e.mvpPlayerId)
             for (const id of e.winnerPlayerIds ?? []) protectedIds.add(id)
           }
@@ -6902,11 +6893,9 @@ export const useGameStore = create<GameStore>()(
         // 受賞・記録が残ると、2028年に「2030年MVP」パッチが付くような矛盾が起きるため除去する
         set(state => {
           const year = state.currentSeason.year
-          const ecl = (state.eclHistory ?? []).filter(e => e.year <= year)
           const tops = (state.eventSeasonTops ?? []).filter(t => t.year <= year)
-          if (ecl.length === (state.eclHistory ?? []).length
-            && tops.length === (state.eventSeasonTops ?? []).length) return state
-          return { eclHistory: ecl, eventSeasonTops: tops }
+          if (tops.length === (state.eventSeasonTops ?? []).length) return state
+          return { eventSeasonTops: tops }
         })
         // 所属は player.teamId だけで持つようになったので、クラブ名簿との同期処理は不要になった
         // （旧セーブの救済は persist の migrate v22 で1回だけ行う）
@@ -7111,7 +7100,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'jpel-manager-save',
-      version: 27,
+      version: 28,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7449,6 +7438,13 @@ export const useGameStore = create<GameStore>()(
           // 選び方は作った時から変えていないので、これまでの受賞者がそのまま出る。
           if (version < 27) {
             delete s.seasonAwards
+          }
+
+          // v28: ECLの歴代優勝（eclHistory）を保存するのをやめる。
+          // 優勝チーム・大会MVP・優勝メンバーは、過去シーズンのECLのレース結果から数え直せる。
+          // 決め方は当時のまま変えていないので、これまでの記録がそのまま出る。
+          if (version < 28) {
+            delete s.eclHistory
           }
           return s
         } catch (e) {

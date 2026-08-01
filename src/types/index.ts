@@ -442,13 +442,10 @@ export type EclResult = {
   prize?: number                     // 自チームが得た賞金
 }
 
-// ECLの歴代記録（シーズンをまたいで永続。優勝パッチと記録室の歴代優勝で使う）
+// ECLの歴代優勝。セーブには持たず、保存してあるECLのレース結果から数え直す（utils/eclHistory.ts）
 export type EclHistoryEntry = {
   year: number
   championId: string
-  championName: string
-  courseName: string
-  timeSec: number
   winnerPlayerIds: string[]
   mvpPlayerId?: string   // ECL MVP（パッチ付与用）
 }
@@ -837,7 +834,7 @@ export type GameState = {
   transferHistory?: TransferRecord[]   // 移籍の成立記録（チーム詳細の移籍ページで移籍金・契約期間を表示するため）
   worldRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 世界記録（全選手の歴代1位）
   japanRecords?: Partial<Record<EventDistKey, EventTimeRecord>>   // 記録会の種目別 日本記録（JPN選手の歴代1位）
-  eclHistory?: EclHistoryEntry[]   // ECLの歴代優勝（優勝パッチ・記録室の歴代優勝表示用）
+  // ECLの歴代優勝はセーブに持たない。過去シーズンのECLのレース結果から数え直す（utils/eclHistory.ts）
   // 記録会のシーズン別上位記録（歴代優勝ページ用の軽量アーカイブ。記録会全結果はシーズン終了で
   // 破棄されるため、種目別トップ10だけ名前焼き込みで永続する）
   eventSeasonTops?: { year: number; dist: EventDistKey; top: { playerId: string; playerName: string; teamId: string; timeSec: number }[] }[]

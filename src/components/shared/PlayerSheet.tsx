@@ -4,6 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
+import { useEclHistory } from '../../lib/useEclHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { usePreviewStore } from '../../store/previewStore'
@@ -142,7 +143,7 @@ export default function PlayerSheet() {
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
   const seasonAwards = useSeasonAwards()
-  const eclHistory = useGameStore(s => s.eclHistory)
+  const eclHistory = useEclHistory()
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
   const worldTournament = useGameStore(s => s.worldTournament)

@@ -4,6 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { teamHistoryOf } from '../../utils/teamHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
+import { useEclHistory } from '../../lib/useEclHistory'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
@@ -87,7 +88,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const clubIndex = useClubIndex()
   const transferHistory = useGameStore(s => s.transferHistory)
   const removedPlayers = useGameStore(s => s.removedPlayers)
-  const eclHistory = useGameStore(s => s.eclHistory)
+  const eclHistory = useEclHistory()
   const location = useLocation()
   const navigate = useNavigate()
   // 選手詳細から飛んできた場合は、戻るで元の選手詳細（モーダル）を開き直す

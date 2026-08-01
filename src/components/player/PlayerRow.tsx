@@ -8,6 +8,7 @@ import BadgeContent, { badgeColor } from './BadgeContent'
 import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
+import { useEclHistory } from '../../lib/useEclHistory'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
@@ -53,7 +54,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
   const japanRecords = useGameStore(s => s.japanRecords)
   const seasonAwards = useSeasonAwards()
   const segmentRecords = useSegmentRecords()
-  const eclHistory = useGameStore(s => s.eclHistory)
+  const eclHistory = useEclHistory()
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
