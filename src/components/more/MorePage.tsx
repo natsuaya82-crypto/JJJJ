@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
-import { audio } from '../../utils/audio'
+import { audio, audioDiag } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import { ONLINE_ENABLED } from '../../data/featureFlags'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -283,17 +283,23 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
 function SoundScreen({ onClose }: { onClose: () => void }) {
   const [volSe, setVolSe] = useState(() => parseFloat(localStorage.getItem('jpel-volume-se') ?? '0.5'))
   const [volMusic, setVolMusic] = useState(() => parseFloat(localStorage.getItem('jpel-volume-music') ?? '0.5'))
+  // 音が鳴らなかったときの理由。実機ではログが見られないので、ここに出さないと
+  // 「鳴らない」以上のことが分からず、直したかどうかも確かめられない。
+  // 正常なときは何も出ない。
+  const [diag, setDiag] = useState<string[]>(() => audioDiag())
 
   function handleVolSe(v: number) {
     setVolSe(v)
     localStorage.setItem('jpel-volume-se', String(v))
     audio.setSeVolume(v)
     audio.playSe('tap')
+    setDiag(audioDiag())
   }
   function handleVolMusic(v: number) {
     setVolMusic(v)
     localStorage.setItem('jpel-volume-music', String(v))
     audio.setMusicVolume(v)
+    setDiag(audioDiag())
   }
 
   return (
@@ -336,6 +342,15 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
           </div>
         ))}
       </div>
+
+      {diag.length > 0 && (
+        <div style={{ ...CARD, marginTop: 12, padding: '14px 16px' }}>
+          <div style={{ fontSize: 10, color: C.textSub, letterSpacing: '1.5px', marginBottom: 8, fontFamily: SAIRA }}>音が鳴らないとき</div>
+          {diag.map((d, i) => (
+            <div key={i} style={{ fontSize: 11, color: C.textGhost, lineHeight: 1.7, wordBreak: 'break-all' }}>{d}</div>
+          ))}
+        </div>
+      )}
     </DetailScreen>
   )
 }

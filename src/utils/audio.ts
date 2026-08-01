@@ -27,6 +27,25 @@ const SE_NAMES: SeName[] = ['tap', 'transition', 'back', 'title', 'event', 'grea
  */
 const nativePath = (rel: string) => `public/${rel}`
 
+/**
+ * 失敗した理由の控え。
+ *
+ * 実機ではログが見られないので、これまでは読み込みも再生も全部だまって捨てていた。
+ * その結果「鳴らない」しか分からず、直したつもりのまま出してしまった。
+ * ここに理由を残して、設定→サウンドから読めるようにする。
+ */
+const diagLog: string[] = []
+function note(what: string, e?: unknown): void {
+  const reason = e === undefined ? '' : ' / ' + (e instanceof Error ? e.message : String(e))
+  diagLog.push((what + reason).slice(0, 160))
+  if (diagLog.length > 24) diagLog.shift()
+}
+
+/** 音声まわりで失敗した内容。うまくいっていれば空。 */
+export function audioDiag(): string[] {
+  return diagLog.slice()
+}
+
 function readVol(key: string): number {
   const raw = localStorage.getItem(key)
   const v = raw == null ? 0.5 : parseFloat(raw)
@@ -39,6 +58,7 @@ class AudioManager {
   private bgmEl: HTMLAudioElement | null = null
   private current: BgmName | null = null
   private desired: BgmName = 'home'
+  private starting: BgmName | null = null
   private unlocked = false
   private musicVol = readVol(MUSIC_KEY)
   private seVol = readVol(SE_KEY)
@@ -50,6 +70,25 @@ class AudioManager {
 
   markBack() { this.backFlag = true }
   consumeBack() { const f = this.backFlag; this.backFlag = false; return f }
+
+  /**
+   * preload に渡す設定。
+   *
+   * iOS側のプラグインは `audioChannelNum` ではなく `channels` という名前で
+   * 同時再生数を読んでいる（TypeScriptの型だけが audioChannelNum になっている）。
+   * 片方しか渡していなかったので、指定した同時再生数は今まで一度も効いていない。
+   * 名前が食い違っているだけなので、同じ値を両方に入れておく。
+   */
+  private preloadOpts(kind: 'bgm' | 'se', name: string, volume: number, ch: number) {
+    return {
+      assetId: `${kind}_${name}`,
+      assetPath: nativePath(`audio/${kind}/${name}.mp3`),
+      isUrl: false,
+      volume,
+      audioChannelNum: ch,
+      channels: ch,
+    }
+  }
 
   // 並行呼び出しでも単一のロード処理を共有する（初回SEが無音になる問題を回避）
   private ensureNative(): Promise<NativeAudioModule | null> {
@@ -63,16 +102,16 @@ class AudioManager {
         // これを呼ばないと、プラグインが勝手に「音楽アプリ」扱いの設定に書き換えてしまい、
         // ユーザーが聴いている音楽が止まり、コントロールセンターの再生中にこのアプリが出てしまう。
         // 音楽と重なって鳴るのは想定どおり（BGM音量は設定画面で下げられる）。
-        try { await na.configure({ focus: false, fade: false }) } catch { /* 失敗しても再生自体は続ける */ }
+        try { await na.configure({ focus: false, fade: false }) } catch (e) { note('configure 失敗', e) }
         for (const name of BGM_NAMES) {
-          try { await na.preload({ assetId: `bgm_${name}`, assetPath: nativePath(`audio/bgm/${name}.mp3`), audioChannelNum: 1, isUrl: false, volume: this.musicVol }) } catch { /* 未配置等は無視 */ }
+          try { await na.preload(this.preloadOpts('bgm', name, this.musicVol, 1)) } catch (e) { note(`BGM ${name} 読み込み失敗`, e) }
         }
         for (const name of SE_NAMES) {
-          try { await na.preload({ assetId: `se_${name}`, assetPath: nativePath(`audio/se/${name}.mp3`), audioChannelNum: 3, isUrl: false, volume: this.seVol }) } catch { /* 未配置等は無視 */ }
+          try { await na.preload(this.preloadOpts('se', name, this.seVol, 3)) } catch (e) { note(`SE ${name} 読み込み失敗`, e) }
         }
         this.na = na
         return na
-      } catch { this.na = null; return null }
+      } catch (e) { note('ネイティブ音声の読み込み失敗', e); this.na = null; return null }
     })()
     return this.naPromise
   }
@@ -91,7 +130,7 @@ class AudioManager {
   }
 
   private startBgm(name: BgmName) {
-    if (isNative) { this.startBgmNative(name); return }
+    if (isNative) { void this.startBgmNative(name); return }
     // Web: HTML5
     if (!this.bgmEl) { this.bgmEl = new Audio(); this.bgmEl.loop = true }
     this.bgmEl.volume = this.musicVol
@@ -99,19 +138,60 @@ class AudioManager {
     this.bgmEl.play().catch(() => {})
   }
 
+  /**
+   * ネイティブ音声でBGMを鳴らす。
+   *
+   * 前は「鳴らす前に current を書き換えて、失敗しても黙って抜ける」作りだった。
+   * そのため一度でも失敗すると current だけが残り、以降どこから呼んでも
+   * 「もう鳴っている」と判断されて、アプリを立ち上げ直すまでBGMが二度と鳴らなかった。
+   * 成功したときだけ current を立てるように直し、失敗したら読み直して一度やり直す。
+   */
   private async startBgmNative(name: BgmName) {
     const na = await this.ensureNative()
     if (!na) return
-    if (this.current === name) return
+    if (this.current === name || this.starting === name) return
+    this.starting = name
     const prev = this.current
-    this.current = name
+    this.current = null
     try {
-      if (prev) await na.stop({ assetId: `bgm_${prev}` })
+      if (prev) { try { await na.stop({ assetId: `bgm_${prev}` }) } catch (e) { note(`BGM ${prev} 停止失敗`, e) } }
       if (this.desired !== name) return  // await中に別BGMへ切り替わったら中断（二重再生防止）
-      await na.setVolume({ assetId: `bgm_${name}`, volume: this.musicVol })
-      if (this.desired !== name) { await na.stop({ assetId: `bgm_${name}` }).catch(() => {}); return }
-      await na.loop({ assetId: `bgm_${name}` })
-    } catch { /* noop */ }
+      const ok = await this.loopBgm(na, name)
+      if (!ok) return
+      if (this.desired !== name) { na.stop({ assetId: `bgm_${name}` }).catch(() => {}); return }
+      this.current = name
+    } finally {
+      if (this.starting === name) this.starting = null
+    }
+  }
+
+  /** loop を投げて、ダメなら読み直して一度だけやり直す。鳴らせたら true。 */
+  private async loopBgm(na: NativeAudioModule, name: BgmName): Promise<boolean> {
+    const id = `bgm_${name}`
+    try {
+      await na.setVolume({ assetId: id, volume: this.musicVol })
+      await na.loop({ assetId: id })
+      return true
+    } catch (e) {
+      note(`BGM ${name} 再生失敗`, e)
+    }
+    // 読み込みが落ちていた場合と、読み込めたのに中身が空だった場合の両方を拾うため、
+    // 一度捨ててから読み直す（読み直しは既にある時だけエラーになるので、先に unload する）。
+    try { await na.unload({ assetId: id }) } catch { /* 元から無ければそれでよい */ }
+    try {
+      await na.preload(this.preloadOpts('bgm', name, this.musicVol, 1))
+    } catch (e) {
+      note(`BGM ${name} 読み直し失敗`, e)
+      return false
+    }
+    try {
+      await na.loop({ assetId: id })
+      note(`BGM ${name} は読み直して再生できた`)
+      return true
+    } catch (e) {
+      note(`BGM ${name} やり直しも失敗`, e)
+      return false
+    }
   }
 
   stopBgm() {
@@ -130,7 +210,7 @@ class AudioManager {
     if (isNative) {
       if (this.na) {
         this.na.setVolume({ assetId: `se_${name}`, volume: this.seVol }).catch(() => {})
-        this.na.play({ assetId: `se_${name}` }).catch(() => {})
+        this.na.play({ assetId: `se_${name}` }).catch(e => note(`SE ${name} 再生失敗`, e))
       }
       return
     }
@@ -143,6 +223,9 @@ class AudioManager {
     this.musicVol = Math.min(1, Math.max(0, v))
     if (isNative) {
       if (this.na && this.current) { this.na.setVolume({ assetId: `bgm_${this.current}`, volume: this.musicVol }).catch(() => {}) }
+      // 鳴っていない状態でつまみを動かしたら、そこでもう一度かけ直す。
+      // 起動時にたまたま失敗しても、音量を触れば鳴り出せるようにしておく。
+      else if (this.unlocked && this.musicVol > 0) { void this.startBgmNative(this.desired) }
       return
     }
     if (this.bgmEl) this.bgmEl.volume = this.musicVol
