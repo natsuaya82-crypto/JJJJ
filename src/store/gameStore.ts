@@ -36,7 +36,7 @@ import { reconcileTalks, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { findClub } from '../utils/clubs'
+import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/legacyClubRoster'
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
 import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
@@ -511,6 +511,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     activeRaceLockedRace: null,
     rivalTeamId: null,
     gmRep: 50,
+    gmTenures: [],
     seenJoinIds: [],
     seenInjuryIds: [],
     playerTeamId: 'fukuoka',
@@ -773,7 +774,11 @@ export const useGameStore = create<GameStore>()(
             players = m.players
             teams = m.teams
           })
-          return { teams, players, setupData: setup, playerTeamId: setup.teamId }
+          return {
+            teams, players, setupData: setup, playerTeamId: setup.teamId,
+            // 監督の在任履歴はここが起点。以後の移籍でここに積んでいく（utils/gmTenure.ts）
+            gmTenures: [{ teamId: setup.teamId, fromYear: state.currentSeason.year }],
+          }
         })
       },
 
@@ -4462,7 +4467,7 @@ export const useGameStore = create<GameStore>()(
         // CPU teams release declining/surplus players
         // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
         // ロスター概念の無い海外側との取引で国内名簿が壊れる）
-        const domesticTeamIdSet = new Set(state.teams.map(t => t.id))
+        const domesticTeamIdSet = domesticTeamIdSet_(state.teams)
         const cpuReleasedIds = new Set<string>()
         const releasedWorld = (() => {
           const releaseSet = new Set<string>()
@@ -4998,7 +5003,7 @@ export const useGameStore = create<GameStore>()(
           // 満了は返却後、保有元チーム側で改めて処理される
           // 契約満了FA化は「国内リーグ所属」だけが対象。海外クラブの選手を含めると
           // クラブ名簿に残ったまま teamId だけ '' になり「未所属」表示のバグになる（海外の名簿は海外リーグ側の更新で管理）
-          const domesticIdsFA = new Set(state.teams.map(t => t.id))
+          const domesticIdsFA = domesticTeamIdSet_(state.teams)
           // 契約満了＝自チームもCPUと同じく自動FA。
           // シーズン中に半年切り通知・チャット催促・終了カードの契約未解決警告で警告済みで、
           // 退団は繰越時の退団通知（reason:'fa'）に載る＝気づかず消えることはない。
@@ -5766,7 +5771,7 @@ export const useGameStore = create<GameStore>()(
             if (!race.results) continue
             for (const sr of race.results.segmentResults) for (const r of sr.runners) appearedIds.add(r.playerId)
           }
-          const domesticTeamIds = new Set(state.teams.map(t => t.id))
+          const domesticTeamIds = domesticTeamIdSet_(state.teams)
           const zeroAppearances = state.players
             .filter(p => p.status === 'active' && domesticTeamIds.has(p.teamId) && !appearedIds.has(p.id))
             .map(p => ({ playerId: p.id, teamId: p.teamId }))
@@ -6495,7 +6500,7 @@ export const useGameStore = create<GameStore>()(
           const skip = new Set(skipPlayerIds ?? [])
           // 出走は国内リーグ所属選手のみ（海外クラブ選手は対象外）。
           // CPUチームは疲労40以上の選手を自動で休ませる（自チームはプレイヤーの出走/休む選択に従う）
-          const domesticTeamIds = new Set(state.teams.map(t => t.id))
+          const domesticTeamIds = domesticTeamIdSet_(state.teams)
           // 指定4記録会だけ海外クラブ選手も出走可（春季5000m/夏季10000m/夏季マラソン/冬季ハーフ）
           const FOREIGN_TT_KEYS = ['tt-5k-1', 'tt-10k-2', 'tt-mara', 'tt-half-2']
           const foreignAllowed = FOREIGN_TT_KEYS.some(k => event.id.startsWith(k))
@@ -7481,6 +7486,12 @@ export const useGameStore = create<GameStore>()(
           // ここは毎回通るので、取りこぼしたセーブもここで拾える（新しいセーブでは何もしない）
           if (Array.isArray(p.players)) p.players = restoreTeamIdsFromLegacyClubs(p.players, p.foreignLeagues)
           dropLegacyClubRosters(p.foreignLeagues)
+          // 監督の在任履歴が無い旧セーブは「最初のシーズンからずっと今のチーム」として1件だけ入れる。
+          // これまで出ていたキャリアの数字がそのまま出るので、既存プレイヤーの見た目は変わらない。
+          if (p.isInitialized && p.playerTeamId && !(Array.isArray(p.gmTenures) && p.gmTenures.length > 0)) {
+            const firstYear = p.pastSeasons?.[0]?.year ?? p.currentSeason?.year
+            if (typeof firstYear === 'number') p.gmTenures = [{ teamId: p.playerTeamId, fromYear: firstYear }]
+          }
           // ECL戦名「ECL 第X戦」→「ECL コース名」（migrateはバージョンスタンプ済みだと走らないので、毎回ここで冪等に直す）
           const renameEcl = <T extends { eclSeries?: { races: { name: string; location: string }[] } }>(season: T): T => {
             if (!season?.eclSeries?.races?.some(r => /^ECL 第\d+戦$/.test(r.name))) return season

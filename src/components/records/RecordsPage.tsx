@@ -8,6 +8,7 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { teamHistoriesOf, teamHistoryOf } from '../../utils/teamHistory'
+import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward } from '../../types'
@@ -59,10 +60,10 @@ export function IndividualRecordsPage() {
 
 // GMキャリア（評判・キャリア統計・順位推移・育成実績）
 export function GmCareerPage() {
-  const { teams, players, pastSeasons, currentSeason, playerTeamId, gmRep, growthReport } = useGameStore()
+  const { teams, players, pastSeasons, currentSeason, playerTeamId, gmRep, growthReport, gmTenures } = useGameStore()
   return (
     <PageShell title="GMキャリア">
-      <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} />
+      <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} gmTenures={gmTenures} />
     </PageShell>
   )
 }
@@ -623,7 +624,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
   ]} />
 }
 
-function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, growthReport, players }: {
+function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, growthReport, players, gmTenures }: {
   gmRep: number
   pastSeasons: GameStore['pastSeasons']
   currentSeason: GameStore['currentSeason']
@@ -631,17 +632,23 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
   teams: GameStore['teams']
   growthReport: GameStore['growthReport']
   players: GameStore['players']
+  gmTenures: GameStore['gmTenures']
 }) {
   const allSeasons = [...pastSeasons, ...(currentSeason.currentRaceIndex > 0 ? [currentSeason] : [])]
-  // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  const championships = teamHistoryOf(pastSeasons, playerTeamId).championships
+  // 監督は別のチームへ移れる。順位も優勝も「その年に指揮していたチーム」で引かないと、
+  // 移った瞬間に前のチームの実績が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
+  const tenures = normalizeTenures(gmTenures, playerTeamId, allSeasons[0]?.year ?? currentSeason.year)
+  const teamIdAt = makeTeamIdAt(tenures, playerTeamId)
+  const rankIn = (s: { year: number; standings?: { teamId: string; totalPoints: number }[] }, teamId: string): number | null => {
+    const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const r = sorted.findIndex(x => x.teamId === teamId) + 1
+    return r > 0 ? r : null
+  }
+  // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す
+  const championships = pastSeasons.filter(s => rankIn(s, teamIdAt(s.year)) === 1).length
   const totalSeasons = allSeasons.length
   const bestRank = allSeasons.length > 0
-    ? Math.min(...allSeasons.map(s => {
-        const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
-        const r = sorted.findIndex(x => x.teamId === playerTeamId) + 1
-        return r > 0 ? r : 99
-      }))
+    ? Math.min(...allSeasons.map(s => rankIn(s, teamIdAt(s.year)) ?? 99))
     : 99
 
   const repColor = gmRep >= 70 ? C.green : gmRep >= 40 ? C.gold : C.red
@@ -686,8 +693,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
         const chartSeasons = allSeasons.slice(-10)
         const pts = chartSeasons.map(s => {
           const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
-          const rank = sorted.findIndex(x => x.teamId === playerTeamId) + 1
-          return { year: s.year, rank: rank > 0 ? rank : null, totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
+          return { year: s.year, rank: rankIn(s, teamIdAt(s.year)), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
         })
         const maxTeams = Math.max(8, ...pts.map(p => p.totalTeams))
         const n = pts.length
@@ -770,7 +776,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
         // 通算成績（自チームの全シーズン駅伝結果を集計）
         let totalRaces = 0, totalWins = 0, podiums = 0, totalPts = 0
         for (const s of allSeasons) {
-          const my = (s.standings ?? []).find(x => x.teamId === playerTeamId)
+          const my = (s.standings ?? []).find(x => x.teamId === teamIdAt(s.year))
           if (!my) continue
           totalPts += my.totalPoints ?? 0
           for (const rr of (my.raceResults ?? [])) {
@@ -813,6 +819,47 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
         )
       })()
 
+  // 在任履歴。チームを移った監督だけに意味があるので、1チームしか指揮していない間は出さない。
+  const tenurePanel = tenures.length > 1 ? (
+      <CardPanel>
+        <SectionLabel>在任履歴</SectionLabel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+          {[...tenures].reverse().map(t => {
+            const team = teams.find(x => x.id === t.teamId)
+            const inTenure = allSeasons.filter(s => s.year >= t.fromYear && (t.toYear == null || s.year <= t.toYear))
+            const ranks = inTenure.map(s => rankIn(s, t.teamId)).filter((r): r is number => r != null)
+            const titles = inTenure.filter(s => s.year !== currentSeason.year && rankIn(s, t.teamId) === 1).length
+            const best = ranks.length > 0 ? Math.min(...ranks) : null
+            const isNow = t.toYear == null
+            return (
+              <div key={`${t.teamId}-${t.fromYear}`} style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '10px 0', borderBottom: `1px solid ${C.border}`,
+              }}>
+                {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={18} />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: isNow ? C.gold : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {team?.name ?? '不明なチーム'}
+                  </div>
+                  <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>
+                    {t.fromYear}〜{t.toYear ?? '現在'}（{inTenure.length}季）
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: '11px', color: titles > 0 ? C.gold : C.textDim, fontWeight: titles > 0 ? '900' : '400' }}>
+                    優勝{titles}回
+                  </div>
+                  <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>
+                    最高{best != null ? `${best}位` : '—'}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </CardPanel>
+  ) : null
+
   // 順位の折れ線とOVRの棒グラフは両方「推移」なので1枚にまとめる。
   // どちらも出せない（1季目など）ときはタブ自体を出さない。
   const trendPanel = (rankTrend || ovrTrend) ? (
@@ -822,6 +869,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
   return <SectionSwitcher sections={[
     { label: 'GM評判', node: repPanel },
     { label: 'キャリア統計', node: statsPanel },
+    ...(tenurePanel ? [{ label: '在任履歴', node: tenurePanel }] : []),
     ...(trendPanel ? [{ label: '推移', node: trendPanel }] : []),
     { label: '通算成績', node: totalsPanel },
   ]} />

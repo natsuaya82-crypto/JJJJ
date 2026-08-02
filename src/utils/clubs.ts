@@ -119,6 +119,24 @@ export function makeClubIndex(
   }
 }
 
+// 国内リーグに所属するチームIDの集合。
+//
+// ■なぜ要るのか
+//   「このIDは国内チームか」を new Set(teams.map(t => t.id)) とその場で書く箇所が
+//   store に散らばっていた。海外クラブに予算や施設を持たせて国内チームと同じ形にすると、
+//   型では国内と海外を区別できなくなる。判定を書き忘れた場所から
+//   「海外クラブが国内の名簿処理やFA処理に混ざる」という以前あった壊れ方が再発する。
+//   判定を必ずここ1ヶ所から引くようにして、直す場所を1つに固定する。
+//
+// ■注意
+//   state.teams は国内リーグのチームだけを入れる配列であり続けること。
+//   ここに海外クラブを混ぜると、この関数を含めて国内前提の処理が全部おかしくなる。
+export function domesticTeamIdSet(teams: Team[] | null | undefined): Set<string> {
+  const s = new Set<string>()
+  for (const t of teams ?? []) if (t?.id) s.add(t.id)
+  return s
+}
+
 // 索引を作るほどでもない1回きりの検索用。中身は同じルール。
 export function findClub(
   teams: Team[] | null | undefined,

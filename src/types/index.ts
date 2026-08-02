@@ -788,6 +788,14 @@ export type SeasonAward = {
   rookieAvgRank?: number
 }
 
+// 監督（GM）の在任履歴。1件が「そのチームを何年から何年まで指揮したか」。
+// いま指揮しているチームだけ toYear が無い。詳しくは utils/gmTenure.ts
+export type GmTenure = {
+  teamId: string
+  fromYear: number
+  toYear?: number
+}
+
 export type GameState = {
   playerTeamId: string
   currentSeason: Season
@@ -801,6 +809,8 @@ export type GameState = {
   version: string
   rivalTeamId: string | null
   gmRep: number
+  // 監督の在任履歴。無い旧セーブは「最初のシーズンからずっと今のチーム」として扱う
+  gmTenures?: GmTenure[]
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
