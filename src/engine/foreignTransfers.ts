@@ -6,6 +6,8 @@ import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 import { clubMembersByClub } from '../utils/rosterSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
 import { movePlayer } from '../utils/movePlayer'
+// 海外クラブの年間予算（クラブIDとリーグから毎回同じ額が出る）
+import { foreignClubBudget } from '../utils/foreignClubProfile'
 
 const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
 
@@ -215,6 +217,10 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const fRoster: Record<string, string[]> = {}
   const fMembersByClub = clubMembersByClub(players)
   for (const c of foreignClubs) fRoster[c.id] = [...(fMembersByClub.get(c.id) ?? [])]
+  // 海外クラブにも予算を持たせる。これが無いと海外側だけ無限にお金を払えてしまい、
+  // 日本の主力がいくらでも引き抜かれる。額はリーグの規模で決まる（utils/foreignClubProfile.ts）
+  const fBudget: Record<string, number> = {}
+  for (const c of foreignClubs) fBudget[c.id] = foreignClubBudget(c)
 
   const nameById = new Map<string, string>()
   for (const t of teams) nameById.set(t.id, t.shortName)
@@ -294,13 +300,14 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     if (!target || moved.has(target.id)) continue
     // 買う側（海外クラブ）は上限(30)未満＋リーグの格にOVRが届くクラブのみ（弱い選手は格上リーグに行かない）
     const tOvr = effectiveOvr(target)
-    const buyerPool = foreignClubs.filter(c => fRoster[c.id].length < ROSTER_MAX && tOvr >= foreignMinOvr(clubCountry.get(c.id) ?? ''))
-    if (buyerPool.length === 0) continue
-    const buyer = pick(buyerPool)
     const fee = calcTransferValue(target)
+    const buyerPool = foreignClubs.filter(c => fRoster[c.id].length < ROSTER_MAX && tOvr >= foreignMinOvr(clubCountry.get(c.id) ?? '') && fBudget[c.id] >= fee)
+    if (buyerPool.length === 0) continue
+    const buyer = weightedPick(buyerPool, c => fBudget[c.id])   // 予算が多いクラブほど動く
     jpnRoster[seller.id] = jpnRoster[seller.id].filter(id => id !== target.id)
     sizeCount[seller.id] = Math.max(0, (sizeCount[seller.id] ?? 0) - 1)
     fRoster[buyer.id] = [...fRoster[buyer.id], target.id]
+    fBudget[buyer.id] -= fee
     budget[seller.id] += fee
     moved.add(target.id)
     moves.push({ playerId: target.id, fromId: seller.id, toId: buyer.id, dir: 'out', fee })
@@ -322,13 +329,14 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
         .map(p => ({ p, sellerId: t.id })))
       if (starPool.length === 0) break
       const { p: target, sellerId } = weightedPick(starPool, x => ovr(x.p) - 80)
-      const buyerPool = foreignClubs.filter(c => ELITE_LEAGUE_IDS.has(clubLeague.get(c.id) ?? '') && fRoster[c.id].length < ROSTER_MAX)
-      if (buyerPool.length === 0) break
-      const buyer = pick(buyerPool)
       const fee = Math.round(calcTransferValue(target) * 1.25)
+      const buyerPool = foreignClubs.filter(c => ELITE_LEAGUE_IDS.has(clubLeague.get(c.id) ?? '') && fRoster[c.id].length < ROSTER_MAX && fBudget[c.id] >= fee)
+      if (buyerPool.length === 0) break
+      const buyer = weightedPick(buyerPool, c => fBudget[c.id])
       jpnRoster[sellerId] = jpnRoster[sellerId].filter(id => id !== target.id)
       sizeCount[sellerId] = Math.max(0, (sizeCount[sellerId] ?? 0) - 1)
       fRoster[buyer.id] = [...fRoster[buyer.id], target.id]
+      fBudget[buyer.id] -= fee
       budget[sellerId] += fee
       moved.add(target.id)
       moves.push({ playerId: target.id, fromId: sellerId, toId: buyer.id, dir: 'out', fee })

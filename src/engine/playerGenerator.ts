@@ -536,6 +536,22 @@ function pickForeignName(pool: ForeignNamePool): { name: string; origin: string;
   }
 }
 
+// 海外クラブの監督名。クラブIDから毎回まったく同じ名前が出る（セーブに持たない）。
+// 乱数を使うと画面を開くたびに監督が変わってしまうので、IDのハッシュで固定する。
+export function foreignClubGmName(clubId: string, country: string): string {
+  let h = 2166136261
+  for (let i = 0; i < clubId.length; i++) {
+    h ^= clubId.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  const seed = Math.abs(h)
+  const pools = FOREIGN_LEAGUE_POOLS[country] ?? FOREIGN_LEAGUE_POOLS._default
+  const pool = pools[seed % pools.length]
+  const given = pool.given[(seed >>> 5) % pool.given.length]
+  const family = pool.family[(seed >>> 13) % pool.family.length]
+  return pool.familyFirst ? `${family}・${given}` : `${given}・${family}`
+}
+
 // JPEL用の外国人名を生成する。usedNames と重複したらリトライする
 export function generateJpelForeignName(usedNames: Set<string>): { name: string; origin: string; nat: Nationality } {
   const pool = JPEL_FOREIGN_POOLS[rng(0, JPEL_FOREIGN_POOLS.length - 1)]

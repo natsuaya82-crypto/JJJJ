@@ -3,6 +3,8 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { teamHistoryOf } from '../../utils/teamHistory'
+// 海外クラブの本拠地・創設年・監督名（クラブIDから毎回同じ値を出す）
+import { foreignClubCity, foreignClubFounded, foreignClubGm, foreignClubBudget, foreignClubFacilities } from '../../utils/foreignClubProfile'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { useEclHistory } from '../../lib/useEclHistory'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -188,10 +190,22 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   if (eclTitles > 0) titles.push({ label: 'ECL優勝', count: eclTitles, color: '#2ECC71' })
 
   // TEAM INFO（本拠地行 + 創設年/優勝回数/最高順位）
+  // 海外クラブも国内チームと同じ作りにする。本拠地・創設年・監督名はクラブIDから
+  // 毎回同じ値を出す（utils/foreignClubProfile.ts）
   const infoLocation = isForeign
-    ? (league?.countryName ?? league?.name ?? '—')
+    ? `${league?.countryName ?? league?.name ?? '—'} · ${foreignClubCity(club!)}`
     : `${domesticTeam!.region} · ${domesticTeam!.city}`
-  const infoFounded = isForeign ? '—' : String(domesticTeam!.founded)
+  const infoFounded = isForeign ? String(foreignClubFounded(club!)) : String(domesticTeam!.founded)
+  const infoGm = isForeign ? foreignClubGm(club!) : domesticTeam!.gmName
+  // 海外クラブの規模（年間予算と施設）。国内の他チームは同じリーグの相手なので出さない
+  const foreignBudget = isForeign ? foreignClubBudget(club!, rank, curForeignStandings.length || 20) : 0
+  const foreignFac = isForeign ? foreignClubFacilities(club!) : null
+  const FAC_LABEL: { key: 'trainingCamp' | 'medicalCenter' | 'scoutOffice' | 'tacticsRoom'; label: string; color: string }[] = [
+    { key: 'trainingCamp', label: '合宿', color: '#4CAF50' },
+    { key: 'medicalCenter', label: '医療', color: '#4FC3F7' },
+    { key: 'scoutOffice', label: 'スカウト', color: '#FF9800' },
+    { key: 'tacticsRoom', label: '戦術', color: '#7986CB' },
+  ]
   const infoChampions = isForeign
     ? (titles[0]?.count ?? 0)
     : teamHistoryOf(pastSeasons, id).championships
@@ -410,8 +424,12 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>TEAM INFO</div>
               <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
-                  <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>{isForeign ? 'リーグ' : '本拠地'}</span>
+                  <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>本拠地</span>
                   <span style={{ fontSize: '14px', fontWeight: '800', color: '#F0EDE8' }}>{infoLocation}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
+                  <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>監督</span>
+                  <span style={{ fontSize: '14px', fontWeight: '800', color: '#F0EDE8' }}>{infoGm}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <div style={{ flex: 1, textAlign: 'center' }}>
@@ -431,6 +449,30 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                 </div>
               </div>
             </div>
+
+            {/* クラブ規模（海外クラブのみ。国内の他チームは同じリーグの相手なので出さない） */}
+            {isForeign && foreignFac && (
+              <div>
+                <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>クラブ規模</div>
+                <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
+                    <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>年間予算</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmt(foreignBudget)}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {FAC_LABEL.map((f, i) => (
+                      <div key={f.key} style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
+                        {i > 0 && <div style={{ width: '1px', alignSelf: 'stretch', background: '#1A1828', marginRight: 8 }} />}
+                        <div style={{ flex: 1, textAlign: 'center' }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: f.color }}>Lv{foreignFac[f.key] ?? 0}</div>
+                          <div style={{ fontSize: '8px', color: '#3A3758' }}>{f.label}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 歴代成績（折れ線グラフ） */}
             <div>
