@@ -37,6 +37,9 @@ import { reconcileTalks, STALE_TRADE_MSG } from '../utils/talkSync'
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
+// 監督の在任履歴と、他チームからの監督オファー
+import { startTenure } from '../utils/gmTenure'
+import { makeGmOffer } from '../utils/gmOffer'
 import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/legacyClubRoster'
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
 import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
@@ -446,6 +449,9 @@ export type GameStore = GameState & {
   addTrainingCards: (cards: TrainingCard[]) => void
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
+  // 監督オファーを受ける／断る（utils/gmOffer.ts）
+  acceptGmOffer: () => void
+  declineGmOffer: () => void
   // ホームで出したジュエル獲得ポップアップを閉じる
   dismissJewelGains: () => void
 
@@ -512,6 +518,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     rivalTeamId: null,
     gmRep: 50,
     gmTenures: [],
+    gmOffer: null,
     seenJoinIds: [],
     seenInjuryIds: [],
     playerTeamId: 'fukuoka',
@@ -5419,6 +5426,9 @@ export const useGameStore = create<GameStore>()(
             .filter(Boolean)
             .reduce((s, sp) => s + sp!.annualPayment, 0)
           const seasonRacesCount = state.currentSeason.races?.length ?? 10
+          // 監督オファーを受けたときに移籍先の予算へ丸ごと入れ替えるので、
+          // 他チームの来季予算の内訳もここで控えておく（あとからは計算し直せない）
+          const cpuNextBudgets: Record<string, typeof newBudgetBreakdown & { budget: number }> = {}
           const teamsWithSeasonRewards = teamsWithFA.map(t => {
             if (t.id === state.playerTeamId) {
               return { ...t, finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
@@ -5441,6 +5451,15 @@ export const useGameStore = create<GameStore>()(
             const b = computeNextSeasonBudget(cpuBudgetArgs)
             // 自チームと同じ判定：精算後の残高がマイナスなら連続赤字+1、プラスなら0
             const cpuStreak = b < 0 ? prevStreak + 1 : 0
+            cpuNextBudgets[t.id] = {
+              budget: b,
+              carryover: t.finance.budget - (sal + cpuBudgetArgs.runningCost),
+              grant: effectiveGrant(rank, prevStreak),
+              raceIncome: cpuBudgetArgs.seasonRaceIncome,
+              sponsor: cpuBudgetArgs.sponsorAnnual,
+              objBonus: 0,
+              expenses: 0,
+            }
             return { ...t, finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
           })
 
@@ -5782,10 +5801,26 @@ export const useGameStore = create<GameStore>()(
           // レンタル中（loanあり）の選手は名簿外が正規仕様（teamId=借り手だが借り手の名簿には載せない）
           const syncedTeams = rebuildRosters(cleanedPlayers, crossTx.teams)
 
+          // 他チームから監督の声がかかるか。来季の予算と評判が決まったあとに判定する。
+          // 出るのは1シーズンに最大1件で、答えるまでホームに出続ける（utils/gmOffer.ts）
+          const gmOffer = makeGmOffer({
+            standings: state.currentSeason.standings,
+            playerTeamId: state.playerTeamId,
+            finalRank,
+            gmRep: newGmRep,
+            teamCount: state.teams.length,
+            nextYear: newYear,
+            teams: syncedTeams,
+            nextBudgets: cpuNextBudgets,
+            objBonus,
+            rng: Math.random,
+          })
+
           return {
             players: cleanedPlayers,
             removedPlayers,
             teams: syncedTeams,
+            gmOffer,
             foreignLeagues: cappedForeignLeagues,
             worldTournament: undefined,  // 世界選手権トーナメントは年度で完結（翌年は新規に開催）
             worldRacePlans: undefined,   // コースも毎年引き直し
@@ -6778,6 +6813,58 @@ export const useGameStore = create<GameStore>()(
       dismissJewelGains: () => set({ jewelGains: [] }),
 
       dismissBudgetNotice: () => set({ seasonBudgetNotice: null }),
+
+      // 監督オファーを受ける。指揮するチームがここで入れ替わる。
+      //
+      // 受け継ぐのは移籍先が持っているもの（選手・予算・施設・ドラフト権）。
+      // 前のチームからは何も持って行かない。予算とスカウトポイントは
+      // シーズン終了時に控えておいた移籍先の数字へ差し替える（utils/gmOffer.ts）。
+      // 在任履歴には前のチームを前年で閉じてから新しいチームを足す（utils/gmTenure.ts）。
+      acceptGmOffer: () => {
+        set(state => {
+          const offer = state.gmOffer
+          if (!offer) return {}
+          const dest = state.teams.find(t => t.id === offer.teamId)
+          if (!dest) return { gmOffer: null }
+          const oldTeamId = state.playerTeamId
+          // 監督名は人について回る。前のチームには元のGM名を戻す
+          const myGmName = state.teams.find(t => t.id === oldTeamId)?.gmName
+            ?? state.setupData?.gmName ?? '監督'
+          const oldOriginalGm = INITIAL_TEAMS.find(t => t.id === oldTeamId)?.gmName ?? '新監督'
+          const teams = state.teams.map(t => {
+            if (t.id === offer.teamId) return { ...t, isPlayerControlled: true, gmName: myGmName }
+            if (t.id === oldTeamId) return { ...t, isPlayerControlled: false, gmName: oldOriginalGm }
+            return t
+          })
+          return {
+            playerTeamId: offer.teamId,
+            teams,
+            gmOffer: null,
+            gmTenures: startTenure(state.gmTenures, offer.teamId, offer.year, oldTeamId),
+            // 移籍先が因縁のチームだったらライバル設定は解除する
+            rivalTeamId: state.rivalTeamId === offer.teamId ? null : state.rivalTeamId,
+            seasonBudgetNotice: { year: offer.year, budget: offer.budget },
+            currentSeason: {
+              ...state.currentSeason,
+              initialBudget: offer.budget,
+              seasonGrant: offer.budgetBreakdown.grant,
+              budgetBreakdown: offer.budgetBreakdown,
+              scoutPoints: offer.scoutPoints,
+              // 目標は移籍先の前季順位で引き直す
+              objectives: selectSeasonObjectives(
+                state.rivalTeamId === offer.teamId ? false : !!state.rivalTeamId,
+                state.teams.length,
+                offer.prevRank,
+              ),
+              trainingAssignments: {},
+              scoutMissions: [],
+            },
+            raceLineup: {},
+          }
+        })
+      },
+
+      declineGmOffer: () => set({ gmOffer: null }),
 
       // 確認済みキーは増える一方なので直近100件で打ち切る（負傷通知と同じ扱い）
       dismissJoinNotice: (key) => set(s => ({ seenJoinIds: s.seenJoinIds.includes(key) ? s.seenJoinIds : [...s.seenJoinIds, key].slice(-100) })),

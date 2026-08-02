@@ -796,6 +796,30 @@ export type GmTenure = {
   toYear?: number
 }
 
+// 他チームからの監督オファー。シーズンが終わった直後に1件だけ出て、
+// 「行く／行かない」を答えると消える。詳しくは utils/gmOffer.ts
+//
+// 予算・内訳・スカウトポイント・前季順位を持たせてあるのは、受けたときに
+// 移籍先の数字へ丸ごと入れ替えるため。オファーを出す時点でしか分からない値なので
+// ここに焼き付けておく（移籍先が持っているものを受け継ぐ、という決めごと）。
+export type GmOffer = {
+  teamId: string
+  // 就任するシーズン（＝オファーが出た翌シーズン）
+  year: number
+  budget: number
+  budgetBreakdown: {
+    carryover: number
+    grant: number
+    raceIncome: number
+    sponsor: number
+    objBonus: number
+    expenses: number
+  }
+  scoutPoints: number
+  // 移籍先の前季の最終順位。来季の目標を引き直すのに使う
+  prevRank: number
+}
+
 export type GameState = {
   playerTeamId: string
   currentSeason: Season
@@ -811,6 +835,8 @@ export type GameState = {
   gmRep: number
   // 監督の在任履歴。無い旧セーブは「最初のシーズンからずっと今のチーム」として扱う
   gmTenures?: GmTenure[]
+  // 他チームから届いている監督オファー。答えるまで残る（答えたら null）
+  gmOffer?: GmOffer | null
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。

@@ -12,6 +12,7 @@ import { initLocalNotifications } from './utils/notifications'
 import { hasAdFree } from './utils/iap'
 import { clearMarketFilters } from './utils/marketFilters'
 import LoadingOverlay from './components/ui/LoadingOverlay'
+import { TeamLogoSVG } from './components/icons/Icons'
 import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
 import { useLoadingStore } from './store/loadingStore'
@@ -124,11 +125,59 @@ function Placeholder({ title }: { title: string }) {
   )
 }
 
+// 他チームからの監督オファーをホームで出す。答えるまで消えない。
+// 受けると指揮するチームが入れ替わる（store の acceptGmOffer / utils/gmOffer.ts）。
+function GmOfferNotice() {
+  const offer = useGameStore(s => s.gmOffer)
+  const teams = useGameStore(s => s.teams)
+  const accept = useGameStore(s => s.acceptGmOffer)
+  const decline = useGameStore(s => s.declineGmOffer)
+  if (!offer) return null
+  const dest = teams.find(t => t.id === offer.teamId)
+  if (!dest) return null
+  const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+  const fmtYen = (yen: number) => `${Math.round(yen / 10000).toLocaleString()}万`
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 11, color: '#f5c842', letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>OFFER</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+          <TeamLogoSVG primary={dest.colors.primary} secondary={dest.colors.secondary} shortName={dest.shortName} teamId={dest.id} logoId={dest.logoId} size={56} />
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', marginBottom: 6 }}>{dest.name}</div>
+        <div style={{ fontSize: 13, color: '#cfd8e8', lineHeight: 1.7, marginBottom: 16 }}>
+          監督就任のオファーが届きました。<br />
+          {offer.year}シーズンから指揮を執りますか？
+        </div>
+        <div style={{ background: '#122034', borderRadius: 12, padding: '12px 14px', marginBottom: 18, textAlign: 'left' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#cfd8e8', marginBottom: 6 }}>
+            <span>前季順位</span><span style={{ fontWeight: 800, color: '#fff' }}>{offer.prevRank}位</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#cfd8e8' }}>
+            <span>来季予算</span><span style={{ fontWeight: 800, color: '#fff' }}>{fmtYen(offer.budget)}</span>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: '#8fa0bb', lineHeight: 1.7, marginBottom: 16 }}>
+          受けると選手・予算・施設はすべて{dest.shortName}のものを引き継ぎます。<br />
+          今のチームの選手や予算は持って行けません。
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={decline} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid #6b7a94', background: 'transparent', color: '#cfd8e8', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>断る</button>
+          <button onClick={accept} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>受ける</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // シーズン終了で確定した来期予算をホームで一度だけポップ表示する。
 function SeasonBudgetNotice() {
   const notice = useGameStore(s => s.seasonBudgetNotice)
   const dismiss = useGameStore(s => s.dismissBudgetNotice)
+  // 監督オファーに答えると予算が移籍先のものに入れ替わる。答えるまでは出さない
+  const offer = useGameStore(s => s.gmOffer)
   const navigate = useNavigate()
+  if (offer) return null
   if (!notice) return null
   const SAIRA = "'Saira Condensed', system-ui, sans-serif"
   // 予算ページと同じ万円単位表記（億に切り上げない）
@@ -193,6 +242,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
   return (
     <>
       <ContractInfoModal />
+      <GmOfferNotice />
       <SeasonBudgetNotice />
       <Layout>
         <Routes>
