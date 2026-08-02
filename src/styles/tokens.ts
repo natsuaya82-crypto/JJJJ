@@ -33,7 +33,18 @@ export const R = {
   full:'9999px',
 } as const
 
+/**
+ * 色に透け具合を足す。#rgb（3桁）でも #rrggbb（6桁）でも受け取れる。
+ *
+ * 3桁のまま末尾をくっつけると #000 + 4d = #0004d という5桁になり、
+ * 色として無効になる。無効な色を入れても画面は前の色を残すので、
+ * 「一度黄色くなったボタンが、選び直しても黄色いまま」になっていた。
+ * 3桁のときは先に6桁へ伸ばしてからくっつける。
+ */
 export const alpha = (hex: string, a: number) => {
+  const h = /^#[0-9a-fA-F]{3}$/.test(hex)
+    ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+    : hex
   const n = Math.round(a * 255).toString(16).padStart(2, '0')
-  return `${hex}${n}`
+  return `${h}${n}`
 }

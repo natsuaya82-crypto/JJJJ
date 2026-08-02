@@ -8,6 +8,11 @@ import { loginTodayKey } from '../../utils/loginDate'
 import { audio } from '../../utils/audio'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import PlayerFace from '../player/PlayerFace'
+import TrainingCardSVG from '../training/TrainingCardSVG'
+import { CARD_NAMES, RARITY_LABELS } from '../../utils/cardCombo'
+import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
+import { claimClubGift } from '../../lib/clubsApi'
+import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -56,6 +61,31 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const clubIndex = useClubIndex()
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
+  // 走友会のなかまから届いたカード
+  const addTrainingCards = useGameStore(s => s.addTrainingCards)
+  const clubGifts = useClubGifts()
+  const [claiming, setClaiming] = useState('')
+
+  /**
+   * 届いたカードを1枚受け取る。
+   * サーバー側はこの呼び出しで消えるので、手元に入れる前に必ず箱へ置いておく。
+   * ここで落ちてもカードは消えず、次に走友会の画面を開いたときに入り直す。
+   */
+  const onClaimClubGift = async (id: string) => {
+    setClaiming(id)
+    try {
+      const got = await claimClubGift(id)
+      if (got) {
+        stashGifts([...peekGifts(), got])
+        addTrainingCards([got])
+        audio.playSe('reward')
+        setTimeout(clearGifts, 2000)
+      }
+      dropClubGift(id)
+    } catch { /* 通信できないときは何もしない。次に開いたときにまた出る */ }
+    finally { setClaiming('') }
+  }
+
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないためパネルには出さない（通知ページで情報表示）
   // ※選手が退団・引退した「幽霊通知」は全種類除外（NotificationsPage・useNotifCountと同じ基準）
   const playerTeamIdP = useGameStore(s => s.playerTeamId)
@@ -68,7 +98,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedIdsP.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamIdP && p.status === 'active' && !p.transferListed))
   const total = incomingOffers.length
     + retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length
-    + pendingGifts.length
+    + pendingGifts.length + clubGifts.length
 
   const card = (border: string, shadow: string): React.CSSProperties => ({
     borderRadius: '14px', overflow: 'hidden', marginBottom: '8px', position: 'relative',
@@ -136,6 +166,34 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub, lineHeight: 1.5, marginBottom: '10px' }}>{gift.message}</div>
                         <button onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }} style={{ width: '100%', padding: '9px', borderRadius: '10px', cursor: 'pointer', border: `2px solid ${alpha(C.gold, 0.55)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, boxShadow: `0 4px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.08)`, color: C.gold, fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
                           受け取る
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              )}
+
+              {/* 走友会から届いたカード */}
+              {clubGifts.length > 0 && (
+                <section style={{ marginBottom: '14px' }}>
+                  <SectionLabel label="走友会からのカード" color={C.green} />
+                  {clubGifts.map(g => (
+                    <div key={g.id} style={card(alpha(C.green, 0.55), '#14432a')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                          <TrainingCardSVG statKey={g.card.statKey} rarity={g.card.rarity} width={40} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '900', color: C.green, marginBottom: '2px', lineHeight: 1.4 }}>
+                              {g.fromName}から{RARITY_LABELS[g.card.rarity]}の{CARD_NAMES[g.card.statKey]}のカードが届きました！
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => { void onClaimClubGift(g.id) }}
+                          disabled={claiming === g.id}
+                          style={{ width: '100%', padding: '9px', borderRadius: '10px', cursor: claiming === g.id ? 'default' : 'pointer', border: `2px solid ${alpha(C.green, 0.55)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, boxShadow: `0 4px 0 #14432a, inset 0 1px 0 rgba(255,255,255,0.08)`, color: C.green, fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', marginBottom: '4px', opacity: claiming === g.id ? 0.6 : 1 }}>
+                          {claiming === g.id ? '受け取り中…' : '受け取る'}
                         </button>
                       </div>
                     </div>
@@ -312,6 +370,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
 export function useNotifCount() {
   const { currentSeason, players, teams, playerTeamId, lastLoginDate } = useGameStore()
   const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
+  const clubGifts = useClubGifts()
   const seenJoinIds = useGameStore(s => s.seenJoinIds) ?? []
 
   // フリー移籍の接触（offeredPrice=0）は情報通知として別カウント（NotificationsPageと同じ分け方・対応済みは除外）
@@ -372,7 +431,11 @@ export function useNotifCount() {
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
 
-  return incomingOffers + tradeOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
+  // アップデート記念のマイプレイヤー作成（NotificationsPageの total にも1件入っている）
+  const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
+
+  return (myPlayerCreated ? 0 : 1)
+    + incomingOffers + tradeOffers + retirementRequests + transferReqs + counteredBids + feeAcceptedBids + pendingContracts
     + renewalNeeded
     + (signingBanned ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
@@ -380,6 +443,7 @@ export function useNotifCount() {
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers > 0 ? 1 : 0)
     + pendingGifts.length
+    + clubGifts.length
     + joinNotices
     + expiredNegotiations
     + loanResponses

@@ -316,8 +316,12 @@ export type ClubPost = {
   kind: 'msg' | 'req'
   phrase: number
   rarity: ClubReqRarity | ''
-  /** 欲しいカードの種類。'' なら何でもよい */
+  /** 欲しいカードの種類。'' なら何でもよい（古い投稿だけが使う） */
   stat: ClubReqStat
+  /** 1枚ずつの希望。長さは枚数ぶん。'' はその枠だけおまかせ */
+  stats: ClubReqStat[]
+  /** まだ埋まっていない枠の希望だけを並べたもの。渡す側はこれを見る */
+  openStats: ClubReqStat[]
   filled: number
   cap: number
   mine: boolean
@@ -333,6 +337,7 @@ export type ClubPost = {
 
 type FeedRow = {
   id: string; user_id: string; kind: 'msg' | 'req'; phrase: number; rarity: string; stat: string | null
+  stats: string[] | null; open_stats: string[] | null
   filled: number; cap: number; mine: boolean; donated: boolean; created_at: string
   team_name: string | null; short_name: string | null; gm_name: string | null
   logo_id: string | null; color_primary: string | null; color_secondary: string | null
@@ -351,6 +356,8 @@ export async function clubFeed(): Promise<ClubPost[]> {
     phrase: r.phrase ?? 0,
     rarity: (r.rarity || '') as ClubReqRarity | '',
     stat: (r.stat || '') as ClubReqStat,
+    stats: ((r.stats ?? []) as string[]) as ClubReqStat[],
+    openStats: ((r.open_stats ?? []) as string[]) as ClubReqStat[],
     filled: r.filled ?? 0,
     cap: r.cap ?? 0,
     mine: !!r.mine,
@@ -377,24 +384,44 @@ export async function postClubMessage(phrase: number): Promise<PostMsgResult> {
 
 export type PostReqResult = 'ok' | 'not_in_club' | 'today_done' | 'bad_rarity'
 
-/** カードをお願いする。1日1回まで。stat を渡すとその種類のカードだけを募る */
+/**
+ * カードをお願いする。1日1回まで。
+ * stats は1枚ぶんずつの希望。長さが足りないところは「おまかせ」になる。
+ */
 export async function postClubRequest(
-  rarity: ClubReqRarity, stat: ClubReqStat = '',
+  rarity: ClubReqRarity, stats: ClubReqStat[] = [],
 ): Promise<PostReqResult> {
   await uid()
-  const { data, error } = await supabase.rpc('post_club_request', { p_rarity: rarity, p_stat: stat })
+  const ss: string[] = []
+  for (let i = 0; i < CLUB_REQ_CAP[rarity]; i++) ss.push(stats[i] ?? '')
+  const { data, error } = await supabase.rpc('post_club_request', {
+    p_rarity: rarity, p_stat: '', p_stats: ss,
+  })
   if (error) throw new FriendsOffline(error.message)
   return (data as PostReqResult) ?? 'not_in_club'
 }
 
 export type DonateResult = 'ok' | 'not_found' | 'full' | 'already' | 'mine' | 'bad_card'
 
-/** カードを1枚渡す。渡せるのは1つの要求につき1人1枚まで */
-export async function donateClubCard(postId: string, card: TrainingCard): Promise<DonateResult> {
+/** まとめて渡した結果。ids は実際に渡せたカードのid（そのぶんだけ手元から減らす） */
+export type DonateManyResult = { status: DonateResult; given: number; ids: string[] }
+
+/**
+ * カードをまとめて渡す。1人1枚の縛りは無い。
+ * 空いている枠に合うものだけが渡り、合わなかったカードは手元に残る。
+ */
+export async function donateClubCards(
+  postId: string, cards: TrainingCard[],
+): Promise<DonateManyResult> {
   await uid()
-  const { data, error } = await supabase.rpc('donate_club_card', { p_post: postId, p_card: card })
+  const { data, error } = await supabase.rpc('donate_club_cards', { p_post: postId, p_cards: cards })
   if (error) throw new FriendsOffline(error.message)
-  return (data as DonateResult) ?? 'not_found'
+  const r = (data ?? {}) as { status?: string; given?: number; ids?: unknown }
+  return {
+    status: (r.status as DonateResult) ?? 'not_found',
+    given: r.given ?? 0,
+    ids: Array.isArray(r.ids) ? (r.ids as string[]).filter(x => typeof x === 'string') : [],
+  }
 }
 
 /** 受け取っていないカードの枚数 */
@@ -403,6 +430,40 @@ export async function clubGiftCount(): Promise<number> {
   const { data, error } = await supabase.rpc('club_gift_count')
   if (error) throw new FriendsOffline()
   return (data as number) ?? 0
+}
+
+/** 届いているカード1枚ぶん。通知に「誰から何が届いたか」を出すために使う */
+export type ClubGift = {
+  id: string
+  card: TrainingCard
+  /** 送ってくれた人のチーム名 */
+  fromName: string
+  createdAt: string
+}
+
+/** 届いているカードの一覧。受け取りはしない（見るだけ） */
+export async function clubGiftList(): Promise<ClubGift[]> {
+  await uid()
+  const { data, error } = await supabase.rpc('club_gift_list')
+  if (error) throw new FriendsOffline(error.message)
+  type Row = { id: string; card: TrainingCard; from_name: string | null; created_at: string }
+  return ((data ?? []) as Row[])
+    .filter(r => r && r.card && typeof r.card.id === 'string')
+    .map(r => ({
+      id: r.id,
+      card: r.card,
+      fromName: r.from_name || '走友会のなかま',
+      createdAt: r.created_at,
+    }))
+}
+
+/** 1枚だけ受け取る。受け取れなければ null */
+export async function claimClubGift(giftId: string): Promise<TrainingCard | null> {
+  await uid()
+  const { data, error } = await supabase.rpc('claim_club_gift', { p_id: giftId })
+  if (error) throw new FriendsOffline(error.message)
+  const c = data as TrainingCard | null
+  return c && typeof c.id === 'string' ? c : null
 }
 
 /** もらったカードを全部受け取る。サーバー側からは同時に消える */

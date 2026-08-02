@@ -46,6 +46,20 @@ export function audioDiag(): string[] {
   return diagLog.slice()
 }
 
+/**
+ * いまBGMがどうなっているかの控え。
+ *
+ * 「鳴らない」とだけ言われても、音量が0なのか、ファイルが見つからないのか、
+ * 鳴らす指示は通ったのに音が出ていないのかが分からなかった。
+ * 設定→サウンドにそのまま出して、実機で読めるようにする。
+ */
+let bgmStatus = 'まだ鳴らしていません'
+
+/** BGMのいまの様子。設定→サウンドに出す。 */
+export function audioStatus(): string {
+  return bgmStatus
+}
+
 function readVol(key: string): number {
   const raw = localStorage.getItem(key)
   const v = raw == null ? 0.5 : parseFloat(raw)
@@ -56,6 +70,8 @@ type NativeAudioModule = typeof import('@capacitor-community/native-audio')['Nat
 
 class AudioManager {
   private bgmEl: HTMLAudioElement | null = null
+  private htmlName: BgmName | null = null
+  private nativeBgmBroken = false
   private current: BgmName | null = null
   private desired: BgmName = 'home'
   private starting: BgmName | null = null
@@ -131,11 +147,28 @@ class AudioManager {
 
   private startBgm(name: BgmName) {
     if (isNative) { void this.startBgmNative(name); return }
-    // Web: HTML5
+    this.startBgmHtml(name)
+  }
+
+  /**
+   * ブラウザ側の音声で鳴らす。
+   *
+   * ふだんはWeb用だが、実機でネイティブ音声が鳴らせなかったときの逃げ道にも使う。
+   * 無音のまま出すより、音楽セッションを取ってでも鳴るほうがましなので。
+   */
+  private startBgmHtml(name: BgmName) {
     if (!this.bgmEl) { this.bgmEl = new Audio(); this.bgmEl.loop = true }
+    if (this.htmlName === name && !this.bgmEl.paused) return
     this.bgmEl.volume = this.musicVol
-    if (this.current !== name) { this.bgmEl.src = `/audio/bgm/${name}.mp3`; this.current = name }
-    this.bgmEl.play().catch(() => {})
+    if (this.htmlName !== name) { this.bgmEl.src = `/audio/bgm/${name}.mp3`; this.htmlName = name }
+    this.bgmEl.play()
+      .then(() => { bgmStatus = `${name} / ブラウザ音声で再生中 / 音量 ${this.musicVol.toFixed(2)}` })
+      .catch(e => { note(`BGM ${name} ブラウザ再生も失敗`, e) })
+  }
+
+  private stopBgmHtml() {
+    if (this.bgmEl) this.bgmEl.pause()
+    this.htmlName = null
   }
 
   /**
@@ -148,7 +181,9 @@ class AudioManager {
    */
   private async startBgmNative(name: BgmName) {
     const na = await this.ensureNative()
-    if (!na) return
+    if (!na) { this.startBgmHtml(name); return }
+    // 一度ネイティブで鳴らせないと分かったら、以降は素直にブラウザ音声で鳴らす。
+    if (this.nativeBgmBroken) { this.startBgmHtml(name); return }
     if (this.current === name || this.starting === name) return
     this.starting = name
     const prev = this.current
@@ -157,8 +192,9 @@ class AudioManager {
       if (prev) { try { await na.stop({ assetId: `bgm_${prev}` }) } catch (e) { note(`BGM ${prev} 停止失敗`, e) } }
       if (this.desired !== name) return  // await中に別BGMへ切り替わったら中断（二重再生防止）
       const ok = await this.loopBgm(na, name)
-      if (!ok) return
+      if (!ok) { this.nativeBgmBroken = true; this.startBgmHtml(name); return }
       if (this.desired !== name) { na.stop({ assetId: `bgm_${name}` }).catch(() => {}); return }
+      this.stopBgmHtml()
       this.current = name
     } finally {
       if (this.starting === name) this.starting = null
@@ -168,13 +204,7 @@ class AudioManager {
   /** loop を投げて、ダメなら読み直して一度だけやり直す。鳴らせたら true。 */
   private async loopBgm(na: NativeAudioModule, name: BgmName): Promise<boolean> {
     const id = `bgm_${name}`
-    try {
-      await na.setVolume({ assetId: id, volume: this.musicVol })
-      await na.loop({ assetId: id })
-      return true
-    } catch (e) {
-      note(`BGM ${name} 再生失敗`, e)
-    }
+    if (await this.tryLoop(na, id, name, '1回目')) return true
     // 読み込みが落ちていた場合と、読み込めたのに中身が空だった場合の両方を拾うため、
     // 一度捨ててから読み直す（読み直しは既にある時だけエラーになるので、先に unload する）。
     try { await na.unload({ assetId: id }) } catch { /* 元から無ければそれでよい */ }
@@ -184,14 +214,39 @@ class AudioManager {
       note(`BGM ${name} 読み直し失敗`, e)
       return false
     }
+    return this.tryLoop(na, id, name, '読み直し後')
+  }
+
+  /**
+   * 鳴らす指示を出して、そのあと本当に鳴っているかまで聞き直す。
+   *
+   * これまでは「指示が通った＝鳴っている」とみなしていた。
+   * ところがiOS側は再生できなくても黙って成功として返してくるので、
+   * 無音なのに成功扱いになり、原因が何も残らなかった。
+   */
+  private async tryLoop(na: NativeAudioModule, id: string, name: BgmName, tag: string): Promise<boolean> {
     try {
+      await na.setVolume({ assetId: id, volume: this.musicVol })
       await na.loop({ assetId: id })
-      note(`BGM ${name} は読み直して再生できた`)
-      return true
     } catch (e) {
-      note(`BGM ${name} やり直しも失敗`, e)
+      note(`BGM ${name} 再生失敗(${tag})`, e)
       return false
     }
+    try {
+      await new Promise(r => setTimeout(r, 300))
+      const playing = (await na.isPlaying({ assetId: id })).isPlaying
+      const sec = Math.round((await na.getDuration({ assetId: id })).duration)
+      bgmStatus = `${name} / ${playing ? '再生中' : '止まったまま'} / 長さ ${sec}秒 / 音量 ${this.musicVol.toFixed(2)}`
+      if (!playing) {
+        note(`BGM ${name} 指示は通ったが鳴っていない(${tag})`)
+        return false
+      }
+    } catch (e) {
+      // 確認できないだけなら、鳴っている前提で進める（確認手段が無い古い環境向け）。
+      note(`BGM ${name} 状態を確認できず(${tag})`, e)
+      bgmStatus = `${name} / 状態不明 / 音量 ${this.musicVol.toFixed(2)}`
+    }
+    return true
   }
 
   stopBgm() {
@@ -199,9 +254,10 @@ class AudioManager {
       const cur = this.current
       this.current = null
       if (cur && this.na) { this.na.stop({ assetId: `bgm_${cur}` }).catch(() => {}) }
+      this.stopBgmHtml()
       return
     }
-    if (this.bgmEl) this.bgmEl.pause()
+    this.stopBgmHtml()
     this.current = null
   }
 
@@ -221,14 +277,13 @@ class AudioManager {
 
   setMusicVolume(v: number) {
     this.musicVol = Math.min(1, Math.max(0, v))
+    if (this.bgmEl) this.bgmEl.volume = this.musicVol
     if (isNative) {
       if (this.na && this.current) { this.na.setVolume({ assetId: `bgm_${this.current}`, volume: this.musicVol }).catch(() => {}) }
       // 鳴っていない状態でつまみを動かしたら、そこでもう一度かけ直す。
       // 起動時にたまたま失敗しても、音量を触れば鳴り出せるようにしておく。
-      else if (this.unlocked && this.musicVol > 0) { void this.startBgmNative(this.desired) }
-      return
+      else if (this.unlocked && this.musicVol > 0 && !this.htmlName) { void this.startBgmNative(this.desired) }
     }
-    if (this.bgmEl) this.bgmEl.volume = this.musicVol
   }
 
   setSeVolume(v: number) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
-import { audio, audioDiag } from '../../utils/audio'
+import { audio, audioDiag, audioStatus } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import { ONLINE_ENABLED } from '../../data/featureFlags'
 import { TERMS_URL, PRIVACY_URL } from '../../utils/termsConsent'
@@ -364,6 +364,8 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
   // 「鳴らない」以上のことが分からず、直したかどうかも確かめられない。
   // 正常なときは何も出ない。
   const [diag, setDiag] = useState<string[]>(() => audioDiag())
+  // BGMがいまどうなっているか。つまみを動かすたびに読み直す。
+  const [status, setStatus] = useState<string>(() => audioStatus())
 
   function handleVolSe(v: number) {
     setVolSe(v)
@@ -371,12 +373,14 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
     audio.setSeVolume(v)
     audio.playSe('tap')
     setDiag(audioDiag())
+    setStatus(audioStatus())
   }
   function handleVolMusic(v: number) {
     setVolMusic(v)
     localStorage.setItem('jpel-volume-music', String(v))
     audio.setMusicVolume(v)
     setDiag(audioDiag())
+    setStatus(audioStatus())
   }
 
   return (
@@ -418,6 +422,11 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
             />
           </div>
         ))}
+      </div>
+
+      <div style={{ ...CARD, marginTop: 12, padding: '14px 16px' }}>
+        <div style={{ fontSize: 10, color: C.textSub, letterSpacing: '1.5px', marginBottom: 8, fontFamily: SAIRA }}>BGMのようす</div>
+        <div style={{ fontSize: 11, color: C.textGhost, lineHeight: 1.7, wordBreak: 'break-all' }}>{status}</div>
       </div>
 
       {diag.length > 0 && (

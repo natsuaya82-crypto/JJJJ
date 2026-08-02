@@ -14,7 +14,7 @@ import {
   cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
   leaveClub, kickClubMember, updateClub, setClubRole, CLUB_ADMIN_MAX,
   CLUB_PHRASES, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubMessage, postClubRequest,
-  donateClubCard, clubGiftCount, claimClubGifts,
+  donateClubCards, clubGiftCount, claimClubGifts,
   type ClubBrief, type ClubForm, type ClubMember, type ClubPost, type ClubReqRarity,
   type ClubReqStat, type JoinType, type MyClub,
 } from '../../lib/clubsApi'
@@ -23,6 +23,7 @@ import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import type { TrainingCard } from '../../types'
 import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
+import { loadClubGifts, clearClubGifts } from '../../lib/useClubGifts'
 import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { C, alpha } from '../../styles/tokens'
@@ -412,79 +413,193 @@ function ago(iso: string): string {
   return `${Math.floor(hour / 24)}日前`
 }
 
-/** 渡すカードを選ぶ。手持ちのうち、頼まれたレアリティ（と種類）のカードだけ出す */
-function DonatePicker({ rarity, stat, cards, busy, onPick, onCancel }: {
-  rarity: ClubReqRarity; stat: ClubReqStat; cards: TrainingCard[]; busy: boolean
-  onPick: (c: TrainingCard) => void; onCancel: () => void
+/**
+ * 空いている枠に、選んだカードを上から当てはめてみる。
+ * 当てはまったカードだけを返す。サーバーと同じ順番で当てるので、
+ * ここで「入る」と出たものは、そのままサーバーでも入る。
+ *
+ * 種類の指定がある枠から先に埋めるのが肝心。おまかせ枠を先に潰すと、
+ * 指定枠に合うカードの行き場が無くなって、渡せる枚数が減ってしまう。
+ */
+function fitCards(open: ClubReqStat[], cards: TrainingCard[]): TrainingCard[] {
+  const want = [...open]
+  const out: TrainingCard[] = []
+  for (const c of cards) {
+    if (want.length === 0) break
+    let k = want.findIndex(w => w !== '' && w === c.statKey)
+    if (k < 0) k = want.findIndex(w => w === '')
+    if (k < 0) continue
+    want.splice(k, 1)
+    out.push(c)
+  }
+  return out
+}
+
+/** 欲しい枠の並びを「スピード×2・おまかせ」のような字にする */
+function wantText(stats: ClubReqStat[]): string {
+  const order: ClubReqStat[] = []
+  const count = new Map<ClubReqStat, number>()
+  for (const s of stats) {
+    if (!count.has(s)) order.push(s)
+    count.set(s, (count.get(s) ?? 0) + 1)
+  }
+  return order
+    .map(s => {
+      const n = count.get(s) ?? 0
+      return `${s ? CARD_NAMES[s] : 'おまかせ'}${n > 1 ? `×${n}` : ''}`
+    })
+    .join('・')
+}
+
+/**
+ * 渡すカードを選ぶ。空いている枠のぶんだけ、まとめて選べる。
+ * 枠に当てはまらないカードは押しても入らないので、はじめから薄くして押せなくする。
+ */
+function DonatePicker({ rarity, open, cards, busy, onGive, onCancel }: {
+  rarity: ClubReqRarity; open: ClubReqStat[]; cards: TrainingCard[]; busy: boolean
+  onGive: (cs: TrainingCard[]) => void; onCancel: () => void
 }) {
-  const want = stat ? `${RARITY_LABELS[rarity]}の${CARD_NAMES[stat]}` : RARITY_LABELS[rarity]
+  const [picked, setPicked] = useState<string[]>([])
+  const byId = new Map(cards.map(c => [c.id, c]))
+  const pickedCards = picked.map(id => byId.get(id)).filter((c): c is TrainingCard => !!c)
+  const full = pickedCards.length >= open.length
+
+  const canPick = (c: TrainingCard) =>
+    fitCards(open, [...pickedCards, c]).length === pickedCards.length + 1
+
+  const toggle = (c: TrainingCard) => {
+    setPicked(prev => (prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id]))
+  }
+
   return (
     <ConfirmDialog
-      title={`${want}カードを1枚わたす`}
-      confirmLabel="やめる"
-      accent={C.textDim}
-      onConfirm={onCancel}
+      title={`${RARITY_LABELS[rarity]}カードをわたす`}
+      confirmLabel={busy ? '送信中…' : pickedCards.length > 0 ? `${pickedCards.length}枚わたす` : 'わたす'}
+      cancelLabel="やめる"
+      accent={C.green}
+      onConfirm={() => { if (!busy && pickedCards.length > 0) onGive(pickedCards) }}
       onCancel={onCancel}
     >
+      <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6 }}>
+        ほしがっているのは {wantText(open)}
+      </div>
       {cards.length === 0 ? (
         <div style={{ marginTop: 10, fontSize: 12, color: C.textDim, lineHeight: 1.6 }}>
-          渡せる{want}カードを持っていません。
+          渡せる{RARITY_LABELS[rarity]}カードを持っていません。
         </div>
       ) : (
         <div style={{
           marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6,
           maxHeight: 240, overflowY: 'auto',
         }}>
-          {cards.map(c => (
-            <button key={c.id} type="button" disabled={busy} onClick={() => onPick(c)} style={{
-              background: 'none', border: 'none', padding: 0, cursor: busy ? 'default' : 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            }}>
-              <TrainingCardSVG statKey={c.statKey} rarity={c.rarity} width={58} />
-              <span style={{ fontSize: 8, color: C.textGhost }}>{CARD_NAMES[c.statKey]}</span>
-            </button>
-          ))}
+          {cards.map(c => {
+            const on = picked.includes(c.id)
+            const ok = on || (!full && canPick(c))
+            return (
+              <button key={c.id} type="button" disabled={busy || !ok} onClick={() => toggle(c)} style={{
+                background: on ? alpha(C.green, 0.16) : 'none',
+                border: `1px solid ${on ? C.green : 'transparent'}`,
+                borderRadius: 9, padding: '3px 0', cursor: busy || !ok ? 'default' : 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                opacity: ok ? 1 : 0.3,
+              }}>
+                <TrainingCardSVG statKey={c.statKey} rarity={c.rarity} width={54} />
+                <span style={{ fontSize: 8, color: on ? C.green : C.textGhost }}>{CARD_NAMES[c.statKey]}</span>
+              </button>
+            )
+          })}
         </div>
       )}
+      <div style={{ fontSize: 9, color: C.textGhost, marginTop: 8, lineHeight: 1.6 }}>
+        あと{open.length}枚まで入ります。薄いカードは、いま空いている枠に合いません。
+      </div>
     </ConfirmDialog>
   )
 }
 
-/** お願いするカードの中身を選ぶ。おまかせなら誰でも渡せる */
+/**
+ * お願いするカードの中身を選ぶ。1枚ずつ別の種類を頼める。
+ *
+ * 上の列が「何枚目を決めているか」。種類を選ぶと次の枚に進むので、
+ * ぽんぽん押していけば5枚ぶん決まる。直したいときは上の列を押して戻る。
+ */
 function AskPicker({ rarity, busy, onPick, onCancel }: {
   rarity: ClubReqRarity; busy: boolean
-  onPick: (stat: ClubReqStat) => void; onCancel: () => void
+  onPick: (stats: ClubReqStat[]) => void; onCancel: () => void
 }) {
-  const [stat, setStat] = useState<ClubReqStat>('')
+  const cap = CLUB_REQ_CAP[rarity]
+  const [stats, setStats] = useState<ClubReqStat[]>(() => Array<ClubReqStat>(cap).fill(''))
+  const [slot, setSlot] = useState(0)
+  const slotW = cap > 3 ? 40 : 52
+
+  const choose = (v: ClubReqStat) => {
+    setStats(prev => prev.map((x, i) => (i === slot ? v : x)))
+    setSlot(i => (i + 1 < cap ? i + 1 : i))
+  }
+  const all = (v: ClubReqStat) => { setStats(Array<ClubReqStat>(cap).fill(v)); setSlot(0) }
+
   return (
     <ConfirmDialog
-      title={`${RARITY_LABELS[rarity]}カードを${CLUB_REQ_CAP[rarity]}枚おねがいする`}
+      title={`${RARITY_LABELS[rarity]}カードを${cap}枚おねがいする`}
       confirmLabel={busy ? '送信中…' : 'おねがいする'}
       cancelLabel="やめる"
       accent={C.gold}
-      onConfirm={() => { if (!busy) onPick(stat) }}
+      onConfirm={() => { if (!busy) onPick(stats) }}
       onCancel={onCancel}
     >
-      <div style={{ marginTop: 10, fontSize: 11, color: C.textDim }}>どの練習のカードが欲しい？</div>
+      <div style={{ marginTop: 10, fontSize: 11, color: C.textDim }}>1枚ずつ選べます</div>
+      <div style={{ marginTop: 6, display: 'flex', gap: 5 }}>
+        {stats.map((v, i) => (
+          <button key={i} type="button" onClick={() => setSlot(i)} style={{
+            flex: 1, background: i === slot ? alpha(C.gold, 0.16) : alpha('#000', 0.25),
+            border: `1px solid ${i === slot ? C.gold : C.border3}`,
+            borderRadius: 9, padding: '5px 0', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          }}>
+            {v ? (
+              <TrainingCardSVG statKey={v} rarity={rarity} width={slotW} />
+            ) : (
+              <div style={{
+                width: slotW, height: Math.round(slotW * 1.4), borderRadius: 6,
+                border: `1px dashed ${C.border3}`, background: alpha('#000', 0.25),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.textGhost,
+              }}>?</div>
+            )}
+            <span style={{ fontSize: 8, color: i === slot ? C.gold : C.textGhost }}>
+              {v ? CARD_NAMES[v] : 'おまかせ'}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 11, color: C.textDim }}>
+        {slot + 1}枚目はどの練習のカードが欲しい？
+      </div>
       <div style={{ display: 'flex', marginTop: 6 }}>
-        <ChoiceButton label="おまかせ（なんでも）" on={stat === ''} onClick={() => setStat('')} />
+        <ChoiceButton label="おまかせ（なんでも）" on={stats[slot] === ''} onClick={() => choose('')} />
       </div>
       <div style={{
         marginTop: 6, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6,
       }}>
         {CLUB_REQ_STATS.map(s => (
-          <button key={s} type="button" onClick={() => setStat(s)} style={{
-            background: stat === s ? alpha(C.gold, 0.16) : 'none',
-            border: `1px solid ${stat === s ? C.gold : 'transparent'}`,
+          <button key={s} type="button" onClick={() => choose(s)} style={{
+            background: stats[slot] === s ? alpha(C.gold, 0.16) : 'none',
+            border: `1px solid ${stats[slot] === s ? C.gold : 'transparent'}`,
             borderRadius: 9, padding: '4px 0', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            opacity: stat === s ? 1 : 0.6,
+            opacity: stats[slot] === s ? 1 : 0.6,
           }}>
             <TrainingCardSVG statKey={s} rarity={rarity} width={52} />
-            <span style={{ fontSize: 8, color: stat === s ? C.gold : C.textGhost }}>{CARD_NAMES[s]}</span>
+            <span style={{ fontSize: 8, color: stats[slot] === s ? C.gold : C.textGhost }}>{CARD_NAMES[s]}</span>
           </button>
         ))}
       </div>
+      {cap > 1 && (
+        <div style={{ display: 'flex', marginTop: 8 }}>
+          <ChoiceButton label={`${cap}枚ともこれにする`} on={false} onClick={() => all(stats[slot])} />
+        </div>
+      )}
       <div style={{ fontSize: 9, color: C.textGhost, marginTop: 8, lineHeight: 1.6 }}>
         種類を選ぶと、その練習のカードだけ集まります。おまかせなら何でも受け取れます。
       </div>
@@ -526,12 +641,12 @@ function ClubBoard() {
   const refresh = () => {
     invalidateFriendsCache('clubFeed', 'clubGifts')
     feed.reload(); gifts.reload()
+    loadClubGifts(true)   // 通知のベルの数字も合わせておく
   }
 
-  // 渡せる手持ち。種類の指定があるものは、その練習のカードだけに絞る
-  const cardsOf = (rarity: ClubReqRarity, stat: ClubReqStat) =>
-    (myCards ?? []).filter(c =>
-      c.rarity === rarity && c.kind !== 'rest' && (stat === '' || c.statKey === stat))
+  // 渡せる手持ち。どの枠に入るかは選ぶ画面の側で見るので、ここはレアリティだけ。
+  const cardsOf = (rarity: ClubReqRarity) =>
+    (myCards ?? []).filter(c => c.rarity === rarity && c.kind !== 'rest')
 
   // 通信に失敗したとき用。原因が分かるようサーバーの文言もそのまま添える
   const failed = (e: unknown) =>
@@ -546,35 +661,38 @@ function ClubBoard() {
     } catch (e) { failed(e) } finally { setBusy('') }
   }
 
-  const onAsk = async (rarity: ClubReqRarity, stat: ClubReqStat) => {
+  const onAsk = async (rarity: ClubReqRarity, stats: ClubReqStat[]) => {
     setBusy('req')
     try {
-      const r = await postClubRequest(rarity, stat)
+      const r = await postClubRequest(rarity, stats)
       setAsking(null)
       if (r === 'today_done') setNotice({ title: '今日はもうお願いしています', message: 'カードのお願いは1日1回までです' })
       else refresh()
     } catch (e) { setAsking(null); failed(e) } finally { setBusy('') }
   }
 
-  const onDonate = async (post: ClubPost, card: TrainingCard) => {
+  const onDonate = async (post: ClubPost, cards: TrainingCard[]) => {
     setBusy(post.id)
     try {
-      const r = await donateClubCard(post.id, card)
-      if (r === 'ok') {
-        removeTrainingCard(card.id)     // 渡せたときだけ手元から減らす
-        setPicking(null); refresh()
+      const r = await donateClubCards(post.id, cards)
+      setPicking(null)
+      if (r.status === 'ok' && r.ids.length > 0) {
+        // 渡せたぶんだけ手元から減らす。入らなかったカードはそのまま残る。
+        for (const id of r.ids) removeTrainingCard(id)
+        setNotice({
+          title: `カードを${r.ids.length}枚 わたしました`,
+          message: r.ids.length < cards.length ? '枠に入らなかったカードは手元に残っています' : undefined,
+        })
       } else {
-        setPicking(null)
         setNotice({
           title: 'わたせませんでした',
           message:
-            r === 'full' ? 'もう必要な枚数が集まっています' :
-            r === 'already' ? 'このお願いにはもう渡しています' :
-            r === 'mine' ? '自分のお願いには渡せません' :
-            r === 'bad_card' ? 'このカードは渡せません' : 'お願いが見つかりませんでした',
+            r.status === 'full' ? 'もう必要な枚数が集まっています' :
+            r.status === 'mine' ? '自分のお願いには渡せません' :
+            r.status === 'bad_card' ? 'このカードは渡せません' : 'お願いが見つかりませんでした',
         })
-        refresh()
       }
+      refresh()
     } catch (e) { setPicking(null); failed(e) } finally { setBusy('') }
   }
 
@@ -592,6 +710,7 @@ function ClubBoard() {
     setBusy('claim')
     try {
       const cards = await claimClubGifts()
+      clearClubGifts()   // 通知に出ていたぶんはここで全部受け取っている
       // サーバー側からはこの時点で消えている。手元に入れる前に必ず箱へ置いて、
       // ここで落ちてもカードが消えないようにする（次に開いたときに入れ直される）。
       if (cards.length > 0) {
@@ -635,7 +754,7 @@ function ClubBoard() {
           ))}
         </div>
         <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5, lineHeight: 1.6 }}>
-          押すと、どの練習のカードが欲しいか選べます。枚数は走友会のみんなから集める合計です。
+          押すと、1枚ずつどの練習のカードが欲しいか選べます。枚数は走友会のみんなから集める合計です。
         </div>
         {askedToday && (
           <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5 }}>
@@ -664,7 +783,8 @@ function ClubBoard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {posts.map(p => {
               const done = p.kind === 'req' && p.filled >= p.cap
-              const canGive = p.kind === 'req' && !p.mine && !p.donated && !done
+              // 1人1枚の縛りは外したので、渡したあとでも空きがあればまた渡せる
+              const canGive = p.kind === 'req' && !p.mine && !done
               const col = p.kind === 'req' && p.rarity ? RARITY_COLORS[p.rarity] : C.border2
               return (
                 <div key={p.id} style={{
@@ -684,18 +804,21 @@ function ClubBoard() {
                     ) : (
                       <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
                         <span style={{ color: col, fontWeight: 900 }}>{RARITY_LABELS[p.rarity || 'normal']}</span>
-                        {p.stat ? `の${CARD_NAMES[p.stat]}` : ''}
                         カードください
                         <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, marginLeft: 6 }}>
                           {p.filled}/{p.cap}
                         </span>
+                        {p.openStats.length > 0 && (
+                          <div style={{ fontSize: 10, color: C.textGhost, marginTop: 1 }}>
+                            のこり {wantText(p.openStats)}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                   {p.kind === 'req' && (
                     done ? <Pill color={C.green}>集まりました</Pill> :
                     p.mine ? <Pill color={C.textDim}>お願い中</Pill> :
-                    p.donated ? <Pill color={C.cyan}>わたし済み</Pill> :
                     canGive ? (
                       <button onClick={() => setPicking(p)} disabled={busy === p.id} className="btn-press"
                         style={actionButton(C.green, busy === p.id)}>わたす</button>
@@ -719,10 +842,10 @@ function ClubBoard() {
       {picking && picking.rarity && (
         <DonatePicker
           rarity={picking.rarity}
-          stat={picking.stat}
-          cards={cardsOf(picking.rarity, picking.stat)}
+          open={picking.openStats}
+          cards={cardsOf(picking.rarity)}
           busy={busy === picking.id}
-          onPick={c => onDonate(picking, c)}
+          onGive={cs => { void onDonate(picking, cs) }}
           onCancel={() => setPicking(null)}
         />
       )}
@@ -731,7 +854,7 @@ function ClubBoard() {
         <AskPicker
           rarity={asking}
           busy={busy === 'req'}
-          onPick={stat => { void onAsk(asking, stat) }}
+          onPick={stats => { void onAsk(asking, stats) }}
           onCancel={() => setAsking(null)}
         />
       )}

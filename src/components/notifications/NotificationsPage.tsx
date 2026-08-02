@@ -14,6 +14,11 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import type { IncomingOffer, TransferBid, Player } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
+import TrainingCardSVG from '../training/TrainingCardSVG'
+import { CARD_NAMES, RARITY_LABELS } from '../../utils/cardCombo'
+import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
+import { claimClubGift } from '../../lib/clubsApi'
+import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const EMPTY_IDS: string[] = []
@@ -298,6 +303,25 @@ export default function NotificationsPage() {
   const [offerMessageCache, setOfferMessageCache] = useState<Record<string, OfferChatMsg[]>>({})
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
+  // 走友会のなかまから届いたカード
+  const addTrainingCards = useGameStore(s => s.addTrainingCards)
+  const clubGifts = useClubGifts()
+  const [claiming, setClaiming] = useState('')
+  const onClaimClubGift = async (id: string) => {
+    setClaiming(id)
+    try {
+      const got = await claimClubGift(id)
+      if (got) {
+        stashGifts([...peekGifts(), got])
+        addTrainingCards([got])
+        audio.playSe('reward')
+        setTimeout(clearGifts, 2000)
+      }
+      dropClubGift(id)
+    } catch { /* 通信できないときは何もしない。次に開いたときにまた出る */ }
+    finally { setClaiming('') }
+  }
+
   // フリー移籍の接触（offeredPrice=0）はGMが対応できない情報通知。金額付きオファーとは別扱い。
   // タップして対応済み（seenFreeContactIds）のものは通知から消える（接触自体は裏で進行）
   // ※件数と表示のズレ防止：選手が退団・引退した「幽霊通知」はここで除外する（表示側でnullにしても数だけ残るため）
@@ -395,6 +419,7 @@ export default function NotificationsPage() {
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers.length > 0 ? 1 : 0)
     + pendingGifts.length
+    + clubGifts.length
     + joinNotices.length
     + expiredNegotiations.length
     + loanResponses.length
@@ -490,9 +515,39 @@ export default function NotificationsPage() {
             </section>
           )}
 
+          {/* 走友会のなかまから届いたカード */}
+          {clubGifts.length > 0 && (
+            <section style={{ marginTop: pendingGifts.length > 0 ? '20px' : 0 }}>
+              <SectionHead label="走友会からのカード" color={C.green} count={clubGifts.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {clubGifts.map(g => (
+                  <div key={g.id} style={cardStyle(alpha(C.green, 0.6), '#14432a')}>
+                    <div style={inset}/>
+                    <div style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <TrainingCardSVG statKey={g.card.statKey} rarity={g.card.rarity} width={44}/>
+                        <div style={{ flex: 1, minWidth: 0, fontFamily: SAIRA, fontSize: '13px', fontWeight: '800', color: C.text, lineHeight: 1.6 }}>
+                          {g.fromName}から{RARITY_LABELS[g.card.rarity]}の{CARD_NAMES[g.card.statKey]}のカードが届きました！
+                        </div>
+                      </div>
+                      <Btn
+                        variant="primary"
+                        disabled={claiming === g.id}
+                        style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #58d68d)`, color: '#111' }}
+                        onClick={() => { void onClaimClubGift(g.id) }}
+                      >
+                        {claiming === g.id ? '受け取り中…' : '受け取る'}
+                      </Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* 加入（全経路：FA/移籍/レンタル/トレード/ドラフト） */}
           {joinNotices.length > 0 && (
-            <section style={{ marginTop: pendingGifts.length > 0 ? '20px' : 0 }}>
+            <section style={{ marginTop: (pendingGifts.length > 0 || clubGifts.length > 0) ? '20px' : 0 }}>
               <SectionHead label="新加入" color={C.cyan} count={joinNotices.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {joinNotices.map(({ p, key }) => {
