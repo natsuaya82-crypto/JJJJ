@@ -3706,8 +3706,11 @@ export const useGameStore = create<GameStore>()(
         }
 
         set(state => {
-          const myMainAfterTrade = state.teams.find(t => t.id === state.playerTeamId)?.roster.main.filter(id => !offeredIds.includes(id)) ?? []
-          const incomingIds = requestedIds.filter(id => !myMainAfterTrade.includes(id))
+          // 在籍判定は player.teamId が単一ソース。team.roster.main には古いセーブ由来の
+          // ゴーストIDが残ることがあり、それを見ると該当選手だけ movePlayer が呼ばれず、
+          // こちらの選手だけ出て行って相手の選手が来ない片落ちトレードになる
+          const myIdsAfterTrade = squadIdsOf(state.players, state.playerTeamId).filter(id => !offeredIds.includes(id))
+          const incomingIds = requestedIds.filter(id => !myIdsAfterTrade.includes(id))
           const tradeDate = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
 
           // 出入りとも movePlayer 一本。出す側だけ加入年が入らない、といった書き分けが起きない
