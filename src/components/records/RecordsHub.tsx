@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { teamHistoryOf } from '../../utils/teamHistory'
+import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 
@@ -8,10 +9,15 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function RecordsHub() {
   const navigate = useNavigate()
-  const { currentSeason, pastSeasons, playerTeamId } = useGameStore()
+  const { currentSeason, pastSeasons, playerTeamId, gmTenures } = useGameStore()
 
+  // 監督は別のチームへ移れる。過去の順位は「その年に指揮していたチーム」で引く。
+  // 今のチームで引くと、移った瞬間に自分の優勝が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
+  const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  const championships = teamHistoryOf(pastSeasons, playerTeamId).championships
+  const championships = (gmTenures?.length ?? 0) > 1
+    ? pastSeasons.filter(s2 => [...(s2.standings ?? [])].sort((a2, b2) => b2.totalPoints - a2.totalPoints)[0]?.teamId === teamIdAt(s2.year)).length
+    : teamHistoryOf(pastSeasons, playerTeamId).championships
   const completedRaces = currentSeason.races.filter(r => r.results).length
   const myStanding = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === playerTeamId) + 1
 
@@ -151,7 +157,7 @@ export default function RecordsHub() {
             <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px' }}>過去の成績</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {pastSeasons.slice(-4).reverse().map(season => {
-                const rank = [...(season.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === playerTeamId) + 1
+                const rank = [...(season.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === teamIdAt(season.year)) + 1
                 const rankCol = rank === 1 ? C.gold : rank <= 3 ? C.green : C.textDim
                 return (
                   <div key={season.year} style={{ flex: 1, textAlign: 'center', padding: '6px', borderRadius: '8px', background: C.surface }}>

@@ -67,3 +67,43 @@ export function startTenure(
     { teamId, fromYear },
   ]
 }
+
+// 「その年の自分のチームは何位だったか」を年ごとに並べる。
+// 監督が移れるので、順位は必ずその年に指揮していたチームで引く。
+// 順位表に自分のチームが載っていない年（そのリーグに居なかった等）は null。
+export type GmSeasonRank = { year: number; teamId: string; rank: number | null }
+
+export function gmSeasonRanks(
+  seasons: { year: number; standings?: { teamId: string; totalPoints: number }[] }[],
+  tenures: GmTenure[] | undefined,
+  playerTeamId: string,
+): GmSeasonRank[] {
+  const at = makeTeamIdAt(tenures, playerTeamId)
+  return seasons.map(s => {
+    const teamId = at(s.year)
+    const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const r = sorted.findIndex(x => x.teamId === teamId) + 1
+    return { year: s.year, teamId, rank: r > 0 ? r : null }
+  })
+}
+
+// 監督個人の通算。チームの通算（球団史）とは別物。
+//
+// ここを分けないと、優勝の多いチームへ移った瞬間に
+// 前の監督が積んだ優勝が自分の実績として解除されてしまう。
+// 逆に、優勝したチームから出ると自分で獲った優勝が消える。
+// 引数の seasons は古い順に並んでいること（連覇の判定に順番を使う）。
+export function gmCareerTotals(ranks: GmSeasonRank[]): {
+  championships: number
+  seasons: number
+  currentStreak: number
+} {
+  let championships = 0
+  for (const r of ranks) if (r.rank === 1) championships++
+  let currentStreak = 0
+  for (let i = ranks.length - 1; i >= 0; i--) {
+    if (ranks[i]?.rank === 1) currentStreak++
+    else break
+  }
+  return { championships, seasons: ranks.length, currentStreak }
+}

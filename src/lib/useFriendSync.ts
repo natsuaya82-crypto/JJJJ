@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { ovr } from '../utils/playerUtils'
 import { ensureMyProfile, pushMyProfile, pushMyRoster } from './friendsApi'
-import { teamHistoryOf } from '../utils/teamHistory'
+import { gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
 import { ONLINE_ENABLED } from '../data/featureFlags'
 
 const STAMP_KEY = 'jpel_friend_sync_stamp'
@@ -39,8 +39,10 @@ export async function syncNow(): Promise<void> {
     if (roster.length === 0) return
 
     const avgOvr = Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length)
-    // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-    const champs = teamHistoryOf(st.pastSeasons, st.playerTeamId).championships
+    // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）。
+    // 監督は別のチームへ移れるので、年ごとに「その年に指揮していたチーム」で数える。
+    // 今のチームで数えると、移籍した瞬間に移籍先の過去の優勝が自分の記録として友達に出る
+    const champs = gmCareerTotals(gmSeasonRanks(st.pastSeasons, st.gmTenures, st.playerTeamId)).championships
     const stamp = fingerprint(JSON.stringify({
       y: st.currentSeason?.year, n: team.name, s: team.shortName, g: team.gmName, l: team.logoId,
       c: [team.colors.primary, team.colors.secondary], ch: champs,

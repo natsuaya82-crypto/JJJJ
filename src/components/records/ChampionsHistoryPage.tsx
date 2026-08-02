@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { teamHistoriesOf } from '../../utils/teamHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
+import { makeTeamIdAt } from '../../utils/gmTenure'
 import type { Race } from '../../types'
 import { formatRaceTime } from '../../utils/eventTime'
 import { playerLabel } from '../../utils/playerUtils'
@@ -33,7 +34,10 @@ const DIST_TO_KEY: Record<number, DistKey> = { 5000: 'd5000', 10000: 'd10000', 2
 // 大会別の歴代記録。カテゴリ → 大会 → 年度 → 順位表 → チームの区間配置、とドリルダウンで見る
 export default function ChampionsHistoryPage() {
   const navigate = useNavigate()
-  const { teams, players, currentSeason, pastSeasons, playerTeamId, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
+  const { teams, players, currentSeason, pastSeasons, playerTeamId, gmTenures, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
+  // 監督は別のチームへ移れる。過去の年の「自チーム」印は、その年に指揮していたチームで付ける。
+  // 今のチームで付けると、自分で獲った優勝から印が消え、移籍先が前に獲った優勝に印が付く（utils/gmTenure.ts）
+  const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
   const clubIndex = useClubIndex()
 
   // 記録パッチは選手ではなく「記録そのもの」に付ける：その走りのタイムが現行の世界/日本記録である行だけに出す。
@@ -106,7 +110,7 @@ export default function ChampionsHistoryPage() {
   const overallStandingsFor = (c: Category, ps: typeof pastSeasons[number]): OverallRow[] => {
     const mk = (teamId: string, i: number, score: number) => {
       const t = resolveClub(teamId)
-      return { rank: i + 1, teamId, name: t?.name ?? '—', colors: t?.colors, score, isMe: teamId === playerTeamId }
+      return { rank: i + 1, teamId, name: t?.name ?? '—', colors: t?.colors, score, isMe: teamId === teamIdAt(ps.year) }
     }
     if (c === 'jpel') return [...(ps.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
     if (c === 'reserve') {
@@ -401,7 +405,7 @@ export default function ChampionsHistoryPage() {
           ) : (ttByDist.get(ttDist) ?? []).map(({ year: y, top }) => {
             const first = top[0]
             const t = first ? resolveClub(first.teamId) : undefined
-            const isMe = first?.teamId === playerTeamId
+            const isMe = first?.teamId === teamIdAt(y)
             return (
               <button key={y} onClick={() => setYear(y)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
@@ -446,7 +450,7 @@ export default function ChampionsHistoryPage() {
             {((ttByDist.get(ttDist) ?? []).find(r => r.year === year)?.top ?? []).map((e, i, arr) => {
               const t = resolveClub(e.teamId)
               const pl = resolvePlayer(e.playerId)
-              const isMe = e.teamId === playerTeamId
+              const isMe = year != null && e.teamId === teamIdAt(year)
               return (
                 <div key={e.playerId} {...(pl ? lp(pl.id) : {})} style={{
                   display: 'flex', alignItems: 'center', gap: 9, padding: '6px 12px',
@@ -768,7 +772,7 @@ export default function ChampionsHistoryPage() {
           {[...raceEntries].reverse().map(({ year: y, race }) => {
             const top = race.results!.teamRankings.find(tr => tr.rank === 1) ?? race.results!.teamRankings[0]
             const t = top ? resolveClub(top.teamId) : undefined
-            const isMe = top?.teamId === playerTeamId
+            const isMe = top?.teamId === teamIdAt(y)
             return (
               <button key={y} onClick={() => setYear(y)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
@@ -799,7 +803,7 @@ export default function ChampionsHistoryPage() {
           <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {[...currentEntry.race.results!.teamRankings].sort((a, b) => a.rank - b.rank).map((tr, i, arr) => {
               const t = resolveClub(tr.teamId)
-              const isMe = tr.teamId === playerTeamId
+              const isMe = year != null && tr.teamId === teamIdAt(year)
               const diff = tr.totalTimeSec - arr[0].totalTimeSec
               return (
                 <button key={tr.teamId} onClick={() => setTeamId(tr.teamId)} style={{

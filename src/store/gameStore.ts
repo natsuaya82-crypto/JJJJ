@@ -38,7 +38,7 @@ import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 // 監督の在任履歴と、他チームからの監督オファー
-import { startTenure } from '../utils/gmTenure'
+import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
 import { makeGmOffer } from '../utils/gmOffer'
 import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/legacyClubRoster'
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
@@ -48,7 +48,7 @@ import { computeSeasonAwards, seasonAwardsOf } from '../utils/awards'
 import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
-import { teamHistoriesOf, teamHistoryOf, buildTeamHistories, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
+import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 
 type DraftState = {
   pool: Player[]
@@ -5518,13 +5518,16 @@ export const useGameStore = create<GameStore>()(
 
           // ── DYNASTY MILESTONES ──
           // 通算成績は「今季を足したあと」で見たいので、過去シーズンに今季の順位表を足して数え直す
-          const myHistoryAfter = buildTeamHistories([
+          // 称号と連覇は「監督個人の通算」で数える。チームの通算（球団史）で数えると、
+          // 優勝の多いチームへ移った瞬間に前任者の優勝で連覇・王朝の称号が解除されてしまう（utils/gmTenure.ts）
+          const gmRanksAfter = gmSeasonRanks([
             ...state.pastSeasons,
             { year: state.currentSeason.year, standings: state.currentSeason.standings },
-          ])[state.playerTeamId] ?? EMPTY_TEAM_HISTORY
-          const totalChamps = myHistoryAfter.championships
-          const totalSeasons = myHistoryAfter.seasonResults.length
-          const curStreak = myHistoryAfter.currentStreak
+          ], state.gmTenures, state.playerTeamId)
+          const gmTotalsAfter = gmCareerTotals(gmRanksAfter)
+          const totalChamps = gmTotalsAfter.championships
+          const totalSeasons = gmTotalsAfter.seasons
+          const curStreak = gmTotalsAfter.currentStreak
           const allPlayerSegWins = playersAfterMorale.filter(p => p.teamId === state.playerTeamId).reduce((s, p) => s + p.career.segmentWins, 0)
           const dynastyNews: { date: string; headline: string; category: 'race'; relatedIds: string[] }[] = []
 
@@ -5707,14 +5710,17 @@ export const useGameStore = create<GameStore>()(
           for (const id of state.worldSquad?.playerIds ?? []) protectedIds.add(id)
           for (const id of [...(state.starredOpponents ?? []), ...(state.starredProspects ?? [])]) protectedIds.add(id)
           // 自チーム在籍歴：過去シーズンの出走記録・0出走記録から拾う（印が無い旧セーブぶんの救済）
+          // 監督は移籍できるので、今のチームだけでなく過去に指揮したチーム全部を見る。
+          // ここを今のチームだけにすると、移籍した瞬間に前のチームのOBが消える
+          const myTeamIdsEver = new Set<string>([state.playerTeamId, ...(state.gmTenures ?? []).map(t => t.teamId)])
           for (const season of [...state.pastSeasons, state.currentSeason]) {
             for (const race of [...(season.races ?? []), ...(season.secondTeamRaces ?? [])]) {
               if (!race.results) continue
               for (const sr of race.results.segmentResults) {
-                for (const r of sr.runners) if (r.teamId === state.playerTeamId) protectedIds.add(r.playerId)
+                for (const r of sr.runners) if (myTeamIdsEver.has(r.teamId)) protectedIds.add(r.playerId)
               }
             }
-            for (const z of season.zeroAppearances ?? []) if (z.teamId === state.playerTeamId) protectedIds.add(z.playerId)
+            for (const z of season.zeroAppearances ?? []) if (myTeamIdsEver.has(z.teamId)) protectedIds.add(z.playerId)
           }
           const isWorthKeeping = (p: Player) =>
             p.wasPlayerTeam === true
@@ -6836,16 +6842,34 @@ export const useGameStore = create<GameStore>()(
             if (t.id === oldTeamId) return { ...t, isPlayerControlled: false, gmName: oldOriginalGm }
             return t
           })
+          // 移籍方針（非売・貸出歓迎）は監督が付けた指示。CPUに戻るチームに残すと
+          // 「絶対に売られない選手」がずっと居座って移籍市場が固まるので外す
+          const players = state.players.map(p => (
+            p.teamId === oldTeamId && (p.noSale || p.loanListed || p.transferListed)
+              ? { ...p, noSale: false, loanListed: false, transferListed: false }
+              : p
+          ))
+          // ECLの「どれが自チームか」の印は前季の終わりに焼き付けてある。
+          // 移籍したらここを付け替えないと、来季のECLで前のチームが自チーム扱いになり
+          // オーダーを組む相手と自動シミュの対象がずれる
+          const ecl = state.currentSeason.eclSeries
+          const eclSeries = ecl
+            ? { ...ecl, participants: ecl.participants.map(pt => ({ ...pt, isPlayerTeam: pt.id === offer.teamId })) }
+            : ecl
           return {
             playerTeamId: offer.teamId,
             teams,
+            players,
             gmOffer: null,
+            // 前のチームのオーダーは「前回のオーダー」として残さない
+            lastRaceLineup: {},
             gmTenures: startTenure(state.gmTenures, offer.teamId, offer.year, oldTeamId),
             // 移籍先が因縁のチームだったらライバル設定は解除する
             rivalTeamId: state.rivalTeamId === offer.teamId ? null : state.rivalTeamId,
             seasonBudgetNotice: { year: offer.year, budget: offer.budget },
             currentSeason: {
               ...state.currentSeason,
+              eclSeries,
               initialBudget: offer.budget,
               seasonGrant: offer.budgetBreakdown.grant,
               budgetBreakdown: offer.budgetBreakdown,
