@@ -8497,16 +8497,26 @@ function growPlayer(p: Player, allowAnnualGrowth = false): Player {
   // カーブは初期生成(bakeAgeGrowth)と同一に揃える。以前は80以上でほぼ停止するカーブだったため、
   // ポテンシャル85級の新人が72前後で頭打ちになり、初期生成の強い世代が引退する7〜8年目に
   // リーグのエース層(OVR85+)が枯れて「同じメンバーで余裕で勝てる」状態になっていた
-  if (allowAnnualGrowth && nextAge <= peakAge + 1) {
+  if (allowAnnualGrowth && nextAge <= peakAge + 3) {
     // 若手の成長を底上げ（⑤：一斉引退後にドラフト/FA補充された若手が育ち切らず、強豪が急落して戻れない対策）。
-    // 中ポテンシャル(75+)を1.0→1.3、低(＜75)を0.6→0.85に強化。成長窓もピーク+1年まで延長。
+    // 中ポテンシャル(75+)を1.0→1.3、低(＜75)を0.6→0.85に強化。
+    //
+    // 2046調整: ドラフト生6000人を31歳まで走らせたところ、能力別の上限に到達した選手が
+    // 0%（中央値でポテンシャル82に対しOVR74＝8ポイント余らせたまま引退）だった。
+    // ポテンシャルは余っていて、足りないのは「伸びる速さと期間」だったので、
+    //   ・基準値 rnd(0,2)（1/3の確率で成長ゼロ・平均1.0）→ rnd(1,3)（平均2.0・ゼロの年を無くす）
+    //   ・成長窓 ピーク+1年 → ピーク+3年
+    // の2つを変更した。ポテンシャルの値そのものは意図的に据え置いている
+    // （上げても届かないので体感が変わらず、上限が遠のくだけ）。
+    // これで中央OVR 74→80、80以上が25%→50%、上限到達が0%→35%（同条件のシミュレーション）。
+    // bakeAgeGrowth（playerGenerator.ts）は同じ係数を共有しているので、必ず一緒に変えること。
     const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.3 : 0.85
     for (const stat of GROW_KEYS) {
       const cur = ratings[stat]
       const cap = caps[stat]
       if (cur >= cap) continue
       const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
-      const gain = Math.round(rnd(0, 2) * potFactor * diff)
+      const gain = Math.round(rnd(1, 3) * potFactor * diff)
       if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
     }
   }
