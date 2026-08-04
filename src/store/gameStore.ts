@@ -26,6 +26,7 @@ import { resolveBid } from '../utils/transferBid'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
+import type { OfferOutcome } from '../utils/offerResult'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
@@ -348,7 +349,8 @@ export type GameStore = GameState & {
 
   // Transfer market
   executeTransferPurchase: (listingId: string, price: number) => boolean
-  acceptIncomingOffer: (offerId: string) => boolean
+  // 返り値は utils/offerResult の OfferOutcome 1本。逆提示(counterIncomingOffer)と同じ言葉で返す
+  acceptIncomingOffer: (offerId: string) => OfferOutcome
   declineIncomingOffer: (offerId: string) => void
   acceptIncomingLoanOffer: (offerId: string) => boolean
   declineIncomingLoanOffer: (offerId: string) => void
@@ -364,7 +366,7 @@ export type GameStore = GameState & {
   reNegotiateAcquisition: (offerId: string) => void
   abandonAcquisitionOffer: (offerId: string) => void
   releasePlayerWithBuyout: (playerId: string) => boolean
-  counterIncomingOffer: (offerId: string, counterPrice: number) => 'sold' | 'refused' | 'invalid'
+  counterIncomingOffer: (offerId: string, counterPrice: number) => OfferOutcome
   generateContractRequests: () => void
   dismissRetirementRequest: (playerId: string) => void
   acceptRetirement: (playerId: string) => void
@@ -2598,7 +2600,10 @@ export const useGameStore = create<GameStore>()(
       acceptIncomingOffer: (offerId) => {
         const state = get()
         const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
-        if (!offer) return false
+        if (!offer) return 'invalid'
+        // もう成立しようが無いオファーの札は取り下げる（逆提示側と同じ扱い）。
+        // 以前は承諾だけ札を残していたので、押しても何も起きない札が居座っていた
+        const dropOffer = () => set(st => ({ currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }))
         const player = state.players.find(p => p.id === offer.playerId)
         // 「この選手を出していいか」の判定は canAcceptOfferFor 1本に寄せる。
         // ここには判定が一つも無く、引退の話が決まっている選手でもそのまま移籍が成立していた
@@ -2607,8 +2612,9 @@ export const useGameStore = create<GameStore>()(
           teamId: state.playerTeamId,
           currentYear: state.currentSeason.year,
           retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
-        }, offer.fromForeign)) return false
-        if (!canReleaseFromRoster(state.players, state.playerTeamId)) return false  // ロスター下限(15人)を割る売却は不可
+        }, offer.fromForeign)) { dropOffer(); return 'invalid' }
+        // ロスター下限(15人)を割る売却は不可。札は残す＝補強してから改めて返事ができる（逆提示側と同じ）
+        if (!canReleaseFromRoster(state.players, state.playerTeamId)) return 'roster_min'
         // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
         if (offer.fromForeign) {
           const destLeague = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
@@ -2628,10 +2634,10 @@ export const useGameStore = create<GameStore>()(
             currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + moved.income, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: isElite ? `【世界へ挑戦】${player.name}（OVR${ovr(player)}）が世界最高峰・${clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${Math.round(offer.offeredPrice / 10000)}万）` : `${player.name}が海外クラブ${clubName}へ移籍（移籍金${Math.round(offer.offeredPrice / 10000)}万）`, category: 'trade' as const, relatedIds: [player.id], major: isElite }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] },
           })
           })
-          return true
+          return 'sold'
         }
         const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
-        if (!buyingTeam) return false
+        if (!buyingTeam) { dropOffer(); return 'invalid' }
         set(state => {
         const moved = sellMove(state, offer.playerId, offer.fromTeamId, offer.offeredPrice, buyingTeam.shortName)
         return ({
@@ -2649,7 +2655,7 @@ export const useGameStore = create<GameStore>()(
           },
         })
         })
-        return true
+        return 'sold'
       },
 
       declineIncomingOffer: (offerId) => {
@@ -3125,8 +3131,8 @@ export const useGameStore = create<GameStore>()(
       },
 
       counterIncomingOffer: (offerId, counterPrice) => {
-        // 成立('sold')・決裂('refused')・無効('invalid')をUIに返し、結果表示に使う
-        let outcome: 'sold' | 'refused' | 'invalid' = 'invalid'
+        // 結果は utils/offerResult の OfferOutcome 1本。承諾(acceptIncomingOffer)と同じ言葉で返す
+        let outcome: OfferOutcome = 'invalid'
         set(state => {
           const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
           if (!offer) return state
@@ -3140,10 +3146,13 @@ export const useGameStore = create<GameStore>()(
           }, offer.fromForeign)) {
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
-          // ロスター下限(15人)を割る売却は不可（acceptIncomingOfferと同じガード）
+          // ロスター下限(15人)を割る売却は不可（acceptIncomingOfferと同じガード）。
+          // 相手が金を出せなかった('refused')わけではないので理由を分けて返し、札も消さない。
+          // 以前はここで 'refused' を返して札まで消していたため、画面に「相手が支払えず決裂」と
+          // 嘘の理由が出た上に、補強しても再交渉できなくなっていた
           if (!canReleaseFromRoster(state.players, state.playerTeamId)) {
-            outcome = 'refused'
-            return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
+            outcome = 'roster_min'
+            return state
           }
           // 海外クラブ：上限は economy.counterCeiling の1本。合意なら海外へ放出
           if (offer.fromForeign) {
@@ -3505,7 +3514,7 @@ export const useGameStore = create<GameStore>()(
         if (!myTeam || myTeam.finance.budget < bid.offeredFee) return { ok: false, reason: `貴クラブの予算では移籍金${Math.round(bid.offeredFee / 10000)}万を支払えないようです。資金を確保してから改めてお願いします。` }
         // ロスター枠チェック（移籍金ルートは本契約として加入する）。枠不足は決裂扱いにしない
         if (!canSignContract(state.players, state.playerTeamId)) {
-          return { ok: false, reason: '貴クラブの1軍契約枠が上限のようです。ロスターを整理してから改めてお願いします。' }
+          return { ok: false, reason: `貴クラブのロスターが上限（${ROSTER_MAX}人）のようです。整理してから改めてお願いします。` }
         }
         // 選手本人の同意ゲート
         const standings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)

@@ -11,7 +11,7 @@
  *
  * 既存セーブは migrate v23 で 2軍の枠を落として main に寄せるので、選手は消えない。
  */
-import { canReleaseFromRoster, canSignContract, playerStatusLabel, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../src/data/rosterRules'
+import { canReleaseFromRoster, canSignContract, canSignPlayer, playerStatusLabel, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../src/data/rosterRules'
 import { rebuildRosters, squadIdsOf, squadPlayersOf } from '../src/utils/rosterSync'
 import type { Player, Team } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -74,6 +74,22 @@ check('契約形態は上限の判定に関わらない（引数を取らない�
 check(`下限は${ROSTER_MIN}人（${ROSTER_MIN}人からは放出できない）`,
   canReleaseFromRoster(many(ROSTER_MIN + 1), 't1') && !canReleaseFromRoster(many(ROSTER_MIN), 't1'))
 check('引退選手は人数に数えない', teamRosterSize([...many(3), P('r1', 't1', { status: 'retired' } as Partial<Player>)], 't1') === 3)
+
+console.log('\n[4b] 在籍中の選手との契約は枠を食わない（canSignPlayer）')
+// トレードで来た選手との再契約は人数が増えないので、30人ちょうどでも通らないといけない。
+// movePlayer が「クラブが変わるときだけ枠を見る」のと同じ条件
+const full = [...many(ROSTER_MAX - 1), P('mine', 't1')]
+check(`30人ちょうどでも在籍中の選手とは契約できる`, canSignPlayer(full, 't1', 'mine'))
+check(`30人ちょうどでは他所の選手とは契約できない`, !canSignPlayer([...full, P('out', 't2')], 't1', 'out'))
+check('空きがあれば他所の選手とも契約できる', canSignPlayer([...many(ROSTER_MAX - 1), P('out', 't2')], 't1', 'out'))
+check('知らないIDは人数上限の判定に落ちる', !canSignPlayer(many(ROSTER_MAX), 't1', 'nobody'))
+// 画面が canSignContract を直に呼ぶと、また「トレードは通るのに契約だけ弾かれる」が復活する
+{
+  const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf8')
+  check('チャット画面は canSignContract を直に呼ばない', !chat.includes('canSignContract('))
+  check('チャット画面の枠チェックは canSignPlayer', (chat.match(/canSignPlayer\(/g) ?? []).length === 2)
+  check('もう無い「契約形態を変えて」の案内が残っていない', !chat.includes('契約形態を変えて'))
+}
 
 console.log('\n[5] 選手の状態表示に2軍が出てこない')
 check('所属あり＝契約中', playerStatusLabel(P('a', 't1')).key === 'standard')

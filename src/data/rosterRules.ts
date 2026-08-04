@@ -23,6 +23,17 @@ export function canSignContract(players: Player[], teamId: string): boolean {
   return teamRosterSize(players, teamId) < ROSTER_MAX
 }
 
+// 「この選手と契約したら人数が増えるのか」で見る枠判定。
+// すでに在籍している選手との契約（トレードで来た直後の再契約など）は人数が増えないので枠は要らない。
+// movePlayer が「クラブが変わるときだけ枠を見る」（utils/movePlayer.ts の clubChanged）のと
+// 同じ条件をここに置く。画面側が canSignContract を直に呼んで弾いていたせいで、
+// 30人ちょうどのときトレードは通るのにそのあとの契約提示だけ弾かれていた。
+// 契約の可否を画面から見るときは必ずこちらを使うこと。
+export function canSignPlayer(players: Player[], teamId: string, playerId: string): boolean {
+  if (players.some(p => p.id === playerId && p.teamId === teamId)) return true
+  return canSignContract(players, teamId)
+}
+
 // 選手ステータス：FA / 移籍リスト入り / 契約中 の3種（契約形態の区別は廃止）
 export function playerStatusLabel(p: Player): { label: string; key: 'standard' | 'dual' | 'development' | 'listed' | 'fa' } {
   if (p.teamId === '') return { label: '契約満了（FA）', key: 'fa' }

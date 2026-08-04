@@ -8,7 +8,9 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
 import { tradeValues, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../utils/tradeValue'
-import { canSignContract } from '../../data/rosterRules'
+import { canSignPlayer, ROSTER_MAX } from '../../data/rosterRules'
+import { useOfferResults } from '../transfer/useOfferResults'
+import { OfferResultList } from '../transfer/OfferResultList'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
@@ -249,6 +251,13 @@ function ChatView({
   const contactMsg: ChatMessage | null = freeContactClub
     ? { from: 'player', kind: 'free_contact', text: `実は${freeContactClub}から誘いを受けています。数戦のうちに答えを出すつもりです。` }
     : null
+
+  // レンタルで借りている選手の説明。この会話では契約・引退・移籍を扱わない（保有元クラブの管轄）ので
+  // buildMessages を通さない＝発言が0件になり、開いても真っ白な画面になっていた。
+  // 「話せることが無い」ではなく「なぜ無いのか」をここ1本で出す
+  const loanNote: ChatMessage | null = isMine && isLoanedIn
+    ? { from: 'player', kind: 'loaned_in', text: `${clubIndex.byId(player.loan!.ownerTeamId)?.shortName ?? '保有元クラブ'}からレンタルで来ています。契約や進路の話は保有元クラブの管轄なので、こちらではお受けできません。レースでは全力を尽くします！` }
+    : null
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
     const builtBase = isTransfer
       ? buildTransferMessages(player, transferBid!, clubIndex.byId(transferBid!.targetTeamId)?.name)
@@ -256,7 +265,9 @@ function ChatView({
       ? buildAcqMessages(player, acqOffer!, clubIndex.byId(player.teamId)?.name)
       : talksHere
       ? buildMessages(player, contractReq, remindMonths, !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region)
-      : []  // 他チーム/FA選手・レンタル選手で交渉モードでもない場合は保存ログのみ
+      : loanNote
+      ? [loanNote]
+      : []  // 他チーム/FA選手で交渉モードでもない場合は保存ログのみ
     const built = (talksHere && !isTransfer && !isAcq && contactMsg) ? [...builtBase, contactMsg] : builtBase
     if (!initialMessages || initialMessages.length === 0) return built
     // 保存済みログを開いた後に発生した「新しい用件」だけをログに追記する。
@@ -267,7 +278,7 @@ function ChatView({
       contractReq && contractReq.status === 'pending_gm' && contractReq.initiatedBy === 'player' ? contractReq : undefined,
       remindMonths,  // 初回の組み立てと同じ条件を使う（別々に書いて食い違わせない）
       !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region,
-    ) : []
+    ) : loanNote ? [loanNote] : []
     const freshSource = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
     // 突き合わせは utils/chatLog.ts の1本だけ（同じ用件は増やさず文面を差し替える）
     return mergeChatMessages(initialMessages, freshSource)
@@ -344,9 +355,12 @@ function ChatView({
 
   const handleSubmitAcqOffer = () => {
     if (!acqOffer) return
-    // ロスター枠の事前チェック（契約形態ごとの空き）
-    if (!canSignContract(players, playerTeamId)) {
-      append({ from: 'gm', text: `（この契約形態の枠が上限です。放出するか契約形態を変えてください）` })
+    // ロスター枠の事前チェック。判定は rosterRules の canSignPlayer 1本。
+    // すでに在籍している選手（トレードで来た直後の再契約など）は人数が増えないので枠は要らない。
+    // 以前はここが canSignContract を直に呼んでいたため、30人ちょうどでトレード加入した選手と
+    // 契約できず、しかも案内が、もう存在しない「契約形態の切り替え」を促す文章のままだった
+    if (!canSignPlayer(players, playerTeamId, acqOffer.playerId)) {
+      append({ from: 'gm', text: `（ロスターが上限${ROSTER_MAX}人です。誰かを放出してから改めて提示してください）` })
       return
     }
     append({ from: 'gm', text: `年俸${fmt(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
@@ -435,9 +449,9 @@ function ChatView({
     if (isAcq && acqOffer) {
       if (acqOffer.status === 'countered') return [
         { label: `承諾する（${fmt(acqOffer.counterSalary ?? 0)}/${acqOffer.counterYears}年）`, color: C.green, action: () => {
-          // 枠の事前チェック（承諾パスにも必要）
-          if (!canSignContract(players, playerTeamId)) {
-            append({ from: 'gm', text: `（この契約形態の枠が上限です。放出するか契約形態を変えてください）` })
+          // 枠の事前チェック（承諾パスにも必要）。提示パスと同じ canSignPlayer 1本
+          if (!canSignPlayer(players, playerTeamId, acqOffer.playerId)) {
+            append({ from: 'gm', text: `（ロスターが上限${ROSTER_MAX}人です。誰かを放出してから改めて提示してください）` })
             return
           }
           append(
@@ -1053,25 +1067,30 @@ function getPlayerStatus(
   const hasOverseas = (overseasRequests ?? []).some(r => r.playerId === player.id)
   const activeReq = liveContractOf(ctx.contractRequests, player.id)
 
-  // 進路が決まった選手は、その旨だけ出して他の用件は出さない
+  // 進路が決まった選手は、その旨だけ出して他の用件は出さない。
+  // actionable = GMがまだ返事をしていない用件（＝「対応が必要」に数えるもの）。
+  // 進路が決まった選手・退団予定の選手は、開いても「閉じる」しか出ない（replyButtons の settledPath /
+  // transferListed の分岐）のに「対応が必要」に居座って人数を水増ししていた。
+  // ベルの件数（collectNotifications）はこれらを数えていないので、数のズレの原因にもなっていた。
+  // 札の表示は残したまま、数える対象からだけ外す
   const settled = settledPath(player)
-  if (settled === 'retiring') return { label: '今季限りで引退', color: C.textSub, priority: 0 }
-  if (settled === 'overseas') return { label: '海外オファー待ち', color: C.purple, priority: 1 }
-  if (hasRetirement) return { label: '引退希望', color: C.textSub, priority: 0 }
-  if (hasOverseas) return { label: '海外挑戦の相談', color: C.purple, priority: 1 }
-  if (player.transferListed) return { label: '退団へ', color: C.orange, priority: 1 }
+  if (settled === 'retiring') return { label: '今季限りで引退', color: C.textSub, priority: 0, actionable: false }
+  if (settled === 'overseas') return { label: '海外オファー待ち', color: C.purple, priority: 1, actionable: false }
+  if (hasRetirement) return { label: '引退希望', color: C.textSub, priority: 0, actionable: true }
+  if (hasOverseas) return { label: '海外挑戦の相談', color: C.purple, priority: 1, actionable: true }
+  if (player.transferListed) return { label: '退団へ', color: C.orange, priority: 1, actionable: false }
   if (hasTransfer) {
     const tr = (transferRequests ?? []).find(r => r.playerId === player.id)
     const reasonLabel = tr?.reason === 'playing_time' ? '出場機会' : tr?.reason === 'team_performance' ? '強豪志向' : '待遇不満'
-    return { label: `移籍希望・${reasonLabel}`, color: C.orange, priority: 1 }
+    return { label: `移籍希望・${reasonLabel}`, color: C.orange, priority: 1, actionable: true }
   }
   // フリー接触中の選手に契約残の「要対応」は出さない（接触の用件は移籍・獲得タブと通知側で扱う）
   if (ctx.freeContactIds.has(player.id)) return null
-  if (activeReq?.status === 'countered') return { label: '対応中', color: C.gold, priority: 2 }
-  if (activeReq?.initiatedBy === 'gm' && activeReq.status === 'pending_gm') return { label: '対応中', color: C.gold, priority: 2 }
+  if (activeReq?.status === 'countered') return { label: '対応中', color: C.gold, priority: 2, actionable: true }
+  if (activeReq?.initiatedBy === 'gm' && activeReq.status === 'pending_gm') return { label: '対応中', color: C.gold, priority: 2, actionable: true }
   // 契約残による「要対応」は通知・ホーム・レース後と同じ needsRenewalAttention 1本で見る。
   // 別々の条件で数えていたので、チャットに出ない選手をホームが「契約未解決」と数えていた
-  if (activeReq?.status === 'pending_gm' || needsRenewalAttention(player, months, ctx)) return { label: '要対応', color: C.red, priority: 3 }
+  if (activeReq?.status === 'pending_gm' || needsRenewalAttention(player, months, ctx)) return { label: '要対応', color: C.red, priority: 3, actionable: true }
   return null
 }
 
@@ -1194,10 +1213,9 @@ export default function ChatPage() {
   // チャット履歴は store（currentSeason.chatLogs）に保存。画面を離れても・解決後も年内は見返せる。
   const chatLogs = currentSeason.chatLogs ?? {}
   const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
-  // 買い取り・レンタル打診に対応した結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）
-  const [offerResults, setOfferResults] = useState<{ id: string; text: string; ok: boolean }[]>([])
-  const pushOfferResult = (id: string, text: string, ok: boolean) => setOfferResults(prev => [...prev.filter(r => r.id !== id), { id, text, ok }])
-  const dismissOfferResult = (id: string) => setOfferResults(prev => prev.filter(r => r.id !== id))
+  // 買い取り・レンタル打診に対応した結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）。
+  // 状態も見た目も transfer/OfferResultList の1本（移籍画面・オファー一覧と同じもの）
+  const { results: offerResults, push: pushOfferResult, pushText: pushOfferText, dismiss: dismissOfferResult } = useOfferResults()
 
   useEffect(() => { generateContractRequests() }, [])
 
@@ -1244,12 +1262,20 @@ export default function ChatPage() {
     return { player: p, months, status }
   })
 
-  const needsAction = withStatus.filter(x => x.status !== null).sort((a, b) => {
+  // 「対応が必要」に数えるのは actionable の用件だけ。札が付いていても返事の要らないもの
+  //（今季限りで引退・海外オファー待ち・退団へ）は札を出したまま「その他の選手」へ回す
+  const needsAction = withStatus.filter(x => x.status?.actionable).sort((a, b) => {
     const pa = a.status!.priority
     const pb = b.status!.priority
     return pa !== pb ? pa - pb : ovr(b.player) - ovr(a.player)
   })
-  const others = withStatus.filter(x => x.status === null).sort((a, b) => ovr(b.player) - ovr(a.player))
+  // 「対応が必要」から回ってきた札付き（今季限りで引退・海外オファー待ち・退団へ）は、
+  // OVR順に埋もれると消えたように見えるので、その他の中でも先頭に出す
+  const others = withStatus.filter(x => !x.status?.actionable).sort((a, b) => {
+    const sa = a.status ? 0 : 1
+    const sb = b.status ? 0 : 1
+    return sa !== sb ? sa - sb : ovr(b.player) - ovr(a.player)
+  })
 
   // 獲得交渉中の選手（FA・他チーム選手）
   const activeAcqOffers = (currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered')
@@ -1263,7 +1289,10 @@ export default function ChatPage() {
   const offerPlayers = players.filter(p => offerPlayerIds.has(p.id) && !myPlayers.some(m => m.id === p.id))
   // 移籍金合意済み（契約交渉待ち）の他チーム選手もチャットで開けるようにする
   const feeAcceptedBidIds = new Set((currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted').map(b => b.playerId))
-  const contractPendingPlayers = players.filter(p => feeAcceptedBidIds.has(p.id) && !myPlayers.some(m => m.id === p.id) && !offerPlayers.some(o => o.id === p.id))
+  // 除外するのは「いま獲得交渉が動いている選手」だけ（＝上の獲得交渉の欄に出ている選手）。
+  // 以前は status を問わない offerPlayers で除外していたので、昔の断られた／取り下げた獲得オファーの札が
+  // 1枚残っているだけでこの行がまるごと消えていた（ベルには1件出るのにチャットに行が無い、の原因）
+  const contractPendingPlayers = players.filter(p => feeAcceptedBidIds.has(p.id) && !myPlayers.some(m => m.id === p.id) && !activeAcqPlayerIds.has(p.id))
   const openablePlayers = [...myPlayers, ...offerPlayers, ...contractPendingPlayers]
   // 開いている最中に選手の状態が変わっても（引退承認など）チャットが突然閉じないよう、全選手からフォールバック解決する
   const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? players.find(p => p.id === chatPlayerId) ?? null : null
@@ -1464,15 +1493,13 @@ export default function ChatPage() {
 
         {activeTab === 'transfer' && (inboundCount > 0 || offerResults.length > 0) && (
           <>
-            <div style={{ fontSize: 10, fontWeight: 800, color: C.orange, letterSpacing: '0.1em', marginBottom: 2, marginTop: 4 }}>
-              相手から来たオファー · {inboundCount}件
-            </div>
-            {offerResults.map(r => (
-              <div key={r.id} style={{ borderRadius: 12, background: alpha(r.ok ? C.green : C.red, 0.08), border: `1.5px solid ${alpha(r.ok ? C.green : C.red, 0.45)}`, padding: '10px 12px', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1, fontSize: 12, color: C.text, lineHeight: 1.6 }}>{r.text}</div>
-                <button onClick={() => dismissOfferResult(r.id)} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 9, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+            {/* 返事の結果だけが残っている状態では見出しを出さない（「· 0件」と出ていた） */}
+            {inboundCount > 0 && (
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.orange, letterSpacing: '0.1em', marginBottom: 2, marginTop: 4 }}>
+                相手から来たオファー · {inboundCount}件
               </div>
-            ))}
+            )}
+            <OfferResultList results={offerResults} dismiss={dismissOfferResult} spacing={2} />
             {incomingOffers.filter(o => o.offeredPrice === 0).map(o => {
               // フリー移籍の接触：GMは対応できず、本人が数戦後に決断する（情報表示のみ）
               const p = players.find(pl => pl.id === o.playerId)
@@ -1497,17 +1524,8 @@ export default function ChatPage() {
               if (!p) return null
               const tn = teamName(o.fromTeamId)
               return <IncomingTransferCard key={o.id} offer={o} player={p} teamName={tn}
-                onAccept={() => {
-                  const ok = acceptIncomingOffer(o.id)
-                  pushOfferResult(o.id, ok ? `${p.name}を${tn}へ売却しました（移籍金${fmt(o.offeredPrice)}を獲得）` : `${p.name}の売却は成立しませんでした`, ok)
-                }}
-                onCounter={(price) => {
-                  const r = counterIncomingOffer(o.id, price)
-                  pushOfferResult(o.id,
-                    r === 'sold' ? `${tn}がカウンターを受諾。${p.name}を売却しました（移籍金${fmt(price)}を獲得）`
-                    : r === 'refused' ? `${tn}は${fmt(price)}を支払えず、交渉は決裂しました`
-                    : `${p.name}の交渉は無効になりました`, r === 'sold')
-                }}
+                onAccept={() => pushOfferResult(o.id, acceptIncomingOffer(o.id), { playerName: p.name, teamName: tn, price: o.offeredPrice })}
+                onCounter={(price) => pushOfferResult(o.id, counterIncomingOffer(o.id, price), { playerName: p.name, teamName: tn, price })}
                 onDecline={() => declineIncomingOffer(o.id)} />
             })}
             {incomingLoanOffers.map(o => {
@@ -1517,7 +1535,7 @@ export default function ChatPage() {
               return <IncomingLoanCard key={o.id} offer={o} player={p} teamName={tn} slotsFull={loanSlotsUsed >= 3}
                 onAccept={() => {
                   const ok = acceptIncomingLoanOffer(o.id)
-                  pushOfferResult(o.id, ok
+                  pushOfferText(o.id, ok
                     ? (o.direction === 'lend_out' ? `${p.name}を${tn}へ${o.years}年レンタルで貸し出しました` : `${p.name}を${o.years}年レンタルで借りました`)
                     : `レンタルは成立しませんでした（枠または条件を満たしていません）`, ok)
                 }}

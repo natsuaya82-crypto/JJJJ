@@ -17,6 +17,8 @@ import LoanSheet from './LoanSheet'
 import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
 import { canBePoached } from '../../utils/transferEligibility'
+import { useOfferResults } from './useOfferResults'
+import { OfferResultList } from './OfferResultList'
 import { draftPickValue, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { C, alpha } from '../../styles/tokens'
@@ -99,10 +101,9 @@ export default function TransferPage() {
   const [pickSellTeam, setPickSellTeam] = useState<string>('')
   const [pickSellPrice, setPickSellPrice] = useState<number>(0)
   const [pickSellResult, setPickSellResult] = useState<'idle' | 'success' | 'failed'>('idle')
-  // 被オファー対応の結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）
-  const [offerResults, setOfferResults] = useState<{ id: string; text: string; ok: boolean }[]>([])
-  const pushOfferResult = (id: string, text: string, ok: boolean) => setOfferResults(prev => [...prev.filter(r => r.id !== id), { id, text, ok }])
-  const dismissOfferResult = (id: string) => setOfferResults(prev => prev.filter(r => r.id !== id))
+  // 被オファー対応の結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）。
+  // 状態も見た目も OfferResultList の1本（チャット画面・オファー一覧と同じもの）
+  const { results: offerResults, push: pushOfferResult, dismiss: dismissOfferResult } = useOfferResults()
 
 
   const myTeam = teams.find(t => t.id === playerTeamId)
@@ -469,15 +470,13 @@ export default function TransferPage() {
           <div style={{ padding: '0 12px' }}>
             {(incomingOffers.length > 0 || offerResults.length > 0) && (
               <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '9px', color: C.pink, letterSpacing: '2px', marginBottom: '8px', fontWeight: '700', fontFamily: SAIRA }}>
-                  他クラブからのオファー {incomingOffers.length}件 — 要確認
-                </div>
-                {offerResults.map(r => (
-                  <div key={r.id} style={{ borderRadius: '12px', background: alpha(r.ok ? C.green : C.red, 0.08), border: `1.5px solid ${alpha(r.ok ? C.green : C.red, 0.45)}`, padding: '10px 12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ flex: 1, fontSize: '12px', color: C.text, lineHeight: 1.6, fontFamily: SAIRA }}>{r.text}</div>
-                    <button onClick={() => dismissOfferResult(r.id)} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: '9px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA }}>確認</button>
+                {/* 返事の結果だけが残っている状態では見出しを出さない（「0件 — 要確認」と出ていた） */}
+                {incomingOffers.length > 0 && (
+                  <div style={{ fontSize: '9px', color: C.pink, letterSpacing: '2px', marginBottom: '8px', fontWeight: '700', fontFamily: SAIRA }}>
+                    他クラブからのオファー {incomingOffers.length}件 — 要確認
                   </div>
-                ))}
+                )}
+                <OfferResultList results={offerResults} dismiss={dismissOfferResult} />
                 {incomingOffers.map(offer => {
                   const p = players.find(pl => pl.id === offer.playerId)
                   // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
@@ -528,10 +527,8 @@ export default function TransferPage() {
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={() => {
-                              const ok = acceptIncomingOffer(offer.id)
-                              pushOfferResult(offer.id, ok
-                                ? (isFreeOffer ? `${p.name}を${offerFrom}へフリー移籍で放出しました` : `${p.name}を${offerFrom}へ売却しました（移籍金${fmt(offer.offeredPrice)}を獲得）`)
-                                : `${p.name}の売却は成立しませんでした`, ok)
+                              // 結果の文章は OfferResultList の1本。チャット画面と同じ言葉が出る
+                              pushOfferResult(offer.id, acceptIncomingOffer(offer.id), { playerName: p.name, teamName: offerFrom, price: offer.offeredPrice })
                             }}
                             style={{
                               flex: 2, padding: '9px', borderRadius: '11px', border: `2px solid ${C.green}`, marginBottom: 8,
@@ -544,11 +541,7 @@ export default function TransferPage() {
                           </button>
                           <button
                             onClick={() => {
-                              const r = counterIncomingOffer(offer.id, counterPrice)
-                              pushOfferResult(offer.id,
-                                r === 'sold' ? `${offerFrom}がカウンターを受諾。${p.name}を売却しました（移籍金${fmt(counterPrice)}を獲得）`
-                                : r === 'refused' ? `${offerFrom}は${fmt(counterPrice)}を支払えず、交渉は決裂しました`
-                                : `${p.name}の交渉は無効になりました`, r === 'sold')
+                              pushOfferResult(offer.id, counterIncomingOffer(offer.id, counterPrice), { playerName: p.name, teamName: offerFrom, price: counterPrice })
                             }}
                             style={{
                               flex: 2, padding: '9px', borderRadius: '11px', border: `2px solid ${C.goldDark}`, marginBottom: 8,

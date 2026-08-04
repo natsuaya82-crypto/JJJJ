@@ -8,6 +8,8 @@ import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
+import { useOfferResults } from './useOfferResults'
+import { OfferResultList } from './OfferResultList'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -31,6 +33,9 @@ export default function OfferListPage() {
   const { players, playerTeamId, currentSeason, acceptIncomingOffer, declineIncomingOffer, acceptFeeCounter, rejectTransferBid, cancelLoanRequest } = useGameStore()
   const clubIndex = useClubIndex()
   const [tab, setTab] = useState<'incoming' | 'outgoing'>('incoming')
+  // 返事の結果。ここには結果表示が無く、ロスター下限で売れないときボタンを押しても
+  // 何も起きない死んだボタンになっていた。チャット画面・移籍画面と同じものを出す
+  const { results: offerResults, push: pushOfferResult, dismiss: dismissOfferResult } = useOfferResults()
 
   // フリー移籍の接触（offeredPrice=0）はGMが対応できないため除外（通知ページで情報表示）
   const incoming = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
@@ -62,9 +67,10 @@ export default function OfferListPage() {
       </div>
 
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {tab === 'incoming' && <OfferResultList results={offerResults} dismiss={dismissOfferResult} spacing={0} />}
         {tab === 'incoming' && (
           incoming.length === 0
-            ? <Empty text="他チームからのオファーはありません" />
+            ? (offerResults.length === 0 ? <Empty text="他チームからのオファーはありません" /> : null)
             : incoming.map(o => {
                 const p = findP(o.playerId); const t = findT(o.fromTeamId)
                 if (!p) return null
@@ -85,7 +91,7 @@ export default function OfferListPage() {
                       <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, padding: '0 12px 12px' }}>
-                      <button onClick={() => acceptIncomingOffer(o.id)} style={actBtn(C.green)}>{o.offeredPrice > 0 ? `売却する（+${fmt(o.offeredPrice)}）` : '移籍を認める'}</button>
+                      <button onClick={() => pushOfferResult(o.id, acceptIncomingOffer(o.id), { playerName: p.name, teamName: t?.shortName ?? '他クラブ', price: o.offeredPrice })} style={actBtn(C.green)}>{o.offeredPrice > 0 ? `売却する（+${fmt(o.offeredPrice)}）` : '移籍を認める'}</button>
                       <button onClick={() => declineIncomingOffer(o.id)} style={actBtn(C.textSub, true)}>断る</button>
                     </div>
                   </div>

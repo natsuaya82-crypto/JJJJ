@@ -1,0 +1,40 @@
+// 「他クラブから来た買い取りオファー」に返事をしたときの結果を、1つの言葉で表すためのファイル。
+//
+// もともとは承諾(acceptIncomingOffer)が true/false、逆提示(counterIncomingOffer)が
+// 'sold'|'refused'|'invalid' と別々の返り値で、しかも結果の文章がチャット画面と移籍画面の
+// 合計4箇所に手書きされていた。そのせいで、
+//   ・自チームが15人ちょうどで放出できなかっただけなのに
+//     「相手が金を払えず決裂しました」という嘘の理由が出る
+//   ・同じ15人下限なのに、承諾は札が残る／逆提示は札が消えて再交渉できない
+// という食い違いが起きていた。
+//
+// 返り値の種類と、その文章はここ1箇所で決める。処理側は種類を返すだけ、画面側は
+// 受け取った種類を渡すだけにすること。
+import { ROSTER_MIN } from '../data/rosterRules'
+
+export type OfferOutcome =
+  | 'sold'        // 成立。選手は移籍した
+  | 'refused'     // 相手クラブがその額に応じなかった（逆提示でのみ起きる）
+  | 'roster_min'  // 自チームが下限人数。放出できない。オファーの札は残す
+  | 'invalid'     // 選手が対象外になった（引退の話が決まった等）。札は取り下げる
+
+const man = (v: number) => `${Math.round(v / 10000).toLocaleString()}万`
+
+// 結果の見せ方。ok が true のときだけ緑（成功）で出す
+export function offerResultText(
+  outcome: OfferOutcome,
+  a: { playerName: string; teamName: string; price: number },
+): { text: string; ok: boolean } {
+  switch (outcome) {
+    case 'sold':
+      return a.price > 0
+        ? { text: `${a.playerName}を${a.teamName}へ売却しました（移籍金${man(a.price)}を獲得）`, ok: true }
+        : { text: `${a.playerName}を${a.teamName}へフリー移籍で放出しました`, ok: true }
+    case 'refused':
+      return { text: `${a.teamName}は${man(a.price)}を支払えず、交渉は決裂しました`, ok: false }
+    case 'roster_min':
+      return { text: `ロスターが下限の${ROSTER_MIN}人のため、${a.playerName}を放出できません。補強してから改めて返事をしてください（オファーはそのまま残っています）`, ok: false }
+    case 'invalid':
+      return { text: `${a.playerName}は移籍の対象外になったため、${a.teamName}のオファーは取り下げられました`, ok: false }
+  }
+}
