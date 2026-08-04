@@ -52,6 +52,7 @@ console.log('\n[2] 用件を1つ足すと数がちょうど1つ増える')
     { label: 'フリー移籍の接触', input: base(S({ incomingOffers: [{ id: 'o1', playerId: 'p1', fromTeamId: 'b', offeredPrice: 0, expiresAtRace: 5 }] }), [P('p1', 'a')]) },
     { label: '引退希望', input: base(S({ retirementRequests: [{ playerId: 'p1' }] }), [P('p1', 'a')]) },
     { label: '移籍希望', input: base(S({ transferRequests: [{ playerId: 'p1' }] }), [P('p1', 'a')]) },
+    { label: '海外挑戦希望', input: base(S({ overseasRequests: [{ playerId: 'p1', region: 'europe' }] }), [P('p1', 'a')]) },
     { label: '入札のカウンター', input: base(S({ transferBids: [{ id: 'b1', playerId: 'p1', status: 'countered' }] }), [P('p1', 'a')]) },
     { label: '移籍金の合意', input: base(S({ transferBids: [{ id: 'b1', playerId: 'p1', status: 'fee_accepted' }] }), [P('p1', 'a')]) },
     { label: '契約の要求', input: base(S({ contractRequests: [{ playerId: 'p1', status: 'pending_gm' }] }), [P('p1', 'a')]) },
@@ -107,6 +108,49 @@ console.log('\n[4.5] レンタルで借りている選手には契約の用件�
   check('自分の選手なら数える', collectNotifications(base(S({ currentRaceIndex: 8 }), [own])).total === 1)
 }
 
+console.log('\n[4.7] チャットを開いて札ができても数字は変わらない')
+{
+  // 「契約満了間近だがまだ話していない」→ チャットで条件を出して札(contractRequest)ができる、
+  // という流れで数字が動かないこと。ここが動くのがベルのズレの正体だった
+  const p = P('p1', 'a', { contract: { annualSalary: 1000, yearsLeft: 1, faEligibleYear: 2030 } } as Partial<Player>)
+  const before = collectNotifications(base(S({ currentRaceIndex: 8 }), [p]))
+  const after = collectNotifications(base(S({ currentRaceIndex: 8, contractRequests: [{ playerId: 'p1', status: 'pending_gm' }] }), [p]))
+  check('札ができる前は1件', before.total === 1, `${before.total}件`)
+  check('札ができても1件のまま', after.total === 1, `${after.total}件`)
+  check('札があるほうは「交渉中」として同じ行に出る', after.renewalPlayers.length === 1 && !!after.renewalPlayers[0].req)
+}
+
+console.log('\n[4.8] ケガ中の選手あての用件も数える')
+{
+  // 以前は「現役＝status === active」で見ていたので、交渉中の選手がケガをした瞬間に
+  // オファーも直訴もベルから消えて、そのまま期限切れになっていた
+  const hurt = [P('p1', 'a', { status: 'injured' } as Partial<Player>)]
+  const r = collectNotifications(base(S({
+    incomingOffers: [{ id: 'o1', playerId: 'p1', fromTeamId: 'b', offeredPrice: 100, expiresAtRace: 5 }],
+    retirementRequests: [{ playerId: 'p1' }],
+  }), hurt))
+  check('ケガ中でも移籍オファーを数える', r.incomingOffers.length === 1)
+  check('ケガ中でも引退希望を数える', r.retirementRequests.length === 1)
+}
+
+console.log('\n[4.9] カードを作れないトレード打診はベルにも数えない')
+{
+  const offer = (extra: Record<string, unknown> = {}) => ({
+    id: 't1', fromTeamId: 'b', offeredPlayerIds: ['x1'], requestedPlayerIds: ['p1'],
+    expiresAtRace: 5, message: '', ...extra,
+  })
+  const roster = [P('p1', 'a'), P('x1', 'b')]
+  const both = [T('a'), T('b')]
+  check('ちゃんとした打診は1件',
+    collectNotifications({ ...base(S({ pendingTradeOffers: [offer()] }), roster, both) }).total === 1)
+  check('相手クラブが分からない打診は数えない',
+    collectNotifications(base(S({ pendingTradeOffers: [offer({ fromTeamId: 'zzz' })] }), roster, both)).total === 0)
+  check('こちらが出す選手が居ない打診は数えない',
+    collectNotifications(base(S({ pendingTradeOffers: [offer({ requestedPlayerIds: [] })] }), roster, both)).total === 0)
+  check('もらう選手が居ない打診は数えない',
+    collectNotifications(base(S({ pendingTradeOffers: [offer({ offeredPlayerIds: [] })] }), roster, both)).total === 0)
+}
+
 console.log('\n[5] 数え方は「通知ページに出るカードの枚数」と揃える')
 {
   // まとめて1枚のカードにしている用件は、中身が何件でも1件
@@ -114,9 +158,13 @@ console.log('\n[5] 数え方は「通知ページに出るカードの枚数」�
   check('ロスター超過は1件', collectNotifications(base(S(), many)).total === 1)
   check('超過人数も数える', collectNotifications(base(S(), many)).rosterOver === 3)
 
+  // 契約更新は1人ずつカードが並ぶので人数分。
+  // 以前は「まだ話していない選手」を人数、「札があって応対待ち」をまとめて1件と
+  // 別々に数えていたので、チャットを開いて札が作られた瞬間に数字が勝手に減っていた
   const contracts = S({ contractRequests: [{ playerId: 'p1', status: 'pending_gm' }, { playerId: 'p2', status: 'pending_gm' }] })
-  check('契約交渉はカード1枚なので何人でも1件',
-    collectNotifications(base(contracts, [P('p1', 'a'), P('p2', 'a')])).total === 1)
+  check('契約更新はカードが並ぶので人数分',
+    collectNotifications(base(contracts, [P('p1', 'a'), P('p2', 'a')])).total === 2,
+    `${collectNotifications(base(contracts, [P('p1', 'a'), P('p2', 'a')])).total}件`)
 
   // 1人ずつカードが並ぶ用件は人数分。負傷者はカードが人数分出るのに1と数えていた
   const injured = [P('i1', 'a', { status: 'injured' } as Partial<Player>), P('i2', 'a', { status: 'injured' } as Partial<Player>)]
@@ -154,10 +202,11 @@ check('通知ページが collectNotifications を使っている', page.include
 const headCounts = [...page.matchAll(/<SectionHead[^>]*count=\{([^}]+)\}/g)].map(m => m[1].trim())
 const expected = [
   // まとめて1枚のカードにしている節（アップデート記念・ログインボーナス・補強禁止・
-  // ロスター超過・スポンサー・契約交渉）は必ず 1
-  '1', '1', '1', '1', '1', '1',
+  // ロスター超過・スポンサー）は必ず 1
+  '1', '1', '1', '1', '1',
   'pendingGifts.length', 'clubGifts.length', 'joinNotices.length', 'tradeOffers.length',
   'renewalNeeded', 'injuredPlayers.length', 'retirementRequests.length', 'transferReqs.length',
+  'overseasReqs.length',
   'counteredBids.length', 'feeAcceptedBids.length', 'freeContacts.length', 'departureNotices.length',
   'freeTransferNotices.length', 'expiredNegotiations.length', 'loanResponses.length', 'incomingOffers.length',
 ]

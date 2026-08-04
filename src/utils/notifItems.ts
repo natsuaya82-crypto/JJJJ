@@ -38,8 +38,11 @@ export type NotifInput = {
 export function collectNotifications(input: NotifInput) {
   const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, myPlayerCreated, pendingGiftsCount, clubGiftsCount } = input
 
-  // 自チームの現役選手か。退団・引退した選手あての通知（幽霊通知）を数から外すのに使う
-  const isMine = (id: string) => players.some(p => p.id === id && p.teamId === playerTeamId && p.status === 'active')
+  // 自チームの現役選手か。退団・引退した選手あての通知（幽霊通知）を数から外すのに使う。
+  // ケガ中(status === 'injured')も現役。ここを 'active' だけで見ていたので、
+  // 選手がケガをした瞬間にその選手あてのオファーや直訴がベルから消えて、
+  // 通知ページには出ているのに数字が合わない、ということが起きていた
+  const isMine = (id: string) => players.some(p => p.id === id && p.teamId === playerTeamId && p.status !== 'retired')
 
   // 移籍金つきのオファーと、フリー移籍の接触（金額0＝GMは関与できない情報通知）は別扱い
   const allIncoming = currentSeason.incomingOffers ?? []
@@ -56,14 +59,19 @@ export function collectNotifications(input: NotifInput) {
 
   const retirementRequests = (currentSeason.retirementRequests ?? []).filter(r => isMine(r.playerId))
   const transferReqs = (currentSeason.transferRequests ?? []).filter(r => isMine(r.playerId))
+  // 海外挑戦の直訴。チャットには返事のボタンが出るのに、ベルにも通知ページにも
+  // 一度も出ていなかった（数え漏れ）
+  const overseasReqs = (currentSeason.overseasRequests ?? []).filter(r => isMine(r.playerId))
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId))
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId))
 
   // GMの応対を待っている契約交渉。進行中(pending_gm/countered)の判定は contractTalk の1本。
   // ケガ中(status === 'injured')の選手も対象に入れる。以前は active しか数えていなかったので、
   // 交渉中にケガをした瞬間、通知からもチャットからも用件が消えて放置され、期限切れになっていた
+  // 引退したいと言ってきていてGMがまだ返事をしていない選手は、引退の用件へ一本化する
+  // （ベルに「引退申請」と「契約交渉」の2件が出るのに、画面には引退のカードしか無かった）
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r =>
-    isLiveContract(r) && !ctCtx.freeContactIds.has(r.playerId)
+    isLiveContract(r) && !ctCtx.freeContactIds.has(r.playerId) && !ctCtx.retiringIds.has(r.playerId)
     && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status !== 'retired' && !p.transferListed && !p.loan))
 
   // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
@@ -71,9 +79,13 @@ export function collectNotifications(input: NotifInput) {
   const sponsorSlotsLeft = 3 - (myTeam?.sponsors?.length ?? 0)
   const sponsorOffers = sponsorSlotsLeft > 0 ? (currentSeason.sponsorOffers ?? []) : []
 
-  // CPUからのトレード打診。対象選手が移籍・引退した古い打診は出さない
+  // CPUからのトレード打診。対象選手が移籍・引退した古い打診は出さない。
+  // 相手クラブが分からない打診と、選手が片側に1人も居ない打診は通知ページでカードを
+  // 作れずに消えるので、ベルにも数えない（ベル+1・カード0枚のズレの原因だった）
   const tradeOffers = (currentSeason.pendingTradeOffers ?? []).filter(o =>
-    o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status === 'active'))
+    teams.some(t => t.id === o.fromTeamId)
+    && o.offeredPlayerIds.length > 0 && o.requestedPlayerIds.length > 0
+    && o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status !== 'retired'))
     && o.requestedPlayerIds.every(pid => isMine(pid)))
 
   // 加入通知（FA・移籍・レンタル・トレード・ドラフトの全経路）。今季加入で未確認の選手
@@ -89,9 +101,18 @@ export function collectNotifications(input: NotifInput) {
   // 強制遷移と同じもの）。以前はこの4箇所が別々の条件を書いていたので、
   // ホームが「契約未解決が3人」と言うのにベルは0、レース後に飛ばされた先には何も無い、
   // ということが起きていた
+  // 「まだ話していない（契約満了間近）」と「札があって応対待ち」は同じ用件なので
+  // 1つのリストにまとめて、人数で数える。
+  // 以前は前者を人数・後者をまとめて1件と別々に数えていたので、チャットを開いて
+  // 札が作られた瞬間に、こちらが何もしていないのに**ベルの数字が勝手に減っていた**
   const renewalPlayers = players
-    .map(p => ({ p, seasonsLeft: p.contract.yearsLeft, months: contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRaces) }))
-    .filter(({ p, months }) => needsRenewalAttention(p, months, ctCtx))
+    .map(p => ({
+      p,
+      seasonsLeft: p.contract.yearsLeft,
+      months: contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRaces),
+      req: pendingContracts.find(r => r.playerId === p.id),
+    }))
+    .filter(({ p, months, req }) => !!req || needsRenewalAttention(p, months, ctCtx))
     .sort((a, b) => a.months - b.months)
 
   // ロスター超過警告（旧セーブ救済。強制解雇はせず整理を促すだけ）
@@ -110,16 +131,15 @@ export function collectNotifications(input: NotifInput) {
 
   // ここの合計が、そのままベルの数字であり通知ページの「N件」になる。
   // 数え方の決まりは「通知ページに出るカードの枚数と必ず同じにする」こと。
-  //  ・1人ずつカードが並ぶもの（負傷者・新加入・契約満了間近など）はその人数
-  //  ・まとめて1枚のカードにしているもの（ロスター超過・スポンサー・契約交渉・
-  //    補強禁止）は中身が何件でも1
+  //  ・1人ずつカードが並ぶもの（負傷者・新加入・契約更新など）はその人数
+  //  ・まとめて1枚のカードにしているもの（ロスター超過・スポンサー・補強禁止）は
+  //    中身が何件でも1（節の見出しに出す数字は中身の件数のまま）
   // 以前は負傷者だけカードが人数分並ぶのに1と数え、契約交渉は1枚しか出ないのに
   // 人数分数えていたので、ベルの数字と見えているカードの枚数がズレていた
   const total = incomingOffers.length
     + (canCreateMyPlayer ? 1 : 0)
     + tradeOffers.length
-    + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length
-    + (pendingContracts.length > 0 ? 1 : 0)
+    + retirementRequests.length + transferReqs.length + overseasReqs.length + counteredBids.length + feeAcceptedBids.length
     + renewalPlayers.length
     + (signingBanned ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
@@ -137,7 +157,7 @@ export function collectNotifications(input: NotifInput) {
 
   return {
     incomingOffers, freeContacts, freeTransferNotices, departureNotices,
-    retirementRequests, transferReqs, counteredBids, feeAcceptedBids,
+    retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
     pendingContracts, sponsorOffers, tradeOffers, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
     loginUnclaimed, canCreateMyPlayer, expiredNegotiations, loanResponses,

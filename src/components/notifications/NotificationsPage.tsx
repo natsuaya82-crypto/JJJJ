@@ -166,8 +166,8 @@ export default function NotificationsPage() {
   const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
   const {
     incomingOffers, freeContacts, freeTransferNotices, departureNotices,
-    retirementRequests, transferReqs, counteredBids, feeAcceptedBids,
-    pendingContracts, sponsorOffers, tradeOffers, joinNotices,
+    retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
+    sponsorOffers, tradeOffers, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
     loginUnclaimed, canCreateMyPlayer, expiredNegotiations, loanResponses,
     injuryKey, total,
@@ -392,15 +392,16 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 契約更新リマインダー（満了2シーズン前から事前通知） */}
+          {/* 契約更新。「まだ話していない（満了間近）」と「交渉中で応対待ち」を1つの節にまとめる。
+              別々の節にして数え方も違っていたので、チャットを開いた瞬間にベルの数字が勝手に減っていた */}
           {renewalNeeded > 0 && (
             <section>
-              <SectionHead label="契約満了間近" color={C.orange} count={renewalNeeded}/>
+              <SectionHead label="契約更新" color={C.orange} count={renewalNeeded}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {renewalPlayers.map(({ p, months }) => {
+                {renewalPlayers.map(({ p, months, req }) => {
                   const pOvr = ovr(p)
-                  const accent = C.red
-                  const shadow = '#660e10'
+                  const accent = req ? C.gold : C.red
+                  const shadow = req ? '#5a3500' : '#660e10'
                   return (
                     <div key={p.id} style={cardStyle(alpha(accent, 0.45), shadow)}>
                       <div style={inset}/>
@@ -412,11 +413,11 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳</div>
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>残り{Math.max(0, months)}ヶ月</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.red }}>今季で満了・早急に更新を</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>{req ? '交渉中' : `残り${Math.max(0, months)}ヶ月`}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: req ? C.gold : C.red }}>{req ? 'あなたの返事待ちです' : '今季で満了・早急に更新を'}</div>
                           </div>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, #FF6B6B)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
+                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${req ? '#FFD54F' : '#FF6B6B'})`, color: req ? '#111' : C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
                       </div>
                     </div>
                   )
@@ -552,9 +553,26 @@ export default function NotificationsPage() {
             </section>
           )}
 
+          {/* 海外挑戦希望。チャットには返事のボタンが出るのに、ここにもベルにも出ていなかった */}
+          {overseasReqs.length > 0 && (
+            <section style={{ marginTop: (retirementRequests.length > 0 || transferReqs.length > 0) ? '20px' : 0 }}>
+              <SectionHead label="海外挑戦希望" color={C.blue} count={overseasReqs.length}/>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.blue, 0.45), '#0d2f5a')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{overseasReqs.length}人が海外挑戦を希望</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.blue, marginBottom: '14px' }}>チャットで対応してください</div>
+                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #64B5F6)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* 移籍金交渉 */}
           {counteredBids.length > 0 && (
-            <section style={{ marginTop: (retirementRequests.length > 0 || transferReqs.length > 0) ? '20px' : 0 }}>
+            <section style={{ marginTop: (retirementRequests.length > 0 || transferReqs.length > 0 || overseasReqs.length > 0) ? '20px' : 0 }}>
               <SectionHead label="移籍金交渉" color={C.green} count={counteredBids.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {counteredBids.map(bid => {
@@ -776,23 +794,6 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 契約交渉 */}
-          {pendingContracts.length > 0 && (
-            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length) > 0 ? '20px' : 0 }}>
-              <SectionHead label="契約交渉" color={C.gold} count={1}/>
-              <div style={{ padding: '0 16px' }}>
-                <div style={cardStyle(alpha(C.gold, 0.45), '#5a3500')}>
-                  <div style={inset}/>
-                  <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{pendingContracts.length}人が契約更新を要求</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, marginBottom: '14px' }}>チャットで対応してください</div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, color: '#111' }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
           {/* スポンサーオファー */}
           {sponsorOffers.length > 0 && (
             <section style={{ marginTop: '20px' }}>
@@ -812,7 +813,7 @@ export default function NotificationsPage() {
 
           {/* 移籍オファー */}
           {incomingOffers.length > 0 && (
-            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + counteredBids.length + pendingContracts.length) > 0 ? '20px' : 0 }}>
+            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + overseasReqs.length + counteredBids.length) > 0 ? '20px' : 0 }}>
               <SectionHead label="移籍オファー" color={C.red} count={incomingOffers.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {incomingOffers.map(offer => {
