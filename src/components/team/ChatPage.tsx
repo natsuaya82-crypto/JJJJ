@@ -9,6 +9,7 @@ import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, season
 import { canSignContract } from '../../data/rosterRules'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
+import { settledPath } from '../../utils/talkSync'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -76,6 +77,19 @@ function buildMessages(
 ): ChatMessage[] {
   const msgs: ChatMessage[] = []
 
+  // 進路が決まった選手（引退を承認した・海外挑戦を承認した）は、ここで会話を閉じる。
+  // 判定は talkSync の settledPath 1本。ここは分岐の書き足しになっていて海外挑戦のぶんしか無く、
+  // **引退を承認した選手は次に開くと来季契約の話に戻っていた**（そこから移籍にも進めた）
+  const settled = settledPath(player)
+  if (settled === 'retiring') {
+    msgs.push({ from: 'player', kind: 'retire_ok', text: `今季限りで引退します。最後のシーズン、悔いの残らないように走り切ります。` })
+    return msgs
+  }
+  if (settled === 'overseas') {
+    msgs.push({ from: 'player', kind: 'overseas_ok', text: `海外挑戦を認めていただき、ありがとうございます。${OVERSEAS_LABEL[player.overseasListed ?? ''] ?? '海外'}のクラブからの話を待ちます。` })
+    return msgs
+  }
+
   if (hasRetirement) {
     msgs.push({ from: 'player', kind: 'retire', text: `${player.age}歳になりました。正直、そろそろ引退を考えています。監督はどうお思いですか？` })
     return msgs
@@ -83,13 +97,6 @@ function buildMessages(
 
   if (overseasRegion) {
     msgs.push({ from: 'player', kind: 'overseas_wish', text: `監督、真剣な話があります。${OVERSEAS_DREAM[overseasRegion] ?? '海外で走ってみたいんです。'}海外挑戦を認めてもらえませんか？` })
-    return msgs
-  }
-
-  // 海外挑戦を認めた後：来季契約の話には戻らない。オファー待ちの状態として閉じる
-  // （認めた直後に同じ選手から年俸交渉が始まってしまうのを防ぐ）
-  if (player.overseasListed) {
-    msgs.push({ from: 'player', kind: 'overseas_ok', text: `海外挑戦を認めていただき、ありがとうございます。${OVERSEAS_LABEL[player.overseasListed] ?? '海外'}のクラブからの話を待ちます。` })
     return msgs
   }
 
@@ -397,6 +404,13 @@ function ChatView({
 
     // 引退承認直後：送別メッセージを見せてから閉じる（即アンマウントで一瞬も表示されない問題の対策）
     if (justRetired) return [
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
+
+    // 進路が決まった選手（引退を承認した・海外挑戦を承認した）は閉じるだけ。
+    // buildMessages と同じ settledPath 1本で判断する。ここが無かったせいで、
+    // 引退を承認した選手に「契約条件を提示する」が出て、話が続いてしまっていた
+    if (settledPath(player)) return [
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
@@ -1028,6 +1042,10 @@ function getPlayerStatus(
   const hasOverseas = (overseasRequests ?? []).some(r => r.playerId === player.id)
   const activeReq = (contractRequests ?? []).find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected')
 
+  // 進路が決まった選手は、その旨だけ出して他の用件は出さない
+  const settled = settledPath(player)
+  if (settled === 'retiring') return { label: '今季限りで引退', color: C.textSub, priority: 0 }
+  if (settled === 'overseas') return { label: '海外オファー待ち', color: C.purple, priority: 1 }
   if (hasRetirement) return { label: '引退希望', color: C.textSub, priority: 0 }
   if (hasOverseas) return { label: '海外挑戦の相談', color: C.purple, priority: 1 }
   if (player.transferListed) return { label: '退団へ', color: C.orange, priority: 1 }

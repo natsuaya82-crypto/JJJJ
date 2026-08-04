@@ -86,8 +86,14 @@ check('突き合わせているのは chatLog.ts だけ', copies.length === 0, c
 const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
 check('チャット画面が mergeChatMessages を使っている', chat.includes('mergeChatMessages'))
 // 用件の目印を付け忘れると、その用件だけ昔と同じように積み上がる
-for (const kind of ['contract_remind', 'contract_demand', 'transfer_wish', 'retire', 'overseas_wish', 'overseas_ok', 'free_contact'])
+for (const kind of ['contract_remind', 'contract_demand', 'transfer_wish', 'retire', 'retire_ok', 'overseas_wish', 'overseas_ok', 'free_contact'])
   check(`用件の目印がある（${kind}）`, chat.includes(`kind: '${kind}'`))
+
+console.log('\n[7] 進路が決まった選手との会話は、そこで閉じている')
+// 引退を承認した選手は、次に開くと来季契約の話に戻っていた（そこから移籍にも進めた）。
+// 会話の中身もボタンも、talkSync の settledPath 1本で閉じること
+check('チャット画面が settledPath を使っている', chat.includes('settledPath'))
+check('会話とボタンの両方で見ている', (chat.match(/settledPath\(player\)/g) ?? []).length >= 3)
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

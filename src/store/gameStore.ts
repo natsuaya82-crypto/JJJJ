@@ -37,7 +37,7 @@ import { reconcileTalks, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway } from '../utils/transferEligibility'
+import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canStartContractTalk, canWishTransfer } from '../utils/transferEligibility'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
@@ -1768,9 +1768,12 @@ export const useGameStore = create<GameStore>()(
             return i >= 0 ? i + 1 : Math.ceil(trTotalTeams / 2)
           })()
           const trCandidates = playersAfterLoan
-            // レンタルで借りている選手は移籍希望の対象外（保有権が無く「移籍を認める」と他人の選手を消してしまう）。
+            // canWishTransfer＝借り物・引退の話をしている・海外挑戦を承認済み、を全部外す。
+            // （借り物は保有権が無く「移籍を認める」と他人の選手を消してしまう。
+            //   引退を見ていなかったので、引退を承認した選手が数レース後に移籍を直訴してきていた）
             // 既に対応済み（移籍を認めた transferListed / 残ってほしいで説得済み）の選手は同シーズン中に再抽選しない
-            .filter(p => p.teamId === playerTeamId && p.status === 'active' && p.contract.yearsLeft <= 1 && !existTrReq.has(p.id) && !p.loan
+            .filter(p => canWishTransfer(p, { teamId: playerTeamId, currentYear: state.currentSeason.year, retiringIds: retiringWishIds })
+              && p.status === 'active' && p.contract.yearsLeft <= 1 && !existTrReq.has(p.id)
               && !p.transferListed && p.transferRequestDismissedYear !== state.currentSeason.year)
             .map(p => {
               const apps = seasonAppearances(p.id, updatedRaces)
@@ -2582,8 +2585,14 @@ export const useGameStore = create<GameStore>()(
         const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
         if (!offer) return false
         const player = state.players.find(p => p.id === offer.playerId)
-        if (!player || player.teamId !== state.playerTeamId) return false
-        if (player.loan && player.loan.ownerTeamId !== state.playerTeamId) return false  // レンタルで借りている選手は保有権が無く売却不可
+        // 「この選手を出していいか」の判定は canAcceptOfferFor 1本に寄せる。
+        // ここには判定が一つも無く、引退の話が決まっている選手でもそのまま移籍が成立していた
+        // （借りている選手の売却も isOwnedBy が弾く）
+        if (!player || !canAcceptOfferFor(player, {
+          teamId: state.playerTeamId,
+          currentYear: state.currentSeason.year,
+          retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+        }, offer.fromForeign)) return false
         if (!canReleaseFromRoster(state.players, state.playerTeamId)) return false  // ロスター下限(15人)を割る売却は不可
         // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
         if (offer.fromForeign) {
@@ -2690,10 +2699,29 @@ export const useGameStore = create<GameStore>()(
           if (racesPlayed === 0) return state
           // フリー移籍で接触中の選手は契約更新の要求を出さない（用件が二重になるのを防ぐ。引き留めは接触カード経由の提示で行う）
           const contactedIds = new Set((state.currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-          // isOwnedBy＝レンタルで借りている選手を外す。借り物の契約更新を持ちかけると
-          // 「更新したのに期限が来て居なくなる」ことになる
-          const myPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.contract.yearsLeft === 1
-            && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !p.overseasListed && !contactedIds.has(p.id))
+          // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
+          const retPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.age >= 35)
+          const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
+          // 引退の話が湧くかどうかは Math.random ではなく「選手ID＋年＋消化レース数」から決める。
+          // この関数はチャットを開くたびに走るので、乱数だと開き直すだけで何度も抽選が回り、
+          // 35歳以上が次々に引退を言い出していた。同じレース内なら何度開いても結果は同じにする
+          const retRoll = (id: string) => {
+            let h = 0
+            const seed = `${id}|${state.currentSeason.year}|${racesPlayed}`
+            for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+            return h % 100
+          }
+          // 今季すでに引き留めた選手は再抽選しない
+          const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && retRoll(p.id) < 40).map(p => ({ playerId: p.id, age: p.age }))
+          // 引退の話をしている選手には契約更新の話を出さない。この2つは別々に選んでいたので、
+          // 同じ選手から「引退したい」と「契約を更新したい」が同じタイミングで来ていた。
+          // 今この場で引退を言い出した分（newRet）も含めて外す
+          const retiringIds = new Set([...existRet, ...newRet.map(r => r.playerId)])
+          // canStartContractTalk＝借り物・引退の話をしている・海外挑戦を承認済み、を全部外す。
+          // 借り物の契約更新を持ちかけると「更新したのに期限が来て居なくなる」ことになる
+          const myPlayers = state.players.filter(p => canStartContractTalk(p, { teamId: state.playerTeamId, currentYear: state.currentSeason.year, retiringIds })
+            && p.contract.yearsLeft === 1
+            && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !contactedIds.has(p.id))
           // 拒否済みも含めて「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）
           const existing = new Set((state.currentSeason.contractRequests ?? []).map(r => r.playerId))
           const seasonRaces = state.currentSeason.races ?? []
@@ -2719,20 +2747,6 @@ export const useGameStore = create<GameStore>()(
               offerYears: 0,
             }
           })
-          // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
-          const retPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.age >= 35)
-          const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
-          // 引退の話が湧くかどうかは Math.random ではなく「選手ID＋年＋消化レース数」から決める。
-          // この関数はチャットを開くたびに走るので、乱数だと開き直すだけで何度も抽選が回り、
-          // 35歳以上が次々に引退を言い出していた。同じレース内なら何度開いても結果は同じにする
-          const retRoll = (id: string) => {
-            let h = 0
-            const seed = `${id}|${state.currentSeason.year}|${racesPlayed}`
-            for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
-            return h % 100
-          }
-          // 今季すでに引き留めた選手は再抽選しない
-          const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && retRoll(p.id) < 40).map(p => ({ playerId: p.id, age: p.age }))
           // 移籍希望はチャットを開くたびではなくレース進行時に生成する（runRace内 generateTransferWishes）。ここでは扱わない。
           if (newReqs.length === 0 && newRet.length === 0) return state
           return {
@@ -3093,8 +3107,13 @@ export const useGameStore = create<GameStore>()(
           const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
           if (!offer) return state
           const player = state.players.find(p => p.id === offer.playerId)
-          // 所有チェック：オファー後に選手がチームを離れていたら成立させない（acceptIncomingOfferと同じガード）
-          if (!player || player.teamId !== state.playerTeamId || (player.loan && player.loan.ownerTeamId !== state.playerTeamId)) {
+          // 判定は acceptIncomingOffer と同じ canAcceptOfferFor 1本。
+          // オファーを出したあとに選手がチームを離れた／引退や海外挑戦の話が決まった、はここで弾く
+          if (!player || !canAcceptOfferFor(player, {
+            teamId: state.playerTeamId,
+            currentYear: state.currentSeason.year,
+            retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+          }, offer.fromForeign)) {
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
           // ロスター下限(15人)を割る売却は不可（acceptIncomingOfferと同じガード）
@@ -3168,10 +3187,11 @@ export const useGameStore = create<GameStore>()(
           // 承認しても即引退はしない。「今季限りで引退」の予約フラグだけ立てて、
           // 実際の引退（ロスター除外・レジェンド登録）は endSeason で行う。
           // シーズン途中で選手が消える味気なさ＆戦力急落を防ぐ
-          return {
-            players: state.players.map(p => p.id === playerId ? { ...p, pendingRetirementYear: state.currentSeason.year } : p),
-            currentSeason: { ...state.currentSeason, retirementRequests: (state.currentSeason.retirementRequests ?? []).filter(r => r.playerId !== playerId) }
-          }
+          // 進路が決まったので、この選手についての札は reconcileTalks が全部たたむ。
+          // ここで引退希望だけ手で消していたせいで、買い取りオファー・売出・レンタル打診・
+          // トレード・移籍希望が残ったままになり、承認した直後にそのまま移籍が成立していた
+          const players = state.players.map(p => p.id === playerId ? { ...p, pendingRetirementYear: state.currentSeason.year } : p)
+          return { players, currentSeason: reconcileTalks(state.currentSeason, players, state.playerTeamId) }
         })
       },
 
@@ -3179,16 +3199,11 @@ export const useGameStore = create<GameStore>()(
       approveOverseasChallenge: (playerId) => set(state => {
         const req = (state.currentSeason.overseasRequests ?? []).find(r => r.playerId === playerId)
         if (!req) return state
-        return {
-          players: state.players.map(p => p.id === playerId ? { ...p, overseasListed: req.region, morale: Math.min(100, (p.morale ?? 70) + 8) } : p),
-          currentSeason: {
-            ...state.currentSeason,
-            overseasRequests: (state.currentSeason.overseasRequests ?? []).filter(r => r.playerId !== playerId),
-            // 海外挑戦を認めた選手の契約更新交渉は取り下げる。
-            // （残したままだと「海外行っていいよ」の直後に同じ選手から年俸の話が始まる）
-            contractRequests: (state.currentSeason.contractRequests ?? []).filter(r => r.playerId !== playerId || r.status === 'accepted'),
-          },
-        }
+        // 引退の承認と同じで、進路が決まった選手の札は reconcileTalks が全部たたむ。
+        // ここでは海外挑戦の直訴と契約更新の2つしか消しておらず、国内の買い取りオファーや
+        // 売出は残ったままだった（「海外行っていいよ」の直後に国内へ売られる）
+        const players = state.players.map(p => p.id === playerId ? { ...p, overseasListed: req.region, morale: Math.min(100, (p.morale ?? 70) + 8) } : p)
+        return { players, currentSeason: reconcileTalks(state.currentSeason, players, state.playerTeamId) }
       }),
 
       // 海外挑戦を引き留める：モラール低下（2回目以降は大）。その年は再直訴しない

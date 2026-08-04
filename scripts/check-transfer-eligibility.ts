@@ -10,8 +10,9 @@
  * 除外していたのは3箇所だけ、残りは素通りだった。
  */
 import {
-  isNewJoin, isRetiring, isOwnedBy,
+  isNewJoin, isRetiring, isOwnedBy, isTalkFree,
   canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut,
+  canTradeAway, canStartContractTalk, canWishTransfer, canAcceptOfferFor,
 } from '../src/utils/transferEligibility'
 import type { Player } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -75,7 +76,11 @@ console.log('\n[5] 引退希望を受けた選手・加入1年目の選手')
   check('引退希望の判定', isRetiring(P(), retiring.retiringIds))
   check('引退の話をしている選手に移籍話は来ない', !canBePoached(P(), retiring))
   check('引退希望ならレンタルにも出さない', !canLoanOut(P(), retiring))
-  check('引退希望でも売出そのものは止めない（GMの判断）', canListForSale(P(), retiring))
+  check('引退の話をしている選手は売りに出せない', !canListForSale(P(), retiring))
+  check('引退の話をしている選手はトレードにも出せない', !canTradeAway(P(), retiring))
+  check('引退の話をしている選手と契約更新の話は始めない', !canStartContractTalk(P(), retiring))
+  check('引退の話をしている選手は移籍希望を言い出さない', !canWishTransfer(P(), retiring))
+  check('引退の話をしている選手は来たオファーを受けても放出しない', !canAcceptOfferFor(P(), retiring))
 
   const fresh = P({ joinedYear: 2030 })
   check('今季加入の判定', isNewJoin(fresh, 2030))
@@ -127,6 +132,59 @@ const market = readFileSync(join('src', 'components', 'transfer', 'TransferPage.
 check('移籍市場の一覧も同じ判定で絞っている', market.includes('canBePoached'))
 const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
 check('チャットのトレード候補も同じ判定で絞っている', chat.includes('canTradeAway') && chat.includes('canBePoached'))
+
+console.log('\n[8] 引退を「承認したあと」も引退の話をしている扱いのまま')
+// ここが本丸。承認すると retirementRequests から消えて pendingRetirementYear が立つ。
+// 前は retiringIds（＝未承認のリスト）しか見ていなかったので、**承認した瞬間に
+// 引退の札が消えて、また普通に売れる選手に戻っていた**。
+// 「引退します！」と言った選手がよそへ移籍する不具合はこれ
+{
+  const done = P({ pendingRetirementYear: 2030 } as Partial<Player>)
+  check('承認済みも引退の話をしている扱い', isRetiring(done, new Set<string>()))
+  check('承認済みは他の話を一切抱えていない状態ではない', !isTalkFree(done, CTX))
+  check('承認済みは引き抜かれない', !canBePoached(done, CTX))
+  check('承認済みはフリー接触も来ない', !canReceiveFreeContact(done, CTX))
+  check('承認済みは売りに出せない', !canListForSale(done, CTX))
+  check('承認済みはトレードに出せない', !canTradeAway(done, CTX))
+  check('承認済みはレンタルに出せない', !canLoanOut(done, CTX))
+  check('承認済みは契約更新の話をしない', !canStartContractTalk(done, CTX))
+  check('承認済みは移籍希望を言い出さない', !canWishTransfer(done, CTX))
+  check('承認済みは来たオファーを受けても放出しない', !canAcceptOfferFor(done, CTX))
+  check('承認済みは海外からのオファーでも放出しない', !canAcceptOfferFor(done, CTX, true))
+  check('承認済みは海外挑戦の指名も来ない',
+    !canGoOverseasDream(P({ pendingRetirementYear: 2030, overseasListed: 'europe' } as Partial<Player>), CTX))
+}
+
+console.log('\n[9] 来たオファーを受けるところにも判定が入っている')
+{
+  const ov = P({ overseasListed: 'europe' } as Partial<Player>)
+  check('素の選手は受けられる', canAcceptOfferFor(P(), CTX))
+  check('海外挑戦を承認した選手は国内オファーを受けられない', !canAcceptOfferFor(ov, CTX))
+  check('海外挑戦を承認した選手は海外からのオファーなら受けられる', canAcceptOfferFor(ov, CTX, true))
+  check('借りている選手は受けられない',
+    !canAcceptOfferFor(P({ loan: { ownerTeamId: 'b', untilYear: 2031 } } as Partial<Player>), CTX, true))
+}
+
+console.log('\n[10] 判定の本体が1つしか無い')
+// can〜 が増えるのは構わないが、条件を自前で書き直したものが増えると元の木阿弥。
+// 「isOwnedBy と isRetiring と overseasListed を並べて書いている関数」は
+// 土台（isTalkFree）と、例外が要る canGoOverseasDream / canAcceptOfferFor だけに保つ
+const eligSrc = readFileSync(elig, 'utf-8')
+const bodies = eligSrc.split(/export function |^function /m).slice(1)
+const handwritten = bodies.filter(b => b.includes('isRetiring(p, ctx.retiringIds)') && b.includes('isOwnedBy(p, ctx.teamId)'))
+  .map(b => b.slice(0, b.indexOf('(')))
+check('条件を並べ書きしているのは土台と例外の3つだけ', handwritten.length === 3, handwritten.join(', '))
+check('土台が isTalkFree という名前で外に出ている', eligSrc.includes('export function isTalkFree'))
+
+console.log('\n[11] 引退・海外挑戦を承認したら、その選手の札を全部たたんでいる')
+// 承認処理が自分で1つ2つ消すのをやめて、片付けは reconcileTalks 1箇所に寄せた。
+// ここが手書きに戻ると「承認した直後にそのまま移籍が成立する」が再発する
+check('引退の承認（acceptRetirement）が reconcileTalks を通る', has('acceptRetirement', 'reconcileTalks'))
+check('海外挑戦の承認（approveOverseasChallenge）が reconcileTalks を通る', has('approveOverseasChallenge', 'reconcileTalks'))
+check('オファー承諾（acceptIncomingOffer）が canAcceptOfferFor を通る', has('acceptIncomingOffer', 'canAcceptOfferFor'))
+check('オファー逆提示（counterIncomingOffer）が canAcceptOfferFor を通る', has('counterIncomingOffer', 'canAcceptOfferFor'))
+check('契約要求の生成（generateContractRequests）が canStartContractTalk を通る', has('generateContractRequests', 'canStartContractTalk'))
+check('移籍希望の生成（runRace）が canWishTransfer を通る', store.includes('canWishTransfer(p, {'))
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

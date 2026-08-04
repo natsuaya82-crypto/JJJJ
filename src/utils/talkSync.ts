@@ -54,6 +54,26 @@ export type TalkLists = {
 
 // 前提が崩れたトレード交渉に出す文言。押した瞬間に弾く側（acceptTradeCounter）でも同じ文言を使う
 export const STALE_TRADE_MSG = '対象の選手はすでに別のクラブへ移っている。この話は白紙だ。'
+// 引退・海外挑戦の話が決まった選手をトレードに出そうとしていたとき
+export const SETTLED_TRADE_MSG = '対象の選手はすでに進路が決まっている。この話は白紙だ。'
+
+/**
+ * その選手の進路がもう決まっているか。決まっていれば移籍まわりの札は全部たたむ。
+ *
+ *   'retiring' … 引退を承認した（今季限りで引退。ロスターから外れるのはシーズン終わり）
+ *   'overseas' … 海外挑戦を承認した（海外からの話だけ待つ。国内の話は受けない）
+ *
+ * この2つは承認しても選手がロスターに残るので、belongsToClub では「前提が崩れた」と
+ * 判定できない。承認処理の側で消していたのは引退希望と契約更新の2つだけで、
+ * 買い取りオファー・レンタル打診・トレード・移籍希望・売出は残ったままだった。
+ * **「引退します」と言った選手がそのままよそへ移籍する**のがこれ。
+ */
+export function settledPath(p: Player | undefined): 'retiring' | 'overseas' | null {
+  if (!p) return null
+  if (p.pendingRetirementYear != null) return 'retiring'
+  if (p.overseasListed) return 'overseas'
+  return null
+}
 
 /**
  * 交渉リストを今の所属と突き合わせ、前提が崩れた札を片付けて返す。
@@ -73,6 +93,10 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     const p = byId.get(playerId)
     return !p || p.status === 'retired'
   }
+  // 進路がもう決まっている（引退を承認した／海外挑戦を承認した）
+  const settled = (playerId: string) => settledPath(byId.get(playerId))
+  // 国内の移籍話を持ちかけていい相手か。進路が決まっていたら一切だめ
+  const openToDomestic = (playerId: string): boolean => settled(playerId) === null
 
   const changed: TalkLists = {}
   // 同じ中身なら差し替えない
@@ -83,18 +107,29 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     changed[key] = after as TalkLists[K]
   }
 
-  // 出品：出しているクラブに今も居ること。自チームだけでなくCPUの出品もあるので fromTeamId で見る
+  // 出品：出しているクラブに今も居ること。自チームだけでなくCPUの出品もあるので fromTeamId で見る。
+  // 進路が決まった選手（引退承認・海外承認）は国内の売出から下げる
   put('transferListings', talks.transferListings,
-    (talks.transferListings ?? []).filter(l => at(l.playerId, l.fromTeamId)))
+    (talks.transferListings ?? []).filter(l => at(l.playerId, l.fromTeamId) && openToDomestic(l.playerId)))
 
-  // 他クラブから自チームの選手への購入オファー：その選手が自チームに居ること
+  // 他クラブから自チームの選手への購入オファー：その選手が自チームに居ること。
+  // 引退を承認したら海外からのぶんも含めて全部たたむ。
+  // 海外挑戦を承認した選手は、海外クラブからのオファーだけ残す（本人が望んだ話なので）
   put('incomingOffers', talks.incomingOffers,
-    (talks.incomingOffers ?? []).filter(o => at(o.playerId, myTeamId)))
+    (talks.incomingOffers ?? []).filter(o => {
+      if (!at(o.playerId, myTeamId)) return false
+      const s = settled(o.playerId)
+      if (s === 'retiring') return false
+      if (s === 'overseas') return !!o.fromForeign
+      return true
+    }))
 
-  // レンタル打診：貸してほしい＝自チームの選手／借りませんか＝相手クラブの選手
+  // レンタル打診：貸してほしい＝自チームの選手／借りませんか＝相手クラブの選手。
+  // 貸してほしい側は、進路が決まった選手なら断るまでもなく取り下げ
   put('incomingLoanOffers', talks.incomingLoanOffers,
     (talks.incomingLoanOffers ?? []).filter(o =>
-      at(o.playerId, o.direction === 'lend_out' ? myTeamId : o.fromTeamId)))
+      at(o.playerId, o.direction === 'lend_out' ? myTeamId : o.fromTeamId)
+      && (o.direction !== 'lend_out' || openToDomestic(o.playerId))))
 
   // 自分から出したレンタル要請：相手クラブに今も居ること
   put('loanRequests', talks.loanRequests,
@@ -105,15 +140,19 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
   put('tradeNegotiations', talks.tradeNegotiations,
     (talks.tradeNegotiations ?? []).map(n => {
       if (n.status !== 'countered') return n
+      const ids = [...n.giveIds, ...(n.demandAddIds ?? []), ...n.getIds]
+      if (ids.some(id => settled(id) !== null)) return { ...n, status: 'rejected' as const, message: SETTLED_TRADE_MSG }
       const okGive = [...n.giveIds, ...(n.demandAddIds ?? [])].every(id => at(id, myTeamId))
       const okGet = n.getIds.every(id => at(id, n.targetTeamId))
       return okGive && okGet ? n : { ...n, status: 'rejected' as const, message: STALE_TRADE_MSG }
     }))
 
-  // 契約更新：まだ応対できる状態のものだけ。決着済み(accepted/rejected)は履歴として残す
+  // 契約更新：まだ応対できる状態のものだけ。決着済み(accepted/rejected)は履歴として残す。
+  // 進路が決まった選手と来季の年俸の話をしても仕方がないので取り下げる
   put('contractRequests', talks.contractRequests,
     (talks.contractRequests ?? []).filter(r =>
-      (r.status !== 'pending_gm' && r.status !== 'countered') || at(r.playerId, myTeamId)))
+      (r.status !== 'pending_gm' && r.status !== 'countered')
+      || (at(r.playerId, myTeamId) && openToDomestic(r.playerId))))
 
   // 獲得交渉：まだ応対できるものだけ見る。
   //   fa   … トレードで加入した選手の契約詰めもここに乗るので「自チームに居る」も正。
@@ -123,18 +162,21 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     (talks.acquisitionOffers ?? []).filter(o => {
       if (o.status !== 'pending' && o.status !== 'countered') return true
       if (gone(o.playerId)) return false
+      if (settled(o.playerId) !== null) return false
       if (o.source === 'scout') return true
       const teamId = byId.get(o.playerId)?.teamId ?? ''
       return teamId === '' || teamId === myTeamId
     }))
 
-  // 選手からの直訴（引退したい・移籍したい・海外に行きたい）は自チームの選手のものだけ
+  // 選手からの直訴（引退したい・移籍したい・海外に行きたい）は自チームの選手のものだけ。
+  // 進路が決まったらその選手の直訴は全部たたむ。1人が同時に
+  // 「引退したい」「移籍したい」「海外に行きたい」の札を持つのを、ここで断ち切る
   put('retirementRequests', talks.retirementRequests,
-    (talks.retirementRequests ?? []).filter(r => at(r.playerId, myTeamId)))
+    (talks.retirementRequests ?? []).filter(r => at(r.playerId, myTeamId) && settled(r.playerId) === null))
   put('transferRequests', talks.transferRequests,
-    (talks.transferRequests ?? []).filter(r => at(r.playerId, myTeamId)))
+    (talks.transferRequests ?? []).filter(r => at(r.playerId, myTeamId) && settled(r.playerId) === null))
   put('overseasRequests', talks.overseasRequests,
-    (talks.overseasRequests ?? []).filter(r => at(r.playerId, myTeamId)))
+    (talks.overseasRequests ?? []).filter(r => at(r.playerId, myTeamId) && settled(r.playerId) === null))
 
   // チャットのログ：引退した・データから消えた選手のぶんは片付ける。
   // 残していても開く道が無く、セーブの中で膨らみ続けるだけ

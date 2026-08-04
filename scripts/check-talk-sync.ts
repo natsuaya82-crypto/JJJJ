@@ -7,7 +7,7 @@
  * 契約更新の要求は退団しても消えず、逆提示で売れたときだけ出品の掃除が抜けていて、
  * トレード交渉に至っては一度も見直されず、対象がよそへ移ったあとでも成立ボタンが押せた。
  */
-import { reconcileTalks, STALE_TRADE_MSG } from '../src/utils/talkSync'
+import { reconcileTalks, STALE_TRADE_MSG, SETTLED_TRADE_MSG, settledPath } from '../src/utils/talkSync'
 import type { TalkLists } from '../src/utils/talkSync'
 import type { Player } from '../src/types'
 
@@ -164,6 +164,71 @@ console.log('\n[9] 何も起きていなければ元のまま返す（無駄な�
   // 一度通した結果をもう一度通しても変わらない
   const once = run({ transferRequests: [{ playerId: 'p3', reason: 'unhappy' as const }] })
   check('二度通しても変わらない', run(once) === once)
+}
+
+console.log('\n[10] 進路が決まった選手の札は全部たたむ')
+// 引退を承認した／海外挑戦を承認した選手は、ロスターには残ったまま進路だけ決まっている。
+// belongsToClub では「まだ居る」なので前提が崩れたと判定できず、承認処理の側で
+// 手作業で1つ2つ消していただけだった。買い取りオファー・売出・レンタル打診・トレード・
+// 移籍希望・契約更新が残り、**「引退します」と言った選手がそのままよそへ移籍していた**
+{
+  // r1=引退を承認済み / o1=海外挑戦を承認済み
+  const P2 = [
+    P('r1', 'me', { pendingRetirementYear: 2030 } as Partial<Player>),
+    P('o1', 'me', { overseasListed: 'europe' } as Partial<Player>),
+    P('n1', 'me'), P('x1', 'other'),
+  ]
+  check('引退を承認した選手は進路が決まっている', settledPath(P2[0]) === 'retiring')
+  check('海外挑戦を承認した選手も進路が決まっている', settledPath(P2[1]) === 'overseas')
+  check('普通の選手はまだ何も決まっていない', settledPath(P2[2]) === null)
+
+  const go = (t: TalkLists) => reconcileTalks(t, P2, 'me')
+  const L = (playerId: string) =>
+    ({ id: `l_${playerId}`, playerId, fromTeamId: 'me', askingPrice: 100, listedAtRace: 0, expiresAtRace: 9, competingTeams: [] })
+  const lr = go({ transferListings: [L('r1'), L('o1'), L('n1')] })
+  check('引退を承認した選手は売出から下ろす', !ids(lr.transferListings).includes('r1'))
+  check('海外挑戦を承認した選手も国内の売出から下ろす', !ids(lr.transferListings).includes('o1'))
+  check('普通の選手の出品は残る', ids(lr.transferListings) === 'n1')
+
+  const O = (playerId: string, fromForeign?: boolean) =>
+    ({ id: `o_${playerId}${fromForeign ? 'f' : ''}`, fromTeamId: 'other', playerId, offeredPrice: 100, expiresAtRace: 9, round: 1, ...(fromForeign ? { fromForeign: true } : {}) })
+  const or_ = go({ incomingOffers: [O('r1'), O('r1', true), O('o1'), O('o1', true), O('n1')] })
+  check('引退を承認した選手への買い取りオファーは全部消える', !ids(or_.incomingOffers).includes('r1'))
+  check('海外挑戦を承認した選手への国内オファーは消える',
+    (or_.incomingOffers ?? []).filter(o => o.playerId === 'o1' && !o.fromForeign).length === 0)
+  check('海外挑戦を承認した選手への海外からのオファーだけ残る',
+    (or_.incomingOffers ?? []).filter(o => o.playerId === 'o1').length === 1)
+  check('普通の選手へのオファーは残る', ids(or_.incomingOffers).includes('n1'))
+
+  const LO = (playerId: string, direction: 'lend_out' | 'borrow_in', fromTeamId: string) =>
+    ({ id: `lo_${playerId}`, fromTeamId, playerId, direction, years: 1, expiresAtRace: 9 })
+  const lor = go({ incomingLoanOffers: [LO('r1', 'lend_out', 'other'), LO('n1', 'lend_out', 'other'), LO('x1', 'borrow_in', 'other')] })
+  check('引退を承認した選手のレンタル打診は消える', !ids(lor.incomingLoanOffers).includes('r1'))
+  check('普通の選手のレンタル打診は残る', ids(lor.incomingLoanOffers).includes('n1'))
+  check('相手の選手を借りませんかの打診は関係ない', ids(lor.incomingLoanOffers).includes('x1'))
+
+  const tn = go({ tradeNegotiations: [
+    { id: 't1', targetTeamId: 'other', giveIds: ['r1'], getIds: ['x1'], status: 'countered' as const, round: 1, createdAtRace: 0 },
+    { id: 't2', targetTeamId: 'other', giveIds: ['n1'], getIds: ['x1'], status: 'countered' as const, round: 1, createdAtRace: 0 },
+  ] })
+  check('引退を承認した選手を出すトレードは破談になる', tn.tradeNegotiations?.[0].status === 'rejected')
+  check('破談の理由が出る', tn.tradeNegotiations?.[0].message === SETTLED_TRADE_MSG)
+  check('関係ないトレードはそのまま', tn.tradeNegotiations?.[1].status === 'countered')
+
+  const cr = go({ contractRequests: [
+    { id: 'c1', playerId: 'r1', initiatedBy: 'player' as const, round: 1, status: 'pending_gm' as const, expiresAtRace: 9, demandSalary: 1, demandYears: 2, offerSalary: 0, offerYears: 0 },
+    { id: 'c2', playerId: 'n1', initiatedBy: 'player' as const, round: 1, status: 'pending_gm' as const, expiresAtRace: 9, demandSalary: 1, demandYears: 2, offerSalary: 0, offerYears: 0 },
+  ] })
+  check('引退を承認した選手との契約更新は取り下げる', ids(cr.contractRequests) === 'n1')
+
+  const dr = go({
+    retirementRequests: [{ playerId: 'r1', age: 36 }, { playerId: 'n1', age: 36 }],
+    transferRequests: [{ playerId: 'r1', reason: 'unhappy' as const }, { playerId: 'n1', reason: 'unhappy' as const }],
+    overseasRequests: [{ playerId: 'r1', region: 'europe' as const }, { playerId: 'n1', region: 'europe' as const }],
+  })
+  check('進路が決まった選手の引退希望は残らない', ids(dr.retirementRequests) === 'n1')
+  check('進路が決まった選手の移籍希望も残らない', ids(dr.transferRequests) === 'n1')
+  check('進路が決まった選手の海外直訴も残らない', ids(dr.overseasRequests) === 'n1')
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
