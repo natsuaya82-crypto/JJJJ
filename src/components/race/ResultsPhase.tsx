@@ -12,6 +12,7 @@ import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
 import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
+import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -104,16 +105,16 @@ export function ResultsPhase({
   })()
   const hasExp = expRacers.length > 0
 
-  // 契約満了3ヶ月未満の選手がいれば、レース後に契約対応（通知）へ強制遷移する
+  // 契約満了間近の選手がいれば、レース後に契約対応（通知）へ強制遷移する。
+  // 判定は通知ページ・チャット・ホームと同じ needsRenewalAttention 1本。
+  // ここだけ別の条件で数えていたので、**通知ページには何も出ていないのに強制で飛ばされる**、
+  // という空振りが起きていた（退団予定・引退の話・海外挑戦を承認した選手を外していなかった）
   const urgentRenewalExists = (() => {
     const raceIndex = currentSeason.currentRaceIndex ?? 0
     const totalRaces = currentSeason.races?.length ?? 1
-    return players.some(p => {
-      if (p.teamId !== playerTeamId || p.status !== 'active') return false
-      const remaining = Math.max(0, totalRaces - raceIndex)
-      const months = Math.round((p.contract.yearsLeft - 1 + remaining / totalRaces) * 12)
-      return months < 3 && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id)
-    })
+    const ctx = contractTalkCtx(currentSeason, playerTeamId)
+    return players.some(p =>
+      needsRenewalAttention(p, contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRaces), ctx))
   })()
 
   const finish = async () => {

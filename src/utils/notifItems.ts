@@ -10,6 +10,11 @@
 import type { Season, Player, Team } from '../types'
 import { ROSTER_MAX } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
+import { contractTalkCtx, contractMonthsLeft, isLiveContract, needsRenewalAttention } from './contractTalk'
+
+// 契約更新まわりの数え方は utils/contractTalk.ts の1本だけを使う。
+// ここに条件を書き足さないこと（ベルとチャットとホームで数が食い違う原因になる）
+export { contractMonthsLeft }
 
 export type NotifInput = {
   currentSeason: Season
@@ -24,11 +29,6 @@ export type NotifInput = {
   pendingGiftsCount: number
   /** 走友会のなかまから届いたカードの数 */
   clubGiftsCount: number
-}
-
-/** 契約残りの月数（ChatPage の contractMonths と同じ式） */
-export function contractMonthsLeft(yearsLeft: number, raceIndex: number, totalRaces: number): number {
-  return Math.round((yearsLeft - 1 + Math.max(0, totalRaces - raceIndex) / Math.max(1, totalRaces)) * 12)
 }
 
 /**
@@ -46,8 +46,8 @@ export function collectNotifications(input: NotifInput) {
   const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
   const incomingOffers = allIncoming.filter(o => o.offeredPrice > 0 && isMine(o.playerId))
   const freeContacts = allIncoming.filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && isMine(o.playerId))
-  // フリー移籍で接触中の選手の契約更新は出さない（接触カードに一本化して用件の二重表示を防ぐ）
-  const contactedPlayerIds = new Set(allIncoming.filter(o => o.offeredPrice === 0).map(o => o.playerId))
+  // 契約更新まわりの判定に使う材料（フリー接触中・引退希望・札の一覧）を1回で取り出す
+  const ctCtx = contractTalkCtx(currentSeason, playerTeamId)
 
   const freeTransferNotices = currentSeason.freeTransferNotices ?? []
   const departureNotices = currentSeason.departureNotices ?? []
@@ -59,11 +59,12 @@ export function collectNotifications(input: NotifInput) {
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId))
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId))
 
-  // 退団予定（移籍リスト入り）の選手と、レンタルで借りている選手は契約更新の対象外。
-  // 借り物の選手は保有権が無いので、こちらから契約の話はできない
+  // GMの応対を待っている契約交渉。進行中(pending_gm/countered)の判定は contractTalk の1本。
+  // ケガ中(status === 'injured')の選手も対象に入れる。以前は active しか数えていなかったので、
+  // 交渉中にケガをした瞬間、通知からもチャットからも用件が消えて放置され、期限切れになっていた
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r =>
-    r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId)
-    && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active' && !p.transferListed && !p.loan))
+    isLiveContract(r) && !ctCtx.freeContactIds.has(r.playerId)
+    && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status !== 'retired' && !p.transferListed && !p.loan))
 
   // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
   const myTeam = teams.find(t => t.id === playerTeamId)
@@ -84,14 +85,13 @@ export function collectNotifications(input: NotifInput) {
   // 契約更新のリマインダーは「残り半年（6ヶ月）を切った選手」だけ。チャットの「要対応」と同じ基準
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races.length
+  // 判定は needsRenewalAttention の1本（チャット一覧の赤札・ホームの警告・レース後の
+  // 強制遷移と同じもの）。以前はこの4箇所が別々の条件を書いていたので、
+  // ホームが「契約未解決が3人」と言うのにベルは0、レース後に飛ばされた先には何も無い、
+  // ということが起きていた
   const renewalPlayers = players
-    .filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan)
     .map(p => ({ p, seasonsLeft: p.contract.yearsLeft, months: contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRaces) }))
-    .filter(({ p, seasonsLeft, months }) =>
-      seasonsLeft <= 1 && months < 6
-      && !p.transferListed
-      && !contactedPlayerIds.has(p.id)
-      && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
+    .filter(({ p, months }) => needsRenewalAttention(p, months, ctCtx))
     .sort((a, b) => a.months - b.months)
 
   // ロスター超過警告（旧セーブ救済。強制解雇はせず整理を促すだけ）
@@ -141,7 +141,7 @@ export function collectNotifications(input: NotifInput) {
     pendingContracts, sponsorOffers, tradeOffers, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
     loginUnclaimed, canCreateMyPlayer, expiredNegotiations, loanResponses,
-    contactedPlayerIds, injuryKey,
+    contactedPlayerIds: ctCtx.freeContactIds, injuryKey,
     total,
   }
 }

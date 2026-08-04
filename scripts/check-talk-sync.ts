@@ -231,5 +231,41 @@ console.log('\n[10] 進路が決まった選手の札は全部たたむ')
   check('進路が決まった選手の海外直訴も残らない', ids(dr.overseasRequests) === 'n1')
 }
 
+console.log('\n[11] 退団予定（移籍を容認した）選手の用件も取り下げる')
+// 「移籍を認めたのに引き留めの条件が出る」の対策。
+// 容認したときに契約更新の札を status:'rejected' にして残していたので、
+//   ・チャットには決着済みの札が「進行中」として出続ける
+//   ・容認を取り消しても「もう話した選手」と見なされ、二度と契約更新が出てこない
+// の2つが同時に起きていた。ここで**札ごと消す**（履歴に残さない）
+{
+  const P3 = [P('t1', 'me', { transferListed: true } as Partial<Player>), P('n1', 'me')]
+  const go3 = (t: TalkLists) => reconcileTalks(t, P3, 'me')
+  const CR = (id: string, playerId: string, status: 'pending_gm' | 'countered' | 'accepted' | 'rejected') =>
+    ({ id, playerId, initiatedBy: 'player' as const, round: 1, status, expiresAtRace: 9, demandSalary: 1, demandYears: 2, offerSalary: 0, offerYears: 0 })
+  const cr3 = go3({ contractRequests: [CR('c1', 't1', 'pending_gm'), CR('c2', 't1', 'countered'), CR('c3', 't1', 'accepted'), CR('c4', 'n1', 'pending_gm')] })
+  const cr3ids = (cr3.contractRequests ?? []).map(r => r.id).join(',')
+  check('退団予定の選手の進行中の札は消える', !cr3ids.includes('c1'))
+  check('逆提示中の札も消える', !cr3ids.includes('c2'))
+  check('決着済み（合意）は履歴として残る', cr3ids.includes('c3'))
+  check('普通の選手の札はそのまま', cr3ids.includes('c4'))
+
+  const dr3 = go3({
+    retirementRequests: [{ playerId: 't1', age: 36 }, { playerId: 'n1', age: 36 }],
+    transferRequests: [{ playerId: 't1', reason: 'unhappy' as const }, { playerId: 'n1', reason: 'unhappy' as const }],
+    overseasRequests: [{ playerId: 't1', region: 'europe' as const }, { playerId: 'n1', region: 'europe' as const }],
+  })
+  check('退団予定の選手の引退希望は残らない', ids(dr3.retirementRequests) === 'n1')
+  check('退団予定の選手の移籍希望も残らない', ids(dr3.transferRequests) === 'n1')
+  check('退団予定の選手の海外直訴も残らない', ids(dr3.overseasRequests) === 'n1')
+
+  // 退団予定の選手の「出品」は消してはいけない（容認＝売りに出すこと そのものなので）
+  const L3 = (playerId: string) =>
+    ({ id: `l_${playerId}`, playerId, fromTeamId: 'me', askingPrice: 100, listedAtRace: 0, expiresAtRace: 9, competingTeams: [] })
+  check('退団予定の選手の出品は残る', ids(go3({ transferListings: [L3('t1')] }).transferListings) === 't1')
+  const O3 = (playerId: string) =>
+    ({ id: `o_${playerId}`, fromTeamId: 'other', playerId, offeredPrice: 100, expiresAtRace: 9, round: 1 })
+  check('退団予定の選手への買い取りオファーも残る', ids(go3({ incomingOffers: [O3('t1')] }).incomingOffers) === 't1')
+}
+
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

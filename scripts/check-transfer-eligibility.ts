@@ -12,7 +12,7 @@
 import {
   isNewJoin, isRetiring, isOwnedBy, isTalkFree,
   canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut,
-  canTradeAway, canStartContractTalk, canWishTransfer, canAcceptOfferFor,
+  canTradeAway, canStartContractTalk, canWishTransfer, canAcceptOfferFor, isLeavingClub,
 } from '../src/utils/transferEligibility'
 import type { Player } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -183,8 +183,31 @@ check('引退の承認（acceptRetirement）が reconcileTalks を通る', has('
 check('海外挑戦の承認（approveOverseasChallenge）が reconcileTalks を通る', has('approveOverseasChallenge', 'reconcileTalks'))
 check('オファー承諾（acceptIncomingOffer）が canAcceptOfferFor を通る', has('acceptIncomingOffer', 'canAcceptOfferFor'))
 check('オファー逆提示（counterIncomingOffer）が canAcceptOfferFor を通る', has('counterIncomingOffer', 'canAcceptOfferFor'))
-check('契約要求の生成（generateContractRequests）が canStartContractTalk を通る', has('generateContractRequests', 'canStartContractTalk'))
+// 契約更新の判定は utils/contractTalk.ts に寄せてある（canRequestRenewal の中で canStartContractTalk を通る）
+check('契約要求の生成（generateContractRequests）が canRequestRenewal を通る', has('generateContractRequests', 'canRequestRenewal'))
+check('契約更新の判定の土台が canStartContractTalk のまま', readFileSync(join('src', 'utils', 'contractTalk.ts'), 'utf-8').includes('canStartContractTalk(p, {'))
 check('移籍希望の生成（runRace）が canWishTransfer を通る', store.includes('canWishTransfer(p, {'))
+
+console.log('\n[12] 退団予定（isLeavingClub）を1箇所で見ている')
+// 「移籍を認めたのに引き留めの条件が出る」の対策。
+//   ・新しい話（契約更新・移籍希望・レンタル）は退団予定の選手に出さない
+//   ・来た話（オファー・トレード）は退団予定の選手こそ相手なので止めない
+// この線引きを関数の外に書き直すと、また片方だけ直した状態に戻る
+{
+  const listed = P({ transferListed: true } as Partial<Player>)
+  check('売出・移籍容認は退団予定', isLeavingClub(listed))
+  check('引退の承認も退団予定', isLeavingClub(P({ pendingRetirementYear: 2030 } as Partial<Player>)))
+  check('海外挑戦の承認も退団予定', isLeavingClub(P({ overseasListed: 'europe' } as Partial<Player>)))
+  check('素の選手は退団予定ではない', !isLeavingClub(P()))
+  check('退団予定と契約更新の話は始めない', !canStartContractTalk(listed, CTX))
+  check('退団予定は移籍希望を言い出さない', !canWishTransfer(listed, CTX))
+  check('退団予定はレンタルに出さない', !canLoanOut(listed, CTX))
+  check('退団予定でも来たオファーは受けられる', canAcceptOfferFor(listed, CTX))
+  check('退団予定でもトレードには出せる', canTradeAway(listed, CTX))
+  check('退団予定でも他クラブは引き抜きに来られる', canBePoached(listed, CTX))
+  check('用件を止める判定が talkSync の片付けでも使われている',
+    readFileSync(join('src', 'utils', 'talkSync.ts'), 'utf-8').includes('isLeavingClub'))
+}
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

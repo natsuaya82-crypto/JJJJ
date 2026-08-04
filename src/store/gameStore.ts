@@ -37,7 +37,8 @@ import { reconcileTalks, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canStartContractTalk, canWishTransfer } from '../utils/transferEligibility'
+import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer } from '../utils/transferEligibility'
+import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
@@ -1834,9 +1835,24 @@ export const useGameStore = create<GameStore>()(
             if (Math.random() < (wasRep ? 0.10 : 0.03)) { newOvReqs = [{ playerId: p.id, region: regionForSpec(p.specialty) }]; break }
           }
 
-          // 期限切れ交渉のプレイヤーを1年間ロック
+          // 契約更新の要求は放置で自動失効する。以前は status:'rejected' にして札を残していたが、
+          // 「札がある＝今季もう話しかけた」の判定に引っかかり、**一度も応対していない選手が
+          // そのシーズン二度と契約更新に出てこなくなっていた**（契約更新のチャットが出ない主因）。
+          // 決着ではないので札ごと消して跡を残さない。代わりに「交渉が流れた」通知だけ出す。
+          // countered（こちらの返事待ち）も同じく失効させる。以前は pending_gm しか見ておらず、
+          // 返事待ちのまま通知にも出ずに永久に残る札があった
+          const expiredContractReqs = (state.currentSeason.contractRequests ?? [])
+            .filter(r => isLiveContract(r) && (r.expiresAtRace ?? 0) <= nextRaceIndex)
+          const expiredContractIds = new Set(expiredContractReqs.map(r => r.id))
+          const contractExpiredNegs = expiredContractReqs.map(r => ({
+            id: `cx_${r.id}`,
+            playerId: r.playerId,
+            playerName: playersAfterLoan.find(p => p.id === r.playerId)?.name ?? '選手',
+          }))
+
+          // 期限切れ交渉のプレイヤーを1年間ロック（移籍交渉のみ。契約更新はロックしない）
           const allExpiredPlayerIds = [...new Set([...bidExpiredPlayerIds, ...offerExpiredPlayerIds])]
-          const allExpiredNegs = [...bidExpiredNegs, ...offerExpiredNegs]
+          const allExpiredNegs = [...bidExpiredNegs, ...offerExpiredNegs, ...contractExpiredNegs]
           const playersWithExpiredLocks = allExpiredPlayerIds.length > 0
             ? playersAfterLoan.map(p => allExpiredPlayerIds.includes(p.id) ? { ...p, transferLockedUntilYear: state.currentSeason.year + 1 } : p)
             : playersAfterLoan
@@ -1926,12 +1942,9 @@ export const useGameStore = create<GameStore>()(
               // （前はここで status === 'active' も見ていたので、ケガした瞬間に交渉中の話が消えていた）
               transferRequests: [...(state.currentSeason.transferRequests ?? []), ...newTransferReqs],
               overseasRequests: [...(state.currentSeason.overseasRequests ?? []), ...newOvReqs],
-              // 契約更新の要求は放置で自動失効させる（応対できないまま通知が永久に残るのを防ぐ）。
+              // 失効した契約更新の札は消す（上の expiredContractReqs で選んである）。
               // 旧セーブの期限なし要求(expiresAtRaceなし)もここで失効する
-              contractRequests: (state.currentSeason.contractRequests ?? []).map(r =>
-                r.status === 'pending_gm' && (r.expiresAtRace ?? 0) <= nextRaceIndex
-                  ? { ...r, status: 'rejected' as const }
-                  : r),
+              contractRequests: (state.currentSeason.contractRequests ?? []).filter(r => !expiredContractIds.has(r.id)),
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
               expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs],
               freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],
@@ -2663,12 +2676,11 @@ export const useGameStore = create<GameStore>()(
       initiateContractRenewal: (playerId) => {
         set(state => {
           const player = state.players.find(p => p.id === playerId)
-          // レンタルで借りている選手は保有権が無いので契約交渉の相手ではない
-          if (!player || !isOwnedBy(player, state.playerTeamId)) return state
-          if (player.transferListed) return state  // 退団予定の選手とは更新交渉できない
-          if ((player.renewalLockedUntilYear ?? 0) > state.currentSeason.year) return state  // 最終拒否後1年は更新不可
-          const existing = (state.currentSeason.contractRequests ?? []).find(r => r.playerId === playerId && r.status !== 'accepted' && r.status !== 'rejected')
-          if (existing) return state
+          // 判定は contractTalk の1本だけ（借り物・引退の話・海外承認・退団予定・更新ロック）。
+          // フリー接触中でもGMからの引き留めは通る（ここで止めていたので空振りしていた）
+          const icrCtx = contractTalkCtx(state.currentSeason, state.playerTeamId)
+          if (!player || !canOfferRenewal(player, icrCtx)) return state
+          if (liveContractOf(icrCtx.contractRequests, playerId)) return state
           // 要求額は市場価値×性格で算出（自動昇給は廃止）。市場価値の中に
           // 出場割合・平均区間順位・今季の区間賞・通算実績が畳み込まれている（faMarketSalary）
           const gmRacesPlayed = state.currentSeason.currentRaceIndex ?? 0
@@ -2678,7 +2690,7 @@ export const useGameStore = create<GameStore>()(
           const gmPersoFactor = gmPersonality === 'salary' ? 1.05 : gmPersonality === 'winning' ? 1.0 : 0.95
           const gmDemand = Math.max(3_000_000, gmMarket * gmPersoFactor)
           const req: ContractRequest = {
-            id: `cr_${Date.now()}`,
+            id: `cr_${Date.now()}_${playerId}`,   // 選手IDを入れないと同じミリ秒に作った札とIDがぶつかる
             playerId,
             initiatedBy: 'gm',
             round: 1,
@@ -2697,8 +2709,6 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const racesPlayed = state.currentSeason.currentRaceIndex ?? 0
           if (racesPlayed === 0) return state
-          // フリー移籍で接触中の選手は契約更新の要求を出さない（用件が二重になるのを防ぐ。引き留めは接触カード経由の提示で行う）
-          const contactedIds = new Set((state.currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
           // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
           const retPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.age >= 35)
           const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
@@ -2717,15 +2727,16 @@ export const useGameStore = create<GameStore>()(
           // 同じ選手から「引退したい」と「契約を更新したい」が同じタイミングで来ていた。
           // 今この場で引退を言い出した分（newRet）も含めて外す
           const retiringIds = new Set([...existRet, ...newRet.map(r => r.playerId)])
-          // canStartContractTalk＝借り物・引退の話をしている・海外挑戦を承認済み、を全部外す。
-          // 借り物の契約更新を持ちかけると「更新したのに期限が来て居なくなる」ことになる
-          const myPlayers = state.players.filter(p => canStartContractTalk(p, { teamId: state.playerTeamId, currentYear: state.currentSeason.year, retiringIds })
+          // 判定は contractTalk の1本だけ（借り物・引退の話・海外承認・退団予定・更新ロック・
+          // フリー接触中）。今この場で引退を言い出した分も retiringIds に含めて外す
+          const gcrCtx = { ...contractTalkCtx(state.currentSeason, state.playerTeamId), retiringIds }
+          // 「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）。
+          // 期限切れの札はもう残らないので、ここに引っかかるのは本当に応対した話だけ
+          const myPlayers = state.players.filter(p => canRequestRenewal(p, gcrCtx)
             && p.contract.yearsLeft === 1
-            && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !contactedIds.has(p.id))
-          // 拒否済みも含めて「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）
-          const existing = new Set((state.currentSeason.contractRequests ?? []).map(r => r.playerId))
+            && !hasContractTalk(gcrCtx.contractRequests, p.id))
           const seasonRaces = state.currentSeason.races ?? []
-          const newReqs: ContractRequest[] = myPlayers.filter(p => !existing.has(p.id)).map(p => {
+          const newReqs: ContractRequest[] = myPlayers.map(p => {
             const personality = p.personality ?? 'salary'
             // 要求額は「市場価値 × 性格」で決める。
             // 市場価値(faMarketSalary)＝素体(OVR×年齢)×実績倍率で、実績倍率の中に
@@ -2797,7 +2808,7 @@ export const useGameStore = create<GameStore>()(
           const moraleDiscount = (player.morale ?? 60) >= 80 ? 0.05 : (player.morale ?? 60) >= 65 ? 0.02 : 0
           const acceptThresh = (personality === 'winning' && isGoodTeam ? 0.90 : personality === 'loyalty' ? 0.92 : 0.95) - moraleDiscount
           const counterThresh = personality === 'salary' ? 0.77 : 0.73
-          const isLastRound = req.round >= 3  // 交渉は最大3ラウンド
+          const isLastRound = req.round >= MAX_CONTRACT_ROUNDS  // 交渉のラウンド上限は contractTalk の1本
           let newStatus: ContractRequest['status']
           let counterSalary: number | undefined
           let counterYears: number | undefined
@@ -2869,16 +2880,24 @@ export const useGameStore = create<GameStore>()(
       },
 
       reNegotiateContract: (requestId) => {
-        set(state => ({
-          currentSeason: {
-            ...state.currentSeason,
-            contractRequests: (state.currentSeason.contractRequests ?? []).map(r =>
-              r.id === requestId && (r.status === 'countered' || r.status === 'rejected')
-                ? { ...r, round: r.round + 1, status: 'pending_gm' as const, expiresAtRace: (state.currentSeason.currentRaceIndex ?? 0) + 6, offerSalary: r.counterSalary ?? r.offerSalary, offerYears: r.counterYears ?? r.offerYears }
-                : r
-            )
+        set(state => {
+          const rnCtx = contractTalkCtx(state.currentSeason, state.playerTeamId)
+          const rnReq = rnCtx.contractRequests.find(r => r.id === requestId)
+          // ラウンド上限と更新ロックの判定は canReNegotiate の1本だけ。
+          // ここに上限が無かったせいで round が3を超えて伸び、次に少しでも足りない額を
+          // 出した瞬間「最終ラウンドで決裂」扱いになって退団予定にされていた
+          if (!rnReq || !canReNegotiate(rnReq, state.players.find(p => p.id === rnReq.playerId), rnCtx)) return state
+          return {
+            currentSeason: {
+              ...state.currentSeason,
+              contractRequests: rnCtx.contractRequests.map(r =>
+                r.id === requestId
+                  ? { ...r, round: r.round + 1, status: 'pending_gm' as const, expiresAtRace: (state.currentSeason.currentRaceIndex ?? 0) + 6, offerSalary: r.counterSalary ?? r.offerSalary, offerYears: r.counterYears ?? r.offerYears }
+                  : r
+              )
+            }
           }
-        }))
+        })
       },
 
       abandonContractRenewal: (requestId) => {
@@ -3242,16 +3261,17 @@ export const useGameStore = create<GameStore>()(
           competingTeams: interested,
         }
         const alreadyListed = (state.currentSeason.transferListings ?? []).some(l => l.playerId === playerId)
+        // 売出は非売・貸出歓迎と排他（自動で解除して切り替える）
+        const aptPlayers = state.players.map(p => p.id === playerId ? { ...p, transferListed: true, noSale: false, loanListed: false } : p)
+        // 抱えている話（契約更新・移籍希望・レンタル打診など）の片付けは reconcileTalks に任せる。
+        // ここで契約の札を「拒否」に書き換えていたのが、容認を取り消しても契約更新の話が
+        // 二度と出てこなくなる原因だった。引退・海外承認と同じ道を通す
         return {
-          // 売出は非売・貸出歓迎と排他（自動で解除して切り替える）
-          players: state.players.map(p => p.id === playerId ? { ...p, transferListed: true, noSale: false, loanListed: false } : p),
-          currentSeason: {
+          players: aptPlayers,
+          currentSeason: reconcileTalks({
             ...state.currentSeason,
             transferListings: alreadyListed ? state.currentSeason.transferListings : [...(state.currentSeason.transferListings ?? []), allowListing],
-            // 交渉・移籍希望を解決
-            contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.playerId === playerId && r.status !== 'accepted' ? { ...r, status: 'rejected' as const } : r),
-            transferRequests: (state.currentSeason.transferRequests ?? []).filter(r => r.playerId !== playerId),
-          },
+          }, aptPlayers, state.playerTeamId),
         }
       }),
 
@@ -3259,15 +3279,17 @@ export const useGameStore = create<GameStore>()(
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId !== state.playerTeamId) return state
         const next = !player.noSale
+        // 売出（移籍リスト入り）とは矛盾するので、非売ONで売出は自動解除
+        const tnsPlayers = state.players.map(p => p.id === playerId ? { ...p, noSale: next, ...(next ? { transferListed: false } : {}) } : p)
         return {
-          // 売出（移籍リスト入り）とは矛盾するので、非売ONで売出は自動解除
-          players: state.players.map(p => p.id === playerId ? { ...p, noSale: next, ...(next ? { transferListed: false } : {}) } : p),
-          currentSeason: next ? {
+          players: tnsPlayers,
+          // 退団予定を解除した側も reconcileTalks を通す（残った古い札を片付けるため）
+          currentSeason: reconcileTalks(next ? {
             ...state.currentSeason,
             // ONにした瞬間、既に届いている買い取りオファー（移籍金付き）も取り下げ、出品も下げる。フリー接触（0円）は本人の話なので残す
             incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === playerId && o.offeredPrice > 0)),
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
-          } : state.currentSeason,
+          } : state.currentSeason, tnsPlayers, state.playerTeamId),
         }
       }),
 
@@ -3277,13 +3299,14 @@ export const useGameStore = create<GameStore>()(
         if (!player || player.teamId !== state.playerTeamId) return state
         if (player.loan) return state  // レンタル中（借入・貸出とも）は設定不可
         const next = !player.loanListed
+        // 売出とは排他（売る気の選手を貸しには出さない）。貸出ONで売出は自動解除
+        const tllPlayers = state.players.map(p => p.id === playerId ? { ...p, loanListed: next, ...(next ? { transferListed: false } : {}) } : p)
         return {
-          // 売出とは排他（売る気の選手を貸しには出さない）。貸出ONで売出は自動解除
-          players: state.players.map(p => p.id === playerId ? { ...p, loanListed: next, ...(next ? { transferListed: false } : {}) } : p),
-          currentSeason: next ? {
+          players: tllPlayers,
+          currentSeason: reconcileTalks(next ? {
             ...state.currentSeason,
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
-          } : state.currentSeason,
+          } : state.currentSeason, tllPlayers, state.playerTeamId),
         }
       }),
 
@@ -3291,12 +3314,16 @@ export const useGameStore = create<GameStore>()(
       cancelSellListing: (playerId) => set(state => {
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId !== state.playerTeamId) return state
+        const cslPlayers = state.players.map(p => p.id === playerId ? { ...p, transferListed: false } : p)
         return {
-          players: state.players.map(p => p.id === playerId ? { ...p, transferListed: false } : p),
-          currentSeason: {
+          players: cslPlayers,
+          // 退団予定を解除したら、その選手あての古い札も片付ける。
+          // 契約更新の札は allowPlayerTransfer 側でもう消えているので、ここで解除すれば
+          // 次のレース進行から普通に契約更新の話が出るようになる
+          currentSeason: reconcileTalks({
             ...state.currentSeason,
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
-          },
+          }, cslPlayers, state.playerTeamId),
         }
       }),
 

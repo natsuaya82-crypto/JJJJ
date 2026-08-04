@@ -10,6 +10,8 @@ import { canSignContract } from '../../data/rosterRules'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
+import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, needsRenewalAttention } from '../../utils/contractTalk'
+import type { ContractTalkCtx } from '../../utils/contractTalk'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -39,11 +41,6 @@ const SALARY_MAX = 80000000
 function fmt(yen: number) {
   if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
   return `${Math.round(yen / 10000)}万`
-}
-
-function contractMonths(yearsLeft: number, raceIndex: number, totalRaces: number): number {
-  const remaining = Math.max(0, totalRaces - raceIndex)
-  return Math.round((yearsLeft - 1 + remaining / Math.max(1, totalRaces)) * 12)
 }
 
 function fmtDuration(months: number): string {
@@ -125,29 +122,29 @@ function buildMessages(
   }
 
   if (contractReq.initiatedBy === 'gm') {
-    msgs.push({ from: 'gm', text: `来シーズンの契約について話し合いたい。` })
+    msgs.push({ from: 'gm', kind: 'contract_gm_open', text: `来シーズンの契約について話し合いたい。` })
     if (contractReq.status === 'pending_gm') {
-      msgs.push({ from: 'player', text: `わかりました。どのような条件をお考えですか？` })
+      msgs.push({ from: 'player', kind: 'contract_ask_terms', text: `わかりました。どのような条件をお考えですか？` })
       return msgs
     }
   }
 
   if (contractReq.offerSalary > 0) {
-    msgs.push({ from: 'gm', text: `年俸${fmt(contractReq.offerSalary)}、${contractReq.offerYears}年契約でいかがでしょうか。` })
+    msgs.push({ from: 'gm', kind: 'contract_offer', text: `年俸${fmt(contractReq.offerSalary)}、${contractReq.offerYears}年契約でいかがでしょうか。` })
   }
 
   if (contractReq.status === 'accepted') {
-    msgs.push({ from: 'player', text: `ありがとうございます。その条件で合意します。よろしくお願いします。` })
+    msgs.push({ from: 'player', kind: 'contract_accept', text: `ありがとうございます。その条件で合意します。よろしくお願いします。` })
     return msgs
   }
 
   if (contractReq.status === 'countered') {
-    msgs.push({ from: 'player', text: `考えましたが、年俸${fmt(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年であれば合意できます。これ以上は難しいです。` })
+    msgs.push({ from: 'player', kind: 'contract_counter', text: `考えましたが、年俸${fmt(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年であれば合意できます。これ以上は難しいです。` })
     return msgs
   }
 
   if (contractReq.status === 'rejected') {
-    msgs.push({ from: 'player', text: `申し訳ありませんが、その条件では受け入れられません。` })
+    msgs.push({ from: 'player', kind: 'contract_reject', text: `申し訳ありませんが、その条件では受け入れられません。` })
     return msgs
   }
 
@@ -213,14 +210,26 @@ function ChatView({
   // 「誘いを受けている」文脈に一本化する。引き留めは「契約条件を提示する」から（成立すれば接触打ち切り＝残留）
   const freeContactOffer = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0) ?? null
   const freeContactClub = freeContactOffer ? (clubIndex.byId(freeContactOffer.fromTeamId)?.shortName ?? '他クラブ') : null
-  const contractReqRaw =
-    contractRequests.find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected') ??
-    contractRequests.filter(r => r.playerId === player.id).at(-1)
-  const contractReq = freeContactClub ? undefined : contractReqRaw
+  // 契約更新の札の取り出しは utils/contractTalk.ts の判定だけを使う。
+  //   contractReq     … 画面に出す札。進行中があればそれ、無ければ最後の決着（合意・拒否）を履歴として出す
+  //   lastContractReq … 決着済みを見たいときだけ使う
+  // 期限切れの札は消える（runRace）ようになったので、rejected は「本当に提示して断られた」だけになった。
+  // 以前はここが status を見ていなかったので、一度も提示していない選手のチャットに
+  // 「申し訳ありませんが、その条件では受け入れられません」だけが出ていた（提示額0円の自動拒否の札）。
+  // フリー接触中でも札を隠さない。隠していたせいで「引き留めの条件を提示する」を押しても
+  // GMの提示に対する本人の返事が一切出てこず、押し損になっていた
+  const talkCtx = contractTalkCtx(currentSeason, playerTeamId)
+  const lastContractReq = contractRequests.filter(r => r.playerId === player.id).at(-1)
+  const contractReq = liveContractOf(contractRequests, player.id) ?? lastContractReq
   const retirementReq = (currentSeason.retirementRequests ?? []).find(r => r.playerId === player.id)
   const transferReq = (currentSeason.transferRequests ?? []).find(r => r.playerId === player.id)
   const overseasReq = (currentSeason.overseasRequests ?? []).find(r => r.playerId === player.id)
-  const months = contractMonths(player.contract.yearsLeft, raceIndex, totalRaces)
+  const months = contractMonthsLeft(player.contract.yearsLeft, raceIndex, totalRaces)
+  // 契約残の催促（「まだ何も連絡がなくて」）を出さない相手。
+  // 初回に組み立てるときと、開き直したときの差分を作るときで、ここが別々の条件だったせいで、
+  // すでに交渉している選手の会話の下に催促がもう1通ぶら下がっていた。
+  // ＝「契約更新のチャットが二回出る」の正体
+  const remindMonths = (freeContactClub || player.transferListed || hasContractTalk(contractRequests, player.id)) ? 99 : months
 
   // 獲得オファー交渉（FA・他チーム選手）。存在すれば契約更新ではなく獲得交渉モードで進める。
   const acqOffers = currentSeason.acquisitionOffers ?? []
@@ -250,7 +259,7 @@ function ChatView({
       : isAcq
       ? buildAcqMessages(player, acqOffer!, clubIndex.byId(player.teamId)?.name)
       : talksHere
-      ? buildMessages(player, contractReq, freeContactClub ? 99 : months, !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region)
+      ? buildMessages(player, contractReq, remindMonths, !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region)
       : []  // 他チーム/FA選手・レンタル選手で交渉モードでもない場合は保存ログのみ
     const built = (talksHere && !isTransfer && !isAcq && contactMsg) ? [...builtBase, contactMsg] : builtBase
     if (!initialMessages || initialMessages.length === 0) return built
@@ -260,7 +269,7 @@ function ChatView({
     const freshSourceBase = talksHere ? buildMessages(
       player,
       contractReq && contractReq.status === 'pending_gm' && contractReq.initiatedBy === 'player' ? contractReq : undefined,
-      (player.transferListed || freeContactClub) ? 99 : months,  // 退団予定・接触中の選手には契約残の催促を出さない
+      remindMonths,  // 初回の組み立てと同じ条件を使う（別々に書いて食い違わせない）
       !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region,
     ) : []
     const freshSource = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
@@ -366,11 +375,12 @@ function ChatView({
 
   const handleSubmitOffer = () => {
     append({ from: 'gm', text: `年俸${fmt(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
-    if (!contractReq) {
+    // 進行中の札が無ければここで作る。作れるかどうかは contractTalk の canOfferRenewal（ストア側）で決まる
+    if (!liveContractOf(useGameStore.getState().currentSeason.contractRequests, player.id)) {
       initiateContractRenewal(player.id)
       generateContractRequests()
     }
-    const req = (useGameStore.getState().currentSeason.contractRequests ?? []).find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected')
+    const req = liveContractOf(useGameStore.getState().currentSeason.contractRequests, player.id)
     if (req) {
       submitContractRenewalOffer(req.id, offerSalary, offerYears, offerContractType, offerTeamRole ?? undefined)
       const updated = (useGameStore.getState().currentSeason.contractRequests ?? []).find(r => r.id === req.id)
@@ -386,6 +396,10 @@ function ChatView({
           ? '申し訳ありません…実は他クラブから誘いを受けていて、移籍を前向きに考えています。条件の問題ではないんです。'
           : '申し訳ありませんが、その条件では受け入れられません。' })
       }
+    } else {
+      // 札が作れない状態（引退の話・海外挑戦を承認済み・退団予定・決裂後の更新ロック）。
+      // 以前はここに何も無く、ボタンを押しても本人が黙ったままだった
+      append({ from: 'player', text: 'すみません…今はその話をお受けできる状況ではないんです。' })
     }
     setComposing(false)
   }
@@ -454,6 +468,13 @@ function ChatView({
     // 自チーム以外の選手（獲得・移籍交渉が終わった相手や海外選手など）と、
     // レンタルで借りている選手（契約は保有元の管轄）は、交渉モードでない限り閉じるだけ。
     if (!talksHere) return [
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
+
+    // 退団予定（移籍を容認した・売出に出した）の選手には新しい用件を出さない。
+    // この分岐はフリー接触の分岐より後ろに置いてあったので、**移籍を認めた直後の選手に
+    // 「引き留めの条件を提示する」が出ていた**。用件を止める判定は1箇所にまとめてここへ置く
+    if (player.transferListed) return [
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
@@ -559,9 +580,14 @@ function ChatView({
       // （承認した直後に同じ選手が「年俸○○で更新したい」と言い出すのを防ぐ。
       //   GM側から契約延長を持ちかける導線は後段に残してあるので、行き先が決まらなくても塩漬けにはならない）
       if (player.overseasListed) return null
+      // もう一度条件を出していいかは contractTalk の canReNegotiate 1本で見る。
+      // ラウンド上限(3)と、決裂後の更新ロックをここでまとめて見る。以前は rejected の枝にだけ
+      // 手書きの除外があり、countered の枝には上限が無かったので、何度でも再交渉でき、
+      // 「最終ラウンド」の扱いのまま勝手に移籍リスト入りしていた
+      const canRedo = canReNegotiate(contractReq, player, talkCtx)
       if (contractReq.status === 'rejected') {
-        // 心が移籍に傾いている／退団予定なら再提示させない（後段の既定フローで閉じるだけになる）
-        if (courtedAway || player.transferListed) return null
+        // 心が移籍に傾いているなら再提示させない（後段の既定フローで閉じるだけになる）
+        if (courtedAway || !canRedo) return null
         return [
           { label: '条件を変えて提示する', color: C.blue, action: () => { reNegotiateContract(contractReq.id); openCompose() } },
         ]
@@ -574,7 +600,7 @@ function ChatView({
           )
           acceptContractCounter(contractReq.id)
         }},
-        ...(contractReq.round < 3 ? [{ label: '再交渉する', color: C.gold, action: () => {
+        ...(canRedo ? [{ label: '再交渉する', color: C.gold, action: () => {
           append({ from: 'gm', text: '条件を再考させてください。' })
           reNegotiateContract(contractReq.id)
           openCompose()
@@ -629,7 +655,7 @@ function ChatView({
     // フリー接触中：引き留めは契約提示に一本化（通常の契約更新ボタンは出さない）。
     // 一度断られたらこの件は終わり＝閉じるだけにして、本人の決断を待つ
     if (freeContactOffer) {
-      if (freeContactOffer.retentionRefused || contractReqRaw?.status === 'rejected') return [
+      if (freeContactOffer.retentionRefused || lastContractReq?.status === 'rejected') return [
         { label: '閉じる', color: C.textSub, action: onClose },
       ]
       return [
@@ -637,11 +663,6 @@ function ChatView({
         { label: '閉じる', color: C.textSub, action: onClose },
       ]
     }
-
-    // 退団予定（移籍リスト入り）の選手は契約更新できない
-    if (player.transferListed) return [
-      { label: '閉じる', color: C.textSub, action: onClose },
-    ]
 
     if (months < 12 || contractReq?.initiatedBy === 'gm') return [
       { label: '契約条件を提示する', color: C.blue, action: openCompose },
@@ -1030,17 +1051,16 @@ function OppRow({ player, onClick, bidLabel, bidColor }: { player: Player; onCli
 
 function getPlayerStatus(
   player: ReturnType<typeof useGameStore.getState>['players'][0],
-  contractRequests: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['contractRequests']>,
+  ctx: ContractTalkCtx,
   retirementRequests: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['retirementRequests']>,
   transferRequests: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['transferRequests']>,
   months: number,
-  contacted: boolean,
   overseasRequests?: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['overseasRequests']>,
 ) {
   const hasRetirement = (retirementRequests ?? []).some(r => r.playerId === player.id)
   const hasTransfer = (transferRequests ?? []).some(r => r.playerId === player.id)
   const hasOverseas = (overseasRequests ?? []).some(r => r.playerId === player.id)
-  const activeReq = (contractRequests ?? []).find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected')
+  const activeReq = liveContractOf(ctx.contractRequests, player.id)
 
   // 進路が決まった選手は、その旨だけ出して他の用件は出さない
   const settled = settledPath(player)
@@ -1055,11 +1075,12 @@ function getPlayerStatus(
     return { label: `移籍希望・${reasonLabel}`, color: C.orange, priority: 1 }
   }
   // フリー接触中の選手に契約残の「要対応」は出さない（接触の用件は移籍・獲得タブと通知側で扱う）
-  if (contacted) return null
+  if (ctx.freeContactIds.has(player.id)) return null
   if (activeReq?.status === 'countered') return { label: '対応中', color: C.gold, priority: 2 }
   if (activeReq?.initiatedBy === 'gm' && activeReq.status === 'pending_gm') return { label: '対応中', color: C.gold, priority: 2 }
-  // 契約残による「要対応」は通知の契約更新リマインダーと同じ基準（6ヶ月未満）に揃える
-  if (months < 6 || activeReq?.status === 'pending_gm') return { label: '要対応', color: C.red, priority: 3 }
+  // 契約残による「要対応」は通知・ホーム・レース後と同じ needsRenewalAttention 1本で見る。
+  // 別々の条件で数えていたので、チャットに出ない選手をホームが「契約未解決」と数えていた
+  if (activeReq?.status === 'pending_gm' || needsRenewalAttention(player, months, ctx)) return { label: '要対応', color: C.red, priority: 3 }
   return null
 }
 
@@ -1213,23 +1234,22 @@ export default function ChatPage() {
 
   const totalRaces = currentSeason.races.length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
-  const contractRequests = currentSeason.contractRequests ?? []
+  const listCtx = contractTalkCtx(currentSeason, playerTeamId)
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferRequests = currentSeason.transferRequests ?? []
 
-  const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
+  // ケガ人も一覧に出す。以前は status === 'active' だけで数えていたので、ケガをした瞬間に
+  // その選手の契約更新の用件がチャットから消え、放置されたまま期限切れになっていた
+  const myPlayers = players.filter(p => p.teamId === playerTeamId && (p.status === 'active' || p.status === 'injured'))
 
   // 獲得交渉中（トレード成立後の再契約など）の自チーム選手は「移籍・獲得」タブに出すので、自チーム一覧からは除く
   const activeAcqPlayerIds = new Set((currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered').map(o => o.playerId))
 
-  // フリー接触中の選手（契約残の要対応から外す。用件は移籍・獲得タブの接触中カードと通知側で扱う）
-  const contactedIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-
   const withStatus = myPlayers.filter(p => !activeAcqPlayerIds.has(p.id)).map(p => {
-    const months = contractMonths(p.contract.yearsLeft, raceIndex, totalRaces)
+    const months = contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRaces)
     // レンタルで借りている選手の契約・引退・移籍の用件は保有元クラブの管轄なので出さない
     const isLoanedIn = !!p.loan && p.loan.ownerTeamId !== playerTeamId
-    const status = isLoanedIn ? null : getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, months, contactedIds.has(p.id), currentSeason.overseasRequests)
+    const status = isLoanedIn ? null : getPlayerStatus(p, listCtx, retirementRequests, transferRequests, months, currentSeason.overseasRequests)
     return { player: p, months, status }
   })
 

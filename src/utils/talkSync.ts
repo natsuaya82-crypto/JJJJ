@@ -11,6 +11,8 @@ import type {
   ChatMessage,
 } from '../types'
 import { belongsToClub } from './rosterSync'
+import { isLeavingClub } from './transferEligibility'
+import { isLiveContract } from './contractTalk'
 
 // ============================================================================
 // 「選手が動いたら、その選手についての話は全部たたむ」を扱う唯一の場所。
@@ -97,6 +99,13 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
   const settled = (playerId: string) => settledPath(byId.get(playerId))
   // 国内の移籍話を持ちかけていい相手か。進路が決まっていたら一切だめ
   const openToDomestic = (playerId: string): boolean => settled(playerId) === null
+  // もうこのクラブで来季を迎えないと決まっている（上の2つ＋退団予定）。
+  // 新しい用件（契約更新・引退したい・移籍したい・海外に行きたい）はこの選手に出さない。
+  // 売出そのものは openToDomestic 側で見る（退団予定の選手の出品を消してはいけない）
+  const leaving = (playerId: string): boolean => {
+    const p = byId.get(playerId)
+    return !!p && isLeavingClub(p)
+  }
 
   const changed: TalkLists = {}
   // 同じ中身なら差し替えない
@@ -148,11 +157,12 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     }))
 
   // 契約更新：まだ応対できる状態のものだけ。決着済み(accepted/rejected)は履歴として残す。
-  // 進路が決まった選手と来季の年俸の話をしても仕方がないので取り下げる
+  // 進路が決まった選手・退団予定の選手と来季の年俸の話をしても仕方がないので取り下げる。
+  // 移籍を容認したときに札を「拒否」で残していたせいで、容認を取り消しても
+  // その選手には二度と契約更新の話が出てこなくなっていた。ここで消せばその跡は残らない
   put('contractRequests', talks.contractRequests,
     (talks.contractRequests ?? []).filter(r =>
-      (r.status !== 'pending_gm' && r.status !== 'countered')
-      || (at(r.playerId, myTeamId) && openToDomestic(r.playerId))))
+      !isLiveContract(r) || (at(r.playerId, myTeamId) && !leaving(r.playerId))))
 
   // 獲得交渉：まだ応対できるものだけ見る。
   //   fa   … トレードで加入した選手の契約詰めもここに乗るので「自チームに居る」も正。
@@ -169,14 +179,14 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     }))
 
   // 選手からの直訴（引退したい・移籍したい・海外に行きたい）は自チームの選手のものだけ。
-  // 進路が決まったらその選手の直訴は全部たたむ。1人が同時に
+  // 進路が決まったら（退団予定を含む）その選手の直訴は全部たたむ。1人が同時に
   // 「引退したい」「移籍したい」「海外に行きたい」の札を持つのを、ここで断ち切る
   put('retirementRequests', talks.retirementRequests,
-    (talks.retirementRequests ?? []).filter(r => at(r.playerId, myTeamId) && settled(r.playerId) === null))
+    (talks.retirementRequests ?? []).filter(r => at(r.playerId, myTeamId) && !leaving(r.playerId)))
   put('transferRequests', talks.transferRequests,
-    (talks.transferRequests ?? []).filter(r => at(r.playerId, myTeamId) && settled(r.playerId) === null))
+    (talks.transferRequests ?? []).filter(r => at(r.playerId, myTeamId) && !leaving(r.playerId)))
   put('overseasRequests', talks.overseasRequests,
-    (talks.overseasRequests ?? []).filter(r => at(r.playerId, myTeamId) && settled(r.playerId) === null))
+    (talks.overseasRequests ?? []).filter(r => at(r.playerId, myTeamId) && !leaving(r.playerId)))
 
   // チャットのログ：引退した・データから消えた選手のぶんは片付ける。
   // 残していても開く道が無く、セーブの中で膨らみ続けるだけ

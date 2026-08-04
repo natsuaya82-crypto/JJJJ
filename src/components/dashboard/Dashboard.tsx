@@ -20,6 +20,7 @@ import { hostForYear } from '../../engine/worldAthletics'
 import { ROSTER_MIN } from '../../data/rosterRules'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
+import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -398,12 +399,16 @@ export default function Dashboard() {
 
   const RANK_COLOR = (r: number) => r === 1 ? C.gold : r === 2 ? '#c5c5d4' : r === 3 ? '#cd7f32' : C.textDim
 
-  const unresolvedMandatoryCount = players.filter(p => {
-    if (p.teamId !== playerTeamId || p.status !== 'active') return false
-    if (p.contract.yearsLeft !== 1) return false
-    const req = (currentSeason.contractRequests ?? []).find(r => r.playerId === p.id)
-    return req?.status !== 'accepted' && req?.status !== 'rejected'
-  }).length
+  // 契約の「未解決」は通知・チャット一覧・レース後と同じ needsRenewalAttention 1本で数える。
+  // ここだけ独自に数えていたので、退団予定・引退の話・海外挑戦を承認した選手や、
+  // フリー接触中でチャットに用件が出ない選手まで数に入り、
+  // 「契約未解決の選手が○人います」と言われても対応する場所が無い状態になっていた
+  const renewCtx = contractTalkCtx(currentSeason, playerTeamId)
+  const renewRaceIndex = currentSeason.currentRaceIndex ?? 0
+  const renewTotalRaces = currentSeason.races?.length ?? 1
+  const unresolvedMandatoryCount = players.filter(p =>
+    needsRenewalAttention(p, contractMonthsLeft(p.contract.yearsLeft, renewRaceIndex, renewTotalRaces), renewCtx)
+  ).length
 
   return (
     <div className="page-enter" style={{ paddingBottom: 8 }}>

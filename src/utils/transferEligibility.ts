@@ -137,23 +137,39 @@ export function canTradeAway(p: Player, ctx: EligibilityCtx): boolean {
 }
 
 /**
+ * もうこのクラブで来季を迎えないと決まっている選手か。
+ *   ・引退を承認した（pendingRetirementYear）
+ *   ・海外挑戦を承認した（overseasListed）
+ *   ・退団予定＝売出に出した／移籍を容認した（transferListed）
+ *
+ * 「新しい用件をこの選手に出さない」ための判定。isTalkFree に transferListed を
+ * 入れなかったのは、退団予定の選手こそオファーを受けたりトレードに出したりする
+ * 相手だから。**新しい話を始めるか**と**来た話を受けるか**は別物として分けてある
+ */
+export function isLeavingClub(p: Player): boolean {
+  return p.pendingRetirementYear != null || !!p.overseasListed || !!p.transferListed
+}
+
+/**
  * この選手と来季の契約の話を始めていいか。
  * ここが引退を見ていなかったので、同じ選手から「引退したい」と「契約を更新したい」が
- * 同時に来ていた
+ * 同時に来ていた。退団予定（移籍を容認した）の選手にも出さない。
+ * ここを見ていなかったせいで、移籍を認めた直後に引き留めの条件が出ていた
  */
 export function canStartContractTalk(p: Player, ctx: EligibilityCtx): boolean {
-  return isTalkFree(p, ctx)
+  return isTalkFree(p, ctx) && !p.transferListed
 }
 
 /**
  * この選手が「移籍したい」と言い出していいか。
- * 引退を承認した選手が数レース後に移籍を直訴してくるのを止める
+ * 引退を承認した選手が数レース後に移籍を直訴してくるのを止める。
+ * すでに売出に出している選手も、いまさら直訴させない
  */
 export function canWishTransfer(p: Player, ctx: EligibilityCtx): boolean {
-  return isTalkFree(p, ctx)
+  return isTalkFree(p, ctx) && !p.transferListed
 }
 
-/** GMがこの選手をレンタルに出していいか */
+/** GMがこの選手をレンタルに出していいか（売出と貸出は排他） */
 export function canLoanOut(p: Player, ctx: EligibilityCtx): boolean {
-  return isTalkFree(p, ctx)
+  return isTalkFree(p, ctx) && !p.transferListed
 }
