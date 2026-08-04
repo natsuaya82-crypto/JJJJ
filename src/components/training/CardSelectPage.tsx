@@ -23,11 +23,15 @@ const selectStyle = {
   backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
 }
 
+const RARITY_RANK: Record<CardRarity, number> = { legendary: 4, epic: 3, rare: 2, normal: 1 }
+
 export default function CardSelectPage() {
   const navigate = useNavigate()
   const { trainingCards, fusionCardIds, addFusionCard, removeFusionCard, fusionPlayerId, players } = useGameStore()
   const [filterStat, setFilterStat] = useState<CardStatKey | 'all' | 'rest'>('all')
   const [filterRarity, setFilterRarity] = useState<CardRarity | 'all'>('all')
+  // 並べ替え。入手順＝所持配列の順（今までの表示と同じ）
+  const [sort, setSort] = useState<'obtained' | 'rarity' | 'stat'>('obtained')
 
   const fusionFull = fusionCardIds.length >= MAX_FUSION_CARDS
   // 合成対象の選手。上限到達能力のカードも選択可（レシピの種類数を揃えるため）。
@@ -67,8 +71,11 @@ export default function CardSelectPage() {
       if (g) g.cards.push(c)
       else map.set(k, { key: k, statKey: c.statKey, rarity: c.rarity, kind: c.kind, value: c.value, cards: [c] })
     }
-    return [...map.values()]
-  }, [filteredCards])
+    const groups = [...map.values()]
+    if (sort === 'rarity') groups.sort((a, b) => RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity] || statKeys.indexOf(a.statKey) - statKeys.indexOf(b.statKey))
+    if (sort === 'stat') groups.sort((a, b) => statKeys.indexOf(a.statKey) - statKeys.indexOf(b.statKey) || RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity])
+    return groups
+  }, [filteredCards, sort])
 
   // グループをタップ：既に合成中でない同種カードを1枚追加（画面は閉じずに続けて選べる＝まとめて選択）
   function pick(cards: typeof filteredCards) {
@@ -134,6 +141,11 @@ export default function CardSelectPage() {
             <option value="epic">エピック</option>
             <option value="rare">レア</option>
             <option value="normal">ノーマル</option>
+          </select>
+          <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} style={{ ...selectStyle, flex: 1, minWidth: 0 }}>
+            <option value="obtained">入手順</option>
+            <option value="rarity">レア度順</option>
+            <option value="stat">種類順</option>
           </select>
         </div>
       </div>

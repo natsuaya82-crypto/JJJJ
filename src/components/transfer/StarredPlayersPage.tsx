@@ -40,6 +40,8 @@ export default function StarredPlayersPage() {
       return p ? { p, fromProspectList } : null
     })
     .filter((e): e is NonNullable<typeof e> => e != null)
+    // 獲得した（自チームに来た）選手はウォッチリストから消す
+    .filter(e => e.p.teamId !== playerTeamId)
 
   function getTeamName(teamId: string): string {
     if (teamId === '') return '未所属'

@@ -25,8 +25,11 @@ export default function TransferHub() {
   const activeBidsNeedAction = transferBids.filter(b => b.status === 'fee_accepted' || b.status === 'countered' || b.status === 'player_neg')
 
 
-  // ★はドラフト候補(starredProspects)にも付くので合算（ウォッチリストページの表示件数と揃える）
-  const starredCount = starredOpponents.length + starredProspects.filter(id => !starredOpponents.includes(id)).length
+  // ★はドラフト候補(starredProspects)にも付くので合算（ウォッチリストページの表示件数と揃える）。
+  // 獲得済み（自チーム所属）の選手はウォッチリストから外れた扱いにして数えない
+  const myIds = new Set(players.filter(p => p.teamId === playerTeamId).map(p => p.id))
+  const starredCount = starredOpponents.filter(id => !myIds.has(id)).length
+    + starredProspects.filter(id => !starredOpponents.includes(id) && !myIds.has(id)).length
 
   const SECTIONS = [
     {

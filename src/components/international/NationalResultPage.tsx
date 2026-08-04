@@ -93,6 +93,13 @@ export default function NationalResultPage() {
           <div style={{ fontSize: 9, color: C.textGhost, padding: '7px 6px 0' }}>通過国が翌年の世界選手権へ（欧州6・アフリカ6・アメリカ4）</div>
         </div>
       ))}
+      {/* 予選の結果はここで行き止まりだったので、ホームへ戻る動線を足す */}
+      <div style={{ padding: '4px 12px 0' }}>
+        <button onClick={() => navigate('/')} className="btn-press" style={{
+          width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA,
+          background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900,
+        }}>ホームに戻る</button>
+      </div>
     </>)
   }
 

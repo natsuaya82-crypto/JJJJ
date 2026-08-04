@@ -174,7 +174,7 @@ as $$
   from public.clubs c
   where
     case
-      when coalesce(trim(p_q), '') = '' then c.join_type <> 'closed' and c.members < 50
+      when coalesce(trim(p_q), '') = '' then c.join_type <> 'closed' and c.members < 30
       when trim(p_q) ~ '^[0-9]{10}$'    then c.code = trim(p_q)
       else c.name ilike '%' || trim(p_q) || '%'
     end
@@ -232,7 +232,7 @@ begin
   if exists (select 1 from public.club_members where user_id = me) then return 'already'; end if;
   select * into c from public.clubs where id = p_club;
   if not found then return 'not_found'; end if;
-  if c.members >= 50 then return 'full'; end if;
+  if c.members >= 30 then return 'full'; end if;
 
   select coalesce(avg_ovr, 0) into my_ovr from public.profiles where user_id = me;
   if coalesce(my_ovr, 0) < c.min_ovr then return 'low_ovr'; end if;
@@ -297,7 +297,7 @@ begin
     return 'not_found';
   end if;
   delete from public.club_requests where club_id = c.id and user_id = p_user;
-  if c.members >= 50 then return 'full'; end if;
+  if c.members >= 30 then return 'full'; end if;
   if exists (select 1 from public.club_members where user_id = p_user) then return 'already'; end if;
   insert into public.club_members (user_id, club_id, role) values (p_user, c.id, 'member');
   delete from public.club_requests where user_id = p_user;   -- 他所への申請も消す

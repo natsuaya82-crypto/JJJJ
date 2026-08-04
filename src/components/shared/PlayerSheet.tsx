@@ -657,21 +657,22 @@ export default function PlayerSheet() {
           {page === 2 && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* 引退選手は1ページ目（パッチ表示）を出さないので、記録パッチをここにも表示（閲覧のみ）。引退は従来どおり */}
+              {/* 引退選手は1ページ目（パッチ表示）を出さないので、現役と同じ「パッチを見る」ボタンをここに置く
+                  （前は全パッチをそのまま並べていて、多い選手だと画面がパッチだらけになっていた） */}
               {isRetired && badges.length > 0 && (
-                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  {badges.map(b => {
-                    const col = badgeColor(b)
-                    return (
-                      <span key={b.key} style={{
-                        fontSize: '9px', fontWeight: 900, padding: '3px 8px', borderRadius: '7px',
-                        background: `linear-gradient(180deg, ${col}2E, ${col}14)`,
-                        color: col, border: `1px solid ${col}55`, flexShrink: 0,
-                      }}>
-                        <BadgeContent badge={b} iconSize={10} />
-                      </span>
-                    )
-                  })}
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => setShowBadges(true)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+                      padding: '5px 12px', borderRadius: 8, background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
+                      border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: 10,
+                    }}
+                  >
+                    パッチを見る
+                    <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontWeight: 900 }}>{badges.length}</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                  </button>
                 </div>
               )}
 
@@ -685,6 +686,13 @@ export default function PlayerSheet() {
                 const retYear = player.retiredYear ?? lastRaceYear
                 return (
                   <>
+                    <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '8px', color: '#5C5870' }}>国籍</div>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Flag code={player.nationality} width={18} radius={3} />
+                        {natLabel(player.nationality)}
+                      </div>
+                    </div>
                     <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: 'rgba(232,70,42,0.08)', border: '1px solid rgba(232,70,42,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: '8px', color: '#5C5870' }}>引退</div>
                       <div style={{ fontSize: '12px', fontWeight: '800', color: '#E8462A' }}>

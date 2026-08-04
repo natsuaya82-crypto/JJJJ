@@ -50,10 +50,10 @@ export default function FranchiseRecordsPage() {
 
 // 個人ランキング（通算区間賞・MVP・歴代種目別記録会）
 export function IndividualRecordsPage() {
-  const { teams, players, currentSeason, foreignLeagues } = useGameStore()
+  const { teams, players, currentSeason, pastSeasons, foreignLeagues } = useGameStore()
   return (
     <PageShell title="個人ランキング">
-      <PlayersTab players={players} teams={teams} foreignLeagues={foreignLeagues} currentSeason={currentSeason} />
+      <PlayersTab players={players} teams={teams} foreignLeagues={foreignLeagues} currentSeason={currentSeason} pastSeasons={pastSeasons} />
     </PageShell>
   )
 }
@@ -486,11 +486,12 @@ function LeagueTab({ teams, pastSeasons }: {
   )
 }
 
-function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
+function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons }: {
   players: GameStore['players']
   teams: GameStore['teams']
   foreignLeagues: GameStore['foreignLeagues']
   currentSeason: GameStore['currentSeason']
+  pastSeasons: GameStore['pastSeasons']
 }) {
   const longPress = usePlayerLongPress()
   const clubIndex = useClubIndex()
@@ -504,20 +505,28 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
     (p.career.totalRaces > 0 || p.career.segmentWins > 0 || p.career.championships > 0 || p.career.mvpAwards > 0)
   )
 
-  const topSegWins = [...careerPlayers].sort((a, b) => b.career.segmentWins - a.career.segmentWins).slice(0, 10).filter(p => p.career.segmentWins > 0)
-  const topMVP     = [...careerPlayers].sort((a, b) => b.career.mvpAwards - a.career.mvpAwards).slice(0, 10).filter(p => p.career.mvpAwards > 0)
+  const topMVP = [...careerPlayers].sort((a, b) => b.career.mvpAwards - a.career.mvpAwards).slice(0, 10).filter(p => p.career.mvpAwards > 0)
 
-  // 記録会 種目別記録（歴代・全チーム）。eventBests＝選手ごとの永続自己ベストを使う。
-  const [evDist, setEvDist] = useState<EvDist>(5000)
-  const seasonEventTops = EV_DIST_TABS.map(({ dist, label }) => {
-    const key = EV_KEY[dist]
-    const rows = players
-      .filter(p => isDomestic(p) && p.eventBests?.[key])
-      .map(p => ({ p, t: p.eventBests![key]!.timeSec, year: p.eventBests![key]!.year }))
-      .sort((a, b) => a.t - b.t)
-      .slice(0, 10)
-    return { dist, label, rows }
-  })
+  // 通算JPEL区間賞。career.segmentWins は ECL・海外リーグの区間賞も混ざっているので使わず、
+  // 過去シーズン＋今季のJPELレース結果だけから数え直す（レース結果はセーブに全部残っている）
+  const jpelSegWinMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    const seasons = [...pastSeasons.map(ps => ps.races), currentSeason.races]
+    for (const races of seasons) {
+      for (const race of races) {
+        if (!race.results) continue
+        for (const seg of race.results.segmentResults) {
+          const winner = seg.runners.find(r => r.rank === 1)
+          if (winner) map[winner.playerId] = (map[winner.playerId] ?? 0) + 1
+        }
+      }
+    }
+    return map
+  }, [pastSeasons, currentSeason.races])
+  const topSegWins = players
+    .filter(p => isDomestic(p) && (jpelSegWinMap[p.id] ?? 0) > 0)
+    .sort((a, b) => (jpelSegWinMap[b.id] ?? 0) - (jpelSegWinMap[a.id] ?? 0))
+    .slice(0, 10)
 
   // 今季スタッツ: 実レース結果から集計
   const seasonSegWinMap: Record<string, number> = {}
@@ -571,10 +580,10 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
 
   const careerSegPanel = (
       <CardPanel>
-        <SectionLabel>通算区間賞ランキング</SectionLabel>
+        <SectionLabel>通算JPEL区間賞ランキング</SectionLabel>
         {topSegWins.length === 0
           ? <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>記録なし</div>
-          : topSegWins.map((p, i) => <RankRow key={p.id} p={p} i={i} value={p.career.segmentWins} unit="回" />)
+          : topSegWins.map((p, i) => <RankRow key={p.id} p={p} i={i} value={jpelSegWinMap[p.id] ?? 0} unit="回" />)
         }
       </CardPanel>
   )
@@ -587,40 +596,10 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason }: {
         </CardPanel>
   ) : null
 
-  const evPanel = (
-      <CardPanel>
-        <SectionLabel>歴代 種目別記録（記録会）</SectionLabel>
-        <EventDistTabs value={evDist} onChange={setEvDist} />
-        {(() => {
-          const group = seasonEventTops.find(g => g.dist === evDist)
-          if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
-          return group.rows.map(({ p, t, year }, i) => {
-            const team = clubIndex.byId(p.teamId)
-            const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
-            return (
-              <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center' }}>{i + 1}</span>
-                <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
-                    {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
-                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(team?.name ?? (p.status === 'retired' ? '引退' : '—'))} / {year}年</span>
-                  </div>
-                </div>
-                <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(t)}</span>
-              </div>
-            )
-          })
-        })()}
-      </CardPanel>
-  )
-
   return <SectionSwitcher sections={[
     { label: '今季区間賞', node: seasonSegPanel },
     { label: '通算区間賞', node: careerSegPanel },
     ...(mvpPanel ? [{ label: 'MVP', node: mvpPanel }] : []),
-    { label: '記録会', node: evPanel },
   ]} />
 }
 

@@ -8,7 +8,6 @@ import PlayerRow from '../player/PlayerRow'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
-import { distanceScore } from '../../engine/worldAthletics'
 import type { Nationality, Player } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -18,8 +17,10 @@ const SQUAD_SIZE = 30
 // 代表ロスター本体（ルートからもTeamsHubのドリルダウンからも使う）。onBack で戻り先を差し込む。
 export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () => void }) {
   const players = useGameStore(s => s.players)
+  const playerTeamId = useGameStore(s => s.playerTeamId)
+  const starred = useGameStore(s => s.starredOpponents) ?? []
+  const toggleStar = useGameStore(s => s.toggleStarOpponent)
   const clubIndex = useClubIndex()
-  const year = useGameStore(s => s.currentSeason.year)
   const worldTournament = useGameStore(s => s.worldTournament)
   const waResults = useGameStore(s => s.worldAthleticsResults) ?? []
   const longPress = usePlayerLongPress()
@@ -35,13 +36,10 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   const isSquad = !!squadIds?.length
 
   const natPlayers = players.filter(p => p.nationality === nat && p.status !== 'retired')
-  // 持ちタイム(eventBests)がある選手＝代表候補は持ちタイム順（世界選手権の選考基準）。
-  // まだ持ちタイムが無い選手はOVR順で後ろに並べる。
-  const withTime = natPlayers.filter(p => distanceScore(p, year) > 0).sort((a, b) => distanceScore(b, year) - distanceScore(a, year))
-  const noTime = natPlayers.filter(p => distanceScore(p, year) === 0).sort((a, b) => ovr(b) - ovr(a))
+  // 候補はOVR順で並べる（前は持ちタイム順で、強い選手が持ちタイムの有無次第で下に沈んで見えた）
   const roster = isSquad
     ? squadIds!.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p && p.status !== 'retired')
-    : [...withTime, ...noTime].slice(0, SQUAD_SIZE)
+    : [...natPlayers].sort((a, b) => ovr(b) - ovr(a)).slice(0, SQUAD_SIZE)
 
   const clubName = (teamId: string): string => {
     const c = clubIndex.byId(teamId)
@@ -52,9 +50,22 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   // 持ちタイムは詳細で見られるので行には出さず、パッチは PlayerRow が名前横に表示する
   const handlers = (pid: string) => ({ ...longPress(pid), onClick: () => {} })
   const rowExtra = (p: Player) => {
+    const isStarred = starred.includes(p.id)
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <span style={{ fontSize: 9, color: clubName(p.teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700 }}>{clubName(p.teamId)}</span>
+        {/* ★＝ウォッチリスト登録。獲得候補をここから直接マークできる（自チームの選手には出さない） */}
+        {p.teamId !== playerTeamId && (
+          <button
+            onClick={e => { e.stopPropagation(); toggleStar(p.id) }}
+            onPointerDown={e => e.stopPropagation()}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', lineHeight: 1 }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill={isStarred ? C.gold : 'none'}>
+              <path d="M12 3.2l2.5 5.7 6.2.5-4.7 4 1.4 6-5.4-3.2-5.4 3.2 1.4-6-4.7-4 6.2-.5z" stroke={isStarred ? C.gold : C.textGhost} strokeWidth="1.6" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
       </span>
     )
   }

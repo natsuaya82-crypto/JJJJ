@@ -47,6 +47,18 @@ const SECTIONS: Section[] = [
   },
   {
     no: '04',
+    title: 'ポジション（選手タイプ）',
+    color: C.cyan,
+    lines: [
+      'ポジションは選手の走りのタイプです。区間の地形との相性でタイムが変わります。',
+      'エース＝主要区間を任せられる大黒柱。スプリンター＝短い区間で速い。長距離＝長い区間ほど強い。',
+      '山登り／山下り＝上り・下りの多い区間の専門家。オールラウンダー＝どの区間でも平均以上。',
+      'スパート型＝終盤の追い上げが得意。粘り型＝失速しにくく安定して走ります。',
+      '区間配置で地形バッジ（上り/下り/距離）に合うポジションを置くのが基本。自動配置も相性を見て並べます。',
+    ],
+  },
+  {
+    no: '05',
     title: '選手の育成',
     color: C.green,
     lines: [
@@ -58,7 +70,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    no: '05',
+    no: '06',
     title: 'リザーブリーグ',
     color: C.blue,
     lines: [
@@ -69,7 +81,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    no: '06',
+    no: '07',
     title: '移籍・契約',
     color: C.orange,
     lines: [
@@ -80,7 +92,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    no: '07',
+    no: '08',
     title: '財務・予算',
     color: C.green,
     lines: [
@@ -91,7 +103,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    no: '08',
+    no: '09',
     title: 'ジュエル・ショップ',
     color: '#6dd5fa',
     lines: [
@@ -102,7 +114,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    no: '09',
+    no: '10',
     title: '施設・スポンサー',
     color: C.textSub,
     lines: [
@@ -112,7 +124,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    no: '10',
+    no: '11',
     title: '目標・実績・記録',
     color: C.gold,
     lines: [
@@ -122,7 +134,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    no: '11',
+    no: '12',
     title: '通知の見方',
     color: C.red,
     lines: [

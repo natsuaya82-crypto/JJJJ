@@ -185,9 +185,6 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
                 on={f.joinType === t} onClick={() => set('joinType', t)} />
             ))}
           </div>
-          <div style={{ fontSize: 9, color: C.textGhost, marginTop: 4, lineHeight: 1.5 }}>
-            誰でも歓迎＝条件を満たせばそのまま加入／承認制＝会長が承認したら加入／募集停止＝新しく入れない
-          </div>
         </div>
 
         <div>
@@ -212,9 +209,6 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: SAIRA, fontSize: 9, color: C.textGhost }}>
             <span>なし</span>
             <span>{OVR_MAX}</span>
-          </div>
-          <div style={{ fontSize: 9, color: C.textGhost, marginTop: 4, lineHeight: 1.5 }}>
-            入るときだけ見る条件です。入ったあとに下回っても外れません。
           </div>
         </div>
       </div>
@@ -753,9 +747,6 @@ function ClubBoard() {
             </button>
           ))}
         </div>
-        <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5, lineHeight: 1.6 }}>
-          押すと、1枚ずつどの練習のカードが欲しいか選べます。枚数は走友会のみんなから集める合計です。
-        </div>
         {askedToday && (
           <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5 }}>
             今日はもうお願いしています。日付が変わるとまた出せます。
@@ -834,9 +825,6 @@ function ClubBoard() {
           </div>
          )}
 
-        <div style={{ fontSize: 9, color: C.textGhost, marginTop: 12, lineHeight: 1.6 }}>
-          書き込みは3日で消えます。カードを渡してもお礼はありません。レジェンドは渡せません。
-        </div>
       </div>
 
       {picking && picking.rarity && (
@@ -1103,9 +1091,6 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             <button onClick={() => setConfirmLeave(true)} disabled={busy === 'leave'} className="btn-press" style={{
               ...actionButton(C.red, busy === 'leave'), width: '100%', padding: '12px 0',
             }}>走友会を抜ける</button>
-            <div style={{ fontSize: 9, color: C.textGhost, marginTop: 6, lineHeight: 1.6 }}>
-              この走友会を通報したいときは、上の走友会カードの「···」から。
-            </div>
           </>
         )}
       </div>

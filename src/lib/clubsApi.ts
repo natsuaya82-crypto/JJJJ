@@ -9,8 +9,8 @@ import { blockedIds, withoutBlocked } from './moderationApi'
 import { normalizeClubLogoId } from '../data/clubLogos'
 import type { CardStatKey, TrainingCard } from '../types'
 
-/** 走友会の人数上限。clubs.sql の 50 とそろえること */
-export const CLUB_MAX = 50
+/** 走友会の人数上限。clubs.sql の 30 とそろえること（DB側の関数も30に更新が必要） */
+export const CLUB_MAX = 30
 
 /** 参加タイプ。誰でも歓迎 / 承認制 / 募集停止 */
 export type JoinType = 'open' | 'approval' | 'closed'

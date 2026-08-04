@@ -40,7 +40,7 @@ export default function RecordsHub() {
     {
       key: '/records/individual',
       label: '個人ランキング',
-      desc: '通算区間賞・MVP・歴代種目別記録会',
+      desc: '今季・通算JPEL区間賞・MVP',
       countLabel: '選手ランキング',
       badge: 0,
       color: C.green,
