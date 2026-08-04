@@ -21,7 +21,7 @@ import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } fr
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { segmentType, segTypeExpGain, applyGrowth } from '../engine/growth'
-import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import { reserveSquadPool } from '../utils/reserveSquad'
 import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
@@ -3009,9 +3009,8 @@ export const useGameStore = create<GameStore>()(
           const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces, perfOf(state.currentSeason, player.id, teamRaces))
           const ratio = desired > 0 ? salary / desired : 2
           const personality = player.personality ?? 'salary'
-          // 視察情報：未視察だと選手は慎重（厳しめ）
-          const scouted = offer.source === 'scout' ? isOpponentScouted(player.id, state.currentSeason) : true
-          const infoPenalty = offer.source === 'scout' ? (scouted ? 0 : 0.12) : 0
+          // スカウト（未視察は慎重）は廃止。全選手が最初から開示されているため常に0
+          const infoPenalty = 0
           const rlx = (offer.round - 1) * 0.02
           // 4要素で判断：年俸(ratio)・役割(roleBonus)・契約形態(typeAdjust)・契約年数(yearsBonus)
           const roleBonus = teamRole === 'ace' ? -0.06 : teamRole === 'key_player' ? -0.045 : teamRole === 'sub_ace' ? -0.03 : teamRole === 'rotation' ? -0.015 : 0
@@ -3306,7 +3305,8 @@ export const useGameStore = create<GameStore>()(
           fromTeamId: state.playerTeamId,
           askingPrice: roundFee(calcTransferValue(player)),
           listedAtRace: raceIdx,
-          expiresAtRace: raceIdx + 99,
+          // 選手本人の移籍希望を認めた売出は今季いっぱい有効
+          expiresAtRace: Math.max(raceIdx + 1, state.currentSeason.races.length),
           competingTeams: interested,
         }
         const alreadyListed = (state.currentSeason.transferListings ?? []).some(l => l.playerId === playerId)
@@ -3455,7 +3455,6 @@ export const useGameStore = create<GameStore>()(
 
       submitLoanRequest: (playerId, years) => {
         const st = get()
-        if (!st.getTransferWindow().open) return false
         if (reinforcementBanned(st.teams.find(t => t.id === st.playerTeamId))) return false  // 赤字・残高マイナスは補強不可
         const player = st.players.find(p => p.id === playerId)
         if (!player || player.teamId === st.playerTeamId || player.teamId === '' || player.loan) return false
@@ -3492,7 +3491,6 @@ export const useGameStore = create<GameStore>()(
 
       submitTransferBid: (playerId, fee) => {
         const state = get()
-        if (!state.getTransferWindow().open) return  // 移籍ウィンドウ閉鎖中はオファー不可
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId === state.playerTeamId || player.teamId === '') return
         // 引き抜ける選手かどうかは他の移籍と同じ判定（utils/transferEligibility.ts）。
@@ -4229,7 +4227,6 @@ export const useGameStore = create<GameStore>()(
       // オフシーズンの一括処理と同じ財務＋補強ポイント連動ロジックを、件数を絞って呼ぶ。
       runMidSeasonForeignTransfers: () => {
         const st = get()
-        if (!st.getTransferWindow().open) return
         if ((st.foreignLeagues ?? []).length === 0) return
         // 海外クラブ同士の引き抜きも低確率で1件（オフの一括と同じロジック。OVR下限もそのまま効く）
         if (Math.random() < 0.20) {
