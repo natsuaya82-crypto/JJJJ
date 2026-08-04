@@ -20,7 +20,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { potMultiplier, ageMultiplier, segmentType, segTypeExpGain, processExpGains, applyGrowth } from '../engine/growth'
+import { segmentType, segTypeExpGain, applyGrowth } from '../engine/growth'
 import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import { reserveSquadPool } from '../utils/reserveSquad'
 import { roundRobin } from '../utils/roundRobin'
@@ -1260,7 +1260,6 @@ export const useGameStore = create<GameStore>()(
           const raceExpGainsMap: Record<string, Partial<Record<CardStatKey, number>>> = {}
           // 強化合宿: 自チームのレース獲得EXP ×(1 + Lv×6%)
           const campLv = state.teams.find(t => t.id === playerTeamId)?.facilities?.trainingCamp ?? 0
-          const campExpMult = 1 + campLv * 0.06
           const finalPlayers = updatedPlayers.map(p => {
             // Form: 設計書準拠 レース後再抽選（絶好調10%/好調25%/普通40%/不調20%/最悪5%）
             const fr = Math.random()
@@ -1283,7 +1282,6 @@ export const useGameStore = create<GameStore>()(
             // EXPベース成長: 走った区間の地形タイプで能力別EXPを付与
             let newRatings = { ...p.ratings }
             let newExp = { ...(p.exp ?? {}) } as Partial<Record<CardStatKey, number>>
-            const statCaps = getStatPotentials(p)  // 能力別ポテンシャル上限
             if (racingIds.has(p.id) && p.status === 'active') {
               const playerSeg = results.segmentResults.find(sr =>
                 sr.runners.some(r => r.playerId === p.id)
@@ -1292,20 +1290,11 @@ export const useGameStore = create<GameStore>()(
               if (seg) {
                 const sType = segmentType(seg.uphillPct, seg.downhillPct, seg.distanceKm)
                 const baseGains = segTypeExpGain(sType)
-                const ageMult = ageMultiplier(p)
-                const potMult = potMultiplier(p.potential)
-                if (ageMult > 0) {
-                  const result = processExpGains(newRatings, newExp, baseGains, potMult * campExpMult, ageMult, statCaps)
-                  newRatings = result.ratings
-                  newExp = result.exp
-                  const gained: Partial<Record<CardStatKey, number>> = {}
-                  ;(Object.keys(baseGains) as CardStatKey[]).forEach(k => {
-                    // レース前に既に上限だった能力はEXPが入らない（表示も0）。今回上限に達した分は表示する。
-                    const capped = ((p.ratings as Record<string, number>)[k] ?? 0) >= Math.min(99, (statCaps as Record<string, number>)[k] ?? 99)
-                    const v = capped ? 0 : Math.round((baseGains[k] ?? 0) * potMult * campExpMult * ageMult)
-                    if (v > 0) gained[k] = v
-                  })
-                  raceExpGainsMap[p.id] = gained
+                const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'race', baseGains, campLv })
+                newRatings = outcome.ratings
+                newExp = outcome.exp
+                if (outcome.breakdown.age > 0) {
+                  raceExpGainsMap[p.id] = outcome.gained
                 }
               }
             } else if (p.status === 'active') {
@@ -1313,13 +1302,9 @@ export const useGameStore = create<GameStore>()(
               const benchGains: Partial<Record<CardStatKey, number>> = {
                 speed: 50, stamina: 50, mountainUp: 50, mountainDown: 50, pacing: 50, mental: 50, recovery: 50,
               }
-              const ageMult = ageMultiplier(p)
-              const potMult = potMultiplier(p.potential)
-              if (ageMult > 0) {
-                const result = processExpGains(newRatings, newExp, benchGains, potMult * campExpMult, ageMult, statCaps)
-                newRatings = result.ratings
-                newExp = result.exp
-              }
+              const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'bench', baseGains: benchGains, campLv })
+              newRatings = outcome.ratings
+              newExp = outcome.exp
             }
 
             // Training plan effect (team-wide)
@@ -1336,9 +1321,9 @@ export const useGameStore = create<GameStore>()(
                 if (planStat && Math.random() < 0.30) {
                   // 練習プランはEXPボーナスとして追加（直接+1ではなく）
                   const bonusGain: Partial<Record<CardStatKey, number>> = { [planStat as CardStatKey]: 600 }
-                  const result = processExpGains(newRatings, newExp, bonusGain, potMultiplier(p.potential) * campExpMult, 1.0, statCaps)
-                  newRatings = result.ratings
-                  newExp = result.exp
+                  const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'plan', baseGains: bonusGain, campLv })
+                  newRatings = outcome.ratings
+                  newExp = outcome.exp
                 }
               }
             }
@@ -4096,7 +4081,6 @@ export const useGameStore = create<GameStore>()(
         const seasonProgress = stRaceIndex / stRaces.length
         // EXP付与用の合宿ボーナス倍率（1軍レースと同じ）
         const campLv = teams.find(t => t.id === playerTeamId)?.facilities?.trainingCamp ?? 0
-        const campExpMult = 1 + campLv * 0.06
 
         // リザーブ出場＝「その週の1軍リーグに出ていない選手」。2軍という区分は廃止されたので、
         // リザーブ戦の直前に行われた1軍リーグ戦（同週）の出場者を除外し、残りロスターの上位から起用する。
@@ -4165,22 +4149,14 @@ export const useGameStore = create<GameStore>()(
             if (p.status === 'active') {
               const playerSeg = results.segmentResults.find(sr => sr.runners.some(r => r.playerId === p.id))
               const seg = playerSeg ? race.segments.find(s => s.index === playerSeg.segmentIndex) : null
-              const ageMult = ageMultiplier(p)
-              if (seg && ageMult > 0) {
+              if (seg) {
                 const sType = segmentType(seg.uphillPct, seg.downhillPct, seg.distanceKm)
                 const baseGains = segTypeExpGain(sType)
-                const statCaps = getStatPotentials(p)
-                const potMult = potMultiplier(p.potential)
-                const result = processExpGains({ ...p.ratings }, { ...(p.exp ?? {}) }, baseGains, potMult * campExpMult, ageMult, statCaps)
-                const gained: Partial<Record<CardStatKey, number>> = {}
-                ;(Object.keys(baseGains) as CardStatKey[]).forEach(k => {
-                  // レース前に既に上限だった能力はEXPが入らない（表示も0）
-                  const capped = ((p.ratings as Record<string, number>)[k] ?? 0) >= Math.min(99, (statCaps as Record<string, number>)[k] ?? 99)
-                  const v = capped ? 0 : Math.round((baseGains[k] ?? 0) * potMult * campExpMult * ageMult)
-                  if (v > 0) gained[k] = v
-                })
-                stExpGains[p.id] = gained
-                return { ...p, fatigue: newFatigue, ratings: result.ratings, exp: result.exp }
+                const outcome = applyGrowth({ player: p, source: 'race', baseGains, campLv })
+                if (outcome.breakdown.age > 0) {
+                  stExpGains[p.id] = outcome.gained
+                  return { ...p, fatigue: newFatigue, ratings: outcome.ratings, exp: outcome.exp }
+                }
               }
             }
             return { ...p, fatigue: newFatigue }
@@ -6898,14 +6874,12 @@ export const useGameStore = create<GameStore>()(
           const combo = detectCombo(cards)
           if (!combo) return state
           // statDeltas は EXP量（設計書準拠）。ポテ・年齢倍率なし（固定EXP付与）
-          const result = processExpGains(
-            player.ratings,
-            player.exp ?? {},
-            combo.statDeltas as Partial<Record<CardStatKey, number>>,
-            multiplier,
-            1.0,  // カードは年齢倍率なし
-            getStatPotentials(player),  // 能力別ポテンシャル上限
-          )
+          const result = applyGrowth({
+            player,
+            source: 'card',
+            baseGains: combo.statDeltas as Partial<Record<CardStatKey, number>>,
+            bonusMultiplier: multiplier,
+          })
           // 疲労回復（完全休養／超回復）。大成功倍率(multiplier)も疲労に掛ける。
           const fatigueRecovered = combo.fatigueDelta ? Math.round(combo.fatigueDelta * multiplier) : 0
           const newFatigue = Math.max(0, (player.fatigue ?? 0) - fatigueRecovered)
