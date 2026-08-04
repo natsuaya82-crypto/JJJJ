@@ -33,6 +33,14 @@ export const R = {
   full:'9999px',
 } as const
 
+export type Competition = 'jpel' | 'reserve' | 'ecl' | 'world'
+export const COMPETITION_BTN: Record<Competition, string> = {
+  jpel:    'btn-game--gold',
+  reserve: 'btn-game--blue',
+  ecl:     'btn-game--red',
+  world:   'btn-game--purple',
+}
+
 /**
  * 色に透け具合を足す。#rgb（3桁）でも #rrggbb（6桁）でも受け取れる。
  *
