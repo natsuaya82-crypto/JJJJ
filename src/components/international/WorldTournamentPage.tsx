@@ -271,7 +271,7 @@ export default function WorldTournamentPage() {
         teamTalk=""
         setTeamTalk={() => {}}
         unavailable={unavailableMap}
-        btnClass="btn-game--gold"
+        competition="world"
       />
     )
   }
@@ -300,6 +300,7 @@ export default function WorldTournamentPage() {
         players={players}
         playerTeamId={t.japanIn ? 'nat_JPN' : playerTeamId}
         currentSeason={currentSeason}
+        competition="world"
         isLastRace={false}
         reserveStandings={standRows.map(s => ({
           teamId: s.id, totalPoints: s.points ?? 0,
@@ -308,7 +309,6 @@ export default function WorldTournamentPage() {
         onContinue={() => { setResults(null); setLockedRace(null); setPhase('entry') }}
         hideCards
         standingsLabel={`${t.kind === 'main' ? '世界選手権' : '予選'} 順位（暫定・合計ポイント）`}
-        btnClass="btn-game--gold"
       />
     )
   }

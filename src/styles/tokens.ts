@@ -33,6 +33,15 @@ export const R = {
   full:'9999px',
 } as const
 
+export type Competition = 'jpel' | 'reserve' | 'ecl' | 'world' | 'friend'
+export const COMPETITION_BTN: Record<Competition, string> = {
+  jpel:    'btn-game--gold',
+  reserve: 'btn-game--blue',
+  ecl:     'btn-game--red',
+  world:   'btn-game--purple',
+  friend:  'btn-game--gold',   // フレンド対戦。現状の既定色を維持（見た目を変えない）
+}
+
 /**
  * 色に透け具合を足す。#rgb（3桁）でも #rrggbb（6桁）でも受け取れる。
  *

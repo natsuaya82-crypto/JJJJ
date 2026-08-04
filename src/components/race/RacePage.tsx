@@ -786,6 +786,7 @@ export default function RacePage() {
       setTeamTalk={setRaceTeamTalk}
       lastLineup={lastRaceLineup}
       unavailable={unavailableMap}
+      competition="jpel"
     />
   )
 
@@ -841,6 +842,7 @@ export default function RacePage() {
       players={players}
       playerTeamId={playerTeamId}
       currentSeason={currentSeason}
+      competition="jpel"
       isLastRace={activeRaceIndex >= currentSeason.races.length - 1}
     />
   )

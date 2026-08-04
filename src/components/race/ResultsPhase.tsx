@@ -8,7 +8,8 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN } from '../../styles/tokens'
+import type { Competition } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
 import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
@@ -45,7 +46,7 @@ const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties =>
 
 export function ResultsPhase({
   race, results, teams, players, playerTeamId, currentSeason, isLastRace,
-  reserveStandings, onContinue, hideCards, standingsLabel, btnClass,
+  reserveStandings, onContinue, hideCards, standingsLabel, competition,
 }: {
   race: Race
   results: RaceResults
@@ -58,7 +59,7 @@ export function ResultsPhase({
   onContinue?: () => void
   hideCards?: boolean   // ECL等、カード報酬のないレースで前レースの獲得カードが出ないように
   standingsLabel?: string   // 順位表の見出し差し替え（ECL＝「ECL シリーズ順位」等）
-  btnClass?: string   // ボタンの色クラス差し替え（ECL＝btn-game--red）
+  competition: Competition   // ボタン色（大会ごとに1色。COMPETITION_BTNから引く）
 }) {
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -255,13 +256,13 @@ export function ResultsPhase({
           background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
         }}>
           {isLastRace ? (
-            <button className={`btn-game ${btnClass ?? 'btn-game--gold'}`} onClick={finish} style={{ width: '100%' }}>
+            <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
               <span className="btn-game__inner">
                 {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
               </span>
             </button>
           ) : (
-            <button className={`btn-game ${btnClass ?? 'btn-game--blue'}`} onClick={finish} style={{ width: '100%' }}>
+            <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
               <span className="btn-game__inner">
                 {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
               </span>
@@ -586,17 +587,17 @@ export function ResultsPhase({
         background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
       }}>
         {hasExp ? (
-          <button className="btn-game btn-game--blue" onClick={() => setView('exp')} style={{ width: '100%' }}>
+          <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={() => setView('exp')} style={{ width: '100%' }}>
             <span className="btn-game__inner">経験値を確認 →</span>
           </button>
         ) : isLastRace ? (
-          <button className="btn-game btn-game--gold" onClick={finish} style={{ width: '100%' }}>
+          <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
             <span className="btn-game__inner">
               {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
             </span>
           </button>
         ) : (
-          <button className="btn-game btn-game--blue" onClick={finish} style={{ width: '100%' }}>
+          <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
             <span className="btn-game__inner">
               {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
             </span>

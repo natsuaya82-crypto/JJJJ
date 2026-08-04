@@ -13,7 +13,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Player, TeamRole, Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isOpponentScouted, isStatMaxed, foreignAppsOf } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed, foreignAppsOf } from '../../utils/playerUtils'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import { formatTime, safeRatings } from '../../engine/raceEngine'
@@ -275,9 +275,6 @@ export default function PlayerSheet() {
     if (dx < 0 && i < pages.length - 1) goToPage(pages[i + 1])
     if (dx > 0 && i > 0) goToPage(pages[i - 1])
   }
-  // フレンドが共有したロスターは中身まで出す（相手が公開しているものなので伏せる理由がない）
-  const isScouted = isMyPlayer || isProspect || isPreview || isOpponentScouted(player.id, currentSeason)
-
   // ドラフト候補の予想指名順位。生成時に焼き込んだ player.predictedPick を使う（ドラフト中も不変）。
   // predictedPick が無い旧セーブだけ、その場で母集団から推定する（scout/draftどちらのプールでも）。
   const predictedPick = isProspect
@@ -583,13 +580,13 @@ export default function PlayerSheet() {
               </div>
               <div style={{ fontSize: '10px', color: '#5C5870', marginBottom: '6px' }}>{player.nameKana}</div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ padding: '2px 8px', borderRadius: '10px', backgroundColor: isScouted ? `${specCol}18` : '#1E1B2E', color: isScouted ? specCol : '#5C5870', fontSize: '10px', fontWeight: '700' }}>
-                  {isScouted ? SPECIALTY_LABELS[player.specialty] : '?'}
+                <span style={{ padding: '2px 8px', borderRadius: '10px', backgroundColor: `${specCol}18`, color: specCol, fontSize: '10px', fontWeight: '700' }}>
+                  {SPECIALTY_LABELS[player.specialty]}
                 </span>
-                <span style={{ fontSize: '10px', color: '#5C5870' }}>{isScouted ? `${player.age}歳 / ${player.yearsPro + 1}年目` : '?'}</span>
+                <span style={{ fontSize: '10px', color: '#5C5870' }}>{`${player.age}歳 / ${player.yearsPro + 1}年目`}</span>
               </div>
               {/* パッチは1ページ目のある選手だけヘッダーから。1ページ目が無い引退選手は2ページ目に同じボタンがある */}
-              {isScouted && pages.includes(1) && badges.length > 0 && (
+              {pages.includes(1) && badges.length > 0 && (
                 <button
                   onClick={() => setShowBadges(true)}
                   style={{
@@ -605,9 +602,9 @@ export default function PlayerSheet() {
               )}
             </div>
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
-              <div style={{ fontSize: '32px', fontWeight: '900', color: isScouted ? ratingColor(playerOvr) : '#5C5870', fontFamily: 'monospace', lineHeight: 1 }}>{isScouted ? playerOvr : '?'}</div>
+              <div style={{ fontSize: '32px', fontWeight: '900', color: ratingColor(playerOvr), fontFamily: 'monospace', lineHeight: 1 }}>{playerOvr}</div>
               <div style={{ fontSize: '8px', color: '#5C5870', letterSpacing: '1px' }}>OVR</div>
-              {isScouted && player.ovrHistory && player.ovrHistory.length >= 2 && (
+              {player.ovrHistory && player.ovrHistory.length >= 2 && (
                 <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'center' }}>
                   <OVRSparkline history={player.ovrHistory}/>
                 </div>
@@ -623,7 +620,7 @@ export default function PlayerSheet() {
           {page === 1 && !isRetired && (
             <div style={{ padding: '0 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {/* 記録パッチは「パッチを確認する」から専用パネルで閲覧・選択（詳細画面には列挙しない） */}
-              {isScouted && <RadarChart ratings={player.ratings} color={specCol} player={player} />}
+              <RadarChart ratings={player.ratings} color={specCol} player={player} />
               {isProspect ? (
                 <>
                   <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
@@ -643,11 +640,11 @@ export default function PlayerSheet() {
                     {[
                       { label: '所属', val: resolveTeam(player.teamId)?.name ?? (player.teamId === '' ? '未所属' : '—') },
                       { label: '出身', val: player.origin },
-                      { label: '成長タイプ', val: isScouted ? (player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準') : '?' },
-                      { label: '市場価値', val: isScouted ? fmt(calcTransferValue(player)) : '?' },
-                      { label: '契約残', val: isScouted ? (player.contract ? `${player.contract.yearsLeft}年` : '—') : '?' },
-                      { label: '年俸', val: isScouted ? (player.contract ? fmt(player.contract.annualSalary) : '—') : '?' },
-                      { label: 'ドラフト', val: isScouted ? (player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外') : '?' },
+                      { label: '成長タイプ', val: player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準' },
+                      { label: '市場価値', val: fmt(calcTransferValue(player)) },
+                      { label: '契約残', val: player.contract ? `${player.contract.yearsLeft}年` : '—' },
+                      { label: '年俸', val: player.contract ? fmt(player.contract.annualSalary) : '—' },
+                      { label: 'ドラフト', val: player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外' },
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
                         <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>{label}</div>

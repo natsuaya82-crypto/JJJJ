@@ -35,7 +35,7 @@ function fmt(yen: number) {
 export default function TransferPage() {
   const {
     teams, players, playerTeamId, currentSeason, foreignLeagues,
-    getTransferWindow, ensureFuturePicks, startAcquisitionOffer,
+    ensureFuturePicks, startAcquisitionOffer,
     submitTransferBid, submitLoanRequest,
     acceptIncomingOffer, declineIncomingOffer,
     counterIncomingOffer,
@@ -109,12 +109,10 @@ export default function TransferPage() {
   const myTeam = teams.find(t => t.id === playerTeamId)
   if (!myTeam) return null
 
-  const window = getTransferWindow()
   // 補強不可判定（reinforcementBannedと同基準）：3シーズン連続赤字、または残高マイナスの間は新規補強不可
   const signingBanned = (myTeam.finance.deficitStreak ?? 0) >= 3 || myTeam.finance.budget < 0
 
   // 移籍市場カードの押下：タップ＝メニュー / 長押し(450ms)＝選手詳細。
-  // ※この関数より下で `window` が getTransferWindow() の結果に shadow されるため、bare の setTimeout/clearTimeout を使う。
   const rowHandlers = (pid: string) => ({
     onPointerDown: () => { lpRef.current.long = false; lpRef.current.t = setTimeout(() => { lpRef.current.long = true; openPlayerSheet(pid) }, 450) },
     onPointerUp: () => { if (lpRef.current.t) { clearTimeout(lpRef.current.t); lpRef.current.t = undefined } },
@@ -141,29 +139,13 @@ export default function TransferPage() {
             {tabTitle}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: window.open ? C.green : C.red }}/>
-            <span style={{ fontSize: '10px', fontWeight: '700', color: window.open ? C.green : C.red, fontFamily: SAIRA }}>
-              {window.open ? 'OPEN' : 'CLOSED'}
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: C.green }}/>
+            <span style={{ fontSize: '10px', fontWeight: '700', color: C.green, fontFamily: SAIRA }}>
+              OPEN
             </span>
             <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{fmt(salaryUsed)}</span>
           </div>
         </div>
-
-
-        {!window.open && tab === 'market' && (
-          <div style={{
-            padding: '8px 12px', borderRadius: '10px', marginBottom: '10px',
-            backgroundColor: alpha(C.red, 0.06), border: `1px solid ${alpha(C.red, 0.18)}`,
-            display: 'flex', alignItems: 'center', gap: '8px',
-          }}>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: C.red, fontFamily: SAIRA }}>移籍ウィンドウ閉鎖中</span>
-            {window.racesUntil != null && (
-              <span style={{ fontSize: '10px', color: C.textDim, marginLeft: 'auto', fontFamily: SAIRA }}>
-                あと{window.racesUntil}戦
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
       {tab === 'market' && (() => {
@@ -413,8 +395,8 @@ export default function TransferPage() {
                 { label: signingBanned ? '赤字で補強不可' : mLocked ? '退団直後・来季まで交渉不可' : '契約オファー', disabled: signingBanned || mLocked, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ] : [
-                { label: mHasBid ? '入札中' : !window.open ? '移籍ウィンドウ CLOSED' : mLocked ? '来季まで交渉不可' : '入札して獲得', disabled: mHasBid || !window.open || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },
-                { label: reqPending ? 'レンタル要請中' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : !window.open ? '移籍ウィンドウ CLOSED' : 'レンタルで借りる', disabled: reqPending || slots >= 3 || !window.open, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
+                { label: mHasBid ? '入札中' : mLocked ? '来季まで交渉不可' : '入札して獲得', disabled: mHasBid || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },
+                { label: reqPending ? 'レンタル要請中' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : 'レンタルで借りる', disabled: reqPending || slots >= 3, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ]
               return (
@@ -638,15 +620,14 @@ export default function TransferPage() {
                             </>
                           ) : (
                             <button
-                              disabled={!window.open}
                               onClick={() => { setListingPlayerId(isSettingPrice ? null : p.id); setListingPrice(Math.round(val * 1.1 / 1000000) * 1000000) }}
                               style={{
                                 padding: '6px 10px', borderRadius: '8px',
-                                border: !window.open ? `1px solid ${C.border2}` : `2px solid ${C.goldDark}`,
-                                background: !window.open ? C.surface2 : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                                color: !window.open ? C.textGhost : C.gold,
-                                fontSize: '11px', fontWeight: '700', cursor: window.open ? 'pointer' : 'not-allowed', fontFamily: SAIRA,
-                                boxShadow: window.open ? '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+                                border: `2px solid ${C.goldDark}`,
+                                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                                color: C.gold,
+                                fontSize: '11px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
+                                boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
                               }}
                             >
                               出品する

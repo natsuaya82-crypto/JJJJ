@@ -95,10 +95,9 @@ export default function NationalResultPage() {
       ))}
       {/* 予選の結果はここで行き止まりだったので、ホームへ戻る動線を足す */}
       <div style={{ padding: '4px 12px 0' }}>
-        <button onClick={() => navigate('/')} className="btn-press" style={{
-          width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA,
-          background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900,
-        }}>ホームに戻る</button>
+        <button onClick={() => navigate('/')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
+          <span className="btn-game__inner">ホームに戻る</span>
+        </button>
       </div>
     </>)
   }

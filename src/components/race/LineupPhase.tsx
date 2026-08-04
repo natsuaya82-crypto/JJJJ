@@ -10,7 +10,8 @@ import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN } from '../../styles/tokens'
+import type { Competition } from '../../styles/tokens'
 import { natLabel } from '../../data/nationalities'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -63,7 +64,7 @@ const ALL_STATS: [string, keyof import('../../types').Player['ratings']][] = [
 export function LineupPhase({
   race, raceNumber, totalRaces, mainPlayers, raceLineup, allSegsFilled,
   pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart, onSkipRace,
-  onBack, lastLineup, unavailable, btnClass,
+  onBack, lastLineup, unavailable, competition,
   startLabel, startDisabled, hideBack, bottomInset, headerNote,
 }: {
   race: Race
@@ -87,7 +88,7 @@ export function LineupPhase({
   onBack?: () => void
   lastLineup?: Record<number, string>
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
-  btnClass?: string   // スタートボタンの色クラス差し替え（ECL＝btn-game--red）
+  competition: Competition   // スタートボタンの色（大会ごとに1色。COMPETITION_BTNから引く）
   // ここから下はオンライン対戦で使う差し替え。本編は今までどおり何も渡さない。
   startLabel?: string      // 下の大ボタンの文字（例：このオーダーで提出）
   startDisabled?: boolean  // 提出済みで押せない状態
@@ -457,7 +458,7 @@ export function LineupPhase({
               </button>
             )}
             <button
-              className={`btn-game ${btnClass ?? 'btn-game--gold'}`}
+              className={`btn-game ${COMPETITION_BTN[competition]}`}
               onClick={() => { if (!startDisabled) onStart(segTactics) }}
               style={{ flex: 1, opacity: startDisabled ? 0.5 : 1 }}
             >
