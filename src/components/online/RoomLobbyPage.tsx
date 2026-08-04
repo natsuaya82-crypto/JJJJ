@@ -67,6 +67,9 @@ export default function RoomLobbyPage() {
   const [conn, setConn] = useState<ChannelStatus>('connecting')
 
   const [phase, setPhase] = useState<Phase>('lobby')
+  // refresh() のコールバック内から今のphaseを見るためのref（依存に入れると15秒タイマーが張り直される）
+  const phaseRef = useRef<Phase>('lobby')
+  useEffect(() => { phaseRef.current = phase }, [phase])
   const [rules, setRules] = useState<MatchRules>(DEFAULT_RULES)
   const [deadline, setDeadline] = useState<number | null>(null)
 
@@ -139,8 +142,11 @@ export default function RoomLobbyPage() {
       if (!aliveRef.current) return
       setRoom(r)
       setMembers(ms)
-      // ホストが抜けた／期限切れで部屋が消えたとき
+      // ホストが抜けた／期限切れで部屋が消えたとき。
+      // ただし最終結果の表示中は出さない：finish_match が正常終了でも部屋を closed にするので、
+      // ここで出すと結果画面に「部屋が閉じられました」が被さって、閉じると結果ごと消えてしまう
       if (!r || r.status === 'closed') {
+        if (phaseRef.current === 'finish') return
         setNotice({ title: '部屋が閉じられました', message: 'ホストが退出したか、時間切れになりました。' })
       }
     } catch {

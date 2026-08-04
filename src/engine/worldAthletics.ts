@@ -4,7 +4,7 @@
 // 実物方式で選考（標準突破優先＋ランキング補充・国別3人・マラソン専任）。
 import type { Player, Nationality, WECRacePlan } from '../types'
 import { natGeoRegion, NATIONALITY_META, type GeoRegion } from '../data/nationalities'
-import { formatRaceTime } from '../utils/eventTime'
+import { formatRaceTime, individualEventAbility, individualBaseTime } from '../utils/eventTime'
 import { calcBaseAbility, calcAffinity } from './raceEngine'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
@@ -76,6 +76,9 @@ export function bestPBLabel(p: Player, currentYear: number): string | null {
 export type Candidate = { player: Player; score: number; bests: Partial<Record<WAEvent, number>> }
 
 // 駅伝代表の候補（持ちタイム順・約50人）。日本人は所属問わず nationality で集める。
+// 種目 → 距離(m)。推定タイムの換算に使う
+const WA_DIST: Record<WAEvent, 5000 | 10000 | 42195> = { d5000: 5000, d10000: 10000, marathon: 42195 }
+
 export function ekidenCandidates(players: Player[], nat: Nationality, currentYear: number, limit = 50): Candidate[] {
   const out: Candidate[] = []
   for (const p of players) {
@@ -87,8 +90,26 @@ export function ekidenCandidates(players: Player[], nat: Nationality, currentYea
       const t = recentBest(p, ev, currentYear)
       if (t != null) { bests[ev] = t; has = true }
     }
-    if (!has) continue
-    out.push({ player: p, score: distanceScore(p, currentYear), bests })
+    if (!has) {
+      // 直近2年の持ちタイムが無い選手は、能力からの推定タイムで候補に入れる。
+      // 海外クラブの日本人は出られる記録会が少なく eventBests がほぼ残らないため、
+      // タイム必須のままだと日本最強クラス（OVR91等）が候補50人にすら入れない。
+      // 推定は基準タイム+2%として、実測の持ちタイムを持つ選手より少しだけ弱く扱う
+      for (const ev of WA_EVENTS) {
+        const dist = WA_DIST[ev]
+        bests[ev] = Math.round(individualBaseTime(individualEventAbility(p, dist), dist) * 1.02)
+      }
+    }
+    // スコアは組み上げた bests から計算する（推定タイムの選手も同じ土俵で並べるため）。
+    // 実測の選手は distanceScore(p) と同じ値になる
+    let score = 0
+    for (const ev of WA_EVENTS) {
+      const t = bests[ev]
+      if (t == null) continue
+      const v = WA_REF[ev] / t
+      if (v > score) score = v
+    }
+    out.push({ player: p, score, bests })
   }
   out.sort((a, b) => b.score - a.score)
   return out.slice(0, limit)

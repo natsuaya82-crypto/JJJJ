@@ -219,10 +219,14 @@ export default function PlayerSheet() {
 
   // 通常の選手に加え、スカウトのドラフト候補・ドラフト進行中のプール選手・
   // フレンドのロスター（previewStore に一時登録されたもの）も詳細表示できるよう解決する
-  const player = players.find(p => p.id === openPlayerId)
+  // previewPlayers（フレンドのロスター）を最優先で引く。選手IDはセーブをまたぐと
+  // 重複する（初期選手は全員 base-001…、ドラフトも draft-年-連番）ので、自分の players を
+  // 先に引くと、フレンドの選手を開いたつもりで自分の同IDの選手（ドラフト順位も自分のもの）が
+  // 出てしまう。previewStore はフレンド詳細ページを開いている間しか中身が無い
+  const player = previewPlayers.find(p => p.id === openPlayerId)
+    ?? players.find(p => p.id === openPlayerId)
     ?? (currentSeason.scoutProspects ?? []).find(p => p.id === openPlayerId)
     ?? draftPool.find(p => p.id === openPlayerId)
-    ?? previewPlayers.find(p => p.id === openPlayerId)
 
   useEffect(() => {
     // 引退選手は1ページ目を出さないので2ページ目から開く

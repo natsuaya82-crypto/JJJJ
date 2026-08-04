@@ -10,9 +10,10 @@ import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
-import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier, safeRatings } from '../engine/raceEngine'
+import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
+import { individualEventAbility, individualBaseTime } from '../utils/eventTime'
 import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
@@ -7856,49 +7857,7 @@ function rnd(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-// 距離別ベストタイム(秒)の能力アンカー[能力値, 秒]。コンディション最高(form+2/疲労0/モラール80+)での値。
-//  能力: 50 / 70 / 90 / 99
-//  5000: 14:30 13:45 13:00 12:30
-//  10000:29:30 28:15 27:00 26:00
-//  ハーフ:65:00 62:00 59:00 57:00
-//  マラソン:2:13 2:09 2:04 2:00
-const IND_ANCHORS: Record<number, [number, number][]> = {
-  5000:  [[50, 870], [70, 825], [90, 780], [99, 750]],
-  10000: [[50, 1770], [70, 1695], [90, 1620], [99, 1560]],
-  21097: [[50, 3900], [70, 3720], [90, 3540], [99, 3420]],
-  42195: [[50, 7980], [70, 7740], [90, 7470], [99, 7200]],  // 90は2:04:30（日本記録級が量産されない傾きに）。99=世界記録レベルは設計通り
-}
-
-// 種目別のステータス比率。OVRではなくこの加重平均（種目適性値）で基準タイムを引く。
-// 短い種目ほどスピード、長い種目ほどスタミナ・回復・ペース配分・精神が効く。山岳系は対象外。
-const IND_STAT_WEIGHTS: Record<number, { speed: number; stamina: number; pacing: number; mental: number; recovery: number }> = {
-  5000:  { speed: 0.50, stamina: 0.20, pacing: 0.12, mental: 0.10, recovery: 0.08 },
-  10000: { speed: 0.35, stamina: 0.30, pacing: 0.15, mental: 0.10, recovery: 0.10 },
-  21097: { speed: 0.18, stamina: 0.40, pacing: 0.20, mental: 0.10, recovery: 0.12 },
-  42195: { speed: 0.08, stamina: 0.42, pacing: 0.18, mental: 0.14, recovery: 0.18 },
-}
-
-// 種目適性値: 種目ごとのステータス加重平均
-export function individualEventAbility(player: Player, distance: 5000 | 10000 | 21097 | 42195): number {
-  const w = IND_STAT_WEIGHTS[distance] ?? IND_STAT_WEIGHTS[10000]
-  const r = safeRatings(player.ratings)
-  return r.speed * w.speed + r.stamina * w.stamina + r.pacing * w.pacing + r.mental * w.mental + r.recovery * w.recovery
-}
-
-// 種目適性値から距離別ベストタイム(コンディション最高時)。アンカーを区分線形で通し、50未満は最下段の傾きで延長。
-function individualBaseTime(o: number, distance: 5000 | 10000 | 21097 | 42195): number {
-  const pts = IND_ANCHORS[distance]
-  const oo = Math.min(99, o)
-  if (oo <= pts[0][0]) {
-    const [o0, t0] = pts[0], [o1, t1] = pts[1]
-    return t0 + (pts[0][0] - oo) * (t0 - t1) / (o1 - o0)
-  }
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [o0, t0] = pts[i], [o1, t1] = pts[i + 1]
-    if (oo >= o0 && oo <= o1) return t0 + (oo - o0) * (t1 - t0) / (o1 - o0)
-  }
-  return pts[pts.length - 1][1]
-}
+export { individualEventAbility }   // 参照元（RacePage）向けの再export。実体は utils/eventTime.ts
 
 export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 21097 | 42195, weather?: 'sunny' | 'cloudy' | 'rainy' | 'windy'): number {
   const o = individualEventAbility(player, distance)
@@ -8170,7 +8129,9 @@ function generateTransferActivity(
   }
 
   // Incoming offers targeting the player's team（非売リスト・引退希望中の選手には来ない）
-  const playerTeamPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired' && !p.loan && !p.noSale && !retiringIds.has(p.id))
+  // 海外挑戦を承認済みの選手にも来ない。承認時に「海外のクラブからの話を待ちます」と
+  // 言っているのに、国内チームからオファーが来ると嘘になるため
+  const playerTeamPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired' && !p.loan && !p.noSale && !p.overseasListed && !retiringIds.has(p.id))
   const offerTargets = new Set(validIncoming.map(o => o.playerId))
   const offeringTeams = new Set(validIncoming.map(o => o.fromTeamId))
   const wantToLeaveIds = new Set(transferRequests.map(r => r.playerId))
@@ -8246,7 +8207,7 @@ function generateTransferActivity(
 
   // 契約残りわずか（残1年以下）の自チーム選手には、他チームからフリー移籍（移籍金なし）のオファーが来る
   // レンタルで借りている選手は保有権が無いので対象外。引退希望中の選手は「引退か引き留めか」の話なので勧誘しない
-  const expiringMine = players.filter(p => p.teamId === playerTeamId && p.contract.yearsLeft <= 1 && p.status !== 'retired' && !p.loan && !retiringIds.has(p.id))
+  const expiringMine = players.filter(p => p.teamId === playerTeamId && p.contract.yearsLeft <= 1 && p.status !== 'retired' && !p.loan && !p.overseasListed && !retiringIds.has(p.id))
   for (const ep of expiringMine) {
     if (alreadyOfferedIds.has(ep.id)) continue
     const chance = ovr(ep) >= 75 ? 0.5 : ovr(ep) >= 65 ? 0.3 : 0.15
