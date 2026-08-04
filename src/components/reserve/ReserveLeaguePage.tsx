@@ -132,8 +132,8 @@ export default function ReserveLeaguePage() {
           })}
         </div>
         <div style={{ padding: '24px 16px 8px' }}>
-          <button onClick={() => { setActiveRacePhase(null); navigate('/') }} style={{ width: '100%', padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, color: C.textSub, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer' }}>
-            ホームへ戻る
+          <button onClick={() => { setActiveRacePhase(null); navigate('/') }} className="btn-game btn-game--blue" style={{ width: '100%' }}>
+            <span className="btn-game__inner">ホームへ戻る</span>
           </button>
         </div>
       </div>
@@ -177,6 +177,7 @@ export default function ReserveLeaguePage() {
       setTeamTalk={() => {}}
       unavailable={unavailableMap}
       onSkipRace={() => runWithLoading('結果を計算中…', () => skipRace(), 500)}
+      competition="reserve"
     />
   )
 
@@ -201,6 +202,7 @@ export default function ReserveLeaguePage() {
       players={players}
       playerTeamId={playerTeamId}
       currentSeason={currentSeason}
+      competition="reserve"
       isLastRace={lockedRaceIndex >= stRaces.length - 1}
       reserveStandings={stStandings}
     />

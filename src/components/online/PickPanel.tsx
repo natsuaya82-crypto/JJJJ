@@ -109,6 +109,7 @@ export default function PickPanel({
       clearRaceLineup={() => setLineup({})}
       onStart={() => { if (!submitted) onSubmit({ lineup }) }}
       unavailable={unavailable}
+      competition="friend"
       hideBack
       bottomInset={64}
       startDisabled={submitted}
