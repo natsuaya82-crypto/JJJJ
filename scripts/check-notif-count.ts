@@ -107,14 +107,20 @@ console.log('\n[4.5] レンタルで借りている選手には契約の用件�
   check('自分の選手なら数える', collectNotifications(base(S({ currentRaceIndex: 8 }), [own])).total === 1)
 }
 
-console.log('\n[5] まとめて出る警告は何人いても1件')
+console.log('\n[5] 数え方は「通知ページに出るカードの枚数」と揃える')
 {
+  // まとめて1枚のカードにしている用件は、中身が何件でも1件
   const many = Array.from({ length: ROSTER_MAX + 3 }, (_, i) => P(`m${i}`, 'a'))
   check('ロスター超過は1件', collectNotifications(base(S(), many)).total === 1)
   check('超過人数も数える', collectNotifications(base(S(), many)).rosterOver === 3)
 
+  const contracts = S({ contractRequests: [{ playerId: 'p1', status: 'pending_gm' }, { playerId: 'p2', status: 'pending_gm' }] })
+  check('契約交渉はカード1枚なので何人でも1件',
+    collectNotifications(base(contracts, [P('p1', 'a'), P('p2', 'a')])).total === 1)
+
+  // 1人ずつカードが並ぶ用件は人数分。負傷者はカードが人数分出るのに1と数えていた
   const injured = [P('i1', 'a', { status: 'injured' } as Partial<Player>), P('i2', 'a', { status: 'injured' } as Partial<Player>)]
-  check('負傷者は何人でも1件', collectNotifications(base(S(), injured)).total === 1)
+  check('負傷者はカードが並ぶので人数分', collectNotifications(base(S(), injured)).total === 2, `${collectNotifications(base(S(), injured)).total}件`)
 
   const broke = collectNotifications(base(S(), [], [T('a', { finance: { budget: -1, deficitStreak: 0 } })]))
   check('補強禁止は1件', broke.total === 1 && broke.signingBanned)
@@ -142,6 +148,23 @@ check('件数を足し算しているのは notifItems だけ', counters.length 
 const page = readFileSync(join('src', 'components', 'notifications', 'NotificationsPage.tsx'), 'utf-8')
 const bell = readFileSync(join('src', 'components', 'notifications', 'useNotifCount.ts'), 'utf-8')
 check('通知ページが collectNotifications を使っている', page.includes('collectNotifications'))
+
+// 見出しの「N」を全部足すとベルの数字になる、という関係を崩さないための番人。
+// 節が増えたのに合計に足し忘れる／カードは1枚なのに人数分数える、が起きると落ちる
+const headCounts = [...page.matchAll(/<SectionHead[^>]*count=\{([^}]+)\}/g)].map(m => m[1].trim())
+const expected = [
+  // まとめて1枚のカードにしている節（アップデート記念・ログインボーナス・補強禁止・
+  // ロスター超過・スポンサー・契約交渉）は必ず 1
+  '1', '1', '1', '1', '1', '1',
+  'pendingGifts.length', 'clubGifts.length', 'joinNotices.length', 'tradeOffers.length',
+  'renewalNeeded', 'injuredPlayers.length', 'retirementRequests.length', 'transferReqs.length',
+  'counteredBids.length', 'feeAcceptedBids.length', 'freeContacts.length', 'departureNotices.length',
+  'freeTransferNotices.length', 'expiredNegotiations.length', 'loanResponses.length', 'incomingOffers.length',
+]
+check('通知ページの節の数が変わっていない', headCounts.length === expected.length, `いま${headCounts.length}節`)
+check('節ごとの件数の出どころが変わっていない',
+  headCounts.slice().sort().join('|') === expected.slice().sort().join('|'),
+  headCounts.slice().sort().filter(x => !expected.includes(x)).join(', '))
 check('ベルも同じ collectNotifications を使っている', bell.includes('collectNotifications'))
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)

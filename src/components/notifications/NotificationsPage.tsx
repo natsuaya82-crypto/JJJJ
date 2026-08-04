@@ -491,7 +491,7 @@ export default function NotificationsPage() {
           {/* ロスター超過警告（旧セーブ救済・強制解雇なし。整理を促すだけ） */}
           {rosterOver > 0 && (
             <section>
-              <SectionHead label="ロスター超過" color={C.red} count={rosterOver}/>
+              <SectionHead label="ロスター超過" color={C.red} count={1}/>
               <div style={{ padding: '0 16px' }}>
                 <div style={cardStyle(alpha(C.red, 0.45), '#5a1010')}>
                   <div style={inset}/>
@@ -779,7 +779,7 @@ export default function NotificationsPage() {
           {/* 契約交渉 */}
           {pendingContracts.length > 0 && (
             <section style={{ marginTop: (retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length) > 0 ? '20px' : 0 }}>
-              <SectionHead label="契約交渉" color={C.gold} count={pendingContracts.length}/>
+              <SectionHead label="契約交渉" color={C.gold} count={1}/>
               <div style={{ padding: '0 16px' }}>
                 <div style={cardStyle(alpha(C.gold, 0.45), '#5a3500')}>
                   <div style={inset}/>
@@ -796,7 +796,7 @@ export default function NotificationsPage() {
           {/* スポンサーオファー */}
           {sponsorOffers.length > 0 && (
             <section style={{ marginTop: '20px' }}>
-              <SectionHead label="スポンサーオファー" color={C.green} count={sponsorOffers.length}/>
+              <SectionHead label="スポンサーオファー" color={C.green} count={1}/>
               <div style={{ padding: '0 16px' }}>
                 <div style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
                   <div style={inset}/>

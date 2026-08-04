@@ -108,14 +108,22 @@ export function collectNotifications(input: NotifInput) {
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
   const canCreateMyPlayer = !myPlayerCreated
 
+  // ここの合計が、そのままベルの数字であり通知ページの「N件」になる。
+  // 数え方の決まりは「通知ページに出るカードの枚数と必ず同じにする」こと。
+  //  ・1人ずつカードが並ぶもの（負傷者・新加入・契約満了間近など）はその人数
+  //  ・まとめて1枚のカードにしているもの（ロスター超過・スポンサー・契約交渉・
+  //    補強禁止）は中身が何件でも1
+  // 以前は負傷者だけカードが人数分並ぶのに1と数え、契約交渉は1枚しか出ないのに
+  // 人数分数えていたので、ベルの数字と見えているカードの枚数がズレていた
   const total = incomingOffers.length
     + (canCreateMyPlayer ? 1 : 0)
     + tradeOffers.length
-    + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
+    + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length
+    + (pendingContracts.length > 0 ? 1 : 0)
     + renewalPlayers.length
     + (signingBanned ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
-    + (injuredPlayers.length > 0 ? 1 : 0)
+    + injuredPlayers.length
     + (loginUnclaimed ? 1 : 0)
     + (sponsorOffers.length > 0 ? 1 : 0)
     + pendingGiftsCount
