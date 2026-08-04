@@ -291,7 +291,7 @@ export function faMarketSalary(p: Player, perf?: PerfProfile): number {
 }
 
 // 選手がそのシーズンに何レース出場したか（データ判定用）
-type RaceLike = { results?: { segmentResults: { runners: { playerId: string }[] }[] } }
+export type RaceLike = { results?: { segmentResults: { runners: { playerId: string }[] }[] } }
 export function seasonAppearances(playerId: string, races: readonly RaceLike[]): number {
   let c = 0
   for (const r of races) {
@@ -451,15 +451,22 @@ export function calcTransferValue(p: Player): number {
   const base = Math.pow(Math.max(0, o - 45), 2)
 
   // 年齢は「補正」程度に抑える（OVRを覆さない範囲）。若手にやや上乗せ、高齢で減衰。
+  //
+  // 段の位置は成長処理(growPlayer)に合わせてある。growPlayer のピークは27前後で、
+  // 実際に数値が落ち始めるのは31歳、はっきり落ちるのは33歳から。
+  // 以前はここだけ28歳から下げ始めて30歳で0.80・32歳で0.60と、実際の衰えよりずっと急だった。
+  // そのせいで「30歳のOVR90」と「22歳のOVR70」が同じくらいの値段になり、
+  // まだ何年も主力を張れる選手が、伸びるかどうかも分からない若手と等価で交換できていた。
+  // 30歳までは据え置き、31歳から下げる。若手の上乗せも、伸びる保証が無いぶん少し抑えた。
   const ageFactor =
-    age <= 20 ? 1.30 :
-    age <= 23 ? 1.20 :
-    age <= 26 ? 1.05 :
-    age <= 28 ? 1.00 :
-    age <= 30 ? 0.80 :
-    age <= 32 ? 0.60 :
-    age <= 34 ? 0.40 :
-    0.25
+    age <= 20 ? 1.25 :
+    age <= 23 ? 1.15 :
+    age <= 27 ? 1.05 :
+    age <= 30 ? 1.00 :
+    age <= 32 ? 0.88 :
+    age <= 34 ? 0.70 :
+    age <= 36 ? 0.48 :
+    0.30
 
   const potFactor = p.potential >= 85 ? 1.15 : p.potential >= 75 ? 1.07 : 1.0
 

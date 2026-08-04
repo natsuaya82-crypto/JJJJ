@@ -39,6 +39,9 @@ import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
 import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer } from '../utils/transferEligibility'
 import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
+// トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
+import { tradeValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, TRADE_MAX_RATIO } from '../utils/tradeValue'
+import type { TradeValueCtx } from '../utils/tradeValue'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
@@ -134,6 +137,18 @@ function draftOrderTeams(teams: Team[], pastSeasons: { year: number; standings?:
 function pickKeyValue(key: string): number {
   const m = key.match(/-R(\d+)-(\d+)$/)
   return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000
+}
+
+// トレードの値付けに要るものを state から1回で取り出す。
+// 成立(tradePlayer)・チャット交渉(proposeTrade)・逆提示を飲む(acceptTradeCounter)・
+// 相手からの打診を飲む(acceptTradeOffer) が、全部この同じ ctx を使う
+function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason']; pastSeasons: GameState['pastSeasons'] }): TradeValueCtx {
+  return {
+    races: state.currentSeason.races,
+    teamRaces: state.currentSeason.currentRaceIndex,
+    currentSeason: state.currentSeason,
+    pastSeasons: state.pastSeasons,
+  }
 }
 
 
@@ -1439,7 +1454,7 @@ export const useGameStore = create<GameStore>()(
               const myVal = calcTransferValue(mine)
               for (const theirs of offerPool) {
                 const r = calcTransferValue(theirs) / Math.max(1, myVal)
-                if (r < 0.95 || r > 1.3) continue
+                if (r < TRADE_OK_RATIO || r > TRADE_MAX_RATIO) continue
                 if (ovr(theirs) < ovr(mine) - 3) continue
                 const fits = myNeeds.includes(theirs.specialty)
                 const better = !best
@@ -2481,6 +2496,19 @@ export const useGameStore = create<GameStore>()(
               return !!p && canTradeAway(p, offerCtx) && !p.noSale
             })
           if (!stillValid) {
+            return { currentSeason: { ...state.currentSeason, pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId) } }
+          }
+          // 釣り合いの見張り。ここだけ判定が1つも無く、打診は5レース残るので、その間に
+          // こちらの選手が伸びた／相手の選手が衰えたあとでも、作られた当時の条件のまま飲めていた。
+          // 出す側（自チーム）が offeredVal、もらう側が requestedVal と向きが逆になる点に注意
+          const tvCtxA = tradeValueCtxOf(state)
+          const outPlayers = offer.requestedPlayerIds.map(pid => state.players.find(pl => pl.id === pid)).filter((p): p is Player => !!p)
+          const inPlayers = offer.offeredPlayerIds.map(pid => state.players.find(pl => pl.id === pid)).filter((p): p is Player => !!p)
+          const outVal = outPlayers.reduce((s2, p) => s2 + tradeValueOf(p, tvCtxA), 0)
+            + (offer.requestedPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0)
+          const inVal = inPlayers.reduce((s2, p) => s2 + tradeValueOf(p, tvCtxA), 0)
+            + (offer.offeredPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0)
+          if (!tradeNotLopsided(outVal, inVal, outPlayers, inPlayers).ok) {
             return { currentSeason: { ...state.currentSeason, pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId) } }
           }
           let players = state.players
@@ -3790,21 +3818,16 @@ export const useGameStore = create<GameStore>()(
         const badIn = requested.find(p => !canBePoached(p, { teamId: p.teamId, currentYear: state.currentSeason.year }))
         if (badIn) return { ok: false, reason: `${badIn.name}は今こちらが動かせる選手ではない。` }
 
-        // 価値の釣り合い：ゴミ選手を複数足しただけでは成立しない。
-        // calcTransferValue（OVR・年齢・実績を加味）＋出場データで両サイドの価値を比較。
-        // 相手の主力は無条件拒否ではなく1.5倍の価値を要求（proposeTradeと同じ換算）
-        const teamRaces = state.currentSeason.currentRaceIndex
-        const activityBonus = (p: Player) => {
-          const apps = seasonAppearances(p.id, state.currentSeason.races)
-          const frac = teamRaces > 0 ? apps / teamRaces : 0
-          return 1 + frac * 0.4  // よく出場している選手は価値プレミアム
-        }
-        const keyPremium = (p: Player) => keyPlayerStatus(p, state.currentSeason, state.pastSeasons) !== 'open' ? 1.5 : 1
-        const offeredVal = offered.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p), 0)
+        // 価値の釣り合い：判断は utils/tradeValue.ts の1箇所（上下どちらにはみ出しても不成立）。
+        // 以前はここに下限0.92だけを書いていたので、こちらが一方的に持ち出す取引に歯止めが無かった。
+        // 主力の割増も「もらう側」だけに掛かっていて、こちらの主力が額面より安く数えられていた
+        const tvCtx = tradeValueCtxOf(state)
+        const offeredVal = offered.reduce((s, p) => s + tradeValueOf(p, tvCtx), 0)
           + offerPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, transferFee)
-        const requestedVal = requested.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p) * keyPremium(p), 0)
+        const requestedVal = requested.reduce((s, p) => s + tradeValueOf(p, tvCtx), 0)
           + requestPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, -transferFee)
-        if (offeredVal < requestedVal * 0.92) return { ok: false, reason: 'こちらが手放すものに見合わない。' }  // 価値が釣り合わなければ不成立
+        const bal = tradeBalance(offeredVal, requestedVal, offered, requested)
+        if (!bal.ok) return { ok: false, reason: bal.reason }
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
         // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
@@ -3909,16 +3932,17 @@ export const useGameStore = create<GameStore>()(
       // トレードのチャット交渉。提案→相手が承諾/カウンター/拒否（最大3回）。
       proposeTrade: (targetTeamId, giveIds, givePickKeys, getIds, getPickKeys) => {
         const state = get()
-        const teamRaces = state.currentSeason.currentRaceIndex
-        const activity = (p: Player) => { const apps = seasonAppearances(p.id, state.currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : 0; return 1 + frac * 0.4 }
-        const pval = (p: Player) => calcTransferValue(p) * activity(p)
-        const valOf = (ids: string[], picks: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + picks.reduce((s, k) => s + pickKeyValue(k), 0)
+        // 評価式は utils/tradeValue.ts の1本。主力の割増は出す側・もらう側の両方に同じだけ掛かる
+        const tvCtx = tradeValueCtxOf(state)
+        const pval = (p: Player) => tradeValueOf(p, tvCtx)
+        const playersOf = (ids: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
+        const valOf = (ids: string[], picks: string[]) => playersOf(ids).reduce((s, p) => s + pval(p), 0) + picks.reduce((s, k) => s + pickKeyValue(k), 0)
         const theirName = findClub(state.teams, state.foreignLeagues, targetTeamId)?.shortName
           ?? '相手クラブ'
-        // 主力（データ上よく出場・やる気あり）は無条件拒否ではなく1.5倍の価値を要求する
-        const keyPremium = (p: Player) => keyPlayerStatus(p, state.currentSeason, state.pastSeasons) !== 'open' ? 1.5 : 1
+        const givePlayers = playersOf(giveIds)
+        const getPlayersT = playersOf(getIds)
         const cpuGain = valOf(giveIds, givePickKeys)  // 相手が受け取る
-        const cpuLoss = getIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p) * keyPremium(p), 0) + getPickKeys.reduce((s, k) => s + pickKeyValue(k), 0)  // 相手が手放す（主力プレミアム込み）
+        const cpuLoss = valOf(getIds, getPickKeys)    // 相手が手放す
 
         const existing = (state.currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === targetTeamId)
         const round = (existing?.round ?? 0) + 1
@@ -3939,10 +3963,16 @@ export const useGameStore = create<GameStore>()(
         const demandAddPickKeys: string[] = []
         const getNames = getIds.map(id => state.players.find(p => p.id === id)?.name).filter(Boolean).join('・') || 'その選手'
 
+        // 釣り合いすぎ・持ち出しすぎの判定は成立側(tradePlayer)と同じ tradeBalance を使う。
+        // ここで通しても成立側で弾かれると「飲んだのに無反応」になるため
+        const overBal = tradeBalance(cpuGain, cpuLoss, givePlayers, getPlayersT)
+        const overOnly = !overBal.ok && cpuGain >= cpuLoss * TRADE_MIN_RATIO
+
         if (getIds.length === 0 && getPickKeys.length === 0) { status = 'rejected'; message = `（${theirName}）何も要求されていない。` }
         else if (hardNo) { status = 'rejected'; message = `（${theirName}）${hardNo}` }
-        else if (cpuGain >= cpuLoss * 0.95) { status = 'accepted'; message = `（${theirName}）いいだろう、その条件で成立だ。` }
-        else if (cpuGain < cpuLoss * 0.55 || round >= 3) { status = 'rejected'; message = `（${theirName}）話にならない。この条件では無理だ。` }
+        else if (overOnly) { status = 'rejected'; message = `（${theirName}）${overBal.reason}` }
+        else if (cpuGain >= cpuLoss * TRADE_OK_RATIO) { status = 'accepted'; message = `（${theirName}）いいだろう、その条件で成立だ。` }
+        else if (cpuGain < cpuLoss * TRADE_HARD_NO_RATIO || round >= 3) { status = 'rejected'; message = `（${theirName}）話にならない。この条件では無理だ。` }
         else {
           const need = cpuLoss * 0.98 - cpuGain
           // 「これも付けてくれ」と要求される選手も、実際に出せる選手だけにする
@@ -3953,8 +3983,9 @@ export const useGameStore = create<GameStore>()(
           }
           const cands = state.players.filter(p => canTradeAway(p, counterCtx) && !giveIds.includes(p.id)).sort((a, b) => pval(a) - pval(b))
           const fit = cands.find(p => pval(p) >= need) ?? cands[cands.length - 1]
-          // 成立判定(tradePlayer側の0.92)を下回る条件でカウンターを出すと「飲んだのに無反応」になるため閾値を揃える
-          if (fit && cpuGain + pval(fit) >= cpuLoss * 0.92) {
+          // 成立判定(tradeBalance)を通らない条件でカウンターを出すと「飲んだのに無反応」になるため、
+          // 足したあとの形をそのまま成立判定に掛けて確かめる
+          if (fit && tradeBalance(cpuGain + pval(fit), cpuLoss, [...givePlayers, fit], getPlayersT).ok) {
             demandAddIds = [fit.id]
             message = `（${theirName}）${getNames}が欲しいなら、${fit.name}も付けてくれ。それで手を打とう。`
           } else {

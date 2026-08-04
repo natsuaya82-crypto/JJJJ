@@ -5,7 +5,9 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
+// トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
+import { tradeValueOf, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../utils/tradeValue'
 import { canSignContract } from '../../data/rosterRules'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
@@ -795,7 +797,7 @@ function ChatView({
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
 function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
-  const { players, teams, playerTeamId, currentSeason, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
+  const { players, teams, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
   // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
   // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
   // 選ぶと「いいだろう、その条件で成立だ」と言われるのに選手は動かなかった
@@ -817,22 +819,18 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
 
   const neg = (currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === team.id)
 
-  // 成功率の見積もり（proposeTradeと同じ評価式）
+  // 成功率の見積もり（proposeTrade と同じ評価式＝utils/tradeValue.ts）。
+  // 以前はここだけ主力の判定を自前で書き直していて（isDataKeyPlayer＋士気）、
+  // ストア側の keyPlayerStatus と条件が違った。表示が100%でも出すと断られることがあった
   const tradeOutlook = (() => {
     const pickVal = (k: string) => { const m = k.match(/-R(\d+)-(\d+)$/); return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000 }
-    const teamRaces = currentSeason.currentRaceIndex
-    const activity = (p: Player) => { const apps = seasonAppearances(p.id, currentSeason.races); const frac = teamRaces > 0 ? apps / teamRaces : 0; return 1 + frac * 0.4 }
-    const pval = (p: Player) => calcTransferValue(p) * activity(p)
-    // 主力は無条件拒否ではなく1.5倍の価値を要求される
-    const keyPremium = (p: Player) => {
-      const apps = seasonAppearances(p.id, currentSeason.races)
-      const frac = teamRaces > 0 ? apps / teamRaces : 0.5
-      return isDataKeyPlayer(p, frac, teamRaces) && (p.morale ?? 60) >= 45 ? 1.5 : 1
-    }
+    const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, currentSeason, pastSeasons }
+    const pval = (p: Player) => tradeValueOf(p, tvCtx)
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
-    const cpuGain = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p).reduce((s, p) => s + pval(p), 0) + [...givePk].reduce((s, k) => s + pickVal(k), 0)
-    const cpuLoss = getPlayers.reduce((s, p) => s + pval(p) * keyPremium(p), 0) + [...getPk].reduce((s, k) => s + pickVal(k), 0)
-    const hasKey = getPlayers.some(p => keyPremium(p) > 1)
+    const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
+    const cpuGain = givePlayers.reduce((s, p) => s + pval(p), 0) + [...givePk].reduce((s, k) => s + pickVal(k), 0)
+    const cpuLoss = getPlayers.reduce((s, p) => s + pval(p), 0) + [...getPk].reduce((s, k) => s + pickVal(k), 0)
+    const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
     const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
     const myRank = stgs.findIndex(s => s.teamId === playerTeamId) + 1
     const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
@@ -843,13 +841,17 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
     }
     const nextRound = (neg?.round ?? 0) + 1
     const ratio = cpuLoss > 0 ? cpuGain / cpuLoss : 0
+    // 出しすぎ（釣り合いの上限を超えている）はストア側で断られる。ここでも同じ文言で先に出す
+    const balMsg = cpuLoss > 0 && cpuGain >= cpuLoss * TRADE_MIN_RATIO
+      ? (tradeBalance(cpuGain, cpuLoss, givePlayers, getPlayers).reason ?? '')
+      : ''
     let rate: number
-    if (blockMsg || cpuLoss === 0) rate = 0
-    else if (ratio >= 0.95) rate = 100
+    if (blockMsg || balMsg || cpuLoss === 0) rate = 0
+    else if (ratio >= TRADE_OK_RATIO) rate = 100
     else if (nextRound >= 3) rate = 0
-    else rate = Math.max(0, Math.min(99, Math.round(((ratio - 0.55) / 0.40) * 100)))
-    const shortage = Math.max(0, cpuLoss * 0.95 - cpuGain)
-    return { rate, shortage, blockMsg, hasKey, isFinal: nextRound >= 3 }
+    else rate = Math.max(0, Math.min(99, Math.round(((ratio - TRADE_HARD_NO_RATIO) / (TRADE_OK_RATIO - TRADE_HARD_NO_RATIO)) * 100)))
+    const shortage = Math.max(0, cpuLoss * TRADE_OK_RATIO - cpuGain)
+    return { rate, shortage, blockMsg: blockMsg || balMsg, hasKey, isFinal: nextRound >= 3 }
   })()
   const pickKey = (pk: { year: number; round: number; pickNumber: number }) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
   const pickLabel = (k: string) => { const [y, r, n] = k.split('-'); return r === 'R1' ? `${y} 1巡(全体${n}位)` : `${y} ${r.replace('R', '第')}巡` }
