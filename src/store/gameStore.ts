@@ -40,7 +40,7 @@ import { movePlayer } from '../utils/movePlayer'
 import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer } from '../utils/transferEligibility'
 import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
-import { tradeValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, TRADE_MAX_RATIO } from '../utils/tradeValue'
+import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX } from '../utils/tradeValue'
 import type { TradeValueCtx } from '../utils/tradeValue'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 // 監督の在任履歴と、他チームからの監督オファー
@@ -1453,8 +1453,10 @@ export const useGameStore = create<GameStore>()(
             for (const mine of askPool) {
               const myVal = calcTransferValue(mine)
               for (const theirs of offerPool) {
+                // ここは「こちらがもらう額面 ÷ こちらが出す額面」なので、成立判定の定数とは逆向き。
+                // 同じ数字を使い回すと片方の調整がもう片方に逆向きに効くので別の定数にしてある
                 const r = calcTransferValue(theirs) / Math.max(1, myVal)
-                if (r < TRADE_OK_RATIO || r > TRADE_MAX_RATIO) continue
+                if (r < AI_OFFER_GAIN_MIN || r > AI_OFFER_GAIN_MAX) continue
                 if (ovr(theirs) < ovr(mine) - 3) continue
                 const fits = myNeeds.includes(theirs.specialty)
                 const better = !best
@@ -2504,11 +2506,10 @@ export const useGameStore = create<GameStore>()(
           const tvCtxA = tradeValueCtxOf(state)
           const outPlayers = offer.requestedPlayerIds.map(pid => state.players.find(pl => pl.id === pid)).filter((p): p is Player => !!p)
           const inPlayers = offer.offeredPlayerIds.map(pid => state.players.find(pl => pl.id === pid)).filter((p): p is Player => !!p)
-          const outVal = outPlayers.reduce((s2, p) => s2 + tradeValueOf(p, tvCtxA), 0)
-            + (offer.requestedPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0)
-          const inVal = inPlayers.reduce((s2, p) => s2 + tradeValueOf(p, tvCtxA), 0)
-            + (offer.offeredPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0)
-          if (!tradeNotLopsided(outVal, inVal, outPlayers, inPlayers).ok) {
+          const acceptIn = { outPlayers, inPlayers,
+            outExtra: (offer.requestedPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0),
+            inExtra: (offer.offeredPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0) }
+          if (!tradeNotLopsided(acceptIn, tvCtxA).ok) {
             return { currentSeason: { ...state.currentSeason, pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId) } }
           }
           let players = state.players
@@ -3822,18 +3823,20 @@ export const useGameStore = create<GameStore>()(
         // 以前はここに下限0.92だけを書いていたので、こちらが一方的に持ち出す取引に歯止めが無かった。
         // 主力の割増も「もらう側」だけに掛かっていて、こちらの主力が額面より安く数えられていた
         const tvCtx = tradeValueCtxOf(state)
-        const offeredVal = offered.reduce((s, p) => s + tradeValueOf(p, tvCtx), 0)
-          + offerPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, transferFee)
-        const requestedVal = requested.reduce((s, p) => s + tradeValueOf(p, tvCtx), 0)
-          + requestPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, -transferFee)
-        const bal = tradeBalance(offeredVal, requestedVal, offered, requested)
+        const tradeIn = {
+          outPlayers: offered, inPlayers: requested,
+          outExtra: offerPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, transferFee),
+          inExtra: requestPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, -transferFee),
+        }
+        const bal = tradeBalance(tradeIn, tvCtx)
         if (!bal.ok) return { ok: false, reason: bal.reason }
+        const tradeVals = tradeValues(tradeIn, tvCtx)
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
         // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
         const stgs = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
         const myRankNow = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
-        const consentBonusT = requestedVal > 0 && offeredVal / requestedVal >= 1.2 ? 0.15 : 0
+        const consentBonusT = tradeVals.ratio >= 1.2 ? 0.15 : 0
         for (const rp of requested) {
           if (!playerConsentToMove(rp, myRankNow, state.teams.length, 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
         }
@@ -3934,15 +3937,16 @@ export const useGameStore = create<GameStore>()(
         const state = get()
         // 評価式は utils/tradeValue.ts の1本。主力の割増は出す側・もらう側の両方に同じだけ掛かる
         const tvCtx = tradeValueCtxOf(state)
-        const pval = (p: Player) => tradeValueOf(p, tvCtx)
         const playersOf = (ids: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
-        const valOf = (ids: string[], picks: string[]) => playersOf(ids).reduce((s, p) => s + pval(p), 0) + picks.reduce((s, k) => s + pickKeyValue(k), 0)
+        const picksOf = (picks: string[]) => picks.reduce((s, k) => s + pickKeyValue(k), 0)
         const theirName = findClub(state.teams, state.foreignLeagues, targetTeamId)?.shortName
           ?? '相手クラブ'
         const givePlayers = playersOf(giveIds)
         const getPlayersT = playersOf(getIds)
-        const cpuGain = valOf(giveIds, givePickKeys)  // 相手が受け取る
-        const cpuLoss = valOf(getIds, getPickKeys)    // 相手が手放す
+        const baseIn = { outPlayers: givePlayers, inPlayers: getPlayersT,
+          outExtra: picksOf(givePickKeys), inExtra: picksOf(getPickKeys) }
+        // 相手が受け取るぶんは額面、相手が手放すぶんは相手の言い値。物差しは tradeValues が持つ
+        const { cpuGain, cpuLoss } = tradeValues(baseIn, tvCtx)
 
         const existing = (state.currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === targetTeamId)
         const round = (existing?.round ?? 0) + 1
@@ -3965,7 +3969,7 @@ export const useGameStore = create<GameStore>()(
 
         // 釣り合いすぎ・持ち出しすぎの判定は成立側(tradePlayer)と同じ tradeBalance を使う。
         // ここで通しても成立側で弾かれると「飲んだのに無反応」になるため
-        const overBal = tradeBalance(cpuGain, cpuLoss, givePlayers, getPlayersT)
+        const overBal = tradeBalance(baseIn, tvCtx)
         const overOnly = !overBal.ok && cpuGain >= cpuLoss * TRADE_MIN_RATIO
 
         if (getIds.length === 0 && getPickKeys.length === 0) { status = 'rejected'; message = `（${theirName}）何も要求されていない。` }
@@ -3981,11 +3985,12 @@ export const useGameStore = create<GameStore>()(
             currentYear: state.currentSeason.year,
             retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
           }
-          const cands = state.players.filter(p => canTradeAway(p, counterCtx) && !giveIds.includes(p.id)).sort((a, b) => pval(a) - pval(b))
-          const fit = cands.find(p => pval(p) >= need) ?? cands[cands.length - 1]
+          const cands = state.players.filter(p => canTradeAway(p, counterCtx) && !giveIds.includes(p.id))
+            .sort((a, b) => faceValueOf(a) - faceValueOf(b))
+          const fit = cands.find(p => faceValueOf(p) >= need) ?? cands[cands.length - 1]
           // 成立判定(tradeBalance)を通らない条件でカウンターを出すと「飲んだのに無反応」になるため、
           // 足したあとの形をそのまま成立判定に掛けて確かめる
-          if (fit && tradeBalance(cpuGain + pval(fit), cpuLoss, [...givePlayers, fit], getPlayersT).ok) {
+          if (fit && tradeBalance({ ...baseIn, outPlayers: [...givePlayers, fit] }, tvCtx).ok) {
             demandAddIds = [fit.id]
             message = `（${theirName}）${getNames}が欲しいなら、${fit.name}も付けてくれ。それで手を打とう。`
           } else {

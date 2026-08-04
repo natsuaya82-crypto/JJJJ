@@ -14,8 +14,8 @@
  */
 import {
   TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, TRADE_MAX_RATIO,
-  KEY_PLAYER_PREMIUM, TRADE_OVR_SLACK,
-  activityFactor, keyFactor, tradeValueOf, tradeBalance, tradeNotLopsided,
+  KEY_PLAYER_PREMIUM, TRADE_OVR_SLACK, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX,
+  activityFactor, keyFactor, faceValueOf, askingValueOf, tradeValues, tradeBalance, tradeNotLopsided,
 } from '../src/utils/tradeValue'
 import type { TradeValueCtx } from '../src/utils/tradeValue'
 import { calcTransferValue, ovr } from '../src/utils/playerUtils'
@@ -70,19 +70,21 @@ console.log('\n[2] 「30歳のOVR90」と「22歳のOVR70」が等価になら�
   const vet = P(90, 30), kid = P(70, 22)
   const r = calcTransferValue(vet) / calcTransferValue(kid)
   check('市場価値で2.5倍以上の開きがある', r >= 2.5, `${r.toFixed(2)}倍（${億(calcTransferValue(vet))}億 / ${億(calcTransferValue(kid))}億）`)
-  const bal = tradeBalance(tradeValueOf(vet, CTX), tradeValueOf(kid, CTX), [vet], [kid])
+  const bal = tradeBalance({ outPlayers: [vet], inPlayers: [kid] }, CTX)
   check('この交換は成立しない', !bal.ok, bal.reason)
   check('断る理由が「持ち出しが大きすぎる」になっている', (bal.reason ?? '').includes('持ち出し'))
 }
 
 console.log('\n[3] 釣り合いは上下どちらにもはみ出したら不成立')
 {
-  check('ちょうど釣り合っていれば成立', tradeBalance(100, 100).ok)
-  check('下限ちょうどは成立', tradeBalance(100 * TRADE_MIN_RATIO, 100).ok)
-  check('下限を下回ると相手が断る', !tradeBalance(100 * TRADE_MIN_RATIO - 1, 100).ok)
-  check('上限ちょうどは成立', tradeBalance(100 * TRADE_MAX_RATIO, 100).ok)
-  check('上限を超えるとこちらの持ち出しが大きすぎる', !tradeBalance(100 * TRADE_MAX_RATIO + 1, 100).ok)
-  check('もらう側が空なら不成立', !tradeBalance(100, 0).ok)
+  // 指名権だけの取引にすれば上乗せが掛からないので、比だけを素直に確かめられる
+  const B = (out: number, inn: number) => tradeBalance({ outExtra: out, inExtra: inn }, CTX)
+  check('ちょうど釣り合っていれば成立', B(100, 100).ok)
+  check('下限ちょうどは成立', B(100 * TRADE_MIN_RATIO, 100).ok)
+  check('下限を下回ると相手が断る', !B(100 * TRADE_MIN_RATIO - 1, 100).ok)
+  check('上限ちょうどは成立', B(100 * TRADE_MAX_RATIO, 100).ok)
+  check('上限を超えるとこちらの持ち出しが大きすぎる', !B(100 * TRADE_MAX_RATIO + 1, 100).ok)
+  check('もらう側が空なら不成立', !B(100, 0).ok)
   check('上限 > 下限（帯が潰れていない）', TRADE_MAX_RATIO > TRADE_MIN_RATIO)
   check('門前払いの線が下限より下', TRADE_HARD_NO_RATIO < TRADE_MIN_RATIO)
   check('即OKの線が下限以上', TRADE_OK_RATIO >= TRADE_MIN_RATIO)
@@ -93,12 +95,18 @@ console.log('\n[4] 数を足して値段だけ合わせた交換を止める（O
   const star = P(88, 27)
   const near = P(88 - TRADE_OVR_SLACK, 24)
   const far = P(88 - TRADE_OVR_SLACK - 1, 24)
-  check('OVR差ちょうどは通る', tradeNotLopsided(100, 100, [star], [near]).ok)
-  check('OVR差が開きすぎたら額面で見合わない', !tradeNotLopsided(100, 100, [star], [far]).ok)
-  check('もらう中に1人でも近いOVRがいれば通る', tradeNotLopsided(100, 100, [star], [far, near]).ok)
-  check('選手が片側にしかいない（指名権だけ）ならOVRは見ない', tradeNotLopsided(100, 100, [star], []).ok)
-  check('断る理由が「額面で見合わない」になっている',
-    (tradeNotLopsided(100, 100, [star], [far]).reason ?? '').includes('額面'))
+  // 額面差で先に弾かれないよう、足りない分は指名権で埋めて比を1.0に寄せる
+  const NL = (out: Player[], inn: Player[]) => {
+    const of = out.reduce((s2, p) => s2 + faceValueOf(p), 0)
+    const inf = inn.reduce((s2, p) => s2 + faceValueOf(p), 0)
+    return tradeNotLopsided({ outPlayers: out, inPlayers: inn, inExtra: Math.max(0, of - inf) }, CTX)
+  }
+  check('OVR差ちょうどは通る', NL([star], [near]).ok)
+  check('OVR差が開きすぎたら額面で見合わない', !NL([star], [far]).ok)
+  check('もらう中に1人でも近いOVRがいれば通る', NL([star], [far, near]).ok)
+  check('選手が片側にしかいない（指名権だけ）ならOVRは見ない',
+    tradeNotLopsided({ outPlayers: [star], inExtra: faceValueOf(star) }, CTX).ok)
+  check('断る理由が「額面で見合わない」になっている', (NL([star], [far]).reason ?? '').includes('額面'))
   check('OVRの見方が最上位どうし', ovr(star) - ovr(far) === TRADE_OVR_SLACK + 1)
 }
 
@@ -106,18 +114,47 @@ console.log('\n[5] 相手から来た打診は、こちらが損をする側だ�
 // CPUが作る打診は「こちらがもらう側が多め」に寄っている（0.95〜1.30の帯）。
 // ここに下限まで掛けると、相手が気前よく出してきた打診が押した瞬間に黙って消えていた
 {
-  check('相手が損をする打診は飲める', tradeNotLopsided(70, 100).ok)
-  check('同じ形を tradeBalance に掛けると下限で弾かれる（だから使い分ける）', !tradeBalance(70, 100).ok)
-  check('こちらが出しすぎの打診は飲めない', !tradeNotLopsided(100 * TRADE_MAX_RATIO + 1, 100).ok)
+  const NL2 = (out: number, inn: number) => tradeNotLopsided({ outExtra: out, inExtra: inn }, CTX)
+  check('相手が損をする打診は飲める', NL2(70, 100).ok)
+  check('同じ形を tradeBalance に掛けると下限で弾かれる（だから使い分ける）',
+    !tradeBalance({ outExtra: 70, inExtra: 100 }, CTX).ok)
+  check('こちらが出しすぎの打診は飲めない', !NL2(100 * TRADE_MAX_RATIO + 1, 100).ok)
+  // ★CPUが作った打診が、押した瞬間に上限で消えないこと★
+  // 生成側は「もらう額面 ÷ 出す額面 >= AI_OFFER_GAIN_MIN」で作る。その逆数が上限を
+  // 超えていると、届いた打診を飲もうとした瞬間に tradeNotLopsided が弾いて黙って消える
+  check('CPUが作れる一番渋い打診でも上限に触れない', 1 / AI_OFFER_GAIN_MIN <= TRADE_MAX_RATIO,
+    `1/${AI_OFFER_GAIN_MIN} = ${(1 / AI_OFFER_GAIN_MIN).toFixed(3)} vs ${TRADE_MAX_RATIO}`)
+  check('CPUの帯の上側も筋が通っている（もらいすぎを作らない）', AI_OFFER_GAIN_MAX >= 1)
+  {
+    // 生成側の一番渋い形をそのまま飲めるか、実物で確かめる
+    const mine = P(80, 26), theirs = P(80, 26)
+    const inExtra = Math.max(0, Math.ceil(faceValueOf(mine) * AI_OFFER_GAIN_MIN) - faceValueOf(theirs))
+    check('生成の下限ちょうどの打診をそのまま飲める',
+      tradeNotLopsided({ outPlayers: [mine], inPlayers: [theirs], inExtra }, CTX).ok)
+  }
 }
 
-console.log('\n[6] 主力の割増は出す側・もらう側の両方に同じだけ掛かる')
+console.log('\n[6] 物差しは2つ。額面（損得）と言い値（相手が承知するか）を混ぜない')
 {
   check('主力の割増は1.5倍', KEY_PLAYER_PREMIUM === 1.5)
   const p = P(80, 26)
   check('出場データが無ければ割増は掛からない', keyFactor(p, CTX) === 1)
   check('出場していなければ上乗せも無い', activityFactor(p, CTX) === 1)
-  check('値打ち＝市場価値×出場×主力割増', tradeValueOf(p, CTX) === calcTransferValue(p) * activityFactor(p, CTX) * keyFactor(p, CTX))
+  check('額面＝そのままの市場価値（上乗せを掛けない）', faceValueOf(p) === calcTransferValue(p))
+  check('言い値＝市場価値×出場×主力割増', askingValueOf(p, CTX) === calcTransferValue(p) * activityFactor(p, CTX) * keyFactor(p, CTX))
+
+  // ★同じOVR・同じ年齢の1対1が通ること★
+  // 上限の判定にまで言い値（最大2.1倍まで開く）を使うと、この当たり前の交換が成立しなくなる
+  const a = P(80, 28), b = P(80, 28)
+  const v = tradeValues({ outPlayers: [a], inPlayers: [b] }, CTX)
+  check('同じOVR・同じ年齢の1対1は額面で釣り合う', v.outFace === v.inFace, `${億(v.outFace)} vs ${億(v.inFace)}`)
+  check('同じOVR・同じ年齢の1対1が上限で弾かれない', tradeNotLopsided({ outPlayers: [a], inPlayers: [b] }, CTX).ok)
+
+  // 上限は額面だけを見るので、相手の言い値がいくら高くても上限判定は動かない
+  const keyish = P(80, 28)
+  const vk = tradeValues({ outPlayers: [a], inPlayers: [keyish] }, CTX)
+  check('上限の判定に使うのは額面（cpuGain は額面と同じ）', vk.cpuGain === vk.outFace)
+  check('相手が承知するかの判定に使うのは言い値', vk.cpuLoss === askingValueOf(keyish, CTX))
 }
 
 console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
@@ -142,12 +179,20 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   check('チャットが主力の判定を自前で書き直していない（isDataKeyPlayer）', !chat.includes('isDataKeyPlayer('))
   check('出場の上乗せ(0.4)を自前で書いていない', !/frac \* 0\.4/.test(store) && !/frac \* 0\.4/.test(chat))
 
-  check('成立(tradePlayer)が tradeBalance を通る', store.includes('const bal = tradeBalance(offeredVal, requestedVal, offered, requested)'))
-  check('チャット交渉(proposeTrade)が tradeBalance を通る', store.includes('const overBal = tradeBalance(cpuGain, cpuLoss, givePlayers, getPlayersT)'))
-  check('逆提示の作り方も tradeBalance で確かめている', store.includes('tradeBalance(cpuGain + pval(fit), cpuLoss'))
-  check('相手からの打診(acceptTradeOffer)が tradeNotLopsided を通る', store.includes('tradeNotLopsided(outVal, inVal, outPlayers, inPlayers)'))
-  check('CPUの打診づくりが同じ帯を使う', store.includes('if (r < TRADE_OK_RATIO || r > TRADE_MAX_RATIO) continue'))
+  check('成立(tradePlayer)が tradeBalance を通る', store.includes('const bal = tradeBalance(tradeIn, tvCtx)'))
+  check('チャット交渉(proposeTrade)が tradeBalance を通る', store.includes('const overBal = tradeBalance(baseIn, tvCtx)'))
+  check('逆提示の作り方も tradeBalance で確かめている', store.includes('tradeBalance({ ...baseIn, outPlayers: [...givePlayers, fit] }, tvCtx)'))
+  check('相手からの打診(acceptTradeOffer)が tradeNotLopsided を通る', store.includes('tradeNotLopsided(acceptIn, tvCtxA)'))
+  check('CPUの打診づくりは逆向きの定数を使う（同じ数字を使い回さない）',
+    store.includes('if (r < AI_OFFER_GAIN_MIN || r > AI_OFFER_GAIN_MAX) continue'))
   check('値付けの ctx が1箇所（tradeValueCtxOf）', store.includes('function tradeValueCtxOf('))
+  // 値の合計は tradeValue 側でやる。呼び出し側で足すと額面と言い値がまた混ざる
+  check('ストアが値を自前で合計していない', !/reduce\(\(s2?, p\) => s2? \+ (tradeValueOf|askingValueOf|faceValueOf)\(/.test(store))
+  check('チャットが値を自前で合計していない', !/reduce\(\(s, p\) => s \+ (tradeValueOf|askingValueOf|faceValueOf)\(/.test(chat))
+  check('チャットも tradeValues で数える', chat.includes('const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)'))
+  // 断る理由の文末に句点を付けない（画面側で助言を足すため。以前は句点が二重になっていた）
+  check('チャットが断り文句に助言を足す形が1本', chat.includes('const blockNote = blockMsg ?'))
+  check('画面が二重の句点を作らない', !chat.includes('{tradeOutlook.blockMsg}。'))
 
   // 逆提示を飲む道は tradePlayer をそのまま通すので、そこに判定があれば足りる
   check('逆提示を飲む道が tradePlayer を通る', store.includes("const res = get().tradePlayer([...neg.giveIds"))

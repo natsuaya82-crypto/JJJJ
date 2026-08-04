@@ -7,7 +7,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
-import { tradeValueOf, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../utils/tradeValue'
+import { tradeValues, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../utils/tradeValue'
 import { canSignContract } from '../../data/rosterRules'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
@@ -825,25 +825,25 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
   const tradeOutlook = (() => {
     const pickVal = (k: string) => { const m = k.match(/-R(\d+)-(\d+)$/); return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000 }
     const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, currentSeason, pastSeasons }
-    const pval = (p: Player) => tradeValueOf(p, tvCtx)
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
-    const cpuGain = givePlayers.reduce((s, p) => s + pval(p), 0) + [...givePk].reduce((s, k) => s + pickVal(k), 0)
-    const cpuLoss = getPlayers.reduce((s, p) => s + pval(p), 0) + [...getPk].reduce((s, k) => s + pickVal(k), 0)
+    const tradeIn = { outPlayers: givePlayers, inPlayers: getPlayers,
+      outExtra: [...givePk].reduce((s, k) => s + pickVal(k), 0),
+      inExtra: [...getPk].reduce((s, k) => s + pickVal(k), 0) }
+    const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
     const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
     const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
     const myRank = stgs.findIndex(s => s.teamId === playerTeamId) + 1
-    const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
+    const consentBonus = ratio >= 1.2 ? 0.15 : 0
     let blockMsg = ''
     for (const rp of getPlayers) {
       const consent = playerConsentToMove(rp, myRank, teams.length, 0.5, 0, consentBonus)
       if (!consent.ok) { blockMsg = consent.reason; break }
     }
     const nextRound = (neg?.round ?? 0) + 1
-    const ratio = cpuLoss > 0 ? cpuGain / cpuLoss : 0
     // 出しすぎ（釣り合いの上限を超えている）はストア側で断られる。ここでも同じ文言で先に出す
     const balMsg = cpuLoss > 0 && cpuGain >= cpuLoss * TRADE_MIN_RATIO
-      ? (tradeBalance(cpuGain, cpuLoss, givePlayers, getPlayers).reason ?? '')
+      ? (tradeBalance(tradeIn, tvCtx).reason ?? '')
       : ''
     let rate: number
     if (blockMsg || balMsg || cpuLoss === 0) rate = 0
@@ -851,7 +851,10 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
     else if (nextRound >= 3) rate = 0
     else rate = Math.max(0, Math.min(99, Math.round(((ratio - TRADE_HARD_NO_RATIO) / (TRADE_OK_RATIO - TRADE_HARD_NO_RATIO)) * 100)))
     const shortage = Math.max(0, cpuLoss * TRADE_OK_RATIO - cpuGain)
-    return { rate, shortage, blockMsg: blockMsg || balMsg, hasKey, isFinal: nextRound >= 3 }
+    // 直し方は理由ごとに違う。本人が嫌がっている＝対象を変える、持ち出しすぎ＝出す側を減らす。
+    // 以前はどちらにも「。対象を変えてください」を足していて、句点が二重になるうえ助言が逆だった
+    const blockNote = blockMsg ? `${blockMsg}。対象を変えてください` : balMsg
+    return { rate, shortage, blockMsg: blockMsg || balMsg, blockNote, hasKey, isFinal: nextRound >= 3 }
   })()
   const pickKey = (pk: { year: number; round: number; pickNumber: number }) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
   const pickLabel = (k: string) => { const [y, r, n] = k.split('-'); return r === 'R1' ? `${y} 1巡(全体${n}位)` : `${y} ${r.replace('R', '第')}巡` }
@@ -939,8 +942,8 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
               )}
               {neg.status === 'rejected' && (
                 <>
-                  {tradeOutlook.blockMsg
-                    ? <div style={{ fontSize: 10, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{tradeOutlook.blockMsg}。対象を変えてください</div>
+                  {tradeOutlook.blockNote
+                    ? <div style={{ fontSize: 10, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{tradeOutlook.blockNote}</div>
                     : tradeOutlook.shortage > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>あと約{fmt(tradeOutlook.shortage)}相当が不足しています。出す選手か指名権を追加して再提案してください</div>}
                   <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
                 </>
