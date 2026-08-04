@@ -1267,14 +1267,24 @@ export function refreshForeignLeagues(
   const byId = new Map(fresh.players.map(p => [p.id, p]))
   // 今の在籍は選手側の teamId から数える（クラブ側に名簿は無い）
   const membersByClub = clubMembersByClub(players)
+  // 在籍選手の年齢を引くための索引（補充を年齢構成で判定するのに使う）
+  const currentById = new Map(players.map(p => [p.id, p]))
   const newPlayers: Player[] = []
   for (const l of leagues) {
     for (const club of l.clubs) {
       const kept = (membersByClub.get(club.id) ?? []).filter(id => !removedIds.has(id))
       // 新人補充の目標は26人まで（上限30に空き枠を残す）。全クラブを毎年30人に
       // 埋めてしまうと買い手枠が消えて海外間の移籍市場が動かなくなる。
-      // 上の空きは移籍・引き抜きで埋まり、クラブごとに人数の個性が出る
-      const addN = Math.min(3, Math.max(0, 26 - kept.length))
+      // 上の空きは移籍・引き抜きで埋まり、クラブごとに人数の個性が出る。
+      //
+      // 2046修正: 人数だけで判定していたため、在籍が26人以上あるクラブには新人が
+      // 一人も入らなかった。引退は32〜40歳なので在籍はなかなか減らず、結果として
+      // 「海外クラブに若手がいない・全員が同じだけ歳を取る」状態になっていた。
+      // 人数に関係なく、23歳以下が3人未満なら若手を入れる（枠は上限30まで4人の余裕がある）。
+      const young = kept.filter(id => (currentById.get(id)?.age ?? 99) <= 23).length
+      const addN = young < 3
+        ? Math.min(3, 3 - young)
+        : Math.min(3, Math.max(0, 26 - kept.length))
       const adds = (freshByClub.get(club.id) ?? []).slice(0, addN)
       for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
     }
@@ -1311,9 +1321,15 @@ function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specia
 export function generateForeignLeaguePlayers(
   leagues: ForeignLeague[],
   year: number,
-  // 年齢範囲。初期ロスターは完成したチームに見せるため22〜30の分布。
-  // 毎年の補充(refreshForeignLeagues)は伸びしろ持ちの若手だけを入れるので[19,22]を渡す。
-  ageRange: [number, number] = [22, 30],
+  // 年齢範囲。毎年の補充(refreshForeignLeagues)は伸びしろ持ちの若手だけを入れるので[19,22]を渡す。
+  //
+  // 2046調整: 初期ロスターは[22,30]だった。引退は32〜40歳なので最初の5〜8年は誰も抜けず、
+  // 下の補充ゲート（在籍26人未満のときだけ新人を入れる）が一度も開かない。結果、
+  // 初期コホートがそのまま歳を取るだけで、海外リーグに若手が一人も居ない状態が続いていた。
+  // [18,28]に下げて最初から若手を混ぜる。成長速度の引き上げ（growPlayer / bakeAgeGrowth）と
+  // 打ち消し合うので、初年度の強さは従来とほぼ同じまま年齢構成だけが若返る
+  // （実測: 中央OVR 70→69 / 80以上 10%→12% / 90以上 0%→0%）。
+  ageRange: [number, number] = [18, 28],
 ): { players: Player[]; updatedLeagues: ForeignLeague[] } {
   const players: Player[] = []
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
