@@ -14,8 +14,10 @@
  * ここが NG になったら、呼び出し側が自前で数え直している。判定は必ず contractTalk に足すこと。
  */
 import {
-  MAX_CONTRACT_ROUNDS, contractMonthsLeft, isLiveContract, liveContractOf, hasContractTalk,
-  freeContactIdsOf, contractTalkCtx, canOfferRenewal, canRequestRenewal, needsRenewalAttention, canReNegotiate,
+  MAX_CONTRACT_ROUNDS, RENEWAL_ATTENTION_MONTHS, RENEWAL_URGENT_MONTHS,
+  contractMonthsLeft, isLiveContract, liveContractOf, hasContractTalk,
+  freeContactIdsOf, contractTalkCtx, canOfferRenewal, canRequestRenewal, needsRenewalAttention,
+  isUrgentRenewal, canReNegotiate,
 } from '../src/utils/contractTalk'
 import type { ContractRequest, Player } from '../src/types'
 import { readFileSync } from 'node:fs'
@@ -101,8 +103,27 @@ console.log('\n[6] 「要対応」は1つの判定だけを見る')
   check('ケガ中でも出す', needsRenewalAttention(P({ status: 'injured' } as Partial<Player>), 3, CTX))
   check('退団予定には出さない', !needsRenewalAttention(P({ transferListed: true } as Partial<Player>), 3, CTX))
   check('引退を承認した選手には出さない', !needsRenewalAttention(P({ pendingRetirementYear: 2030 } as Partial<Player>), 3, CTX))
-  const talked = contractTalkCtx({ ...SEASON, contractRequests: [R({ status: 'rejected' })] }, 'a')
-  check('もう話した選手には出さない', !needsRenewalAttention(P(), 3, talked))
+  // 「もう話した」＝出さない、ではない。まだ条件を変えて出し直せるなら要対応のまま。
+  // ここを見ていなかったので、1回目で断られた選手が通知からもホームからも消えて、
+  // GMが気づかないまま契約満了になっていた
+  const done = contractTalkCtx({ ...SEASON, contractRequests: [R({ status: 'rejected', round: MAX_CONTRACT_ROUNDS })] }, 'a')
+  check('出し直せないところまで話した選手には出さない', !needsRenewalAttention(P(), 3, done))
+  const redo = contractTalkCtx({ ...SEASON, contractRequests: [R({ status: 'rejected', round: 1 })] }, 'a')
+  check('断られたがまだ出し直せる選手は要対応のまま', needsRenewalAttention(P(), 3, redo))
+  check('合意した選手には出さない',
+    !needsRenewalAttention(P(), 3, contractTalkCtx({ ...SEASON, contractRequests: [R({ status: 'accepted' })] }, 'a')))
+  check('更新ロック中の選手には出さない（出し直せないので）',
+    !needsRenewalAttention(P({ renewalLockedUntilYear: 2031 } as Partial<Player>), 3, redo))
+}
+
+console.log('\n[6b] レース後に強制で飛ばすのは「要対応」より狭い')
+// 判定を1本化したときに、飛ばす基準まで要対応と同じ6ヶ月へ広げてしまい、
+// レースのたびに通知ページへ飛ばされるようになっていた。飛ばすのは残り3ヶ月未満だけ
+{
+  check('飛ばす基準は要対応より狭い', RENEWAL_URGENT_MONTHS < RENEWAL_ATTENTION_MONTHS)
+  check('残り5ヶ月は要対応だが飛ばさない', needsRenewalAttention(P(), 5, CTX) && !isUrgentRenewal(P(), 5, CTX))
+  check('残り2ヶ月なら飛ばす', isUrgentRenewal(P(), 2, CTX))
+  check('要対応でない相手には飛ばさない', !isUrgentRenewal(P({ transferListed: true } as Partial<Player>), 2, CTX))
 }
 
 console.log('\n[7] 再交渉はラウンド上限と更新ロックで止まる')
@@ -147,7 +168,10 @@ console.log('\n[8] 呼び出し側が判定を自前で書き直していない'
   check('チャットが contractTalk を通している', chat.includes("from '../../utils/contractTalk'"))
   check('通知が contractTalk を通している', notif.includes("from './contractTalk'"))
   check('ホームが contractTalk を通している', dash.includes('needsRenewalAttention'))
-  check('レース後が contractTalk を通している', results.includes('needsRenewalAttention'))
+  check('レース後が contractTalk を通している', results.includes('isUrgentRenewal'))
+  check('レース後が飛ばす基準を自前で書いていない', !results.includes('months < 3') && !results.includes('months < 6'))
+  check('要対応の月数がべた書きされていない',
+    contractTalk.includes('months >= RENEWAL_ATTENTION_MONTHS'))
   check('残り月数の実体が contractTalk にある', contractTalk.includes('export function contractMonthsLeft'))
   check('通知は contractMonthsLeft を持たず再輸出している', !notif.includes('function contractMonthsLeft'))
 }
@@ -173,6 +197,12 @@ console.log('\n[10] 状況が変わったら札の片付けを1箇所（reconcil
   check('貸出の切り替え（toggleLoanListed）が reconcileTalks を通る', has('toggleLoanListed', 'reconcileTalks'))
   check('片付け側が「退団予定」も見ている', talkSync.includes('isLeavingClub'))
   check('片付け側が進行中の札だけを対象にしている', talkSync.includes('!isLiveContract(r) ||'))
+  // 最終ラウンドで決裂すると、その場で退団予定（transferListed）になる。抱えている直訴の
+  // 前提が崩れるのに片付けが無く、**返事のボタンが一つも出ないメッセージだけが残って**いた
+  check('契約更新の提示（submitContractRenewalOffer）が reconcileTalks を通る',
+    has('submitContractRenewalOffer', 'reconcileTalks'))
+  // イベントから引退を認めた／移籍市場に出した場合も同じ
+  check('イベントの応答（resolveEvent）が reconcileTalks を通る', has('resolveEvent', 'reconcileTalks'))
 }
 
 console.log('\n[11] チャットの用件が二重に出ない')
@@ -187,6 +217,12 @@ console.log('\n[11] チャットの用件が二重に出ない')
   check('退団予定の選手には用件を出さない分岐がフリー接触より前にある',
     chat.indexOf('if (player.transferListed) return [') < chat.indexOf('if (freeContactOffer) {'))
   check('チャット一覧がケガ人も対象にしている', chat.includes("p.status === 'active' || p.status === 'injured'"))
+  // 更新ロック中の選手にも「契約条件を提示する」が出ていて、押しても札が作られず
+  // 何も起きないボタンになっていた。出していいかは canOfferRenewal 1本で見る
+  check('GMから持ちかけるボタンが canOfferRenewal で止まる', chat.includes('if (!canOfferRenewal(player, talkCtx)) return ['))
+  check('その確認が「契約条件を提示する」より前にある',
+    chat.indexOf('if (!canOfferRenewal(player, talkCtx)) return [')
+      < chat.lastIndexOf("{ label: '契約条件を提示する'"))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)

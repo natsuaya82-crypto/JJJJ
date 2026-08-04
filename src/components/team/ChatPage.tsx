@@ -12,7 +12,7 @@ import { canSignContract } from '../../data/rosterRules'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
-import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, needsRenewalAttention } from '../../utils/contractTalk'
+import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
@@ -665,6 +665,14 @@ function ChatView({
         { label: '閉じる', color: C.textSub, action: onClose },
       ]
     }
+
+    // ここから下は「GMのほうから契約の話を持ちかける」ボタン。持ちかけていい相手かは
+    // contractTalk の canOfferRenewal 1本で見る。この確認が無かったので、最終ラウンドで
+    // 決裂して来年まで更新をロックされた選手にも「契約条件を提示する」が出ていて、
+    // 押しても札が作られず**何も起きないボタン**になっていた
+    if (!canOfferRenewal(player, talkCtx)) return [
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
 
     if (months < 12 || contractReq?.initiatedBy === 'gm') return [
       { label: '契約条件を提示する', color: C.blue, action: openCompose },

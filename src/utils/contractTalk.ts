@@ -30,6 +30,15 @@ import { canStartContractTalk } from './transferEligibility'
 /** 交渉は最大3ラウンド。ここを見ずに round を進めない */
 export const MAX_CONTRACT_ROUNDS = 3
 
+/** 「要対応」として通知・ホーム・チャット一覧に載せ始める、契約残りの月数 */
+export const RENEWAL_ATTENTION_MONTHS = 6
+/**
+ * レース後に通知ページへ強制で飛ばす、契約残りの月数。
+ * 「要対応」より切迫したものだけ。以前はここが3ヶ月だったのを、判定を1本化したときに
+ * うっかり要対応と同じ6ヶ月へ広げてしまい、**レースのたびに通知へ飛ばされる**ようになっていた
+ */
+export const RENEWAL_URGENT_MONTHS = 3
+
 /** 契約残りの月数。チャットの表示・通知のリマインダー・ホームの警告が全部この式を使う */
 export function contractMonthsLeft(yearsLeft: number, raceIndex: number, totalRaces: number): number {
   return Math.round((yearsLeft - 1 + Math.max(0, totalRaces - raceIndex) / Math.max(1, totalRaces)) * 12)
@@ -117,8 +126,21 @@ export function canRequestRenewal(p: Player, ctx: ContractTalkCtx): boolean {
 export function needsRenewalAttention(p: Player, months: number, ctx: ContractTalkCtx): boolean {
   if (!canRequestRenewal(p, ctx)) return false
   if (p.contract.yearsLeft > 1) return false
-  if (months >= 6) return false
-  return !hasContractTalk(ctx.contractRequests, p.id)
+  if (months >= RENEWAL_ATTENTION_MONTHS) return false
+  // まだ一度も話していない
+  if (!hasContractTalk(ctx.contractRequests, p.id)) return true
+  // 一度断られたが、まだ条件を変えて出し直せる。
+  // ここを見ていなかったので、1回目で断られた選手が通知からもホームからも消えて、
+  // GMが気づかないまま契約満了になっていた（チャットを開けば出し直せる状態のまま）
+  return ctx.contractRequests.some(r => r.playerId === p.id && canReNegotiate(r, p, ctx))
+}
+
+/**
+ * レース後に通知ページへ強制で飛ばす相手か。
+ * 「要対応」の中でも本当に切迫したものだけに絞る（飛ばされる回数を増やさないため）
+ */
+export function isUrgentRenewal(p: Player, months: number, ctx: ContractTalkCtx): boolean {
+  return months < RENEWAL_URGENT_MONTHS && needsRenewalAttention(p, months, ctx)
 }
 
 /** 条件を変えてもう一度提示していいか（ラウンド上限と更新ロックをここで見る） */

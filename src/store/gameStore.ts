@@ -2472,7 +2472,10 @@ export const useGameStore = create<GameStore>()(
           }
 
           season = { ...season, events: (season.events ?? []).map(e => e.id === eventId ? { ...e, resolved: true, choiceIndex } : e) }
-          return { players, teams, gmRep, currentSeason: season }
+          // イベントで引退を認めた／移籍市場に出した場合、その選手あての札は前提が崩れる。
+          // ここだけ reconcileTalks を通していなかったので、承認したのに直訴が残り、
+          // 次のレース進行まで通知に幽霊が出ていた
+          return { players, teams, gmRep, currentSeason: reconcileTalks(season, players, state.playerTeamId) }
         })
       },
 
@@ -2869,17 +2872,20 @@ export const useGameStore = create<GameStore>()(
             // 来年まで更新オファーもロックする
             newPlayers = state.players.map(p => p.id === player.id ? { ...p, transferListed: true, renewalLockedUntilYear: state.currentSeason.year + 1 } : p)
           }
+          // 最終ラウンド決裂で退団予定になった選手は、抱えている直訴（引退したい・移籍したい・
+          // 海外に行きたい）の前提が崩れる。ここに片付けが無かったので、**返事のボタンが
+          // 一つも出ないメッセージだけがチャットに残り**、次のレース進行で黙って消えていた
           return {
             players: newPlayers,
             teams: newTeams,
-            currentSeason: {
+            currentSeason: reconcileTalks({
               ...state.currentSeason,
               contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? updatedReq : r),
               // 更新成立なら進行中のフリー移籍の接触は打ち切り（残留確定）
               incomingOffers: newStatus === 'accepted'
                 ? (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === player.id && o.offeredPrice === 0))
                 : state.currentSeason.incomingOffers,
-            }
+            }, newPlayers, state.playerTeamId),
           }
         })
       },
