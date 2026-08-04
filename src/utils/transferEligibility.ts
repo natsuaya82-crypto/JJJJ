@@ -91,6 +91,17 @@ export function canListForSale(p: Player, ctx: EligibilityCtx): boolean {
   return true
 }
 
+/**
+ * GMがこの選手をトレードで放出していいか。
+ * 相手クラブから受け取る側は canBePoached（引き抜きと同じ条件）を使う
+ */
+export function canTradeAway(p: Player, ctx: EligibilityCtx): boolean {
+  if (!isOwnedBy(p, ctx.teamId)) return false
+  if (isRetiring(p, ctx.retiringIds)) return false
+  if (p.overseasListed) return false
+  return true
+}
+
 /** GMがこの選手をレンタルに出していいか */
 export function canLoanOut(p: Player, ctx: EligibilityCtx): boolean {
   if (!isOwnedBy(p, ctx.teamId)) return false

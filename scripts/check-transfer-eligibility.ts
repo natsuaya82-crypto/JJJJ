@@ -106,5 +106,27 @@ const elig = join('src', 'utils', 'transferEligibility.ts')
 const windowLeftovers = srcFiles.filter(f => f !== elig && /isWindowOpenNow|windowOpen\b/.test(readFileSync(f, 'utf-8')))
 check('撤廃した移籍ウィンドウの判定が残っていない', windowLeftovers.length === 0, windowLeftovers.join(', '))
 
+console.log('\n[7] 枝分かれした移籍の入口が全部この判定を通っている')
+// トレード・レンタル・契約更新・入札は入口がバラバラで、それぞれが自前で
+// 「p.teamId === playerTeamId」しか見ていなかった。借りている選手を売る・貸す・
+// 契約更新する、が全部できてしまっていたので、入口ごとに関数名で確かめる
+const has = (fn: string, needle: string) => {
+  // 冒頭の型宣言にも同じ名前が並ぶので、実装（最後の出現）の方を見る
+  const i = store.lastIndexOf(`\n      ${fn}: (`)
+  return i >= 0 && store.slice(i, i + 4000).includes(needle)
+}
+check('入札（submitTransferBid）が canBePoached を通る', has('submitTransferBid', 'canBePoached'))
+check('移籍成立（finalizeTransfer）でもう一度確かめている', has('finalizeTransfer', 'canBePoached'))
+check('トレード（tradePlayer）が canTradeAway を通る', has('tradePlayer', 'canTradeAway'))
+check('CPUのトレード提案（acceptTradeOffer）が判定を通る', has('acceptTradeOffer', 'canTradeAway'))
+check('レンタル放出（loanOutPlayer）が canLoanOut を通る', has('loanOutPlayer', 'canLoanOut'))
+check('契約更新（initiateContractRenewal）が isOwnedBy を通る', has('initiateContractRenewal', 'isOwnedBy'))
+check('契約要求の生成（generateContractRequests）が isOwnedBy を通る', has('generateContractRequests', 'isOwnedBy'))
+check('スカウト（startAcquisitionOffer）が canBePoached を通る', has('startAcquisitionOffer', 'canBePoached'))
+const market = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')
+check('移籍市場の一覧も同じ判定で絞っている', market.includes('canBePoached'))
+const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
+check('チャットのトレード候補も同じ判定で絞っている', chat.includes('canTradeAway') && chat.includes('canBePoached'))
+
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

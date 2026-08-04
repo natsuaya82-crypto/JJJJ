@@ -16,6 +16,7 @@ import BidSheet from './BidSheet'
 import LoanSheet from './LoanSheet'
 import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
+import { canBePoached } from '../../utils/transferEligibility'
 import { draftPickValue } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { C, alpha } from '../../styles/tokens'
@@ -283,8 +284,13 @@ export default function TransferPage() {
         const foreignClubToLeague: Record<string, string> = {}
         for (const lg of allLeagues) for (const club of lg.clubs) foreignClubToLeague[club.id] = lg.id
 
+        // 一覧に出す＝入札できる、なので判定は入札と同じものを使う（utils/transferEligibility.ts）。
+        // ここに判定が無く、レンタルで貸している自分の選手や、よそが借りている選手まで
+        // 「所属＝貸出先クラブ」の顔で並んでいて、そのまま買えてしまっていた。
+        // FA（teamId が空）は保有クラブが無いので判定の対象外
         const marketPlayers = players
           .filter(p => p.teamId !== playerTeamId && p.status === 'active')
+          .filter(p => p.teamId === '' || canBePoached(p, { teamId: p.teamId, currentYear: currentSeason.year }))
           .filter(p => f.search === '' || p.name.includes(f.search))
           .filter(p => f.spec === 'all' || p.specialty === f.spec)
           .filter(p => f.nat === 'all' || p.nationality === f.nat)

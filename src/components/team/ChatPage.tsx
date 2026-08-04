@@ -7,6 +7,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
 import { canSignContract } from '../../data/rosterRules'
+import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -758,8 +759,16 @@ function ChatView({
 
 function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
   const { players, teams, playerTeamId, currentSeason, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
-  const theirPlayers = players.filter(p => p.teamId === team.id && p.status !== 'retired').sort((a, b) => ovr(b) - ovr(a))
-  const myPlayersT = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan).sort((a, b) => ovr(b) - ovr(a))
+  // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
+  // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
+  // 選ぶと「いいだろう、その条件で成立だ」と言われるのに選手は動かなかった
+  const tradeCtxT = {
+    teamId: playerTeamId,
+    currentYear: currentSeason.year,
+    retiringIds: new Set((currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+  }
+  const theirPlayers = players.filter(p => canBePoached(p, { teamId: team.id, currentYear: currentSeason.year })).sort((a, b) => ovr(b) - ovr(a))
+  const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort((a, b) => ovr(b) - ovr(a))
   const myTeam = teams.find(t => t.id === playerTeamId)
 
   const [step, setStep] = useState<1 | 2 | 3>(1)

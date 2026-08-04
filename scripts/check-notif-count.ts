@@ -95,6 +95,18 @@ console.log('\n[4] 契約更新のリマインダーは残り6ヶ月未満だけ
   check('接触中の選手は接触の1件だけ', contacted.total === 1, `${contacted.total}件`)
 }
 
+console.log('\n[4.5] レンタルで借りている選手には契約の用件を出さない')
+{
+  // 借り物の選手は保有権が無いので契約更新も引退交渉もできない。
+  // teamId は借り手（＝自分）になっているため、teamId だけ見ていると通知が出てしまっていた
+  const lent = P('p1', 'a', { loan: { ownerTeamId: 'b', untilYear: 2032 }, contract: { annualSalary: 1000, yearsLeft: 1, faEligibleYear: 2030 } } as Partial<Player>)
+  const season = S({ currentRaceIndex: 8, contractRequests: [{ playerId: 'p1', status: 'pending_gm' }] })
+  const r = collectNotifications(base(season, [lent]))
+  check('借りている選手の契約更新は数えない', r.total === 0, `${r.total}件`)
+  const own = P('p2', 'a', { contract: { annualSalary: 1000, yearsLeft: 1, faEligibleYear: 2030 } } as Partial<Player>)
+  check('自分の選手なら数える', collectNotifications(base(S({ currentRaceIndex: 8 }), [own])).total === 1)
+}
+
 console.log('\n[5] まとめて出る警告は何人いても1件')
 {
   const many = Array.from({ length: ROSTER_MAX + 3 }, (_, i) => P(`m${i}`, 'a'))

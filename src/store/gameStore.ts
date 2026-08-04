@@ -37,7 +37,7 @@ import { reconcileTalks, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut } from '../utils/transferEligibility'
+import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway } from '../utils/transferEligibility'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
@@ -297,7 +297,8 @@ export type GameStore = GameState & {
   // ドラフト後：指名した新人の契約（年俸・役割・契約形態・契約年数）を設定
   setDraftContract: (playerId: string, salary: number, years: number, contractType: 'standard' | 'development' | 'dual', teamRole?: import('../types').TeamRole) => void
   extendContract: (playerId: string) => void
-  tradePlayer: (offeredIds: string[], requestedIds: string[], targetTeamId: string, transferFee?: number, offerPickKeys?: string[], requestPickKeys?: string[]) => boolean
+  // 成立したか＝ok。断られた理由は reason（チャットにそのまま出す）
+  tradePlayer: (offeredIds: string[], requestedIds: string[], targetTeamId: string, transferFee?: number, offerPickKeys?: string[], requestPickKeys?: string[]) => { ok: boolean; reason?: string }
   proposeTrade: (targetTeamId: string, giveIds: string[], givePickKeys: string[], getIds: string[], getPickKeys: string[]) => void
   acceptTradeCounter: (negId: string) => boolean
   dismissTradeNegotiation: (negId: string) => void
@@ -2446,10 +2447,23 @@ export const useGameStore = create<GameStore>()(
         set(state => {
           const offer = (state.currentSeason.pendingTradeOffers ?? []).find(o => o.id === offerId)
           if (!offer) return state
-          // 打診後に対象選手が移籍/引退していた古い打診は成立させず破棄する（ロスター破壊防止）
+          // 打診後に状況が変わっていたら成立させず破棄する（ロスター破壊防止）。
+          // 打診は5レース残るので、その間に非売にした・海外挑戦を承認した・引退希望を受理した、
+          // という場合も止める（以前は在籍しているかどうかしか見ていなかった）
+          const offerCtx = {
+            teamId: state.playerTeamId,
+            currentYear: state.currentSeason.year,
+            retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+          }
           const stillValid =
-            offer.offeredPlayerIds.every(pid => state.players.some(p => p.id === pid && p.teamId === offer.fromTeamId && p.status === 'active')) &&
-            offer.requestedPlayerIds.every(pid => state.players.some(p => p.id === pid && p.teamId === state.playerTeamId && p.status === 'active'))
+            offer.offeredPlayerIds.every(pid => {
+              const p = state.players.find(pl => pl.id === pid)
+              return !!p && canBePoached(p, { teamId: offer.fromTeamId, currentYear: state.currentSeason.year })
+            }) &&
+            offer.requestedPlayerIds.every(pid => {
+              const p = state.players.find(pl => pl.id === pid)
+              return !!p && canTradeAway(p, offerCtx) && !p.noSale
+            })
           if (!stillValid) {
             return { currentSeason: { ...state.currentSeason, pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId) } }
           }
@@ -2640,7 +2654,8 @@ export const useGameStore = create<GameStore>()(
       initiateContractRenewal: (playerId) => {
         set(state => {
           const player = state.players.find(p => p.id === playerId)
-          if (!player || player.teamId !== state.playerTeamId) return state
+          // レンタルで借りている選手は保有権が無いので契約交渉の相手ではない
+          if (!player || !isOwnedBy(player, state.playerTeamId)) return state
           if (player.transferListed) return state  // 退団予定の選手とは更新交渉できない
           if ((player.renewalLockedUntilYear ?? 0) > state.currentSeason.year) return state  // 最終拒否後1年は更新不可
           const existing = (state.currentSeason.contractRequests ?? []).find(r => r.playerId === playerId && r.status !== 'accepted' && r.status !== 'rejected')
@@ -2675,7 +2690,9 @@ export const useGameStore = create<GameStore>()(
           if (racesPlayed === 0) return state
           // フリー移籍で接触中の選手は契約更新の要求を出さない（用件が二重になるのを防ぐ。引き留めは接触カード経由の提示で行う）
           const contactedIds = new Set((state.currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-          const myPlayers = state.players.filter(p => p.teamId === state.playerTeamId && p.contract.yearsLeft === 1
+          // isOwnedBy＝レンタルで借りている選手を外す。借り物の契約更新を持ちかけると
+          // 「更新したのに期限が来て居なくなる」ことになる
+          const myPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.contract.yearsLeft === 1
             && (p.renewalLockedUntilYear ?? 0) <= state.currentSeason.year && !p.transferListed && !p.overseasListed && !contactedIds.has(p.id))
           // 拒否済みも含めて「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）
           const existing = new Set((state.currentSeason.contractRequests ?? []).map(r => r.playerId))
@@ -2702,7 +2719,8 @@ export const useGameStore = create<GameStore>()(
               offerYears: 0,
             }
           })
-          const retPlayers = state.players.filter(p => p.teamId === state.playerTeamId && p.age >= 35)
+          // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
+          const retPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.age >= 35)
           const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
           // 今季すでに引き留めた選手は再抽選しない
           const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && Math.random() < 0.4).map(p => ({ playerId: p.id, age: p.age }))
@@ -2855,6 +2873,8 @@ export const useGameStore = create<GameStore>()(
           if (!player) return state
           if (source === 'fa' && player.teamId !== '') return state
           if (source === 'scout' && (player.teamId === '' || player.teamId === state.playerTeamId)) return state
+          // 引き抜きは入札と同じ判定を通す（レンタル中・非売・海外挑戦承認済み・今季加入は対象外）
+          if (source === 'scout' && !canBePoached(player, { teamId: player.teamId, currentYear: state.currentSeason.year })) return state
           // 自チームから移籍・FA流出した選手とは1年間交渉不可（移籍金オファーと同じロック）
           if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return state
           // 赤字ペナルティ中は新規補強(FA/引き抜き)不可（ドラフト・契約更新は可）。
@@ -3297,7 +3317,15 @@ export const useGameStore = create<GameStore>()(
       loanOutPlayer: (playerId, toTeamId, years) => {
         const st = get()
         const player = st.players.find(p => p.id === playerId)
-        if (!player || player.teamId !== st.playerTeamId || player.loan) return false
+        // 貸し出していい選手かの判定は他の移籍と同じものを使う（utils/transferEligibility.ts）。
+        // ここは自前で「借りている選手か」だけ見ていたので、引退希望を受けた選手や
+        // 海外挑戦を承認した選手をレンタルに出せてしまっていた
+        if (!player) return false
+        if (!canLoanOut(player, {
+          teamId: st.playerTeamId,
+          currentYear: st.currentSeason.year,
+          retiringIds: new Set((st.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+        })) return false
         // 借り手の総在籍が上限（30人）なら貸せない（31人化の防止）
         const toSize = st.players.filter(p => p.teamId === toTeamId && p.status === 'active').length
         if (toSize >= 30) return false
@@ -3366,6 +3394,10 @@ export const useGameStore = create<GameStore>()(
         if (!state.getTransferWindow().open) return  // 移籍ウィンドウ閉鎖中はオファー不可
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId === state.playerTeamId || player.teamId === '') return
+        // 引き抜ける選手かどうかは他の移籍と同じ判定（utils/transferEligibility.ts）。
+        // ここに判定が無かったので、レンタルで貸している自分の選手や、よそが借りている選手にも
+        // 入札できてしまい、保有権の無いクラブへ移籍金を払って奪えていた
+        if (!canBePoached(player, { teamId: player.teamId, currentYear: state.currentSeason.year })) return
         // 交渉決裂ペナルティ: 決裂した年の翌年まで移籍金オファー不可
         if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return
         // 赤字ペナルティ中は新規補強(入札)不可（ドラフト・契約更新は可）
@@ -3409,6 +3441,10 @@ export const useGameStore = create<GameStore>()(
         if (!bid || bid.status !== 'fee_accepted') return { ok: false, reason: '交渉の状態が変わったため、手続きを進められませんでした。' }
         const player = state.players.find(p => p.id === bid.playerId)
         if (!player || player.teamId !== bid.targetTeamId) return { ok: false, reason: '彼は既に別のクラブへ移籍しています。' }
+        // 入札してから成立までの間に状況が変わっていないか、入口と同じ判定で見直す
+        if (!canBePoached(player, { teamId: bid.targetTeamId, currentYear: state.currentSeason.year })) {
+          return { ok: false, reason: '彼の状況が変わったため、この移籍は成立しませんでした。' }
+        }
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!myTeam || myTeam.finance.budget < bid.offeredFee) return { ok: false, reason: `貴クラブの予算では移籍金${Math.round(bid.offeredFee / 10000)}万を支払えないようです。資金を確保してから改めてお願いします。` }
         // ロスター枠チェック（移籍金ルートは本契約として加入する）。枠不足は決裂扱いにしない
@@ -3677,21 +3713,31 @@ export const useGameStore = create<GameStore>()(
         const requested = requestedIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
         const hasContent = offered.length > 0 || offerPickKeys.length > 0
         const hasRequest = requested.length > 0 || requestPickKeys.length > 0
-        if (!hasContent || !hasRequest) return false
+        if (!hasContent || !hasRequest) return { ok: false, reason: '交換する中身がそろっていない。' }
 
         // ロスター上限チェック。以前は無かったため、2対1のトレードを重ねると31人・32人…と
         // 上限を超えて増え、解雇下限やレンタル枠と噛み合って詰む状態になっていた。
         const myRosterNow = state.players.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
-        if (myRosterNow - offered.length + requested.length > ROSTER_MAX) return false
+        if (myRosterNow - offered.length + requested.length > ROSTER_MAX) return { ok: false, reason: `そちらの選手枠が上限（${ROSTER_MAX}人）を超えてしまう。誰かを放出してから来てくれ。` }
 
         // 移籍金を払う場合は予算チェック（予算が無条件にマイナスへ落ちるのを防ぐ）
         if (transferFee > 0) {
           const myBudget = state.teams.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
-          if (myBudget < transferFee) return false
+          if (myBudget < transferFee) return { ok: false, reason: 'そちらの予算では移籍金を払えないようだ。' }
         }
 
-        // レンタル中の選手は保有権が無いのでトレード対象にできない（出す側・もらう側とも）
-        if (offered.some(p => p.loan) || requested.some(p => p.loan)) return false
+        // トレードも他の移籍と同じ判定を通す（utils/transferEligibility.ts）。
+        // 以前はレンタル中しか見ておらず、海外挑戦を承認した選手・引退の話をしている選手・
+        // 今季加入したばかりの相手選手まで、トレードなら動かせてしまっていた
+        const tradeCtx = {
+          teamId: state.playerTeamId,
+          currentYear: state.currentSeason.year,
+          retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+        }
+        const badOut = offered.find(p => !canTradeAway(p, tradeCtx))
+        if (badOut) return { ok: false, reason: `${badOut.name}は今トレードに出せる状態ではない。` }
+        const badIn = requested.find(p => !canBePoached(p, { teamId: p.teamId, currentYear: state.currentSeason.year }))
+        if (badIn) return { ok: false, reason: `${badIn.name}は今こちらが動かせる選手ではない。` }
 
         // 価値の釣り合い：ゴミ選手を複数足しただけでは成立しない。
         // calcTransferValue（OVR・年齢・実績を加味）＋出場データで両サイドの価値を比較。
@@ -3707,7 +3753,7 @@ export const useGameStore = create<GameStore>()(
           + offerPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, transferFee)
         const requestedVal = requested.reduce((s, p) => s + calcTransferValue(p) * activityBonus(p) * keyPremium(p), 0)
           + requestPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, -transferFee)
-        if (offeredVal < requestedVal * 0.92) return false  // 価値が釣り合わなければ不成立
+        if (offeredVal < requestedVal * 0.92) return { ok: false, reason: 'こちらが手放すものに見合わない。' }  // 価値が釣り合わなければ不成立
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
         // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
@@ -3715,7 +3761,7 @@ export const useGameStore = create<GameStore>()(
         const myRankNow = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
         const consentBonusT = requestedVal > 0 && offeredVal / requestedVal >= 1.2 ? 0.15 : 0
         for (const rp of requested) {
-          if (!playerConsentToMove(rp, myRankNow, state.teams.length, 0.5, 0, consentBonusT).ok) return false
+          if (!playerConsentToMove(rp, myRankNow, state.teams.length, 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
         }
 
         function matchPick(picks: typeof state.teams[0]['draftPicks'], key: string) {
@@ -3806,7 +3852,7 @@ export const useGameStore = create<GameStore>()(
             newsFeed: [tradeNews, ...state.currentSeason.newsFeed].slice(0, 30),
           }, players, state.playerTeamId) }
         })
-        return true
+        return { ok: true }
       },
 
       // トレードのチャット交渉。提案→相手が承諾/カウンター/拒否（最大3回）。
@@ -3848,7 +3894,13 @@ export const useGameStore = create<GameStore>()(
         else if (cpuGain < cpuLoss * 0.55 || round >= 3) { status = 'rejected'; message = `（${theirName}）話にならない。この条件では無理だ。` }
         else {
           const need = cpuLoss * 0.98 - cpuGain
-          const cands = state.players.filter(p => p.teamId === state.playerTeamId && p.status === 'active' && !giveIds.includes(p.id) && !p.loan).sort((a, b) => pval(a) - pval(b))
+          // 「これも付けてくれ」と要求される選手も、実際に出せる選手だけにする
+          const counterCtx = {
+            teamId: state.playerTeamId,
+            currentYear: state.currentSeason.year,
+            retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+          }
+          const cands = state.players.filter(p => canTradeAway(p, counterCtx) && !giveIds.includes(p.id)).sort((a, b) => pval(a) - pval(b))
           const fit = cands.find(p => pval(p) >= need) ?? cands[cands.length - 1]
           // 成立判定(tradePlayer側の0.92)を下回る条件でカウンターを出すと「飲んだのに無反応」になるため閾値を揃える
           if (fit && cpuGain + pval(fit) >= cpuLoss * 0.92) {
@@ -3860,9 +3912,16 @@ export const useGameStore = create<GameStore>()(
         }
 
         if (status === 'accepted') {
-          get().tradePlayer(giveIds, getIds, targetTeamId, 0, givePickKeys, getPickKeys)
-          set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).filter(n => n.targetTeamId !== targetTeamId) } }))
-          return
+          // tradePlayer の戻り値を捨てていたため、選手枠の上限や保有権で弾かれても
+          // 「いいだろう、その条件で成立だ」と言われて交渉だけ消え、選手は動かなかった
+          const res = get().tradePlayer(giveIds, getIds, targetTeamId, 0, givePickKeys, getPickKeys)
+          if (res.ok) {
+            set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).filter(n => n.targetTeamId !== targetTeamId) } }))
+            return
+          }
+          status = 'rejected'
+          message = `（${theirName}）${res.reason ?? 'この取引は成立させられない。'}`
+          demandAddIds = []
         }
         const neg: TradeNegotiation = { id: existing?.id ?? `trn_${Date.now()}`, targetTeamId, giveIds, givePickKeys, getIds, getPickKeys, round, status, message, demandAddIds: demandAddIds.length ? demandAddIds : undefined, demandAddPickKeys: demandAddPickKeys.length ? demandAddPickKeys : undefined }
         set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: [neg, ...(s.currentSeason.tradeNegotiations ?? []).filter(n => n.targetTeamId !== targetTeamId)] } }))
@@ -3885,9 +3944,12 @@ export const useGameStore = create<GameStore>()(
             n.id === negId ? { ...n, status: 'rejected' as const, message: STALE_TRADE_MSG } : n) } }))
           return false
         }
-        const ok = get().tradePlayer([...neg.giveIds, ...(neg.demandAddIds ?? [])], neg.getIds, neg.targetTeamId, 0, [...neg.givePickKeys, ...(neg.demandAddPickKeys ?? [])], neg.getPickKeys)
-        if (ok) set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).filter(n => n.id !== negId) } }))
-        return ok
+        const res = get().tradePlayer([...neg.giveIds, ...(neg.demandAddIds ?? [])], neg.getIds, neg.targetTeamId, 0, [...neg.givePickKeys, ...(neg.demandAddPickKeys ?? [])], neg.getPickKeys)
+        if (res.ok) set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).filter(n => n.id !== negId) } }))
+        // 断られたときは黙って消さず、理由を交渉カードに残す
+        else set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).map(n =>
+          n.id === negId ? { ...n, status: 'rejected' as const, message: res.reason ?? STALE_TRADE_MSG } : n) } }))
+        return res.ok
       },
 
       dismissTradeNegotiation: (negId) => set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).filter(n => n.id !== negId) } })),
@@ -4588,7 +4650,9 @@ export const useGameStore = create<GameStore>()(
                 const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
                 // 売り手の絶対的エース(1番手)だけ保護。それ以外は主力でも引き抜き対象にする。
                 return sellRoster.slice(1)
-                  .filter(p => !cpuTransferIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
+                  // isOwnedBy でレンタル中の選手を外す。ここが抜けていたため、貸し出した選手が
+                  // オフシーズンに貸出先の名簿として売られ、保有元に何も残らず消えていた
+                  .filter(p => isOwnedBy(p, sellTeamId) && !cpuTransferIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
                   .map(p => ({ p, surplus: ovr(p) < sellMinOvr || sellRoster.length > 21 }))
               })
                 .filter(({ p }) => ovr(p) >= minOvr - 4)
@@ -4646,7 +4710,8 @@ export const useGameStore = create<GameStore>()(
             const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyerId && p.status === 'active')
             if (buyRoster.length >= 23) continue
             const buyerSurplus = buyRoster
-              .filter(p => !tradedIds.has(p.id) && p.joinedYear !== state.currentSeason.year && ovr(p) < buyMinOvr)
+              // レンタルで借りている選手は保有権が無いのでトレードに出せない
+              .filter(p => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && p.joinedYear !== state.currentSeason.year && ovr(p) < buyMinOvr)
               .sort((a, b) => calcTransferValue(b) - calcTransferValue(a))
             if (buyerSurplus.length === 0) continue
             const offered = buyerSurplus[0]
@@ -4659,6 +4724,7 @@ export const useGameStore = create<GameStore>()(
                 .filter(p => p.teamId === sellerId && p.status === 'active')
                 .sort((a, b) => ovr(b) - ovr(a))
               const target = sellRoster.slice(3).find(p =>
+                isOwnedBy(p, sellerId) &&
                 !tradedIds.has(p.id) &&
                 p.joinedYear !== state.currentSeason.year &&
                 ovr(p) >= buyMinOvr && ovr(p) < sellMinOvr &&
@@ -8072,7 +8138,9 @@ function generateTransferActivity(
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
 
   for (const team of aiTeams) {
-    const teamPlayers = players.filter(p => p.teamId === team.id && p.status !== 'retired')
+    // 出品できるのは保有権のある選手だけ。ここが抜けていたため、他クラブから借りている選手が
+    // 「出品中」として移籍市場に並び、そこから入札で奪われていた
+    const teamPlayers = players.filter(p => isOwnedBy(p, team.id))
     if (validListings.filter(l => l.fromTeamId === team.id).length >= 3) continue
 
     const avgOvr = teamPlayers.length > 0 ? teamPlayers.reduce((s, p) => s + ovr(p), 0) / teamPlayers.length : 60

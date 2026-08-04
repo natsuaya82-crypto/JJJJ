@@ -59,10 +59,11 @@ export function collectNotifications(input: NotifInput) {
   const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId))
   const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId))
 
-  // 退団予定（移籍リスト入り）の選手は契約更新の対象外
+  // 退団予定（移籍リスト入り）の選手と、レンタルで借りている選手は契約更新の対象外。
+  // 借り物の選手は保有権が無いので、こちらから契約の話はできない
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r =>
     r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId)
-    && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active' && !p.transferListed))
+    && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active' && !p.transferListed && !p.loan))
 
   // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
   const myTeam = teams.find(t => t.id === playerTeamId)
@@ -84,7 +85,7 @@ export function collectNotifications(input: NotifInput) {
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const totalRaces = currentSeason.races.length
   const renewalPlayers = players
-    .filter(p => p.teamId === playerTeamId && p.status === 'active')
+    .filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan)
     .map(p => ({ p, seasonsLeft: p.contract.yearsLeft, months: contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRaces) }))
     .filter(({ p, seasonsLeft, months }) =>
       seasonsLeft <= 1 && months < 6
