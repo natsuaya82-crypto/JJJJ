@@ -8,7 +8,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
 import { canSignContract } from '../../data/rosterRules'
 import { SPECIALTY_LABELS } from '../../types'
-import type { TeamRole, GameEvent, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
+import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { draftPickValue } from '../../data/economy'
@@ -52,14 +52,8 @@ function fmtDuration(months: number): string {
   return `${y}年${m}ヶ月`
 }
 
-// 選手のチャット雑談イベント（疲労・士気・出場機会など）は廃止。
-// 既存セーブに残っているイベントも表示しないよう、対象リストは空にする
-const COMPLAINT_EVENT_TYPES = [] as const
-
-const CHAT_EVENT_INCLUDE = [] as const
-function isChatEvent(e: GameEvent): boolean {
-  return !e.resolved && !!e.playerId && (e.choices?.length ?? 0) > 0 && (CHAT_EVENT_INCLUDE as readonly string[]).includes(e.type)
-}
+// 選手のチャット雑談イベント（疲労・士気・出場機会など）は廃止済み。
+// 判定が「常に対象なし」の空リストのまま各所に分岐だけ残っていたので、分岐ごと消した
 
 // 海外挑戦の直訴メッセージ（夢の行き先はタイプで変わる）
 const OVERSEAS_DREAM: Record<string, string> = {
@@ -76,16 +70,9 @@ function buildMessages(
   hasRetirement: boolean,
   hasTransfer: boolean,
   transferReason?: string,
-  events?: GameEvent[],
   overseasRegion?: string,
 ): ChatMessage[] {
   const msgs: ChatMessage[] = []
-
-  if (events) {
-    events
-      .filter(e => e.playerId === player.id && isChatEvent(e))
-      .forEach(e => msgs.push({ from: 'player', text: e.body }))
-  }
 
   if (hasRetirement) {
     msgs.push({ from: 'player', text: `${player.age}歳になりました。正直、そろそろ引退を考えています。監督はどうお思いですか？` })
@@ -204,13 +191,10 @@ function ChatView({
     approveOverseasChallenge, denyOverseasChallenge,
     generateContractRequests, refuseFreeContactRetention,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
-    openPlayerSheet, resolveEvent, finalizeTransfer, rejectTransferBid,
+    openPlayerSheet, finalizeTransfer, rejectTransferBid,
   } = useGameStore()
   const longPress = usePlayerLongPress()
   void openPlayerSheet
-
-  // この選手のチャットで決着させる選手イベント（疲労・モラール・出場機会・マイルストーン等）
-  const chatEvent = (currentSeason.events ?? []).find(e => e.playerId === player.id && isChatEvent(e))
 
   const totalRaces = currentSeason.races.length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
@@ -246,7 +230,6 @@ function ChatView({
   const isLoanedIn = !!player.loan && player.loan.ownerTeamId !== playerTeamId
   const talksHere = isMine && !isLoanedIn
 
-  const events = currentSeason.events ?? []
   // 接触中の文脈メッセージ（契約更新の話ではなく「誘いを受けている」ことを本人が伝える）
   const contactMsg: ChatMessage | null = freeContactClub
     ? { from: 'player', text: `実は${freeContactClub}から誘いを受けています。数戦のうちに答えを出すつもりです。` }
@@ -257,7 +240,7 @@ function ChatView({
       : isAcq
       ? buildAcqMessages(player, acqOffer!, clubIndex.byId(player.teamId)?.name)
       : talksHere
-      ? buildMessages(player, contractReq, freeContactClub ? 99 : months, !!retirementReq, !!transferReq, transferReq?.reason, events, overseasReq?.region)
+      ? buildMessages(player, contractReq, freeContactClub ? 99 : months, !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region)
       : []  // 他チーム/FA選手・レンタル選手で交渉モードでもない場合は保存ログのみ
     const built = (talksHere && !isTransfer && !isAcq && contactMsg) ? [...builtBase, contactMsg] : builtBase
     if (!initialMessages || initialMessages.length === 0) return built
@@ -268,7 +251,7 @@ function ChatView({
       player,
       contractReq && contractReq.status === 'pending_gm' && contractReq.initiatedBy === 'player' ? contractReq : undefined,
       (player.transferListed || freeContactClub) ? 99 : months,  // 退団予定・接触中の選手には契約残の催促を出さない
-      !!retirementReq, !!transferReq, transferReq?.reason, events, overseasReq?.region,
+      !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region,
     ) : []
     const freshSource = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
     const fresh = freshSource.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
@@ -462,20 +445,6 @@ function ChatView({
     type ReplyBtns = { label: string; color: string; action: () => void }[]
     const lastIdx = (pred: (m: ChatMessage) => boolean) => { for (let i = chatMessages.length - 1; i >= 0; i--) { if (pred(chatMessages[i])) return i } return -1 }
 
-    const buildEventButtons = (): ReplyBtns | null => chatEvent ? chatEvent.choices.map((c, idx) => ({
-      label: c.label,
-      color: idx === 0 ? C.blue : idx === chatEvent.choices.length - 1 ? C.textSub : C.gold,
-      action: () => {
-        // 返事と効果まで一括で追加してからイベントを解決する（途中の再描画で返事が消えないように）
-        append(
-          { from: 'gm', text: c.label },
-          { from: 'player', text: 'わかりました。ありがとうございます！' },
-          ...(c.desc ? [{ from: 'gm' as const, text: `（${c.desc}）` }] : []),
-        )
-        resolveEvent(chatEvent.id, idx)
-      },
-    })) : null
-
     const buildRetirementButtons = (): ReplyBtns | null => retirementReq ? [
       { label: '引退を承認する', color: C.textSub, action: () => {
         // 即引退ではなく「今季限りで引退」。シーズン終了時に正式に引退する
@@ -627,7 +596,6 @@ function ChatView({
 
     // 新しいメッセージの用件から順に試す（メッセージが見つからない用件は後回し・元の優先順を維持）
     const topicOrder = [
-      { present: !!chatEvent, idx: chatEvent ? lastIdx(m => m.from === 'player' && m.text === chatEvent.body) : -1, build: buildEventButtons },
       { present: !!retirementReq, idx: retirementReq ? lastIdx(m => m.text.includes('引退を考えて')) : -1, build: buildRetirementButtons },
       { present: !!transferReq, idx: transferReq ? lastIdx(m => m.text.includes('移籍を考えて')) : -1, build: buildTransferButtons },
       { present: !!overseasReq, idx: overseasReq ? lastIdx(m => m.text.includes('海外挑戦を認めて')) : -1, build: buildOverseasButtons },
@@ -1040,7 +1008,6 @@ function getPlayerStatus(
   contractRequests: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['contractRequests']>,
   retirementRequests: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['retirementRequests']>,
   transferRequests: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['transferRequests']>,
-  events: ReturnType<typeof useGameStore.getState>['currentSeason']['events'],
   months: number,
   contacted: boolean,
   overseasRequests?: NonNullable<ReturnType<typeof useGameStore.getState>['currentSeason']['overseasRequests']>,
@@ -1048,9 +1015,6 @@ function getPlayerStatus(
   const hasRetirement = (retirementRequests ?? []).some(r => r.playerId === player.id)
   const hasTransfer = (transferRequests ?? []).some(r => r.playerId === player.id)
   const hasOverseas = (overseasRequests ?? []).some(r => r.playerId === player.id)
-  const chatEvt = (events ?? []).find(e => e.playerId === player.id && isChatEvent(e))
-  const hasComplaint = !!chatEvt && (COMPLAINT_EVENT_TYPES as readonly string[]).includes(chatEvt.type)
-  const hasOtherEvent = !!chatEvt && !hasComplaint
   const activeReq = (contractRequests ?? []).find(r => r.playerId === player.id && r.status !== 'accepted' && r.status !== 'rejected')
 
   if (hasRetirement) return { label: '引退希望', color: C.textSub, priority: 0 }
@@ -1062,17 +1026,11 @@ function getPlayerStatus(
     return { label: `移籍希望・${reasonLabel}`, color: C.orange, priority: 1 }
   }
   // フリー接触中の選手に契約残の「要対応」は出さない（接触の用件は移籍・獲得タブと通知側で扱う）
-  if (contacted) {
-    if (hasComplaint) return { label: '不満あり', color: C.orange, priority: 4 }
-    if (hasOtherEvent) return { label: '連絡あり', color: C.blue, priority: 4 }
-    return null
-  }
+  if (contacted) return null
   if (activeReq?.status === 'countered') return { label: '対応中', color: C.gold, priority: 2 }
   if (activeReq?.initiatedBy === 'gm' && activeReq.status === 'pending_gm') return { label: '対応中', color: C.gold, priority: 2 }
   // 契約残による「要対応」は通知の契約更新リマインダーと同じ基準（6ヶ月未満）に揃える
   if (months < 6 || activeReq?.status === 'pending_gm') return { label: '要対応', color: C.red, priority: 3 }
-  if (hasComplaint) return { label: '不満あり', color: C.orange, priority: 4 }
-  if (hasOtherEvent) return { label: '連絡あり', color: C.blue, priority: 4 }
   return null
 }
 
@@ -1229,7 +1187,6 @@ export default function ChatPage() {
   const contractRequests = currentSeason.contractRequests ?? []
   const retirementRequests = currentSeason.retirementRequests ?? []
   const transferRequests = currentSeason.transferRequests ?? []
-  const events = currentSeason.events ?? []
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
 
@@ -1243,7 +1200,7 @@ export default function ChatPage() {
     const months = contractMonths(p.contract.yearsLeft, raceIndex, totalRaces)
     // レンタルで借りている選手の契約・引退・移籍の用件は保有元クラブの管轄なので出さない
     const isLoanedIn = !!p.loan && p.loan.ownerTeamId !== playerTeamId
-    const status = isLoanedIn ? null : getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, events, months, contactedIds.has(p.id), currentSeason.overseasRequests)
+    const status = isLoanedIn ? null : getPlayerStatus(p, contractRequests, retirementRequests, transferRequests, months, contactedIds.has(p.id), currentSeason.overseasRequests)
     return { player: p, months, status }
   })
 

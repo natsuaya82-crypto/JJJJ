@@ -37,6 +37,7 @@ import { reconcileTalks, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
+import { canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut } from '../utils/transferEligibility'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
@@ -1396,8 +1397,14 @@ export const useGameStore = create<GameStore>()(
             // - 相手チームは「自チームの手薄なポジションを埋められるチーム」を優先
             // - 欲しがるのは相手（CPU）の補強ニーズに合う自チーム選手、差し出すのは自チームの穴に合う選手
             // - 価値が釣り合う候補の中から「もらえる選手のOVRが最も高い」1件を提案（低OVR同士の消化試合をなくす）
-            const myTradables = state.players.filter(p =>
-              p.teamId === playerTeamId && p.status === 'active' && !p.loan && !p.noSale && ovr(p) >= 62)
+            // トレードで欲しがられる条件も他の移籍と同じ（utils/transferEligibility.ts）。
+            // ここだけ非売しか見ておらず、海外挑戦を承認した選手や引退希望の選手にも打診が来ていた
+            const tradeCtx = {
+              teamId: playerTeamId,
+              currentYear: state.currentSeason.year,
+              retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+            }
+            const myTradables = state.players.filter(p => canBePoached(p, tradeCtx) && ovr(p) >= 62)
             const myNeeds = cpuSpecialtyNeeds(playerTeamId, state.players)
             const cpuIds = state.teams.map(t => t.id).filter(id => id !== playerTeamId)
             // 自チームの穴を埋められる選手(OVR68+)を持つチームを優先。いなければランダム
@@ -1458,18 +1465,16 @@ export const useGameStore = create<GameStore>()(
 
           // Transfer market activity
           const nextRaceIndex = raceIndex + 1
-          const isWindowOpenNow = (() => {
-            const ph = nextRaceIndex >= state.currentSeason.races.length ? 'postseason' : state.currentSeason.phase
-            if (ph === 'preseason' || ph === 'postseason') return true
-            const total = state.currentSeason.races.length
-            const mid0 = Math.floor(total * 0.35); const mid1 = Math.floor(total * 0.55)
-            return nextRaceIndex >= mid0 && nextRaceIndex <= mid1
-          })()
-          // CPU-to-CPU transfer completions during open window
+          // 移籍ウィンドウは撤廃済み（getTransferWindow が常に「移籍受付中」を返す）。
+          // 以前はここだけシーズンの35〜55%の間しかCPUのオファーを作らず、画面は
+          // 「移籍受付中」なのに何も来ない期間ができていたので、常時オープンに揃えた
+          // 引退希望を受理済みの選手（移籍の話は持ちかけない）。売出の成立判定でも使う
+          const retiringWishIds = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
+          // CPU-to-CPU transfer completions
           type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
           const cpuTxList: CpuTx[] = []
           const cpuTxListingIds = new Set<string>()
-          if (isWindowOpenNow) {
+          {
             const movedThisRace = new Set<string>()
             // 買い手の総在籍数（引退除く）。30人以上のチームは補強不可＝ロスター肥大を止める
             const rosterCount = new Map<string, number>()
@@ -1487,9 +1492,9 @@ export const useGameStore = create<GameStore>()(
               const buyer = state.teams.find(t => t.id === buyerTeamId)
               if (!p || !seller || !buyer) continue
               // 出品後に選手が移籍していた古い出品は成立させない（現所属と出品元が一致するときのみ）。
-              // 同一レース内で同じ選手が二重に動くのも防ぐ。レンタル中・買い手が現所属と同じ場合も対象外。
-              // 今季すでに移籍済み（joinedYear=今年）の選手も対象外＝1シーズンに何度も移籍しない
-              if (p.teamId !== listing.fromTeamId || p.loan || movedThisRace.has(p.id) || buyerTeamId === p.teamId || p.joinedYear === state.currentSeason.year) {
+              // レンタル中・非売品・海外挑戦を承認済み・今季加入の除外は canBePoached が見る。
+              // 同一レース内で同じ選手が二重に動くのと、買い手が現所属と同じ場合はここで弾く
+              if (!canBePoached(p, { teamId: listing.fromTeamId, currentYear: state.currentSeason.year, retiringIds: retiringWishIds }) || movedThisRace.has(p.id) || buyerTeamId === p.teamId) {
                 cpuTxListingIds.add(listing.id)  // 無効な出品は掃除する
                 continue
               }
@@ -1559,13 +1564,12 @@ export const useGameStore = create<GameStore>()(
             category: 'trade' as const,
             relatedIds: [n.playerId],
           }))
-          const retiringWishIds = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
-          const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], isWindowOpenNow, state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year)
+          const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year)
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
           const foreignClubs = (state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, leagueId: c.leagueId, country: c.country }))
           const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextRaceIndex && finalPlayers.some(p => p.id === o.playerId))
-          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, windowOpen: isWindowOpenNow, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
+          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
           const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
@@ -3176,8 +3180,8 @@ export const useGameStore = create<GameStore>()(
 
       allowPlayerTransfer: (playerId) => set(state => {
         const player = state.players.find(p => p.id === playerId)
-        if (!player || player.teamId !== state.playerTeamId) return state
-        if (player.loan) return state  // レンタルで借りている選手は放流できない（保有権が無い）
+        // レンタルで借りている選手（保有権が無い）と、海外挑戦を承認済みの選手は出せない
+        if (!player || !canListForSale(player, { teamId: state.playerTeamId })) return state
         // 移籍を認めた選手は市場に出品され、シーズン中にCPUが市場価値で買い取れる（成立した瞬間に移籍金＋退団通知）。
         // シーズン内に買い手が付かなければ従来どおり年度末にFA
         const raceIdx = state.currentSeason.currentRaceIndex ?? 0
@@ -3462,8 +3466,8 @@ export const useGameStore = create<GameStore>()(
       listMyPlayerForSale: (playerId, askingPrice) => {
         const state = get()
         const player = state.players.find(p => p.id === playerId)
-        if (!player || player.teamId !== state.playerTeamId) return
-        if (player.loan) return  // レンタルで借りている選手は売り出せない（保有権が無い）
+        // レンタルで借りている選手（保有権が無い）と、海外挑戦を承認済みの選手は売り出せない
+        if (!player || !canListForSale(player, { teamId: state.playerTeamId })) return
         const already = (state.currentSeason.transferListings ?? []).some(l => l.playerId === playerId)
         if (already) return
         const raceIndex = state.currentSeason.currentRaceIndex
@@ -7947,26 +7951,23 @@ function generateForeignAndLoanOffers(params: {
   foreignClubs: { id: string; name: string; shortName: string; leagueId?: string; country?: string }[]
   playerTeamId: string
   raceIndex: number
-  windowOpen: boolean
   existingIncoming: IncomingOffer[]
   existingLoans: IncomingLoanOffer[]
   races?: Race[]   // 出場機会の判定用（borrow_in打診は出番のない選手から選ぶ）
   retiringIds?: Set<string>   // 引退希望中の選手（オファー・打診の対象外）
   currentYear?: number        // 今のシーズン年。加入1年目の選手を引き抜き対象から外す
 }): { foreignIncoming: IncomingOffer[]; loanOffers: IncomingLoanOffer[] } {
-  const { players, teams, foreignClubs, playerTeamId, raceIndex, windowOpen, existingIncoming, existingLoans, races, retiringIds, currentYear } = params
-  // 加入1年目の選手は海外からも引き抜かれない（国内オファーと同じ扱い）。
-  // 海外挑戦リスト（1a）は本人＋GMが望んだ移籍なので対象のまま
-  const isNewJoin = (p: Player) => (currentYear ?? 0) > 0 && p.joinedYear === currentYear
+  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingIncoming, existingLoans, races, retiringIds, currentYear } = params
+  // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約
+  const eligCtx = { teamId: playerTeamId, currentYear, retiringIds }
   const foreignIncoming: IncomingOffer[] = []
   const loanOffers: IncomingLoanOffer[] = []
-  if (!windowOpen) return { foreignIncoming, loanOffers }
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
   const myMain = myPlayers.filter(p => !p.loan)
   // 貸出歓迎（移籍方針）に設定した選手。年齢・立場の制限なしで打診対象になる。引退希望中は対象外
-  const myLoanListed = myPlayers.filter(p => !p.loan && p.loanListed && !p.transferListed && !retiringIds?.has(p.id))
-  const myYoung = myPlayers.filter(p => !p.loan && p.age <= 23 && !retiringIds?.has(p.id))
+  const myLoanListed = myPlayers.filter(p => p.loanListed && !p.transferListed && canLoanOut(p, eligCtx))
+  const myYoung = myPlayers.filter(p => p.age <= 23 && canLoanOut(p, eligCtx))
   const offeredIds = new Set(existingIncoming.map(o => o.playerId))
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
@@ -7975,7 +7976,7 @@ function generateForeignAndLoanOffers(params: {
   //     実力がその地域の水準（アフリカ84/欧州80/北米80）に届いていることが条件
   const ELITE_BY_REGION: Record<string, string[]> = { africa: ['africa_east', 'africa_ns'], europe: ['europe_ws'], america: ['north_america'] }
   const OV_MIN_OVR: Record<string, number> = { africa: 84, europe: 80, america: 80 }
-  for (const target of myMain.filter(p => p.overseasListed && !offeredIds.has(p.id) && !p.noSale && !retiringIds?.has(p.id))) {
+  for (const target of myMain.filter(p => !offeredIds.has(p.id) && canGoOverseasDream(p, eligCtx))) {
     if (foreignIncoming.length >= 2) break
     const region = target.overseasListed!
     if (ovr(target) < (OV_MIN_OVR[region] ?? 80)) continue
@@ -7992,7 +7993,7 @@ function generateForeignAndLoanOffers(params: {
   if (foreignClubs.length > 0 && Math.random() < 0.6) {
     const eliteAll = foreignClubs.filter(c => ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(c.leagueId ?? ''))
     const star = [...myMain]
-      .filter(p => !offeredIds.has(p.id) && !p.noSale && !isNewJoin(p) && ovr(p) >= 85 && p.age <= 34 && !retiringIds?.has(p.id) && !foreignIncoming.some(o => o.playerId === p.id))
+      .filter(p => !offeredIds.has(p.id) && ovr(p) >= 85 && p.age <= 34 && !foreignIncoming.some(o => o.playerId === p.id) && canBePoached(p, eligCtx))
       .sort((a, b) => ovr(b) - ovr(a))[0]
     if (star && eliteAll.length > 0) {
       const club = eliteAll[(ovr(star) + raceIndex) % eliteAll.length]
@@ -8006,7 +8007,7 @@ function generateForeignAndLoanOffers(params: {
   if (foreignClubs.length > 0 && myMain.length > 0 && foreignIncoming.length === 0 && Math.random() < 0.55) {
     // 高齢選手（34歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
     const targets = [...myMain]
-      .filter(p => !offeredIds.has(p.id) && !p.noSale && !isNewJoin(p) && ovr(p) >= 70 && p.age <= 33 && !retiringIds?.has(p.id))
+      .filter(p => !offeredIds.has(p.id) && ovr(p) >= 70 && p.age <= 33 && canBePoached(p, eligCtx))
       .sort((a, b) => ovr(b) - ovr(a))
       .slice(0, 4)
     const nOffers = targets.length > 0 ? (Math.random() < 0.35 ? 2 : 1) : 0
@@ -8064,14 +8065,12 @@ function generateTransferActivity(
   raceIndex: number,
   existingListings: TransferListing[],
   existingIncoming: IncomingOffer[],
-  isWindowOpen: boolean,
   transferRequests: { playerId: string; reason: string }[] = [],
   retiringIds: Set<string> = new Set(),  // 引退希望中の選手（オファー・接触の対象外にする）
   currentYear = 0,                       // 今のシーズン年。加入1年目の選手をオファー対象から外すのに使う
 ): { listings: TransferListing[]; incomingOffers: IncomingOffer[] } {
   const validListings = existingListings.filter(l => l.expiresAtRace > raceIndex)
   const validIncoming = existingIncoming.filter(o => o.expiresAtRace > raceIndex)
-  if (!isWindowOpen) return { listings: validListings, incomingOffers: validIncoming }
 
   const listedPlayerIds = new Set(validListings.map(l => l.playerId))
   const newListings: TransferListing[] = []
@@ -8133,13 +8132,9 @@ function generateTransferActivity(
     }
   }
 
-  // Incoming offers targeting the player's team（非売リスト・引退希望中の選手には来ない）
-  // 海外挑戦を承認済みの選手にも来ない。承認時に「海外のクラブからの話を待ちます」と
-  // 言っているのに、国内チームからオファーが来ると嘘になるため
-  // 加入1年目（joinedYear が今年）の選手にもオファーは来ない。移籍してきたばかりの
-  // 選手が即引き抜かれると、補強した意味が無くなってしまうため
-  const isNewJoin = (p: Player) => currentYear > 0 && p.joinedYear === currentYear
-  const playerTeamPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired' && !p.loan && !p.noSale && !p.overseasListed && !isNewJoin(p) && !retiringIds.has(p.id))
+  // 自チームへのオファー対象。「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約
+  const eligCtx = { teamId: playerTeamId, currentYear, retiringIds }
+  const playerTeamPlayers = players.filter(p => canBePoached(p, eligCtx))
   const offerTargets = new Set(validIncoming.map(o => o.playerId))
   const offeringTeams = new Set(validIncoming.map(o => o.fromTeamId))
   const wantToLeaveIds = new Set(transferRequests.map(r => r.playerId))
@@ -8195,7 +8190,8 @@ function generateTransferActivity(
   for (const listing of myListings) {
     if (alreadyOfferedIds.has(listing.playerId)) continue
     const p = players.find(pl => pl.id === listing.playerId)
-    if (!p) continue
+    // 出品が残っていても、そのあと海外挑戦を承認した／引退希望を受けた選手には入札が来ない
+    if (!p || !canBePoached(p, eligCtx)) continue
     const bidChance = ovr(p) >= 80 ? 0.65 : ovr(p) >= 72 ? 0.45 : 0.25
     const biddingTeams = aiTeams.filter(() => Math.random() < bidChance).slice(0, 4)
     for (const bTeam of biddingTeams) {
@@ -8215,7 +8211,7 @@ function generateTransferActivity(
 
   // 契約残りわずか（残1年以下）の自チーム選手には、他チームからフリー移籍（移籍金なし）のオファーが来る
   // レンタルで借りている選手は保有権が無いので対象外。引退希望中の選手は「引退か引き留めか」の話なので勧誘しない
-  const expiringMine = players.filter(p => p.teamId === playerTeamId && p.contract.yearsLeft <= 1 && p.status !== 'retired' && !p.loan && !p.overseasListed && !isNewJoin(p) && !retiringIds.has(p.id))
+  const expiringMine = players.filter(p => p.contract.yearsLeft <= 1 && canReceiveFreeContact(p, eligCtx))
   for (const ep of expiringMine) {
     if (alreadyOfferedIds.has(ep.id)) continue
     const chance = ovr(ep) >= 75 ? 0.5 : ovr(ep) >= 65 ? 0.3 : 0.15

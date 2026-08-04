@@ -1,18 +1,18 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
-import { loginTodayKey } from '../../utils/loginDate'
+import { collectNotifications } from '../../utils/notifItems'
 import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
-import type { IncomingOffer, TransferBid, Player } from '../../types'
+import type { TransferBid, Player } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import { CARD_NAMES, RARITY_LABELS } from '../../utils/cardCombo'
@@ -50,10 +50,7 @@ function FaceOvr({ playerId, nationality, pOvr, accentColor }: {
   )
 }
 
-// --- Offer Chat ---
-
-type OfferChatMsg = { from: 'team' | 'gm'; text: string }
-const TRANSFER_STEP = 5_000_000
+// --- 移籍金の交渉 ---
 
 // 移籍金交渉カード：クラブとの移籍金のやり取りを通知内で完結させる。
 // ①提示額で合意 ②こちらの金額をダイアルで再提示 ③あきらめる
@@ -125,164 +122,6 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
   )
 }
 
-function OfferChatView({
-  offer,
-  onClose,
-  initialMessages,
-  onMessagesChange,
-}: {
-  offer: IncomingOffer
-  onClose: () => void
-  initialMessages?: OfferChatMsg[]
-  onMessagesChange: (msgs: OfferChatMsg[]) => void
-}) {
-  const { players, acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer } = useGameStore()
-  // 国内チームでも海外クラブでも同じように引く（国が違うだけの同じクラブ）
-  const clubIndex = useClubIndex()
-  const fromName = clubIndex.byId(offer.fromTeamId)?.shortName ?? '他クラブ'
-  const player = players.find(p => p.id === offer.playerId)
-  const pOvr = player ? ovr(player) : 0
-  // 移籍金0＝契約満了間近の選手へのフリー移籍オファー
-  const isFree = offer.offeredPrice === 0
-  const priceLabel = isFree ? 'フリー移籍（移籍金なし）' : fmtYen(offer.offeredPrice)
-
-  const defaultMsgs: OfferChatMsg[] = player ? [
-    { from: 'team', text: isFree
-      ? `${player.name}選手の獲得に興味があります。契約満了が近いとのことですので、移籍金なしのフリー移籍でお願いできませんか。`
-      : `${player.name}選手の獲得に興味があります。移籍金${fmtYen(offer.offeredPrice)}でいかがでしょうか。` }
-  ] : []
-
-  const [chatMessages, setChatMessages] = useState<OfferChatMsg[]>(initialMessages ?? defaultMsgs)
-  const [composing, setComposing] = useState(false)
-  // フリー移籍オファーへのカウンターは市場価値ベースで初期化（0×1.2=0を出さない）
-  const counterBase = offer.offeredPrice > 0 ? offer.offeredPrice : (player ? calcTransferValue(player) : 10_000_000)
-  const [counterPrice, setCounterPrice] = useState(() => Math.max(TRANSFER_STEP, Math.round(counterBase * 1.2 / TRANSFER_STEP) * TRANSFER_STEP))
-  const [done, setDone] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'instant' }) }, [chatMessages])
-  useEffect(() => { onMessagesChange(chatMessages) }, [chatMessages])
-
-  const append = (...msgs: OfferChatMsg[]) => setChatMessages(prev => [...prev, ...msgs])
-
-  const handleAccept = () => {
-    const ok = acceptIncomingOffer(offer.id)
-    if (ok) {
-      append(
-        { from: 'gm', text: isFree ? '了解です。フリー移籍を承諾します。' : `了解です。${fmtYen(offer.offeredPrice)}で売却します。` },
-        { from: 'team', text: '契約成立です。ありがとうございます。' }
-      )
-    } else {
-      append({ from: 'team', text: '申し訳ありません、状況が変わったためこの交渉は無効になりました。' })
-    }
-    setDone(true)
-  }
-
-  const handleDecline = () => {
-    append(
-      { from: 'gm', text: '今回はお断りします。' },
-      { from: 'team', text: 'わかりました。また機会があればよろしくお願いします。' }
-    )
-    setDone(true)
-    declineIncomingOffer(offer.id)
-  }
-
-  const handleCounter = () => {
-    append({ from: 'gm', text: `${fmtYen(counterPrice)}であれば売却可能です。いかがでしょうか。` })
-    const result = counterIncomingOffer(offer.id, counterPrice)
-    if (result === 'sold') {
-      append({ from: 'team', text: `合意しました。${fmtYen(counterPrice)}での移籍を進めましょう。` })
-    } else if (result === 'refused') {
-      append({ from: 'team', text: `申し訳ありませんが、${fmtYen(counterPrice)}は当クラブには支払えません。今回の交渉は終了とします。` })
-    } else {
-      append({ from: 'team', text: '申し訳ありません、状況が変わったためこの交渉は無効になりました。' })
-    }
-    setDone(true)
-    setComposing(false)
-  }
-
-  const specCol = player ? C.gold : C.textDim
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', fontFamily: SAIRA }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
-        <BackButton onClick={onClose} />
-        {player && (
-          <div style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', border: `2px solid ${alpha(specCol, 0.4)}`, flexShrink: 0 }}>
-            <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
-          </div>
-        )}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{player?.name ?? '—'}</div>
-          <div style={{ fontSize: 10, color: C.textDim }}>{fromName} からのオファー · {priceLabel}</div>
-        </div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(pOvr) }}>{pOvr}</div>
-      </div>
-
-      <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {chatMessages.map((msg, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: msg.from === 'team' ? 'row' : 'row-reverse', alignItems: 'flex-end', gap: 8 }}>
-            {msg.from === 'team' && (
-              <div style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, background: C.surface3, border: `1.5px solid ${alpha(C.red, 0.35)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, color: C.red }}>{fromName.slice(0, 3)}</span>
-              </div>
-            )}
-            <div style={{
-              maxWidth: '72%', padding: '10px 13px',
-              borderRadius: msg.from === 'team' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
-              background: msg.from === 'team'
-                ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})`
-                : `linear-gradient(135deg, ${alpha(C.blue, 0.25)}, ${alpha(C.blue, 0.15)})`,
-              border: `1px solid ${msg.from === 'team' ? C.border : alpha(C.blue, 0.35)}`,
-              fontSize: 13, color: C.text, lineHeight: 1.6,
-            }}>{msg.text}</div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-
-      <div style={{ borderTop: `1px solid ${C.border}`, background: C.bg, position: 'sticky', bottom: 0 }}>
-        {!done && composing ? (
-          <div style={{ padding: '12px 12px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 10, color: C.textDim }}>希望移籍金</div>
-            <NumberDial value={counterPrice} onChange={v => setCounterPrice(Math.max(1_000_000, v))} min={1_000_000} accent={C.red} />
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={handleCounter}
-                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.red, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
-                この金額を提示する
-              </button>
-              <button onClick={() => setComposing(false)}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-                戻る
-              </button>
-            </div>
-          </div>
-        ) : done ? (
-          <div style={{ padding: '10px 12px' }}>
-            <button onClick={onClose}
-              style={{ width: '100%', padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(C.textSub, 0.35)}`, backgroundColor: alpha(C.textSub, 0.08), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              閉じる
-            </button>
-          </div>
-        ) : (
-          <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {[
-              { label: isFree ? 'フリー移籍を承諾する（移籍金なし）' : `売却する（${fmtYen(offer.offeredPrice)}）`, color: C.green, action: handleAccept },
-              { label: '価格を交渉する', color: C.gold, action: () => setComposing(true) },
-              { label: '断る', color: C.textSub, action: handleDecline },
-            ].map((btn, i) => (
-              <button key={i} onClick={btn.action}
-                style={{ width: '100%', padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(btn.color, 0.45)}`, backgroundColor: alpha(btn.color, 0.08), color: btn.color, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {btn.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // --- Main Page ---
 
 export default function NotificationsPage() {
@@ -299,8 +138,6 @@ export default function NotificationsPage() {
   const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
   const claimGift = useGameStore(s => s.claimGift)
 
-  const [chatOfferId, setChatOfferId] = useState<string | null>(null)
-  const [offerMessageCache, setOfferMessageCache] = useState<Record<string, OfferChatMsg[]>>({})
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
 
   // 走友会のなかまから届いたカード
@@ -322,110 +159,40 @@ export default function NotificationsPage() {
     finally { setClaiming('') }
   }
 
-  // フリー移籍の接触（offeredPrice=0）はGMが対応できない情報通知。金額付きオファーとは別扱い。
-  // タップして対応済み（seenFreeContactIds）のものは通知から消える（接触自体は裏で進行）
-  // ※件数と表示のズレ防止：選手が退団・引退した「幽霊通知」はここで除外する（表示側でnullにしても数だけ残るため）
-  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0 && players.some(p => p.id === o.playerId && p.teamId === playerTeamId && p.status === 'active'))
-  const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
-  const freeContacts = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && players.some(p => p.id === o.playerId && p.teamId === playerTeamId && p.status === 'active'))
-  const freeTransferNotices = currentSeason.freeTransferNotices ?? []
+  // 通知の中身は utils/notifItems.ts で数える。ベルの数字（useNotifCount）と同じ関数を
+  // 使うので、片方だけ直して件数がズレることがない
+  // ※セレクタで `?? []` すると毎回新しい配列になり無限レンダリングするので、フィールドをそのまま取る
+  const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
+  const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
+  const {
+    incomingOffers, freeContacts, freeTransferNotices, departureNotices,
+    retirementRequests, transferReqs, counteredBids, feeAcceptedBids,
+    pendingContracts, sponsorOffers, tradeOffers, joinNotices,
+    renewalPlayers, rosterOver, signingBanned, injuredPlayers,
+    loginUnclaimed, canCreateMyPlayer, expiredNegotiations, loanResponses,
+    injuryKey, total,
+  } = collectNotifications({
+    currentSeason, players, teams, playerTeamId, lastLoginDate,
+    seenJoinIds,
+    seenInjuryIds: seenInjuryIdsRaw ?? EMPTY_IDS,
+    myPlayerCreated: !!myPlayerCreated,
+    pendingGiftsCount: pendingGifts.length,
+    clubGiftsCount: clubGifts.length,
+  })
+  const renewalNeeded = renewalPlayers.length
+  const raceIndex = currentSeason.currentRaceIndex ?? 0
+  const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
+  const myTeamFinance = teams.find(t => t.id === playerTeamId)?.finance
+
+  // 通知から用件を片付けるための操作
   const dismissFreeTransferNotice = useGameStore(s => s.dismissFreeTransferNotice)
   const markFreeContactSeen = useGameStore(s => s.markFreeContactSeen)
-  // シーズン切替時の退団通知（契約満了のFA流出・他クラブへの移籍）
-  const departureNotices = currentSeason.departureNotices ?? []
   const dismissDepartureNotice = useGameStore(s => s.dismissDepartureNotice)
-  const retirementRequests = (currentSeason.retirementRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
-  // 移籍希望を出した後に退団・売却された選手の「幽霊リクエスト」は数えない
-  const transferReqs = (currentSeason.transferRequests ?? []).filter(r => players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active'))
-  const counteredBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'countered' && players.some(p => p.id === b.playerId))
-  const feeAcceptedBids = (currentSeason.transferBids ?? []).filter(b => b.status === 'fee_accepted' && players.some(p => p.id === b.playerId))
-  // フリー移籍で接触中の選手の契約要求は出さない（接触カードに一本化。用件の二重表示を防ぐ）
-  const contactedPlayerIds = new Set((currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice === 0).map(o => o.playerId))
-  // 退団予定（移籍リスト入り）の選手は契約更新の対象外なので数えない
-  const pendingContracts = (currentSeason.contractRequests ?? []).filter(r => r.status === 'pending_gm' && !contactedPlayerIds.has(r.playerId) && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status === 'active' && !p.transferListed))
-  // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
-  const sponsorSlotsLeft = 3 - (teams.find(t => t.id === playerTeamId)?.sponsors?.length ?? 0)
-  const sponsorOffers = sponsorSlotsLeft > 0 ? (currentSeason.sponsorOffers ?? []) : []
-  // CPUからのトレード打診。対象選手が移籍/引退した古い打診は表示しない
   const acceptTradeOffer = useGameStore(s => s.acceptTradeOffer)
   const rejectTradeOffer = useGameStore(s => s.rejectTradeOffer)
-  const tradeOffers = (currentSeason.pendingTradeOffers ?? []).filter(o =>
-    o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status === 'active')) &&
-    o.requestedPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === playerTeamId && p.status === 'active')))
-
-  // 加入通知（全経路：FA/移籍/レンタル/トレード/ドラフト）。今季加入(joinedYear===今季)かつ未確認の選手。
-  const joinNotices = players
-    .filter(p => p.teamId === playerTeamId && p.joinedYear === currentSeason.year)
-    .map(p => ({ p, key: `${p.id}-${p.joinedYear}` }))
-    .filter(x => !seenJoinIds.includes(x.key))
-
-  const raceIndex = currentSeason.currentRaceIndex ?? 0
-  // 契約残りの月数（ChatPageのcontractMonthsと同じ式）
-  const contractMonthsLeft = (yearsLeft: number, rIdx: number, total: number) =>
-    Math.round((yearsLeft - 1 + Math.max(0, total - rIdx) / Math.max(1, total)) * 12)
-  // 個別通知は「契約残り半年（6ヶ月）を切った選手」だけ。チャットの「要対応」(months<6)と同じ基準に揃える
-  // （早く個別通知を出しても、チャット側にまだ契約の用件が無く交渉に迷うため）。
-  // 最終年だがまだ半年あるうちは、下のまとめ通知1件だけにする。
-  const totalRacesN = currentSeason.races.length
-  const finalYearPlayers = players
-    .filter(p => p.teamId === playerTeamId && p.status === 'active')
-    .map(p => ({ p, seasonsLeft: p.contract.yearsLeft, months: contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRacesN) }))
-    .filter(({ p, seasonsLeft }) =>
-      seasonsLeft <= 1
-      // 退団予定（移籍リスト入り）や確認済みの選手はリマインダーに出さない
-      && !p.transferListed
-      && !contactedPlayerIds.has(p.id)
-      // すでに更新交渉が始まっている選手は除外（更新カード側に用件が移るため）
-      && !(currentSeason.contractRequests ?? []).some(r => r.playerId === p.id))
-  // 1.0.8と同じ：個別通知は残り6ヶ月未満のみ。それ以外の最終年選手には通知を出さない（まとめ通知もしない）
-  const renewalPlayers = finalYearPlayers.filter(x => x.months < 6).sort((a, b) => a.months - b.months)
-  const renewalNeeded = renewalPlayers.length
-
-  // ロスター超過警告：自チームがロスター上限を超えている場合（旧セーブ救済）。強制解雇はせず整理を促すだけ
-  const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
-  const rosterOver = Math.max(0, myRosterCount - ROSTER_MAX)
-
-  // 補強禁止の通知（3シーズン連続赤字、または残高マイナス＝reinforcementBannedと同基準）
-  const myTeamFinance = teams.find(t => t.id === playerTeamId)?.finance
-  const signingBanned = ((myTeamFinance?.deficitStreak ?? 0) >= 3) || ((myTeamFinance?.budget ?? 0) < 0)
-
-  // 負傷者情報：自チームの負傷中の選手（OKで確認済みにでき、復帰でも自動で消える）
-  // ※セレクタで `?? []` すると毎回新配列になり無限レンダリングするので、フィールドをそのまま取る
-  const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
-  const seenInjuryIds = seenInjuryIdsRaw ?? EMPTY_IDS
   const dismissInjuryNotice = useGameStore(s => s.dismissInjuryNotice)
-  const injuryKey = (p: { id: string; injuredUntilRace?: number }) => `${p.id}-${p.injuredUntilRace ?? 0}`
-  const injuredPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'injured' && !seenInjuryIds.includes(injuryKey(p)))
-
-  const loginUnclaimed = lastLoginDate !== loginTodayKey()
-
-  const expiredNegotiations = currentSeason.expiredNegotiations ?? []
   const dismissExpiredNegotiation = useGameStore(s => s.dismissExpiredNegotiation)
-
-  const loanResponses = currentSeason.loanResponses ?? []
   const dismissLoanResponse = useGameStore(s => s.dismissLoanResponse)
-
-  // アップデート記念：マイプレイヤー未作成なら1件表示
-  const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
-  const canCreateMyPlayer = !myPlayerCreated
-  const total = incomingOffers.length
-    + (canCreateMyPlayer ? 1 : 0)
-    + tradeOffers.length
-    + retirementRequests.length + transferReqs.length + counteredBids.length + feeAcceptedBids.length + pendingContracts.length
-    + renewalNeeded
-    + (signingBanned ? 1 : 0)
-    + (rosterOver > 0 ? 1 : 0)
-    + (injuredPlayers.length > 0 ? 1 : 0)
-    + (loginUnclaimed ? 1 : 0)
-    + (sponsorOffers.length > 0 ? 1 : 0)
-    + pendingGifts.length
-    + clubGifts.length
-    + joinNotices.length
-    + expiredNegotiations.length
-    + loanResponses.length
-    + freeContacts.length
-    + freeTransferNotices.length
-    + departureNotices.length
 
   const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
     borderRadius: '16px', overflow: 'hidden', position: 'relative',
@@ -438,22 +205,6 @@ export default function NotificationsPage() {
   const inset: React.CSSProperties = {
     position: 'absolute', inset: 4, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, pointerEvents: 'none',
   }
-
-  // 対応（承諾・拒否・カウンター）するとオファーはストアから即消えるため、
-  // 消えた後も返事メッセージを見せられるようスナップショットで保持する
-  const liveOffer = chatOfferId ? incomingOffers.find(o => o.id === chatOfferId) : null
-  const offerSnapshotRef = useRef<IncomingOffer | null>(null)
-  if (liveOffer) offerSnapshotRef.current = liveOffer
-  const chatOffer = chatOfferId ? (liveOffer ?? offerSnapshotRef.current) : null
-
-  if (chatOffer) return (
-    <OfferChatView
-      offer={chatOffer}
-      onClose={() => { setChatOfferId(null); offerSnapshotRef.current = null }}
-      initialMessages={offerMessageCache[chatOffer.id]}
-      onMessagesChange={msgs => setOfferMessageCache(prev => ({ ...prev, [chatOffer.id]: msgs }))}
-    />
-  )
 
   return (
     <div style={{ minHeight: '100%', background: C.bg, fontFamily: SAIRA }}>
@@ -1102,7 +853,7 @@ export default function NotificationsPage() {
                           契約満了が近いため、移籍金なしでの獲得打診です。断っても契約が切れればFAで流出する可能性があります。
                         </div>
                         )}
-                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => setChatOfferId(offer.id)}>対応する</Btn>
+                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate('/team/chat')}>チャットで対応する</Btn>
                       </div>
                     </div>
                   )
