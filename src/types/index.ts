@@ -156,10 +156,12 @@ export type TransferBid = {
 }
 
 // 交渉が流れた理由の種類。通知の文言はこの1つから出す（種類ごとに箱を増やさない）
-//  bid      = こちらが出した入札が流れた（費用合意の放置・主力ガード）→ 来季まで交渉できない
-//  offer    = 他クラブから来た獲得オファーを放置して失効した       → 来季まで交渉できない
-//  contract = 契約更新の話し合いが期限切れになった                 → 交渉禁止にはならない
-export type ExpiredNegKind = 'bid' | 'offer' | 'contract'
+//  bid          = こちらが出した入札が流れた（費用合意の放置・主力ガード）→ 来季まで交渉できない
+//  offer        = 他クラブから来た獲得オファーを放置して失効した       → 来季まで交渉できない
+//  contract     = 契約更新の話し合いが期限切れになった                 → 交渉禁止にはならない
+//  trade        = トレードの打診が、そのあとの状況の変化で飲めなくなった
+//  trade_unfair = トレードの打診が、今の評価では釣り合わなくなった
+export type ExpiredNegKind = 'bid' | 'offer' | 'contract' | 'trade' | 'trade_unfair'
 
 // 通知に出す1件ぶん。押し込む場所が4箇所あるので形はここ1つで決める
 export type ExpiredNegotiation = { id: string; playerId: string; playerName: string; kind?: ExpiredNegKind }

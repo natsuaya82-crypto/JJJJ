@@ -160,7 +160,9 @@ console.log('\n[7] pending 以外はそのまま返す')
 
 console.log('\n[8] 期限切れ通知の文言は種類から出す')
 {
-  check('3種類ぶんある', Object.keys(EXPIRED_NEG_TEXT).length === 3)
+  // 入札・獲得オファー・契約更新に、トレードが飲めなかったとき用の2つを足して5種類。
+  // トレードは前は理由を出さずカードだけ消していた
+  check('5種類ぶんある', Object.keys(EXPIRED_NEG_TEXT).length === 5, Object.keys(EXPIRED_NEG_TEXT).join(','))
   check('種類が無い古いセーブは入札として扱う', expiredNegText(undefined) === EXPIRED_NEG_TEXT.bid)
   check('入札は「来季まで交渉できません」', expiredNegText('bid').note === '来季まで交渉できません')
   check('獲得オファーも交渉禁止', expiredNegText('offer').note === '来季まで交渉できません')
@@ -168,7 +170,8 @@ console.log('\n[8] 期限切れ通知の文言は種類から出す')
   // なのに「移籍を拒否しました／来季まで交渉できません」と出ていたのが嘘だった
   check('契約更新は移籍の話にしない', !expiredNegText('contract').title('名').includes('移籍'))
   check('契約更新は交渉禁止にしない', expiredNegText('contract').note !== '来季まで交渉できません')
-  for (const k of ['bid', 'offer', 'contract'] as const) {
+  check('トレードは交渉禁止にしない', expiredNegText('trade').note !== '来季まで交渉できません')
+  for (const k of ['bid', 'offer', 'contract', 'trade', 'trade_unfair'] as const) {
     check(`${k}の文言に選手名が入る`, expiredNegText(k).title('山田').includes('山田'))
   }
 }

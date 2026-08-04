@@ -187,22 +187,24 @@ console.log('\n[9] 期限切れの札は「拒否」で残さず消す')
   check('期限切れを status:\'rejected\' に書き換えていない', !rr.includes("status: 'rejected' as const, ...(r.playerId"))
 }
 
-console.log('\n[10] 状況が変わったら札の片付けを1箇所（reconcileTalks）に通す')
+console.log('\n[10] 状況が変わったら札の片付けを1箇所（set のかぶせ）に通す')
 // 移籍を容認した／容認を取り消した／非売・貸出を切り替えた、のどれでも
-// 古い札が残っていて、チャットに出る用件と実際にできることが食い違っていた
+// 古い札が残っていて、チャットに出る用件と実際にできることが食い違っていた。
+// 前は処理ごとに片付けを書き足していて、書き忘れた処理（13個あった）では効いていなかった。
+// いまは store の set に1枚かぶせて、players か currentSeason を触った更新は必ず通る
 {
-  check('移籍の容認（allowPlayerTransfer）が reconcileTalks を通る', has('allowPlayerTransfer', 'reconcileTalks'))
-  check('売出の取り消し（cancelSellListing）が reconcileTalks を通る', has('cancelSellListing', 'reconcileTalks'))
-  check('非売の切り替え（toggleNoSale）が reconcileTalks を通る', has('toggleNoSale', 'reconcileTalks'))
-  check('貸出の切り替え（toggleLoanListed）が reconcileTalks を通る', has('toggleLoanListed', 'reconcileTalks'))
+  check('片付けのかぶせが store にある', store.includes('const set: SetGame = (partial) =>'))
+  check('かぶせが players か currentSeason を触った更新を拾う',
+    store.includes("if (!('players' in next) && !('currentSeason' in next)) return next"))
+  check('処理ごとに片付けを書き足していない',
+    (store.match(/reconcileTalks\(/g) ?? []).length === 1,
+    `${(store.match(/reconcileTalks\(/g) ?? []).length}箇所`)
+  // どれも set 経由の更新であること（set を通さず setState を直接叩くとかぶせを外れる）
+  for (const fn of ['allowPlayerTransfer', 'cancelSellListing', 'toggleNoSale', 'toggleLoanListed', 'submitContractRenewalOffer', 'resolveEvent']) {
+    check(`${fn} が set を通る`, has(fn, 'set(state'))
+  }
   check('片付け側が「退団予定」も見ている', talkSync.includes('isLeavingClub'))
   check('片付け側が進行中の札だけを対象にしている', talkSync.includes('!isLiveContract(r) ||'))
-  // 最終ラウンドで決裂すると、その場で退団予定（transferListed）になる。抱えている直訴の
-  // 前提が崩れるのに片付けが無く、**返事のボタンが一つも出ないメッセージだけが残って**いた
-  check('契約更新の提示（submitContractRenewalOffer）が reconcileTalks を通る',
-    has('submitContractRenewalOffer', 'reconcileTalks'))
-  // イベントから引退を認めた／移籍市場に出した場合も同じ
-  check('イベントの応答（resolveEvent）が reconcileTalks を通る', has('resolveEvent', 'reconcileTalks'))
 }
 
 console.log('\n[11] チャットの用件が二重に出ない')

@@ -8,7 +8,7 @@
  * 注意書きが残っていて、実際にベルに「3」と出ているのに開くと1件、ということが起きていた。
  * 今は utils/notifItems.ts の collectNotifications 1本だけが数える。
  */
-import { collectNotifications, contractMonthsLeft } from '../src/utils/notifItems'
+import { collectNotifications, contractMonthsLeft, expiredNegText, EXPIRED_NEG_TEXT } from '../src/utils/notifItems'
 import { ROSTER_MAX } from '../src/data/rosterRules'
 import { loginTodayKey } from '../src/utils/loginDate'
 import type { Player, Team, Season } from '../src/types'
@@ -270,6 +270,16 @@ check('節ごとの件数の出どころが変わっていない',
   headCounts.slice().sort().join('|') === expected.slice().sort().join('|'),
   headCounts.slice().sort().filter(x => !expected.includes(x)).join(', '))
 check('ベルも同じ collectNotifications を使っている', bell.includes('collectNotifications'))
+
+// 「交渉期限切れ」の節は種類ごとに文言を変える箱。種類を増やして文言を足し忘れると
+// undefined が出て画面が真っ白になるので、全種類ぶん揃っているかを見る
+const NEG_KINDS = ['bid', 'offer', 'contract', 'trade', 'trade_unfair'] as const
+for (const k of NEG_KINDS) {
+  const t = expiredNegText(k)
+  check(`交渉期限切れ「${k}」の文言がある`, typeof t?.title === 'function' && typeof t?.note === 'string' && t.title('選手A').includes('選手A'))
+}
+check('種類が入っていない古いセーブは入札として扱う', expiredNegText(undefined) === EXPIRED_NEG_TEXT.bid)
+check('種類の一覧を増やしたら文言も増やす', Object.keys(EXPIRED_NEG_TEXT).sort().join(',') === [...NEG_KINDS].sort().join(','))
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

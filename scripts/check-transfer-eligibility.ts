@@ -177,10 +177,11 @@ check('条件を並べ書きしているのは土台と例外の3つだけ', han
 check('土台が isTalkFree という名前で外に出ている', eligSrc.includes('export function isTalkFree'))
 
 console.log('\n[11] 引退・海外挑戦を承認したら、その選手の札を全部たたんでいる')
-// 承認処理が自分で1つ2つ消すのをやめて、片付けは reconcileTalks 1箇所に寄せた。
+// 承認処理が自分で1つ2つ消すのをやめて、片付けは store の set にかぶせた1枚に寄せた。
 // ここが手書きに戻ると「承認した直後にそのまま移籍が成立する」が再発する
-check('引退の承認（acceptRetirement）が reconcileTalks を通る', has('acceptRetirement', 'reconcileTalks'))
-check('海外挑戦の承認（approveOverseasChallenge）が reconcileTalks を通る', has('approveOverseasChallenge', 'reconcileTalks'))
+check('片付けのかぶせが store にある', store.includes('const set: SetGame = (partial) =>'))
+check('引退の承認（acceptRetirement）が set を通る', has('acceptRetirement', 'set(state'))
+check('海外挑戦の承認（approveOverseasChallenge）が set を通る', has('approveOverseasChallenge', 'set(state'))
 check('オファー承諾（acceptIncomingOffer）が canAcceptOfferFor を通る', has('acceptIncomingOffer', 'canAcceptOfferFor'))
 check('オファー逆提示（counterIncomingOffer）が canAcceptOfferFor を通る', has('counterIncomingOffer', 'canAcceptOfferFor'))
 // 契約更新の判定は utils/contractTalk.ts に寄せてある（canRequestRenewal の中で canStartContractTalk を通る）

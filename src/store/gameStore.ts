@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
-import type { GameState, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation } from '../types'
+import type { GameState, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -757,9 +757,31 @@ function selectSeasonObjectives(hasRival: boolean, teamsLen: number, prevRank?: 
   }))
 }
 
+// set に渡せる形（zustand と同じ）。replace の第2引数はこの store では一度も使っていない
+type SetGame = (partial: GameStore | Partial<GameStore> | ((s: GameStore) => GameStore | Partial<GameStore>)) => void
+
 export const useGameStore = create<GameStore>()(
   persist(
-    (set, get) => ({
+    (rawSet, get) => {
+      // 「選手が動いたら交渉ごとの札を掃除する」を、幹の1本にまとめた場所。
+      //
+      // 前は movePlayer を呼ぶ処理ごとに reconcileTalks を書き足す形だったので、
+      // 書き忘れた処理では退団した選手の買い取りオファーやレンタル打診が残り、
+      // 同じ選手に二重に打診が積まれる・チャットが開ける、といったズレが出ていた。
+      // ここで set を1枚かぶせて、players か currentSeason を触った更新は必ず掃除を通す。
+      // 掃除で何も変わらなければ reconcileTalks は同じ実体を返すので、余計な再描画は起きない
+      const set: SetGame = (partial) => {
+        rawSet((state: GameStore) => {
+          const next = typeof partial === 'function' ? partial(state) : partial
+          if (!('players' in next) && !('currentSeason' in next)) return next
+          const season = next.currentSeason ?? state.currentSeason
+          if (!season) return next
+          const swept = reconcileTalks(season, next.players ?? state.players, next.playerTeamId ?? state.playerTeamId)
+          return swept === season ? next : { ...next, currentSeason: swept }
+        })
+      }
+
+      return {
       ...emptyState() as unknown as GameStore,
 
       startSetup: (setup) => {
@@ -1916,8 +1938,8 @@ export const useGameStore = create<GameStore>()(
             raceNewSegmentRecords: newSegRecordMarks,
             achievements: [...(state.achievements ?? []), ...raceAchievements],
             gmRep: state.gmRep ?? 50,   // 評判はシーズン終了時の目標達成率でのみ変動
-            // 交渉ごとの札は最後にまとめて片付ける。選手が動いていれば、その選手の話は前提が崩れている
-            currentSeason: reconcileTalks({
+            // 交渉ごとの札の掃除は set の1枚（store 冒頭）がやる
+            currentSeason: {
               ...state.currentSeason,
               currentRaceIndex: raceIndex + 1,
               phase: raceIndex + 1 >= state.currentSeason.races.length ? 'postseason' as const : 'regular' as const,
@@ -1947,10 +1969,7 @@ export const useGameStore = create<GameStore>()(
               freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],
               transferIncome: (state.currentSeason.transferIncome ?? 0) + myCpuSaleIncome,
               departureNotices: [...(state.currentSeason.departureNotices ?? []), ...myCpuSaleNotices],
-              // 掃除に渡すのは、このレースで動かし終えた最新の選手（players と同じもの）。
-              // レース直後の finalPlayers を渡すと、同じレース中の移籍・レンタル・フリー移籍が
-              // 反映されず、札の掃除が丸1レース遅れる
-            }, playersAfterFreeMoves, playerTeamId),
+            },
           }
         })
 
@@ -2455,10 +2474,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           season = { ...season, events: (season.events ?? []).map(e => e.id === eventId ? { ...e, resolved: true, choiceIndex } : e) }
-          // イベントで引退を認めた／移籍市場に出した場合、その選手あての札は前提が崩れる。
-          // ここだけ reconcileTalks を通していなかったので、承認したのに直訴が残り、
-          // 次のレース進行まで通知に幽霊が出ていた
-          return { players, teams, gmRep, currentSeason: reconcileTalks(season, players, state.playerTeamId) }
+          return { players, teams, gmRep, currentSeason: season }
         })
       },
 
@@ -2474,18 +2490,31 @@ export const useGameStore = create<GameStore>()(
             currentYear: state.currentSeason.year,
             retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
           }
-          const stillValid =
-            offer.offeredPlayerIds.every(pid => {
+          // 飲めないときは黙ってカードを消さず、なぜ流れたかを通知に残す。
+          // 通知は「交渉期限切れ」の箱（expiredNegotiations）に相乗りする。新しい箱は作らない
+          const callOff = (playerId: string, kind: ExpiredNegKind) => ({
+            currentSeason: {
+              ...state.currentSeason,
+              pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId),
+              expiredNegotiations: [
+                ...(state.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== `tx_${offerId}`),
+                { id: `tx_${offerId}`, playerId,
+                  // 指名権だけの交換なら選手が居ないので、そのぶんの言い方にする
+                  playerName: state.players.find(pl => pl.id === playerId)?.name ?? '指名権', kind },
+              ],
+            },
+          })
+          // 前提が崩れた選手を1人だけ特定する（誰の話で止まったのかを通知に出すため）
+          const brokenId =
+            offer.offeredPlayerIds.find(pid => {
               const p = state.players.find(pl => pl.id === pid)
-              return !!p && canBePoached(p, { teamId: offer.fromTeamId, currentYear: state.currentSeason.year })
-            }) &&
-            offer.requestedPlayerIds.every(pid => {
-              const p = state.players.find(pl => pl.id === pid)
-              return !!p && canTradeAway(p, offerCtx) && !p.noSale
+              return !p || !canBePoached(p, { teamId: offer.fromTeamId, currentYear: state.currentSeason.year })
             })
-          if (!stillValid) {
-            return { currentSeason: { ...state.currentSeason, pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId) } }
-          }
+            ?? offer.requestedPlayerIds.find(pid => {
+              const p = state.players.find(pl => pl.id === pid)
+              return !p || !canTradeAway(p, offerCtx) || !!p.noSale
+            })
+          if (brokenId !== undefined) return callOff(brokenId, 'trade')
           // 釣り合いの見張り。ここだけ判定が1つも無く、打診は5レース残るので、その間に
           // こちらの選手が伸びた／相手の選手が衰えたあとでも、作られた当時の条件のまま飲めていた。
           // 出す側（自チーム）が offeredVal、もらう側が requestedVal と向きが逆になる点に注意
@@ -2496,7 +2525,7 @@ export const useGameStore = create<GameStore>()(
             outExtra: (offer.requestedPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0),
             inExtra: (offer.offeredPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0) }
           if (!tradeNotLopsided(acceptIn, tvCtxA).ok) {
-            return { currentSeason: { ...state.currentSeason, pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId) } }
+            return callOff(offer.requestedPlayerIds[0] ?? offer.offeredPlayerIds[0] ?? '', 'trade_unfair')
           }
           let players = state.players
           let teams = state.teams
@@ -2868,14 +2897,14 @@ export const useGameStore = create<GameStore>()(
           return {
             players: newPlayers,
             teams: newTeams,
-            currentSeason: reconcileTalks({
+            currentSeason: {
               ...state.currentSeason,
               contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? updatedReq : r),
               // 更新成立なら進行中のフリー移籍の接触は打ち切り（残留確定）
               incomingOffers: newStatus === 'accepted'
                 ? (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === player.id && o.offeredPrice === 0))
                 : state.currentSeason.incomingOffers,
-            }, newPlayers, state.playerTeamId),
+            },
           }
         })
       },
@@ -3234,11 +3263,11 @@ export const useGameStore = create<GameStore>()(
           // 承認しても即引退はしない。「今季限りで引退」の予約フラグだけ立てて、
           // 実際の引退（ロスター除外・レジェンド登録）は endSeason で行う。
           // シーズン途中で選手が消える味気なさ＆戦力急落を防ぐ
-          // 進路が決まったので、この選手についての札は reconcileTalks が全部たたむ。
+          // 進路が決まったので、この選手についての札は set の1枚（store 冒頭）が全部たたむ。
           // ここで引退希望だけ手で消していたせいで、買い取りオファー・売出・レンタル打診・
           // トレード・移籍希望が残ったままになり、承認した直後にそのまま移籍が成立していた
           const players = state.players.map(p => p.id === playerId ? { ...p, pendingRetirementYear: state.currentSeason.year } : p)
-          return { players, currentSeason: reconcileTalks(state.currentSeason, players, state.playerTeamId) }
+          return { players }
         })
       },
 
@@ -3246,11 +3275,11 @@ export const useGameStore = create<GameStore>()(
       approveOverseasChallenge: (playerId) => set(state => {
         const req = (state.currentSeason.overseasRequests ?? []).find(r => r.playerId === playerId)
         if (!req) return state
-        // 引退の承認と同じで、進路が決まった選手の札は reconcileTalks が全部たたむ。
+        // 引退の承認と同じで、進路が決まった選手の札は set の1枚（store 冒頭）が全部たたむ。
         // ここでは海外挑戦の直訴と契約更新の2つしか消しておらず、国内の買い取りオファーや
         // 売出は残ったままだった（「海外行っていいよ」の直後に国内へ売られる）
         const players = state.players.map(p => p.id === playerId ? { ...p, overseasListed: req.region, morale: Math.min(100, (p.morale ?? 70) + 8) } : p)
-        return { players, currentSeason: reconcileTalks(state.currentSeason, players, state.playerTeamId) }
+        return { players }
       }),
 
       // 海外挑戦を引き留める：モラール低下（2回目以降は大）。その年は再直訴しない
@@ -3302,10 +3331,10 @@ export const useGameStore = create<GameStore>()(
         // 二度と出てこなくなる原因だった。引退・海外承認と同じ道を通す
         return {
           players: aptPlayers,
-          currentSeason: reconcileTalks({
+          currentSeason: {
             ...state.currentSeason,
             transferListings: alreadyListed ? state.currentSeason.transferListings : [...(state.currentSeason.transferListings ?? []), allowListing],
-          }, aptPlayers, state.playerTeamId),
+          },
         }
       }),
 
@@ -3317,13 +3346,12 @@ export const useGameStore = create<GameStore>()(
         const tnsPlayers = state.players.map(p => p.id === playerId ? { ...p, noSale: next, ...(next ? { transferListed: false } : {}) } : p)
         return {
           players: tnsPlayers,
-          // 退団予定を解除した側も reconcileTalks を通す（残った古い札を片付けるため）
-          currentSeason: reconcileTalks(next ? {
+          currentSeason: next ? {
             ...state.currentSeason,
             // ONにした瞬間、既に届いている買い取りオファー（移籍金付き）も取り下げ、出品も下げる。フリー接触（0円）は本人の話なので残す
             incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === playerId && o.offeredPrice > 0)),
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
-          } : state.currentSeason, tnsPlayers, state.playerTeamId),
+          } : state.currentSeason,
         }
       }),
 
@@ -3337,10 +3365,10 @@ export const useGameStore = create<GameStore>()(
         const tllPlayers = state.players.map(p => p.id === playerId ? { ...p, loanListed: next, ...(next ? { transferListed: false } : {}) } : p)
         return {
           players: tllPlayers,
-          currentSeason: reconcileTalks(next ? {
+          currentSeason: next ? {
             ...state.currentSeason,
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
-          } : state.currentSeason, tllPlayers, state.playerTeamId),
+          } : state.currentSeason,
         }
       }),
 
@@ -3354,10 +3382,10 @@ export const useGameStore = create<GameStore>()(
           // 退団予定を解除したら、その選手あての古い札も片付ける。
           // 契約更新の札は allowPlayerTransfer 側でもう消えているので、ここで解除すれば
           // 次のレース進行から普通に契約更新の話が出るようになる
-          currentSeason: reconcileTalks({
+          currentSeason: {
             ...state.currentSeason,
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => !(l.playerId === playerId && l.fromTeamId === state.playerTeamId)),
-          }, cslPlayers, state.playerTeamId),
+          },
         }
       }),
 
@@ -3933,11 +3961,11 @@ export const useGameStore = create<GameStore>()(
           // レースを跨ぐまで古い札が残っていると、退団した選手のチャットが開けてしまう
           return { players, teams,
             transferHistory: [...(state.transferHistory ?? []), ...tradeRecords].slice(-400),
-            currentSeason: reconcileTalks({
+            currentSeason: {
             ...state.currentSeason,
             acquisitionOffers: [...keptOffers, ...incomingOffers],
             newsFeed: [tradeNews, ...state.currentSeason.newsFeed].slice(0, 30),
-          }, players, state.playerTeamId) }
+          } }
         })
         return { ok: true }
       },
@@ -4342,14 +4370,13 @@ export const useGameStore = create<GameStore>()(
         return {
           players,
           teams,
-          // 本編以外のレースでも、選手が動いたぶんの札は同じように片付ける
-          currentSeason: reconcileTalks({
+          currentSeason: {
             ...cs,
             transferBids: bids,
             loanRequests: pendingLoanReqs.length > 0 ? [] : (cs.loanRequests ?? []),
             loanResponses: [...(cs.loanResponses ?? []), ...newLoanResponses],
             expiredNegotiations: [...(cs.expiredNegotiations ?? []), ...expiredNegs],
-          }, players, playerTeamId),
+          },
         }
       }),
 
@@ -7337,7 +7364,8 @@ export const useGameStore = create<GameStore>()(
           await flushSaveNow()
         })()
       },
-    }),
+      }
+    },
     {
       name: 'jpel-manager-save',
       version: 29,

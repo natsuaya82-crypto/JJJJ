@@ -23,6 +23,11 @@ export const EXPIRED_NEG_TEXT: Record<ExpiredNegKind, { title: (name: string) =>
   offer: { title: n => `${n}選手へのオファーが期限切れになりました`, note: '来季まで交渉できません' },
   // 契約更新の話し合いが期限切れ。移籍ではないし、交渉禁止にもならない
   contract: { title: n => `${n}選手の契約更新が期限切れになりました`, note: 'もう一度話し合えます' },
+  // トレードの打診を飲もうとしたが、打診後に前提が崩れていた（引退承認・非売・その選手が既に動いた等）。
+  // 以前はここで何も出さずカードだけ消していたので、押したのに無反応に見えていた
+  trade: { title: n => `${n}のトレードは成立しませんでした`, note: '打診のあとで状況が変わりました' },
+  // 同じくトレードだが、こちらは今の評価だと釣り合わなくなっていた場合
+  trade_unfair: { title: n => `${n}のトレードは成立しませんでした`, note: '今の評価では釣り合いません' },
 }
 // 古いセーブには種類が入っていない。元々この箱は入札ぶんだけだったので入札として扱う
 export function expiredNegText(kind: ExpiredNegKind | undefined) {

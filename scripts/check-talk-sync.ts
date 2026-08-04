@@ -10,6 +10,7 @@
 import { reconcileTalks, openWishIds, STALE_TRADE_MSG, SETTLED_TRADE_MSG, settledPath } from '../src/utils/talkSync'
 import type { TalkLists } from '../src/utils/talkSync'
 import type { Player } from '../src/types'
+import { readFileSync } from 'node:fs'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -292,6 +293,60 @@ console.log('\n[11] 退団予定（移籍を容認した）選手の用件も取
   const O3 = (playerId: string) =>
     ({ id: `o_${playerId}`, fromTeamId: 'other', playerId, offeredPrice: 100, expiresAtRace: 9, round: 1 })
   check('退団予定の選手への買い取りオファーも残る', ids(go3({ incomingOffers: [O3('t1')] }).incomingOffers) === 't1')
+}
+
+console.log('\n[12] レンタルが成立したら、その選手あての打診は全部下がる（同じ選手への二重打診対策）')
+// 貸し出し・借り入れが決まった瞬間に選手の所属クラブが変わるので、
+// 「貸してほしい」「借りませんか」の前提はどちらも崩れる。
+// 前は loanOutPlayer / loanInPlayer のあとに片付けを呼んでいなかったため、
+// 同じ選手あての打診が何件も残り、チャットに重複して並んでいた
+{
+  const A = (id: string, playerId: string, fromTeamId: string, direction: 'lend_out' | 'borrow_in') =>
+    ({ id, fromTeamId, playerId, direction, years: 1, expiresAtRace: 9 })
+  const talks: TalkLists = {
+    incomingLoanOffers: [
+      A('a1', 'p1', 'other', 'lend_out'), A('a2', 'p1', 'other2', 'lend_out'),
+      A('b1', 'p3', 'other', 'borrow_in'), A('b2', 'p3', 'other', 'borrow_in'),
+      A('c1', 'p2', 'other', 'lend_out'),
+    ],
+  }
+  // 貸し出し成立：p1 の所属は借りたクラブになる（loan.ownerTeamId が自分）
+  const lentOut = [
+    P('p1', 'other', { loan: { ownerTeamId: 'me', yearsLeft: 1 } } as unknown as Partial<Player>),
+    P('p2', 'me'), P('p3', 'other'),
+  ]
+  const r1 = reconcileTalks(talks, lentOut, 'me')
+  const left1 = (r1.incomingLoanOffers ?? []).map(o => o.id).join(',')
+  check('貸し出しが決まったら、その選手あての打診は1件も残らない', !left1.includes('a1') && !left1.includes('a2'))
+  check('関係ない選手あての打診はそのまま', left1.includes('c1'))
+
+  // 借り入れ成立：p3 の所属は自チームになる
+  const borrowedIn = [
+    P('p1', 'me'), P('p2', 'me'),
+    P('p3', 'me', { loan: { ownerTeamId: 'other', yearsLeft: 1 } } as unknown as Partial<Player>),
+  ]
+  const r2 = reconcileTalks(talks, borrowedIn, 'me')
+  const left2 = (r2.incomingLoanOffers ?? []).map(o => o.id).join(',')
+  check('借り入れが決まったら、その選手あての打診も1件も残らない', !left2.includes('b1') && !left2.includes('b2'))
+}
+
+console.log('\n[13] 札の片付けは store の set 1枚だけが呼ぶ（処理ごとの書き足しをしない）')
+// movePlayer を呼ぶ処理は13箇所あり、片付けを書き忘れた処理では古い札が残っていた。
+// 呼ぶ場所を増やすのではなく set を1枚かぶせて、players か currentSeason を
+// 触った更新は必ず片付けを通す形にした。ここではその形が崩れていないかを見る
+{
+  const src = readFileSync(new URL('../src/store/gameStore.ts', import.meta.url), 'utf-8')
+  check('set のかぶせが store にある', src.includes('const set: SetGame = (partial) =>'))
+  check('片付けを呼ぶ場所は store 全体で1つだけ',
+    (src.match(/reconcileTalks\(/g) ?? []).length === 1,
+    `見つかった数=${(src.match(/reconcileTalks\(/g) ?? []).length}`)
+  // トレードの成立ボタンは、条件を満たさないとき黙ってカードを消していた
+  // 型宣言の側にも同じ名前が並ぶので、実装の始まりから次の実装までを切り出す
+  const txHead = src.indexOf('acceptTradeOffer: (offerId) =>')
+  const tx = src.slice(txHead, src.indexOf('rejectTradeOffer: (offerId) =>', txHead))
+  check('成立できないトレードは理由を通知に残す', tx.includes("callOff(brokenId, 'trade')") && tx.includes("'trade_unfair'"))
+  check('黙ってカードだけ消す道が残っていない',
+    !/return \{ currentSeason: \{ \.\.\.state\.currentSeason, pendingTradeOffers:/.test(tx))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
