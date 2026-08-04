@@ -8,7 +8,7 @@ import { foreignClubCity, foreignClubFounded, foreignClubGm, foreignClubBudget, 
 import { useClubIndex } from '../../lib/useClubIndex'
 import { useEclHistory } from '../../lib/useEclHistory'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, isOpponentScouted, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { belongsToClub } from '../../utils/rosterSync'
@@ -510,7 +510,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               const ace = mainPlayers[0]
               const rating = ovr(ace)
               const specCol = SPEC_COLOR[ace.specialty]
-              const isScouted = isForeign || isMyTeam || isOpponentScouted(ace.id, currentSeason)
               return (
                 <div>
                   <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>ACE</div>
@@ -527,11 +526,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                         </span>
                       </div>
                       <div style={{ fontSize: '10px', color: '#5C5870' }}>
-                        {isScouted ? `${ace.age}歳` : '?歳'}
+                        {ace.age}歳
                       </div>
                     </div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '26px', fontWeight: '900', color: isScouted ? ratingColor(rating) : '#3A3758', flexShrink: 0 }}>
-                      {isScouted ? rating : '?'}
+                    <div style={{ fontFamily: SAIRA, fontSize: '26px', fontWeight: '900', color: ratingColor(rating), flexShrink: 0 }}>
+                      {rating}
                     </div>
                   </div>
                 </div>

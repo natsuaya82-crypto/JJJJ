@@ -20,7 +20,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import { reserveSquadPool } from '../utils/reserveSquad'
 import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
@@ -3023,9 +3023,8 @@ export const useGameStore = create<GameStore>()(
           const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces, perfOf(state.currentSeason, player.id, teamRaces))
           const ratio = desired > 0 ? salary / desired : 2
           const personality = player.personality ?? 'salary'
-          // 視察情報：未視察だと選手は慎重（厳しめ）
-          const scouted = offer.source === 'scout' ? isOpponentScouted(player.id, state.currentSeason) : true
-          const infoPenalty = offer.source === 'scout' ? (scouted ? 0 : 0.12) : 0
+          // スカウト（未視察は慎重）は廃止。全選手が最初から開示されているため常に0
+          const infoPenalty = 0
           const rlx = (offer.round - 1) * 0.02
           // 4要素で判断：年俸(ratio)・役割(roleBonus)・契約形態(typeAdjust)・契約年数(yearsBonus)
           const roleBonus = teamRole === 'ace' ? -0.06 : teamRole === 'key_player' ? -0.045 : teamRole === 'sub_ace' ? -0.03 : teamRole === 'rotation' ? -0.015 : 0

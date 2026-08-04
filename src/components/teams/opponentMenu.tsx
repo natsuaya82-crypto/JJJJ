@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
-import { ovr, ratingColor, calcTransferValue, isOpponentScouted, isScoutPending } from '../../utils/playerUtils'
+import { ovr, ratingColor, calcTransferValue, isScoutPending } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
@@ -13,17 +13,17 @@ import LoanSheet from '../transfer/LoanSheet'
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 function fmt(yen: number) { return yen >= 100000000 ? `${(yen / 100000000).toFixed(1)}億` : `${Math.round(yen / 10000)}万` }
 
-function PlayerHead({ player, isScouted = true }: { player: Player; isScouted?: boolean }) {
+function PlayerHead({ player }: { player: Player }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
       <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{player.name}</div>
         <div style={{ fontSize: 10, color: C.textDim }}>
-          {isScouted ? SPECIALTY_LABELS[player.specialty] : '?'} · {isScouted ? `${player.age}歳` : '?歳'} · 残{isScouted ? `${player.contract.yearsLeft}年` : '?'}
+          {SPECIALTY_LABELS[player.specialty]} · {player.age}歳 · 残{player.contract.yearsLeft}年
         </div>
       </div>
-      <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: isScouted ? ratingColor(ovr(player)) : C.textGhost }}>{isScouted ? ovr(player) : '?'}</div>
+      <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</div>
     </div>
   )
 }
@@ -35,12 +35,6 @@ export function useOpponentMenu() {
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
-
-  const isScoutedFn = (pid: string) => {
-    const p = players.find(x => x.id === pid)
-    if (!p || p.teamId === playerTeamId) return true
-    return isOpponentScouted(pid, currentSeason)
-  }
 
   const [menuId, setMenuId] = useState<string | null>(null)
   const [offerId, setOfferId] = useState<string | null>(null)
@@ -75,7 +69,7 @@ export function useOpponentMenu() {
       <ActionSheet
         open={!!menuPlayer}
         onClose={() => setMenuId(null)}
-        header={menuPlayer ? <PlayerHead player={menuPlayer} isScouted={isScoutedFn(menuPlayer.id)} /> : undefined}
+        header={menuPlayer ? <PlayerHead player={menuPlayer} /> : undefined}
         items={menuItems.map(it => ({ ...it, onClick: () => { it.onClick(); setMenuId(null) } }))}
       />
 
