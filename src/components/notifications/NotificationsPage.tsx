@@ -167,7 +167,7 @@ export default function NotificationsPage() {
   const {
     incomingOffers, freeContacts, freeTransferNotices, departureNotices,
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
-    sponsorOffers, tradeOffers, joinNotices,
+    sponsorOffers, tradeOffers, chatReplies, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
     loginUnclaimed, canCreateMyPlayer, expiredNegotiations, loanResponses,
     injuryKey, total,
@@ -570,9 +570,28 @@ export default function NotificationsPage() {
             </section>
           )}
 
+          {/* チャットで返事を待っているもの（獲得オファーの逆提示・トレードの逆提示・レンタルの申し込み）。
+              チャットには返事のボタンが出ているのに、ベルにも通知ページにも出ていなかった。
+              種類ごとに節を分けると数え方がまた枝分かれするので、1つの節でまとめて出す */}
+          {chatReplies.length > 0 && (
+            <section style={{ marginTop: (retirementRequests.length > 0 || transferReqs.length > 0 || overseasReqs.length > 0) ? '20px' : 0 }}>
+              <SectionHead label="返事待ち" color={C.cyan} count={chatReplies.length}/>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.cyan, 0.45), '#0a3a4a')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{chatReplies.length}件があなたの返事待ち</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.cyan, marginBottom: '14px' }}>チャットで対応してください</div>
+                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.cyan}, #9ae4ff)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* 移籍金交渉 */}
           {counteredBids.length > 0 && (
-            <section style={{ marginTop: (retirementRequests.length > 0 || transferReqs.length > 0 || overseasReqs.length > 0) ? '20px' : 0 }}>
+            <section style={{ marginTop: (retirementRequests.length > 0 || transferReqs.length > 0 || overseasReqs.length > 0 || chatReplies.length > 0) ? '20px' : 0 }}>
               <SectionHead label="移籍金交渉" color={C.green} count={counteredBids.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {counteredBids.map(bid => {

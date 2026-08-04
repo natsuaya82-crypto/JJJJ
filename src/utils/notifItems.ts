@@ -88,6 +88,29 @@ export function collectNotifications(input: NotifInput) {
     && o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status !== 'retired'))
     && o.requestedPlayerIds.every(pid => isMine(pid)))
 
+  // チャットには返事のボタンが出るのに、ベルにも通知ページにも一度も出ていなかったもの。
+  // 「相手が返事をしてきて、こちらの返事待ちで止まっている」という同じ1つの用件なので、
+  // 種類ごとに節を足さず、この1本で数える（移籍要望・海外挑戦と同じ形）。
+  //  ・獲得オファーの逆提示（countered＝選手が条件を出し直してきた）
+  //  ・レンタルの申し込み（貸してくれ／借りてくれ）
+  // 獲得オファーの pending は選手の返事待ちなのでこちらの用件ではない。
+  // レンタルの loanRequests もこちらから出して相手の返事待ちなので数えない。
+  // 選手やクラブが見つからないものはチャットにもカードが出ないので数から外す。
+  // トレードの逆提示(tradeNegotiations)はここに入れない。相手クラブとのトレード画面は
+  // 移籍ページのクラブ一覧からしか開けず、チャットの一覧には行が出ないので、
+  // 数だけ足すと「ベルは1件なのにチャットには何も無い」というズレになる
+  const chatReplies: { id: string; kind: 'acquisition' | 'loan' }[] = [
+    ...(currentSeason.acquisitionOffers ?? [])
+      .filter(o => o.status === 'countered' && players.some(p => p.id === o.playerId))
+      .map(o => ({ id: o.id, kind: 'acquisition' as const })),
+    // レンタルの申し込みは海外クラブからも来る（fromTeamId が国内チーム一覧に無い）。
+    // チャット側は相手クラブ名が引けなくても「他クラブ」としてカードを出すので、
+    // ここでクラブの実在を条件にすると海外ぶんだけベルに出ない
+    ...(currentSeason.incomingLoanOffers ?? [])
+      .filter(o => players.some(p => p.id === o.playerId))
+      .map(o => ({ id: o.id, kind: 'loan' as const })),
+  ]
+
   // 加入通知（FA・移籍・レンタル・トレード・ドラフトの全経路）。今季加入で未確認の選手
   const joinNotices = players
     .filter(p => p.teamId === playerTeamId && p.joinedYear === currentSeason.year)
@@ -139,6 +162,7 @@ export function collectNotifications(input: NotifInput) {
   const total = incomingOffers.length
     + (canCreateMyPlayer ? 1 : 0)
     + tradeOffers.length
+    + chatReplies.length
     + retirementRequests.length + transferReqs.length + overseasReqs.length + counteredBids.length + feeAcceptedBids.length
     + renewalPlayers.length
     + (signingBanned ? 1 : 0)
@@ -158,7 +182,7 @@ export function collectNotifications(input: NotifInput) {
   return {
     incomingOffers, freeContacts, freeTransferNotices, departureNotices,
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
-    pendingContracts, sponsorOffers, tradeOffers, joinNotices,
+    pendingContracts, sponsorOffers, tradeOffers, chatReplies, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
     loginUnclaimed, canCreateMyPlayer, expiredNegotiations, loanResponses,
     contactedPlayerIds: ctCtx.freeContactIds, injuryKey,

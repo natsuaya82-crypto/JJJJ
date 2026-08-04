@@ -61,6 +61,8 @@ console.log('\n[2] 用件を1つ足すと数がちょうど1つ増える')
     { label: 'フリー移籍のお知らせ', input: base(S({ freeTransferNotices: [{ playerId: 'p1' }] })) },
     { label: '交渉期限切れ', input: base(S({ expiredNegotiations: [{ id: 'e1' }] })) },
     { label: 'レンタルの返事', input: base(S({ loanResponses: [{ id: 'l1' }] })) },
+    { label: '獲得オファーの逆提示', input: base(S({ acquisitionOffers: [{ id: 'a1', playerId: 'p1', status: 'countered' }] }), [P('p1', 'b')], [T('a'), T('b')]) },
+    { label: 'レンタルの申し込み', input: base(S({ incomingLoanOffers: [{ id: 'i1', fromTeamId: 'b', playerId: 'p1', direction: 'lend_out', years: 1, expiresAtRace: 5 }] }), [P('p1', 'a')], [T('a'), T('b')]) },
     { label: 'マイプレイヤー未作成', input: { ...base(S()), myPlayerCreated: false } },
     { label: 'ログインボーナス未受け取り', input: { ...base(S()), lastLoginDate: '2000-01-01' } },
     { label: '運営からのプレゼント', input: { ...base(S()), pendingGiftsCount: 1 } },
@@ -151,6 +153,38 @@ console.log('\n[4.9] カードを作れないトレード打診はベルにも�
     collectNotifications(base(S({ pendingTradeOffers: [offer({ offeredPlayerIds: [] })] }), roster, both)).total === 0)
 }
 
+console.log('\n[4.95] チャットで返事するものは1本で数える')
+{
+  // チャットには返事のボタンが出ているのに、ベルにも通知ページにも出ていなかったもの。
+  // 種類が2つあるが節は1つなので、合計は「件数の合計」になる
+  const both = [T('a'), T('b')]
+  const all = collectNotifications(base(S({
+    acquisitionOffers: [{ id: 'a1', playerId: 'p1', status: 'countered' }],
+    incomingLoanOffers: [{ id: 'i1', fromTeamId: 'b', playerId: 'p1', direction: 'lend_out', years: 1, expiresAtRace: 5 }],
+  }), [P('p1', 'a')], both))
+  check('2種類あわせて2件', all.chatReplies.length === 2 && all.total === 2, `${all.total}件`)
+
+  // こちらの返事を待っていないものは数えない
+  const pending = collectNotifications(base(S({ acquisitionOffers: [{ id: 'a1', playerId: 'p1', status: 'pending' }] }), [P('p1', 'b')], both))
+  check('選手の返事待ち(pending)は数えない', pending.total === 0, `${pending.total}件`)
+  // トレードの逆提示はチャット一覧に行が出ない（移籍ページからしか開けない）ので数えない。
+  // ここを足すと「ベルは1件なのにチャットには何も無い」というズレになる
+  const trade = collectNotifications(base(S({ tradeNegotiations: [{ id: 'n1', targetTeamId: 'b', status: 'countered' }] }), [], both))
+  check('トレードの逆提示はチャットに行が出ないので数えない', trade.total === 0, `${trade.total}件`)
+  const outgoing = collectNotifications(base(S({ loanRequests: [{ id: 'r1', playerId: 'p1', toTeamId: 'b' }] }), [P('p1', 'a')], both))
+  check('こちらから出したレンタル希望は数えない', outgoing.total === 0, `${outgoing.total}件`)
+
+  // チャットにカードが出せないもの（選手やクラブが見つからない）はベルにも出さない
+  const ghostP = collectNotifications(base(S({ acquisitionOffers: [{ id: 'a1', playerId: 'zzz', status: 'countered' }] }), [], both))
+  check('居ない選手の逆提示は数えない', ghostP.total === 0, `${ghostP.total}件`)
+  // 海外クラブからのレンタルは fromTeamId が国内チーム一覧に無い。チャットは
+  // 「他クラブ」としてカードを出すので、ベルもちゃんと数える
+  const foreignL = collectNotifications(base(S({ incomingLoanOffers: [{ id: 'i1', fromTeamId: 'eu-1', playerId: 'p1', direction: 'lend_out', years: 1, expiresAtRace: 5, fromForeign: true }] }), [P('p1', 'a')], both))
+  check('海外クラブからのレンタルも数える', foreignL.total === 1, `${foreignL.total}件`)
+  const ghostL = collectNotifications(base(S({ incomingLoanOffers: [{ id: 'i1', fromTeamId: 'b', playerId: 'zzz', direction: 'lend_out', years: 1, expiresAtRace: 5 }] }), [P('p1', 'a')], both))
+  check('居ない選手のレンタルは数えない', ghostL.total === 0, `${ghostL.total}件`)
+}
+
 console.log('\n[5] 数え方は「通知ページに出るカードの枚数」と揃える')
 {
   // まとめて1枚のカードにしている用件は、中身が何件でも1件
@@ -206,7 +240,7 @@ const expected = [
   '1', '1', '1', '1', '1',
   'pendingGifts.length', 'clubGifts.length', 'joinNotices.length', 'tradeOffers.length',
   'renewalNeeded', 'injuredPlayers.length', 'retirementRequests.length', 'transferReqs.length',
-  'overseasReqs.length',
+  'overseasReqs.length', 'chatReplies.length',
   'counteredBids.length', 'feeAcceptedBids.length', 'freeContacts.length', 'departureNotices.length',
   'freeTransferNotices.length', 'expiredNegotiations.length', 'loanResponses.length', 'incomingOffers.length',
 ]
