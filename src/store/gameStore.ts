@@ -440,7 +440,7 @@ export type GameStore = GameState & {
   simulateIndividualEvent: (eventId: string, skipPlayerIds?: string[]) => void
 
   // Card training
-  applyTrainingCards: (playerId: string, cardIds: string[], grantTrait?: boolean, multiplier?: number) => void
+  applyTrainingCards: (playerId: string, cardIds: string[], multiplier?: number) => void
   // ジュエルで能力1つの上限を+1する（コストは playerUtils.limitBreakCost。99が天井）
   breakStatLimit: (playerId: string, stat: CardStatKey) => void
   // 余ったカードを上位レアへEXP等価で一括変換（ノーマル4→レア1／レア10→エピック3／エピック5→レジェンド2）。
@@ -6733,7 +6733,7 @@ export const useGameStore = create<GameStore>()(
         try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
       },
 
-      applyTrainingCards: (playerId, cardIds, grantTrait, multiplier = 1.0) => {
+      applyTrainingCards: (playerId, cardIds, multiplier = 1.0) => {
         set(state => {
           const player = state.players.find(p => p.id === playerId)
           if (!player) return state
@@ -6750,12 +6750,6 @@ export const useGameStore = create<GameStore>()(
             1.0,  // カードは年齢倍率なし
             getStatPotentials(player),  // 能力別ポテンシャル上限
           )
-          let newTraits = [...(player.traits ?? [])]
-          if (grantTrait && combo.traitGrant && !newTraits.includes(combo.traitGrant)) {
-            if (Math.random() < (combo.traitChance ?? 1.0)) {
-              newTraits = [...newTraits, combo.traitGrant]
-            }
-          }
           // 疲労回復（完全休養／超回復）。大成功倍率(multiplier)も疲労に掛ける。
           const fatigueRecovered = combo.fatigueDelta ? Math.round(combo.fatigueDelta * multiplier) : 0
           const newFatigue = Math.max(0, (player.fatigue ?? 0) - fatigueRecovered)
@@ -6763,7 +6757,7 @@ export const useGameStore = create<GameStore>()(
           return {
             trainingCards: remaining,
             players: state.players.map(p =>
-              p.id === playerId ? { ...p, ratings: result.ratings, exp: result.exp, traits: newTraits, fatigue: newFatigue } : p
+              p.id === playerId ? { ...p, ratings: result.ratings, exp: result.exp, fatigue: newFatigue } : p
             ),
           }
         })

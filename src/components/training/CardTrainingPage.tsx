@@ -82,7 +82,7 @@ export default function CardTrainingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; traitGranted: boolean; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
+  const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
   const [adWatched, setAdWatched] = useState(false)
   const [adConfirmOpen, setAdConfirmOpen] = useState(false)
   const [gmPassOpen, setGmPassOpen] = useState(false)   // GMパス購入シート（未購入者向けの案内から開く）
@@ -145,9 +145,8 @@ export default function CardTrainingPage() {
     const freeUsed = !adWatched && useFreeGreat && useDailyGreatSuccess()
     const greatSuccess = adWatched || freeUsed || Math.random() < 0.05
     const multiplier = greatSuccess ? 1.5 : 1.0
-    const willTrait = !!(combo.traitGrant && combo.traitChance && Math.random() < combo.traitChance)
-    applyTrainingCards(targetPlayer.id, cardIds, willTrait, multiplier)
-    setApplied({ combo, traitGranted: willTrait, greatSuccess, preRatings, preExp })
+    applyTrainingCards(targetPlayer.id, cardIds, multiplier)
+    setApplied({ combo, greatSuccess, preRatings, preExp })
     setAdWatched(false)
     setUseFreeGreat(false)
     // 選手は残してカードだけクリア（合成完了オーバーレイを表示し続けるため。選手を消すとSTEP1に戻って結果が消える）
@@ -385,7 +384,7 @@ export default function CardTrainingPage() {
             : combo?.name === '超回復'
             ? <>回復力EXP・疲労回復が <span style={{ color: combo!.color, fontWeight: 800 }}>×1.2</span>（疲労 -{fatigueDelta}）</>
             : isMenu
-            ? <>能力EXPが <span style={{ color: combo!.color, fontWeight: 800 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span> で入る{combo!.traitGrant ? `・${Math.round((combo!.traitChance ?? 0) * 100)}%でスキル付与` : ''}{fatigueDelta > 0 ? `・疲労 -${fatigueDelta}` : ''}</>
+            ? <>能力EXPが <span style={{ color: combo!.color, fontWeight: 800 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span> で入る{fatigueDelta > 0 ? `・疲労 -${fatigueDelta}` : ''}</>
             : <>レシピ未成立 — 通常合成（ボーナスなし）{fatigueDelta > 0 ? `・疲労 -${fatigueDelta}` : ''}</>}
         </div>
       </div>
@@ -600,18 +599,6 @@ export default function CardTrainingPage() {
                 <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: applied.combo.color, textShadow: `0 0 10px ${alpha(applied.combo.color, 0.5)}` }}>
                   -{applied.greatSuccess ? Math.round((applied.combo.fatigueDelta ?? 0) * 1.5) : (applied.combo.fatigueDelta ?? 0)}
                 </span>
-              </div>
-            )}
-            {applied.traitGranted && applied.combo.traitGrant && (
-              <div style={{
-                background: `linear-gradient(180deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.08)})`,
-                border: `2px solid ${C.goldDark}`,
-                boxShadow: `0 3px 0 #5a3500, 0 5px 14px ${alpha(C.gold, 0.2)}`,
-                borderRadius: 10, padding: '9px 16px',
-                fontFamily: SAIRA, fontSize: 14, color: C.gold, fontWeight: 900, marginBottom: 14,
-                textShadow: `0 0 10px ${alpha(C.gold, 0.5)}`,
-              }}>
-                スキル獲得！
               </div>
             )}
             <button

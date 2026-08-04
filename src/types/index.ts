@@ -334,8 +334,6 @@ export type ComboResult = {
   name: string
   color: string
   statDeltas: Partial<Record<CardStatKey, number>>
-  traitGrant?: TraitId
-  traitChance?: number
   isSpecial: boolean
   fatigueDelta?: number   // 正の数＝減らす疲労量
 }

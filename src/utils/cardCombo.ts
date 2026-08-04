@@ -1,4 +1,4 @@
-import type { CardStatKey, CardRarity, TrainingCard, ComboResult, TraitId } from '../types'
+import type { CardStatKey, CardRarity, TrainingCard, ComboResult } from '../types'
 
 // 能力（ステータス）の名前。選手の能力表示・EXPプレビュー・結果画面はこちらを使う。
 export const CARD_STAT_LABELS: Record<CardStatKey, string> = {
@@ -109,15 +109,12 @@ export function generateDropCards(rank: number, _totalTeams: number, segWinCount
   return cards
 }
 
-function isRarePlus(r: CardRarity): boolean {
-  return r === 'rare' || r === 'epic' || r === 'legendary'
-}
-
 // ─── 練習メニュー（レシピ） ───
 // 使ったカードの「種類（statKey）」の組み合わせが下のレシピと一致した時だけメニュー成立。
 // レシピ外はボーナスなし（通常合成 ×1.0）。同じカードを何枚重ねても種類は増えないのでボーナスにならない。
 // 倍率は種類数で決まる: 2種×1.2 / 3種×1.4 / 4種×1.6 / 5種×1.8。
-type Recipe = { types: CardStatKey[]; name: string; color: string; trait?: TraitId }
+// スキル付与は廃止。レシピは「メニュー名・色・倍率」だけを決める
+type Recipe = { types: CardStatKey[]; name: string; color: string }
 
 const MENU_MULT: Record<number, number> = { 2: 1.2, 3: 1.4, 4: 1.6, 5: 1.8 }
 
@@ -146,8 +143,8 @@ const RECIPES: Recipe[] = [
   { types: ['pacing', 'recovery'], name: '省エネ', color: '#3B82F6' },
   // 3種 ×1.4
   { types: ['stamina', 'pacing', 'recovery'], name: '鉄人', color: '#8B5CF6' },
-  { types: ['mountainUp', 'mountainDown', 'stamina'], name: '山神', color: '#8B5CF6', trait: 'mountain_ace' },
-  { types: ['speed', 'pacing', 'mental'], name: '韋駄天', color: '#8B5CF6', trait: 'sprint_burst' },
+  { types: ['mountainUp', 'mountainDown', 'stamina'], name: '山神', color: '#8B5CF6' },
+  { types: ['speed', 'pacing', 'mental'], name: '韋駄天', color: '#8B5CF6' },
   { types: ['speed', 'stamina', 'mountainUp'], name: '怪物', color: '#8B5CF6' },
   { types: ['speed', 'stamina', 'pacing'], name: '三拍子', color: '#8B5CF6' },
   { types: ['speed', 'stamina', 'recovery'], name: 'エンジン', color: '#8B5CF6' },
@@ -165,8 +162,8 @@ const RECIPES: Recipe[] = [
   { types: ['speed', 'mountainUp', 'mountainDown', 'mental'], name: '山岳スプリンター', color: '#EF4444' },
   { types: ['mountainUp', 'mountainDown', 'stamina', 'recovery'], name: '山の鉄人', color: '#EF4444' },
   // 5種 ×1.8
-  { types: ['speed', 'stamina', 'pacing', 'mental', 'recovery'], name: '絶対王者', color: '#F59E0B', trait: 'clutch' },
-  { types: ['mountainUp', 'mountainDown', 'stamina', 'pacing', 'mental'], name: '山岳王者', color: '#F59E0B', trait: 'iron_will' },
+  { types: ['speed', 'stamina', 'pacing', 'mental', 'recovery'], name: '絶対王者', color: '#F59E0B' },
+  { types: ['mountainUp', 'mountainDown', 'stamina', 'pacing', 'mental'], name: '山岳王者', color: '#F59E0B' },
   { types: ['speed', 'mountainUp', 'mountainDown', 'pacing', 'recovery'], name: '野生児', color: '#F59E0B' },
   { types: ['speed', 'stamina', 'mountainUp', 'mountainDown', 'recovery'], name: '荒武者', color: '#F59E0B' },
 ]
@@ -192,14 +189,11 @@ function detectStatCombo(cards: TrainingCard[]): ComboResult {
     const mult = MENU_MULT[distinct.length] ?? 1.0
     const deltas: Partial<Record<CardStatKey, number>> = {}
     for (const key of distinct) deltas[key] = Math.round((statValues[key] ?? 0) * mult)
-    const allRarePlus = cards.every(c => isRarePlus(c.rarity))
     return {
       name: recipe.name,
       color: recipe.color,
       statDeltas: deltas,
       isSpecial: distinct.length >= 3,
-      traitGrant: recipe.trait && allRarePlus ? recipe.trait : undefined,
-      traitChance: recipe.trait && allRarePlus ? 0.30 : undefined,
     }
   }
 
