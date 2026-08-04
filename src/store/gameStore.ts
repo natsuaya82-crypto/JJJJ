@@ -2722,8 +2722,17 @@ export const useGameStore = create<GameStore>()(
           // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
           const retPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.age >= 35)
           const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
+          // 引退の話が湧くかどうかは Math.random ではなく「選手ID＋年＋消化レース数」から決める。
+          // この関数はチャットを開くたびに走るので、乱数だと開き直すだけで何度も抽選が回り、
+          // 35歳以上が次々に引退を言い出していた。同じレース内なら何度開いても結果は同じにする
+          const retRoll = (id: string) => {
+            let h = 0
+            const seed = `${id}|${state.currentSeason.year}|${racesPlayed}`
+            for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+            return h % 100
+          }
           // 今季すでに引き留めた選手は再抽選しない
-          const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && Math.random() < 0.4).map(p => ({ playerId: p.id, age: p.age }))
+          const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && retRoll(p.id) < 40).map(p => ({ playerId: p.id, age: p.age }))
           // 移籍希望はチャットを開くたびではなくレース進行時に生成する（runRace内 generateTransferWishes）。ここでは扱わない。
           if (newReqs.length === 0 && newRet.length === 0) return state
           return {
@@ -3955,7 +3964,8 @@ export const useGameStore = create<GameStore>()(
       dismissTradeNegotiation: (negId) => set(s => ({ currentSeason: { ...s.currentSeason, tradeNegotiations: (s.currentSeason.tradeNegotiations ?? []).filter(n => n.id !== negId) } })),
 
       // チャット履歴を playerId 単位で保存（currentSeason 内なのでシーズンまたぎで自動リセット）
-      setChatLog: (playerId, messages) => set(s => ({ currentSeason: { ...s.currentSeason, chatLogs: { ...(s.currentSeason.chatLogs ?? {}), [playerId]: messages } } })),
+      // 1人ぶんのログは直近60発言まで。放っておくと会話がセーブの中で伸び続ける
+      setChatLog: (playerId, messages) => set(s => ({ currentSeason: { ...s.currentSeason, chatLogs: { ...(s.currentSeason.chatLogs ?? {}), [playerId]: messages.slice(-60) } } })),
 
       runSecondTeamRace: (lineup, strategy = 'balanced') => {
         const state = get()

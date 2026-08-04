@@ -133,6 +133,25 @@ console.log('\n[8] 選手からの直訴は自チームの選手のものだけ'
   check('ケガ中の選手の直訴は消さない', ids(r2.transferRequests) === 'p1')
 }
 
+console.log('\n[8.5] チャットのログは、居なくなった選手のぶんを片付ける')
+{
+  // ログはシーズン中ずっと残るので、引退・消滅した選手のぶんを残すとセーブが膨らむだけ。
+  // よそのクラブへ移った選手は獲得交渉の会話が続くことがあるので消さない
+  const logs = {
+    p1: [{ from: 'player' as const, text: 'よろしくお願いします' }],
+    p3: [{ from: 'player' as const, text: '条件次第です' }],
+    p4: [{ from: 'player' as const, text: 'お世話になりました' }],
+    p9: [{ from: 'player' as const, text: 'もう居ない選手' }],
+  }
+  const r = run({ chatLogs: logs })
+  check('自チームの選手のログは残る', !!r.chatLogs?.p1)
+  check('よそのクラブの選手のログも残る', !!r.chatLogs?.p3)
+  check('引退した選手のログは消える', !r.chatLogs?.p4)
+  check('データから消えた選手のログも消える', !r.chatLogs?.p9)
+  const kept = { chatLogs: { p1: logs.p1 } }
+  check('消すものが無ければ元のまま', run(kept) === kept)
+}
+
 console.log('\n[9] 何も起きていなければ元のまま返す（無駄な保存を起こさない）')
 {
   const talks: TalkLists = {

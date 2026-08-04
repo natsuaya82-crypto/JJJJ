@@ -8,6 +8,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, isDataKeyPlayer, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
 import { canSignContract } from '../../data/rosterRules'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
+import { mergeChatMessages } from '../../utils/chatLog'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -76,19 +77,19 @@ function buildMessages(
   const msgs: ChatMessage[] = []
 
   if (hasRetirement) {
-    msgs.push({ from: 'player', text: `${player.age}歳になりました。正直、そろそろ引退を考えています。監督はどうお思いですか？` })
+    msgs.push({ from: 'player', kind: 'retire', text: `${player.age}歳になりました。正直、そろそろ引退を考えています。監督はどうお思いですか？` })
     return msgs
   }
 
   if (overseasRegion) {
-    msgs.push({ from: 'player', text: `監督、真剣な話があります。${OVERSEAS_DREAM[overseasRegion] ?? '海外で走ってみたいんです。'}海外挑戦を認めてもらえませんか？` })
+    msgs.push({ from: 'player', kind: 'overseas_wish', text: `監督、真剣な話があります。${OVERSEAS_DREAM[overseasRegion] ?? '海外で走ってみたいんです。'}海外挑戦を認めてもらえませんか？` })
     return msgs
   }
 
   // 海外挑戦を認めた後：来季契約の話には戻らない。オファー待ちの状態として閉じる
   // （認めた直後に同じ選手から年俸交渉が始まってしまうのを防ぐ）
   if (player.overseasListed) {
-    msgs.push({ from: 'player', text: `海外挑戦を認めていただき、ありがとうございます。${OVERSEAS_LABEL[player.overseasListed] ?? '海外'}のクラブからの話を待ちます。` })
+    msgs.push({ from: 'player', kind: 'overseas_ok', text: `海外挑戦を認めていただき、ありがとうございます。${OVERSEAS_LABEL[player.overseasListed] ?? '海外'}のクラブからの話を待ちます。` })
     return msgs
   }
 
@@ -96,14 +97,15 @@ function buildMessages(
     const reason = transferReason === 'playing_time'
       ? '最近、出場機会が思ったより少なくて...'
       : 'チームの成績のことを考えると、'
-    msgs.push({ from: 'player', text: `${reason}他のクラブへの移籍を考えています。` })
+    msgs.push({ from: 'player', kind: 'transfer_wish', text: `${reason}他のクラブへの移籍を考えています。` })
     return msgs
   }
 
   if (!contractReq) {
     if (months < 12) {
       // 満了済み（yearsLeft=0）だと months が負になる。「残り-1ヶ月」と出るバグの修正
-      msgs.push({ from: 'player', text: months <= 0
+      // 残り月数はレースごとに変わる。kind を付けて「同じ催促」として扱い、増やさず書き換える
+      msgs.push({ from: 'player', kind: 'contract_remind', text: months <= 0
         ? `契約が切れたままになっています。今後どうなるのか気になっています。`
         : `来シーズンの契約についてなのですが、まだ何も連絡がなくて。残り${months}ヶ月が気になっています。` })
     }
@@ -111,7 +113,7 @@ function buildMessages(
   }
 
   if (contractReq.initiatedBy === 'player' && contractReq.status === 'pending_gm') {
-    msgs.push({ from: 'player', text: `来シーズンの契約についてお話があります。年俸${fmt(contractReq.demandSalary)}、${contractReq.demandYears}年契約での更新を希望します。いかがでしょうか？` })
+    msgs.push({ from: 'player', kind: 'contract_demand', text: `来シーズンの契約についてお話があります。年俸${fmt(contractReq.demandSalary)}、${contractReq.demandYears}年契約での更新を希望します。いかがでしょうか？` })
     return msgs
   }
 
@@ -233,7 +235,7 @@ function ChatView({
 
   // 接触中の文脈メッセージ（契約更新の話ではなく「誘いを受けている」ことを本人が伝える）
   const contactMsg: ChatMessage | null = freeContactClub
-    ? { from: 'player', text: `実は${freeContactClub}から誘いを受けています。数戦のうちに答えを出すつもりです。` }
+    ? { from: 'player', kind: 'free_contact', text: `実は${freeContactClub}から誘いを受けています。数戦のうちに答えを出すつもりです。` }
     : null
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
     const builtBase = isTransfer
@@ -255,8 +257,8 @@ function ChatView({
       !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region,
     ) : []
     const freshSource = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
-    const fresh = freshSource.filter(m => !initialMessages.some(s => s.from === m.from && s.text === m.text))
-    return fresh.length > 0 ? [...initialMessages, ...fresh] : initialMessages
+    // 突き合わせは utils/chatLog.ts の1本だけ（同じ用件は増やさず文面を差し替える）
+    return mergeChatMessages(initialMessages, freshSource)
   })
 
   useEffect(() => { onMessagesChange(chatMessages) }, [chatMessages])

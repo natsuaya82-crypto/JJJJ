@@ -703,7 +703,10 @@ export type ArchivedSeason = Pick<Season,
 
 // チャットの1発言。playerId 単位で currentSeason.chatLogs に保存し、シーズンをまたぐと（新しい
 // currentSeason になるため）自動的にリセットされる。
-export type ChatMessage = { from: 'player' | 'gm'; text: string }
+// kind は「同じ用件の発言」の目印。文面に残り月数や金額が入る発言は開くたびに文字列が
+// 変わるので、文字列で見比べていると同じ用件の催促がログに積み上がっていた。
+// kind が付いている発言は、増やさずに文面だけ差し替える。
+export type ChatMessage = { from: 'player' | 'gm'; text: string; kind?: string }
 
 export type CollegeRunner = {
   id: string

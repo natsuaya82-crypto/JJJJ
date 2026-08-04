@@ -8,6 +8,7 @@ import type {
   Player,
   TradeNegotiation,
   TransferListing,
+  ChatMessage,
 } from '../types'
 import { belongsToClub } from './rosterSync'
 
@@ -48,6 +49,7 @@ export type TalkLists = {
   retirementRequests?: { playerId: string; age: number }[]
   transferRequests?: { playerId: string; reason: 'playing_time' | 'team_performance' | 'unhappy' }[]
   overseasRequests?: { playerId: string; region: OverseasRegion }[]
+  chatLogs?: Record<string, ChatMessage[]>
 }
 
 // 前提が崩れたトレード交渉に出す文言。押した瞬間に弾く側（acceptTradeCounter）でも同じ文言を使う
@@ -133,6 +135,18 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     (talks.transferRequests ?? []).filter(r => at(r.playerId, myTeamId)))
   put('overseasRequests', talks.overseasRequests,
     (talks.overseasRequests ?? []).filter(r => at(r.playerId, myTeamId)))
+
+  // チャットのログ：引退した・データから消えた選手のぶんは片付ける。
+  // 残していても開く道が無く、セーブの中で膨らみ続けるだけ
+  const logs = talks.chatLogs
+  if (logs) {
+    const keep = Object.keys(logs).filter(id => !gone(id))
+    if (keep.length !== Object.keys(logs).length) {
+      const next: Record<string, ChatMessage[]> = {}
+      for (const id of keep) next[id] = logs[id]
+      changed.chatLogs = next
+    }
+  }
 
   return Object.keys(changed).length === 0 ? talks : { ...talks, ...changed }
 }
