@@ -6,6 +6,7 @@ import { audio } from '../../utils/audio'
 import { loginTodayKey } from '../../utils/loginDate'
 import { C, alpha } from '../../styles/tokens'
 import { useAdHeight, HEADER_H, NAV_H, MAIN_GAP } from '../layout/Layout'
+import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -60,6 +61,7 @@ export default function LoginBonusPage() {
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const mult = adsRemoved ? 2 : 1
   const [claimResult, setClaimResult] = useState<{ gained: number; streak: number } | null>(null)
+  const [gmPassOpen, setGmPassOpen] = useState(false)   // GMパス購入シート（未購入者の「2倍にする」から開く）
 
   const today = loginTodayKey()
 
@@ -254,7 +256,26 @@ export default function LoginBonusPage() {
           accent="#6dd5fa"
           grow={1}
           bodyJustify="space-between"
-          right={adsRemoved ? <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '1px' }}>GM PASS ×2</div> : undefined}
+          right={adsRemoved
+            ? <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '1px' }}>GM PASS ×2</div>
+            : IAP_ENABLED
+              ? (
+                <button
+                  onClick={() => { setGmPassOpen(true); audio.playSe('tap') }}
+                  className="btn-press"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+                    padding: '5px 10px', borderRadius: 999,
+                    background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.05)})`,
+                    border: `1px solid ${alpha(C.gold, 0.45)}`,
+                    fontFamily: SAIRA,
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '0.5px' }}>GMパスで毎日×2</span>
+                  <span style={{ fontSize: 10, color: alpha(C.gold, 0.6) }}>›</span>
+                </button>
+              )
+              : undefined}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 12, color: C.textSub }}>毎日ログイン{adsRemoved ? '（2倍中）' : ''}</span>
@@ -293,6 +314,7 @@ export default function LoginBonusPage() {
         </Card>
 
       </div>
+      {gmPassOpen && <GmPassSheet onClose={() => setGmPassOpen(false)} />}
     </div>
   )
 }

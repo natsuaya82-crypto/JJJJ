@@ -18,6 +18,8 @@ import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
 import { ROSTER_MIN } from '../../data/rosterRules'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -299,6 +301,9 @@ export default function Dashboard() {
   const worldSquad = useGameStore(s => s.worldSquad)
   const worldTournament = useGameStore(s => s.worldTournament)
   const startWorldTournament = useGameStore(s => s.startWorldTournament)
+  // シーズン更新の広告分岐（GMパス未購入のときだけ出す）
+  const [seasonAdAsk, setSeasonAdAsk] = useState(false)
+  const [gmPassOpen, setGmPassOpen] = useState(false)
   const navigate = useNavigate()
   useEffect(() => {
     initObjectivesIfEmpty()
@@ -306,9 +311,19 @@ export default function Dashboard() {
   const team = teams.find(t => t.id === playerTeamId)
   if (!team) return null
 
-  // 「次のシーズンへ」でインタースティシャル広告→シーズン更新
-  const goNextSeason = async () => {
-    if (!adsRemoved) await showInterstitialAd()
+  // 「次のシーズンへ」。GMパス購入済みならそのまま更新。
+  // 未購入なら「広告を見て進む／広告を消す」を選んでもらう（広告が出る場面が
+  // 一番GMパスの価値が伝わるので、購入への入り口をここに置く）
+  const goNextSeason = () => {
+    if (adsRemoved || !IAP_ENABLED) {
+      runWithLoading('シーズンを更新中…', endSeason, 800)
+      return
+    }
+    setSeasonAdAsk(true)
+  }
+  const goNextSeasonWithAd = async () => {
+    setSeasonAdAsk(false)
+    await showInterstitialAd()
     runWithLoading('シーズンを更新中…', endSeason, 800)
   }
 
@@ -788,6 +803,37 @@ export default function Dashboard() {
           </div>
         )
       })()}
+
+      {/* シーズン更新前の広告分岐。「広告を見て進む」か「広告を消す（GMパス）」 */}
+      {seasonAdAsk && (
+        <ConfirmDialog
+          title={`${currentSeason.year + 1}シーズンへ進みます`}
+          message="このあと広告が1回流れます。"
+          accent={C.gold}
+          confirmLabel="広告を見て進む"
+          cancelLabel="やめる"
+          onConfirm={goNextSeasonWithAd}
+          onCancel={() => setSeasonAdAsk(false)}
+        >
+          <button
+            onClick={() => { setSeasonAdAsk(false); setGmPassOpen(true) }}
+            className="btn-press"
+            style={{
+              width: '100%', padding: '11px 12px', borderRadius: 11, cursor: 'pointer',
+              background: `linear-gradient(180deg, ${alpha(C.gold, 0.2)}, ${alpha(C.gold, 0.06)})`,
+              border: `1.5px solid ${alpha(C.gold, 0.5)}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <rect x="2.5" y="14" width="19" height="6" rx="1.6" stroke={C.gold} strokeWidth="1.7"/>
+              <path d="M4 21.5L20 4" stroke={C.gold} strokeWidth="1.9" strokeLinecap="round"/>
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>GMパスで広告を消す（買い切り）</span>
+          </button>
+        </ConfirmDialog>
+      )}
+      {gmPassOpen && <GmPassSheet onClose={() => setGmPassOpen(false)} />}
 
       {/* レース／シーズン終了で得たジュエルの内訳。結果画面では出さず、ホームに戻ったここで知らせる */}
       <JewelGainPopup />

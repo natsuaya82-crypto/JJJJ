@@ -17,6 +17,7 @@ import TrainingCardSVG from './TrainingCardSVG'
 import { audio } from '../../utils/audio'
 import { showRewardAd, getAdDay } from '../../utils/ads'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { useAdHeight } from '../layout/Layout'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -84,6 +85,7 @@ export default function CardTrainingPage() {
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; traitGranted: boolean; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
   const [adWatched, setAdWatched] = useState(false)
   const [adConfirmOpen, setAdConfirmOpen] = useState(false)
+  const [gmPassOpen, setGmPassOpen] = useState(false)   // GMパス購入シート（未購入者向けの案内から開く）
   // 買い切り版の無料確約を「この合成に使う」と選んだ状態（実行時に消費）
   const [useFreeGreat, setUseFreeGreat] = useState(false)
   // 上限解放：MAXの能力をタップ→確認ダイアログでジュエル消費して上限+1
@@ -238,6 +240,7 @@ export default function CardTrainingPage() {
           onCancel={() => setAdConfirmOpen(false)}
         />
       )}
+      {gmPassOpen && <GmPassSheet onClose={() => setGmPassOpen(false)} />}
       {limitBreakStat && (() => {
         const cap = (getStatPotentials(targetPlayer) as Record<string, number>)[limitBreakStat]
         if (cap >= 99) return null
@@ -431,6 +434,25 @@ export default function CardTrainingPage() {
                     <path d="M12 3l2.4 5.6 6 .5-4.6 3.9 1.4 5.9L12 15.8 6.8 18.9l1.4-5.9L3.6 9.1l6-.5z" fill={C.gold} />
                   </svg>
                   <span style={{ fontSize: 12, fontWeight: 900, color: C.gold }}>無料で大成功にする（本日1回）</span>
+                </button>
+              )}
+              {!adsRemoved && IAP_ENABLED && (
+                <button
+                  onClick={() => { setGmPassOpen(true); audio.playSe('tap') }}
+                  className="btn-press"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+                    padding: '8px 16px', borderRadius: 999, marginBottom: 2,
+                    background: `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${alpha(C.gold, 0.04)})`,
+                    border: `1.5px dashed ${alpha(C.gold, 0.5)}`,
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                    <rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke={C.gold} strokeWidth="1.8"/>
+                    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke={C.gold} strokeWidth="1.8"/>
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: C.gold }}>GMパスなら毎日1回、無料で大成功確定</span>
                 </button>
               )}
               <button
