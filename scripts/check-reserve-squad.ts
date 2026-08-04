@@ -49,22 +49,31 @@ console.log('\n[2] ①その週の1軍に出ていない80以下だけで足り�
   check('80超は入らない', pool.every(p => ovr(p) <= 80))
 }
 
-console.log('\n[3] ②足りなければ1軍に出た選手も解禁（80以下のまま）')
+console.log('\n[3] ②足りなければ80超を解禁。1軍に出た選手はまだ出さない')
 {
-  const roster = [P('控えA', 70), P('1軍A', 70), P('1軍B', 70), P('強い', 90)]
-  const pool = reserveSquadPool(roster, new Set(['1軍A', '1軍B']), 3)
-  check('1軍の選手まで広がる', ids(pool) === '1軍A,1軍B,控えA', ids(pool))
-  check('それでも80超は入らない', !pool.some(p => p.id === '強い'))
+  const roster = [P('控えA', 70), P('強いA', 90), P('強いB', 90), P('1軍A', 70)]
+  const pool = reserveSquadPool(roster, new Set(['1軍A']), 3)
+  check('80超まで広がる', ids(pool) === '強いA,強いB,控えA', ids(pool))
+  check('二重出走はまだ起こさない', !pool.some(p => p.id === '1軍A'))
 }
 
-console.log('\n[4] ③それでも足りなければ80超も解禁（詰み対策）')
+console.log('\n[4] ③それでも足りなければ1軍に出た選手も解禁（詰み対策）')
 {
-  const roster = [P('控えA', 70), P('強いA', 90), P('強いB', 90)]
-  const pool = reserveSquadPool(roster, new Set(), 3)
-  check('全員が対象になる', ids(pool) === '強いA,強いB,控えA', ids(pool))
+  const roster = [P('控えA', 70), P('1軍A', 70), P('1軍B', 70)]
+  const pool = reserveSquadPool(roster, new Set(['1軍A', '1軍B']), 3)
+  check('最後にやっと1軍の選手が入る', ids(pool) === '1軍A,1軍B,控えA', ids(pool))
   // 人数がそもそも足りない場合も、空ではなくロスター全部を返す（組めないなら呼ぶ側で弾く）
   const few = reserveSquadPool([P('ひとり', 70)], new Set(), 6)
   check('人数不足でも空にはならない', few.length === 1)
+}
+
+console.log('\n[4b] ②と③の順番（同じ週の二重出走より、80超の解禁が先）')
+{
+  // 控え1人（80以下）＋80超2人＋1軍で走った80以下2人。どちらの段階を先に開けるかで結果が変わる
+  const roster = [P('控えA', 70), P('強いA', 90), P('強いB', 90), P('1軍A', 70), P('1軍B', 70)]
+  const pool = reserveSquadPool(roster, new Set(['1軍A', '1軍B']), 3)
+  check('80超が先に解禁される', ids(pool) === '強いA,強いB,控えA', ids(pool))
+  check('1軍で走った選手は入らない', !pool.some(p => p.id === '1軍A' || p.id === '1軍B'))
 }
 
 console.log('\n[5] 頭数に数えない選手（故障者）の扱い')

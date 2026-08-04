@@ -7,7 +7,7 @@
  * 契約更新の要求は退団しても消えず、逆提示で売れたときだけ出品の掃除が抜けていて、
  * トレード交渉に至っては一度も見直されず、対象がよそへ移ったあとでも成立ボタンが押せた。
  */
-import { reconcileTalks, STALE_TRADE_MSG, SETTLED_TRADE_MSG, settledPath } from '../src/utils/talkSync'
+import { reconcileTalks, openWishIds, STALE_TRADE_MSG, SETTLED_TRADE_MSG, settledPath } from '../src/utils/talkSync'
 import type { TalkLists } from '../src/utils/talkSync'
 import type { Player } from '../src/types'
 
@@ -119,18 +119,42 @@ console.log('\n[7] 獲得交渉：トレード後の契約詰めを消さない'
 
 console.log('\n[8] 選手からの直訴は自チームの選手のものだけ')
 {
-  const r = run({
+  // 1人1つの決まりと混ざらないように、3つのリストは別の選手で見る
+  const P8 = [...PLAYERS, P('p6', 'me')]
+  const r = reconcileTalks({
     retirementRequests: [{ playerId: 'p1', age: 34 }, { playerId: 'p3', age: 34 }],
     transferRequests: [{ playerId: 'p2', reason: 'playing_time' as const }, { playerId: 'p4', reason: 'unhappy' as const }],
-    overseasRequests: [{ playerId: 'p1', region: 'europe' as never }, { playerId: 'p5', region: 'europe' as never }],
-  })
+    overseasRequests: [{ playerId: 'p6', region: 'europe' as never }, { playerId: 'p5', region: 'europe' as never }],
+  }, P8, 'me')
   check('引退希望は自チームの選手だけ', ids(r.retirementRequests) === 'p1')
   check('移籍希望は自チームの選手だけ', ids(r.transferRequests) === 'p2')
-  check('海外挑戦の直訴も自チームの選手だけ', ids(r.overseasRequests) === 'p1')
+  check('海外挑戦の直訴も自チームの選手だけ', ids(r.overseasRequests) === 'p6')
   // ケガ中でも話は続く（status が active でないだけで所属は変わっていない）
   const hurt = [P('p1', 'me', { status: 'injured' } as Partial<Player>)]
   const r2 = reconcileTalks({ transferRequests: [{ playerId: 'p1', reason: 'playing_time' as const }] }, hurt, 'me')
   check('ケガ中の選手の直訴は消さない', ids(r2.transferRequests) === 'p1')
+}
+
+console.log('\n[8.2] 直訴は1人につき1つだけ（引退＞海外＞移籍）')
+// ベルの数とチャットの行数が合わない主因。3つのリストを別々に抽選していたので、
+// 同じ選手が「移籍したい」と「海外に行きたい」を同時に持てた。
+// 抽選側は openWishIds で外し、最後にここで1つに揃える
+{
+  const talks: TalkLists = {
+    retirementRequests: [{ playerId: 'p1', age: 36 }],
+    overseasRequests: [{ playerId: 'p1', region: 'europe' as never }, { playerId: 'p2', region: 'europe' as never }],
+    transferRequests: [{ playerId: 'p1', reason: 'unhappy' as const }, { playerId: 'p2', reason: 'unhappy' as const }],
+  }
+  check('抽選側が見る一覧に、直訴を出している選手が全部入る',
+    [...openWishIds(talks)].sort().join(',') === 'p1,p2')
+  const r = run(talks)
+  check('一番強い引退の札は残る', ids(r.retirementRequests) === 'p1')
+  check('引退したい選手の海外挑戦は落とす', ids(r.overseasRequests) === 'p2')
+  check('引退したい選手の移籍希望も落とす', ids(r.transferRequests) === '')
+  check('海外を出した選手の移籍希望も落とす', !ids(r.transferRequests).includes('p2'))
+  // 1つしか持っていなければ何も起きない
+  const one: TalkLists = { transferRequests: [{ playerId: 'p1', reason: 'unhappy' as const }] }
+  check('1つだけなら元のまま', run(one) === one)
 }
 
 console.log('\n[8.5] チャットのログは、居なくなった選手のぶんを片付ける')
@@ -221,14 +245,16 @@ console.log('\n[10] 進路が決まった選手の札は全部たたむ')
   ] })
   check('引退を承認した選手との契約更新は取り下げる', ids(cr.contractRequests) === 'n1')
 
-  const dr = go({
+  // 残る側は「1人1つ」の決まりに引っかからないよう別々の選手で見る
+  const P2b = [...P2, P('n2', 'me'), P('n3', 'me')]
+  const dr = reconcileTalks({
     retirementRequests: [{ playerId: 'r1', age: 36 }, { playerId: 'n1', age: 36 }],
-    transferRequests: [{ playerId: 'r1', reason: 'unhappy' as const }, { playerId: 'n1', reason: 'unhappy' as const }],
-    overseasRequests: [{ playerId: 'r1', region: 'europe' as const }, { playerId: 'n1', region: 'europe' as const }],
-  })
+    transferRequests: [{ playerId: 'r1', reason: 'unhappy' as const }, { playerId: 'n2', reason: 'unhappy' as const }],
+    overseasRequests: [{ playerId: 'r1', region: 'europe' as const }, { playerId: 'n3', region: 'europe' as const }],
+  }, P2b, 'me')
   check('進路が決まった選手の引退希望は残らない', ids(dr.retirementRequests) === 'n1')
-  check('進路が決まった選手の移籍希望も残らない', ids(dr.transferRequests) === 'n1')
-  check('進路が決まった選手の海外直訴も残らない', ids(dr.overseasRequests) === 'n1')
+  check('進路が決まった選手の移籍希望も残らない', ids(dr.transferRequests) === 'n2')
+  check('進路が決まった選手の海外直訴も残らない', ids(dr.overseasRequests) === 'n3')
 }
 
 console.log('\n[11] 退団予定（移籍を容認した）選手の用件も取り下げる')
@@ -249,14 +275,15 @@ console.log('\n[11] 退団予定（移籍を容認した）選手の用件も取
   check('決着済み（合意）は履歴として残る', cr3ids.includes('c3'))
   check('普通の選手の札はそのまま', cr3ids.includes('c4'))
 
-  const dr3 = go3({
+  const P3b = [...P3, P('n2', 'me'), P('n3', 'me')]
+  const dr3 = reconcileTalks({
     retirementRequests: [{ playerId: 't1', age: 36 }, { playerId: 'n1', age: 36 }],
-    transferRequests: [{ playerId: 't1', reason: 'unhappy' as const }, { playerId: 'n1', reason: 'unhappy' as const }],
-    overseasRequests: [{ playerId: 't1', region: 'europe' as const }, { playerId: 'n1', region: 'europe' as const }],
-  })
+    transferRequests: [{ playerId: 't1', reason: 'unhappy' as const }, { playerId: 'n2', reason: 'unhappy' as const }],
+    overseasRequests: [{ playerId: 't1', region: 'europe' as const }, { playerId: 'n3', region: 'europe' as const }],
+  }, P3b, 'me')
   check('退団予定の選手の引退希望は残らない', ids(dr3.retirementRequests) === 'n1')
-  check('退団予定の選手の移籍希望も残らない', ids(dr3.transferRequests) === 'n1')
-  check('退団予定の選手の海外直訴も残らない', ids(dr3.overseasRequests) === 'n1')
+  check('退団予定の選手の移籍希望も残らない', ids(dr3.transferRequests) === 'n2')
+  check('退団予定の選手の海外直訴も残らない', ids(dr3.overseasRequests) === 'n3')
 
   // 退団予定の選手の「出品」は消してはいけない（容認＝売りに出すこと そのものなので）
   const L3 = (playerId: string) =>

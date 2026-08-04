@@ -37,7 +37,7 @@ import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
 import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
-import { reconcileTalks, STALE_TRADE_MSG } from '../utils/talkSync'
+import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
@@ -1749,7 +1749,11 @@ export const useGameStore = create<GameStore>()(
           if (midRaceObjJewels > 0) raceJewelGains.push({ label: '目標達成', amount: midRaceObjJewels })
 
           // ── 移籍希望：契約残り2年切った(≤1)選手から毎レース最大1人。理由は出場機会/強豪志向/待遇不満。 ──
-          const existTrReq = new Set((state.currentSeason.transferRequests ?? []).map(r => r.playerId))
+          // 直訴（引退したい・移籍したい・海外に行きたい）の札は1人につき1つだけ。
+          // 3つを別々に抽選していたので、同じ選手が「移籍したい」と「海外に行きたい」を
+          // 同時に持ててしまい、ベルは2件なのにチャットには1行、という数のズレになっていた。
+          // 「もう何か言っている選手か」の判定は talkSync の openWishIds 1本に寄せる
+          const openWish = openWishIds(state.currentSeason)
           const trTotalTeams = state.teams.length
           const myStandRank = (() => {
             const sorted = [...updatedStandings].sort((a, b) => b.totalPoints - a.totalPoints)
@@ -1762,7 +1766,7 @@ export const useGameStore = create<GameStore>()(
             //   引退を見ていなかったので、引退を承認した選手が数レース後に移籍を直訴してきていた）
             // 既に対応済み（移籍を認めた transferListed / 残ってほしいで説得済み）の選手は同シーズン中に再抽選しない
             .filter(p => canWishTransfer(p, { teamId: playerTeamId, currentYear: state.currentSeason.year, retiringIds: retiringWishIds })
-              && p.status === 'active' && p.contract.yearsLeft <= 1 && !existTrReq.has(p.id)
+              && p.status === 'active' && p.contract.yearsLeft <= 1 && !openWish.has(p.id)
               && !p.transferListed && p.transferRequestDismissedYear !== state.currentSeason.year)
             .map(p => {
               const apps = seasonAppearances(p.id, updatedRaces)
@@ -1804,19 +1808,20 @@ export const useGameStore = create<GameStore>()(
             let picked = trCandidates[0]
             for (const c of trCandidates) { r -= c.score; if (r <= 0) { picked = c; break } }
             newTransferReqs = [{ playerId: picked.id, reason: picked.reason }]
+            // この場で移籍希望を出した選手は、続く海外挑戦の抽選から外す
+            openWish.add(picked.id)
           }
 
           // ── 海外挑戦の直訴：世界レベル（OVR80+・30歳以下）が「海外でやりたい」とチャットで言い出す。
           //    代表帰り（前年〜今年に世界選手権代表）は世界を見てきたので言い出しやすい ──
-          const existOvReq = new Set((state.currentSeason.overseasRequests ?? []).map(r => r.playerId))
           // 夢の行き先はタイプで変わる：持久系→アフリカ高地／スピード系→欧州トラック／山・万能→北米
           const regionForSpec = (s: Player['specialty']): import('../types').OverseasRegion =>
             (s === 'long' || s === 'grinder') ? 'africa'
             : (s === 'sprinter' || s === 'kick' || s === 'ace') ? 'europe'
             : 'america'
           const ovCands = playersAfterLoan.filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan
-            && ovr(p) >= 80 && p.age <= 30 && !p.overseasListed && !existOvReq.has(p.id)
-            && p.overseasDeniedYear !== state.currentSeason.year && !p.transferListed && !retiringWishIds.has(p.id))
+            && ovr(p) >= 80 && p.age <= 30 && !p.overseasListed && !openWish.has(p.id)
+            && p.overseasDeniedYear !== state.currentSeason.year && !p.transferListed)
           let newOvReqs: { playerId: string; region: import('../types').OverseasRegion }[] = []
           for (const p of ovCands) {
             const wasRep = (state.worldRepresentatives ?? []).some(r => r.playerId === p.id && r.year >= state.currentSeason.year - 1)
@@ -1942,7 +1947,10 @@ export const useGameStore = create<GameStore>()(
               freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],
               transferIncome: (state.currentSeason.transferIncome ?? 0) + myCpuSaleIncome,
               departureNotices: [...(state.currentSeason.departureNotices ?? []), ...myCpuSaleNotices],
-            }, finalPlayers, playerTeamId),
+              // 掃除に渡すのは、このレースで動かし終えた最新の選手（players と同じもの）。
+              // レース直後の finalPlayers を渡すと、同じレース中の移籍・レンタル・フリー移籍が
+              // 反映されず、札の掃除が丸1レース遅れる
+            }, playersAfterFreeMoves, playerTeamId),
           }
         })
 
@@ -2723,6 +2731,9 @@ export const useGameStore = create<GameStore>()(
           // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
           const retPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.age >= 35)
           const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
+          // 直訴の札は1人1つ（判定は talkSync の openWishIds）。移籍希望・海外挑戦希望を
+          // 出したままの選手は引退の抽選に入れない。入れると同じ選手の札が2枚になる
+          const openWish = openWishIds(state.currentSeason)
           // 引退の話が湧くかどうかは Math.random ではなく「選手ID＋年＋消化レース数」から決める。
           // この関数はチャットを開くたびに走るので、乱数だと開き直すだけで何度も抽選が回り、
           // 35歳以上が次々に引退を言い出していた。同じレース内なら何度開いても結果は同じにする
@@ -2733,7 +2744,7 @@ export const useGameStore = create<GameStore>()(
             return h % 100
           }
           // 今季すでに引き留めた選手は再抽選しない
-          const newRet = retPlayers.filter(p => !existRet.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && retRoll(p.id) < 40).map(p => ({ playerId: p.id, age: p.age }))
+          const newRet = retPlayers.filter(p => !openWish.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && retRoll(p.id) < 40).map(p => ({ playerId: p.id, age: p.age }))
           // 引退の話をしている選手には契約更新の話を出さない。この2つは別々に選んでいたので、
           // 同じ選手から「引退したい」と「契約を更新したい」が同じタイミングで来ていた。
           // 今この場で引退を言い出した分（newRet）も含めて外す
@@ -3260,8 +3271,14 @@ export const useGameStore = create<GameStore>()(
 
       allowPlayerTransfer: (playerId) => set(state => {
         const player = state.players.find(p => p.id === playerId)
-        // レンタルで借りている選手（保有権が無い）と、海外挑戦を承認済みの選手は出せない
-        if (!player || !canListForSale(player, { teamId: state.playerTeamId })) return state
+        // レンタルで借りている選手（保有権が無い）と、海外挑戦を承認済みの選手は出せない。
+        // 判定に渡す材料は他の呼び出しと同じものを揃える。ここだけ retiringIds を渡していなくて、
+        // 「引退したい」と言ったまま返事をしていない選手を移籍容認できてしまっていた
+        if (!player || !canListForSale(player, {
+          teamId: state.playerTeamId,
+          currentYear: state.currentSeason.year,
+          retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+        })) return state
         // 移籍を認めた選手は市場に出品され、シーズン中にCPUが市場価値で買い取れる（成立した瞬間に移籍金＋退団通知）。
         // シーズン内に買い手が付かなければ従来どおり年度末にFA
         const raceIdx = state.currentSeason.currentRaceIndex ?? 0
@@ -3570,8 +3587,13 @@ export const useGameStore = create<GameStore>()(
       listMyPlayerForSale: (playerId, askingPrice) => {
         const state = get()
         const player = state.players.find(p => p.id === playerId)
-        // レンタルで借りている選手（保有権が無い）と、海外挑戦を承認済みの選手は売り出せない
-        if (!player || !canListForSale(player, { teamId: state.playerTeamId })) return
+        // レンタルで借りている選手（保有権が無い）と、海外挑戦を承認済みの選手は売り出せない。
+        // 材料は allowPlayerTransfer と同じものを渡す（引退希望を出したままの選手を売りに出せていた）
+        if (!player || !canListForSale(player, {
+          teamId: state.playerTeamId,
+          currentYear: state.currentSeason.year,
+          retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+        })) return
         const already = (state.currentSeason.transferListings ?? []).some(l => l.playerId === playerId)
         if (already) return
         const raceIndex = state.currentSeason.currentRaceIndex
@@ -4850,7 +4872,7 @@ export const useGameStore = create<GameStore>()(
           .filter(p => p.teamId === '' && p.status === 'active')
           .sort((a, b) => ageAdjOvr(b) - ageAdjOvr(a))
         const signedFAIds = new Set<string>()
-        const cpuSignings: { playerId: string; teamId: string; num: number }[] = []
+        const cpuSignings: { playerId: string; teamId: string }[] = []
         // 前年順位（運用方針・予算の基準）
         const lastStandings = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
         const totalTeams = state.teams.length
@@ -4883,7 +4905,6 @@ export const useGameStore = create<GameStore>()(
             spendable: team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor,
             spent: 0, signed: 0,
             needs: cpuSpecialtyNeeds(team.id, playersAfterCpuTransfer),
-            usedNums: new Set<number>(),
             specCounts: {} as Record<string, number>,
             // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
             ageCap: strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33),
@@ -4897,8 +4918,7 @@ export const useGameStore = create<GameStore>()(
         type FaCtx = typeof faCtxList[number]
         const estCost = (fa: Player) => faMarketSalary(fa, perfOf(state.currentSeason, fa.id))
         const doSignFA = (c: FaCtx, fa: Player) => {
-          let num = 1; while (c.usedNums.has(num)) num++; c.usedNums.add(num)
-          signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: c.team.id, num })
+          signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: c.team.id })
           c.signed++; c.spent += estCost(fa)
         }
         // 1周につき1人だけ。取れるチームが無くなったら終わり（utils/roundRobin.ts）。

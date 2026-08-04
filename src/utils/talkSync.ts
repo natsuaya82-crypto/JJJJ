@@ -78,6 +78,22 @@ export function settledPath(p: Player | undefined): 'retiring' | 'overseas' | nu
 }
 
 /**
+ * その選手が今「直訴の札」を持っているか調べるための一覧。
+ *
+ * 直訴（引退したい・移籍したい・海外に行きたい）は1人につき同時に1つだけ、が決まり。
+ * 3つのリストを別々に抽選していたので、同じ選手が「移籍したい」と「海外に行きたい」を
+ * 同時に持ててしまい、ベルは2件なのにチャットには1行、という数のズレになっていた。
+ * 抽選する側はここを見て「もう何か言っている選手」を外す。
+ */
+export function openWishIds(talks: TalkLists): Set<string> {
+  const s = new Set<string>()
+  for (const r of talks.retirementRequests ?? []) s.add(r.playerId)
+  for (const r of talks.overseasRequests ?? []) s.add(r.playerId)
+  for (const r of talks.transferRequests ?? []) s.add(r.playerId)
+  return s
+}
+
+/**
  * 交渉リストを今の所属と突き合わせ、前提が崩れた札を片付けて返す。
  * 何も変わらなければ渡されたオブジェクトをそのまま返す（無駄な再描画とセーブ書き込みを避ける）。
  */
@@ -179,14 +195,21 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     }))
 
   // 選手からの直訴（引退したい・移籍したい・海外に行きたい）は自チームの選手のものだけ。
-  // 進路が決まったら（退団予定を含む）その選手の直訴は全部たたむ。1人が同時に
-  // 「引退したい」「移籍したい」「海外に行きたい」の札を持つのを、ここで断ち切る
-  put('retirementRequests', talks.retirementRequests,
-    (talks.retirementRequests ?? []).filter(r => at(r.playerId, myTeamId) && !leaving(r.playerId)))
+  // 進路が決まったら（退団予定を含む）その選手の直訴は全部たたむ。
+  //
+  // そのうえで、1人が持てる直訴は1つだけにする。強い順は 引退＞海外＞移籍
+  // （あとから引き返しにくい話を上に置く）。抽選する側も openWishIds で重複を避けているが、
+  // 古いセーブには両方持ったままの選手が居るので、最後にここで必ず1つに揃える。
+  // 揃えないと、ベルは2件なのにチャットには1行、という数のズレになる
+  const wishOk = (playerId: string) => at(playerId, myTeamId) && !leaving(playerId)
+  const retKeep = (talks.retirementRequests ?? []).filter(r => wishOk(r.playerId))
+  const retIds = new Set(retKeep.map(r => r.playerId))
+  const ovKeep = (talks.overseasRequests ?? []).filter(r => wishOk(r.playerId) && !retIds.has(r.playerId))
+  const ovIds = new Set(ovKeep.map(r => r.playerId))
+  put('retirementRequests', talks.retirementRequests, retKeep)
+  put('overseasRequests', talks.overseasRequests, ovKeep)
   put('transferRequests', talks.transferRequests,
-    (talks.transferRequests ?? []).filter(r => at(r.playerId, myTeamId) && !leaving(r.playerId)))
-  put('overseasRequests', talks.overseasRequests,
-    (talks.overseasRequests ?? []).filter(r => at(r.playerId, myTeamId) && !leaving(r.playerId)))
+    (talks.transferRequests ?? []).filter(r => wishOk(r.playerId) && !retIds.has(r.playerId) && !ovIds.has(r.playerId)))
 
   // チャットのログ：引退した・データから消えた選手のぶんは片付ける。
   // 残していても開く道が無く、セーブの中で膨らみ続けるだけ

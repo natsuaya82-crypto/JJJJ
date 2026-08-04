@@ -180,8 +180,13 @@ export function collectNotifications(input: NotifInput) {
   const total = incomingOffers.length
     + (canCreateMyPlayer ? 1 : 0)
     + tradeOffers.length
-    + chatReplies.length
-    + retirementRequests.length + transferReqs.length + overseasReqs.length + counteredBids.length + feeAcceptedBids.length
+    // 「返事待ち」「移籍要望」「海外挑戦希望」は中身が何人でもカード1枚にまとめて出しているので1。
+    // 人数分足すと、ベルは3なのに通知ページにはカードが1枚、という数のズレになる
+    + (chatReplies.length > 0 ? 1 : 0)
+    + retirementRequests.length
+    + (transferReqs.length > 0 ? 1 : 0)
+    + (overseasReqs.length > 0 ? 1 : 0)
+    + counteredBids.length + feeAcceptedBids.length
     + renewalPlayers.length
     + (signingBanned ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)

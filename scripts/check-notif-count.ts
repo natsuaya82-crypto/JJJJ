@@ -153,16 +153,37 @@ console.log('\n[4.9] カードを作れないトレード打診はベルにも�
     collectNotifications(base(S({ pendingTradeOffers: [offer({ offeredPlayerIds: [] })] }), roster, both)).total === 0)
 }
 
+console.log('\n[4.9] まとめて1枚のカードにしている用件は、何人いても1件')
+{
+  // 通知ページでは「移籍要望」「海外挑戦希望」は人数に関係なくカード1枚
+  //（「N人が移籍を希望」）。ここを人数分数えると、ベルは2なのにカードは1枚になる。
+  // 「引退申請」は1人ずつカードが並ぶので人数分でよい
+  const tr2 = collectNotifications(base(S({ transferRequests: [{ playerId: 'p1' }, { playerId: 'p2' }] }), [P('p1', 'a'), P('p2', 'a')]))
+  check('移籍希望が2人でも1件', tr2.transferReqs.length === 2 && tr2.total === 1, `${tr2.total}件`)
+  const ov2 = collectNotifications(base(S({ overseasRequests: [{ playerId: 'p1', region: 'europe' }, { playerId: 'p2', region: 'europe' }] }), [P('p1', 'a'), P('p2', 'a')]))
+  check('海外挑戦希望が2人でも1件', ov2.overseasReqs.length === 2 && ov2.total === 1, `${ov2.total}件`)
+  const ret2 = collectNotifications(base(S({ retirementRequests: [{ playerId: 'p1' }, { playerId: 'p2' }] }), [P('p1', 'a'), P('p2', 'a')]))
+  check('引退希望は1人ずつカードが出るので2件', ret2.total === 2, `${ret2.total}件`)
+  // 3種類が混ざっても、まとめている2つは1ずつ
+  const mix = collectNotifications(base(S({
+    transferRequests: [{ playerId: 'p1' }, { playerId: 'p2' }],
+    overseasRequests: [{ playerId: 'p3', region: 'europe' }],
+    retirementRequests: [{ playerId: 'p4' }],
+  }), [P('p1', 'a'), P('p2', 'a'), P('p3', 'a'), P('p4', 'a')]))
+  check('混ざっても 1+1+1=3件', mix.total === 3, `${mix.total}件`)
+}
+
 console.log('\n[4.95] チャットで返事するものは1本で数える')
 {
   // チャットには返事のボタンが出ているのに、ベルにも通知ページにも出ていなかったもの。
-  // 種類が2つあるが節は1つなので、合計は「件数の合計」になる
+  // 種類は2つあるが、通知ページでは「N件があなたの返事待ち」のカード1枚にまとめている。
+  // だからベルも1（節の見出しに出る数字だけが2）
   const both = [T('a'), T('b')]
   const all = collectNotifications(base(S({
     acquisitionOffers: [{ id: 'a1', playerId: 'p1', status: 'countered' }],
     incomingLoanOffers: [{ id: 'i1', fromTeamId: 'b', playerId: 'p1', direction: 'lend_out', years: 1, expiresAtRace: 5 }],
   }), [P('p1', 'a')], both))
-  check('2種類あわせて2件', all.chatReplies.length === 2 && all.total === 2, `${all.total}件`)
+  check('2種類あってもカードは1枚なので1件', all.chatReplies.length === 2 && all.total === 1, `${all.total}件`)
 
   // こちらの返事を待っていないものは数えない
   const pending = collectNotifications(base(S({ acquisitionOffers: [{ id: 'a1', playerId: 'p1', status: 'pending' }] }), [P('p1', 'b')], both))
