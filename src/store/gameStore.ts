@@ -23,7 +23,7 @@ import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateR
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { generateSponsorOffers } from '../data/sponsors'
 import { computeSeasonAwards } from '../utils/awards'
-import { segmentType, segTypeExpGain, applyGrowth } from '../engine/growth'
+import { segmentType, segTypeExpGain, applyGrowth, ageProfile } from '../engine/growth'
 
 type DraftState = {
   pool: Player[]
@@ -7553,7 +7553,7 @@ function getPrimaryKey(specialty: string): RatingsKey {
 // CPU/海外は allowAnnualGrowth=true で毎年ポテンシャル上限へ向けて成長させる（高数値ほど鈍化）。
 const GROW_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 function growPlayer(p: Player, allowAnnualGrowth = false): Player {
-  const peakAge = p.growthCurve === 'early' ? 24 : p.growthCurve === 'normal' ? 27 : 30
+  const { peakAge } = ageProfile(p)
   const nextAge = p.age + 1
   const ageDiff = nextAge - peakAge
   const ratings = { ...p.ratings }
