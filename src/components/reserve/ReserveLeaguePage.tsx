@@ -201,6 +201,7 @@ export default function ReserveLeaguePage() {
       players={players}
       playerTeamId={playerTeamId}
       currentSeason={currentSeason}
+      competition="reserve"
       isLastRace={lockedRaceIndex >= stRaces.length - 1}
       reserveStandings={stStandings}
     />

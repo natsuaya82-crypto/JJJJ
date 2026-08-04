@@ -215,6 +215,7 @@ export default function EclPage() {
         players={players}
         playerTeamId={playerTeamId}
         currentSeason={currentSeason}
+        competition="ecl"
         isLastRace={false}
         reserveStandings={standings.map(s => ({
           teamId: s.id, totalPoints: s.points,
@@ -222,7 +223,6 @@ export default function EclPage() {
         }))}
         hideCards
         standingsLabel="ECL シリーズ順位（暫定）"
-        btnClass="btn-game--red"
       />
     )
   }
