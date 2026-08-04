@@ -1,10 +1,11 @@
 {
   "name": "jpel-manager",
   "private": true,
-  "version": "1.0.8",
+  "version": "2.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "sync:version": "node scripts/sync-version.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "news": "node scripts/gen_news.mjs",

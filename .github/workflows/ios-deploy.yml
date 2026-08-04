@@ -29,18 +29,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # アプリ内の判定バージョン(appMeta APP_VERSION)とネイティブの MARKETING_VERSION の
-      # ズレを検出したらビルドを止める。ズレたまま配信すると「最新版なのに
-      # アップデートしてくださいが出る」事故（強制アップデート誤表示）が再発するため。
-      - name: Verify version consistency
+      # バージョンは appMeta.ts の APP_VERSION が唯一の出どころ。
+      # 以前はここで「一致しているか検証して落とす」だけだったので、結局 pbxproj と
+      # package.json を手で揃える運用が残り、上げ忘れるとビルドが落ちていた。
+      # 検証ではなく appMeta から機械的に書き込むことで、揃え忘れ自体が起こらなくなる。
+      # （ズレたまま配信すると「最新版なのにアップデートしてくださいが出る」事故になる）
+      - name: Sync version from appMeta
         run: |
-          META_VER=$(grep -o "APP_VERSION = 'v[^']*'" src/data/appMeta.ts | sed "s/.*'v\(.*\)'/\1/")
-          IOS_VER=$(grep -m1 -o 'MARKETING_VERSION = [^;]*' ios/App/App.xcodeproj/project.pbxproj | sed 's/MARKETING_VERSION = //')
-          echo "appMeta APP_VERSION=$META_VER / iOS MARKETING_VERSION=$IOS_VER"
-          if [ -z "$META_VER" ] || [ "$META_VER" != "$IOS_VER" ]; then
-            echo "::error::バージョン不一致: appMeta v$META_VER vs iOS $IOS_VER — どちらかの上げ忘れ。両方を揃えてから再ビルドしてください"
-            exit 1
-          fi
+          npm run sync:version
+          git --no-pager diff --stat
 
       # ビルド番号(CFBundleVersion)は「タグ名 build-NN の NN」を唯一の正とする。
       # pbxproj の CURRENT_PROJECT_VERSION を手で上げ忘れると、ビルドもアーカイブも
