@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
-import { collectNotifications } from '../../utils/notifItems'
+import { collectNotifications, expiredNegText } from '../../utils/notifItems'
 import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
@@ -754,6 +754,8 @@ export default function NotificationsPage() {
                   // 名前だけでは誰か分からないので、顔・OVR・所属チーム（ロゴ+フルネーム）を出す（費用合意通知と同じ見た目）
                   const negP = players.find(pl => pl.id === neg.playerId)
                   const negTeam = negP ? clubIndex.byId(negP.teamId) : undefined
+                  // 文言は種類から出す。ここで種類ごとに節を分けない
+                  const negText = expiredNegText(neg.kind)
                   return (
                     <div key={neg.id} style={cardStyle(alpha(C.red, 0.45), '#3d0000')}>
                       <div style={inset}/>
@@ -761,14 +763,14 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                           {negP && <FaceOvr playerId={negP.id} nationality={negP.nationality} pOvr={ovr(negP)} accentColor={C.red} />}
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{neg.playerName}選手が移籍を拒否しました</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{negText.title(neg.playerName)}</div>
                             {negTeam && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px', minWidth: 0 }}>
                                 <TeamLogoSVG primary={negTeam.colors.primary} secondary={negTeam.colors.secondary} shortName={negTeam.shortName} teamId={negTeam.id} size={14}/>
                                 <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{negTeam.name}</span>
                               </div>
                             )}
-                            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>来季まで交渉できません</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>{negText.note}</div>
                           </div>
                           <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissExpiredNegotiation(neg.id)}>確認</Btn>
                         </div>

@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
-import type { GameState, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding } from '../types'
+import type { GameState, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -22,8 +22,9 @@ import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import type { PerfProfile } from '../utils/playerUtils'
+import { resolveBid } from '../utils/transferBid'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, pickKeyValue, roundFee, bidThreshold, BID_COUNTER_RATIO, counterCeiling, POACH_PREMIUM, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -1531,14 +1532,14 @@ export const useGameStore = create<GameStore>()(
 
           // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
           // ※フリー移籍の接触（offeredPrice=0）は対象外：下の「本人決断」で処理する
-          const offerExpiredNegs: { id: string; playerId: string; playerName: string }[] = []
+          const offerExpiredNegs: ExpiredNegotiation[] = []
           const offerExpiredPlayerIds: string[] = [];
           (state.currentSeason.incomingOffers ?? []).forEach(o => {
             if (o.offeredPrice === 0) return
             if (o.expiresAtRace <= nextRaceIndex) {
               const pl = finalPlayers.find(p => p.id === o.playerId)
               if (pl) {
-                offerExpiredNegs.push({ id: o.id, playerId: o.playerId, playerName: pl.name })
+                offerExpiredNegs.push({ id: o.id, playerId: o.playerId, playerName: pl.name, kind: 'offer' })
                 offerExpiredPlayerIds.push(o.playerId)
               }
             }
@@ -1584,49 +1585,23 @@ export const useGameStore = create<GameStore>()(
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
           const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
-          // Process pending transfer bids
-          const bidExpiredNegs: { id: string; playerId: string; playerName: string }[] = []
+          // 入札(移籍金オファー)の応答。判定は utils/transferBid の resolveBid 1本。
+          // サブの1戦を進めたときも同じ関数を呼ぶので、進め方で結果が変わらない
+          const bidExpiredNegs: ExpiredNegotiation[] = []
           const bidExpiredPlayerIds: string[] = []
           const processedBids = (state.currentSeason.transferBids ?? []).map(bid => {
-            // 費用合意・カウンター中でも、対象選手が他所へ移籍していたら破談にする（永久に残るのを防ぐ）
-            if (bid.status === 'fee_accepted' || bid.status === 'countered') {
-              const pl = finalPlayers.find(p => p.id === bid.playerId)
-              if (!pl || pl.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
-              // 費用合意から5試合放置で自動失効
-              if (bid.status === 'fee_accepted' && bid.feeAcceptedAtRace != null && nextRaceIndex - bid.feeAcceptedAtRace >= 5) {
-                const pl2 = finalPlayers.find(p => p.id === bid.playerId)
-                bidExpiredNegs.push({ id: bid.id, playerId: bid.playerId, playerName: pl2?.name ?? '' })
-                bidExpiredPlayerIds.push(bid.playerId)
-                return { ...bid, status: 'failed' as const }
-              }
-              return bid
+            const r = resolveBid(bid, {
+              players: finalPlayers,
+              listings: transferData.listings,
+              currentSeason: { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries },
+              pastSeasons: state.pastSeasons,
+              raceIndex: nextRaceIndex,
+            })
+            if (r.expired) {
+              bidExpiredNegs.push(r.expired)
+              bidExpiredPlayerIds.push(r.expired.playerId)
             }
-            if (bid.status !== 'pending') return bid
-            const player = finalPlayers.find(p => p.id === bid.playerId)
-            if (!player || player.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
-            // 出品中(移籍リスト掲載)：クラブが提示した希望額(askingPrice)が受諾ライン。
-            // 満額払えば成立（主力割増は乗せない＝クラブ自ら売りに出している額なので）。
-            const listedFor = transferData.listings.find(l => l.playerId === bid.playerId)
-            if (listedFor) {
-              const ask = listedFor.askingPrice
-              const thr = ask * (0.85 + Math.random() * 0.15)
-              if (bid.offeredFee >= thr) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
-              if (bid.offeredFee >= ask * 0.7 && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: Math.round(ask / 1000000) * 1000000 }
-              return { ...bid, status: 'rejected' as const }
-            }
-            // 主力ガード：出場データ(複数年)＋ECL経験で判定。
-            //  locked=新人・データ不足で完全に取れない / key=割増1.8倍なら売る（サッカー式）/ open=普通。
-            const kStatus = keyPlayerStatus(player, { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries }, state.pastSeasons)
-            if (kStatus === 'locked') return { ...bid, status: 'rejected' as const }
-            const val = calcTransferValue(player)
-            const isExpiring = player.contract.yearsLeft <= 1
-            // 受諾ラインは economy.bidThreshold の1本（UIの成立確率表示と共有）。判定は±10%の揺れを乗せる
-            const threshold = bidThreshold(val, isExpiring, kStatus === 'key') * (0.9 + Math.random() * 0.2)
-            if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
-            if (bid.offeredFee >= threshold * BID_COUNTER_RATIO && bid.round < 3) {
-              return { ...bid, status: 'countered' as const, counterFee: roundFee(threshold, 1_000_000) }
-            }
-            return { ...bid, status: 'rejected' as const }
+            return r.bid
           })
 
           const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? state.teams.length
@@ -1852,15 +1827,19 @@ export const useGameStore = create<GameStore>()(
           const expiredContractReqs = (state.currentSeason.contractRequests ?? [])
             .filter(r => isLiveContract(r) && (r.expiresAtRace ?? 0) <= nextRaceIndex)
           const expiredContractIds = new Set(expiredContractReqs.map(r => r.id))
-          const contractExpiredNegs = expiredContractReqs.map(r => ({
+          // 契約更新の期限切れ。移籍の話ではないので kind で区別する。
+          // （通知の文言が「移籍を拒否しました／来季まで交渉できません」で固定されていて、
+          //   更新の期限切れなのに移籍拒否と出る＝嘘になっていた）
+          const contractExpiredNegs: ExpiredNegotiation[] = expiredContractReqs.map(r => ({
             id: `cx_${r.id}`,
             playerId: r.playerId,
             playerName: playersAfterLoan.find(p => p.id === r.playerId)?.name ?? '選手',
+            kind: 'contract',
           }))
 
           // 期限切れ交渉のプレイヤーを1年間ロック（移籍交渉のみ。契約更新はロックしない）
           const allExpiredPlayerIds = [...new Set([...bidExpiredPlayerIds, ...offerExpiredPlayerIds])]
-          const allExpiredNegs = [...bidExpiredNegs, ...offerExpiredNegs, ...contractExpiredNegs]
+          const allExpiredNegs: ExpiredNegotiation[] = [...bidExpiredNegs, ...offerExpiredNegs, ...contractExpiredNegs]
           const playersWithExpiredLocks = allExpiredPlayerIds.length > 0
             ? playersAfterLoan.map(p => allExpiredPlayerIds.includes(p.id) ? { ...p, transferLockedUntilYear: state.currentSeason.year + 1 } : p)
             : playersAfterLoan
@@ -4271,40 +4250,23 @@ export const useGameStore = create<GameStore>()(
         const raceIdx = cs.currentRaceIndex ?? 0
         const races = cs.races ?? []
         const playerTeamId = state.playerTeamId
-        const expiredNegs: { id: string; playerId: string; playerName: string }[] = []
+        const expiredNegs: ExpiredNegotiation[] = []
         const lockedIds: string[] = []
 
-        // 入札(移籍金オファー)の応答
+        // 入札(移籍金オファー)の応答。判定は本編の1戦と同じ resolveBid 1本
         const bids = (cs.transferBids ?? []).map(bid => {
-          if (bid.status === 'fee_accepted' || bid.status === 'countered') {
-            const pl = state.players.find(p => p.id === bid.playerId)
-            if (!pl || pl.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
-            return bid
+          const r = resolveBid(bid, {
+            players: state.players,
+            listings: cs.transferListings ?? [],
+            currentSeason: { year: cs.year, races, eclSeries: cs.eclSeries },
+            pastSeasons: state.pastSeasons,
+            raceIndex: raceIdx,
+          })
+          if (r.expired) {
+            expiredNegs.push(r.expired)
+            lockedIds.push(r.expired.playerId)
           }
-          if (bid.status !== 'pending') return bid
-          const player = state.players.find(p => p.id === bid.playerId)
-          if (!player || player.teamId !== bid.targetTeamId) return { ...bid, status: 'failed' as const }
-          // 出品中：クラブ希望額(askingPrice)が受諾ライン。満額で成立（主力割増なし）。本編側と同じ扱い。
-          const listedFor = (cs.transferListings ?? []).find(l => l.playerId === bid.playerId)
-          if (listedFor) {
-            const ask = listedFor.askingPrice
-            const thr = ask * (0.85 + Math.random() * 0.15)
-            if (bid.offeredFee >= thr) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: raceIdx }
-            if (bid.offeredFee >= ask * 0.7 && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: Math.round(ask / 1000000) * 1000000 }
-            return { ...bid, status: 'rejected' as const }
-          }
-          const kStatus = keyPlayerStatus(player, { year: cs.year, races, eclSeries: cs.eclSeries }, state.pastSeasons)
-          if (kStatus === 'locked') {
-            expiredNegs.push({ id: bid.id, playerId: player.id, playerName: player.name })
-            lockedIds.push(player.id)
-            return { ...bid, status: 'rejected' as const }
-          }
-          const val = calcTransferValue(player)
-          const isExpiring = player.contract.yearsLeft <= 1
-          const threshold = bidThreshold(val, isExpiring, kStatus === 'key') * (0.9 + Math.random() * 0.2)
-          if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: raceIdx }
-          if (bid.offeredFee >= threshold * BID_COUNTER_RATIO && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: roundFee(threshold, 1_000_000) }
-          return { ...bid, status: 'rejected' as const }
+          return r.bid
         })
 
         // レンタル要請の応答

@@ -214,10 +214,21 @@ export function transferAcceptChance(fee: number, base: number): number {
   if (base <= 0) return 1
   return Math.max(0, Math.min(1, (fee / base - 0.9) / 0.2))
 }
-// 出品中(クラブ希望額あり)の受諾確率。クラブが提示した希望額(askingPrice)満額で必ず成立=100%、
-// 下回るほど下がり 0.85倍で0%。主力割増は乗せない（クラブ自ら売りに出している額なので）。
-// 本処理側の threshold = askingPrice×(0.85 + rand*0.15) と同じ分布。ズレると「100%表示なのに拒否」になる。
+// ── 出品中(移籍リスト掲載)の入札 ──
+// クラブ自ら「この額なら売る」と出している希望額(askingPrice)が受諾ライン。
+// 満額で必ず成立、この割合まで下がると0%。主力割増は乗せない。
+export const LISTED_ACCEPT_MIN = 0.85
+// 受諾ラインに届かなくても、この割合を超えていれば逆提示する
+export const LISTED_COUNTER_RATIO = 0.7
+
+// 出品中の受諾ライン。roll は 0..1 の乱数。判定側と確率表示側で同じ分布を使う
+export function listedThreshold(askingPrice: number, roll: number): number {
+  return askingPrice * (LISTED_ACCEPT_MIN + roll * (1 - LISTED_ACCEPT_MIN))
+}
+
+// 出品中の受諾確率(0..1)。listedThreshold と同じ定数から出すので
+// 「100%表示なのに拒否された」というズレが起きない
 export function listedAcceptChance(fee: number, askingPrice: number): number {
   if (askingPrice <= 0) return 1
-  return Math.max(0, Math.min(1, (fee / askingPrice - 0.85) / 0.15))
+  return Math.max(0, Math.min(1, (fee / askingPrice - LISTED_ACCEPT_MIN) / (1 - LISTED_ACCEPT_MIN)))
 }

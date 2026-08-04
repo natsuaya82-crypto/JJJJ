@@ -155,6 +155,15 @@ export type TransferBid = {
   feeAcceptedAtRace?: number
 }
 
+// 交渉が流れた理由の種類。通知の文言はこの1つから出す（種類ごとに箱を増やさない）
+//  bid      = こちらが出した入札が流れた（費用合意の放置・主力ガード）→ 来季まで交渉できない
+//  offer    = 他クラブから来た獲得オファーを放置して失効した       → 来季まで交渉できない
+//  contract = 契約更新の話し合いが期限切れになった                 → 交渉禁止にはならない
+export type ExpiredNegKind = 'bid' | 'offer' | 'contract'
+
+// 通知に出す1件ぶん。押し込む場所が4箇所あるので形はここ1つで決める
+export type ExpiredNegotiation = { id: string; playerId: string; playerName: string; kind?: ExpiredNegKind }
+
 export type TeamRole = 'ace' | 'sub_ace' | 'key_player' | 'rotation' | 'development'
 
 export type ContractRequest = {
@@ -660,7 +669,10 @@ export type Season = {
     raceIndex: number          // 次に走る戦のindex
     points: Record<string, number>   // チームid → 累計ポイント（順位点+区間点）
   }
-  expiredNegotiations?: { id: string; playerId: string; playerName: string }[]
+  // 期限切れ・打ち切りになった交渉の通知。3種類（入札・獲得オファー・契約更新）が
+  // 同じ箱に入るので、文言を出し分けるために種類を持たせる。
+  // kind 無し＝古いセーブ。元々この箱は入札ぶんだけだったので 'bid' として扱う
+  expiredNegotiations?: ExpiredNegotiation[]
   // フリー移籍（移籍金0の接触）の決断結果。left=移籍した/false=残留。確認で消す
   freeTransferNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[]
   // タップして対応済みの接触中通知のID（通知とバッジから消す。接触自体は裏で進行）

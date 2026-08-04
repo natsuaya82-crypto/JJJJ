@@ -7,9 +7,27 @@
 //
 // ここは画面から切り離した素の関数にしてある（フックを使わない）ので、
 // 呼び出し側でストアから値を取って渡すこと。
-import type { Season, Player, Team } from '../types'
+import type { Season, Player, Team, ExpiredNegKind } from '../types'
 import { ROSTER_MAX } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
+
+// 「交渉期限切れ」の通知に出す文言。
+// この箱には3種類（入札・獲得オファー・契約更新）が入るのに、通知ページ側が
+// 「移籍を拒否しました／来季まで交渉できません」で決め打ちしていたため、
+// 契約更新の期限切れなのに移籍の話として出る＝嘘になっていた。
+// 種類ごとに箱を分けるのではなく、この表1つから文言を出す。
+export const EXPIRED_NEG_TEXT: Record<ExpiredNegKind, { title: (name: string) => string; note: string }> = {
+  // こちらが出した入札が流れた（費用合意の放置／主力ガードで門前払い）
+  bid: { title: n => `${n}選手の移籍交渉が流れました`, note: '来季まで交渉できません' },
+  // 他クラブから来た獲得オファーを放置して失効した
+  offer: { title: n => `${n}選手へのオファーが期限切れになりました`, note: '来季まで交渉できません' },
+  // 契約更新の話し合いが期限切れ。移籍ではないし、交渉禁止にもならない
+  contract: { title: n => `${n}選手の契約更新が期限切れになりました`, note: 'もう一度話し合えます' },
+}
+// 古いセーブには種類が入っていない。元々この箱は入札ぶんだけだったので入札として扱う
+export function expiredNegText(kind: ExpiredNegKind | undefined) {
+  return EXPIRED_NEG_TEXT[kind ?? 'bid']
+}
 import { contractTalkCtx, contractMonthsLeft, isLiveContract, needsRenewalAttention } from './contractTalk'
 
 // 契約更新まわりの数え方は utils/contractTalk.ts の1本だけを使う。

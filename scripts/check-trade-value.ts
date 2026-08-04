@@ -213,7 +213,10 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // 主力割増1.8は入札の受諾ラインの一部。画面と本処理で別々に書くと表示と結果がズレる
   check('主力割増(1.8)のべた書きが無い', !/\? 1\.8 : 1/.test(store) && !/\? 1\.8 : 1/.test(bid))
   check('入札画面が bidThreshold を通る', bid.includes('bidThreshold('))
-  check('ストアの入札判定が bidThreshold を通る', (store.match(/bidThreshold\(/g) ?? []).length === 2)
+  // 入札の判定はストアから出して utils/transferBid.ts の1本にした（詳しくは check-transfer-bid.ts）。
+  // ストア側が受諾ラインを組み立て直したら、また画面の表示とズレるので通らせない
+  check('ストアが受諾ラインを自前で組み立てない', !store.includes('bidThreshold('))
+  check('ストアの入札判定は resolveBid を呼ぶだけ', (store.match(/resolveBid\(/g) ?? []).length === 2)
   // 逆提示の上限（市場価値1.15倍 / 提示額1.3倍）
   check('逆提示の上限のべた書きが無い', !/\* 1\.15,/.test(store) && !/offeredPrice \* 1\.3/.test(store))
   check('逆提示の上限が counterCeiling の1本', (store.match(/counterCeiling\(/g) ?? []).length === 2)
