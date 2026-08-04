@@ -3439,9 +3439,11 @@ export const useGameStore = create<GameStore>()(
           currentYear: st.currentSeason.year,
           retiringIds: new Set((st.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
         })) return false
-        // 借り手の総在籍が上限（30人）なら貸せない（31人化の防止）
+        // 借り手の総在籍が上限なら貸せない（上限+1人化の防止）。
+        // 人数の上限は rosterRules の ROSTER_MAX 1本。ここだけ 30 が直書きで、
+        // 上限を変えたときにここだけ追従しない状態になっていた
         const toSize = st.players.filter(p => p.teamId === toTeamId && p.status === 'active').length
-        if (toSize >= 30) return false
+        if (toSize >= ROSTER_MAX) return false
         const yrs = Math.max(1, Math.min(2, years))
         set(state => {
           const moved = movePlayer(state, playerId, toTeamId, {
