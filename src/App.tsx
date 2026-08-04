@@ -34,8 +34,7 @@ import TransferPage from './components/transfer/TransferPage'
 import TransferHub from './components/transfer/TransferHub'
 import TeamHub from './components/team/TeamHub'
 import TeamsHub from './components/teams/TeamsHub'
-import JpelStandingsPage from './components/teams/JpelStandingsPage'
-import EclStandingsPage from './components/teams/EclStandingsPage'
+import StandingsPage from './components/teams/StandingsPage'
 import TeamDetailPage from './components/teams/TeamDetailPage'
 import ForeignLeagueDetailPage from './components/teams/ForeignLeagueDetailPage'
 import NationalTeamDetailPage from './components/teams/NationalTeamDetailPage'
@@ -256,8 +255,8 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/scout" element={<ScoutPage />} />
 
           <Route path="/teams" element={<TeamsHub />} />
-          <Route path="/teams/jpel" element={<JpelStandingsPage />} />
-          <Route path="/teams/ecl" element={<EclStandingsPage />} />
+          <Route path="/standings" element={<StandingsPage />} />
+          <Route path="/standings/:league" element={<StandingsPage />} />
           <Route path="/teams/detail/:teamId" element={<TeamDetailPage />} />
           <Route path="/teams/foreign/:leagueId" element={<ForeignLeagueDetailPage />} />
           <Route path="/teams/foreign/:leagueId/:clubId" element={<TeamDetailPage />} />

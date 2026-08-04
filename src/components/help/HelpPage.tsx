@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { C, alpha } from '../../styles/tokens'
+import { LOADING_TIPS } from '../../data/tips'
+import TipText from '../ui/TipText'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -75,7 +77,8 @@ const SECTIONS: Section[] = [
     color: C.blue,
     lines: [
       '控え選手のための育成リーグ。参加するとシーズン中に別途レースが行われます。',
-      '構成は本リーグと同じで、出られるのはその週の本リーグに出走しなかった選手だけです。',
+      '構成は本リーグと同じ。出られるのは「その週の本リーグに出走しなかった、OVR80以下の選手」です。',
+      '人数が足りないときだけ、本リーグに出た選手 → OVR80超 の順に制限が外れます。',
       '若手に実戦経験を積ませて育成でき、控え層の底上げに役立ちます。',
       'シーズン準備のチェックリストで参加するかどうかを選べます。',
     ],
@@ -87,7 +90,7 @@ const SECTIONS: Section[] = [
     lines: [
       '契約更新・FA・移籍の交渉は「チャット」で行います（ホーム4つ目のタブ）。',
       '年俸・契約年数を提示。合意しても選手が条件に納得しないと成立しません。',
-      'ロスターは最大40名・最低20名。上限を超える契約や、下限を割る放出・解雇はできません。',
+      'ロスターは最大30名・最低15名。上限を超える契約や、下限を割る放出・解雇はできません。',
       '契約期間が残る選手を解雇すると解約金がかかります（満了間近なら無償）。',
     ],
   },
@@ -144,6 +147,13 @@ const SECTIONS: Section[] = [
       '放置すると選手を失ったり不満が悪化することがあるので、こまめに確認を。',
     ],
   },
+  {
+    // ロード中に流れるヒントと同じ文言（data/tips.ts）。運よく出会わないと読めなかったのでここに全部並べる
+    no: '13',
+    title: '攻略のヒント',
+    color: C.gold,
+    lines: [...LOADING_TIPS],
+  },
 ]
 
 export default function HelpPage() {
@@ -188,7 +198,7 @@ export default function HelpPage() {
                 {sec.lines.map((line, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     <div style={{ width: 4, height: 4, borderRadius: '50%', background: sec.color, marginTop: 7, flexShrink: 0 }} />
-                    <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6 }}>{line}</div>
+                    <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6 }}><TipText text={line} /></div>
                   </div>
                 ))}
               </div>

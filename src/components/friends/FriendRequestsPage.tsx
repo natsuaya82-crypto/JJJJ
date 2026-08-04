@@ -11,7 +11,7 @@ import GmShareCard from './GmShareCard'
 import { shareElementAsImage } from '../../utils/shareImage'
 import {
   myCode, listSent, listReceived, findByCode, sendRequest,
-  cancelRequest, acceptRequest, rejectRequest,
+  cancelRequest, acceptRequest, rejectRequest, SEND_RESULT_TEXT,
 } from '../../lib/friendsApi'
 import type { FriendRequest } from '../../lib/friendsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
@@ -104,19 +104,13 @@ export default function FriendRequestsPage() {
     setSending(true)
     try {
       const res = await sendRequest(addCode)
-      if (res === 'not_found') setNotice({ title: 'そのコードのGMは見つかりませんでした' })
-      else if (res === 'self') setNotice({ title: '自分のコードです' })
-      else if (res === 'already_friends') setNotice({ title: 'すでにフレンドです', target })
-      else if (res === 'accepted') {
+      // 送れた／成立したときだけ入力を消して一覧を引き直す。言い方は SEND_RESULT_TEXT 1本
+      if (res === 'accepted' || res === 'sent') {
         setAddCode('')
-        invalidateFriendsCache('friends')
-        recvQ.reload()
-        setNotice({ title: 'フレンドになりました', message: '相手からも申請が届いていたので、その場で成立しました', target })
-      } else {
-        setAddCode('')
-        sentQ.reload()
-        setNotice({ title: '申請を送りました', message: '相手が承認するとフレンドになります', target })
+        invalidateFriendsCache('friends', 'sent', 'received')
+        recvQ.reload(); sentQ.reload()
       }
+      setNotice({ ...SEND_RESULT_TEXT[res], target: res === 'not_found' || res === 'self' ? undefined : target })
     } catch { offline() }
     finally { setSending(false) }
   }

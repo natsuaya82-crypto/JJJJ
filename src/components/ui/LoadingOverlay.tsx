@@ -2,46 +2,23 @@ import { useEffect, useRef, useState } from 'react'
 import { useLoadingStore } from '../../store/loadingStore'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha } from '../../styles/tokens'
+import { LOADING_TIPS } from '../../data/tips'
+import TipText from './TipText'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-
-// ローディング中に中央に出す攻略ヒント。【】で囲んだ箇所は金色で強調表示される。
-const TIPS = [
-  '疲労が溜まった選手は【本来の力を出せない】。完全休養カードや記録会の休養で回復させよう。',
-  '区間には得意な地形がある。【上り・下り・距離】で選手の適性を見極めて配置しよう。',
-  '自動配置とおすすめ表示は【疲労・調子込み】で最適を選ぶ。連戦時はうまく頼ろう。',
-  '種類の違うカードを組み合わせると【練習メニュー】が成立。5種そろえば経験値【×1.8】。',
-  '広告視聴でカード合成を必ず【大成功（×1.5）】にできる。レジェンダリーに使うと爆伸び。',
-  '完全休養カードは【毎レース必ず1枚】手に入る。エース級の疲労管理に温存しよう。',
-  '契約満了が近い選手は【早めにチャットで交渉】を。放置するとFAで去ってしまう。',
-  '交渉が決裂した相手とは【来季まで再交渉できない】。無理な値切りは禁物。',
-  'ロスターは全チーム【最大30名】。ドラフトの加入分も見込んで枠を整理しよう。',
-  '赤字のまま年を越すと翌シーズンは【新規補強ができない】。年俸管理は計画的に。',
-  '記録会で走ると【自己ベスト】が記録に残り、上位入賞でカードも獲得できる。',
-  '若い選手ほど【伸びしろ】が大きい。ポテンシャル上限までカードで鍛え上げよう。',
-  'スポンサー契約は毎シーズンの収入源。【成績と人気】で好条件を狙おう。',
-]
-
-function renderTip(tip: string) {
-  return tip.split(/(【[^】]*】)/).map((part, i) =>
-    part.startsWith('【') && part.endsWith('】')
-      ? <span key={i} style={{ color: C.gold, fontWeight: 700 }}>{part.slice(1, -1)}</span>
-      : <span key={i}>{part}</span>
-  )
-}
 
 // 全画面ローディング。真っ暗＋中央TIPS＋右下ローディングバー（スピナー廃止）。App直下に常駐。
 export default function LoadingOverlay() {
   const active = useLoadingStore(s => s.active)
   const label = useLoadingStore(s => s.label)
   const adH = useAdHeight()   // 広告バナー分。広告なし(買い切り)なら0
-  const [tip, setTip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)])
+  const [tip, setTip] = useState(() => LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)])
   const wasActive = useRef(false)
 
   useEffect(() => {
     // 表示され始めたタイミングでヒントをランダムに選び直す
     if (active && !wasActive.current) {
-      setTip(TIPS[Math.floor(Math.random() * TIPS.length)])
+      setTip(LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)])
     }
     wasActive.current = active
   }, [active])
@@ -94,7 +71,7 @@ export default function LoadingOverlay() {
           <span style={{ height: 1, width: 44, background: `linear-gradient(90deg, ${alpha(C.gold, 0.5)}, transparent)` }} />
         </div>
         <div style={{ fontSize: 15, lineHeight: 1.85, color: C.text, fontWeight: 500, textWrap: 'balance' as const }}>
-          {renderTip(tip)}
+          <TipText text={tip} />
         </div>
       </div>
 

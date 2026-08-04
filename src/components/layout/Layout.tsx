@@ -155,6 +155,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // フレンド・走友会は「オンライン」タブの下にぶら下がっている。
     // パスは既存の /friends のままなので、タブの点灯だけここで面倒を見る。
     if (to === '/online') return hit('/online') || hit('/friends')
+    // 順位表も「チーム」タブの下（パスは /standings なので点灯だけここで面倒を見る）
+    if (to === '/teams') return hit('/teams') || hit('/standings')
     return hit(to)
   }
 

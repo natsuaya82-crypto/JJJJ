@@ -44,7 +44,10 @@ export function useFriendsQuery<T>(fn: () => Promise<T>, deps: unknown[] = [], c
   useEffect(() => {
     let alive = true
     const prev = cacheKey ? (cache.get(cacheKey) as T | undefined) : undefined
-    if (prev === undefined) setLoading(true)   // 中身があるうちは「読み込み中」に戻さない
+    // 中身があるうちは「読み込み中」に戻さない。
+    // 覚えていた内容を捨ててから引き直す（申請を送った直後など）ときは prev が空になるので、
+    // 画面に出ているものが残っているかどうかも見る（一覧が一瞬「読み込み中…」に化けるのを防ぐ）
+    if (prev === undefined && data === undefined) setLoading(true)
     setError(false)
     fn()
       .then(v => {

@@ -228,6 +228,16 @@ export async function findByCode(code: string): Promise<FriendRequest | undefine
 
 export type SendResult = 'sent' | 'accepted' | 'already_friends' | 'self' | 'not_found'
 
+// 申請の結果をどう伝えるか。コード入力・走友会のメンバー一覧・フレンド詳細と
+// 送る場所が増えたので、言い方はここ1本に置く（画面ごとに書き分けるとズレる）
+export const SEND_RESULT_TEXT: Record<SendResult, { title: string; message?: string }> = {
+  sent: { title: '申請を送りました', message: '相手が承認するとフレンドになります' },
+  accepted: { title: 'フレンドになりました', message: '相手からも申請が届いていたので、その場で成立しました' },
+  already_friends: { title: 'すでにフレンドです' },
+  self: { title: '自分のコードです' },
+  not_found: { title: 'そのコードのGMは見つかりませんでした' },
+}
+
 /** コードで申請を送る。相手からも申請が来ていた場合はその場で成立する。 */
 export async function sendRequest(code: string): Promise<SendResult> {
   await uid()

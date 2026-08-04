@@ -156,8 +156,9 @@ export default function TeamsHub() {
     return wrap(<>
       <Header eyebrow={`${currentSeason.year} STANDINGS`} title="リーグ" onBack={() => navigate(-1)} />
       {listBox(<>
-        <RowCard onClick={() => navigate('/teams/jpel')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" />
-        <RowCard onClick={() => navigate('/teams/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" />
+        <RowCard onClick={() => navigate('/standings/jpel')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" />
+        <RowCard onClick={() => navigate('/standings/reserve')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="リザーブ" />
+        <RowCard onClick={() => navigate('/standings/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" />
         {leagues.map(l => (
           <RowCard key={l.id} onClick={() => navigate(`/teams/foreign/${l.id}`)} icon={<LeagueLogoSVG leagueId={l.id} size={34} />} title={l.countryName} />
         ))}

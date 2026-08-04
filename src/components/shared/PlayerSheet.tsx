@@ -203,19 +203,6 @@ export default function PlayerSheet() {
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
   }
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (page === 4) return
-    const dx = e.changedTouches[0].clientX - touchStart.current.x
-    const dy = e.changedTouches[0].clientY - touchStart.current.y
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 48) {
-      // ドラフト候補（通常選手リスト外）は2ページまで。引退選手は1ページ目を出さないので2から。
-      const cur = players.find(p => p.id === openPlayerId)
-      const maxPage = cur ? 3 : 2
-      const minPage = cur?.status === 'retired' ? 2 : 1
-      if (dx < 0) goToPage(Math.min(page + 1, maxPage))
-      if (dx > 0) goToPage(Math.max(page - 1, minPage))
-    }
-  }
 
   // 通常の選手に加え、スカウトのドラフト候補・ドラフト進行中のプール選手・
   // フレンドのロスター（previewStore に一時登録されたもの）も詳細表示できるよう解決する
@@ -229,8 +216,10 @@ export default function PlayerSheet() {
     ?? draftPool.find(p => p.id === openPlayerId)
 
   useEffect(() => {
-    // 引退選手は1ページ目を出さないので2ページ目から開く
-    setPage(player?.status === 'retired' ? 2 : 1)
+    // 引退選手は1ページ目を出さないので2ページ目から開く。
+    // フレンドのロスターは1ページ目しか無いので必ず1から（下の pages と揃える）
+    const preview = previewPlayers.some(p => p.id === openPlayerId)
+    setPage(!preview && player?.status === 'retired' ? 2 : 1)
     setSelectedRaceName(null)
     setShowBadges(false)
   }, [openPlayerId])
@@ -269,6 +258,23 @@ export default function PlayerSheet() {
     || !players.some(p => p.id === player.id)
   )
   const isRetired = player.status === 'retired'
+  // このシートで出すページ。ここが唯一の置き場所（丸ぽち・スワイプ・各ページの出し分けが全部これを見る）。
+  // フレンドのロスターはプロフィール（＝パッチ）だけ。駅伝データと在籍履歴は
+  // 「自分のセーブのレース記録」から数えていて、フレンドの選手だと中身が嘘になるため出さない
+  const pages = isPreview ? [1] : isProspect ? [1, 2] : isRetired ? [2, 3] : [1, 2, 3]
+
+  // 横スワイプのページ送り。どのページがあるかは上の pages だけを見る
+  // （前はここでページ数を別に数え直していて、ページを増減すると片方だけズレた）
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (page === 4) return
+    const dx = e.changedTouches[0].clientX - touchStart.current.x
+    const dy = e.changedTouches[0].clientY - touchStart.current.y
+    if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) <= 48) return
+    const i = pages.indexOf(page)
+    if (i < 0) return
+    if (dx < 0 && i < pages.length - 1) goToPage(pages[i + 1])
+    if (dx > 0 && i > 0) goToPage(pages[i - 1])
+  }
   // フレンドが共有したロスターは中身まで出す（相手が公開しているものなので伏せる理由がない）
   const isScouted = isMyPlayer || isProspect || isPreview || isOpponentScouted(player.id, currentSeason)
 
@@ -516,7 +522,7 @@ export default function PlayerSheet() {
             {page === 4 ? (
               <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8' }}>{selectedRaceName}</span>
             ) : (
-              (isProspect ? [1, 2] : isRetired ? [2, 3] : [1, 2, 3]).map(p => (
+              pages.map(p => (
                 <div key={p} onClick={() => goToPage(p)} style={{
                   width: page === p ? '20px' : '6px', height: '6px', borderRadius: '3px',
                   backgroundColor: page === p ? specCol : '#2E2B42',
@@ -582,7 +588,8 @@ export default function PlayerSheet() {
                 </span>
                 <span style={{ fontSize: '10px', color: '#5C5870' }}>{isScouted ? `${player.age}歳 / ${player.yearsPro + 1}年目` : '?'}</span>
               </div>
-              {isScouted && !isRetired && badges.length > 0 && (
+              {/* パッチは1ページ目のある選手だけヘッダーから。1ページ目が無い引退選手は2ページ目に同じボタンがある */}
+              {isScouted && pages.includes(1) && badges.length > 0 && (
                 <button
                   onClick={() => setShowBadges(true)}
                   style={{
@@ -654,7 +661,7 @@ export default function PlayerSheet() {
           )}
 
           {/* Page 2: 駅伝データ */}
-          {page === 2 && (
+          {page === 2 && pages.includes(2) && (
             <div style={{ padding: '12px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* 引退選手は1ページ目（パッチ表示）を出さないので、現役と同じ「パッチを見る」ボタンをここに置く
@@ -824,8 +831,8 @@ export default function PlayerSheet() {
             </div>
           )}
 
-          {/* Page 3: 在籍履歴（移籍情報）。ドラフト候補では非表示 */}
-          {page === 3 && !isProspect && (
+          {/* Page 3: 在籍履歴（移籍情報）。ドラフト候補・フレンドのロスターでは非表示 */}
+          {page === 3 && pages.includes(3) && (
             <div style={{ padding: '12px 20px 28px' }}>
               <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px' }}>在籍履歴</div>
               {historyRows.length > 0 ? (

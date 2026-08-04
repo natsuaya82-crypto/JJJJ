@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -8,7 +8,7 @@ import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { blockUser, unblockUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
 import { CLUB_LOGOS, CLUB_LOGO_DEFAULT, clubLogoSrc } from '../../data/clubLogos'
-import { formatCode, offlineDetail } from '../../lib/friendsApi'
+import { formatCode, offlineDetail, listFriends, listSent, sendRequest, SEND_RESULT_TEXT } from '../../lib/friendsApi'
 import {
   CLUB_MAX, JOIN_TYPE_LABEL, searchClubs, myClub, myClubRequests, createClub, joinClub,
   cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
@@ -26,6 +26,7 @@ import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
 import { loadClubGifts, clearClubGifts } from '../../lib/useClubGifts'
 import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
+import { useLongPress } from '../../lib/useLongPress'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -358,9 +359,16 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
 }
 
 // ── 所属あり：走友会の中 ───────────────────────────────
-function MemberRow({ m, canKick, isMe, onKick, onMenu }: {
-  m: ClubMember; canKick: boolean; isMe: boolean; onKick: () => void; onMenu: () => void
+// 同じ走友会でもフレンドとは限らないので、行ごとに「今どの関係か」で出し分ける。
+// unknown はフレンド一覧がまだ取れていないとき（通信できない時に「＋フレンド」が
+// 全員に出てしまうのを防ぐため、分かるまでは何も出さない）
+type FriendState = 'unknown' | 'me' | 'friend' | 'sent' | 'none'
+
+function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend }: {
+  m: ClubMember; canKick: boolean; isMe: boolean; friendState: FriendState
+  onKick: () => void; onMenu: () => void; onOpen: () => void; onAddFriend: () => void
 }) {
+  const longPress = useLongPress()
   // ブロックした相手は、名前も監督名も伏せる。人数がずれるので一覧からは消さない。
   return (
     <div style={{
@@ -368,19 +376,33 @@ function MemberRow({ m, canKick, isMe, onKick, onMenu }: {
       background: C.surface2, border: `1px solid ${C.border2}`,
       opacity: m.blocked ? 0.5 : 1,
     }}>
-      <TeamLogoSVG primary={m.primary} secondary={m.secondary} shortName={m.shortName} logoId={m.logoId} size={40} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {m.blocked ? 'ブロック中の利用者' : m.teamName}
-          </span>
-          {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
-          {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
-        </div>
-        <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
-          {m.blocked ? 'この相手は表示していません' : `GM ${m.gmName} ・ ${m.lastLogin}`}
+      {/* 長押しでロスター。ボタンの上で長押しして離すと押した扱いにもなるので、
+          長押しはロゴ〜名前のところだけに付ける。
+          自分の行はフレンド詳細に飛ばしても意味が無いので何もしない */}
+      <div
+        {...(m.blocked || isMe ? {} : longPress(onOpen))}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: m.blocked || isMe ? 'default' : 'pointer' }}
+      >
+        <TeamLogoSVG primary={m.primary} secondary={m.secondary} shortName={m.shortName} logoId={m.logoId} size={40} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {m.blocked ? 'ブロック中の利用者' : m.teamName}
+            </span>
+            {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
+            {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
+          </div>
+          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
+            {m.blocked ? 'この相手は表示していません' : `GM ${m.gmName} ・ ${m.lastLogin}`}
+          </div>
         </div>
       </div>
+      {!m.blocked && m.code !== '' && friendState === 'none' && (
+        <button onClick={onAddFriend} className="btn-press" style={{ ...actionButton(C.gold), padding: '8px 10px' }}>＋フレンド</button>
+      )}
+      {!m.blocked && friendState === 'sent' && (
+        <span style={{ ...actionButton(C.textDim, true), padding: '8px 10px' }}>申請中</span>
+      )}
       {canKick && (
         <button onClick={onKick} className="btn-press" style={actionButton(C.red)}>外す</button>
       )}
@@ -392,6 +414,7 @@ function MemberRow({ m, canKick, isMe, onKick, onMenu }: {
     </div>
   )
 }
+
 
 // ── 掲示板 ───────────────────────────────────────────
 const REQ_RARITIES: ClubReqRarity[] = ['normal', 'rare', 'epic']
@@ -882,8 +905,12 @@ function ClubBoard() {
 
 function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) {
   const { club, members, isOwner, myRole, canEdit, adminCount, meId } = mine
+  const navigate = useNavigate()
   // 加入申請は会長と副会長が見る
   const reqs = useFriendsQuery(() => (canEdit ? listClubRequests() : Promise.resolve([])), [canEdit], 'clubReqIn')
+  // 走友会のメンバーがフレンドかどうかを出し分けるため。置き場所はフレンド画面と同じ入れ物
+  const friendsQ = useFriendsQuery(listFriends, [], 'friends')
+  const sentQ = useFriendsQuery(listSent, [], 'sent')
   const [busy, setBusy] = useState('')
   const [editing, setEditing] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -898,6 +925,28 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   const refresh = () => {
     invalidateFriendsCache('myClub', 'clubReco', 'clubReqIn', 'clubReqSent')
     reqs.reload(); onChanged()
+  }
+
+  // 行ごとのフレンド関係
+  const friendIds = new Set((friendsQ.data ?? []).map(f => f.id))
+  const sentIds = new Set((sentQ.data ?? []).map(r => r.id))
+  const knowsFriends = friendsQ.data !== undefined && sentQ.data !== undefined
+  const friendStateOf = (m: ClubMember): FriendState =>
+    m.id === meId ? 'me'
+      : !knowsFriends ? 'unknown'
+        : friendIds.has(m.id) ? 'friend' : sentIds.has(m.id) ? 'sent' : 'none'
+
+  // メンバーにフレンド申請。走友会の一覧には元からフレンドコードが入っているので、
+  // フレンド画面と同じ sendRequest(コード) をそのまま呼ぶ
+  const onAddFriend = async (m: ClubMember) => {
+    try {
+      const r = await sendRequest(m.code)
+      invalidateFriendsCache('friends', 'sent', 'received')
+      friendsQ.reload(); sentQ.reload()
+      setNotice(SEND_RESULT_TEXT[r])
+    } catch (e) {
+      setNotice({ title: '通信できませんでした', message: offlineDetail(e) })
+    }
   }
 
   const onLeave = async () => {
@@ -1074,6 +1123,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
         {tab === 'members' && (
           <>
             <SectionLabel>メンバー {members.length}人</SectionLabel>
+            <div style={{ fontSize: 10, color: C.textDim, margin: '0 4px 6px' }}>長押しでその人のロスターを見られます</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {members.map(m => (
                 <MemberRow
@@ -1081,8 +1131,11 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                   m={m}
                   canKick={canEdit && m.role !== 'owner' && !(myRole === 'admin' && m.role === 'admin')}
                   isMe={m.id === meId}
+                  friendState={friendStateOf(m)}
                   onKick={() => setConfirmKick(m)}
                   onMenu={() => setMenuMember(m)}
+                  onOpen={() => navigate(`/friends/team/${m.id}`)}
+                  onAddFriend={() => { void onAddFriend(m) }}
                 />
               ))}
             </div>

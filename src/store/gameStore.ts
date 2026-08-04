@@ -20,14 +20,16 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { reserveSquadPool } from '../utils/reserveSquad'
+import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
-import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
+import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, planExchange, type CardExchange } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
 import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
@@ -455,9 +457,10 @@ export type GameStore = GameState & {
   applyTrainingCards: (playerId: string, cardIds: string[], multiplier?: number) => void
   // ジュエルで能力1つの上限を+1する（コストは playerUtils.limitBreakCost。99が天井）
   breakStatLimit: (playerId: string, stat: CardStatKey) => void
-  // 余ったカードを上位レアへEXP等価で一括変換（ノーマル4→レア1／レア10→エピック3／エピック5→レジェンド2）。
-  // 変換できた枚数を返す（束が組めなければ0）
-  convertCards: (rarity: 'normal' | 'rare' | 'epic') => number
+  // カードの交換。レートも種類も utils/cardCombo.ts の CARD_EXCHANGES 1本。
+  // statKey は完全休養からの交換でだけ効く（もらうカードの種類を指名する）。
+  // もらえた枚数を返す（束が組めなければ0）
+  exchangeCards: (ex: CardExchange, statKey?: CardStatKey) => number
   // 走友会の掲示板でカードを1枚渡す／もらったカードを受け取る
   removeTrainingCard: (cardId: string) => void
   addTrainingCards: (cards: TrainingCard[]) => void
@@ -4055,19 +4058,13 @@ export const useGameStore = create<GameStore>()(
             for (const rr of seg.runners) mainRunnerIds.add(rr.playerId)
           }
         }
-        // 1軍の主力（本編＋海外リーグの直近3年出場率60%以上。ECL・リザーブは数えない）は
-        // リザーブに出せない（格上の無双を防ぐ）。
-        const isMainRegular = (p: Player) => isMainSquadRegular(p.id, currentSeason, state.pastSeasons)
         const lineups: Record<string, Record<number, string>> = { [playerTeamId]: lineup }
         for (const team of teams) {
           if (team.id === playerTeamId) continue
           const roster = squadPlayersOf(players, team.id).filter(p => p.status === 'active')
-          // 人数が足りないときだけ段階的に制限を外す（プレイヤー側の画面と同じ順序）。
-          // ①控えのみ → ②主力も解禁 → ③その週の1軍出走者も解禁
+          // 出せる選手の決め方は utils/reserveSquad.ts の1本（プレイヤー側の画面と同じもの）
           const needed = race.segments.length
-          const bench = roster.filter(p => !mainRunnerIds.has(p.id) && !isMainRegular(p))
-          const noRegularLimit = roster.filter(p => !mainRunnerIds.has(p.id))
-          const pool = bench.length >= needed ? bench : noRegularLimit.length >= needed ? noRegularLimit : roster
+          const pool = reserveSquadPool(roster, mainRunnerIds, needed)
           // OVR順の機械割当ではなく、区間の地形に合った選手を配置（全チーム共通・全区間充填）
           lineups[team.id] = assignLineupByTerrain(pool, race)
         }
@@ -4668,85 +4665,87 @@ export const useGameStore = create<GameStore>()(
         let playersAfterCpuTransfer = playersAfterCpuRelease
         let teamsAfterCpuTransfer = teamsAfterCpuRelease
         {
-          // 実際の予算残高（finance.budget）から移籍金を払う。売った側は実際に受け取る（自チームと同じ金の動き）
-          const cpuTeamsForTransfer = teamsAfterCpuRelease
-            .filter(t => t.id !== state.playerTeamId)
-            .map(t => ({ team: t, tier: cpuTeamTier(t.id, playersAfterCpuRelease), budget: Math.max(0, t.finance.budget) }))
-            .sort((a, b) => b.budget - a.budget)
-
           // 前年順位（引き抜き時の本人同意＝移籍先の魅力判定に使う）
           const lastStandingsForTx = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
           const totalTeamsTx = state.teams.length
           const rankOfTx = (teamId: string) => { const i = lastStandingsForTx.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeamsTx / 2) }
 
+          // 実際の予算残高（finance.budget）から移籍金を払う。売った側は実際に受け取る（自チームと同じ金の動き）。
+          // 順番は「前年順位が下のチームから」。同順は残高の多い方から
+          const cpuTeamsForTransfer = teamsAfterCpuRelease
+            .filter(t => t.id !== state.playerTeamId)
+            .map(t => ({ team: t, tier: cpuTeamTier(t.id, playersAfterCpuRelease), budget: Math.max(0, t.finance.budget) }))
+            .sort((a, b) => (rankOfTx(b.team.id) - rankOfTx(a.team.id)) || (b.budget - a.budget))
+
           const transferPurchases: Record<string, number> = {}
           const sellCounts: Record<string, number> = {}   // 1チームが1オフに失う人数の上限（薄くしすぎない）
+          const txNeeds = new Map(cpuTeamsForTransfer.map(x => [x.team.id, new Set(cpuSpecialtyNeeds(x.team.id, playersAfterCpuTransfer))]))
 
-          for (const { team: buyTeam, tier: buyTier } of cpuTeamsForTransfer) {
+          // 1周につき1人だけ買う。以前は1チームが上限まで買い切ってから次に回していたので、
+          // 市場の良い選手が予算の多い上位チームに固まっていた（utils/roundRobin.ts）
+          const buyOnePlayer = ({ team: buyTeam, tier: buyTier }: typeof cpuTeamsForTransfer[number]): boolean => {
             const minOvr = buyTier === 'elite' ? 74 : buyTier === 'mid' ? 67 : 60
             // 有料移籍・引き抜きを補強の主体にする：獲得上限をtier別に引き上げ（旧: 一律2人）
             const buyCap = buyTier === 'elite' ? 4 : buyTier === 'mid' ? 3 : 2
-            const needs = new Set(cpuSpecialtyNeeds(buyTeam.id, playersAfterCpuTransfer))
+            const needs = txNeeds.get(buyTeam.id)!
+            if ((transferPurchases[buyTeam.id] ?? 0) >= buyCap) return false
+            const remainBudget = Math.max(0, teamsAfterCpuTransfer.find(t => t.id === buyTeam.id)?.finance.budget ?? 0)
+            const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.status === 'active')
+            const buyTotal = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.status === 'active').length
+            if (buyRoster.length >= 25 || buyTotal >= rosterCapFor(buyTeam.id)) return false
 
-            // 枠と予算の許す限り複数人を獲得（1人ずつ状態を更新しながら繰り返す）
-            while ((transferPurchases[buyTeam.id] ?? 0) < buyCap) {
-              const remainBudget = Math.max(0, teamsAfterCpuTransfer.find(t => t.id === buyTeam.id)?.finance.budget ?? 0)
-              const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.status === 'active')
-              const buyTotal = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.status === 'active').length
-              if (buyRoster.length >= 25 || buyTotal >= rosterCapFor(buyTeam.id)) break
+            const otherCpuIds = cpuTeamsForTransfer.map(x => x.team.id).filter(id => id !== buyTeam.id)
+            const candidates = otherCpuIds.flatMap(sellTeamId => {
+              if ((sellCounts[sellTeamId] ?? 0) >= 2) return []   // 1チームから奪うのは最大2人
+              const sellRoster = playersAfterCpuTransfer
+                .filter(p => p.teamId === sellTeamId && p.status === 'active')
+                .sort((a, b) => ovr(b) - ovr(a))
+              if (sellRoster.length <= 16) return []   // 薄いチームからは引き抜かない（下限保護）
+              const sellTier = cpuTeamTier(sellTeamId, playersAfterCpuTransfer)
+              const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
+              // 売り手の絶対的エース(1番手)だけ保護。それ以外は主力でも引き抜き対象にする。
+              return sellRoster.slice(1)
+                // isOwnedBy でレンタル中の選手を外す。ここが抜けていたため、貸し出した選手が
+                // オフシーズンに貸出先の名簿として売られ、保有元に何も残らず消えていた
+                .filter(p => isOwnedBy(p, sellTeamId) && !cpuTransferIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
+                .map(p => ({ p, surplus: ovr(p) < sellMinOvr || sellRoster.length > 21 }))
+            })
+              .filter(({ p }) => ovr(p) >= minOvr - 4)
+              // 買い手のニーズに合う選手・OVRの高い選手を優先
+              .sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (ovr(b.p) - ovr(a.p)))
 
-              const otherCpuIds = cpuTeamsForTransfer.map(x => x.team.id).filter(id => id !== buyTeam.id)
-              const candidates = otherCpuIds.flatMap(sellTeamId => {
-                if ((sellCounts[sellTeamId] ?? 0) >= 2) return []   // 1チームから奪うのは最大2人
-                const sellRoster = playersAfterCpuTransfer
-                  .filter(p => p.teamId === sellTeamId && p.status === 'active')
-                  .sort((a, b) => ovr(b) - ovr(a))
-                if (sellRoster.length <= 16) return []   // 薄いチームからは引き抜かない（下限保護）
-                const sellTier = cpuTeamTier(sellTeamId, playersAfterCpuTransfer)
-                const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
-                // 売り手の絶対的エース(1番手)だけ保護。それ以外は主力でも引き抜き対象にする。
-                return sellRoster.slice(1)
-                  // isOwnedBy でレンタル中の選手を外す。ここが抜けていたため、貸し出した選手が
-                  // オフシーズンに貸出先の名簿として売られ、保有元に何も残らず消えていた
-                  .filter(p => isOwnedBy(p, sellTeamId) && !cpuTransferIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
-                  .map(p => ({ p, surplus: ovr(p) < sellMinOvr || sellRoster.length > 21 }))
+            let bought = false
+            for (const { p: target, surplus } of candidates) {
+              // 余剰は通常額、主力の引き抜きは割増移籍金＋昇給要求＋本人同意
+              const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * POACH_PREMIUM)
+              const tgtPerf = perfOf(state.currentSeason, target.id)
+              const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
+              if (remainBudget < fee + newSalary) continue
+              // 引き抜きは本人が移籍先の魅力で納得するか判定（クラブは割増で合意済み＝clubBlessed）
+              if (!surplus && !playerConsentToMove(target, rankOfTx(buyTeam.id), totalTeamsTx, 0.5, 0, 0, true).ok) continue
+              const txYear = state.currentSeason.year
+              // 所属・名簿・移籍金・移籍履歴は movePlayer にまとめて任せる（自チームの獲得と同じ後始末）
+              const moved = movePlayer({ players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer }, target.id, buyTeam.id, {
+                year: txYear,
+                date: `${txYear}-02-01`,
+                fee,
+                years: 2,
+                contract: { annualSalary: newSalary, yearsLeft: 2 },
               })
-                .filter(({ p }) => ovr(p) >= minOvr - 4)
-                // 買い手のニーズに合う選手・OVRの高い選手を優先
-                .sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (ovr(b.p) - ovr(a.p)))
-
-              let bought = false
-              for (const { p: target, surplus } of candidates) {
-                // 余剰は通常額、主力の引き抜きは割増移籍金＋昇給要求＋本人同意
-                const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * POACH_PREMIUM)
-                const tgtPerf = perfOf(state.currentSeason, target.id)
-                const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
-                if (remainBudget < fee + newSalary) continue
-                // 引き抜きは本人が移籍先の魅力で納得するか判定（クラブは割増で合意済み＝clubBlessed）
-                if (!surplus && !playerConsentToMove(target, rankOfTx(buyTeam.id), totalTeamsTx, 0.5, 0, 0, true).ok) continue
-                const txYear = state.currentSeason.year
-                // 所属・名簿・移籍金・移籍履歴は movePlayer にまとめて任せる（自チームの獲得と同じ後始末）
-                const moved = movePlayer({ players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer }, target.id, buyTeam.id, {
-                  year: txYear,
-                  date: `${txYear}-02-01`,
-                  fee,
-                  years: 2,
-                  contract: { annualSalary: newSalary, yearsLeft: 2 },
-                })
-                if (!moved.ok) continue
-                cpuTransferIds.add(target.id)
-                transferPurchases[buyTeam.id] = (transferPurchases[buyTeam.id] ?? 0) + 1
-                sellCounts[moved.from] = (sellCounts[moved.from] ?? 0) + 1
-                playersAfterCpuTransfer = moved.players.map(p =>
-                  p.id !== target.id ? p : { ...p, contract: { ...p.contract, faEligibleYear: txYear + 2 } })
-                teamsAfterCpuTransfer = moved.teams
-                if (moved.record) offseasonTxRecords.push(moved.record)
-                bought = true
-                break
-              }
-              if (!bought) break
+              if (!moved.ok) continue
+              cpuTransferIds.add(target.id)
+              transferPurchases[buyTeam.id] = (transferPurchases[buyTeam.id] ?? 0) + 1
+              sellCounts[moved.from] = (sellCounts[moved.from] ?? 0) + 1
+              playersAfterCpuTransfer = moved.players.map(p =>
+                p.id !== target.id ? p : { ...p, contract: { ...p.contract, faEligibleYear: txYear + 2 } })
+              teamsAfterCpuTransfer = moved.teams
+              if (moved.record) offseasonTxRecords.push(moved.record)
+              bought = true
+              break
             }
+            return bought
           }
+          roundRobin(cpuTeamsForTransfer, buyOnePlayer)
         }
 
         // ⑤ CPU間トレード（予算不足でも価値が近い選手同士を交換）。
@@ -4852,28 +4851,23 @@ export const useGameStore = create<GameStore>()(
           .sort((a, b) => ageAdjOvr(b) - ageAdjOvr(a))
         const signedFAIds = new Set<string>()
         const cpuSignings: { playerId: string; teamId: string; num: number }[] = []
-        // Elite teams pick first（同格内は毎年シャッフル＝特定チームだけが毎年良いFAを総取りしないように）
-        const tierJitter = new Map(teamsAfterCpuTransfer.map(t => [t.id, Math.random()]))
-        const cpuTeamsSorted = teamsAfterCpuTransfer
-          .filter(t => t.id !== state.playerTeamId)
-          .sort((a, b) => {
-            const order = { elite: 0, mid: 1, weak: 2 }
-            const d = order[cpuTeamTier(a.id, playersAfterCpuTransfer)] - order[cpuTeamTier(b.id, playersAfterCpuTransfer)]
-            return d !== 0 ? d : (tierJitter.get(a.id)! - tierJitter.get(b.id)!)
-          })
         // 前年順位（運用方針・予算の基準）
         const lastStandings = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
         const totalTeams = state.teams.length
         const rankOf = (teamId: string) => { const i = lastStandings.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeams / 2) }
-        for (const team of cpuTeamsSorted) {
+        // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
+        const tierJitter = new Map(teamsAfterCpuTransfer.map(t => [t.id, Math.random()]))
+        const cpuTeamsSorted = teamsAfterCpuTransfer
+          .filter(t => t.id !== state.playerTeamId)
+          .sort((a, b) => (rankOf(b.id) - rankOf(a.id)) || (tierJitter.get(a.id)! - tierJitter.get(b.id)!))
+
+        // チームごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
+        const faCtxList = cpuTeamsSorted.map(team => {
           // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
           const currentRoster = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.status === 'active')
           const tier = cpuTeamTier(team.id, playersAfterCpuTransfer)
           const minOvr = tier === 'elite' ? 74 : tier === 'mid' ? 67 : 58
           const totalNow = currentRoster.length
-          const slotsNeeded = Math.max(0, rosterCapFor(team.id) - totalNow)
-          if (slotsNeeded <= 0) continue
-
           // 運用方針と予算
           const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
           const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
@@ -4883,57 +4877,58 @@ export const useGameStore = create<GameStore>()(
           // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く
           const grantRoom = Math.max(0, rankBudgetGrant(rankOf(team.id)) - committedSalary)
           const budgetRoom = Math.max(0, team.finance.budget) * 0.3
-          const spendable = team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor
-          let spent = 0
-          const estCost = (fa: Player) => faMarketSalary(fa, perfOf(state.currentSeason, fa.id))
-
-          const needs = cpuSpecialtyNeeds(team.id, playersAfterCpuTransfer)
-          const usedNums = new Set<number>()
-          let signed = 0
-          // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
-          const ageCap = strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33)
-          // 総在籍24人未満の間は予算に関係なく最低限補強（戦力崩壊防止）。それ以上は予算内でのみ
-          const budgetOk = (fa: Player) => (totalNow + signed) < 24 || (spent + estCost(fa) <= spendable)
-          // 外国人枠は廃止したので国籍による人数制限は無い
-          const canSign = (fa: Player) =>
-            !signedFAIds.has(fa.id) &&
-            fa.age < ageCap
-          const doSign = (fa: Player) => {
-            let num = 1; while (usedNums.has(num)) num++; usedNums.add(num)
-            signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: team.id, num }); signed++
-            spent += estCost(fa)
+          return {
+            team, totalNow,
+            slotsNeeded: Math.max(0, rosterCapFor(team.id) - totalNow),
+            spendable: team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor,
+            spent: 0, signed: 0,
+            needs: cpuSpecialtyNeeds(team.id, playersAfterCpuTransfer),
+            usedNums: new Set<number>(),
+            specCounts: {} as Record<string, number>,
+            // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
+            ageCap: strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33),
+            specFloor: strat === 'rebuild' ? 50 : Math.max(50, minOvr - 10),
+            // 若手再建はポテンシャル・若さ優先、それ以外はOVR優先（availableFAsは既にOVR降順）
+            pool: strat === 'rebuild'
+              ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
+              : availableFAs,
           }
-          // 若手再建はポテンシャル・若さ優先、それ以外はOVR優先（availableFAsは既にOVR降順）
-          const pool = strat === 'rebuild'
-            ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
-            : availableFAs
-
-          // Pass 1: fill specialty holes — up to 2 per specialty
-          const specFloor = strat === 'rebuild' ? 50 : Math.max(50, minOvr - 10)
-          const pass1Counts: Record<string, number> = {}
-          for (const spec of needs) {
-            if (signed >= slotsNeeded) break
-            const currentCount = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.specialty === spec && p.status === 'active').length
-            const toFill = Math.max(0, 2 - currentCount - (pass1Counts[spec] ?? 0))
-            let filled = 0
-            for (const fa of pool) {
-              if (filled >= toFill || signed >= slotsNeeded) break
-              if (fa.specialty !== spec || !canSign(fa) || ovr(fa) < specFloor || !budgetOk(fa)) continue
-              doSign(fa); filled++
-              pass1Counts[spec] = (pass1Counts[spec] ?? 0) + 1
-            }
-          }
-          // Pass 2（方針に沿ったベスト補強）は廃止：質の高い補強は有料移籍・引き抜きに一本化し、
-          // FAは「専門穴埋め(Pass1)」と「頭数確保(Pass3)」だけの最終手段にする。
-          // Pass 3: 安全確保 — 予算/OVRに関係なく総在籍24人（下限）までは埋める。
-          // それ以上の頭数合わせはしない（数合わせの弱いFAを抱えない。多く抱えるのは予算のあるチームだけ）
-          const floorFill = 24
-          for (const fa of availableFAs) {
-            if (totalNow + signed >= floorFill) break
-            if (!canSign(fa)) continue
-            doSign(fa)
-          }
+        })
+        type FaCtx = typeof faCtxList[number]
+        const estCost = (fa: Player) => faMarketSalary(fa, perfOf(state.currentSeason, fa.id))
+        const doSignFA = (c: FaCtx, fa: Player) => {
+          let num = 1; while (c.usedNums.has(num)) num++; c.usedNums.add(num)
+          signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: c.team.id, num })
+          c.signed++; c.spent += estCost(fa)
         }
+        // 1周につき1人だけ。取れるチームが無くなったら終わり（utils/roundRobin.ts）。
+        // 以前は1チームが枠を埋めきってから次に回していたので、良いFAが上位チームに固まっていた
+        const signOneFA = (c: FaCtx): boolean => {
+          if (c.signed >= c.slotsNeeded) return false
+          // 外国人枠は廃止したので国籍による人数制限は無い
+          const canSign = (fa: Player) => !signedFAIds.has(fa.id) && fa.age < c.ageCap
+          // 総在籍24人未満の間は予算に関係なく最低限補強（戦力崩壊防止）。それ以上は予算内でのみ
+          const budgetOk = (fa: Player) => (c.totalNow + c.signed) < 24 || (c.spent + estCost(fa) <= c.spendable)
+          // ① 専門の穴埋め（1つの専門につき2人まで）
+          for (const spec of c.needs) {
+            const have = playersAfterCpuTransfer.filter(p => p.teamId === c.team.id && p.specialty === spec && p.status === 'active').length
+            if (have + (c.specCounts[spec] ?? 0) >= 2) continue
+            const fa = c.pool.find(f => f.specialty === spec && canSign(f) && ovr(f) >= c.specFloor && budgetOk(f))
+            if (!fa) continue
+            doSignFA(c, fa)
+            c.specCounts[spec] = (c.specCounts[spec] ?? 0) + 1
+            return true
+          }
+          // ② 頭数の確保 — 予算/OVRに関係なく総在籍24人（下限）までは埋める。
+          // それ以上の頭数合わせはしない（数合わせの弱いFAを抱えない。多く抱えるのは予算のあるチームだけ）。
+          // 「方針に沿ったベスト補強」は廃止済み：質の高い補強は有料移籍・引き抜きに一本化する
+          if (c.totalNow + c.signed >= 24) return false
+          const fa = availableFAs.find(canSign)
+          if (!fa) return false
+          doSignFA(c, fa)
+          return true
+        }
+        roundRobin(faCtxList, signOneFA)
         const newYear = state.currentSeason.year
         // CPUのFA契約も movePlayer に通す（所属・名簿・加入年をまとめて。名簿に入れるので契約種別も本契約に揃える）
         let playersWithCpuSigns: Player[] = playersAfterCpuTransfer
@@ -6876,20 +6871,12 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
-      // 余りカードの一括変換（EXP等価・ロスなし）。完全休養カードは対象外
-      convertCards: (rarity) => {
-        const RATE = {
-          normal: { need: 4, produce: 1, to: 'rare' as const },
-          rare:   { need: 10, produce: 3, to: 'epic' as const },
-          epic:   { need: 5, produce: 2, to: 'legendary' as const },
-        }[rarity]
-        const pool = (get().trainingCards ?? []).filter(c => c.rarity === rarity && c.kind !== 'rest')
-        const bundles = Math.floor(pool.length / RATE.need)
-        if (bundles === 0) return 0
-        const consumeIds = new Set(pool.slice(0, bundles * RATE.need).map(c => c.id))
-        const produced = Array.from({ length: bundles * RATE.produce }, () => generateTrainingCard(RATE.to))
-        set(s => ({ trainingCards: [...(s.trainingCards ?? []).filter(c => !consumeIds.has(c.id)), ...produced] }))
-        return produced.length
+      // カードの交換。何を何枚消して何をもらうかは utils/cardCombo.ts の表が決める
+      exchangeCards: (ex, statKey) => {
+        const plan = planExchange(get().trainingCards ?? [], ex, statKey)
+        if (!plan) return 0
+        set(s => ({ trainingCards: [...(s.trainingCards ?? []).filter(c => !plan.consumeIds.has(c.id)), ...plan.produced] }))
+        return plan.produced.length
       },
 
       breakStatLimit: (playerId, stat) => {

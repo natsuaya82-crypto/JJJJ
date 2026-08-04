@@ -37,7 +37,7 @@ export const RARITY_LABELS: Record<CardRarity, string> = {
 }
 
 
-const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+export const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 
 // カード合成の最大枚数
 export const MAX_FUSION_CARDS = 5
@@ -80,6 +80,56 @@ export function generateRestCard(rarity: CardRarity): TrainingCard {
     rarity,
     value: REST_FATIGUE[rarity],
   }
+}
+
+// ─── カードの交換 ───
+// レートは store の convertCards と 変換ページの表に別々に手書きされていて、
+// 片方だけ直すとズレる形だった。交換の種類も条件も、この表1本だけを見ればいいようにする。
+//
+//  上3つ … 余ったカードをEXP等価で上位レアへ（もらう種類はランダム）
+//  下4つ … 完全休養は疲労回復にしか使えず余るので、10枚で同じレア度の好きなカード1枚と交換
+export type CardExchange = {
+  fromRarity: CardRarity
+  fromRest: boolean      // 消費するのが完全休養カードかどうか
+  need: number
+  toRarity: CardRarity
+  produce: number
+}
+
+export const CARD_EXCHANGES: readonly CardExchange[] = [
+  { fromRarity: 'normal', fromRest: false, need: 4, toRarity: 'rare', produce: 1 },
+  { fromRarity: 'rare', fromRest: false, need: 10, toRarity: 'epic', produce: 3 },
+  { fromRarity: 'epic', fromRest: false, need: 5, toRarity: 'legendary', produce: 2 },
+  { fromRarity: 'normal', fromRest: true, need: 10, toRarity: 'normal', produce: 1 },
+  { fromRarity: 'rare', fromRest: true, need: 10, toRarity: 'rare', produce: 1 },
+  { fromRarity: 'epic', fromRest: true, need: 10, toRarity: 'epic', produce: 1 },
+  { fromRarity: 'legendary', fromRest: true, need: 10, toRarity: 'legendary', produce: 1 },
+]
+
+// もらうカードの種類を自分で選べるのは、完全休養からの交換だけ
+export const canPickStat = (ex: CardExchange) => ex.fromRest
+
+// その交換で消費できる手持ち
+export function exchangeSource(cards: readonly TrainingCard[], ex: CardExchange): TrainingCard[] {
+  return cards.filter(c => c.rarity === ex.fromRarity && (c.kind === 'rest') === ex.fromRest)
+}
+
+// 交換1回ぶんの中身（消すカードと、もらうカード）。束が組めなければ null。
+// 画面の「何枚→何枚」表示も store の実行もここを通す
+export function planExchange(
+  cards: readonly TrainingCard[],
+  ex: CardExchange,
+  statKey?: CardStatKey,
+): { consumeIds: Set<string>; produced: TrainingCard[] } | null {
+  const pool = exchangeSource(cards, ex)
+  const bundles = Math.floor(pool.length / ex.need)
+  if (bundles === 0) return null
+  const consumeIds = new Set(pool.slice(0, bundles * ex.need).map(c => c.id))
+  const produced = Array.from({ length: bundles * ex.produce }, () => {
+    const card = generateTrainingCard(ex.toRarity)
+    return canPickStat(ex) && statKey ? { ...card, statKey } : card
+  })
+  return { consumeIds, produced }
 }
 
 // レア度ランダム抽選：ノーマル60% / レア30% / エピック9% / レジェンド1%

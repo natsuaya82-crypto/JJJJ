@@ -7,7 +7,7 @@ import type { InteractiveSegResult } from '../../engine/interactiveRace'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
 import { SimPhase } from '../race/SimPhase'
-import { isMainSquadRegular } from '../../utils/playerUtils'
+import { reserveSquadPool } from '../../utils/reserveSquad'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha } from '../../styles/tokens'
 
@@ -19,7 +19,7 @@ const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り'
 
 export default function ReserveLeaguePage() {
   const navigate = useNavigate()
-  const { teams, players, playerTeamId, currentSeason, pastSeasons, runSecondTeamRace, setActiveRacePhase, raceLineup, lastRaceLineup } = useGameStore()
+  const { teams, players, playerTeamId, currentSeason, runSecondTeamRace, setActiveRacePhase, raceLineup, lastRaceLineup } = useGameStore()
 
   const [phase, setPhaseLocal] = useState<Phase>('lineup')
   // 1軍レースと同様に、編成〜進行中は下ナビを隠す
@@ -51,20 +51,11 @@ export default function ReserveLeaguePage() {
       ? Object.values(raceLineup)
       : Object.values(lastRaceLineup ?? {})) as string[]).filter(Boolean)
   )
-  // 1軍の主力（本編＋海外リーグの直近3年出場率60%以上。ECL・リザーブは数えない）は、
-  // その週たまたま1軍を休んでもリザーブには出せない。格上がリザーブを荒らすのを防ぐ。
-  const isMainRegular = (p: Player) => isMainSquadRegular(p.id, currentSeason, pastSeasons)
-  // 人数が足りないときだけ段階的に制限を外す（ロスター15人＋故障者で組めなくなる詰み対策）。
-  // ①控えのみ → ②主力も解禁 → ③その週の1軍スカッドも解禁。あくまで非常手段で、基本は①。
+  // 出せる選手の決め方は utils/reserveSquad.ts の1本（CPU側と同じもの）。
+  // 故障中は選べないので頭数にも数えない
   const myRoster = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired')
   const needed = (nextRace?.segments ?? []).length
-  const selectableCount = (list: Player[]) => list.filter(p => p.status !== 'injured').length
-  const tierBench = myRoster.filter(p => !mainSquadIds.has(p.id) && !isMainRegular(p))
-  const tierNoRegularLimit = myRoster.filter(p => !mainSquadIds.has(p.id))
-  const secondPlayers =
-    selectableCount(tierBench) >= needed ? tierBench
-    : selectableCount(tierNoRegularLimit) >= needed ? tierNoRegularLimit
-    : myRoster
+  const secondPlayers = reserveSquadPool(myRoster, mainSquadIds, needed, p => p.status !== 'injured')
   // 故障中の選手は選択不可（リストには理由付きで表示）
   const unavailableMap: Record<string, string> = {}
   for (const p of secondPlayers) {
