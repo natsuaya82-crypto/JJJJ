@@ -271,7 +271,7 @@ export default function WorldTournamentPage() {
         teamTalk=""
         setTeamTalk={() => {}}
         unavailable={unavailableMap}
-        btnClass="btn-game--gold"
+        competition="world"
       />
     )
   }

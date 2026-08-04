@@ -786,6 +786,7 @@ export default function RacePage() {
       setTeamTalk={setRaceTeamTalk}
       lastLineup={lastRaceLineup}
       unavailable={unavailableMap}
+      competition="jpel"
     />
   )
 

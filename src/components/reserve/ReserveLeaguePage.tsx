@@ -177,6 +177,7 @@ export default function ReserveLeaguePage() {
       setTeamTalk={() => {}}
       unavailable={unavailableMap}
       onSkipRace={() => runWithLoading('結果を計算中…', () => skipRace(), 500)}
+      competition="reserve"
     />
   )
 

@@ -186,7 +186,7 @@ export default function EclPage() {
         teamTalk=""
         setTeamTalk={() => {}}
         unavailable={unavailableMap}
-        btnClass="btn-game--red"
+        competition="ecl"
       />
     )
   }
