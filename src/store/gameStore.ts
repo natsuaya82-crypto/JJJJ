@@ -3319,7 +3319,8 @@ export const useGameStore = create<GameStore>()(
           fromTeamId: state.playerTeamId,
           askingPrice: roundFee(calcTransferValue(player)),
           listedAtRace: raceIdx,
-          expiresAtRace: raceIdx + 99,
+          // 選手本人の移籍希望を認めた売出は今季いっぱい有効
+          expiresAtRace: Math.max(raceIdx + 1, state.currentSeason.races.length),
           competingTeams: interested,
         }
         const alreadyListed = (state.currentSeason.transferListings ?? []).some(l => l.playerId === playerId)
