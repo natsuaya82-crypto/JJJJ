@@ -3466,7 +3466,6 @@ export const useGameStore = create<GameStore>()(
 
       submitLoanRequest: (playerId, years) => {
         const st = get()
-        if (!st.getTransferWindow().open) return false
         if (reinforcementBanned(st.teams.find(t => t.id === st.playerTeamId))) return false  // 赤字・残高マイナスは補強不可
         const player = st.players.find(p => p.id === playerId)
         if (!player || player.teamId === st.playerTeamId || player.teamId === '' || player.loan) return false
@@ -3503,7 +3502,6 @@ export const useGameStore = create<GameStore>()(
 
       submitTransferBid: (playerId, fee) => {
         const state = get()
-        if (!state.getTransferWindow().open) return  // 移籍ウィンドウ閉鎖中はオファー不可
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId === state.playerTeamId || player.teamId === '') return
         // 引き抜ける選手かどうかは他の移籍と同じ判定（utils/transferEligibility.ts）。
@@ -4249,7 +4247,6 @@ export const useGameStore = create<GameStore>()(
       // オフシーズンの一括処理と同じ財務＋補強ポイント連動ロジックを、件数を絞って呼ぶ。
       runMidSeasonForeignTransfers: () => {
         const st = get()
-        if (!st.getTransferWindow().open) return
         if ((st.foreignLeagues ?? []).length === 0) return
         // 海外クラブ同士の引き抜きも低確率で1件（オフの一括と同じロジック。OVR下限もそのまま効く）
         if (Math.random() < 0.20) {
