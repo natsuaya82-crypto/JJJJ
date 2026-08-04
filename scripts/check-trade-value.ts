@@ -18,7 +18,7 @@ import {
   activityFactor, keyFactor, faceValueOf, askingValueOf, tradeValues, tradeBalance, tradeNotLopsided,
 } from '../src/utils/tradeValue'
 import type { TradeValueCtx } from '../src/utils/tradeValue'
-import { calcTransferValue, ovr } from '../src/utils/playerUtils'
+import { calcTransferValue, ovr, peakAgeOf } from '../src/utils/playerUtils'
 import type { Player } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -60,8 +60,12 @@ console.log('\n[1] 市場価値の年齢補正が成長処理(growPlayer)と噛�
   check('35歳以降でさらに下がる', v(90, 36) < v(90, 34))
   // 値は百万円単位に丸められるので、比は 1.25 ぴったりにはならない。
   // 係数そのものは [8] の「20歳の上乗せが1.25」で原文を見て確かめている
-  check('20歳の上乗せは1.25倍程度まで（伸びる保証が無いぶん抑える）', v(90, 20) / v(90, 28) <= 1.27,
+  // 上限だけを見ていると、上乗せが丸ごと消えて 1.00 になっていても気づけない（実際に一度そうなった）。
+  // 下限も見る
+  check('20歳の上乗せは1.25倍程度（伸びる保証が無いぶん抑える）',
+    v(90, 20) / v(90, 28) <= 1.27 && v(90, 20) / v(90, 28) >= 1.23,
     String((v(90, 20) / v(90, 28)).toFixed(3)))
+  check('ピーク前(24〜27歳)にも上乗せが乗っている', v(90, 26) > v(90, 29))
   check('OVRの差は年齢では覆らない（30歳の90 > 22歳の80）', v(90, 30) > v(80, 22))
 }
 
@@ -196,6 +200,28 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
 
   // 逆提示を飲む道は tradePlayer をそのまま通すので、そこに判定があれば足りる
   check('逆提示を飲む道が tradePlayer を通る', store.includes("const res = get().tradePlayer([...neg.giveIds"))
+
+  // ── 値段の出どころ（data/economy.ts）を素通りしていないか ──
+  const bid = readFileSync(join('src', 'components', 'transfer', 'BidSheet.tsx'), 'utf-8')
+  const tp = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')
+  const fx = readFileSync(join('src', 'engine', 'foreignTransfers.ts'), 'utf-8')
+  // 指名権キーの読み取り（正規表現＋既定値8,000,000）が2箇所に手書きされていた
+  const pickRe = /match\(\/-R\(\\d\+\)-\(\\d\+\)\$\//g
+  const pickDefs = (store.match(pickRe) ?? []).length + (chat.match(pickRe) ?? []).length
+  check('指名権キーの読み取りは economy の1本だけ', pickDefs === 0, `${pickDefs}箇所`)
+  check('チャットが指名権の値段を pickKeyValue から取る', chat.includes('pickKeyValue('))
+  // 主力割増1.8は入札の受諾ラインの一部。画面と本処理で別々に書くと表示と結果がズレる
+  check('主力割増(1.8)のべた書きが無い', !/\? 1\.8 : 1/.test(store) && !/\? 1\.8 : 1/.test(bid))
+  check('入札画面が bidThreshold を通る', bid.includes('bidThreshold('))
+  check('ストアの入札判定が bidThreshold を通る', (store.match(/bidThreshold\(/g) ?? []).length === 2)
+  // 逆提示の上限（市場価値1.15倍 / 提示額1.3倍）
+  check('逆提示の上限のべた書きが無い', !/\* 1\.15,/.test(store) && !/offeredPrice \* 1\.3/.test(store))
+  check('逆提示の上限が counterCeiling の1本', (store.match(/counterCeiling\(/g) ?? []).length === 2)
+  check('移籍画面が逆提示の既定額を自前で書いていない', !/offeredPrice \* 1\.3/.test(tp))
+  // 移籍金の丸め（下限付き）。付け忘れると移籍金0円の打診が出る
+  check('移籍金の丸めを自前で書いていない',
+    !/Math\.max\(500000, Math\.round\(/.test(store) && !/Math\.max\(1000000, Math\.round\(/.test(store))
+  check('引き抜きの割増が名前付き', store.includes('POACH_PREMIUM') && fx.includes('FOREIGN_STAR_PREMIUM'))
 }
 
 console.log('\n[8] 年齢補正の段が1箇所にしかない')
@@ -203,14 +229,37 @@ console.log('\n[8] 年齢補正の段が1箇所にしかない')
   const pu = readFileSync(join('src', 'utils', 'playerUtils.ts'), 'utf-8')
   const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf-8')
   const chatSrc = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
+  const gen = readFileSync(join('src', 'engine', 'playerGenerator.ts'), 'utf-8')
   // playerUtils には市場価値ぶんと年俸(faMarketSalary)ぶんの2つ。それ以上に増やさない
   check('年齢補正の定義は playerUtils の2つだけ（市場価値・年俸）', (pu.match(/const ageFactor =/g) ?? []).length === 2)
   const cvBody = pu.slice(pu.indexOf('export function calcTransferValue'), pu.indexOf('export type CareerStage'))
   check('市場価値の年齢補正はその中の1つ', (cvBody.match(/const ageFactor =/g) ?? []).length === 1)
   check('ストアが年齢補正を自前で持っていない', !store.includes('const ageFactor ='))
   check('チャットが年齢補正を自前で持っていない', !chatSrc.includes('const ageFactor ='))
-  check('30歳までが据え置きになっている', cvBody.includes('age <= 30 ? 1.00 :'))
-  check('20歳の上乗せが1.25', cvBody.includes('age <= 20 ? 1.25 :'))
+
+  // ★ピーク年齢は peakAgeOf の1本だけ★
+  // 成長処理(growPlayer/ageMultiplier/生成時の焼き込み)は成長タイプで 24/27/30 と分けるのに、
+  // 市場価値だけ「全員27歳ピーク」の年齢表を持っていた。晩成型の30歳が実力はピークなのに
+  // 値段だけ下がり始める、早熟型の28歳が実力は落ちているのに値段は据え置き、が起きていた
+  const peakDef = /=== 'early' \? 24/g
+  const peakDefs = (pu.match(peakDef) ?? []).length + (store.match(peakDef) ?? []).length + (gen.match(peakDef) ?? []).length
+  check('ピーク年齢の定義は1箇所だけ（peakAgeOf）', peakDefs === 1, `${peakDefs}箇所`)
+  check('市場価値がピークを peakAgeOf から取る', cvBody.includes('peakAgeOf(p)'))
+  check('成長処理もピークを peakAgeOf から取る', (store.match(/peakAgeOf\(/g) ?? []).length === 2)
+  check('生成時の焼き込みも peakAgeOf から取る', gen.includes('peakAgeOf({ growthCurve })'))
+  check('成長タイプが無い古いセーブは標準型(27)扱い', peakAgeOf({} as never) === 27)
+  check('早熟は24・標準は27・晩成は30',
+    peakAgeOf({ growthCurve: 'early' }) === 24 && peakAgeOf({ growthCurve: 'normal' }) === 27
+    && peakAgeOf({ growthCurve: 'late_bloomer' }) === 30)
+
+  // 成長タイプが値段に効いていること（同じOVR・同じ年齢で比べる）
+  const G = (o: number, a: number, g: string) => calcTransferValue(P(o, a, { growthCurve: g } as Partial<Player>))
+  check('30歳では 晩成 > 標準 > 早熟', G(85, 30, 'late_bloomer') > G(85, 30, 'normal') && G(85, 30, 'normal') > G(85, 30, 'early'))
+  // 22歳で同じOVRなら、これから8年伸びる晩成のほうが高い（早熟はもう天井が近い）
+  check('22歳では 晩成 > 標準 > 早熟',
+    G(85, 22, 'late_bloomer') > G(85, 22, 'normal') && G(85, 22, 'normal') > G(85, 22, 'early'))
+  check('晩成でも35歳からは絶対年齢で落ちる', G(85, 36, 'late_bloomer') < G(85, 34, 'late_bloomer'))
+  check('晩成でも37歳でさらに落ちる', G(85, 38, 'late_bloomer') < G(85, 36, 'late_bloomer'))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)

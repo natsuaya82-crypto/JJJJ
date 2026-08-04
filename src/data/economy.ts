@@ -102,6 +102,22 @@ export function draftPickValue(round: number, pickNumber: number): number {
   return Math.max(5_000_000, Math.round(v / 500_000) * 500_000)
 }
 
+// 指名権キー "YYYY-R{round}-{pickNumber}" から市場価値を出す（位置連動）。解釈不能なら2巡相当。
+// トレードの値付け(store)とチャットの提示画面が、同じ正規表現と同じ既定値を別々に手書きしていた。
+// 片方だけキーの形を変えると値段が黙って8,000,000に落ちるので、読み取りごとここに置く
+export function pickKeyValue(key: string): number {
+  const m = key.match(/-R(\d+)-(\d+)$/)
+  return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000
+}
+
+// 移籍金の丸め。**画面に出る移籍金は必ずここを通す**。
+// 出品の言い値・逆提示は50万単位、クラブ間のオファーは100万単位。
+// 以前は Math.max(500000, Math.round(x / 500000) * 500000) が9箇所に手書きされていて、
+// 下限を付け忘れた場所だけ「移籍金0円」の打診が出ていた
+export function roundFee(v: number, unit = 500_000): number {
+  return Math.max(unit, Math.round(v / unit) * unit)
+}
+
 // ランニングコスト：施設Lv合計 × 単価 ＋ 運営費（＝グラントの10%）。
 // 強い＝グラントが大きい→運営費も高い＝勝ってもカツカツになる。
 export const FACILITY_UPKEEP_PER_LEVEL = 5_000_000   // 施設Lv1つあたり500万/年
@@ -164,6 +180,35 @@ export function computeNextSeasonBudget(args: {
 export function transferBidBase(marketValue: number, isListed: boolean, isExpiring: boolean): number {
   return marketValue * (isListed ? 0.85 : isExpiring ? 0.92 : 1.05)
 }
+
+// 主力(key)を売らせるための割増。**この数字は3箇所に手書きされていた**
+// （自チームへの入札処理2つ＋入札画面の成立確率表示）。画面が「80%で成立」と
+// 出しているのに実際は割増が乗っていて拒否される、という食い違いの原因
+export const BID_KEY_PREMIUM = 1.8
+// 受諾ラインに届かなくても、この割合を超えていれば「もう少し積め」と逆提示する
+export const BID_COUNTER_RATIO = 0.68
+
+/**
+ * 入札の受諾ライン（揺れを乗せる前のベース）。
+ * 呼び出し側で transferBidBase と割増を組み立て直さないこと
+ */
+export function bidThreshold(marketValue: number, isExpiring: boolean, isKey: boolean): number {
+  return transferBidBase(marketValue, false, isExpiring) * (isKey ? BID_KEY_PREMIUM : 1)
+}
+
+// 相手の逆提示に応じる上限。「市場価値の1.15倍」か「相手の提示額の1.3倍」の高い方。
+// 海外クラブぶんと国内クラブぶんで同じ式が別々に書かれていた
+export const COUNTER_VALUE_CAP = 1.15
+export const COUNTER_OFFER_CAP = 1.3
+export function counterCeiling(marketValue: number, offeredPrice: number): number {
+  return Math.max(marketValue * COUNTER_VALUE_CAP, offeredPrice * COUNTER_OFFER_CAP)
+}
+
+// 主力の引き抜き割増。余剰の売買は市場価値どおりだが、使われている選手を
+// 引き剥がすには上乗せが要る。国内CPU間と、海外クラブによるスター強奪の2通り
+export const POACH_PREMIUM = 1.4
+export const FOREIGN_STAR_PREMIUM = 1.25
+
 // 入札額 fee に対する受諾確率(0..1)。threshold = base×(0.9 + rand*0.2) の一様分布から算出。
 export function transferAcceptChance(fee: number, base: number): number {
   if (base <= 0) return 1

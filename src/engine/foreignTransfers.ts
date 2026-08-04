@@ -2,6 +2,7 @@ import type { ForeignLeague, Player, Team, Specialty, TransferRecord } from '../
 import { SPECIALTY_LABELS } from '../types'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
+import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub } from '../utils/rosterSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
@@ -329,7 +330,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
         .map(p => ({ p, sellerId: t.id })))
       if (starPool.length === 0) break
       const { p: target, sellerId } = weightedPick(starPool, x => ovr(x.p) - 80)
-      const fee = Math.round(calcTransferValue(target) * 1.25)
+      const fee = Math.round(calcTransferValue(target) * FOREIGN_STAR_PREMIUM)
       const buyerPool = foreignClubs.filter(c => ELITE_LEAGUE_IDS.has(clubLeague.get(c.id) ?? '') && fRoster[c.id].length < ROSTER_MAX && fBudget[c.id] >= fee)
       if (buyerPool.length === 0) break
       const buyer = weightedPick(buyerPool, c => fBudget[c.id])

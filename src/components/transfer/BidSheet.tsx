@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
 import { calcTransferValue, playerConsentToMove, keyPlayerStatus } from '../../utils/playerUtils'
-import { transferBidBase, transferAcceptChance, listedAcceptChance } from '../../data/economy'
+import { bidThreshold, transferAcceptChance, listedAcceptChance, roundFee } from '../../data/economy'
 import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
@@ -21,9 +21,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   const adH = useAdHeight()
   const val = calcTransferValue(player)
   // 出品中はクラブ希望額(askingPrice)が受諾ライン。デフォルト入札額も希望額に合わせる（満額＝ほぼ成立）。
-  const initFee = listing
-    ? Math.round(listing.askingPrice / 500000) * 500000
-    : Math.round(val * 0.85 / 500000) * 500000
+  const initFee = listing ? roundFee(listing.askingPrice) : roundFee(val * 0.85)
   const [fee, setFee] = useState(Math.max(1_000_000, initFee))
   const over = fee > budget
 
@@ -45,7 +43,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   const kStatus = listing ? 'open' : keyPlayerStatus(player, currentSeason, pastSeasons)
   const isKeyGuard = kStatus === 'key'  // 主力＝割増1.8倍
   const isLocked = kStatus === 'locked' // 新人・データ不足で獲得不可
-  const base = transferBidBase(val, false, player.contract.yearsLeft <= 1) * (isKeyGuard ? 1.8 : 1)
+  const base = bidThreshold(val, player.contract.yearsLeft <= 1, isKeyGuard)
   const chancePct = listing
     ? Math.round(listedAcceptChance(fee, listing.askingPrice) * 100)
     : isLocked ? 0

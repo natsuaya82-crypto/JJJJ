@@ -2,7 +2,7 @@
 import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import { rankBudgetGrant } from '../data/economy'
-import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary } from '../utils/playerUtils'
+import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary, peakAgeOf } from '../utils/playerUtils'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
 
@@ -1286,7 +1286,7 @@ export function refreshForeignLeagues(
 // 海外選手は再生成のたび素体OVRで生まれるため、毎年成長している国内選手に対して
 // 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
 function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number): void {
-  const peakAge = growthCurve === 'early' ? 24 : growthCurve === 'normal' ? 27 : 30
+  const peakAge = peakAgeOf({ growthCurve })
   const years = Math.max(0, Math.min(age, peakAge + 1) - 22)
   if (years === 0) return
   const caps = getStatPotentials({ id, ratings, specialty, potential } as unknown as Player)

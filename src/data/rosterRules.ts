@@ -17,8 +17,9 @@ export function canReleaseFromRoster(players: Player[], teamId: string): boolean
 
 export type ContractType = 'standard' | 'development' | 'dual'
 
-// フラットな人数上限だけで判定（契約形態は無視）
-export function canSignContract(players: Player[], teamId: string, _ct?: ContractType): boolean {
+// フラットな人数上限だけで判定。契約形態(ContractType)による枠の違いは廃止済みなので、
+// 受け取るだけで使わない第3引数は持たない（呼び出し側が「形態で枠が変わる」と誤解する元）
+export function canSignContract(players: Player[], teamId: string): boolean {
   return teamRosterSize(players, teamId) < ROSTER_MAX
 }
 

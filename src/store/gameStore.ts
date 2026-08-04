@@ -20,10 +20,10 @@ import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { ovr, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, isMainSquadRegular, keyPlayerStatus, calcTransferValue, racesConsumed, isOpponentScouted, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import type { PerfProfile } from '../utils/playerUtils'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, transferBidBase, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
+import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, pickKeyValue, roundFee, bidThreshold, BID_COUNTER_RATIO, counterCeiling, POACH_PREMIUM, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, generateRestCard, generateTrainingCard } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -131,12 +131,6 @@ function draftLotteryOrder(teams: Team[], histories: TeamHistoryMap): Map<string
 function draftOrderTeams(teams: Team[], pastSeasons: { year: number; standings?: SeasonStanding[] }[]) {
   const histories = teamHistoriesOf(pastSeasons)
   return teams.map(t => ({ id: t.id, seasonResults: (histories[t.id] ?? EMPTY_TEAM_HISTORY).seasonResults }))
-}
-
-// 指名権キー "YYYY-R{round}-{pickNumber}" から市場価値を出す（位置連動）。解釈不能なら2巡相当
-function pickKeyValue(key: string): number {
-  const m = key.match(/-R(\d+)-(\d+)$/)
-  return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000
 }
 
 // トレードの値付けに要るものを state から1回で取り出す。
@@ -435,8 +429,6 @@ export type GameStore = GameState & {
 
   // Foreign transfer market
   signForeignPlayer: (playerId: string, salary: number, years: number) => boolean
-  listPlayerToForeignMarket: (playerId: string, askingPrice: number) => void
-  acceptForeignOffer: (playerId: string, offeringClubId: string) => void
 
   // National team
   setWorldSquad: (playerIds: string[]) => void
@@ -1626,14 +1618,13 @@ export const useGameStore = create<GameStore>()(
             //  locked=新人・データ不足で完全に取れない / key=割増1.8倍なら売る（サッカー式）/ open=普通。
             const kStatus = keyPlayerStatus(player, { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries }, state.pastSeasons)
             if (kStatus === 'locked') return { ...bid, status: 'rejected' as const }
-            const keyPremium = kStatus === 'key' ? 1.8 : 1
             const val = calcTransferValue(player)
             const isExpiring = player.contract.yearsLeft <= 1
-            // 受諾ラインのベースは UI（成立確率表示）と共有。主力は1.8倍。実際の判定はこれに±10%の揺れを乗せる。
-            const threshold = transferBidBase(val, false, isExpiring) * keyPremium * (0.9 + Math.random() * 0.2)
+            // 受諾ラインは economy.bidThreshold の1本（UIの成立確率表示と共有）。判定は±10%の揺れを乗せる
+            const threshold = bidThreshold(val, isExpiring, kStatus === 'key') * (0.9 + Math.random() * 0.2)
             if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: nextRaceIndex }
-            if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) {
-              return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
+            if (bid.offeredFee >= threshold * BID_COUNTER_RATIO && bid.round < 3) {
+              return { ...bid, status: 'countered' as const, counterFee: roundFee(threshold, 1_000_000) }
             }
             return { ...bid, status: 'rejected' as const }
           })
@@ -3175,9 +3166,9 @@ export const useGameStore = create<GameStore>()(
             outcome = 'refused'
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
-          // 海外クラブ：上限は「提示額の1.3倍」か「市場価値の1.15倍」の高い方まで。合意なら海外へ放出
+          // 海外クラブ：上限は economy.counterCeiling の1本。合意なら海外へ放出
           if (offer.fromForeign) {
-            if (player && counterPrice <= Math.max(offer.offeredPrice * 1.3, calcTransferValue(player) * 1.15)) {
+            if (player && counterPrice <= counterCeiling(calcTransferValue(player), offer.offeredPrice)) {
               const destLg = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
               const clubName = destLg?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
               const isElite = ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(destLg?.id ?? '')
@@ -3198,9 +3189,9 @@ export const useGameStore = create<GameStore>()(
           }
           const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
           const maxBudget = buyingTeam?.finance.budget ?? 0
-          // 応じるライン：市場価値の1.15倍（か提示額の1.3倍の高い方）まで、かつ相手の予算内。
+          // 応じるラインは海外と同じ economy.counterCeiling。ただし相手の予算内。
           // 相場での逆提示は基本通る（予算が無いチームはそもそもオファーを出さない）
-          const willing = Math.min(maxBudget, Math.max(calcTransferValue(player) * 1.15, offer.offeredPrice * 1.3))
+          const willing = Math.min(maxBudget, counterCeiling(calcTransferValue(player), offer.offeredPrice))
           if (counterPrice <= willing) {
             outcome = 'sold'
             const moved = sellMove(state, offer.playerId, offer.fromTeamId, counterPrice, buyingTeam?.shortName ?? '')
@@ -3290,7 +3281,7 @@ export const useGameStore = create<GameStore>()(
           id: `lst-allow-${raceIdx}-${playerId}`,
           playerId,
           fromTeamId: state.playerTeamId,
-          askingPrice: Math.max(500000, Math.round(calcTransferValue(player) / 500000) * 500000),
+          askingPrice: roundFee(calcTransferValue(player)),
           listedAtRace: raceIdx,
           expiresAtRace: raceIdx + 99,
           competingTeams: interested,
@@ -3534,7 +3525,7 @@ export const useGameStore = create<GameStore>()(
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!myTeam || myTeam.finance.budget < bid.offeredFee) return { ok: false, reason: `貴クラブの予算では移籍金${Math.round(bid.offeredFee / 10000)}万を支払えないようです。資金を確保してから改めてお願いします。` }
         // ロスター枠チェック（移籍金ルートは本契約として加入する）。枠不足は決裂扱いにしない
-        if (!canSignContract(state.players, state.playerTeamId, 'standard')) {
+        if (!canSignContract(state.players, state.playerTeamId)) {
           return { ok: false, reason: '貴クラブの1軍契約枠が上限のようです。ロスターを整理してから改めてお願いします。' }
         }
         // 選手本人の同意ゲート
@@ -4310,9 +4301,9 @@ export const useGameStore = create<GameStore>()(
           }
           const val = calcTransferValue(player)
           const isExpiring = player.contract.yearsLeft <= 1
-          const threshold = transferBidBase(val, false, isExpiring) * (kStatus === 'key' ? 1.8 : 1) * (0.9 + Math.random() * 0.2)
+          const threshold = bidThreshold(val, isExpiring, kStatus === 'key') * (0.9 + Math.random() * 0.2)
           if (bid.offeredFee >= threshold) return { ...bid, status: 'fee_accepted' as const, feeAcceptedAtRace: raceIdx }
-          if (bid.offeredFee >= threshold * 0.68 && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: Math.round(threshold / 1000000) * 1000000 }
+          if (bid.offeredFee >= threshold * BID_COUNTER_RATIO && bid.round < 3) return { ...bid, status: 'countered' as const, counterFee: roundFee(threshold, 1_000_000) }
           return { ...bid, status: 'rejected' as const }
         })
 
@@ -4756,7 +4747,7 @@ export const useGameStore = create<GameStore>()(
               let bought = false
               for (const { p: target, surplus } of candidates) {
                 // 余剰は通常額、主力の引き抜きは割増移籍金＋昇給要求＋本人同意
-                const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * 1.4)
+                const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * POACH_PREMIUM)
                 const tgtPerf = perfOf(state.currentSeason, target.id)
                 const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
                 if (remainBudget < fee + newSalary) continue
@@ -6324,15 +6315,6 @@ export const useGameStore = create<GameStore>()(
         return true
       },
 
-      listPlayerToForeignMarket: (playerId) => {
-        // Simplified: just release from team, they go back to free agent pool
-        get().releasePlayer(playerId)
-      },
-
-      acceptForeignOffer: (playerId) => {
-        // Release the player to the foreign club
-        get().releasePlayer(playerId)
-      },
 
       // ── National team ─────────────────────────────────────────────────
       // 世界選手権：日本駅伝代表20人を確定（候補50から監督が選抜）
@@ -8140,7 +8122,7 @@ function generateForeignAndLoanOffers(params: {
     const club = clubs[(ovr(target) + raceIndex) % clubs.length]
     const tv = calcTransferValue(target)
     // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示
-    foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * (1.1 + Math.random() * 0.3) / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+    foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: roundFee(tv * (1.1 + Math.random() * 0.3), 1_000_000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
   }
 
   // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでも4大リーグが放っておかない
@@ -8152,7 +8134,7 @@ function generateForeignAndLoanOffers(params: {
     if (star && eliteAll.length > 0) {
       const club = eliteAll[(ovr(star) + raceIndex) % eliteAll.length]
       const tv = calcTransferValue(star)
-      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: Math.max(1000000, Math.round(tv * (1.1 + Math.random() * 0.25) / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: roundFee(tv * (1.1 + Math.random() * 0.25), 1_000_000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
   }
 
@@ -8171,7 +8153,7 @@ function generateForeignAndLoanOffers(params: {
       if (!target || foreignIncoming.some(o => o.playerId === target.id)) continue
       const club = foreignClubs[(ovr(target) + raceIndex + oi * 7) % foreignClubs.length]
       const tv = calcTransferValue(target)
-      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * (0.95 + Math.random() * 0.25) / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: roundFee(tv * (0.95 + Math.random() * 0.25), 1_000_000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
   }
 
@@ -8253,7 +8235,7 @@ function generateTransferActivity(
         if (listed || group.length < 3) continue
         const c = [...group].filter(p => !listedPlayerIds.has(p.id) && p.contract.yearsLeft > 0 && ovr(p) >= 65).sort((a, b) => ovr(a) - ovr(b))[0]
         if (c) {
-          const price = Math.max(500000, Math.round(calcTransferValue(c) * (c.age > 28 ? 0.85 : 1.0) / 500000) * 500000)
+          const price = roundFee(calcTransferValue(c) * (c.age > 28 ? 0.85 : 1.0))
           newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: price, listedAtRace: raceIndex, expiresAtRace: raceIndex + 6, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.5).slice(0, 3).map(t => t.id) })
           listedPlayerIds.add(c.id); listed = true
         }
@@ -8264,7 +8246,7 @@ function generateTransferActivity(
     if (!listed && teamPlayers.length > 20) {
       const c = [...teamPlayers].filter(p => !listedPlayerIds.has(p.id) && p.contract.yearsLeft > 0 && ovr(p) >= 65 && ovr(p) < avgOvr - 5).sort((a, b) => ovr(a) - ovr(b))[0]
       if (c) {
-        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: Math.max(500000, Math.round(calcTransferValue(c) / 500000) * 500000), listedAtRace: raceIndex, expiresAtRace: raceIndex + 5, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.4).slice(0, 3).map(t => t.id) })
+        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c)), listedAtRace: raceIndex, expiresAtRace: raceIndex + 5, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.4).slice(0, 3).map(t => t.id) })
         listedPlayerIds.add(c.id); listed = true
       }
     }
@@ -8273,7 +8255,7 @@ function generateTransferActivity(
     if (!listed) {
       const c = [...teamPlayers].filter(p => p.age > 30 && ovr(p) >= 65 && ovr(p) < avgOvr - 3 && !listedPlayerIds.has(p.id) && p.contract.yearsLeft <= 1).sort((a, b) => a.age - b.age)[0]
       if (c) {
-        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: Math.max(500000, Math.round(calcTransferValue(c) * 0.7 / 500000) * 500000), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
+        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c) * 0.7), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
         listedPlayerIds.add(c.id); listed = true
       }
     }
@@ -8282,7 +8264,7 @@ function generateTransferActivity(
     if (!listed) {
       const c = [...teamPlayers].filter(p => p.contract.yearsLeft <= 1 && ovr(p) >= 65 && ovr(p) < threshold && !listedPlayerIds.has(p.id)).sort((a, b) => ovr(a) - ovr(b))[0]
       if (c) {
-        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: Math.max(500000, Math.round(calcTransferValue(c) * 0.65 / 500000) * 500000), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
+        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c) * 0.65), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
         listedPlayerIds.add(c.id)
       }
     }
@@ -8333,7 +8315,7 @@ function generateTransferActivity(
     if ((team.finance?.budget ?? 0) < tv) continue
     // Realistic offer: 85-105% for elite, 80-97% for others
     const ratio = tier === 'elite' ? (0.85 + Math.random() * 0.20) : (0.80 + Math.random() * 0.17)
-    newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: Math.max(1000000, Math.round(tv * ratio / 1000000) * 1000000), expiresAtRace: raceIndex + 5, round: 1 })
+    newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: roundFee(tv * ratio, 1_000_000), expiresAtRace: raceIndex + 5, round: 1 })
     offerTargets.add(target.id)
     offeringTeams.add(team.id)
   }
@@ -8356,7 +8338,7 @@ function generateTransferActivity(
         id: `inc-lst-${raceIndex}-${bTeam.id}-${p.id}-${Date.now()}`,
         fromTeamId: bTeam.id,
         playerId: p.id,
-        offeredPrice: Math.max(Math.round(listing.askingPrice * 0.92 / 500000) * 500000, Math.round(tv * (0.85 + Math.random() * 0.20) / 500000) * 500000),
+        offeredPrice: Math.max(roundFee(listing.askingPrice * 0.92), roundFee(tv * (0.85 + Math.random() * 0.20))),
         expiresAtRace: raceIndex + 5,
         round: 1,
       })
@@ -8409,7 +8391,7 @@ function potMultiplier(potential: number): number {
 
 /** 年齢 × 成長曲線 → EXP倍率（成長期×2.5 / 下降期0 / その他×1） */
 function ageMultiplier(p: Player): number {
-  const peakAge = p.growthCurve === 'early' ? 24 : p.growthCurve === 'normal' ? 27 : 30
+  const peakAge = peakAgeOf(p)
   const growthStart = peakAge - 5
   if (p.age >= growthStart && p.age < peakAge) return 2.5
   if (p.age >= peakAge + 4) return 0  // 下降期: EXP成長なし
@@ -8490,7 +8472,7 @@ function getPrimaryKey(specialty: string): RatingsKey {
 // CPU/海外は allowAnnualGrowth=true で毎年ポテンシャル上限へ向けて成長させる（高数値ほど鈍化）。
 const GROW_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 function growPlayer(p: Player, allowAnnualGrowth = false): Player {
-  const peakAge = p.growthCurve === 'early' ? 24 : p.growthCurve === 'normal' ? 27 : 30
+  const peakAge = peakAgeOf(p)
   const nextAge = p.age + 1
   const ageDiff = nextAge - peakAge
   const ratings = { ...p.ratings }

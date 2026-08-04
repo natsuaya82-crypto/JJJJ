@@ -18,14 +18,8 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
-import { draftPickValue } from '../../data/economy'
+import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
-
-const CONTRACT_TYPE_OPTS = [
-  { key: 'standard' as const, label: '本契約', desc: 'CAP全額' },
-  { key: 'dual' as const, label: '2way契約', desc: 'CAP50%' },
-  { key: 'development' as const, label: '育成契約', desc: 'CAP外' },
-]
 
 const TEAM_ROLE_OPTS: { key: TeamRole; label: string }[] = [
   { key: 'ace', label: 'エース' },
@@ -351,7 +345,7 @@ function ChatView({
   const handleSubmitAcqOffer = () => {
     if (!acqOffer) return
     // ロスター枠の事前チェック（契約形態ごとの空き）
-    if (!canSignContract(players, playerTeamId, offerContractType)) {
+    if (!canSignContract(players, playerTeamId)) {
       append({ from: 'gm', text: `（この契約形態の枠が上限です。放出するか契約形態を変えてください）` })
       return
     }
@@ -442,7 +436,7 @@ function ChatView({
       if (acqOffer.status === 'countered') return [
         { label: `承諾する（${fmt(acqOffer.counterSalary ?? 0)}/${acqOffer.counterYears}年）`, color: C.green, action: () => {
           // 枠の事前チェック（承諾パスにも必要）
-          if (!canSignContract(players, playerTeamId, acqOffer.offerContractType)) {
+          if (!canSignContract(players, playerTeamId)) {
             append({ from: 'gm', text: `（この契約形態の枠が上限です。放出するか契約形態を変えてください）` })
             return
           }
@@ -759,22 +753,7 @@ function ChatView({
                 </button>
               ))}
             </div>
-            {false && composeMode !== 'transfer' && (
-            <div style={{ display: 'flex', gap: 5 }}>
-              {CONTRACT_TYPE_OPTS.map(({ key, label, desc }) => {
-                const sel = offerContractType === key
-                // 獲得時：契約形態ごとの空き（1軍契約18・2軍契約15・2way5・登録上限）が無ければ選べない
-                const full = composeMode === 'acq' && !canSignContract(players, playerTeamId, key)
-                return (
-                  <button key={key} disabled={full} onClick={() => !full && setOfferContractType(key)}
-                    style={{ flex: 1, padding: '5px 4px', borderRadius: 6, border: 'none', cursor: full ? 'not-allowed' : 'pointer', backgroundColor: sel && !full ? C.blue : C.surface, color: full ? C.textGhost : sel ? '#fff' : C.textDim, fontSize: 9, fontFamily: 'inherit', opacity: full ? 0.55 : 1 }}>
-                    <div style={{ fontWeight: 800 }}>{label}</div>
-                    <div style={{ opacity: 0.7 }}>{full ? '空きなし' : desc}</div>
-                  </button>
-                )
-              })}
-            </div>
-            )}
+            {/* 契約形態（本契約/2way/育成）の選択UIは廃止。枠は人数の上限1本だけ */}
             {/* 役割選択UIは非表示（役割は裏で自動保持）。offerTeamRole は未指定のまま提示される */}
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={composeMode === 'transfer' ? handleSubmitTransferOffer : composeMode === 'acq' ? handleSubmitAcqOffer : handleSubmitOffer}
@@ -831,13 +810,12 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
   // 以前はここだけ主力の判定を自前で書き直していて（isDataKeyPlayer＋士気）、
   // ストア側の keyPlayerStatus と条件が違った。表示が100%でも出すと断られることがあった
   const tradeOutlook = (() => {
-    const pickVal = (k: string) => { const m = k.match(/-R(\d+)-(\d+)$/); return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000 }
     const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, currentSeason, pastSeasons }
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const tradeIn = { outPlayers: givePlayers, inPlayers: getPlayers,
-      outExtra: [...givePk].reduce((s, k) => s + pickVal(k), 0),
-      inExtra: [...getPk].reduce((s, k) => s + pickVal(k), 0) }
+      outExtra: [...givePk].reduce((s, k) => s + pickKeyValue(k), 0),
+      inExtra: [...getPk].reduce((s, k) => s + pickKeyValue(k), 0) }
     const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
     const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
     const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)

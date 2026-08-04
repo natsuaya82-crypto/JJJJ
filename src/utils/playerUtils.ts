@@ -442,6 +442,23 @@ export function freeContactConsent(
   return playerConsentToMove(p, suitorRank, totalTeams, playFraction, teamRaces, -0.2).ok
 }
 
+/**
+ * その選手のピーク年齢。**この1本だけが「いつが全盛期か」を決める**。
+ *
+ * 成長処理(growPlayer)と市場価値(calcTransferValue)が別々に持っていて、
+ * 成長側は成長タイプ(growthCurve)で 24/27/30 と分かれるのに、
+ * 値段側は全員27歳固定の年齢表だった。そのせいで
+ *   ・晩成型の30歳（実力はまだピーク）が、値段だけ下がり始めていた
+ *   ・早熟型の28歳（実力はもう落ちている）が、値段は据え置きだった
+ * という食い違いが出ていた。値段を出すところは全部ここを見る
+ */
+export function peakAgeOf(p: Pick<Player, 'growthCurve'>): number {
+  // 成長タイプが入っていない古いセーブは標準型(27)として扱う。
+  // 生成側の rankToBaseRange が `growthDelta[growthCurve] ?? growthDelta.normal` と
+  // しているのと同じ扱い方
+  return p.growthCurve === 'early' ? 24 : p.growthCurve === 'late_bloomer' ? 30 : 27
+}
+
 export function calcTransferValue(p: Player): number {
   const o = ovr(p)
   const age = p.age
@@ -452,21 +469,30 @@ export function calcTransferValue(p: Player): number {
 
   // 年齢は「補正」程度に抑える（OVRを覆さない範囲）。若手にやや上乗せ、高齢で減衰。
   //
-  // 段の位置は成長処理(growPlayer)に合わせてある。growPlayer のピークは27前後で、
-  // 実際に数値が落ち始めるのは31歳、はっきり落ちるのは33歳から。
-  // 以前はここだけ28歳から下げ始めて30歳で0.80・32歳で0.60と、実際の衰えよりずっと急だった。
-  // そのせいで「30歳のOVR90」と「22歳のOVR70」が同じくらいの値段になり、
-  // まだ何年も主力を張れる選手が、伸びるかどうかも分からない若手と等価で交換できていた。
-  // 30歳までは据え置き、31歳から下げる。若手の上乗せも、伸びる保証が無いぶん少し抑えた。
-  const ageFactor =
-    age <= 20 ? 1.25 :
-    age <= 23 ? 1.15 :
-    age <= 27 ? 1.05 :
-    age <= 30 ? 1.00 :
-    age <= 32 ? 0.88 :
-    age <= 34 ? 0.70 :
-    age <= 36 ? 0.48 :
+  // 段の位置は絶対年齢ではなく **その選手のピークからの距離** で決める。
+  // 以前はここだけ「全員27歳ピーク」の年齢表を持っていたので、成長処理が
+  // 成長タイプごとに 24/27/30 とピークを分けているのと噛み合っていなかった。
+  // ピークを peakAgeOf の1本にしたので、早熟・普通・晩成が自動で付いてくる。
+  //
+  // 段の位置じたいは growPlayer の衰えに合わせてある。growPlayer は
+  // ピーク+1年から少し落ち始め、+4年で中程度、+6年で加速する。
+  // 標準型(ピーク27)ならこの表は 28〜30据え置き／31から下降で、以前と同じ数字になる。
+  const fromPeak = age - peakAgeOf(p)
+  const peakFactor =
+    fromPeak <= -7 ? 1.25 :
+    fromPeak <= -4 ? 1.15 :
+    fromPeak <=  0 ? 1.05 :
+    fromPeak <=  3 ? 1.00 :
+    fromPeak <=  5 ? 0.88 :
+    fromPeak <=  7 ? 0.70 :
+    fromPeak <=  9 ? 0.48 :
     0.30
+  // 35歳・37歳の急降下だけは絶対年齢で効く（growPlayer も絶対年齢で落としている）。
+  // これが無いと、晩成型の36歳がまだピーク扱いで高値のままになる
+  // 上限ではなく「下方向の蓋」なので、35歳未満は無制限(Infinity)にしておく。
+  // ここを 1 にすると若手の上乗せ(1.05〜1.25)まで丸ごと潰れる
+  const ageCap = age >= 37 ? 0.30 : age >= 35 ? 0.48 : Infinity
+  const ageFactor = Math.min(peakFactor, ageCap)
 
   const potFactor = p.potential >= 85 ? 1.15 : p.potential >= 75 ? 1.07 : 1.0
 

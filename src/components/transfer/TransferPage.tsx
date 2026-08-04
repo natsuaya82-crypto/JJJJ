@@ -17,7 +17,7 @@ import LoanSheet from './LoanSheet'
 import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
 import { canBePoached } from '../../utils/transferEligibility'
-import { draftPickValue } from '../../data/economy'
+import { draftPickValue, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { C, alpha } from '../../styles/tokens'
 
@@ -488,7 +488,7 @@ export default function TransferPage() {
                   // 移籍金0＝契約満了間近の選手へのフリー移籍オファー
                   const isFreeOffer = offer.offeredPrice === 0
                   // フリー移籍へのカウンターは市場価値ベース（0×1.3=0を出さない）
-                  const counterPrice = Math.max(500000, Math.round((isFreeOffer ? calcTransferValue(p) : offer.offeredPrice * 1.3) / 500000) * 500000)
+                  const counterPrice = roundFee(isFreeOffer ? calcTransferValue(p) : offer.offeredPrice * COUNTER_OFFER_CAP)
                   return (
                     <div key={offer.id} style={{
                       position: 'relative', overflow: 'hidden',

@@ -68,8 +68,9 @@ check('RosterTier 型が残っていない', hits('RosterTier').length === 0, hi
 console.log('\n[4] 人数の上限・下限はロスター1つぶんだけ')
 const many = (n: number) => Array.from({ length: n }, (_, i) => P(`m${i}`, 't1'))
 check(`上限は${ROSTER_MAX}人`, canSignContract(many(ROSTER_MAX - 1), 't1') && !canSignContract(many(ROSTER_MAX), 't1'))
-check('契約形態を渡しても上限は変わらない',
-  canSignContract(many(ROSTER_MAX - 1), 't1', 'development') === canSignContract(many(ROSTER_MAX - 1), 't1'))
+// 契約形態ごとの枠は廃止済み。受け取るだけで使わない引数を残すと
+// 「形態で枠が変わる」と誤解した呼び出しがまた生えるので、引数そのものを持たない
+check('契約形態は上限の判定に関わらない（引数を取らない）', canSignContract.length === 2, `${canSignContract.length}個`)
 check(`下限は${ROSTER_MIN}人（${ROSTER_MIN}人からは放出できない）`,
   canReleaseFromRoster(many(ROSTER_MIN + 1), 't1') && !canReleaseFromRoster(many(ROSTER_MIN), 't1'))
 check('引退選手は人数に数えない', teamRosterSize([...many(3), P('r1', 't1', { status: 'retired' } as Partial<Player>)], 't1') === 3)
