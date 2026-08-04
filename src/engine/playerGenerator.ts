@@ -988,17 +988,16 @@ export function generateCpuRosters(
     const rank: Rank = baseRank
     const specialty = specialties[rng(0, specialties.length - 1)]
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    const ratings = generateRatings(rank, specialty)
-    const { potential } = rankToBaseRange(rank, growthCurve)
     // 年俸上位4人（各チームのエース格）はピーク年齢寄りにして、初年度から完成した選手にする
     const age = tier === 'main' ? (i < 4 ? rng(25, 31) : rng(22, 31)) : rng(19, 25)
     const yearsPro = Math.max(0, age - 22)
-    const potentialVal = isForeign ? rng(potential[0], potential[1]) : Math.min(92, rng(potential[0], potential[1]))
 
     const id = `ai${tier === 'second' ? '2' : ''}-${teamId}-${cpuIdCounter}`
-    // 年齢分の成長を焼き込む（海外リーグ生成と同じ処理）。
-    // 初年度のリーグが定常状態（毎年の成長・衰え・世代交代が回った後）と同じ厚みで始まるようにする
-    bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
+    // 能力値の作り方は buildRatingsForRank の1本（年齢ぶんの成長の焼き込みもそこで行う）
+    const { ratings, potential: potentialVal } = buildRatingsForRank({
+      id, rank, specialty, growthCurve, age,
+      potentialCap: isForeign ? 99 : 92,
+    })
 
     let name: string
     let origin: string
@@ -1116,10 +1115,12 @@ export function generatePlayerInitialRoster(year: number): {
     idCounter++
     const specialty = specialties[rng(0, specialties.length - 1)]
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    const ratings = generateRatings(rank, specialty)
-    const { potential } = rankToBaseRange(rank, growthCurve)
     const age = tier === 'main' ? rng(20, 28) : rng(18, 24)
     const yearsPro = Math.max(0, age - 22)
+    const id = `pr-${contractType}-${year}-${idCounter}`
+    // 能力値の作り方は buildRatingsForRank の1本。ここだけ焼き込みが抜けていて、
+    // 自チームの26歳が「22歳の能力のまま歳だけ26」で始まっていた
+    const { ratings, potential } = buildRatingsForRank({ id, rank, specialty, growthCurve, age })
     const origin = Math.random() < 0.6
       ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
       : HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
@@ -1130,11 +1131,11 @@ export function generatePlayerInitialRoster(year: number): {
     } while (usedNames.has(name) && attempts < 60)
     usedNames.add(name)
     return {
-      id: `pr-${contractType}-${year}-${idCounter}`,
+      id,
       name, nameKana: '', age, yearsPro,
       draftYear: year - yearsPro, draftRound: null, draftPick: null,
       ratings, specialty,
-      potential: Math.min(92, rng(potential[0], potential[1])),
+      potential,
       growthCurve,
       teamId: '',
       contract: {
@@ -1293,6 +1294,35 @@ export function refreshForeignLeagues(
 }
 
 // 生成時に「年齢分の成長」を焼き込む（gameStoreのgrowPlayer年次成長と同じ式・同じレート）。
+/**
+ * ランク・成長タイプ・年齢から「初期能力値とポテンシャル」を作る、ただ1つの場所。
+ *
+ * 自チーム(generatePlayerInitialRoster) / CPU(generateCpuRosters) / 海外(generateForeignLeaguePlayers)
+ * の3つが同じランク体系を使っているのに、生成の手順だけ別々に手書きされていた。その結果
+ * 自チームだけ bakeAgeGrowth（年齢ぶんの成長の焼き込み）が抜けており、自チームの26歳が
+ * 「22歳の能力のまま歳だけ26」という状態で始まっていた（CPUの26歳は4年ぶん成長済み）。
+ * 開幕時点で1軍平均OVRに12ポイント、エースで21ポイントの差がつく原因になっていた。
+ *
+ * ランクの決め方（年俸から／固定プール／地域補正）と年齢の分布は呼び出し側の裁量。
+ * 「ランクと年齢が決まったら能力値がどうなるか」は必ずここを通すこと。
+ */
+function buildRatingsForRank(params: {
+  id: string
+  rank: Rank
+  specialty: Specialty
+  growthCurve: GrowthCurve
+  age: number
+  potentialCap?: number     // 国内は92、海外は99
+  potentialBonus?: number   // 海外の地域補正(potBonus)
+}): { ratings: Player['ratings']; potential: number } {
+  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0 } = params
+  const ratings = generateRatings(rank, specialty)
+  const [pMin, pMax] = rankToBaseRange(rank, growthCurve).potential
+  const potential = Math.min(potentialCap, rng(pMin, pMax) + potentialBonus)
+  bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age)
+  return { ratings, potential }
+}
+
 // 海外選手は再生成のたび素体OVRで生まれるため、毎年成長している国内選手に対して
 // 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
 function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number): void {
@@ -1380,8 +1410,6 @@ export function generateForeignLeaguePlayers(
         foreignIdCounter++
         const specialty = specialties[rng(0, specialties.length - 1)]
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-        const ratings = generateRatings(rank, specialty)
-        const { potential } = rankToBaseRange(rank, growthCurve)
         const age = rng(ageRange[0], ageRange[1])
         const nat: Nationality = club.country
         const foreignCat = nationalityToForeignCategory(nat)
@@ -1398,11 +1426,14 @@ export function generateForeignLeaguePlayers(
 
         const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
 
-        // 地域でポテンシャルを底上げ（若手は高ポテンシャルで生成 → 成長で伸びる）。現在値はいきなり上げない。
-        // potCap で地域ごとの実効OVR天井を決める（bakeAgeGrowth の焼き込み上限）。
-        const potentialVal = Math.min(region.potCap, rng(potential[0], potential[1]) + region.potBonus)
-        // 年齢分の成長を焼き込む（年長者は既にポテンシャル近くまで育っている）
-        bakeAgeGrowth(id, ratings, specialty, growthCurve, potentialVal, age)
+        // 能力値の作り方は buildRatingsForRank の1本（年齢ぶんの成長の焼き込みもそこで行う）。
+        // 地域でポテンシャルを底上げする（若手は高ポテンシャルで生成 → 成長で伸びる。現在値はいきなり上げない）。
+        // potCap で地域ごとの実効OVR天井を決める。
+        const { ratings, potential: potentialVal } = buildRatingsForRank({
+          id, rank, specialty, growthCurve, age,
+          potentialCap: region.potCap,
+          potentialBonus: region.potBonus,
+        })
 
         const madeF: Player = {
           id,
