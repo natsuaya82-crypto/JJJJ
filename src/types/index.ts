@@ -600,15 +600,15 @@ export type Season = {
   draftPool: CollegeRunner[]
   scoutPoints: number
   initialBudget?: number   // そのシーズンの開始予算（固定・収支表示用）。前季endSeasonで確定した来期予算。
-  seasonGrant?: number     // そのシーズンの順位グラント額（前年順位ベース。運営費＝この10%）。1年目は最下位20位相当＝3.5億。
+  seasonGrant?: number     // そのシーズンのクラブ予算（＝格の年間予算。utils/clubTier.ts の tierBudget）
   // 初期予算がどう決まったかの内訳（前季endSeasonで確定）。2年目以降のみ。財務ページで「何が合わさって初期予算か」を表示。
   budgetBreakdown?: {
     carryover: number    // 昨年繰越（前季末の残高）
-    grant: number        // 順位グラント（連続赤字ペナルティ適用後）
-    raceIncome: number   // 賞金・観客収入
+    grant: number        // クラブ予算（格の年間予算）
+    raceIncome: number   // 区間賞賞金（順位別のレース賞金・観客収入は廃止）
     sponsor: number      // スポンサー収入
     objBonus: number     // 目標達成ボーナス
-    expenses: number     // 前季支出（年俸＋運営費＋施設維持費＋出来高賞与）
+    expenses: number     // 前季支出（年俸＋運営費＋出来高賞与）。いまは繰越に織り込み済みで常に0
   }
   scoutProspects: Player[]
   standings: {
@@ -731,7 +731,7 @@ export type ArchivedSeason = Pick<Season,
   | 'year'
   | 'races'                 // 1軍の駅伝結果。記録室・在籍履歴・区間記録の元データ
   | 'collegeRaces'          // 大学駅伝の結果
-  | 'standings'             // 年間順位表。歴代優勝・チーム成績・翌季グラントの元
+  | 'standings'             // 年間順位表。歴代優勝・チーム成績・翌季のクラブの格の元
   | 'secondTeamRaces'       // 旧リザーブ駅伝の結果（build 88 まで。読むだけ）
   | 'secondTeamStandings'   // 旧リザーブの年間順位表（build 88 まで。読むだけ）
   | 'foreignStandings'      // 海外リーグの年間順位表

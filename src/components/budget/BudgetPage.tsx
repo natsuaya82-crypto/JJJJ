@@ -5,9 +5,7 @@ import { useTeamHistory } from '../../lib/useTeamHistory'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { tierBudget } from '../../utils/clubTier'
-import { FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT } from '../../data/economy'
-import { rankedStandings } from '../../utils/league'
+import { operatingCostOf } from '../../data/economy'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -51,8 +49,6 @@ export default function BudgetPage() {
 
   const budget = myTeam?.finance.budget ?? 0
   const squadSalaryTotal = rosterPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
-  const facLevelSum = Object.values((myTeam?.facilities ?? {}) as Record<string, number>).reduce((s, v) => s + (v ?? 0), 0)
-  const facilityUpkeep = facLevelSum * FACILITY_UPKEEP_PER_LEVEL   // 施設Lv連動（施設なしなら0）
 
   const myTeamSponsorIds = myTeam?.sponsors ?? []
   const myPersonalSponsorIds = rosterPlayers.flatMap(p => p.personalSponsors ?? [])
@@ -62,12 +58,8 @@ export default function BudgetPage() {
     .filter((s): s is NonNullable<typeof s> => s != null)
   const sponsorAnnual = sponsorList.reduce((s, sp) => s + sp.annualPayment, 0)
 
-  // 来季のグラントは「クラブの格」ぶん（順位ではない）
-  const nextGrant = tierBudget(teams.find(t => t.id === playerTeamId))
-  // 運営費＝そのシーズンのグラントの10%
-  const seasonGrant = currentSeason.seasonGrant ?? currentSeason.initialBudget ?? nextGrant
-  const opCost = operatingCost(seasonGrant)
-  const facRunningCost = facilityUpkeep + opCost
+  // 運営費＝総年俸の1割（施設維持費は廃止。施設レベルそのものは残る）
+  const opCost = operatingCostOf(squadSalaryTotal)
   // 初期予算（そのシーズンの開始予算・固定）と今季収支（初期予算 ＋ 移籍金収支 − 固定支出）
   const initialBudget = currentSeason.initialBudget ?? budget
   const transferIncome = currentSeason.transferIncome ?? 0
@@ -76,16 +68,13 @@ export default function BudgetPage() {
   // 以前は初期予算＋移籍金収支から組み立て直していたため、ECL賞金・イベント・海外移籍金などが
   // 一切乗らず、来季の初期予算と数字が合わなかった。実際の残高を基準にする。
   const otherIncome = budget - (initialBudget + transferIncome - transferSpend)
-  const seasonBalance = budget - squadSalaryTotal - opCost - facilityUpkeep
+  const seasonBalance = budget - squadSalaryTotal - opCost
   // 初期予算の内訳（2年目以降。前季endSeasonで確定）。何が合わさって初期予算かを表示。
   // 旧形式（繰越=精算前の期末残高・支出が別行）のセーブは、表示時に精算後の最終収支へ変換する
   const bdRaw = currentSeason.budgetBreakdown
   const bd = bdRaw ? { ...bdRaw, carryover: bdRaw.carryover - (bdRaw.expenses ?? 0), expenses: 0 } : undefined
-  // 育成義務ペナルティの見込み（在籍22人以下 or リザーブリーグ不参加で来季グラント減額）
-  // 補強禁止中は免除される（選手を売るしか脱出手段が無いのに人数減で更に減額される罠を防ぐ）
   const banned = reinforcementBanned(myTeam)
   const deficitStreak = myTeam?.finance.deficitStreak ?? 0
-  const dutyCut = leagueDutyGrantCut(rosterPlayers.length, banned)
 
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 
@@ -158,8 +147,8 @@ export default function BudgetPage() {
                 <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 3, letterSpacing: 1 }}>初期予算の内訳</div>
                 {([
                   ['昨年繰越（最終収支）', bd.carryover],
-                  ['順位グラント', bd.grant],
-                  ['賞金・観客収入', bd.raceIncome],
+                  ['クラブ予算', bd.grant],
+                  ...(bd.raceIncome > 0 ? [['区間賞賞金', bd.raceIncome] as [string, number]] : []),
                   ['スポンサー収入', bd.sponsor],
                   ...(bd.objBonus > 0 ? [['目標達成ボーナス', bd.objBonus] as [string, number]] : []),
                 ] as [string, number][]).map(([label, v]) => (
@@ -174,8 +163,7 @@ export default function BudgetPage() {
             {transferSpend > 0 && <Row label="移籍金支出" value={`-${fmt(transferSpend)}`} color={C.red} sub="移籍金での選手獲得" />}
             {otherIncome !== 0 && <Row label="その他収支" value={`${otherIncome >= 0 ? '+' : '-'}${fmt(Math.abs(otherIncome))}`} color={otherIncome >= 0 ? C.green : C.red} sub="ECL賞金・イベント・海外移籍など" />}
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
-            <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="グラントの10%" />
-            <Row label="施設維持費" value={`-${fmt(facilityUpkeep)}`} color={C.red} sub={facLevelSum > 0 ? '施設Lvが高いほど高い' : '施設なし'} />
+            <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="総年俸の10%" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px', borderTop: `1px solid ${C.border}` }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>期末残高</div>
@@ -202,7 +190,7 @@ export default function BudgetPage() {
                 今季の先を計算し直す予測だったため、上の期末残高と食い違って見えるだけの表示になっていた。撤去。 */}
             <div style={{ marginTop: 6, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.textDim, lineHeight: 1.7 }}>
               <div>連続赤字: <b style={{ color: deficitStreak > 0 ? C.red : C.textSub, fontFamily: SAIRA, fontSize: 12 }}>{deficitStreak}年</b>
-                <span style={{ color: C.textGhost }}>（シーズン終了時に期末残高がマイナスなら+1年。2年でグラント-20%／3年で-35%＋ドラフト指名権の強制売却）</span>
+                <span style={{ color: C.textGhost }}>（シーズン終了時に期末残高がマイナスなら+1年。3年で補強禁止＋ドラフト指名権の強制売却）</span>
               </div>
               {banned && (
                 <div style={{ marginTop: 3, color: C.orange }}>
@@ -212,31 +200,8 @@ export default function BudgetPage() {
             </div>
 
             <div style={{ fontSize: 10, color: C.textDim, padding: '2px 0 6px', lineHeight: 1.6 }}>
-              賞金・観客・スポンサー収入や順位グラントは<b style={{ color: C.textSub }}>来期の予算に反映</b>（シーズン終了時に確定）。
+              クラブ予算とスポンサー収入は<b style={{ color: C.textSub }}>来期の予算に反映</b>（シーズン終了時に確定）。成績はクラブ予算そのものを動かします。
             </div>
-            {dutyCut > 0 && (
-              <div style={{
-                margin: '0 0 10px', padding: '8px 10px', borderRadius: 8,
-                background: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.3)}`,
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 3 }}>
-                  リーグ規定違反 — 来季グラント-{Math.round(dutyCut * 100)}%
-                </div>
-                <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.6 }}>
-                  {rosterPlayers.length <= DUTY_ROSTER_THRESHOLD && <div>在籍{rosterPlayers.length}名（{DUTY_ROSTER_THRESHOLD}名以下）: -{Math.round(DUTY_ROSTER_GRANT_CUT * 100)}%</div>}
-                </div>
-              </div>
-            )}
-            {dutyCut === 0 && banned && rosterPlayers.length <= DUTY_ROSTER_THRESHOLD && (
-              <div style={{
-                margin: '0 0 10px', padding: '8px 10px', borderRadius: 8,
-                background: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.3)}`,
-              }}>
-                <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.6 }}>
-                  リーグ規定（在籍{DUTY_ROSTER_THRESHOLD}名以下・リザーブ不参加）のグラント減額は、<b style={{ color: C.green }}>補強禁止中は免除</b>されています。
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

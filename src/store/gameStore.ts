@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
-import type { GameState, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
+import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -33,7 +33,7 @@ import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, rankBudgetGrant, effectiveGrant, RANK_BUDGET, runningCost, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, leagueDutyGrantCut, racePrizeByRank, cpuSeasonRaceIncome, DEFICIT_RESCUE_BUDGET } from '../data/economy'
+import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, planExchange, type CardExchange } from '../utils/cardCombo'
@@ -66,8 +66,8 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision } from '../utils/league'
-import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank } from '../utils/league'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
   pool: Player[]
@@ -554,8 +554,9 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       collegeRaces: [],
       draftPool: [],
       scoutPoints: 5,
-      initialBudget: rankBudgetGrant(20),
-      seasonGrant: rankBudgetGrant(20),   // 1年目は前シーズンが無いので最下位20位相当のグラント＝3.5億。運営費＝この10%。
+      // 1年目は前シーズンが無いので、自チームの格そのままが初期予算になる
+      initialBudget: tierBudget({ id: 'fukuoka' }),
+      seasonGrant: tierBudget({ id: 'fukuoka' }),
       scoutProspects: [],
       objectives: [],
       trainingAssignments: {},
@@ -581,7 +582,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     pastSeasons: [],
     growthReport: null,
     seasonBudgetNotice: null,
-    // 初期予算はグラント表から算出（initialRank連動）。teams.tsの旧ハードコード値に依存しない
+    // 初期予算はクラブの格から算出。teams.tsの旧ハードコード値に依存しない
     // 初期施設もinitialRank連動（1-5位:各Lv4=維持費8000万/年、6-10位:Lv3=6000万、11-15位:Lv2=4000万、16-20位:Lv1=2000万）
     teams: ALL_TEAMS.map(t => {
       const facLv = t.initialRank <= 5 ? 4 : t.initialRank <= 10 ? 3 : t.initialRank <= 15 ? 2 : 1
@@ -1199,10 +1200,9 @@ export const useGameStore = create<GameStore>()(
             }
           })
 
-          // Race prize money for player team（順位別の新テーブル。economy.tsに集約）
-          const racePrize = racePrizeByRank(playerRank)
-
-          // Segment prize money (top 3 per segment — goes to team)
+          // ★順位別のレース賞金と観客収入は廃止した。クラブの収入は「格の年間予算」1本
+          //   （data/economy.ts）。順位は翌年の格を通してのみ収入に効く。
+          //   ここに残すのは区間賞だけ（走った選手個人の働きに対する賞金）。
           const SEG_PRIZE = [5000000, 3000000, 1500000]
           const segPrize = results.segmentResults.reduce((total, sr) => {
             const myRunner = sr.runners.find(r => r.teamId === playerTeamId)
@@ -1210,26 +1210,12 @@ export const useGameStore = create<GameStore>()(
             return total + (SEG_PRIZE[myRunner.rank - 1] ?? 0)
           }, 0)
 
-          // Attendance revenue: rank-proportional（economy.ts attendanceRevenueByRank と同じ段階に揃える）
-          const attendanceBase = 2000000 + Math.random() * 1500000
-          const attendanceRankBonus =
-            playerRank === 1 ? 4000000 :
-            playerRank <= 3 ? 2500000 :
-            playerRank <= 6 ? 1000000 :
-            playerRank <= 10 ? 400000 : 0
-          const attendanceRevenue = Math.round((attendanceBase + attendanceRankBonus + (Math.random() - 0.5) * 500000) / 100000) * 100000
-
-          const prizeNewsItem = playerRank > 0 ? {
+          const prizeNewsItem = segPrize > 0 ? {
             date: race.date,
-            headline: `${race.name} 賞金${Math.round(racePrize / 10000)}万${segPrize > 0 ? `+区間賞${Math.round(segPrize / 10000)}万` : ''}+観客収入${Math.round(attendanceRevenue / 10000)}万（${playerRank}位）`,
+            headline: `${race.name} 区間賞賞金 +${Math.round(segPrize / 10000)}万円${playerRank > 0 ? `（${playerRank}位）` : ''}`,
             category: 'race' as const,
             relatedIds: [race.id],
-          } : {
-            date: race.date,
-            headline: `${race.name} 観客動員収入 +${Math.round(attendanceRevenue / 10000)}万円`,
-            category: 'race' as const,
-            relatedIds: [race.id],
-          }
+          } : null
 
           // Check if player beat rival this race
           const rivalBeatThisRace = !!state.rivalTeamId &&
@@ -1478,8 +1464,8 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          // Accumulate race income (prizes + attendance) to carry over to next season's budget
-          const raceIncomeAccum = (racePrize > 0 ? racePrize : 0) + segPrize + attendanceRevenue
+          // 区間賞のぶんだけを翌季の予算に繰り越す（レース賞金・観客収入は廃止）
+          const raceIncomeAccum = segPrize
           const teamsWithPrize = state.teams
 
           // Transfer market activity
@@ -1928,7 +1914,7 @@ export const useGameStore = create<GameStore>()(
               objectives: updatedObjectives,
               scoutMissions: activeMissions,
               scoutProspects: updatedScoutProspects,
-              newsFeed: [...seasonEndNews, ...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, prizeNewsItem, ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
+              newsFeed: [...seasonEndNews, ...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, ...(prizeNewsItem ? [prizeNewsItem] : []), ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
               events: [...(state.currentSeason.events ?? []), ...newEvents],
               pendingTradeOffers: [...existingTrades, ...newTradeOffers],
               transferListings: transferData.listings,
@@ -4767,7 +4753,7 @@ export const useGameStore = create<GameStore>()(
           const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
           const committedSalary = playersAfterCpuTransfer.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
           const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
-          // 補強原資 ＝ 年俸原資の余り（グラント−既存年俸）＋ 実残高の一部。
+          // 補強原資 ＝ 年俸原資の余り（クラブ予算−既存年俸）＋ 実残高の一部。
           // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く
           const grantRoom = Math.max(0, tierBudget(team) - committedSalary)
           const budgetRoom = Math.max(0, team.finance.budget) * 0.3
@@ -5152,6 +5138,20 @@ export const useGameStore = create<GameStore>()(
           // Morale streak system: apply morale bonus/penalty to player team based on season finish
           const myFinalRank = sortedStandings.findIndex(s => s.teamId === state.playerTeamId) + 1
 
+          // ── 来季の格 ────────────────────────────────────────────────
+          // 国内クラブの格は「今季の国内通し順位」1本で決まる。1部1位＝格5、3部最下位＝格20。
+          // 通し順位は 部 → 部内順位 の順（domesticThroughRank）。順位表の得点で52チームを
+          // 直接並べてはいけない（部ごとにレース数が違うので3部が2部を追い抜く）。
+          // 予算もスポンサーもロスターの強さも、全部この格から降りてくる。
+          const divisionRankOf = (t: { id: string; division?: Division }) => {
+            const divIds = new Set(teamsInDivision(state.teams, divisionOf(t)).map(x => x.id))
+            return rankedStandings(sortedStandings.filter(s => divIds.has(s.teamId)))
+              .findIndex(s => s.teamId === t.id) + 1
+          }
+          const nextTierOf = (t: { id: string; division?: Division }) =>
+            tierFromDomesticRank(domesticThroughRank(divisionOf(t), divisionRankOf(t)))
+          const myNextTier = nextTierOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
+
           // Sponsor contract processing
           const myActiveSponsorIds = state.teams.find(t => t.id === state.playerTeamId)?.sponsors ?? []
           const mySegWins = state.currentSeason.races
@@ -5201,7 +5201,7 @@ export const useGameStore = create<GameStore>()(
             ...(state.currentSeason.sponsorOffers ?? []).map(o => tplIdOf(o.id)),
             ...updatedSponsors.filter(sp => sp.yearsLeft > 0).map(sp => tplIdOf(sp.id)),
           ].filter((x): x is string => !!x)
-          const newSponsorOffers = [...renewalOffers, ...generateSponsorOffers(myFinalRank, newYear, excludeTplIds)]
+          const newSponsorOffers = [...renewalOffers, ...generateSponsorOffers(myNextTier, newYear, excludeTplIds)]
           // 連続上位はセーブに持たないので、過去シーズン（＝今季を入れる前）の順位表から数え直す。
           // 昔ここで読んでいた値も「今季を足す前」の連続数だったので、意味は同じ
           const myTeamStreak = teamHistoryOf(state.pastSeasons, state.playerTeamId).currentStreak
@@ -5387,52 +5387,39 @@ export const useGameStore = create<GameStore>()(
             .map(id => (state.sponsors ?? []).find(s => s.id === id))
             .filter(Boolean)
             .reduce((s, sp) => s + sp!.annualPayment, 0)
-          const prevRaceIncome = state.currentSeason.seasonRaceIncome ?? 0
-          // 来季予算（前季残高の繰り越し + 収入 - 支出、赤字は-1億まで許容）。計算は data/economy.ts に集約。
+          const prevRaceIncome = state.currentSeason.seasonRaceIncome ?? 0   // 区間賞のみ
           const prevStreakMe = playerTeamObj?.finance.deficitStreak ?? 0
-          // 施設Lv合計→維持費。強い＝施設充実で維持費が高い。
-          const facLevelSum = (f?: Record<string, number>) => Object.values(f ?? {}).reduce((s, v) => s + (v ?? 0), 0)
-          // 育成義務ペナルティ：在籍22人以下でグラント減額（自チームのみ。CPUは常時24人以上）
-          // 補強禁止中は免除（選手を売って年俸を削る＝人数が減る、しか脱出手段が無いのに、
-          // 減らすと更にグラントが減って赤字が深まる二重の罠になっていたため）
-          const myRosterSize = playersAfterMorale.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
-          const bannedMe = prevStreakMe >= 3 || playerBudgetAtSeasonEnd < 0
-          const dutyCutMe = leagueDutyGrantCut(myRosterSize, bannedMe)
-          // 運営費はペナルティ後の「実際に受け取るグラント」基準。満額基準のままだと収入だけ減って抜け出せない
-          // グラントの元は「クラブの格」。順位ではない（順位表は52チーム通しなので、
-          // 順位を額に直すと2部・3部が全部同額になる）
-          const myBaseGrant = tierBudget(playerTeamObj)
-          const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), effectiveGrant(myBaseGrant, prevStreakMe, dutyCutMe))
-          const playerBudgetArgs = {
+
+          // ── 来季予算 ────────────────────────────────────────────────
+          // 収入は「来季の格の年間予算」＋スポンサー＋目標ボーナス。支出は年俸＋運営費(年俸の1割)。
+          // 順位グラント・レース賞金・観客収入・CPU補填・連続赤字ペナルティ・育成義務ペナルティは
+          // 全部この1本に畳んだ（data/economy.ts の computeNextSeasonBudget）。
+          const myBaseGrant = tierBudget({ tier: myNextTier })
+          const myOpCost = operatingCostOf(playerSalaryTotal)
+          const newBudget = computeNextSeasonBudget({
             baseGrant: myBaseGrant,
             prevBalance: playerBudgetAtSeasonEnd,
-            deficitStreak: prevStreakMe,
             sponsorAnnual,
-            seasonRaceIncome: prevRaceIncome,
+            raceIncome: prevRaceIncome,
             objBudgetBonus,
             bonusPayout: bonusTotalPayout,
             salaryTotal: playerSalaryTotal,
-            runningCost: runningCostVal,
-            dutyGrantCut: dutyCutMe,
-          }
-          const newBudget = computeNextSeasonBudget(playerBudgetArgs)
-          // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。グラントは連続赤字ペナルティ適用後の実額。
+          })
+          // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。
           // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
-          // 前季の支出は前季で完結しているため、内訳に支出行は出さない
           const newBudgetBreakdown = {
-            carryover: playerBudgetAtSeasonEnd - (bonusTotalPayout + playerSalaryTotal + runningCostVal),
-            grant: effectiveGrant(myBaseGrant, prevStreakMe, dutyCutMe),
+            carryover: playerBudgetAtSeasonEnd - (bonusTotalPayout + playerSalaryTotal + myOpCost),
+            grant: myBaseGrant,
             raceIncome: prevRaceIncome,
             sponsor: sponsorAnnual,
             objBonus: objBudgetBonus,
             expenses: 0,  // 精算済みのためcarryoverに織り込み（旧セーブの表示互換のためフィールドは残す）
           }
           // シーズンを終えた時点の残高がマイナスなら連続赤字+1、プラスなら0にリセット。
-          // 判定は「精算後に残高が残っているか」だけ。以前は「単年営業収支」という別指標で判定していたが、
-          // 残高はプラスなのに赤字扱いという食い違いを生むだけだったため、元の残高判定に戻した。
+          // 連続赤字でグラントを削る仕掛けは廃止したので、これは補強禁止の判定にだけ使う。
           const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
 
-          // 全チームの来季予算を順位連動に（自チームと同じ computeNextSeasonBudget）。
+          // 全チームの来季予算（自チームと同じ computeNextSeasonBudget）。
           const teamSalaryTotal = (teamId: string) => playersAfterMorale
             .filter(p => p.teamId === teamId)
             .reduce((s, p) => s + p.contract.annualSalary, 0)
@@ -5440,46 +5427,38 @@ export const useGameStore = create<GameStore>()(
             .map(id => (state.sponsors ?? []).find(s => s.id === id))
             .filter(Boolean)
             .reduce((s, sp) => s + sp!.annualPayment, 0)
-          const seasonRacesCount = state.currentSeason.races?.length ?? 10
           // 監督オファーを受けたときに移籍先の予算へ丸ごと入れ替えるので、
           // 他チームの来季予算の内訳もここで控えておく（あとからは計算し直せない）
           const cpuNextBudgets: Record<string, typeof newBudgetBreakdown & { budget: number }> = {}
           const teamsWithSeasonRewards = teamsWithFA.map(t => {
             if (t.id === state.playerTeamId) {
-              return { ...t, finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
+              return { ...t, tier: myNextTier, finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
             }
-            // 賞金・観客収入は「その部の中での順位」。通し順位を使うと2部の優勝が21位扱いになる
-            const divIds = new Set(teamsInDivision(teamsWithFA, divisionOf(t)).map(x => x.id))
-            const rank = rankedStandings(sortedStandings.filter(s => divIds.has(s.teamId)))
-              .findIndex(s => s.teamId === t.id) + 1
+            const cpuTier = nextTierOf(t)
             const sal = teamSalaryTotal(t.id)
             const prevStreak = t.finance.deficitStreak ?? 0
-            const cpuBaseGrant = tierBudget(t)
-            const cpuBudgetArgs = {
+            const cpuBaseGrant = tierBudget({ tier: cpuTier })
+            const cpuSponsor = teamSponsorAnnual(t)
+            const b = computeNextSeasonBudget({
               baseGrant: cpuBaseGrant,
               prevBalance: t.finance.budget,
-              deficitStreak: prevStreak,
-              sponsorAnnual: teamSponsorAnnual(t),
-              // CPUにも賞金＋観客収入を最終順位ベースで加え、さらに足りない分としてグラントの10%を上乗せ
-              seasonRaceIncome: cpuSeasonRaceIncome(rank, seasonRacesCount, cpuBaseGrant),
+              sponsorAnnual: cpuSponsor,
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
-              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), effectiveGrant(cpuBaseGrant, prevStreak)),
-            }
-            const b = computeNextSeasonBudget(cpuBudgetArgs)
+            })
             // 自チームと同じ判定：精算後の残高がマイナスなら連続赤字+1、プラスなら0
             const cpuStreak = b < 0 ? prevStreak + 1 : 0
             cpuNextBudgets[t.id] = {
               budget: b,
-              carryover: t.finance.budget - (sal + cpuBudgetArgs.runningCost),
-              grant: effectiveGrant(cpuBaseGrant, prevStreak),
-              raceIncome: cpuBudgetArgs.seasonRaceIncome,
-              sponsor: cpuBudgetArgs.sponsorAnnual,
+              carryover: t.finance.budget - (sal + operatingCostOf(sal)),
+              grant: cpuBaseGrant,
+              raceIncome: 0,
+              sponsor: cpuSponsor,
               objBonus: 0,
               expenses: 0,
             }
-            return { ...t, finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
+            return { ...t, tier: cpuTier, finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
           })
 
           // Generate future draft picks (next 2 seasons) for each team based on final rank
@@ -5888,8 +5867,8 @@ export const useGameStore = create<GameStore>()(
               collegeRaces: [],
               draftPool: [],
               scoutPoints: 5 + objBonus + (state.teams.find(t => t.id === state.playerTeamId)?.facilities?.scoutOffice ?? 0),
-              initialBudget: newBudget,   // 来期の開始予算（＝繰越+グラント+賞金観客スポンサー）。収支表示の基準。
-              seasonGrant: newBudgetBreakdown.grant,   // 来期の実グラント額（順位＋ペナルティ適用後）。運営費＝この10%。内訳表示と一致させる。
+              initialBudget: newBudget,   // 来期の開始予算（＝繰越+クラブ予算+スポンサー）。収支表示の基準。
+              seasonGrant: newBudgetBreakdown.grant,   // 来期のクラブ予算（＝来季の格の年間予算）。内訳表示と一致させる。
               budgetBreakdown: newBudgetBreakdown,       // 初期予算の内訳（財務ページで表示）
               // 今季スカウトした候補（＝来季プレシーズンで指名する代）をそのまま引き継ぐ。
               // 視察した選手がそのままドラフトに並ぶようにする。空のとき（一度もスカウトを開いていない等）だけ新規生成。
@@ -7178,7 +7157,7 @@ export const useGameStore = create<GameStore>()(
               career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
             }))
           }
-          // v5→v6: initialRank を追加、budget を新グラント額に更新
+          // v5→v6: initialRank を追加、budget をクラブ予算に更新
           if (version < 6 && Array.isArray(s.teams)) {
             const RANK_MAP: Record<string, number> = {
               sapporo: 9, morioka: 16, aomori: 18, sendai: 10,
@@ -7192,7 +7171,8 @@ export const useGameStore = create<GameStore>()(
               const id = t.id as string
               const isPlayer = t.isPlayerControlled as boolean
               const initialRank = RANK_MAP[id] ?? 10
-              const newBudget = isPlayer ? 400_000_000 : (RANK_BUDGET[initialRank] ?? 400_000_000)
+              // 旧グラント表(RANK_BUDGET)は廃止。いまは格の年間予算1本
+              const newBudget = isPlayer ? 400_000_000 : tierBudget({ id, initialRank })
               return {
                 ...t,
                 initialRank,
@@ -7216,13 +7196,11 @@ export const useGameStore = create<GameStore>()(
               })
             }
           }
-          // v8: 既存セーブの予算を新グラント表に合わせる（プレイヤーは最下位20位＝最弱スタート、CPUはinitialRank連動）
+          // v8: 既存セーブの予算を格の年間予算に合わせる
           if (version < 8 && Array.isArray(s.teams)) {
-            const pid = s.playerTeamId as string | undefined
             s.teams = (s.teams as Record<string, unknown>[]).map(t => {
-              const initialRank = (t.initialRank as number) ?? 10
-              const isPlayer = t.id === pid || t.isPlayerControlled === true
-              const budget = isPlayer ? rankBudgetGrant(20) : rankBudgetGrant(initialRank)
+              // 旧グラント表は廃止。自チーム・CPUの区別なく格の年間予算に揃える
+              const budget = tierBudget({ id: t.id as string, initialRank: (t.initialRank as number) ?? 10 })
               return { ...t, finance: { ...(t.finance as Record<string, unknown>), budget } }
             })
           }
@@ -7231,7 +7209,7 @@ export const useGameStore = create<GameStore>()(
             const pid = s.playerTeamId as string | undefined
             const myTeam = Array.isArray(s.teams) ? (s.teams as Record<string, unknown>[]).find(t => t.id === pid) : undefined
             const curBudget = myTeam ? ((myTeam.finance as Record<string, unknown>)?.budget as number) : undefined
-            s.currentSeason = { ...(s.currentSeason as Record<string, unknown>), initialBudget: curBudget ?? rankBudgetGrant(20) }
+            s.currentSeason = { ...(s.currentSeason as Record<string, unknown>), initialBudget: curBudget ?? tierBudget(undefined) }
           }
           // v10: セーブ肥大化の掃除（既に膨らんだセーブの救済）。
           //  - 過去シーズンから一度も読まれない重いデータ（記録会全結果・ニュース・チャットログ等）を空にする

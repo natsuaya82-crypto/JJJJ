@@ -1,95 +1,20 @@
 // 予算モデルの唯一の情報源。store(endSeason) と 財務画面の見込み表示で共有し、ズレを防ぐ。
-
-// 昨年順位に応じた「翌シーズンの予算グラント」
-// 賞金・観客・スポンサー収入は上位ほど大きいため、グラントは上位ほど強く圧縮（約-19%）し、
-// 下位はほぼ据え置き（約-3%）にして総収入の格差を緩和する
-// 2046調整: 優勝チームが毎年+4億積み上げて無双する構造だったため、
-// 上位グラントを圧縮（1位5.70→5.20億）・下位を底上げ（3.68→3.90億）して格差を約1.3億に縮小
-export const RANK_BUDGET: Record<number, number> = {
-  1:  520_000_000,
-  2:  506_000_000,
-  3:  493_000_000,
-  4:  481_000_000,
-  5:  470_000_000,
-  6:  460_000_000,
-  7:  451_000_000,
-  8:  443_000_000,
-  9:  436_000_000,
-  10: 429_000_000,
-  11: 423_000_000,
-  12: 417_000_000,
-  13: 411_000_000,
-  14: 405_000_000,
-  15: 400_000_000,
-  // 16位以下は下位救済のため一律底上げ
-  16: 390_000_000,
-  17: 390_000_000,
-  18: 390_000_000,
-  19: 390_000_000,
-  20: 390_000_000,
-}
-export function rankBudgetGrant(finalRank: number): number {
-  return RANK_BUDGET[finalRank] ?? 390_000_000
-}
-
-// レース賞金（プレイヤーのそのレース着順に応じた1戦あたり賞金・円）。
-// 2046調整: 上位の賞金を圧縮（1位2000→1200万）して優勝チームの複利無双を抑える。下位はほぼ据え置き。
-// 1位1200万 / 2〜3位1000万 / 4〜5位850万 / 6〜10位700万 / 11〜13位600万 / 14〜17位550万 / 18〜20位500万。
-export function racePrizeByRank(rank: number): number {
-  if (rank <= 0) return 0
-  const man =
-    rank <= 1 ? 1200 :
-    rank <= 3 ? 1000 :
-    rank <= 5 ? 850 :
-    rank <= 10 ? 700 :
-    rank <= 13 ? 600 :
-    rank <= 17 ? 550 : 500
-  return man * 10000
-}
-
-// CPUの不足分補填：確定予算（グラント）の10%を上乗せ。
-export const CPU_INCOME_SUPPLEMENT_RATE = 0.10
-export function cpuIncomeSupplement(baseGrant: number): number {
-  return Math.round(baseGrant * CPU_INCOME_SUPPLEMENT_RATE)
-}
-
-// 順位別の1戦あたり観客収入の目安（プレイヤーの計算式と同じ段階。乱数は除いた期待値）。
-export function attendanceRevenueByRank(rank: number): number {
-  const base = 2_750_000   // 全順位共通のベース（約275万・乱数の期待値）
-  // 2046調整: 順位ボーナスを半減（1位800→400万）。上位の複利収入を抑える
-  const rankBonus =
-    rank === 1 ? 4_000_000 :
-    rank <= 3 ? 2_500_000 :
-    rank <= 6 ? 1_000_000 :
-    rank <= 10 ? 400_000 : 0
-  return base + rankBonus
-}
-
-// CPUのシーズン収入：プレイヤー同様に「レース賞金＋観客収入」を最終順位ベースで1シーズン分(racesCount戦)概算し、
-// さらに足りない分としてグラントの10%を上乗せする。
 //
-// divisionRank は「その部の中での順位」。52チーム通しの順位を渡してはいけない
-// （2部の優勝チームが通し21位になり、賞金が最下位扱いになる）。
-export function cpuSeasonRaceIncome(divisionRank: number, racesCount: number, baseGrant: number): number {
-  const races = Math.max(1, racesCount)
-  const perRace = racePrizeByRank(divisionRank) + attendanceRevenueByRank(divisionRank)
-  return perRace * races + cpuIncomeSupplement(baseGrant)
-}
-
-// ── リーグの育成義務ペナルティ ──
-// 少人数の緊縮経営（年俸を絞って黒字を貯める）への対抗策。
-// 在籍22人以下は翌季グラント-20%、リザーブリーグ不参加はさらに-10%（合計最大-30%）。
+// ■ 収入は「クラブの格」1本
+//   前はここに 順位グラント(RANK_BUDGET) / レース賞金 / 観客収入 / CPUへの10%補填 が並んでいて、
+//   さらに 連続赤字ペナルティ と 育成義務ペナルティ がグラントを削っていた。
+//   同じ「そのクラブがいくら使えるか」を6つの表が別々に決めていて、
+//   RANK_BUDGET は1〜20位ぶんしか無いので52チーム制では2部と3部が同額になっていた。
+//   いまは utils/clubTier.ts の tierBudget(team) だけが収入の元。順位は「翌年の格」を通してのみ効く。
 //
-// banned=true（補強禁止中）は免除する。補強禁止からの脱出手段は「選手を売って年俸を削る」しか
-// 無いのに、削って22人以下になると更にグラントが減って赤字が深まる二重の罠になっていたため。
-export const DUTY_ROSTER_THRESHOLD = 22
-export const DUTY_ROSTER_GRANT_CUT = 0.20
-// 育成義務のペナルティ。以前は「リザーブリーグ不参加」でも減額していたが、
-// リザーブ（2軍リーグ）を廃止したので在籍人数だけを見る。
-export function leagueDutyGrantCut(rosterSize: number, banned = false): number {
-  if (banned) return 0
-  return rosterSize <= DUTY_ROSTER_THRESHOLD ? DUTY_ROSTER_GRANT_CUT : 0
-}
+// ■ 支出は 年俸 ＋ 運営費（年俸の1割）だけ
+//   施設維持費は廃止（施設レベル自体は残る）。
+//
+// 収入: 格の年間予算 ＋ スポンサー ＋ 目標達成ボーナス
+// 支出: 総年俸 ＋ 運営費(総年俸×10%) ＋ 出来高ボーナス
+
+import { operatingCostOf } from '../utils/clubTier'
+export { operatingCostOf, OPERATING_COST_RATE } from '../utils/clubTier'
 
 // 指名権の市場価値：ドラ1級選手の実価値(約1.2億)×0.9^指名位置。
 // 全体1位≈1.08億、5位≈7100万、10位≈4200万、20位≈1450万。2巡は500〜1000万。
@@ -119,67 +44,34 @@ export function roundFee(v: number, unit = 500_000): number {
   return Math.max(unit, Math.round(v / unit) * unit)
 }
 
-// ランニングコスト：施設Lv合計 × 単価 ＋ 運営費（＝グラントの10%）。
-// 強い＝グラントが大きい→運営費も高い＝勝ってもカツカツになる。
-export const FACILITY_UPKEEP_PER_LEVEL = 5_000_000   // 施設Lv1つあたり500万/年
-export const OPERATING_COST_RATE = 0.10              // 運営費＝グラント額の10%
-export function operatingCost(grant: number): number {
-  return Math.round(grant * OPERATING_COST_RATE)
-}
-export function runningCost(facilityLevelSum: number, grant: number): number {
-  return facilityLevelSum * FACILITY_UPKEEP_PER_LEVEL + operatingCost(grant)
-}
-
-// ── 連続赤字のグラントペナルティ ──
-// 2年連続赤字でグラント-20%、3年以上で-35%（万年赤字への締め付け）。
-// 以前は computeNextSeasonBudget / seasonOperatingResult に同じ式が別々に書かれていた。
-export function deficitGrantMult(deficitStreak: number): number {
-  return deficitStreak >= 3 ? 0.65 : deficitStreak >= 2 ? 0.80 : 1.0
-}
-// 実際に受け取るグラント額（連続赤字ペナルティ・育成義務ペナルティ適用後）。
-// 運営費(10%)もこの実額を基準にする。ペナルティで収入が減るのに運営費だけ満額のままだと、
-// 赤字→減額→さらに赤字、が永久に抜け出せないデススパイラルになるため。
-//
-// baseGrant は「そのクラブの素の年間予算」＝ utils/clubTier.ts の tierBudget(team)。
-// 以前はここで rankBudgetGrant(finalRank) を呼んでいたが、あの表は1〜20位ぶんしか無く、
-// 52チーム制では21位以降が全部 3.90億 になって2部と3部の区別が消えていた。
-// 順位ではなくクラブの格で決めるので、額の元は呼び出し側から渡す。
-export function effectiveGrant(baseGrant: number, deficitStreak: number, dutyGrantCut = 0): number {
-  return Math.round(baseGrant * deficitGrantMult(deficitStreak) * (1 - dutyGrantCut))
-}
-
 // 赤字を許容する下限（借金の底）。これ以下は endSeason 側で指名権/選手の強制売却で補填する。
 export const DEFICIT_LIMIT = -100_000_000  // 最大 -1億まで赤字を持ち越せる
 
 // 旧仕様の判定バグで詰んだセーブの救済ライン（残高マイナスのチームをここまで戻す）。
 export const DEFICIT_RESCUE_BUDGET = 50_000_000
 
-// 来季予算 = 前季残高の繰り越し + 収入 - 支出（下限は救済せず、赤字は DEFICIT_LIMIT まで許容）。
-// 連続赤字が2年以上ならグラントを段階的にカット（ペナルティ）。
+/**
+ * 来季予算 ＝ 前季の繰り越し ＋ 収入 － 支出。赤字は DEFICIT_LIMIT まで許容。
+ *
+ * 自チームもCPUも海外クラブもこの1本を通る。
+ * ★連続赤字によるグラント減額は廃止した。減るのは収入なのに脱出手段は年俸削減しか無く、
+ *   減額→さらに赤字、の一方通行だったため。赤字のペナルティは「補強禁止」だけにする。
+ */
 export function computeNextSeasonBudget(args: {
-  baseGrant: number         // そのクラブの素の年間予算（tierBudget(team)）
+  baseGrant: number        // そのクラブの格の年間予算（utils/clubTier.ts の tierBudget(team)）
   prevBalance: number      // 今季終了時点の残高（繰り越し）
-  deficitStreak: number    // 連続赤字シーズン数（今季を含む前まで）
   sponsorAnnual: number
-  seasonRaceIncome: number
+  raceIncome?: number      // 今季の区間賞賞金（レース賞金・観客収入は廃止）
   objBudgetBonus: number
-  bonusPayout: number
-  salaryTotal: number       // ロスター総年俸
-  runningCost?: number      // 施設維持費＋運営費（ランニングコスト）
-  dutyGrantCut?: number     // 育成義務ペナルティ（leagueDutyGrantCut の結果。0〜0.3）
+  bonusPayout: number      // 出来高ボーナスの支払い
+  salaryTotal: number      // ロスター総年俸
 }): number {
-  // 2年連続赤字でグラント-20%、3年以上で-35%（万年赤字への締め付け）
-  const grant = effectiveGrant(args.baseGrant, args.deficitStreak, args.dutyGrantCut ?? 0)
-  const income = grant + args.sponsorAnnual + args.seasonRaceIncome + args.objBudgetBonus
-  const expenses = args.bonusPayout + args.salaryTotal + (args.runningCost ?? 0)
-  const raw = args.prevBalance + income - expenses
-  // 下限の大盤振る舞いは廃止。赤字は許容するが DEFICIT_LIMIT で底打ち（不足分は別途強制売却で補う）。
-  return Math.max(DEFICIT_LIMIT, raw)
+  const income = args.baseGrant + args.sponsorAnnual + (args.raceIncome ?? 0) + args.objBudgetBonus
+  const expenses = args.bonusPayout + args.salaryTotal + operatingCostOf(args.salaryTotal)
+  return Math.max(DEFICIT_LIMIT, args.prevBalance + income - expenses)
 }
 
 // 連続赤字の判定は computeNextSeasonBudget の結果（＝精算後の残高）がマイナスかどうかだけで行う。
-// かつてここに seasonOperatingResult / deficitGapToBreakEven という「単年営業収支」の指標があったが、
-// 残高はプラスなのに赤字扱いになる、財務画面で予測値と実績値が食い違う、といった混乱を生むだけだったため撤去した。
 
 // ── 移籍入札：相手が受けるかの判定基準（UI の成立確率表示と store の合否判定で共有）──
 // 「受諾ライン」のベース額。実際の判定では threshold = base × (0.9〜1.1 の揺れ) となる。

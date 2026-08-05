@@ -21,6 +21,7 @@
 
 import type { Team, Rank } from '../types'
 import { CLUB_TIER_BY_ID } from '../data/clubTiers'
+import { DIVISIONS, DIVISION_SIZE } from './league'
 
 /** 1が世界の頂点、20が最下層。20段階 */
 export type ClubTier =
@@ -153,8 +154,8 @@ export function tierRankComposition(tier: ClubTier): Record<Rank, number> {
 export const DOMESTIC_TOP_TIER: ClubTier = 5
 /** 国内の最下位の格。3部最下位 */
 export const DOMESTIC_BOTTOM_TIER: ClubTier = 20
-/** 国内の総クラブ数（1部20＋2部16＋3部16） */
-export const DOMESTIC_CLUB_COUNT = 52
+/** 国内の総クラブ数（1部20＋2部16＋3部16）。部の構成が変わっても自動で追随する */
+export const DOMESTIC_CLUB_COUNT = DIVISIONS.reduce((s, d) => s + DIVISION_SIZE[d], 0)
 
 /** 国内の通し順位（1〜52）→ 格 */
 export function tierFromDomesticRank(rank: number): ClubTier {

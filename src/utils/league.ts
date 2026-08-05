@@ -38,6 +38,22 @@ export function divisionOf(team: Pick<Team, 'division'> | undefined): Division {
   return team?.division ?? 1
 }
 
+/**
+ * 部内順位 → 国内通し順位（1〜52）。1部1位＝1位、2部1位＝21位、3部最下位＝52位。
+ *
+ * クラブの格はこの通し順位で決まる（utils/clubTier.ts の tierFromDomesticRank）。
+ * 順位表の得点で全52チームを並べてはいけない。部ごとにレース数が違う（10/8/7戦）ので、
+ * 得点で通すと3部の上位が2部を追い抜く。
+ */
+export function domesticThroughRank(division: Division, rankInDivision: number): number {
+  let offset = 0
+  for (const d of DIVISIONS) {
+    if (d === division) break
+    offset += DIVISION_SIZE[d]
+  }
+  return offset + Math.max(1, rankInDivision)
+}
+
 /** 指定した部に所属するチームだけを返す */
 export function teamsInDivision<T extends Pick<Team, 'division'>>(teams: readonly T[], division: Division): T[] {
   return teams.filter(t => divisionOf(t) === division)
