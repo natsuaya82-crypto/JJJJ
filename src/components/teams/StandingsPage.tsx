@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
@@ -12,33 +11,29 @@ import type { Division } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-// 順位表のページ。JPEL／リザーブ／ECL をタブで切り替える。
+// 順位表のページ。どのリーグを出すかはURL（/standings/:league）だけで決まる。
 //
 // もとは JpelStandingsPage.tsx と EclStandingsPage.tsx が、ヘッダーも自チーム順位の出し方も
-// ほぼ同じ中身で2本あり、リザーブの年間順位はどこからも見られなかった。
-// 表そのものは StandingsTable の1本なので、リーグごとに違うのは「行の作り方」だけ。
-// ここで行の作り方だけを出し分けて、見た目と枠組みは1本にする。
+// ほぼ同じ中身で2本あった。表そのものは StandingsTable の1本なので、リーグごとに違うのは
+// 「行の作り方」だけ。ここで行の作り方だけを出し分けて、見た目と枠組みは1本にする。
+//
+// ★ページの上にリーグ切り替えのタブを置かないこと。
+// リーグを選ぶ入口はチームタブのハブ（TeamsHub の「リーグ」）1つに決めてある。
+// ページにもタブを付けると、同じ選択が2箇所にできて「今どこから来たのか」が分からなくなる。
 export type StandingsLeague = 'd1' | 'd2' | 'd3' | 'ecl'
 
-const TABS: { key: StandingsLeague; label: string }[] = [
-  ...DIVISIONS.map(d => ({ key: `d${d}` as StandingsLeague, label: DIVISION_LABEL[d] })),
-  { key: 'ecl', label: 'ECL' },
-]
-
-/** タブのキー → 部。ECLタブなら undefined */
-const divisionOfTab = (tab: StandingsLeague): Division | undefined =>
-  tab === 'ecl' ? undefined : (Number(tab.slice(1)) as Division)
+/** URLのリーグ指定 → 部。ECL・未指定なら undefined */
+const divisionOfLeague = (league: string | undefined): Division | undefined => {
+  const d = Number((league ?? '').slice(1))
+  return league?.startsWith('d') && DIVISIONS.includes(d as Division) ? (d as Division) : undefined
+}
 
 export default function StandingsPage() {
   const navigate = useNavigate()
   const { league } = useParams<{ league: string }>()
-  // URLはどのリーグから入ったかだけ。タブの切り替えはこの中で持つ
-  // （URLを書き換えるとページごと切り替わる扱いになり、毎回ページの出現アニメが走る）
   const { teams, currentSeason, playerTeamId } = useGameStore()
-  // 既定は自チームのいる部。順位表を開いていちばん見たいのは自分の部なので
+  // 部の指定が無いとき（ホームのFULL→）は自チームのいる部。いちばん見たいのは自分の部なので
   const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
-  const [tab, setTab] = useState<StandingsLeague>(
-    TABS.some(t => t.key === league) ? (league as StandingsLeague) : (`d${myDivision}` as StandingsLeague))
   const clubIndex = useClubIndex()
 
   // 国内チームは詳細ページへ。ECLは海外クラブが混ざるので clubRoutePath で出し分ける
@@ -61,9 +56,9 @@ export default function StandingsPage() {
       }
     })
 
-  // タブごとに違うのは「行・消化数・空のときの文言」だけ
+  // リーグごとに違うのは「行・消化数・空のときの文言」だけ
   const view: { eyebrow: string; title: string; logoId: string; rows: StandRow[]; progress: string; onRowClick: (id: string) => void; empty?: string } = (() => {
-    if (tab === 'ecl') {
+    if (league === 'ecl') {
       const series = currentSeason.eclSeries
       if (!series) return {
         eyebrow: `${currentSeason.year} ECL`, title: 'ECL 順位表', logoId: 'ecl',
@@ -87,7 +82,7 @@ export default function StandingsPage() {
       }
     }
     // 部の順位表。順位表は全52チームぶんを1本で持っているので、ここで所属の部だけに絞る
-    const div = divisionOfTab(tab) ?? 1
+    const div = divisionOfLeague(league) ?? myDivision
     const idsInDiv = new Set(teams.filter(t => divisionOf(t) === div).map(t => t.id))
     return {
       eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',
@@ -103,7 +98,7 @@ export default function StandingsPage() {
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '10px 12px 10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <BackButton />
           <LeagueLogoSVG leagueId={view.logoId} size={36} />
           <div>
@@ -123,22 +118,6 @@ export default function StandingsPage() {
               <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '700', color: C.textSub }}>{view.progress}</span>
             </div>
           </div>
-        </div>
-
-        {/* リーグ切り替え */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {TABS.map(t => {
-            const on = t.key === tab
-            return (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                style={{ flex: 1, padding: '8px 0', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 800,
-                  background: on ? alpha(C.gold, 0.14) : C.surface2,
-                  border: `1.5px solid ${on ? alpha(C.gold, 0.5) : C.border2}`,
-                  color: on ? C.gold : C.textDim }}>
-                {t.label}
-              </button>
-            )
-          })}
         </div>
       </div>
 

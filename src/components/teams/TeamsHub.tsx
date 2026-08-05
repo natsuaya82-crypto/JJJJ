@@ -8,6 +8,7 @@ import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../..
 import Flag from '../ui/Flag'
 import BackButton from '../ui/BackButton'
 import { NationalTeamRoster } from './NationalTeamDetailPage'
+import { DIVISIONS, DIVISION_LABEL } from '../../utils/league'
 import type { Nationality } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -156,8 +157,10 @@ export default function TeamsHub() {
     return wrap(<>
       <Header eyebrow={`${currentSeason.year} STANDINGS`} title="リーグ" onBack={() => navigate(-1)} />
       {listBox(<>
-        <RowCard onClick={() => navigate('/standings')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" />
-        <RowCard onClick={() => navigate('/standings/reserve')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="リザーブ" />
+        {/* 部はここから選ぶ。順位表のページ側にタブを持たせない（1画面に入口が2つあると迷う） */}
+        {DIVISIONS.map(d => (
+          <RowCard key={d} onClick={() => navigate(`/standings/d${d}`)} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title={`JPEL ${DIVISION_LABEL[d]}`} />
+        ))}
         <RowCard onClick={() => navigate('/standings/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" />
         {leagues.map(l => (
           <RowCard key={l.id} onClick={() => navigate(`/teams/foreign/${l.id}`)} icon={<LeagueLogoSVG leagueId={l.id} size={34} />} title={l.countryName} />
