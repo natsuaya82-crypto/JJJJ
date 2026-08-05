@@ -110,15 +110,22 @@ export function nationalityExpMultiplier(_p: Player): number {
 
 // ── 成長の幹（applyGrowth） ─────────────────────────────────────────────
 
-export type GrowthSource = 'race' | 'bench' | 'plan' | 'card'
+// 成長の経路。
+//   season = 所属していれば毎年もらう一律EXP（レースに出たかどうかで分けない）
+//   plan   = 練習方針
+//   card   = 練習カード（自チームだけ。上乗せ）
+//
+// ★'race'（走った区間の地形別EXP）と 'bench'（見学EXP）は廃止した。
+//   「レースに出た選手だけ地形に応じて伸びる」をやめて、所属していれば全員同じだけ
+//   伸びる形にしたため（オーナー決定）。CPU・海外がカードを持たないぶんは
+//   クラブの格ごとの倍率（utils/clubTier.ts の tierGrowthRate）で埋める。
+export type GrowthSource = 'season' | 'plan' | 'card'
 
-/** どの経路にどの倍率が掛かるか。経路ごとの差は、この表だけで表現する。
- *  現在の呼び出し元の引数の渡し方をそのまま写したもの。値を変えないこと。 */
+/** どの経路にどの倍率が掛かるか。経路ごとの差は、この表だけで表現する。 */
 const SOURCE_RULES: Record<GrowthSource, { age: boolean; potential: boolean; facility: boolean }> = {
-  race:  { age: true,  potential: true,  facility: true  },
-  bench: { age: true,  potential: true,  facility: true  },
-  plan:  { age: false, potential: true,  facility: true  },
-  card:  { age: false, potential: false, facility: false },
+  season: { age: true,  potential: true,  facility: true  },
+  plan:   { age: false, potential: true,  facility: true  },
+  card:   { age: false, potential: false, facility: false },
 }
 
 export interface GrowthInput {

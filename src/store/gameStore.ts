@@ -27,7 +27,7 @@ import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } fr
 import { buildEclParticipants, buildEclRaces, eclDateBetweenLeagueRaces } from '../engine/eclSeries'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
-import { segmentType, segTypeExpGain, applyGrowth } from '../engine/growth'
+import { applyGrowth, requiredExpForLevel } from '../engine/growth'
 import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
@@ -67,7 +67,7 @@ import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision } from '../utils/league'
-import { tierBudget } from '../utils/clubTier'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
   pool: Player[]
@@ -1283,32 +1283,22 @@ export const useGameStore = create<GameStore>()(
               ? (p.teamRole === 'ace' ? 4 : 2) : 0
             const newMorale = Math.max(10, Math.min(100, (p.morale ?? 70) + moraleDelta + (segWin ? 5 : 0) - roleBenchPenalty))
 
-            // EXPベース成長: 走った区間の地形タイプで能力別EXPを付与
+            // 成長は「所属していれば全員同じだけ」。走ったかどうかで分けない。
+            // 1レースぶんの一律EXP＝年間ぶん ÷ そのシーズンのレース数。
+            // 前は「走った選手＝走った区間の地形別EXP／走らなかった選手＝全能力50EXP」と
+            // 分かれていて、出場機会の差がそのまま育成の差になっていた。
             let newRatings = { ...p.ratings }
             let newExp = { ...(p.exp ?? {}) } as Partial<Record<CardStatKey, number>>
-            if (racingIds.has(p.id) && p.status === 'active') {
-              const playerSeg = results.segmentResults.find(sr =>
-                sr.runners.some(r => r.playerId === p.id)
-              )
-              const seg = playerSeg ? race.segments.find(s => s.index === playerSeg.segmentIndex) : null
-              if (seg) {
-                const sType = segmentType(seg.uphillPct, seg.downhillPct, seg.distanceKm)
-                const baseGains = segTypeExpGain(sType)
-                const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'race', baseGains, campLv })
-                newRatings = outcome.ratings
-                newExp = outcome.exp
-                if (outcome.breakdown.age > 0) {
-                  raceExpGainsMap[p.id] = outcome.gained
-                }
+            if (p.status === 'active') {
+              const perRace = Math.round(ANNUAL_BASE_EXP / Math.max(1, (state.currentSeason.races ?? []).length))
+              const seasonGains: Partial<Record<CardStatKey, number>> = {
+                speed: perRace, stamina: perRace, mountainUp: perRace, mountainDown: perRace,
+                pacing: perRace, mental: perRace, recovery: perRace,
               }
-            } else if (p.status === 'active') {
-              // 見学EXP: 全能力に50EXP（設計書: ベンチ ×0.5 間接育成）
-              const benchGains: Partial<Record<CardStatKey, number>> = {
-                speed: 50, stamina: 50, mountainUp: 50, mountainDown: 50, pacing: 50, mental: 50, recovery: 50,
-              }
-              const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'bench', baseGains: benchGains, campLv })
+              const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'season', baseGains: seasonGains, campLv })
               newRatings = outcome.ratings
               newExp = outcome.exp
+              if (racingIds.has(p.id)) raceExpGainsMap[p.id] = outcome.gained
             }
 
             // Training plan effect (team-wide)
@@ -4988,7 +4978,13 @@ export const useGameStore = create<GameStore>()(
             const p = pRaw.status === 'injured' ? { ...pRaw, status: 'active' as const, injuredUntilRace: undefined, injuryName: undefined } : pRaw
             // 自チーム以外(CPU・海外)は毎年ポテンシャルへ向けて成長させる。自チームはレース/カードEXPで成長。
             const allowAnnualGrowth = p.teamId !== state.playerTeamId
-            const grown = p.status === 'active' || p.status === 'injured' ? growPlayer(p, allowAnnualGrowth) : p
+            // 伸びる量はそのクラブの格で決まる。
+            // 国内クラブは Team から、海外クラブは Team に無いので clubTiers の表から引く
+            const homeTeam = state.teams.find(t => t.id === p.teamId)
+            const growTier = homeTeam ? tierOf(homeTeam) : tierOfClubId(p.teamId)
+            const grown = p.status === 'active' || p.status === 'injured'
+              ? growPlayer(p, allowAnnualGrowth, growTier)
+              : p
             const snap = ovrSnapshot[p.id]
             const withHistory = snap == null ? grown : { ...grown, ovrHistory: [...(p.ovrHistory ?? []), { year: state.currentSeason.year, ovr: snap }].slice(-8) }
             if (cpuRenewIds.has(p.id)) {
@@ -8183,7 +8179,7 @@ function getPrimaryKey(specialty: string): RatingsKey {
 // 自チームの成長はレース/カードEXPで行うため allowAnnualGrowth=false。
 // CPU/海外は allowAnnualGrowth=true で毎年ポテンシャル上限へ向けて成長させる（高数値ほど鈍化）。
 const GROW_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-function growPlayer(p: Player, allowAnnualGrowth = false): Player {
+function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrowth: import('../utils/clubTier').ClubTier = 20): Player {
   const peakAge = peakAgeOf(p)
   const nextAge = p.age + 1
   const ageDiff = nextAge - peakAge
@@ -8197,30 +8193,23 @@ function growPlayer(p: Player, allowAnnualGrowth = false): Player {
   else if (ageDiff >= 1) potential = Math.max(50, potential - (ageDiff >= 6 ? 2 : 1))
   const caps = getStatPotentials({ ...p, potential })  // 減衰後の上限で頭打ち
 
-  // CPU/海外の年次成長：成長期(ピーク前)のみ、各能力を上限へ向けて少しずつ。
-  // カーブは初期生成(bakeAgeGrowth)と同一に揃える。以前は80以上でほぼ停止するカーブだったため、
-  // ポテンシャル85級の新人が72前後で頭打ちになり、初期生成の強い世代が引退する7〜8年目に
-  // リーグのエース層(OVR85+)が枯れて「同じメンバーで余裕で勝てる」状態になっていた
-  if (allowAnnualGrowth && nextAge <= peakAge + 3) {
-    // 若手の成長を底上げ（⑤：一斉引退後にドラフト/FA補充された若手が育ち切らず、強豪が急落して戻れない対策）。
-    // 中ポテンシャル(75+)を1.0→1.3、低(＜75)を0.6→0.85に強化。
-    //
-    // 2046調整: ドラフト生6000人を31歳まで走らせたところ、能力別の上限に到達した選手が
-    // 0%（中央値でポテンシャル82に対しOVR74＝8ポイント余らせたまま引退）だった。
-    // ポテンシャルは余っていて、足りないのは「伸びる速さと期間」だったので、
-    //   ・基準値 rnd(0,2)（1/3の確率で成長ゼロ・平均1.0）→ rnd(1,3)（平均2.0・ゼロの年を無くす）
-    //   ・成長窓 ピーク+1年 → ピーク+3年
-    // の2つを変更した。ポテンシャルの値そのものは意図的に据え置いている
-    // （上げても届かないので体感が変わらず、上限が遠のくだけ）。
-    // これで中央OVR 74→80、80以上が25%→50%、上限到達が0%→35%（同条件のシミュレーション）。
-    // bakeAgeGrowth（playerGenerator.ts）は同じ係数を共有しているので、必ず一緒に変えること。
-    const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.3 : 0.85
+  // CPU・海外の年次成長。自チームは毎レースの一律EXP＋カードで伸びるので、
+  // ここはCPU・海外だけが通る（allowAnnualGrowth）。
+  //
+  // カードが無いぶんをクラブの格の倍率（utils/clubTier.ts の tierGrowthRate）で埋める。
+  // 格1で3.0倍、格11以下は1.5倍。一律EXPは自チームと同じ ANNUAL_BASE_EXP。
+  // ★係数を2箇所に書かないこと。年齢カーブ（engine/ageCurve.ts）と
+  //   この倍率の2つだけで成長が決まる形にしてある。
+  if (allowAnnualGrowth) {
+    const rate = tierGrowthRate(clubTierForGrowth)
     for (const stat of GROW_KEYS) {
       const cur = ratings[stat]
       const cap = caps[stat]
       if (cur >= cap) continue
-      const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
-      const gain = Math.round(rnd(1, 3) * potFactor * diff)
+      // 1年ぶんのEXPを7能力に配り、その能力の必要EXPで割ったぶんだけ上がる
+      const per = (ANNUAL_BASE_EXP * rate) / GROW_KEYS.length
+      const need = requiredExpForLevel(cur)
+      const gain = Math.floor(per / Math.max(1, need))
       if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
     }
   }
