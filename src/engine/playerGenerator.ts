@@ -622,8 +622,9 @@ function rankToBaseRange(rank: Rank, growthCurve: GrowthCurve): { min: number; m
 }
 
 
-function generateRatings(rank: Rank, specialty: Specialty) {
-  const { min, max } = tierRange(rank)
+function generateRatings(rank: Rank, specialty: Specialty, baseBoost = 0) {
+  const { min: min0, max: max0 } = tierRange(rank)
+  const min = min0 + baseBoost, max = max0 + baseBoost
   const base = () => rng(min, max)
   const weak = () => rng(Math.max(30, min - 12), Math.max(45, max - 12))
   const r = {
@@ -1349,9 +1350,10 @@ export function buildRatingsForRank(params: {
   potentialOverride?: number // ランクから抽選せず、この値をポテンシャルにする（ドラフトの「お化け」枠）
   bakeFrom?: number          // 焼き込みを始める年齢（既定22）。年齢カーブの試算用
   bakeRate?: number          // 1年あたりの伸びの倍率（既定1.0）。年齢カーブの試算用
+  baseBoost?: number         // 素体の底上げ（既定0）。年齢カーブの試算用
 }): { ratings: Player['ratings']; potential: number } {
-  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride, bakeFrom, bakeRate } = params
-  const ratings = generateRatings(rank, specialty)
+  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride, bakeFrom, bakeRate, baseBoost = 0 } = params
+  const ratings = generateRatings(rank, specialty, baseBoost)
   const [pMin, pMax] = rankToBaseRange(rank, growthCurve).potential
   const potential = potentialOverride ?? Math.min(potentialCap, rng(pMin, pMax) + potentialBonus)
   bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age, bakeFrom, bakeRate)
