@@ -21,6 +21,7 @@ import RacePanel from './RacePanel'
 import CoursePanel from './CoursePanel'
 import FinishPanel from './FinishPanel'
 import { buildRacePayload, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
+import { defaultLogoIdFor } from '../../data/logoPresets'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -375,9 +376,10 @@ export default function RoomLobbyPage() {
         id,
         name: t.name,
         shortName: t.shortName,
+        gmName: t.gmName,
         primary: t.colors?.primary ?? '#122440',
         secondary: t.colors?.secondary ?? '#f5c842',
-        logoId: t.logoId ?? 'logo_01',
+        logoId: t.logoId ?? defaultLogoIdFor(t.id),
       })
       cpuRostersRef.current[id] = st.players.filter(p => p.teamId === t.id)
     }
@@ -450,6 +452,7 @@ export default function RoomLobbyPage() {
       id: m.userId,
       name: m.profile?.teamName ?? 'チーム',
       shortName: m.profile?.shortName ?? '—',
+      gmName: m.profile?.gmName,
       primary: m.profile?.primary ?? '#122440',
       secondary: m.profile?.secondary ?? '#f5c842',
       logoId: m.profile?.logoId ?? 'logo_01',

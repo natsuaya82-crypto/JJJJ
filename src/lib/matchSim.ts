@@ -16,6 +16,9 @@ export type MatchTeamInfo = {
   id: string           // ユーザーID
   name: string
   shortName: string
+  /** GM名。チーム名は自由に付けられて重複もするので、人を指すのはこちら。
+   *  対戦履歴に残っている古い記録には無いので任意 */
+  gmName?: string
   primary: string
   secondary: string
   logoId: string

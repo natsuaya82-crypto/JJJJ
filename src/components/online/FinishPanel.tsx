@@ -154,6 +154,7 @@ export default function FinishPanel({
               {t && <TeamLogoSVG primary={t.primary} secondary={t.secondary} shortName={t.shortName} logoId={t.logoId} size={56} />}
             </div>
             <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>{t?.name ?? champion.teamId}</div>
+            {t?.gmName && <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>GM {t.gmName}</div>}
             <div style={{ fontSize: 12, color: C.gold, marginTop: 4, fontFamily: SAIRA, fontWeight: 900 }}>
               通算 {champion.points}pt
             </div>
@@ -186,7 +187,9 @@ export default function FinishPanel({
                     {t?.name ?? s.teamId}
                     {s.forfeit && <span style={{ marginLeft: 6, fontSize: 9, color: C.red }}>不戦</span>}
                   </div>
-                  <div style={{ fontSize: 9, color: C.textDim, marginTop: 1 }}>
+                  <div style={{ fontSize: 9, color: C.textDim, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {/* チーム名は自由に付けられて重複もするので、誰なのかはGM名で分かるようにする */}
+                    {t?.gmName && <span style={{ color: C.textSub, marginRight: 6 }}>GM {t.gmName}</span>}
                     各レース {s.ranks.join('・')}位{s.segPts > 0 ? ` / 区間賞 ${s.segPts}pt` : ''}
                   </div>
                 </div>

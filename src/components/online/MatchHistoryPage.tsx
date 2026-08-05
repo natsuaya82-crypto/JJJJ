@@ -11,18 +11,27 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 記録は finish_match() が matches / match_results に残しているものをそのまま読む。
 // これまで書き込みだけがあって見る画面が無く、溜まった記録が誰にも見えていなかった。
 
-/** 「2026/08/04 21:30」の形。サーバーはUTCで返すので端末の時刻に直す */
+/**
+ * 「08/04 21:30」の形。サーバーはUTCで返すので端末の時刻に直す。
+ * 記録は60日で消えるので年は基本いつも今年になる。GM名と1行に並べると
+ * 年まで出すと日時が見切れるため、年をまたいだものだけ年を付ける。
+ */
 function fmtDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  const md = `${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return d.getFullYear() === new Date().getFullYear() ? md : `${d.getFullYear()}/${md}`
 }
 
 function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
   // 一覧では順位も参加者も出さない。「いつ・誰の部屋で・何人で・何レース」だけ分かればよく、
   // 中身は開いた先（FinishPanel）で見る。カードを短く保って一覧を見渡しやすくする狙い。
+  //
+  // 誰の部屋かはチーム名だけだと分からない（チーム名は自由に付けられて重複もする）。
+  // 人を指すのはGM名なので必ずセットで出す。
   const hostName = m.hostIsMe ? '自分' : (m.host?.teamName ?? '—')
+  const hostGm = m.hostIsMe ? '' : (m.host?.gmName ?? '—')
   return (
     <div
       role="button" tabIndex={0} className="pressable"
@@ -51,7 +60,13 @@ function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
         }}>
           {hostName}<span style={{ fontSize: 10, color: C.textGhost, fontWeight: 400, marginLeft: 4 }}>の部屋</span>
         </div>
-        <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{fmtDate(m.finishedAt)}</div>
+        <div style={{
+          fontSize: 10, color: C.textDim, marginTop: 2,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {hostGm && <span style={{ color: C.textSub, marginRight: 6 }}>GM {hostGm}</span>}
+          {fmtDate(m.finishedAt)}
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
