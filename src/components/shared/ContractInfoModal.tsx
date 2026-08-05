@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 
@@ -20,11 +21,6 @@ const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
   key_player: '主力',
   rotation: 'ローテ',
   development: '育成',
-}
-
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
 }
 
 function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -77,7 +73,7 @@ export default function ContractInfoModal() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
           <InfoRow label="契約形態" value={CONTRACT_TYPE_LABEL[ct] ?? '本契約'} color={C.text} />
-          <InfoRow label="年俸" value={fmt(player.contract.annualSalary)} color={C.gold} />
+          <InfoRow label="年俸" value={fmtYen(player.contract.annualSalary)} color={C.gold} />
           <InfoRow label="契約残り" value={`${player.contract.yearsLeft}年`} color={player.contract.yearsLeft <= 1 ? C.red : C.textSub} />
         </div>
 

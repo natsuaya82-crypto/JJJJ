@@ -3,17 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, faMarketSalary, SPEC_COLOR } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha } from '../../styles/tokens'
 import { isForeignNat } from '../../data/nationalities'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
-}
 
 const CAT_COLOR: Record<string, string> = {
   race: C.gold, fa: C.cyan, draft: C.green, trade: C.orange,
@@ -174,7 +170,7 @@ export default function NewsPage() {
                     }}>{relOvr}</div>
                     <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '1px' }}>OVR</div>
                     <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, fontWeight: 700, marginTop: 2 }}>
-                      {news.category === 'fa' ? fmt(market) : fmt(salary)}
+                      {news.category === 'fa' ? fmtYen(market) : fmtYen(salary)}
                     </div>
                     <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim }}>
                       {news.category === 'fa' ? '市場年俸' : '年俸'}

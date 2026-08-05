@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
@@ -134,7 +135,7 @@ export default function TeamHub() {
       countLabel: (() => {
         const team = teams.find(t => t.id === playerTeamId)
         const b = team?.finance.budget ?? 0
-        return b >= 100000000 ? `予算 ${(b / 100000000).toFixed(1)}億` : `予算 ${Math.round(b / 10000)}万`
+        return `予算 ${fmtYen(b)}`
       })(),
       badge: 0,
       color: C.green,

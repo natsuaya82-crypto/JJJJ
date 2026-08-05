@@ -22,6 +22,10 @@ export function getDueIndividualEvent<E extends { id: string; date: string; resu
 }
 
 // タイム表示: 1時間以上は h:mm:ss、未満は m:ss。
+//
+// 同じ処理が formatTime（engine/raceEngine.ts）・fmtTime（store/gameStore.ts）として
+// 3つ手書きされていた。fmtTime だけ Math.round が無く、小数秒が渡ると "12:7.5" のような
+// 表示になるバグがあった。ここへ1本化し、Math.round する版（他の2つと同じ挙動）に揃える。
 export function formatRaceTime(sec: number): string {
   const t = Math.round(sec)
   const h = Math.floor(t / 3600)

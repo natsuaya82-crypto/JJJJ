@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import type { Player, Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
-import { formatTime } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { courseById, courseToRace } from '../../data/matchCourses'
 import { asPlayer, asTeam, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { SegmentDetailCard, SegmentTabs } from '../race/SegmentDetailCard'
@@ -202,7 +202,7 @@ export default function FinishPanel({
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.gold }}>{s.points}<span style={{ fontSize: 9, color: C.textDim }}>pt</span></div>
                   <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>
-                    {gap === 0 ? formatTime(s.totalTimeSec) : `+${formatTime(gap)}`}
+                    {gap === 0 ? formatRaceTime(s.totalTimeSec) : `+${formatRaceTime(gap)}`}
                   </div>
                 </div>
               </>) : (

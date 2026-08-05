@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import type { Race, Team, Player } from '../../types'
 import type { RaceSegmentEvent, InteractiveSegResult, EventTriggerCondition } from '../../engine/interactiveRace'
 import { choiceSuccessProb } from '../../engine/interactiveRace'
-import { formatTime, formatDiff } from '../../engine/raceEngine'
+import { formatDiff } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
@@ -13,7 +14,6 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 function computeAnimGaps(
   ratio: number,
@@ -225,7 +225,7 @@ export function RaceTrack({
             const pct = distanceKm > 0 ? (pos.km / distanceKm) * 100 : 0
             // 総合首位との累積タイム差
             const gapSec = pos.overallTotal - leaderTotal
-            const rankCol = rankColors[rank + 1] ?? C.textGhost
+            const rankCol = rankColor(rank + 1)
             const playerId = segRunnerIds?.[pos.teamId]
             const player = players?.find(p => p.id === playerId)
 
@@ -658,7 +658,7 @@ export function SimPhase({
             const t = teamMap.get(teamId)
             const isMe = teamId === playerTeamId
             const gap = cumTime - leaderCumTime
-            const rankCol = rankColors[i + 1] ?? C.textGhost
+            const rankCol = rankColor(i + 1)
             const pts = segPts[teamId] ?? 0
             return (
               <div key={teamId} style={{
@@ -674,7 +674,7 @@ export function SimPhase({
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {gap === 0
-                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatTime(cumTime)}</span>
+                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(cumTime)}</span>
                     : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>
                   }
                 </div>
@@ -752,7 +752,7 @@ export function SegmentResultCard({
           const t = teamMap.get(r.teamId)
           const p = playerMap.get(r.playerId)
           const isMe = r.teamId === playerTeamId
-          const rCol = rankColors[r.rank] ?? C.textGhost
+          const rCol = rankColor(r.rank)
           return (
             <div key={r.teamId} {...(p ? longPress(p.id) : {})} style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -777,7 +777,7 @@ export function SegmentResultCard({
                 {p && <div style={{ fontSize: 9, color: C.textSub }}>{p.name}</div>}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: r.rank === 1 ? C.gold : isMe ? myRankCol : C.textDim, fontFamily: SAIRA }}>{formatTime(r.timeSec)}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: r.rank === 1 ? C.gold : isMe ? myRankCol : C.textDim, fontFamily: SAIRA }}>{formatRaceTime(r.timeSec)}</div>
                 {winner && r.rank > 1 && <div style={{ fontSize: 9, color: C.textGhost, fontFamily: 'monospace' }}>{formatDiff(r.timeSec - winner.timeSec)}</div>}
               </div>
             </div>

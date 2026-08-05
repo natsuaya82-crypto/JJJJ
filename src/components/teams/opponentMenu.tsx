@@ -11,7 +11,6 @@ import BidSheet from '../transfer/BidSheet'
 import LoanSheet from '../transfer/LoanSheet'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-function fmt(yen: number) { return yen >= 100000000 ? `${(yen / 100000000).toFixed(1)}億` : `${Math.round(yen / 10000)}万` }
 
 function PlayerHead({ player }: { player: Player }) {
   return (

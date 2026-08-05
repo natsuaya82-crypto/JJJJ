@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Race, RaceResults, Team, Player, Season } from '../../types'
-import { formatTime, formatDiff } from '../../engine/raceEngine'
+import { formatDiff } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha, COMPETITION_BTN } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, rankColor } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
@@ -23,6 +24,9 @@ function requiredExp(level: number): number {
   return Math.floor(0.5 * level * level * dull)
 }
 
+// tokens.ts の rankColor と同じ色だが、この1箇所だけ4位以下のフォールバックが
+// C.textDim（他は全部 C.textGhost）になっている。rankColor に置き換えると色が
+// 変わってしまうため、ここだけ意図的にローカル定義のまま残している（挙動維持）。
 const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties => {
@@ -366,7 +370,7 @@ export function ResultsPhase({
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '11px', color: C.textDim }}>タイム</div>
               <div style={{ fontSize: '15px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>
-                {formatTime(playerResult.totalTimeSec)}
+                {formatRaceTime(playerResult.totalTimeSec)}
               </div>
               {leader && playerResult.rank > 1 && (
                 <div style={{ fontSize: '10px', color: C.textDim }}>
@@ -422,7 +426,7 @@ export function ResultsPhase({
                 borderBottom: i < results.teamRankings.length - 1 ? `1px solid ${C.surface2}` : 'none',
                 ...rowStyle,
               }}>
-                <div style={{ width: '20px', textAlign: 'center', flexShrink: 0, fontSize: '12px', fontWeight: '800', fontFamily: SAIRA, color: rankColors[tr.rank] ?? C.textGhost, textShadow: tr.rank === 1 ? `0 0 10px ${alpha(C.gold, 0.5)}` : 'none' }}>
+                <div style={{ width: '20px', textAlign: 'center', flexShrink: 0, fontSize: '12px', fontWeight: '800', fontFamily: SAIRA, color: rankColor(tr.rank), textShadow: tr.rank === 1 ? `0 0 10px ${alpha(C.gold, 0.5)}` : 'none' }}>
                   {tr.rank}
                 </div>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={18} />}
@@ -430,7 +434,7 @@ export function ResultsPhase({
                   {t?.name ?? tr.teamId}
                 </div>
                 <div style={{ fontSize: '12px', color: C.textSub, fontFamily: SAIRA, minWidth: '50px', textAlign: 'right', flexShrink: 0 }}>
-                  {formatTime(tr.totalTimeSec)}
+                  {formatRaceTime(tr.totalTimeSec)}
                 </div>
                 <div style={{ flexShrink: 0, minWidth: 66, textAlign: 'right', fontFamily: SAIRA, whiteSpace: 'nowrap' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>{tr.positionPoints}</span>

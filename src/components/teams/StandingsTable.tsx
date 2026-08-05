@@ -1,6 +1,6 @@
 import { TeamLogoSVG } from '../icons/Icons'
 import Flag from '../ui/Flag'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor } from '../../styles/tokens'
 import type { Nationality } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -43,7 +43,6 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress }: {
       </div>
 
       {rows.map((r, i) => {
-        const rankColor = i === 0 ? C.gold : i <= 2 ? C.textSub : C.textGhost
         const recentForm = r.recentForm.slice(-4)
         return (
           <div key={r.id} onClick={() => onRowClick?.(r.id)} {...lpHandlers(r.id)}
@@ -55,7 +54,7 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress }: {
               {i === 0 ? (
                 <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>★</span>
               ) : (
-                <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor }}>{i + 1}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor(i + 1) }}>{i + 1}</span>
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>

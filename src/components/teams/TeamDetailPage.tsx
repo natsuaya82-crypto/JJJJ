@@ -9,10 +9,11 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { useEclHistory } from '../../lib/useEclHistory'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { belongsToClub } from '../../utils/rosterSync'
-import { C } from '../../styles/tokens'
+import { C, rankColor } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
@@ -23,11 +24,6 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const TEAM_ROLE_LABEL: Record<string, string> = {
   ace: 'エース', sub_ace: 'サブエース', key_player: '主力', rotation: 'ローテ', development: '育成',
-}
-
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
 }
 
 // 'YYYY-MM-DD' → 'YYYY年M月D日'。日付が無ければ年だけ
@@ -144,7 +140,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const rank = isForeign
     ? rankedStandings(curForeignStandings).findIndex(s => s.clubId === id) + 1
     : rankOfTeam(currentSeason.standings, id)
-  const rankColor = rank === 1 ? '#C9A84C' : rank <= 3 ? '#9B97A8' : '#3A3758'
   const standingPoints = standing?.totalPoints ?? 0
   const recentForm = (standing?.raceResults ?? []).slice(-4)
   const completedRaces = isForeign
@@ -345,7 +340,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             <div style={{ fontSize: '11px', color: '#5C5870' }}>{infoLocation} • {mainPlayers.length}名</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '28px', fontWeight: '900', color: rankColor, fontFamily: 'monospace', lineHeight: 1 }}>{rank > 0 ? rank : '—'}</div>
+            <div style={{ fontSize: '28px', fontWeight: '900', color: rankColor(rank), fontFamily: 'monospace', lineHeight: 1 }}>{rank > 0 ? rank : '—'}</div>
             <div style={{ fontSize: '8px', color: '#3A3758' }}>位</div>
           </div>
         </div>
@@ -458,7 +453,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                 <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
                     <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>年間予算</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmt(foreignBudget)}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmtYen(foreignBudget)}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {FAC_LABEL.map((f, i) => (
@@ -549,7 +544,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: '#C9A84C' }}>
                 {mainPlayers.length}<span style={{ fontSize: 10, color: '#5C5870' }}>{isForeign ? '名' : `/${ROSTER_MAX}`}</span>
               </span>
-              <span style={{ fontSize: 10, color: '#5C5870' }}>総年俸 <span style={{ color: '#9B97A8', fontWeight: 700, fontFamily: SAIRA }}>{fmt(teamSalary)}</span></span>
+              <span style={{ fontSize: 10, color: '#5C5870' }}>総年俸 <span style={{ color: '#9B97A8', fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(teamSalary)}</span></span>
               {!isMyTeam && <span style={{ fontSize: 8, color: '#5C5870', marginLeft: 'auto' }}>タップ=交渉 / 長押し=詳細</span>}
             </div>
             {mainPlayers.length === 0
@@ -613,7 +608,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                     const other = resolveAnyTeam(row.otherTeamId)
                     if (!pl) return null
                     const otherName = other?.name ?? (row.kind === 'free' || !row.otherTeamId ? '無所属' : '不明')
-                    const feeLabel = row.hasRec ? (row.kind === 'trade' ? 'トレード' : (row.fee ?? 0) > 0 ? fmt(row.fee!) : 'フリー') : '—'
+                    const feeLabel = row.hasRec ? (row.kind === 'trade' ? 'トレード' : (row.fee ?? 0) > 0 ? fmtYen(row.fee!) : 'フリー') : '—'
                     const yearsLabel = row.years ? `${row.years}年` : '—'
                     const dateLabel = fmtDate(row.date, row.year)
                     return (

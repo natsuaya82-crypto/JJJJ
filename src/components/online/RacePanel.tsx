@@ -6,15 +6,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Player, Team } from '../../types'
 import { RaceTrack, SegmentResultCard } from '../race/SimPhase'
 import { terrainColor } from '../race/raceUtils'
-import { formatTime, formatDiff } from '../../engine/raceEngine'
+import { formatDiff } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { TeamLogoSVG } from '../icons/Icons'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { asPlayer, asTeam, type MatchRacePayload } from '../../lib/matchSim'
 import { serverNow } from '../../lib/serverTime'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 type Stage = 'countdown' | 'track' | 'segresult' | 'final'
 
@@ -220,7 +220,7 @@ export default function RacePanel({
             const isMe = s.teamId === meId
             const top = payload.standings[0]?.totalTimeSec ?? 0
             const gap = s.totalTimeSec - top
-            const rankCol = rankColors[s.rank] ?? C.textGhost
+            const rankCol = rankColor(s.rank)
             const total = (seriesPts[s.teamId] ?? 0) + s.points
             return (
               <div key={s.teamId} style={{
@@ -245,7 +245,7 @@ export default function RacePanel({
                   {gap < 0
                     ? <span style={{ fontSize: 12, fontWeight: 700, color: C.textGhost }}>記録なし</span>
                     : gap === 0
-                      ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatTime(s.totalTimeSec)}</span>
+                      ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(s.totalTimeSec)}</span>
                       : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function RacePanel({
             const t = teamMap.get(teamId)
             const isMe = teamId === meId
             const gap = cum - (standingsNow[0]?.[1] ?? 0)
-            const rankCol = rankColors[i + 1] ?? C.textGhost
+            const rankCol = rankColor(i + 1)
             return (
               <div key={teamId} style={{
                 padding: '8px 12px', borderBottom: `1px solid ${C.surface2}`,
@@ -359,7 +359,7 @@ export default function RacePanel({
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {gap === 0
-                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatTime(cum)}</span>
+                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(cum)}</span>
                     : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
                 </div>
               </div>

@@ -14,9 +14,11 @@ import type { Player, TeamRole, Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed, foreignAppsOf } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
+import { rankColor } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
-import { formatTime, safeRatings } from '../../engine/raceEngine'
+import { safeRatings } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 import ShareCard from './ShareCard'
@@ -114,11 +116,6 @@ function OVRSparkline({ history }: { history: { year: number; ovr: number }[] })
       </span>
     </div>
   )
-}
-
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
 }
 
 export default function PlayerSheet() {
@@ -641,9 +638,9 @@ export default function PlayerSheet() {
                       { label: '所属', val: resolveTeam(player.teamId)?.name ?? (player.teamId === '' ? '未所属' : '—') },
                       { label: '出身', val: player.origin },
                       { label: '成長タイプ', val: player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準' },
-                      { label: '市場価値', val: fmt(calcTransferValue(player)) },
+                      { label: '市場価値', val: fmtYen(calcTransferValue(player)) },
                       { label: '契約残', val: player.contract ? `${player.contract.yearsLeft}年` : '—' },
-                      { label: '年俸', val: player.contract ? fmt(player.contract.annualSalary) : '—' },
+                      { label: '年俸', val: player.contract ? fmtYen(player.contract.annualSalary) : '—' },
                       { label: 'ドラフト', val: player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外' },
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
@@ -979,7 +976,7 @@ export default function PlayerSheet() {
                 }
                 const natRows = [...byYear.values()].sort((a, b) => b.year - a.year)
                 if (natRows.length === 0) return null
-                const medalCol = (rank?: number) => rank === 1 ? '#F5C842' : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : '#9B97A8'
+                const medalCol = (rank?: number) => rankColor(rank ?? 0)
                 return (
                   <div style={{ marginTop: '16px' }}>
                     <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム</div>
@@ -1073,7 +1070,7 @@ export default function PlayerSheet() {
                   {rows.length > 0 ? (
                     <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                       {rows.map((e, i) => {
-                        const rankCol = e.rank === 1 ? '#C9A84C' : e.rank <= 3 ? '#9B97A8' : '#5C5870'
+                        const rankCol = rankColor(e.rank)
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < rows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                             <span style={{ fontSize: '12px', color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
@@ -1102,7 +1099,7 @@ export default function PlayerSheet() {
                 {entries.length > 0 ? (
                   <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                     {entries.map((e, i) => {
-                      const rankCol = e.rank === 1 ? '#C9A84C' : e.rank <= 3 ? '#9B97A8' : '#5C5870'
+                      const rankCol = rankColor(e.rank)
                       // この大会×区間の記録タイムと同タイムの走りなら「区間記録」パッチ（同タイムの共同保持もタイ記録として付く）
                       const rec = (segmentRecords[`${selectedRaceName}-${e.segIdx}`] ?? [])[0]
                       const isSegRecord = !!rec && rec.timeSec === e.timeSec
@@ -1115,7 +1112,7 @@ export default function PlayerSheet() {
                             <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: '4px', background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>区間記録</span>
                           )}
                           <span style={{ flex: 1 }} />
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatTime(e.timeSec)}</span>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
                         </div>
                       )
                     })}
