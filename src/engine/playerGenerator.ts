@@ -1351,18 +1351,20 @@ export function buildRatingsForRank(params: {
   bakeFrom?: number          // 焼き込みを始める年齢（既定22）。年齢カーブの試算用
   bakeRate?: number          // 1年あたりの伸びの倍率（既定1.0）。年齢カーブの試算用
   baseBoost?: number         // 素体の底上げ（既定0）。年齢カーブの試算用
+  bakeEarlyUntil?: number    // この年齢までは伸びを緩める（既定＝bakeFrom＝効果なし）。試算用
+  bakeEarlyRate?: number     // 緩めるときの倍率（既定1.0）。試算用
 }): { ratings: Player['ratings']; potential: number } {
-  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride, bakeFrom, bakeRate, baseBoost = 0 } = params
+  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride, bakeFrom, bakeRate, baseBoost = 0, bakeEarlyUntil, bakeEarlyRate } = params
   const ratings = generateRatings(rank, specialty, baseBoost)
   const [pMin, pMax] = rankToBaseRange(rank, growthCurve).potential
   const potential = potentialOverride ?? Math.min(potentialCap, rng(pMin, pMax) + potentialBonus)
-  bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age, bakeFrom, bakeRate)
+  bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age, bakeFrom, bakeRate, bakeEarlyUntil, bakeEarlyRate)
   return { ratings, potential }
 }
 
 // 海外選手は再生成のたび素体OVRで生まれるため、毎年成長している国内選手に対して
 // 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
-function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number, bakeFrom = 22, bakeRate = 1.0): void {
+function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number, bakeFrom = 22, bakeRate = 1.0, bakeEarlyUntil = bakeFrom, bakeEarlyRate = 1.0): void {
   const peakAge = peakAgeOf({ growthCurve })
   const years = Math.max(0, Math.min(age, peakAge + 3) - bakeFrom)
   if (years === 0) return
@@ -1379,7 +1381,9 @@ function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specia
       if (cur >= cap) continue
       // 高ポテンシャルの年長者がちゃんと90-99近くまで育つよう、高数値域の伸びを強めに。
       const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
-      const gain = Math.round(rng(1, 3) * potFactor * diff * bakeRate)
+      // その年に何歳だったか。若い年は伸びを緩める（bakeEarlyUntil 未満に bakeEarlyRate）
+      const rate = (bakeFrom + y) < bakeEarlyUntil ? bakeRate * bakeEarlyRate : bakeRate
+      const gain = Math.round(rng(1, 3) * potFactor * diff * rate)
       if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
     }
   }
