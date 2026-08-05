@@ -56,3 +56,26 @@ export function topRows<T extends RankableRow>(rows: readonly T[] | undefined, n
 export function positionPointsFor(teamCount: number, rank: number): number {
   return Math.max(0, teamCount + 1 - rank)
 }
+
+// ── ドラフトの巡目 ─────────────────────────────────────────────
+//
+// これまで `currentPick < 20 ? 1 : 2` と `(currentPick % 20) + 1` が
+// gameStore と DraftRoom の計5箇所に直書きされていた。20 は「参加チーム数」の
+// 決め打ちで、チーム数が変わると巡目も巡内順位も全部ずれる。
+// 1巡の人数は指名順リスト（pickOrder）の長さから出す。
+
+/** ドラフトの巡数。スネーク方式で pickOrder はこの倍数の長さになる */
+export const DRAFT_ROUNDS = 2
+
+/**
+ * 何巡目の何番目の指名か。
+ * @param pickIndex 0始まりの通し番号
+ * @param pickOrderLength 指名順リストの長さ（＝参加チーム数 × DRAFT_ROUNDS）
+ */
+export function draftRoundOf(pickIndex: number, pickOrderLength: number): { round: number; pickInRound: number } {
+  const perRound = Math.max(1, Math.round(pickOrderLength / DRAFT_ROUNDS))
+  return {
+    round: Math.floor(pickIndex / perRound) + 1,
+    pickInRound: (pickIndex % perRound) + 1,
+  }
+}

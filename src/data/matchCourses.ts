@@ -81,7 +81,6 @@ export function courseToRace(c: MatchCourse, raceNo: number): Race {
     type: 'league',
     segments: c.segments,
     conditions: c.conditions,
-    participants: [],
   }
 }
 

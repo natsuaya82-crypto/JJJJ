@@ -12,6 +12,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { audio } from '../../utils/audio'
 import { isForeignNat } from '../../data/nationalities'
+import { draftRoundOf } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -275,8 +276,7 @@ export default function DraftRoom() {
   }
 
   const currentTeam  = teams.find(t => t.id === pickOrder[currentPick])
-  const round        = currentPick < 20 ? 1 : 2
-  const pickInRound  = (currentPick % 20) + 1
+  const { round, pickInRound } = draftRoundOf(currentPick, pickOrder.length)
   const myPicksDone  = picks.filter(p => p.teamId === playerTeamId).length
   const myPicksTotal = pickOrder.filter(id => id === playerTeamId).length
   const playerTeamObj = teams.find(t => t.id === playerTeamId)
@@ -504,7 +504,7 @@ export default function DraftRoom() {
                 }}
               >
                 <div style={{ fontSize: '7px', color: isCurrent ? accentColor : C.textDim, marginBottom: '1px', fontFamily: SAIRA }}>
-                  {idx < 20 ? `R1-${(idx % 20) + 1}` : `R2-${(idx % 20) + 1}`}
+                  {(() => { const d = draftRoundOf(idx, pickOrder.length); return `R${d.round}-${d.pickInRound}` })()}
                 </div>
                 <div style={{ fontSize: '10px', fontWeight: isCurrent ? '800' : '600', color: isCurrent ? accentColor : isMe ? C.gold : C.textSub, whiteSpace: 'nowrap', fontFamily: SAIRA }}>
                   {isMe ? '★ ' : ''}{t?.shortName ?? '?'}

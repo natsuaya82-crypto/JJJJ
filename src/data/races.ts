@@ -1,5 +1,4 @@
 import type { Race, IndividualEvent } from '../types'
-import { INITIAL_TEAMS } from './teams'
 
 // 記録会（タイムトライアル）年7回。本編レースの合間に配置。種目を散らし、負荷の高いマラソンは夏の休養期に。
 const pickTTWeather = (): IndividualEvent['weather'] => {
@@ -19,8 +18,6 @@ export function generateIndividualEvents(year: number): IndividualEvent[] {
     { id: `tt-half-2-${y}`, name: `${y} 冬季ハーフ記録会`,   date: `${y}-12-06`, distance: 21097, weather: pickTTWeather() },
   ]
 }
-
-const ALL_TEAM_IDS = INITIAL_TEAMS.map(t => t.id)
 
 // W = statWeights shorthand. Each segment gets its own unique calibration.
 type W = Partial<Record<'speed' | 'stamina' | 'mountainUp' | 'mountainDown' | 'pacing' | 'mental' | 'recovery', number>>
@@ -53,7 +50,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 6区 10.2km 緩上り: 最長アンカー。スタミナと回復力で粘る
       seg(6, 10.2, 8,  3, { stamina: 0.38, pacing: 0.25, recovery: 0.22, mental: 0.10, speed: 0.05 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 02: 東北桜駅伝 ─────
@@ -83,7 +79,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 8区 7.5km 平坦: 最終スプリントアンカー
       seg(8, 7.5,   0,  0, { speed: 0.60, pacing: 0.18, mental: 0.14, stamina: 0.05, recovery: 0.03 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 03: 東京スプリント駅伝 ─────
@@ -113,7 +108,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 8区 12.5km 緩上り: 最長アンカー。スタミナ型が有利
       seg(8, 12.5, 8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.20, mental: 0.12, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 04: 富士山岳駅伝 ─────
@@ -139,7 +133,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 6区 8.5km アップダウン: 帰路起伏。疲弊した脚で最後の山岳戦
       seg(6, 8.5,  20, 18, { mountainUp: 0.22, mountainDown: 0.25, stamina: 0.28, pacing: 0.15, recovery: 0.10 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 05: 関西スプリント駅伝 ─────
@@ -165,7 +158,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 6区 9.5km 緩傾斜: 精神のアンカー戦
       seg(6, 9.5,  5,  5, { mental: 0.36, pacing: 0.30, stamina: 0.20, recovery: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 06: 九州夏季駅伝 ─────
@@ -195,7 +187,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 8区 14.5km 緩上り: 夏最長アンカー。スタミナ・回復力の総決算
       seg(8, 14.5, 8,  3, { stamina: 0.42, recovery: 0.28, pacing: 0.18, mental: 0.08, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 07: 信州アルペン駅伝 ─────
@@ -221,7 +212,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 6区 11.0km 緩上り: 山から帰るアンカー。スタミナ型の逆襲
       seg(6, 11.0,  8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.22, mental: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 08: 全日本プロ駅伝 ─────
@@ -251,7 +241,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 8区 21.4km 緩上り: シーズン最長アンカー。究極のスタミナ戦
       seg(8, 21.4, 8,  3, { stamina: 0.50, recovery: 0.28, pacing: 0.14, mental: 0.06, speed: 0.02 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 09: 秋季グランプリ ─────
@@ -281,7 +270,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 8区 9.0km 緩傾斜: 精神のアンカー戦
       seg(8, 9.0,  5,  5, { mental: 0.38, pacing: 0.30, stamina: 0.20, recovery: 0.08, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 
   // ───── Race 10: JPELグランドファイナル ─────
@@ -315,7 +303,6 @@ export const SEASON_2027_RACES: Race[] = [
       // 10区 7.0km 平坦: 大詰めの最終スプリント
       seg(10,  7.0, 0,  0, { speed: 0.62, pacing: 0.18, mental: 0.14, stamina: 0.04, recovery: 0.02 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 ]
 
@@ -334,7 +321,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4,11.5, 0,   0, { pacing: 0.38, stamina: 0.28, mental: 0.20, recovery: 0.10, speed: 0.04 }),
       seg(5,13.5, 5,   5, { recovery: 0.36, stamina: 0.28, pacing: 0.22, mental: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '東海リザーブ駅伝',          location: '浜松',  type: 'league',
@@ -347,7 +333,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(5,12.0, 8,   3, { recovery: 0.34, stamina: 0.32, pacing: 0.20, mental: 0.10, speed: 0.04 }),
       seg(6,14.5, 0,   0, { stamina: 0.40, pacing: 0.26, recovery: 0.20, mental: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '北関東リザーブ交流戦',       location: '水戸',  type: 'league',
@@ -359,7 +344,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4, 9.5, 8,   3, { pacing: 0.38, stamina: 0.24, mental: 0.22, recovery: 0.12, speed: 0.04 }),
       seg(5,11.0, 5,   5, { mental: 0.34, pacing: 0.30, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '四国リザーブサマーレース',   location: '高松',  type: 'league', months: [6, 9],
@@ -371,7 +355,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4, 7.0, 5,   5, { pacing: 0.40, speed: 0.26, mental: 0.20, stamina: 0.08, recovery: 0.06 }),
       seg(5,12.5, 8,   3, { recovery: 0.38, stamina: 0.28, pacing: 0.20, mental: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '北東北リザーブ夏季大会',     location: '盛岡',  type: 'league', months: [6, 9],
@@ -383,7 +366,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4, 7.5, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
       seg(5,13.0, 8,   3, { recovery: 0.36, stamina: 0.30, pacing: 0.20, mental: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: 'リザーブ秋季フィナーレ',     location: '宇都宮', type: 'league', months: [9, 10, 11],
@@ -396,7 +378,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(5,13.0, 8,   3, { recovery: 0.36, stamina: 0.30, pacing: 0.20, mental: 0.10, speed: 0.04 }),
       seg(6,15.5, 5,   5, { stamina: 0.42, recovery: 0.26, pacing: 0.20, mental: 0.08, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: 'リザーブファイナル',          location: '千葉',  type: 'league', months: [10, 11],
@@ -409,7 +390,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(5, 9.0,20,  18, { mountainUp: 0.26, mountainDown: 0.24, stamina: 0.28, pacing: 0.12, recovery: 0.10 }),
       seg(6,14.0, 8,   3, { stamina: 0.40, recovery: 0.26, pacing: 0.20, mental: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '関西リザーブカップ',          location: '大阪',  type: 'league',
@@ -421,7 +401,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4,10.0, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
       seg(5,12.0, 0,   0, { pacing: 0.36, stamina: 0.28, recovery: 0.18, mental: 0.14, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '山岳リザーブ挑戦戦',         location: '甲府',  type: 'league',
@@ -433,7 +412,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4,10.5, 2,  55, { mountainDown: 0.52, speed: 0.24, pacing: 0.12, mental: 0.08, recovery: 0.04 }),
       seg(5, 7.5, 5,   5, { pacing: 0.40, speed: 0.26, mental: 0.20, stamina: 0.08, recovery: 0.06 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '九州リザーブ交流戦',         location: '熊本',  type: 'league',
@@ -445,7 +423,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4, 8.5, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
       seg(5,10.0, 0,   0, { mental: 0.34, pacing: 0.30, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '中部リザーブ大会',            location: '静岡',  type: 'league',
@@ -458,7 +435,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(5, 9.5, 5,   5, { mental: 0.36, pacing: 0.28, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
       seg(6,13.0, 0,   0, { stamina: 0.40, pacing: 0.26, recovery: 0.20, mental: 0.10, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '北海道リザーブ秋冬戦',       location: '旭川',  type: 'league', months: [10, 11],
@@ -470,7 +446,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4,12.5,20,  18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, recovery: 0.14, pacing: 0.10 }),
       seg(5, 9.0, 0,   0, { pacing: 0.38, speed: 0.26, mental: 0.20, stamina: 0.10, recovery: 0.06 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: 'スプリント型リザーブ戦',     location: '川崎',  type: 'league',
@@ -483,7 +458,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(5, 7.0, 0,   0, { speed: 0.65, pacing: 0.16, mental: 0.11, stamina: 0.05, recovery: 0.03 }),
       seg(6, 5.8, 0,   0, { speed: 0.68, pacing: 0.14, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
   {
     name: '長距離リザーブ耐久戦',       location: '神戸',  type: 'league',
@@ -495,7 +469,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4,15.0, 5,   5, { stamina: 0.42, recovery: 0.26, pacing: 0.20, mental: 0.08, speed: 0.04 }),
       seg(5,14.5, 8,   3, { stamina: 0.44, recovery: 0.26, pacing: 0.18, mental: 0.08, speed: 0.04 }),
     ],
-    participants: ALL_TEAM_IDS,
   },
 ]
 

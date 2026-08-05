@@ -554,7 +554,10 @@ export type Race = {
   type: 'league' | 'college'
   segments: Segment[]
   conditions: RaceConditions
-  participants: string[]
+  // ※ 「誰が出るか」はここには持たない。実際に走るのは simulateRace に渡した
+  //   lineups のキー（raceEngine.ts）で決まる。かつて participants: string[] があったが
+  //   どこからも読まれず、全レースに「20チーム全部」と書いてあるだけの嘘のデータだった。
+  //   部（ディビジョン）ごとに出場者を分けるとき、書く場所が2つあると必ずズレるので消した。
   results?: RaceResults
 }
 

@@ -59,7 +59,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam } from '../utils/league'
+import { rankedStandings, rankOfTeam, draftRoundOf } from '../utils/league'
 
 type DraftState = {
   pool: Player[]
@@ -899,7 +899,7 @@ export const useGameStore = create<GameStore>()(
         if (!moved.ok) return
         const teams = moved.teams
         const players = moved.players.map(p => p.id === playerId
-          ? { ...p, draftRound: currentPick < 20 ? 1 : 2, draftPick: (currentPick % 20) + 1 }
+          ? { ...p, ...(({ round, pickInRound }) => ({ draftRound: round, draftPick: pickInRound }))(draftRoundOf(currentPick, pickOrder.length)) }
           : p)
 
         const nextPick = currentPick + 1
@@ -937,7 +937,7 @@ export const useGameStore = create<GameStore>()(
         if (!moved.ok) return
         const teams = moved.teams
         const players = moved.players.map(p => p.id === picked.id
-          ? { ...p, draftRound: currentPick < 20 ? 1 : 2, draftPick: (currentPick % 20) + 1 }
+          ? { ...p, ...(({ round, pickInRound }) => ({ draftRound: round, draftPick: pickInRound }))(draftRoundOf(currentPick, pickOrder.length)) }
           : p)
         const nextPick = currentPick + 1
         const isComplete = nextPick >= pickOrder.length
@@ -5948,7 +5948,6 @@ export const useGameStore = create<GameStore>()(
                     type: 'league' as const,
                     segments: course.segments,
                     conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
-                    participants: parts.map(p => p.id),
                   })),
                   raceIndex: 0,
                   points: {},
@@ -6267,7 +6266,6 @@ export const useGameStore = create<GameStore>()(
             type: 'league' as const,
             segments: plan.segments.map((s, j) => ({ index: j + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct })),
             conditions: { temperature: 12, weather: WEATHERS[Math.floor(Math.random() * WEATHERS.length)], elevation: 0 },
-            participants: nations.map(n => `nat_${n}`),
           }))
           const individuals = fields ? simulateIndividuals(fields) : undefined
           // 代表は選出された時点で代表：駅伝20人＋個人種目エントリーをここで代表記録に積む
@@ -6494,7 +6492,6 @@ export const useGameStore = create<GameStore>()(
             type: 'league' as const,
             segments: course.segments,
             conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
-            participants: parts.map(p => p.id),
           })).filter(r => r.date > lastPlayedDate)
           if (races.length === 0) return state
           return {
