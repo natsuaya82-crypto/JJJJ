@@ -49,8 +49,8 @@ export function racePrizeByRank(rank: number): number {
 
 // CPUの不足分補填：確定予算（グラント）の10%を上乗せ。
 export const CPU_INCOME_SUPPLEMENT_RATE = 0.10
-export function cpuIncomeSupplement(finalRank: number): number {
-  return Math.round(rankBudgetGrant(finalRank) * CPU_INCOME_SUPPLEMENT_RATE)
+export function cpuIncomeSupplement(baseGrant: number): number {
+  return Math.round(baseGrant * CPU_INCOME_SUPPLEMENT_RATE)
 }
 
 // 順位別の1戦あたり観客収入の目安（プレイヤーの計算式と同じ段階。乱数は除いた期待値）。
@@ -67,10 +67,13 @@ export function attendanceRevenueByRank(rank: number): number {
 
 // CPUのシーズン収入：プレイヤー同様に「レース賞金＋観客収入」を最終順位ベースで1シーズン分(racesCount戦)概算し、
 // さらに足りない分としてグラントの10%を上乗せする。
-export function cpuSeasonRaceIncome(finalRank: number, racesCount: number): number {
+//
+// divisionRank は「その部の中での順位」。52チーム通しの順位を渡してはいけない
+// （2部の優勝チームが通し21位になり、賞金が最下位扱いになる）。
+export function cpuSeasonRaceIncome(divisionRank: number, racesCount: number, baseGrant: number): number {
   const races = Math.max(1, racesCount)
-  const perRace = racePrizeByRank(finalRank) + attendanceRevenueByRank(finalRank)
-  return perRace * races + cpuIncomeSupplement(finalRank)
+  const perRace = racePrizeByRank(divisionRank) + attendanceRevenueByRank(divisionRank)
+  return perRace * races + cpuIncomeSupplement(baseGrant)
 }
 
 // ── リーグの育成義務ペナルティ ──
@@ -136,8 +139,13 @@ export function deficitGrantMult(deficitStreak: number): number {
 // 実際に受け取るグラント額（連続赤字ペナルティ・育成義務ペナルティ適用後）。
 // 運営費(10%)もこの実額を基準にする。ペナルティで収入が減るのに運営費だけ満額のままだと、
 // 赤字→減額→さらに赤字、が永久に抜け出せないデススパイラルになるため。
-export function effectiveGrant(finalRank: number, deficitStreak: number, dutyGrantCut = 0): number {
-  return Math.round(rankBudgetGrant(finalRank) * deficitGrantMult(deficitStreak) * (1 - dutyGrantCut))
+//
+// baseGrant は「そのクラブの素の年間予算」＝ utils/clubTier.ts の tierBudget(team)。
+// 以前はここで rankBudgetGrant(finalRank) を呼んでいたが、あの表は1〜20位ぶんしか無く、
+// 52チーム制では21位以降が全部 3.90億 になって2部と3部の区別が消えていた。
+// 順位ではなくクラブの格で決めるので、額の元は呼び出し側から渡す。
+export function effectiveGrant(baseGrant: number, deficitStreak: number, dutyGrantCut = 0): number {
+  return Math.round(baseGrant * deficitGrantMult(deficitStreak) * (1 - dutyGrantCut))
 }
 
 // 赤字を許容する下限（借金の底）。これ以下は endSeason 側で指名権/選手の強制売却で補填する。
@@ -149,7 +157,7 @@ export const DEFICIT_RESCUE_BUDGET = 50_000_000
 // 来季予算 = 前季残高の繰り越し + 収入 - 支出（下限は救済せず、赤字は DEFICIT_LIMIT まで許容）。
 // 連続赤字が2年以上ならグラントを段階的にカット（ペナルティ）。
 export function computeNextSeasonBudget(args: {
-  finalRank: number
+  baseGrant: number         // そのクラブの素の年間予算（tierBudget(team)）
   prevBalance: number      // 今季終了時点の残高（繰り越し）
   deficitStreak: number    // 連続赤字シーズン数（今季を含む前まで）
   sponsorAnnual: number
@@ -161,7 +169,7 @@ export function computeNextSeasonBudget(args: {
   dutyGrantCut?: number     // 育成義務ペナルティ（leagueDutyGrantCut の結果。0〜0.3）
 }): number {
   // 2年連続赤字でグラント-20%、3年以上で-35%（万年赤字への締め付け）
-  const grant = effectiveGrant(args.finalRank, args.deficitStreak, args.dutyGrantCut ?? 0)
+  const grant = effectiveGrant(args.baseGrant, args.deficitStreak, args.dutyGrantCut ?? 0)
   const income = grant + args.sponsorAnnual + args.seasonRaceIncome + args.objBudgetBonus
   const expenses = args.bonusPayout + args.salaryTotal + (args.runningCost ?? 0)
   const raw = args.prevBalance + income - expenses

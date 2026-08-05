@@ -11,7 +11,7 @@ import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { ovr } from '../src/utils/playerUtils'
-import { rankBudgetGrant } from '../src/data/economy'
+import { tierBudget, tierOf, TIER_LABEL } from '../src/utils/clubTier'
 import type { Player, Team } from '../src/types'
 
 const top10 = (ps: Player[]): number => {
@@ -22,7 +22,7 @@ const top10 = (ps: Player[]): number => {
 function run() {
   const allTeams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].map(t => ({
     ...t,
-    finance: { ...t.finance, budget: rankBudgetGrant(t.initialRank) },
+    finance: { ...t.finance, budget: tierBudget(t) },
   }))
 
   const { cpuPlayers, teamRosters } = generateCpuRosters(allTeams, 2027)
@@ -39,7 +39,7 @@ function run() {
       .sort((a, b) => b.v - a.v)
     const avg = rows.reduce((s, r) => s + r.v, 0) / rows.length
     console.log(`  ${div}部  平均 ${avg.toFixed(1)}  最強 ${rows[0].v.toFixed(1)}(${rows[0].t.shortName})  最弱 ${rows[rows.length - 1].v.toFixed(1)}(${rows[rows.length - 1].t.shortName})`)
-    for (const r of rows) console.log(`        ${r.v.toFixed(1)}  ${r.t.name}  (予算 ${(r.t.finance.budget / 1e8).toFixed(2)}億)`)
+    for (const r of rows) console.log(`        ${r.v.toFixed(1)}  格${String(tierOf(r.t)).padStart(2)} ${TIER_LABEL[tierOf(r.t)]}  ${r.t.name}  (予算 ${(r.t.finance.budget / 1e8).toFixed(2)}億)`)
   }
 
   console.log('\n■ 海外（上位10人の平均OVR）')

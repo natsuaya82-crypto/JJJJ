@@ -524,6 +524,11 @@ export type Team = {
    * 「どの部にも属さないチーム」が生まれる。
    */
   division?: Division
+  /**
+   * クラブの格（1が頂点・10が最下層）。年間予算＝初期ロスターの強さを決める。
+   * 読む側は必ず tierOf()（utils/clubTier.ts）を通すこと。無ければ initialRank から引く。
+   */
+  tier?: import('../utils/clubTier').ClubTier
   isPlayerControlled: boolean
   gmName: string
   sponsors?: string[]            // Sponsor IDs

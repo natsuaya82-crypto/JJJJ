@@ -67,6 +67,7 @@ import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision } from '../utils/league'
+import { tierBudget } from '../utils/clubTier'
 
 type DraftState = {
   pool: Player[]
@@ -588,7 +589,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
         ...t,
         roster: { main: [] },
         facilities: { trainingCamp: facLv, medicalCenter: facLv, scoutOffice: facLv, tacticsRoom: facLv },
-        finance: { ...t.finance, budget: rankBudgetGrant(t.initialRank) },
+        finance: { ...t.finance, budget: tierBudget(t) },
       }
     }),
     players: basePlayers,
@@ -840,7 +841,7 @@ export const useGameStore = create<GameStore>()(
         // 2巡目はスネークで逆順（1位から）。
         const inauguralOthers = [...state.teams]
           .filter(t => t.id !== state.playerTeamId)
-          .sort((a, b) => rankBudgetGrant(a.initialRank) - rankBudgetGrant(b.initialRank))
+          .sort((a, b) => tierBudget(a) - tierBudget(b))
           .map(t => t.id)
         const inauguralRound1 = [state.playerTeamId, ...inauguralOthers]
         const pickOrder = [...inauguralRound1, ...[...inauguralRound1].reverse()]
@@ -863,9 +864,9 @@ export const useGameStore = create<GameStore>()(
         const seededTeams = state.teams.map(t => t.id === state.playerTeamId
           ? {
               ...t,
-              // 最弱スタート：初期予算は最下位(20位)グラント、施設は0から自分で建てる
+              // 最弱スタート：予算はそのクラブの格ぶん、施設は0から自分で建てる
               facilities: {},
-              finance: { ...t.finance, budget: rankBudgetGrant(20) },
+              finance: { ...t.finance, budget: tierBudget(t) },
             }
           : t)
 
@@ -4778,7 +4779,7 @@ export const useGameStore = create<GameStore>()(
           const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
           // 補強原資 ＝ 年俸原資の余り（グラント−既存年俸）＋ 実残高の一部。
           // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く
-          const grantRoom = Math.max(0, rankBudgetGrant(rankOf(team.id)) - committedSalary)
+          const grantRoom = Math.max(0, tierBudget(team) - committedSalary)
           const budgetRoom = Math.max(0, team.finance.budget) * 0.3
           return {
             team, totalNow,
@@ -4955,12 +4956,6 @@ export const useGameStore = create<GameStore>()(
           const cpuRenewalSalary = (p: Player) => faMarketSalary(p, perfOf(state.currentSeason, p.id))
           const cpuRenewIds = new Set<string>()
           {
-            const curStandings = rankedStandings((state.currentSeason.standings ?? []))
-            const totalTeamsRenewal = state.teams.length
-            const rankOfRenewal = (teamId: string) => {
-              const i = curStandings.findIndex(s => s.teamId === teamId)
-              return i >= 0 ? i + 1 : Math.ceil(totalTeamsRenewal / 2)
-            }
             const cpuTeamIdsRenewal = [...new Set(
               state.players
                 .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId && p.status === 'active')
@@ -4969,11 +4964,11 @@ export const useGameStore = create<GameStore>()(
             for (const teamId of cpuTeamIdsRenewal) {
               const tier = cpuTeamTier(teamId, state.players)
               const minOvr = tier === 'elite' ? 72 : tier === 'mid' ? 65 : 58
-              const rank = rankOfRenewal(teamId)
               const ongoingCommitted = state.players
                 .filter(p => p.teamId === teamId && p.status === 'active' && p.contract.yearsLeft > 1)
                 .reduce((s, p) => s + p.contract.annualSalary, 0)
-              let budget = Math.max(0, rankBudgetGrant(rank) - ongoingCommitted)
+              // 更新に使える原資も「格ぶんの予算 − 既存の年俸」。順位ではない
+              let budget = Math.max(0, tierBudget(state.teams.find(t => t.id === teamId)) - ongoingCommitted)
               const expiring = state.players
                 .filter(p => p.teamId === teamId && p.contract.yearsLeft === 1 && p.status === 'active')
                 .sort((a, b) => ovr(b) - ovr(a))
@@ -5408,9 +5403,12 @@ export const useGameStore = create<GameStore>()(
           const bannedMe = prevStreakMe >= 3 || playerBudgetAtSeasonEnd < 0
           const dutyCutMe = leagueDutyGrantCut(myRosterSize, bannedMe)
           // 運営費はペナルティ後の「実際に受け取るグラント」基準。満額基準のままだと収入だけ減って抜け出せない
-          const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), effectiveGrant(finalRank, prevStreakMe, dutyCutMe))
+          // グラントの元は「クラブの格」。順位ではない（順位表は52チーム通しなので、
+          // 順位を額に直すと2部・3部が全部同額になる）
+          const myBaseGrant = tierBudget(playerTeamObj)
+          const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), effectiveGrant(myBaseGrant, prevStreakMe, dutyCutMe))
           const playerBudgetArgs = {
-            finalRank,
+            baseGrant: myBaseGrant,
             prevBalance: playerBudgetAtSeasonEnd,
             deficitStreak: prevStreakMe,
             sponsorAnnual,
@@ -5427,7 +5425,7 @@ export const useGameStore = create<GameStore>()(
           // 前季の支出は前季で完結しているため、内訳に支出行は出さない
           const newBudgetBreakdown = {
             carryover: playerBudgetAtSeasonEnd - (bonusTotalPayout + playerSalaryTotal + runningCostVal),
-            grant: effectiveGrant(finalRank, prevStreakMe, dutyCutMe),
+            grant: effectiveGrant(myBaseGrant, prevStreakMe, dutyCutMe),
             raceIncome: prevRaceIncome,
             sponsor: sponsorAnnual,
             objBonus: objBudgetBonus,
@@ -5454,20 +5452,24 @@ export const useGameStore = create<GameStore>()(
             if (t.id === state.playerTeamId) {
               return { ...t, finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
             }
-            const rank = sortedStandings.findIndex(s => s.teamId === t.id) + 1
+            // 賞金・観客収入は「その部の中での順位」。通し順位を使うと2部の優勝が21位扱いになる
+            const divIds = new Set(teamsInDivision(teamsWithFA, divisionOf(t)).map(x => x.id))
+            const rank = rankedStandings(sortedStandings.filter(s => divIds.has(s.teamId)))
+              .findIndex(s => s.teamId === t.id) + 1
             const sal = teamSalaryTotal(t.id)
             const prevStreak = t.finance.deficitStreak ?? 0
+            const cpuBaseGrant = tierBudget(t)
             const cpuBudgetArgs = {
-              finalRank: rank,
+              baseGrant: cpuBaseGrant,
               prevBalance: t.finance.budget,
               deficitStreak: prevStreak,
               sponsorAnnual: teamSponsorAnnual(t),
               // CPUにも賞金＋観客収入を最終順位ベースで加え、さらに足りない分としてグラントの10%を上乗せ
-              seasonRaceIncome: cpuSeasonRaceIncome(rank, seasonRacesCount),
+              seasonRaceIncome: cpuSeasonRaceIncome(rank, seasonRacesCount, cpuBaseGrant),
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
-              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), effectiveGrant(rank, prevStreak)),
+              runningCost: runningCost(facLevelSum(t.facilities as Record<string, number> | undefined), effectiveGrant(cpuBaseGrant, prevStreak)),
             }
             const b = computeNextSeasonBudget(cpuBudgetArgs)
             // 自チームと同じ判定：精算後の残高がマイナスなら連続赤字+1、プラスなら0
@@ -5475,7 +5477,7 @@ export const useGameStore = create<GameStore>()(
             cpuNextBudgets[t.id] = {
               budget: b,
               carryover: t.finance.budget - (sal + cpuBudgetArgs.runningCost),
-              grant: effectiveGrant(rank, prevStreak),
+              grant: effectiveGrant(cpuBaseGrant, prevStreak),
               raceIncome: cpuBudgetArgs.seasonRaceIncome,
               sponsor: cpuBudgetArgs.sponsorAnnual,
               objBonus: 0,

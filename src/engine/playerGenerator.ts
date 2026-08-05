@@ -1,7 +1,7 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
 import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
-import { rankBudgetGrant } from '../data/economy'
+import { tierBudget, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary, peakAgeOf } from '../utils/playerUtils'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
@@ -997,7 +997,7 @@ function rankForSalary(s: number): Rank {
 }
 
 export function generateCpuRosters(
-  teams: { id: string; initialRank?: number }[],
+  teams: { id: string; initialRank?: number; tier?: ClubTier }[],
   year: number,
 ): { cpuPlayers: Player[]; teamRosters: Record<string, { main: string[] }> } {
   const cpuPlayers: Player[] = []
@@ -1079,7 +1079,9 @@ export function generateCpuRosters(
     // グラント（initialRank連動の初期予算）の8割を28人の年俸に充てる。
     // 初期28人＋初回ドラフト2人でロスター上限30ちょうどになる。
     // 年俸から選手の強さを決めるので、予算の大きいチームほど強い選手が揃う。
-    const grant = rankBudgetGrant(team.initialRank ?? 10)
+    // 予算は「クラブの格」から。前は rankBudgetGrant(initialRank) だったが、
+    // あの表は1〜20位ぶんしか無く21位以降が一律3.9億で、2部と3部が同じ強さになっていた。
+    const grant = tierBudget(team)
     const salaries = distributeSalaries(Math.round(grant * 0.8), 28, 4_000_000)
 
     const mainIds: string[] = []   // 本契約(standard) 12
@@ -1087,28 +1089,30 @@ export function generateCpuRosters(
     const secondIds: string[] = [] // 育成(development) 13
 
     // 本契約(standard) 12人 — 年俸上位から。外国人は2人まで
-    // 主力はランクを一段引き上げる：初年度のリーグが定常状態（強豪で80超7〜8人・リーグ85+約18人）
-    // と同じ厚みで始まるようにするため（土台が低いと成長焼き込みでも85に届かない）
-    const RANK_UP: Record<Rank, Rank> = { D: 'C', C: 'B', B: 'A', A: 'S', S: 'SS', SS: 'SSS', SSS: 'SSS' }
+    //
+    // 以前はここで全員のランクを一段引き上げていた（RANK_UP）。国内の予算が
+    // 3.9〜5.2億しか無く、海外クラブ（7.8〜9.8億を22人で分ける）に勝てないのを
+    // 当て木で埋めていたもの。格で予算そのものを決めるようにしたので撤去した。
+    // 引き上げを残すと、格の差がランクの底上げで潰れて格が効かなくなる。
     let teamForeignCount = 0
     for (let i = 0; i < 12; i++) {
       const sal = salaries[i]
       const canBeForeign = teamForeignCount < 2
       const isForeign = canBeForeign && (i < 1 ? Math.random() < 0.55 : Math.random() < 0.08)
       if (isForeign) teamForeignCount++
-      const p = makePlayer(RANK_UP[rankForSalary(sal)], i, team.id, 'main', isForeign, 'standard', sal)
+      const p = makePlayer(rankForSalary(sal), i, team.id, 'main', isForeign, 'standard', sal)
       cpuPlayers.push(p); mainIds.push(p.id)
     }
-    // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）。控えも一段引き上げてプロ水準に
+    // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）
     for (let i = 0; i < 3; i++) {
       const sal = salaries[12 + i]
-      const p = makePlayer(RANK_UP[rankForSalary(sal)], 12 + i, team.id, 'main', false, 'dual', sal)
+      const p = makePlayer(rankForSalary(sal), 12 + i, team.id, 'main', false, 'dual', sal)
       cpuPlayers.push(p); dualIds.push(p.id)
     }
-    // 育成(development) 13人（国内・年俸下位）。最低ランクだと50前後に密集するので一段引き上げる
+    // 育成(development) 13人（国内・年俸下位）
     for (let i = 0; i < 13; i++) {
       const sal = salaries[15 + i]
-      const p = makePlayer(RANK_UP[rankForSalary(sal)], i, team.id, 'second', false, 'development', sal)
+      const p = makePlayer(rankForSalary(sal), i, team.id, 'second', false, 'development', sal)
       cpuPlayers.push(p); secondIds.push(p.id)
     }
 

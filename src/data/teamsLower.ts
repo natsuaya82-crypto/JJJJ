@@ -10,9 +10,8 @@ import type { Team } from '../types'
 //   ロゴだけは実物（assets/logos-pending から public/logos/<id>.png へ移したもの）。
 //
 // finance.budget は 0 のまま。国内チームの予算は gameStore が
-// rankBudgetGrant(initialRank) で上書きするので、ここの値は使われない。
-// ただし RANK_BUDGET は1〜20位までの表しかなく、21位以降は一律 3.9億に落ちる。
-// 部ごとの予算はまだ手を付けていない（CLAUDE.md の未整理項目 C-1）。
+// tierBudget(team)（utils/clubTier.ts）で上書きするので、ここの値は使われない。
+// 格は initialRank の帯から引くので、ここに格を書き足す必要はない。
 
 export const DIVISION2_TEAMS: Team[] = [
   {
