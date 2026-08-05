@@ -210,3 +210,95 @@ export async function myMatchStats(): Promise<MatchStats> {
   const r = data as { mp_played?: number; mp_wins?: number; mp_forfeits?: number } | null
   return { played: r?.mp_played ?? 0, wins: r?.mp_wins ?? 0, forfeits: r?.mp_forfeits ?? 0 }
 }
+
+// ── 対戦履歴 ────────────────────────────────────────────
+// finish_match() が matches / match_results に残しているものを読むだけ。
+// 書き込みは既にあり、SQLの変更は要らない。
+// RLS は「自分が出た試合だけ、その試合の全員ぶんが見える」なので相手の順位も出せる
+// （rooms.sql の matches_select_mine / match_results_select_mine）。
+
+/** 対戦履歴1件ぶんの参加者。自分も相手も同じ形で入る。 */
+export type MatchEntry = {
+  userId: string
+  rank: number
+  points: number
+  /** 切断による不戦敗 */
+  forfeit: boolean
+  /** 自分の記録か。画面側で自分の行を強調するのに使う。
+   *  順位から推測すると同順位が並んだときに取り違えるので、ここで確定させる */
+  isMe: boolean
+  /** 表示用のチーム情報。プロフィールを引けなかった相手は undefined */
+  profile?: Friend
+}
+
+/** 対戦履歴1件。 */
+export type MatchHistoryItem = {
+  matchId: string
+  finishedAt: string
+  /** レース数。古い記録や壊れた summary では 0 */
+  races: number
+  /** 参加者。順位の昇順 */
+  entries: MatchEntry[]
+  /** 自分の順位。自分の記録が無ければ 0（RLS上ありえないが保険） */
+  myRank: number
+  /** 参加人数 */
+  size: number
+}
+
+/**
+ * 自分が出た対戦の履歴を新しい順に返す。
+ * limit は取得する試合数（既定20）。
+ */
+export async function myMatchHistory(limit = 20): Promise<MatchHistoryItem[]> {
+  const me = await uid()
+
+  // 自分が出た試合のIDを新しい順に取る。matches 側だけで日時の並べ替えができる。
+  const { data: mData, error: mErr } = await supabase
+    .from('matches')
+    .select('id, summary, finished_at')
+    .order('finished_at', { ascending: false })
+    .limit(limit)
+  if (mErr) throw new RoomsOffline()
+  const matches = (mData ?? []) as { id: string; summary: unknown; finished_at: string }[]
+  if (matches.length === 0) return []
+
+  // 参加者は1回のクエリでまとめて取る（試合ごとに引くとN+1になる）
+  const ids = matches.map(m => m.id)
+  const { data: rData, error: rErr } = await supabase
+    .from('match_results')
+    .select('match_id, user_id, rank, points, forfeit')
+    .in('match_id', ids)
+  if (rErr) throw new RoomsOffline()
+  const rows = (rData ?? []) as {
+    match_id: string; user_id: string; rank: number; points: number; forfeit: boolean
+  }[]
+
+  // 相手の名前・ロゴもまとめて引く。引けなかったぶんは profile 未設定のまま出す
+  // （退会した相手の履歴が丸ごと消えるより、順位だけでも残っているほうがよい）
+  const profiles = await profilesByIds([...new Set(rows.map(r => r.user_id))]).catch(() => [])
+  const byUser = new Map(profiles.map(p => [p.user_id, toFriend(p)]))
+
+  const byMatch = new Map<string, MatchEntry[]>()
+  for (const r of rows) {
+    const list = byMatch.get(r.match_id) ?? []
+    list.push({
+      userId: r.user_id, rank: r.rank, points: r.points, forfeit: r.forfeit,
+      isMe: r.user_id === me,
+      profile: byUser.get(r.user_id),
+    })
+    byMatch.set(r.match_id, list)
+  }
+
+  return matches.map(m => {
+    const entries = (byMatch.get(m.id) ?? []).sort((a, b) => a.rank - b.rank)
+    const summary = (m.summary ?? {}) as { races?: number }
+    return {
+      matchId: m.id,
+      finishedAt: m.finished_at,
+      races: typeof summary.races === 'number' ? summary.races : 0,
+      entries,
+      myRank: entries.find(e => e.userId === me)?.rank ?? 0,
+      size: entries.length,
+    }
+  })
+}

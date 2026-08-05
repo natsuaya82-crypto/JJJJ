@@ -51,6 +51,7 @@ import FriendClubPage from './components/friends/FriendClubPage'
 import OnlinePage from './components/online/OnlinePage'
 import MatchEntryPage from './components/online/MatchEntryPage'
 import RoomLobbyPage from './components/online/RoomLobbyPage'
+import MatchHistoryPage from './components/online/MatchHistoryPage'
 import RecordsHub from './components/records/RecordsHub'
 import FranchiseRecordsPage, { IndividualRecordsPage, GmCareerPage } from './components/records/RecordsPage'
 import PlayersStatsPage from './components/records/PlayersStatsPage'
@@ -278,6 +279,7 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/online" element={<OnlinePage />} />
           {ONLINE_ENABLED && <Route path="/online/match" element={<MatchEntryPage />} />}
           {ONLINE_ENABLED && <Route path="/online/room/:roomId" element={<RoomLobbyPage />} />}
+          {ONLINE_ENABLED && <Route path="/online/history" element={<MatchHistoryPage />} />}
           {ONLINE_ENABLED && <Route path="/friends" element={<FriendsPage />} />}
           {ONLINE_ENABLED && <Route path="/friends/list" element={<FriendListPage />} />}
           {/* 申請と承認は1画面にまとめてある。旧パスは念のため同じ画面へ通す */}

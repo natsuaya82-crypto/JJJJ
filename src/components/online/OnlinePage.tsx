@@ -57,6 +57,17 @@ export default function OnlinePage() {
       ),
     },
     {
+      key: '/online/history', label: '対戦履歴', note: '過去の対戦の順位と通算成績',
+      badge: 0, color: C.blue,
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M3 4v4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
       key: '/online/events', label: 'イベント', note: '準備中',
       badge: 0, color: C.green, soon: true,
       icon: (
