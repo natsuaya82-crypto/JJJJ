@@ -68,19 +68,42 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 
 ---
 
+## 成長の計算（整理済み・触るときはここから）
+
+以前ここに「ピークの式が3箇所にコピペされている」「倍率が呼び出し元に埋もれている」
+「`careerStage` だけ年齢観が違う」と書いてありましたが、**3つとも解消済みです**。
+いまの形は次のとおりで、幹と枝が分かれています。
+
+| 何 | どこ |
+|---|---|
+| ピーク年齢（唯一の決まり） | `src/utils/playerUtils.ts` の `peakAgeOf` |
+| 成長の幹 | `src/engine/growth.ts` の `applyGrowth` |
+| 倍率の枝 | 同ファイルの `ageExpMultiplier` / `potentialExpMultiplier` / `facilityExpMultiplier` / `nationalityExpMultiplier` |
+| EXPの計算 | 同ファイルの `processExpGains`（プレイヤー側） |
+| 年1回の成長 | `gameStore.ts` の `growPlayer`（CPU・海外） |
+| 初期生成の焼き込み | `playerGenerator.ts` の `bakeAgeGrowth` |
+| ランクから能力値を作る | `playerGenerator.ts` の `buildRatingsForRank`（生成4経路すべてがここを通る） |
+
+`ageMultiplier` / `growPlayer` / `bakeAgeGrowth` / `careerStage` は全部 `peakAgeOf` を呼びます。
+**ピークの式を変えるときは `peakAgeOf` だけを触ってください。**
+
+成長速度そのもの（`rnd(1,3)` とピーク後3年の窓）は `growPlayer` と `bakeAgeGrowth` の
+2箇所に同じ係数があります。片方だけ変えると、初期生成と年次成長でカーブがずれます。
+どちらのコメントにも「必ず一緒に変えること」と書いてあります。
+
+---
+
 ## 未整理で残っている問題（既知）
 
-`src/store/gameStore.ts` の成長計算まわりは、まだ後付けが散らばっています。
+**`generateCpuRosters` の `RANK_UP`（`playerGenerator.ts`）**
 
-- 年齢によるピークの式が3箇所にコピペされている
-  （`ageMultiplier` / `growPlayer` / `playerGenerator.ts` の `bakeAgeGrowth`）
-- 経路ごとにどの倍率が掛かるかが、呼び出し元の引数の渡し方に埋もれている
-  （練習カードだけポテンシャル倍率も合宿倍率も掛かっていない、など）
-- `careerStage`（`playerUtils.ts`）は specialty 基準で、成長計算の growthCurve 基準と別の年齢観
+国内CPUの選手ランクを一段引き上げています。これが海外クラブとの予算差（約2倍）を
+打ち消していて、JPELが4大リーグと並んでしまいます。
 
-成長のバランス（若手が伸びない・30過ぎが落ちすぎ・90が作れない）を触る前に、
-まずこの構造を1本にまとめること。順番を逆にすると、統合で壊れたのか調整で変わったのかが
-切り分けられなくなります。
+実測（上位10人の平均OVR）: 4大リーグ 87.0 / JPEL1位 86.3 / JPEL20位 83.2 / 欧州西南 80.7
+
+**クラブの格（`src/utils/clubPrestige.ts`）はこれが理由で未接続です。**
+`RANK_UP` を外して測り直してから帯を決めてください。先に格を入れると、決めた帯が嘘になります。
 
 ---
 
