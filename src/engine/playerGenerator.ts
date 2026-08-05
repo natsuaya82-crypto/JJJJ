@@ -1347,20 +1347,22 @@ export function buildRatingsForRank(params: {
   potentialCap?: number      // 国内は92、海外は99
   potentialBonus?: number    // 海外の地域補正(potBonus)
   potentialOverride?: number // ランクから抽選せず、この値をポテンシャルにする（ドラフトの「お化け」枠）
+  bakeFrom?: number          // 焼き込みを始める年齢（既定22）。年齢カーブの試算用
+  bakeRate?: number          // 1年あたりの伸びの倍率（既定1.0）。年齢カーブの試算用
 }): { ratings: Player['ratings']; potential: number } {
-  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride } = params
+  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride, bakeFrom, bakeRate } = params
   const ratings = generateRatings(rank, specialty)
   const [pMin, pMax] = rankToBaseRange(rank, growthCurve).potential
   const potential = potentialOverride ?? Math.min(potentialCap, rng(pMin, pMax) + potentialBonus)
-  bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age)
+  bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age, bakeFrom, bakeRate)
   return { ratings, potential }
 }
 
 // 海外選手は再生成のたび素体OVRで生まれるため、毎年成長している国内選手に対して
 // 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
-function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number): void {
+function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number, bakeFrom = 22, bakeRate = 1.0): void {
   const peakAge = peakAgeOf({ growthCurve })
-  const years = Math.max(0, Math.min(age, peakAge + 3) - 22)
+  const years = Math.max(0, Math.min(age, peakAge + 3) - bakeFrom)
   if (years === 0) return
   const caps = getStatPotentials({ id, ratings, specialty, potential } as unknown as Player)
   // 毎年の成長(growPlayer)と同じ係数に揃える（ズレると初年度と定常状態で層の厚みが変わる）
@@ -1375,7 +1377,7 @@ function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specia
       if (cur >= cap) continue
       // 高ポテンシャルの年長者がちゃんと90-99近くまで育つよう、高数値域の伸びを強めに。
       const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
-      const gain = Math.round(rng(1, 3) * potFactor * diff)
+      const gain = Math.round(rng(1, 3) * potFactor * diff * bakeRate)
       if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
     }
   }
