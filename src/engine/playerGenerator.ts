@@ -724,18 +724,19 @@ let idCounter = 1000
 // 新人のランク配分。DRAFT_POOL_SIZE と同じ長さにすること
 // （足りないと余りが 'A' に落ちて、配分が意図とずれる）。
 //
-// ★上位（SSS・SS・S）の枚数は3部制の前も後も変えていない。
-//   52チームに散らばるからといって超一流を増やすと、リーグ全体のOVRが上がって
-//   クラブの格の帯を決め直すことになる。増やすのは中位・下位だけ。
-//   「ドラ1級は相変わらず1部が持っていく／下部リーグはB・C級で戦う」を保つ。
+// 70人時代（SSS2/SS6/S14/A22/B14/C6/D4 = 68）の【割合をそのまま】120人へ引き伸ばした。
+//
+// 上位を据え置く案もあったが採らなかった。日本人の頂点が薄いままだと、
+// 世界選手権で日本代表が戦えない状態が固定される。チーム数が2.6倍になるなら、
+// 超一流の総量も同じだけ増やす。
 const DRAFT_RANK_POOL: Rank[] = [
-  ...Array<Rank>(2).fill('SSS'),
-  ...Array<Rank>(6).fill('SS'),
-  ...Array<Rank>(20).fill('S'),
-  ...Array<Rank>(44).fill('A'),
-  ...Array<Rank>(28).fill('B'),
-  ...Array<Rank>(14).fill('C'),
-  ...Array<Rank>(6).fill('D'),
+  ...Array<Rank>(4).fill('SSS'),
+  ...Array<Rank>(11).fill('SS'),
+  ...Array<Rank>(25).fill('S'),
+  ...Array<Rank>(37).fill('A'),
+  ...Array<Rank>(25).fill('B'),
+  ...Array<Rank>(11).fill('C'),
+  ...Array<Rank>(7).fill('D'),
 ]
 
 type OriginType = 'university' | 'high_school' | 'foreign' | 'development'
