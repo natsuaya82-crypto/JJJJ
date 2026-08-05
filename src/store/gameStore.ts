@@ -6654,11 +6654,13 @@ export const useGameStore = create<GameStore>()(
               individualEvents: state.currentSeason.individualEvents?.map(e =>
                 e.id === eventId ? { ...e, results: ranked, rewardCards } : e
               ),
+              // 他の書き込み箇所と同じ上限(30)。ここだけ無かったため、記録会を連続で消化すると
+              // 次にrunRace等が上限付きで書き込むまでの間、際限なく積み上がっていた
               newsFeed: [
                 ...recordNewsItems,
                 ...(newsItem ? [newsItem] : []),
                 ...(state.currentSeason.newsFeed ?? []),
-              ],
+              ].slice(0, 30),
               scoutProspects: updatedProspects,
             },
           }
