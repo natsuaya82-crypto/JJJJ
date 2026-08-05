@@ -9,6 +9,7 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import PillTabs from '../ui/PillTabs'
 import { TeamLogoSVG } from '../icons/Icons'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -30,30 +31,13 @@ export function FaceOrDot({ playerId, nationality, size = 40 }: { playerId?: str
   )
 }
 
-/** 区間タブ（横スクロール）。本編・オンライン共通 */
+/** 区間タブ（横スクロール）。本編・オンライン共通。中身は共通の PillTabs */
 export function SegmentTabs({ labels, value, onChange }: {
   labels: string[]
   value: number
   onChange: (i: number) => void
 }) {
-  return (
-    <div style={{ display: 'flex', overflowX: 'auto', gap: 6, padding: '10px 12px 6px', WebkitOverflowScrolling: 'touch' }}>
-      {labels.map((label, i) => {
-        const sel = i === value
-        return (
-          <button key={i} onClick={() => onChange(i)} style={{
-            flexShrink: 0, padding: '7px 14px', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA,
-            fontSize: 13, fontWeight: sel ? 900 : 700,
-            background: sel ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : C.surface2,
-            color: sel ? C.bg : C.textDim,
-            border: `1px solid ${sel ? C.gold : C.border2}`,
-          }}>
-            {label}
-          </button>
-        )
-      })}
-    </div>
-  )
+  return <PillTabs labels={labels} value={value} onChange={onChange} style={{ padding: '10px 12px 6px' }} />
 }
 
 /**

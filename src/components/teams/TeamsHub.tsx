@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { LeagueLogoSVG } from '../icons/Icons'
@@ -8,12 +8,19 @@ import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../..
 import Flag from '../ui/Flag'
 import BackButton from '../ui/BackButton'
 import { NationalTeamRoster } from './NationalTeamDetailPage'
-import { DIVISIONS, DIVISION_LABEL } from '../../utils/league'
+import PillTabs from '../ui/PillTabs'
 import type { Nationality } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type NatEntry = { code: Nationality; label: string; top: number }
+
+// 国の並び替え。国名＝あいうえお順 / 強さ＝その国の最高OVR順
+type NatSort = 'name' | 'top'
+const NAT_SORTS: { key: NatSort; label: string }[] = [
+  { key: 'name', label: '国名' },
+  { key: 'top', label: '強さ' },
+]
 
 
 // 移籍市場と同じ金枠カード。説明文は出さない（タイトルのみ）。
@@ -82,6 +89,8 @@ export default function TeamsHub() {
 
   // 画面の階層はURLクエリで持つ（履歴に載せる）。リーグ詳細等から戻ったとき
   // 「チームのルート」でなく直前の一覧（リーグ一覧・国一覧）に戻れるようにするため。
+  const [natSort, setNatSort] = useState<NatSort>('name')
+
   const [searchParams] = useSearchParams()
   const section = (searchParams.get('s') as 'leagues' | 'national' | null) ?? 'root'
   const region = searchParams.get('r') as GeoRegion | null
@@ -106,9 +115,16 @@ export default function TeamsHub() {
       arr.push({ code: c, label: NAT_LABEL[c] ?? c, top: t })
       byRegion.set(r, arr)
     }
-    for (const arr of byRegion.values()) arr.sort((a, b) => b.top - a.top)
     return byRegion
   }, [players])
+
+  // 国の並び。既定は国名順（あいうえお）。
+  // 前はOVR順で固定だったが、目当ての国を探すのに強さ順は使えない。
+  // 強さで見たいときもあるので切り替えられるようにする
+  const sortedNats = (arr: NatEntry[]): NatEntry[] =>
+    [...arr].sort(natSort === 'top'
+      ? (a, b) => b.top - a.top
+      : (a, b) => a.label.localeCompare(b.label, 'ja'))
 
   const wrap = (children: React.ReactNode) => (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>{children}</div>
@@ -124,9 +140,17 @@ export default function TeamsHub() {
 
   // 代表：地域内の国一覧
   if (section === 'national' && region) {
-    const arr = natByRegion.get(region) ?? []
+    const arr = sortedNats(natByRegion.get(region) ?? [])
     return wrap(<>
       <Header eyebrow="NATIONAL TEAMS" title={region} onBack={() => navigate(-1)} />
+      <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 10, color: C.textDim, fontWeight: 700 }}>並び</span>
+        <PillTabs
+          labels={NAT_SORTS.map(s => s.label)}
+          value={NAT_SORTS.findIndex(s => s.key === natSort)}
+          onChange={i => setNatSort(NAT_SORTS[i].key)}
+        />
+      </div>
       {listBox(arr.map(n => (
         <RowCard
           key={n.code}
@@ -157,10 +181,9 @@ export default function TeamsHub() {
     return wrap(<>
       <Header eyebrow={`${currentSeason.year} STANDINGS`} title="リーグ" onBack={() => navigate(-1)} />
       {listBox(<>
-        {/* 部はここから選ぶ。順位表のページ側にタブを持たせない（1画面に入口が2つあると迷う） */}
-        {DIVISIONS.map(d => (
-          <RowCard key={d} onClick={() => navigate(`/standings/d${d}`)} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title={`JPEL ${DIVISION_LABEL[d]}`} />
-        ))}
+        {/* JPELは1枚。1部・2部・3部の切り替えは順位表のページの中でやる（同じリーグの中なので）。
+            ECLは別のリーグなのでここで分ける */}
+        <RowCard onClick={() => navigate('/standings')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" />
         <RowCard onClick={() => navigate('/standings/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" />
         {leagues.map(l => (
           <RowCard key={l.id} onClick={() => navigate(`/teams/foreign/${l.id}`)} icon={<LeagueLogoSVG leagueId={l.id} size={34} />} title={l.countryName} />

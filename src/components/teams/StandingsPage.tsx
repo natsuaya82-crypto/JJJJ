@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { LeagueLogoSVG } from '../icons/Icons'
 import BackButton from '../ui/BackButton'
+import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C, alpha } from '../../styles/tokens'
 import { rankedStandings, DIVISIONS, DIVISION_LABEL, divisionOf } from '../../utils/league'
@@ -11,15 +13,15 @@ import type { Division } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-// 順位表のページ。どのリーグを出すかはURL（/standings/:league）だけで決まる。
+// 順位表のページ。
 //
 // もとは JpelStandingsPage.tsx と EclStandingsPage.tsx が、ヘッダーも自チーム順位の出し方も
 // ほぼ同じ中身で2本あった。表そのものは StandingsTable の1本なので、リーグごとに違うのは
 // 「行の作り方」だけ。ここで行の作り方だけを出し分けて、見た目と枠組みは1本にする。
 //
-// ★ページの上にリーグ切り替えのタブを置かないこと。
-// リーグを選ぶ入口はチームタブのハブ（TeamsHub の「リーグ」）1つに決めてある。
-// ページにもタブを付けると、同じ選択が2箇所にできて「今どこから来たのか」が分からなくなる。
+// ★横並びの切り替えを置くのは JPEL の 1部・2部・3部だけ。
+// 同じJPELの中を行き来するのは頻繁なのでページ内で切り替える。ECLは別のリーグなので
+// ここには混ぜず、チームタブのハブから入る（前は JPEL/リザーブ/ECL を1列に並べていた）。
 export type StandingsLeague = 'd1' | 'd2' | 'd3' | 'ecl'
 
 /** URLのリーグ指定 → 部。ECL・未指定なら undefined */
@@ -34,6 +36,10 @@ export default function StandingsPage() {
   const { teams, currentSeason, playerTeamId } = useGameStore()
   // 部の指定が無いとき（ホームのFULL→）は自チームのいる部。いちばん見たいのは自分の部なので
   const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
+  // 部の切り替えはページ内で持つ（URLを書き換えるとページごと切り替わる扱いになり、
+  // 毎回ページの出現アニメが走る）。ECLで開いたときは切り替えを出さない
+  const isEcl = league === 'ecl'
+  const [division, setDivision] = useState<Division>(divisionOfLeague(league) ?? myDivision)
   const clubIndex = useClubIndex()
 
   // 国内チームは詳細ページへ。ECLは海外クラブが混ざるので clubRoutePath で出し分ける
@@ -58,7 +64,7 @@ export default function StandingsPage() {
 
   // リーグごとに違うのは「行・消化数・空のときの文言」だけ
   const view: { eyebrow: string; title: string; logoId: string; rows: StandRow[]; progress: string; onRowClick: (id: string) => void; empty?: string } = (() => {
-    if (league === 'ecl') {
+    if (isEcl) {
       const series = currentSeason.eclSeries
       if (!series) return {
         eyebrow: `${currentSeason.year} ECL`, title: 'ECL 順位表', logoId: 'ecl',
@@ -82,7 +88,7 @@ export default function StandingsPage() {
       }
     }
     // 部の順位表。順位表は全52チームぶんを1本で持っているので、ここで所属の部だけに絞る
-    const div = divisionOfLeague(league) ?? myDivision
+    const div = division
     const idsInDiv = new Set(teams.filter(t => divisionOf(t) === div).map(t => t.id))
     return {
       eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',
@@ -119,6 +125,17 @@ export default function StandingsPage() {
             </div>
           </div>
         </div>
+
+        {/* JPELの中の部の切り替え（1部・2部・3部）。ECLは別リーグなので混ぜない */}
+        {!isEcl && (
+          <PillTabs
+            labels={DIVISIONS.map(d => DIVISION_LABEL[d])}
+            value={DIVISIONS.indexOf(division)}
+            onChange={i => setDivision(DIVISIONS[i])}
+            fill
+            style={{ marginTop: 10 }}
+          />
+        )}
       </div>
 
       {view.empty
