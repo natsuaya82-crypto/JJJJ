@@ -80,16 +80,18 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | 成長の幹 | `src/engine/growth.ts` の `applyGrowth` |
 | 倍率の枝 | 同ファイルの `ageExpMultiplier` / `potentialExpMultiplier` / `facilityExpMultiplier` / `nationalityExpMultiplier` |
 | EXPの計算 | 同ファイルの `processExpGains`（プレイヤー側） |
-| 年1回の成長 | `gameStore.ts` の `growPlayer`（CPU・海外） |
-| 初期生成の焼き込み | `playerGenerator.ts` の `bakeAgeGrowth` |
+| 年次成長の速さ（唯一の決まり） | 同ファイルの `applyAnnualStatGrowth` / `GROWTH_PEAK_WINDOW_YEARS` |
+| 年1回の成長 | `gameStore.ts` の `growPlayer`（CPU・海外。中身は `applyAnnualStatGrowth` 呼び出し） |
+| 初期生成の焼き込み | `playerGenerator.ts` の `bakeAgeGrowth`（中身は `applyAnnualStatGrowth` 呼び出し） |
 | ランクから能力値を作る | `playerGenerator.ts` の `buildRatingsForRank`（生成4経路すべてがここを通る） |
 
 `ageMultiplier` / `growPlayer` / `bakeAgeGrowth` / `careerStage` は全部 `peakAgeOf` を呼びます。
 **ピークの式を変えるときは `peakAgeOf` だけを触ってください。**
 
-成長速度そのもの（`rnd(1,3)` とピーク後3年の窓）は `growPlayer` と `bakeAgeGrowth` の
-2箇所に同じ係数があります。片方だけ変えると、初期生成と年次成長でカーブがずれます。
-どちらのコメントにも「必ず一緒に変えること」と書いてあります。
+以前ここに「成長速度（`rnd(1,3)` とピーク後3年の窓）が `growPlayer` と `bakeAgeGrowth` の
+2箇所にコピーされている」と書いてありましたが、解消済みです。両方とも
+`applyAnnualStatGrowth` / `GROWTH_PEAK_WINDOW_YEARS`（`src/engine/growth.ts`）を呼ぶだけになっています。
+**成長速度を変えるときは `applyAnnualStatGrowth` と `GROWTH_PEAK_WINDOW_YEARS` だけを触ってください。**
 
 ---
 

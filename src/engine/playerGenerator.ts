@@ -5,6 +5,7 @@ import { rankBudgetGrant } from '../data/economy'
 import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary, peakAgeOf } from '../utils/playerUtils'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
+import { applyAnnualStatGrowth, GROWTH_PEAK_WINDOW_YEARS } from './growth'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -1335,24 +1336,13 @@ function buildRatingsForRank(params: {
 // 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
 function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number): void {
   const peakAge = peakAgeOf({ growthCurve })
-  const years = Math.max(0, Math.min(age, peakAge + 3) - 22)
+  const years = Math.max(0, Math.min(age, peakAge + GROWTH_PEAK_WINDOW_YEARS) - 22)
   if (years === 0) return
   const caps = getStatPotentials({ id, ratings, specialty, potential } as unknown as Player)
-  // 毎年の成長(growPlayer)と同じ係数に揃える（ズレると初年度と定常状態で層の厚みが変わる）
-  // 2046調整: growPlayer 側で基準値を rnd(0,2)→rnd(1,3)、成長窓をピーク+1→+3年に変更したので
-  // ここも同じ値にする。片方だけ変えると初年度のリーグと数年後の定常状態で層の厚みがズレる
-  const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.3 : 0.85
-  const keys = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const
+  // 毎年の成長(growPlayer)と同じ係数を使う。係数そのものは applyAnnualStatGrowth（engine/growth.ts）に
+  // 1本化済み。ズレると初年度と定常状態で層の厚みが変わるので、値を変えるときはそちらだけを直すこと。
   for (let y = 0; y < years; y++) {
-    for (const stat of keys) {
-      const cur = ratings[stat]
-      const cap = (caps as Record<string, number>)[stat]
-      if (cur >= cap) continue
-      // 高ポテンシャルの年長者がちゃんと90-99近くまで育つよう、高数値域の伸びを強めに。
-      const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
-      const gain = Math.round(rng(1, 3) * potFactor * diff)
-      if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
-    }
+    applyAnnualStatGrowth(ratings, caps, potential)
   }
 }
 

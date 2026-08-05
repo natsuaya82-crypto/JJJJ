@@ -1,4 +1,4 @@
-import type { Player, CardStatKey } from '../types'
+import type { Player, CardStatKey, Ratings } from '../types'
 import { peakAgeOf, getStatPotentials } from '../utils/playerUtils'
 
 // ── EXP システム（設計書準拠） ─────────────────────────────────────────────
@@ -106,6 +106,45 @@ export function facilityExpMultiplier(campLv: number): number {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function nationalityExpMultiplier(_p: Player): number {
   return 1.0
+}
+
+// ── 年次の能力成長（growPlayer / bakeAgeGrowth で共有） ─────────────────────
+// CPU・海外選手の年次成長（gameStore.ts の growPlayer）と、初期生成時に
+// 経過年数ぶんの成長を焼き込む処理（playerGenerator.ts の bakeAgeGrowth）は
+// 同じ式を使う必要がある（ズレると初年度のリーグと数年後の定常状態で層の厚みが変わる）。
+// 以前は2箇所に同じ式がコピーされていて「必ず一緒に変えること」という
+// コメントだけが頼りだったので、ここに1本化した。数式は1文字も変えていない。
+
+/** ピーク到達後、成長が続く猶予年数。growPlayer（年次成長の可否判定）と
+ *  bakeAgeGrowth（初期生成で何年分の成長を焼き込むか）の両方が使う。
+ *  値を変えるときは必ずこの定数だけを直すこと。 */
+export const GROWTH_PEAK_WINDOW_YEARS = 3
+
+/** 年次成長で回す能力の一覧。順序は結果に影響しない（各能力は独立に計算される）。 */
+export const GROWTH_STAT_KEYS: readonly (keyof Ratings)[] =
+  ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+
+function growthRnd(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+/** 年1回ぶんの能力成長。ratings を直接書き換える（呼び出し元の元の挙動のまま）。
+ *  potFactor: ポテンシャル帯ごとの伸び係数。diff: 現在値の帯ごとの伸び係数（高数値域を強めに）。 */
+export function applyAnnualStatGrowth(
+  ratings: Ratings,
+  caps: Ratings,
+  potential: number,
+  keys: readonly (keyof Ratings)[] = GROWTH_STAT_KEYS,
+): void {
+  const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.3 : 0.85
+  for (const stat of keys) {
+    const cur = ratings[stat]
+    const cap = caps[stat]
+    if (cur >= cap) continue
+    const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
+    const gain = Math.round(growthRnd(1, 3) * potFactor * diff)
+    if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
+  }
 }
 
 // ── 成長の幹（applyGrowth） ─────────────────────────────────────────────
