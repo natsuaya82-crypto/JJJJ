@@ -10,4 +10,6 @@ export const ONLINE_ENABLED = true
 //   false のあいだは、書き込みのボタンも、書き込みの表示も消える。
 //   カードのお願いと差し入れはそのまま動く（走友会はチーム機能として残す）。
 //   コードもサーバー側もそのまま残してあるので、戻すのは true にするだけ。
-export const CLUB_CHAT_ENABLED = false
+//   書けるのは定型文12種と定型の反応スタンプだけで、自由入力は無い。
+//   通報・ブロックは ReportSheet / moderationApi で用意してある。
+export const CLUB_CHAT_ENABLED = true

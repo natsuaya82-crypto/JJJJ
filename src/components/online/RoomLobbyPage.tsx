@@ -20,6 +20,9 @@ import PickPanel, { autoOrder, isOrderComplete, type Order } from './PickPanel'
 import RacePanel from './RacePanel'
 import CoursePanel from './CoursePanel'
 import FinishPanel from './FinishPanel'
+import StampLayer from './StampLayer'
+import StampBar from './StampBar'
+import type { StampPayload } from './stampKinds'
 import { buildRacePayload, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { defaultLogoIdFor } from '../../data/logoPresets'
 import { C, alpha } from '../../styles/tokens'
@@ -121,6 +124,17 @@ export default function RoomLobbyPage() {
   const startPickRef = useRef<((n: number) => void) | null>(null)
   const finishSentRef = useRef(false)
 
+  // ── 応援スタンプ ────────────────────────────────────────
+  // DBには残さない。broadcast で飛ばして、その場に居た人の画面に出るだけ。
+  // 受け取った1件を state に置き、StampLayer 側が位置を決めて出す。
+  const [stamp, setStamp] = useState<StampPayload | null>(null)
+  const meRef = useRef<string | null>(null)
+  useEffect(() => { meRef.current = me }, [me])
+  const sendStamp = useCallback((s: StampPayload) => {
+    const mine = teamInfosRef.current.find(t => t.id === meRef.current)
+    chRef.current?.send(RoomEvent.STAMP, { ...s, from: mine?.shortName }).catch(() => {})
+  }, [])
+
   // ── 対戦前の広告 ────────────────────────────────────────
   // 部屋の画面に来た直後に、各自1回だけ全画面広告を出す。ホストもゲストも出る。
   // ここは相手が集まるのを待っている時間なので、広告のせいで相手を待たせることがない。
@@ -172,6 +186,8 @@ export default function RoomLobbyPage() {
       if (!aliveRef.current) { ch.close(); return }
       chRef.current = ch
       ch.on(RoomEvent.LOBBY, () => { refresh() })
+      // 応援スタンプ。自分が送ったものも返ってくる（self: true）ので、送り主も同じものを見る
+      ch.on<StampPayload>(RoomEvent.STAMP, p => { if (p) setStamp({ ...p }) })
       // ホストが「はじめる」を押した → 全員でルール画面へ
       ch.on<{ rules: MatchRules; deadline: number }>(RoomEvent.RULES, p => {
         if (!p) return
@@ -727,19 +743,26 @@ export default function RoomLobbyPage() {
         !result || !raceCourse ? (
           <div style={{ marginTop: 40 }}><LoadingBox /></div>
         ) : (
-          <RacePanel
-            payload={result}
-            course={raceCourse}
-            raceNo={raceNo + 1}
-            totalRaces={rules.races}
-            meId={me ?? ''}
-            myPlayers={rosters[me ?? ''] ?? []}
-            seriesPts={seriesPts}
-            waiting={waitingNext}
-            onNext={onNextRace}
-            segGo={segGo}
-            onSegDone={onSegDone}
-          />
+          // 応援スタンプは RacePanel の中ではなくここで被せる。
+          // RacePanel はカウントダウン・走行・区間結果・レース結果で別々に return しているので、
+          // 中に入れると4箇所へ同じものを置くことになる。外から1枚かぶせれば全部の段階で出る。
+          <div style={{ position: 'relative' }}>
+            <RacePanel
+              payload={result}
+              course={raceCourse}
+              raceNo={raceNo + 1}
+              totalRaces={rules.races}
+              meId={me ?? ''}
+              myPlayers={rosters[me ?? ''] ?? []}
+              seriesPts={seriesPts}
+              waiting={waitingNext}
+              onNext={onNextRace}
+              segGo={segGo}
+              onSegDone={onSegDone}
+            />
+            <StampLayer feed={stamp} />
+            <StampBar myPlayers={rosters[me ?? ''] ?? []} onSend={sendStamp} />
+          </div>
         )
       )}
 

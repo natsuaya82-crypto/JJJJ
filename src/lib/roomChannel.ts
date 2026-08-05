@@ -36,6 +36,8 @@ export const RoomEvent = {
   FINISH: 'finish',
   /** ホスト → 中止（ホスト落ち・人数不足など） */
   ABORT: 'abort',
+  /** 参加者 → 応援スタンプ。記録には残さず、その場に居た人の画面に出るだけ */
+  STAMP: 'stamp',
 } as const
 
 export type RoomEventName = typeof RoomEvent[keyof typeof RoomEvent]
