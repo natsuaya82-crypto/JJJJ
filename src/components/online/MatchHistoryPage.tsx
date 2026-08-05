@@ -78,10 +78,15 @@ function EntryRow({ e }: { e: MatchEntry }) {
   )
 }
 
-function MatchCard({ m }: { m: MatchHistoryItem }) {
+function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
   const col = rankColor(m.myRank)
   return (
-    <div style={{
+    <div
+      role="button" tabIndex={0} className="pressable"
+      onClick={onOpen}
+      onKeyDown={e => e.key === 'Enter' && onOpen()}
+      style={{
+      cursor: 'pointer',
       borderRadius: 14, overflow: 'hidden', marginBottom: 8,
       background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
       border: `2px solid ${m.myRank === 1 ? alpha(C.gold, 0.5) : C.border2}`,
@@ -103,6 +108,9 @@ function MatchCard({ m }: { m: MatchHistoryItem }) {
           </div>
           <div style={{ fontSize: 10, color: C.textDim, marginTop: 1 }}>{fmtDate(m.finishedAt)}</div>
         </div>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.textDim }}>
+          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+        </svg>
       </div>
       <div style={{ padding: '5px 6px' }}>
         {m.entries.map(e => <EntryRow key={e.userId} e={e} />)}
@@ -166,7 +174,9 @@ export default function MatchHistoryPage() {
         {!history.loading && !history.error && (history.data?.length ?? 0) === 0 && (
           <EmptyBox label="まだ対戦の記録がありません" />
         )}
-        {history.data?.map(m => <MatchCard key={m.matchId} m={m} />)}
+        {history.data?.map(m => (
+          <MatchCard key={m.matchId} m={m} onOpen={() => navigate(`/online/history/${m.matchId}`)} />
+        ))}
       </div>
 
       {!history.loading && !history.error && (history.data?.length ?? 0) === 0 && (

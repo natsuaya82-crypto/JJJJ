@@ -6,6 +6,7 @@
 //   ・roomChannel.ts … 試合中のリアルタイムのやりとり（＝DBに残さないもの）
 import { supabase, ensureAuth } from './supabase'
 import { profilesByIds, toFriend, type Friend } from './friendsApi'
+import type { MatchDetail } from './matchSim'
 
 /** 通信エラーをUIで扱いやすい日本語にする（friendsApi と同じ考え方） */
 export class RoomsOffline extends Error {
@@ -209,6 +210,28 @@ export async function myMatchStats(): Promise<MatchStats> {
   if (error) throw new RoomsOffline()
   const r = data as { mp_played?: number; mp_wins?: number; mp_forfeits?: number } | null
   return { played: r?.mp_played ?? 0, wins: r?.mp_wins ?? 0, forfeits: r?.mp_forfeits ?? 0 }
+}
+
+/**
+ * 対戦の詳細（誰が何区を何秒で走ったか）を保存する。ホストが finishMatch の直後に1回だけ呼ぶ。
+ * 詳細は「あると嬉しいもの」なので、失敗しても対戦の記録自体は残る（呼び出し側で握りつぶす）。
+ */
+export async function saveMatchDetail(matchId: string, detail: MatchDetail): Promise<void> {
+  await uid()
+  const { error } = await supabase.rpc('save_match_detail', {
+    p_match: matchId, p_detail: detail as unknown as object,
+  })
+  if (error) throw new RoomsOffline()
+}
+
+/** 対戦の詳細を読む。保存されていない試合（古い記録・保存に失敗した試合）は undefined。 */
+export async function getMatchDetail(matchId: string): Promise<MatchDetail | undefined> {
+  await uid()
+  const { data, error } = await supabase
+    .from('match_details').select('detail').eq('match_id', matchId).maybeSingle()
+  if (error) throw new RoomsOffline()
+  const d = (data?.detail ?? undefined) as MatchDetail | undefined
+  return d && Array.isArray(d.r) ? d : undefined
 }
 
 // ── 対戦履歴 ────────────────────────────────────────────

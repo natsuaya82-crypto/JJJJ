@@ -9,7 +9,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { Player } from '../../types'
 import {
   getRoom, listMembers, leaveRoom, kickMember, setReady, startRoom, formatRoomCode, getMemberRoster,
-  finishMatch, DEFAULT_RULES, type MatchRules, type MatchResultEntry, type Room, type RoomMember,
+  finishMatch, saveMatchDetail, DEFAULT_RULES, type MatchRules, type MatchResultEntry, type Room, type RoomMember,
 } from '../../lib/roomsApi'
 import { openRoomChannel, RoomEvent, type RoomChannel, type ChannelStatus } from '../../lib/roomChannel'
 import { deadlineIn, serverNow } from '../../lib/serverTime'
@@ -20,7 +20,7 @@ import PickPanel, { autoOrder, isOrderComplete, type Order } from './PickPanel'
 import RacePanel from './RacePanel'
 import CoursePanel from './CoursePanel'
 import FinishPanel from './FinishPanel'
-import { buildRacePayload, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
+import { buildRacePayload, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -570,6 +570,9 @@ export default function RoomLobbyPage() {
       .filter(s => humans.has(s.teamId))
       .map(s => ({ user_id: s.teamId, rank: s.rank, points: s.points, forfeit: s.forfeit }))
     finishMatch(roomId, { races: races.length, courses: races.map(r => r.courseId) }, entries)
+      // 詳細（誰が何区を何秒で走ったか）は別の表に置く。一覧のクエリを重くしないため。
+      // あくまで「あると嬉しいもの」なので、失敗しても対戦の記録自体は残す
+      .then(matchId => saveMatchDetail(matchId, buildMatchDetail(races)).catch(() => {}))
       .catch(() => { /* 記録できなくても画面は進める */ })
   }, [phase, isHost, roomId])
 

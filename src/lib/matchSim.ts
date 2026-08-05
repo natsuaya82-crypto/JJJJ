@@ -226,3 +226,67 @@ export function buildRacePayload(args: {
     forfeits: args.forfeits ?? [],
   }
 }
+
+// ── 対戦履歴の詳細（保存用の詰めた形） ──────────────────────
+// MatchRacePayload をそのまま残すと1試合で60KBを超える（20チーム×7区間×5レースぶんの
+// 走者情報とタイムが入るため）。履歴一覧のたびにそれを引くと重いので、
+// ・一覧に要るもの（順位・ポイント）は match_results（rooms.sql）
+// ・詳細（誰が何区を何秒で走ったか）は match_details（matches_detail.sql）
+// と置き場を分け、詳細はその試合を開いたときだけ読む。
+//
+// ここではチーム名と選手名を配列にして添え字で参照し、キーも1文字にして詰める。
+// 同じ形を読む側（MatchDetailPage）だけが知っていればよい。
+
+/** 保存する詳細。t=チーム / r=レース */
+export type MatchDetail = {
+  v: 1
+  /** チーム。添え字で参照する */
+  t: { id: string; n: string; s: string }[]
+  r: {
+    /** コースID */
+    c: string
+    /** 区間ごとの結果。[チームの添え字, 走者名, タイム(秒,小数1桁), 区間順位] */
+    g: [number, string, number, number][][]
+    /** そのレースの総合順位。[チームの添え字, 順位, 合計タイム(秒,小数1桁)] */
+    s: [number, number, number][]
+  }[]
+}
+
+/** 全レースの結果から、保存する詳細を組み立てる。 */
+export function buildMatchDetail(races: MatchRacePayload[]): MatchDetail {
+  // チームは全レース共通なので1本にまとめる（レースごとに持つと同じ文字列が何度も入る）
+  const teamIds: string[] = []
+  const idx = new Map<string, number>()
+  const info = new Map<string, MatchTeamInfo>()
+  for (const r of races) {
+    for (const t of r.teams) {
+      if (!idx.has(t.id)) { idx.set(t.id, teamIds.length); teamIds.push(t.id); info.set(t.id, t) }
+    }
+  }
+  const round1 = (n: number) => Math.round(n * 10) / 10
+
+  return {
+    v: 1,
+    t: teamIds.map(id => {
+      const t = info.get(id)
+      return { id, n: t?.name ?? '—', s: t?.shortName ?? '—' }
+    }),
+    r: races.map(race => {
+      const nameOf = new Map(race.runners.map(x => [x.id, x.name]))
+      return {
+        c: race.courseId,
+        g: race.segments.map(seg =>
+          seg.runners.map(x => [
+            idx.get(x.teamId) ?? 0,
+            nameOf.get(x.playerId) ?? '—',
+            round1(x.timeSec),
+            x.rank,
+          ] as [number, string, number, number]),
+        ),
+        s: race.standings.map(st => [
+          idx.get(st.teamId) ?? 0, st.rank, round1(st.totalTimeSec),
+        ] as [number, number, number]),
+      }
+    }),
+  }
+}
