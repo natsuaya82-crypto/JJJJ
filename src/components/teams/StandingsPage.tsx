@@ -7,7 +7,7 @@ import { LeagueLogoSVG } from '../icons/Icons'
 import BackButton from '../ui/BackButton'
 import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
-import { C, alpha } from '../../styles/tokens'
+import { C } from '../../styles/tokens'
 import { rankedStandings, DIVISIONS, DIVISION_LABEL, divisionOf } from '../../utils/league'
 import type { Division } from '../../types'
 
@@ -62,14 +62,16 @@ export default function StandingsPage() {
       }
     })
 
-  // リーグごとに違うのは「行・消化数・空のときの文言」だけ
-  const view: { eyebrow: string; title: string; logoId: string; rows: StandRow[]; progress: string; onRowClick: (id: string) => void; empty?: string } = (() => {
+  // リーグごとに違うのは「行・空のときの文言」だけ
+  const view: { eyebrow: string; title: string; logoId: string; rows: StandRow[]; onRowClick: (id: string) => void; empty?: string } = (() => {
     if (isEcl) {
       const series = currentSeason.eclSeries
       if (!series) return {
         eyebrow: `${currentSeason.year} ECL`, title: 'ECL 順位表', logoId: 'ecl',
-        rows: [], progress: '—', onRowClick: goClub,
-        empty: '今シーズンのECLは開催されません。前年の各リーグ上位2チームに出場権が与えられます。',
+        rows: [], onRowClick: goClub,
+        // ECLは毎年開催。出場チームを前年の順位で決めるので、1年目だけ前年成績が無くて開催できない。
+        // 前は「今シーズンのECLは開催されません」だけで、毎年やらない大会に読めた
+        empty: 'ECLは前年の各リーグ上位2チームで争います。1年目は前年の成績が無いため開催されません（2年目から毎年開催）。',
       }
       const sorted = series.participants
         .map(pt => ({ ...pt, points: series.points[pt.id] ?? 0 }))
@@ -83,7 +85,6 @@ export default function StandingsPage() {
           recentForm: series.races.filter(r => r.results).map(r => r.results!.teamRankings.find(tr => tr.teamId === s.id)?.rank ?? 99),
           isMe: s.isPlayerTeam,
         })),
-        progress: `${series.raceIndex}/${series.races.length}戦`,
         onRowClick: goClub,
       }
     }
@@ -93,13 +94,9 @@ export default function StandingsPage() {
     return {
       eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',
       rows: domesticRows(currentSeason.standings.filter(s => idsInDiv.has(s.teamId))),
-      progress: `${currentSeason.races.filter(r => r.results).length}戦`,
       onRowClick: goDomestic,
     }
   })()
-
-  const myRank = view.rows.findIndex(r => r.isMe) + 1
-  const myRankColor = myRank === 1 ? C.gold : myRank > 0 && myRank <= 3 ? C.green : myRank > 0 && myRank <= 6 ? C.textSub : C.textDim
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
@@ -110,19 +107,6 @@ export default function StandingsPage() {
           <div>
             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>{view.eyebrow}</div>
             <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text, lineHeight: 1 }}>{view.title}</div>
-          </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
-            {myRank > 0 && (
-              <div style={{ padding: '4px 10px', borderRadius: '20px', background: alpha(myRankColor, 0.12), border: `1px solid ${alpha(myRankColor, 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '9px', color: C.textDim }}>自チーム</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: myRankColor }}>{myRank}</span>
-                <span style={{ fontSize: '9px', color: C.textDim }}>位</span>
-              </div>
-            )}
-            <div style={{ padding: '4px 10px', borderRadius: '20px', background: C.surface2, border: `1px solid ${C.border2}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '9px', color: C.textDim }}>消化</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '700', color: C.textSub }}>{view.progress}</span>
-            </div>
           </div>
         </div>
 
