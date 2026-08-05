@@ -488,6 +488,9 @@ export type WorldTournament = {
   finished: boolean
 }
 
+/** リーグの部。1が最上位 */
+export type Division = 1 | 2 | 3
+
 export type Team = {
   id: string
   name: string
@@ -512,6 +515,15 @@ export type Team = {
     originallyOwnedBy: string
   }[]
   initialRank: number
+  /**
+   * 所属する部（1部・2部・3部）。
+   *
+   * 未設定は1部として扱う。build 88 までのセーブには入っていないため、
+   * 読む側は必ず divisionOf()（utils/league.ts）を通すこと。
+   * ここを直接 team.division と読むと、古いセーブで undefined になって
+   * 「どの部にも属さないチーム」が生まれる。
+   */
+  division?: Division
   isPlayerControlled: boolean
   gmName: string
   sponsors?: string[]            // Sponsor IDs

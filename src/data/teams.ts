@@ -1,5 +1,9 @@
 import type { Team } from '../types'
 
+// JPEL 1部の20チーム。
+// 2部・3部のチームは data/teamsLower.ts に置く（このファイルは1部だけ）。
+// division を書き忘れると divisionOf() が1部として扱うので、下部リーグ側では必ず書くこと。
+
 export const INITIAL_TEAMS: Team[] = [
   // 北海道・東北
   {
@@ -7,7 +11,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 1995, colors: { primary: '#1A6FBF', secondary: '#FFFFFF' },
     roster: { main: [] },
     finance: { budget: 570_000_000 },
-    initialRank: 9,
+    initialRank: 9, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '佐藤 健一'
   },
   {
@@ -15,7 +19,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2006, colors: { primary: '#2D5016', secondary: '#D4A017' },
     roster: { main: [] },
     finance: { budget: 440_000_000 },
-    initialRank: 16,
+    initialRank: 16, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '鈴木 誠'
   },
   {
@@ -23,7 +27,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2017, colors: { primary: '#C41E3A', secondary: '#FFD700' },
     roster: { main: [] },
     finance: { budget: 420_000_000 },
-    initialRank: 18,
+    initialRank: 18, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '田中 博'
   },
   {
@@ -31,7 +35,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2000, colors: { primary: '#4B0082', secondary: '#87CEEB' },
     roster: { main: [] },
     finance: { budget: 550_000_000 },
-    initialRank: 10,
+    initialRank: 10, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '伊藤 剛'
   },
   // 関東
@@ -40,7 +44,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2011, colors: { primary: '#1A1A2E', secondary: '#E8462A' },
     roster: { main: [] },
     finance: { budget: 1_000_000_000 },
-    initialRank: 1,
+    initialRank: 1, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '山田 浩二'
   },
   {
@@ -48,7 +52,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 1994, colors: { primary: '#005BAC', secondary: '#C8102E' },
     roster: { main: [] },
     finance: { budget: 800_000_000 },
-    initialRank: 4,
+    initialRank: 4, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '渡辺 真'
   },
   {
@@ -56,7 +60,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2005, colors: { primary: '#006B3F', secondary: '#FFD700' },
     roster: { main: [] },
     finance: { budget: 600_000_000 },
-    initialRank: 8,
+    initialRank: 8, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '中村 亮'
   },
   {
@@ -64,7 +68,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2016, colors: { primary: '#E8462A', secondary: '#FFFFFF' },
     roster: { main: [] },
     finance: { budget: 650_000_000 },
-    initialRank: 7,
+    initialRank: 7, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '小林 直樹'
   },
   // 中部
@@ -73,7 +77,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 1999, colors: { primary: '#2E7D32', secondary: '#FFFFFF' },
     roster: { main: [] },
     finance: { budget: 460_000_000 },
-    initialRank: 14,
+    initialRank: 14, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '加藤 雄大'
   },
   {
@@ -81,7 +85,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2010, colors: { primary: '#FF8C00', secondary: '#008000' },
     roster: { main: [] },
     finance: { budget: 400_000_000 },
-    initialRank: 20,
+    initialRank: 20, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '吉田 太郎'
   },
   {
@@ -89,7 +93,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 1993, colors: { primary: '#228B22', secondary: '#F5DEB3' },
     roster: { main: [] },
     finance: { budget: 520_000_000 },
-    initialRank: 11,
+    initialRank: 11, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '松本 俊'
   },
   {
@@ -97,7 +101,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2004, colors: { primary: '#9B111E', secondary: '#FFD700' },
     roster: { main: [] },
     finance: { budget: 850_000_000 },
-    initialRank: 3,
+    initialRank: 3, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '井上 勝'
   },
   // 関西
@@ -106,7 +110,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2015, colors: { primary: '#8B1A1A', secondary: '#C0A882' },
     roster: { main: [] },
     finance: { budget: 480_000_000 },
-    initialRank: 13,
+    initialRank: 13, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '藤原 誠一'
   },
   {
@@ -114,7 +118,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 1998, colors: { primary: '#FF6600', secondary: '#003366' },
     roster: { main: [] },
     finance: { budget: 900_000_000 },
-    initialRank: 2,
+    initialRank: 2, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '西田 勇気'
   },
   {
@@ -122,7 +126,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2009, colors: { primary: '#003087', secondary: '#FFFFFF' },
     roster: { main: [] },
     finance: { budget: 700_000_000 },
-    initialRank: 6,
+    initialRank: 6, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '山口 浩'
   },
   // 中国・四国
@@ -131,7 +135,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 1992, colors: { primary: '#CC0000', secondary: '#FFFFFF' },
     roster: { main: [] },
     finance: { budget: 500_000_000 },
-    initialRank: 12,
+    initialRank: 12, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '田村 和彦'
   },
   {
@@ -139,7 +143,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2003, colors: { primary: '#FF69B4', secondary: '#006400' },
     roster: { main: [] },
     finance: { budget: 410_000_000 },
-    initialRank: 19,
+    initialRank: 19, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '河野 一郎'
   },
   // 九州・沖縄
@@ -148,7 +152,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2014, colors: { primary: '#003087', secondary: '#C9A84C' },
     roster: { main: [] },
     finance: { budget: 750_000_000 },
-    initialRank: 5,
+    initialRank: 5, division: 1,
     draftPicks: [
       { year: 2027, round: 1, pickNumber: 8, originallyOwnedBy: 'fukuoka' },
       { year: 2027, round: 2, pickNumber: 28, originallyOwnedBy: 'fukuoka' },
@@ -160,7 +164,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 1997, colors: { primary: '#8B4513', secondary: '#FF4500' },
     roster: { main: [] },
     finance: { budget: 450_000_000 },
-    initialRank: 15,
+    initialRank: 15, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '黒田 猛'
   },
   {
@@ -168,7 +172,7 @@ export const INITIAL_TEAMS: Team[] = [
     founded: 2008, colors: { primary: '#00CED1', secondary: '#FF8C00' },
     roster: { main: [] },
     finance: { budget: 430_000_000 },
-    initialRank: 17,
+    initialRank: 17, division: 1,
     draftPicks: [], isPlayerControlled: false, gmName: '仲村 渉'
   },
 ]

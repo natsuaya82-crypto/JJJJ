@@ -7,6 +7,42 @@
 //
 // ★ 順位を出したくなったら、必ずここの関数を使うこと。sort を新しく書かないこと。
 
+// ── 部（ディビジョン）─────────────────────────────────────────
+//
+// JPELは1部・2部・3部の3階層。所属は Team.division が持つが、build 88 までのセーブには
+// このフィールドが無い。読む側が team.division を直接見ると、古いセーブで undefined になって
+// 「どの部にも属さないチーム」が生まれ、順位表からもレースからも消える。
+// 必ず divisionOf() を通すこと。
+
+import type { Division, Team } from '../types'
+
+/** 上から順。表示の並びもこの順 */
+export const DIVISIONS: readonly Division[] = [1, 2, 3]
+
+/** 各部のチーム数。ここを変えるとレースの順位ポイントの上限も変わる */
+export const DIVISION_SIZE: Record<Division, number> = { 1: 20, 2: 16, 3: 16 }
+
+/** 各部の年間レース数 */
+export const DIVISION_RACES: Record<Division, number> = { 1: 10, 2: 8, 3: 7 }
+
+export const DIVISION_LABEL: Record<Division, string> = { 1: '1部', 2: '2部', 3: '3部' }
+
+/**
+ * 昇格・降格の枠。各部の上位n が昇格、下位n が降格。
+ * 1部に上は無く、3部に下は無い。
+ */
+export const PROMOTION_SLOTS = 2
+
+/** そのチームの部。未設定（古いセーブ・旧データ）は1部として扱う */
+export function divisionOf(team: Pick<Team, 'division'> | undefined): Division {
+  return team?.division ?? 1
+}
+
+/** 指定した部に所属するチームだけを返す */
+export function teamsInDivision<T extends Pick<Team, 'division'>>(teams: readonly T[], division: Division): T[] {
+  return teams.filter(t => divisionOf(t) === division)
+}
+
 /** 順位を出せる行。国内の SeasonStanding も海外の順位表も totalPoints を持つ */
 export type RankableRow = { totalPoints: number }
 

@@ -60,7 +60,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, draftRoundOf } from '../utils/league'
+import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision } from '../utils/league'
 
 type DraftState = {
   pool: Player[]
@@ -1035,9 +1035,12 @@ export const useGameStore = create<GameStore>()(
         const race = currentSeason.races[raceIndex]
         const seasonProgress = raceIndex / currentSeason.races.length
 
-        // Build CPU lineups for all non-player teams
+        // 出走するのは自分と同じ部のチームだけ。
+        // 「誰が走るか」の唯一の出どころは、ここで組む lineups のキー（raceEngine.ts:329）。
+        // レースデータ側に参加チームを書く場所は用意していない（2箇所あると必ずズレるため）。
+        const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
         const lineups: Record<string, Record<number, string>> = { [playerTeamId]: lineup }
-        for (const team of teams) {
+        for (const team of teamsInDivision(teams, myDivision)) {
           if (team.id === playerTeamId) continue
           lineups[team.id] = buildAILineup(team.id, players, race)
         }
@@ -7126,7 +7129,7 @@ export const useGameStore = create<GameStore>()(
     },
     {
       name: 'jpel-manager-save',
-      version: 30,
+      version: 31,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7496,6 +7499,14 @@ export const useGameStore = create<GameStore>()(
               delete cs.secondTeamStandings
               delete cs.reserveLeagueJoined
             }
+          }
+
+          // v31: 部（ディビジョン）を足した。build 88 までのセーブのチームは全員1部。
+          // divisionOf() が未設定を1部として扱うので入れなくても動くが、
+          // 入れておかないとセーブを覗いたときに「所属が無いチーム」に見えて紛らわしい。
+          if (version < 31) {
+            const teams = s.teams as { division?: number }[] | undefined
+            if (Array.isArray(teams)) for (const t of teams) if (t && t.division == null) t.division = 1
           }
           return s
         } catch (e) {
