@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
-import { myMatchHistory, myMatchStats, type MatchHistoryItem, type MatchEntry } from '../../lib/roomsApi'
+import { myMatchHistory, myMatchStats, type MatchHistoryItem } from '../../lib/roomsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from '../friends/friendsUi'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
@@ -11,13 +11,6 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 記録は finish_match() が matches / match_results に残しているものをそのまま読む。
 // これまで書き込みだけがあって見る画面が無く、溜まった記録が誰にも見えていなかった。
 
-/** 順位に応じた色。1位=金 / 2〜3位=銀 / それ以外=くすんだ色 */
-function rankColor(rank: number): string {
-  if (rank === 1) return C.gold
-  if (rank <= 3) return C.textSub
-  return C.textDim
-}
-
 /** 「2026/08/04 21:30」の形。サーバーはUTCで返すので端末の時刻に直す */
 function fmtDate(iso: string): string {
   const d = new Date(iso)
@@ -26,95 +19,55 @@ function fmtDate(iso: string): string {
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-function EntryRow({ e }: { e: MatchEntry }) {
-  const isMe = e.isMe
-  const col = rankColor(e.rank)
-  const name = e.profile?.teamName ?? '退会したチーム'
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
-      background: isMe ? alpha(C.gold, 0.07) : 'transparent',
-      borderRadius: 8,
-    }}>
-      <span style={{
-        fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: col,
-        width: 22, flexShrink: 0, textAlign: 'right',
-      }}>{e.rank}</span>
-      <span style={{ fontSize: 9, color: C.textGhost, flexShrink: 0 }}>位</span>
-      {e.profile ? (
-        <TeamLogoSVG
-          primary={e.profile.primary} secondary={e.profile.secondary}
-          shortName={e.profile.shortName} logoId={e.profile.logoId} size={20}
-        />
-      ) : (
-        <div style={{ width: 20, height: 20, borderRadius: 5, background: C.surface3, flexShrink: 0 }} />
-      )}
-      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-        <span style={{
-          display: 'block', fontSize: 12, color: isMe ? C.text : C.textSub,
-          fontWeight: isMe ? 700 : 400,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {name}{isMe && <span style={{ marginLeft: 5, fontSize: 9, color: C.gold }}>自分</span>}
-        </span>
-        <span style={{
-          display: 'block', fontSize: 9, color: C.textGhost, marginTop: 1,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          GM {e.profile?.gmName ?? '—'}
-        </span>
-      </span>
-      {e.forfeit && (
-        <span style={{
-          fontSize: 9, fontWeight: 800, color: C.red, flexShrink: 0,
-          padding: '1px 5px', borderRadius: 5,
-          background: alpha(C.red, 0.12), border: `1px solid ${alpha(C.red, 0.3)}`,
-        }}>不戦敗</span>
-      )}
-      <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: C.textDim, flexShrink: 0 }}>
-        {e.points}<span style={{ fontSize: 9, color: C.textGhost, marginLeft: 1 }}>pt</span>
-      </span>
-    </div>
-  )
-}
-
 function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
-  const col = rankColor(m.myRank)
+  // 一覧では順位も参加者も出さない。「いつ・誰の部屋で・何人で・何レース」だけ分かればよく、
+  // 中身は開いた先（FinishPanel）で見る。カードを短く保って一覧を見渡しやすくする狙い。
+  const hostName = m.hostIsMe ? '自分' : (m.host?.teamName ?? '—')
   return (
     <div
       role="button" tabIndex={0} className="pressable"
       onClick={onOpen}
       onKeyDown={e => e.key === 'Enter' && onOpen()}
       style={{
-      cursor: 'pointer',
-      borderRadius: 14, overflow: 'hidden', marginBottom: 8,
-      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-      border: `2px solid ${m.myRank === 1 ? alpha(C.gold, 0.5) : C.border2}`,
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
-        borderBottom: `1px solid ${C.border}`,
-        background: m.myRank === 1 ? alpha(C.gold, 0.06) : 'transparent',
-      }}>
-        <div style={{ textAlign: 'center', flexShrink: 0 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: col, lineHeight: 1 }}>
-            {m.myRank > 0 ? m.myRank : '—'}
-          </div>
-          <div style={{ fontSize: 9, color: C.textGhost }}>／{m.size}チーム</div>
+        cursor: 'pointer', borderRadius: 14, marginBottom: 8,
+        display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px',
+        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+        border: `1px solid ${C.border2}`,
+      }}
+    >
+      {m.host ? (
+        <TeamLogoSVG
+          primary={m.host.primary} secondary={m.host.secondary}
+          shortName={m.host.shortName} logoId={m.host.logoId} size={30}
+        />
+      ) : (
+        <div style={{ width: 30, height: 30, borderRadius: 7, background: C.surface3, flexShrink: 0 }} />
+      )}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 12, color: C.text, fontWeight: 700,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {hostName}<span style={{ fontSize: 10, color: C.textGhost, fontWeight: 400, marginLeft: 4 }}>の部屋</span>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: C.textSub }}>
-            {m.races > 0 ? `全${m.races}レース` : 'オンライン対戦'}
-          </div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 1 }}>{fmtDate(m.finishedAt)}</div>
-        </div>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.textDim }}>
-          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-        </svg>
+        <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{fmtDate(m.finishedAt)}</div>
       </div>
-      <div style={{ padding: '5px 6px' }}>
-        {m.entries.map(e => <EntryRow key={e.userId} e={e} />)}
+
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <span style={{
+          fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textSub,
+          padding: '3px 8px', borderRadius: 7, background: alpha(C.textSub, 0.10),
+        }}>{m.size}チーム</span>
+        <span style={{
+          fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.cyan,
+          padding: '3px 8px', borderRadius: 7, background: alpha(C.cyan, 0.10),
+        }}>{m.races > 0 ? `${m.races}レース` : '—'}</span>
       </div>
+
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.textDim }}>
+        <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+      </svg>
     </div>
   )
 }

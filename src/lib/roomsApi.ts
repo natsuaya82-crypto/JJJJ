@@ -266,6 +266,10 @@ export type MatchHistoryItem = {
   myRank: number
   /** 参加人数 */
   size: number
+  /** 部屋を立てた人。一覧では順位を出さず「誰の部屋だったか」を見せる */
+  host?: Friend
+  /** ホストが自分だったか */
+  hostIsMe: boolean
 }
 
 /**
@@ -280,14 +284,17 @@ export async function myMatchHistory(limit = 20): Promise<MatchHistoryItem[]> {
   const { data, error } = await supabase.rpc('list_my_matches', { p_limit: limit })
   if (error) throw new RoomsOffline()
   const rows = (data ?? []) as {
-    match_id: string; finished_at: string; summary: unknown
+    match_id: string; finished_at: string; summary: unknown; host: string
     user_id: string; rank: number; points: number; forfeit: boolean
   }[]
   if (rows.length === 0) return []
 
   // 相手の名前・ロゴはまとめて引く。引けなかったぶんは profile 未設定のまま出す
   // （退会した相手の履歴が丸ごと消えるより、順位だけでも残っているほうがよい）
-  const profiles = await profilesByIds([...new Set(rows.map(r => r.user_id))]).catch(() => [])
+  // 参加者に加えてホストも引く（ホストが途中で抜けた試合では参加者に居ないことがある）
+  const ids = new Set(rows.map(r => r.user_id))
+  for (const r of rows) ids.add(r.host)
+  const profiles = await profilesByIds([...ids]).catch(() => [])
   const byUser = new Map(profiles.map(p => [p.user_id, toFriend(p)]))
 
   const order: string[] = []
@@ -301,6 +308,7 @@ export async function myMatchHistory(limit = 20): Promise<MatchHistoryItem[]> {
         finishedAt: r.finished_at,
         races: typeof summary.races === 'number' ? summary.races : 0,
         entries: [], myRank: 0, size: 0,
+        host: byUser.get(r.host), hostIsMe: r.host === me,
       }
       byMatch.set(r.match_id, m)
       order.push(r.match_id)

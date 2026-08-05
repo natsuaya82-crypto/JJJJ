@@ -41,6 +41,7 @@ returns table (
   match_id    uuid,
   finished_at timestamptz,
   summary     jsonb,
+  host        uuid,
   user_id     uuid,
   rank        integer,
   points      integer,
@@ -58,13 +59,13 @@ begin
 
   return query
     with mine as (
-      select m.id, m.finished_at, m.summary
+      select m.id, m.finished_at, m.summary, m.host
         from public.matches m
         join public.match_results r on r.match_id = m.id and r.user_id = me
        order by m.finished_at desc
        limit greatest(1, least(coalesce(p_limit, 20), 100))
     )
-    select mine.id, mine.finished_at, mine.summary,
+    select mine.id, mine.finished_at, mine.summary, mine.host,
            r.user_id, r.rank, r.points, r.forfeit
       from mine
       join public.match_results r on r.match_id = mine.id
