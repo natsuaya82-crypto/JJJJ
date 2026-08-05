@@ -38,6 +38,16 @@ export const RoomEvent = {
   ABORT: 'abort',
   /** 参加者 → 応援スタンプ。記録には残さず、その場に居た人の画面に出るだけ */
   STAMP: 'stamp',
+  /**
+   * 参加者 → 「いまどこ？」の問い合わせ。部屋の画面に入り直したときに投げる。
+   *
+   * 進行はこのブロードキャストにしか流れておらず、どこにも保存していない。
+   * そのため一度画面を離れると、戻ってきても lobby のまま止まり、次の合図が
+   * 来るまで何も操作できなかった（オンライン参加者からの報告）。
+   */
+  SYNC: 'sync',
+  /** ホスト → SYNC への返事。いまの段階・締切・レース番号・直前のレース結果 */
+  STATE: 'state',
 } as const
 
 export type RoomEventName = typeof RoomEvent[keyof typeof RoomEvent]

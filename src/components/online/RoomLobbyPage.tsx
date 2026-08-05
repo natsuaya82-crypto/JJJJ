@@ -57,6 +57,18 @@ const adShownRooms = new Set<string>()
 
 type Phase = 'lobby' | 'rules' | 'course' | 'pick' | 'race' | 'finish'
 
+/** 入り直した人にホストが返す「いまの状態」 */
+type SyncState = {
+  /** この返事の宛先。ブロードキャストなので全員に届く。自分あて以外は捨てる */
+  to: string
+  phase: Phase
+  rules: MatchRules
+  deadline: number | null
+  race: number
+  results: MatchRacePayload[]
+  submitted: boolean
+}
+
 // 対戦の待合室。番号を見せて人が集まるのを待つ画面。
 // 人の増減は Realtime の lobby イベントで知らせ合い、各自がDBを引き直す。
 export default function RoomLobbyPage() {
@@ -76,6 +88,10 @@ export default function RoomLobbyPage() {
   useEffect(() => { phaseRef.current = phase }, [phase])
   const [rules, setRules] = useState<MatchRules>(DEFAULT_RULES)
   const [deadline, setDeadline] = useState<number | null>(null)
+  const deadlineRef = useRef<number | null>(null)
+  useEffect(() => { deadlineRef.current = deadline }, [deadline])
+  // 追いつきの返事は最初の1回だけ使う（あとから来たものでいまの進行を巻き戻さない）
+  const syncedRef = useRef(false)
 
   // ── 選手選択 ──
   const [raceNo, setRaceNo] = useState(0)              // 0始まり
@@ -284,8 +300,57 @@ export default function RoomLobbyPage() {
       })
       // シリーズ終了
       ch.on(RoomEvent.FINISH, () => { setPhase('finish') })
+
+      // ── 入り直したときの追いつき ──────────────────────────
+      // 進行はブロードキャストにしか流れていないので、一度画面を離れると戻っても
+      // lobby のまま止まり、次の合図が来るまで操作できなかった。
+      // 入ってきた人が「いまどこ？」と聞き、ホストが今の状態を返す。
+      ch.on(RoomEvent.SYNC, (p, from) => {
+        if (!isHostRef.current || from === meRef.current) return
+        chRef.current?.send(RoomEvent.STATE, {
+          to: from,
+          phase: phaseRef.current,
+          rules: rulesRef.current,
+          deadline: deadlineRef.current,
+          race: raceNoRef.current,
+          // 途中から入り直した人でも最終結果を正しく出せるように、これまでのレースごと渡す
+          results: resultsRef.current,
+          // 出し直しを防ぐ。ホストは誰が出したかを持っている
+          submitted: !!entriesRef.current[from],
+        }).catch(() => {})
+        void p
+      })
+      ch.on<SyncState>(RoomEvent.STATE, p => {
+        if (!p || p.to !== meRef.current || syncedRef.current) return
+        syncedRef.current = true
+        if (p.rules) setRules(p.rules)
+        setDeadline(p.deadline ?? null)
+        setRaceNo(p.race ?? 0)
+        setSubmitted(!!p.submitted)
+        const races = p.results ?? []
+        if (races.length > 0) {
+          resultsRef.current = races
+          setResults(races)
+          const last = races[races.length - 1]
+          lastResultRef.current = last
+          setResult(last)
+          // 通算得点は「今のレースより前」の合計。RACE を受け取ったときと同じ数え方にする
+          setSeriesPts(() => {
+            const out: Record<string, number> = {}
+            for (const r of races.slice(0, -1)) {
+              for (const s of r.standings) out[s.teamId] = (out[s.teamId] ?? 0) + s.points
+            }
+            return out
+          })
+        }
+        setPhase(p.phase ?? 'lobby')
+      })
+
       ch.onPresence(ids => setOnline(ids))
       ch.onStatus(s => setConn(s))
+
+      // 入ってすぐに聞く。ホストは自分の問い合わせを無視する
+      ch.send(RoomEvent.SYNC, {}).catch(() => {})
 
       // 保険：通知を取りこぼしても最後には揃うように、ゆっくり定期更新する
       timer = setInterval(refresh, 15000)

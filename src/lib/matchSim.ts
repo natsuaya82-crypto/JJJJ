@@ -74,7 +74,16 @@ export type SeriesStanding = {
   segPts: number
   /** レースごとの順位 */
   ranks: number[]
-  /** 1回でも不戦（未提出でおまかせ）になったか */
+  /** 不戦（未提出でおまかせ）になったレース数 */
+  forfeits: number
+  /**
+   * 通算の不戦敗。1レースも自分でオーダーを出さなかった人だけが true。
+   *
+   * 以前は「1回でも不戦なら true」だったので、2戦目だけ落ちて3戦目以降は
+   * ちゃんと走った人が、最終結果でも通算成績でも不戦敗のままだった
+   * （オンライン参加者からの報告で判明）。回線が一瞬切れただけの人に
+   * 不戦敗を付けるのは重すぎるので、全部落ちた場合だけにする。
+   */
   forfeit: boolean
   /** 総合順位（1始まり） */
   rank: number
@@ -90,19 +99,23 @@ export function seriesStandings(races: MatchRacePayload[]): SeriesStanding[] {
   for (const r of races) {
     for (const s of r.standings) {
       const cur = map.get(s.teamId) ?? {
-        teamId: s.teamId, points: 0, totalTimeSec: 0, segPts: 0, ranks: [], forfeit: false, rank: 0,
+        teamId: s.teamId, points: 0, totalTimeSec: 0, segPts: 0, ranks: [], forfeits: 0, forfeit: false, rank: 0,
       }
       cur.points += s.points
       cur.totalTimeSec += s.totalTimeSec
       cur.segPts += s.segPts
       cur.ranks.push(s.rank)
-      if (r.forfeits.includes(s.teamId)) cur.forfeit = true
+      if (r.forfeits.includes(s.teamId)) cur.forfeits += 1
       map.set(s.teamId, cur)
     }
   }
   const out = [...map.values()].sort((a, b) =>
     b.points - a.points || a.totalTimeSec - b.totalTimeSec)
-  out.forEach((s, i) => { s.rank = i + 1 })
+  out.forEach((s, i) => {
+    s.rank = i + 1
+    // 出たレースが全部不戦だった人だけを通算の不戦敗にする
+    s.forfeit = s.ranks.length > 0 && s.forfeits >= s.ranks.length
+  })
   return out
 }
 

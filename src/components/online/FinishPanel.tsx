@@ -185,7 +185,13 @@ export default function FinishPanel({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: isMe ? 900 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {t?.name ?? s.teamId}
-                    {s.forfeit && <span style={{ marginLeft: 6, fontSize: 9, color: C.red }}>不戦</span>}
+                    {/* 全部落ちたら「不戦」、一部だけなら「不戦1」のように回数で出す。
+                        1回落ちただけの人を丸ごと不戦扱いにしない */}
+                    {s.forfeits > 0 && (
+                      <span style={{ marginLeft: 6, fontSize: 9, color: C.red }}>
+                        {s.forfeit ? '不戦' : `不戦${s.forfeits}`}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: 9, color: C.textDim, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {/* チーム名は自由に付けられて重複もするので、誰なのかはGM名で分かるようにする */}
