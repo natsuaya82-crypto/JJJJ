@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { audio, audioDiag, audioStatus } from '../../utils/audio'
 import { ONLINE_ENABLED } from '../../data/featureFlags'
@@ -8,6 +8,8 @@ import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 import NoticeDialog from '../ui/NoticeDialog'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import { exportSaveBackup, importSaveBackup, validateSaveJson } from '../../utils/saveBackup'
 
 import { C, alpha } from '../../styles/tokens'
 
@@ -33,6 +35,7 @@ const IcX = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
 const IcHome = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcTrash = <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcBlock = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/><path d="M5.6 5.6l12.8 12.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+const IcBackup = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v12M12 15l-4-4M12 15l4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const Chevron = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: C.textDim, flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
 
 // ── 課金カードの特典アイコン ──
@@ -104,7 +107,7 @@ function DetailScreen({ title, onClose, children }: { title: string; onClose: ()
   )
 }
 
-type Detail = null | 'team' | 'sound' | 'reset' | 'blocked'
+type Detail = null | 'team' | 'sound' | 'reset' | 'blocked' | 'backup'
 
 // ── ブロックした利用者 ──────────────────────────────────
 // App Store の審査基準 1.2 で「ブロックできること」が要る。
@@ -178,6 +181,151 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ── セーブの手動バックアップ／復元 ──────────────────────────
+// 「アップデートしたらデータが消えた」対策。自動保存の壊れ対策は saveStorage.ts 側に
+// 既にあるが、ユーザーが自分の意思で退避・復元する手段が無かったのでここに追加する。
+// 実際の読み書きは utils/saveBackup.ts に集約し、この画面はUIだけを持つ。
+function BackupScreen({ onClose }: { onClose: () => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [exporting, setExporting] = useState(false)
+  const [exportNotice, setExportNotice] = useState<{ ok: boolean; message: string } | null>(null)
+
+  // ファイルを選んだ直後（検証済み・まだ書き込んでいない）の内容。確認ダイアログの表示条件も兼ねる
+  const [pending, setPending] = useState<{ text: string; name: string } | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [pickError, setPickError] = useState<string | null>(null)
+  const [importNotice, setImportNotice] = useState<{ ok: boolean; message: string } | null>(null)
+
+  const handleExport = async () => {
+    setExporting(true)
+    const r = await exportSaveBackup()
+    setExporting(false)
+    setExportNotice(r.ok ? { ok: true, message: '書き出しました' } : { ok: false, message: r.reason })
+  }
+
+  const handleFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''  // 同じファイルを選び直せるようにする
+    if (!f) return
+    setPickError(null)
+    const text = await f.text()
+    const check = validateSaveJson(text)
+    if (!check.ok) { setPickError(check.reason); return }
+    setPending({ text, name: f.name })
+  }
+
+  const handleConfirmImport = async () => {
+    if (!pending) return
+    setImporting(true)
+    const r = await importSaveBackup(pending.text)
+    setImporting(false)
+    setPending(null)
+    if (r.ok) {
+      setImportNotice({ ok: true, message: '復元しました。アプリを再読み込みします' })
+    } else {
+      setImportNotice({ ok: false, message: r.reason })
+    }
+  }
+
+  return (
+    <DetailScreen title="セーブのバックアップ" onClose={onClose}>
+      <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.7, marginBottom: 16 }}>
+        アップデートや機種変更に備えて、セーブデータを手元のファイルに書き出しておけます。
+        書き出したファイルは「読み込む」から選ぶと元に戻せます。
+      </div>
+
+      {/* 書き出し */}
+      <div style={CARD}>
+        <div style={{ padding: '16px' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 4 }}>書き出す</div>
+          <div style={{ fontSize: 11, color: C.textDim, marginBottom: 12, lineHeight: 1.6 }}>
+            現在のセーブをファイルとして共有・保存します。
+          </div>
+          <button
+            onClick={() => { void handleExport() }}
+            disabled={exporting}
+            className="btn-press"
+            style={{
+              width: '100%', padding: '12px', borderRadius: 11,
+              border: `2px solid ${alpha(C.gold, exporting ? 0.25 : 0.5)}`,
+              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+              color: exporting ? C.textGhost : C.gold, fontSize: 13, fontWeight: 800,
+              cursor: exporting ? 'default' : 'pointer', fontFamily: SAIRA,
+            }}
+          >
+            {exporting ? '書き出し中…' : 'セーブを書き出す'}
+          </button>
+        </div>
+      </div>
+
+      {/* 読み込み */}
+      <div style={{ ...CARD, marginTop: 12 }}>
+        <div style={{ padding: '16px' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 4 }}>読み込む</div>
+          <div style={{ fontSize: 11, color: C.textDim, marginBottom: 12, lineHeight: 1.6 }}>
+            書き出したファイルを選ぶと、いまのデータと入れ替わります。
+          </div>
+          <input
+            ref={fileInputRef} type="file" accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={e => { void handleFileChosen(e) }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="btn-press"
+            style={{
+              width: '100%', padding: '12px', borderRadius: 11, border: `1px solid ${C.border}`,
+              background: 'transparent', color: C.textSub, fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', fontFamily: SAIRA,
+            }}
+          >
+            ファイルを選ぶ
+          </button>
+          {pickError && <div style={{ fontSize: 11, color: C.red, marginTop: 10, lineHeight: 1.6 }}>{pickError}</div>}
+        </div>
+      </div>
+
+      {/* 書き出し結果 */}
+      {exportNotice && (
+        <NoticeDialog
+          title={exportNotice.ok ? '書き出しました' : '書き出しに失敗しました'}
+          message={exportNotice.message}
+          accent={exportNotice.ok ? C.gold : C.red}
+          onClose={() => setExportNotice(null)}
+        />
+      )}
+
+      {/* 読み込み確認（上書き注意） */}
+      {pending && (
+        <ConfirmDialog
+          title="いまのデータは上書きされます"
+          message={`「${pending.name}」の内容で現在のセーブを置き換えます。この操作は取り消せません。よろしいですか？`}
+          confirmLabel={importing ? '復元中…' : '復元する'}
+          cancelLabel="キャンセル"
+          accent={C.red}
+          onConfirm={() => { if (!importing) void handleConfirmImport() }}
+          onCancel={() => { if (!importing) setPending(null) }}
+        />
+      )}
+
+      {/* 読み込み結果 */}
+      {importNotice && (
+        <NoticeDialog
+          title={importNotice.ok ? '復元しました' : '復元できませんでした'}
+          message={importNotice.message}
+          accent={importNotice.ok ? C.gold : C.red}
+          onClose={() => {
+            setImportNotice(null)
+            // 復元成功時は通常の起動経路（migrate込み）で読み直させるため再読み込みする
+            if (importNotice.ok) window.location.reload()
+          }}
+        />
+      )}
+    </DetailScreen>
+  )
+}
+
 export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void }) {
   const { resetGame } = useGameStore()
   const teams = useGameStore(s => s.teams)
@@ -216,6 +364,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         <SettingRow icon={IcX} label="公式X（@JPEL_MANAGER）" sub="アップデート情報・お問い合わせ" onClick={() => window.open('https://x.com/JPEL_MANAGER', '_blank')} />
         {ONLINE_ENABLED && <SettingRow icon={IcBlock} label="ブロックした利用者" sub="オンラインで表示しない相手" onClick={() => setDetail('blocked')} />}
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
+        <SettingRow icon={IcBackup} label="セーブのバックアップ" sub="書き出し／読み込み" onClick={() => setDetail('backup')} />
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />
       </div>
 
@@ -245,6 +394,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       {detail === 'team' && <TeamEditScreen onClose={() => setDetail(null)} />}
       {detail === 'sound' && <SoundScreen onClose={() => setDetail(null)} />}
       {detail === 'blocked' && <BlockedScreen onClose={() => setDetail(null)} />}
+      {detail === 'backup' && <BackupScreen onClose={() => setDetail(null)} />}
       {detail === 'reset' && <ResetScreen resetGame={resetGame} onClose={() => setDetail(null)} />}
     </div>
   )
