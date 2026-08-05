@@ -4,7 +4,7 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { ovr } from '../src/utils/playerUtils'
-import { tierBudget, tierOf, TIER_LABEL, TIER_BUDGET, CLUB_TIERS, type ClubTier } from '../src/utils/clubTier'
+import { tierBudget, tierOf, TIER_BUDGET, CLUB_TIERS, type ClubTier } from '../src/utils/clubTier'
 import { divisionOf } from '../src/utils/league'
 import type { Player, Team } from '../src/types'
 
@@ -34,14 +34,14 @@ console.log(`■ ${RUNS}回生成した平均\n格  帯          予算    チ�
 for (const tier of [...CLUB_TIERS].reverse() as ClubTier[]) {
   const teams = allTeams.filter(t => tierOf(t) === tier)
   if (teams.length === 0) {
-    console.log(`${String(tier).padStart(2)}  ${TIER_LABEL[tier].padEnd(4)}  ${(TIER_BUDGET[tier] / 1e8).toFixed(2)}億      0     —        —           —`)
+    console.log(`${String(tier).padStart(2)}  ${''}  ${(TIER_BUDGET[tier] / 1e8).toFixed(2)}億      0     —        —           —`)
     continue
   }
   const all = teams.map(t => squadOf(t.id))
   const t10 = teams.map(t => top10Of(t.id))
   const divs = [...new Set(teams.map(t => divisionOf(t)))].sort().map(d => `${d}部`).join('/')
   console.log(
-    `${String(tier).padStart(2)}  ${TIER_LABEL[tier].padEnd(4)}  ${(TIER_BUDGET[tier] / 1e8).toFixed(2)}億` +
+    `${String(tier).padStart(2)}  ${''}  ${(TIER_BUDGET[tier] / 1e8).toFixed(2)}億` +
     `  ${String(teams.length).padStart(6)}  ${divs.padEnd(7)}  ${avg(all).toFixed(1).padStart(8)}` +
     `  ${avg(t10).toFixed(1).padStart(10)}  ${Math.max(...t10).toFixed(1)} 〜 ${Math.min(...t10).toFixed(1)}`)
 }
