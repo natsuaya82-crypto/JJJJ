@@ -3,6 +3,7 @@ import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import { rankBudgetGrant } from '../data/economy'
 import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary, peakAgeOf } from '../utils/playerUtils'
+import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
 
@@ -1422,13 +1423,26 @@ export function generateForeignLeaguePlayers(
     return RANK_ORDER[i]
   }
 
+  // 国籍はクラブの所在国ではなく、data/nationTalent.ts の人数比で配る。
+  // クラブの所在国に固定すると、国の選手層＝その国のクラブ数になり、
+  // ニュージーランド220人・エチオピア66人のような転倒が起きる（実測）。
+  // 袋から順に引くので、全体の人数比がそのまま各国の選手層になる。
+  // 強さは下の region（＝どのクラブにいるか）で決まるので、国籍では変えない。
+  const natBag = buildNationalityBag()
+  for (let i = natBag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[natBag[i], natBag[j]] = [natBag[j], natBag[i]]
+  }
+  let natIdx = 0
+  const nextNationality = (fallback: Nationality): Nationality =>
+    natIdx < natBag.length ? natBag[natIdx++] : fallback
+
   const updatedLeagues = leagues.map(league => ({
     ...league,
     clubs: league.clubs.map(club => {
       const region = strengthFor(league.id, club.country)
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
       const salaries = distributeSalaries(Math.round(region.budget * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
-      const namePools = FOREIGN_LEAGUE_POOLS[club.country as string] ?? FOREIGN_LEAGUE_POOLS._default
       const clubUsedNames = new Set<string>()
 
       salaries.forEach((clubSalary) => {
@@ -1439,9 +1453,12 @@ export function generateForeignLeaguePlayers(
         const specialty = specialties[rng(0, specialties.length - 1)]
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
         const age = rng(ageRange[0], ageRange[1])
-        const nat: Nationality = club.country
+        const nat: Nationality = nextNationality(club.country)
         const foreignCat = nationalityToForeignCategory(nat)
 
+        // 名前は所属クラブの国ではなく【国籍】から引く。
+        // 切り離した以上、スペインのクラブにいるケニア人にスペイン名が付いてはいけない。
+        const namePools = FOREIGN_LEAGUE_POOLS[nat as string] ?? FOREIGN_LEAGUE_POOLS._default
         // クラブ内で同名が出ないよう組み合わせをリトライする
         const pool = namePools[rng(0, namePools.length - 1)]
         let nameEntry = pickForeignName(pool)
