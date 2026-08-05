@@ -721,25 +721,44 @@ let idCounter = 1000
 
 // 指名される上位40人(2巡×20)が全員A以上になるよう、A+を46人用意する。
 // 残り(B/C/D)は指名漏れ＝FAに回る（＝下位でも使い物にならない選手を指名しなくて済む）。
+// 新人のランク配分。DRAFT_POOL_SIZE と同じ長さにすること
+// （足りないと余りが 'A' に落ちて、配分が意図とずれる）。
+//
+// ★上位（SSS・SS・S）の枚数は3部制の前も後も変えていない。
+//   52チームに散らばるからといって超一流を増やすと、リーグ全体のOVRが上がって
+//   クラブの格の帯を決め直すことになる。増やすのは中位・下位だけ。
+//   「ドラ1級は相変わらず1部が持っていく／下部リーグはB・C級で戦う」を保つ。
 const DRAFT_RANK_POOL: Rank[] = [
-  'SSS', 'SSS',
-  'SS', 'SS', 'SS', 'SS', 'SS', 'SS',
-  'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S',
-  'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
-  'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B',
-  'C', 'C', 'C', 'C', 'C', 'C',
-  'D', 'D', 'D', 'D',
+  ...Array<Rank>(2).fill('SSS'),
+  ...Array<Rank>(6).fill('SS'),
+  ...Array<Rank>(20).fill('S'),
+  ...Array<Rank>(44).fill('A'),
+  ...Array<Rank>(28).fill('B'),
+  ...Array<Rank>(14).fill('C'),
+  ...Array<Rank>(6).fill('D'),
 ]
 
 type OriginType = 'university' | 'high_school' | 'foreign' | 'development'
 
 // Build origin distribution: 40 univ, 15 hs, 10 foreign, 5 dev (total 70)
+// 1年に生まれる新人の数。
+//
+// 20チーム時代は70人だった。3部制で52チームになると、
+//   52チーム × 28人 = 1456枠 ／ 平均現役14年（引退32〜40歳）= 毎年104人の欠員
+// なので70人では毎年34人ずつ足りず、リーグ全体が痩せていく
+// （CPUは ROSTER_MIN=15人まで縮む）。
+//
+// 需要104に対して120。差の16はFAで循環するぶんの余裕。
+// 2部・3部にドラフトは無く、指名されなかった選手がFAに流れるのが唯一の入口なので、
+// ここが細いと下部リーグが選手を取れない。
+export const DRAFT_POOL_SIZE = 120
+
 function buildOriginPool(): OriginType[] {
   const pool: OriginType[] = []
-  for (let i = 0; i < 40; i++) pool.push('university')
-  for (let i = 0; i < 15; i++) pool.push('high_school')
-  for (let i = 0; i < 10; i++) pool.push('foreign')
-  for (let i = 0; i < 5; i++) pool.push('development')
+  for (let i = 0; i < 68; i++) pool.push('university')
+  for (let i = 0; i < 26; i++) pool.push('high_school')
+  for (let i = 0; i < 17; i++) pool.push('foreign')
+  for (let i = 0; i < 9; i++) pool.push('development')
   // shuffle
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
