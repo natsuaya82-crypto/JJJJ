@@ -51,11 +51,9 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress }: {
               borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none', cursor: (onRowClick || onRowLongPress) ? 'pointer' : 'default',
               borderLeft: r.isMe ? `3px solid ${r.primary}` : '3px solid transparent', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {i === 0 ? (
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>★</span>
-              ) : (
-                <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor(i + 1) }}>{i + 1}</span>
-              )}
+              {/* 順位表なので1位も数字で出す。以前は1位だけ★に置き換えていたが、
+                  順位を見に来た画面で先頭の順位が読めないのは本末転倒 */}
+              <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor(i + 1), textShadow: i === 0 ? `0 0 6px ${alpha(C.gold, 0.5)}` : 'none' }}>{i + 1}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
               {r.flagCode

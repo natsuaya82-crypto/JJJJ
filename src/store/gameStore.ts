@@ -5729,6 +5729,15 @@ export const useGameStore = create<GameStore>()(
           }
           for (const r of state.worldRepresentatives ?? []) protectedIds.add(r.playerId)
           for (const id of state.worldSquad?.playerIds ?? []) protectedIds.add(id)
+          // 各国代表に選ばれた20人。代表タブはこの20人をそのまま出すので、
+          // ここで守らないと引退した選手が名簿から消えて「20人選ばれたはずが18人」になる。
+          // 次の選出で入れ替わるまでは、引退していても20人のまま見せる
+          for (const squads of [
+            state.worldTournament?.squads,
+            ...(state.worldAthleticsResults ?? []).map(r => r.squads),
+          ]) {
+            for (const ids of Object.values(squads ?? {})) for (const id of ids ?? []) protectedIds.add(id)
+          }
           for (const id of [...(state.starredOpponents ?? []), ...(state.starredProspects ?? [])]) protectedIds.add(id)
           // 自チーム在籍歴：過去シーズンの出走記録・0出走記録から拾う（印が無い旧セーブぶんの救済）
           // 監督は移籍できるので、今のチームだけでなく過去に指揮したチーム全部を見る。
