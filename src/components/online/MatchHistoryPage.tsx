@@ -49,12 +49,20 @@ function EntryRow({ e }: { e: MatchEntry }) {
       ) : (
         <div style={{ width: 20, height: 20, borderRadius: 5, background: C.surface3, flexShrink: 0 }} />
       )}
-      <span style={{
-        flex: 1, minWidth: 0, fontSize: 12, color: isMe ? C.text : C.textSub,
-        fontWeight: isMe ? 700 : 400,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
-        {name}{isMe && <span style={{ marginLeft: 5, fontSize: 9, color: C.gold }}>自分</span>}
+      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+        <span style={{
+          display: 'block', fontSize: 12, color: isMe ? C.text : C.textSub,
+          fontWeight: isMe ? 700 : 400,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {name}{isMe && <span style={{ marginLeft: 5, fontSize: 9, color: C.gold }}>自分</span>}
+        </span>
+        <span style={{
+          display: 'block', fontSize: 9, color: C.textGhost, marginTop: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          GM {e.profile?.gmName ?? '—'}
+        </span>
       </span>
       {e.forfeit && (
         <span style={{

@@ -4,6 +4,7 @@
 import type { Player, Team } from '../types'
 import { supabase, ensureAuth } from './supabase'
 import { withoutBlocked } from './moderationApi'
+import { defaultLogoIdFor } from '../data/logoPresets'
 
 export type Friend = {
   id: string
@@ -69,7 +70,9 @@ export function toFriend(r: ProfileRow): Friend {
     teamName: r.team_name || '無名チーム',
     shortName: r.short_name || '—',
     gmName: r.gm_name || '—',
-    logoId: r.logo_id || 'logo_01',
+    // 既にサーバーへ logo_01 で保存されてしまっている人の救済も兼ねる。
+    // 未設定・既定値のままなら user_id から散らす（全員が同じ絵になるのを避ける）
+    logoId: r.logo_id && r.logo_id !== 'logo_01' ? r.logo_id : defaultLogoIdFor(r.user_id),
     primary: r.color_primary || '#122440',
     secondary: r.color_secondary || '#f5c842',
     champs: r.champs ?? 0,
@@ -84,7 +87,9 @@ function toRequest(r: ProfileRow): FriendRequest {
     teamName: r.team_name || '無名チーム',
     shortName: r.short_name || '—',
     gmName: r.gm_name || '—',
-    logoId: r.logo_id || 'logo_01',
+    // 既にサーバーへ logo_01 で保存されてしまっている人の救済も兼ねる。
+    // 未設定・既定値のままなら user_id から散らす（全員が同じ絵になるのを避ける）
+    logoId: r.logo_id && r.logo_id !== 'logo_01' ? r.logo_id : defaultLogoIdFor(r.user_id),
     primary: r.color_primary || '#122440',
     secondary: r.color_secondary || '#f5c842',
   }
@@ -145,7 +150,9 @@ export async function pushMyProfile(team: Team | undefined, avgOvr: number, cham
     team_name: team.name,
     short_name: team.shortName,
     gm_name: team.gmName,
-    logo_id: team.logoId ?? 'logo_01',
+    // ロゴ未選択のとき logo_01 固定にしていたため、オンライン上で全員同じ絵になっていた。
+    // チームIDから決める（ローカルの未選択表示も同じ考え方でハッシュから散らしている）
+    logo_id: team.logoId ?? defaultLogoIdFor(team.id),
     color_primary: team.colors.primary,
     color_secondary: team.colors.secondary,
     champs,

@@ -21,3 +21,22 @@ export function normalizeLogoPresetId(logoId: string | undefined | null): string
 }
 
 export const logoPresetSrc = (logoId: string) => `/logos/preset/${normalizeLogoPresetId(logoId)}.png`
+
+/**
+ * ロゴを選んでいないチームの既定ロゴを、チームIDから決める。
+ *
+ * ローカルの表示（TeamLogoSVG）は logoId が無いときIDのハッシュで見た目を散らすので、
+ * 未選択でもチームごとに違う絵になる。ところがサーバーへ送るとき（friendsApi の
+ * pushMyProfile）は logo_01 で固定していたため、ロゴを選んでいない人が
+ * オンライン上では全員同じ絵（鶴）になっていた。
+ * 同じハッシュでプリセットを1つ選び、未選択でもオンラインで見分けがつくようにする。
+ *
+ * ※ローカルのハッシュ表示とは絵の種類が違う（あちらは組み込みSVG、こちらはプリセット画像）。
+ *   完全に一致させるにはロゴ選択を必須にするしかないので、ここは「全員同じにしない」までを担う。
+ */
+export function defaultLogoIdFor(seed: string | undefined): string {
+  if (!seed) return LOGO_PRESET_DEFAULT
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0
+  return LOGO_PRESETS[Math.abs(h) % LOGO_PRESETS.length]
+}
