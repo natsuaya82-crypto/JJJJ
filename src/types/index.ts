@@ -491,6 +491,10 @@ export type WorldTournament = {
 /** リーグの部。1が最上位 */
 export type Division = 1 | 2 | 3
 
+/** 選手の階級。到達点（ポテンシャル）の目安で、今の強さそのものではない。
+ *  実際のOVRは（ランク・年齢・成長型）の3つで決まる（engine/ageCurve.ts） */
+export type Rank = 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS'
+
 export type Team = {
   id: string
   name: string

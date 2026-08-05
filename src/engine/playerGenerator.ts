@@ -1,6 +1,7 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
 import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
+import type { Rank } from '../types'
 import { tierBudget, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary, peakAgeOf } from '../utils/playerUtils'
 import { buildNationalityBag } from '../data/nationTalent'
@@ -586,7 +587,7 @@ const DEVELOPMENT_ORGS = [
   'JPELアカデミー','陸上自衛隊体育学校','実業団ジュニア','ナショナルアカデミー',
 ]
 
-type Rank = 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS'
+// Rank は types/index.ts の1本（ageCurve・clubTier と共有）
 
 function rng(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min

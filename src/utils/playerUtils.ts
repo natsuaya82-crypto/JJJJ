@@ -153,13 +153,16 @@ export function effSegOvr(p: Player, uphillPct: number, downhillPct: number, dis
 }
 
 // OVR→市場給与の「素体」(円)。非線形（スターほど跳ね上がる）。区分線形で下記アンカーを通す。
-// 2046調整: 90以上を寝かせた（旧 90→5000万 / 95→8000万 / 99→1億）。
-// ここに実績倍率(salaryPerfFactor・上限1.45)が掛かるので、素体を据え置くと実額が1億超になってしまう。
-// 圧縮後は実額でリーグ最高が8000万前後、理論上限(OVR99×上限倍率)でちょうど1億に収まる。
-// 80以下は国内初期ロスターの年俸配分がこの帯に較正されているので触らない。
+//
+// 80以下は据え置き、80超だけ引き上げてある（90→7000万 / 95→1億 / 99→1.5億）。
+// スターとその他の差を開かせるため。80以下を動かすと下位クラブがロスターを組めなくなる。
+//
+// ★年齢による割引はここには無い。年齢はカーブでOVRが下がることだけで効く
+//   （前は年齢係数 0.55〜1.08 が別に掛かっていて、衰えが二重に効いていた）。
+//   掛かるのは実績倍率(salaryPerfFactor・0.55〜1.45)だけ。
 const SALARY_ANCHORS: [number, number][] = [
   [45, 3_000_000], [50, 4_000_000], [60, 6_000_000], [70, 10_000_000],
-  [80, 30_000_000], [90, 45_000_000], [95, 55_000_000], [99, 70_000_000],
+  [80, 30_000_000], [90, 70_000_000], [95, 100_000_000], [99, 150_000_000],
 ]
 function ovrSalary(o: number): number {
   const pts = SALARY_ANCHORS
@@ -285,9 +288,8 @@ export function salaryPerfFactor(p: Player, perf?: PerfProfile): number {
 // 能力が落ちれば下がり（衰えを反映）、走って結果を出していれば上がる。
 // perf を渡さない経路（CPUの更新・ドラフト・FA一括処理など）は通算実績だけで評価する。
 export function faMarketSalary(p: Player, perf?: PerfProfile): number {
-  const age = p.age
-  const ageFactor = age <= 23 ? 1.08 : age <= 27 ? 1.0 : age <= 30 ? 0.9 : age <= 33 ? 0.72 : 0.55
-  return Math.round(ovrSalary(ovr(p)) * ageFactor * salaryPerfFactor(p, perf) / 500000) * 500000
+  // 年齢係数は廃止。衰えは年齢カーブでOVRが下がることだけで表す（二重に効かせない）
+  return Math.round(ovrSalary(ovr(p)) * salaryPerfFactor(p, perf) / 500000) * 500000
 }
 
 // 選手がそのシーズンに何レース出場したか（データ判定用）
