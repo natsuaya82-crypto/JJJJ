@@ -1,5 +1,7 @@
 import type { Player, Specialty, Ratings, CardStatKey, Nationality } from '../types'
 import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
+import { peakAgeOfCurve, isDeclining } from '../engine/ageCurve'
+import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -369,15 +371,33 @@ export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastS
   return recentApps >= need ? 'key' : 'open'
 }
 
-// 移籍・トレードで動く選手本人が「移籍先チームに行くことに納得するか」。
-// チーム同士が合意しても、選手が納得しなければ成立しない。年俸ではなく出場データ・順位で判断。
-// destRank=移籍先の現順位, totalTeams=全チーム数, playFraction=現チームでの出場割合, teamRaces=消化レース数。
-// clubBlessed=true はクラブ間で移籍金が合意済みの公認移籍：売る判断はクラブが済ませているので
-// 「主力だから残りたい」の減点は働かず、本人は行き先の魅力・愛着だけで決める。
+/**
+ * 移籍・トレードで動く選手本人が「移籍先クラブに行くことに納得するか」。
+ * チーム同士が合意しても、選手が納得しなければ成立しない。
+ *
+ * ■ 行き先の魅力は「クラブの格」で測る
+ *   以前は「移籍先の今の順位 ÷ 全チーム数」だった。国内の順位表しか物差しが無いので、
+ *   海外クラブへの移籍・3部から1部への移籍・格上の古巣復帰が、全部同じ土俵で
+ *   比べられなかった（海外は destRank=0 で常に0.5固定だった）。
+ *   格は国内52＋海外180の全232クラブを1本で並べているので、どこへ動く話でも比べられる。
+ *
+ * @param destTier 行き先クラブの格
+ * @param srcTier  今の所属クラブの格。無所属（FA）は undefined ＝ 格差なしとして扱う
+ * @param playFraction 現チームでの出場割合, @param teamRaces 消化レース数
+ * @param clubBlessed クラブ間で移籍金が合意済みの公認移籍。売る判断はクラブが済ませているので
+ *   「主力だから残りたい」の減点は働かず、本人は行き先の魅力・愛着だけで決める
+ */
 export function playerConsentToMove(
-  p: Player, destRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0, consentBonus = 0, clubBlessed = false,
+  p: Player, destTier: ClubTier, srcTier: ClubTier | undefined,
+  playFraction = 0.5, teamRaces = 0, consentBonus = 0, clubBlessed = false,
 ): { ok: boolean; reason: string } {
-  const appeal = destRank > 0 ? (totalTeams - destRank + 1) / totalTeams : 0.5 // 1.0=首位級
+  // 格がいくつ上がるか。同格で0.5、約8段上で1.0、8段下で0
+  const gap = (srcTier ?? destTier) - destTier
+  const declining = isDeclining(p.growthCurve ?? 'normal', p.age)
+  let appeal = Math.max(0, Math.min(1, 0.5 + gap * 0.06))
+  // ピークを過ぎた選手は格へのこだわりが薄れる。残りのキャリアで走れる場所を選ぶ
+  if (declining) appeal = 0.5 + (appeal - 0.5) * 0.6
+
   const personality = p.personality ?? 'salary'
   const morale = p.morale ?? 60
   let score: number
@@ -387,15 +407,24 @@ export function playerConsentToMove(
   if (morale < 40) score += 0.2
   else if (morale >= 75) score -= 0.1
   score += consentBonus  // スカウト拠点などの交渉成立ボーナス
+
+  // 今のクラブの成長上限に達していて、行き先のほうが上限が高い＝「ここではもう伸びない」。
+  // 下位クラブで頭打ちになった若手が上へ出て行く動きは、これが作る
+  const cappedOut = srcTier != null && !declining
+    && ovr(p) >= TIER_POTENTIAL_CAP[srcTier] - 1
+    && TIER_POTENTIAL_CAP[destTier] > TIER_POTENTIAL_CAP[srcTier]
+  if (cappedOut) score += 0.25
+
   // 出場データによる移籍意欲：出場が少ない選手は出たがる。主力は残りたい。
   const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
   if (teamRaces >= 3 && playFraction < 0.4) score += 0.25        // ほぼ出ていない＝出場機会を求める
   else if (key) score -= 0.3                                     // 主力（よく出ている）は動きにくい
+
   const ok = score >= 0.5
   const reason = ok ? ''
     : key ? `${p.name}は主力として起用されており、移籍を望んでいない`
     : personality === 'loyalty' ? `${p.name}は今のチームへの愛着が強く移籍を望んでいない`
-    : appeal < 0.5 ? `${p.name}はチームの現状に不安があり移籍に前向きでない`
+    : appeal < 0.5 ? `${p.name}は格下への移籍に前向きでない`
     : `${p.name}は移籍に納得していない`
   return { ok, reason }
 }
@@ -404,79 +433,52 @@ export function playerConsentToMove(
 // 通常の移籍同意より腰が重い（-0.2）＋現チームでの出場実績を必ず加味する。
 // 出場している選手・愛着のある選手は基本残留し、干されている選手だけが出て行きやすい。
 export function freeContactConsent(
-  p: Player, suitorRank: number, totalTeams: number, playFraction = 0.5, teamRaces = 0,
+  p: Player, suitorTier: ClubTier, srcTier: ClubTier | undefined, playFraction = 0.5, teamRaces = 0,
 ): boolean {
-  return playerConsentToMove(p, suitorRank, totalTeams, playFraction, teamRaces, -0.2).ok
+  return playerConsentToMove(p, suitorTier, srcTier, playFraction, teamRaces, -0.2).ok
 }
 
 /**
- * その選手のピーク年齢。**この1本だけが「いつが全盛期か」を決める**。
+ * その選手のピーク年齢。**値段の判定はここを通す**。
  *
- * 成長処理(growPlayer)と市場価値(calcTransferValue)が別々に持っていて、
- * 成長側は成長タイプ(growthCurve)で 24/27/30 と分かれるのに、
- * 値段側は全員27歳固定の年齢表だった。そのせいで
- *   ・晩成型の30歳（実力はまだピーク）が、値段だけ下がり始めていた
- *   ・早熟型の28歳（実力はもう落ちている）が、値段は据え置きだった
- * という食い違いが出ていた。値段を出すところは全部ここを見る
+ * 中身は engine/ageCurve.ts の PEAK_AGE 1本（早熟22 / 普通27 / 晩成30）。
+ * 以前ここに 24/27/30 という別の表を持っていたが、成長カーブ側は 22/27/30 なので
+ * 早熟型だけ「実力はもう落ちているのに値段の下降が2年遅れる」ズレが出ていた。
  */
 export function peakAgeOf(p: Pick<Player, 'growthCurve'>): number {
-  // 成長タイプが入っていない古いセーブは標準型(27)として扱う。
-  // 生成側の rankToBaseRange が `growthDelta[growthCurve] ?? growthDelta.normal` と
-  // しているのと同じ扱い方
-  return p.growthCurve === 'early' ? 24 : p.growthCurve === 'late_bloomer' ? 30 : 27
+  return peakAgeOfCurve(p.growthCurve ?? 'normal')
 }
 
-export function calcTransferValue(p: Player): number {
-  const o = ovr(p)
-  const age = p.age
+/**
+ * 移籍金の年齢倍率。移籍金＝市場年俸×これ。若いほど高く、伸びしろの値段になる。
+ *   〜22歳 ×5 ／ 23〜27歳 ×4 ／ 28〜31歳 ×3 ／ 32歳〜 ×2
+ */
+export function transferFeeAgeMultiplier(age: number): number {
+  return age <= 22 ? 5 : age <= 27 ? 4 : age <= 31 ? 3 : 2
+}
 
-  // OVRを主役にする。下限(45)を引いて2乗すると OVR差が大きく開き、
-  // 年齢や将来性でOVRの上下が逆転しない（例: 80→(35)^2=1225 / 56→(11)^2=121 ＝約10倍差）。
-  const base = Math.pow(Math.max(0, o - 45), 2)
-
-  // 年齢は「補正」程度に抑える（OVRを覆さない範囲）。若手にやや上乗せ、高齢で減衰。
-  //
-  // 段の位置は絶対年齢ではなく **その選手のピークからの距離** で決める。
-  // 以前はここだけ「全員27歳ピーク」の年齢表を持っていたので、成長処理が
-  // 成長タイプごとに 24/27/30 とピークを分けているのと噛み合っていなかった。
-  // ピークを peakAgeOf の1本にしたので、早熟・普通・晩成が自動で付いてくる。
-  //
-  // 段の位置じたいは growPlayer の衰えに合わせてある。growPlayer は
-  // ピーク+1年から少し落ち始め、+4年で中程度、+6年で加速する。
-  // 標準型(ピーク27)ならこの表は 28〜30据え置き／31から下降で、以前と同じ数字になる。
-  const fromPeak = age - peakAgeOf(p)
-  const peakFactor =
-    fromPeak <= -7 ? 1.25 :
-    fromPeak <= -4 ? 1.15 :
-    fromPeak <=  0 ? 1.05 :
-    fromPeak <=  3 ? 1.00 :
-    fromPeak <=  5 ? 0.88 :
-    fromPeak <=  7 ? 0.70 :
-    fromPeak <=  9 ? 0.48 :
-    0.30
-  // 35歳・37歳の急降下だけは絶対年齢で効く（growPlayer も絶対年齢で落としている）。
-  // これが無いと、晩成型の36歳がまだピーク扱いで高値のままになる
-  // 上限ではなく「下方向の蓋」なので、35歳未満は無制限(Infinity)にしておく。
-  // ここを 1 にすると若手の上乗せ(1.05〜1.25)まで丸ごと潰れる
-  const ageCap = age >= 37 ? 0.30 : age >= 35 ? 0.48 : Infinity
-  const ageFactor = Math.min(peakFactor, ageCap)
-
-  const potFactor = p.potential >= 85 ? 1.15 : p.potential >= 75 ? 1.07 : 1.0
-
-  // 実績プレミアム。初期生成(全て0)なら careerFactor=1.0 ＝ OVR＋年齢だけの素の価値。
-  // プレイで出走・区間賞・優勝・MVPが溜まるほど上がる（変動する）。
-  // 主軸は「出走回数」＝どれだけ起用されてきたか（区間賞ゼロの堅実な選手も評価される）。
-  const appFactor   = 1 + Math.min(p.career.totalRaces * 0.004, 0.25)   // 出走で最大+25%
-  const segFactor   = 1 + Math.min(p.career.segmentWins * 0.015, 0.15)  // 区間賞（点取り屋要素、控えめに残す）
-  const champFactor = 1 + p.career.championships * 0.08
-  const mvpFactor   = 1 + p.career.mvpAwards * 0.06
-  const careerFactor = appFactor * segFactor * champFactor * mvpFactor
-
+/**
+ * 移籍金（市場価値）。**移籍金を出すところは必ずこれを通すこと**。
+ *
+ *   移籍金 ＝ 市場年俸(faMarketSalary) × 年齢倍率 × 契約年数の係数
+ *
+ * ■ なぜ年俸を土台にするのか
+ *   以前は OVR を2乗した独自の式で、年齢・ポテンシャル・実績の係数を年俸とは
+ *   別に掛けていた。同じ選手の「値段」が年俸と移籍金で別々の式から出ていて、
+ *   年俸を上げると移籍金は動かない、という食い違いが起きていた。
+ *   いまは 年齢カーブ → OVR → 年俸 → 移籍金 の1本。年俸が上がれば移籍金も上がる。
+ *
+ * ■ 実績とポテンシャル
+ *   実績倍率(0.55〜1.45)は faMarketSalary の中で既に効いているので、ここでは掛けない。
+ *   ポテンシャル係数は廃止した。伸びしろは「若さ」で表す（年齢倍率がその役割）。
+ *
+ * ■ 契約年数
+ *   残り契約が長いほど高い（最大+18%）。切れかけの選手は安く買える。
+ */
+export function calcTransferValue(p: Player, perf?: PerfProfile): number {
   const ctFactor = 1.0 + Math.min((p.contract.yearsLeft - 1) * 0.06, 0.18)
-
-  // 係数70000で OVR70/28歳 ≈ 4600万（OVR80/24 ≈ 1.1億、OVR56 ≈ 1000万台）
-  const raw = base * ageFactor * potFactor * careerFactor * ctFactor * 70000
-  return Math.round(raw / 1000000) * 1000000
+  const raw = faMarketSalary(p, perf) * transferFeeAgeMultiplier(p.age) * ctFactor
+  return Math.round(raw / 1_000_000) * 1_000_000
 }
 
 export type CareerStage = 'developing' | 'growing' | 'peak' | 'declining'

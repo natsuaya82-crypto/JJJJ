@@ -6,8 +6,8 @@ import { bidThreshold, transferAcceptChance, listedAcceptChance, roundFee } from
 import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
-import { rankedStandings } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
+import { tierOf, tierOfPlayerClub } from '../../utils/clubTier'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -28,14 +28,15 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
 
   // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
   const { currentSeason, pastSeasons, teams, playerTeamId } = useGameStore()
-  const standings = rankedStandings(currentSeason.standings)
-  const myRank = standings.findIndex(s => s.teamId === playerTeamId) + 1
+  // 本人の判断材料は「クラブの格がいくつ上がるか」（順位ではない）
+  const myTier = tierOf(teams.find(t => t.id === playerTeamId))
+  const srcTier = tierOfPlayerClub(player.teamId, teams)
   const scoutLv = teams.find(t => t.id === playerTeamId)?.facilities?.scoutOffice ?? 0
   const consentBase = scoutLv * 0.02
   // 年俸ボーナス（相場1.2倍=+0.1 / 1.5倍=+0.2）でどこまで説得できるかを段階表示
-  const mind = playerConsentToMove(player, myRank, teams.length, 0.5, 0, consentBase, true).ok ? 'willing'
-    : playerConsentToMove(player, myRank, teams.length, 0.5, 0, consentBase + 0.1, true).ok ? 'salary12'
-    : playerConsentToMove(player, myRank, teams.length, 0.5, 0, consentBase + 0.2, true).ok ? 'salary15'
+  const mind = playerConsentToMove(player, myTier, srcTier, 0.5, 0, consentBase, true).ok ? 'willing'
+    : playerConsentToMove(player, myTier, srcTier, 0.5, 0, consentBase + 0.1, true).ok ? 'salary12'
+    : playerConsentToMove(player, myTier, srcTier, 0.5, 0, consentBase + 0.2, true).ok ? 'salary15'
     : 'refuse'
   const mindLabel = mind === 'willing' ? '前向き' : mind === 'salary12' ? '高めの年俸なら承諾' : mind === 'salary15' ? '大幅な高年俸なら承諾' : '移籍を望んでいない'
   const mindColor = mind === 'willing' ? C.green : mind === 'refuse' ? C.red : C.gold

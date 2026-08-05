@@ -192,6 +192,19 @@ export function tierOfClubId(clubId: string): ClubTier {
   return (CLUB_TIER_BY_ID[clubId] as ClubTier) ?? DOMESTIC_BOTTOM_TIER
 }
 
+/**
+ * その選手の所属クラブの格。国内クラブ（Team を持つ）・海外クラブ（IDだけ）・
+ * 無所属（FA）のどれでも通る入口。無所属は undefined を返す。
+ */
+export function tierOfPlayerClub(
+  teamId: string | undefined, teams?: readonly TieredTeam[],
+): ClubTier | undefined {
+  if (!teamId) return undefined
+  const t = teams?.find(x => x.id === teamId)
+  if (t) return tierOf(t)
+  return CLUB_TIER_BY_ID[teamId] as ClubTier | undefined
+}
+
 /** そのクラブの年間予算（円） */
 export function tierBudget(team: TieredTeam | undefined): number {
   return TIER_BUDGET[tierOf(team)]

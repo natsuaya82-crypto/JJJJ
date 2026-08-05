@@ -67,7 +67,7 @@ import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank } from '../utils/league'
-import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
   pool: Player[]
@@ -1542,13 +1542,11 @@ export const useGameStore = create<GameStore>()(
           // 移籍するかは本人の納得度（やる気・移籍先の順位・出場状況）で決まる
           const freeDecisionNotices: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[] = []
           const freeMoves: { playerId: string; toTeamId: string }[] = []
-          const standingsForFree = rankedStandings(updatedStandings)
           ;(state.currentSeason.incomingOffers ?? []).forEach(o => {
             if (o.offeredPrice !== 0 || o.expiresAtRace > nextRaceIndex) return
             const pl = finalPlayers.find(p => p.id === o.playerId)
             const suitor = state.teams.find(t => t.id === o.fromTeamId)
             if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
-            const suitorRank = standingsForFree.findIndex(s => s.teamId === suitor.id) + 1
             // 決断までに契約を更新できていれば残留確定（引き留め成功）。
             // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）
             const flApps = seasonAppearances(pl.id, updatedRaces)
@@ -1559,7 +1557,7 @@ export const useGameStore = create<GameStore>()(
             const isRetiringFl = (state.currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
             const leaves = suitorSize >= 30 || isRetiringFl ? false
               : pl.contract.yearsLeft > 1 ? false
-              : freeContactConsent(pl, suitorRank, state.teams.length, flFrac, nextRaceIndex)
+              : freeContactConsent(pl, tierOf(suitor), tierOfPlayerClub(pl.teamId, state.teams), flFrac, nextRaceIndex)
             freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
             if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
           })
@@ -2798,12 +2796,10 @@ export const useGameStore = create<GameStore>()(
           // （判定は決断時と同じ freeContactConsent＝出場実績込み）
           const freeContact = (state.currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
           if (freeContact) {
-            const stgsFc = rankedStandings(state.currentSeason.standings)
-            const suitorIdx = stgsFc.findIndex(s => s.teamId === freeContact.fromTeamId)
-            const suitorRank = suitorIdx >= 0 ? suitorIdx + 1 : Math.ceil(state.teams.length / 2)
             const fcRaces = Math.max(1, state.currentSeason.currentRaceIndex)
             const fcFrac = seasonAppearances(player.id, state.currentSeason.races) / fcRaces
-            if (freeContactConsent(player, suitorRank, state.teams.length, fcFrac, fcRaces)) {
+            const suitorTier = tierOf(state.teams.find(t => t.id === freeContact.fromTeamId))
+            if (freeContactConsent(player, suitorTier, tierOfPlayerClub(player.teamId, state.teams), fcFrac, fcRaces)) {
               // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
               return {
                 currentSeason: {
@@ -3531,15 +3527,13 @@ export const useGameStore = create<GameStore>()(
           return { ok: false, reason: `貴クラブのロスターが上限（${ROSTER_MAX}人）のようです。整理してから改めてお願いします。` }
         }
         // 選手本人の同意ゲート
-        const standings = rankedStandings(state.currentSeason.standings)
-        const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
         const scoutLvT = myTeam.facilities?.scoutOffice ?? 0
         // 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）
         const marketSalary = faMarketSalary(player, perfOf(state.currentSeason, player.id))
         const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
         // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
         // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
-        const consent = playerConsentToMove(player, myRank, state.teams.length, 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
+        const consent = playerConsentToMove(player, tierOf(myTeam), tierOfPlayerClub(player.teamId, state.teams), 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
         if (!consent.ok) {
           // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
           set(s => ({
@@ -3838,11 +3832,10 @@ export const useGameStore = create<GameStore>()(
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
         // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
-        const stgs = rankedStandings(state.currentSeason.standings)
-        const myRankNow = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
+        const myTierNow = tierOf(state.teams.find(t => t.id === state.playerTeamId))
         const consentBonusT = tradeVals.ratio >= 1.2 ? 0.15 : 0
         for (const rp of requested) {
-          if (!playerConsentToMove(rp, myRankNow, state.teams.length, 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
+          if (!playerConsentToMove(rp, myTierNow, tierOfPlayerClub(rp.teamId, state.teams), 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
         }
 
         function matchPick(picks: typeof state.teams[0]['draftPicks'], key: string) {
@@ -3956,13 +3949,12 @@ export const useGameStore = create<GameStore>()(
         const round = (existing?.round ?? 0) + 1
 
         // 獲得選手の同意（相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる）
-        const stgs = rankedStandings(state.currentSeason.standings)
-        const myRank = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
+        const myTierT = tierOf(state.teams.find(t => t.id === state.playerTeamId))
         const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
         let hardNo = ''
         for (const id of getIds) {
           const rp = state.players.find(p => p.id === id); if (!rp) continue
-          if (!playerConsentToMove(rp, myRank, state.teams.length, 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
+          if (!playerConsentToMove(rp, myTierT, tierOfPlayerClub(rp.teamId, state.teams), 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
         }
 
         let status: TradeNegotiation['status'] = 'countered'
@@ -4602,7 +4594,7 @@ export const useGameStore = create<GameStore>()(
               const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
               if (remainBudget < fee + newSalary) continue
               // 引き抜きは本人が移籍先の魅力で納得するか判定（クラブは割増で合意済み＝clubBlessed）
-              if (!surplus && !playerConsentToMove(target, rankOfTx(buyTeam.id), totalTeamsTx, 0.5, 0, 0, true).ok) continue
+              if (!surplus && !playerConsentToMove(target, tierOf(buyTeam), tierOfPlayerClub(target.teamId, teamsAfterCpuTransfer), 0.5, 0, 0, true).ok) continue
               const txYear = state.currentSeason.year
               // 所属・名簿・移籍金・移籍履歴は movePlayer にまとめて任せる（自チームの獲得と同じ後始末）
               const moved = movePlayer({ players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer }, target.id, buyTeam.id, {

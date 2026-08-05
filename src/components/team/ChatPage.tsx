@@ -23,6 +23,7 @@ import NumberDial from '../ui/NumberDial'
 import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
 import { rankedStandings } from '../../utils/league'
+import { tierOf, tierOfPlayerClub } from '../../utils/clubTier'
 import { fmtYen } from '../../utils/money'
 
 const TEAM_ROLE_OPTS: { key: TeamRole; label: string }[] = [
@@ -573,12 +574,9 @@ function ChatView({
     const courtedAway = (() => {
       const freeContact = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
       if (!freeContact) return false
-      const stgs = rankedStandings(currentSeason.standings)
-      const idx = stgs.findIndex(s => s.teamId === freeContact.fromTeamId)
-      const rank = idx >= 0 ? idx + 1 : Math.ceil(teams.length / 2)
       const fcRaces = Math.max(1, currentSeason.currentRaceIndex ?? 0)
       const fcFrac = seasonAppearances(player.id, currentSeason.races) / fcRaces
-      return freeContactConsent(player, rank, teams.length, fcFrac, fcRaces)
+      return freeContactConsent(player, tierOf(teams.find(t => t.id === freeContact.fromTeamId)), tierOfPlayerClub(player.teamId, teams), fcFrac, fcRaces)
     })()
 
     const buildContractButtons = (): ReplyBtns | null => {
@@ -829,12 +827,11 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
       inExtra: [...getPk].reduce((s, k) => s + pickKeyValue(k), 0) }
     const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
     const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
-    const stgs = rankedStandings(currentSeason.standings)
-    const myRank = stgs.findIndex(s => s.teamId === playerTeamId) + 1
+    const myTier = tierOf(teams.find(t => t.id === playerTeamId))
     const consentBonus = ratio >= 1.2 ? 0.15 : 0
     let blockMsg = ''
     for (const rp of getPlayers) {
-      const consent = playerConsentToMove(rp, myRank, teams.length, 0.5, 0, consentBonus)
+      const consent = playerConsentToMove(rp, myTier, tierOfPlayerClub(rp.teamId, teams), 0.5, 0, consentBonus)
       if (!consent.ok) { blockMsg = consent.reason; break }
     }
     const nextRound = (neg?.round ?? 0) + 1
