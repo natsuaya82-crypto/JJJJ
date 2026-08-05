@@ -6,6 +6,7 @@ import { bidThreshold, transferAcceptChance, listedAcceptChance, roundFee } from
 import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
+import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 function fmt(yen: number) { return yen >= 100000000 ? `${(yen / 100000000).toFixed(1)}億` : `${Math.round(yen / 10000)}万` }
@@ -27,7 +28,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
 
   // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
   const { currentSeason, pastSeasons, teams, playerTeamId } = useGameStore()
-  const standings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const standings = rankedStandings(currentSeason.standings)
   const myRank = standings.findIndex(s => s.teamId === playerTeamId) + 1
   const scoutLv = teams.find(t => t.id === playerTeamId)?.facilities?.scoutOffice ?? 0
   const consentBase = scoutLv * 0.02

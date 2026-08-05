@@ -17,6 +17,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
+import { rankedStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -141,8 +142,8 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     ? curForeignStandings.find(s => s.clubId === id)
     : currentSeason.standings.find(s => s.teamId === id)
   const rank = isForeign
-    ? [...curForeignStandings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.clubId === id) + 1
-    : [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === id) + 1
+    ? rankedStandings(curForeignStandings).findIndex(s => s.clubId === id) + 1
+    : rankOfTeam(currentSeason.standings, id)
   const rankColor = rank === 1 ? '#C9A84C' : rank <= 3 ? '#9B97A8' : '#3A3758'
   const standingPoints = standing?.totalPoints ?? 0
   const recentForm = (standing?.raceResults ?? []).slice(-4)
@@ -153,11 +154,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   // 歴代成績（過去シーズンの最終順位）
   const historyRanks = (pastSeasons ?? []).map(s => {
     if (isForeign) {
-      const st = [...(s.foreignStandings?.[leagueId!] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+      const st = rankedStandings((s.foreignStandings?.[leagueId!] ?? []))
       const r = st.findIndex(x => x.clubId === id) + 1
       return { year: s.year, rank: r, total: st.length }
     }
-    const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const sorted = rankedStandings((s.standings ?? []))
     const r = sorted.findIndex(x => x.teamId === id) + 1
     return { year: s.year, rank: r, total: sorted.length }
   }).filter(h => h.rank > 0).slice(-8)
@@ -169,7 +170,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     const leagueTitles = (pastSeasons ?? []).filter(s => {
       const st = s.foreignStandings?.[leagueId!]
       if (!st || st.length === 0) return false
-      const top = [...st].sort((a, b) => b.totalPoints - a.totalPoints)[0]
+      const top = rankedStandings(st)[0]
       return top.clubId === id
     }).length
     if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: '#C9A84C' })
@@ -179,7 +180,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
       if (!st || st.length === 0) return false
-      const top = [...st].sort((a, b) => b.totalPoints - a.totalPoints)[0]
+      const top = rankedStandings(st)[0]
       return top.teamId === id
     }).length
     if (jpelTitles > 0) titles.push({ label: 'JPEL優勝', count: jpelTitles, color: '#C9A84C' })

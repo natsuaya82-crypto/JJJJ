@@ -7,6 +7,7 @@ import { LeagueLogoSVG } from '../icons/Icons'
 import BackButton from '../ui/BackButton'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C, alpha } from '../../styles/tokens'
+import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -43,7 +44,7 @@ export default function StandingsPage() {
   const domesticRows = (
     standings: { teamId: string; totalPoints: number; raceResults: { rank: number }[] }[],
   ): StandRow[] =>
-    [...standings].sort((a, b) => b.totalPoints - a.totalPoints).map(s => {
+    rankedStandings(standings).map(s => {
       const team = teams.find(t => t.id === s.teamId)
       return {
         id: s.teamId, name: team?.name ?? '?', shortName: team?.shortName ?? '?',

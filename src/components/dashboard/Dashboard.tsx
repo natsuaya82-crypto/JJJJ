@@ -21,6 +21,7 @@ import { ROSTER_MIN } from '../../data/rosterRules'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
+import { rankedStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -349,7 +350,7 @@ export default function Dashboard() {
   const dueTT = getDueIndividualEvent(currentSeason)
   const showTTNext = !!dueTT && (!nextRaceData || nextRaceData.kind !== 'reserve' || dueTT.date <= nextRaceData.race.date)
   const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
-  const sorted = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const sorted = rankedStandings(currentSeason.standings)
   const myRank = sorted.findIndex(s => s.teamId === playerTeamId) + 1
 
   // 世界選手権：JPELファイナル後〜シーズン終了の間に挟むステップ。
@@ -387,7 +388,7 @@ export default function Dashboard() {
   ) : null
   const lastSeason = pastSeasons[pastSeasons.length - 1]
   const lastRank = lastSeason?.standings?.length
-    ? [...lastSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === playerTeamId) + 1
+    ? rankOfTeam(lastSeason.standings, playerTeamId)
     : 0
 
   /* Season end */

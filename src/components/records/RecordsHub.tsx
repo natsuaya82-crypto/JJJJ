@@ -4,6 +4,7 @@ import { teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
+import { rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -19,7 +20,7 @@ export default function RecordsHub() {
     ? pastSeasons.filter(s2 => [...(s2.standings ?? [])].sort((a2, b2) => b2.totalPoints - a2.totalPoints)[0]?.teamId === teamIdAt(s2.year)).length
     : teamHistoryOf(pastSeasons, playerTeamId).championships
   const completedRaces = currentSeason.races.filter(r => r.results).length
-  const myStanding = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === playerTeamId) + 1
+  const myStanding = rankOfTeam(currentSeason.standings, playerTeamId)
 
   const SECTIONS = [
     {
@@ -157,7 +158,7 @@ export default function RecordsHub() {
             <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px' }}>過去の成績</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {pastSeasons.slice(-4).reverse().map(season => {
-                const rank = [...(season.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === teamIdAt(season.year)) + 1
+                const rank = rankOfTeam(season.standings, teamIdAt(season.year))
                 const rankCol = rank === 1 ? C.gold : rank <= 3 ? C.green : C.textDim
                 return (
                   <div key={season.year} style={{ flex: 1, textAlign: 'center', padding: '6px', borderRadius: '8px', background: C.surface }}>

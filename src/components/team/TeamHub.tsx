@@ -4,6 +4,7 @@ import { ovr } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
+import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -15,7 +16,7 @@ export default function TeamHub() {
   const myTeam = teams.find(t => t.id === playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
-  const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const sortedStandings = rankedStandings(currentSeason.standings)
   const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
   const avgOvr = myPlayers.length > 0 ? Math.round(myPlayers.reduce((s, p) => s + ovr(p), 0) / myPlayers.length) : 0
 

@@ -6,6 +6,7 @@ import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT, DUTY_RESERVE_GRANT_CUT } from '../../data/economy'
+import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -60,7 +61,7 @@ export default function BudgetPage() {
     .filter((s): s is NonNullable<typeof s> => s != null)
   const sponsorAnnual = sponsorList.reduce((s, sp) => s + sp.annualPayment, 0)
 
-  const sortedStandings = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const sortedStandings = rankedStandings(currentSeason.standings)
   const myRank = sortedStandings.findIndex(s => s.teamId === playerTeamId) + 1
   const nextGrant = rankBudgetGrant(myRank || teams.length)
   // 運営費＝そのシーズンの順位グラント（前年順位ベース）の10%。1年目は最下位20位相当＝3.5億→3500万。

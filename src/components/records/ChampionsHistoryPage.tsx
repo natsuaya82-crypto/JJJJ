@@ -15,6 +15,7 @@ import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha } from '../../styles/tokens'
+import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -112,12 +113,12 @@ export default function ChampionsHistoryPage() {
       const t = resolveClub(teamId)
       return { rank: i + 1, teamId, name: t?.name ?? '—', colors: t?.colors, score, isMe: teamId === teamIdAt(ps.year) }
     }
-    if (c === 'jpel') return [...(ps.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
+    if (c === 'jpel') return rankedStandings((ps.standings ?? [])).map((s, i) => mk(s.teamId, i, s.totalPoints))
     if (c === 'reserve') {
       const st = ps.secondTeamStandings ?? []
       // その年リザーブ戦を1度も開催していない（全チームraceResults空）なら総合優勝なし
       if (!st.some(s => (s.raceResults?.length ?? 0) > 0)) return []
-      return [...st].sort((a, b) => b.totalPoints - a.totalPoints).map((s, i) => mk(s.teamId, i, s.totalPoints))
+      return rankedStandings(st).map((s, i) => mk(s.teamId, i, s.totalPoints))
     }
     if (c === 'ecl') {
       const es = ps.eclSeries

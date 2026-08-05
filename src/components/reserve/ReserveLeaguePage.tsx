@@ -10,6 +10,7 @@ import { SimPhase } from '../race/SimPhase'
 import { reserveSquadPool } from '../../utils/reserveSquad'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha } from '../../styles/tokens'
+import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -38,7 +39,7 @@ export default function ReserveLeaguePage() {
   const stRaces = currentSeason.secondTeamRaces ?? []
   const stRaceIndex = currentSeason.secondTeamRaceIndex ?? 0
   const stStandings = currentSeason.secondTeamStandings ?? []
-  const sortedStandings = [...stStandings].sort((a, b) => b.totalPoints - a.totalPoints)
+  const sortedStandings = rankedStandings(stStandings)
   const allDone = stRaceIndex >= stRaces.length && stRaces.length > 0
 
   const nextRace = stRaces[stRaceIndex] ?? null

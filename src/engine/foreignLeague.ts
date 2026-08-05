@@ -2,6 +2,7 @@ import type { ForeignLeague, ForeignStanding, Player, Race } from '../types'
 import { simulateRace, assignLineupByTerrain } from './raceEngine'
 // 所属の判定は国内チームと同じものを使う（クラブ側に名簿は持たない）
 import { belongsToClub } from '../utils/rosterSync'
+import { rankedStandings } from '../utils/league'
 
 // 海外リーグの順位表を初期化（全クラブ 0pt）。
 export function initForeignStandings(foreignLeagues: ForeignLeague[]): Record<string, ForeignStanding[]> {
@@ -92,7 +93,7 @@ export function applyForeignChampions(
   for (const league of foreignLeagues) {
     const st = standingsByLeague[league.id]
     if (!st || st.length === 0) continue
-    const champ = [...st].sort((a, b) => b.totalPoints - a.totalPoints)[0]
+    const champ = rankedStandings(st)[0]
     if (!champ) continue
     for (const p of players) if (belongsToClub(p, champ.clubId)) champIds.add(p.id)
   }

@@ -23,6 +23,7 @@ import {
   generateSegmentEvents, resolveChoice, finalizeSegment,
 } from '../../engine/interactiveRace'
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
+import { positionPointsFor } from '../../utils/league'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -283,7 +284,7 @@ function buildTeamRankings(
     teamId,
     totalTimeSec: cumTime[teamId],
     rank: i + 1,
-    positionPoints: Math.max(0, 21 - (i + 1)),
+    positionPoints: positionPointsFor(ids.length, i + 1),
     segmentPoints: segPts[teamId] ?? 0,
   }))
 }

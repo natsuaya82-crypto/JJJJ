@@ -22,6 +22,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
+import { rankedStandings } from '../../utils/league'
 
 const TEAM_ROLE_OPTS: { key: TeamRole; label: string }[] = [
   { key: 'ace', label: 'エース' },
@@ -576,7 +577,7 @@ function ChatView({
     const courtedAway = (() => {
       const freeContact = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
       if (!freeContact) return false
-      const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+      const stgs = rankedStandings(currentSeason.standings)
       const idx = stgs.findIndex(s => s.teamId === freeContact.fromTeamId)
       const rank = idx >= 0 ? idx + 1 : Math.ceil(teams.length / 2)
       const fcRaces = Math.max(1, currentSeason.currentRaceIndex ?? 0)
@@ -832,7 +833,7 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
       inExtra: [...getPk].reduce((s, k) => s + pickKeyValue(k), 0) }
     const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
     const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
-    const stgs = [...currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+    const stgs = rankedStandings(currentSeason.standings)
     const myRank = stgs.findIndex(s => s.teamId === playerTeamId) + 1
     const consentBonus = ratio >= 1.2 ? 0.15 : 0
     let blockMsg = ''

@@ -1,5 +1,6 @@
 import type { Player, Specialty, RaceResults, Race, Team } from '../types'
 import type { TraitId } from '../utils/traitUtils'
+import { positionPointsFor } from '../utils/league'
 
 // セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
 // 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
@@ -386,7 +387,7 @@ export function simulateRace(
   const sorted = [...complete, ...incomplete]
   const teamRankings: RaceResults['teamRankings'] = sorted.map((teamId, i) => ({
     teamId, totalTimeSec: cumTime[teamId], rank: i + 1,
-    positionPoints: Math.max(0, 21 - (i + 1)),
+    positionPoints: positionPointsFor(sorted.length, i + 1),
     segmentPoints: segPts[teamId] ?? 0,
   }))
   return { teamRankings, segmentResults }

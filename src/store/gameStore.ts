@@ -60,6 +60,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
+import { rankedStandings, rankOfTeam } from '../utils/league'
 
 type DraftState = {
   pool: Player[]
@@ -1131,7 +1132,7 @@ export const useGameStore = create<GameStore>()(
             const raceIndex = state.currentSeason.currentRaceIndex
             const totalRaces = state.currentSeason.races.length
             if (raceIndex >= 3 && raceIndex % 3 === 0) {
-              const sortedStandingsNow = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+              const sortedStandingsNow = rankedStandings(state.currentSeason.standings)
               const myCurrentRank = sortedStandingsNow.findIndex(s => s.teamId === state.playerTeamId) + 1
               const expectedRank = Math.ceil(teams.length / 3)
               const remainingRaces = totalRaces - raceIndex
@@ -1562,7 +1563,7 @@ export const useGameStore = create<GameStore>()(
           // 移籍するかは本人の納得度（やる気・移籍先の順位・出場状況）で決まる
           const freeDecisionNotices: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[] = []
           const freeMoves: { playerId: string; toTeamId: string }[] = []
-          const standingsForFree = [...updatedStandings].sort((a, b) => b.totalPoints - a.totalPoints)
+          const standingsForFree = rankedStandings(updatedStandings)
           ;(state.currentSeason.incomingOffers ?? []).forEach(o => {
             if (o.offeredPrice !== 0 || o.expiresAtRace > nextRaceIndex) return
             const pl = finalPlayers.find(p => p.id === o.playerId)
@@ -1764,7 +1765,7 @@ export const useGameStore = create<GameStore>()(
           const openWish = openWishIds(state.currentSeason)
           const trTotalTeams = state.teams.length
           const myStandRank = (() => {
-            const sorted = [...updatedStandings].sort((a, b) => b.totalPoints - a.totalPoints)
+            const sorted = rankedStandings(updatedStandings)
             const i = sorted.findIndex(s => s.teamId === playerTeamId)
             return i >= 0 ? i + 1 : Math.ceil(trTotalTeams / 2)
           })()
@@ -2260,7 +2261,7 @@ export const useGameStore = create<GameStore>()(
         if (!player || player.teamId !== state.playerTeamId) return false
         const ratio = salary / player.contract.annualSalary
         const personality = player.personality ?? 'salary'
-        const standings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+        const standings = rankedStandings(state.currentSeason.standings)
         const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
         const isGoodTeam = myRank > 0 && myRank <= 5
         const minRatio =
@@ -2818,7 +2819,7 @@ export const useGameStore = create<GameStore>()(
           // （判定は決断時と同じ freeContactConsent＝出場実績込み）
           const freeContact = (state.currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
           if (freeContact) {
-            const stgsFc = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+            const stgsFc = rankedStandings(state.currentSeason.standings)
             const suitorIdx = stgsFc.findIndex(s => s.teamId === freeContact.fromTeamId)
             const suitorRank = suitorIdx >= 0 ? suitorIdx + 1 : Math.ceil(state.teams.length / 2)
             const fcRaces = Math.max(1, state.currentSeason.currentRaceIndex)
@@ -2835,7 +2836,7 @@ export const useGameStore = create<GameStore>()(
               }
             }
           }
-          const myRank = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === state.playerTeamId) + 1
+          const myRank = rankOfTeam(state.currentSeason.standings, state.playerTeamId)
           const isGoodTeam = myRank > 0 && myRank <= 5
           const personality = player.personality ?? 'salary'
           const roundFactor = 1 + (req.round - 1) * 0.03
@@ -3019,7 +3020,7 @@ export const useGameStore = create<GameStore>()(
           // 性格×行き先：優勝型は「今より強いチーム」なら安くても乗る／弱いチームだと渋る。
           const appealAdj = (() => {
             if (personality !== 'winning') return 0
-            const sorted = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+            const sorted = rankedStandings(state.currentSeason.standings)
             const myRank = sorted.findIndex(s => s.teamId === state.playerTeamId) + 1
             const theirRank = sorted.findIndex(s => s.teamId === player.teamId) + 1
             if (myRank <= 0 || theirRank <= 0) return 0
@@ -3551,7 +3552,7 @@ export const useGameStore = create<GameStore>()(
           return { ok: false, reason: `貴クラブのロスターが上限（${ROSTER_MAX}人）のようです。整理してから改めてお願いします。` }
         }
         // 選手本人の同意ゲート
-        const standings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+        const standings = rankedStandings(state.currentSeason.standings)
         const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
         const scoutLvT = myTeam.facilities?.scoutOffice ?? 0
         // 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）
@@ -3777,7 +3778,7 @@ export const useGameStore = create<GameStore>()(
           const lastSeason = state.pastSeasons[state.pastSeasons.length - 1]
           let rank = 0
           if (lastSeason?.standings?.length) {
-            const sorted = [...lastSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+            const sorted = rankedStandings(lastSeason.standings)
             rank = sorted.findIndex(s => s.teamId === state.playerTeamId) + 1
           }
           type Dist = { rarity: CardRarity; count: number }
@@ -3858,7 +3859,7 @@ export const useGameStore = create<GameStore>()(
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
         // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
-        const stgs = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+        const stgs = rankedStandings(state.currentSeason.standings)
         const myRankNow = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
         const consentBonusT = tradeVals.ratio >= 1.2 ? 0.15 : 0
         for (const rp of requested) {
@@ -3976,7 +3977,7 @@ export const useGameStore = create<GameStore>()(
         const round = (existing?.round ?? 0) + 1
 
         // 獲得選手の同意（相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる）
-        const stgs = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+        const stgs = rankedStandings(state.currentSeason.standings)
         const myRank = stgs.findIndex(s => s.teamId === state.playerTeamId) + 1
         const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
         let hardNo = ''
@@ -4691,7 +4692,7 @@ export const useGameStore = create<GameStore>()(
         let teamsAfterCpuTransfer = teamsAfterCpuRelease
         {
           // 前年順位（引き抜き時の本人同意＝移籍先の魅力判定に使う）
-          const lastStandingsForTx = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+          const lastStandingsForTx = rankedStandings((state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? []))
           const totalTeamsTx = state.teams.length
           const rankOfTx = (teamId: string) => { const i = lastStandingsForTx.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeamsTx / 2) }
 
@@ -4877,7 +4878,7 @@ export const useGameStore = create<GameStore>()(
         const signedFAIds = new Set<string>()
         const cpuSignings: { playerId: string; teamId: string }[] = []
         // 前年順位（運用方針・予算の基準）
-        const lastStandings = [...(state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+        const lastStandings = rankedStandings((state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? []))
         const totalTeams = state.teams.length
         const rankOf = (teamId: string) => { const i = lastStandings.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeams / 2) }
         // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
@@ -5077,7 +5078,7 @@ export const useGameStore = create<GameStore>()(
           const cpuRenewalSalary = (p: Player) => faMarketSalary(p, perfOf(state.currentSeason, p.id))
           const cpuRenewIds = new Set<string>()
           {
-            const curStandings = [...(state.currentSeason.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+            const curStandings = rankedStandings((state.currentSeason.standings ?? []))
             const totalTeamsRenewal = state.teams.length
             const rankOfRenewal = (teamId: string) => {
               const i = curStandings.findIndex(s => s.teamId === teamId)
@@ -5278,7 +5279,7 @@ export const useGameStore = create<GameStore>()(
             resolved: false,
           }))
 
-          const sortedStandings = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints)
+          const sortedStandings = rankedStandings(state.currentSeason.standings)
 
           // Morale streak system: apply morale bonus/penalty to player team based on season finish
           const myFinalRank = sortedStandings.findIndex(s => s.teamId === state.playerTeamId) + 1
@@ -5392,7 +5393,7 @@ export const useGameStore = create<GameStore>()(
           // AI will sign remaining FAs when beginSeasonDraft is called
 
           // Check objectives + award scout points + budget rewards
-          const finalRank = [...state.currentSeason.standings].sort((a, b) => b.totalPoints - a.totalPoints).findIndex(s => s.teamId === state.playerTeamId) + 1
+          const finalRank = rankOfTeam(state.currentSeason.standings, state.playerTeamId)
           const playerBudgetAtSeasonEnd = teamsWithFA.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
           const completedObjs = (state.currentSeason.objectives ?? []).map(obj => {
             if (obj.done) return obj
@@ -6054,7 +6055,7 @@ export const useGameStore = create<GameStore>()(
                   [...(ovrsByClubEcl.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10)
                     .reduce((s, v) => s + v, 0)
                 for (const league of foreignRefresh.updatedLeagues) {
-                  const st = [...(fsEnd[league.id] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 2)
+                  const st = rankedStandings((fsEnd[league.id] ?? [])).slice(0, 2)
                   const clubs = st.length >= 2
                     ? st.map(s => league.clubs.find(c => c.id === s.clubId)).filter((c): c is typeof league.clubs[number] => !!c)
                     : [...league.clubs].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, 2)
@@ -6586,7 +6587,7 @@ export const useGameStore = create<GameStore>()(
           if (leagues.length === 0) return state
           const parts = [] as { id: string; name: string; shortName: string; isForeign: boolean; isPlayerTeam: boolean; leagueName: string; colors: { primary: string; secondary: string } }[]
           const last = state.pastSeasons[state.pastSeasons.length - 1]
-          const lastStandings = [...(last?.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+          const lastStandings = rankedStandings((last?.standings ?? []))
           lastStandings.slice(0, 2).forEach(s => {
             const t = state.teams.find(tm => tm.id === s.teamId)
             if (t) parts.push({ id: t.id, name: t.name, shortName: t.shortName, isForeign: false, isPlayerTeam: t.id === state.playerTeamId, leagueName: 'JPEL', colors: t.colors })
@@ -6602,7 +6603,7 @@ export const useGameStore = create<GameStore>()(
             [...(ovrsByClub.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10)
               .reduce((s, v) => s + v, 0)
           for (const league of leagues) {
-            const st = [...((cs.foreignStandings ?? {})[league.id] ?? [])].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 2)
+            const st = rankedStandings(((cs.foreignStandings ?? {})[league.id] ?? [])).slice(0, 2)
             const clubs = st.length >= 2
               ? st.map(s => league.clubs.find(c => c.id === s.clubId)).filter((c): c is typeof league.clubs[number] => !!c)
               : [...league.clubs].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, 2)

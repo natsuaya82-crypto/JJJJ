@@ -1,4 +1,5 @@
 import type { SeasonStanding } from '../types'
+import { rankedStandings } from './league'
 
 // チームの成績（過去シーズンの順位・優勝回数・連続上位）を、保存してある順位表から毎回組み立てる。
 //
@@ -48,7 +49,7 @@ export function buildTeamHistories(seasons: SeasonStandingsLike[]): TeamHistoryM
   // 連続記録を数えるので、古い年から順に見る
   const ordered = [...seasons].filter(Boolean).sort((a, b) => a.year - b.year)
   for (const s of ordered) {
-    const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const sorted = rankedStandings((s.standings ?? []))
     sorted.forEach((st, i) => {
       const rank = i + 1
       let h = out[st.teamId]

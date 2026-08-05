@@ -1,4 +1,5 @@
 import type { GmOffer, Team } from '../types'
+import { rankedStandings } from './league'
 
 // ============================================================================
 // 監督（GM）オファー。「シーズンが終わったあと、別のチームから声がかかる」仕組み。
@@ -42,7 +43,7 @@ export function offerCandidates(
   standings: { teamId: string; totalPoints: number }[],
   playerTeamId: string,
 ): string[] {
-  const sorted = [...standings].sort((a, b) => b.totalPoints - a.totalPoints).map(s => s.teamId)
+  const sorted = rankedStandings(standings).map(s => s.teamId)
   const myIndex = sorted.indexOf(playerTeamId)
   if (myIndex < 0) return []
   // 自分より上（0..myIndex-1）。1位なら上が居ないので、自分以外の上位3チームから

@@ -1,4 +1,5 @@
 import type { GmTenure } from '../types'
+import { rankedStandings } from './league'
 
 // ============================================================================
 // 監督（GM）の在任履歴。「何年から何年まで、どのチームの監督だったか」だけを持つ。
@@ -81,7 +82,7 @@ export function gmSeasonRanks(
   const at = makeTeamIdAt(tenures, playerTeamId)
   return seasons.map(s => {
     const teamId = at(s.year)
-    const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const sorted = rankedStandings((s.standings ?? []))
     const r = sorted.findIndex(x => x.teamId === teamId) + 1
     return { year: s.year, teamId, rank: r > 0 ? r : null }
   })

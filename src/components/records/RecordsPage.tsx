@@ -16,6 +16,7 @@ import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
+import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -253,7 +254,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
             {[...allSeasons].reverse().map(season => {
-              const sorted = [...(season.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+              const sorted = rankedStandings((season.standings ?? []))
               const myStanding = sorted.findIndex(s => s.teamId === playerTeamId) + 1
               const myRow = season.standings?.find(s => s.teamId === playerTeamId)
               const myPoints = myRow?.totalPoints ?? 0
@@ -465,7 +466,7 @@ function LeagueTab({ teams, pastSeasons }: {
         <CardPanel>
           <SectionLabel>歴代チャンピオン</SectionLabel>
           {[...pastSeasons].reverse().map(season => {
-            const sorted = [...(season.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+            const sorted = rankedStandings((season.standings ?? []))
             const champId = sorted[0]?.teamId
             const champ = teams.find(t => t.id === champId)
             return (
@@ -619,7 +620,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
   const tenures = normalizeTenures(gmTenures, playerTeamId, allSeasons[0]?.year ?? currentSeason.year)
   const teamIdAt = makeTeamIdAt(tenures, playerTeamId)
   const rankIn = (s: { year: number; standings?: { teamId: string; totalPoints: number }[] }, teamId: string): number | null => {
-    const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const sorted = rankedStandings((s.standings ?? []))
     const r = sorted.findIndex(x => x.teamId === teamId) + 1
     return r > 0 ? r : null
   }
@@ -671,7 +672,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, g
         // 直近10季の順位を折れ線で表示（1位が上）
         const chartSeasons = allSeasons.slice(-10)
         const pts = chartSeasons.map(s => {
-          const sorted = [...(s.standings ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+          const sorted = rankedStandings((s.standings ?? []))
           return { year: s.year, rank: rankIn(s, teamIdAt(s.year)), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
         })
         const maxTeams = Math.max(8, ...pts.map(p => p.totalTeams))
