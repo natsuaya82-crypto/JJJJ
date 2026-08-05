@@ -320,6 +320,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3, 9.0, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.20, recovery: 0.12, speed: 0.06 }),
       seg(4,11.5, 0,   0, { pacing: 0.38, stamina: 0.28, mental: 0.20, recovery: 0.10, speed: 0.04 }),
       seg(5,13.5, 5,   5, { recovery: 0.36, stamina: 0.28, pacing: 0.22, mental: 0.10, speed: 0.04 }),
+      // 6区 6.5km 平坦: 新設アンカー。純粋な速さで締める
+      seg(6, 6.5, 0,   0, { speed: 0.60, pacing: 0.20, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
     ],
   },
   {
@@ -343,6 +345,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3, 6.0, 0,   0, { speed: 0.65, pacing: 0.16, mental: 0.10, stamina: 0.06, recovery: 0.03 }),
       seg(4, 9.5, 8,   3, { pacing: 0.38, stamina: 0.24, mental: 0.22, recovery: 0.12, speed: 0.04 }),
       seg(5,11.0, 5,   5, { mental: 0.34, pacing: 0.30, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
+      // 6区 7.0km 平坦: 新設アンカー。速さ勝負で決着
+      seg(6, 7.0, 0,   0, { speed: 0.66, pacing: 0.16, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
     ],
   },
   {
@@ -354,6 +358,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3, 8.5, 2,  55, { mountainDown: 0.66, speed: 0.18, mental: 0.09, pacing: 0.04, recovery: 0.03 }),
       seg(4, 7.0, 5,   5, { pacing: 0.40, speed: 0.26, mental: 0.20, stamina: 0.08, recovery: 0.06 }),
       seg(5,12.5, 8,   3, { recovery: 0.38, stamina: 0.28, pacing: 0.20, mental: 0.10, speed: 0.04 }),
+      // 6区 10.0km アップダウン: 新設。夏の疲労を回復力で乗り切る仕上げ区間
+      seg(6,10.0, 5,   5, { recovery: 0.34, stamina: 0.28, pacing: 0.20, mental: 0.12, speed: 0.06 }),
     ],
   },
   {
@@ -365,6 +371,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3, 9.0,55,   2, { mountainUp: 0.74, stamina: 0.13, mental: 0.07, recovery: 0.04, pacing: 0.02 }),
       seg(4, 7.5, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
       seg(5,13.0, 8,   3, { recovery: 0.36, stamina: 0.30, pacing: 0.20, mental: 0.10, speed: 0.04 }),
+      // 6区 11.5km 緩上り: 新設アンカー。長丁場でスタミナと回復力を試す
+      seg(6,11.5, 8,   3, { stamina: 0.40, recovery: 0.26, pacing: 0.20, mental: 0.10, speed: 0.04 }),
     ],
   },
   {
@@ -400,6 +408,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3, 6.5, 0,   0, { speed: 0.66, pacing: 0.16, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
       seg(4,10.0, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
       seg(5,12.0, 0,   0, { pacing: 0.36, stamina: 0.28, recovery: 0.18, mental: 0.14, speed: 0.04 }),
+      // 6区 8.0km 平坦: 新設アンカー。速さで押し切る仕上げ
+      seg(6, 8.0, 0,   0, { speed: 0.58, pacing: 0.22, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
     ],
   },
   {
@@ -411,6 +421,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3, 8.0,20,  18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, pacing: 0.14, recovery: 0.10 }),
       seg(4,10.5, 2,  55, { mountainDown: 0.52, speed: 0.24, pacing: 0.12, mental: 0.08, recovery: 0.04 }),
       seg(5, 7.5, 5,   5, { pacing: 0.40, speed: 0.26, mental: 0.20, stamina: 0.08, recovery: 0.06 }),
+      // 6区 9.0km アップダウン: 新設アンカー。山岳の締めくくりに複合力を問う
+      seg(6, 9.0,20,  18, { mountainUp: 0.26, mountainDown: 0.22, stamina: 0.28, pacing: 0.14, recovery: 0.10 }),
     ],
   },
   {
@@ -422,6 +434,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3,11.0,20,  18, { mountainUp: 0.24, mountainDown: 0.22, stamina: 0.30, recovery: 0.14, pacing: 0.10 }),
       seg(4, 8.5, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
       seg(5,10.0, 0,   0, { mental: 0.34, pacing: 0.30, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
+      // 6区 9.5km アップダウン: 新設アンカー。精神力で最後の起伏を制する
+      seg(6, 9.5, 5,   5, { mental: 0.34, pacing: 0.28, stamina: 0.22, recovery: 0.12, speed: 0.04 }),
     ],
   },
   {
@@ -445,6 +459,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3, 7.0, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
       seg(4,12.5,20,  18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, recovery: 0.14, pacing: 0.10 }),
       seg(5, 9.0, 0,   0, { pacing: 0.38, speed: 0.26, mental: 0.20, stamina: 0.10, recovery: 0.06 }),
+      // 6区 11.0km 緩上り: 新設アンカー。冷え込みの中でスタミナと回復力を試す
+      seg(6,11.0, 8,   3, { stamina: 0.40, recovery: 0.28, pacing: 0.18, mental: 0.10, speed: 0.04 }),
     ],
   },
   {
@@ -468,6 +484,8 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(3,11.0, 0,   0, { pacing: 0.36, stamina: 0.28, mental: 0.20, recovery: 0.12, speed: 0.04 }),
       seg(4,15.0, 5,   5, { stamina: 0.42, recovery: 0.26, pacing: 0.20, mental: 0.08, speed: 0.04 }),
       seg(5,14.5, 8,   3, { stamina: 0.44, recovery: 0.26, pacing: 0.18, mental: 0.08, speed: 0.04 }),
+      // 6区 2.0km 平坦: 新設。長い耐久戦の締めに置く短い勝負スプリント
+      seg(6, 2.0, 0,   0, { speed: 0.30, pacing: 0.26, mental: 0.18, stamina: 0.16, recovery: 0.10 }),
     ],
   },
 ]
