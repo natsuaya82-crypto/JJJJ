@@ -18,6 +18,7 @@ import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HO
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
+import { buildEclParticipants, buildEclRaces, eclDateBetweenLeagueRaces } from '../engine/eclSeries'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { segmentType, segTypeExpGain, applyGrowth } from '../engine/growth'
@@ -5897,58 +5898,18 @@ export const useGameStore = create<GameStore>()(
               // 来季のECL：今季（＝前年）の各リーグ上位2チームで開催。4/6/7/9/11月の5戦、コースは10種から重複なし抽選。
               // 初年度は前年成績が無いためこの経路でしか生成されない＝1年目は開催なし
               eclSeries: (() => {
-                const parts = [] as { id: string; name: string; shortName: string; isForeign: boolean; isPlayerTeam: boolean; leagueName: string; colors: { primary: string; secondary: string } }[]
-                sortedStandings.slice(0, 2).forEach(s => {
-                  const t = state.teams.find(tm => tm.id === s.teamId)
-                  if (t) parts.push({ id: t.id, name: t.name, shortName: t.shortName, isForeign: false, isPlayerTeam: t.id === state.playerTeamId, leagueName: 'JPEL', colors: t.colors })
+                const parts = buildEclParticipants({
+                  standings: sortedStandings,
+                  teams: state.teams,
+                  playerTeamId: state.playerTeamId,
+                  leagues: foreignRefresh.updatedLeagues,
+                  foreignStandings: state.currentSeason.foreignStandings ?? {},
+                  players: foreignTx.players,
                 })
-                const fsEnd = state.currentSeason.foreignStandings ?? {}
-                // リーグ再編直後は新リーグIDの順位表が存在しない。その場合はクラブの戦力（上位10人のOVR合計）
-                // 上位2で代替し、ECLが開催されない年ができないようにする
-                const ovrsByClubEcl = new Map<string, number[]>()
-                for (const p of foreignTx.players) {
-                  if (p.status === 'retired' || !p.teamId) continue
-                  const arr = ovrsByClubEcl.get(p.teamId)
-                  if (arr) arr.push(ovr(p))
-                  else ovrsByClubEcl.set(p.teamId, [ovr(p)])
-                }
-                const clubStrength = (club: { id: string }) =>
-                  [...(ovrsByClubEcl.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10)
-                    .reduce((s, v) => s + v, 0)
-                for (const league of foreignRefresh.updatedLeagues) {
-                  const st = rankedStandings((fsEnd[league.id] ?? [])).slice(0, 2)
-                  const clubs = st.length >= 2
-                    ? st.map(s => league.clubs.find(c => c.id === s.clubId)).filter((c): c is typeof league.clubs[number] => !!c)
-                    : [...league.clubs].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, 2)
-                  clubs.forEach(club => {
-                    parts.push({ id: club.id, name: club.name, shortName: club.shortName, isForeign: true, isPlayerTeam: false, leagueName: league.name, colors: club.colors })
-                  })
-                }
                 if (parts.length < 4) return undefined
-                const courses = [...ECL_COURSES].sort(() => Math.random() - 0.5).slice(0, 5)
-                const months = ['04', '06', '07', '09', '11']
-                const weathers = ['sunny', 'cloudy', 'rainy', 'windy'] as const
-                // 開催日はリーグ戦の合間の「中間日」に置く（リーグ戦の前日にECLが来るような殺人日程を防ぐ）
-                const leagueDates = newRaces.map(r => r.date).sort()
-                const midDate = (target: string): string => {
-                  const prev = [...leagueDates].filter(d => d <= target).pop()
-                  const next = leagueDates.find(d => d > target)
-                  if (!prev || !next) return target
-                  const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
-                  return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
-                }
                 return {
                   participants: parts,
-                  // 大会名はコース名でくくる（第X戦にすると年ごとに別コースが同名になり、距離や記録の比較が壊れる）
-                  races: courses.map((course, i) => ({
-                    id: `ecl-${newYear}-r${i + 1}`,
-                    name: `ECL ${course.name}`,
-                    date: midDate(`${newYear}-${months[i]}-20`),
-                    location: course.location,
-                    type: 'league' as const,
-                    segments: course.segments,
-                    conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
-                  })),
+                  races: buildEclRaces(newYear, newRaces.map(r => r.date)),
                   raceIndex: 0,
                   points: {},
                 }
@@ -6444,55 +6405,19 @@ export const useGameStore = create<GameStore>()(
           if ((state.pastSeasons?.length ?? 0) === 0) return state // 初年度は開催なし（仕様）
           const leagues = state.foreignLeagues ?? []
           if (leagues.length === 0) return state
-          const parts = [] as { id: string; name: string; shortName: string; isForeign: boolean; isPlayerTeam: boolean; leagueName: string; colors: { primary: string; secondary: string } }[]
           const last = state.pastSeasons[state.pastSeasons.length - 1]
-          const lastStandings = rankedStandings((last?.standings ?? []))
-          lastStandings.slice(0, 2).forEach(s => {
-            const t = state.teams.find(tm => tm.id === s.teamId)
-            if (t) parts.push({ id: t.id, name: t.name, shortName: t.shortName, isForeign: false, isPlayerTeam: t.id === state.playerTeamId, leagueName: 'JPEL', colors: t.colors })
+          const parts = buildEclParticipants({
+            standings: last?.standings ?? [],
+            teams: state.teams,
+            playerTeamId: state.playerTeamId,
+            leagues,
+            foreignStandings: cs.foreignStandings ?? {},
+            players: state.players,
           })
-          const ovrsByClub = new Map<string, number[]>()
-          for (const p of state.players) {
-            if (p.status === 'retired' || !p.teamId) continue
-            const arr = ovrsByClub.get(p.teamId)
-            if (arr) arr.push(ovr(p))
-            else ovrsByClub.set(p.teamId, [ovr(p)])
-          }
-          const clubStrength = (club: { id: string }) =>
-            [...(ovrsByClub.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10)
-              .reduce((s, v) => s + v, 0)
-          for (const league of leagues) {
-            const st = rankedStandings(((cs.foreignStandings ?? {})[league.id] ?? [])).slice(0, 2)
-            const clubs = st.length >= 2
-              ? st.map(s => league.clubs.find(c => c.id === s.clubId)).filter((c): c is typeof league.clubs[number] => !!c)
-              : [...league.clubs].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, 2)
-            clubs.forEach(club => {
-              parts.push({ id: club.id, name: club.name, shortName: club.shortName, isForeign: true, isPlayerTeam: false, leagueName: league.name, colors: club.colors })
-            })
-          }
           if (parts.length < 4) return state
-          const courses = [...ECL_COURSES].sort(() => Math.random() - 0.5).slice(0, 5)
-          const months = ['04', '06', '07', '09', '11']
-          const weathers = ['sunny', 'cloudy', 'rainy', 'windy'] as const
-          const leagueDates = cs.races.map(r => r.date).sort()
-          const midDate = (target: string): string => {
-            const prev = [...leagueDates].filter(d => d <= target).pop()
-            const next = leagueDates.find(d => d > target)
-            if (!prev || !next) return target
-            const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
-            return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
-          }
           // 日付基準のフィルタ：最後に消化したレースより未来の開催回だけを残す（過ぎた回は開催されなかった扱い）
           const lastPlayedDate = cs.currentRaceIndex > 0 ? cs.races[cs.currentRaceIndex - 1].date : ''
-          const races = courses.map((course, i) => ({
-            id: `ecl-${cs.year}-r${i + 1}`,
-            name: `ECL ${course.name}`,
-            date: midDate(`${cs.year}-${months[i]}-20`),
-            location: course.location,
-            type: 'league' as const,
-            segments: course.segments,
-            conditions: { temperature: 12, weather: weathers[Math.floor(Math.random() * weathers.length)], elevation: 0 },
-          })).filter(r => r.date > lastPlayedDate)
+          const races = buildEclRaces(cs.year, cs.races.map(r => r.date)).filter(r => r.date > lastPlayedDate)
           if (races.length === 0) return state
           return {
             currentSeason: {
@@ -7616,14 +7541,8 @@ export const useGameStore = create<GameStore>()(
           const fixEclDates = (season: typeof currentState.currentSeason): typeof currentState.currentSeason => {
             const series = season.eclSeries
             if (!series?.races?.length || !season.races?.length) return season
-            const leagueDates = season.races.map(r => r.date).sort()
-            const midDate = (target: string): string => {
-              const prev = [...leagueDates].filter(d => d <= target).pop()
-              const next = leagueDates.find(d => d > target)
-              if (!prev || !next) return target
-              const mid = new Date((new Date(prev).getTime() + new Date(next).getTime()) / 2)
-              return `${mid.getFullYear()}-${String(mid.getMonth() + 1).padStart(2, '0')}-${String(mid.getDate()).padStart(2, '0')}`
-            }
+            const leagueDates = season.races.map(r => r.date)
+            const midDate = (target: string) => eclDateBetweenLeagueRaces(target, leagueDates)
             let changed = false
             const races = series.races.map(r => {
               if (r.results) return r
