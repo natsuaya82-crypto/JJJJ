@@ -973,7 +973,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
 }
 
 // 年俸配分：予算合計をスター偏重の傾斜で人数分に配る（上位ほど高額・下限あり・合計は予算内）
-function distributeSalaries(total: number, count: number, minSalary: number): number[] {
+export function distributeSalaries(total: number, count: number, minSalary: number): number[] {
   const weights = Array.from({ length: count }, (_, i) => Math.pow(count - i, 1.6))
   const wsum = weights.reduce((s, w) => s + w, 0)
   const raw = weights.map(w => total * w / wsum)
@@ -986,7 +986,7 @@ function distributeSalaries(total: number, count: number, minSalary: number): nu
 }
 
 // 年俸から選手ランクを決める（calculateRookieSalaryの帯の中間を境界にする）
-function rankForSalary(s: number): Rank {
+export function rankForSalary(s: number): Rank {
   if (s >= 36_000_000) return 'SSS'
   if (s >= 28_000_000) return 'SS'
   if (s >= 20_000_000) return 'S'
@@ -1338,7 +1338,7 @@ export function refreshForeignLeagues(
  * ランクの決め方（年俸から／固定プール／地域補正）と年齢の分布は呼び出し側の裁量。
  * 「ランクと年齢が決まったら能力値がどうなるか」は必ずここを通すこと。
  */
-function buildRatingsForRank(params: {
+export function buildRatingsForRank(params: {
   id: string
   rank: Rank
   specialty: Specialty
