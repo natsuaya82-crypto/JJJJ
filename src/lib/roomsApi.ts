@@ -252,53 +252,48 @@ export type MatchHistoryItem = {
 export async function myMatchHistory(limit = 20): Promise<MatchHistoryItem[]> {
   const me = await uid()
 
-  // 自分が出た試合のIDを新しい順に取る。matches 側だけで日時の並べ替えができる。
-  const { data: mData, error: mErr } = await supabase
-    .from('matches')
-    .select('id, summary, finished_at')
-    .order('finished_at', { ascending: false })
-    .limit(limit)
-  if (mErr) throw new RoomsOffline()
-  const matches = (mData ?? []) as { id: string; summary: unknown; finished_at: string }[]
-  if (matches.length === 0) return []
-
-  // 参加者は1回のクエリでまとめて取る（試合ごとに引くとN+1になる）
-  const ids = matches.map(m => m.id)
-  const { data: rData, error: rErr } = await supabase
-    .from('match_results')
-    .select('match_id, user_id, rank, points, forfeit')
-    .in('match_id', ids)
-  if (rErr) throw new RoomsOffline()
-  const rows = (rData ?? []) as {
-    match_id: string; user_id: string; rank: number; points: number; forfeit: boolean
+  // list_my_matches は「自分が出た試合と、その全参加者」を1回で返す。
+  // 呼ばれたついでにサーバー側で60日より古い記録を消す（supabase/matches_prune.sql）。
+  const { data, error } = await supabase.rpc('list_my_matches', { p_limit: limit })
+  if (error) throw new RoomsOffline()
+  const rows = (data ?? []) as {
+    match_id: string; finished_at: string; summary: unknown
+    user_id: string; rank: number; points: number; forfeit: boolean
   }[]
+  if (rows.length === 0) return []
 
-  // 相手の名前・ロゴもまとめて引く。引けなかったぶんは profile 未設定のまま出す
+  // 相手の名前・ロゴはまとめて引く。引けなかったぶんは profile 未設定のまま出す
   // （退会した相手の履歴が丸ごと消えるより、順位だけでも残っているほうがよい）
   const profiles = await profilesByIds([...new Set(rows.map(r => r.user_id))]).catch(() => [])
   const byUser = new Map(profiles.map(p => [p.user_id, toFriend(p)]))
 
-  const byMatch = new Map<string, MatchEntry[]>()
+  const order: string[] = []
+  const byMatch = new Map<string, MatchHistoryItem>()
   for (const r of rows) {
-    const list = byMatch.get(r.match_id) ?? []
-    list.push({
+    let m = byMatch.get(r.match_id)
+    if (!m) {
+      const summary = (r.summary ?? {}) as { races?: number }
+      m = {
+        matchId: r.match_id,
+        finishedAt: r.finished_at,
+        races: typeof summary.races === 'number' ? summary.races : 0,
+        entries: [], myRank: 0, size: 0,
+      }
+      byMatch.set(r.match_id, m)
+      order.push(r.match_id)
+    }
+    m.entries.push({
       userId: r.user_id, rank: r.rank, points: r.points, forfeit: r.forfeit,
       isMe: r.user_id === me,
       profile: byUser.get(r.user_id),
     })
-    byMatch.set(r.match_id, list)
   }
 
-  return matches.map(m => {
-    const entries = (byMatch.get(m.id) ?? []).sort((a, b) => a.rank - b.rank)
-    const summary = (m.summary ?? {}) as { races?: number }
-    return {
-      matchId: m.id,
-      finishedAt: m.finished_at,
-      races: typeof summary.races === 'number' ? summary.races : 0,
-      entries,
-      myRank: entries.find(e => e.userId === me)?.rank ?? 0,
-      size: entries.length,
-    }
+  return order.map(id => {
+    const m = byMatch.get(id)!
+    m.entries.sort((a, b) => a.rank - b.rank)
+    m.myRank = m.entries.find(e => e.isMe)?.rank ?? 0
+    m.size = m.entries.length
+    return m
   })
 }

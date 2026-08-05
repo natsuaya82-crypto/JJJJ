@@ -1,5 +1,5 @@
 import { useGameStore } from '../../store/gameStore'
-import { logoPresetSrc } from '../../data/logoPresets'
+import { logoPresetSrc, teamLogoIdOf } from '../../data/logoPresets'
 
 type IconProps = { size?: number; className?: string; color?: string }
 
@@ -724,7 +724,13 @@ export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, 
       />
     )
   }
-  const resolvedLogoId = logoId ?? storeLogoId
+  const rawLogoId = logoId ?? storeLogoId
+  // 'team:tokyo' の形は「そのチームがもともと持っているロゴ」の指定。
+  // ロゴ未選択のままオンラインに出たとき、相手の画面でも同じ絵が出るようにするために使う
+  // （data/logoPresets の defaultLogoIdFor が送っている）。ここで teamId 相当に読み替える。
+  const logoTeamId = teamLogoIdOf(rawLogoId)
+  const resolvedTeamId = logoTeamId ?? teamId
+  const resolvedLogoId = logoTeamId ? undefined : rawLogoId
   if (resolvedLogoId) {
     return (
       <img
@@ -735,20 +741,20 @@ export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, 
       />
     )
   }
-  if (teamId && PNG_TEAM_IDS.has(teamId)) {
+  if (resolvedTeamId && PNG_TEAM_IDS.has(resolvedTeamId)) {
     return (
       <img
-        src={`/logos/${teamId}.png`}
+        src={`/logos/${resolvedTeamId}.png`}
         width={size}
         height={size}
         style={{ objectFit: 'contain', display: 'block', transform: 'scale(1.8)', transformOrigin: 'center' }}
       />
     )
   }
-  const uid = teamId ?? shortName ?? 'x'
+  const uid = resolvedTeamId ?? shortName ?? 'x'
   const p = `url(#lg-${uid})`
   // 専用ロゴがあれば最優先。無ければ全部同じ六角形にせず、ID/名からハッシュでプールから多彩に割り当てる。
-  const logoFn = (teamId && LOGOS[teamId])
+  const logoFn = (resolvedTeamId && LOGOS[resolvedTeamId])
     || (LOGO_POOL.length > 0 ? LOGO_POOL[logoHash(uid) % LOGO_POOL.length] : DEFAULT_LOGO)
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none">

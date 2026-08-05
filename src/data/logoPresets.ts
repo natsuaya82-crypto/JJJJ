@@ -22,19 +22,38 @@ export function normalizeLogoPresetId(logoId: string | undefined | null): string
 
 export const logoPresetSrc = (logoId: string) => `/logos/preset/${normalizeLogoPresetId(logoId)}.png`
 
+// ── チームの持ち物としてのロゴ ────────────────────────────
+// logoId には2つの形を入れられる。
+//   'logo_07'     … プレイヤーが選んだプリセット画像
+//   'team:tokyo'  … そのチームがもともと持っているロゴ（JPEL20チームは専用PNGがある）
+// 後者を許しているのは、ロゴを未選択のままオンラインに出たときに
+// 「自分の画面では東京のロゴなのに、相手からはプリセットの絵に見える」というズレを消すため。
+// 解釈するのは TeamLogoSVG 1箇所だけ。
+const TEAM_LOGO_PREFIX = 'team:'
+
+/** 'team:tokyo' ならチームIDを返す。プリセットIDなら undefined。 */
+export function teamLogoIdOf(logoId: string | undefined | null): string | undefined {
+  return logoId?.startsWith(TEAM_LOGO_PREFIX) ? logoId.slice(TEAM_LOGO_PREFIX.length) : undefined
+}
+
 /**
- * ロゴを選んでいないチームの既定ロゴを、チームIDから決める。
+ * ロゴを選んでいないチームを、サーバーへ送るときのロゴIDに直す。
  *
- * ローカルの表示（TeamLogoSVG）は logoId が無いときIDのハッシュで見た目を散らすので、
- * 未選択でもチームごとに違う絵になる。ところがサーバーへ送るとき（friendsApi の
- * pushMyProfile）は logo_01 で固定していたため、ロゴを選んでいない人が
- * オンライン上では全員同じ絵（鶴）になっていた。
- * 同じハッシュでプリセットを1つ選び、未選択でもオンラインで見分けがつくようにする。
+ * もとは `team.logoId ?? 'logo_01'` としていたため、ロゴ未選択のプレイヤーが
+ * オンライン上で全員 logo_01（鶴）になっていた。ローカルの TeamLogoSVG は
+ * logoId が無いときチーム専用ロゴ→ハッシュの順で絵を出すので、
+ * 「自分の画面と相手の画面で絵が違う」という食い違いにもなっていた。
  *
- * ※ローカルのハッシュ表示とは絵の種類が違う（あちらは組み込みSVG、こちらはプリセット画像）。
- *   完全に一致させるにはロゴ選択を必須にするしかないので、ここは「全員同じにしない」までを担う。
+ * 未選択なら 'team:<チームID>' を送り、相手の画面でもそのチームのロゴが出るようにする。
+ * チームIDが無いときだけ、ハッシュでプリセットを散らす（全員同じ絵になるのを避ける）。
  */
-export function defaultLogoIdFor(seed: string | undefined): string {
+export function defaultLogoIdFor(teamId: string | undefined): string {
+  if (!teamId) return LOGO_PRESET_DEFAULT
+  return `${TEAM_LOGO_PREFIX}${teamId}`
+}
+
+/** 表示側でチームIDが手に入らないときの保険。IDのハッシュでプリセットを1つ選ぶ。 */
+export function hashedLogoIdFor(seed: string | undefined): string {
   if (!seed) return LOGO_PRESET_DEFAULT
   let h = 0
   for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0
