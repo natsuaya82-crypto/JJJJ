@@ -60,27 +60,32 @@ function simulateClub(tier: number, exp: number): number[] {
       growthCurve: CURVES[rng(0, CURVES.length - 1)],
       age,
       potentialCap: cap,
+      baseBoost: BOOST,
+      bakeFrom: BAKE_FROM,
     })
     ovrs.push(ovrOf(ratings as unknown as Record<string, number>))
   })
   return ovrs.sort((a, b) => b - a)
 }
 
-const RUNS = 120
+const BOOST = 3, BAKE_FROM = 21   // 年齢カーブの当てはめ結果（全ランク素体+3・焼き込み開始21歳）
+const RUNS = 150
 const TARGETS = [
-  { tier: 1, label: '格1' }, { tier: 5, label: '格5(東京)' },
-  { tier: 10, label: '格10' }, { tier: 20, label: '格20(とんぼ)' },
+  { tier: 1, label: '格1(ナイロビ)' }, { tier: 5, label: '格5(東京)' },
+  { tier: 10, label: '格10' }, { tier: 15, label: '格15' }, { tier: 20, label: '格20(とんぼ)' },
 ]
-console.log(`■ 年俸の配り方（指数）を振ったときの全25人平均OVR  ※${RUNS}回平均・下限400万`)
-console.log('指数   ' + TARGETS.map(t => t.label.padStart(12)).join(''))
-for (const exp of [0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6]) {
-  const cells = TARGETS.map(t => {
-    let all = 0
+console.log(`■ 全ランク素体+${BOOST} / 焼き込み開始${BAKE_FROM}歳 / 下限400万  （${RUNS}回平均）`)
+for (const exp of [0.8, 1.0, 1.6]) {
+  console.log(`\n── 年俸の配分の指数 ${exp}${exp === 1.6 ? '（今の値）' : ''}`)
+  console.log('クラブ            予算   上限   最高OVR  上位10平均  全25人平均')
+  for (const t of TARGETS) {
+    let a = 0, b = 0, c = 0
     for (let r = 0; r < RUNS; r++) {
       const o = simulateClub(t.tier, exp)
-      all += o.reduce((s, x) => s + x, 0) / o.length
+      a += o[0]; b += o.slice(0, 10).reduce((s, x) => s + x, 0) / 10
+      c += o.reduce((s, x) => s + x, 0) / o.length
     }
-    return (all / RUNS).toFixed(1).padStart(12)
-  })
-  console.log(`${exp.toFixed(1)}  ` + cells.join(''))
+    console.log(`${t.label.padEnd(16, ' ')}${String(TIER_BUDGET_OKU[t.tier - 1]).padStart(5)}億  ${TIER_POT_CAP[t.tier - 1]}` +
+      `  ${(a / RUNS).toFixed(1).padStart(8)}  ${(b / RUNS).toFixed(1).padStart(10)}  ${(c / RUNS).toFixed(1).padStart(10)}`)
+  }
 }
