@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
+import { fmtYen } from '../../utils/money'
 import type { SponsorTarget } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -21,10 +22,8 @@ const TIER_LABEL: Record<string, string> = {
   title:  'タイトル',
 }
 
-// 予算ページと同じ万円単位表記（億に切り上げない）
-function fmt(yen: number) {
-  return `${Math.round(yen / 10000).toLocaleString()}万`
-}
+// 金額表示を他画面と統一（意図した変更）。以前はここだけ億に切り上げず「52,000万」の
+// ように出ていて、同じ金額が画面によって表記が変わっていた。fmtYen に揃えて「5.2億」にする。
 
 function targetText(t: SponsorTarget): string {
   if (t.type === 'rank') return `${t.value}位以内`
@@ -65,7 +64,7 @@ export default function SponsorPage() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginBottom: 2 }}>年間収入</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green }}>{fmt(totalAnnualIncome)}/年</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green }}>{fmtYen(totalAnnualIncome)}/年</div>
             <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginTop: 2 }}>{activeSponsors.length}/{MAX_SPONSORS}社</div>
           </div>
         </div>
@@ -117,7 +116,7 @@ export default function SponsorPage() {
                     )}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.green }}>{fmt(sp.annualPayment)}/年</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.green }}>{fmtYen(sp.annualPayment)}/年</div>
                     <div style={{ fontFamily: SAIRA, fontSize: 9, color: sp.yearsLeft <= 1 ? C.orange : C.textDim }}>残{sp.yearsLeft}年</div>
                   </div>
                 </div>
@@ -186,7 +185,7 @@ export default function SponsorPage() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.green }}>{fmt(offer.annualPayment)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.green }}>{fmtYen(offer.annualPayment)}</div>
                     <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim }}>/年</div>
                   </div>
                 </div>
@@ -199,7 +198,7 @@ export default function SponsorPage() {
                   <div style={{ width: 1, background: C.border }} />
                   <div style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>年間収入</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.green }}>{fmt(offer.annualPayment)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.green }}>{fmtYen(offer.annualPayment)}</div>
                   </div>
                   <div style={{ width: 1, background: C.border }} />
                   <div style={{ flex: 2, textAlign: 'center' }}>

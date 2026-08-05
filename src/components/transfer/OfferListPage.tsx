@@ -4,6 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -13,10 +14,6 @@ import { OfferResultList } from './OfferResultList'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
-}
 
 const BID_STATUS: Record<string, { label: string; color: string }> = {
   pending: { label: '回答待ち', color: C.textSub },
@@ -85,13 +82,13 @@ export default function OfferListPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: C.textDim }}>
                           {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={14} />}
                           <span>{t?.shortName ?? ''} から</span>
-                          <span style={{ color: C.orange, fontWeight: 800, fontFamily: SAIRA }}>{o.offeredPrice > 0 ? `移籍金 ${fmt(o.offeredPrice)}` : 'フリー移籍（移籍金なし）'}</span>
+                          <span style={{ color: C.orange, fontWeight: 800, fontFamily: SAIRA }}>{o.offeredPrice > 0 ? `移籍金 ${fmtYen(o.offeredPrice)}` : 'フリー移籍（移籍金なし）'}</span>
                         </div>
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, padding: '0 12px 12px' }}>
-                      <button onClick={() => pushOfferResult(o.id, acceptIncomingOffer(o.id), { playerName: p.name, teamName: t?.shortName ?? '他クラブ', price: o.offeredPrice })} style={actBtn(C.green)}>{o.offeredPrice > 0 ? `売却する（+${fmt(o.offeredPrice)}）` : '移籍を認める'}</button>
+                      <button onClick={() => pushOfferResult(o.id, acceptIncomingOffer(o.id), { playerName: p.name, teamName: t?.shortName ?? '他クラブ', price: o.offeredPrice })} style={actBtn(C.green)}>{o.offeredPrice > 0 ? `売却する（+${fmtYen(o.offeredPrice)}）` : '移籍を認める'}</button>
                       <button onClick={() => declineIncomingOffer(o.id)} style={actBtn(C.textSub, true)}>断る</button>
                     </div>
                   </div>
@@ -147,13 +144,13 @@ export default function OfferListPage() {
                         <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={40} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{p.name}</div>
-                          <div style={{ fontSize: 10, color: C.textDim }}>{t?.shortName ?? ''} へ入札 {fmt(b.offeredFee)}{b.status === 'countered' && b.counterFee != null ? ` → 要求 ${fmt(b.counterFee)}` : ''}</div>
+                          <div style={{ fontSize: 10, color: C.textDim }}>{t?.shortName ?? ''} へ入札 {fmtYen(b.offeredFee)}{b.status === 'countered' && b.counterFee != null ? ` → 要求 ${fmtYen(b.counterFee)}` : ''}</div>
                         </div>
                         <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: alpha(s.color, 0.18), color: s.color }}>{s.label}</span>
                       </div>
                       {b.status === 'countered' && b.counterFee != null && (
                         <div style={{ display: 'flex', gap: 6, padding: '0 12px 12px' }}>
-                          <button onClick={() => acceptFeeCounter(b.id)} style={actBtn(C.green)}>要求額で合意（{fmt(b.counterFee)}）</button>
+                          <button onClick={() => acceptFeeCounter(b.id)} style={actBtn(C.green)}>要求額で合意（{fmtYen(b.counterFee)}）</button>
                           <button onClick={() => rejectTransferBid(b.id)} style={actBtn(C.textSub, true)}>取り下げ</button>
                         </div>
                       )}

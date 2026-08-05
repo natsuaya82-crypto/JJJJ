@@ -47,10 +47,6 @@ function draftSalaryFloor(p: Player): number {
   return Math.max(DC_SALARY_MIN, half)
 }
 const DC_SALARY_MAX = 60000000
-function dcFmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
-}
 type DraftContract = { salary: number; years: number; contractType: 'standard' | 'development' | 'dual'; teamRole: TeamRole | null }
 const PERSONALITY_LABEL: Record<string, string> = { salary: '年俸重視', winning: '勝利志向', loyalty: 'チーム愛' }
 const PERSONALITY_ICON: Record<string, string>  = { salary: '¥', winning: '★', loyalty: '♡' }

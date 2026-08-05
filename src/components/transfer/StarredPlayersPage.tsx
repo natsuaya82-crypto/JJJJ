@@ -2,6 +2,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
@@ -9,11 +10,6 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useOpponentMenu } from '../teams/opponentMenu'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
-}
 
 export default function StarredPlayersPage() {
   const players = useGameStore(s => s.players)
@@ -102,8 +98,8 @@ export default function StarredPlayersPage() {
                         <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{teamName}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>{valueLabel} <span style={{ color: C.gold }}>{fmt(value)}</span></span>
-                        <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{fmt(p.contract.annualSalary)}</span></span>
+                        <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>{valueLabel} <span style={{ color: C.gold }}>{fmtYen(value)}</span></span>
+                        <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{fmtYen(p.contract.annualSalary)}</span></span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>

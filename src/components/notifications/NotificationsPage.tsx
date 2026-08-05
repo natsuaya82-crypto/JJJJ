@@ -4,6 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { C, alpha } from '../../styles/tokens'
 import { collectNotifications, expiredNegText } from '../../utils/notifItems'
 import { audio } from '../../utils/audio'
@@ -22,8 +23,6 @@ import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const EMPTY_IDS: string[] = []
-
-const fmtYen = (v: number) => v >= 100000000 ? `${(v / 100000000).toFixed(1)}億` : `${Math.round(v / 10000)}万`
 
 function SectionHead({ label, color, count }: { label: string; color: string; count: number }) {
   return (

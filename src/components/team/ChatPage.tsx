@@ -23,6 +23,7 @@ import NumberDial from '../ui/NumberDial'
 import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
 import { rankedStandings } from '../../utils/league'
+import { fmtYen } from '../../utils/money'
 
 const TEAM_ROLE_OPTS: { key: TeamRole; label: string }[] = [
   { key: 'ace', label: 'エース' },
@@ -36,11 +37,6 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SALARY_STEP = 1000000
 const SALARY_MIN = 3000000
 const SALARY_MAX = 80000000
-
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
-}
 
 function fmtDuration(months: number): string {
   if (months <= 0) return '期限切れ'
@@ -116,7 +112,7 @@ function buildMessages(
   }
 
   if (contractReq.initiatedBy === 'player' && contractReq.status === 'pending_gm') {
-    msgs.push({ from: 'player', kind: 'contract_demand', text: `来シーズンの契約についてお話があります。年俸${fmt(contractReq.demandSalary)}、${contractReq.demandYears}年契約での更新を希望します。いかがでしょうか？` })
+    msgs.push({ from: 'player', kind: 'contract_demand', text: `来シーズンの契約についてお話があります。年俸${fmtYen(contractReq.demandSalary)}、${contractReq.demandYears}年契約での更新を希望します。いかがでしょうか？` })
     return msgs
   }
 
@@ -129,7 +125,7 @@ function buildMessages(
   }
 
   if (contractReq.offerSalary > 0) {
-    msgs.push({ from: 'gm', kind: 'contract_offer', text: `年俸${fmt(contractReq.offerSalary)}、${contractReq.offerYears}年契約でいかがでしょうか。` })
+    msgs.push({ from: 'gm', kind: 'contract_offer', text: `年俸${fmtYen(contractReq.offerSalary)}、${contractReq.offerYears}年契約でいかがでしょうか。` })
   }
 
   if (contractReq.status === 'accepted') {
@@ -138,7 +134,7 @@ function buildMessages(
   }
 
   if (contractReq.status === 'countered') {
-    msgs.push({ from: 'player', kind: 'contract_counter', text: `考えましたが、年俸${fmt(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年であれば合意できます。これ以上は難しいです。` })
+    msgs.push({ from: 'player', kind: 'contract_counter', text: `考えましたが、年俸${fmtYen(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年であれば合意できます。これ以上は難しいです。` })
     return msgs
   }
 
@@ -160,8 +156,8 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
       : `（代理人）${player.name}は現在${teamName ?? '他クラブ'}に在籍中ですが、話は伺います。条件次第です。`,
   })
   if (offer.offerSalary > 0 && offer.status === 'countered') {
-    msgs.push({ from: 'gm', text: `年俸${fmt(offer.offerSalary)}、${offer.offerYears}年契約でいかがでしょうか。` })
-    msgs.push({ from: 'player', text: `その条件では即断できません。年俸${fmt(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
+    msgs.push({ from: 'gm', text: `年俸${fmtYen(offer.offerSalary)}、${offer.offerYears}年契約でいかがでしょうか。` })
+    msgs.push({ from: 'player', text: `その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
   }
   return msgs
 }
@@ -170,7 +166,7 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
 function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: string): ChatMessage[] {
   return [{
     from: 'player',
-    text: `（代理人）移籍金${fmt(bid.offeredFee)}で${fromTeamName ?? '所属クラブ'}との合意が取れました。あとは${player.name}本人との契約条件次第です。ご提示ください。`,
+    text: `（代理人）移籍金${fmtYen(bid.offeredFee)}で${fromTeamName ?? '所属クラブ'}との合意が取れました。あとは${player.name}本人との契約条件次第です。ご提示ください。`,
   }]
 }
 
@@ -338,7 +334,7 @@ function ChatView({
 
   const handleSubmitTransferOffer = () => {
     if (!transferBid) return
-    append({ from: 'gm', text: `年俸${fmt(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
+    append({ from: 'gm', text: `年俸${fmtYen(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
     const res = finalizeTransfer(transferBid.id, offerSalary, offerYears)
     if (res.ok) {
       append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
@@ -364,14 +360,14 @@ function ChatView({
       append({ from: 'gm', text: `（ロスターが上限${ROSTER_MAX}人です。誰かを放出してから改めて提示してください）` })
       return
     }
-    append({ from: 'gm', text: `年俸${fmt(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
+    append({ from: 'gm', text: `年俸${fmtYen(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
     submitAcquisitionOffer(acqOffer.id, offerSalary, offerYears, offerContractType, offerTeamRole ?? undefined)
     const updated = (useGameStore.getState().currentSeason.acquisitionOffers ?? []).find(o => o.id === acqOffer.id)
     if (updated?.status === 'accepted') {
       append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
       setJustAcquired(true)
     } else if (updated?.status === 'countered') {
-      append({ from: 'player', text: `即断は難しいです。年俸${fmt(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意します。` })
+      append({ from: 'player', text: `即断は難しいです。年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意します。` })
     } else if (updated?.status === 'rejected') {
       append({ from: 'player', text:
         updated.rejectReason === 'team_refused' ? '（代理人）クラブが主力の放出に応じません。金額の問題ではないようです。'
@@ -385,7 +381,7 @@ function ChatView({
   }
 
   const handleSubmitOffer = () => {
-    append({ from: 'gm', text: `年俸${fmt(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
+    append({ from: 'gm', text: `年俸${fmtYen(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
     // 進行中の札が無ければここで作る。作れるかどうかは contractTalk の canOfferRenewal（ストア側）で決まる
     if (!liveContractOf(useGameStore.getState().currentSeason.contractRequests, player.id)) {
       initiateContractRenewal(player.id)
@@ -398,7 +394,7 @@ function ChatView({
       if (updated?.status === 'accepted') {
         append({ from: 'player', text: 'ありがとうございます。その条件で合意します。よろしくお願いします。' })
       } else if (updated?.status === 'countered') {
-        append({ from: 'player', text: `考えましたが、年俸${fmt(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意できます。これ以上は難しいです。` })
+        append({ from: 'player', text: `考えましたが、年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意できます。これ以上は難しいです。` })
       } else if (updated?.status === 'rejected') {
         // フリー移籍の接触中で本人が移籍に傾いている場合は、条件の問題ではないことを伝える
         // （引き留め拒否が実際に起きた時だけ。残留寄りの選手が条件で断った時は通常の断り文句）
@@ -449,14 +445,14 @@ function ChatView({
     // 獲得オファー交渉モード
     if (isAcq && acqOffer) {
       if (acqOffer.status === 'countered') return [
-        { label: `承諾する（${fmt(acqOffer.counterSalary ?? 0)}/${acqOffer.counterYears}年）`, color: C.green, action: () => {
+        { label: `承諾する（${fmtYen(acqOffer.counterSalary ?? 0)}/${acqOffer.counterYears}年）`, color: C.green, action: () => {
           // 枠の事前チェック（承諾パスにも必要）。提示パスと同じ canSignPlayer 1本
           if (!canSignPlayer(players, playerTeamId, acqOffer.playerId)) {
             append({ from: 'gm', text: `（ロスターが上限${ROSTER_MAX}人です。誰かを放出してから改めて提示してください）` })
             return
           }
           append(
-            { from: 'gm', text: `了解しました。年俸${fmt(acqOffer.counterSalary ?? 0)}、${acqOffer.counterYears}年で合意します。` },
+            { from: 'gm', text: `了解しました。年俸${fmtYen(acqOffer.counterSalary ?? 0)}、${acqOffer.counterYears}年で合意します。` },
             { from: 'player', text: 'ありがとうございます。加入します。よろしくお願いします。' }
           )
           acceptAcquisitionCounter(acqOffer.id)
@@ -512,7 +508,7 @@ function ChatView({
         // 契約更新の要求も抱えている場合、引き留めの直後に出る「要求を飲む」の脈絡を作る
         if (contractReq?.status === 'pending_gm') {
           const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
-          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmt(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
+          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmtYen(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
         }
         dismissRetirementRequest(player.id)
       }},
@@ -546,7 +542,7 @@ function ChatView({
         // 次に出る「要求を飲む」ボタンの脈絡が無くなるため、ここで要求を言わせる
         if (contractReq?.status === 'pending_gm') {
           const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
-          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmt(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
+          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmtYen(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
         }
         dismissTransferRequest(player.id)
       }},
@@ -604,9 +600,9 @@ function ChatView({
         ]
       }
       if (contractReq.status === 'countered') return [
-        { label: `承諾する（${fmt(contractReq.counterSalary ?? 0)}/${contractReq.counterYears}年）`, color: C.green, action: () => {
+        { label: `承諾する（${fmtYen(contractReq.counterSalary ?? 0)}/${contractReq.counterYears}年）`, color: C.green, action: () => {
           append(
-            { from: 'gm', text: `了解しました。年俸${fmt(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年で合意します。` },
+            { from: 'gm', text: `了解しました。年俸${fmtYen(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年で合意します。` },
             { from: 'player', text: 'ありがとうございます。よろしくお願いします。' }
           )
           acceptContractCounter(contractReq.id)
@@ -621,8 +617,8 @@ function ChatView({
         // 要求額はラウンドごとに3%ずつ上がる（エンジン側と同じ式）。古い額を出すと「飲んだのに拒否」される
         const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
         return [
-          { label: `要求を飲む（${fmt(effDemand)}/${contractReq.demandYears}年）`, color: C.green, action: () => {
-            append({ from: 'gm', text: `了解です。年俸${fmt(effDemand)}、${contractReq.demandYears}年で承諾します。` })
+          { label: `要求を飲む（${fmtYen(effDemand)}/${contractReq.demandYears}年）`, color: C.green, action: () => {
+            append({ from: 'gm', text: `了解です。年俸${fmtYen(effDemand)}、${contractReq.demandYears}年で承諾します。` })
             submitContractRenewalOffer(contractReq.id, effDemand, contractReq.demandYears, contractReq.offerContractType ?? player.contract.contractType ?? 'standard', undefined)
             const updated = (useGameStore.getState().currentSeason.contractRequests ?? []).find(r => r.id === contractReq.id)
             if (updated?.status === 'accepted') {
@@ -713,7 +709,7 @@ function ChatView({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{player.name}</div>
           <div style={{ fontSize: 10, color: C.textDim }}>
-            {player.age}歳 · {fmt(player.contract.annualSalary)} · 残{fmtDuration(months)}
+            {player.age}歳 · {fmtYen(player.contract.annualSalary)} · 残{fmtDuration(months)}
           </div>
         </div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(playerOvr) }}>{playerOvr}</div>
@@ -945,7 +941,7 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
                 <>
                   {tradeOutlook.blockNote
                     ? <div style={{ fontSize: 10, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{tradeOutlook.blockNote}</div>
-                    : tradeOutlook.shortage > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>あと約{fmt(tradeOutlook.shortage)}相当が不足しています。出す選手か指名権を追加して再提案してください</div>}
+                    : tradeOutlook.shortage > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>あと約{fmtYen(tradeOutlook.shortage)}相当が不足しています。出す選手か指名権を追加して再提案してください</div>}
                   <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
                 </>
               )}
@@ -982,7 +978,7 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
                 {blockMsg && <div style={{ fontSize: 10, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{blockMsg}</div>}
                 {!blockMsg && rate < 100 && shortage > 0 && (
                   <div style={{ fontSize: 10, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>
-                    あと約{fmt(shortage)}相当が不足。出す選手か指名権を追加してください
+                    あと約{fmtYen(shortage)}相当が不足。出す選手か指名権を追加してください
                     {isFinal && <span style={{ color: C.red }}>（最終交渉：合意圏内でないと決裂します）</span>}
                   </div>
                 )}
@@ -1012,7 +1008,7 @@ function TradeSelRow({ player, selected, color, onToggle }: { player: Player; se
           <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
           <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: alpha(specCol, 0.15), color: specCol, fontWeight: 700, flexShrink: 0 }}>{SPECIALTY_LABELS[player.specialty]}</span>
         </div>
-        <div style={{ fontSize: 10, color: C.textDim }}>{player.age}歳 · {fmt(player.contract.annualSalary)} · 残{player.contract.yearsLeft}年</div>
+        <div style={{ fontSize: 10, color: C.textDim }}>{player.age}歳 · {fmtYen(player.contract.annualSalary)} · 残{player.contract.yearsLeft}年</div>
       </div>
       <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)), flexShrink: 0 }}>{ovr(player)}</span>
     </button>
@@ -1043,7 +1039,7 @@ function OppRow({ player, onClick, bidLabel, bidColor }: { player: Player; onCli
           <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: alpha(specCol, 0.15), color: specCol, fontWeight: 700, flexShrink: 0 }}>{SPECIALTY_LABELS[player.specialty]}</span>
           {bidLabel && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: alpha(bidColor ?? C.gold, 0.18), color: bidColor ?? C.gold, fontWeight: 800, flexShrink: 0 }}>{bidLabel}</span>}
         </div>
-        <div style={{ fontSize: 9, color: C.textDim }}>{player.age}歳 · {fmt(player.contract.annualSalary)} · 残{player.contract.yearsLeft}年</div>
+        <div style={{ fontSize: 9, color: C.textDim }}>{player.age}歳 · {fmtYen(player.contract.annualSalary)} · 残{player.contract.yearsLeft}年</div>
       </div>
       <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)), flexShrink: 0 }}>{ovr(player)}</div>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color: C.border2, flexShrink: 0 }}>
@@ -1118,7 +1114,7 @@ function IncomingTransferCard({ offer, player, teamName, onAccept, onCounter, on
           </div>
           <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
             {offer.offeredPrice > 0
-              ? <>{teamName}が移籍金 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(offer.offeredPrice)}</span> で獲得を打診</>
+              ? <>{teamName}が移籍金 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmtYen(offer.offeredPrice)}</span> で獲得を打診</>
               : <>{teamName}がフリー移籍（移籍金なし）で獲得を打診</>}
           </div>
         </div>
@@ -1371,7 +1367,7 @@ export default function ChatPage() {
               <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: durationColor }}>
                 残{fmtDuration(months)}
               </span>
-              <span style={{ fontSize: 11, color: C.textDim }}>{fmt(player.contract.annualSalary)}</span>
+              <span style={{ fontSize: 11, color: C.textDim }}>{fmtYen(player.contract.annualSalary)}</span>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -1422,7 +1418,7 @@ export default function ChatPage() {
                 ) : <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>未所属</span>
               })()}
               <span style={{ fontSize: 11, color: C.textDim }}>
-                {offer.source === 'fa' ? `市場年俸 ${fmt(faMarketSalary(player))}` : `市場価値 ${fmt(calcTransferValue(player))}`}
+                {offer.source === 'fa' ? `市場年俸 ${fmtYen(faMarketSalary(player))}` : `市場価値 ${fmtYen(calcTransferValue(player))}`}
               </span>
             </div>
           </div>

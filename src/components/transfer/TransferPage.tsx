@@ -22,15 +22,11 @@ import { OfferResultList } from './OfferResultList'
 import { draftPickValue, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { C, alpha } from '../../styles/tokens'
+import { fmtYen } from '../../utils/money'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type Tab = 'market' | 'market-results' | 'trade' | 'listings'
-
-function fmt(yen: number) {
-  if (yen >= 100000000) return `${(yen / 100000000).toFixed(1)}億`
-  return `${Math.round(yen / 10000)}万`
-}
 
 export default function TransferPage() {
   const {
@@ -143,7 +139,7 @@ export default function TransferPage() {
             <span style={{ fontSize: '10px', fontWeight: '700', color: C.green, fontFamily: SAIRA }}>
               OPEN
             </span>
-            <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{fmt(salaryUsed)}</span>
+            <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{fmtYen(salaryUsed)}</span>
           </div>
         </div>
       </div>
@@ -411,7 +407,7 @@ export default function TransferPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{mp.name}</div>
                         <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · {clubIndex.byId(mp.teamId)?.shortName ?? '未所属'}</div>
-                        <div style={{ fontSize: 10, color: C.textSub, marginTop: 2, fontFamily: SAIRA }}>価値 <span style={{ color: C.gold }}>{fmt(mVal)}</span>　年俸 {fmt(mp.contract.annualSalary)}</div>
+                        <div style={{ fontSize: 10, color: C.textSub, marginTop: 2, fontFamily: SAIRA }}>価値 <span style={{ color: C.gold }}>{fmtYen(mVal)}</span>　年俸 {fmtYen(mp.contract.annualSalary)}</div>
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>
                     </div>
@@ -501,7 +497,7 @@ export default function TransferPage() {
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '2px', fontFamily: SAIRA }}>{offerFrom} からのオファー</div>
                             <div style={{ fontSize: isFreeOffer ? '12px' : '16px', fontWeight: '900', color: isFreeOffer ? C.textSub : C.pink, fontFamily: SAIRA, textShadow: isFreeOffer ? 'none' : `0 0 12px ${alpha(C.pink, 0.25)}` }}>
-                              {isFreeOffer ? 'フリー移籍' : fmt(offer.offeredPrice)}
+                              {isFreeOffer ? 'フリー移籍' : fmtYen(offer.offeredPrice)}
                             </div>
                             <div style={{ fontSize: '8px', color: C.textDim, fontFamily: SAIRA }}>{isFreeOffer ? '移籍金なし' : '移籍金'}</div>
                           </div>
@@ -519,7 +515,7 @@ export default function TransferPage() {
                               boxShadow: '0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
                             }}
                           >
-                            {isFreeOffer ? '承諾 — フリー移籍' : `承諾 — ${fmt(offer.offeredPrice)}`}
+                            {isFreeOffer ? '承諾 — フリー移籍' : `承諾 — ${fmtYen(offer.offeredPrice)}`}
                           </button>
                           <button
                             onClick={() => {
@@ -532,7 +528,7 @@ export default function TransferPage() {
                               boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
                             }}
                           >
-                            カウンター — {fmt(counterPrice)}
+                            カウンター — {fmtYen(counterPrice)}
                           </button>
                           <button
                             onClick={() => declineIncomingOffer(offer.id)}
@@ -598,14 +594,14 @@ export default function TransferPage() {
                             <span style={{ fontSize: '8px', padding: '1px 4px', borderRadius: '5px', backgroundColor: alpha(specCol, 0.08), color: specCol, fontWeight: '700', fontFamily: SAIRA }}>{SPECIALTY_LABELS[p.specialty]}</span>
                             <span style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
                             <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '4px', backgroundColor: alpha(stageCol, 0.08), color: stageCol, fontWeight: '700', fontFamily: SAIRA }}>{CAREER_STAGE_LABEL[stage]}</span>
-                            <span style={{ fontSize: '9px', color: C.textSub, fontFamily: SAIRA }}>{fmt(val)}</span>
+                            <span style={{ fontSize: '9px', color: C.textSub, fontFamily: SAIRA }}>{fmtYen(val)}</span>
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
                           {myListing ? (
                             <>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '9px', color: C.gold, fontFamily: SAIRA }}>出品中 {fmt(myListing.askingPrice)}</div>
+                                <div style={{ fontSize: '9px', color: C.gold, fontFamily: SAIRA }}>出品中 {fmtYen(myListing.askingPrice)}</div>
                                 {competingOffers.length > 0 && (
                                   <div style={{ fontSize: '10px', fontWeight: '800', color: C.green, fontFamily: SAIRA, textShadow: `0 0 8px ${alpha(C.green, 0.4)}` }}>
                                     入札 {competingOffers.length}件！
@@ -640,12 +636,12 @@ export default function TransferPage() {
                   {isSettingPrice && !myListing && (
                     <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '12px 14px' }}>
                       <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
-                        希望移籍金 — 市場価値: <span style={{ color: C.gold }}>{fmt(val)}</span>
+                        希望移籍金 — 市場価値: <span style={{ color: C.gold }}>{fmtYen(val)}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <button onClick={() => setListingPrice(Math.max(1000000, listingPrice - 5000000))} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
                         <div style={{ flex: 1, textAlign: 'center', padding: '6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px' }}>
-                          <span style={{ fontSize: '17px', fontWeight: '900', color: C.gold, fontFamily: SAIRA }}>{fmt(listingPrice)}</span>
+                          <span style={{ fontSize: '17px', fontWeight: '900', color: C.gold, fontFamily: SAIRA }}>{fmtYen(listingPrice)}</span>
                         </div>
                         <button onClick={() => setListingPrice(listingPrice + 5000000)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
                       </div>
@@ -692,7 +688,7 @@ export default function TransferPage() {
                         }}>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '12px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権</div>
-                            <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>指名順位は{pk.year}年の成績で確定 · 参考価値 ≈ {fmt(fairVal)}</div>
+                            <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>指名順位は{pk.year}年の成績で確定 · 参考価値 ≈ {fmtYen(fairVal)}</div>
                           </div>
                           <button onClick={() => {
                             if (isSelling) { setPickSellTarget(null); setPickSellResult('idle') }
@@ -723,7 +719,7 @@ export default function TransferPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                                   <button onClick={() => setPickSellPrice(Math.max(1000000, pickSellPrice - 1000000))} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
                                   <div style={{ flex: 1, textAlign: 'center', padding: '6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px' }}>
-                                    <span style={{ fontSize: '16px', fontWeight: '900', color: C.blue, fontFamily: SAIRA }}>{fmt(pickSellPrice)}</span>
+                                    <span style={{ fontSize: '16px', fontWeight: '900', color: C.blue, fontFamily: SAIRA }}>{fmtYen(pickSellPrice)}</span>
                                   </div>
                                   <button onClick={() => setPickSellPrice(pickSellPrice + 1000000)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
                                 </div>

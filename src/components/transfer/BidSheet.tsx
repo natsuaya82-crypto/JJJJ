@@ -7,9 +7,9 @@ import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { rankedStandings } from '../../utils/league'
+import { fmtYen } from '../../utils/money'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-function fmt(yen: number) { return yen >= 100000000 ? `${(yen / 100000000).toFixed(1)}億` : `${Math.round(yen / 10000)}万` }
 
 // 移籍金オファーの下部シート（成立確率つき）。移籍市場・他チームタブ共通。
 export default function BidSheet({ player, budget, listing, onSubmit, onClose }: {
@@ -58,9 +58,9 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
         <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
         <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 8 }}>{player.name} へ入札</div>
         <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
-          入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmt(val)}</span>
-          {listing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmt(listing.askingPrice)}</span>}
-          <span style={{ marginLeft: '8px', color: over ? C.red : C.textDim, fontFamily: SAIRA }}>予算: {fmt(budget)}</span>
+          入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmtYen(val)}</span>
+          {listing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmtYen(listing.askingPrice)}</span>}
+          <span style={{ marginLeft: '8px', color: over ? C.red : C.textDim, fontFamily: SAIRA }}>予算: {fmtYen(budget)}</span>
         </div>
         <div style={{ padding: '4px 0 10px' }}>
           <NumberDial value={fee} onChange={v => setFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />

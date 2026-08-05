@@ -7,6 +7,7 @@ import type { Player, Team } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, formColor } from '../../utils/playerUtils'
+import { fmtYen } from '../../utils/money'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
@@ -116,7 +117,6 @@ export default function TeamManagement() {
   const rosterSalary = allPlayers.filter(p => p.teamId === playerTeamId && p.status !== 'retired').reduce((s, p) => s + p.contract.annualSalary, 0)
   // ロスター人数は一覧と同じ数え方（rosterSync）。roster配列の長さだとズレたとき表示だけ食い違う
   const rosterCount = squadPlayersOf(allPlayers, playerTeamId).length
-  const fmtYen = (y: number) => y >= 100000000 ? `${(y / 100000000).toFixed(1)}億` : `${Math.round(y / 10000)}万`
   const rawPlayers = activeTab === 'loan' ? loanedIn : getTeamPlayers(playerTeamId)
   const players = [...rawPlayers]
     .filter(p => searchQuery === '' || p.name.includes(searchQuery) || p.nameKana.includes(searchQuery))
