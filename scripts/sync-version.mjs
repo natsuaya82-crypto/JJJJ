@@ -4,6 +4,7 @@
 // そこから
 //   ・ios/App/App.xcodeproj/project.pbxproj の MARKETING_VERSION
 //   ・package.json の version
+//   ・package-lock.json の version（2箇所。npm ci が読む）
 // を書き込む。手で3箇所を揃える運用だと必ずどれかを上げ忘れ、
 // 「最新版なのにアップデートしてくださいが出る」事故（強制アップデートの誤表示）になる。
 //
@@ -19,6 +20,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const META = 'src/data/appMeta.ts'
 const PBX = 'ios/App/App.xcodeproj/project.pbxproj'
 const PKG = 'package.json'
+const LOCK = 'package-lock.json'
 const check = process.argv.includes('--check')
 
 const metaSrc = readFileSync(META, 'utf8')
@@ -48,6 +50,16 @@ report(PKG, pkg.version, version)
 if (!check && pkg.version !== version) {
   pkg.version = version
   writeFileSync(PKG, JSON.stringify(pkg, null, 2) + '\n')
+}
+
+// ── package-lock.json ──
+// version は2箇所（ルートと packages[""]）に入っている。片方だけ直すと食い違う。
+const lock = JSON.parse(readFileSync(LOCK, 'utf8'))
+report(LOCK, lock.version, version)
+if (!check && lock.version !== version) {
+  lock.version = version
+  if (lock.packages?.['']) lock.packages[''].version = version
+  writeFileSync(LOCK, JSON.stringify(lock, null, 2) + '\n')
 }
 
 if (check && changed) {
