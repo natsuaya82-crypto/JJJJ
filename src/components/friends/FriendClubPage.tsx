@@ -13,7 +13,7 @@ import {
   CLUB_MAX, JOIN_TYPE_LABEL, searchClubs, myClub, myClubRequests, createClub, joinClub,
   cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
   leaveClub, kickClubMember, updateClub, setClubRole, CLUB_ADMIN_MAX,
-  CLUB_PHRASES, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubMessage, postClubRequest,
+  CLUB_PHRASES, CLUB_REACTIONS, clubReactions, reactClubPost, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubMessage, postClubRequest,
   donateClubCards, clubGiftCount, claimClubGifts,
   type ClubBrief, type ClubForm, type ClubMember, type ClubPost, type ClubReqRarity,
   type ClubReqStat, type JoinType, type MyClub,
@@ -624,8 +624,9 @@ function AskPicker({ rarity, busy, onPick, onCancel }: {
   )
 }
 
-function ClubBoard() {
+function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   const feed = useFriendsQuery(clubFeed, [], 'clubFeed')
+  const reacts = useFriendsQuery(clubReactions, [], 'clubReacts')
   const gifts = useFriendsQuery(clubGiftCount, [], 'clubGifts')
   const myCards = useGameStore(s => s.trainingCards)
   const removeTrainingCard = useGameStore(s => s.removeTrainingCard)
@@ -655,10 +656,23 @@ function ClubBoard() {
   const askedToday = posts.some(p =>
     p.mine && p.kind === 'req' && new Date(p.createdAt).toDateString() === new Date().toDateString())
 
+  // カードのお願いだけを抜いたもの（カードタブで使う）
+  const reqPosts = posts.filter(p => p.kind === 'req')
+  const [phraseOpen, setPhraseOpen] = useState(false)
+  const [reactFor, setReactFor] = useState<ClubPost | null>(null)
+
   const refresh = () => {
-    invalidateFriendsCache('clubFeed', 'clubGifts')
-    feed.reload(); gifts.reload()
+    invalidateFriendsCache('clubFeed', 'clubGifts', 'clubReacts')
+    feed.reload(); gifts.reload(); reacts.reload()
     loadClubGifts(true)   // 通知のベルの数字も合わせておく
+  }
+
+  const onReact = async (post: ClubPost, emoji: number) => {
+    setReactFor(null)
+    try {
+      await reactClubPost(post.id, emoji)
+      invalidateFriendsCache('clubReacts'); reacts.reload()
+    } catch (e) { failed(e) }
   }
 
   // 渡せる手持ち。どの枠に入るかは選ぶ画面の側で見るので、ここはレアリティだけ。
@@ -744,111 +758,209 @@ function ClubBoard() {
     } catch (e) { failed(e) } finally { setBusy('') }
   }
 
-  return (
-    <>
-      <div style={{ padding: '0 12px' }}>
-        {(gifts.data ?? 0) > 0 && (
-          <>
-            <SectionLabel>もらったカード</SectionLabel>
-            <button onClick={onClaim} disabled={busy === 'claim'} className="btn-press" style={{
-              ...actionButton(C.gold, busy === 'claim'), width: '100%', padding: '13px 0',
-            }}>{gifts.data}枚 受け取る</button>
-          </>
-        )}
-
-        <SectionLabel>カードをお願いする（1日1回）</SectionLabel>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {REQ_RARITIES.map(r => (
-            <button key={r} onClick={() => setAsking(r)} disabled={busy === 'req' || askedToday}
-              className="btn-press" style={{
-                ...actionButton(RARITY_COLORS[r], busy === 'req' || askedToday),
-                flex: 1, padding: '9px 0', lineHeight: 1.35,
-              }}>
-              {RARITY_LABELS[r]}を
-              <br />
-              {CLUB_REQ_CAP[r]}枚おねがい
-            </button>
-          ))}
-        </div>
-        {askedToday && (
-          <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5 }}>
-            今日はもうお願いしています。日付が変わるとまた出せます。
-          </div>
-        )}
-
-        {CLUB_CHAT_ENABLED && (
-          <>
-            <SectionLabel>ひとこと書く</SectionLabel>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
-              {CLUB_PHRASES.map((p, i) => (
-                <button key={p} onClick={() => onPhrase(i)} disabled={busy === 'msg'} className="btn-press" style={{
-                  padding: '9px 2px', borderRadius: 9, cursor: 'pointer', fontSize: 11, fontWeight: 700,
-                  border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), color: C.textSub,
-                }}>{p}</button>
-              ))}
+  // 投稿1件の見た目。掲示板とカードタブの両方で使うので関数にしておく
+  const renderPost = (p: ClubPost) => {
+    const done = p.kind === 'req' && p.filled >= p.cap
+    // 1人1枚の縛りは外したので、渡したあとでも空きがあればまた渡せる
+    const canGive = p.kind === 'req' && !p.mine && !done
+    const col = p.kind === 'req' && p.rarity ? RARITY_COLORS[p.rarity] : C.border2
+    const rc = reacts.data?.[p.id]
+    const counts = Object.entries(rc?.counts ?? {}) as [string, number][]
+    return (
+      <div key={p.id} style={{
+        padding: '9px 12px', borderRadius: 12, background: C.surface2,
+        border: `1px solid ${p.kind === 'req' ? alpha(col, 0.45) : C.border2}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <TeamLogoSVG primary={p.primary} secondary={p.secondary} shortName={p.shortName} logoId={p.logoId} size={34} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, color: C.textGhost, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.teamName}<span style={{ marginLeft: 5 }}>GM {p.gmName}</span> ・ {ago(p.createdAt)}
             </div>
-          </>
-        )}
+            {p.kind === 'msg' ? (
+              <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
+                {CLUB_PHRASES[p.phrase] ?? ''}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
+                <span style={{ color: col, fontWeight: 900 }}>{RARITY_LABELS[p.rarity || 'normal']}</span>
+                カードください
+                <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, marginLeft: 6 }}>
+                  {p.filled}/{p.cap}
+                </span>
+                {p.openStats.length > 0 && (
+                  <div style={{ fontSize: 10, color: C.textGhost, marginTop: 1 }}>
+                    のこり {wantText(p.openStats)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {p.kind === 'req' && (
+            done ? <Pill color={C.green}>集まりました</Pill> :
+            p.mine ? <Pill color={C.textDim}>お願い中</Pill> :
+            canGive ? (
+              <button onClick={() => setPicking(p)} disabled={busy === p.id} className="btn-press"
+                style={actionButton(C.green, busy === p.id)}>わたす</button>
+            ) : null
+          )}
+          {!p.mine && (
+            <button onClick={() => setMenuPost(p)} className="btn-press" aria-label="メニュー"
+              style={{ ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px' }}>···</button>
+          )}
+        </div>
 
-        <SectionLabel>{CLUB_CHAT_ENABLED ? '掲示板' : 'みんなのお願い'}</SectionLabel>
+        {/* 反応。押されているものだけ並べ、右端の＋から付ける */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
+          {counts.map(([e, n]) => {
+            const idx = Number(e)
+            const isMine = rc?.mine === idx
+            return (
+              <button key={e} onClick={() => { void onReact(p, idx) }} className="btn-press" style={{
+                padding: '2px 8px', borderRadius: 11, cursor: 'pointer', fontSize: 12,
+                border: `1px solid ${isMine ? C.gold : C.border3}`,
+                background: isMine ? alpha(C.gold, 0.14) : alpha('#000', 0.25),
+                color: C.textSub, fontFamily: 'inherit',
+              }}>
+                {CLUB_REACTIONS[idx] ?? '?'}
+                <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, marginLeft: 4, color: isMine ? C.gold : C.textDim }}>{n}</span>
+              </button>
+            )
+          })}
+          <button onClick={() => setReactFor(p)} className="btn-press" aria-label="反応する" style={{
+            padding: '2px 9px', borderRadius: 11, cursor: 'pointer', fontSize: 12,
+            border: `1px dashed ${C.border3}`, background: 'transparent', color: C.textGhost, fontFamily: 'inherit',
+          }}>＋</button>
+        </div>
+      </div>
+    )
+  }
+
+  // 掲示板（チャット）とカードのやりとりを1つの画面に積んでいたので、
+  // ひとこと書くまでに「もらったカード」「カードをお願いする」を通り過ぎる必要があった。
+  // タブで分け、掲示板は投稿だけ・入力は下に固定、という普通のチャットの形にする。
+  const board = (
+    <>
+      <div style={{ padding: '0 12px 8px' }}>
         {feed.loading ? <LoadingBox /> :
          feed.error ? <ErrorBox onRetry={feed.reload} /> :
-         posts.length === 0 ? <EmptyBox label={CLUB_CHAT_ENABLED ? 'まだ何も書かれていません' : 'いまお願いは出ていません'} /> : (
+         posts.length === 0 ? <EmptyBox label="まだ何も書かれていません" /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {posts.map(p => {
-              const done = p.kind === 'req' && p.filled >= p.cap
-              // 1人1枚の縛りは外したので、渡したあとでも空きがあればまた渡せる
-              const canGive = p.kind === 'req' && !p.mine && !done
-              const col = p.kind === 'req' && p.rarity ? RARITY_COLORS[p.rarity] : C.border2
-              return (
-                <div key={p.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12,
-                  background: C.surface2,
-                  border: `1px solid ${p.kind === 'req' ? alpha(col, 0.45) : C.border2}`,
-                }}>
-                  <TeamLogoSVG primary={p.primary} secondary={p.secondary} shortName={p.shortName} logoId={p.logoId} size={34} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, color: C.textGhost, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.teamName} ・ {ago(p.createdAt)}
-                    </div>
-                    {p.kind === 'msg' ? (
-                      <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
-                        {CLUB_PHRASES[p.phrase] ?? ''}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
-                        <span style={{ color: col, fontWeight: 900 }}>{RARITY_LABELS[p.rarity || 'normal']}</span>
-                        カードください
-                        <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, marginLeft: 6 }}>
-                          {p.filled}/{p.cap}
-                        </span>
-                        {p.openStats.length > 0 && (
-                          <div style={{ fontSize: 10, color: C.textGhost, marginTop: 1 }}>
-                            のこり {wantText(p.openStats)}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {p.kind === 'req' && (
-                    done ? <Pill color={C.green}>集まりました</Pill> :
-                    p.mine ? <Pill color={C.textDim}>お願い中</Pill> :
-                    canGive ? (
-                      <button onClick={() => setPicking(p)} disabled={busy === p.id} className="btn-press"
-                        style={actionButton(C.green, busy === p.id)}>わたす</button>
-                    ) : null
-                  )}
-                  {!p.mine && (
-                    <button onClick={() => setMenuPost(p)} className="btn-press" aria-label="メニュー"
-                      style={{ ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px' }}>···</button>
-                  )}
-                </div>
-              )
-            })}
+            {[...posts].reverse().map(p => renderPost(p))}
           </div>
          )}
-
       </div>
+
+      {/* 入力は下に固定。定型文はシートで開く（12個を常時出すと画面の半分が埋まるため） */}
+      {CLUB_CHAT_ENABLED && (
+        <div style={{
+          position: 'sticky', bottom: 0, padding: '8px 12px 10px',
+          background: `linear-gradient(to top, ${C.bg} 70%, ${alpha(C.bg, 0)})`,
+        }}>
+          <button onClick={() => setPhraseOpen(true)} disabled={busy === 'msg'} className="btn-press" style={{
+            width: '100%', padding: '12px 14px', borderRadius: 22, cursor: 'pointer',
+            border: `1px solid ${C.border3}`, background: C.surface2,
+            display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit',
+          }}>
+            <span style={{ flex: 1, textAlign: 'left', fontSize: 13, color: C.textGhost }}>ひとこと書く…</span>
+            <span style={{
+              fontSize: 12, fontWeight: 900, color: C.bg, background: C.gold,
+              borderRadius: 14, padding: '4px 12px',
+            }}>送る</span>
+          </button>
+        </div>
+      )}
+    </>
+  )
+
+  const cardTab = (
+    <div style={{ padding: '0 12px' }}>
+      <SectionLabel>もらったカード</SectionLabel>
+      {(gifts.data ?? 0) > 0 ? (
+        <button onClick={onClaim} disabled={busy === 'claim'} className="btn-press" style={{
+          ...actionButton(C.gold, busy === 'claim'), width: '100%', padding: '13px 0',
+        }}>{gifts.data}枚 受け取る</button>
+      ) : (
+        <EmptyBox label="いま届いているカードはありません" />
+      )}
+
+      <SectionLabel>カードをお願いする（1日1回）</SectionLabel>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {REQ_RARITIES.map(r => (
+          <button key={r} onClick={() => setAsking(r)} disabled={busy === 'req' || askedToday}
+            className="btn-press" style={{
+              ...actionButton(RARITY_COLORS[r], busy === 'req' || askedToday),
+              flex: 1, padding: '9px 0', lineHeight: 1.35,
+            }}>
+            {RARITY_LABELS[r]}を
+            <br />
+            {CLUB_REQ_CAP[r]}枚おねがい
+          </button>
+        ))}
+      </div>
+      {askedToday && (
+        <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5 }}>
+          今日はもうお願いしています。日付が変わるとまた出せます。
+        </div>
+      )}
+
+      <SectionLabel>みんなのお願い</SectionLabel>
+      {reqPosts.length === 0
+        ? <EmptyBox label="いまお願いは出ていません" />
+        : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{reqPosts.map(p => renderPost(p))}</div>}
+    </div>
+  )
+
+  return (
+    <>
+      {tab === 'board' ? board : cardTab}
+
+      {/* 反応を選ぶシート */}
+      {reactFor && (
+        <div onClick={() => setReactFor(null)} style={{
+          position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'flex-end',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: '100%', maxWidth: 480, margin: '0 auto', padding: '14px 12px 22px',
+            borderRadius: '18px 18px 0 0', background: C.surface2, border: `1px solid ${C.border2}`,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>反応する</div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+              {CLUB_REACTIONS.map((e, i) => (
+                <button key={e} onClick={() => { void onReact(reactFor, i) }} className="btn-press" style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12, cursor: 'pointer', fontSize: 22,
+                  border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), fontFamily: 'inherit',
+                }}>{e}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 定型文を選ぶシート */}
+      {phraseOpen && (
+        <div onClick={() => setPhraseOpen(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'flex-end',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: '100%', maxWidth: 480, margin: '0 auto', padding: '14px 12px 20px',
+            borderRadius: '18px 18px 0 0', background: C.surface2, border: `1px solid ${C.border2}`,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>ひとこと書く</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {CLUB_PHRASES.map((ph, i) => (
+                <button key={ph} onClick={() => { setPhraseOpen(false); void onPhrase(i) }}
+                  disabled={busy === 'msg'} className="btn-press" style={{
+                    padding: '11px 2px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                    border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), color: C.textSub,
+                  }}>{ph}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {picking && picking.rarity && (
         <DonatePicker
@@ -916,7 +1028,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmKick, setConfirmKick] = useState<ClubMember | null>(null)
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
-  const [tab, setTab] = useState<'members' | 'board'>('members')
+  const [tab, setTab] = useState<'members' | 'board' | 'cards'>(CLUB_CHAT_ENABLED ? 'board' : 'cards')
   const [menuMember, setMenuMember] = useState<ClubMember | null>(null)
   const [menuClub, setMenuClub] = useState(false)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
@@ -1035,7 +1147,29 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   return (
     <>
       <div style={{ padding: '0 12px' }}>
-        {/* 走友会カード */}
+        {/* 走友会カード。掲示板とカードのタブでは1行に畳む。
+            以前はどのタブでも大きいカードが画面の1/3を占めていて、
+            チャットに着くまでにスクロールが要る状態だった。中身はメンバータブで見る */}
+        {tab !== 'members' ? (
+          <div
+            role="button" tabIndex={0} className="pressable"
+            onClick={() => setTab('members')}
+            onKeyDown={e => e.key === 'Enter' && setTab('members')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px', borderRadius: 12,
+              cursor: 'pointer', background: C.surface2, border: `1px solid ${C.border2}`,
+            }}
+          >
+            <ClubLogo logoId={club.logoId} size={26} />
+            <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {club.name}
+            </span>
+            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, flexShrink: 0 }}>{club.members}/{CLUB_MAX}人</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.textDim }}>
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+        ) : (
         <div style={{
           padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           border: `2px solid ${C.goldDark}`,
@@ -1079,10 +1213,15 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             }}>···</button>
           </div>
         </div>
+        )}
 
         {/* 横タブ */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          {([['members', 'メンバー'], ['board', CLUB_CHAT_ENABLED ? '掲示板' : 'カード']] as const).map(([k, label]) => (
+          {/* 掲示板を止めているあいだはカードだけ出す（空のタブを見せない） */}
+          {(CLUB_CHAT_ENABLED
+            ? [['board', '掲示板'], ['cards', 'カード'], ['members', 'メンバー']] as const
+            : [['cards', 'カード'], ['members', 'メンバー']] as const
+          ).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className="btn-press" style={{
               flex: 1, padding: '9px 0', borderRadius: 10, fontFamily: SAIRA, fontSize: 12, cursor: 'pointer',
               background: tab === k ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
@@ -1093,7 +1232,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
           ))}
         </div>
 
-        {tab === 'board' && <ClubBoard />}
+        {(tab === 'board' || tab === 'cards') && <ClubBoard tab={tab} />}
 
         {/* 加入申請（会長と副会長） */}
         {tab === 'members' && canEdit && (reqs.data ?? []).length > 0 && (
@@ -1248,11 +1387,15 @@ export default function FriendClubPage() {
         <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>走友会</div>
       </div>
 
-      <div style={{ padding: '2px 16px 10px' }}>
-        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
-          同じ走友会に入ると、仲間のチームが同じ名簿に並びます。1人1つまで。
+      {/* 走友会の説明は、まだ入っていない人にだけ出す。
+          入ったあとも出し続けると、掲示板に着くまでの行数が増えるだけになる */}
+      {!mine.data && (
+        <div style={{ padding: '2px 16px 10px' }}>
+          <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+            同じ走友会に入ると、仲間のチームが同じ名簿に並びます。1人1つまで。
+          </div>
         </div>
-      </div>
+      )}
 
       {mine.loading ? <div style={{ padding: '0 12px' }}><LoadingBox /></div> :
        mine.error ? <div style={{ padding: '0 12px' }}><ErrorBox onRetry={mine.reload} /></div> :

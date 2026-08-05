@@ -299,6 +299,39 @@ export const CLUB_PHRASES = [
   'また明日',
 ] as const
 
+// ── 掲示板の反応 ──────────────────────────────────────
+/** 押せる反応。番号（配列の位置）がそのままサーバーに入るので、順番は変えないこと */
+export const CLUB_REACTIONS = ['👏', '🔥', '💪', '😂', '😭', '🙏'] as const
+
+/** 投稿1件ぶんの反応のまとめ。番号 → 人数 と、自分が押した番号 */
+export type PostReactions = { counts: Record<number, number>; mine: number | null }
+
+/** 掲示板ぜんぶの反応。投稿IDで引く */
+export async function clubReactions(): Promise<Record<string, PostReactions>> {
+  await uid()
+  const { data, error } = await supabase.rpc('list_club_reactions')
+  if (error) throw new FriendsOffline(error.message)
+  const rows = (data ?? []) as { post_id: string; emoji: number; count: number; mine: boolean }[]
+  const out: Record<string, PostReactions> = {}
+  for (const r of rows) {
+    const e = (out[r.post_id] ??= { counts: {}, mine: null })
+    e.counts[r.emoji] = r.count
+    if (r.mine) e.mine = r.emoji
+  }
+  return out
+}
+
+/**
+ * 反応を付ける・付け替える・取り消す。
+ * 同じものをもう一度押すと取り消し（戻り値 null）、違うものなら付け替え。
+ */
+export async function reactClubPost(postId: string, emoji: number): Promise<number | null> {
+  await uid()
+  const { data, error } = await supabase.rpc('react_club_post', { p_post: postId, p_emoji: emoji })
+  if (error) throw new FriendsOffline(error.message)
+  return (data as number | null) ?? null
+}
+
 /** 寄付でやりとりできるレアリティ。レジェンドは対象外 */
 export type ClubReqRarity = 'normal' | 'rare' | 'epic'
 
