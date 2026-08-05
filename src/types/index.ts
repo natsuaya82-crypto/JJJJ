@@ -621,8 +621,13 @@ export type Season = {
   pendingTradeOffers?: AITradeOffer[]
   scoutedOpponents?: { playerId: string; reqAt: number; year: number }[]
   trainingPlan?: string | null
+  // ── 旧リザーブ駅伝（build 88 まで）─────────────────────────
+  // リザーブ（2軍リーグ）は廃止した。新しく書き込むことはない。
+  // 記録室・在籍履歴・区間記録が「過去に走った分」を読むためだけに型を残している。
+  // 古いセーブを開いたときにその年の記録が消えて見えるのを避けるため。
+  // 新しい下部リーグ（2部・3部）は Season.standings と races の中に部として入るので、
+  // ここを再利用しないこと。
   secondTeamRaces?: Race[]
-  secondTeamRaceIndex?: number
   secondTeamStandings?: { teamId: string; totalPoints: number; raceResults: { raceId: string; rank: number; points: number }[] }[]
   transferListings?: TransferListing[]
   incomingOffers?: IncomingOffer[]
@@ -631,7 +636,6 @@ export type Season = {
   loanResponses?: LoanResponse[]
   tradeNegotiations?: TradeNegotiation[]
   transferBids?: TransferBid[]
-  reserveLeagueJoined?: boolean
   contractRequests?: ContractRequest[]
   acquisitionOffers?: AcquisitionOffer[]
   retirementRequests?: { playerId: string; age: number }[]
@@ -704,8 +708,8 @@ export type ArchivedSeason = Pick<Season,
   | 'races'                 // 1軍の駅伝結果。記録室・在籍履歴・区間記録の元データ
   | 'collegeRaces'          // 大学駅伝の結果
   | 'standings'             // 年間順位表。歴代優勝・チーム成績・翌季グラントの元
-  | 'secondTeamRaces'       // リザーブ駅伝の結果
-  | 'secondTeamStandings'   // リザーブの年間順位表
+  | 'secondTeamRaces'       // 旧リザーブ駅伝の結果（build 88 まで。読むだけ）
+  | 'secondTeamStandings'   // 旧リザーブの年間順位表（build 88 まで。読むだけ）
   | 'foreignStandings'      // 海外リーグの年間順位表
   | 'foreignRaceIndex'      // その年の海外マッチデー数（出場率の分母）
   | 'foreignAppearances'    // 旧セーブ用。新しく書くのは foreignAppsC のみ（読む側は foreignAppsOf() 経由）

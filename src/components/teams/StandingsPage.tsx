@@ -17,11 +17,10 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // ほぼ同じ中身で2本あり、リザーブの年間順位はどこからも見られなかった。
 // 表そのものは StandingsTable の1本なので、リーグごとに違うのは「行の作り方」だけ。
 // ここで行の作り方だけを出し分けて、見た目と枠組みは1本にする。
-export type StandingsLeague = 'jpel' | 'reserve' | 'ecl'
+export type StandingsLeague = 'jpel' | 'ecl'
 
 const TABS: { key: StandingsLeague; label: string }[] = [
   { key: 'jpel', label: 'JPEL' },
-  { key: 'reserve', label: 'リザーブ' },
   { key: 'ecl', label: 'ECL' },
 ]
 
@@ -30,7 +29,7 @@ export default function StandingsPage() {
   const { league } = useParams<{ league: string }>()
   // URLはどのリーグから入ったかだけ。タブの切り替えはこの中で持つ
   // （URLを書き換えるとページごと切り替わる扱いになり、毎回ページの出現アニメが走る）
-  const [tab, setTab] = useState<StandingsLeague>(league === 'reserve' || league === 'ecl' ? league : 'jpel')
+  const [tab, setTab] = useState<StandingsLeague>(league === 'ecl' ? league : 'jpel')
   const { teams, currentSeason, playerTeamId } = useGameStore()
   const clubIndex = useClubIndex()
 
@@ -56,21 +55,6 @@ export default function StandingsPage() {
 
   // タブごとに違うのは「行・消化数・空のときの文言」だけ
   const view: { eyebrow: string; title: string; logoId: string; rows: StandRow[]; progress: string; onRowClick: (id: string) => void; empty?: string } = (() => {
-    if (tab === 'reserve') {
-      const races = currentSeason.secondTeamRaces ?? []
-      const done = currentSeason.secondTeamRaceIndex ?? 0
-      return {
-        eyebrow: `${currentSeason.year} RESERVE`, title: 'リザーブ 順位表', logoId: 'jpel',
-        rows: domesticRows(currentSeason.secondTeamStandings ?? []),
-        progress: `${done}/${races.length}戦`,
-        onRowClick: goDomestic,
-        // 不参加のシーズンはCPU同士も走らないので、全チーム0点の表が出てしまう。
-        // 1戦も終わっていないときも順位に意味が無いので、表ではなく理由を出す
-        empty: currentSeason.reserveLeagueJoined === false
-          ? '今シーズンはリザーブリーグに参加していません。順位表はシーズン開始時の選択で参加したときだけ記録されます。'
-          : done === 0 ? '今シーズンのリザーブリーグはまだ1戦も行われていません。' : undefined,
-      }
-    }
     if (tab === 'ecl') {
       const series = currentSeason.eclSeries
       if (!series) return {

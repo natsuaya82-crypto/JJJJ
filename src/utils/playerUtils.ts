@@ -499,15 +499,14 @@ export const CAREER_STAGE_COLOR: Record<CareerStage, string> = {
 // currentSeason 全体の循環参照を避けるため必要フィールドだけを受ける。
 type ScoutSeasonLike = {
   currentRaceIndex?: number
-  secondTeamRaceIndex?: number
   individualEvents?: { results?: unknown }[]
   scoutedOpponents?: { playerId: string; reqAt?: number; year: number }[]
 }
 
-// そのシーズンに消化したレース総数（リーグ戦＋リザーブ戦＋記録会）。
+// そのシーズンに消化したレース総数（リーグ戦＋記録会）。
+// リザーブ（2軍リーグ）を廃止したので、その分は数えない。
 export function racesConsumed(season: ScoutSeasonLike): number {
   return (season.currentRaceIndex ?? 0)
-    + (season.secondTeamRaceIndex ?? 0)
     + ((season.individualEvents ?? []).filter(e => e.results).length)
 }
 

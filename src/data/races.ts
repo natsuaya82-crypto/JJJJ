@@ -499,57 +499,10 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
   },
 ]
 
-const RACE_DATES_BY_SLOT = [
-  '-03-22', '-04-19', '-05-17', '-06-14', '-09-27', '-10-25', '-11-22',
-]
-
-function seededIdx(year: number, slot: number, range: number): number {
-  const x = Math.sin(year * 9301 + slot * 1231 + 797) * 43758.5453
-  return Math.abs(Math.floor((x - Math.floor(x)) * range)) % range
-}
-
-export const SECOND_TEAM_RACES_INITIAL: Race[] = RESERVE_RACE_POOL.slice(0, 7).map(({ months: _months, ...tmpl }, i) => ({
-  ...tmpl,
-  id: `r2-2027-${String(i + 1).padStart(2, '0')}`,
-  date: `2027${RACE_DATES_BY_SLOT[i] ?? '-10-01'}`,
-  results: undefined,
-}))
-
-// 各スロットの開催月（RACE_DATES_BY_SLOT と対応）
-const SLOT_MONTHS = [3, 4, 5, 6, 9, 10, 11]
-
-export function generateSecondTeamRaces(year: number): Race[] {
-  const used = new Set<number>()
-  const picked: Race[] = []
-  // リザーブファイナルは毎年必ず最終戦（第7戦）に固定。他スロットの抽選からは除外する
-  const finalIdx = RESERVE_RACE_POOL.findIndex(t => t.name === 'リザーブファイナル')
-  if (finalIdx >= 0) used.add(finalIdx)
-  for (let slot = 0; slot < 7; slot++) {
-    const month = SLOT_MONTHS[slot] ?? 10
-    const isLastSlot = slot === 6
-    let pickIdx: number
-    if (isLastSlot && finalIdx >= 0) {
-      pickIdx = finalIdx
-    } else {
-      // 開催時期の合うレースだけから抽選（名前の季節と実開催月がズレないように）。足りなければ全体から
-      const indexed = RESERVE_RACE_POOL.map((t, i) => ({ t, i })).filter(x => !used.has(x.i))
-      const fits = indexed.filter(x => x.t.months == null || x.t.months.includes(month))
-      const pool = fits.length > 0 ? fits : indexed
-      const pick = pool[seededIdx(year, slot, pool.length)]
-      pickIdx = pick.i
-      used.add(pick.i)
-    }
-    const { months: _months, ...tmpl } = RESERVE_RACE_POOL[pickIdx]
-    picked.push({
-      ...tmpl,
-      id: `r2-${year}-${String(slot + 1).padStart(2, '0')}`,
-      date: `${year}${RACE_DATES_BY_SLOT[slot] ?? '-10-01'}`,
-      segments: tmpl.segments.map((s, si) => ({ ...s, index: si + 1 })),
-      results: undefined,
-    })
-  }
-  return picked
-}
+// ※ 上の RESERVE_RACE_POOL（14本）は、下部リーグ（2部・3部）の日程に転用する予定なので残している。
+//   リザーブ（2軍リーグ）そのものは廃止したので、リザーブ用の日程生成
+//   （RACE_DATES_BY_SLOT / seededIdx / SECOND_TEAM_RACES_INITIAL / generateSecondTeamRaces）は消した。
+//   部ごとの日程の組み方が決まったら、このプールから配る形にする。
 
 export function generateSeasonRaces(year: number): Race[] {
   return SEASON_2027_RACES.map(r => ({

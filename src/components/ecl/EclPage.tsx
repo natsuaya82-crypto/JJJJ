@@ -8,7 +8,7 @@ import { playerLabel } from '../../utils/playerUtils'
 import type { Race, RaceResults, Team } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
-import { ReserveSimPhase } from '../reserve/ReserveLeaguePage'
+import { RaceSimPanel } from '../shared/RaceSimPanel'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import PlayerFace from '../player/PlayerFace'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
@@ -194,7 +194,7 @@ export default function EclPage() {
   // ── レース再生（リザーブと同じ：SimPhase構成・選択肢なし）──
   if (phase === 'simulating' && results && lockedRace) {
     return (
-      <ReserveSimPhase
+      <RaceSimPanel
         race={lockedRace}
         results={results}
         teams={pseudoTeams}

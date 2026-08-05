@@ -5,7 +5,7 @@ import { useTeamHistory } from '../../lib/useTeamHistory'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT, DUTY_RESERVE_GRANT_CUT } from '../../data/economy'
+import { rankBudgetGrant, FACILITY_UPKEEP_PER_LEVEL, operatingCost, leagueDutyGrantCut, DUTY_ROSTER_THRESHOLD, DUTY_ROSTER_GRANT_CUT } from '../../data/economy'
 import { rankedStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -85,8 +85,7 @@ export default function BudgetPage() {
   // 補強禁止中は免除される（選手を売るしか脱出手段が無いのに人数減で更に減額される罠を防ぐ）
   const banned = reinforcementBanned(myTeam)
   const deficitStreak = myTeam?.finance.deficitStreak ?? 0
-  const reserveJoined = (currentSeason.secondTeamRaces ?? []).length === 0 || currentSeason.reserveLeagueJoined === true
-  const dutyCut = leagueDutyGrantCut(rosterPlayers.length, reserveJoined, banned)
+  const dutyCut = leagueDutyGrantCut(rosterPlayers.length, banned)
 
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 
@@ -225,11 +224,10 @@ export default function BudgetPage() {
                 </div>
                 <div style={{ fontSize: 10, color: C.textDim, lineHeight: 1.6 }}>
                   {rosterPlayers.length <= DUTY_ROSTER_THRESHOLD && <div>在籍{rosterPlayers.length}名（{DUTY_ROSTER_THRESHOLD}名以下）: -{Math.round(DUTY_ROSTER_GRANT_CUT * 100)}%</div>}
-                  {!reserveJoined && <div>リザーブリーグ不参加: -{Math.round(DUTY_RESERVE_GRANT_CUT * 100)}%</div>}
                 </div>
               </div>
             )}
-            {dutyCut === 0 && banned && (rosterPlayers.length <= DUTY_ROSTER_THRESHOLD || !reserveJoined) && (
+            {dutyCut === 0 && banned && rosterPlayers.length <= DUTY_ROSTER_THRESHOLD && (
               <div style={{
                 margin: '0 0 10px', padding: '8px 10px', borderRadius: 8,
                 background: alpha(C.green, 0.08), border: `1px solid ${alpha(C.green, 0.3)}`,

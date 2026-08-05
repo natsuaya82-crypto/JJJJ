@@ -71,30 +71,27 @@ function preseasonCardDist(rank: number) {
 }
 
 function PreseasonHub({
-  year, isFirstSeason, campBonus, reserveLeagueJoined, draftState,
+  year, isFirstSeason, campBonus, draftState,
   lastRank, objectivesCount, rosterCount,
-  onClaimCards, onReserve, onDraft, onStart, navigate,
+  onClaimCards, onDraft, onStart, navigate,
 }: {
   year: number
   isFirstSeason: boolean
   campBonus?: { type: string; applied: boolean }
-  reserveLeagueJoined?: boolean
   draftState: DraftState
   lastRank: number
   objectivesCount: number
   rosterCount: number
   onClaimCards: () => void
-  onReserve: (v: boolean) => void
   onDraft: () => void
   onStart: () => void
   navigate: (path: string) => void
 }) {
   const campDone    = !!campBonus?.applied
-  const reserveDone = reserveLeagueJoined !== undefined
   const draftDone   = isFirstSeason || (!!draftState && draftState.isComplete)
   // ロスターが下限(15人)未満だと開幕できない（契約切れ等で割った場合はドラフト・移籍で補強してから）
   const rosterShort = rosterCount < ROSTER_MIN
-  const allReady    = campDone && (isFirstSeason || reserveDone) && draftDone && !rosterShort
+  const allReady    = campDone && draftDone && !rosterShort
 
   return (
     <div style={{ padding: '14px 12px 0' }}>
@@ -145,38 +142,6 @@ function PreseasonHub({
                 border: `2px solid #8b6914`, color: C.bg,
                 boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.4)`,
               }}>開催 →</button>
-            )}
-          </div>
-        )}
-
-        {/* ② リザーブリーグ — 2年目以降のみ */}
-        {!isFirstSeason && (
-          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: reserveDone ? 0 : 10 }}>
-              <StepBadge n={2} done={reserveDone} color={reserveDone ? C.green : C.cyan}/>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: reserveDone ? C.textDim : C.text }}>
-                  {reserveDone ? `リザーブリーグ — ${reserveLeagueJoined ? '参加' : '不参加'}` : 'リザーブリーグ参加'}
-                </div>
-                {!reserveDone && <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>若手の実戦経験（疲労増加あり）</div>}
-              </div>
-            </div>
-            {!reserveDone && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => onReserve(true)} className="btn-press" style={{
-                  flex: 1, padding: '11px 4px', borderRadius: 11, cursor: 'pointer',
-                  fontFamily: SAIRA, fontSize: 12, fontWeight: 900,
-                  background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                  border: `2px solid ${C.cyan}`, color: C.cyan,
-                  boxShadow: `0 4px 0 #0e3f5a, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)`,
-                }}>参加する</button>
-                <button onClick={() => onReserve(false)} className="btn-press" style={{
-                  flex: 1, padding: '11px 4px', borderRadius: 11, cursor: 'pointer',
-                  fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
-                  background: C.surface, border: `1px solid ${C.border2}`, color: C.textDim,
-                  boxShadow: `0 2px 0 rgba(0,0,0,0.4)`,
-                }}>見送る</button>
-              </div>
             )}
           </div>
         )}
@@ -293,7 +258,7 @@ export default function Dashboard() {
     teams, playerTeamId, players, currentSeason, pastSeasons,
     gmRep,
     endSeason, growthReport, beginSeasonDraft, draftState,
-    claimPreseasonCards, setReserveLeagueJoined,
+    claimPreseasonCards,
     startRegularSeason, initObjectivesIfEmpty, getTeamPlayers,
   } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
@@ -336,19 +301,14 @@ export default function Dashboard() {
   const avgMorale = mainPlayers.length > 0
     ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? 70), 0) / mainPlayers.length) : 70
 
-  const hasReserve = currentSeason.reserveLeagueJoined === true
-  const stIdx = currentSeason.secondTeamRaceIndex ?? 0
   const nextMainRace = currentSeason.races[currentSeason.currentRaceIndex] ?? null
-  const nextReserveRace = hasReserve ? (currentSeason.secondTeamRaces ?? [])[stIdx] ?? null : null
-  type NextRaceData = { race: Race; kind: 'main' | 'reserve'; number: number; total: number }
-  const nextRaceCandidates: NextRaceData[] = [
-    ...(nextMainRace ? [{ race: nextMainRace, kind: 'main' as const, number: currentSeason.currentRaceIndex + 1, total: currentSeason.races.length }] : []),
-    ...(nextReserveRace ? [{ race: nextReserveRace, kind: 'reserve' as const, number: stIdx + 1, total: (currentSeason.secondTeamRaces ?? []).length }] : []),
-  ]
-  const nextRaceData = nextRaceCandidates.sort((a, b) => a.race.date.localeCompare(b.race.date))[0] ?? null
+  type NextRaceData = { race: Race; kind: 'main'; number: number; total: number }
+  const nextRaceData: NextRaceData | null = nextMainRace
+    ? { race: nextMainRace, kind: 'main', number: currentSeason.currentRaceIndex + 1, total: currentSeason.races.length }
+    : null
   // カレンダー進行: 次のリーグ戦より前に未実施の記録会があればNEXTはそちら
   const dueTT = getDueIndividualEvent(currentSeason)
-  const showTTNext = !!dueTT && (!nextRaceData || nextRaceData.kind !== 'reserve' || dueTT.date <= nextRaceData.race.date)
+  const showTTNext = !!dueTT && (!nextRaceData || dueTT.date <= nextRaceData.race.date)
   const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
   const sorted = rankedStandings(currentSeason.standings)
   const myRank = sorted.findIndex(s => s.teamId === playerTeamId) + 1
@@ -473,13 +433,11 @@ export default function Dashboard() {
           year={currentSeason.year}
           isFirstSeason={pastSeasons.length === 0}
           campBonus={currentSeason.campBonus}
-          reserveLeagueJoined={currentSeason.reserveLeagueJoined}
           draftState={draftState}
           lastRank={lastRank}
           objectivesCount={currentSeason.objectives.length}
           rosterCount={players.filter(p => p.teamId === playerTeamId && p.status !== 'retired').length}
           onClaimCards={claimPreseasonCards}
-          onReserve={setReserveLeagueJoined}
           onDraft={beginSeasonDraft}
           onStart={startRegularSeason}
           navigate={navigate}
@@ -693,7 +651,7 @@ export default function Dashboard() {
               raceNumber={nextRaceData.number}
               totalRaces={nextRaceData.total}
               variant={nextRaceData.kind}
-              onClick={() => navigate(nextRaceData.kind === 'reserve' ? '/reserve' : '/race')}
+              onClick={() => navigate('/race')}
             />
           ) : (
             <div style={{ padding: 16, textAlign: 'center', color: C.border3, fontSize: 13, background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 14 }}>

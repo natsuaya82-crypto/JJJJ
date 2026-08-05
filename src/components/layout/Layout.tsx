@@ -124,7 +124,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // レース準備(lineup)〜進行(simulating)〜結果発表(results)中は下ナビを隠して集中させる（勝手にホーム等へ抜けさせない）
   // 世界選手権(/national/tournament)もECL等と同じくレース進行中はタブバーを隠す。
   // ここに入れ忘れるとLineupPhase等の下部バー(広告の上に固定)がタブバーの裏に隠れて進行不能になる
-  const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup' || activeRacePhase === 'results') && (location.pathname === '/race' || location.pathname === '/reserve' || location.pathname === '/ecl' || location.pathname === '/national/tournament')
+  const raceInProgress = (activeRacePhase === 'simulating' || activeRacePhase === 'lineup' || activeRacePhase === 'results') && (location.pathname === '/race' || location.pathname === '/ecl' || location.pathname === '/national/tournament')
 
   // 対戦の部屋にいる間は、下タブの誤タップでそのまま抜けてしまわないように確認をはさむ。
   const roomId = location.pathname.startsWith('/online/room/') ? location.pathname.split('/online/room/')[1] : ''

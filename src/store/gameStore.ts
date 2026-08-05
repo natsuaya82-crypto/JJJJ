@@ -8,7 +8,7 @@ import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
 import { BASE_PLAYERS } from '../data/players'
-import { SEASON_2027_RACES, generateSeasonRaces, SECOND_TEAM_RACES_INITIAL, generateSecondTeamRaces, generateIndividualEvents } from '../data/races'
+import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
@@ -22,7 +22,6 @@ import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { segmentType, segTypeExpGain, applyGrowth } from '../engine/growth'
 import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
-import { reserveSquadPool } from '../utils/reserveSquad'
 import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
@@ -408,8 +407,6 @@ export type GameStore = GameState & {
   claimPreseasonCards: () => void
 
   // Second team
-  runSecondTeamRace: (lineup: Record<number, string>, strategy?: 'aggressive' | 'balanced' | 'conservative') => void
-  setReserveLeagueJoined: (joined: boolean) => void
 
   // 海外リーグ：本編レースに同期して裏で1戦進める（プレイヤーは干渉せず結果閲覧のみ）
   advanceForeignLeagues: () => void
@@ -571,9 +568,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
         teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
       })),
       newsFeed: [],
-      secondTeamRaces: [],
-      secondTeamRaceIndex: 0,
-      secondTeamStandings: INITIAL_TEAMS.map(t => ({ teamId: t.id, totalPoints: 0, raceResults: [] })),
     },
     pastSeasons: [],
     growthReport: null,
@@ -1005,9 +999,6 @@ export const useGameStore = create<GameStore>()(
               races: (state.currentSeason.races ?? []).length > 0 ? state.currentSeason.races : SEASON_2027_RACES,
               individualEvents: (state.currentSeason.individualEvents ?? []).length > 0 ? state.currentSeason.individualEvents : generateIndividualEvents(state.currentSeason.year),
               newsFeed: (state.currentSeason.newsFeed ?? []).length > 0 ? state.currentSeason.newsFeed : buildInitialNews(),
-              secondTeamRaces: (state.currentSeason.secondTeamRaces ?? []).length > 0 ? state.currentSeason.secondTeamRaces : SECOND_TEAM_RACES_INITIAL,
-              secondTeamRaceIndex: state.currentSeason.secondTeamRaceIndex ?? 0,
-              secondTeamStandings: state.currentSeason.secondTeamStandings ?? state.teams.map(t => ({ teamId: t.id, totalPoints: 0, raceResults: [] })),
             },
           })
         }
@@ -4070,131 +4061,6 @@ export const useGameStore = create<GameStore>()(
       // 1人ぶんのログは直近60発言まで。放っておくと会話がセーブの中で伸び続ける
       setChatLog: (playerId, messages) => set(s => ({ currentSeason: { ...s.currentSeason, chatLogs: { ...(s.currentSeason.chatLogs ?? {}), [playerId]: messages.slice(-60) } } })),
 
-      runSecondTeamRace: (lineup, strategy = 'balanced') => {
-        const state = get()
-        const { currentSeason, teams, players, playerTeamId } = state
-        if (currentSeason.reserveLeagueJoined === false) return
-        const stRaceIndex = currentSeason.secondTeamRaceIndex ?? 0
-        const stRaces = currentSeason.secondTeamRaces ?? []
-        if (stRaceIndex >= stRaces.length) return
-
-        const race = stRaces[stRaceIndex]
-        const seasonProgress = stRaceIndex / stRaces.length
-        // EXP付与用の合宿ボーナス倍率（1軍レースと同じ）
-        const campLv = teams.find(t => t.id === playerTeamId)?.facilities?.trainingCamp ?? 0
-
-        // リザーブ出場＝「その週の1軍リーグに出ていない選手」。2軍という区分は廃止されたので、
-        // リザーブ戦の直前に行われた1軍リーグ戦（同週）の出場者を除外し、残りロスターの上位から起用する。
-        const lastMainRace = (currentSeason.races ?? [])
-          .filter(r => r.results && r.date <= race.date)
-          .sort((a, b) => b.date.localeCompare(a.date))[0]
-        const mainRunnerIds = new Set<string>()
-        if (lastMainRace?.results) {
-          for (const seg of lastMainRace.results.segmentResults) {
-            for (const rr of seg.runners) mainRunnerIds.add(rr.playerId)
-          }
-        }
-        const lineups: Record<string, Record<number, string>> = { [playerTeamId]: lineup }
-        for (const team of teams) {
-          if (team.id === playerTeamId) continue
-          const roster = squadPlayersOf(players, team.id).filter(p => p.status === 'active')
-          // 出せる選手の決め方は utils/reserveSquad.ts の1本（プレイヤー側の画面と同じもの）
-          const needed = race.segments.length
-          const pool = reserveSquadPool(roster, mainRunnerIds, needed)
-          // OVR順の機械割当ではなく、区間の地形に合った選手を配置（全チーム共通・全区間充填）
-          lineups[team.id] = assignLineupByTerrain(pool, race)
-        }
-
-        const results = simulateRace(race, lineups, teams, players, seasonProgress)
-
-        set(state => {
-          const updatedRaces = (state.currentSeason.secondTeamRaces ?? []).map((r, i) =>
-            i === stRaceIndex ? { ...r, results } : r
-          )
-
-          const stStandings = state.currentSeason.secondTeamStandings ??
-            state.teams.map(t => ({ teamId: t.id, totalPoints: 0, raceResults: [] }))
-          const updatedStStandings = stStandings.map(s => {
-            const tr = results.teamRankings.find(r => r.teamId === s.teamId)
-            if (!tr) return s
-            const earned = tr.positionPoints + tr.segmentPoints
-            return {
-              ...s,
-              totalPoints: s.totalPoints + earned,
-              raceResults: [...s.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
-            }
-          })
-
-          // Fatigue based on strategy + young player development
-          const stratMult = strategy === 'aggressive' ? 1.4 : strategy === 'conservative' ? 0.65 : 1.0
-          const racingIds = new Set(Object.values(lineups[playerTeamId] ?? {}).filter(Boolean) as string[])
-          // 結果画面の経験値タブ用に、獲得EXPを記録する（1軍レースと同じ表示を出す）
-          const stExpGains: Record<string, Partial<Record<CardStatKey, number>>> = {}
-          const updatedPlayers = state.players.map(p => {
-            if (!racingIds.has(p.id)) {
-              // リザーブ戦に出場しない自チーム選手は、その週で疲労が回復する（1軍主力を温存できる）
-              if (p.teamId === playerTeamId) {
-                if (p.status === 'injured') {
-                  const nf = Math.max(0, p.fatigue - 18)
-                  return { ...p, fatigue: nf, status: nf < 40 ? 'active' as const : p.status }
-                }
-                if (p.status === 'active') {
-                  return { ...p, fatigue: Math.max(0, p.fatigue - 5) }
-                }
-              }
-              return p
-            }
-            const baseFatigue = Math.round(4 * stratMult)
-            const newFatigue = Math.min(100, p.fatigue + baseFatigue)
-            // 出場者に走った区間の地形EXPを付与（1軍レースと同じ仕組み。若手の直接+1は廃止しEXPに一本化）
-            if (p.status === 'active') {
-              const playerSeg = results.segmentResults.find(sr => sr.runners.some(r => r.playerId === p.id))
-              const seg = playerSeg ? race.segments.find(s => s.index === playerSeg.segmentIndex) : null
-              if (seg) {
-                const sType = segmentType(seg.uphillPct, seg.downhillPct, seg.distanceKm)
-                const baseGains = segTypeExpGain(sType)
-                const outcome = applyGrowth({ player: p, source: 'race', baseGains, campLv })
-                if (outcome.breakdown.age > 0) {
-                  stExpGains[p.id] = outcome.gained
-                  return { ...p, fatigue: newFatigue, ratings: outcome.ratings, exp: outcome.exp }
-                }
-              }
-            }
-            return { ...p, fatigue: newFatigue }
-          })
-
-          const playerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? 0
-          const winnerTeam = teams.find(t => t.id === results.teamRankings[0]?.teamId)
-
-          // リザーブ戦の区間賞から「1軍に昇格させますか？」を出す通知は廃止。
-          // 1軍/2軍の区分そのものが無くなっており（rosterRules.ts）、昇格という概念が成立しないため。
-          const stNews = [{
-            date: race.date,
-            headline: `【リザーブ】${race.name} 優勝：${winnerTeam?.shortName ?? ''}${playerRank > 0 ? `（自チーム${playerRank}位）` : ''}`,
-            category: 'race' as const,
-            relatedIds: [race.id],
-          }]
-
-          return {
-            players: updatedPlayers,
-            raceExpGains: stExpGains,
-            currentSeason: {
-              ...state.currentSeason,
-              secondTeamRaces: updatedRaces,
-              secondTeamRaceIndex: stRaceIndex + 1,
-              secondTeamStandings: updatedStStandings,
-              newsFeed: [...stNews, ...state.currentSeason.newsFeed].slice(0, 30),
-            },
-          }
-        })
-        // リザーブ戦の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
-        try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
-      },
-
-      setReserveLeagueJoined: (joined: boolean) => set(state => ({
-        currentSeason: { ...state.currentSeason, reserveLeagueJoined: joined }
-      })),
-
       // 海外リーグを1マッチデー進める。本編レースの完走に同期して runRace 末尾から呼ばれる。
       // 本編と同じコース（races[foreignRaceIndex]）を各海外クラブが走り、順位表と選手の記録を積む。
       advanceForeignLeagues: () => set(state => {
@@ -5354,7 +5220,6 @@ export const useGameStore = create<GameStore>()(
           const updatedTeams = state.teams
 
           const newRaces = generateSeasonRaces(newYear)
-          const newSecondTeamRaces = generateSecondTeamRaces(newYear)
           const champion = updatedTeams.find(t => t.id === sortedStandings[0]?.teamId)
           // 翌季のプレシーズンで指名される新人はその年(newYear)に加入するので draftYear=newYear にする。
           // （+1 にすると加入年より1年多い年度で記録され、歴代ドラフトが1年ズレる）
@@ -5525,13 +5390,12 @@ export const useGameStore = create<GameStore>()(
           const prevStreakMe = playerTeamObj?.finance.deficitStreak ?? 0
           // 施設Lv合計→維持費。強い＝施設充実で維持費が高い。
           const facLevelSum = (f?: Record<string, number>) => Object.values(f ?? {}).reduce((s, v) => s + (v ?? 0), 0)
-          // 育成義務ペナルティ：在籍22人以下 or リザーブリーグ不参加でグラント減額（自チームのみ。CPUは常時24人以上＋参加扱い）
+          // 育成義務ペナルティ：在籍22人以下でグラント減額（自チームのみ。CPUは常時24人以上）
           // 補強禁止中は免除（選手を売って年俸を削る＝人数が減る、しか脱出手段が無いのに、
           // 減らすと更にグラントが減って赤字が深まる二重の罠になっていたため）
           const myRosterSize = playersAfterMorale.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
-          const reserveJoinedMe = (state.currentSeason.secondTeamRaces ?? []).length === 0 || state.currentSeason.reserveLeagueJoined === true
           const bannedMe = prevStreakMe >= 3 || playerBudgetAtSeasonEnd < 0
-          const dutyCutMe = leagueDutyGrantCut(myRosterSize, reserveJoinedMe, bannedMe)
+          const dutyCutMe = leagueDutyGrantCut(myRosterSize, bannedMe)
           // 運営費はペナルティ後の「実際に受け取るグラント」基準。満額基準のままだと収入だけ減って抜け出せない
           const runningCostVal = runningCost(facLevelSum(playerTeamObj?.facilities as Record<string, number> | undefined), effectiveGrant(finalRank, prevStreakMe, dutyCutMe))
           const playerBudgetArgs = {
@@ -6026,9 +5890,6 @@ export const useGameStore = create<GameStore>()(
               departureNotices,
               sponsorOffers: newSponsorOffers,
               seasonRaceIncome: 0,
-              secondTeamRaces: newSecondTeamRaces,
-              secondTeamRaceIndex: 0,
-              secondTeamStandings: state.teams.map(t => ({ teamId: t.id, totalPoints: 0, raceResults: [] })),
               foreignStandings: initForeignStandings(foreignRefresh.updatedLeagues),
               foreignRaceIndex: 0,
               foreignAppearances: {},
@@ -7343,7 +7204,7 @@ export const useGameStore = create<GameStore>()(
     },
     {
       name: 'jpel-manager-save',
-      version: 29,
+      version: 30,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7700,6 +7561,20 @@ export const useGameStore = create<GameStore>()(
           // 変換自体は自動で終わっているが、古いセーブの初回起動だけは
           // 数え直しを先に済ませて新しい形で書き直したいので、更新画面を出す合図を立てる。
           if (version < 29 && s.isInitialized) markDataUpdateNeeded()
+
+          // v30: リザーブ（2軍リーグ）を廃止。
+          // 今シーズンの進行中データだけを落とす。過去シーズン（pastSeasons）の
+          // secondTeamRaces / secondTeamStandings は残す。消すと記録室から
+          // 「あったはずのリザーブの記録」が消えて見えるため。
+          if (version < 30) {
+            const cs = s.currentSeason as Record<string, unknown> | undefined
+            if (cs) {
+              delete cs.secondTeamRaces
+              delete cs.secondTeamRaceIndex
+              delete cs.secondTeamStandings
+              delete cs.reserveLeagueJoined
+            }
+          }
           return s
         } catch (e) {
           // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。

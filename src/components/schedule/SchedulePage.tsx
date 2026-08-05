@@ -38,23 +38,18 @@ export default function SchedulePage() {
   const worldTournament = useGameStore(s => s.worldTournament)
   const isSeasonStart = currentSeason.currentRaceIndex === 0 && !currentSeason.races[0]?.results
 
-  const stIdx = currentSeason.secondTeamRaceIndex ?? 0
-  const hasReserve = currentSeason.reserveLeagueJoined === true
 
   // カレンダー進行: 次のリーグ戦の前に未実施の記録会があればNEXTはそちら
   const dueTT = getDueIndividualEvent(currentSeason)
 
-  // 進行は日付順。1軍・リザーブ・ECLの次戦が同時にNEXTにならないよう、日付が最も早いものだけを光らせる。
+  // 進行は日付順。リーグ戦とECLの次戦が同時にNEXTにならないよう、日付が最も早いものだけを光らせる。
   const nextMainObj = currentSeason.races[currentSeason.currentRaceIndex]
   const nextMainDate = (nextMainObj && !nextMainObj.results) ? nextMainObj.date : null
-  const nextReserveObj = hasReserve ? (currentSeason.secondTeamRaces ?? [])[stIdx] : undefined
-  const nextReserveDate = (nextReserveObj && !nextReserveObj.results) ? nextReserveObj.date : null
   const eclS = currentSeason.eclSeries
   const nextEclObj = eclS && eclS.raceIndex < eclS.races.length ? eclS.races[eclS.raceIndex] : undefined
   const nextEclDate = (nextEclObj && !nextEclObj.results) ? nextEclObj.date : null
-  const mainIsEarliest = !!nextMainDate && (!nextReserveDate || nextMainDate <= nextReserveDate) && (!nextEclDate || nextMainDate < nextEclDate)
-  const reserveIsEarliest = !!nextReserveDate && (!nextMainDate || nextReserveDate < nextMainDate) && (!nextEclDate || nextReserveDate < nextEclDate)
-  const eclIsEarliest = !!nextEclDate && (!nextMainDate || nextEclDate <= nextMainDate) && (!nextReserveDate || nextEclDate <= nextReserveDate)
+  const mainIsEarliest = !!nextMainDate && (!nextEclDate || nextMainDate < nextEclDate)
+  const eclIsEarliest = !!nextEclDate && (!nextMainDate || nextEclDate <= nextMainDate)
 
   const mainRaces = currentSeason.races.map((r, i) => ({
     race: r,
@@ -64,17 +59,6 @@ export default function SchedulePage() {
     isDone: !!r.results,
     myRank: r.results?.teamRankings.find(tr => tr.teamId === playerTeamId)?.rank ?? null,
   }))
-
-  const stRaces = hasReserve
-    ? (currentSeason.secondTeamRaces ?? []).map((r, i) => ({
-        race: r,
-        kind: 'reserve' as const,
-        roundNum: i + 1,
-        isNext: i === stIdx && !r.results && reserveIsEarliest,
-        isDone: !!r.results,
-        myRank: r.results?.teamRankings.find(tr => tr.teamId === playerTeamId)?.rank ?? null,
-      }))
-    : []
 
   // ECL（前年上位2チームの国際シリーズ）も同じ時系列に混ぜる（赤アクセント）
   const eclRaces = (eclS?.races ?? []).map((r, i) => ({
@@ -90,7 +74,7 @@ export default function SchedulePage() {
   const ttItems = (currentSeason.individualEvents ?? []).map(ev => ({
     type: 'tt' as const, date: ev.date, ev, isDone: !!ev.results,
   }))
-  const raceItems = [...mainRaces, ...stRaces, ...eclRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
+  const raceItems = [...mainRaces, ...eclRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
 
   // 世界選手権／アジア予選（JPELグランドファイナルの後、オフシーズンの1月開催）。
   // 開催前から日程として載せ、開催後は済表示。日付は開催時の実レースと同じ規約（waRaceDate）。
@@ -113,8 +97,8 @@ export default function SchedulePage() {
 
   const timeline = [...raceItems, ...ttItems, ...waItems].sort((a, b) => a.date.localeCompare(b.date))
 
-  const totalDone = currentSeason.currentRaceIndex + (hasReserve ? stIdx : 0) + (eclS?.raceIndex ?? 0)
-  const totalRaces = currentSeason.races.length + (hasReserve ? (currentSeason.secondTeamRaces ?? []).length : 0) + (eclS?.races.length ?? 0)
+  const totalDone = currentSeason.currentRaceIndex + (eclS?.raceIndex ?? 0)
+  const totalRaces = currentSeason.races.length + (eclS?.races.length ?? 0)
 
   function rankColor(rank: number | null) {
     if (rank === null) return C.textDim
@@ -181,12 +165,6 @@ export default function SchedulePage() {
           <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.gold }}/>
           <span style={{ fontSize: '11px', color: C.textSub }}>リーグ戦</span>
         </div>
-        {hasReserve && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.blue }}/>
-            <span style={{ fontSize: '11px', color: C.textSub }}>リザーブ</span>
-          </div>
-        )}
         {eclS && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.red }}/>

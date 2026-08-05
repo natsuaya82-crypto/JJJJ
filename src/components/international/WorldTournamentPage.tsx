@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { Race, RaceResults, Team, Player } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
 import { ResultsPhase } from '../race/ResultsPhase'
-import { ReserveSimPhase } from '../reserve/ReserveLeaguePage'
+import { RaceSimPanel } from '../shared/RaceSimPanel'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import Flag from '../ui/Flag'
 import PlayerFace from '../player/PlayerFace'
@@ -279,7 +279,7 @@ export default function WorldTournamentPage() {
   // ── レース再生（ECLと同じ）──
   if (phase === 'simulating' && results && lockedRace) {
     return (
-      <ReserveSimPhase
+      <RaceSimPanel
         race={lockedRace}
         results={results}
         teams={pseudoTeams}

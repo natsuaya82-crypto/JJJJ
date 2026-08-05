@@ -59,7 +59,6 @@ import PlayersStatsPage from './components/records/PlayersStatsPage'
 import DraftHistoryPage from './components/records/DraftHistoryPage'
 import ChampionsHistoryPage from './components/records/ChampionsHistoryPage'
 import EclPage from './components/ecl/EclPage'
-import ReserveLeaguePage from './components/reserve/ReserveLeaguePage'
 import PlayerSheet from './components/shared/PlayerSheet'
 import ContractInfoModal from './components/shared/ContractInfoModal'
 import NotificationsPage from './components/notifications/NotificationsPage'
@@ -303,7 +302,6 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/ecl" element={<EclPage />} />
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/sponsors" element={<SponsorPage />} />
-          <Route path="/reserve" element={<ReserveLeaguePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/help" element={<HelpPage />} />
           <Route path="/schedule" element={<SchedulePage />} />

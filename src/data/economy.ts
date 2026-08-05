@@ -81,13 +81,11 @@ export function cpuSeasonRaceIncome(finalRank: number, racesCount: number): numb
 // 無いのに、削って22人以下になると更にグラントが減って赤字が深まる二重の罠になっていたため。
 export const DUTY_ROSTER_THRESHOLD = 22
 export const DUTY_ROSTER_GRANT_CUT = 0.20
-export const DUTY_RESERVE_GRANT_CUT = 0.10
-export function leagueDutyGrantCut(rosterSize: number, reserveJoined: boolean, banned = false): number {
+// 育成義務のペナルティ。以前は「リザーブリーグ不参加」でも減額していたが、
+// リザーブ（2軍リーグ）を廃止したので在籍人数だけを見る。
+export function leagueDutyGrantCut(rosterSize: number, banned = false): number {
   if (banned) return 0
-  let cut = 0
-  if (rosterSize <= DUTY_ROSTER_THRESHOLD) cut += DUTY_ROSTER_GRANT_CUT
-  if (!reserveJoined) cut += DUTY_RESERVE_GRANT_CUT
-  return cut
+  return rosterSize <= DUTY_ROSTER_THRESHOLD ? DUTY_ROSTER_GRANT_CUT : 0
 }
 
 // 指名権の市場価値：ドラ1級選手の実価値(約1.2億)×0.9^指名位置。
