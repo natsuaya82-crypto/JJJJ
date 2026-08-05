@@ -306,11 +306,20 @@ export const SEASON_2027_RACES: Race[] = [
   },
 ]
 
-// ── リザーブレース (各区間も固有の重みを持つ) ────────────────────────────
+// ── リーグコースプール（3部制。抽選の実装は別途）─────────────────────────
 // months: 開催できる月。名前に季節が入っているレースはその季節にしか開催しない（11月に春季オープンを防ぐ）。
-// 未指定は通年OK
+// 未指定は通年OK。location は区間記録の紐付けに使うため、改名しても変更しないこと。
 export type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'> & { months?: number[] }
-export const RESERVE_RACE_POOL: RaceTemplate[] = [
+
+function toTemplate(r: Race): RaceTemplate {
+  return { name: r.name, location: r.location, type: r.type, conditions: r.conditions, segments: r.segments }
+}
+
+export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
+  // SEASON_2027_RACES の非ファイナル9本（1部専用ではなく全部共通プールに合流）
+  ...SEASON_2027_RACES.slice(0, 9).map(toTemplate),
+
+  // 旧 RESERVE_RACE_POOL（改名済み、リザーブファイナルは FINAL_COURSES に移設）
   {
     name: '川越春季オープン',          location: '川越',  type: 'league', months: [3, 4, 5],
     conditions: { temperature: 14, weather: 'sunny',  elevation: 30 },
@@ -385,18 +394,6 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
       seg(4, 9.0, 0,   0, { pacing: 0.38, speed: 0.26, mental: 0.20, stamina: 0.10, recovery: 0.06 }),
       seg(5,13.0, 8,   3, { recovery: 0.36, stamina: 0.30, pacing: 0.20, mental: 0.10, speed: 0.04 }),
       seg(6,15.5, 5,   5, { stamina: 0.42, recovery: 0.26, pacing: 0.20, mental: 0.08, speed: 0.04 }),
-    ],
-  },
-  {
-    name: '房総ファイナル駅伝',          location: '千葉',  type: 'league', months: [10, 11],
-    conditions: { temperature: 18, weather: 'sunny',  elevation: 35 },
-    segments: [
-      seg(1, 6.0, 5,   5, { pacing: 0.42, speed: 0.28, mental: 0.18, stamina: 0.08, recovery: 0.04 }),
-      seg(2, 8.0, 0,   0, { pacing: 0.38, speed: 0.28, mental: 0.20, stamina: 0.10, recovery: 0.04 }),
-      seg(3,10.5,12,   8, { mental: 0.32, pacing: 0.30, stamina: 0.22, recovery: 0.12, speed: 0.04 }),
-      seg(4, 7.5, 0,   0, { speed: 0.64, pacing: 0.16, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
-      seg(5, 9.0,20,  18, { mountainUp: 0.26, mountainDown: 0.24, stamina: 0.28, pacing: 0.12, recovery: 0.10 }),
-      seg(6,14.0, 8,   3, { stamina: 0.40, recovery: 0.26, pacing: 0.20, mental: 0.10, speed: 0.04 }),
     ],
   },
   {
@@ -490,10 +487,54 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
   },
 ]
 
-// ※ 上の RESERVE_RACE_POOL（14本）は、下部リーグ（2部・3部）の日程に転用する予定なので残している。
-//   リザーブ（2軍リーグ）そのものは廃止したので、リザーブ用の日程生成
-//   （RACE_DATES_BY_SLOT / seededIdx / SECOND_TEAM_RACES_INITIAL / generateSecondTeamRaces）は消した。
-//   部ごとの日程の組み方が決まったら、このプールから配る形にする。
+// 各部の最終走（抽選対象外）。1部はSEASON_2027_RACESの既存ファイナルを流用、
+// 2部は新規、3部は旧リザーブファイナル（千葉）を改名して転用。
+export const FINAL_COURSES: RaceTemplate[] = [
+  // 1部ファイナル: JPELグランドファイナル
+  toTemplate(SEASON_2027_RACES[9]),
+  {
+    // 2部ファイナル: 金沢ファイナル駅伝（新規・25本目。location は他の24本と重複しない）
+    name: '金沢ファイナル駅伝', location: '金沢', type: 'league', months: [11, 12],
+    conditions: { temperature: 9, weather: 'cloudy', elevation: 20 },
+    segments: [
+      // 1区 8.5km 平坦: 戦術的な幕開け
+      seg(1, 8.5,  0,  0, { pacing: 0.38, speed: 0.28, mental: 0.20, stamina: 0.10, recovery: 0.04 }),
+      // 2区 10.5km 起伏: 最初の山岳複合区間
+      seg(2, 10.5, 20, 18, { mountainUp: 0.26, mountainDown: 0.22, stamina: 0.28, pacing: 0.14, recovery: 0.10 }),
+      // 3区 16.0km 緩上り: 長距離スタミナ区間
+      seg(3, 16.0, 8,  3, { stamina: 0.44, recovery: 0.24, pacing: 0.20, mental: 0.08, speed: 0.04 }),
+      // 4区 9.5km 緩傾斜: 中盤の精神消耗戦
+      seg(4, 9.5,  5,  5, { mental: 0.36, pacing: 0.28, stamina: 0.20, recovery: 0.12, speed: 0.04 }),
+      // 5区 12.5km 急登: 技術的登り。スタミナ込みの山岳力
+      seg(5, 12.5, 55, 2, { mountainUp: 0.55, stamina: 0.24, pacing: 0.12, mental: 0.06, recovery: 0.03 }),
+      // 6区 11.0km 急降: 技術的下り。速さとコントロール
+      seg(6, 11.0, 2, 55, { mountainDown: 0.55, speed: 0.22, pacing: 0.12, mental: 0.08, recovery: 0.03 }),
+      // 7区 10.0km 緩上り: 回復力で後半を支える
+      seg(7, 10.0, 8,  3, { recovery: 0.38, stamina: 0.28, pacing: 0.20, mental: 0.10, speed: 0.04 }),
+      // 8区 13.0km 起伏: 疲弊した脚での二度目の山岳戦
+      seg(8, 13.0, 20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, recovery: 0.14, pacing: 0.10 }),
+      // 9区 8.0km 平坦: 最終スプリントアンカー
+      seg(9, 8.0,  0,  0, { speed: 0.62, pacing: 0.18, mental: 0.14, stamina: 0.04, recovery: 0.02 }),
+    ],
+  },
+  {
+    // 3部ファイナル: 房総ファイナル駅伝（旧リザーブファイナルを改名して転用。location・区間は据え置き）
+    name: '房総ファイナル駅伝', location: '千葉',  type: 'league', months: [10, 11],
+    conditions: { temperature: 18, weather: 'sunny',  elevation: 35 },
+    segments: [
+      seg(1, 6.0, 5,   5, { pacing: 0.42, speed: 0.28, mental: 0.18, stamina: 0.08, recovery: 0.04 }),
+      seg(2, 8.0, 0,   0, { pacing: 0.38, speed: 0.28, mental: 0.20, stamina: 0.10, recovery: 0.04 }),
+      seg(3,10.5,12,   8, { mental: 0.32, pacing: 0.30, stamina: 0.22, recovery: 0.12, speed: 0.04 }),
+      seg(4, 7.5, 0,   0, { speed: 0.64, pacing: 0.16, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
+      seg(5, 9.0,20,  18, { mountainUp: 0.26, mountainDown: 0.24, stamina: 0.28, pacing: 0.12, recovery: 0.10 }),
+      seg(6,14.0, 8,   3, { stamina: 0.40, recovery: 0.26, pacing: 0.20, mental: 0.10, speed: 0.04 }),
+    ],
+  },
+]
+
+// 旧リザーブ（2軍）制度そのものは廃止済み。リザーブ用の日程生成
+// （RACE_DATES_BY_SLOT / seededIdx / SECOND_TEAM_RACES_INITIAL / generateSecondTeamRaces）
+// は既に削除されている。
 
 export function generateSeasonRaces(year: number): Race[] {
   return SEASON_2027_RACES.map(r => ({
@@ -505,4 +546,11 @@ export function generateSeasonRaces(year: number): Race[] {
 }
 
 export const MAIN_RACE_NAMES: readonly string[] = SEASON_2027_RACES.map(r => r.name)
+
+// 1部にも出る非ファイナル9本（MAIN_RACE_NAMES で既にカバー）を除いた、下部リーグ固有のコース。
+// matchCourses.ts（オンライン対戦の「リザーブ」カテゴリ）が引き続きこの名前を参照する
+export const RESERVE_RACE_POOL: RaceTemplate[] = [
+  ...LEAGUE_COURSE_POOL.slice(9),
+  ...FINAL_COURSES.slice(1),
+]
 export const RESERVE_RACE_POOL_NAMES: readonly string[] = RESERVE_RACE_POOL.map(r => r.name)
