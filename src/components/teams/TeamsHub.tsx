@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { LeagueLogoSVG } from '../icons/Icons'
@@ -8,19 +8,12 @@ import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../..
 import Flag from '../ui/Flag'
 import BackButton from '../ui/BackButton'
 import { NationalTeamRoster } from './NationalTeamDetailPage'
-import PillTabs from '../ui/PillTabs'
 import type { Nationality } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type NatEntry = { code: Nationality; label: string; top: number }
 
-// 国の並び替え。国名＝あいうえお順 / 強さ＝その国の最高OVR順
-type NatSort = 'name' | 'top'
-const NAT_SORTS: { key: NatSort; label: string }[] = [
-  { key: 'name', label: '国名' },
-  { key: 'top', label: '強さ' },
-]
 
 
 // 移籍市場と同じ金枠カード。説明文は出さない（タイトルのみ）。
@@ -89,8 +82,6 @@ export default function TeamsHub() {
 
   // 画面の階層はURLクエリで持つ（履歴に載せる）。リーグ詳細等から戻ったとき
   // 「チームのルート」でなく直前の一覧（リーグ一覧・国一覧）に戻れるようにするため。
-  const [natSort, setNatSort] = useState<NatSort>('name')
-
   const [searchParams] = useSearchParams()
   const section = (searchParams.get('s') as 'leagues' | 'national' | null) ?? 'root'
   const region = searchParams.get('r') as GeoRegion | null
@@ -118,13 +109,11 @@ export default function TeamsHub() {
     return byRegion
   }, [players])
 
-  // 国の並び。既定は国名順（あいうえお）。
-  // 前はOVR順で固定だったが、目当ての国を探すのに強さ順は使えない。
-  // 強さで見たいときもあるので切り替えられるようにする
+  // 国の並びは国名順（あいうえお）で固定。
+  // 前はOVR順だったが、目当ての国を探すのに強さ順は使えない。
+  // 切り替えボタンは置かない（この画面だけの操作を増やさない）
   const sortedNats = (arr: NatEntry[]): NatEntry[] =>
-    [...arr].sort(natSort === 'top'
-      ? (a, b) => b.top - a.top
-      : (a, b) => a.label.localeCompare(b.label, 'ja'))
+    [...arr].sort((a, b) => a.label.localeCompare(b.label, 'ja'))
 
   const wrap = (children: React.ReactNode) => (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>{children}</div>
@@ -143,14 +132,6 @@ export default function TeamsHub() {
     const arr = sortedNats(natByRegion.get(region) ?? [])
     return wrap(<>
       <Header eyebrow="NATIONAL TEAMS" title={region} onBack={() => navigate(-1)} />
-      <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10, color: C.textDim, fontWeight: 700 }}>並び</span>
-        <PillTabs
-          labels={NAT_SORTS.map(s => s.label)}
-          value={NAT_SORTS.findIndex(s => s.key === natSort)}
-          onChange={i => setNatSort(NAT_SORTS[i].key)}
-        />
-      </div>
       {listBox(arr.map(n => (
         <RowCard
           key={n.code}
