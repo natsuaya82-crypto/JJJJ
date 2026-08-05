@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
 import ActionSheet from '../ui/ActionSheet'
 import BottomSheet from '../ui/BottomSheet'
+import { useAdHeight, HEADER_H, NAV_H, MAIN_GAP } from '../layout/Layout'
 import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { blockUser, unblockUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -629,6 +630,11 @@ function AskPicker({ rarity, busy, onPick, onCancel }: {
 const BOARD_INPUT_H = 66
 
 function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
+  // 入力バーを画面の下に置くために、スクロール領域（Layout の main）の高さを取る。
+  // 出しかたは LoginBonusPage と同じ。ここで自前の数字を書くとタブバーの高さを変えたときにズレる
+  const adH = useAdHeight()
+  const mainHeight = `calc(100dvh - ${HEADER_H + NAV_H + MAIN_GAP + adH}px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))`
+
   const feed = useFriendsQuery(clubFeed, [], 'clubFeed')
   const reacts = useFriendsQuery(clubReactions, [], 'clubReacts')
   const gifts = useFriendsQuery(clubGiftCount, [], 'clubGifts')
@@ -642,7 +648,6 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   const [menuPost, setMenuPost] = useState<ClubPost | null>(null)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
   const [confirmBlock, setConfirmBlock] = useState<ClubPost | null>(null)
-  const boardEndRef = useRef<HTMLDivElement>(null)
 
   // 前回の「受け取る」が途中で終わっていた場合の入れ直し。
   // 箱に残っているもののうち、まだ手元に無いカードだけを足す（二重に増えない）。
@@ -656,22 +661,17 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   }, [addTrainingCards])
 
   // 走友会の書き込みを止めているあいだは、書き込みの行は出さない（カードのお願いだけ残す）
-  const posts = (feed.data ?? []).filter(p => CLUB_CHAT_ENABLED || p.kind !== 'msg')
+  const allPosts = (feed.data ?? []).filter(p => CLUB_CHAT_ENABLED || p.kind !== 'msg')
 
-  // 掲示板は新しいものが下。開いたときにいちばん古い投稿を見せても意味がないので、
-  // チャットと同じく最新（＝いちばん下）まで送っておく。
-  //
-  // 次のフレームまで待つのは、Layout が画面を切り替えたときに main を先頭へ戻すため。
-  // 子の効果は親の効果より先に走るので、ここで直接送っても直後に 0 へ戻されて効かない。
-  const postCount = posts.length
-  useEffect(() => {
-    if (tab !== 'board' || postCount === 0) return
-    const id = requestAnimationFrame(() => boardEndRef.current?.scrollIntoView({ block: 'end' }))
-    return () => cancelAnimationFrame(id)
-  }, [tab, postCount])
-  // 今日もうお願いしたか（サーバーと同じ判定を手元でも出して、ボタンを先に止める）
-  const askedToday = posts.some(p =>
+  // 今日もうお願いしたか（サーバーと同じ判定を手元でも出して、ボタンを先に止める）。
+  // ここは埋まったお願いも数に入れる。埋まった瞬間に消えると、1日1回の縛りが抜けてしまう。
+  const askedToday = allPosts.some(p =>
     p.mine && p.kind === 'req' && new Date(p.createdAt).toDateString() === new Date().toDateString())
+
+  // 埋まったお願いは掲示板から下ろす。
+  // 「集まりました」だけが並んで流れが埋まり、いま出ているお願いが見えなくなるため。
+  // サーバー側でも club_feed が消すが、SQLを流すまでのあいだも手元で伏せておく。
+  const posts = allPosts.filter(p => !(p.kind === 'req' && p.filled >= p.cap))
 
   // カードのお願いだけを抜いたもの（カードタブで使う）
   const reqPosts = posts.filter(p => p.kind === 'req')
@@ -866,23 +866,21 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   // ひとこと書くまでに「もらったカード」「カードをお願いする」を通り過ぎる必要があった。
   // タブで分け、掲示板は投稿だけ・入力は下に固定、という普通のチャットの形にする。
   const board = (
-    <>
-      {/* 下の入力バーは画面下端に貼りつく。その高さぶんを空けておかないと、
-          いちばん新しい投稿（＝いちばん下）が入力バーの裏に隠れる */}
-      <div style={{ padding: `0 12px ${CLUB_CHAT_ENABLED ? BOARD_INPUT_H : 8}px` }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: mainHeight }}>
+      {/* 一覧を flex:1 で伸ばし、入力バーを常に画面のいちばん下に置く。
+          伸ばさないと投稿が少ないときに入力バーが画面の途中に浮く */}
+      <div style={{ flex: 1, padding: `0 12px ${CLUB_CHAT_ENABLED ? BOARD_INPUT_H : 8}px` }}>
         {feed.loading ? <LoadingBox /> :
          feed.error ? <ErrorBox onRetry={feed.reload} /> :
          posts.length === 0 ? <EmptyBox label="まだ何も書かれていません" /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[...posts].reverse().map(p => renderPost(p))}
+            {/* 新しいものが上。サーバーが created_at desc で返すので並べ替えない */}
+            {posts.map(p => renderPost(p))}
           </div>
          )}
       </div>
-      {/* 開いたときここまで送る。空けた余白より下に置くので、
-          いちばん新しい投稿は入力バーのぶんだけ上に残る */}
-      <div ref={boardEndRef} />
 
-      {/* 入力は下に固定。定型文はシートで開く（12個を常時出すと画面の半分が埋まるため） */}
+      {/* 入力は画面下に固定。定型文はシートで開く（12個を常時出すと画面の半分が埋まるため） */}
       {CLUB_CHAT_ENABLED && (
         <div style={{
           position: 'sticky', bottom: 0, padding: '8px 12px 10px',
@@ -901,7 +899,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
           </button>
         </div>
       )}
-    </>
+    </div>
   )
 
   const cardTab = (
@@ -1156,29 +1154,9 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   return (
     <>
       <div style={{ padding: '0 12px' }}>
-        {/* 走友会カード。掲示板とカードのタブでは1行に畳む。
-            以前はどのタブでも大きいカードが画面の1/3を占めていて、
-            チャットに着くまでにスクロールが要る状態だった。中身はメンバータブで見る */}
-        {tab !== 'members' ? (
-          <div
-            role="button" tabIndex={0} className="pressable"
-            onClick={() => setTab('members')}
-            onKeyDown={e => e.key === 'Enter' && setTab('members')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px', borderRadius: 12,
-              cursor: 'pointer', background: C.surface2, border: `1px solid ${C.border2}`,
-            }}
-          >
-            <ClubLogo logoId={club.logoId} size={26} />
-            <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {club.name}
-            </span>
-            <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, flexShrink: 0 }}>{club.members}/{CLUB_MAX}人</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.textDim }}>
-              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-        ) : (
+        {/* 走友会カード。人数・平均OVR・入会条件・走友会コード・設定は、
+            どのタブにいても同じ位置に出す。タブごとに畳んでいたときは、
+            見たい数字がどのタブに出るのかを覚えていないと探せなかった */}
         <div style={{
           padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           border: `2px solid ${C.goldDark}`,
@@ -1222,14 +1200,13 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             }}>···</button>
           </div>
         </div>
-        )}
 
         {/* 横タブ */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           {/* 掲示板を止めているあいだはカードだけ出す（空のタブを見せない） */}
           {(CLUB_CHAT_ENABLED
-            ? [['board', '掲示板'], ['cards', 'カード'], ['members', 'メンバー']] as const
-            : [['cards', 'カード'], ['members', 'メンバー']] as const
+            ? [['members', 'メンバー'], ['cards', 'カード'], ['board', '掲示板']] as const
+            : [['members', 'メンバー'], ['cards', 'カード']] as const
           ).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className="btn-press" style={{
               flex: 1, padding: '9px 0', borderRadius: 10, fontFamily: SAIRA, fontSize: 12, cursor: 'pointer',
