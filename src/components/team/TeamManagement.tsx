@@ -14,8 +14,14 @@ import NewBadge from '../ui/NewBadge'
 import ActionSheet from '../ui/ActionSheet'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
+import SortSelect from '../ui/SortSelect'
+import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
+  { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
+  { value: 'age', label: PLAYER_SORT_LABEL.age },
+]
 
 function TeamStrengthPanel({ players }: { players: Player[] }) {
   const [open, setOpen] = useState(false)
@@ -80,17 +86,12 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
 
 
 
-type SortKey = 'ovr' | 'age'
-
-
-
-
 export default function TeamManagement() {
   const { teams, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, openContractInfo, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
   const [activeTab, setActiveTab] = useState<'main' | 'loan'>('main')
-  const [sortKey, setSortKey] = useState<SortKey>('ovr')
+  const [sortKey, setSortKey] = useState<PlayerSortKey>('ovr')
   const [searchQuery, setSearchQuery] = useState('')
   const [specFilter, setSpecFilter] = useState<string>('all')
   // 自チーム選手：タップ＝ボトムシートメニュー / 長押し＝選手詳細
@@ -121,10 +122,7 @@ export default function TeamManagement() {
   const players = [...rawPlayers]
     .filter(p => searchQuery === '' || p.name.includes(searchQuery) || p.nameKana.includes(searchQuery))
     .filter(p => specFilter === 'all' || p.specialty === specFilter)
-    .sort((a, b) => {
-      if (sortKey === 'age') return a.age - b.age
-      return ovr(b) - ovr(a)
-    })
+    .sort(comparePlayers(sortKey, sortKey === 'age' ? 'asc' : 'desc'))
 
 
   return (
@@ -357,10 +355,7 @@ export default function TeamManagement() {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             </button>}
           </div>
-          <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} style={{ padding: '0 8px', borderRadius: '10px', border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
-            <option value="ovr">OVR順</option>
-            <option value="age">年齢順</option>
-          </select>
+          <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
           <select value={specFilter} onChange={e => setSpecFilter(e.target.value)} style={{ padding: '0 8px', borderRadius: '10px', border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
             <option value="all">全ポジ</option>
             <option value="ace">エース</option>

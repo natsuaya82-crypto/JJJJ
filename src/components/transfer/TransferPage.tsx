@@ -7,6 +7,8 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import type { Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
+import SortSelect from '../ui/SortSelect'
+import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
@@ -25,6 +27,13 @@ import { C, alpha } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
+  { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
+  { value: 'value', label: PLAYER_SORT_LABEL.value },
+  { value: 'age', label: PLAYER_SORT_LABEL.age },
+  { value: 'salary', label: PLAYER_SORT_LABEL.salary },
+  { value: 'name', label: PLAYER_SORT_LABEL.name },
+]
 
 type Tab = 'market' | 'market-results' | 'trade' | 'listings'
 
@@ -79,7 +88,7 @@ export default function TransferPage() {
     setMktAge(s.age ?? 'all')
     setMktLeague(s.league ?? 'all')
   }, [location.key, location.state, tab])
-  const [mktSortKey, setMktSortKey] = useState<'ovr' | 'value' | 'age' | 'salary' | 'name'>(savedF.sortKey as 'ovr' | 'value' | 'age' | 'salary' | 'name')
+  const [mktSortKey, setMktSortKey] = useState<PlayerSortKey>(savedF.sortKey as PlayerSortKey)
   const [mktSortDir, setMktSortDir] = useState<'desc' | 'asc'>(savedF.sortDir as 'desc' | 'asc')
   // フィルタ変更をモジュールスコープへ同期（アンマウント後の復元用）
   useEffect(() => {
@@ -301,14 +310,7 @@ export default function TransferPage() {
             if (f.age === '27-30') return p.age >= 27 && p.age <= 30
             return p.age >= 31
           })
-          .sort((a, b) => {
-            const diff = mktSortKey === 'value'  ? calcTransferValue(b) - calcTransferValue(a)
-              : mktSortKey === 'age'    ? b.age - a.age
-              : mktSortKey === 'salary' ? b.contract.annualSalary - a.contract.annualSalary
-              : mktSortKey === 'name'   ? b.name.localeCompare(a.name)
-              : ovr(b) - ovr(a)
-            return mktSortDir === 'asc' ? -diff : diff
-          })
+          .sort(comparePlayers(mktSortKey, mktSortDir))
 
 
         return (
@@ -316,20 +318,7 @@ export default function TransferPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <span style={{ fontSize: '9px', color: C.textGhost, fontFamily: SAIRA }}>{marketPlayers.length}名</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <select
-                  value={mktSortKey}
-                  onChange={e => setMktSortKey(e.target.value as typeof mktSortKey)}
-                  style={{
-                    background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8,
-                    color: C.textSub, fontSize: 11, fontFamily: SAIRA, padding: '4px 8px', outline: 'none', cursor: 'pointer',
-                  }}
-                >
-                  <option value="ovr">総合値</option>
-                  <option value="value">市場価値</option>
-                  <option value="age">年齢</option>
-                  <option value="salary">年俸</option>
-                  <option value="name">名前</option>
-                </select>
+                <SortSelect options={MARKET_SORT_OPTIONS} value={mktSortKey} onChange={setMktSortKey} />
                 <button
                   onClick={() => setMktSortDir(d => d === 'desc' ? 'asc' : 'desc')}
                   style={{
