@@ -59,11 +59,19 @@ export function curveOvr(rank: Rank, growthCurve: GrowthCurve, age: number): num
 }
 
 /**
- * その選手のその年齢での到達値。カーブに格の成長上限を掛ける。
- * @param potentialCap そのクラブの格の上限（utils/clubTier.ts の tierPotentialCap）
+ * その選手のその年齢での能力値。
+ *
+ * ★カーブは「上限」ではなく「下地」。EXPで積み上げた分がこの上に乗る。
+ *   実際の能力 = カーブの値 ＋ 積み上げ、を能力別の上限で頭打ちにする。
+ *   カーブはピーク後に下がるので、積み上げが残っていても実値は落ちる（衰え）。
+ *
+ * @param accumulated EXPで積み上げた分（0なら素のカーブ）
+ * @param statCap その能力の上限（playerUtils の getStatPotentials）
  */
-export function targetOvr(rank: Rank, growthCurve: GrowthCurve, age: number, potentialCap: number): number {
-  return Math.round(Math.max(30, Math.min(potentialCap, curveOvr(rank, growthCurve, age))))
+export function ratingAt(
+  rank: Rank, growthCurve: GrowthCurve, age: number, accumulated: number, statCap: number,
+): number {
+  return Math.round(Math.max(30, Math.min(statCap, curveOvr(rank, growthCurve, age) + accumulated)))
 }
 
 /** ピーク年齢。成長型1本で決まる（前は playerUtils の peakAgeOf と2箇所にあった） */
