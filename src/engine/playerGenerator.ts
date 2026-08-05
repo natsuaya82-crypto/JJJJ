@@ -775,8 +775,6 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
     const rank: Rank = rankPool[rankIdx++] ?? 'A'
     const specialty = specialties[rng(0, specialties.length - 1)]
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    const { potential } = rankToBaseRange(rank, growthCurve)
-    const ratings = generateRatings(rank, specialty)
 
     const age = isForeign
       ? rng(19, 25)
@@ -785,6 +783,19 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
       : originType === 'development'
       ? rng(21, 24)
       : 22
+
+    // 稀に「お化け」隠れ玉：ランクに関わらず高ポテンシャル。現在値は低いままなので下位指名でも化ける。
+    // 日本人は総合90前後を上限にしつつ、選手ごとにばらつかせる（全員90一律を避ける＝得意は99も、苦手は低く）。
+    const prodigyPot = !isForeign && Math.random() < 0.08 ? rng(86, 93) : undefined
+    const id = `draft-${year}-${idCounter}`
+    // 能力値の作り方は buildRatingsForRank の1本。ここだけ幹を通っておらず、
+    // 22歳を超える外国人枠・育成枠に年齢ぶんの成長が焼き込まれていなかった
+    // （高卒18・大卒22は元から焼き込み0年なので変化しない）。
+    const { ratings, potential } = buildRatingsForRank({
+      id, rank, specialty, growthCurve, age,
+      potentialCap: isForeign ? 99 : 92,
+      potentialOverride: prodigyPot,
+    })
 
     let origin: string
     let name: string
@@ -812,7 +823,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
     }
 
     players.push({
-      id: `draft-${year}-${idCounter}`,
+      id,
       name,
       nameKana: '',
       age,
@@ -822,11 +833,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
       draftPick: null,
       ratings,
       specialty,
-      // 稀に「お化け」隠れ玉：ランクに関わらず高ポテンシャル。現在値は低いままなので下位指名でも化ける。
-      // 日本人は総合90前後を上限にしつつ、選手ごとにばらつかせる（全員90一律を避ける＝得意は99も、苦手は低く）。
-      potential: isForeign
-        ? rng(potential[0], potential[1])
-        : (Math.random() < 0.08 ? rng(86, 93) : Math.min(92, rng(potential[0], potential[1]))),
+      potential,
       growthCurve,
       teamId: '__pool__',
       contract: {
@@ -1312,13 +1319,14 @@ function buildRatingsForRank(params: {
   specialty: Specialty
   growthCurve: GrowthCurve
   age: number
-  potentialCap?: number     // 国内は92、海外は99
-  potentialBonus?: number   // 海外の地域補正(potBonus)
+  potentialCap?: number      // 国内は92、海外は99
+  potentialBonus?: number    // 海外の地域補正(potBonus)
+  potentialOverride?: number // ランクから抽選せず、この値をポテンシャルにする（ドラフトの「お化け」枠）
 }): { ratings: Player['ratings']; potential: number } {
-  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0 } = params
+  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride } = params
   const ratings = generateRatings(rank, specialty)
   const [pMin, pMax] = rankToBaseRange(rank, growthCurve).potential
-  const potential = Math.min(potentialCap, rng(pMin, pMax) + potentialBonus)
+  const potential = potentialOverride ?? Math.min(potentialCap, rng(pMin, pMax) + potentialBonus)
   bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age)
   return { ratings, potential }
 }

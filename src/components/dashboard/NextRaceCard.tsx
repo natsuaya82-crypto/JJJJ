@@ -1,5 +1,5 @@
 import type { Race, Segment } from '../../types'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN } from '../../styles/tokens'
 import { InfoTile } from '../ui'
 
 const WEATHER_LABEL: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
@@ -34,14 +34,16 @@ interface Props {
 export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, variant = 'main', ctaLabel, secondaryCtaLabel, onSecondaryClick }: Props) {
   const totalDist = race.segments.reduce((s, sg) => s + sg.distanceKm, 0).toFixed(1)
   const isReserve = variant === 'reserve'
-  // アクセント色一式（金＝1軍 / 青＝リザーブ / 赤＝ECL）
+  // アクセント色一式（金＝1軍 / 青＝リザーブ / 赤＝ECL）。
+  // ボタンの色だけはレース画面と同じ COMPETITION_BTN から引く（大会→色の対応は1箇所に）。
+  // 世界選手権はこのカードを使わず Dashboard 側に専用UIがある（そちらは既に紫）。
   const AC = variant === 'ecl' ? {
     border: C.red, shadowDeep: '#5a1010', frame: 'rgba(232,70,42,0.35)',
     headerGrad: `linear-gradient(90deg, ${alpha(C.red, 0.20)}, ${alpha(C.red, 0.04)})`,
     headerBorder: alpha(C.red, 0.20),
     badgeGrad: `linear-gradient(180deg, #ff8a75 0%, ${C.red} 60%, #7a1610 100%)`,
     badgeBorder: '#5a1010', badgeShadow: '#3f0c08',
-    divider: '#7a1610', tileBorder: alpha(C.red, 0.15), btnClass: 'btn-game--red',
+    divider: '#7a1610', tileBorder: alpha(C.red, 0.15), btnClass: COMPETITION_BTN.ecl,
     typeLabel: 'ECL', nextColor: C.red,
   } : isReserve ? {
     border: C.blue, shadowDeep: '#2f3a7a', frame: 'rgba(121,134,203,0.35)',
@@ -49,7 +51,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     headerBorder: alpha(C.blue, 0.20),
     badgeGrad: `linear-gradient(180deg, #aab3e6 0%, ${C.blue} 60%, #4a56a8 100%)`,
     badgeBorder: '#2f3a7a', badgeShadow: '#232c5e',
-    divider: '#4a56a8', tileBorder: alpha(C.blue, 0.15), btnClass: 'btn-game--blue',
+    divider: '#4a56a8', tileBorder: alpha(C.blue, 0.15), btnClass: COMPETITION_BTN.reserve,
     typeLabel: 'RESERVE', nextColor: C.cyan,
   } : {
     border: C.gold, shadowDeep: '#8b6914', frame: 'rgba(245,200,66,0.28)',
@@ -57,7 +59,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     headerBorder: alpha(C.gold, 0.18),
     badgeGrad: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
     badgeBorder: '#8b6914', badgeShadow: '#5a3500',
-    divider: C.goldDark, tileBorder: alpha(C.gold, 0.12), btnClass: 'btn-game--gold',
+    divider: C.goldDark, tileBorder: alpha(C.gold, 0.12), btnClass: COMPETITION_BTN.jpel,
     typeLabel: RACE_TYPE_LABEL[race.type] ?? race.type.toUpperCase(), nextColor: C.cyan,
   }
 
