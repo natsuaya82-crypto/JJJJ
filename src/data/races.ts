@@ -306,7 +306,25 @@ export const SEASON_2027_RACES: Race[] = [
   },
 ]
 
-// ── リーグコースプール（3部制。抽選の実装は別途）─────────────────────────
+// ── リーグコースプール（3部制）───────────────────────────────────────
+// JPELは1部・2部・3部の3部制。各部の最終走（ファイナル）だけ固定で、
+// 残りは全部共通の LEAGUE_COURSE_POOL から毎年抽選で配る（抽選そのものはここでは実装しない）。
+// 配分は 1部10本・2部8本・3部7本（各部ともファイナル1本を含む）。
+//
+//   FINAL_COURSES（3本・抽選対象外）
+//     1部: JPELグランドファイナル … SEASON_2027_RACES の race-10 をそのまま流用
+//     2部: 金沢ファイナル駅伝     … 新規
+//     3部: 房総ファイナル駅伝     … 旧リザーブファイナル（千葉）を改名して転用
+//   LEAGUE_COURSE_POOL（22本・抽選対象）
+//     = SEASON_2027_RACES の非ファイナル9本（出雲開幕戦〜秋季グランプリ）
+//     + 旧 RESERVE_RACE_POOL 14本のうちリザーブファイナルを除いた13本（location据え置きで改名済み）
+//
+//   22（プール） + 3（ファイナル） = 25本。全コース6〜10区間。
+//
+// 旧リザーブ（2軍）制度そのものは廃止済み。リザーブ用の日程生成
+// （RACE_DATES_BY_SLOT / seededIdx / SECOND_TEAM_RACES_INITIAL / generateSecondTeamRaces）
+// は既に削除されている。
+//
 // months: 開催できる月。名前に季節が入っているレースはその季節にしか開催しない（11月に春季オープンを防ぐ）。
 // 未指定は通年OK。location は区間記録の紐付けに使うため、改名しても変更しないこと。
 export type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'> & { months?: number[] }
@@ -319,7 +337,7 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
   // SEASON_2027_RACES の非ファイナル9本（1部専用ではなく全部共通プールに合流）
   ...SEASON_2027_RACES.slice(0, 9).map(toTemplate),
 
-  // 旧 RESERVE_RACE_POOL（改名済み、リザーブファイナルは FINAL_COURSES に移設）
+  // 旧 RESERVE_RACE_POOL（改名済み、5区間だった9本は6区間に拡張済み）
   {
     name: '川越春季オープン',          location: '川越',  type: 'league', months: [3, 4, 5],
     conditions: { temperature: 14, weather: 'sunny',  elevation: 30 },
@@ -487,10 +505,8 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
   },
 ]
 
-// 各部の最終走（抽選対象外）。1部はSEASON_2027_RACESの既存ファイナルを流用、
-// 2部は新規、3部は旧リザーブファイナル（千葉）を改名して転用。
 export const FINAL_COURSES: RaceTemplate[] = [
-  // 1部ファイナル: JPELグランドファイナル
+  // 1部ファイナル: JPELグランドファイナル（SEASON_2027_RACES race-10 をそのまま流用）
   toTemplate(SEASON_2027_RACES[9]),
   {
     // 2部ファイナル: 金沢ファイナル駅伝（新規・25本目。location は他の24本と重複しない）
@@ -531,10 +547,6 @@ export const FINAL_COURSES: RaceTemplate[] = [
     ],
   },
 ]
-
-// 旧リザーブ（2軍）制度そのものは廃止済み。リザーブ用の日程生成
-// （RACE_DATES_BY_SLOT / seededIdx / SECOND_TEAM_RACES_INITIAL / generateSecondTeamRaces）
-// は既に削除されている。
 
 export function generateSeasonRaces(year: number): Race[] {
   return SEASON_2027_RACES.map(r => ({
