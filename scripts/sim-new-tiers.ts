@@ -2,14 +2,27 @@
 // ゲーム側のコードは変えず、生成の部品だけ借りて計算する（確認用）。
 //
 //   npx esbuild --bundle --platform=node --format=cjs scripts/sim-new-tiers.ts --outfile=/tmp/s.cjs && node /tmp/s.cjs
-import { distributeSalaries, rankForSalary, buildRatingsForRank } from '../src/engine/playerGenerator'
+import { rankForSalary, buildRatingsForRank } from '../src/engine/playerGenerator'
+
+// 年俸の配り方。指数を振って比べたいのでここに置く（本体は distributeSalaries）。
+// 指数が大きいほど上に厚い。1.6=今の値で1位と25位が約100倍、1.0で約9倍。
+function distribute(total: number, count: number, minSalary: number, exp: number): number[] {
+  const w = Array.from({ length: count }, (_, i) => Math.pow(count - i, exp))
+  const ws = w.reduce((s, x) => s + x, 0)
+  const raw = w.map(x => total * x / ws)
+  const fixed = raw.map(v => Math.max(minSalary, v))
+  const over = fixed.reduce((s, v) => s + Math.max(0, v - minSalary), 0)
+  const deficit = fixed.reduce((s, v) => s + v, 0) - total
+  const shrink = over > 0 ? Math.max(0, 1 - deficit / over) : 1
+  return fixed.map(v => Math.round((minSalary + Math.max(0, v - minSalary) * shrink) / 500_000) * 500_000)
+}
 import type { Rank, Specialty, GrowthCurve } from '../src/types'
 
 // ── 決まっているもの ──
 const ROSTER = 25                    // 国内・海外とも25人
 const SALARY_MULT = 1.5              // 年俸1.5倍（SALARY_ANCHORS と rankForSalary の閾値）
 const SALARY_SHARE = 0.8             // 予算のうち年俸に回す割合
-const MIN_SALARY = 4_000_000 * SALARY_MULT
+const MIN_SALARY = 4_000_000   // 一番下は400万（1.5倍を掛けない）
 
 // 格 → 年間予算（億）。格1〜10は指定の2倍、格11〜20は案A（前段比 約1.15）
 const TIER_BUDGET_OKU: number[] = [
@@ -33,9 +46,9 @@ function rankForSalaryScaled(s: number): Rank {
   return rankForSalary(s / SALARY_MULT)
 }
 
-function simulateClub(tier: number): number[] {
+function simulateClub(tier: number, exp: number): number[] {
   const budget = TIER_BUDGET_OKU[tier - 1] * 1e8
-  const salaries = distributeSalaries(Math.round(budget * SALARY_SHARE), ROSTER, MIN_SALARY)
+  const salaries = distribute(Math.round(budget * SALARY_SHARE), ROSTER, MIN_SALARY, exp)
   const cap = TIER_POT_CAP[tier - 1]
   const ovrs: number[] = []
   salaries.forEach((sal, i) => {
@@ -53,23 +66,21 @@ function simulateClub(tier: number): number[] {
   return ovrs.sort((a, b) => b - a)
 }
 
-const RUNS = 200
-const targets = [
-  { tier: 1, label: '格1（ナイロビ・ハリアーズ相当）' },
-  { tier: 5, label: '格5（東京ロードキングス）' },
-  { tier: 20, label: '格20（米子とんぼ）' },
+const RUNS = 120
+const TARGETS = [
+  { tier: 1, label: '格1' }, { tier: 5, label: '格5(東京)' },
+  { tier: 10, label: '格10' }, { tier: 20, label: '格20(とんぼ)' },
 ]
-console.log(`■ ${RUNS}回生成した平均`)
-console.log('クラブ                          予算   上限  最高OVR  上位10平均  全25人平均')
-for (const t of targets) {
-  let top1 = 0, top10 = 0, all = 0
-  for (let r = 0; r < RUNS; r++) {
-    const o = simulateClub(t.tier)
-    top1 += o[0]
-    top10 += o.slice(0, 10).reduce((s, x) => s + x, 0) / 10
-    all += o.reduce((s, x) => s + x, 0) / o.length
-  }
-  console.log(
-    `${t.label.padEnd(30, ' ')} ${String(TIER_BUDGET_OKU[t.tier - 1]).padStart(4)}億  ${TIER_POT_CAP[t.tier - 1]}` +
-    `  ${(top1 / RUNS).toFixed(1).padStart(7)}  ${(top10 / RUNS).toFixed(1).padStart(10)}  ${(all / RUNS).toFixed(1).padStart(10)}`)
+console.log(`■ 年俸の配り方（指数）を振ったときの全25人平均OVR  ※${RUNS}回平均・下限400万`)
+console.log('指数   ' + TARGETS.map(t => t.label.padStart(12)).join(''))
+for (const exp of [0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6]) {
+  const cells = TARGETS.map(t => {
+    let all = 0
+    for (let r = 0; r < RUNS; r++) {
+      const o = simulateClub(t.tier, exp)
+      all += o.reduce((s, x) => s + x, 0) / o.length
+    }
+    return (all / RUNS).toFixed(1).padStart(12)
+  })
+  console.log(`${exp.toFixed(1)}  ` + cells.join(''))
 }
