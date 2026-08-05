@@ -378,17 +378,51 @@ export function simulateRace(
     })
     segmentResults.push({ segmentIndex: seg.index, runners })
   }
-  // 各チームが実際に走った区間数を集計（人員不足で空ラインナップのチームが totalTime=0 で1位になるのを防ぐ）
-  const segCountByTeam: Record<string, number> = {}
-  for (const sr of segmentResults) for (const r of sr.runners) segCountByTeam[r.teamId] = (segCountByTeam[r.teamId] ?? 0) + 1
-  const complete = teamIds.filter(id => (segCountByTeam[id] ?? 0) === totalSegs).sort((a, b) => cumTime[a] - cumTime[b])
+  const teamRankings = buildTeamRankings({
+    teamIds,
+    cumTime,
+    segCountByTeam: countSegmentsByTeam(segmentResults),
+    segPts,
+    totalSegs,
+  })
+  return { teamRankings, segmentResults }
+}
+
+/** 区間結果から「各チームが実際に走った区間数」を数える */
+export function countSegmentsByTeam(segments: readonly { runners: readonly { teamId: string }[] }[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const sr of segments) for (const r of sr.runners) out[r.teamId] = (out[r.teamId] ?? 0) + 1
+  return out
+}
+
+/**
+ * 最終順位の唯一の決まり。
+ *
+ * 全区間を走り切ったチームを上位（累積タイムの昇順）、走り切れなかったチームを下位に置く。
+ * 走った区間数が少ないほど下。人員不足で空のオーダーを出したチームは累積タイムが0になるので、
+ * この並べ替えが無いと最速で1位になってしまう。
+ *
+ * 以前は同じ処理が raceEngine（シミュレーション）と RacePage（中継つきレース）に
+ * 別々に書かれていた。ズレると「中継で見た順位と結果画面の順位が違う」が起きる。
+ */
+export function buildTeamRankings(args: {
+  /** そのレースに出たチーム。走者が1人もいないチームも含める */
+  teamIds: readonly string[]
+  cumTime: Record<string, number>
+  segCountByTeam: Record<string, number>
+  segPts: Record<string, number>
+  totalSegs: number
+}): RaceResults['teamRankings'] {
+  const { teamIds, cumTime, segCountByTeam, segPts, totalSegs } = args
+  const complete = teamIds.filter(id => (segCountByTeam[id] ?? 0) >= totalSegs)
+    .sort((a, b) => cumTime[a] - cumTime[b])
   const incomplete = teamIds.filter(id => (segCountByTeam[id] ?? 0) < totalSegs)
     .sort((a, b) => (segCountByTeam[b] ?? 0) - (segCountByTeam[a] ?? 0) || cumTime[a] - cumTime[b])
-  const sorted = [...complete, ...incomplete]
-  const teamRankings: RaceResults['teamRankings'] = sorted.map((teamId, i) => ({
-    teamId, totalTimeSec: cumTime[teamId], rank: i + 1,
-    positionPoints: positionPointsFor(sorted.length, i + 1),
+  return [...complete, ...incomplete].map((teamId, i) => ({
+    teamId,
+    totalTimeSec: cumTime[teamId],
+    rank: i + 1,
+    positionPoints: positionPointsFor(teamIds.length, i + 1),
     segmentPoints: segPts[teamId] ?? 0,
   }))
-  return { teamRankings, segmentResults }
 }

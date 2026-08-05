@@ -23,7 +23,7 @@ import {
   generateSegmentEvents, resolveChoice, finalizeSegment,
 } from '../../engine/interactiveRace'
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
-import { positionPointsFor } from '../../utils/league'
+import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -266,27 +266,21 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
   )
 }
 
-// 最終順位を構築：全区間を走り切ったチームを上位（タイム昇順）、未完走チーム（人員不足で欠員）を下位に。
-// simulateRace と同じ方針で、累積タイム0の欠員チームが不当に1位になるのを防ぐ。
-function buildTeamRankings(
+// 最終順位は raceEngine の buildTeamRankings が唯一の決まり。
+// ここで自前に並べ替えると、中継で見た順位と結果画面の順位がズレる。
+function buildTeamRankingsForInteractive(
   cumTime: Record<string, number>,
   completedSegs: InteractiveSegResult[],
   segPts: Record<string, number>,
   totalSegs: number,
 ): RaceResults['teamRankings'] {
-  const segCount: Record<string, number> = {}
-  for (const sr of completedSegs) for (const r of sr.runners) segCount[r.teamId] = (segCount[r.teamId] ?? 0) + 1
-  const ids = Object.keys(cumTime)
-  const complete = ids.filter(id => (segCount[id] ?? 0) >= totalSegs).sort((a, b) => cumTime[a] - cumTime[b])
-  const incomplete = ids.filter(id => (segCount[id] ?? 0) < totalSegs)
-    .sort((a, b) => (segCount[b] ?? 0) - (segCount[a] ?? 0) || cumTime[a] - cumTime[b])
-  return [...complete, ...incomplete].map((teamId, i) => ({
-    teamId,
-    totalTimeSec: cumTime[teamId],
-    rank: i + 1,
-    positionPoints: positionPointsFor(ids.length, i + 1),
-    segmentPoints: segPts[teamId] ?? 0,
-  }))
+  return buildTeamRankings({
+    teamIds: Object.keys(cumTime),
+    cumTime,
+    segCountByTeam: countSegmentsByTeam(completedSegs),
+    segPts,
+    totalSegs,
+  })
 }
 
 export default function RacePage() {
@@ -594,7 +588,7 @@ export default function RacePage() {
         runners: s.runners,
       }))
 
-      const teamRankings = buildTeamRankings(iSim.cumulativeTime, iSim.completedSegs, iSim.segPts, race.segments.length)
+      const teamRankings = buildTeamRankingsForInteractive(iSim.cumulativeTime, iSim.completedSegs, iSim.segPts, race.segments.length)
 
       const preComputedResults: RaceResults = { teamRankings, segmentResults }
       // runRace を先に実行してシーズン順位を更新してから結果画面へ（失敗しても結果は見られるように）
@@ -693,7 +687,7 @@ export default function RacePage() {
       })
     }
 
-    const teamRankings = buildTeamRankings(cumTime, completedSegs, segPts, race.segments.length)
+    const teamRankings = buildTeamRankingsForInteractive(cumTime, completedSegs, segPts, race.segments.length)
     const preComputedResults: RaceResults = { teamRankings, segmentResults: completedSegs }
     if (finalizedRaceIdRef.current === race.id) return  // 二重発火ガード
     const finalResults = runRace(raceLineup, {}, preComputedResults)
@@ -736,7 +730,7 @@ export default function RacePage() {
       for (const [tid, t] of Object.entries(cpuTimes)) cumTime[tid] = (cumTime[tid] ?? 0) + t
       res.runners.slice(0, 3).forEach((r, i) => { segPts[r.teamId] = (segPts[r.teamId] ?? 0) + [3, 2, 1][i] })
     }
-    const teamRankings = buildTeamRankings(cumTime, completedSegs, segPts, race.segments.length)
+    const teamRankings = buildTeamRankingsForInteractive(cumTime, completedSegs, segPts, race.segments.length)
     const preComputedResults: RaceResults = { teamRankings, segmentResults: completedSegs }
     const finalResults = runRace(raceLineup, {}, preComputedResults)
     finalizedRaceIdRef.current = race.id  // 成功後に立てる（同期実行なので二重クリックは防げる）
