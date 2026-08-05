@@ -15,6 +15,7 @@ import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed, foreignAppsOf } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
+import { rankColor } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import { safeRatings } from '../../engine/raceEngine'
@@ -975,7 +976,7 @@ export default function PlayerSheet() {
                 }
                 const natRows = [...byYear.values()].sort((a, b) => b.year - a.year)
                 if (natRows.length === 0) return null
-                const medalCol = (rank?: number) => rank === 1 ? '#F5C842' : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : '#9B97A8'
+                const medalCol = (rank?: number) => rankColor(rank ?? 0)
                 return (
                   <div style={{ marginTop: '16px' }}>
                     <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム</div>
@@ -1069,7 +1070,7 @@ export default function PlayerSheet() {
                   {rows.length > 0 ? (
                     <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                       {rows.map((e, i) => {
-                        const rankCol = e.rank === 1 ? '#C9A84C' : e.rank <= 3 ? '#9B97A8' : '#5C5870'
+                        const rankCol = rankColor(e.rank)
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < rows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
                             <span style={{ fontSize: '12px', color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
@@ -1098,7 +1099,7 @@ export default function PlayerSheet() {
                 {entries.length > 0 ? (
                   <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                     {entries.map((e, i) => {
-                      const rankCol = e.rank === 1 ? '#C9A84C' : e.rank <= 3 ? '#9B97A8' : '#5C5870'
+                      const rankCol = rankColor(e.rank)
                       // この大会×区間の記録タイムと同タイムの走りなら「区間記録」パッチ（同タイムの共同保持もタイ記録として付く）
                       const rec = (segmentRecords[`${selectedRaceName}-${e.segIdx}`] ?? [])[0]
                       const isSegRecord = !!rec && rec.timeSec === e.timeSec

@@ -42,6 +42,19 @@ export const COMPETITION_BTN: Record<Competition, string> = {
   friend:  'btn-game--gold',   // フレンド対戦。現状の既定色を維持（見た目を変えない）
 }
 
+// 順位の色の「唯一の決まり」。
+//
+// 金・銀・銅の色分けが画面ごとに違うルールで4通り手書きされていた
+// （PlayerSheet.tsx の中だけでも2つのルールが混在）。レース結果・順位表・
+// オンライン対戦の3画面で使われていた式（一番数が多い）をここに集約する。
+/** 順位(1始まり) → 色。1位=金 / 2位=銀 / 3位=銅 / 4位以下=薄いグレー。 */
+export function rankColor(rank: number): string {
+  if (rank === 1) return C.gold
+  if (rank === 2) return '#9B97A8'
+  if (rank === 3) return '#CD7F32'
+  return C.textGhost
+}
+
 /**
  * 色に透け具合を足す。#rgb（3桁）でも #rrggbb（6桁）でも受け取れる。
  *

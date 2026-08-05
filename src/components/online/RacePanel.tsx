@@ -12,10 +12,9 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { asPlayer, asTeam, type MatchRacePayload } from '../../lib/matchSim'
 import { serverNow } from '../../lib/serverTime'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 type Stage = 'countdown' | 'track' | 'segresult' | 'final'
 
@@ -221,7 +220,7 @@ export default function RacePanel({
             const isMe = s.teamId === meId
             const top = payload.standings[0]?.totalTimeSec ?? 0
             const gap = s.totalTimeSec - top
-            const rankCol = rankColors[s.rank] ?? C.textGhost
+            const rankCol = rankColor(s.rank)
             const total = (seriesPts[s.teamId] ?? 0) + s.points
             return (
               <div key={s.teamId} style={{
@@ -346,7 +345,7 @@ export default function RacePanel({
             const t = teamMap.get(teamId)
             const isMe = teamId === meId
             const gap = cum - (standingsNow[0]?.[1] ?? 0)
-            const rankCol = rankColors[i + 1] ?? C.textGhost
+            const rankCol = rankColor(i + 1)
             return (
               <div key={teamId} style={{
                 padding: '8px 12px', borderBottom: `1px solid ${C.surface2}`,

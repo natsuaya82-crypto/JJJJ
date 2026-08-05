@@ -13,7 +13,7 @@ import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { belongsToClub } from '../../utils/rosterSync'
-import { C } from '../../styles/tokens'
+import { C, rankColor } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
@@ -140,7 +140,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const rank = isForeign
     ? rankedStandings(curForeignStandings).findIndex(s => s.clubId === id) + 1
     : rankOfTeam(currentSeason.standings, id)
-  const rankColor = rank === 1 ? '#C9A84C' : rank <= 3 ? '#9B97A8' : '#3A3758'
   const standingPoints = standing?.totalPoints ?? 0
   const recentForm = (standing?.raceResults ?? []).slice(-4)
   const completedRaces = isForeign
@@ -341,7 +340,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             <div style={{ fontSize: '11px', color: '#5C5870' }}>{infoLocation} • {mainPlayers.length}名</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '28px', fontWeight: '900', color: rankColor, fontFamily: 'monospace', lineHeight: 1 }}>{rank > 0 ? rank : '—'}</div>
+            <div style={{ fontSize: '28px', fontWeight: '900', color: rankColor(rank), fontFamily: 'monospace', lineHeight: 1 }}>{rank > 0 ? rank : '—'}</div>
             <div style={{ fontSize: '8px', color: '#3A3758' }}>位</div>
           </div>
         </div>

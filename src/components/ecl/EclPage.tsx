@@ -15,7 +15,7 @@ import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
 import { useAdHeight } from '../layout/Layout'
 import { runWithLoading } from '../../store/loadingStore'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const FONT = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -310,7 +310,6 @@ export default function EclPage() {
               const t = teamById2.get(tr.teamId)
               const isMe = tr.teamId === playerTeamId
               const diff = tr.totalTimeSec - arr[0].totalTimeSec
-              const rankColor = i === 0 ? C.gold : i <= 2 ? C.textSub : C.textGhost
               return (
                 <button key={tr.teamId} onClick={() => setViewTeamId(tr.teamId)} style={{
                   display: 'grid', gridTemplateColumns: '28px 1fr 40px 74px', gap: '4px', padding: '9px 12px', width: '100%', cursor: 'pointer', textAlign: 'left',
@@ -323,7 +322,7 @@ export default function EclPage() {
                     {tr.rank === 1 ? (
                       <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>★</span>
                     ) : (
-                      <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor }}>{tr.rank}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor(i + 1) }}>{tr.rank}</span>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>

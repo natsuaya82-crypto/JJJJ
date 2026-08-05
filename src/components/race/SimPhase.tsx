@@ -5,7 +5,7 @@ import { choiceSuccessProb } from '../../engine/interactiveRace'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
@@ -14,7 +14,6 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 function computeAnimGaps(
   ratio: number,
@@ -226,7 +225,7 @@ export function RaceTrack({
             const pct = distanceKm > 0 ? (pos.km / distanceKm) * 100 : 0
             // 総合首位との累積タイム差
             const gapSec = pos.overallTotal - leaderTotal
-            const rankCol = rankColors[rank + 1] ?? C.textGhost
+            const rankCol = rankColor(rank + 1)
             const playerId = segRunnerIds?.[pos.teamId]
             const player = players?.find(p => p.id === playerId)
 
@@ -659,7 +658,7 @@ export function SimPhase({
             const t = teamMap.get(teamId)
             const isMe = teamId === playerTeamId
             const gap = cumTime - leaderCumTime
-            const rankCol = rankColors[i + 1] ?? C.textGhost
+            const rankCol = rankColor(i + 1)
             const pts = segPts[teamId] ?? 0
             return (
               <div key={teamId} style={{
@@ -753,7 +752,7 @@ export function SegmentResultCard({
           const t = teamMap.get(r.teamId)
           const p = playerMap.get(r.playerId)
           const isMe = r.teamId === playerTeamId
-          const rCol = rankColors[r.rank] ?? C.textGhost
+          const rCol = rankColor(r.rank)
           return (
             <div key={r.teamId} {...(p ? longPress(p.id) : {})} style={{
               display: 'flex', alignItems: 'center', gap: 8,
