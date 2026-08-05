@@ -1,63 +1,83 @@
-// 232クラブを20段に振り分けた「草案」を出す。実装ではなく確認用の一覧。
+// 232クラブを20段の「格」に振り分けた草案を出す。確認用の一覧を出すだけで、ゲーム側は何も変えない。
+//
+//   npx esbuild --bundle --platform=node --format=cjs scripts/draft-club-tiers.ts --outfile=/tmp/d.cjs && node /tmp/d.cjs
+//
+// 枠（どのリーグが格いくつからいくつに入るか）はオーナー指定。ここを書き換えれば並びが変わる。
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 
-// 並べる順の素点。改修前の実測（上位10人の平均OVR）に寄せる。
-// 国内は initialRank 1〜52 を 89.0〜71.0 に直線で割り当て。
-// 海外はリーグの実測値を中心に、リーグ内の並び順で±3.5の幅を付ける。
-const LEAGUE_BASE: Record<string, number> = {
-  africa_ns: 86.3, africa_east: 86.3, north_america: 86.1, europe_ws: 85.5,
-  europe_ne: 80.5, oceania: 80.2, asia_league: 79.8,
-  central_america: 77.6, south_america: 77.2,
-}
-const SPREAD = 7
+// 'heavy' = 下に厚い（上位は少なく、下ほど多い。サッカーのリーグの形）
+// 'flat'  = 範囲に点在（均等にばらまく）
+type Shape = 'heavy' | 'flat'
+type Band = { top: number; bottom: number; shape: Shape; label: string }
 
-type Row = { id: string; name: string; where: string; score: number; rank?: number }
-const rows: Row[] = []
-
-for (const t of [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS]) {
-  const r = t.initialRank ?? 52
-  rows.push({ id: t.id, name: t.name, where: `JPEL ${t.division ?? 1}部 (${r}位)`, score: 89.0 - (r - 1) * (89.0 - 71.0) / 51, rank: r })
+const BANDS: Record<string, Band> = {
+  africa_east:     { top: 1, bottom: 7, shape: 'heavy', label: '東アフリカ' },
+  africa_ns:       { top: 1, bottom: 7, shape: 'heavy', label: 'アフリカ北・南' },
+  europe_ws:       { top: 1, bottom: 7, shape: 'heavy', label: 'ヨーロッパ西・南' },
+  north_america:   { top: 1, bottom: 8, shape: 'heavy', label: '北米' },
+  europe_ne:       { top: 3, bottom: 10, shape: 'heavy', label: 'ヨーロッパ北・東' },
+  oceania:         { top: 5, bottom: 12, shape: 'heavy', label: 'オセアニア' },
+  south_america:   { top: 7, bottom: 15, shape: 'heavy', label: '南米' },
+  asia_league:     { top: 10, bottom: 20, shape: 'flat', label: 'アジア' },
+  central_america: { top: 10, bottom: 20, shape: 'flat', label: '中米・カリブ' },
+  jpel1:           { top: 5, bottom: 12, shape: 'heavy', label: 'JPEL 1部' },
+  jpel2:           { top: 10, bottom: 17, shape: 'heavy', label: 'JPEL 2部' },
+  jpel3:           { top: 14, bottom: 20, shape: 'heavy', label: 'JPEL 3部' },
 }
-for (const lg of FOREIGN_LEAGUES) {
-  const base = LEAGUE_BASE[lg.id] ?? 77
-  const n = lg.clubs.length
-  lg.clubs.forEach((c, i) => {
-    rows.push({ id: c.id, name: c.name, where: lg.countryName, score: base + SPREAD / 2 - (i / Math.max(1, n - 1)) * SPREAD })
+
+// 格1に置くクラブ数（リーグごと）。オーナー指定＝アフリカ×2・ヨーロッパ×2・アメリカ×1 の計5。
+// ヨーロッパ北・東は格3始まりなので、ヨーロッパ枠2つはどちらも西・南から出す。
+const TOP_TIER_SLOTS: Record<string, number> = {
+  africa_east: 1, africa_ns: 1, europe_ws: 2, north_america: 1,
+}
+
+// 範囲の中での配り方。i は0始まり（0がそのリーグの最上位）。
+// heavy は指数0.7で下に寄せる。flat は範囲に均等。
+function tierOfIndex(band: Band, i: number, n: number): number {
+  const span = band.bottom - band.top
+  if (n <= 1) return band.top
+  if (band.shape === 'flat') return band.top + Math.round(span * i / (n - 1))
+  return band.top + Math.round(span * Math.pow(i / (n - 1), 0.7))
+}
+
+type Row = { name: string; league: string; note: string }
+const buckets: Row[][] = Array.from({ length: 20 }, () => [])
+
+function place(key: string, clubs: { name: string; note: string }[]) {
+  const band = BANDS[key]
+  const n = clubs.length
+  const forcedTop = TOP_TIER_SLOTS[key] ?? 0
+  clubs.forEach((c, i) => {
+    // 格1の枠は上から順に埋める（そのリーグで一番上のクラブたち）
+    const tier = i < forcedTop ? 1 : tierOfIndex(band, i, n)
+    buckets[Math.min(20, Math.max(1, tier)) - 1].push({ name: c.name, league: band.label, note: c.note })
   })
 }
 
-// 段ごとのクラブ数。上ほど薄いピラミッド型にする。
-// 格1は「レアル・バルサの位置」なので2クラブだけ。均等割り（各11〜12）だと上が厚すぎる。
-const TIER_SIZE: number[] = [2, 4, 8, 12, ...Array(14).fill(13), 12, 12]   // 合計232
-
-// 国内は最上位でも格4。initialRank 1〜52 を 格4〜格20 に割り当てる。
-const JPEL_TOP_TIER = 4
-const JPEL_BOTTOM_TIER = 20
-const jpelTier = (initialRank: number) =>
-  JPEL_TOP_TIER + Math.round((initialRank - 1) * (JPEL_BOTTOM_TIER - JPEL_TOP_TIER) / 51)
-
-const domestic = rows.filter(r => r.where.startsWith('JPEL'))
-const foreign = rows.filter(r => !r.where.startsWith('JPEL')).sort((a, b) => b.score - a.score)
-
-// 先に国内を置いて、残りの席を海外で強い順に埋める
-const buckets: Row[][] = Array.from({ length: 20 }, () => [])
-for (const r of domestic) buckets[jpelTier(r.rank!) - 1].push(r)
-let fi = 0
-for (let t = 0; t < 20; t++) {
-  const free = TIER_SIZE[t] - buckets[t].length
-  for (let k = 0; k < free && fi < foreign.length; k++) buckets[t].push(foreign[fi++])
+for (const lg of FOREIGN_LEAGUES) {
+  if (!BANDS[lg.id]) continue
+  place(lg.id, lg.clubs.map((c, i) => ({ name: c.name, note: `${i + 1}番手` })))
 }
-if (fi < foreign.length) console.log(`※ 席が足りず ${foreign.length - fi} クラブ余りました`)
+const domestic = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].sort((a, b) => (a.initialRank ?? 99) - (b.initialRank ?? 99))
+for (const [key, div] of [['jpel1', 1], ['jpel2', 2], ['jpel3', 3]] as const) {
+  const teams = domestic.filter(t => (t.division ?? 1) === div)
+  place(key, teams.map(t => ({ name: t.name, note: `${t.initialRank}位` })))
+}
 
-console.log(`# 232クラブ → 20段 の振り分け草案（第2版）`)
-console.log(`# ・格1は2クラブだけ（レアル・バルサの位置）。上ほど薄いピラミッド型`)
-console.log(`# ・国内は最上位でも格${JPEL_TOP_TIER}。JPEL 1位→格${JPEL_TOP_TIER}、52位→格${JPEL_BOTTOM_TIER}`)
+console.log('# 232クラブ → 20段の格：振り分け草案（第3版）')
+console.log('#')
+console.log('# 枠（オーナー指定）')
+for (const b of Object.values(BANDS)) {
+  console.log(`#   ${b.label}  格${b.top}〜${b.bottom}  ${b.shape === 'flat' ? '点在' : '下に厚い'}`)
+}
 console.log('')
 for (let t = 0; t < 20; t++) {
-  const jp = buckets[t].filter(r => r.where.startsWith('JPEL')).length
-  console.log(`## 格${t + 1}  （${buckets[t].length}クラブ${jp ? ` / うち国内${jp}` : ''}）`)
-  for (const r of buckets[t]) console.log(`  ${r.name}  — ${r.where}`)
+  const b = buckets[t]
+  const jp = b.filter(r => r.league.startsWith('JPEL')).length
+  console.log(`## 格${t + 1}  （${b.length}クラブ${jp ? ` / うち国内${jp}` : ''}）`)
+  for (const r of b) console.log(`  ${r.name}  — ${r.league} ${r.note}`)
   console.log('')
 }
+console.log(`合計 ${buckets.reduce((s, b) => s + b.length, 0)} クラブ`)
