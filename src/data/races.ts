@@ -312,7 +312,7 @@ export const SEASON_2027_RACES: Race[] = [
 export type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'> & { months?: number[] }
 export const RESERVE_RACE_POOL: RaceTemplate[] = [
   {
-    name: 'リザーブ春季オープン',      location: '川越',  type: 'league', months: [3, 4, 5],
+    name: '川越春季オープン',          location: '川越',  type: 'league', months: [3, 4, 5],
     conditions: { temperature: 14, weather: 'sunny',  elevation: 30 },
     segments: [
       seg(1, 7.0, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
@@ -325,7 +325,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '東海リザーブ駅伝',          location: '浜松',  type: 'league',
+    name: '浜松東海駅伝',              location: '浜松',  type: 'league',
     conditions: { temperature: 18, weather: 'cloudy', elevation: 50 },
     segments: [
       seg(1, 6.0, 0,   0, { speed: 0.64, pacing: 0.18, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
@@ -337,7 +337,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '北関東リザーブ交流戦',       location: '水戸',  type: 'league',
+    name: '水戸交流駅伝',              location: '水戸',  type: 'league',
     conditions: { temperature: 20, weather: 'sunny',  elevation: 40 },
     segments: [
       seg(1, 5.5, 0,   0, { speed: 0.68, pacing: 0.14, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
@@ -350,7 +350,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '四国リザーブサマーレース',   location: '高松',  type: 'league', months: [6, 9],
+    name: '高松サマー駅伝',            location: '高松',  type: 'league', months: [6, 9],
     conditions: { temperature: 27, weather: 'sunny',  elevation: 60 },
     segments: [
       seg(1, 6.5, 0,   0, { speed: 0.60, pacing: 0.18, mental: 0.14, stamina: 0.05, recovery: 0.03 }),
@@ -363,7 +363,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '北東北リザーブ夏季大会',     location: '盛岡',  type: 'league', months: [6, 9],
+    name: '盛岡夏季大会',              location: '盛岡',  type: 'league', months: [6, 9],
     conditions: { temperature: 22, weather: 'cloudy', elevation: 70 },
     segments: [
       seg(1, 8.0, 5,   5, { mental: 0.34, pacing: 0.30, speed: 0.18, stamina: 0.12, recovery: 0.06 }),
@@ -376,7 +376,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: 'リザーブ秋季フィナーレ',     location: '宇都宮', type: 'league', months: [9, 10, 11],
+    name: '宇都宮秋季フィナーレ',       location: '宇都宮', type: 'league', months: [9, 10, 11],
     conditions: { temperature: 20, weather: 'sunny',  elevation: 45 },
     segments: [
       seg(1, 7.5, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
@@ -388,7 +388,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: 'リザーブファイナル',          location: '千葉',  type: 'league', months: [10, 11],
+    name: '房総ファイナル駅伝',          location: '千葉',  type: 'league', months: [10, 11],
     conditions: { temperature: 18, weather: 'sunny',  elevation: 35 },
     segments: [
       seg(1, 6.0, 5,   5, { pacing: 0.42, speed: 0.28, mental: 0.18, stamina: 0.08, recovery: 0.04 }),
@@ -400,7 +400,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '関西リザーブカップ',          location: '大阪',  type: 'league',
+    name: '大阪カップ',                location: '大阪',  type: 'league',
     conditions: { temperature: 16, weather: 'cloudy', elevation: 25 },
     segments: [
       seg(1, 5.8, 0,   0, { speed: 0.68, pacing: 0.14, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
@@ -413,7 +413,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '山岳リザーブ挑戦戦',         location: '甲府',  type: 'league',
+    name: '甲府山岳駅伝',              location: '甲府',  type: 'league',
     conditions: { temperature: 15, weather: 'sunny',  elevation: 120 },
     segments: [
       seg(1, 7.0, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
@@ -426,7 +426,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '九州リザーブ交流戦',         location: '熊本',  type: 'league',
+    name: '熊本交流駅伝',              location: '熊本',  type: 'league',
     conditions: { temperature: 23, weather: 'sunny',  elevation: 55 },
     segments: [
       seg(1, 6.5, 5,   5, { pacing: 0.40, speed: 0.28, mental: 0.18, stamina: 0.09, recovery: 0.05 }),
@@ -439,7 +439,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '中部リザーブ大会',            location: '静岡',  type: 'league',
+    name: '静岡中部駅伝',              location: '静岡',  type: 'league',
     conditions: { temperature: 19, weather: 'windy',  elevation: 40 },
     segments: [
       seg(1, 7.5, 0,   0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
@@ -451,7 +451,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '北海道リザーブ秋冬戦',       location: '旭川',  type: 'league', months: [10, 11],
+    name: '旭川秋冬駅伝',              location: '旭川',  type: 'league', months: [10, 11],
     conditions: { temperature: 10, weather: 'cloudy', elevation: 65 },
     segments: [
       seg(1, 8.0, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
@@ -464,7 +464,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: 'スプリント型リザーブ戦',     location: '川崎',  type: 'league',
+    name: '川崎スプリント駅伝',        location: '川崎',  type: 'league',
     conditions: { temperature: 17, weather: 'sunny',  elevation: 20 },
     segments: [
       seg(1, 5.0, 0,   0, { speed: 0.70, pacing: 0.14, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
@@ -476,7 +476,7 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
     ],
   },
   {
-    name: '長距離リザーブ耐久戦',       location: '神戸',  type: 'league',
+    name: '神戸耐久駅伝',              location: '神戸',  type: 'league',
     conditions: { temperature: 21, weather: 'sunny',  elevation: 55 },
     segments: [
       seg(1, 9.0, 5,   5, { mental: 0.34, pacing: 0.28, stamina: 0.22, recovery: 0.12, speed: 0.04 }),
