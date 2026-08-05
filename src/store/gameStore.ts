@@ -7173,14 +7173,10 @@ export const useGameStore = create<GameStore>()(
           }
           // v5→v6: initialRank を追加、budget を新グラント額に更新
           if (version < 6 && Array.isArray(s.teams)) {
-            const RANK_MAP: Record<string, number> = {
-              sapporo: 9, morioka: 16, aomori: 18, sendai: 10,
-              tokyo: 1, yokohama: 4, chiba: 8, saitama: 7,
-              nagano: 14, niigata: 20, shizuoka: 11, nagoya: 3,
-              kyoto: 13, osaka: 2, kobe: 6,
-              hiroshima: 12, okayama: 19,
-              fukuoka: 5, kagoshima: 15, okinawa: 17,
-            }
+            // チームIDとinitialRankの唯一の決まりは data/teams.ts の INITIAL_TEAMS。ここでは二重に持たず導出する
+            const RANK_MAP: Record<string, number> = Object.fromEntries(
+              INITIAL_TEAMS.map(t => [t.id, t.initialRank]),
+            )
             s.teams = (s.teams as Record<string, unknown>[]).map(t => {
               const id = t.id as string
               const isPlayer = t.isPlayerControlled as boolean
