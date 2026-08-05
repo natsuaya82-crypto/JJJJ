@@ -1,4 +1,4 @@
-import type { Player, Specialty, RaceResults, Race, Team } from '../types'
+import type { Player, Specialty, RaceResults, Race, Team, Segment } from '../types'
 import type { TraitId } from '../utils/traitUtils'
 import { positionPointsFor } from '../utils/league'
 
@@ -100,6 +100,13 @@ export function calcAffinity(
   }
   // 補正の効きを抑える：OVRが素直にタイムへ反映されるよう振れ幅を約6割に圧縮
   return Math.max(0.90, Math.min(1.12, 1.0 + (mult - 1.0) * 0.6))
+}
+
+// 区間の推奨ポジション（recommended）と選手の特性が一致したときの+5%を掛ける唯一の場所。
+// calcAffinity自体は変えない。他の呼び出し箇所を増やさず、必ずここを経由すること。
+export function calcSegmentAffinity(specialty: Specialty, seg: Pick<Segment, 'uphillPct' | 'downhillPct' | 'distanceKm' | 'recommended'>): number {
+  const base = calcAffinity(specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+  return specialty === seg.recommended ? base * 1.05 : base
 }
 
 export function calcClubModifier(team: Pick<Team, 'city'>, raceLocation: string): number {
@@ -210,7 +217,7 @@ export function assignLineupByTerrain(roster: Player[], race: Race): Record<numb
       .map(p => ({
         id: p.id,
         score: calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-             * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+             * calcSegmentAffinity(p.specialty, seg)
              * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0),
       }))
       .sort((a, b) => b.score - a.score)
@@ -233,7 +240,7 @@ export function buildAILineup(teamId: string, players: Player[], race: Race): Re
       .map(p => ({
         id: p.id,
         score: calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-             * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+             * calcSegmentAffinity(p.specialty, seg)
              * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0),
       }))
       .sort((a, b) => b.score - a.score)
@@ -341,7 +348,7 @@ export function simulateRace(
       const traits = player.traits ?? []
       const effectiveRatings = player.ratings
       const base     = calcBaseAbility(effectiveRatings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-      const aff      = calcAffinity(player.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+      const aff      = calcSegmentAffinity(player.specialty, seg)
       const clubMod  = team ? calcClubModifier(team, race.location) : 1.0
       const rand     = calcRandomFactor(traits)
       const fatigue  = player.specialty === 'grinder' ? Math.min(player.fatigue ?? 0, 40) : (player.fatigue ?? 0)

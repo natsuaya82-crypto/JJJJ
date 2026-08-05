@@ -4,7 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import BackButton from '../ui/BackButton'
 import type { Player, Race, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { calcBaseAbility, calcAffinity, calcConditionModifier } from '../../engine/raceEngine'
+import { calcBaseAbility, calcSegmentAffinity, calcConditionModifier } from '../../engine/raceEngine'
 import { ovr, effSegOvr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
@@ -42,7 +42,7 @@ function autoFill(
       if (assignedIds.has(p.id)) continue
       // CPUのラインナップ(buildAILineup)と同じく疲労・士気・調子も加味する（能力だけで疲労90を置かない）
       let score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-                * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+                * calcSegmentAffinity(p.specialty, seg)
                 * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
       if (p.nationality === maxNat && currentMax >= 5) score *= 1.04
       if (score > bestScore) { bestScore = score; bestId = p.id }
@@ -139,7 +139,7 @@ export function LineupPhase({
       for (const p of availablePlayers) {
         // おすすめ(最適)表示も自動配置と同じ基準（疲労・士気・調子込み）で算出する
         const score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-                    * calcAffinity(p.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
+                    * calcSegmentAffinity(p.specialty, seg)
                     * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
         pairs.push({ segIndex: seg.index, playerId: p.id, score })
       }
@@ -192,7 +192,7 @@ export function LineupPhase({
     if (!pickerSegData) return []
     return mainPlayers.map(p => {
       const score = calcBaseAbility(p.ratings, pickerSegData.uphillPct, pickerSegData.downhillPct, pickerSegData.distanceKm, pickerSegData.statWeights)
-                  * calcAffinity(p.specialty, pickerSegData.uphillPct, pickerSegData.downhillPct, pickerSegData.distanceKm)
+                  * calcSegmentAffinity(p.specialty, pickerSegData)
       const assignedSeg = getPlayerSegment(p.id)
       return { p, score, assignedSeg }
     })
@@ -382,8 +382,15 @@ export function LineupPhase({
 
                 {/* 地形・距離 */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: segCol, lineHeight: 1.2 }}>
-                    {terrainLabel(seg.uphillPct, seg.downhillPct, seg.distanceKm)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: segCol, lineHeight: 1.2 }}>
+                      {terrainLabel(seg.uphillPct, seg.downhillPct, seg.distanceKm)}
+                    </div>
+                    {seg.recommended && (
+                      <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(SPEC_COLOR[seg.recommended], 0.1), color: SPEC_COLOR[seg.recommended], fontWeight: 700, flexShrink: 0 }}>
+                        {SPECIALTY_LABELS[seg.recommended]}推奨
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{seg.distanceKm.toFixed(1)}km</div>
                 </div>
@@ -411,7 +418,7 @@ export function LineupPhase({
               {/* スペシャリティ + 全ステータス */}
               {player && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 7, paddingLeft: 46 }}>
-                  <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(specCol, 0.1), color: specCol, fontWeight: 700, flexShrink: 0 }}>{SPECIALTY_LABELS[player.specialty]}</span>
+                  <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(specCol, 0.1), color: specCol, fontWeight: 700, flexShrink: 0, border: seg.recommended === player.specialty ? `1px solid ${specCol}` : 'none' }}>{SPECIALTY_LABELS[player.specialty]}{seg.recommended === player.specialty ? ' ✓' : ''}</span>
                   {ALL_STATS.map(([label, key]) => {
                     const val = player.ratings[key] as number
                     return (
