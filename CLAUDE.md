@@ -84,6 +84,27 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 
 ---
 
+## 配信（TestFlight）
+
+**バージョンは v2.0.2 で固定です。オーナーがOKを出すまで 2.0.3 に上げないでください。**
+
+実機確認のあいだは、中身を足してもバージョンは上げません。ビルド番号だけを上げて
+2.0.2 のまま出し続けます。お知らせも新しいエントリを作らず、v2.0.2 のエントリに追記します。
+
+| 何 | どこが正 | 誰が書く |
+|---|---|---|
+| バージョン（2.0.2） | `src/data/appMeta.ts` の `APP_VERSION` | `npm run sync:version` と CI |
+| ビルド番号（88, 89, …） | git タグ `build-NN` | CI（`ios-deploy.yml`） |
+
+タグを打てば CI がビルド番号を書き込みます。ただし**セッションによってはタグの push が
+GitHub に 403 で弾かれます**（ブランチへの push は通るのにタグだけ通らない）。その場合は
+
+1. `ios/App/App.xcodeproj/project.pbxproj` の `CURRENT_PROJECT_VERSION` を次の番号に上げてコミット
+2. `ios-deploy.yml` を `workflow_dispatch` で実行する
+
+タグ起動でないとき、CI は pbxproj の値をそのまま使うので、出来上がるビルドはタグ起動と同じです。
+**上げ忘れると、ビルドは全部成功したうえで最後のアップロードだけが 409 で落ちます。**
+
 ## コマンド
 
 ```bash
