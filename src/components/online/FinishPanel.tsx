@@ -16,11 +16,16 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 export default function FinishPanel({
-  races, meId, onLeave,
+  races, meId, onLeave, history = false, leaveLabel,
 }: {
   races: MatchRacePayload[]
   meId: string
   onLeave: () => void
+  /** 対戦履歴から開いたときは true。順位の発表演出を飛ばし、区間記録から見せる。
+   *  履歴のためだけに似た画面を作らず、この画面をそのまま使い回すための切り替え */
+  history?: boolean
+  /** 右下のボタンの文言。既定は対戦直後の「部屋を出る」 */
+  leaveLabel?: string
 }) {
   const standings = useMemo(() => seriesStandings(races), [races])
   const teamMap = useMemo(() => {
@@ -29,14 +34,14 @@ export default function FinishPanel({
     return m
   }, [races])
 
-  // 下から何チームぶん発表したか
-  const [shown, setShown] = useState(0)
-  const [tab, setTab] = useState<'result' | 'records'>('result')
+  // 下から何チームぶん発表したか。履歴から見るときは演出せず最初から全部出す
+  const [shown, setShown] = useState(history ? standings.length : 0)
+  const [tab, setTab] = useState<'result' | 'records'>(history ? 'records' : 'result')
   // 区間タイム詳細（本編と同じ画面）で見ているレースと区間
   const [recRace, setRecRace] = useState(0)
   const [recSeg, setRecSeg] = useState(0)
   const total = standings.length
-  const done = shown >= total
+  const done = history || shown >= total
   const champion = standings[0]
 
   const revealNext = () => setShown(v => Math.min(total, v + 1))
@@ -118,7 +123,7 @@ export default function FinishPanel({
             <span className="btn-game__inner">結果に戻る</span>
           </button>
           <button className="btn-game btn-game--gold" onClick={onLeave} style={{ flex: 1 }}>
-            <span className="btn-game__inner">部屋を出る</span>
+            <span className="btn-game__inner">{leaveLabel ?? '部屋を出る'}</span>
           </button>
         </div>
       </div>
@@ -131,7 +136,7 @@ export default function FinishPanel({
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.7), letterSpacing: 3, fontWeight: 900 }}>FINAL RESULT</div>
         <div style={{ fontSize: 19, fontWeight: 900, color: C.text, marginTop: 4 }}>総合結果</div>
         <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>
-          {done ? `全${races.length}レース終了` : `下の順位から発表します（残り${shown === 0 ? total : nextRank + 1}チーム）`}
+          {history ? `全${races.length}レース` : done ? `全${races.length}レース終了` : `下の順位から発表します（残り${shown === 0 ? total : nextRank + 1}チーム）`}
         </div>
       </div>
 
@@ -212,7 +217,7 @@ export default function FinishPanel({
               <span className="btn-game__inner">区間記録を見る</span>
             </button>
             <button className="btn-game btn-game--gold" onClick={onLeave} style={{ flex: 1 }}>
-              <span className="btn-game__inner">部屋を出る</span>
+              <span className="btn-game__inner">{leaveLabel ?? '部屋を出る'}</span>
             </button>
           </div>
         )}

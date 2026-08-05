@@ -231,7 +231,7 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail | und
     .from('match_details').select('detail').eq('match_id', matchId).maybeSingle()
   if (error) throw new RoomsOffline()
   const d = (data?.detail ?? undefined) as MatchDetail | undefined
-  return d && Array.isArray(d.r) ? d : undefined
+  return d && Array.isArray(d.races) ? d : undefined
 }
 
 // ── 対戦履歴 ────────────────────────────────────────────
