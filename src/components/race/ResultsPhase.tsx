@@ -27,7 +27,6 @@ function requiredExp(level: number): number {
 // tokens.ts の rankColor と同じ色だが、この1箇所だけ4位以下のフォールバックが
 // C.textDim（他は全部 C.textGhost）になっている。rankColor に置き換えると色が
 // 変わってしまうため、ここだけ意図的にローカル定義のまま残している（挙動維持）。
-const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties => {
   if (isPlayer) return {
@@ -351,7 +350,7 @@ export function ResultsPhase({
               </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              fontSize: '30px', fontWeight: '900', color: rankColors[playerResult.rank] ?? C.textDim,
+              fontSize: '30px', fontWeight: '900', color: rankColor(playerResult.rank),
               fontFamily: SAIRA, lineHeight: 1,
               textShadow: playerResult.rank === 1 ? `0 0 10px ${alpha(C.gold, 0.5)}` : 'none',
             }}>

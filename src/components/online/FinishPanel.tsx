@@ -10,10 +10,9 @@ import { courseById, courseToRace } from '../../data/matchCourses'
 import { asPlayer, asTeam, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { SegmentDetailCard, SegmentTabs } from '../race/SegmentDetailCard'
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const rankColors: Record<number, string> = { 1: C.gold, 2: '#9B97A8', 3: '#CD7F32' }
 
 export default function FinishPanel({
   races, meId, onLeave, history = false, leaveLabel,
@@ -168,7 +167,7 @@ export default function FinishPanel({
           const revealed = total - i <= shown
           const t = teamMap.get(s.teamId)
           const isMe = s.teamId === meId
-          const rankCol = rankColors[s.rank] ?? C.textGhost
+          const rankCol = rankColor(s.rank)
           const top = standings[0]?.totalTimeSec ?? 0
           const gap = s.totalTimeSec - top
           return (
