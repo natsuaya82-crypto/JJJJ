@@ -19,8 +19,8 @@
 // ■ ここでやらないこと
 //   移籍の可否そのもの。ここは「格がいくつか・いくら払えるか・どこまで伸びるか」だけ。
 
-import type { Team } from '../types'
-import type { Rank } from '../types'
+import type { Team, Rank } from '../types'
+import { CLUB_TIER_BY_ID } from '../data/clubTiers'
 
 /** 1が世界の頂点、20が最下層。20段階 */
 export type ClubTier =
@@ -165,18 +165,30 @@ export function tierFromDomesticRank(rank: number): ClubTier {
 
 // ── 読み口 ───────────────────────────────────────────────────────
 
-type TieredTeam = { tier?: ClubTier; initialRank?: Team['initialRank'] }
+type TieredTeam = { id?: string; tier?: ClubTier; initialRank?: Team['initialRank'] }
 
 /**
- * そのクラブの格。
- * Team.tier があればそれ。無ければ initialRank（通し順位）から引く。
- * ★格を読むときは必ずこれを通すこと。team.tier を直接見ないこと
- *   （古いセーブには tier が無く、undefined のクラブが生まれる）。
+ * そのクラブの格。国内クラブも海外クラブも同じ入口。
+ *
+ * 優先順位:
+ *   1. Team.tier（前年の順位で毎年書き換わる。国内クラブはこれが正）
+ *   2. data/clubTiers.ts の初期値（全232クラブぶん）
+ *   3. initialRank からの推定（古いセーブの保険）
+ *
+ * ★格を読むときは必ずこれを通すこと。team.tier を直接見ないこと。
  * ★格はプレイヤーに見せない内部データ。画面に出さないこと。
  */
 export function tierOf(team: TieredTeam | undefined): ClubTier {
   if (!team) return DOMESTIC_BOTTOM_TIER
-  return team.tier ?? tierFromDomesticRank(team.initialRank ?? DOMESTIC_CLUB_COUNT)
+  if (team.tier) return team.tier
+  const seeded = team.id ? CLUB_TIER_BY_ID[team.id] : undefined
+  if (seeded) return seeded as ClubTier
+  return tierFromDomesticRank(team.initialRank ?? DOMESTIC_CLUB_COUNT)
+}
+
+/** クラブIDから直接引く（海外クラブは Team ではないのでこちらを使う） */
+export function tierOfClubId(clubId: string): ClubTier {
+  return (CLUB_TIER_BY_ID[clubId] as ClubTier) ?? DOMESTIC_BOTTOM_TIER
 }
 
 /** そのクラブの年間予算（円） */

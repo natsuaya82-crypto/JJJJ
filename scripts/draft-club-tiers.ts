@@ -28,8 +28,8 @@ const CITY_ORDER: Record<string, string[]> = {
     'スース・ペースクラブ',
   ],
   europe_ws: [
-    'テムズ・ハリアーズ', 'ベルリン・ラウフラボ', 'マドリード・アスレティコ',
-    'ローマ・ストライダーズ', 'パリ・アスレティック', 'バルセロナTC', 'ハンブルクRC',
+    'ロンドン・ハリアーズ', 'マドリード・アスレティコ', 'パリ・アスレティック',
+    'バルセロナTC', 'ベルリン・ラウフラボ', 'ローマ・ストライダーズ', 'ハンブルクRC',
     'ミュンヘンTC', 'ミラノ・マラソンクラブ', 'ブリュッセル・ハリアーズ',
     'アムステル・ランナーズ', 'バーミンガム・ハリアーズ', 'マルセイユ・ペースクラブ',
     'トリノRC', 'バレンシアRC', 'ロッテルダム・アスレティック', 'リスボン・アトランティコ',
@@ -79,8 +79,8 @@ const BANDS: Record<string, Band> = {
 const TIER1_CLUBS = [
   'ナイロビ・ハリアーズ',        // ケニア
   'アディスアベバAC',           // エチオピア
-  'テムズ・ハリアーズ',          // イギリス（ロンドン）
-  'ベルリン・ラウフラボ',        // ドイツ
+  'ロンドン・ハリアーズ',        // イギリス
+  'マドリード・アスレティコ',    // スペイン
   'ニューヨーク陸上クラブ',      // アメリカ
 ]
 
@@ -122,7 +122,24 @@ for (const [key, div] of [['jpel1', 1], ['jpel2', 2], ['jpel3', 3]] as const) {
   place(key, teams.map(t => ({ name: t.name, note: `${t.initialRank}位` })))
 }
 
-console.log('# 232クラブ → 20段の格：振り分け草案（第6版・リーグ内は都市の規模順）')
+// --emit を付けると src/data/clubTiers.ts の中身を吐く
+if (process.argv.includes('--emit')) {
+  const idOf = new Map<string, string>()
+  for (const lg of FOREIGN_LEAGUES) for (const c of lg.clubs) idOf.set(c.name, c.id)
+  for (const t of [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS]) idOf.set(t.name, t.id)
+  console.log(`// 全232クラブの格。国内52＋海外180。`)
+  console.log(`// ★このファイルは scripts/draft-club-tiers.ts --emit の生成物。手で直してよい。`)
+  console.log(`// 格はプレイヤーに見せない内部データ。画面に出さないこと。`)
+  console.log(`export const CLUB_TIER_BY_ID: Record<string, number> = {`)
+  for (let t = 0; t < 20; t++) {
+    if (buckets[t].length === 0) continue
+    console.log(`  // 格${t + 1}`)
+    for (const r of buckets[t]) console.log(`  '${idOf.get(r.name) ?? r.name}': ${t + 1},   // ${r.name}（${r.league}）`)
+  }
+  console.log(`}`)
+  process.exit(0)
+}
+console.log('# 232クラブ → 20段の格：振り分け草案（第7版・ロンドン改名／欧州の順を反映）')
 console.log('#')
 console.log('# 枠（オーナー指定）')
 for (const b of Object.values(BANDS)) {

@@ -92,7 +92,7 @@ export const FOREIGN_LEAGUES: ForeignLeague[] = [
     country: 'GBR',
     countryName: 'ヨーロッパ西・南',
     clubs: [
-      { id: 'gbr_1', name: 'テムズ・ハリアーズ', shortName: 'ロンドン', leagueId: 'europe_ws', country: 'GBR', colors: { primary: '#C8102E', secondary: '#012169' } },
+      { id: 'gbr_1', name: 'ロンドン・ハリアーズ', shortName: 'ロンドン', leagueId: 'europe_ws', country: 'GBR', colors: { primary: '#C8102E', secondary: '#012169' } },
       { id: 'gbr_2', name: 'マンチェスターランナーズ', shortName: 'マンチェス', leagueId: 'europe_ws', country: 'GBR', colors: { primary: '#C8102E', secondary: '#012169' } },
       { id: 'gbr_3', name: 'バーミンガム・ハリアーズ', shortName: 'バーミンガ', leagueId: 'europe_ws', country: 'GBR', colors: { primary: '#C8102E', secondary: '#012169' } },
       { id: 'fra_1', name: 'パリ・アスレティック', shortName: 'パリ', leagueId: 'europe_ws', country: 'FRA', colors: { primary: '#003189', secondary: '#EF3340' } },
@@ -187,7 +187,7 @@ export const FOREIGN_LEAGUES: ForeignLeague[] = [
       { id: 'crc_4', name: 'エレディア・ペースクラブ', shortName: 'エレディア', leagueId: 'central_america', country: 'CRC', colors: { primary: '#002B7F', secondary: '#CE1126' } },
       { id: 'crc_5', name: 'リベリアランナーズ', shortName: 'リベリア', leagueId: 'central_america', country: 'CRC', colors: { primary: '#002B7F', secondary: '#CE1126' } },
       { id: 'cub_1', name: 'ハバナ・ディスタンスクラブ', shortName: 'ハバナ', leagueId: 'central_america', country: 'CUB', colors: { primary: '#002A8F', secondary: '#CF142B' } },
-      { id: 'cub_2', name: 'サンティアゴ・トレイルランナーズ', shortName: 'サンティア', leagueId: 'central_america', country: 'CUB', colors: { primary: '#002A8F', secondary: '#CF142B' } },
+      { id: 'cub_2', name: 'サンティアゴ・デ・クーバRC', shortName: 'サンティア', leagueId: 'central_america', country: 'CUB', colors: { primary: '#002A8F', secondary: '#CF142B' } },
       { id: 'cub_3', name: 'カマグエイランナーズ', shortName: 'カマグエイ', leagueId: 'central_america', country: 'CUB', colors: { primary: '#002A8F', secondary: '#CF142B' } },
       { id: 'cub_4', name: 'オルギン・ハリアーズ', shortName: 'オルギン', leagueId: 'central_america', country: 'CUB', colors: { primary: '#002A8F', secondary: '#CF142B' } },
       { id: 'cub_5', name: 'サンタクララ・ストライダーズ', shortName: 'サンタクラ', leagueId: 'central_america', country: 'CUB', colors: { primary: '#002A8F', secondary: '#CF142B' } },

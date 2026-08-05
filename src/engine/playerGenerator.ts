@@ -2,7 +2,8 @@
 import { natCategory, natStrengthRegion } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
-import { tierBudget, type ClubTier } from '../utils/clubTier'
+import { curveOvr } from './ageCurve'
+import { tierOf, tierOfClubId, tierPotentialCap, tierRankComposition, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary, peakAgeOf } from '../utils/playerUtils'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
@@ -1009,24 +1010,19 @@ export function generateCpuRosters(
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
   let cpuIdCounter = 5000
 
-  function makePlayer(
-    baseRank: Rank, i: number, teamId: string, tier: 'main' | 'second',
-    isForeign: boolean, contractType: 'standard' | 'development' | 'dual' = tier === 'main' ? 'standard' : 'development',
-    salary?: number,
-  ): Player {
+  function makePlayer(rank: Rank, i: number, teamId: string, potentialCap: number, isForeign: boolean): Player {
     cpuIdCounter++
-    const rank: Rank = baseRank
     const specialty = specialties[rng(0, specialties.length - 1)]
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    // 年俸上位4人（各チームのエース格）はピーク年齢寄りにして、初年度から完成した選手にする
-    const age = tier === 'main' ? (i < 4 ? rng(25, 31) : rng(22, 31)) : rng(19, 25)
+    // 年齢は18〜32でばらけさせる。ランクとは紐づけない
+    // （紐づけると「高ランク＝年上」になるが、早熟のSSSは22歳が全盛なので実態と合わない）
+    const age = 18 + Math.round(i * 14 / Math.max(1, INITIAL_ROSTER_SIZE - 1))
     const yearsPro = Math.max(0, age - 22)
 
-    const id = `ai${tier === 'second' ? '2' : ''}-${teamId}-${cpuIdCounter}`
-    // 能力値の作り方は buildRatingsForRank の1本（年齢ぶんの成長の焼き込みもそこで行う）
+    const id = `ai-${teamId}-${cpuIdCounter}`
+    // 能力値は年齢カーブ1本（engine/ageCurve.ts）。上限はそのクラブの格
     const { ratings, potential: potentialVal } = buildRatingsForRank({
-      id, rank, specialty, growthCurve, age,
-      potentialCap: isForeign ? 99 : 92,
+      id, rank, specialty, growthCurve, age, potentialCap,
     })
 
     let name: string
@@ -1049,8 +1045,6 @@ export function generateCpuRosters(
       usedNames.add(name)
     }
 
-    void contractType   // 契約形態は廃止（フラット化）。tier は年齢分布のためだけに使う
-    void salary         // 予算配分(distributeSalaries)はランク＝強さの割り当てにだけ使う。年俸は下で相場から出す
     const made: Player = {
       id, name, nameKana: '', age, yearsPro,
       draftYear: year - yearsPro, draftRound: null, draftPick: null,
@@ -1078,48 +1072,30 @@ export function generateCpuRosters(
   }
 
   for (const team of teams) {
-    // グラント（initialRank連動の初期予算）の8割を28人の年俸に充てる。
-    // 初期28人＋初回ドラフト2人でロスター上限30ちょうどになる。
-    // 年俸から選手の強さを決めるので、予算の大きいチームほど強い選手が揃う。
-    // 予算は「クラブの格」から。前は rankBudgetGrant(initialRank) だったが、
-    // あの表は1〜20位ぶんしか無く21位以降が一律3.9億で、2部と3部が同じ強さになっていた。
-    const grant = tierBudget(team)
-    const salaries = distributeSalaries(Math.round(grant * 0.8), 28, 4_000_000)
-
-    const mainIds: string[] = []   // 本契約(standard) 12
-    const dualIds: string[] = []   // 2WAY(dual) 3（1軍/2軍共通）
-    const secondIds: string[] = [] // 育成(development) 13
-
-    // 本契約(standard) 12人 — 年俸上位から。外国人は2人まで
+    // ロスターの中身は「格」が決める（そのクラブに各ランクが何人いるか）。
     //
-    // 以前はここで全員のランクを一段引き上げていた（RANK_UP）。国内の予算が
-    // 3.9〜5.2億しか無く、海外クラブ（7.8〜9.8億を22人で分ける）に勝てないのを
-    // 当て木で埋めていたもの。格で予算そのものを決めるようにしたので撤去した。
-    // 引き上げを残すと、格の差がランクの底上げで潰れて格が効かなくなる。
+    // 前は 予算 → distributeSalaries で25人に年俸を配る → その額から rankForSalary で
+    // ランクを逆算、という中間の仕組み（配分年俸）があった。しかも実際に払う年俸は
+    // OVRから計算し直していたので、年俸が2つあって互いを見ていない状態だった。
+    // いまは 格 → ランク構成 → 年齢カーブ → OVR → 年俸 の1本。
+    const tier = tierOf(team)
+    const comp = tierRankComposition(tier)
+    const cap = TIER_POTENTIAL_CAP[tier]
+    const slots: Rank[] = []
+    for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) slots.push(r as Rank)
+    slots.sort(() => Math.random() - 0.5)
+
+    const ids: string[] = []
     let teamForeignCount = 0
-    for (let i = 0; i < 12; i++) {
-      const sal = salaries[i]
+    slots.forEach((rank, i) => {
+      // 外国人は2人まで（先頭2枠で抽選）
       const canBeForeign = teamForeignCount < 2
       const isForeign = canBeForeign && (i < 1 ? Math.random() < 0.55 : Math.random() < 0.08)
       if (isForeign) teamForeignCount++
-      const p = makePlayer(rankForSalary(sal), i, team.id, 'main', isForeign, 'standard', sal)
-      cpuPlayers.push(p); mainIds.push(p.id)
-    }
-    // 2WAY(dual) 3人 — 1軍側で保持し2軍にも登録（国内）
-    for (let i = 0; i < 3; i++) {
-      const sal = salaries[12 + i]
-      const p = makePlayer(rankForSalary(sal), 12 + i, team.id, 'main', false, 'dual', sal)
-      cpuPlayers.push(p); dualIds.push(p.id)
-    }
-    // 育成(development) 13人（国内・年俸下位）
-    for (let i = 0; i < 13; i++) {
-      const sal = salaries[15 + i]
-      const p = makePlayer(rankForSalary(sal), i, team.id, 'second', false, 'development', sal)
-      cpuPlayers.push(p); secondIds.push(p.id)
-    }
-
-    // フラット化：全員を単一ロスター(main)へ。2軍は使わない
-    teamRosters[team.id] = { main: [...mainIds, ...dualIds, ...secondIds] }
+      const p = makePlayer(rank, i, team.id, cap, isForeign)
+      cpuPlayers.push(p); ids.push(p.id)
+    })
+    teamRosters[team.id] = { main: ids }
   }
 
   return { cpuPlayers, teamRosters }
@@ -1346,48 +1322,44 @@ export function buildRatingsForRank(params: {
   specialty: Specialty
   growthCurve: GrowthCurve
   age: number
-  potentialCap?: number      // 国内は92、海外は99
-  potentialBonus?: number    // 海外の地域補正(potBonus)
+  potentialCap?: number      // そのクラブの格の成長上限（utils/clubTier.ts の tierPotentialCap）
   potentialOverride?: number // ランクから抽選せず、この値をポテンシャルにする（ドラフトの「お化け」枠）
-  bakeFrom?: number          // 焼き込みを始める年齢（既定22）。年齢カーブの試算用
-  bakeRate?: number          // 1年あたりの伸びの倍率（既定1.0）。年齢カーブの試算用
-  baseBoost?: number         // 素体の底上げ（既定0）。年齢カーブの試算用
-  bakeEarlyUntil?: number    // この年齢までは伸びを緩める（既定＝bakeFrom＝効果なし）。試算用
-  bakeEarlyRate?: number     // 緩めるときの倍率（既定1.0）。試算用
 }): { ratings: Player['ratings']; potential: number } {
-  const { id, rank, specialty, growthCurve, age, potentialCap = 92, potentialBonus = 0, potentialOverride, bakeFrom, bakeRate, baseBoost = 0, bakeEarlyUntil, bakeEarlyRate } = params
-  const ratings = generateRatings(rank, specialty, baseBoost)
-  const [pMin, pMax] = rankToBaseRange(rank, growthCurve).potential
-  const potential = potentialOverride ?? Math.min(potentialCap, rng(pMin, pMax) + potentialBonus)
-  bakeAgeGrowth(id, ratings, specialty, growthCurve, potential, age, bakeFrom, bakeRate, bakeEarlyUntil, bakeEarlyRate)
+  const { id, rank, specialty, growthCurve, age, potentialCap = 85, potentialOverride } = params
+  const potential = potentialOverride ?? potentialCap
+
+  // 能力値は「年齢カーブの値 ＋ 特性ごとの凸凹」。
+  // カーブ（engine/ageCurve.ts）は初期生成も年次成長も見る唯一の表。
+  // ここでは積み上げ0＝素のカーブなので、生成直後は「その年齢の標準的な選手」になる。
+  // 以後の伸びは成長側（applyGrowth）が積み上げていく。
+  const base = curveOvr(rank, growthCurve, age)
+  const strong = new Set(SPEC_STRONG_STATS[specialty] ?? [])
+  const caps = statCapsFor(id, specialty, potential)
+  const ratings = {} as Player['ratings']
+  for (const stat of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const) {
+    // 得意は上、苦手は下。7つの平均がカーブの値になるよう、得意の数で振り分け幅を決める
+    const n = strong.size || 1
+    const up = 7 / n - 1            // 得意3つなら +1.33、2つなら +2.5
+    const d = strong.has(stat) ? up * 4 : -4
+    ratings[stat] = Math.round(Math.max(30, Math.min(caps[stat], base + d)))
+  }
   return { ratings, potential }
 }
 
-// 海外選手は再生成のたび素体OVRで生まれるため、毎年成長している国内選手に対して
-// 年々見劣りしていく問題の修正。ピーク年齢までの経過年数ぶんだけポテンシャルへ近づける。
-function bakeAgeGrowth(id: string, ratings: Player['ratings'], specialty: Specialty, growthCurve: GrowthCurve, potential: number, age: number, bakeFrom = 22, bakeRate = 1.0, bakeEarlyUntil = bakeFrom, bakeEarlyRate = 1.0): void {
-  const peakAge = peakAgeOf({ growthCurve })
-  const years = Math.max(0, Math.min(age, peakAge + 3) - bakeFrom)
-  if (years === 0) return
-  const caps = getStatPotentials({ id, ratings, specialty, potential } as unknown as Player)
-  // 毎年の成長(growPlayer)と同じ係数に揃える（ズレると初年度と定常状態で層の厚みが変わる）
-  // 2046調整: growPlayer 側で基準値を rnd(0,2)→rnd(1,3)、成長窓をピーク+1→+3年に変更したので
-  // ここも同じ値にする。片方だけ変えると初年度のリーグと数年後の定常状態で層の厚みがズレる
-  const potFactor = potential >= 87 ? 1.8 : potential >= 75 ? 1.3 : 0.85
-  const keys = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const
-  for (let y = 0; y < years; y++) {
-    for (const stat of keys) {
-      const cur = ratings[stat]
-      const cap = (caps as Record<string, number>)[stat]
-      if (cur >= cap) continue
-      // 高ポテンシャルの年長者がちゃんと90-99近くまで育つよう、高数値域の伸びを強めに。
-      const diff = cur >= 90 ? 0.5 : cur >= 82 ? 0.8 : cur >= 72 ? 1.0 : 1.2
-      // その年に何歳だったか。若い年は伸びを緩める（bakeEarlyUntil 未満に bakeEarlyRate）
-      const rate = (bakeFrom + y) < bakeEarlyUntil ? bakeRate * bakeEarlyRate : bakeRate
-      const gain = Math.round(rng(1, 3) * potFactor * diff * rate)
-      if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
-    }
+/** 能力別の上限。得意は高く、苦手は低い。平均がだいたい potential になる */
+export function statCapsFor(id: string, specialty: Specialty, potential: number): Record<string, number> {
+  const strong = new Set(SPEC_STRONG_STATS[specialty] ?? [])
+  const out: Record<string, number> = {}
+  for (const stat of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const) {
+    const jitter = (hashForCap(id + stat) % 9) - 6
+    out[stat] = Math.min(99, Math.round((strong.has(stat) ? potential + 12 : potential - 5) + jitter))
   }
+  return out
+}
+function hashForCap(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  return Math.abs(h)
 }
 
 export function generateForeignLeaguePlayers(
@@ -1407,34 +1379,12 @@ export function generateForeignLeaguePlayers(
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
 
-  // 地域別の強さ。budget=年俸分配(ランク分布)、potBonus=ポテンシャルの底上げ。
-  // 現在値をいきなり90-99にはしない。若手を高ポテンシャルで生成し、bakeAgeGrowth（年長者）＋
-  // 毎年の成長（若手）で90-99へ育つ。強さ順：アフリカ ＞ 欧州/欧米 ＞ その他 ＞ アジア(=日本と同等)。
-  // minRank=そのリーグの最低ランク。海外クラブは格上なので、ベンチでもこのランク以上にする
-  // （下位が D=52 みたいにならないように）。強い地域ほど底も高い。
-  // minRank=ベンチの底、maxRank/potCap=主力の天井。天井は地域で差をつけ、90台に届くのはアフリカ勢(帰化の
-  // バーレーン/カタール含む)だけ。欧州/米/豪は80台後半、その他・アジアは80台前半で頭打ち（日本は国内生成なので無関係）。
-  const REGION: Record<string, { budget: number; potBonus: number; minRank: Rank; maxRank: Rank; potCap: number }> = {
-    // ELITE=4大リーグ（北米/アフリカ東/アフリカ北南/欧州西南）。所属選手はすごい＝天井99・底も高い。
-    // 2046調整: アジア予選が日本の一方的な無双になっていたため、ASIA/OTHERの天井と底を引き上げ
-    // （日本の国内生成トップ層≒90前後と渡り合えるレンジに。バーレーン/カタールはAFRICA帰化枠のまま）
-    ELITE:   { budget: 980_000_000, potBonus: 13, minRank: 'S', maxRank: 'SSS', potCap: 99 },
-    AFRICA:  { budget: 900_000_000, potBonus: 10, minRank: 'A', maxRank: 'SSS', potCap: 96 },
-    EUR_USA: { budget: 820_000_000, potBonus: 5,  minRank: 'A', maxRank: 'SS',  potCap: 89 },
-    OTHER:   { budget: 780_000_000, potBonus: 5,  minRank: 'A', maxRank: 'S',   potCap: 87 },
-    ASIA:    { budget: 780_000_000, potBonus: 7,  minRank: 'A', maxRank: 'SS',  potCap: 90 },
-  }
-  // 4大リーグのID（ここ所属＝エリート強度）
-  const ELITE_LEAGUES = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
-  function strengthFor(leagueId: string, country: string) {
-    if (ELITE_LEAGUES.has(leagueId)) return REGION.ELITE
-    return REGION[natStrengthRegion(country as Nationality)] ?? REGION.OTHER
-  }
-  const RANK_ORDER: Rank[] = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
-  const clampRank = (r: Rank, min: Rank, max: Rank): Rank => {
-    const i = Math.max(RANK_ORDER.indexOf(min), Math.min(RANK_ORDER.indexOf(max), RANK_ORDER.indexOf(r)))
-    return RANK_ORDER[i]
-  }
+  // 海外クラブの強さも「格」1本で決まる（utils/clubTier.ts）。
+  //
+  // 前は REGION という別の表があり、budget / potBonus / minRank / maxRank / potCap の
+  // 5つのノブで地域ごとに強さを決めていた。国内は格、海外は REGION、と決まりが2本立てで、
+  // 「4大リーグへ進む」「3部の原石を奪い合う」を同じ物差しで比べられなかった。
+  // いまは全232クラブが同じ格に乗っている。
 
   // 国籍はクラブの所在国ではなく、data/nationTalent.ts の人数比で配る。
   // クラブの所在国に固定すると、国の選手層＝その国のクラブ数になり、
@@ -1453,15 +1403,18 @@ export function generateForeignLeaguePlayers(
   const updatedLeagues = leagues.map(league => ({
     ...league,
     clubs: league.clubs.map(club => {
-      const region = strengthFor(league.id, club.country)
-      // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため（常にスターだけ入るのを防ぐ）
-      const salaries = distributeSalaries(Math.round(region.budget * 0.8), 22, 4_000_000).sort(() => Math.random() - 0.5)
+      const tier = tierOfClubId(club.id)
+      const cap = TIER_POTENTIAL_CAP[tier]
+      // ロスターの中身は格が決める（そのクラブに各ランクが何人いるか）。
+      // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため
+      // （常にスターだけが入るのを防ぐ）
+      const comp = tierRankComposition(tier)
+      const rankSlots: Rank[] = []
+      for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) rankSlots.push(r as Rank)
+      rankSlots.sort(() => Math.random() - 0.5)
       const clubUsedNames = new Set<string>()
 
-      salaries.forEach((clubSalary) => {
-        // 海外クラブは格上なので、ベンチでも地域の最低ランク以上にする（下位が52みたいにならない）。
-        // 上限ランクで主力の天井も抑える（弱い地域が90を出さない）。
-        const rank = clampRank(rankForSalary(clubSalary), region.minRank, region.maxRank)
+      rankSlots.forEach((rank) => {
         foreignIdCounter++
         const specialty = specialties[rng(0, specialties.length - 1)]
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
@@ -1489,8 +1442,7 @@ export function generateForeignLeaguePlayers(
         // potCap で地域ごとの実効OVR天井を決める。
         const { ratings, potential: potentialVal } = buildRatingsForRank({
           id, rank, specialty, growthCurve, age,
-          potentialCap: region.potCap,
-          potentialBonus: region.potBonus,
+          potentialCap: cap,
         })
 
         const madeF: Player = {
