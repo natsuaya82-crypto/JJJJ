@@ -183,14 +183,8 @@ export function scoreToTime(score: number, distanceKm: number, uphillPct = 0, do
   return Math.round(basePaceSec * distanceKm * distCoeff)
 }
 
-export function formatTime(totalSec: number): string {
-  const rounded = Math.round(totalSec)
-  const h = Math.floor(rounded / 3600)
-  const m = Math.floor((rounded % 3600) / 60)
-  const s = rounded % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${m}:${String(s).padStart(2, '0')}`
-}
+// タイム表示は utils/eventTime.ts の formatRaceTime に一本化した（同じ処理が3つ手書き
+// されていたうちの1つ。fmtTime だけ Math.round が無いバグがあったため統合時に揃えた）。
 
 export function formatDiff(diffSec: number): string {
   const rounded = Math.round(diffSec)

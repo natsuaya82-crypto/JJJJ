@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Player, Team } from '../../types'
 import { RaceTrack, SegmentResultCard } from '../race/SimPhase'
 import { terrainColor } from '../race/raceUtils'
-import { formatTime, formatDiff } from '../../engine/raceEngine'
+import { formatDiff } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { TeamLogoSVG } from '../icons/Icons'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { asPlayer, asTeam, type MatchRacePayload } from '../../lib/matchSim'
@@ -245,7 +246,7 @@ export default function RacePanel({
                   {gap < 0
                     ? <span style={{ fontSize: 12, fontWeight: 700, color: C.textGhost }}>記録なし</span>
                     : gap === 0
-                      ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatTime(s.totalTimeSec)}</span>
+                      ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(s.totalTimeSec)}</span>
                       : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
                 </div>
               </div>
@@ -359,7 +360,7 @@ export default function RacePanel({
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {gap === 0
-                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatTime(cum)}</span>
+                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(cum)}</span>
                     : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
                 </div>
               </div>

@@ -4,7 +4,8 @@
 // オンライン対戦の最終結果からも同じ見た目で使えるように切り出したもの。
 // ここは表示だけ。ストアには触らない（オンラインでは手元のセーブに無い選手も並ぶため）。
 import type { Race, RaceResults, Team, Player, Nationality } from '../../types'
-import { formatTime, formatDiff } from '../../engine/raceEngine'
+import { formatDiff } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
@@ -120,7 +121,7 @@ export function SegmentDetailCard({
             <div style={{ fontSize: 13, fontWeight: 900, fontFamily: SAIRA, color: myRunner.rank === 1 ? C.gold : myRunner.rank <= 3 ? C.green : C.textSub, textShadow: myRunner.rank === 1 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
               {myRunner.rank}位
             </div>
-            <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatTime(myRunner.timeSec)}</div>
+            <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatRaceTime(myRunner.timeSec)}</div>
           </div>
         )}
       </div>
@@ -172,7 +173,7 @@ export function SegmentDetailCard({
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 10, fontFamily: SAIRA, color: isMe ? C.text : C.textDim }}>{formatTime(runner.timeSec)}</div>
+                <div style={{ fontSize: 10, fontFamily: SAIRA, color: isMe ? C.text : C.textDim }}>{formatRaceTime(runner.timeSec)}</div>
                 {diff > 0 && <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatDiff(diff)}</div>}
               </div>
             </div>

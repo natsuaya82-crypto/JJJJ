@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import type { Race, Team, Player } from '../../types'
 import type { RaceSegmentEvent, InteractiveSegResult, EventTriggerCondition } from '../../engine/interactiveRace'
 import { choiceSuccessProb } from '../../engine/interactiveRace'
-import { formatTime, formatDiff } from '../../engine/raceEngine'
+import { formatDiff } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
@@ -674,7 +675,7 @@ export function SimPhase({
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {gap === 0
-                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatTime(cumTime)}</span>
+                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(cumTime)}</span>
                     : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>
                   }
                 </div>
@@ -777,7 +778,7 @@ export function SegmentResultCard({
                 {p && <div style={{ fontSize: 9, color: C.textSub }}>{p.name}</div>}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: r.rank === 1 ? C.gold : isMe ? myRankCol : C.textDim, fontFamily: SAIRA }}>{formatTime(r.timeSec)}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: r.rank === 1 ? C.gold : isMe ? myRankCol : C.textDim, fontFamily: SAIRA }}>{formatRaceTime(r.timeSec)}</div>
                 {winner && r.rank > 1 && <div style={{ fontSize: 9, color: C.textGhost, fontFamily: 'monospace' }}>{formatDiff(r.timeSec - winner.timeSec)}</div>}
               </div>
             </div>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { playerLabel } from '../../utils/playerUtils'
-import { fmtTime } from '../../store/gameStore'
+import { formatRaceTime } from '../../utils/eventTime'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -178,7 +178,7 @@ export default function PlayersStatsPage() {
                           <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? ''}{entry.year ? ` / ${entry.year}` : ''}</span>
                         </div>
                       </div>
-                      <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '900', color: rankCol, textShadow: i <= 2 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>{fmtTime(entry.timeSec)}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '900', color: rankCol, textShadow: i <= 2 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>{formatRaceTime(entry.timeSec)}</span>
                     </div>
                   )
                 })}

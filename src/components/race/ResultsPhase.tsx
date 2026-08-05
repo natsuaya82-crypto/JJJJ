@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Race, RaceResults, Team, Player, Season } from '../../types'
-import { formatTime, formatDiff } from '../../engine/raceEngine'
+import { formatDiff } from '../../engine/raceEngine'
+import { formatRaceTime } from '../../utils/eventTime'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
@@ -366,7 +367,7 @@ export function ResultsPhase({
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '11px', color: C.textDim }}>タイム</div>
               <div style={{ fontSize: '15px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>
-                {formatTime(playerResult.totalTimeSec)}
+                {formatRaceTime(playerResult.totalTimeSec)}
               </div>
               {leader && playerResult.rank > 1 && (
                 <div style={{ fontSize: '10px', color: C.textDim }}>
@@ -430,7 +431,7 @@ export function ResultsPhase({
                   {t?.name ?? tr.teamId}
                 </div>
                 <div style={{ fontSize: '12px', color: C.textSub, fontFamily: SAIRA, minWidth: '50px', textAlign: 'right', flexShrink: 0 }}>
-                  {formatTime(tr.totalTimeSec)}
+                  {formatRaceTime(tr.totalTimeSec)}
                 </div>
                 <div style={{ flexShrink: 0, minWidth: 66, textAlign: 'right', fontFamily: SAIRA, whiteSpace: 'nowrap' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>{tr.positionPoints}</span>

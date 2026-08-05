@@ -13,7 +13,7 @@ import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeign
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
-import { individualEventAbility, individualBaseTime } from '../utils/eventTime'
+import { individualEventAbility, individualBaseTime, formatRaceTime } from '../utils/eventTime'
 import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
@@ -1641,7 +1641,7 @@ export const useGameStore = create<GameStore>()(
               newSegRecordMarks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
               segRecordNewsItems.push({
                 date: race.date,
-                headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${fmtTime(fastestRunner.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
+                headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${formatRaceTime(fastestRunner.timeSec)}（従来 ${formatRaceTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
                 category: 'race' as const,
                 relatedIds: [fastestRunner.playerId],
               })
@@ -4294,7 +4294,7 @@ export const useGameStore = create<GameStore>()(
             const tmShort = shortById.get(fastestRunner.teamId) ?? '?'
             newsItems.push({
               date: race.date,
-              headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${fmtTime(fastestRunner.timeSec)}（従来 ${fmtTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
+              headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${formatRaceTime(fastestRunner.timeSec)}（従来 ${formatRaceTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
               category: 'race' as const,
               relatedIds: [fastestRunner.playerId],
             })
@@ -6621,7 +6621,7 @@ export const useGameStore = create<GameStore>()(
           const distLabel = event.distance === 5000 ? '5000m' : event.distance === 10000 ? '10000m' : event.distance === 42195 ? 'マラソン' : 'ハーフ'
           const newsItem = myBestPlayer ? {
             date: event.date,
-            headline: `${event.name}：${myBestPlayer.name}が${distLabel}で${myBest!.rank}位（${fmtTime(myBest!.timeSec)}）`,
+            headline: `${event.name}：${myBestPlayer.name}が${distLabel}で${myBest!.rank}位（${formatRaceTime(myBest!.timeSec)}）`,
             category: 'race' as const,
             relatedIds: [myBestPlayer.id],
           } : null
@@ -6644,14 +6644,14 @@ export const useGameStore = create<GameStore>()(
               if (!curWr || fastest.timeSec < curWr.timeSec) {
                 const ties = ranked.filter(r => r.playerId !== fastest.playerId && r.timeSec === fastest.timeSec).map(coOf)
                 newWorldRecords = { ...newWorldRecords, [bestKey]: { playerId: fastest.playerId, playerName: fastestP.name, timeSec: fastest.timeSec, year: evYear0, ...(ties.length > 0 ? { coHolders: ties } : {}) } }
-                recordNewsItems.push({ date: event.date, headline: `【世界新記録】${distName} ${fastestP.name} ${fmtTime(fastest.timeSec)}`, category: 'race' as const, relatedIds: [fastest.playerId] })
-                for (const c of ties) recordNewsItems.push({ date: event.date, headline: `【世界新記録】${distName} ${c.playerName} ${fmtTime(fastest.timeSec)}（同タイムで共同保持）`, category: 'race' as const, relatedIds: [c.playerId] })
+                recordNewsItems.push({ date: event.date, headline: `【世界新記録】${distName} ${fastestP.name} ${formatRaceTime(fastest.timeSec)}`, category: 'race' as const, relatedIds: [fastest.playerId] })
+                for (const c of ties) recordNewsItems.push({ date: event.date, headline: `【世界新記録】${distName} ${c.playerName} ${formatRaceTime(fastest.timeSec)}（同タイムで共同保持）`, category: 'race' as const, relatedIds: [c.playerId] })
               } else if (fastest.timeSec === curWr.timeSec) {
                 const holderIds = new Set([curWr.playerId, ...(curWr.coHolders ?? []).map(c => c.playerId)])
                 const newCo = ranked.filter(r => r.timeSec === curWr.timeSec && !holderIds.has(r.playerId)).map(coOf)
                 if (newCo.length > 0) {
                   newWorldRecords = { ...newWorldRecords, [bestKey]: { ...curWr, coHolders: [...(curWr.coHolders ?? []), ...newCo] } }
-                  for (const c of newCo) recordNewsItems.push({ date: event.date, headline: `【世界タイ記録】${distName} ${c.playerName} ${fmtTime(curWr.timeSec)}`, category: 'race' as const, relatedIds: [c.playerId] })
+                  for (const c of newCo) recordNewsItems.push({ date: event.date, headline: `【世界タイ記録】${distName} ${c.playerName} ${formatRaceTime(curWr.timeSec)}`, category: 'race' as const, relatedIds: [c.playerId] })
                 }
               }
             }
@@ -6663,14 +6663,14 @@ export const useGameStore = create<GameStore>()(
               if (!curJr || fastestJpn.timeSec < curJr.timeSec) {
                 const ties = ranked.filter(r => isJpn(r) && r.playerId !== fastestJpn.playerId && r.timeSec === fastestJpn.timeSec).map(coOf)
                 newJapanRecords = { ...newJapanRecords, [bestKey]: { playerId: fastestJpn.playerId, playerName: fastestJpnP.name, timeSec: fastestJpn.timeSec, year: evYear0, ...(ties.length > 0 ? { coHolders: ties } : {}) } }
-                recordNewsItems.push({ date: event.date, headline: `【日本新記録】${distName} ${fastestJpnP.name} ${fmtTime(fastestJpn.timeSec)}`, category: 'race' as const, relatedIds: [fastestJpn.playerId] })
-                for (const c of ties) recordNewsItems.push({ date: event.date, headline: `【日本新記録】${distName} ${c.playerName} ${fmtTime(fastestJpn.timeSec)}（同タイムで共同保持）`, category: 'race' as const, relatedIds: [c.playerId] })
+                recordNewsItems.push({ date: event.date, headline: `【日本新記録】${distName} ${fastestJpnP.name} ${formatRaceTime(fastestJpn.timeSec)}`, category: 'race' as const, relatedIds: [fastestJpn.playerId] })
+                for (const c of ties) recordNewsItems.push({ date: event.date, headline: `【日本新記録】${distName} ${c.playerName} ${formatRaceTime(fastestJpn.timeSec)}（同タイムで共同保持）`, category: 'race' as const, relatedIds: [c.playerId] })
               } else if (fastestJpn.timeSec === curJr.timeSec) {
                 const holderIds = new Set([curJr.playerId, ...(curJr.coHolders ?? []).map(c => c.playerId)])
                 const newCo = ranked.filter(r => isJpn(r) && r.timeSec === curJr.timeSec && !holderIds.has(r.playerId)).map(coOf)
                 if (newCo.length > 0) {
                   newJapanRecords = { ...newJapanRecords, [bestKey]: { ...curJr, coHolders: [...(curJr.coHolders ?? []), ...newCo] } }
-                  for (const c of newCo) recordNewsItems.push({ date: event.date, headline: `【日本タイ記録】${distName} ${c.playerName} ${fmtTime(curJr.timeSec)}`, category: 'race' as const, relatedIds: [c.playerId] })
+                  for (const c of newCo) recordNewsItems.push({ date: event.date, headline: `【日本タイ記録】${distName} ${c.playerName} ${formatRaceTime(curJr.timeSec)}`, category: 'race' as const, relatedIds: [c.playerId] })
                 }
               }
             }
@@ -7899,13 +7899,8 @@ function generateWECRacePlan(profile: 'mountain' | 'flat' | 'mixed' = 'mixed'): 
   })
 }
 
-export function fmtTime(sec: number): string {
-  const h = Math.floor(sec / 3600)
-  const m = Math.floor((sec % 3600) / 60)
-  const s = sec % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${m}:${String(s).padStart(2, '0')}`
-}
+// タイム表示は utils/eventTime.ts の formatRaceTime に一本化した（同じ処理が3つ手書き
+// されていたうちの1つ。fmtTime だけ Math.round が無いバグがあったため統合時に揃えた）。
 
 // ── CPU チーム戦略ヘルパー ───────────────────────────────────────────────
 // CPUチームの今季の運用方針。前年順位と主力の平均年齢から決める。
