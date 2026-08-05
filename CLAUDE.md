@@ -46,6 +46,23 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
+| `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
+
+### 画面下から出るものは必ず `BottomSheet` を通すこと
+
+ページの中に `position: fixed` で自前のシートを書くと、**実機でだけ**下タブに食われて操作できなくなります。
+
+`Layout` の `<main>` は `-webkit-overflow-scrolling: touch` のスクロール領域で、iOS の WebView は
+これを `position: fixed` の基準にしてしまいます。その結果、main の中に書いた fixed は
+
+- `inset: 0` にしても画面全体ではなく main の内側しか覆わない（ヘッダーと下タブが暗くならない）
+- `z-index` をいくつにしても、外にいる下タブ（`z-index: 50`）より上に来られない
+
+という状態になります。build 87 の走友会「反応する」シートがこれで、**見出しの一行しか見えず
+絵文字が全部下タブの裏**にありました。ブラウザのプレビューでは再現しません。
+
+`BottomSheet` は `createPortal` で `document.body` に出すので、この問題が起きません。
+広告バナーの高さとセーフエリアの処理もこの中にまとまっています。
 
 数字の直書きにも注意してください。人数上限は `ROSTER_MAX` を使い、`30` と書かないこと。
 

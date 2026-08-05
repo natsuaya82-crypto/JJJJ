@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
 import ActionSheet from '../ui/ActionSheet'
+import BottomSheet from '../ui/BottomSheet'
 import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { blockUser, unblockUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -624,6 +625,9 @@ function AskPicker({ rarity, busy, onPick, onCancel }: {
   )
 }
 
+// 下に貼りつく入力バーの高さ。投稿の一覧はこのぶん下を空けておく
+const BOARD_INPUT_H = 66
+
 function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   const feed = useFriendsQuery(clubFeed, [], 'clubFeed')
   const reacts = useFriendsQuery(clubReactions, [], 'clubReacts')
@@ -638,6 +642,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   const [menuPost, setMenuPost] = useState<ClubPost | null>(null)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
   const [confirmBlock, setConfirmBlock] = useState<ClubPost | null>(null)
+  const boardEndRef = useRef<HTMLDivElement>(null)
 
   // 前回の「受け取る」が途中で終わっていた場合の入れ直し。
   // 箱に残っているもののうち、まだ手元に無いカードだけを足す（二重に増えない）。
@@ -652,6 +657,18 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
 
   // 走友会の書き込みを止めているあいだは、書き込みの行は出さない（カードのお願いだけ残す）
   const posts = (feed.data ?? []).filter(p => CLUB_CHAT_ENABLED || p.kind !== 'msg')
+
+  // 掲示板は新しいものが下。開いたときにいちばん古い投稿を見せても意味がないので、
+  // チャットと同じく最新（＝いちばん下）まで送っておく。
+  //
+  // 次のフレームまで待つのは、Layout が画面を切り替えたときに main を先頭へ戻すため。
+  // 子の効果は親の効果より先に走るので、ここで直接送っても直後に 0 へ戻されて効かない。
+  const postCount = posts.length
+  useEffect(() => {
+    if (tab !== 'board' || postCount === 0) return
+    const id = requestAnimationFrame(() => boardEndRef.current?.scrollIntoView({ block: 'end' }))
+    return () => cancelAnimationFrame(id)
+  }, [tab, postCount])
   // 今日もうお願いしたか（サーバーと同じ判定を手元でも出して、ボタンを先に止める）
   const askedToday = posts.some(p =>
     p.mine && p.kind === 'req' && new Date(p.createdAt).toDateString() === new Date().toDateString())
@@ -796,22 +813,12 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               </div>
             )}
           </div>
-          {p.kind === 'req' && (
-            done ? <Pill color={C.green}>集まりました</Pill> :
-            p.mine ? <Pill color={C.textDim}>お願い中</Pill> :
-            canGive ? (
-              <button onClick={() => setPicking(p)} disabled={busy === p.id} className="btn-press"
-                style={actionButton(C.green, busy === p.id)}>わたす</button>
-            ) : null
-          )}
-          {!p.mine && (
-            <button onClick={() => setMenuPost(p)} className="btn-press" aria-label="メニュー"
-              style={{ ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px' }}>···</button>
-          )}
         </div>
 
-        {/* 反応。押されているものだけ並べ、右端の＋から付ける */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
+        {/* 下の段にボタン類をまとめる。
+            上の段（本文）に「集まりました」やメニューを並べると本文の幅が削られ、
+            投稿ごとに違う位置で折り返して行がガタつく。左に反応、右に操作で固定する。 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, marginLeft: 44 }}>
           {counts.map(([e, n]) => {
             const idx = Number(e)
             const isMine = rc?.mine === idx
@@ -831,6 +838,25 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
             padding: '2px 9px', borderRadius: 11, cursor: 'pointer', fontSize: 12,
             border: `1px dashed ${C.border3}`, background: 'transparent', color: C.textGhost, fontFamily: 'inherit',
           }}>＋</button>
+
+          <div style={{ flex: 1 }} />
+
+          {p.kind === 'req' && (
+            done ? <Pill color={C.green}>集まりました</Pill> :
+            p.mine ? <Pill color={C.textDim}>お願い中</Pill> :
+            canGive ? (
+              <button onClick={() => setPicking(p)} disabled={busy === p.id} className="btn-press"
+                style={actionButton(C.green, busy === p.id)}>わたす</button>
+            ) : null
+          )}
+          {/* 自分の投稿にメニューは出ないが、幅は空けておく。
+              空けないと「集まりました」だけが投稿ごとに左右へずれる */}
+          <div style={{ width: 42, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+            {!p.mine && (
+              <button onClick={() => setMenuPost(p)} className="btn-press" aria-label="メニュー"
+                style={{ ...actionButton(C.textDim), padding: '6px 10px', letterSpacing: '1px' }}>···</button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -841,7 +867,9 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   // タブで分け、掲示板は投稿だけ・入力は下に固定、という普通のチャットの形にする。
   const board = (
     <>
-      <div style={{ padding: '0 12px 8px' }}>
+      {/* 下の入力バーは画面下端に貼りつく。その高さぶんを空けておかないと、
+          いちばん新しい投稿（＝いちばん下）が入力バーの裏に隠れる */}
+      <div style={{ padding: `0 12px ${CLUB_CHAT_ENABLED ? BOARD_INPUT_H : 8}px` }}>
         {feed.loading ? <LoadingBox /> :
          feed.error ? <ErrorBox onRetry={feed.reload} /> :
          posts.length === 0 ? <EmptyBox label="まだ何も書かれていません" /> : (
@@ -850,6 +878,9 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
           </div>
          )}
       </div>
+      {/* 開いたときここまで送る。空けた余白より下に置くので、
+          いちばん新しい投稿は入力バーのぶんだけ上に残る */}
+      <div ref={boardEndRef} />
 
       {/* 入力は下に固定。定型文はシートで開く（12個を常時出すと画面の半分が埋まるため） */}
       {CLUB_CHAT_ENABLED && (
@@ -916,51 +947,29 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
       {tab === 'board' ? board : cardTab}
 
       {/* 反応を選ぶシート */}
-      {reactFor && (
-        <div onClick={() => setReactFor(null)} style={{
-          position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.55)',
-          display: 'flex', alignItems: 'flex-end',
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            width: '100%', maxWidth: 480, margin: '0 auto', padding: '14px 12px 22px',
-            borderRadius: '18px 18px 0 0', background: C.surface2, border: `1px solid ${C.border2}`,
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>反応する</div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-              {CLUB_REACTIONS.map((e, i) => (
-                <button key={e} onClick={() => { void onReact(reactFor, i) }} className="btn-press" style={{
-                  flex: 1, padding: '12px 0', borderRadius: 12, cursor: 'pointer', fontSize: 22,
-                  border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), fontFamily: 'inherit',
-                }}>{e}</button>
-              ))}
-            </div>
-          </div>
+      <BottomSheet open={!!reactFor} onClose={() => setReactFor(null)} title="反応する">
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+          {CLUB_REACTIONS.map((e, i) => (
+            <button key={e} onClick={() => { if (reactFor) void onReact(reactFor, i) }} className="btn-press" style={{
+              flex: 1, padding: '12px 0', borderRadius: 12, cursor: 'pointer', fontSize: 22,
+              border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), fontFamily: 'inherit',
+            }}>{e}</button>
+          ))}
         </div>
-      )}
+      </BottomSheet>
 
       {/* 定型文を選ぶシート */}
-      {phraseOpen && (
-        <div onClick={() => setPhraseOpen(false)} style={{
-          position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.55)',
-          display: 'flex', alignItems: 'flex-end',
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            width: '100%', maxWidth: 480, margin: '0 auto', padding: '14px 12px 20px',
-            borderRadius: '18px 18px 0 0', background: C.surface2, border: `1px solid ${C.border2}`,
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>ひとこと書く</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              {CLUB_PHRASES.map((ph, i) => (
-                <button key={ph} onClick={() => { setPhraseOpen(false); void onPhrase(i) }}
-                  disabled={busy === 'msg'} className="btn-press" style={{
-                    padding: '11px 2px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 700,
-                    border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), color: C.textSub,
-                  }}>{ph}</button>
-              ))}
-            </div>
-          </div>
+      <BottomSheet open={phraseOpen} onClose={() => setPhraseOpen(false)} title="ひとこと書く">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {CLUB_PHRASES.map((ph, i) => (
+            <button key={ph} onClick={() => { setPhraseOpen(false); void onPhrase(i) }}
+              disabled={busy === 'msg'} className="btn-press" style={{
+                padding: '11px 2px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), color: C.textSub,
+              }}>{ph}</button>
+          ))}
         </div>
-      )}
+      </BottomSheet>
 
       {picking && picking.rarity && (
         <DonatePicker
