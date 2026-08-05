@@ -666,7 +666,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
           <h2 className="section-h2">{currentSeason.year} 順位</h2>
           {/* ホームからチームタブへ飛ぶと現在地が変わって戻れなくなるので、順位表のページを直接開く */}
-          <button onClick={() => navigate('/standings/jpel')} style={{ background: 'none', border: 'none', color: C.cyan, fontSize: 11, fontWeight: 700, fontFamily: SAIRA, letterSpacing: '0.1em', cursor: 'pointer', padding: 0 }}>FULL →</button>
+          <button onClick={() => navigate('/standings')} style={{ background: 'none', border: 'none', color: C.cyan, fontSize: 11, fontWeight: 700, fontFamily: SAIRA, letterSpacing: '0.1em', cursor: 'pointer', padding: 0 }}>FULL →</button>
         </div>
         <div className="standings-card">
           {sorted.slice(0, 5).map((s, i) => {

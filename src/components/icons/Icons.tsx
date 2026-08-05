@@ -1,5 +1,7 @@
 import { useGameStore } from '../../store/gameStore'
 import { logoPresetSrc, teamLogoIdOf } from '../../data/logoPresets'
+import { INITIAL_TEAMS } from '../../data/teams'
+import { LOWER_DIVISION_TEAMS } from '../../data/teamsLower'
 
 type IconProps = { size?: number; className?: string; color?: string }
 
@@ -700,12 +702,11 @@ function logoHash(id: string): number {
   return Math.abs(h)
 }
 
-const PNG_TEAM_IDS = new Set([
-  'sapporo', 'morioka', 'aomori', 'sendai', 'tokyo',
-  'yokohama', 'chiba', 'saitama', 'nagano', 'niigata',
-  'shizuoka', 'nagoya', 'kyoto', 'osaka', 'kobe',
-  'hiroshima', 'okayama', 'fukuoka', 'kagoshima', 'okinawa',
-])
+// 専用ロゴ（public/logos/<id>.png）を持つチーム。
+// 以前は20個のIDを手書きで並べていたが、チームを足すたびにここにも足す必要があり、
+// 足し忘れるとそのチームだけロゴがハッシュ生成の代替図形になる（実際に2部3部で起きた）。
+// リーグのチームは全部ロゴを持っているので、チームデータから導出する。
+const PNG_TEAM_IDS = new Set([...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].map(t => t.id))
 
 export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, logoId }: {
   primary: string; secondary: string; shortName: string; size?: number; teamId?: string; logoId?: string

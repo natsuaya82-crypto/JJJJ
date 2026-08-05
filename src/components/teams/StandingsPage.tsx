@@ -7,7 +7,8 @@ import { LeagueLogoSVG } from '../icons/Icons'
 import BackButton from '../ui/BackButton'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C, alpha } from '../../styles/tokens'
-import { rankedStandings } from '../../utils/league'
+import { rankedStandings, DIVISIONS, DIVISION_LABEL, divisionOf } from '../../utils/league'
+import type { Division } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -17,20 +18,27 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // ほぼ同じ中身で2本あり、リザーブの年間順位はどこからも見られなかった。
 // 表そのものは StandingsTable の1本なので、リーグごとに違うのは「行の作り方」だけ。
 // ここで行の作り方だけを出し分けて、見た目と枠組みは1本にする。
-export type StandingsLeague = 'jpel' | 'ecl'
+export type StandingsLeague = 'd1' | 'd2' | 'd3' | 'ecl'
 
 const TABS: { key: StandingsLeague; label: string }[] = [
-  { key: 'jpel', label: 'JPEL' },
+  ...DIVISIONS.map(d => ({ key: `d${d}` as StandingsLeague, label: DIVISION_LABEL[d] })),
   { key: 'ecl', label: 'ECL' },
 ]
+
+/** タブのキー → 部。ECLタブなら undefined */
+const divisionOfTab = (tab: StandingsLeague): Division | undefined =>
+  tab === 'ecl' ? undefined : (Number(tab.slice(1)) as Division)
 
 export default function StandingsPage() {
   const navigate = useNavigate()
   const { league } = useParams<{ league: string }>()
   // URLはどのリーグから入ったかだけ。タブの切り替えはこの中で持つ
   // （URLを書き換えるとページごと切り替わる扱いになり、毎回ページの出現アニメが走る）
-  const [tab, setTab] = useState<StandingsLeague>(league === 'ecl' ? league : 'jpel')
   const { teams, currentSeason, playerTeamId } = useGameStore()
+  // 既定は自チームのいる部。順位表を開いていちばん見たいのは自分の部なので
+  const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
+  const [tab, setTab] = useState<StandingsLeague>(
+    TABS.some(t => t.key === league) ? (league as StandingsLeague) : (`d${myDivision}` as StandingsLeague))
   const clubIndex = useClubIndex()
 
   // 国内チームは詳細ページへ。ECLは海外クラブが混ざるので clubRoutePath で出し分ける
@@ -78,9 +86,12 @@ export default function StandingsPage() {
         onRowClick: goClub,
       }
     }
+    // 部の順位表。順位表は全52チームぶんを1本で持っているので、ここで所属の部だけに絞る
+    const div = divisionOfTab(tab) ?? 1
+    const idsInDiv = new Set(teams.filter(t => divisionOf(t) === div).map(t => t.id))
     return {
-      eyebrow: `${currentSeason.year} LEAGUE`, title: 'JPEL 順位表', logoId: 'jpel',
-      rows: domesticRows(currentSeason.standings),
+      eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',
+      rows: domesticRows(currentSeason.standings.filter(s => idsInDiv.has(s.teamId))),
       progress: `${currentSeason.races.filter(r => r.results).length}戦`,
       onRowClick: goDomestic,
     }

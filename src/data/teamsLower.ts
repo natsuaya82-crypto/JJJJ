@@ -1,0 +1,244 @@
+import type { Team } from '../types'
+
+// JPEL 2部・3部のチーム（各16）。1部の20チームは data/teams.ts。
+//
+// ★ 名前・略称・都市・GM名は仮です。オーナーが作ったものに差し替えます。
+//   ロゴだけは実物（assets/logos-pending から public/logos/<id>.png へ移したもの）。
+//
+// finance.budget は 0 のまま。国内チームの予算は gameStore が
+// rankBudgetGrant(initialRank) で上書きするので、ここの値は使われない。
+// ただし RANK_BUDGET は1〜20位までの表しかなく、21位以降は一律 3.9億に落ちる。
+// 部ごとの予算はまだ手を付けていない（CLAUDE.md の未整理項目 C-1）。
+
+export const DIVISION2_TEAMS: Team[] = [
+  {
+    id: 'hakodate', name: '函館セイラーズ', shortName: '函館', city: '函館', region: '北海道',
+    founded: 1998, colors: { primary: '#1B3A6B', secondary: '#FFFFFF' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 21, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '細川 直人'
+  },
+  {
+    id: 'kitakyushu', name: '北九州ファーネス', shortName: '北九', city: '北九州', region: '九州',
+    founded: 1972, colors: { primary: '#E8620C', secondary: '#3A3A42' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 22, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '大西 剛'
+  },
+  {
+    id: 'akita', name: '秋田ゴールドイヤー', shortName: '秋田', city: '秋田', region: '東北',
+    founded: 2004, colors: { primary: '#D4A017', secondary: '#1E5631' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 23, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '菅原 康平'
+  },
+  {
+    id: 'hitachi', name: '日立ギアーズ', shortName: '日立', city: '日立', region: '関東',
+    founded: 1965, colors: { primary: '#A8AEB8', secondary: '#22252B' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 24, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '関 洋一'
+  },
+  {
+    id: 'choshi', name: '銚子ライトハウス', shortName: '銚子', city: '銚子', region: '関東',
+    founded: 2009, colors: { primary: '#F5F5F0', secondary: '#C41E3A' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 25, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '浜田 修'
+  },
+  {
+    id: 'kushiro', name: '釧路クレインズ', shortName: '釧路', city: '釧路', region: '北海道',
+    founded: 2013, colors: { primary: '#FFFFFF', secondary: '#2A4B8D' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 26, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '工藤 大地'
+  },
+  {
+    id: 'kakegawa', name: '掛川グリーンリーフ', shortName: '掛川', city: '掛川', region: '中部',
+    founded: 2001, colors: { primary: '#7BA05B', secondary: '#EFE7D2' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 27, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '杉山 隆'
+  },
+  {
+    id: 'utsunomiya', name: '宇都宮サンダーボルツ', shortName: '宇都', city: '宇都宮', region: '関東',
+    founded: 1994, colors: { primary: '#F2C230', secondary: '#3B2E63' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 28, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '荒木 亮'
+  },
+  {
+    id: 'onomichi', name: '尾道ブリッジズ', shortName: '尾道', city: '尾道', region: '中国',
+    founded: 2016, colors: { primary: '#C0392B', secondary: '#4A4A52' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 29, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '村上 慎吾'
+  },
+  {
+    id: 'nagaoka', name: '長岡ニシキゴイ', shortName: '長岡', city: '長岡', region: '中部',
+    founded: 1988, colors: { primary: '#E34F2C', secondary: '#1A1A1A' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 30, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '星野 学'
+  },
+  {
+    id: 'matsue', name: '松江パインズ', shortName: '松江', city: '松江', region: '中国',
+    founded: 2007, colors: { primary: '#1E5631', secondary: '#D4A017' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 31, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '錦織 亨'
+  },
+  {
+    id: 'kure', name: '呉アンカーズ', shortName: '呉', city: '呉', region: '中国',
+    founded: 1961, colors: { primary: '#1B6CA8', secondary: '#FFFFFF' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 32, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '平田 一馬'
+  },
+  {
+    id: 'nara', name: '奈良ディアホーンズ', shortName: '奈良', city: '奈良', region: '関西',
+    founded: 2011, colors: { primary: '#8B5A2B', secondary: '#EFE7D2' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 33, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '橋本 悠'
+  },
+  {
+    id: 'himeji', name: '姫路キャッスルズ', shortName: '姫路', city: '姫路', region: '関西',
+    founded: 1993, colors: { primary: '#FFFFFF', secondary: '#2A3D8F' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 34, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '西村 拓也'
+  },
+  {
+    id: 'oita', name: '大分バンブー', shortName: '大分', city: '大分', region: '九州',
+    founded: 2003, colors: { primary: '#6FA349', secondary: '#22252B' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 35, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '工藤 誠一'
+  },
+  {
+    id: 'naruto', name: '鳴門ワールプール', shortName: '鳴門', city: '鳴門', region: '四国',
+    founded: 2015, colors: { primary: '#1F4E79', secondary: '#7FC4E8' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 36, division: 2,
+    draftPicks: [], isPlayerControlled: false, gmName: '三好 健'
+  },
+]
+
+export const DIVISION3_TEAMS: Team[] = [
+  {
+    id: 'otsu', name: '大津ムーンライト', shortName: '大津', city: '大津', region: '関西',
+    founded: 2018, colors: { primary: '#EFE7D2', secondary: '#26355E' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 37, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '伊吹 涼'
+  },
+  {
+    id: 'obihiro', name: '帯広ウィート', shortName: '帯広', city: '帯広', region: '北海道',
+    founded: 2006, colors: { primary: '#DCB35C', secondary: '#5A3E23' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 38, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '南 良太'
+  },
+  {
+    id: 'kusatsu', name: '草津スチーム', shortName: '草津', city: '草津', region: '関東',
+    founded: 2020, colors: { primary: '#FFFFFF', secondary: '#D94A38' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 39, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '黒岩 進'
+  },
+  {
+    id: 'hida', name: '飛騨リングス', shortName: '飛騨', city: '高山', region: '中部',
+    founded: 1999, colors: { primary: '#8B5A2B', secondary: '#EFE7D2' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 40, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '古田 智'
+  },
+  {
+    id: 'okazaki', name: '岡崎ファイアフライ', shortName: '岡崎', city: '岡崎', region: '中部',
+    founded: 2012, colors: { primary: '#F2E27A', secondary: '#1E5631' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 41, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '浅井 響'
+  },
+  {
+    id: 'hagi', name: '萩ストーンアーチ', shortName: '萩', city: '萩', region: '中国',
+    founded: 2019, colors: { primary: '#9AA0A6', secondary: '#2B2B30' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 42, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '吉田 総一'
+  },
+  {
+    id: 'karatsu', name: '唐津ウィンドミル', shortName: '唐津', city: '唐津', region: '九州',
+    founded: 2014, colors: { primary: '#FFFFFF', secondary: '#6FB7DE' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 43, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '副島 岳'
+  },
+  {
+    id: 'yanagawa', name: '柳川リバーズ', shortName: '柳川', city: '柳川', region: '九州',
+    founded: 2017, colors: { primary: '#7FC4E8', secondary: '#FFFFFF' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 44, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '立花 翔'
+  },
+  {
+    id: 'wajima', name: '輪島テラス', shortName: '輪島', city: '輪島', region: '中部',
+    founded: 2021, colors: { primary: '#A8C256', secondary: '#8A6E4B' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 45, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '中谷 大輔'
+  },
+  {
+    id: 'asahikawa', name: '旭川スノーフレーク', shortName: '旭川', city: '旭川', region: '北海道',
+    founded: 2002, colors: { primary: '#FFFFFF', secondary: '#A8CBE8' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 46, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '大場 涼太'
+  },
+  {
+    id: 'ito', name: '伊東カメリア', shortName: '伊東', city: '伊東', region: '中部',
+    founded: 2010, colors: { primary: '#C8102E', secondary: '#1E5631' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 47, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '稲垣 光'
+  },
+  {
+    id: 'soma', name: '相馬ホースメン', shortName: '相馬', city: '相馬', region: '東北',
+    founded: 1996, colors: { primary: '#5A3E23', secondary: '#EFE7D2' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 48, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '佐久間 峻'
+  },
+  {
+    id: 'gifu', name: '岐阜ランタンズ', shortName: '岐阜', city: '岐阜', region: '中部',
+    founded: 1985, colors: { primary: '#E2452F', secondary: '#22252B' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 49, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '各務 隼人'
+  },
+  {
+    id: 'kofu', name: '甲府ツインピークス', shortName: '甲府', city: '甲府', region: '中部',
+    founded: 2008, colors: { primary: '#26355E', secondary: '#FFFFFF' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 50, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '望月 諒'
+  },
+  {
+    id: 'kitami', name: '北見ベアパウ', shortName: '北見', city: '北見', region: '北海道',
+    founded: 2022, colors: { primary: '#5A3E23', secondary: '#E8B33C' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 51, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '木下 恭平'
+  },
+  {
+    id: 'yonago', name: '米子ドラゴンフライ', shortName: '米子', city: '米子', region: '中国',
+    founded: 2005, colors: { primary: '#B87333', secondary: '#A8C99A' },
+    roster: { main: [] }, finance: { budget: 0 },
+    initialRank: 52, division: 3,
+    draftPicks: [], isPlayerControlled: false, gmName: '田村 拓海'
+  },
+]
+
+/** 2部・3部の全チーム */
+export const LOWER_DIVISION_TEAMS: Team[] = [...DIVISION2_TEAMS, ...DIVISION3_TEAMS]

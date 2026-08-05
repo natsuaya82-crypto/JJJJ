@@ -7,6 +7,12 @@ import type { GameState, Player, Team, RaceResults, TransferListing, IncomingOff
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
+import { LOWER_DIVISION_TEAMS } from '../data/teamsLower'
+
+// リーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
+// 部の切り分けは Team.division が持つので、ここでは1つの配列にまとめておく。
+// 「どの部か」を見たいところは utils/league.ts の divisionOf / teamsInDivision を通すこと。
+const ALL_TEAMS = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS]
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
@@ -565,7 +571,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       acquisitionOffers: [],
       retirementRequests: [],
       transferRequests: [],
-      standings: INITIAL_TEAMS.map(t => ({
+      // 順位表は全52チームぶん1本で持ち、表示するときに部で絞る
+      standings: ALL_TEAMS.map(t => ({
         teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
       })),
       newsFeed: [],
@@ -575,7 +582,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     seasonBudgetNotice: null,
     // 初期予算はグラント表から算出（initialRank連動）。teams.tsの旧ハードコード値に依存しない
     // 初期施設もinitialRank連動（1-5位:各Lv4=維持費8000万/年、6-10位:Lv3=6000万、11-15位:Lv2=4000万、16-20位:Lv1=2000万）
-    teams: INITIAL_TEAMS.map(t => {
+    teams: ALL_TEAMS.map(t => {
       const facLv = t.initialRank <= 5 ? 4 : t.initialRank <= 10 ? 3 : t.initialRank <= 15 ? 2 : 1
       return {
         ...t,
