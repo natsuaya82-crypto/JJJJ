@@ -69,21 +69,49 @@ export function bestOvrInSpecialty(roster: readonly Player[], spec: Specialty): 
 }
 
 /**
- * そのクラブはこの選手を必要としているか。獲得に動く条件はこの1本。
+ * そのクラブはこの選手を必要としているか。**獲得に動く条件はこの1本。**
  *
- *   薄い(count < THIN_DEPTH) … 頭数が足りないので強さは問わず欲しい
- *   一番弱いタイプ           … 頭数はいるので、今いる誰よりも強いときだけ欲しい
+ * 判断はひとつだけ：**その選手を入れたら、そのポジションが強くなるか。**
  *
- * 「今いる同タイプより強ければ欲しい」だけにすると穴の判定にならない。
- * OVR85の選手はほぼ全クラブの現有を上回るので、52クラブ全部が欲しがってしまい
- * 「強い選手は全員が欲しがる」＝需要を見ていないのと同じ結果になる（実測で22→20クラブしか減らなかった）。
- * クラブが埋めたいのは自分の穴であって、上積みできる場所すべてではない。
+ *   ① 誰もいないポジション        … 走らせる人がいないので必ず欲しい
+ *   ② チーム平均を下回るポジション … そこが穴。**今いる最上位を上回る選手だけ**欲しい
+ *
+ * 以前は「そのポジションが2人未満なら頭数が要るので強さを問わない」だったため、
+ * 山登りが1人のクラブがOVR60の山登りを買っていた（金があっても安い穴埋めを買う）。
+ * 人数ではなく強さで見る。ポジション別平均とチーム平均の差は画面にも出ている数字で、
+ * 低いポジションほど穴が深い＝そこに高い選手を取りに行く、という動きになる。
+ *
+ * 「今いる同タイプより強ければ欲しい」だけにはしない。OVR85はほぼ全クラブの現有を
+ * 上回るので、全クラブが欲しがる＝需要を見ていないのと同じになる。
+ * 埋めたいのは自分の穴であって、上積みできる場所すべてではない。
  */
 export function needsPlayer(roster: readonly Player[], player: Player): boolean {
   const depth = squadDepth(roster)
   const d = depth[player.specialty]
   if (!d) return false
-  if (d.count < THIN_DEPTH) return true
-  const weakest = SPECIALTIES.reduce((w, s) => (depth[s].bestOvr < depth[w].bestOvr ? s : w), SPECIALTIES[0])
-  return player.specialty === weakest && ovr(player) > d.bestOvr
+  // ① 不在のポジションは無条件で埋める（走らせる人がいない）
+  if (d.count === 0) return true
+  // ② そのポジションの平均がチーム平均を下回っているか（＝穴）
+  const active = roster.filter(p => p.status === 'active')
+  if (active.length === 0) return true
+  const teamAvg = active.reduce((s2, p) => s2 + ovr(p), 0) / active.length
+  const same = active.filter(p => p.specialty === player.specialty)
+  const specAvg = same.length > 0 ? same.reduce((s2, p) => s2 + ovr(p), 0) / same.length : 0
+  if (specAvg >= teamAvg) return false
+  // 穴でも、今いる最上位を上回らないなら意味がない（頭数合わせで弱い選手を取らない）
+  return ovr(player) > d.bestOvr
+}
+
+/**
+ * 穴の深さ（チーム平均 − そのポジションの平均）。大きいほど優先度が高い。
+ * 「どこに金をかけるか」を決めるときに使う。穴でなければ0。
+ */
+export function needDepth(roster: readonly Player[], spec: Specialty): number {
+  const active = roster.filter(p => p.status === 'active')
+  if (active.length === 0) return 0
+  const teamAvg = active.reduce((s, p) => s + ovr(p), 0) / active.length
+  const same = active.filter(p => p.specialty === spec)
+  if (same.length === 0) return teamAvg
+  const specAvg = same.reduce((s, p) => s + ovr(p), 0) / same.length
+  return Math.max(0, teamAvg - specAvg)
 }
