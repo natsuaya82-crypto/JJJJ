@@ -15,12 +15,14 @@ export function useNotifCount(): number {
   const seenJoinIds = useGameStore(s => s.seenJoinIds)
   const seenInjuryIds = useGameStore(s => s.seenInjuryIds)
   const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
+  const inauguralPlayerCreated = useGameStore(s => s.inauguralPlayerCreated)
 
   return collectNotifications({
     currentSeason, players, teams, playerTeamId, lastLoginDate,
     seenJoinIds: seenJoinIds ?? EMPTY_IDS,
     seenInjuryIds: seenInjuryIds ?? EMPTY_IDS,
     myPlayerCreated: !!myPlayerCreated,
+    inauguralPlayerCreated: !!inauguralPlayerCreated,
     pendingGiftsCount: (pendingGifts ?? []).length,
     clubGiftsCount: clubGifts.length,
   }).total

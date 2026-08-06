@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import PlayerFace from './PlayerFace'
-import { useGameStore } from '../../store/gameStore'
+import { useGameStore, MY_PLAYER_TOTAL, type MyPlayerKind } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings } from '../../types'
 import { C, alpha } from '../../styles/tokens'
@@ -33,18 +33,31 @@ const SPEC_HINT: Record<Specialty, string> = {
 }
 const HAIRS = ['black_light', 'black_dark', 'brown_light', 'blond_light'] as const
 const HAIR_LABEL: Record<string, string> = { black_light: '黒', black_dark: '黒(濃)', brown_light: '茶', blond_light: '金' }
-const TOTAL = 560
 const STAT_MAX = 99
 
 export default function CreateMyPlayerPage() {
   const navigate = useNavigate()
   const createMyPlayer = useGameStore(s => s.createMyPlayer)
-  const alreadyCreated = useGameStore(s => s.myPlayerCreated)
+  // 枠は2種類（gameStore の MyPlayerKind）。初年度のぶんが残っていればそちらが先。
+  //   inaugural … 新規データの初年度に1人（配分500）。ドラフトに参加しない代わり
+  //   gift      … アップデート記念に1人（配分560）
+  const inauguralDone = useGameStore(s => s.inauguralPlayerCreated)
+  const kind: MyPlayerKind = inauguralDone ? 'gift' : 'inaugural'
+  const TOTAL = MY_PLAYER_TOTAL[kind]
+  // 「作成済み」も枠ごとに見る（初年度のぶんを作っても記念のぶんは残る）
+  const giftDone = useGameStore(s => s.myPlayerCreated)
+  const alreadyCreated = kind === 'inaugural' ? inauguralDone : !!giftDone
 
   const [name, setName] = useState('')
   const [age, setAge] = useState(20)
   const [specialty, setSpecialty] = useState<Specialty>('ace')
-  const [ratings, setRatings] = useState<Ratings>({ speed: 80, stamina: 80, mountainUp: 80, mountainDown: 80, pacing: 80, mental: 80, recovery: 80 })
+  const [ratings, setRatings] = useState<Ratings>(() => {
+    // 初期値は「均等割り＋端数を速力へ」。合計がちょうど TOTAL になるので、
+    // 開いた時点で残り0＝そのまま確定できる（500と560で初期値が変わる）
+    const base = Math.floor(MY_PLAYER_TOTAL[kind] / 7)
+    const rest = MY_PLAYER_TOTAL[kind] - base * 7
+    return { speed: base + rest, stamina: base, mountainUp: base, mountainDown: base, pacing: base, mental: base, recovery: base }
+  })
   const [face, setFace] = useState({ style: 3, eye: 5, hair: 'black_light' as typeof HAIRS[number], flip: false })
   const [done, setDone] = useState(false)
 
@@ -78,7 +91,7 @@ export default function CreateMyPlayerPage() {
 
   const confirm = () => {
     if (!canConfirm) return
-    const ok = createMyPlayer({ name: name.trim(), age, specialty, ratings, customFace: face })
+    const ok = createMyPlayer({ name: name.trim(), age, specialty, ratings, customFace: face }, kind)
     if (ok) setDone(true)
   }
 

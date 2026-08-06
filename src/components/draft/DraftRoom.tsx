@@ -369,15 +369,16 @@ export default function DraftRoom() {
                 <div style={{ fontSize: '8px', color: C.textDim, marginTop: '1px' }}>指名待ち</div>
               </div>
             )}
+            {/* 初年度はプレイヤーが指名に参加しない（観戦のみ）ので、0/0 のチップは出さない */}
             <div style={{
               textAlign: 'center', padding: '5px 10px', borderRadius: '10px',
               background: `linear-gradient(135deg, ${alpha(C.gold, 0.2)}, ${alpha(C.gold, 0.06)})`,
               border: `1px solid ${alpha(C.gold, 0.3)}`,
             }}>
               <div style={{ fontSize: '16px', fontWeight: '900', color: C.gold, lineHeight: 1, fontFamily: SAIRA, textShadow: '0 0 10px rgba(245,200,66,0.5)' }}>
-                {myPicksDone}<span style={{ fontSize: '10px', color: C.textDim }}>/{myPicksTotal}</span>
+                {myPicksTotal === 0 ? '観戦' : <>{myPicksDone}<span style={{ fontSize: '10px', color: C.textDim }}>/{myPicksTotal}</span></>}
               </div>
-              <div style={{ fontSize: '8px', color: C.textDim, marginTop: '1px' }}>MY PICKS</div>
+              <div style={{ fontSize: '8px', color: C.textDim, marginTop: '1px' }}>{myPicksTotal === 0 ? 'WATCHING' : 'MY PICKS'}</div>
             </div>
             {!isMyPick && !isComplete && (
               <button onClick={skipToMyPick} style={{

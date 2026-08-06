@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
-import { INITIAL_TEAMS } from '../../data/teams'
+// 新規データは3部から始まる。選べるのは3部の16クラブ（弱小から這い上がる導入）。
+// 1部の20クラブは data/teams.ts、2部・3部は data/teamsLower.ts
+import { DIVISION3_TEAMS } from '../../data/teamsLower'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 
 type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
@@ -19,7 +21,7 @@ export default function Onboarding() {
   const [logoSheetOpen, setLogoSheetOpen] = useState(false)
   const [nameError, setNameError] = useState('')
 
-  const selectedTeam = INITIAL_TEAMS.find(t => t.id === selectedTeamId)!
+  const selectedTeam = DIVISION3_TEAMS.find(t => t.id === selectedTeamId)!
 
   function handleConfirm() {
     if (!teamName.trim()) { setNameError('チーム名を入力してください'); return }
@@ -100,11 +102,12 @@ export default function Onboarding() {
             <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '3px', marginBottom: '6px' }}>STEP 1 / 2</div>
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#F0EDE8' }}>チームを選択</div>
             <div style={{ fontSize: '12px', color: '#9B97A8', marginTop: '4px' }}>率いるチームを選んでください</div>
+            <div style={{ fontSize: '11px', color: '#C9A84C', marginTop: '6px' }}>JPEL 3部からのスタートです。1部を目指しましょう</div>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 14px 170px', minHeight: 0 }}>
             {(['北海道・東北', '関東', '中部', '関西', '中国・四国', '九州・沖縄'] as const).map(region => {
-              const regionTeams = INITIAL_TEAMS.filter(t => {
+              const regionTeams = DIVISION3_TEAMS.filter(t => {
                 if (region === '北海道・東北') return ['北海道','東北'].includes(t.region)
                 if (region === '関東') return t.region === '関東'
                 if (region === '中部') return t.region === '中部'

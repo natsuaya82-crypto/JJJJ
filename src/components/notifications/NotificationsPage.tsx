@@ -162,6 +162,7 @@ export default function NotificationsPage() {
   // ※セレクタで `?? []` すると毎回新しい配列になり無限レンダリングするので、フィールドをそのまま取る
   const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
   const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
+  const inauguralPlayerCreated = useGameStore(s => s.inauguralPlayerCreated)
   const {
     incomingOfferPlayers, stayOrLeave, freeContacts, freeTransferNotices, departureNotices,
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
@@ -174,6 +175,7 @@ export default function NotificationsPage() {
     seenJoinIds,
     seenInjuryIds: seenInjuryIdsRaw ?? EMPTY_IDS,
     myPlayerCreated: !!myPlayerCreated,
+    inauguralPlayerCreated: !!inauguralPlayerCreated,
     pendingGiftsCount: pendingGifts.length,
     clubGiftsCount: clubGifts.length,
   })

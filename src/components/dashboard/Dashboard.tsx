@@ -87,6 +87,7 @@ function PreseasonHub({
 }) {
   const campDone    = !!campBonus?.applied
   const draftDone   = isFirstSeason || (!!draftState && draftState.isComplete)
+  const inauguralPlayerCreated = useGameStore(s => s.inauguralPlayerCreated)
   // ロスターが下限(15人)未満だと開幕できない（契約切れ等で割った場合はドラフト・移籍で補強してから）
   const rosterShort = rosterCount < ROSTER_MIN
   const allReady    = campDone && draftDone && !rosterShort
@@ -118,7 +119,7 @@ function PreseasonHub({
             {isFirstSeason ? '開幕準備' : '新シーズン準備'}
           </div>
           <div style={{ fontSize: 11, color: C.textSub }}>
-            {isFirstSeason ? 'カードを受け取り、開幕へ' : 'ドラフト・カード受取を済ませてシーズン開幕へ'}
+            {isFirstSeason ? '選手をつくり、カードを受け取って開幕へ' : 'ドラフト・カード受取を済ませてシーズン開幕へ'}
           </div>
         </div>
 
@@ -144,9 +145,27 @@ function PreseasonHub({
           </div>
         )}
 
+        {/* ①' 初年度のマイ選手作成 — 初年度だけ。ドラフトに参加しない代わりに1人自分で作る */}
+        {isFirstSeason && !inauguralPlayerCreated && (
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
+            <StepBadge n={1} done={false} color={C.gold}/>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>選手を1人つくる</div>
+              <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>名前・年齢・型・能力・顔を自分で決めて加入させる</div>
+            </div>
+            <button onClick={() => navigate('/create-player')} className="btn-press" style={{
+              padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0,
+              fontSize: 12, fontWeight: 900,
+              background: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
+              border: `2px solid #8b6914`, color: C.bg,
+              boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.4)`,
+            }}>つくる →</button>
+          </div>
+        )}
+
         {/* ③ シーズン目標の確認 */}
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
-          <StepBadge n={isFirstSeason ? 1 : 3} done color={C.green}/>
+          <StepBadge n={isFirstSeason ? 2 : 3} done color={C.green}/>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>今シーズンの目標</div>
             <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
@@ -165,7 +184,7 @@ function PreseasonHub({
         {/* ④ シーズン前カード */}
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: campDone ? 0 : 10 }}>
-            <StepBadge n={isFirstSeason ? 2 : 4} done={campDone} color={campDone ? C.green : C.cyan}/>
+            <StepBadge n={isFirstSeason ? 3 : 4} done={campDone} color={campDone ? C.green : C.cyan}/>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: campDone ? C.textDim : C.text }}>
                 {campDone ? 'カード受取完了' : 'シーズン前カード'}

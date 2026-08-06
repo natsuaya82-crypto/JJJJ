@@ -16,6 +16,13 @@ import { LOWER_DIVISION_TEAMS } from '../data/teamsLower'
 // 「どの部か」を見たいところは utils/league.ts の divisionOf / teamsInDivision を通すこと。
 // 52チームの名簿そのものは utils/domesticClubs.ts の1本（既存セーブの補完もそこ）
 const ALL_TEAMS = ALL_DOMESTIC_TEAMS
+
+// マイ選手を作れる枠は2種類あり、別々に数える。
+//   inaugural … 新規データの初年度に1人（配分500）。初年度はドラフトに参加しない代わり
+//   gift      … アップデート記念に1人（配分560）。既存プレイヤーへの配布
+export type MyPlayerKind = 'inaugural' | 'gift'
+/** 枠ごとの能力の振り分け合計 */
+export const MY_PLAYER_TOTAL: Record<MyPlayerKind, number> = { inaugural: 500, gift: 560 }
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
@@ -552,7 +559,10 @@ export type GameStore = GameState & {
 
   // Dev reset
   resetGame: () => void
-  createMyPlayer: (params: { name: string; age: number; specialty: Specialty; ratings: Ratings; customFace: NonNullable<Player['customFace']> }) => boolean
+  /** マイ選手の作成。初年度の1人('inaugural')とアップデート記念の1人('gift')は別枠 */
+  createMyPlayer: (params: { name: string; age: number; specialty: Specialty; ratings: Ratings; customFace: NonNullable<Player['customFace']> }, kind: MyPlayerKind) => boolean
+  /** 初年度に作る1人を作成済みか（記念の myPlayerCreated とは別に持つ） */
+  inauguralPlayerCreated: boolean
 }
 
 function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
@@ -657,6 +667,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     adsRemoved: false,
     twitterIntroSeen: false,
     myPlayerCreated: false,
+    inauguralPlayerCreated: false,
   } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
 }
 
@@ -877,13 +888,16 @@ export const useGameStore = create<GameStore>()(
         const state = get()
         const pool = generateDraftPool(state.currentSeason.year, new Set(state.players.map(pl => pl.name)))
         // 初年度は前シーズンが無いので「初期予算の逆順（貧乏なチームから）」で指名順を決める。
-        // プレイヤーは最弱スタート（rank20相当=最少予算）なので全体1位固定。残りは初期予算の少ない順。
         // 2巡目はスネークで逆順（1位から）。
-        const inauguralOthers = [...state.teams]
+        //
+        // ★初年度だけ、プレイヤーは指名に参加しない（観戦のみ）。
+        //   代わりに選手を1人自分で作って加入させる（createMyPlayer の 'inaugural'）。
+        //   ドラフトそのものは走るので、初めてでも「こういう催しがある」ことは見て分かる。
+        //   2年目以降は通常どおりプレイヤーも指名する。
+        const inauguralRound1 = [...state.teams]
           .filter(t => t.id !== state.playerTeamId)
           .sort((a, b) => tierBudget(a) - tierBudget(b))
           .map(t => t.id)
-        const inauguralRound1 = [state.playerTeamId, ...inauguralOthers]
         const pickOrder = [...inauguralRound1, ...[...inauguralRound1].reverse()]
         const draftState: DraftState = {
           pool,
@@ -7380,9 +7394,10 @@ export const useGameStore = create<GameStore>()(
         name: string; age: number; specialty: import('../types').Specialty
         ratings: import('../types').Ratings
         customFace: NonNullable<import('../types').Player['customFace']>
-      }) => {
+      }, kind: MyPlayerKind) => {
         const state = get()
-        if (state.myPlayerCreated) return false
+        // 初年度の1人とアップデート記念の1人は別枠。片方を作っても、もう片方は残る
+        if (kind === 'inaugural' ? state.inauguralPlayerCreated : state.myPlayerCreated) return false
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!myTeam) return false
         const STAT_KEYS: (keyof import('../types').Ratings)[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
@@ -7399,7 +7414,8 @@ export const useGameStore = create<GameStore>()(
           if (!lowKey) break
           caps[lowKey] += 1; budget -= 1
         }
-        const id = `myplayer-${state.currentSeason.year}`
+        // 記念のぶんは従来どおりの ID。初年度のぶんだけ別にして、同じ年に両方作れてもぶつからないようにする
+        const id = kind === 'inaugural' ? `myplayer-inaugural-${state.currentSeason.year}` : `myplayer-${state.currentSeason.year}`
         const newPlayer: import('../types').Player = {
           id, name: params.name, nameKana: '', age: params.age,
           nationality: 'JPN', origin: 'マイプレイヤー',
@@ -7428,7 +7444,7 @@ export const useGameStore = create<GameStore>()(
         set({
           players: moved.players,
           teams: moved.teams,
-          myPlayerCreated: true,
+          ...(kind === 'inaugural' ? { inauguralPlayerCreated: true } : { myPlayerCreated: true }),
         })
         return true
       },
@@ -7474,7 +7490,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 32,
+      version: 33,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7876,6 +7892,11 @@ export const useGameStore = create<GameStore>()(
               cs32.seasonRaceIncome = 0
             }
           }
+          // v33: 初年度のマイ選手作成（配分500）を足した。既存セーブは初年度をとっくに
+          //      過ぎているので「作成済み」にしておく。ここを false のままにすると、
+          //      アップデート記念のぶん（配分560）が初年度枠として500で開いてしまう。
+          if (version < 33 && s.isInitialized) s.inauguralPlayerCreated = true
+
           return s
         } catch (e) {
           // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。
