@@ -1,5 +1,5 @@
 import type { GmOffer, Team } from '../types'
-import { rankedStandings } from './league'
+import { rankedStandings, divisionOf } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
 
 // ============================================================================
@@ -141,8 +141,14 @@ export function makeGmOffer(params: {
   const teamId = candidates[Math.floor(rng() * candidates.length)] ?? candidates[0]
   const b = nextBudgets[teamId]
   const dest = teams.find(t => t.id === teamId)
-  const sorted = [...standings].sort((x, y) => y.totalPoints - x.totalPoints)
-  const prevRank = sorted.findIndex(s => s.teamId === teamId) + 1
+  // 前季順位は**移籍先の部の中での順位**。来季の目標をここから引き直すので、
+  // 52チームを得点で並べた順位を渡すと目標が的外れになる
+  // （部ごとにレース数が10/8/7で違うため、3部のクラブは何位でも下位になる）
+  const destDivision = divisionOf(dest)
+  const destDivIds = new Set(teams.filter(t => divisionOf(t) === destDivision).map(t => t.id))
+  const inDiv = rankedStandings(standings.filter(s => destDivIds.has(s.teamId)))
+  const prevRank = inDiv.findIndex(s => s.teamId === teamId) + 1
+  const destDivisionSize = destDivIds.size
   return {
     teamId,
     year: nextYear,
@@ -159,6 +165,8 @@ export function makeGmOffer(params: {
     // 施設ぶんは移籍先のスカウト部門を使う
     scoutPoints: 5 + objBonus + (dest?.facilities?.scoutOffice ?? 0),
     prevRank: prevRank > 0 ? prevRank : finalRank,
+    // 目標を引き直すときに使う。52ではなく移籍先の部の人数
+    divisionSize: destDivisionSize,
     kind,
   }
 }

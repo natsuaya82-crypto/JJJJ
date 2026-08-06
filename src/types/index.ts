@@ -885,6 +885,8 @@ export type GmOffer = {
   scoutPoints: number
   // 移籍先の前季の最終順位。来季の目標を引き直すのに使う
   prevRank: number
+  /** 移籍先の部の人数。来季の目標を引き直すのに使う（52ではない） */
+  divisionSize?: number
   /** どういう話で来たオファーか（utils/gmOffer.ts）。古いセーブには無い */
   kind?: 'promotion' | 'rebuild' | 'comeback'
 }

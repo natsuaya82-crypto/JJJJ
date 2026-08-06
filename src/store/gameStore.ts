@@ -7205,9 +7205,11 @@ export const useGameStore = create<GameStore>()(
               budgetBreakdown: offer.budgetBreakdown,
               scoutPoints: offer.scoutPoints,
               // 目標は移籍先の前季順位で引き直す
+              // 目標は移籍先の部の人数と、その部での前季順位で引き直す。
+              // 52を渡すと「52チーム中◯位」の目標になり、16チームの部では達成不能になる
               objectives: selectSeasonObjectives(
                 state.rivalTeamId === offer.teamId ? false : !!state.rivalTeamId,
-                state.teams.length,
+                offer.divisionSize ?? state.teams.length,
                 offer.prevRank,
               ),
               trainingAssignments: {},
