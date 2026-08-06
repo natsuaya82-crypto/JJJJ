@@ -9,7 +9,7 @@ import { usePreviewStore } from '../../store/previewStore'
 import { HOF_MAX } from '../../utils/hofRoster'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import type { HofPlayer } from '../../types'
-import { C, alpha } from '../../styles/tokens'
+import { C } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 未登録セーブ用の空配列。ここで [] を書くと毎回別物になり、下の useEffect が回り続ける
@@ -80,12 +80,6 @@ export default function HofTeamPage() {
             player={h.player}
             handlers={longPress(h.player.id, () => setAskId(h.player.id))}
             hideStatusBadges
-            extra={
-              <span style={{
-                fontSize: 8, padding: '1px 5px', borderRadius: 4, fontWeight: 700,
-                backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold,
-              }}>{h.year}年 {h.teamName}</span>
-            }
           />
         ))}
         {sorted.length === 0 && (
