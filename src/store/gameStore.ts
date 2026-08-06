@@ -5218,10 +5218,18 @@ export const useGameStore = create<GameStore>()(
             c.specCounts[spec] = (c.specCounts[spec] ?? 0) + 1
             return true
           }
-          // ② 頭数の確保 — 予算/OVRに関係なく総在籍24人（下限）までは埋める。
-          // それ以上の頭数合わせはしない（数合わせの弱いFAを抱えない。多く抱えるのは予算のあるチームだけ）。
-          // 「方針に沿ったベスト補強」は廃止済み：質の高い補強は有料移籍・引き抜きに一本化する
-          if (c.totalNow + c.signed >= 24) return false
+          // ② そのクラブに必要な選手なら取る。判定は squadNeeds の needsPlayer 1本
+          //    （薄いポジション、または一番弱いポジションで今いる誰よりも強い）。
+          //    ここが無いと「24人いて薄いポジションも無いクラブは、OVR90のFAが余っていても
+          //    絶対に取らない」状態になり、良いFAが誰にも取られず市場に残り続けていた。
+          //    ドラフトを1部だけにして指名漏れがFAへ流れるようになったので、受け皿が要る
+          if (c.totalNow + c.signed < ROSTER_MAX) {
+            const roster = playersAfterCpuTransfer.filter(p => p.teamId === c.team.id && p.status === 'active')
+            const need = c.pool.find(f => canSign(f) && budgetOk(f) && needsPlayer(roster, f))
+            if (need) { doSignFA(c, need); return true }
+          }
+          // ③ 頭数の確保 — 予算/OVRに関係なくロスター下限までは埋める
+          if (c.totalNow + c.signed >= ROSTER_MIN + 9) return false
           const fa = availableFAs.find(canSign)
           if (!fa) return false
           doSignFA(c, fa)
