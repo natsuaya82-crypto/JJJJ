@@ -553,6 +553,9 @@ export type Segment = {
   uphillPct: number    // 0–100, % of segment that is uphill
   downhillPct: number  // 0–100, % that is downhill; flatPct = 100 - uphillPct - downhillPct
   statWeights?: Partial<Record<keyof Ratings, number>>
+  // この区間の推奨ポジション。SEASON_2027_RACESとECL_COURSESは全区間に必ず1つ明示している
+  // （看板区間という特別扱いはしない）。世界選手権など動的生成の区間は今のところ持たない
+  recommended?: Specialty
 }
 
 export type RaceConditions = {

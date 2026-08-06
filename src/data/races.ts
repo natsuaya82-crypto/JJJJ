@@ -1,4 +1,4 @@
-import type { Race, IndividualEvent } from '../types'
+import type { Race, IndividualEvent, Specialty } from '../types'
 
 // 記録会（タイムトライアル）年7回。本編レースの合間に配置。種目を散らし、負荷の高いマラソンは夏の休養期に。
 const pickTTWeather = (): IndividualEvent['weather'] => {
@@ -22,8 +22,10 @@ export function generateIndividualEvents(year: number): IndividualEvent[] {
 // W = statWeights shorthand. Each segment gets its own unique calibration.
 type W = Partial<Record<'speed' | 'stamina' | 'mountainUp' | 'mountainDown' | 'pacing' | 'mental' | 'recovery', number>>
 
-function seg(index: number, distanceKm: number, uphillPct: number, downhillPct: number, w?: W): Race['segments'][number] {
-  return { index, distanceKm, uphillPct, downhillPct, ...(w ? { statWeights: w } : {}) }
+// recommended は末尾の追加引数（既存呼び出し側との後方互換のため）。
+// SEASON_2027_RACES は全区間に渡すが、RESERVE_RACE_POOL 等は省略したまま（未指定でよい）。
+function seg(index: number, distanceKm: number, uphillPct: number, downhillPct: number, w?: W, recommended?: Specialty): Race['segments'][number] {
+  return { index, distanceKm, uphillPct, downhillPct, ...(w ? { statWeights: w } : {}), ...(recommended ? { recommended } : {}) }
 }
 
 export const SEASON_2027_RACES: Race[] = [
@@ -38,17 +40,17 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 12, weather: 'sunny', elevation: 50 },
     segments: [
       // 1区 8.0km 平坦: 開幕爆走。速さとペース読みが全て
-      seg(1, 8.0,  0,  0, { speed: 0.58, pacing: 0.18, mental: 0.12, stamina: 0.08, recovery: 0.04 }),
+      seg(1, 8.0,  0,  0, { speed: 0.58, pacing: 0.18, mental: 0.12, stamina: 0.08, recovery: 0.04 }, 'sprinter'),
       // 2区 5.8km 緩傾斜: 短くても起伏あり。ペース管理が鍵
-      seg(2, 5.8,  5,  5, { pacing: 0.42, speed: 0.28, mental: 0.18, stamina: 0.08, recovery: 0.04 }),
+      seg(2, 5.8,  5,  5, { pacing: 0.42, speed: 0.28, mental: 0.18, stamina: 0.08, recovery: 0.04 }, 'sprinter'),
       // 3区 8.5km 緩傾斜: 中盤の精神消耗戦。冷静さが差を生む
-      seg(3, 8.5,  5,  5, { mental: 0.35, pacing: 0.30, stamina: 0.20, recovery: 0.10, speed: 0.05 }),
+      seg(3, 8.5,  5,  5, { mental: 0.35, pacing: 0.30, stamina: 0.20, recovery: 0.10, speed: 0.05 }, 'ace'),
       // 4区 6.2km 平坦: 短距離爆発区間。純粋な速さ勝負
-      seg(4, 6.2,  0,  0, { speed: 0.68, pacing: 0.14, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
+      seg(4, 6.2,  0,  0, { speed: 0.68, pacing: 0.14, mental: 0.10, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 5区 6.4km 緩傾斜: つなぎ区間。ペースを乱さない安定性
-      seg(5, 6.4,  5,  5, { pacing: 0.38, speed: 0.30, mental: 0.18, recovery: 0.08, stamina: 0.06 }),
+      seg(5, 6.4,  5,  5, { pacing: 0.38, speed: 0.30, mental: 0.18, recovery: 0.08, stamina: 0.06 }, 'sprinter'),
       // 6区 10.2km 緩上り: 最長アンカー。スタミナと回復力で粘る
-      seg(6, 10.2, 8,  3, { stamina: 0.38, pacing: 0.25, recovery: 0.22, mental: 0.10, speed: 0.05 }),
+      seg(6, 10.2, 8,  3, { stamina: 0.38, pacing: 0.25, recovery: 0.22, mental: 0.10, speed: 0.05 }, 'long'),
     ],
   },
 
@@ -63,21 +65,21 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 13, weather: 'sunny', elevation: 80 },
     segments: [
       // 1区 9.0km 緩傾斜: 精神の立ち上がり。メンタルが初速を決める
-      seg(1, 9.0,   5,  5, { mental: 0.32, pacing: 0.30, speed: 0.18, stamina: 0.14, recovery: 0.06 }),
+      seg(1, 9.0,   5,  5, { mental: 0.32, pacing: 0.30, speed: 0.18, stamina: 0.14, recovery: 0.06 }, 'ace'),
       // 2区 11.5km 起伏: 最初の山岳越え。オールラウンドな山岳力
-      seg(2, 11.5, 20, 18, { mountainUp: 0.26, mountainDown: 0.22, stamina: 0.28, pacing: 0.14, recovery: 0.10 }),
+      seg(2, 11.5, 20, 18, { mountainUp: 0.26, mountainDown: 0.22, stamina: 0.28, pacing: 0.14, recovery: 0.10 }, 'allrounder'),
       // 3区 17.0km 緩上り: 最長。真のスタミナと回復力の消耗戦
-      seg(3, 17.0,  8,  3, { stamina: 0.45, recovery: 0.25, pacing: 0.18, mental: 0.08, speed: 0.04 }),
+      seg(3, 17.0,  8,  3, { stamina: 0.45, recovery: 0.25, pacing: 0.18, mental: 0.08, speed: 0.04 }, 'long'),
       // 4区 10.0km 緩傾斜: 中間つなぎ。ペースとメンタルで繋ぐ
-      seg(4, 10.0,  5,  5, { pacing: 0.36, mental: 0.26, stamina: 0.22, recovery: 0.12, speed: 0.04 }),
+      seg(4, 10.0,  5,  5, { pacing: 0.36, mental: 0.26, stamina: 0.22, recovery: 0.12, speed: 0.04 }, 'ace'),
       // 5区 12.5km 起伏: 二度目の山岳越え。疲弊した脚での粘り
-      seg(5, 12.5, 20, 18, { mountainUp: 0.28, mountainDown: 0.20, stamina: 0.26, recovery: 0.16, pacing: 0.10 }),
+      seg(5, 12.5, 20, 18, { mountainUp: 0.28, mountainDown: 0.20, stamina: 0.26, recovery: 0.16, pacing: 0.10 }, 'allrounder'),
       // 6区 9.5km 緩傾斜: 回復力で後半を粘りきる区間
-      seg(6, 9.5,   5,  5, { recovery: 0.38, pacing: 0.28, stamina: 0.22, mental: 0.08, speed: 0.04 }),
+      seg(6, 9.5,   5,  5, { recovery: 0.38, pacing: 0.28, stamina: 0.22, mental: 0.08, speed: 0.04 }, 'grinder'),
       // 7区 16.0km 緩上り: 二つ目の長丁場。スタミナの真価が出る
-      seg(7, 16.0,  8,  3, { stamina: 0.42, recovery: 0.24, pacing: 0.20, mental: 0.10, speed: 0.04 }),
+      seg(7, 16.0,  8,  3, { stamina: 0.42, recovery: 0.24, pacing: 0.20, mental: 0.10, speed: 0.04 }, 'long'),
       // 8区 7.5km 平坦: 最終スプリントアンカー
-      seg(8, 7.5,   0,  0, { speed: 0.60, pacing: 0.18, mental: 0.14, stamina: 0.05, recovery: 0.03 }),
+      seg(8, 7.5,   0,  0, { speed: 0.60, pacing: 0.18, mental: 0.14, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
     ],
   },
 
@@ -92,21 +94,21 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 17, weather: 'cloudy', elevation: 30 },
     segments: [
       // 1区 6.5km 平坦: 都市開幕スプリント
-      seg(1, 6.5,  0,  0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
+      seg(1, 6.5,  0,  0, { speed: 0.62, pacing: 0.18, mental: 0.12, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 2区 7.0km 平坦: 連続スプリント。前区間との繋ぎが課題
-      seg(2, 7.0,  0,  0, { speed: 0.65, pacing: 0.16, mental: 0.10, stamina: 0.06, recovery: 0.03 }),
+      seg(2, 7.0,  0,  0, { speed: 0.65, pacing: 0.16, mental: 0.10, stamina: 0.06, recovery: 0.03 }, 'sprinter'),
       // 3区 11.5km 緩傾斜: 長めの精神消耗戦
-      seg(3, 11.5, 5,  5, { mental: 0.32, pacing: 0.32, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
+      seg(3, 11.5, 5,  5, { mental: 0.32, pacing: 0.32, stamina: 0.22, recovery: 0.10, speed: 0.04 }, 'ace'),
       // 4区 6.0km 平坦: 純粋速さ爆発区間
-      seg(4, 6.0,  0,  0, { speed: 0.70, pacing: 0.14, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
+      seg(4, 6.0,  0,  0, { speed: 0.70, pacing: 0.14, mental: 0.08, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 5区 10.8km 緩傾斜: 中盤タクティカル
-      seg(5, 10.8, 5,  5, { pacing: 0.38, mental: 0.28, stamina: 0.20, recovery: 0.10, speed: 0.04 }),
+      seg(5, 10.8, 5,  5, { pacing: 0.38, mental: 0.28, stamina: 0.20, recovery: 0.10, speed: 0.04 }, 'ace'),
       // 6区 5.5km 平坦: 最短区間・絶対速度のみ問われる
-      seg(6, 5.5,  0,  0, { speed: 0.72, pacing: 0.12, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
+      seg(6, 5.5,  0,  0, { speed: 0.72, pacing: 0.12, mental: 0.08, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 7区 9.2km 緩傾斜: アンカー前の消耗戦
-      seg(7, 9.2,  5,  5, { pacing: 0.35, stamina: 0.25, mental: 0.22, recovery: 0.12, speed: 0.06 }),
+      seg(7, 9.2,  5,  5, { pacing: 0.35, stamina: 0.25, mental: 0.22, recovery: 0.12, speed: 0.06 }, 'ace'),
       // 8区 12.5km 緩上り: 最長アンカー。スタミナ型が有利
-      seg(8, 12.5, 8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.20, mental: 0.12, speed: 0.04 }),
+      seg(8, 12.5, 8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.20, mental: 0.12, speed: 0.04 }, 'long'),
     ],
   },
 
@@ -121,17 +123,17 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 12, weather: 'cloudy', elevation: 1200 },
     segments: [
       // 1区 10.0km アップダウン: 起伏のアプローチ。山岳・スタミナ複合
-      seg(1, 10.0, 20, 18, { mountainUp: 0.25, mountainDown: 0.20, stamina: 0.30, pacing: 0.15, recovery: 0.10 }),
+      seg(1, 10.0, 20, 18, { mountainUp: 0.25, mountainDown: 0.20, stamina: 0.30, pacing: 0.15, recovery: 0.10 }, 'allrounder'),
       // 2区 12.0km 急登: 長い山登り区間。スタミナで失速しない持続力
-      seg(2, 12.0, 55,  2, { mountainUp: 0.68, stamina: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
+      seg(2, 12.0, 55,  2, { mountainUp: 0.68, stamina: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }, 'mountain_up'),
       // 3区 9.0km 急登: 短くて急。爆発的な登攀力が全て
-      seg(3, 9.0,  55,  2, { mountainUp: 0.75, stamina: 0.12, mental: 0.07, recovery: 0.04, pacing: 0.02 }),
+      seg(3, 9.0,  55,  2, { mountainUp: 0.75, stamina: 0.12, mental: 0.07, recovery: 0.04, pacing: 0.02 }, 'mountain_up'),
       // 4区 11.0km 急降: 長い下り。技術と速さのコントロール
-      seg(4, 11.0,  2, 55, { mountainDown: 0.62, speed: 0.20, mental: 0.10, pacing: 0.05, recovery: 0.03 }),
+      seg(4, 11.0,  2, 55, { mountainDown: 0.62, speed: 0.20, mental: 0.10, pacing: 0.05, recovery: 0.03 }, 'mountain_down'),
       // 5区 9.5km 急降: 短い急降。攻撃的な下り専門が輝く
-      seg(5, 9.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
+      seg(5, 9.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }, 'mountain_down'),
       // 6区 8.5km アップダウン: 帰路起伏。疲弊した脚で最後の山岳戦
-      seg(6, 8.5,  20, 18, { mountainUp: 0.22, mountainDown: 0.25, stamina: 0.28, pacing: 0.15, recovery: 0.10 }),
+      seg(6, 8.5,  20, 18, { mountainUp: 0.22, mountainDown: 0.25, stamina: 0.28, pacing: 0.15, recovery: 0.10 }, 'allrounder'),
     ],
   },
 
@@ -146,17 +148,17 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 24, weather: 'sunny', elevation: 20 },
     segments: [
       // 1区 7.5km 平坦: 速さのオープニング
-      seg(1, 7.5,  0,  0, { speed: 0.63, pacing: 0.18, mental: 0.11, stamina: 0.05, recovery: 0.03 }),
+      seg(1, 7.5,  0,  0, { speed: 0.63, pacing: 0.18, mental: 0.11, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 2区 8.0km 緩傾斜: ペースの読み合い
-      seg(2, 8.0,  5,  5, { pacing: 0.40, speed: 0.26, mental: 0.20, stamina: 0.09, recovery: 0.05 }),
+      seg(2, 8.0,  5,  5, { pacing: 0.40, speed: 0.26, mental: 0.20, stamina: 0.09, recovery: 0.05 }, 'sprinter'),
       // 3区 6.5km 平坦: 再び速さ区間
-      seg(3, 6.5,  0,  0, { speed: 0.68, pacing: 0.14, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
+      seg(3, 6.5,  0,  0, { speed: 0.68, pacing: 0.14, mental: 0.10, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 4区 13.5km 緩上り: 唯一の長丁場。スタミナと回復力が鍵
-      seg(4, 13.5, 8,  3, { stamina: 0.40, recovery: 0.26, pacing: 0.20, mental: 0.10, speed: 0.04 }),
+      seg(4, 13.5, 8,  3, { stamina: 0.40, recovery: 0.26, pacing: 0.20, mental: 0.10, speed: 0.04 }, 'long'),
       // 5区 6.0km 平坦: 最短爆発区間
-      seg(5, 6.0,  0,  0, { speed: 0.72, pacing: 0.12, mental: 0.08, stamina: 0.05, recovery: 0.03 }),
+      seg(5, 6.0,  0,  0, { speed: 0.72, pacing: 0.12, mental: 0.08, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 6区 9.5km 緩傾斜: 精神のアンカー戦
-      seg(6, 9.5,  5,  5, { mental: 0.36, pacing: 0.30, stamina: 0.20, recovery: 0.10, speed: 0.04 }),
+      seg(6, 9.5,  5,  5, { mental: 0.36, pacing: 0.30, stamina: 0.20, recovery: 0.10, speed: 0.04 }, 'ace'),
     ],
   },
 
@@ -171,21 +173,21 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 31, weather: 'sunny', elevation: 60 },
     segments: [
       // 1区 7.0km 平坦: 熱気の中の先行。精神とペースが速さより重要
-      seg(1, 7.0,  0,  0, { speed: 0.55, pacing: 0.22, mental: 0.14, stamina: 0.06, recovery: 0.03 }),
+      seg(1, 7.0,  0,  0, { speed: 0.55, pacing: 0.22, mental: 0.14, stamina: 0.06, recovery: 0.03 }, 'sprinter'),
       // 2区 9.0km 緩傾斜: 夏の精神消耗戦
-      seg(2, 9.0,  5,  5, { mental: 0.36, pacing: 0.28, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
+      seg(2, 9.0,  5,  5, { mental: 0.36, pacing: 0.28, stamina: 0.22, recovery: 0.10, speed: 0.04 }, 'ace'),
       // 3区 16.5km 緩上り: 猛暑の長丁場。回復力がないと後半崩壊
-      seg(3, 16.5, 8,  3, { stamina: 0.44, recovery: 0.26, pacing: 0.18, mental: 0.08, speed: 0.04 }),
+      seg(3, 16.5, 8,  3, { stamina: 0.44, recovery: 0.26, pacing: 0.18, mental: 0.08, speed: 0.04 }, 'long'),
       // 4区 10.5km 緩傾斜: 消耗した体で回復力が問われる
-      seg(4, 10.5, 5,  5, { recovery: 0.40, pacing: 0.28, stamina: 0.22, mental: 0.08, speed: 0.02 }),
+      seg(4, 10.5, 5,  5, { recovery: 0.40, pacing: 0.28, stamina: 0.22, mental: 0.08, speed: 0.02 }, 'grinder'),
       // 5区 11.0km 起伏: 夏の起伏。回復力ありきの山岳戦
-      seg(5, 11.0, 20, 18, { mountainUp: 0.24, mountainDown: 0.20, stamina: 0.28, recovery: 0.18, pacing: 0.10 }),
+      seg(5, 11.0, 20, 18, { mountainUp: 0.24, mountainDown: 0.20, stamina: 0.28, recovery: 0.18, pacing: 0.10 }, 'allrounder'),
       // 6区 6.0km 平坦: 一瞬の爆発区間
-      seg(6, 6.0,  0,  0, { speed: 0.65, pacing: 0.16, mental: 0.12, stamina: 0.04, recovery: 0.03 }),
+      seg(6, 6.0,  0,  0, { speed: 0.65, pacing: 0.16, mental: 0.12, stamina: 0.04, recovery: 0.03 }, 'sprinter'),
       // 7区 8.5km 緩傾斜: アンカー前。ペースと精神で踏ん張る
-      seg(7, 8.5,  5,  5, { pacing: 0.38, mental: 0.26, stamina: 0.20, recovery: 0.12, speed: 0.04 }),
+      seg(7, 8.5,  5,  5, { pacing: 0.38, mental: 0.26, stamina: 0.20, recovery: 0.12, speed: 0.04 }, 'ace'),
       // 8区 14.5km 緩上り: 夏最長アンカー。スタミナ・回復力の総決算
-      seg(8, 14.5, 8,  3, { stamina: 0.42, recovery: 0.28, pacing: 0.18, mental: 0.08, speed: 0.04 }),
+      seg(8, 14.5, 8,  3, { stamina: 0.42, recovery: 0.28, pacing: 0.18, mental: 0.08, speed: 0.04 }, 'long'),
     ],
   },
 
@@ -200,17 +202,17 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 19, weather: 'sunny', elevation: 800 },
     segments: [
       // 1区 9.5km 起伏: 山岳へのアプローチ。オールラウンドな山岳力
-      seg(1, 9.5,  20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, pacing: 0.14, recovery: 0.10 }),
+      seg(1, 9.5,  20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, pacing: 0.14, recovery: 0.10 }, 'allrounder'),
       // 2区 10.5km 急登: 長い技術的登り。スタミナ込みの山登り力
-      seg(2, 10.5, 55,  2, { mountainUp: 0.55, stamina: 0.24, pacing: 0.12, mental: 0.06, recovery: 0.03 }),
+      seg(2, 10.5, 55,  2, { mountainUp: 0.55, stamina: 0.24, pacing: 0.12, mental: 0.06, recovery: 0.03 }, 'mountain_up'),
       // 3区 8.5km 急登: 短い急登。爆発的登山力が支配
-      seg(3, 8.5,  55,  2, { mountainUp: 0.74, stamina: 0.12, mental: 0.08, recovery: 0.04, pacing: 0.02 }),
+      seg(3, 8.5,  55,  2, { mountainUp: 0.74, stamina: 0.12, mental: 0.08, recovery: 0.04, pacing: 0.02 }, 'mountain_up'),
       // 4区 10.0km 急降: 技術的長い下り。山下りとスピードのバランス
-      seg(4, 10.0,  2, 55, { mountainDown: 0.55, speed: 0.22, pacing: 0.12, mental: 0.08, recovery: 0.03 }),
+      seg(4, 10.0,  2, 55, { mountainDown: 0.55, speed: 0.22, pacing: 0.12, mental: 0.08, recovery: 0.03 }, 'mountain_down'),
       // 5区 8.5km 急降: 短い急降。攻撃的山下り
-      seg(5, 8.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }),
+      seg(5, 8.5,   2, 55, { mountainDown: 0.68, speed: 0.18, mental: 0.08, pacing: 0.04, recovery: 0.02 }, 'mountain_down'),
       // 6区 11.0km 緩上り: 山から帰るアンカー。スタミナ型の逆襲
-      seg(6, 11.0,  8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.22, mental: 0.10, speed: 0.04 }),
+      seg(6, 11.0,  8,  3, { stamina: 0.40, pacing: 0.24, recovery: 0.22, mental: 0.10, speed: 0.04 }, 'long'),
     ],
   },
 
@@ -225,21 +227,21 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 19, weather: 'sunny', elevation: 50 },
     segments: [
       // 1区 9.5km 平坦: 戦略的開幕。ペースと精神で位置を取る
-      seg(1, 9.5,  0,  0, { pacing: 0.38, speed: 0.28, mental: 0.20, stamina: 0.10, recovery: 0.04 }),
+      seg(1, 9.5,  0,  0, { pacing: 0.38, speed: 0.28, mental: 0.20, stamina: 0.10, recovery: 0.04 }, 'ace'),
       // 2区 13.3km 緩傾斜: 長い戦術区間。回復力でペースを維持
-      seg(2, 13.3, 5,  5, { pacing: 0.35, stamina: 0.28, mental: 0.22, recovery: 0.12, speed: 0.03 }),
+      seg(2, 13.3, 5,  5, { pacing: 0.35, stamina: 0.28, mental: 0.22, recovery: 0.12, speed: 0.03 }, 'ace'),
       // 3区 19.7km 緩上り: 全試合屈指の最長区間。スタミナと回復力が全て
-      seg(3, 19.7, 8,  3, { stamina: 0.48, recovery: 0.28, pacing: 0.16, mental: 0.06, speed: 0.02 }),
+      seg(3, 19.7, 8,  3, { stamina: 0.48, recovery: 0.28, pacing: 0.16, mental: 0.06, speed: 0.02 }, 'long'),
       // 4区 14.1km 起伏: 長い起伏。脚への累積ダメージに耐える
-      seg(4, 14.1, 20, 18, { mountainUp: 0.26, mountainDown: 0.20, stamina: 0.30, recovery: 0.14, pacing: 0.10 }),
+      seg(4, 14.1, 20, 18, { mountainUp: 0.26, mountainDown: 0.20, stamina: 0.30, recovery: 0.14, pacing: 0.10 }, 'allrounder'),
       // 5区 18.5km 緩上り: もう一つの超長区間。純粋スタミナ勝負
-      seg(5, 18.5, 8,  3, { stamina: 0.46, recovery: 0.26, pacing: 0.18, mental: 0.08, speed: 0.02 }),
+      seg(5, 18.5, 8,  3, { stamina: 0.46, recovery: 0.26, pacing: 0.18, mental: 0.08, speed: 0.02 }, 'long'),
       // 6区 12.8km 緩傾斜: メンタルの踏ん張り区間
-      seg(6, 12.8, 5,  5, { mental: 0.35, pacing: 0.30, stamina: 0.22, recovery: 0.10, speed: 0.03 }),
+      seg(6, 12.8, 5,  5, { mental: 0.35, pacing: 0.30, stamina: 0.22, recovery: 0.10, speed: 0.03 }, 'ace'),
       // 7区 11.6km 起伏: 二つ目の起伏。疲弊した体での山岳戦
-      seg(7, 11.6, 20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, recovery: 0.14, pacing: 0.10 }),
+      seg(7, 11.6, 20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, recovery: 0.14, pacing: 0.10 }, 'allrounder'),
       // 8区 21.4km 緩上り: シーズン最長アンカー。究極のスタミナ戦
-      seg(8, 21.4, 8,  3, { stamina: 0.50, recovery: 0.28, pacing: 0.14, mental: 0.06, speed: 0.02 }),
+      seg(8, 21.4, 8,  3, { stamina: 0.50, recovery: 0.28, pacing: 0.14, mental: 0.06, speed: 0.02 }, 'long'),
     ],
   },
 
@@ -254,21 +256,21 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 14, weather: 'cloudy', elevation: 40 },
     segments: [
       // 1区 8.5km 平坦: 秋の開幕ダッシュ
-      seg(1, 8.5,  0,  0, { speed: 0.60, pacing: 0.20, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
+      seg(1, 8.5,  0,  0, { speed: 0.60, pacing: 0.20, mental: 0.12, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 2区 12.0km 起伏: 最初の山岳区間
-      seg(2, 12.0, 20, 18, { mountainUp: 0.26, mountainDown: 0.22, stamina: 0.28, pacing: 0.14, recovery: 0.10 }),
+      seg(2, 12.0, 20, 18, { mountainUp: 0.26, mountainDown: 0.22, stamina: 0.28, pacing: 0.14, recovery: 0.10 }, 'allrounder'),
       // 3区 17.5km 緩上り: 長距離スタミナ区間
-      seg(3, 17.5, 8,  3, { stamina: 0.44, recovery: 0.24, pacing: 0.20, mental: 0.08, speed: 0.04 }),
+      seg(3, 17.5, 8,  3, { stamina: 0.44, recovery: 0.24, pacing: 0.20, mental: 0.08, speed: 0.04 }, 'long'),
       // 4区 11.0km 緩傾斜: 中間タクティカル
-      seg(4, 11.0, 5,  5, { pacing: 0.38, mental: 0.28, stamina: 0.20, recovery: 0.10, speed: 0.04 }),
+      seg(4, 11.0, 5,  5, { pacing: 0.38, mental: 0.28, stamina: 0.20, recovery: 0.10, speed: 0.04 }, 'ace'),
       // 5区 13.5km 起伏: 二つ目の山岳。スタミナ込みの起伏耐性
-      seg(5, 13.5, 20, 18, { mountainUp: 0.28, mountainDown: 0.20, stamina: 0.28, recovery: 0.14, pacing: 0.10 }),
+      seg(5, 13.5, 20, 18, { mountainUp: 0.28, mountainDown: 0.20, stamina: 0.28, recovery: 0.14, pacing: 0.10 }, 'allrounder'),
       // 6区 7.0km 平坦: 短い爆発区間
-      seg(6, 7.0,  0,  0, { speed: 0.66, pacing: 0.16, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
+      seg(6, 7.0,  0,  0, { speed: 0.66, pacing: 0.16, mental: 0.10, stamina: 0.05, recovery: 0.03 }, 'sprinter'),
       // 7区 16.5km 緩上り: ラスト前の長丁場
-      seg(7, 16.5, 8,  3, { stamina: 0.44, recovery: 0.24, pacing: 0.20, mental: 0.08, speed: 0.04 }),
+      seg(7, 16.5, 8,  3, { stamina: 0.44, recovery: 0.24, pacing: 0.20, mental: 0.08, speed: 0.04 }, 'long'),
       // 8区 9.0km 緩傾斜: 精神のアンカー戦
-      seg(8, 9.0,  5,  5, { mental: 0.38, pacing: 0.30, stamina: 0.20, recovery: 0.08, speed: 0.04 }),
+      seg(8, 9.0,  5,  5, { mental: 0.38, pacing: 0.30, stamina: 0.20, recovery: 0.08, speed: 0.04 }, 'ace'),
     ],
   },
 
@@ -283,25 +285,25 @@ export const SEASON_2027_RACES: Race[] = [
     conditions: { temperature: 6, weather: 'sunny', elevation: 30 },
     segments: [
       // 1区 9.0km 平坦: 戦術的な幕開け。速さよりも読み合い
-      seg(1,  9.0,  0,  0, { pacing: 0.36, speed: 0.28, mental: 0.22, stamina: 0.10, recovery: 0.04 }),
+      seg(1,  9.0,  0,  0, { pacing: 0.36, speed: 0.28, mental: 0.22, stamina: 0.10, recovery: 0.04 }, 'ace'),
       // 2区 12.0km 緩傾斜: 精神の中盤入り。メンタルが差を生む
-      seg(2,  12.0, 5,  5, { mental: 0.36, pacing: 0.30, stamina: 0.22, recovery: 0.08, speed: 0.04 }),
+      seg(2,  12.0, 5,  5, { mental: 0.36, pacing: 0.30, stamina: 0.22, recovery: 0.08, speed: 0.04 }, 'ace'),
       // 3区 14.5km 起伏: 長い起伏の試練
-      seg(3,  14.5, 20, 18, { mountainUp: 0.26, mountainDown: 0.20, stamina: 0.30, recovery: 0.14, pacing: 0.10 }),
+      seg(3,  14.5, 20, 18, { mountainUp: 0.26, mountainDown: 0.20, stamina: 0.30, recovery: 0.14, pacing: 0.10 }, 'allrounder'),
       // 4区 21.0km 緩上り: 全レース最長区間。究極のスタミナ持久戦
-      seg(4,  21.0, 8,  3, { stamina: 0.48, recovery: 0.28, pacing: 0.16, mental: 0.06, speed: 0.02 }),
+      seg(4,  21.0, 8,  3, { stamina: 0.48, recovery: 0.28, pacing: 0.16, mental: 0.06, speed: 0.02 }, 'long'),
       // 5区 11.5km 急登: 技術的登り。スタミナ込みの山岳力
-      seg(5,  11.5, 55,  2, { mountainUp: 0.55, stamina: 0.24, pacing: 0.12, mental: 0.06, recovery: 0.03 }),
+      seg(5,  11.5, 55,  2, { mountainUp: 0.55, stamina: 0.24, pacing: 0.12, mental: 0.06, recovery: 0.03 }, 'mountain_up'),
       // 6区 10.5km 急降: 頂上からの技術的下り
-      seg(6,  10.5,  2, 55, { mountainDown: 0.55, speed: 0.22, pacing: 0.12, mental: 0.08, recovery: 0.03 }),
+      seg(6,  10.5,  2, 55, { mountainDown: 0.55, speed: 0.22, pacing: 0.12, mental: 0.08, recovery: 0.03 }, 'mountain_down'),
       // 7区 20.0km 緩上り: 二つ目の超長区間。回復力で後半を守る
-      seg(7,  20.0, 8,  3, { stamina: 0.46, recovery: 0.26, pacing: 0.18, mental: 0.07, speed: 0.03 }),
+      seg(7,  20.0, 8,  3, { stamina: 0.46, recovery: 0.26, pacing: 0.18, mental: 0.07, speed: 0.03 }, 'long'),
       // 8区 13.5km 起伏: 最終起伏の難関
-      seg(8,  13.5, 20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, recovery: 0.14, pacing: 0.10 }),
+      seg(8,  13.5, 20, 18, { mountainUp: 0.28, mountainDown: 0.22, stamina: 0.26, recovery: 0.14, pacing: 0.10 }, 'allrounder'),
       // 9区 11.0km 緩傾斜: 回復力で粘り込む終盤
-      seg(9,  11.0, 5,  5, { recovery: 0.40, pacing: 0.28, stamina: 0.22, mental: 0.08, speed: 0.02 }),
+      seg(9,  11.0, 5,  5, { recovery: 0.40, pacing: 0.28, stamina: 0.22, mental: 0.08, speed: 0.02 }, 'grinder'),
       // 10区 7.0km 平坦: 大詰めの最終スプリント
-      seg(10,  7.0, 0,  0, { speed: 0.62, pacing: 0.18, mental: 0.14, stamina: 0.04, recovery: 0.02 }),
+      seg(10,  7.0, 0,  0, { speed: 0.62, pacing: 0.18, mental: 0.14, stamina: 0.04, recovery: 0.02 }, 'sprinter'),
     ],
   },
 ]
