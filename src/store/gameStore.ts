@@ -50,7 +50,7 @@ import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, type Destination, type Appraisal } from '../utils/transferDecision'
+import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, RUNNING_SLOTS, type Destination, type Appraisal } from '../utils/transferDecision'
 import { isOwnedBy, canBePoached, canClubApproachAgain, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
 import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
@@ -1632,17 +1632,45 @@ export const useGameStore = create<GameStore>()(
           // サブの1戦を進めたときも同じ関数を呼ぶので、進め方で結果が変わらない
           const bidExpiredNegs: ExpiredNegotiation[] = []
           const bidExpiredPlayerIds: string[] = []
+          // 同じ選手を狙う他クラブ。買う側も取り合いになる（売る側だけ5クラブなのは非対称だった）。
+          // 欲しがる条件は「そのクラブで7区間に入れる＝主力になれる」こと、
+          // 出せる額は「予算」と「市場価値×引き抜き割増(POACH_PREMIUM)」の低いほう。
+          // 本人がそのクラブへ行く気になるかは移籍の判定1本（utils/transferDecision.ts）で見る
+          const rosterCountOf = (tid: string) => finalPlayers.filter(p => p.teamId === tid && p.status !== 'retired').length
+          const rivalsFor = (target: Player) => {
+            const mv = calcTransferValue(target)
+            const srcTier = tierOfPlayerClub(target.teamId, state.teams)
+            return state.teams
+              .filter(t => t.id !== playerTeamId && t.id !== target.teamId && rosterCountOf(t.id) < ROSTER_MAX)
+              .map(t => ({ t, dest: get().destinationOf(t.id, target) }))
+              .filter(x => x.dest.squadRank <= RUNNING_SLOTS)
+              .filter(x => appraiseMove(target, x.dest, { srcTier }).ok)
+              .map(x => ({
+                clubId: x.t.id,
+                name: x.t.shortName,
+                willing: Math.floor(Math.min(Math.max(0, x.t.finance.budget), mv * POACH_PREMIUM)),
+              }))
+              .filter(r => r.willing > 0)
+          }
+          // 競り負けた選手（相手クラブへ実際に移す）
+          const outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[] = []
           const processedBids = (state.currentSeason.transferBids ?? []).map(bid => {
+            const target = finalPlayers.find(p => p.id === bid.playerId)
             const r = resolveBid(bid, {
               players: finalPlayers,
               listings: transferData.listings,
               currentSeason: { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries },
               pastSeasons: state.pastSeasons,
               raceIndex: nextRaceIndex,
+              rivals: bid.status === 'pending' && target ? rivalsFor(target) : undefined,
             })
             if (r.expired) {
               bidExpiredNegs.push(r.expired)
-              bidExpiredPlayerIds.push(r.expired.playerId)
+              // 競り負けは金額の問題なので、来季まで交渉不可のロックはかけない
+              if (r.expired.kind !== 'outbid') bidExpiredPlayerIds.push(r.expired.playerId)
+            }
+            if (r.outbidBy && target) {
+              outbidMoves.push({ playerId: target.id, toTeamId: r.outbidBy.clubId, fee: r.outbidBy.fee, playerName: target.name, clubName: r.outbidBy.name })
             }
             return r.bid
           })
@@ -1725,6 +1753,35 @@ export const useGameStore = create<GameStore>()(
             if (m.record) cpuTxRecords.push(m.record)
             if (m.notice) myCpuSaleNotices.push(m.notice)
             myCpuSaleIncome += m.income
+          }
+
+          // 競り負けた入札。上回ったクラブが実際にその選手を獲る（言うだけで選手が残ると、
+          // 次の節にもう一度同じ額で出せてしまい「競り負け」が形だけになる）。
+          // 通すのはCPU間売買と同じ movePlayer なので、名簿・移籍金・履歴の後始末も同じ形になる
+          const outbidNewsItems: typeof state.currentSeason.newsFeed = []
+          for (const mv of outbidMoves) {
+            const before = playersWithCpuTx.find(p => p.id === mv.playerId)
+            const fromShort = before ? findClub(teamsWithCpuTx, state.foreignLeagues, before.teamId)?.shortName ?? '' : ''
+            const m = movePlayer({ players: playersWithCpuTx, teams: teamsWithCpuTx }, mv.playerId, mv.toTeamId, {
+              year: state.currentSeason.year,
+              date: race.date,
+              fee: mv.fee,
+              years: before?.contract.yearsLeft,
+              toName: mv.clubName,
+              myTeamId: playerTeamId,
+            })
+            if (!m.ok) continue
+            playersWithCpuTx = m.players
+            teamsWithCpuTx = m.teams
+            if (m.record) cpuTxRecords.push(m.record)
+            outbidNewsItems.push({
+              date: race.date,
+              headline: `${mv.clubName}が${fromShort}から${mv.playerName}を獲得（移籍金${(mv.fee / 100_000_000).toFixed(1)}億）`,
+              category: 'trade' as const,
+              relatedIds: [mv.playerId],
+              major: mv.fee >= 100_000_000,
+              toTeamId: mv.toTeamId,
+            })
           }
 
           // レンタル要請（移籍市場から出したもの）の応答。相手が承諾なら借用成立、拒否ならニュース。
@@ -1960,7 +2017,7 @@ export const useGameStore = create<GameStore>()(
               objectives: updatedObjectives,
               scoutMissions: activeMissions,
               scoutProspects: updatedScoutProspects,
-              newsFeed: [...seasonEndNews, ...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...injuryNewsItems, ...(prizeNewsItem ? [prizeNewsItem] : []), ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
+              newsFeed: [...seasonEndNews, ...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...outbidNewsItems, ...injuryNewsItems, ...(prizeNewsItem ? [prizeNewsItem] : []), ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
               events: [...(state.currentSeason.events ?? []), ...newEvents],
               pendingTradeOffers: [...existingTrades, ...newTradeOffers],
               transferListings: transferData.listings,

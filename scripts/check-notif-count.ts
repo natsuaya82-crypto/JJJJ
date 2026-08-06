@@ -263,7 +263,11 @@ const expected = [
   'renewalNeeded', 'injuredPlayers.length', 'retirementRequests.length', 'transferReqs.length',
   'overseasReqs.length', 'chatReplies.length',
   'counteredBids.length', 'feeAcceptedBids.length', 'freeContacts.length', 'departureNotices.length',
-  'freeTransferNotices.length', 'expiredNegotiations.length', 'loanResponses.length', 'incomingOffers.length',
+  'freeTransferNotices.length', 'expiredNegotiations.length', 'loanResponses.length',
+  // 買い取り打診は「選手ごと」に1件。1人に5クラブ来ても行は1つ＝ベルも1（notifItems.offersByPlayer）
+  'incomingOfferPlayers.length',
+  // 行き先が決まらなかった退団予定の選手の去就（残ってくれ／契約を解除する）
+  'stayOrLeave.length',
 ]
 check('通知ページの節の数が変わっていない', headCounts.length === expected.length, `いま${headCounts.length}節`)
 check('節ごとの件数の出どころが変わっていない',
@@ -273,7 +277,7 @@ check('ベルも同じ collectNotifications を使っている', bell.includes('
 
 // 「交渉期限切れ」の節は種類ごとに文言を変える箱。種類を増やして文言を足し忘れると
 // undefined が出て画面が真っ白になるので、全種類ぶん揃っているかを見る
-const NEG_KINDS = ['bid', 'offer', 'contract', 'trade', 'trade_unfair'] as const
+const NEG_KINDS = ['bid', 'outbid', 'offer', 'contract', 'trade', 'trade_unfair'] as const
 for (const k of NEG_KINDS) {
   const t = expiredNegText(k)
   check(`交渉期限切れ「${k}」の文言がある`, typeof t?.title === 'function' && typeof t?.note === 'string' && t.title('選手A').includes('選手A'))

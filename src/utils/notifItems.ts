@@ -19,6 +19,8 @@ import { loginTodayKey } from './loginDate'
 export const EXPIRED_NEG_TEXT: Record<ExpiredNegKind, { title: (name: string) => string; note: string }> = {
   // こちらが出した入札が流れた（費用合意の放置／主力ガードで門前払い）
   bid: { title: n => `${n}選手の移籍交渉が流れました`, note: '来季まで交渉できません' },
+  // 他クラブに競り負けた。金額の問題なので「来季まで交渉できません」ではない
+  outbid: { title: n => `${n}選手の獲得を他クラブに競り負けました`, note: 'より高い移籍金を出したクラブが獲得しました' },
   // 他クラブから来た獲得オファーを放置して失効した
   offer: { title: n => `${n}選手へのオファーが期限切れになりました`, note: '来季まで交渉できません' },
   // 契約更新の話し合いが期限切れ。移籍ではないし、交渉禁止にもならない

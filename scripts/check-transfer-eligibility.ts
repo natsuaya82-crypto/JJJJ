@@ -102,7 +102,9 @@ const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf-8')
 // それ以外（オファー生成・入札・自動購入・トレード打診）は必ず transferEligibility を通す
 const rawNoSale = (store.match(/\.noSale\b/g) ?? []).length
 const rawOverseasListed = (store.match(/\.overseasListed\b/g) ?? []).length
-check('gameStore の生 noSale 読みが増えていない', rawNoSale <= 4, `いま${rawNoSale}箇所`)
+// 5箇所の内訳：toggleNoSale が2（付け直しの可否＋反転そのもの）、
+// トレード打診の除外が1、移籍後の札はがしが1、コメント中の言及が1
+check('gameStore の生 noSale 読みが増えていない', rawNoSale <= 5, `いま${rawNoSale}箇所`)
 check('gameStore の生 overseasListed 読みが増えていない', rawOverseasListed <= 4, `いま${rawOverseasListed}箇所`)
 check('gameStore が transferEligibility を使っている', store.includes("from '../utils/transferEligibility'"))
 

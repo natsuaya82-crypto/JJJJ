@@ -161,10 +161,12 @@ export type TransferBid = {
 //  contract     = 契約更新の話し合いが期限切れになった                 → 交渉禁止にはならない
 //  trade        = トレードの打診が、そのあとの状況の変化で飲めなくなった
 //  trade_unfair = トレードの打診が、今の評価では釣り合わなくなった
-export type ExpiredNegKind = 'bid' | 'offer' | 'contract' | 'trade' | 'trade_unfair'
+export type ExpiredNegKind = 'bid' | 'outbid' | 'offer' | 'contract' | 'trade' | 'trade_unfair'
 
 // 通知に出す1件ぶん。押し込む場所が4箇所あるので形はここ1つで決める
-export type ExpiredNegotiation = { id: string; playerId: string; playerName: string; kind?: ExpiredNegKind }
+// detail は「その回だけの一言」。入っていれば kind ごとの定型文の代わりに出す
+// （競り負けの「◯◯が◯億で上回りました」のように、相手と金額が毎回変わるもの）
+export type ExpiredNegotiation = { id: string; playerId: string; playerName: string; kind?: ExpiredNegKind; detail?: string }
 
 export type TeamRole = 'ace' | 'sub_ace' | 'key_player' | 'rotation' | 'development'
 

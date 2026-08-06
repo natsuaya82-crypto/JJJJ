@@ -27,6 +27,12 @@ export type BidContext = {
   pastSeasons: PastArg
   // いま何戦目か
   raceIndex: number
+  /**
+   * 同じ選手を狙っている他クラブ。**買う側も取り合いになる**ための材料。
+   * 売る側は5クラブの取り合いにしたのに、買う側だけ競争が無いと非対称になる。
+   * 中身（どのクラブがいくらまで出すか）は呼び出し側が組む。
+   */
+  rivals?: readonly { clubId: string; name: string; willing: number }[]
   // 判定の揺れ。テストから固定するためだけの入口で、通常は渡さない
   rand?: () => number
 }
@@ -35,6 +41,8 @@ export type BidResult = {
   bid: TransferBid
   // 通知に出す「流れた交渉」。ここが入っている＝その選手は来季まで交渉できなくなる
   expired: ExpiredNegotiation | null
+  /** 競り負けたときの相手。呼び出し側がそのクラブへ選手を移す */
+  outbidBy?: { clubId: string; name: string; fee: number }
 }
 
 export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
@@ -58,13 +66,32 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
   const player = ctx.players.find(p => p.id === bid.playerId)
   if (!player || player.teamId !== bid.targetTeamId) return { bid: { ...bid, status: 'failed' }, expired: null }
 
+  // 売り手が受ける額に届いていても、もっと出すクラブがいれば持っていかれる。
+  // 「いくら積めば勝てるか」がここで初めて意味を持つ。
+  // 出品中でも通常の入札でも同じなので、受諾の直前に1本かませる
+  const topRival = [...(ctx.rivals ?? [])].sort((a, b) => b.willing - a.willing)[0]
+  const outbid = (fee: number): BidResult | null => {
+    if (!topRival || topRival.willing <= fee) return null
+    // 勝つのに必要なだけ払う（出せる上限まで積むわけではない）。刻みは1000万。
+    // roundFee は四捨五入なので必ず1段上がる＝こちらの提示額を必ず上回る
+    const winFee = Math.min(topRival.willing, roundFee(fee, 10_000_000) + 10_000_000)
+    return {
+      bid: { ...bid, status: 'rejected' },
+      expired: {
+        id: bid.id, playerId: bid.playerId, playerName: player.name, kind: 'outbid',
+        detail: `${topRival.name}が${(winFee / 100_000_000).toFixed(1)}億で上回りました`,
+      },
+      outbidBy: { clubId: topRival.clubId, name: topRival.name, fee: winFee },
+    }
+  }
+
   // 出品中(移籍リスト掲載)：クラブが自分で出した希望額が受諾ライン。
   // 主力割増は乗せない（クラブ自ら売りに出している額なので）
   const listed = ctx.listings.find(l => l.playerId === bid.playerId)
   if (listed) {
     const ask = listed.askingPrice
     if (bid.offeredFee >= listedThreshold(ask, rand())) {
-      return { bid: { ...bid, status: 'fee_accepted', feeAcceptedAtRace: ctx.raceIndex }, expired: null }
+      return outbid(bid.offeredFee) ?? { bid: { ...bid, status: 'fee_accepted', feeAcceptedAtRace: ctx.raceIndex }, expired: null }
     }
     if (bid.offeredFee >= ask * LISTED_COUNTER_RATIO && bid.round < BID_MAX_ROUND) {
       return { bid: { ...bid, status: 'countered', counterFee: roundFee(ask, 1_000_000) }, expired: null }
@@ -82,7 +109,7 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
   // 受諾ラインは economy.bidThreshold の1本（入札画面の成立確率表示と共有）。判定は±10%の揺れ
   const threshold = bidThreshold(calcTransferValue(player), player.contract.yearsLeft <= 1, kStatus === 'key') * (0.9 + rand() * 0.2)
   if (bid.offeredFee >= threshold) {
-    return { bid: { ...bid, status: 'fee_accepted', feeAcceptedAtRace: ctx.raceIndex }, expired: null }
+    return outbid(bid.offeredFee) ?? { bid: { ...bid, status: 'fee_accepted', feeAcceptedAtRace: ctx.raceIndex }, expired: null }
   }
   if (bid.offeredFee >= threshold * BID_COUNTER_RATIO && bid.round < BID_MAX_ROUND) {
     return { bid: { ...bid, status: 'countered', counterFee: roundFee(threshold, 1_000_000) }, expired: null }

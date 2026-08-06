@@ -158,11 +158,53 @@ console.log('\n[7] pending 以外はそのまま返す')
   }
 }
 
+console.log('\n[7.5] 買う側も取り合いになる（rivals）')
+{
+  const p = P('p1', 80)
+  const mv = calcTransferValue(p)
+  const thr = Math.ceil(bidThreshold(mv, false, false))
+  const rival = (willing: number) => [{ clubId: 'rv', name: '青森', willing }]
+
+  // 受諾ラインに届いていない入札は、そもそも競りにならない（却下のまま）
+  check('ラインに届かない入札は競りにならない',
+    resolveBid(B({ offeredFee: 1 }), ctx([p], { rivals: rival(mv * 10) })).outbidBy === undefined)
+
+  // 届いていても、もっと出すクラブがいれば持っていかれる
+  const lost = resolveBid(B({ offeredFee: thr }), ctx([p], { rivals: rival(mv * 3) }))
+  check('上回るクラブがいれば競り負ける', lost.bid.status === 'rejected')
+  check('競り負けの通知が出る', lost.expired?.kind === 'outbid')
+  check('相手クラブと金額が通知に入る', (lost.expired?.detail ?? '').includes('青森') && (lost.expired?.detail ?? '').includes('億'))
+  check('誰が獲ったかを呼び出し側に返す', lost.outbidBy?.clubId === 'rv')
+  check('勝った額はこちらの提示を必ず上回る', (lost.outbidBy?.fee ?? 0) > thr, `${lost.outbidBy?.fee} vs ${thr}`)
+  check('出せる上限まで積むわけではない', (lost.outbidBy?.fee ?? 0) < mv * 3)
+  check('勝った額は1000万円単位', (lost.outbidBy?.fee ?? 1) % 10_000_000 === 0, String(lost.outbidBy?.fee))
+
+  // 相手の上限がこちらの提示以下なら競り負けない
+  const won = resolveBid(B({ offeredFee: thr }), ctx([p], { rivals: rival(thr) }))
+  check('同額では持っていかれない', won.bid.status === 'fee_accepted' && won.outbidBy === undefined)
+  check('rivals を渡さなければ今までどおり',
+    resolveBid(B({ offeredFee: thr }), ctx([p])).bid.status === 'fee_accepted')
+
+  // 一番高いクラブが獲る（複数いても1クラブだけ）
+  const many = resolveBid(B({ offeredFee: thr }), ctx([p], {
+    rivals: [{ clubId: 'a', name: 'A', willing: thr + 5_000_000 }, { clubId: 'b', name: 'B', willing: mv * 3 }, { clubId: 'c', name: 'C', willing: thr + 1 }],
+  }))
+  check('一番高いクラブが獲る', many.outbidBy?.clubId === 'b')
+
+  // 出品中（移籍リスト掲載）でも同じ。売り手のラインとは別に競りがある
+  const listedLost = resolveBid(B({ offeredFee: mv }), ctx([p], {
+    listings: [{ playerId: 'p1', askingPrice: mv }], rivals: rival(mv * 3),
+  }))
+  check('出品中でも競り負ける', listedLost.bid.status === 'rejected' && listedLost.expired?.kind === 'outbid')
+}
+
 console.log('\n[8] 期限切れ通知の文言は種類から出す')
 {
-  // 入札・獲得オファー・契約更新に、トレードが飲めなかったとき用の2つを足して5種類。
-  // トレードは前は理由を出さずカードだけ消していた
-  check('5種類ぶんある', Object.keys(EXPIRED_NEG_TEXT).length === 5, Object.keys(EXPIRED_NEG_TEXT).join(','))
+  // 入札・獲得オファー・契約更新に、トレードが飲めなかったとき用の2つ、
+  // それに買う側の競り負けを足して6種類
+  check('6種類ぶんある', Object.keys(EXPIRED_NEG_TEXT).length === 6, Object.keys(EXPIRED_NEG_TEXT).join(','))
+  // 競り負けは金額の問題なので、来季まで交渉禁止にはしない
+  check('競り負けは交渉禁止にしない', expiredNegText('outbid').note !== '来季まで交渉できません')
   check('種類が無い古いセーブは入札として扱う', expiredNegText(undefined) === EXPIRED_NEG_TEXT.bid)
   check('入札は「来季まで交渉できません」', expiredNegText('bid').note === '来季まで交渉できません')
   check('獲得オファーも交渉禁止', expiredNegText('offer').note === '来季まで交渉できません')
@@ -171,7 +213,7 @@ console.log('\n[8] 期限切れ通知の文言は種類から出す')
   check('契約更新は移籍の話にしない', !expiredNegText('contract').title('名').includes('移籍'))
   check('契約更新は交渉禁止にしない', expiredNegText('contract').note !== '来季まで交渉できません')
   check('トレードは交渉禁止にしない', expiredNegText('trade').note !== '来季まで交渉できません')
-  for (const k of ['bid', 'offer', 'contract', 'trade', 'trade_unfair'] as const) {
+  for (const k of ['bid', 'outbid', 'offer', 'contract', 'trade', 'trade_unfair'] as const) {
     check(`${k}の文言に選手名が入る`, expiredNegText(k).title('山田').includes('山田'))
   }
 }
@@ -191,6 +233,11 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   check('通知ページは expiredNegText から出す', page.includes('expiredNegText(neg.kind)'))
   check('獲得オファーの失効に種類がついている', store.includes("kind: 'offer'"))
   check('契約更新の失効に種類がついている', store.includes("kind: 'contract'"))
+  // 競り負けは金額の問題なので、来季まで交渉不可のロックには入れない
+  check('競り負けは1年ロックの対象外', store.includes("r.expired.kind !== 'outbid'"))
+  // 「上回られた」と出しておいて選手が残っていたら、次の節に同じ額でもう一度出せてしまう
+  check('競り負けた選手は実際に相手クラブへ移る', store.includes('outbidMoves'))
+  check('移すのは movePlayer 1本', /for \(const mv of outbidMoves\)[\s\S]{0,400}movePlayer\(/.test(store))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)

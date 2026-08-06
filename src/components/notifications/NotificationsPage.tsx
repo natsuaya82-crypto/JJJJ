@@ -768,7 +768,7 @@ export default function NotificationsPage() {
                                 <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{negTeam.name}</span>
                               </div>
                             )}
-                            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>{negText.note}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>{neg.detail ?? negText.note}</div>
                           </div>
                           <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissExpiredNegotiation(neg.id)}>確認</Btn>
                         </div>

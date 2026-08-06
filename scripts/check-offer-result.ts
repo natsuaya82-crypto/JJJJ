@@ -28,7 +28,8 @@ const check = (label: string, ok: boolean, detail = '') => {
 const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf8')
 const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf8')
 const transfer = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf8')
-const offerList = readFileSync(join('src', 'components', 'transfer', 'OfferListPage.tsx'), 'utf8')
+// オファー一覧の画面は廃止した（買い取り打診の返事はチャットで行う）。
+// ここで読んでいたのは「3画面が同じ見せ方を使っているか」の確認で、残る2画面ぶんを見れば足りる
 const A = { playerName: '田中', teamName: '青葉', price: 50_000_000 }
 
 console.log('\n[1] 結果の文章は種類ごとに1つだけ')
@@ -57,22 +58,25 @@ check('逆提示は下限のとき札を消さない', /outcome = 'roster_min'\n
 
 console.log('\n[4] 画面が結果の見せ方を自前で持たない')
 // 返事の結果は「状態(useOfferResults)」も「見た目(OfferResultList)」も1本。
-// 3画面（チャット・移籍・オファー一覧）が同じものを使う。手書きに戻したらここで落とす
-for (const [name, src] of [['チャット画面', chat], ['移籍画面', transfer], ['オファー一覧', offerList]] as const) {
+// 2画面（チャット・移籍）が同じものを使う。手書きに戻したらここで落とす
+for (const [name, src] of [['チャット画面', chat], ['移籍画面', transfer]] as const) {
   check(`${name}は useOfferResults を使う`, src.includes('useOfferResults()'))
   check(`${name}は OfferResultList を出す`, src.includes('<OfferResultList'))
   check(`${name}が結果の状態を自前で持たない`, !src.includes('setOfferResults'))
-  check(`${name}が文章を自前で組み立てない`, !src.includes('offerResultText('))
   check(`${name}に手書きの決裂文が残っていない`, !src.includes('交渉は決裂しました'))
   check(`${name}に手書きの失敗文が残っていない`, !src.includes('売却は成立しませんでした'))
 }
-// オファー一覧の「売却する」が返り値を捨てていたら死んだボタンに逆戻りする
-check('オファー一覧の承諾が結果を出す', offerList.includes('pushOfferResult(o.id, acceptIncomingOffer(o.id)'))
+// 移籍画面はカードで見せるので、文章を触るのは OfferResultList の中だけ
+check('移籍画面が文章を自前で組み立てない', !transfer.includes('offerResultText('))
+// チャットは結果を会話として返すので、文章は自分で出す。ただし中身は offerResult.ts の1本。
+// ここを手書きに戻すと、同じ結果なのに画面によって理由が違う（⑤の再発）
+check('チャットの返事も offerResult の文章から出す', chat.includes('offerResultText('))
+// 承諾の返り値を捨てると、押しても何も返ってこない死んだボタンに戻る
+check('チャットの承諾が返り値を使う', chat.includes('const outcome = acceptIncomingOffer('))
 // 成立するとオファーの札は消えるので、結果だけが残る瞬間がある。そこで
 // 「· 0件」「0件 — 要確認」「オファーはありません」が出ないこと
 check('チャットは結果だけのとき見出しを出さない', chat.includes('{inboundCount > 0 && ('))
 check('移籍画面は結果だけのとき見出しを出さない', transfer.includes('{incomingOffers.length > 0 && ('))
-check('オファー一覧は結果だけのとき「ありません」を出さない', offerList.includes('offerResults.length === 0 ? <Empty'))
 
 console.log('\n[5] チャット一覧の仕分け')
 // 返事の要らない札（今季限りで引退・海外オファー待ち・退団へ）を「対応が必要」に数えない
