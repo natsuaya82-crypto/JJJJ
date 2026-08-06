@@ -58,6 +58,23 @@ export type NotifInput = {
  * 通知の中身を全部数える。
  * 返す total が、そのままベルの数字であり通知ページの「N件」になる
  */
+/**
+ * 買い取り打診を選手ごとにまとめる。**用件は「選手1人＝1件」**。
+ *
+ * 取り合いで5クラブから同じ選手に来ても、GMが返事をするのは1回（会話も1本）。
+ * オファーの件数で数えると、ベルは5なのにチャットの行は1つ、という数のズレになる。
+ * ベルの数字・通知ページ・チャットの一覧は全部これを通すこと。
+ */
+export function offersByPlayer<T extends { playerId: string }>(offers: readonly T[]): { playerId: string; offers: T[] }[] {
+  const out: { playerId: string; offers: T[] }[] = []
+  for (const o of offers) {
+    const hit = out.find(x => x.playerId === o.playerId)
+    if (hit) hit.offers.push(o)
+    else out.push({ playerId: o.playerId, offers: [o] })
+  }
+  return out
+}
+
 export function collectNotifications(input: NotifInput) {
   const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, myPlayerCreated, pendingGiftsCount, clubGiftsCount } = input
 
@@ -71,6 +88,11 @@ export function collectNotifications(input: NotifInput) {
   const allIncoming = currentSeason.incomingOffers ?? []
   const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
   const incomingOffers = allIncoming.filter(o => o.offeredPrice > 0 && isMine(o.playerId))
+  // 数えるのは選手の数。5クラブが1人を取り合っても返事は1回なので1件
+  const incomingOfferPlayers = offersByPlayer(incomingOffers)
+  // 行き先が決まらなかった退団予定の選手（FAで出すか残留させるかの返事待ち）。
+  // チャットには用件が出るのにベルに出ていなかった
+  const stayOrLeave = (currentSeason.stayOrLeave ?? []).filter(x => isMine(x.playerId))
   const freeContacts = allIncoming.filter(o => o.offeredPrice === 0 && !seenFreeContactIds.includes(o.id) && isMine(o.playerId))
   // 契約更新まわりの判定に使う材料（フリー接触中・引退希望・札の一覧）を1回で取り出す
   const ctCtx = contractTalkCtx(currentSeason, playerTeamId)
@@ -182,7 +204,8 @@ export function collectNotifications(input: NotifInput) {
   //    中身が何件でも1（節の見出しに出す数字は中身の件数のまま）
   // 以前は負傷者だけカードが人数分並ぶのに1と数え、契約交渉は1枚しか出ないのに
   // 人数分数えていたので、ベルの数字と見えているカードの枚数がズレていた
-  const total = incomingOffers.length
+  const total = incomingOfferPlayers.length
+    + stayOrLeave.length
     + (canCreateMyPlayer ? 1 : 0)
     + tradeOffers.length
     // 「返事待ち」「移籍要望」「海外挑戦希望」は中身が何人でもカード1枚にまとめて出しているので1。
@@ -208,7 +231,8 @@ export function collectNotifications(input: NotifInput) {
     + departureNotices.length
 
   return {
-    incomingOffers, freeContacts, freeTransferNotices, departureNotices,
+    incomingOffers, incomingOfferPlayers, stayOrLeave,
+    freeContacts, freeTransferNotices, departureNotices,
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
     pendingContracts, sponsorOffers, tradeOffers, chatReplies, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,

@@ -15,6 +15,7 @@ import { OfferResultList } from '../transfer/OfferResultList'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
+import { offersByPlayer } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
@@ -1489,7 +1490,10 @@ export default function ChatPage() {
   const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o =>
     players.some(p => p.id === o.playerId && p.teamId === playerTeamId) && !(o.offeredPrice === 0 && o.retentionRefused))
   const incomingLoanOffers = currentSeason.incomingLoanOffers ?? []
-  const inboundCount = incomingOffers.length + incomingLoanOffers.length
+  // 数えるのは用件の数＝選手の数。5クラブが1人を取り合っても返事は1回（ベルと同じ数え方）
+  const inboundCount = offersByPlayer(incomingOffers.filter(o => o.offeredPrice > 0)).length
+    + offersByPlayer(incomingOffers.filter(o => o.offeredPrice === 0)).length
+    + incomingLoanOffers.length
 
   const closeConversation = (clear: () => void) => {
     if (cameFromParamRef.current) { cameFromParamRef.current = false; navigate(-1) }
@@ -1698,12 +1702,19 @@ export default function ChatPage() {
             {/* 買い取り・レンタルの打診も会話で返事をする（承諾・逆提示・拒否はチャットの返信ボタン）。
                 以前はここに 承諾／カウンター／拒否 のボタンを直接置いていて、この画面の中だけ
                 「会話で答える用件」と「ボタンで答える用件」が混ざっていた */}
-            {incomingOffers.filter(o => o.offeredPrice > 0).map(o => {
-              const p = players.find(pl => pl.id === o.playerId)
+            {/* 取り合いになっていても行は選手ごとに1つ。返事をするのは1回で、会話も1本。
+                数え方は utils/notifItems.ts の offersByPlayer 1本（ベルの数字と揃える） */}
+            {offersByPlayer(incomingOffers.filter(o => o.offeredPrice > 0)).map(g => {
+              const p = players.find(pl => pl.id === g.playerId)
               if (!p) return null
-              return <OfferChatRow key={o.id} player={p} accent={C.gold} badge={o.fromForeign ? '海外' : undefined}
-                title={`${teamName(o.fromTeamId)}が${p.name}の獲得を打診`}
-                sub={`移籍金 ${fmtYen(o.offeredPrice)} — タップして返事をする`}
+              const n = g.offers.length
+              const top = [...g.offers].sort((a, b) => b.offeredPrice - a.offeredPrice)[0]
+              return <OfferChatRow key={g.playerId} player={p} accent={C.gold}
+                badge={g.offers.some(o => o.fromForeign) ? '海外' : undefined}
+                title={n > 1 ? `${n}クラブが${p.name}の獲得を打診` : `${teamName(top.fromTeamId)}が${p.name}の獲得を打診`}
+                sub={n > 1
+                  ? `最高 ${fmtYen(top.offeredPrice)} — タップして返事をする`
+                  : `移籍金 ${fmtYen(top.offeredPrice)} — タップして返事をする`}
                 onOpen={() => setChatPlayerId(p.id)} />
             })}
             {incomingLoanOffers.map(o => {

@@ -164,7 +164,7 @@ export default function NotificationsPage() {
   const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
   const myPlayerCreated = useGameStore(s => s.myPlayerCreated)
   const {
-    incomingOffers, freeContacts, freeTransferNotices, departureNotices,
+    incomingOfferPlayers, stayOrLeave, freeContacts, freeTransferNotices, departureNotices,
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
     sponsorOffers, tradeOffers, chatReplies, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
@@ -832,11 +832,45 @@ export default function NotificationsPage() {
           )}
 
           {/* 移籍オファー */}
-          {incomingOffers.length > 0 && (
-            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + overseasReqs.length + counteredBids.length) > 0 ? '20px' : 0 }}>
-              <SectionHead label="移籍オファー" color={C.red} count={incomingOffers.length}/>
+          {/* 行き先が決まらなかった退団予定の選手。FAで出すか残留させるかの返事待ち */}
+          {stayOrLeave.length > 0 && (
+            <section style={{ marginTop: 20 }}>
+              <SectionHead label="去就未定" color={C.orange} count={stayOrLeave.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {incomingOffers.map(offer => {
+                {stayOrLeave.map(x => {
+                  const target = players.find(p => p.id === x.playerId)
+                  if (!target) return null
+                  return (
+                    <div key={x.playerId} style={cardStyle(alpha(C.orange, 0.45), '#5a2800')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                          <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={ovr(target)} accentColor={C.orange} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{target.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>移籍先が決まりませんでした</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '12px', lineHeight: 1.6 }}>
+                          このまま残すか、契約を解除してFAにするかを決めてください。残しても移籍希望は続きます。
+                        </div>
+                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate('/team/chat')}>チャットで対応する</Btn>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {incomingOfferPlayers.length > 0 && (
+            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + overseasReqs.length + counteredBids.length) > 0 ? '20px' : 0 }}>
+              {/* カードは選手ごとに1枚。取り合いになっていても返事は1回で、会話も1本 */}
+              <SectionHead label="移籍オファー" color={C.red} count={incomingOfferPlayers.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {incomingOfferPlayers.map(group => {
+                  const offer = [...group.offers].sort((a, b) => b.offeredPrice - a.offeredPrice)[0]
+                  const rivals = group.offers.length
                   // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
                   const fromClubName = clubIndex.byId(offer.fromTeamId)?.shortName ?? '他クラブ'
                   const target = players.find(p => p.id === offer.playerId)
@@ -848,14 +882,14 @@ export default function NotificationsPage() {
                   const ratio = mv > 0 ? offer.offeredPrice / mv : 0
                   const mvRating = ratio >= 0.95 ? { label: '適正', color: C.green } : ratio >= 0.75 ? { label: 'やや安', color: C.orange } : { label: '安値', color: C.red }
                   return (
-                    <div key={offer.id} style={cardStyle(alpha(C.red, 0.45), '#660e10')}>
+                    <div key={group.playerId} style={cardStyle(alpha(C.red, 0.45), '#660e10')}>
                       <div style={inset}/>
                       <div style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                           <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={pOvr} accentColor={C.red} />
                           <div style={{ flex: 1 }}>
                             <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{target.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{fromClubName} が{isFreeOffer ? 'フリー移籍での獲得' : '買取'}を希望</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{rivals > 1 ? `${rivals}クラブが買取を希望（最高 ${fromClubName}）` : `${fromClubName} が${isFreeOffer ? 'フリー移籍での獲得' : '買取'}を希望`}</div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontFamily: SAIRA, fontSize: isFreeOffer ? '13px' : '20px', fontWeight: '900', color: isFreeOffer ? C.textSub : C.green, textShadow: isFreeOffer ? 'none' : `0 0 8px ${alpha(C.green, 0.4)}` }}>{isFreeOffer ? '移籍金なし' : fmtYen(offer.offeredPrice)}</div>
