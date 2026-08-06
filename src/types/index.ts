@@ -710,6 +710,13 @@ export type Season = {
   // rankSum/rankedRaces は平均区間順位の算出用（後から追加。無い旧データは平均を出さない）。
   // currentSeason に積み、シーズン終了で pastSeasons に乗る（選手詳細の在籍履歴に海外クラブ行として表示）。
   foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
+  /**
+   * 自分の部**以外**（裏で走らせた1部・2部・3部）の出走記録。playerId → 出走数・区間賞。
+   * 通算成績は保存してあるレース結果から数え直す（utils/careerStats）ので、
+   * 裏の部のレースはどこにも残らず「1部の選手が全員0回出走」になっていた。
+   * 海外リーグの foreignAppearances と同じ役割。
+   */
+  awayAppearances?: Record<string, { races: number; wins: number }>
   // 上の圧縮版。過去シーズンに送るときだけこちらに詰め替えてセーブを軽くする（1季あたり約380KB→約190KB）。
   // 形は「クラブID → 選手ID → [出場, 区間賞, 区間順位の合計, 順位の付いたレース数]」。
   // 読むときは playerUtils の foreignAppsOf() を通すこと（旧セーブの foreignAppearances も同じ形で返る）。

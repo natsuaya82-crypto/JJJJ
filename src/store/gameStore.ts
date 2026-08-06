@@ -1218,6 +1218,13 @@ export const useGameStore = create<GameStore>()(
             }
           })
           const updatedStandings = applyAwayDivisionRound(myDivStandings, state.teams, myDivision, awayRound, race)
+          // 裏の部の出走記録。通算成績は保存したレース結果から数え直すので、
+          // ここに残さないと1部・2部の選手が全員0回出走のままになる（海外の foreignAppearances と同じ役割）
+          const awayApps: Record<string, { races: number; wins: number }> = { ...(state.currentSeason.awayAppearances ?? {}) }
+          for (const [pid, v] of Object.entries(awayRound.careerAdd)) {
+            const cur = awayApps[pid] ?? { races: 0, wins: 0 }
+            awayApps[pid] = { races: cur.races + v.races, wins: cur.wins + v.segWins }
+          }
 
           // Update news
           const winnerTeam = teams.find(t => t.id === results.teamRankings[0]?.teamId)
@@ -2165,6 +2172,7 @@ export const useGameStore = create<GameStore>()(
               // 旧セーブの期限なし要求(expiresAtRaceなし)もここで失効する
               contractRequests: (state.currentSeason.contractRequests ?? []).filter(r => !expiredContractIds.has(r.id)),
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
+              awayAppearances: awayApps,
               // 全クラブぶんの区間賞（翌季の予算に入れる。自チームだけの seasonRaceIncome とは別に持つ）
               seasonSegPrize: (() => {
                 const acc = { ...(state.currentSeason.seasonSegPrize ?? {}) }
@@ -5362,8 +5370,13 @@ export const useGameStore = create<GameStore>()(
             }
             for (const [tid, v] of Object.entries(round.segPrize)) segPrize[tid] = (segPrize[tid] ?? 0) + v
           }
+          const awayApps2: Record<string, { races: number; wins: number }> = { ...(state.currentSeason.awayAppearances ?? {}) }
+          for (const [pid, v] of Object.entries(careerAdd)) {
+            const cur = awayApps2[pid] ?? { races: 0, wins: 0 }
+            awayApps2[pid] = { races: cur.races + v.races, wins: cur.wins + v.segWins }
+          }
           return {
-            currentSeason: { ...state.currentSeason, standings, seasonSegPrize: segPrize },
+            currentSeason: { ...state.currentSeason, standings, seasonSegPrize: segPrize, awayAppearances: awayApps2 },
             players: state.players.map(p => {
               const add = careerAdd[p.id]
               return add

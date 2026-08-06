@@ -28,6 +28,7 @@ export type CareerSeasonLike = SeasonRacesLike & {
   eclSeries?: { races: Race[] }
   foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
   foreignAppsC?: Record<string, Record<string, [number, number, number, number]>>
+  awayAppearances?: Record<string, { races: number; wins: number }>
 }
 
 type Counts = { totalRaces: number; segmentWins: number }
@@ -62,6 +63,9 @@ function addSeason(out: Map<string, Counts>, s: CareerSeasonLike | undefined) {
   for (const r of s.eclSeries?.races ?? []) addRace(out, r)
   if (!s.eclSeries?.races?.length) addRace(out, s.eclRace)
   for (const [pid, a] of Object.entries(foreignAppsOf(s))) bump(out, pid, a.races, a.wins)
+  // 自分の部以外（裏で走らせた部）。ここを足さないと1部・2部の選手が全員0回出走になり、
+  // 実績倍率が上がらないので年俸も移籍金も安いままになる
+  for (const [pid, a] of Object.entries(s.awayAppearances ?? {})) bump(out, pid, a.races, a.wins)
 }
 
 export function buildCareerCounts(seasons: (CareerSeasonLike | undefined)[]): Map<string, Counts> {
@@ -85,7 +89,7 @@ function pastCounts(pastSeasons: CareerSeasonLike[]): Map<string, Counts> {
 function currentCounts(currentSeason: CareerSeasonLike | undefined): Map<string, Counts> {
   const key: unknown[] = [
     currentSeason?.races, currentSeason?.eclSeries, currentSeason?.eclRace,
-    currentSeason?.foreignAppearances, currentSeason?.foreignAppsC,
+    currentSeason?.foreignAppearances, currentSeason?.foreignAppsC, currentSeason?.awayAppearances,
   ]
   if (curCache && curCache.key.length === key.length && curCache.key.every((k, i) => k === key[i])) return curCache.value
   const value = buildCareerCounts([currentSeason])
