@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from '../friends/friendsUi'
 import { C, alpha } from '../../styles/tokens'
-import { ONLINE_ENABLED } from '../../data/featureFlags'
+import { onlineAvailable } from '../../data/featureFlags'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -12,7 +12,7 @@ export default function OnlinePage() {
   const navigate = useNavigate()
   // 公開していない間はサーバーに一切つながない（申請件数のバッジも出さない）
   const received = useFriendsQuery(
-    () => (ONLINE_ENABLED ? listReceived() : Promise.resolve([])),
+    () => (onlineAvailable() ? listReceived() : Promise.resolve([])),
     [], 'received',
   )
 
@@ -79,7 +79,7 @@ export default function OnlinePage() {
   ]
 
   // 公開していない間は4つとも薄く表示して押せなくする（説明は「準備中」）
-  const sections = ONLINE_ENABLED
+  const sections = onlineAvailable()
     ? SECTIONS
     : SECTIONS.map(s => ({ ...s, soon: true, note: '準備中', badge: 0 }))
 

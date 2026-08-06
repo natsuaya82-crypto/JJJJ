@@ -2,6 +2,8 @@
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
+// 端末に紐づくもの（課金の権利など）はスロットをまたいで共通。セーブの中に置かない
+import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDeviceTwitterIntroSeen } from './deviceFlags'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
 import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
@@ -7377,7 +7379,12 @@ export const useGameStore = create<GameStore>()(
         return 100
       },
 
-      setAdsRemoved: (v) => set({ adsRemoved: v }),
+      setAdsRemoved: (v) => {
+        // 権利は端末の持ち物。ここへ書いておかないと、別スロットを開いたときに
+        // また「未購入」からやり直しになり、購入確認が返るまで広告が出てしまう
+        setDeviceAdsRemoved(v)
+        set({ adsRemoved: v })
+      },
 
       // 買い切り版の特典：カード合成の大成功(×1.5)を1日1回だけ無料で確約。
       // 区切りは動画広告と同じ getAdDay()＝朝10時。未購入・当日消費済みなら false。
@@ -7391,7 +7398,10 @@ export const useGameStore = create<GameStore>()(
       },
 
       setRaceEventsEnabled: (v) => set({ raceEventsEnabled: v }),
-      markTwitterIntroSeen: () => set({ twitterIntroSeen: true }),
+      markTwitterIntroSeen: () => {
+        setDeviceTwitterIntroSeen(true)
+        set({ twitterIntroSeen: true })
+      },
       dismissExpiredNegotiation: (id) => set(s => ({ currentSeason: { ...s.currentSeason, expiredNegotiations: (s.currentSeason.expiredNegotiations ?? []).filter(n => n.id !== id) } })),
       dismissFreeTransferNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, freeTransferNotices: (s.currentSeason.freeTransferNotices ?? []).filter(n => n.id !== id) } })),
       markFreeContactSeen: (id) => set(s => ({ currentSeason: { ...s.currentSeason, seenFreeContactIds: [...new Set([...(s.currentSeason.seenFreeContactIds ?? []), id])] } })),
@@ -8187,12 +8197,21 @@ export const useGameStore = create<GameStore>()(
       // onFinishHydration も発火しない。ここで失敗を拾わないと
       // 「セーブが無い（＝新規）」と「読めなかった」の区別がつかず、新規ゲーム画面を出して
       // 本物のセーブを上書きしてしまう。
-      onRehydrateStorage: () => (_state, error) => {
+      onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error('[save] hydration failed', error)
           setSaveHealth('failed', error instanceof Error ? `${error.name}: ${error.message}` : String(error))
-        } else {
-          setSaveHealth('ok', '')
+          return
+        }
+        setSaveHealth('ok', '')
+        // 端末に紐づくもの（課金の権利・案内を見たか）をセーブより先に反映する。
+        // セーブ側が true で端末側が未設定なら、そちらを端末へ持ち上げる（スロットを
+        // 使う前からの購入者を拾う）。逆に端末側が true なら、新しいスロットでも最初から有効。
+        if (state) {
+          if (state.adsRemoved && !deviceAdsRemoved()) setDeviceAdsRemoved(true)
+          if (state.twitterIntroSeen && !deviceTwitterIntroSeen()) setDeviceTwitterIntroSeen(true)
+          state.adsRemoved = state.adsRemoved || deviceAdsRemoved()
+          state.twitterIntroSeen = state.twitterIntroSeen || deviceTwitterIntroSeen()
         }
       },
     }

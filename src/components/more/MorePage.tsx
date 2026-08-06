@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { audio, audioDiag, audioStatus } from '../../utils/audio'
-import { ONLINE_ENABLED } from '../../data/featureFlags'
+import { onlineAvailable } from '../../data/featureFlags'
 import { TERMS_URL, PRIVACY_URL } from '../../utils/termsConsent'
 import { listBlocked, unblockUser, type BlockedUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -241,7 +241,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           onClick={() => setRaceEventsEnabled(!raceEventsEnabled)}
         />
         <SettingRow icon={IcX} label="公式X（@JPEL_MANAGER）" sub="アップデート情報・お問い合わせ" onClick={() => window.open('https://x.com/JPEL_MANAGER', '_blank')} />
-        {ONLINE_ENABLED && <SettingRow icon={IcBlock} label="ブロックした利用者" sub="オンラインで表示しない相手" onClick={() => setDetail('blocked')} />}
+        {onlineAvailable() && <SettingRow icon={IcBlock} label="ブロックした利用者" sub="オンラインで表示しない相手" onClick={() => setDetail('blocked')} />}
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />
       </div>
@@ -525,7 +525,7 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
             {/* オンライン（フレンド）を公開している間は、サーバー側のアカウントも一緒に消える。
                 消えるものを書かずに削除させるのは審査ガイドライン 5.1.1(v) に触れるため、
                 機能を開けたときだけ自動でこの一文が出るようにしてある。 */}
-            {ONLINE_ENABLED && (
+            {onlineAvailable() && (
               <>
                 <br />
                 フレンド機能で作られたアカウント（フレンドコード・走友会の登録・友達に見えているチーム情報）も同時に削除されます。

@@ -8,6 +8,9 @@ import { ovr } from '../utils/playerUtils'
 import { ensureMyProfile, pushMyProfile, pushMyRoster } from './friendsApi'
 import { gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
 import { ONLINE_ENABLED } from '../data/featureFlags'
+// オンラインの自分（フレンドコード・プロフィール）は端末に1つで、スロットごとには分かれない。
+// 運営用の別スロットの内容を送ると、フレンドから見た自分のチームがそちらに化ける
+import { currentSaveSlot } from '../store/saveSlot'
 
 const STAMP_KEY = 'jpel_friend_sync_stamp'
 
@@ -25,6 +28,11 @@ let running = false
  * 送る中身が前回と同じなら通信しない。
  */
 export async function syncNow(): Promise<void> {
+  // ★スロット1以外は一切送らない。
+  //   オンラインのアカウントは端末に1つなので、運営用スロットの内容を送ると
+  //   フレンド一覧・走友会・ロスター閲覧に出る自分が、そのスロットのチームに
+  //   置き換わってしまう（相手からは「育てたチームが消えて弱小になった」ように見える）。
+  if (currentSaveSlot() !== 1) return
   if (running) return
   running = true
   try {

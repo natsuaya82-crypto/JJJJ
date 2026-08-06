@@ -17,7 +17,7 @@ import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
 import { useLoadingStore } from './store/loadingStore'
 import { useFriendSync } from './lib/useFriendSync'
-import { ONLINE_ENABLED } from './data/featureFlags'
+import { onlineAvailable } from './data/featureFlags'
 import TitleScreen from './components/title/TitleScreen'
 import TermsGate from './components/title/TermsGate'
 import { hasAgreedTerms, agreeTerms } from './utils/termsConsent'
@@ -277,18 +277,18 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
               入口の /online だけは常に出す（中身は ONLINE_ENABLED が false の間すべてグレーアウト）。
               その先の画面は false のあいだ出さないので、直接URLでも入れない（コードは残す） */}
           <Route path="/online" element={<OnlinePage />} />
-          {ONLINE_ENABLED && <Route path="/online/match" element={<MatchEntryPage />} />}
-          {ONLINE_ENABLED && <Route path="/online/room/:roomId" element={<RoomLobbyPage />} />}
-          {ONLINE_ENABLED && <Route path="/online/history" element={<MatchHistoryPage />} />}
-          {ONLINE_ENABLED && <Route path="/online/history/:matchId" element={<MatchReplayPage />} />}
-          {ONLINE_ENABLED && <Route path="/friends" element={<FriendsPage />} />}
-          {ONLINE_ENABLED && <Route path="/friends/list" element={<FriendListPage />} />}
+          {onlineAvailable() && <Route path="/online/match" element={<MatchEntryPage />} />}
+          {onlineAvailable() && <Route path="/online/room/:roomId" element={<RoomLobbyPage />} />}
+          {onlineAvailable() && <Route path="/online/history" element={<MatchHistoryPage />} />}
+          {onlineAvailable() && <Route path="/online/history/:matchId" element={<MatchReplayPage />} />}
+          {onlineAvailable() && <Route path="/friends" element={<FriendsPage />} />}
+          {onlineAvailable() && <Route path="/friends/list" element={<FriendListPage />} />}
           {/* 申請と承認は1画面にまとめてある。旧パスは念のため同じ画面へ通す */}
-          {ONLINE_ENABLED && <Route path="/friends/requests" element={<FriendRequestsPage />} />}
-          {ONLINE_ENABLED && <Route path="/friends/received" element={<FriendRequestsPage />} />}
-          {ONLINE_ENABLED && <Route path="/friends/sent" element={<FriendRequestsPage />} />}
-          {ONLINE_ENABLED && <Route path="/friends/club" element={<FriendClubPage />} />}
-          {ONLINE_ENABLED && <Route path="/friends/team/:id" element={<FriendDetailPage />} />}
+          {onlineAvailable() && <Route path="/friends/requests" element={<FriendRequestsPage />} />}
+          {onlineAvailable() && <Route path="/friends/received" element={<FriendRequestsPage />} />}
+          {onlineAvailable() && <Route path="/friends/sent" element={<FriendRequestsPage />} />}
+          {onlineAvailable() && <Route path="/friends/club" element={<FriendClubPage />} />}
+          {onlineAvailable() && <Route path="/friends/team/:id" element={<FriendDetailPage />} />}
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/franchise" element={<FranchiseRecordsPage />} />
           <Route path="/records/individual" element={<IndividualRecordsPage />} />
