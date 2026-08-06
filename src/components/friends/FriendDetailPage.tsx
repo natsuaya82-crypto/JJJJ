@@ -16,13 +16,14 @@ import type { Specialty } from '../../types'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
 import { ovr } from '../../utils/playerUtils'
+import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 /** ロスターの並び替え。種目は「同じ種目でまとめて、中はOVR順」 */
 type SortKey = 'ovr' | 'age' | 'spec'
-const SPEC_ORDER: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+const SPEC_ORDER: readonly Specialty[] = SPECIALTIES
 
 export default function FriendDetailPage() {
   const { id } = useParams<{ id: string }>()

@@ -57,6 +57,8 @@ export const SPEC_STRONG_STATS: Record<Specialty, CardStatKey[]> = {
   long:          ['stamina', 'mental', 'recovery'],
   mountain_up:   ['mountainUp', 'stamina'],
   mountain_down: ['mountainDown', 'speed'],
+  // 起伏型は登りも下りもこなす。平坦の速さは伸びない
+  undulating:    ['mountainUp', 'mountainDown', 'stamina'],
   allrounder:    ['speed', 'stamina', 'pacing'],
   kick:          ['speed', 'mental'],
   grinder:       ['stamina', 'recovery', 'mental'],
@@ -121,6 +123,7 @@ export const SPEC_COLOR: Record<Specialty, string> = {
   ace: '#C9A84C',
   mountain_up: '#4CAF50',
   mountain_down: '#26C6DA',
+  undulating: '#66BB6A',
   sprinter: '#EC407A',
   long: '#7986CB',
   allrounder: '#9B97A8',

@@ -8,6 +8,7 @@ import { useGameStore, MY_PLAYER_POINTS } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
+import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -22,7 +23,7 @@ const STATS: { key: keyof Ratings; label: string }[] = [
   { key: 'mental', label: '精神' },
   { key: 'recovery', label: '回復' },
 ]
-const SPECS: Specialty[] = ['ace', 'sprinter', 'mountain_up', 'mountain_down', 'long', 'kick', 'grinder', 'allrounder']
+// 一覧は utils/squadNeeds の SPECIALTIES 1本（ポジションを足したらここも自動で増える）
 // 国籍は地域ごとにまとめて出す（data/nationalities.ts の GeoRegion）
 const NATS_BY_REGION = GEO_REGION_ORDER.map(geo => ({
   geo,
@@ -165,7 +166,7 @@ export default function CreateMyPlayerPage() {
 
       {card('ポジション（レース相性に影響）', (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-          {SPECS.map(sp => (
+          {SPECIALTIES.map(sp => (
             <button key={sp} onClick={() => setSpecialty(sp)} style={{ textAlign: 'left', padding: '8px 10px', borderRadius: 9, cursor: 'pointer', background: specialty === sp ? alpha(C.gold, 0.18) : C.surface, border: `1.5px solid ${specialty === sp ? C.gold : C.border}`, fontFamily: FONT }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: specialty === sp ? C.gold : C.text }}>{SPECIALTY_LABELS[sp]}</div>
             </button>

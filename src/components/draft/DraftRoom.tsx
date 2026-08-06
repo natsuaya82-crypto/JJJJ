@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
+import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
@@ -50,7 +51,7 @@ function getTeamNeeds(teamId: string, picks: PickLog[], allPlayers: Player[]): S
   const drafted = picks.filter(p => p.teamId === teamId).map(p => allPlayers.find(pl => pl.id === p.playerId)).filter(Boolean) as Player[]
   const existing = allPlayers.filter(p => p.teamId === teamId)
   const all = [...existing, ...drafted]
-  const specs: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+  const specs: readonly Specialty[] = SPECIALTIES
   const counts = specs.reduce((acc, s) => { acc[s] = all.filter(p => p.specialty === s).length; return acc }, {} as Record<Specialty, number>)
   return [...specs].sort((a, b) => counts[a] - counts[b]).slice(0, 2)
 }
@@ -222,7 +223,7 @@ export default function DraftRoom() {
   const myPicksTotal = pickOrder.filter(id => id === playerTeamId).length
   const playerTeamObj = teams.find(t => t.id === playerTeamId)
 
-  const specOrder: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+  const specOrder: readonly Specialty[] = SPECIALTIES
   const myRosterSpecs = [
     ...players.filter(p => p.teamId === playerTeamId).map(p => p.specialty),
     ...picks.filter(pk => pk.teamId === playerTeamId).map(pk => players.find(p => p.id === pk.playerId)?.specialty).filter(Boolean) as Specialty[],
@@ -548,14 +549,7 @@ export default function DraftRoom() {
               <div style={{ position: 'relative' }}>
                 <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={SELECT_STYLE}>
                   <option value="all">全ポジション</option>
-                  <option value="ace">エース</option>
-                  <option value="sprinter">スプリンター</option>
-                  <option value="long">長距離</option>
-                  <option value="mountain_up">山登り</option>
-                  <option value="mountain_down">山下り</option>
-                  <option value="allrounder">オールラウンダー</option>
-                  <option value="kick">スパート型</option>
-                  <option value="grinder">粘り型</option>
+                  {SPECIALTIES.map(sp => <option key={sp} value={sp}>{SPECIALTY_LABELS[sp]}</option>)}
                 </select>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}>

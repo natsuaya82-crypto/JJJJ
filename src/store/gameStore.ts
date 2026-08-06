@@ -5272,6 +5272,46 @@ export const useGameStore = create<GameStore>()(
             try { get().advanceEclRace() } catch (e) { console.error('advanceEclRace failed', e); break }
           }
         }
+        // ── 他の部の残り日程を消化してから締める ─────────────────────────
+        // 裏の部（engine/domesticLeague）は「自分の部で何戦目か」で進むので、
+        // 自分の部のほうが戦数が少ないと他の部の日程が残ったままシーズンが終わる。
+        // 3部（7戦）で遊ぶと1部（10戦）は7戦しか走らず、順位表も昇降格も通算成績も
+        // 3戦ぶん足りない状態で確定していた。残りをここで全部走らせる。
+        set(state => {
+          const divRaces = state.currentSeason.divisionRaces
+          if (!divRaces) return state
+          const myDivision = divisionOf(state.teams.find(t => t.id === state.playerTeamId))
+          const doneRounds = state.currentSeason.races.length
+          const maxRounds = Math.max(...Object.values(divRaces).map(rs => rs.length))
+          if (maxRounds <= doneRounds) return state
+          let standings = state.currentSeason.standings
+          const careerAdd: Record<string, { races: number; segWins: number }> = {}
+          const segPrize: Record<string, number> = { ...(state.currentSeason.seasonSegPrize ?? {}) }
+          for (let r = doneRounds; r < maxRounds; r++) {
+            const round = simulateAwayDivisions(
+              state.currentSeason.races[state.currentSeason.races.length - 1],
+              state.teams, state.players, myDivision, 1, divRaces, r,
+            )
+            // 順位表へ足すときの raceId は、その回に実際に走った部のコースを使う
+            const anyRace = DIVISIONS.map(d => (d === myDivision ? undefined : divRaces[d]?.[r])).find(Boolean)
+            if (!anyRace) continue
+            standings = applyAwayDivisionRound(standings, state.teams, myDivision, round, anyRace)
+            for (const [pid, v] of Object.entries(round.careerAdd)) {
+              const cur = careerAdd[pid] ?? { races: 0, segWins: 0 }
+              careerAdd[pid] = { races: cur.races + v.races, segWins: cur.segWins + v.segWins }
+            }
+            for (const [tid, v] of Object.entries(round.segPrize)) segPrize[tid] = (segPrize[tid] ?? 0) + v
+          }
+          return {
+            currentSeason: { ...state.currentSeason, standings, seasonSegPrize: segPrize },
+            players: state.players.map(p => {
+              const add = careerAdd[p.id]
+              return add
+                ? { ...p, career: { ...p.career, totalRaces: p.career.totalRaces + add.races, segmentWins: p.career.segmentWins + add.segWins } }
+                : p
+            }),
+          }
+        })
         set(state => {
           const newYear = state.currentSeason.year + 1
 

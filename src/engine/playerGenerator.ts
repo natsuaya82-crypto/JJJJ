@@ -5,6 +5,7 @@ import type { Rank } from '../types'
 import { curveOvr } from './ageCurve'
 import { tierOf, tierOfClubId, tierRankComposition, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, faMarketSalary } from '../utils/playerUtils'
+import { SPECIALTIES } from '../utils/squadNeeds'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
@@ -635,6 +636,11 @@ function generateRatings(rank: Rank, specialty: Specialty, baseBoost = 0) {
     r.mountainDown = clamp(r.mountainDown + rng(12, 20), 0, 99)
     r.mountainUp   = weak()
     r.stamina      = weak()
+  } else if (specialty === 'undulating') {
+    r.mountainUp   = clamp(r.mountainUp   + rng(7, 12), 0, 99)
+    r.mountainDown = clamp(r.mountainDown + rng(7, 12), 0, 99)
+    r.speed        = weak()
+    r.pacing       = weak()
   } else if (specialty === 'sprinter') {
     r.speed      = clamp(r.speed + rng(10, 18), 0, 99)
     r.stamina    = weak()
@@ -775,6 +781,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
     'mountain_up','mountain_up','mountain_up','mountain_up','mountain_up',
     'mountain_down','mountain_down','mountain_down','mountain_down',
     'grinder','grinder','grinder',
+    'undulating','undulating','undulating','undulating',
   ]
   const growthCurves: GrowthCurve[] = ['early','normal','normal','late_bloomer']
 
@@ -994,7 +1001,7 @@ export function generateCpuRosters(
   const cpuPlayers: Player[] = []
   const teamRosters: Record<string, { main: string[] }> = {}
   const usedNames = new Set<string>()
-  const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+  const specialties: Specialty[] = [...SPECIALTIES]
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
   let cpuIdCounter = 5000
 
@@ -1108,7 +1115,7 @@ export function generatePlayerInitialRoster(year: number, tier: ClubTier): {
   for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) slots.push(r as Rank)
   slots.sort(() => Math.random() - 0.5)
 
-  const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+  const specialties: Specialty[] = [...SPECIALTIES]
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
   const usedNames = new Set<string>()
   const players: Player[] = []
@@ -1364,7 +1371,7 @@ export function generateForeignLeaguePlayers(
   ageRange: [number, number] = [18, 28],
 ): { players: Player[]; updatedLeagues: ForeignLeague[] } {
   const players: Player[] = []
-  const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+  const specialties: Specialty[] = [...SPECIALTIES]
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
 
   // 海外クラブの強さも「格」1本で決まる（utils/clubTier.ts）。

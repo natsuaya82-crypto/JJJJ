@@ -21,6 +21,7 @@ import { useOfferResults } from './useOfferResults'
 import { OfferResultList } from './OfferResultList'
 import { draftPickValue, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
+import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 
@@ -213,7 +214,7 @@ export default function TransferPage() {
                   <span style={lbl}>ポジション</span>
                   <select value={mktSpec} onChange={e => setMktSpec(e.target.value as Specialty | 'all')} style={sel}>
                     <option value="all">全ポジ</option>
-                    {(['ace','sprinter','long','mountain_up','mountain_down','allrounder','kick','grinder'] as const).map(s => (
+                    {SPECIALTIES.map(s => (
                       <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
                     ))}
                   </select>

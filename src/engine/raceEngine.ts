@@ -83,10 +83,18 @@ export function calcAffinity(
     case 'long':
       mult += (distanceKm >= 15 ? 0.10 : distanceKm >= 10 ? 0.05 : -0.04)
       break
+    case 'undulating':
+      // 起伏型：登りも下りもこなす。平坦だけの区間では強みが出ない
+      mult += ((uphillPct + downhillPct) / 100) * 0.13
+      mult -= (flatPct / 100) * 0.06
+      break
     case 'ace':
-      mult += 0.04
+      // エースは地形で強みが決まらない。**その区間の推奨がエースのときだけ**大きく効く
+      // （どの区間をエース区間にするかはコース側が決める＝ Segment.recommended）。
+      // 加点は calcSegmentAffinity 側でまとめて掛けるので、ここでは素の値のまま
       break
     case 'allrounder':
+      // オールラウンダー：得意も苦手も無い。どの区間に置いても目減りしない
       mult += 0.02
       break
     case 'kick':
@@ -106,7 +114,10 @@ export function calcAffinity(
 // calcAffinity自体は変えない。他の呼び出し箇所を増やさず、必ずここを経由すること。
 export function calcSegmentAffinity(specialty: Specialty, seg: Pick<Segment, 'uphillPct' | 'downhillPct' | 'distanceKm' | 'recommended'>): number {
   const base = calcAffinity(specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
-  return specialty === seg.recommended ? base * 1.05 : base
+  if (specialty !== seg.recommended) return base
+  // 推奨と一致したときの上乗せ。エースだけ大きいのは、エースが地形で強くならない代わりに
+  // 「その区間を任される選手」だから。どの区間をエースに任せるかはコースが決める
+  return base * (specialty === 'ace' ? 1.09 : 1.05)
 }
 
 export function calcClubModifier(team: Pick<Team, 'city'>, raceLocation: string): number {

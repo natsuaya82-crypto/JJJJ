@@ -20,11 +20,16 @@ export type StandRow = {
 
 // 全リーグ共通の順位表（JPELと同じ見た目）。
 // onRowLongPress: チーム行の長押しでチーム詳細へ（レース結果画面など、タップを他用途に使わない画面用）
-export default function StandingsTable({ rows, onRowClick, onRowLongPress }: {
+// promote / relegate: 昇格・降格の枠数。渡すと上位n・下位nに色と境目の線を出す
+//   （1部は降格だけ、3部は昇格だけ。海外リーグは入れ替えが無いので渡さない）
+export default function StandingsTable({ rows, onRowClick, onRowLongPress, promote = 0, relegate = 0 }: {
   rows: StandRow[]
   onRowClick?: (id: string) => void
   onRowLongPress?: (id: string) => void
+  promote?: number
+  relegate?: number
 }) {
+  const relegateFrom = relegate > 0 ? rows.length - relegate : -1
   let pressTimer: ReturnType<typeof setTimeout> | null = null
   const lpHandlers = (id: string) => onRowLongPress ? {
     onPointerDown: () => { pressTimer = setTimeout(() => onRowLongPress(id), 450) },
@@ -44,12 +49,24 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress }: {
 
       {rows.map((r, i) => {
         const recentForm = r.recentForm.slice(-4)
+        const isPromote  = promote > 0 && i < promote
+        const isRelegate = relegateFrom >= 0 && i >= relegateFrom
+        // 枠の色。自チームの行の色より弱くして、どちらも読めるようにする
+        const zoneTint = isPromote ? alpha(C.green, 0.10) : isRelegate ? alpha(C.red, 0.10) : null
+        const zoneEdge = isPromote ? C.green : isRelegate ? C.red : null
+        // 境目の線。昇格枠の最後の行の下と、降格枠の最初の行の上に引く
+        const lineBelow = promote > 0 && i === promote - 1
+        const lineAbove = relegateFrom > 0 && i === relegateFrom
         return (
           <div key={r.id} onClick={() => onRowClick?.(r.id)} {...lpHandlers(r.id)}
             style={{ display: 'grid', gridTemplateColumns: '28px 1fr 44px 60px', gap: '4px', padding: '9px 12px',
-              background: r.isMe ? alpha(r.primary, 0.1) : i % 2 === 0 ? C.surface2 : C.surface,
-              borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none', cursor: (onRowClick || onRowLongPress) ? 'pointer' : 'default',
-              borderLeft: r.isMe ? `3px solid ${r.primary}` : '3px solid transparent', alignItems: 'center' }}>
+              background: r.isMe ? alpha(r.primary, 0.1) : zoneTint ?? (i % 2 === 0 ? C.surface2 : C.surface),
+              borderTop: lineAbove ? `2px dashed ${alpha(C.red, 0.75)}` : 'none',
+              borderBottom: lineBelow ? `2px dashed ${alpha(C.green, 0.75)}`
+                : i < rows.length - 1 ? `1px solid ${C.border}` : 'none',
+              cursor: (onRowClick || onRowLongPress) ? 'pointer' : 'default',
+              borderLeft: r.isMe ? `3px solid ${r.primary}` : zoneEdge ? `3px solid ${zoneEdge}` : '3px solid transparent',
+              alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* 順位表なので1位も数字で出す。以前は1位だけ★に置き換えていたが、
                   順位を見に来た画面で先頭の順位が読めないのは本末転倒 */}

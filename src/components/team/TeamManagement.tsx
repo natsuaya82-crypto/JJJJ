@@ -8,6 +8,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
+import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
@@ -29,9 +30,10 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
   if (mainPlayers.length === 0) return null
 
   const avgOvr = Math.round(mainPlayers.reduce((s, p) => s + ovr(p), 0) / mainPlayers.length)
-  const specGroups = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder'] as const
-  const specColors: Record<string, string> = { ace: C.gold, mountain_up: C.green, mountain_down: C.cyan, sprinter: C.pink, long: C.blue, allrounder: C.textSub, kick: '#FF6B35', grinder: '#AB8ED6' }
-  const specLabels: Record<string, string> = { ace: 'エース', mountain_up: '山登り', mountain_down: '山下り', sprinter: 'スプリンター', long: '長距離', allrounder: 'オールラウンダー', kick: 'スパート型', grinder: '粘り型' }
+  // 一覧・色・ラベルは1本から引く（ポジションを足すたびに3箇所直す状態だった）
+  const specGroups = SPECIALTIES
+  const specColors = SPEC_COLOR
+  const specLabels = SPECIALTY_LABELS
   const specData = specGroups.map(spec => {
     const group = mainPlayers.filter(p => p.specialty === spec)
     const avg = group.length > 0 ? Math.round(group.reduce((s, p) => s + ovr(p), 0) / group.length) : 0
@@ -358,12 +360,7 @@ export default function TeamManagement() {
           <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
           <select value={specFilter} onChange={e => setSpecFilter(e.target.value)} style={{ padding: '0 8px', borderRadius: '10px', border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
             <option value="all">全ポジ</option>
-            <option value="ace">エース</option>
-            <option value="mountain_up">山登り</option>
-            <option value="mountain_down">山下り</option>
-            <option value="sprinter">スプリンター</option>
-            <option value="long">長距離</option>
-            <option value="allrounder">オール</option>
+            {SPECIALTIES.map(sp => <option key={sp} value={sp}>{SPECIALTY_LABELS[sp]}</option>)}
           </select>
         </div>
       )}

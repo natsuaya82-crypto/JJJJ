@@ -1,4 +1,4 @@
-export type Specialty = 'ace' | 'mountain_up' | 'mountain_down' | 'sprinter' | 'long' | 'allrounder' | 'kick' | 'grinder'
+export type Specialty = 'ace' | 'mountain_up' | 'mountain_down' | 'undulating' | 'sprinter' | 'long' | 'allrounder' | 'kick' | 'grinder'
 export type GrowthCurve = 'early' | 'normal' | 'late_bloomer'
 // 海外挑戦の希望地域（4大リーグ: アフリカ2リーグ／欧州西南／北米）
 export type OverseasRegion = 'africa' | 'europe' | 'america'
@@ -987,6 +987,7 @@ export const SPECIALTY_LABELS: Record<Specialty, string> = {
   ace: 'エース',
   mountain_up: '山登り',
   mountain_down: '山下り',
+  undulating: '起伏型',
   sprinter: 'スプリンター',
   long: '長距離',
   allrounder: 'オールラウンダー',

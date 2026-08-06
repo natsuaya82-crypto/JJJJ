@@ -8,7 +8,7 @@ import BackButton from '../ui/BackButton'
 import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C } from '../../styles/tokens'
-import { rankedStandings, DIVISIONS, DIVISION_LABEL, divisionOf } from '../../utils/league'
+import { rankedStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
 import type { Division } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -63,7 +63,8 @@ export default function StandingsPage() {
     })
 
   // リーグごとに違うのは「行・空のときの文言」だけ
-  const view: { eyebrow: string; title: string; logoId: string; rows: StandRow[]; onRowClick: (id: string) => void; empty?: string } = (() => {
+  // 昇格・降格の枠（utils/league の PROMOTION_SLOTS）。1部に上は無く、3部に下は無い
+  const view: { eyebrow: string; title: string; logoId: string; rows: StandRow[]; onRowClick: (id: string) => void; empty?: string; promote?: number; relegate?: number } = (() => {
     if (isEcl) {
       const series = currentSeason.eclSeries
       if (!series) return {
@@ -95,6 +96,8 @@ export default function StandingsPage() {
       eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',
       rows: domesticRows(currentSeason.standings.filter(s => idsInDiv.has(s.teamId))),
       onRowClick: goDomestic,
+      promote: div === 1 ? 0 : PROMOTION_SLOTS,
+      relegate: div === DIVISIONS[DIVISIONS.length - 1] ? 0 : PROMOTION_SLOTS,
     }
   })()
 
@@ -124,7 +127,15 @@ export default function StandingsPage() {
 
       {view.empty
         ? <div style={{ padding: '50px 24px', textAlign: 'center', fontSize: 13, color: C.textDim, lineHeight: 1.8 }}>{view.empty}</div>
-        : <StandingsTable rows={view.rows} onRowClick={view.onRowClick} />}
+        : <>
+            <StandingsTable rows={view.rows} onRowClick={view.onRowClick} promote={view.promote} relegate={view.relegate} />
+            {(view.promote || view.relegate) ? (
+              <div style={{ display: 'flex', gap: 14, justifyContent: 'center', padding: '10px 12px 0', fontSize: 10, color: C.textDim }}>
+                {view.promote ? <span><span style={{ color: C.green, fontWeight: 900 }}>■</span> 昇格（上位{view.promote}）</span> : null}
+                {view.relegate ? <span><span style={{ color: C.red, fontWeight: 900 }}>■</span> 降格（下位{view.relegate}）</span> : null}
+              </div>
+            ) : null}
+          </>}
     </div>
   )
 }
