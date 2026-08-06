@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import PlayerFace from './PlayerFace'
-import { useGameStore, MY_PLAYER_TOTAL, type MyPlayerKind } from '../../store/gameStore'
+import BottomSheet from '../ui/BottomSheet'
+import Flag from '../ui/Flag'
+import { useGameStore, MY_PLAYER_POINTS } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
-import type { Specialty, Ratings } from '../../types'
+import type { Specialty, Ratings, Nationality } from '../../types'
+import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -20,17 +23,11 @@ const STATS: { key: keyof Ratings; label: string }[] = [
   { key: 'recovery', label: '回復' },
 ]
 const SPECS: Specialty[] = ['ace', 'sprinter', 'mountain_up', 'mountain_down', 'long', 'kick', 'grinder', 'allrounder']
-// 型ごとのレース相性ひとこと
-const SPEC_HINT: Record<Specialty, string> = {
-  ace: '全区間で安定・オールラウンド',
-  sprinter: '平坦・短い区間で強い／登り苦手',
-  mountain_up: '登り区間で強い',
-  mountain_down: '下り区間で強い',
-  long: '長い区間（15km〜）で強い',
-  kick: '平坦区間でスパートが効く',
-  grinder: '長め・平坦で粘る',
-  allrounder: 'どの区間もそつなく',
-}
+// 国籍は地域ごとにまとめて出す（data/nationalities.ts の GeoRegion）
+const NATS_BY_REGION = GEO_REGION_ORDER.map(geo => ({
+  geo,
+  list: (Object.keys(NATIONALITY_META) as Nationality[]).filter(n => NATIONALITY_META[n].geo === geo),
+})).filter(g => g.list.length > 0)
 const HAIRS = ['black_light', 'black_dark', 'brown_light', 'blond_light'] as const
 const HAIR_LABEL: Record<string, string> = { black_light: '黒', black_dark: '黒(濃)', brown_light: '茶', blond_light: '金' }
 const STAT_MAX = 99
@@ -38,24 +35,20 @@ const STAT_MAX = 99
 export default function CreateMyPlayerPage() {
   const navigate = useNavigate()
   const createMyPlayer = useGameStore(s => s.createMyPlayer)
-  // 枠は2種類（gameStore の MyPlayerKind）。初年度のぶんが残っていればそちらが先。
-  //   inaugural … 新規データの初年度に1人（配分500）。ドラフトに参加しない代わり
-  //   gift      … アップデート記念に1人（配分560）
-  const inauguralDone = useGameStore(s => s.inauguralPlayerCreated)
-  const kind: MyPlayerKind = inauguralDone ? 'gift' : 'inaugural'
-  const TOTAL = MY_PLAYER_TOTAL[kind]
-  // 「作成済み」も枠ごとに見る（初年度のぶんを作っても記念のぶんは残る）
-  const giftDone = useGameStore(s => s.myPlayerCreated)
-  const alreadyCreated = kind === 'inaugural' ? inauguralDone : !!giftDone
+  // 作れるのは新規データの初年度に1人だけ（ドラフトに参加しない代わり）
+  const TOTAL = MY_PLAYER_POINTS
+  const alreadyCreated = useGameStore(s => s.inauguralPlayerCreated)
 
   const [name, setName] = useState('')
   const [age, setAge] = useState(20)
   const [specialty, setSpecialty] = useState<Specialty>('ace')
+  const [nationality, setNationality] = useState<Nationality>('JPN')
+  const [natSheet, setNatSheet] = useState(false)
   const [ratings, setRatings] = useState<Ratings>(() => {
     // 初期値は「均等割り＋端数を速力へ」。合計がちょうど TOTAL になるので、
     // 開いた時点で残り0＝そのまま確定できる（500と560で初期値が変わる）
-    const base = Math.floor(MY_PLAYER_TOTAL[kind] / 7)
-    const rest = MY_PLAYER_TOTAL[kind] - base * 7
+    const base = Math.floor(MY_PLAYER_POINTS / 7)
+    const rest = MY_PLAYER_POINTS - base * 7
     return { speed: base + rest, stamina: base, mountainUp: base, mountainDown: base, pacing: base, mental: base, recovery: base }
   })
   const [face, setFace] = useState({ style: 3, eye: 5, hair: 'black_light' as typeof HAIRS[number], flip: false })
@@ -91,7 +84,7 @@ export default function CreateMyPlayerPage() {
 
   const confirm = () => {
     if (!canConfirm) return
-    const ok = createMyPlayer({ name: name.trim(), age, specialty, ratings, customFace: face }, kind)
+    const ok = createMyPlayer({ name: name.trim(), age, specialty, nationality, ratings, customFace: face })
     if (ok) setDone(true)
   }
 
@@ -109,7 +102,7 @@ export default function CreateMyPlayerPage() {
       <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
         <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>MY PLAYER CREATED</div>
         <div style={{ borderRadius: 16, overflow: 'hidden', border: `3px solid ${C.gold}`, boxShadow: `0 0 24px ${alpha(C.gold, 0.5)}` }}>
-          <PlayerFace playerId="preview" nationality="JPN" size={120} customFace={face} />
+          <PlayerFace playerId="preview" nationality={nationality} size={120} customFace={face} />
         </div>
         <div style={{ fontSize: 22, fontWeight: 900 }}>{name}</div>
         <div style={{ fontSize: 13, color: C.textSub }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]} ・ マイチームに加入</div>
@@ -132,12 +125,12 @@ export default function CreateMyPlayerPage() {
         <BackButton onClick={() => navigate('/')} />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>マイプレイヤー作成</span>
       </div>
-      <div style={{ padding: '2px 16px 10px', fontSize: 11, color: C.textDim }}>アップデート記念・1回きり。好きな選手を1人作れます。</div>
+      <div style={{ padding: '2px 16px 10px', fontSize: 11, color: C.textDim }}>初年度はドラフトに参加しない代わりに、選手を1人つくれます。</div>
 
       {/* プレビュー */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 12px 12px', padding: 12, borderRadius: 14, background: `linear-gradient(135deg, ${alpha(C.gold, 0.14)}, ${C.surface2})`, border: `2px solid ${C.goldDark}` }}>
         <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>
-          <PlayerFace playerId="preview" nationality="JPN" size={72} customFace={face} />
+          <PlayerFace playerId="preview" nationality={nationality} size={72} customFace={face} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 900, color: name ? C.text : C.textGhost }}>{name || '（名前未入力）'}</div>
@@ -151,6 +144,17 @@ export default function CreateMyPlayerPage() {
           <input value={name} onChange={e => setName(e.target.value.slice(0, 8))} placeholder="選手名（8文字まで）" maxLength={8}
             style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: 15, fontFamily: FONT }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: C.textDim, width: 40 }}>国籍</span>
+            <button onClick={() => setNatSheet(true)} style={{
+              flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10,
+              background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: 13, cursor: 'pointer', fontFamily: FONT,
+            }}>
+              <Flag code={nationality} width={22} />
+              <span style={{ flex: 1, textAlign: 'left' }}>{natLabel(nationality)}</span>
+              <span style={{ color: C.textDim, fontSize: 11 }}>変更</span>
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: C.textDim, width: 40 }}>年齢</span>
             {[18, 19, 20, 21, 22].map(a => (
               <button key={a} onClick={() => setAge(a)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, cursor: 'pointer', fontFamily: SAIRA, fontSize: 14, fontWeight: 800, border: 'none', background: age === a ? C.gold : C.surface, color: age === a ? '#fff' : C.textDim }}>{a}</button>
@@ -159,12 +163,11 @@ export default function CreateMyPlayerPage() {
         </div>
       ))}
 
-      {card('型（レース相性に影響）', (
+      {card('ポジション（レース相性に影響）', (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
           {SPECS.map(sp => (
             <button key={sp} onClick={() => setSpecialty(sp)} style={{ textAlign: 'left', padding: '8px 10px', borderRadius: 9, cursor: 'pointer', background: specialty === sp ? alpha(C.gold, 0.18) : C.surface, border: `1.5px solid ${specialty === sp ? C.gold : C.border}`, fontFamily: FONT }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: specialty === sp ? C.gold : C.text }}>{SPECIALTY_LABELS[sp]}</div>
-              <div style={{ fontSize: 8.5, color: C.textDim, marginTop: 2, lineHeight: 1.4 }}>{SPEC_HINT[sp]}</div>
             </button>
           ))}
         </div>
@@ -195,7 +198,7 @@ export default function CreateMyPlayerPage() {
       {card('顔', (
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <div style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border2}`, flexShrink: 0 }}>
-            <PlayerFace playerId="preview" nationality="JPN" size={64} customFace={face} />
+            <PlayerFace playerId="preview" nationality={nationality} size={64} customFace={face} />
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
             <FaceRow label="髪型" onPrev={() => setFace(f => ({ ...f, style: (f.style + 23) % 24 }))} onNext={() => setFace(f => ({ ...f, style: (f.style + 1) % 24 }))} value={`${face.style + 1}/24`} />
@@ -213,6 +216,29 @@ export default function CreateMyPlayerPage() {
           </div>
         </div>
       ))}
+
+      <BottomSheet open={natSheet} onClose={() => setNatSheet(false)} title="国籍">
+        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {NATS_BY_REGION.map(({ geo, list }) => (
+            <div key={geo} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, letterSpacing: 1, margin: '4px 2px 6px' }}>{geo}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                {list.map(n => (
+                  <button key={n} onClick={() => { setNationality(n); setNatSheet(false) }} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 9, cursor: 'pointer',
+                    background: nationality === n ? alpha(C.gold, 0.18) : C.surface,
+                    border: `1.5px solid ${nationality === n ? C.gold : C.border}`,
+                    color: nationality === n ? C.gold : C.text, fontSize: 12, fontFamily: FONT, textAlign: 'left',
+                  }}>
+                    <Flag code={n} width={20} />
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{natLabel(n)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </BottomSheet>
 
       {/* 確定バー（下部固定） */}
       <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${50 + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>

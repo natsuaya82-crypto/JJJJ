@@ -18,12 +18,11 @@ import { CARD_UNIT_PRICE, CARD_UNIT_EXP } from '../data/cardShop'
 // 52チームの名簿そのものは utils/domesticClubs.ts の1本（既存セーブの補完もそこ）
 const ALL_TEAMS = ALL_DOMESTIC_TEAMS
 
-// マイ選手を作れる枠は2種類あり、別々に数える。
-//   inaugural … 新規データの初年度に1人（配分500）。初年度はドラフトに参加しない代わり
-//   gift      … アップデート記念に1人（配分560）。既存プレイヤーへの配布
-export type MyPlayerKind = 'inaugural' | 'gift'
-/** 枠ごとの能力の振り分け合計 */
-export const MY_PLAYER_TOTAL: Record<MyPlayerKind, number> = { inaugural: 500, gift: 560 }
+// マイ選手を作れるのは「新規データの初年度に1人」だけ。
+// 初年度はドラフトに参加しない代わりに、自分で1人つくって加入させる。
+// （アップデート記念の配布枠560は終了。GameState.myPlayerCreated は古いセーブに残るだけで使わない）
+/** マイ選手に振り分けられる能力の合計 */
+export const MY_PLAYER_POINTS = 500
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, drawSeasonSchedules, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
@@ -567,7 +566,7 @@ export type GameStore = GameState & {
   // Dev reset
   resetGame: () => void
   /** マイ選手の作成。初年度の1人('inaugural')とアップデート記念の1人('gift')は別枠 */
-  createMyPlayer: (params: { name: string; age: number; specialty: Specialty; ratings: Ratings; customFace: NonNullable<Player['customFace']> }, kind: MyPlayerKind) => boolean
+  createMyPlayer: (params: { name: string; age: number; specialty: Specialty; nationality: Nationality; ratings: Ratings; customFace: NonNullable<Player['customFace']> }) => boolean
   /** 初年度に作る1人を作成済みか（記念の myPlayerCreated とは別に持つ） */
   inauguralPlayerCreated: boolean
 }
@@ -7491,12 +7490,12 @@ export const useGameStore = create<GameStore>()(
       // ratings=振り分けた560、customCaps=育て切ると合計644(平均92)になる能力別上限（低い能力から水割り）
       createMyPlayer: (params: {
         name: string; age: number; specialty: import('../types').Specialty
+        nationality: import('../types').Nationality
         ratings: import('../types').Ratings
         customFace: NonNullable<import('../types').Player['customFace']>
-      }, kind: MyPlayerKind) => {
+      }) => {
         const state = get()
-        // 初年度の1人とアップデート記念の1人は別枠。片方を作っても、もう片方は残る
-        if (kind === 'inaugural' ? state.inauguralPlayerCreated : state.myPlayerCreated) return false
+        if (state.inauguralPlayerCreated) return false
         const myTeam = state.teams.find(t => t.id === state.playerTeamId)
         if (!myTeam) return false
         const STAT_KEYS: (keyof import('../types').Ratings)[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
@@ -7513,11 +7512,10 @@ export const useGameStore = create<GameStore>()(
           if (!lowKey) break
           caps[lowKey] += 1; budget -= 1
         }
-        // 記念のぶんは従来どおりの ID。初年度のぶんだけ別にして、同じ年に両方作れてもぶつからないようにする
-        const id = kind === 'inaugural' ? `myplayer-inaugural-${state.currentSeason.year}` : `myplayer-${state.currentSeason.year}`
+        const id = `myplayer-inaugural-${state.currentSeason.year}`
         const newPlayer: import('../types').Player = {
           id, name: params.name, nameKana: '', age: params.age,
-          nationality: 'JPN', origin: 'マイプレイヤー',
+          nationality: params.nationality, origin: 'マイプレイヤー',
           ratings: { ...params.ratings },
           specialty: params.specialty,
           potential: 92,
@@ -7543,7 +7541,7 @@ export const useGameStore = create<GameStore>()(
         set({
           players: moved.players,
           teams: moved.teams,
-          ...(kind === 'inaugural' ? { inauguralPlayerCreated: true } : { myPlayerCreated: true }),
+          inauguralPlayerCreated: true,
         })
         return true
       },

@@ -10,6 +10,8 @@ type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 
 export default function Onboarding() {
   const { startSetup, beginInauguralDraft } = useGameStore()
+  // 広告帯の高さ。買い切り版なら0（Layout.tsx / DraftRoom.tsx と同じ考え方）
+  const adH = useGameStore(s => s.adsRemoved ?? false) ? 0 : 50
   const [step, setStep] = useState<Step>('welcome')
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [teamName, setTeamName] = useState('')
@@ -41,6 +43,10 @@ export default function Onboarding() {
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
       position: 'relative',
       overflow: 'hidden',
+      // この画面は Layout を通らないので、セーフエリアを自前で確保する。
+      // 足さないと見出しがステータスバーの裏に潜り込む
+      paddingTop: 'env(safe-area-inset-top)',
+      boxSizing: 'border-box',
     }}>
 
       {/* ---- WELCOME ---- */}
@@ -87,13 +93,17 @@ export default function Onboarding() {
         </div>
       )}
 
-      {/* Ad banner — 実機のAdMobバナーはsafe-areaの上に出るため、帯も同じ位置に合わせる（Layoutと同じ配置） */}
-      <div style={{
-        position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px', height: '50px',
-        backgroundColor: '#070610', borderTop: '1px solid #1E1B2E',
-        zIndex: 60,
-      }}/>
+      {/* Ad banner — 実機のAdMobバナーはsafe-areaの上に出るため、帯も同じ位置に合わせる（Layoutと同じ配置）。
+          買い切り版（adsRemoved）では帯ごと出さない。前は無条件に描いていたので、
+          課金済みでも黒い枠だけが残っていた */}
+      {adH > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px', height: `${adH}px`,
+          backgroundColor: '#070610', borderTop: '1px solid #1E1B2E',
+          zIndex: 60,
+        }}/>
+      )}
 
       {/* ---- TEAM SELECT ---- */}
       {step === 'team_select' && (
@@ -105,7 +115,7 @@ export default function Onboarding() {
             <div style={{ fontSize: '11px', color: '#C9A84C', marginTop: '6px' }}>どのチームを選んでも JPEL 3部からのスタートです</div>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 14px 170px', minHeight: 0 }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, boxSizing: 'border-box', padding: `0 14px calc(${adH}px + env(safe-area-inset-bottom) + 120px)` }}>
             {(['北海道・東北', '関東', '中部', '関西', '中国・四国', '九州・沖縄'] as const).map(region => {
               const regionTeams = ALL_DOMESTIC_TEAMS.filter(t => {
                 if (region === '北海道・東北') return ['北海道','東北'].includes(t.region)
@@ -194,7 +204,7 @@ export default function Onboarding() {
 
       {/* ---- CUSTOMIZE ---- */}
       {step === 'customize' && (
-        <div style={{ flex: 1, width: '100%', overflowY: 'auto', padding: '0 20px 100px', minHeight: 0 }}>
+        <div style={{ flex: 1, width: '100%', overflowY: 'auto', minHeight: 0, boxSizing: 'border-box', padding: `0 20px calc(${adH}px + env(safe-area-inset-bottom) + 24px)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '12px 0 20px' }}>
             <button onClick={() => setStep('team_select')} style={{
               background: 'none', border: 'none', cursor: 'pointer', color: '#9B97A8',
@@ -361,8 +371,9 @@ export default function Onboarding() {
           )}
 
           <div style={{ fontSize: '11px', color: '#5C5870', marginBottom: '32px', padding: '10px 12px', borderRadius: '8px', backgroundColor: '#1A1828', border: '1px solid #2E2B42' }}>
-            このあとドラフトでチームを作ります。<br/>
-            新規参入チームのため、全体1番目の指名権あり。
+            初年度のドラフトは<b style={{ color: '#C9A84C' }}>見学</b>です。<br/>
+            代わりに、あとで選手を1人つくって加入させられます。<br/>
+            指名に参加できるのは2年目からです。
           </div>
 
           <button onClick={handleConfirm} style={{

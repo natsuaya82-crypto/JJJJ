@@ -865,8 +865,10 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   // 掲示板（チャット）とカードのやりとりを1つの画面に積んでいたので、
   // ひとこと書くまでに「もらったカード」「カードをお願いする」を通り過ぎる必要があった。
   // タブで分け、掲示板は投稿だけ・入力は下に固定、という普通のチャットの形にする。
+  // paddingTop は横タブとの隙間。0 だとタブのボタン（btn-press は下に影が出る）に
+  // 「まだ何も書かれていません」の枠が食い込む
   const board = (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: mainHeight }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: mainHeight, paddingTop: 10 }}>
       {/* 一覧を flex:1 で伸ばし、入力バーを常に画面のいちばん下に置く。
           伸ばさないと投稿が少ないときに入力バーが画面の途中に浮く */}
       <div style={{ flex: 1, padding: `0 12px ${CLUB_CHAT_ENABLED ? BOARD_INPUT_H : 8}px` }}>
@@ -903,7 +905,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   )
 
   const cardTab = (
-    <div style={{ padding: '0 12px' }}>
+    <div style={{ padding: '10px 12px 0' }}>
       <SectionLabel>もらったカード</SectionLabel>
       {(gifts.data ?? 0) > 0 ? (
         <button onClick={onClaim} disabled={busy === 'claim'} className="btn-press" style={{

@@ -7,7 +7,7 @@ import { ovr, calcTransferValue } from './playerUtils'
 export type PlayerSortKey = 'ovr' | 'age' | 'specialty' | 'value' | 'salary' | 'name'
 
 export const PLAYER_SORT_LABEL: Record<PlayerSortKey, string> = {
-  ovr: 'OVR順', age: '年齢順', specialty: 'タイプ順',
+  ovr: 'OVR順', age: '年齢順', specialty: 'ポジション順',
   value: '市場価値順', salary: '年俸順', name: '名前順',
 }
 

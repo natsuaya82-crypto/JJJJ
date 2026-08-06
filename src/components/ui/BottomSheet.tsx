@@ -50,6 +50,9 @@ export default function BottomSheet({ open, onClose, title, children }: {
           background: C.surface, borderRadius: '18px 18px 0 0',
           border: `1px solid ${C.border2}`, borderBottom: 'none',
           boxShadow: '0 -12px 40px rgba(0,0,0,0.6)',
+          // border-box を付けないと width:100% に左右14pxのpaddingが足され、
+          // 中身が画面の右へ28pxはみ出す（2列に並べたボタンの右列が切れる）
+          boxSizing: 'border-box',
           padding: '8px 14px calc(18px + env(safe-area-inset-bottom))',
         }}
       >

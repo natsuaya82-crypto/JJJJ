@@ -17,13 +17,13 @@ export default function OnlinePage() {
   )
 
   const SECTIONS: {
-    key: string; label: string; note: string; badge: number; color: string
+    key: string; label: string; badge: number; color: string
     icon: React.ReactNode; soon?: boolean
     /** オンラインが使えない状態でも押せる（端末内で完結する機能） */
     alwaysOn?: boolean
   }[] = [
     {
-      key: '/friends', label: 'フレンド', note: '一覧・申請・自分のコード',
+      key: '/friends', label: 'フレンド',
       badge: received.data?.length ?? 0, color: C.gold,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -35,7 +35,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/friends/club', label: '走友会', note: '仲間と同じ名簿に並ぶ',
+      key: '/friends/club', label: '走友会',
       badge: 0, color: C.orange,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -47,7 +47,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/match', label: 'オンライン対戦', note: '2〜20チームで駅伝',
+      key: '/online/match', label: 'オンライン対戦',
       badge: 0, color: C.cyan,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -59,7 +59,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/history', label: '対戦履歴', note: '過去の対戦の順位と通算成績',
+      key: '/online/history', label: '対戦履歴',
       badge: 0, color: C.blue,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -70,7 +70,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/events', label: 'イベント', note: '準備中',
+      key: '/online/events', label: 'イベント',
       badge: 0, color: C.green, soon: true,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -80,7 +80,7 @@ export default function OnlinePage() {
     },
     {
       // 殿堂入りは端末内で完結するので、オンラインが使えない状態でも押せる（下の soon を付けない）
-      key: '/online/hof', label: '殿堂入りチーム', note: `歴代の30人を登録時の能力で固定`,
+      key: '/online/hof', label: '殿堂入りチーム',
       badge: 0, color: C.gold, alwaysOn: true,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -92,11 +92,11 @@ export default function OnlinePage() {
     },
   ]
 
-  // 公開していない間は4つとも薄く表示して押せなくする（説明は「準備中」）
+  // 公開していない間は薄く表示して押せなくする。
   // 殿堂入り（alwaysOn）だけは、オンラインが使えない状態でも押せる。端末内で完結するため
   const sections = onlineAvailable()
     ? SECTIONS
-    : SECTIONS.map(s => (s.alwaysOn ? s : { ...s, soon: true, note: '準備中', badge: 0 }))
+    : SECTIONS.map(s => (s.alwaysOn ? s : { ...s, soon: true, badge: 0 }))
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
@@ -136,7 +136,8 @@ export default function OnlinePage() {
                   <span style={{ marginLeft: 7, padding: '1px 7px', borderRadius: 6, background: s.color, color: C.bg, fontSize: 10, fontWeight: 900 }}>{s.badge}</span>
                 )}
               </div>
-              <div style={{ fontSize: 10, color: alpha(C.text, 0.45), marginTop: 2 }}>{s.note}</div>
+              {/* 説明は置かない（名前で分かるものに注釈を足さない）。「準備中」だけは状態なので出す */}
+              {s.soon && <div style={{ fontSize: 10, color: alpha(C.text, 0.45), marginTop: 2 }}>準備中</div>}
             </div>
             {!s.soon && (
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>

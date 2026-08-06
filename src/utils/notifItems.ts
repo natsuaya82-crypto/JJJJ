@@ -49,9 +49,6 @@ export type NotifInput = {
   lastLoginDate?: string
   seenJoinIds: string[]
   seenInjuryIds: string[]
-  myPlayerCreated: boolean
-  /** 初年度のマイ選手を作成済みか。未作成のあいだは記念のぶんを出さない（順番を固定する） */
-  inauguralPlayerCreated: boolean
   /** 運営から届いたプレゼントの数 */
   pendingGiftsCount: number
   /** 走友会のなかまから届いたカードの数 */
@@ -80,7 +77,7 @@ export function offersByPlayer<T extends { playerId: string }>(offers: readonly 
 }
 
 export function collectNotifications(input: NotifInput) {
-  const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, myPlayerCreated, inauguralPlayerCreated, pendingGiftsCount, clubGiftsCount } = input
+  const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, clubGiftsCount } = input
 
   // 自チームの現役選手か。退団・引退した選手あての通知（幽霊通知）を数から外すのに使う。
   // ケガ中(status === 'injured')も現役。ここを 'active' だけで見ていたので、
@@ -199,8 +196,6 @@ export function collectNotifications(input: NotifInput) {
   const injuredPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'injured' && !seenInjuryIds.includes(injuryKey(p)))
 
   const loginUnclaimed = lastLoginDate !== loginTodayKey()
-  // 記念のぶんは初年度のぶんを作ってから出す（新規データで両方同時に出ると、どちらの枠か分からない）
-  const canCreateMyPlayer = !myPlayerCreated && inauguralPlayerCreated
 
   // ここの合計が、そのままベルの数字であり通知ページの「N件」になる。
   // 数え方の決まりは「通知ページに出るカードの枚数と必ず同じにする」こと。
@@ -211,7 +206,6 @@ export function collectNotifications(input: NotifInput) {
   // 人数分数えていたので、ベルの数字と見えているカードの枚数がズレていた
   const total = incomingOfferPlayers.length
     + stayOrLeave.length
-    + (canCreateMyPlayer ? 1 : 0)
     + tradeOffers.length
     // 「返事待ち」「移籍要望」「海外挑戦希望」は中身が何人でもカード1枚にまとめて出しているので1。
     // 人数分足すと、ベルは3なのに通知ページにはカードが1枚、という数のズレになる
@@ -241,7 +235,7 @@ export function collectNotifications(input: NotifInput) {
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
     pendingContracts, sponsorOffers, tradeOffers, chatReplies, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
-    loginUnclaimed, canCreateMyPlayer, expiredNegotiations, loanResponses,
+    loginUnclaimed, expiredNegotiations, loanResponses,
     contactedPlayerIds: ctCtx.freeContactIds, injuryKey,
     total,
   }

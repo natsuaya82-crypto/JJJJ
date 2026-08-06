@@ -75,7 +75,7 @@ export default function ScoutPage() {
             background: C.surface2, border: `1px solid ${C.border2}`,
             color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none',
           }}>
-            <option value="all">全タイプ</option>
+            <option value="all">全ポジション</option>
             {(Object.keys(SPECIALTY_LABELS) as Specialty[]).map(spec => (
               <option key={spec} value={spec}>{SPECIALTY_LABELS[spec]}</option>
             ))}

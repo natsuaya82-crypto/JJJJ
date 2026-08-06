@@ -12,7 +12,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { audio } from '../../utils/audio'
 import { isForeignNat } from '../../data/nationalities'
-import { draftRoundOf } from '../../utils/league'
+import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -204,6 +204,8 @@ export default function DraftRoom() {
 
   const currentTeam  = teams.find(t => t.id === pickOrder[currentPick])
   const { round, pickInRound } = draftRoundOf(currentPick, pickOrder.length)
+  // 1巡の件数（＝参加チーム数）。draftRoundOf と同じ数え方を指名ボードでも使う
+  const perRound = Math.max(1, Math.round(pickOrder.length / DRAFT_ROUNDS))
   const myPicksDone  = picks.filter(p => p.teamId === playerTeamId).length
   const myPicksTotal = pickOrder.filter(id => id === playerTeamId).length
   const playerTeamObj = teams.find(t => t.id === playerTeamId)
@@ -503,7 +505,7 @@ export default function DraftRoom() {
               </div>
               <div style={{ position: 'relative' }}>
                 <select value={filterSpec} onChange={e => setFilterSpec(e.target.value as Specialty | 'all')} style={SELECT_STYLE}>
-                  <option value="all">全タイプ</option>
+                  <option value="all">全ポジション</option>
                   <option value="ace">エース</option>
                   <option value="sprinter">スプリンター</option>
                   <option value="long">長距離</option>
@@ -548,8 +550,10 @@ export default function DraftRoom() {
 
         {tab === 'board' && (
           <div style={{ padding: '10px 12px' }}>
-            {[1, 2].map(r => {
-              const rOrder = pickOrder.slice((r - 1) * 20, r * 20)
+            {Array.from({ length: DRAFT_ROUNDS }, (_, i) => i + 1).map(r => {
+              // 1巡の件数は参加チーム数。20固定にしていたので、52チーム制では
+              // 102件のうち40件しか出ず、しかも「第2巡」の下に第1巡の21〜40番目が並んでいた
+              const rOrder = pickOrder.slice((r - 1) * perRound, r * perRound)
               return (
                 <div key={r} style={{ marginBottom: '20px' }}>
                   <div style={{
@@ -562,7 +566,7 @@ export default function DraftRoom() {
                     第{r}巡
                   </div>
                   {rOrder.map((teamId, i) => {
-                    const pickNum   = (r - 1) * 20 + i + 1
+                    const pickNum   = (r - 1) * perRound + i + 1
                     const pk        = pickLog.find(p => p.pickNum === pickNum)
                     const t         = teams.find(tm => tm.id === teamId)
                     const isMe      = teamId === playerTeamId

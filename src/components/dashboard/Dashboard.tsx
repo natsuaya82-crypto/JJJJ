@@ -151,7 +151,7 @@ function PreseasonHub({
             <StepBadge n={1} done={false} color={C.gold}/>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>選手を1人つくる</div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>名前・年齢・型・能力・顔を自分で決めて加入させる</div>
+              <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>名前・年齢・国籍・ポジション・能力・顔を自分で決めて加入させる</div>
             </div>
             <button onClick={() => navigate('/create-player')} className="btn-press" style={{
               padding: '7px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0,
