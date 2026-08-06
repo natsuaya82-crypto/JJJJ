@@ -83,7 +83,7 @@ import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
-import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, DOMESTIC_BOTTOM_TIER, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
   pool: Player[]
@@ -843,10 +843,31 @@ export const useGameStore = create<GameStore>()(
       startSetup: (setup) => {
         set(state => {
           const baseIds = BASE_PLAYERS.map(p => p.id)
+          // ★どのクラブを選んでも3部・格20から始まる。
+          //   選択はJPEL52クラブ全部から。選んだクラブをそのまま3部へ降ろす。
+          //   ただし降ろしっぱなしにすると 1部19・3部17 のように部の人数が崩れ、
+          //   昇降格は上下2ずつなので二度と揃わない。そこで**入れ替え**にする：
+          //   選んだクラブが3部へ降り、代わりに格20の3部クラブがその枠へ上がる。
+          //   3部のクラブを選んだときは入れ替え不要（そのまま格20だけ合わせる）。
+          const START_DIVISION: Division = 3
+          const START_TIER = DOMESTIC_BOTTOM_TIER
+          const picked = state.teams.find(t => t.id === setup.teamId)
+          const pickedDiv = divisionOf(picked)
+          const pickedTier = tierOf(picked)
+          // 入れ替え相手＝格20の3部クラブ（プレイヤーが選んだクラブ以外）
+          const swapPartner = pickedDiv === START_DIVISION ? undefined : state.teams
+            .filter(t => t.id !== setup.teamId && divisionOf(t) === START_DIVISION)
+            .sort((a, b) => tierOf(b) - tierOf(a))[0]
           const renamedTeams = state.teams.map(t => {
+            if (swapPartner && t.id === swapPartner.id) {
+              // 選ばれたクラブが空けた枠へ上がる（部と格をそっくり引き継ぐ）
+              return { ...t, division: pickedDiv, tier: pickedTier }
+            }
             if (t.id === setup.teamId) {
               return {
                 ...t,
+                division: START_DIVISION,
+                tier: START_TIER,
                 name: setup.teamName,
                 shortName: setup.teamShortName,
                 gmName: setup.gmName,
