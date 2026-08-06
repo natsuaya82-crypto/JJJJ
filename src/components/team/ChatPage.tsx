@@ -176,12 +176,24 @@ function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: 
 // 以前はチャットを通さず、一覧の中のカードに 承諾／カウンター／拒否 のボタンを直接置いていた。
 // 同じ「相手からの打診に返事をする」なのに、契約更新・獲得交渉・トレードは会話、
 // 買い取りとレンタルだけボタン、と2つの作りが混ざっていた。会話1本に寄せる。
-function buildIncomingOfferMessages(player: Player, offer: IncomingOffer, teamName: string): ChatMessage[] {
-  return [{
-    from: 'player',
-    kind: 'incoming_offer',
-    text: `（${teamName}GM）${player.name}選手を移籍金${fmtYen(offer.offeredPrice)}でお譲りいただけないでしょうか。ご検討をお願いします。`,
-  }]
+function buildIncomingOfferMessages(
+  player: Player, offers: { name: string; price: number }[], wish?: { name: string; reason: string },
+): ChatMessage[] {
+  if (offers.length === 0) return []
+  if (offers.length === 1) {
+    return [{
+      from: 'player', kind: 'incoming_offer',
+      text: `（${offers[0].name}GM）${player.name}選手を移籍金${fmtYen(offers[0].price)}でお譲りいただけないでしょうか。ご検討をお願いします。`,
+    }]
+  }
+  // 取り合いになっているときは、まとめて出して本人の希望を言わせる
+  const list = offers.map(o => `・${o.name}（移籍金${fmtYen(o.price)}）`).join('\n')
+  return [
+    { from: 'player', kind: 'incoming_offer',
+      text: `（代理人）${offers.length}クラブから${player.name}選手の獲得の打診が来ています。\n${list}` },
+    ...(wish ? [{ from: 'player' as const, kind: 'incoming_wish',
+      text: `本人に希望を聞きました。「${wish.name}へ行きたい。${wish.reason}から」とのことです。` }] : []),
+  ]
 }
 
 // 相手クラブから来たレンタル打診を会話にする（貸す／借りるの両方向）。
@@ -192,6 +204,15 @@ function buildIncomingLoanMessages(player: Player, offer: IncomingLoanOffer, tea
     text: offer.direction === 'lend_out'
       ? `（${teamName}GM）${player.name}選手を${offer.years}年のレンタルでお借りできませんか。出場機会はこちらで用意します。`
       : `（${teamName}GM）${player.name}選手を${offer.years}年のレンタルでお預かりいただけませんか。`,
+  }]
+}
+
+// 行き先が決まらなかった退団予定の選手。FAで出すか残留させるかをGMが選ぶ。
+// 以前はシーズン終了時に問答無用で強制FAだった（移籍金0で流出）
+function buildStayOrLeaveMessages(): ChatMessage[] {
+  return [{
+    from: 'player', kind: 'stay_or_leave',
+    text: `移籍先が見つかりませんでした。このままここに残るか、契約を解除して自分で移籍先を探すか、決めていただけますか。`,
   }]
 }
 
@@ -218,9 +239,9 @@ function ChatView({
     approveOverseasChallenge, denyOverseasChallenge,
     generateContractRequests, refuseFreeContactRetention,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
-    openPlayerSheet, finalizeTransfer, rejectTransferBid,
+    openPlayerSheet, finalizeTransfer, rejectTransferBid, rankIncomingOffers,
     acceptIncomingOffer, counterIncomingOffer, declineIncomingOffer,
-    acceptIncomingLoanOffer, declineIncomingLoanOffer,
+    acceptIncomingLoanOffer, declineIncomingLoanOffer, resolveStayOrLeave,
   } = useGameStore()
   const longPress = usePlayerLongPress()
   void openPlayerSheet
@@ -266,7 +287,13 @@ function ChatView({
 
   // 相手クラブから来た打診（買い取り・レンタル）。会話で返事をする用件のひとつとして扱う。
   // 移籍金0円のオファーは「フリー移籍の接触」で、返事をするのは本人なので別扱い（freeContactOffer）
-  const incomingOffer = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice > 0) ?? null
+  //
+  // 良い選手には複数クラブが同時に来る（最大5件）。並べ方は本人の希望順（rankIncomingOffers）で、
+  // 先頭が本命。GMはどれを受けてもいいが、本人が納得しない先は成立しない
+  const rankedOffers = rankIncomingOffers(player.id)
+  // 退団予定にしたのに行き先が決まらなかった選手（シーズン終了時に積まれる）
+  const undecided = (currentSeason.stayOrLeave ?? []).some(x => x.playerId === player.id)
+  const incomingOffer = rankedOffers[0]?.offer ?? null
   const incomingLoan = (currentSeason.incomingLoanOffers ?? []).find(o => o.playerId === player.id) ?? null
   const incomingFrom = incomingOffer ? (clubIndex.byId(incomingOffer.fromTeamId)?.shortName ?? '他クラブ') : ''
   const incomingLoanFrom = incomingLoan ? (clubIndex.byId(incomingLoan.fromTeamId)?.shortName ?? '他クラブ') : ''
@@ -292,7 +319,14 @@ function ChatView({
     ? { from: 'player', kind: 'loaned_in', text: `${clubIndex.byId(player.loan!.ownerTeamId)?.shortName ?? '保有元クラブ'}からレンタルで来ています。契約や進路の話は保有元クラブの管轄なので、こちらではお受けできません。レースでは全力を尽くします！` }
     : null
   const incomingMsgs: ChatMessage[] = [
-    ...(incomingOffer ? buildIncomingOfferMessages(player, incomingOffer, incomingFrom) : []),
+    ...(undecided ? buildStayOrLeaveMessages() : []),
+    ...buildIncomingOfferMessages(
+      player,
+      rankedOffers.map(r => ({ name: clubIndex.byId(r.offer.fromTeamId)?.shortName ?? '他クラブ', price: r.offer.offeredPrice })),
+      rankedOffers.length > 1 && rankedOffers[0].appraisal.ok
+        ? { name: clubIndex.byId(rankedOffers[0].offer.fromTeamId)?.shortName ?? '他クラブ', reason: rankedOffers[0].appraisal.reason }
+        : undefined,
+    ),
     ...(incomingLoan ? buildIncomingLoanMessages(player, incomingLoan, incomingLoanFrom) : []),
   ]
 
@@ -539,25 +573,55 @@ function ChatView({
 
     type ReplyBtns = { label: string; color: string; action: () => void; disabled?: boolean }[]
 
-    // 相手クラブから来た買い取り打診への返事。カードのボタンでやっていたものをそのまま会話に移した
-    const buildIncomingOfferButtons = (): ReplyBtns | null => {
-      if (!incomingOffer) return null
-      if (justSettled) return null
+    // 行き先が決まらなかった退団予定の選手の去就。残留を選んでもモラルは下げない
+    const buildStayOrLeaveButtons = (): ReplyBtns | null => {
+      if (!undecided) return null
       return [
-        { label: `承諾する（放出・${fmtYen(incomingOffer.offeredPrice)}）`, color: C.green, action: () => {
-          append({ from: 'gm', text: `わかりました。${fmtYen(incomingOffer.offeredPrice)}でお譲りします。` })
-          const outcome = acceptIncomingOffer(incomingOffer.id)
-          const r = offerResultText(outcome, { playerName: player.name, teamName: incomingFrom, price: incomingOffer.offeredPrice })
+        { label: '残ってくれ（移籍希望はそのまま）', color: C.blue, action: () => {
+          append(
+            { from: 'gm', text: 'まだこのチームで走ってほしい。今季も頼む。' },
+            { from: 'player', text: 'わかりました。ただ、移籍したい気持ちは変わりません。良い話があれば、また相談させてください。' },
+          )
+          resolveStayOrLeave(player.id, 'stay')
+        }},
+        { label: '契約を解除する（FA）', color: C.orange, action: () => {
+          append(
+            { from: 'gm', text: '分かった。契約を解除する。新しいクラブを自分で探してくれ。' },
+            { from: 'player', text: 'ありがとうございました。お世話になりました。' },
+          )
+          resolveStayOrLeave(player.id, 'release')
+          setJustSettled(true)
+        }},
+      ]
+    }
+
+    // 相手クラブから来た買い取り打診への返事。
+    // 複数クラブが同時に来ているときは、クラブごとに「承諾」を出す（どこへ売るかはGMが選ぶ）。
+    // 本人が納得しない先を選ぶと成立せず、そのクラブは今季もう打診してこない
+    const buildIncomingOfferButtons = (): ReplyBtns | null => {
+      if (rankedOffers.length === 0 || justSettled) return null
+      const nameOf = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'
+      const accept = (o: IncomingOffer) => ({
+        label: `${nameOf(o.fromTeamId)}へ承諾（${fmtYen(o.offeredPrice)}）`,
+        color: C.green,
+        action: () => {
+          append({ from: 'gm', text: `${nameOf(o.fromTeamId)}に${fmtYen(o.offeredPrice)}でお譲りします。` })
+          const outcome = acceptIncomingOffer(o.id)
+          const r = offerResultText(outcome, { playerName: player.name, teamName: nameOf(o.fromTeamId), price: o.offeredPrice })
           append({ from: 'player', text: r.text })
           if (outcome === 'sold') setJustSettled(true)
-        }},
-        { label: 'こちらから金額を提示する', color: C.gold, action: openComposeCounterFee },
-        { label: '断る', color: C.red, action: () => {
+        },
+      })
+      const top = rankedOffers[0].offer
+      return [
+        ...rankedOffers.map(r => accept(r.offer)),
+        { label: `${nameOf(top.fromTeamId)}へ金額を提示する`, color: C.gold, action: openComposeCounterFee },
+        { label: rankedOffers.length > 1 ? 'すべて断る' : '断る', color: C.red, action: () => {
           append(
             { from: 'gm', text: `申し訳ありませんが、${player.name}を手放すつもりはありません。` },
             { from: 'player', text: '（代理人）承知しました。またの機会に。' },
           )
-          declineIncomingOffer(incomingOffer.id)
+          for (const r of rankedOffers) declineIncomingOffer(r.offer.id)
           setJustSettled(true)
         }},
       ]
@@ -591,7 +655,7 @@ function ChatView({
     // 相手クラブからの打診は、自チーム外の選手（借り入れ）や退団予定にした選手にも来る。
     // 下の「自チーム以外は閉じるだけ」「退団予定には用件を出さない」より前に置かないと、
     // 打診が届いているのに会話に「閉じる」しか出ず、返事ができなくなる
-    const incomingEarly = buildIncomingOfferButtons() ?? buildIncomingLoanButtons()
+    const incomingEarly = buildStayOrLeaveButtons() ?? buildIncomingOfferButtons() ?? buildIncomingLoanButtons()
     if (incomingEarly && (!talksHere || player.transferListed)) return incomingEarly
 
     // 自チーム以外の選手（獲得・移籍交渉が終わった相手や海外選手など）と、
@@ -764,6 +828,7 @@ function ChatView({
 
     // 新しいメッセージの用件から順に試す（メッセージが見つからない用件は後回し・元の優先順を維持）
     const topicOrder = [
+      { present: undecided, idx: undecided ? lastIdx(m => m.kind === 'stay_or_leave') : -1, build: buildStayOrLeaveButtons },
       { present: !!incomingOffer, idx: incomingOffer ? lastIdx(m => m.kind === 'incoming_offer') : -1, build: buildIncomingOfferButtons },
       { present: !!incomingLoan, idx: incomingLoan ? lastIdx(m => m.kind === 'incoming_loan') : -1, build: buildIncomingLoanButtons },
       { present: !!retirementReq, idx: retirementReq ? lastIdx(m => m.text.includes('引退を考えて')) : -1, build: buildRetirementButtons },

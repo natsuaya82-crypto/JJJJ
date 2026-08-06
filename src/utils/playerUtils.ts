@@ -1,7 +1,8 @@
 import type { Player, Specialty, Ratings, CardStatKey, Nationality } from '../types'
 import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
-import { peakAgeOfCurve, isDeclining } from '../engine/ageCurve'
-import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
+import { peakAgeOfCurve } from '../engine/ageCurve'
+import { type ClubTier } from './clubTier'
+import { appraiseMove, buildDestination, CONSENT_LINE } from './transferDecision'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -373,60 +374,28 @@ export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastS
 
 /**
  * 移籍・トレードで動く選手本人が「移籍先クラブに行くことに納得するか」。
- * チーム同士が合意しても、選手が納得しなければ成立しない。
  *
- * ■ 行き先の魅力は「クラブの格」で測る
- *   以前は「移籍先の今の順位 ÷ 全チーム数」だった。国内の順位表しか物差しが無いので、
- *   海外クラブへの移籍・3部から1部への移籍・格上の古巣復帰が、全部同じ土俵で
- *   比べられなかった（海外は destRank=0 で常に0.5固定だった）。
- *   格は国内52＋海外180の全232クラブを1本で並べているので、どこへ動く話でも比べられる。
+ * ★判断の本体は utils/transferDecision.ts の appraiseMove 1本。ここはその窓口。
+ *   行き先の姿（そのクラブで何番手か・ECLに出ているか・順位）が分かる呼び出し側は
+ *   appraiseMove を直接使うこと。ここは「格しか分からない」古い経路のための入口で、
+ *   序列が分からないぶんだけ判定が甘くなる。
  *
  * @param destTier 行き先クラブの格
  * @param srcTier  今の所属クラブの格。無所属（FA）は undefined ＝ 格差なしとして扱う
- * @param playFraction 現チームでの出場割合, @param teamRaces 消化レース数
- * @param clubBlessed クラブ間で移籍金が合意済みの公認移籍。売る判断はクラブが済ませているので
- *   「主力だから残りたい」の減点は働かず、本人は行き先の魅力・愛着だけで決める
+ * @param clubBlessed クラブ間で移籍金が合意済みの公認移籍。「主力だから残りたい」の減点が働かない
  */
 export function playerConsentToMove(
   p: Player, destTier: ClubTier, srcTier: ClubTier | undefined,
   playFraction = 0.5, teamRaces = 0, consentBonus = 0, clubBlessed = false,
 ): { ok: boolean; reason: string } {
-  // 格がいくつ上がるか。同格で0.5、約8段上で1.0、8段下で0
-  const gap = (srcTier ?? destTier) - destTier
-  const declining = isDeclining(p.growthCurve ?? 'normal', p.age)
-  let appeal = Math.max(0, Math.min(1, 0.5 + gap * 0.06))
-  // ピークを過ぎた選手は格へのこだわりが薄れる。残りのキャリアで走れる場所を選ぶ
-  if (declining) appeal = 0.5 + (appeal - 0.5) * 0.6
-
-  const personality = p.personality ?? 'salary'
-  const morale = p.morale ?? 60
-  let score: number
-  if (personality === 'winning') score = appeal * 1.1
-  else if (personality === 'loyalty') score = appeal * 0.65 + 0.05
-  else score = 0.5 + appeal * 0.35
-  if (morale < 40) score += 0.2
-  else if (morale >= 75) score -= 0.1
-  score += consentBonus  // スカウト拠点などの交渉成立ボーナス
-
-  // 今のクラブの成長上限に達していて、行き先のほうが上限が高い＝「ここではもう伸びない」。
-  // 下位クラブで頭打ちになった若手が上へ出て行く動きは、これが作る
-  const cappedOut = srcTier != null && !declining
-    && ovr(p) >= TIER_POTENTIAL_CAP[srcTier] - 1
-    && TIER_POTENTIAL_CAP[destTier] > TIER_POTENTIAL_CAP[srcTier]
-  if (cappedOut) score += 0.25
-
-  // 出場データによる移籍意欲：出場が少ない選手は出たがる。主力は残りたい。
+  const dest = buildDestination(String(destTier), destTier, [], {})
+  const a = appraiseMove(p, dest, { srcTier, playFraction, teamRaces, bonus: consentBonus, clubBlessed })
+  // 「主力だから残りたい」は行き先の情報とは別軸。ここだけ従来どおり残す
   const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
-  if (teamRaces >= 3 && playFraction < 0.4) score += 0.25        // ほぼ出ていない＝出場機会を求める
-  else if (key) score -= 0.3                                     // 主力（よく出ている）は動きにくい
-
-  const ok = score >= 0.5
-  const reason = ok ? ''
-    : key ? `${p.name}は主力として起用されており、移籍を望んでいない`
-    : personality === 'loyalty' ? `${p.name}は今のチームへの愛着が強く移籍を望んでいない`
-    : appeal < 0.5 ? `${p.name}は格下への移籍に前向きでない`
-    : `${p.name}は移籍に納得していない`
-  return { ok, reason }
+  if (key && a.score - 0.3 < CONSENT_LINE) {
+    return { ok: false, reason: `${p.name}は主力として起用されており、移籍を望んでいない` }
+  }
+  return { ok: a.ok, reason: a.ok ? '' : a.reason }
 }
 
 // フリー移籍の勧誘に本人が乗るか（接触の決断・接触中の契約更新拒否の判定を共有）。
