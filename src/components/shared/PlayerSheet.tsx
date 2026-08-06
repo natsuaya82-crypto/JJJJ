@@ -654,7 +654,7 @@ export default function PlayerSheet() {
                       { label: 'ドラフト', val: player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外' },
                       // 殿堂入り済みなら「いつ・どのクラブの姿で固定したか」。殿堂入りチームから開いた
                       // 凍らせたコピーもここを通るので、登録時期はこの1ページ目だけ見ればわかる
-                      ...(hofEntry ? [{ label: '殿堂入り', val: `${hofEntry.year}年 ${hofEntry.teamName} OVR${hofEntry.ovr}` }] : []),
+                      ...(hofEntry ? [{ label: '殿堂入り', val: `${hofEntry.year}年 ${hofEntry.teamName}` }] : []),
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
                         <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>{label}</div>
@@ -854,7 +854,7 @@ export default function PlayerSheet() {
                       color: inHof ? '#C9A84C' : '#1a0d00', fontSize: 13, fontWeight: 900,
                     }}
                   >
-                    {inHof ? `殿堂入り済み ${hofEntry?.year}年 OVR${hofEntry?.ovr} · 今の能力で更新` : '殿堂入りに登録'}
+                    {inHof ? `殿堂入り済み ${hofEntry?.year}年 ${hofEntry?.teamName} · 今の能力で更新` : '殿堂入りに登録'}
                   </button>
                   <div style={{ fontSize: 10, color: '#5C5870', marginTop: 6, lineHeight: 1.6 }}>
                     {hofMsg || `${hofCount}/${HOF_MAX}人`}

@@ -99,7 +99,7 @@ export default function HofTeamPage() {
       {asking && (
         <ConfirmDialog
           title={`${asking.player.name} を殿堂入りから外しますか？`}
-          message={`${asking.year}年 ${asking.teamName} · OVR${asking.ovr} で固定した姿は消えます。取り消せません。`}
+          message={`${asking.year}年 ${asking.teamName} で固定した姿は消えます。取り消せません。`}
           confirmLabel="外す"
           accent={C.red}
           onConfirm={() => { remove(asking.player.id); setAskId(null) }}
