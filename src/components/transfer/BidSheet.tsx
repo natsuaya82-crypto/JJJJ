@@ -7,7 +7,7 @@ import { useGameStore } from '../../store/gameStore'
 import { C } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
-import { tierOf, tierOfPlayerClub } from '../../utils/clubTier'
+import { tierOf, tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -27,10 +27,10 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   const over = fee > budget
 
   // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
-  const { currentSeason, pastSeasons, teams, playerTeamId } = useGameStore()
+  const { currentSeason, pastSeasons, teams, playerTeamId, foreignLeagues } = useGameStore()
   // 本人の判断材料は「クラブの格がいくつ上がるか」（順位ではない）
   const myTier = tierOf(teams.find(t => t.id === playerTeamId))
-  const srcTier = tierOfPlayerClub(player.teamId, teams)
+  const srcTier = tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues))
   const scoutLv = teams.find(t => t.id === playerTeamId)?.facilities?.scoutOffice ?? 0
   const consentBase = scoutLv * 0.02
   // 年俸ボーナス（相場1.2倍=+0.1 / 1.5倍=+0.2）でどこまで説得できるかを段階表示

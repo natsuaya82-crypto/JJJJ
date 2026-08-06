@@ -7,7 +7,7 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 // 国内の帯と順位→格の変換は utils/clubTier.ts の1本（ここで数字を持たない）
-import { DOMESTIC_TIER_BAND, tierFromDomesticRank } from '../src/utils/clubTier'
+import { DOMESTIC_TIER_BAND, FOREIGN_TIER_BAND, tierFromDomesticRank } from '../src/utils/clubTier'
 // リーグ内の並び順。都市の規模で並べる（データの並び順＝国ごとのまとまり、ではない）。
 // ここに書いたリーグだけ差し替える。書いていないリーグはデータの並び順のまま
 // （北米・オセアニア・南米・中米は元から国順＋国内の都市規模順で、都市順とほぼ同じ）。
@@ -61,15 +61,16 @@ type Shape = 'heavy' | 'flat'
 type Band = { top: number; bottom: number; shape: Shape; label: string }
 
 const BANDS: Record<string, Band> = {
-  africa_east:     { top: 1, bottom: 7, shape: 'heavy', label: '東アフリカ' },
-  africa_ns:       { top: 3, bottom: 9, shape: 'heavy', label: 'アフリカ北・南' },
-  europe_ws:       { top: 1, bottom: 7, shape: 'heavy', label: 'ヨーロッパ西・南' },
-  north_america:   { top: 1, bottom: 8, shape: 'heavy', label: '北米' },
-  europe_ne:       { top: 3, bottom: 10, shape: 'heavy', label: 'ヨーロッパ北・東' },
-  oceania:         { top: 5, bottom: 12, shape: 'heavy', label: 'オセアニア' },
-  south_america:   { top: 7, bottom: 15, shape: 'heavy', label: '南米' },
-  asia_league:     { top: 10, bottom: 20, shape: 'flat', label: 'アジア' },
-  central_america: { top: 10, bottom: 20, shape: 'flat', label: '中米・カリブ' },
+  // 海外の帯も utils/clubTier.ts の FOREIGN_TIER_BAND が唯一の決まり（ここで数字を書かない）
+  africa_east:     { top: FOREIGN_TIER_BAND.africa_east[0],     bottom: FOREIGN_TIER_BAND.africa_east[1],     shape: 'heavy', label: '東アフリカ' },
+  africa_ns:       { top: FOREIGN_TIER_BAND.africa_ns[0],       bottom: FOREIGN_TIER_BAND.africa_ns[1],       shape: 'heavy', label: 'アフリカ北・南' },
+  europe_ws:       { top: FOREIGN_TIER_BAND.europe_ws[0],       bottom: FOREIGN_TIER_BAND.europe_ws[1],       shape: 'heavy', label: 'ヨーロッパ西・南' },
+  north_america:   { top: FOREIGN_TIER_BAND.north_america[0],   bottom: FOREIGN_TIER_BAND.north_america[1],   shape: 'heavy', label: '北米' },
+  europe_ne:       { top: FOREIGN_TIER_BAND.europe_ne[0],       bottom: FOREIGN_TIER_BAND.europe_ne[1],       shape: 'heavy', label: 'ヨーロッパ北・東' },
+  oceania:         { top: FOREIGN_TIER_BAND.oceania[0],         bottom: FOREIGN_TIER_BAND.oceania[1],         shape: 'heavy', label: 'オセアニア' },
+  south_america:   { top: FOREIGN_TIER_BAND.south_america[0],   bottom: FOREIGN_TIER_BAND.south_america[1],   shape: 'heavy', label: '南米' },
+  asia_league:     { top: FOREIGN_TIER_BAND.asia_league[0],     bottom: FOREIGN_TIER_BAND.asia_league[1],     shape: 'flat',  label: 'アジア' },
+  central_america: { top: FOREIGN_TIER_BAND.central_america[0], bottom: FOREIGN_TIER_BAND.central_america[1], shape: 'flat',  label: '中米・カリブ' },
   // 国内の帯は utils/clubTier.ts の DOMESTIC_TIER_BAND が唯一の決まり（ここで数字を書かない）。
   // 実際の格も tierFromDomesticRank で引くので shape は使わない（place の中で分岐）
   jpel1: { top: DOMESTIC_TIER_BAND[1][0], bottom: DOMESTIC_TIER_BAND[1][1], shape: 'heavy', label: 'JPEL 1部' },

@@ -416,6 +416,12 @@ export type ForeignClub = {
   leagueId: string
   country: Nationality
   colors: { primary: string; secondary: string }
+  /**
+   * そのクラブの格。国内チーム（Team.tier）とまったく同じ扱いで、毎年のリーグ順位で動く。
+   * 未設定なら data/clubTiers.ts の初期値が読まれる（読むときは必ず tierOf を通すこと）。
+   * 将来ここのクラブを指揮することがあるので、国内と別扱いにしないこと。
+   */
+  tier?: import('../utils/clubTier').ClubTier
   // 所属選手はクラブ側では持たない。player.teamId が唯一の持ち場（国内チームと同じ扱い）。
   // 一覧が要るときは utils/rosterSync の clubMemberIds() で引く
 }

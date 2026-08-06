@@ -25,7 +25,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
-import { tierOf, tierOfPlayerClub } from '../../utils/clubTier'
+import { tierOf, tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import { fmtYen } from '../../utils/money'
 
 
@@ -249,6 +249,8 @@ function ChatView({
     acceptIncomingOffer, counterAllIncomingOffers, declineIncomingOffer,
     acceptIncomingLoanOffer, declineIncomingLoanOffer, resolveStayOrLeave,
   } = useGameStore()
+  // 海外クラブの格も毎年動くので、格を引くときは国内＋海外をまとめて渡す（allTieredClubs）
+  const foreignLeagues = useGameStore(s => s.foreignLeagues)
   const longPress = usePlayerLongPress()
   void openPlayerSheet
 
@@ -785,7 +787,7 @@ function ChatView({
       if (!freeContact) return false
       const fcRaces = Math.max(1, currentSeason.currentRaceIndex ?? 0)
       const fcFrac = seasonAppearances(player.id, currentSeason.races) / fcRaces
-      return freeContactConsent(player, tierOf(teams.find(t => t.id === freeContact.fromTeamId)), tierOfPlayerClub(player.teamId, teams), fcFrac, fcRaces)
+      return freeContactConsent(player, tierOf(teams.find(t => t.id === freeContact.fromTeamId)), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), fcFrac, fcRaces)
     })()
 
     const buildContractButtons = (): ReplyBtns | null => {
@@ -1035,6 +1037,7 @@ function ChatView({
 
 function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
   const { players, teams, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
+  const foreignLeagues = useGameStore(s => s.foreignLeagues)
   // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
   // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
   // 選ぶと「いいだろう、その条件で成立だ」と言われるのに選手は動かなかった
@@ -1072,7 +1075,7 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
     const consentBonus = ratio >= 1.2 ? 0.15 : 0
     let blockMsg = ''
     for (const rp of getPlayers) {
-      const consent = playerConsentToMove(rp, myTier, tierOfPlayerClub(rp.teamId, teams), 0.5, 0, consentBonus)
+      const consent = playerConsentToMove(rp, myTier, tierOfPlayerClub(rp.teamId, allTieredClubs(teams, foreignLeagues)), 0.5, 0, consentBonus)
       if (!consent.ok) { blockMsg = consent.reason; break }
     }
     const nextRound = (neg?.round ?? 0) + 1

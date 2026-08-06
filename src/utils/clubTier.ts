@@ -190,6 +190,45 @@ export function tierFromDomesticRank(rank: number): ClubTier {
   return DOMESTIC_BOTTOM_TIER
 }
 
+// ── 海外（9リーグ×20クラブ）─────────────────────────────────────
+//
+// 海外クラブの格も毎年動く。国内と扱いを分けない（いずれこちらのクラブを指揮することがある）。
+// 違うのは「どの順位表で決まるか」だけで、国内は国内通し順位、海外は所属リーグの順位。
+//
+// リーグごとに帯があり、クラブはその中を上下する。リーグ同士の入れ替えは無いので、
+// 東アフリカの最下位がアジアの首位より格上、という関係は保たれる。
+// ★この帯が唯一の決まり。scripts/draft-club-tiers.ts もここを読む（数字を持たない）。
+
+/** 海外リーグごとの格の帯 [最上位, 最下位] */
+export const FOREIGN_TIER_BAND: Record<string, readonly [ClubTier, ClubTier]> = {
+  africa_east:     [1, 7],
+  europe_ws:       [1, 7],
+  north_america:   [1, 8],
+  africa_ns:       [3, 9],
+  europe_ne:       [3, 10],
+  oceania:         [5, 12],
+  south_america:   [7, 15],
+  asia_league:     [10, 20],
+  central_america: [10, 20],
+}
+
+/**
+ * 海外リーグの順位 → 格。
+ * 配り方は初期値を作ったときと同じ（指数0.7で下に寄せる＝上位が薄く下位が厚い）。
+ * ここを等間隔にすると、初期値と毎年の更新が食い違って国内と同じ事故になる。
+ */
+export function tierFromForeignRank(leagueId: string, rank: number, clubCount: number): ClubTier {
+  const band = FOREIGN_TIER_BAND[leagueId]
+  if (!band) return DOMESTIC_BOTTOM_TIER
+  const [top, bottom] = band
+  const n = Math.max(1, clubCount)
+  if (n <= 1) return top
+  const i = Math.max(0, Math.min(n - 1, Math.round(rank) - 1))
+  const t = top + Math.round((bottom - top) * Math.pow(i / (n - 1), 0.7))
+  // 格1は世界の数クラブだけ。順位で1に上がってくることはさせない（初期値と同じ扱い）
+  return Math.min(20, Math.max(2, t)) as ClubTier
+}
+
 // ── 読み口 ───────────────────────────────────────────────────────
 
 type TieredTeam = { id?: string; tier?: ClubTier; initialRank?: Team['initialRank'] }
@@ -213,20 +252,40 @@ export function tierOf(team: TieredTeam | undefined): ClubTier {
   return tierFromDomesticRank(team.initialRank ?? DOMESTIC_CLUB_COUNT)
 }
 
-/** クラブIDから直接引く（海外クラブは Team ではないのでこちらを使う） */
+/**
+ * クラブIDから直接引く。**初期値しか見ない**ので、毎年動いた格は拾えない。
+ * クラブの実体（Team / ForeignClub）が手元にあるなら tierOf を使うこと。
+ */
 export function tierOfClubId(clubId: string): ClubTier {
   return (CLUB_TIER_BY_ID[clubId] as ClubTier) ?? DOMESTIC_BOTTOM_TIER
 }
 
 /**
- * その選手の所属クラブの格。国内クラブ（Team を持つ）・海外クラブ（IDだけ）・
- * 無所属（FA）のどれでも通る入口。無所属は undefined を返す。
+ * 国内チームと海外クラブを1つの配列にまとめる。格を引くときの「クラブ一覧」はこれ。
+ *
+ * 国内・海外で別の引き方をしないための入口。どちらも `{ id, tier }` を持つので、
+ * tierOf から見れば区別が要らない（いずれ海外のクラブを指揮することがあるので、
+ * ここで分けてしまうとその時に全部書き直しになる）。
+ */
+export function allTieredClubs(
+  teams: readonly TieredTeam[] | undefined,
+  foreignLeagues?: readonly { clubs: readonly TieredTeam[] }[],
+): TieredTeam[] {
+  return [...(teams ?? []), ...(foreignLeagues ?? []).flatMap(l => [...l.clubs])]
+}
+
+/**
+ * その選手の所属クラブの格。国内クラブ・海外クラブ・無所属（FA）のどれでも通る入口。
+ * 無所属は undefined を返す。
+ *
+ * clubs には allTieredClubs で国内＋海外をまとめて渡すこと。渡さなかったクラブは
+ * data/clubTiers.ts の初期値になる（＝毎年動いたぶんが反映されない）。
  */
 export function tierOfPlayerClub(
-  teamId: string | undefined, teams?: readonly TieredTeam[],
+  teamId: string | undefined, clubs?: readonly TieredTeam[],
 ): ClubTier | undefined {
   if (!teamId) return undefined
-  const t = teams?.find(x => x.id === teamId)
+  const t = clubs?.find(x => x.id === teamId)
   if (t) return tierOf(t)
   return CLUB_TIER_BY_ID[teamId] as ClubTier | undefined
 }

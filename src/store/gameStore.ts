@@ -82,7 +82,7 @@ import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
-import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
   pool: Player[]
@@ -1591,7 +1591,7 @@ export const useGameStore = create<GameStore>()(
               // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。
               // ここは自動成立なので断られても札は消さず、別のクラブ・別のレースで話が来るのを待つ
               if (!appraiseMove(p, get().destinationOf(buyerTeamId, p), {
-                srcTier: tierOfPlayerClub(listing.fromTeamId, state.teams),
+                srcTier: tierOfPlayerClub(listing.fromTeamId, allTieredClubs(state.teams, state.foreignLeagues)),
                 playFraction: 0.5, teamRaces: 0, clubBlessed: true,
               }).ok) continue
               movedThisRace.add(p.id)
@@ -1646,7 +1646,7 @@ export const useGameStore = create<GameStore>()(
             const isRetiringFl = (state.currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
             const leaves = suitorSize >= 30 || isRetiringFl ? false
               : pl.contract.yearsLeft > 1 ? false
-              : freeContactConsent(pl, tierOf(suitor), tierOfPlayerClub(pl.teamId, state.teams), flFrac, nextRaceIndex)
+              : freeContactConsent(pl, tierOf(suitor), tierOfPlayerClub(pl.teamId, allTieredClubs(state.teams, state.foreignLeagues)), flFrac, nextRaceIndex)
             freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
             if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
           })
@@ -1690,7 +1690,7 @@ export const useGameStore = create<GameStore>()(
           }
           const rosterCountOf = (tid: string) => finalPlayers.filter(p => p.teamId === tid && p.status !== 'retired').length
           const rivalsFor = (target: Player) => {
-            const srcTier = tierOfPlayerClub(target.teamId, state.teams)
+            const srcTier = tierOfPlayerClub(target.teamId, allTieredClubs(state.teams, state.foreignLeagues))
             return state.teams
               .filter(t => t.id !== playerTeamId && t.id !== target.teamId && rosterCountOf(t.id) < ROSTER_MAX)
               .filter(t => needsPlayer(activeRosterByTeam.get(t.id) ?? [], target))
@@ -2779,7 +2779,7 @@ export const useGameStore = create<GameStore>()(
       destinationOf: (clubId, player) => {
         const state = get()
         const team = state.teams.find(t => t.id === clubId)
-        const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, state.teams) ?? tierOfClubId(clubId))
+        const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, allTieredClubs(state.teams, state.foreignLeagues)) ?? tierOfClubId(clubId))
         const inEcl = (state.currentSeason.eclSeries?.participants ?? []).some(pt => pt.id === clubId)
         // 国内は順位表、海外はそのリーグの順位表から順位を引く
         let leagueRank: number | undefined
@@ -2835,7 +2835,7 @@ export const useGameStore = create<GameStore>()(
         const races = Math.max(0, state.currentSeason.currentRaceIndex ?? 0)
         const frac = races > 0 ? seasonAppearances(playerId, state.currentSeason.races) / races : 0.5
         const ctx = {
-          srcTier: tierOfPlayerClub(player.teamId, state.teams),
+          srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
           playFraction: frac, teamRaces: races, clubBlessed: true,
         }
         const ranked = rankOffers(player, offers.map(o => get().destinationOf(o.fromTeamId, player)), ctx)
@@ -2858,7 +2858,7 @@ export const useGameStore = create<GameStore>()(
         // clubBlessed=true：移籍金はクラブ間で合意済み。「主力だから残りたい」の減点は掛けず、
         // 本人は行き先の姿だけで決める（買う側の finalizeTransfer と同じ渡し方）
         return appraiseMove(player, get().destinationOf(toTeamId, player), {
-          srcTier: tierOfPlayerClub(player.teamId, state.teams),
+          srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
           playFraction: frac, teamRaces: races, clubBlessed: true,
         }).ok
       },
@@ -3070,7 +3070,7 @@ export const useGameStore = create<GameStore>()(
             const fcRaces = Math.max(1, state.currentSeason.currentRaceIndex)
             const fcFrac = seasonAppearances(player.id, state.currentSeason.races) / fcRaces
             const suitorTier = tierOf(state.teams.find(t => t.id === freeContact.fromTeamId))
-            if (freeContactConsent(player, suitorTier, tierOfPlayerClub(player.teamId, state.teams), fcFrac, fcRaces)) {
+            if (freeContactConsent(player, suitorTier, tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces)) {
               // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
               return {
                 currentSeason: {
@@ -3857,7 +3857,7 @@ export const useGameStore = create<GameStore>()(
         const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
         // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
         // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
-        const consent = playerConsentToMove(player, tierOf(myTeam), tierOfPlayerClub(player.teamId, state.teams), 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
+        const consent = playerConsentToMove(player, tierOf(myTeam), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
         if (!consent.ok) {
           // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
           set(s => ({
@@ -4158,7 +4158,7 @@ export const useGameStore = create<GameStore>()(
         const myTierNow = tierOf(state.teams.find(t => t.id === state.playerTeamId))
         const consentBonusT = tradeVals.ratio >= 1.2 ? 0.15 : 0
         for (const rp of requested) {
-          if (!playerConsentToMove(rp, myTierNow, tierOfPlayerClub(rp.teamId, state.teams), 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
+          if (!playerConsentToMove(rp, myTierNow, tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
         }
 
         function matchPick(picks: typeof state.teams[0]['draftPicks'], key: string) {
@@ -4281,7 +4281,7 @@ export const useGameStore = create<GameStore>()(
         let hardNo = ''
         for (const id of getIds) {
           const rp = state.players.find(p => p.id === id); if (!rp) continue
-          if (!playerConsentToMove(rp, myTierT, tierOfPlayerClub(rp.teamId, state.teams), 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
+          if (!playerConsentToMove(rp, myTierT, tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
         }
 
         let status: TradeNegotiation['status'] = 'countered'
@@ -5960,6 +5960,23 @@ export const useGameStore = create<GameStore>()(
             state.foreignLeagues ?? [], playersWithLoanHistory, state.currentSeason.foreignStandings ?? {},
           )
 
+          // 海外クラブの格も今季のリーグ順位で動かす。国内（Team.tier）とまったく同じ扱いで、
+          // 違うのは「どの順位表で決まるか」だけ。順位表はあるのに格へ返していなかったので、
+          // 海外クラブの格は初期値のまま一生固定だった（最下位を続けても格1のまま）。
+          const foreignStandingsFinal = state.currentSeason.foreignStandings ?? {}
+          const leaguesWithTier = foreignRefresh.updatedLeagues.map(lg => {
+            const rows = rankedStandings(foreignStandingsFinal[lg.id] ?? [])
+            if (rows.length === 0) return lg   // 1戦もしていないリーグは触らない
+            const rankOf = new Map(rows.map((r, i) => [r.clubId, i + 1]))
+            return {
+              ...lg,
+              clubs: lg.clubs.map(c => {
+                const rank = rankOf.get(c.id)
+                return rank == null ? c : { ...c, tier: tierFromForeignRank(lg.id, rank, rows.length) }
+              }),
+            }
+          })
+
           // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
           // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。
           const foreignBasePlayers = [
@@ -5969,13 +5986,13 @@ export const useGameStore = create<GameStore>()(
           let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[]; records: TransferRecord[] }
           try {
             foreignTx = simulateForeignTransferMarket({
-              foreignLeagues: foreignRefresh.updatedLeagues,
+              foreignLeagues: leaguesWithTier,
               players: foreignBasePlayers,
               year: newYear,
             })
           } catch (e) {
             console.error('simulateForeignTransferMarket failed', e)
-            foreignTx = { foreignLeagues: foreignRefresh.updatedLeagues, players: foreignBasePlayers, news: [], records: [] }
+            foreignTx = { foreignLeagues: leaguesWithTier, players: foreignBasePlayers, news: [], records: [] }
           }
 
           // シーズンオフの日本↔海外クロスボーダー移籍（CPU同士）。プレイヤーのチームは対象外。
