@@ -14,7 +14,7 @@ import { LineupPhase } from './LineupPhase'
 import { SimPhase } from './SimPhase'
 import { ResultsPhase } from './ResultsPhase'
 import { useAdHeight } from '../layout/Layout'
-import { buildAILineup } from '../../engine/raceEngine'
+import { buildCpuLineups } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
 import { C, alpha } from '../../styles/tokens'
@@ -459,12 +459,8 @@ export default function RacePage() {
     setLockedRaceIndex(raceIndex)
     setActiveRaceLocked(currentRace, raceIndex)
 
-    // Build CPU lineups
-    const cpuLineups: Record<string, Record<number, string>> = {}
-    for (const team of teams) {
-      if (team.id === playerTeamId) continue
-      cpuLineups[team.id] = buildAILineup(team.id, players, currentRace)
-    }
+    // 出走するのは自分と同じ部のチームだけ。判定は engine/raceEngine.ts の1本
+    const cpuLineups = buildCpuLineups(teams, players, currentRace, playerTeamId)
 
     const initialSim: ISim = {
       cpuLineups,
@@ -704,11 +700,7 @@ export default function RacePage() {
     setLockedRaceIndex(raceIndex)
     setActiveRaceLocked(currentRace, raceIndex)
     const race = currentRace
-    const cpuLineups: Record<string, Record<number, string>> = {}
-    for (const team of teams) {
-      if (team.id === playerTeamId) continue
-      cpuLineups[team.id] = buildAILineup(team.id, players, race)
-    }
+    const cpuLineups = buildCpuLineups(teams, players, race, playerTeamId)
     const seasonProgress = raceIndex / currentSeason.races.length
     const totalSegs = race.segments.length
     let completedSegs: ReturnType<typeof finalizeSegment>[] = []

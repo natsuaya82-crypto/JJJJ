@@ -1,6 +1,6 @@
 import type { Player, Specialty, RaceResults, Race, Team, Segment } from '../types'
 import type { TraitId } from '../utils/traitUtils'
-import { positionPointsFor } from '../utils/league'
+import { positionPointsFor, divisionOf, teamsInDivision } from '../utils/league'
 
 // セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
 // 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
@@ -317,6 +317,30 @@ function resolveSegmentEvents(ratings: Player['ratings'], isLastSeg: boolean): n
     }
   }
   return timeMult
+}
+
+/**
+ * そのレースに出るCPUチームの区間割り当てをまとめて組む。
+ *
+ * ★「誰が走るか」はここ1本。**自分と同じ部のチームだけ**が出走する。
+ *   以前は gameStore.runRace（スキップ進行）と RacePage（中継つき）の2箇所で
+ *   lineups を手書きしていて、RacePage 側だけ部で絞っていなかった。
+ *   その結果、中継で走ると52チーム全員が参加し、3部のチームが1部の相手に混ざって
+ *   「3部なのに48位」になっていた。順位ポイントも参加チーム数から出すので全部ずれる。
+ */
+export function buildCpuLineups(
+  teams: readonly Team[],
+  players: Player[],
+  race: Race,
+  playerTeamId: string,
+): Record<string, Record<number, string>> {
+  const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
+  const out: Record<string, Record<number, string>> = {}
+  for (const team of teamsInDivision(teams, myDivision)) {
+    if (team.id === playerTeamId) continue
+    out[team.id] = buildAILineup(team.id, players, race)
+  }
+  return out
 }
 
 export function simulateRace(

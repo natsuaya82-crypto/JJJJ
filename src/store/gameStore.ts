@@ -27,7 +27,7 @@ export const MY_PLAYER_TOTAL: Record<MyPlayerKind, number> = { inaugural: 500, g
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
-import { simulateRace, buildAILineup, calcWeatherModifier } from '../engine/raceEngine'
+import { simulateRace, buildCpuLineups, calcWeatherModifier } from '../engine/raceEngine'
 import { simulateAwayDivisions, applyAwayDivisionRound } from '../engine/domesticLeague'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
@@ -1116,14 +1116,13 @@ export const useGameStore = create<GameStore>()(
         const race = currentSeason.races[raceIndex]
         const seasonProgress = raceIndex / currentSeason.races.length
 
-        // 出走するのは自分と同じ部のチームだけ。
-        // 「誰が走るか」の唯一の出どころは、ここで組む lineups のキー（raceEngine.ts:329）。
-        // レースデータ側に参加チームを書く場所は用意していない（2箇所あると必ずズレるため）。
+        // 出走するのは自分と同じ部のチームだけ。判定は engine/raceEngine.ts の buildCpuLineups 1本。
+        // 以前はここと RacePage（中継つきレース）の2箇所に手書きしていて、RacePage 側だけ
+        // 部で絞っていなかった（3部なのに52チームで走って48位になっていた）。
         const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
-        const lineups: Record<string, Record<number, string>> = { [playerTeamId]: lineup }
-        for (const team of teamsInDivision(teams, myDivision)) {
-          if (team.id === playerTeamId) continue
-          lineups[team.id] = buildAILineup(team.id, players, race)
+        const lineups: Record<string, Record<number, string>> = {
+          [playerTeamId]: lineup,
+          ...buildCpuLineups(teams, players, race, playerTeamId),
         }
 
         const playersForSimFinal = applyRaceBoosts(players, teams, playerTeamId, lineup)
@@ -1352,13 +1351,18 @@ export const useGameStore = create<GameStore>()(
             const newMorale = Math.max(10, Math.min(100, (p.morale ?? 70) + moraleDelta + (segWin ? 5 : 0) - roleBenchPenalty))
 
             // 成長は「所属していれば全員同じだけ」。走ったかどうかで分けない。
-            // 1レースぶんの一律EXP＝年間ぶん ÷ そのシーズンのレース数。
+            // 1レースぶんの一律EXP＝年間ぶん ÷ レース数 ÷ 能力数。
             // 前は「走った選手＝走った区間の地形別EXP／走らなかった選手＝全能力50EXP」と
             // 分かれていて、出場機会の差がそのまま育成の差になっていた。
+            //
+            // ★能力数で割るのを忘れないこと。ANNUAL_BASE_EXP は「1年ぶんの合計」であって
+            //   1能力あたりではない（CPU側の growPlayer も / GROW_KEYS.length している）。
+            //   割らずに7能力それぞれへ配っていたため、自チームだけ7倍もらっていた。
             let newRatings = { ...p.ratings }
             let newExp = { ...(p.exp ?? {}) } as Partial<Record<CardStatKey, number>>
             if (p.status === 'active') {
-              const perRace = Math.round(ANNUAL_BASE_EXP / Math.max(1, (state.currentSeason.races ?? []).length))
+              const races = Math.max(1, (state.currentSeason.races ?? []).length)
+              const perRace = Math.round(ANNUAL_BASE_EXP / races / GROW_STAT_KEYS.length)
               const seasonGains: Partial<Record<CardStatKey, number>> = {
                 speed: perRace, stamina: perRace, mountainUp: perRace, mountainDown: perRace,
                 pacing: perRace, mental: perRace, recovery: perRace,
@@ -8509,9 +8513,18 @@ function generateTransferActivity(
   const offeringTeams = new Set(validIncoming.map(o => o.fromTeamId))
   const wantToLeaveIds = new Set(transferRequests.map(r => r.playerId))
 
-  for (const team of aiTeams) {
+  // ★開幕直後は打診が来ない。51クラブが毎レース抽選するので、何もしないと
+  //   1戦目でいきなり5件並ぶ（期待値で13クラブが動く）。
+  //   シーズンが少し進んで、その選手の出来が見えてから動き出す形にする。
+  const OFFER_START_RACE = 3
+  // ★1レースに増える新規の打診はここまで。まとめて来るのではなく少しずつ増える
+  const MAX_NEW_OFFERS_PER_RACE = 2
+
+  for (const team of raceIndex < OFFER_START_RACE ? [] : aiTeams) {
+    if (newIncoming.length >= MAX_NEW_OFFERS_PER_RACE) break
     if (offeringTeams.has(team.id)) continue
     const teamPlayers = players.filter(p => p.teamId === team.id)
+    const teamRoster = teamPlayers.filter(p => p.status === 'active')
     const tier = cpuTeamTier(team.id, players)
     const needsSlot = teamPlayers.length < 20
     // 打診の発生率を引き上げ（35/20/8% → 45/30/15%。自チームに打診がほぼ来ない問題の緩和）
@@ -8523,20 +8536,20 @@ function generateTransferActivity(
 
     if (!needsSlot && !wantsUpgrade && !hasTransferTarget) continue
 
-    const needs = cpuSpecialtyNeeds(team.id, players)
     const minTargetOvr = needsSlot
       ? (tier === 'elite' ? 72 : 65)
       : (tier === 'elite' ? 78 : 73)
 
-    // 高齢選手（34歳超）は移籍金オファーの対象外。並びも年齢調整OVR（33歳以上は減点）で若い実力者を優先
-    let targets = playerTeamPlayers.filter(p => !offerTargets.has(p.id) && ovr(p) >= minTargetOvr && p.age <= 34)
+    // 高齢選手（34歳超）は移籍金オファーの対象外。並びも年齢調整OVR（33歳以上は減点）で若い実力者を優先。
+    // ★そのクラブが本当に必要としているタイプだけを狙う（utils/squadNeeds.ts の needsPlayer）。
+    //   買う側の取り合い（rivalsFor）と同じ判定で、ここに新しい条件を書かないこと。
+    //   以前は cpuSpecialtyNeeds（人数が2人未満のタイプ）を並び替えの優先にしか使っておらず、
+    //   足りているタイプのエースにも打診が飛んでいた（買う側と非対称だった）。
+    let targets = playerTeamPlayers.filter(p =>
+      !offerTargets.has(p.id) && ovr(p) >= minTargetOvr && p.age <= 34 && needsPlayer(teamRoster, p))
     // Prioritize players who want to leave
     const wantLeaveTargets = targets.filter(p => wantToLeaveIds.has(p.id))
     if (wantLeaveTargets.length > 0) targets = wantLeaveTargets
-    else {
-      const specTargets = targets.filter(p => needs.includes(p.specialty))
-      if (specTargets.length > 0) targets = specTargets
-    }
     if (targets.length === 0) continue
     const adjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
     targets.sort((a, b) => adjOvr(b) - adjOvr(a))
@@ -8623,7 +8636,10 @@ function getPrimaryKey(specialty: string): RatingsKey {
 // growPlayer: 年齢増加・自然老化（ピーク後の衰え）＋加齢によるポテンシャル上限の減衰。
 // 自チームの成長はレース/カードEXPで行うため allowAnnualGrowth=false。
 // CPU/海外は allowAnnualGrowth=true で毎年ポテンシャル上限へ向けて成長させる（高数値ほど鈍化）。
-const GROW_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+// 一律EXPを配る能力の一覧。自チーム（毎レース）とCPU（年1回）で同じものを使う。
+// 2つ持つと「片方は7能力に配る・もう片方は各能力へ丸ごと」のようにズレる（実際にズレていた）
+const GROW_STAT_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+const GROW_KEYS = GROW_STAT_KEYS
 function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrowth: import('../utils/clubTier').ClubTier = 20): Player {
   const peakAge = peakAgeOf(p)
   const nextAge = p.age + 1
