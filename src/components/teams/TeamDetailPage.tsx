@@ -18,7 +18,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
-import { rankedStandings, rankOfTeam } from '../../utils/league'
+import { rankedStandings, domesticThroughRankOfTeam, domesticThroughRank, DIVISIONS, DIVISION_SIZE, DIVISION_LABEL } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -32,8 +32,10 @@ function fmtDate(d: string | undefined, year: number): string {
   return `${year}年`
 }
 
-// 歴代成績の折れ線グラフ（順位なので上が1位になるようY軸反転）
-function RankHistoryChart({ history, color }: { history: { year: number; rank: number; total: number }[]; color: string }) {
+// 歴代成績の折れ線グラフ（順位なので上が1位になるようY軸反転）。
+// 国内は通し順位（1〜52）なので、部の境目に点線を引く。
+// いちばん上が1部1位、次の点線のすぐ下が2部1位、その次が3部1位
+function RankHistoryChart({ history, color, divisionBands }: { history: { year: number; rank: number; total: number }[]; color: string; divisionBands?: boolean }) {
   const maxRank = Math.max(2, ...history.map(h => h.total), ...history.map(h => h.rank))
   const W = 320, H = 150, padL = 20, padR = 20, padT = 18, padB = 26
   const plotW = W - padL - padR, plotH = H - padT - padB
@@ -45,6 +47,16 @@ function RankHistoryChart({ history, color }: { history: { year: number; rank: n
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
       <line x1={padL} x2={W - padR} y1={y(1)} y2={y(1)} stroke="#C9A84C" strokeWidth="0.5" opacity="0.35" strokeDasharray="3 3"/>
       <line x1={padL} x2={W - padR} y1={y(maxRank)} y2={y(maxRank)} stroke="#2E2B42" strokeWidth="0.5"/>
+      {/* 部の境目。点線のすぐ下がその部の1位（2部1位＝21位、3部1位＝37位） */}
+      {divisionBands && DIVISIONS.slice(1).map(d => {
+        const top = domesticThroughRank(d, 1)
+        return (
+          <g key={d}>
+            <line x1={padL} x2={W - padR} y1={y(top) - 3} y2={y(top) - 3} stroke="#5C5870" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.7"/>
+            <text x={W - padR} y={y(top) - 5} textAnchor="end" fontSize="7" fill="#5C5870" fontFamily={SAIRA}>{DIVISION_LABEL[d]}</text>
+          </g>
+        )
+      })}
       {n > 1 && <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.85"/>}
       {history.map((h, i) => {
         const col = h.rank === 1 ? '#C9A84C' : h.rank <= 3 ? '#4CAF50' : '#9B97A8'
@@ -136,7 +148,8 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     : currentSeason.standings.find(s => s.teamId === id)
   const rank = isForeign
     ? rankedStandings(curForeignStandings).findIndex(s => s.clubId === id) + 1
-    : rankOfTeam(currentSeason.standings, id)
+    // 得点で52チームを直接並べない（部ごとにレース数が違う）。部内順位→通し順位で出す
+    : domesticThroughRankOfTeam(currentSeason.standings, teams, id)
   const standingPoints = standing?.totalPoints ?? 0
   const recentForm = (standing?.raceResults ?? []).slice(-4)
   const completedRaces = isForeign
@@ -150,9 +163,10 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
       const r = st.findIndex(x => x.clubId === id) + 1
       return { year: s.year, rank: r, total: st.length }
     }
-    const sorted = rankedStandings((s.standings ?? []))
-    const r = sorted.findIndex(x => x.teamId === id) + 1
-    return { year: s.year, rank: r, total: sorted.length }
+    // 国内は通し順位（1〜52）。得点で52チームを直接並べると3部が2部を追い抜く。
+    // 過去シーズンは当時の部を保存していないので、いまの部で数えている
+    const r = domesticThroughRankOfTeam(s.standings, teams, id)
+    return { year: s.year, rank: r, total: DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0) }
   }).filter(h => h.rank > 0).slice(-8)
 
   // トロフィー
@@ -474,7 +488,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                 {historyRanks.length === 0 ? (
                   <div style={{ fontSize: '11px', color: '#3A3758', textAlign: 'center', padding: '12px 4px' }}>まだ過去シーズンの記録がありません</div>
                 ) : (
-                  <RankHistoryChart history={historyRanks} color={colors.primary} />
+                  <RankHistoryChart history={historyRanks} color={colors.primary} divisionBands={!isForeign} />
                 )}
               </div>
             </div>

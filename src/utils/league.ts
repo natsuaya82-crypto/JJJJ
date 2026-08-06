@@ -117,6 +117,25 @@ export function rankOfTeam(rows: readonly { teamId: string; totalPoints: number 
   return rankedStandings(rows).findIndex(r => r.teamId === teamId) + 1
 }
 
+/**
+ * 国内クラブの「通し順位」（1〜52）。部内順位を出してから domesticThroughRank へ通す。
+ * **順位表の得点で52チームを直接並べてはいけない**（部ごとにレース数が10/8/7と違うので
+ * 3部が2部を追い抜く）。チーム詳細の順位・歴代成績もここを通すこと。
+ */
+export function domesticThroughRankOfTeam(
+  standings: readonly { teamId: string; totalPoints: number }[] | undefined,
+  teams: readonly Pick<Team, 'id' | 'division'>[],
+  teamId: string,
+): number {
+  const team = teams.find(t => t.id === teamId)
+  if (!team) return 0
+  const div = divisionOf(team)
+  const idsInDiv = new Set(teams.filter(t => divisionOf(t) === div).map(t => t.id))
+  const inDiv = rankedStandings((standings ?? []).filter(r => idsInDiv.has(r.teamId)))
+  const at = inDiv.findIndex(r => r.teamId === teamId)
+  return at < 0 ? 0 : domesticThroughRank(div, at + 1)
+}
+
 /** 年間王者の行。1戦もしていなければ全員0点なので、先頭のチームが返る */
 export function championRow<T extends RankableRow>(rows: readonly T[] | undefined): T | undefined {
   return rankedStandings(rows)[0]

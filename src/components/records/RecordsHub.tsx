@@ -4,7 +4,7 @@ import { teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
-import { rankOfTeam } from '../../utils/league'
+import { rankOfTeam, domesticThroughRankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -20,7 +20,8 @@ export default function RecordsHub() {
     ? pastSeasons.filter(s2 => [...(s2.standings ?? [])].sort((a2, b2) => b2.totalPoints - a2.totalPoints)[0]?.teamId === teamIdAt(s2.year)).length
     : teamHistoryOf(pastSeasons, playerTeamId).championships
   const completedRaces = currentSeason.races.filter(r => r.results).length
-  const myStanding = rankOfTeam(currentSeason.standings, playerTeamId)
+  // 自分の部の中での順位（得点で52チームを通すと部が混ざる）
+  const myStanding = domesticThroughRankOfTeam(currentSeason.standings, useGameStore.getState().teams, playerTeamId)
 
   const SECTIONS = [
     {

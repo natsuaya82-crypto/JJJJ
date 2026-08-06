@@ -3169,7 +3169,9 @@ export const useGameStore = create<GameStore>()(
               }
             }
           }
-          const myRank = rankOfTeam(state.currentSeason.standings, state.playerTeamId)
+          // 「強豪か」は自分の部の中での順位で見る（52チームを得点で通すと部が混ざる）
+          const myDivForRank = divisionOf(state.teams.find(t => t.id === state.playerTeamId))
+          const myRank = rankOfTeam(state.currentSeason.standings.filter(st2 => divisionOf(state.teams.find(t => t.id === st2.teamId)) === myDivForRank), state.playerTeamId)
           const isGoodTeam = myRank > 0 && myRank <= 5
           const personality = player.personality ?? 'salary'
           const roundFactor = 1 + (req.round - 1) * 0.03
@@ -5756,7 +5758,9 @@ export const useGameStore = create<GameStore>()(
           // AI will sign remaining FAs when beginSeasonDraft is called
 
           // Check objectives + award scout points + budget rewards
-          const finalRank = rankOfTeam(state.currentSeason.standings, state.playerTeamId)
+          // 目標の順位は自分の部の中での順位（「3位以内」は自分の部での3位）
+          const myDivFinal = divisionOf(state.teams.find(t => t.id === state.playerTeamId))
+          const finalRank = rankOfTeam(state.currentSeason.standings.filter(st2 => divisionOf(state.teams.find(t => t.id === st2.teamId)) === myDivFinal), state.playerTeamId)
           const playerBudgetAtSeasonEnd = teamsWithFA.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
           const completedObjs = (state.currentSeason.objectives ?? []).map(obj => {
             if (obj.done) return obj
