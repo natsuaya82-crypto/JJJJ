@@ -501,8 +501,10 @@ function ChatView({
       reason: appraisal?.ok === false ? appraisal.reason : undefined,
     })
     append({ from: 'player', text: `（代理人）${r.text}` })
-    // 売れた時点で本人がチームを離れるので、レンタルの話も同時に終わる
+    // 売れた時点で本人がチームを離れるので、レンタルの話も同時に終わる。
+    // 'pending'（1レース待って決着）は返事が済んだ扱い＝買い取りの返事だけ閉じる
     if (outcome === 'sold') { setSettledOffer(true); setSettledLoan(true) }
+    else if (outcome === 'pending') setSettledOffer(true)
   }
 
   const handleSubmitTransferOffer = () => {

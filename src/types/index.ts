@@ -674,6 +674,11 @@ export type Season = {
   secondTeamStandings?: { teamId: string; totalPoints: number; raceResults: { raceId: string; rank: number; points: number }[] }[]
   transferListings?: TransferListing[]
   incomingOffers?: IncomingOffer[]
+  /**
+   * 「譲る」と返事をした話。決着は次のレース（その間に他クラブが上乗せしてくる）。
+   * 買う側の入札が1レース待つのと揃える（gameStore の resolvePendingSale）
+   */
+  pendingSale?: { offerId: string; playerId: string; atRaceIndex: number }
   incomingLoanOffers?: IncomingLoanOffer[]
   loanRequests?: LoanRequest[]
   loanResponses?: LoanResponse[]

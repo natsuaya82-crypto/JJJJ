@@ -18,6 +18,7 @@ export type OfferOutcome =
   | 'refused_by_player'  // クラブは合意したが、本人が行くことを断った。今季はこの選手への打診が来なくなる
   | 'roster_min'  // 自チームが下限人数。放出できない。オファーの札は残す
   | 'invalid'     // 選手が対象外になった（引退の話が決まった等）。札は取り下げる
+  | 'pending'     // 譲ると返事はした。決着は次のレース（その間に他クラブが上乗せしてくる）
 
 const man = (v: number) => `${Math.round(v / 10000).toLocaleString()}万`
 
@@ -39,6 +40,8 @@ export function offerResultText(
       return { text: `${a.playerName}が${a.teamName}への移籍を断りました。${a.reason ? `${a.reason}とのことです。` : ''}今季はこの話は進みません`, ok: false }
     case 'roster_min':
       return { text: `ロスターが下限の${ROSTER_MIN}人のため、${a.playerName}を放出できません。補強してから改めて返事をしてください（オファーはそのまま残っています）`, ok: false }
+    case 'pending':
+      return { text: `${a.teamName}へ譲ると返事をしました。次のレースまでに他クラブが上乗せしてくることがあります。最終的な移籍先は${a.playerName}が選びます`, ok: true }
     case 'invalid':
       return { text: `${a.playerName}は移籍の対象外になったため、${a.teamName}のオファーは取り下げられました`, ok: false }
   }

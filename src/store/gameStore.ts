@@ -404,7 +404,8 @@ export type GameStore = GameState & {
   // クラブが合意したあと、本人がそのクラブへ行くことに納得するか（売る側の同意ゲート）
   consentToLeave: (playerId: string, toTeamId: string, fromForeign?: boolean) => boolean
   // 返り値は utils/offerResult の OfferOutcome 1本。逆提示(counterIncomingOffer)と同じ言葉で返す
-  acceptIncomingOffer: (offerId: string) => OfferOutcome
+  /** now=true は決着処理からの呼び出し。通常は1レース待つ「予約」になる */
+  acceptIncomingOffer: (offerId: string, now?: boolean) => OfferOutcome
   declineIncomingOffer: (offerId: string) => void
   acceptIncomingLoanOffer: (offerId: string) => boolean
   declineIncomingLoanOffer: (offerId: string) => void
@@ -1113,6 +1114,48 @@ export const useGameStore = create<GameStore>()(
       clearRaceLineup: () => set({ raceLineup: {} }),
 
       runRace: (lineup, segmentTactics, preComputedResults) => {
+        // ── 「譲る」と返事をした話の決着 ─────────────────────────────
+        // 買う側の入札が1レース待つのに、売る側だけタップで即成立していたので揃える。
+        // 待っているあいだに、同じ選手を欲しがっている他クラブが上乗せしてくる。
+        // 最後にどこへ行くかは本人が選ぶ（判定は rankIncomingOffers＝transferDecision 1本）
+        {
+          const cs0 = get().currentSeason
+          const ps = cs0.pendingSale
+          if (ps) {
+            // 他クラブの上乗せ。出せる上限はクラブの年間予算の TRANSFER_BUDGET_SHARE（買う側と同じ）
+            set(st => {
+              const offers = (st.currentSeason.incomingOffers ?? []).filter(o => o.playerId === ps.playerId && o.offeredPrice > 0)
+              const top = Math.max(...offers.map(o => o.offeredPrice), 0)
+              const clubs = allTieredClubs(st.teams, st.foreignLeagues)
+              const raised = (st.currentSeason.incomingOffers ?? []).map(o => {
+                if (o.id === ps.offerId || o.playerId !== ps.playerId || o.offeredPrice <= 0) return o
+                const cap = Math.round(tierBudget(clubs.find(c => c.id === o.fromTeamId)) * TRANSFER_BUDGET_SHARE)
+                const want = top + 10_000_000
+                // 半々で勝負に出る。払えないクラブは降りる（＝上乗せしない）
+                if (Math.random() < 0.5 || want > cap) return o
+                return { ...o, offeredPrice: want }
+              })
+              return { currentSeason: { ...st.currentSeason, incomingOffers: raised } }
+            })
+            // 上乗せ後、本人の希望順に並べ直して行き先を決める。
+            // 誰にも納得できなければ、最初に返事をした相手のまま
+            const ranked = get().rankIncomingOffers(ps.playerId)
+            const winner = ranked.find(r => r.appraisal.ok)?.offer.id ?? ps.offerId
+            set(st => ({ currentSeason: { ...st.currentSeason, pendingSale: undefined } }))
+            const outcome = get().acceptIncomingOffer(winner, true)
+            if (outcome === 'sold' && winner !== ps.offerId) {
+              const p = get().players.find(x => x.id === ps.playerId)
+              const winnerId = ranked.find(r => r.offer.id === winner)?.offer.fromTeamId
+              const winnerName = get().teams.find(t => t.id === winnerId)?.shortName
+                ?? (get().foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === winnerId)?.shortName
+              if (p) set(st => ({ currentSeason: { ...st.currentSeason, newsFeed: [{
+                date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`,
+                headline: `${p.name}の移籍先が競り合いの末に決まった${winnerName ? `（${winnerName}）` : ''}`,
+                category: 'trade' as const, relatedIds: [p.id],
+              }, ...st.currentSeason.newsFeed].slice(0, 30) } }))
+            }
+          }
+        }
         // 期日を過ぎたECL戦を先に自動消化する。
         // ただし自チームが出場するシリーズは自動消化しない（AI配置で勝手に走らせず、プレイヤーに配置させる）。
         // 観戦（非出場）のシリーズだけAIで裏消化する。
@@ -2899,7 +2942,7 @@ export const useGameStore = create<GameStore>()(
         }).ok
       },
 
-      acceptIncomingOffer: (offerId) => {
+      acceptIncomingOffer: (offerId, now = false) => {
         const state = get()
         const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
         if (!offer) return 'invalid'
@@ -2917,6 +2960,14 @@ export const useGameStore = create<GameStore>()(
         }, offer.fromForeign)) { dropOffer(); return 'invalid' }
         // ロスター下限(15人)を割る売却は不可。札は残す＝補強してから改めて返事ができる（逆提示側と同じ）
         if (!canReleaseFromRoster(state.players, state.playerTeamId)) return 'roster_min'
+        // ★売る側も1レース待つ。買う側の入札（resolveBid）が次のレースで決着するのと揃える。
+        //   その1レースのあいだに他クラブが上乗せしてきて、最後は本人が行き先を選ぶ
+        //   （決着は runRace の頭で resolvePendingSale が行う）。
+        //   now=true はその決着から呼ばれたときで、そのまま成立させる
+        if (!now) {
+          set(st => ({ currentSeason: { ...st.currentSeason, pendingSale: { offerId, playerId: offer.playerId, atRaceIndex: st.currentSeason.currentRaceIndex ?? 0 } } }))
+          return 'pending'
+        }
         // クラブが合意しても本人が納得しなければ成立しない（買う側と同じゲート）
         if (!get().consentToLeave(offer.playerId, offer.fromTeamId, offer.fromForeign)) {
           set(st => ({
