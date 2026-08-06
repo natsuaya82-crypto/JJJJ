@@ -912,7 +912,10 @@ export const useGameStore = create<GameStore>()(
           state.teams.filter(t => t.id !== state.playerTeamId),
           state.currentSeason.year,
         )
-        const { players: prPlayers } = generatePlayerInitialRoster(state.currentSeason.year)
+        // 自チームの初期ロスターも「格」から作る。CPU・海外と同じ tierRankComposition を通るので、
+        // 3部のクラブを選べば3部相当の顔ぶれで始まる（前はどのクラブでも同じ固定の強さだった）
+        const myTeamForRoster = state.teams.find(t => t.id === state.playerTeamId)
+        const { players: prPlayers } = generatePlayerInitialRoster(state.currentSeason.year, tierOf(myTeamForRoster))
         const prPlayersWithTeam = prPlayers.map(p => ({ ...p, teamId: state.playerTeamId }))
 
         const seededTeams = state.teams.map(t => t.id === state.playerTeamId

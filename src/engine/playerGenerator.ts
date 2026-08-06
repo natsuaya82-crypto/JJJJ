@@ -1089,17 +1089,24 @@ export function generateCpuRosters(
   return { cpuPlayers, teamRosters }
 }
 
-// プレイヤーチームの初期28人生成（20位相当・最弱スタート固定）
-// 本契約12 + 2WAY3 + 育成13 = 28人（＋初回ドラフト2でロスター上限30ちょうど）、目標年俸合計約2.8億
-export function generatePlayerInitialRoster(year: number): {
+// プレイヤーチームの初期ロスター生成。
+//
+// ★中身は「格」が決める。CPU(generateCpuRosters)・海外(generateForeignLeaguePlayers)と
+//   同じ tierRankComposition / TIER_POTENTIAL_CAP を通す。
+//   以前はここだけ ['A','B'×8,'C'×3] のような固定のランク表を持っていて、
+//   どのクラブを選んでも同じ強さで始まっていた。3部のクラブを選んでもA級が1人いる、
+//   という状態になり「格でロスターが決まる」という決まりから外れていた。
+export function generatePlayerInitialRoster(year: number, tier: ClubTier): {
   players: Player[]
   mainIds: string[]
   dualIds: string[]
   secondIds: string[]
 } {
-  const MAIN_POOL: Rank[]   = ['A', 'B','B','B','B','B','B','B','B', 'C','C','C']   // 12人
-  const DUAL_POOL: Rank[]   = ['B', 'C', 'C']                                        // 3人
-  const SECOND_POOL: Rank[] = ['C','C','C','C','C','C','C', 'D','D','D','D','D','D'] // 13人
+  const comp = tierRankComposition(tier)
+  const potentialCap = TIER_POTENTIAL_CAP[tier]
+  const slots: Rank[] = []
+  for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) slots.push(r as Rank)
+  slots.sort(() => Math.random() - 0.5)
 
   const specialties: Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
@@ -1109,16 +1116,16 @@ export function generatePlayerInitialRoster(year: number): {
   const dualIds: string[] = []
   const secondIds: string[] = []
 
-  function makePRPlayer(rank: Rank, tier: 'main' | 'second', contractType: 'standard' | 'dual' | 'development'): Player {
+  function makePRPlayer(rank: Rank, i: number): Player {
     idCounter++
     const specialty = specialties[rng(0, specialties.length - 1)]
     const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    const age = tier === 'main' ? rng(20, 28) : rng(18, 24)
+    // 年齢の散らし方もCPUと同じ（18〜32を均等に。ランクとは紐づけない）
+    const age = 18 + Math.round(i * 14 / Math.max(1, INITIAL_ROSTER_SIZE - 1))
     const yearsPro = Math.max(0, age - 22)
-    const id = `pr-${contractType}-${year}-${idCounter}`
-    // 能力値の作り方は buildRatingsForRank の1本。ここだけ焼き込みが抜けていて、
-    // 自チームの26歳が「22歳の能力のまま歳だけ26」で始まっていた
-    const { ratings, potential } = buildRatingsForRank({ id, rank, specialty, growthCurve, age })
+    const id = `pr-${year}-${idCounter}`
+    // 能力値の作り方は buildRatingsForRank の1本。上限もCPUと同じくそのクラブの格
+    const { ratings, potential } = buildRatingsForRank({ id, rank, specialty, growthCurve, age, potentialCap })
     const origin = Math.random() < 0.6
       ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
       : HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
@@ -1150,21 +1157,14 @@ export function generatePlayerInitialRoster(year: number): {
     }
   }
 
-  for (const rank of [...MAIN_POOL].sort(() => Math.random() - 0.5)) {
-    const p = makePRPlayer(rank, 'main', 'standard')
+  slots.forEach((rank, i) => {
+    const p = makePRPlayer(rank, i)
     players.push(p); mainIds.push(p.id)
-  }
-  for (const rank of [...DUAL_POOL].sort(() => Math.random() - 0.5)) {
-    const p = makePRPlayer(rank, 'main', 'dual')
-    players.push(p); dualIds.push(p.id)
-  }
-  for (const rank of [...SECOND_POOL].sort(() => Math.random() - 0.5)) {
-    const p = makePRPlayer(rank, 'second', 'development')
-    players.push(p); secondIds.push(p.id)
-  }
+  })
 
-  // フラット化：全員を単一ロスター(main)へ返す（2軍・2wayは使わない）
-  return { players, mainIds: [...mainIds, ...dualIds, ...secondIds], dualIds: [], secondIds: [] }
+  // ロスターは1つだけ（2軍・2wayは廃止済み）。dualIds/secondIds は呼ぶ側が見ていないが、
+  // 戻り値の形は変えずに空で返す
+  return { players, mainIds, dualIds, secondIds }
 }
 
 // CPUチームの2軍を補充するための若手選手を生成する（teamId付き）。
