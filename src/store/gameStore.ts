@@ -7150,7 +7150,7 @@ export const useGameStore = create<GameStore>()(
     },
     {
       name: 'jpel-manager-save',
-      version: 31,
+      version: 32,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -7527,6 +7527,30 @@ export const useGameStore = create<GameStore>()(
           if (version < 31) {
             const teams = s.teams as { division?: number }[] | undefined
             if (Array.isArray(teams)) for (const t of teams) if (t && t.division == null) t.division = 1
+          }
+          // v32: 予算をクラブの格1本にした（順位グラント・レース賞金・観客収入・
+          //      連続赤字/育成義務ペナルティ・施設維持費を廃止）。
+          //      旧セーブの残高は順位グラント(3.5〜5.7億)基準なので、新しい年俸水準に対して
+          //      いきなり赤字になる。格の年間予算(4.2〜16.8億)で入れ直し、連続赤字も0に戻す。
+          //      Team.tier は書かない。未設定なら data/clubTiers.ts の初期値が読まれ、
+          //      次のシーズン終了時に前年順位から正しい格が入る。
+          if (version < 32) {
+            const teams32 = s.teams as Record<string, unknown>[] | undefined
+            if (Array.isArray(teams32)) {
+              for (const t of teams32) {
+                const budget = tierBudget({ id: t.id as string, initialRank: t.initialRank as number | undefined })
+                t.finance = { ...(t.finance as Record<string, unknown>), budget, deficitStreak: 0 }
+              }
+            }
+            const cs32 = s.currentSeason as Record<string, unknown> | undefined
+            if (cs32) {
+              const me = Array.isArray(teams32) ? teams32.find(t => t.id === s.playerTeamId) : undefined
+              const myBudget = (me?.finance as Record<string, unknown> | undefined)?.budget as number | undefined
+              if (myBudget != null) { cs32.initialBudget = myBudget; cs32.seasonGrant = myBudget }
+              // 旧内訳（順位グラント・賞金観客収入）は項目の意味が変わったので捨てる
+              delete cs32.budgetBreakdown
+              cs32.seasonRaceIncome = 0
+            }
           }
           return s
         } catch (e) {
