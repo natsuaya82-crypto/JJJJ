@@ -7,6 +7,7 @@ import type { GameState, Division, Player, Team, RaceResults, TransferListing, I
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
+import { CARD_UNIT_PRICE, CARD_UNIT_EXP } from '../data/cardShop'
 import { LOWER_DIVISION_TEAMS } from '../data/teamsLower'
 
 // リーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
@@ -37,7 +38,7 @@ import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
-import { generateDropCards, detectCombo, MAX_FUSION_CARDS, RARITY_EXP, planExchange, type CardExchange } from '../utils/cardCombo'
+import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type CardExchange } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
 import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
@@ -3979,7 +3980,6 @@ export const useGameStore = create<GameStore>()(
             rank >= 15 ? [{ rarity: 'epic', count: 1 }, { rarity: 'normal', count: 6 }] :
             [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }]
           const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-          const EXP: Record<CardRarity, number> = { normal: 300, rare: 1200, epic: 4000, legendary: 10000 }
           const cards: TrainingCard[] = []
           let idx = 0
           for (const { rarity, count } of dist) {
@@ -3988,7 +3988,7 @@ export const useGameStore = create<GameStore>()(
                 id: `preseason_${state.playerTeamId}_${Date.now()}_${idx++}`,
                 statKey: STAT_KEYS[Math.floor(Math.random() * STAT_KEYS.length)],
                 rarity,
-                value: EXP[rarity],
+                value: CARD_UNIT_EXP[rarity],
               })
             }
           }
@@ -6176,18 +6176,17 @@ export const useGameStore = create<GameStore>()(
       },
 
       buyTrainingCard: (rarity, qty = 1) => {
-        const PRICES: Record<string, number> = { normal: 30, rare: 120, epic: 500, legendary: 1500 }
-        const EXP: Record<string, number> = { normal: 300, rare: 1200, epic: 4000, legendary: 10000 }
+        // 値段とEXPは data/cardShop.ts の1本（画面と同じ数字を見る）
         const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
         const state = get()
-        const price = PRICES[rarity]
+        const price = CARD_UNIT_PRICE[rarity]
         if (price === undefined) return false
         if ((state.jewels ?? 0) < price * qty) return false
         const cards: TrainingCard[] = Array.from({ length: qty }, (_, i) => ({
           id: `shop_${rarity}_${Date.now()}_${i}`,
           statKey: STAT_KEYS[Math.floor(Math.random() * STAT_KEYS.length)],
           rarity,
-          value: EXP[rarity],
+          value: CARD_UNIT_EXP[rarity],
         }))
         set(s => ({
           trainingCards: [...(s.trainingCards ?? []), ...cards],
@@ -6773,7 +6772,7 @@ export const useGameStore = create<GameStore>()(
               id: `tt_${event.id}_${r.playerId}`,
               statKey: CARD_STAT_KEYS[Math.floor(Math.random() * CARD_STAT_KEYS.length)],
               rarity,
-              value: RARITY_EXP[rarity],
+              value: CARD_UNIT_EXP[rarity],
             })
           }
 

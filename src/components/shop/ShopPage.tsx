@@ -3,16 +3,20 @@ import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
 import { useState } from 'react'
 import { C, alpha } from '../../styles/tokens'
+import { cardPackPrice } from '../../data/cardShop'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
+// 値段は data/cardShop.ts の1本から出す（1枚あたり × 枚数）。
+// 以前はここにパックの値段を直書きしていて、ストア側の1枚あたりの値段と
+// 掛け算がたまたま合っているだけだった
 const CARD_SHOP: { rarity: CardRarity; labelJP: string; desc: string; price: number; cards: number }[] = [
-  { rarity: 'normal',    labelJP: 'ノーマルパック',   desc: '強化カードを5枚獲得',         price: 150,  cards: 5 },
-  { rarity: 'rare',      labelJP: 'レアパック',       desc: 'レア以上を含む4枚を獲得',     price: 480,  cards: 4 },
-  { rarity: 'epic',      labelJP: 'エピックパック',   desc: '高コンボ倍率カードを3枚獲得', price: 1500, cards: 3 },
-  { rarity: 'legendary', labelJP: 'レジェンドパック', desc: '最高レアを2枚確定獲得',       price: 3000, cards: 2 },
+  { rarity: 'normal',    labelJP: 'ノーマルパック',   desc: '強化カードを5枚獲得',         price: cardPackPrice('normal', 5),    cards: 5 },
+  { rarity: 'rare',      labelJP: 'レアパック',       desc: 'レア以上を含む4枚を獲得',     price: cardPackPrice('rare', 4),      cards: 4 },
+  { rarity: 'epic',      labelJP: 'エピックパック',   desc: '高コンボ倍率カードを3枚獲得', price: cardPackPrice('epic', 3),      cards: 3 },
+  { rarity: 'legendary', labelJP: 'レジェンドパック', desc: '最高レアを2枚確定獲得',       price: cardPackPrice('legendary', 2), cards: 2 },
 ]
 
 const QTY_OPTIONS = [1, 3, 5, 10] as const
