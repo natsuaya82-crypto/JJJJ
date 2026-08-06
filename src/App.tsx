@@ -124,6 +124,18 @@ function Placeholder({ title }: { title: string }) {
   )
 }
 
+// オファーの種類ごとの見出しと本文（判定は utils/gmOffer.ts）
+const OFFER_KIND_LABEL: Record<string, string> = {
+  promotion: '格上からの招聘',
+  rebuild: '名門再建の要請',
+  comeback: '再起の誘い',
+}
+const OFFER_KIND_TEXT: Record<string, string> = {
+  promotion: '上位クラブから監督就任のオファーが届きました。',
+  rebuild: 'かつての強豪から、チーム再建を託したいと打診が届きました。',
+  comeback: '一から立て直してほしい、とオファーが届きました。',
+}
+
 // 他チームからの監督オファーをホームで出す。答えるまで消えない。
 // 受けると指揮するチームが入れ替わる（store の acceptGmOffer / utils/gmOffer.ts）。
 function GmOfferNotice() {
@@ -140,12 +152,13 @@ function GmOfferNotice() {
     <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 11, color: '#f5c842', letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>OFFER</div>
+        <div style={{ fontSize: 11, color: '#f5c842', fontWeight: 800, marginBottom: 8 }}>{OFFER_KIND_LABEL[offer.kind ?? 'promotion']}</div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <TeamLogoSVG primary={dest.colors.primary} secondary={dest.colors.secondary} shortName={dest.shortName} teamId={dest.id} logoId={dest.logoId} size={56} />
         </div>
         <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', marginBottom: 6 }}>{dest.name}</div>
         <div style={{ fontSize: 13, color: '#cfd8e8', lineHeight: 1.7, marginBottom: 16 }}>
-          監督就任のオファーが届きました。<br />
+          {OFFER_KIND_TEXT[offer.kind ?? 'promotion']}<br />
           {offer.year}シーズンから指揮を執りますか？
         </div>
         <div style={{ background: '#122034', borderRadius: 12, padding: '12px 14px', marginBottom: 18, textAlign: 'left' }}>

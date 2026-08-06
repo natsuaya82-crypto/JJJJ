@@ -593,6 +593,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     gmRep: 50,
     gmTenures: [],
     gmOffer: null,
+    // 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN）
+    lastGmOfferYear: undefined,
     seenJoinIds: [],
     seenInjuryIds: [],
     playerTeamId: 'fukuoka',
@@ -6243,6 +6245,8 @@ export const useGameStore = create<GameStore>()(
             nextBudgets: cpuNextBudgets,
             objBonus,
             rng: Math.random,
+            lastOfferYear: state.lastGmOfferYear,
+            tenureStartYear: (state.gmTenures ?? []).slice(-1)[0]?.fromYear,
           })
 
           return {
@@ -6250,6 +6254,8 @@ export const useGameStore = create<GameStore>()(
             removedPlayers,
             teams: syncedTeams,
             gmOffer,
+            // 出た年を控えて、次のオファーまで間隔を空ける
+            lastGmOfferYear: gmOffer ? newYear : state.lastGmOfferYear,
             foreignLeagues: cappedForeignLeagues,
             worldTournament: undefined,  // 世界選手権トーナメントは年度で完結（翌年は新規に開催）
             worldRacePlans: undefined,   // コースも毎年引き直し

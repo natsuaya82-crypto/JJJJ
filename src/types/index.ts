@@ -885,6 +885,8 @@ export type GmOffer = {
   scoutPoints: number
   // 移籍先の前季の最終順位。来季の目標を引き直すのに使う
   prevRank: number
+  /** どういう話で来たオファーか（utils/gmOffer.ts）。古いセーブには無い */
+  kind?: 'promotion' | 'rebuild' | 'comeback'
 }
 
 export type GameState = {
@@ -904,6 +906,8 @@ export type GameState = {
   gmTenures?: GmTenure[]
   // 他チームから届いている監督オファー。答えるまで残る（答えたら null）
   gmOffer?: GmOffer | null
+  /** 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN） */
+  lastGmOfferYear?: number
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
