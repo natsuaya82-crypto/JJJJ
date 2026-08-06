@@ -836,7 +836,7 @@ export default function NotificationsPage() {
                         <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '12px', lineHeight: 1.6 }}>
                           このまま残すか、契約を解除してFAにするかを決めてください。残しても移籍希望は続きます。
                         </div>
-                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate('/team/chat')}>チャットで対応する</Btn>
+                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate(`/team/chat?player=${target.id}`)}>チャットで対応する</Btn>
                       </div>
                     </div>
                   )
@@ -890,7 +890,7 @@ export default function NotificationsPage() {
                           契約満了が近いため、移籍金なしでの獲得打診です。断っても契約が切れればFAで流出する可能性があります。
                         </div>
                         )}
-                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate('/team/chat')}>チャットで対応する</Btn>
+                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate(`/team/chat?player=${target.id}`)}>チャットで対応する</Btn>
                       </div>
                     </div>
                   )
