@@ -84,7 +84,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
+import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
@@ -1287,7 +1287,9 @@ export const useGameStore = create<GameStore>()(
             if (raceIndex >= 3 && raceIndex % 3 === 0) {
               const sortedStandingsNow = rankedStandings(state.currentSeason.standings)
               const myCurrentRank = sortedStandingsNow.findIndex(s => s.teamId === state.playerTeamId) + 1
-              const expectedRank = Math.ceil(teams.length / 3)
+              // 「うちは弱い」の基準は**自分の部の中で**見る。52で割ると3部(16)は
+              // 最下位でも18位以内に入ってしまい、誰も不満を言わなくなる
+              const expectedRank = Math.ceil(DIVISION_SIZE[myDivision] / 3)
               const remainingRaces = totalRaces - raceIndex
               if (myCurrentRank <= expectedRank) {
                 const msgs = [
@@ -1391,7 +1393,8 @@ export const useGameStore = create<GameStore>()(
           // Team talk morale modifier
           const teamTalk = state.raceTeamTalk ?? 'best'
           const teamRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? 0
-          const baseMoraleDelta = teamRank === 1 ? 8 : teamRank <= 3 ? 3 : teamRank >= state.teams.length - 2 ? -5 : 0
+          // teamRank はそのレースの着順＝自分の部の中での順位。比べる相手も部のチーム数
+          const baseMoraleDelta = teamRank === 1 ? 8 : teamRank <= 3 ? 3 : teamRank >= DIVISION_SIZE[myDivision] - 2 ? -5 : 0
           const talkBonus = teamTalk === 'enjoy' ? 5 : teamTalk === 'win' && teamRank <= 5 ? 10 : 0
           const moraleDelta = baseMoraleDelta + talkBonus
           const raceExpGainsMap: Record<string, Partial<Record<CardStatKey, number>>> = {}
@@ -1986,7 +1989,8 @@ export const useGameStore = create<GameStore>()(
           // 同時に持ててしまい、ベルは2件なのにチャットには1行、という数のズレになっていた。
           // 「もう何か言っている選手か」の判定は talkSync の openWishIds 1本に寄せる
           const openWish = openWishIds(state.currentSeason)
-          const trTotalTeams = state.teams.length
+          // 順位の物差しは自分の部の中（52で見ると3部が永久に「上位」になる）
+          const trTotalTeams = DIVISION_SIZE[myDivision]
           const myStandRank = (() => {
             const sorted = rankedStandings(updatedStandings)
             const i = sorted.findIndex(s => s.teamId === playerTeamId)
@@ -4968,8 +4972,13 @@ export const useGameStore = create<GameStore>()(
         {
           // 前年順位（引き抜き時の本人同意＝移籍先の魅力判定に使う）
           const lastStandingsForTx = rankedStandings((state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? []))
-          const totalTeamsTx = state.teams.length
-          const rankOfTx = (teamId: string) => { const i = lastStandingsForTx.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeamsTx / 2) }
+          // 部を跨いで得点で並べない。そのクラブの部の中での順位で見る
+          const rankOfTx = (teamId: string) => {
+            const d = divisionOf(state.teams.find(t => t.id === teamId))
+            const idsInD = new Set(state.teams.filter(t => divisionOf(t) === d).map(t => t.id))
+            const i = rankedStandings(lastStandingsForTx.filter(r => idsInD.has(r.teamId))).findIndex(s2 => s2.teamId === teamId)
+            return i >= 0 ? i + 1 : Math.ceil(DIVISION_SIZE[d] / 2)
+          }
 
           // 実際の予算残高（finance.budget）から移籍金を払う。売った側は実際に受け取る（自チームと同じ金の動き）。
           // 順番は「前年順位が下のチームから」。同順は残高の多い方から
@@ -6059,7 +6068,7 @@ export const useGameStore = create<GameStore>()(
             if (curStreak === 3) dynastyNews.push({ date: `${state.currentSeason.year}-10-26`, headline: '【3連覇達成】誰もこのチームを止められない', category: 'race', relatedIds: [] })
             if (curStreak === 5) dynastyNews.push({ date: `${state.currentSeason.year}-10-26`, headline: '【5連覇の怪物王朝】リーグの歴史を塗り替えた', category: 'race', relatedIds: [] })
           }
-          if (totalSeasons === 5 && finalRank > state.teams.length - 3) dynastyNews.push({ date: `${state.currentSeason.year}-10-27`, headline: '【再建の岐路】5年でタイトルなし — チームの方向性を見直す時', category: 'race', relatedIds: [] })
+          if (totalSeasons === 5 && finalRank > DIVISION_SIZE[divisionOf(state.teams.find(t => t.id === state.playerTeamId))] - 3) dynastyNews.push({ date: `${state.currentSeason.year}-10-27`, headline: '【再建の岐路】5年でタイトルなし — チームの方向性を見直す時', category: 'race', relatedIds: [] })
           if (allPlayerSegWins >= 50 && allPlayerSegWins - (state.players.filter(p => p.teamId === state.playerTeamId).reduce((s, p) => s + p.career.segmentWins, 0)) < 10) dynastyNews.push({ date: `${state.currentSeason.year}-10-27`, headline: `【通算区間賞50回突破】このチームの走者たちが歴史に名を刻む`, category: 'race', relatedIds: [] })
 
           // Update MVP player's career.mvpAwards
