@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
@@ -29,26 +30,18 @@ function PlayerHead({ player }: { player: Player }) {
 // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細。移籍オファー・レンタルのオファーが可能。
 export function useOpponentMenu() {
   const { players, teams, playerTeamId, currentSeason } = useGameStore()
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
 
   const [menuId, setMenuId] = useState<string | null>(null)
   const [offerId, setOfferId] = useState<string | null>(null)
   const [loanId, setLoanId] = useState<string | null>(null)
-  const lp = useRef<{ t?: number; long: boolean }>({ long: false })
-
-  const rowHandlers = (pid: string) => ({
-    onPointerDown: () => { lp.current.long = false; lp.current.t = window.setTimeout(() => { lp.current.long = true; openPlayerSheet(pid) }, 450) },
-    onPointerUp: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
-    onPointerLeave: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
-    onPointerMove: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
-    onClick: () => {
-      if (lp.current.long) { lp.current.long = false; return }
-      const tp = players.find(x => x.id === pid)
-      if (tp && tp.teamId === playerTeamId) return  // 自チーム選手の詳細は長押しに統一（タップでは開かない）
-      setMenuId(pid)
-    },
+  // 長押し＝詳細 / タップ＝メニュー。判定は共有フック1本（player/usePlayerLongPress）
+  const longPress = usePlayerLongPress()
+  const rowHandlers = (pid: string) => longPress(pid, () => {
+    const tp = players.find(x => x.id === pid)
+    if (tp && tp.teamId === playerTeamId) return  // 自チーム選手の詳細は長押しに統一（タップでは開かない）
+    setMenuId(pid)
   })
 
   const menuPlayer = menuId ? players.find(x => x.id === menuId) : undefined

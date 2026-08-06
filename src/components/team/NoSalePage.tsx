@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr } from '../../utils/playerUtils'
 import { isLeavingClub } from '../../utils/transferEligibility'
 import PlayerRow from '../player/PlayerRow'
@@ -16,7 +17,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // - 売出: 市場価値で移籍リストへ。CPUが買い取ると即入金＋退団通知（チャット対応なし）
 // タップで方針シート、長押しで選手詳細。非売+貸出は併用可、売出は他と排他。
 export default function NoSalePage() {
-  const { players, playerTeamId, toggleNoSale, toggleLoanListed, allowPlayerTransfer, cancelSellListing, openPlayerSheet } = useGameStore()
+  const { players, playerTeamId, toggleNoSale, toggleLoanListed, allowPlayerTransfer, cancelSellListing } = useGameStore()
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null)
 
   const myPlayers = players
@@ -26,16 +27,9 @@ export default function NoSalePage() {
       || ovr(b) - ovr(a))
   const setCount = myPlayers.filter(p => p.noSale || p.loanListed || p.transferListed).length
 
-  // 長押しで詳細（タップ＝方針シートと両立させる）
-  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lpFired = useRef(false)
-  const rowHandlers = (pid: string) => ({
-    onPointerDown: () => { lpFired.current = false; lpTimer.current = setTimeout(() => { lpFired.current = true; openPlayerSheet(pid) }, 450) },
-    onPointerUp: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
-    onPointerLeave: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
-    onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
-    onClick: () => { if (lpFired.current) { lpFired.current = false; return } setSheetPlayerId(pid) },
-  })
+  // 長押しで詳細（タップ＝方針シートと両立させる）。判定は共有フック1本
+  const longPress = usePlayerLongPress()
+  const rowHandlers = (pid: string) => longPress(pid, () => setSheetPlayerId(pid))
 
   const badge = (label: string, color: string) => (
     <span key={label} style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.45)}`, color, fontWeight: 800, flexShrink: 0 }}>{label}</span>
