@@ -19,8 +19,7 @@ import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { ovr, calcTransferValue } from '../src/utils/playerUtils'
 import { tierBudget, tierOf } from '../src/utils/clubTier'
 import { appraiseMove, buildDestination, RUNNING_SLOTS } from '../src/utils/transferDecision'
-import { bidThreshold } from '../src/data/economy'
-import { POACH_PREMIUM } from '../src/data/economy'
+import { bidThreshold, TRANSFER_BUDGET_SHARE } from '../src/data/economy'
 import { ROSTER_MAX } from '../src/data/rosterRules'
 import { needsPlayer } from '../src/utils/squadNeeds'
 import type { Player, Team } from '../src/types'
@@ -44,7 +43,6 @@ for (const p of players) {
 
 // useNeeds=false は需要フィルタを入れる前の挙動（比較用）
 const rivalsFor = (target: Player, useNeeds = true) => {
-  const mv = calcTransferValue(target)
   const srcTier = tierOf(allTeams.find(t => t.id === target.teamId)!)
   return allTeams
     .filter(t => t.id !== MY && t.id !== target.teamId && rosterCountOf(t.id) < ROSTER_MAX)
@@ -52,7 +50,7 @@ const rivalsFor = (target: Player, useNeeds = true) => {
     .map(t => ({ t, dest: buildDestination(t.id, tierOf(t), players, { player: target }) }))
     .filter(x => x.dest.squadRank <= RUNNING_SLOTS)
     .filter(x => appraiseMove(target, x.dest, { srcTier }).ok)
-    .map(x => ({ name: x.t.shortName, willing: Math.floor(Math.min(Math.max(0, x.t.finance.budget), mv * POACH_PREMIUM)) }))
+    .map(x => ({ name: x.t.shortName, tier: tierOf(x.t), willing: Math.floor(Math.min(Math.max(0, x.t.finance.budget), tierBudget(x.t) * TRANSFER_BUDGET_SHARE)) }))
     .filter(r => r.willing > 0)
 }
 
@@ -90,7 +88,7 @@ for (const [label, hit] of BANDS) {
 console.log('\n■ 積めば勝てるか（市場価値の何倍まで出せば競り負けないか）')
 {
   const stars = players.filter(p => p.teamId !== MY && p.teamId !== '' && ovr(p) >= 85)
-  for (const mult of [1.0, 1.2, 1.4, 1.5, 1.8]) {
+  for (const mult of [1.0, 1.2, 1.4, 1.8, 2.2, 3.0]) {
     let lost = 0
     for (const p of stars) {
       const mv = calcTransferValue(p)
@@ -99,6 +97,17 @@ console.log('\n■ 積めば勝てるか（市場価値の何倍まで出せば�
     }
     console.log(`  市場価値の${mult.toFixed(1)}倍を出す → OVR85+のうち ${((lost / Math.max(1, stars.length)) * 100).toFixed(0)}% で競り負ける`)
   }
+  const myMax = Math.floor(tierBudget(allTeams.find(t => t.id === MY)!) * TRANSFER_BUDGET_SHARE)
+  const unwinnable = stars.filter(p => (rivalsFor(p).sort((a, b) => b.willing - a.willing)[0]?.willing ?? 0) > myMax).length
+  console.log(`  自分(格6)の上限 ${(myMax / 100_000_000).toFixed(2)}億 まで積んでも勝てない → OVR85+のうち ${((unwinnable / Math.max(1, stars.length)) * 100).toFixed(0)}%`)
+}
+
+console.log('\n■ 格が効いているか（OVR85+の取り合いで一番高く出せるクラブの格）')
+{
+  const stars = players.filter(p => p.teamId !== MY && p.teamId !== '' && ovr(p) >= 85)
+  const tiers = stars.map(p => rivalsFor(p).sort((a, b) => b.willing - a.willing)[0]?.tier).filter((t): t is number => t != null).sort((a, b) => a - b)
+  const at = (q: number) => tiers[Math.floor(tiers.length * q)] ?? 0
+  console.log(`  勝ち残るクラブの格: 中央値 ${at(0.5)} / 上位25% ${at(0.25)} / 下位25% ${at(0.75)}（数字が小さいほど格上）`)
 }
 
 console.log('\n■ 何クラブが取り合いに参加するか（OVR85+）')

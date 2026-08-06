@@ -35,7 +35,7 @@ import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, DEFICIT_RESCUE_BUDGET } from '../data/economy'
+import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, TRANSFER_BUDGET_SHARE, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type CardExchange } from '../utils/cardCombo'
@@ -1644,9 +1644,9 @@ export const useGameStore = create<GameStore>()(
           //   ・本人がそのクラブへ行く気になる（utils/transferDecision.ts の1本）
           // 需要で絞る前は「強い選手は全クラブが欲しがる」状態で、1人に43クラブが群がっていた。
           //
-          // 出せる額は「予算」と「市場価値×引き抜き割増(POACH_PREMIUM)」の低いほう。
-          // 後者は「これ以上なら別の選手を探す」の線で、予算の上限とは別物。
-          // 予算だけにすると格上クラブが1人に全予算を積めてしまい、必ず競り勝ってしまう
+          // 出せる額は「格の年間予算の TRANSFER_BUDGET_SHARE まで」。手元の資金がそれより
+          // 少なければそちらが上限になる。**誰が参加するかは需要、誰が勝つかは格**。
+          // 以前は市場価値×1.4の頭打ちで、全クラブが同額を出すので競売になっていなかった
           const activeRosterByTeam = new Map<string, Player[]>()
           for (const p of finalPlayers) {
             if (p.status !== 'active') continue
@@ -1655,7 +1655,6 @@ export const useGameStore = create<GameStore>()(
           }
           const rosterCountOf = (tid: string) => finalPlayers.filter(p => p.teamId === tid && p.status !== 'retired').length
           const rivalsFor = (target: Player) => {
-            const mv = calcTransferValue(target)
             const srcTier = tierOfPlayerClub(target.teamId, state.teams)
             return state.teams
               .filter(t => t.id !== playerTeamId && t.id !== target.teamId && rosterCountOf(t.id) < ROSTER_MAX)
@@ -1666,7 +1665,7 @@ export const useGameStore = create<GameStore>()(
               .map(x => ({
                 clubId: x.t.id,
                 name: x.t.shortName,
-                willing: Math.floor(Math.min(Math.max(0, x.t.finance.budget), mv * POACH_PREMIUM)),
+                willing: Math.floor(Math.min(Math.max(0, x.t.finance.budget), tierBudget(x.t) * TRANSFER_BUDGET_SHARE)),
               }))
               .filter(r => r.willing > 0)
           }

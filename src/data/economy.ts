@@ -107,6 +107,16 @@ export function counterCeiling(marketValue: number, offeredPrice: number): numbe
 export const POACH_PREMIUM = 1.4
 export const FOREIGN_STAR_PREMIUM = 1.25
 
+// 取り合い（競売）で1人の選手に出せる上限＝そのクラブの年間予算のこの割合。
+// 上限は「格」から降りてくる（年間予算は clubTier.TIER_BUDGET の1本）ので、
+// 格1は格20の5倍出せる。誰が競売に参加するかは需要（utils/squadNeeds.ts）で決まり、
+// 誰が勝つかはここで決まる。
+//
+// 以前は「市場価値×POACH_PREMIUM」の頭打ちだった。全クラブが同じ額を出すので
+// 1.4倍積めば必ず勝ち、1.4倍未満なら必ず負ける固定の壁になっていて競売になっていなかった。
+// 選手ごとの上限ではなくクラブごとの上限なので、必要としているクラブは高い選手にも手が届く。
+export const TRANSFER_BUDGET_SHARE = 0.20
+
 // 入札額 fee に対する受諾確率(0..1)。threshold = base×(0.9 + rand*0.2) の一様分布から算出。
 export function transferAcceptChance(fee: number, base: number): number {
   if (base <= 0) return 1
