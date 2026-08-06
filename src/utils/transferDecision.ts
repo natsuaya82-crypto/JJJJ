@@ -206,9 +206,11 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   //    「OVR90でヨーロッパに行きたいのにアジアへ移籍する」を止める。
   //    憧れの地域なら後押し、別の地域の海外クラブなら渋る。国内移籍には効かない
   //    アジア・オセアニアは誰の憧れでもないので、海外なのに憧れの地域でない＝減点になる。
-  //    「OVR90でヨーロッパに行きたいのにアジアへ移籍」がこれで止まる
+  //    「OVR90でヨーロッパに行きたいのにアジアへ移籍」がこれで止まる。
+  //    減点は-0.22から-0.12へ。-0.22だと「格上(+0.90)＋控え(-0.16)＋地域違い(-0.22)」が
+  //    0.47で同意ラインを割り、3部の選手が格上の海外を断っていた
   const dream = dreamRegionOf(p.specialty)
-  const dreamFit = !d.isForeign ? 0 : d.region === dream ? 0.12 : -0.22
+  const dreamFit = !d.isForeign ? 0 : d.region === dream ? 0.12 : -0.12
 
   // 今のクラブの成長上限に達していて、行き先の上限が高い＝ここではもう伸びない
   const capped = ctx.srcTier != null && !declining

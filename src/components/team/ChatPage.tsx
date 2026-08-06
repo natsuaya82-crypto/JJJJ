@@ -171,17 +171,22 @@ function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: 
 // 同じ「相手からの打診に返事をする」なのに、契約更新・獲得交渉・トレードは会話、
 // 買い取りとレンタルだけボタン、と2つの作りが混ざっていた。会話1本に寄せる。
 function buildIncomingOfferMessages(
-  player: Player, offers: { name: string; price: number }[], wish?: { name: string; reason: string },
+  player: Player, offers: { name: string; price: number; ok?: boolean; reason?: string }[], wish?: { name: string; reason: string },
 ): ChatMessage[] {
   if (offers.length === 0) return []
   if (offers.length === 1) {
-    return [{
-      from: 'player', kind: 'incoming_offer',
-      text: `（${offers[0].name}GM）${player.name}選手を移籍金${fmtYen(offers[0].price)}でお譲りいただけないでしょうか。ご検討をお願いします。`,
-    }]
+    const o = offers[0]
+    return [
+      { from: 'player', kind: 'incoming_offer',
+        text: `（${o.name}GM）${player.name}選手を移籍金${fmtYen(o.price)}でお譲りいただけないでしょうか。ご検討をお願いします。` },
+      ...(o.ok === false && o.reason
+        ? [{ from: 'player' as const, kind: 'incoming_wish' as const, text: `（代理人）本人に確認しました。${o.reason}とのことです。` }]
+        : []),
+    ]
   }
   // 取り合いになっているときは、まとめて出して本人の希望を言わせる
-  const list = offers.map(o => `・${o.name}（移籍金${fmtYen(o.price)}）`).join('\n')
+  // 断る相手はその場で理由を言う（「なぜこのクラブには行かないのか」が分からなかった）
+  const list = offers.map(o => `・${o.name}（移籍金${fmtYen(o.price)}）${o.ok === false && o.reason ? `\n  → ${o.reason}` : ''}`).join('\n')
   return [
     { from: 'player', kind: 'incoming_offer',
       text: `（代理人）${offers.length}クラブから${player.name}選手の獲得の打診が来ています。\n${list}` },
@@ -329,7 +334,11 @@ function ChatView({
     ...(undecided ? buildStayOrLeaveMessages() : []),
     ...buildIncomingOfferMessages(
       player,
-      rankedOffers.map(r => ({ name: clubIndex.byId(r.offer.fromTeamId)?.shortName ?? '他クラブ', price: r.offer.offeredPrice })),
+      rankedOffers.map(r => ({
+        name: clubIndex.byId(r.offer.fromTeamId)?.shortName ?? '他クラブ',
+        price: r.offer.offeredPrice,
+        ok: r.appraisal.ok, reason: r.appraisal.reason,
+      })),
       rankedOffers.length > 1 && rankedOffers[0].appraisal.ok
         ? { name: clubIndex.byId(rankedOffers[0].offer.fromTeamId)?.shortName ?? '他クラブ', reason: rankedOffers[0].appraisal.reason }
         : undefined,
@@ -465,7 +474,12 @@ function ChatView({
     setPickingDest(false)
     append({ from: 'gm', text: `${nameOfClub(o.fromTeamId)}に${fmtYen(o.offeredPrice)}でお譲りします。` })
     const outcome = acceptIncomingOffer(o.id)
-    const r = offerResultText(outcome, { playerName: player.name, teamName: nameOfClub(o.fromTeamId), price: o.offeredPrice })
+    // 断られたときは、なぜ断ったのか（出場機会・地域・格）をそのまま会話に出す
+    const appraisal = rankedOffers.find(x => x.offer.id === o.id)?.appraisal
+    const r = offerResultText(outcome, {
+      playerName: player.name, teamName: nameOfClub(o.fromTeamId), price: o.offeredPrice,
+      reason: appraisal?.ok === false ? appraisal.reason : undefined,
+    })
     append({ from: 'player', text: `（代理人）${r.text}` })
     // 売れた時点で本人がチームを離れるので、レンタルの話も同時に終わる
     if (outcome === 'sold') { setSettledOffer(true); setSettledLoan(true) }
@@ -935,7 +949,7 @@ function ChatView({
         onClose={() => setPickingDest(false)}
         header={<div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{player.name}の移籍先を選ぶ</div>}
         items={rankedOffers.map((r, i) => ({
-          label: `${i === 0 ? '★ ' : ''}${nameOfClub(r.offer.fromTeamId)}  ${fmtYen(r.offer.offeredPrice)}  ${r.appraisal.ok ? r.appraisal.reason : '本人は乗り気でない'}`,
+          label: `${i === 0 ? '★ ' : ''}${nameOfClub(r.offer.fromTeamId)}  ${fmtYen(r.offer.offeredPrice)}  ${r.appraisal.reason}`,
           color: r.appraisal.ok ? C.green : C.textDim,
           onClick: () => acceptOffer(r.offer),
         }))}

@@ -24,7 +24,9 @@ const man = (v: number) => `${Math.round(v / 10000).toLocaleString()}万`
 // 結果の見せ方。ok が true のときだけ緑（成功）で出す
 export function offerResultText(
   outcome: OfferOutcome,
-  a: { playerName: string; teamName: string; price: number },
+  // reason: 本人が断ったときの理由（utils/transferDecision の Appraisal.reason）。
+  // 「断りました」だけだと何が引っかかったのか分からないので、渡された場合は続けて出す
+  a: { playerName: string; teamName: string; price: number; reason?: string },
 ): { text: string; ok: boolean } {
   switch (outcome) {
     case 'sold':
@@ -34,7 +36,7 @@ export function offerResultText(
     case 'refused':
       return { text: `${a.teamName}は${man(a.price)}を支払えず、交渉は決裂しました`, ok: false }
     case 'refused_by_player':
-      return { text: `${a.playerName}が${a.teamName}への移籍を断りました。今季はこの話は進みません`, ok: false }
+      return { text: `${a.playerName}が${a.teamName}への移籍を断りました。${a.reason ? `${a.reason}とのことです。` : ''}今季はこの話は進みません`, ok: false }
     case 'roster_min':
       return { text: `ロスターが下限の${ROSTER_MIN}人のため、${a.playerName}を放出できません。補強してから改めて返事をしてください（オファーはそのまま残っています）`, ok: false }
     case 'invalid':
