@@ -1,6 +1,7 @@
-import type { ForeignLeague, Player, Team, Specialty, TransferRecord } from '../types'
-import { SPECIALTY_LABELS } from '../types'
+import type { ForeignLeague, Player, Team, TransferRecord } from '../types'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
+// 「どのタイプが足りていないか」は国内・海外で共通の1本（utils/squadNeeds.ts）
+import { weakestSpecialty, bestOvrInSpecialty } from '../utils/squadNeeds'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
@@ -196,7 +197,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // 上限・下限はフラットロスターの共通定数（30/20）。旧40のハードコードは
   // 総在籍31人・名簿残存（secondに居る選手の除去漏れ）の原因だった
   const MIN_BUY_BUDGET = 30_000_000   // これ未満の予算では獲得に動かない
-  const SPECS = Object.keys(SPECIALTY_LABELS) as Specialty[]
   const playerById = new Map(players.map(p => [p.id, p]))
   // 同じオフに移籍済み（joinedYear=今オフの年）の選手は動かさない＝1オフ1移動
   const runnable = (p: Player | undefined): p is Player =>
@@ -234,15 +234,10 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     return arr[arr.length - 1]
   }
   const rosterPlayers = (ids: string[]) => ids.map(id => playerById.get(id)).filter(runnable)
-  // チームが最も弱いタイプ（そのタイプの最高OVRが最小＝穴）
-  const weakestSpec = (ids: string[]): Specialty => {
-    const best: Record<string, number> = {}
-    for (const s of SPECS) best[s] = 0
-    for (const p of rosterPlayers(ids)) best[p.specialty] = Math.max(best[p.specialty] ?? 0, ovr(p))
-    return SPECS.reduce((w, s) => ((best[s] ?? 0) < (best[w] ?? 0) ? s : w), SPECS[0])
-  }
-  const bestOvrInSpec = (ids: string[], spec: Specialty): number =>
-    rosterPlayers(ids).filter(p => p.specialty === spec).reduce((m, p) => Math.max(m, ovr(p)), 0)
+  // チームが最も弱いタイプ（そのタイプの最高OVRが最小＝穴）。判定は utils/squadNeeds.ts の1本
+  const weakestSpec = (ids: string[]) => weakestSpecialty(rosterPlayers(ids))
+  const bestOvrInSpec = (ids: string[], spec: ReturnType<typeof weakestSpec>) =>
+    bestOvrInSpecialty(rosterPlayers(ids), spec)
   // 余剰＝人数の多いタイプの中位選手（エース級は保護）を1人放出候補に
   const surplusTarget = (ids: string[]): Player | null => {
     const ps = rosterPlayers(ids).sort((a, b) => ovr(b) - ovr(a))

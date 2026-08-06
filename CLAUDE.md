@@ -42,6 +42,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/contractTalk.ts` | 契約更新の可否と「要対応」。`canRequestRenewal` / `needsRenewalAttention` |
 | `src/utils/transferDecision.ts` | **移籍の意思決定**。その選手がそのクラブへ行くか。`appraiseMove` / `rankOffers` |
 | `src/utils/transferEligibility.ts` | 退団予定・引退予定・海外承認などの「もう出ていく人」判定 |
+| `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties` / `weakestSpecialty`。タイプの一覧 `SPECIALTIES` もここ |
 | `src/utils/playerSort.ts` | 選手一覧の並び替え。`comparePlayers` |
 | `src/utils/reserveSquad.ts` | リザーブ戦に出せる選手（プレイヤー側とCPU側で共通） |
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
@@ -240,6 +241,28 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 行き先が決まらなかった退団予定の選手は、強制FAではなく
 **「残ってくれ／契約を解除する(FA)」をGMが選びます**（`currentSeason.stayOrLeave`）。
 残留してもモラルは下げず、移籍希望はそのまま続きます。
+
+### 買う側も取り合いになります
+
+自分が入札した選手を、同じ選手を欲しがる他クラブに持っていかれます（`resolveBid` の `rivals`）。
+**クラブは「強いから」ではなく「必要だから」動きます。** 山が薄いクラブは山型を狙い、
+山が足りているクラブは同じ山型のエースが出ても手を出しません。
+
+「何が足りないか」は `src/utils/squadNeeds.ts` の1本です。国内も海外も同じ入口を通ります。
+以前は人数基準（`gameStore.cpuSpecialtyNeeds`）と強さ基準（`foreignTransfers.weakestSpec`）が
+別々にあって答えが食い違っていました（山型が3人いても全員弱いクラブは、前者では「足りている」、
+後者では「大穴」）。**新しく「このタイプが足りない」を書かず、`needsPlayer` を呼んでください。**
+
+穴は2種類あり、必要とする理由が違います。
+
+| 穴 | 条件 | 欲しがり方 |
+|---|---|---|
+| 薄い | そのタイプが `THIN_DEPTH`(2) 人未満 | 頭数が要るので強さは問わない |
+| 弱い | そのタイプが**そのクラブで一番弱い** | 今いる誰よりも強いときだけ |
+
+「今いる同タイプより強ければ欲しい」だけにすると穴の判定になりません。OVR85の選手は
+ほぼ全クラブの現有を上回るので、需要を見ていないのと同じ結果になります（実測で22→20クラブ）。
+締めた結果、OVR85+を狙うクラブは中央値7クラブになりました。
 
 ### 会話の決まり
 

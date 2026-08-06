@@ -46,6 +46,8 @@ import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
 import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
+// 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
+import { SPECIALTIES, thinSpecialties, needsPlayer } from '../utils/squadNeeds'
 import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
@@ -1633,15 +1635,31 @@ export const useGameStore = create<GameStore>()(
           const bidExpiredNegs: ExpiredNegotiation[] = []
           const bidExpiredPlayerIds: string[] = []
           // 同じ選手を狙う他クラブ。買う側も取り合いになる（売る側だけ5クラブなのは非対称だった）。
-          // 欲しがる条件は「そのクラブで7区間に入れる＝主力になれる」こと、
+          //
+          // クラブは「強いから」ではなく「必要だから」動く。山が薄いクラブは山型を狙うし、
+          // 山が足りているクラブは同じ山型のエースが出ても手を出さない。
+          //   ・そのタイプが必要（utils/squadNeeds.ts。頭数が足りない or 今いる同タイプより強い）
+          //   ・そのクラブで7区間に入れる＝実際に走れる（弱い専門家を穴埋めで買わない）
+          //   ・ロスターに空きがある（ROSTER_MAX）
+          //   ・本人がそのクラブへ行く気になる（utils/transferDecision.ts の1本）
+          // 需要で絞る前は「強い選手は全クラブが欲しがる」状態で、1人に43クラブが群がっていた。
+          //
           // 出せる額は「予算」と「市場価値×引き抜き割増(POACH_PREMIUM)」の低いほう。
-          // 本人がそのクラブへ行く気になるかは移籍の判定1本（utils/transferDecision.ts）で見る
+          // 後者は「これ以上なら別の選手を探す」の線で、予算の上限とは別物。
+          // 予算だけにすると格上クラブが1人に全予算を積めてしまい、必ず競り勝ってしまう
+          const activeRosterByTeam = new Map<string, Player[]>()
+          for (const p of finalPlayers) {
+            if (p.status !== 'active') continue
+            const list = activeRosterByTeam.get(p.teamId)
+            if (list) list.push(p); else activeRosterByTeam.set(p.teamId, [p])
+          }
           const rosterCountOf = (tid: string) => finalPlayers.filter(p => p.teamId === tid && p.status !== 'retired').length
           const rivalsFor = (target: Player) => {
             const mv = calcTransferValue(target)
             const srcTier = tierOfPlayerClub(target.teamId, state.teams)
             return state.teams
               .filter(t => t.id !== playerTeamId && t.id !== target.teamId && rosterCountOf(t.id) < ROSTER_MAX)
+              .filter(t => needsPlayer(activeRosterByTeam.get(t.id) ?? [], target))
               .map(t => ({ t, dest: get().destinationOf(t.id, target) }))
               .filter(x => x.dest.squadRank <= RUNNING_SLOTS)
               .filter(x => appraiseMove(target, x.dest, { srcTier }).ok)
@@ -2062,7 +2080,7 @@ export const useGameStore = create<GameStore>()(
           if ((state.currentSeason.devProspects ?? []).length > 0) return state
           const NAMES = ['村上 蒼', '橋本 颯', '田中 悠馬', '小林 煌', '中村 海斗', '伊藤 涼', '山田 蓮', '佐藤 翔', '加藤 健', '鈴木 碧', '松本 楓', '渡辺 律', '井上 光', '木村 颯太', '高橋 凌', '石川 仁', '林 優斗', '近藤 葵', '前田 空', '岡田 風']
           const CITIES = ['東京', '神奈川', '大阪', '愛知', '福岡', '北海道', '宮城', '広島', '静岡', '千葉']
-          const SPECS: import('../types').Specialty[] = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
+          const SPECS = SPECIALTIES
           const usedForeignNames = new Set<string>()
           const prospects: import('../types').DevProspect[] = Array.from({ length: 12 }, (_, i) => {
             const potential = 50 + Math.floor(Math.random() * 45)
@@ -8165,12 +8183,11 @@ function cpuTeamTier(teamId: string, players: Player[]): 'elite' | 'mid' | 'weak
   return avg >= 79 ? 'elite' : avg >= 73 ? 'mid' : 'weak'
 }
 
-function cpuSpecialtyNeeds(teamId: string, players: Player[]): string[] {
-  const ALL = ['ace', 'mountain_up', 'mountain_down', 'sprinter', 'long', 'allrounder', 'kick', 'grinder']
-  const counts: Record<string, number> = {}
-  const roster = players.filter(p => p.teamId === teamId && p.status === 'active')
-  for (const p of roster) counts[p.specialty] = (counts[p.specialty] ?? 0) + 1
-  return ALL.filter(s => (counts[s] ?? 0) < 2).sort((a, b) => (counts[a] ?? 0) - (counts[b] ?? 0))
+// そのチームが頭数の足りていないタイプ（薄い順）。判定は utils/squadNeeds.ts の1本。
+// 「どのタイプが足りていないか」は海外の補強（engine/foreignTransfers.ts）でも使うので、
+// タイプの一覧も人数の下限もあちらと同じものを見る
+function cpuSpecialtyNeeds(teamId: string, players: Player[]): Specialty[] {
+  return thinSpecialties(players.filter(p => p.teamId === teamId && p.status === 'active'))
 }
 
 // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（双方向）を生成。チャットで対応する。
