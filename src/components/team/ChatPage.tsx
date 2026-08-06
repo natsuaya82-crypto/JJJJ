@@ -5,6 +5,7 @@ import ActionSheet from '../ui/ActionSheet'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
+import { clubRoutePath, type Club } from '../../utils/clubs'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
@@ -468,6 +469,25 @@ function ChatView({
   }
 
   // 移籍先の選択シートを開いているか（複数クラブが取り合いのとき）
+  // 発言の頭に付けた「（◯◯GM）」「（代理人）」から差出人を割り出す。
+  //   ・（◯◯GM） … 相手クラブ。名前とロゴをそのクラブのものにして、タップで詳細へ
+  //   ・（代理人） … 名前は出さない（誰が言ったかは本文で分かる）
+  //   ・括弧なし   … 本人の発言。名前を出す
+  // 本文からは括弧の部分を取り除く（名前は吹き出しの上に出すので二重になる）
+  const navigateTo = useNavigate()
+  const goClubPage = (c: Club | undefined) => { const path = clubRoutePath(c); if (path) navigateTo(path) }
+  const speakerOf = (m: ChatMessage): { name: string | null; club: Club | undefined; text: string } => {
+    if (m.from !== 'player') return { name: null, club: undefined, text: m.text }
+    const hit = /^（([^）]+)）/.exec(m.text)
+    if (!hit) return { name: player.name, club: undefined, text: m.text }
+    const label = hit[1]
+    const body = m.text.slice(hit[0].length)
+    if (label === '代理人') return { name: null, club: undefined, text: body }
+    const short = label.endsWith('GM') ? label.slice(0, -2) : label
+    const club = clubIndex.all.find(c => c.shortName === short)
+    return { name: club ? club.shortName : short, club, text: body }
+  }
+
   const [pickingDest, setPickingDest] = useState(false)
   const nameOfClub = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'
   const acceptOffer = (o: IncomingOffer) => {
@@ -969,29 +989,48 @@ function ChatView({
       </div>
 
       <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {chatMessages.map((msg, i) => (
+        {chatMessages.map((msg, i) => {
+          const sp = speakerOf(msg)
+          return (
           <div key={i} style={{ display: 'flex', flexDirection: msg.from === 'player' ? 'row' : 'row-reverse', alignItems: 'flex-end', gap: 8 }}>
             {msg.from === 'player' && (
-              <div {...longPress(player.id)} style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, border: `1.5px solid ${alpha(specCol, 0.35)}`, cursor: 'pointer' }}>
-                <PlayerFace playerId={player.id} nationality={player.nationality} size={32} />
-              </div>
+              sp.club
+                // 相手クラブからの話は、そのクラブのロゴ。タップでクラブの詳細へ
+                ? <div onClick={() => goClubPage(sp.club)}
+                    style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.surface2, border: `1.5px solid ${alpha(C.blue, 0.4)}` }}>
+                    <TeamLogoSVG primary={sp.club.colors.primary} secondary={sp.club.colors.secondary} shortName={sp.club.shortName} teamId={sp.club.id} logoId={sp.club.logoId} size={26} />
+                  </div>
+                : <div {...longPress(player.id)} style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, border: `1.5px solid ${alpha(specCol, 0.35)}`, cursor: 'pointer' }}>
+                    <PlayerFace playerId={player.id} nationality={player.nationality} size={32} />
+                  </div>
             )}
-            <div style={{
-              maxWidth: '72%',
-              padding: '10px 13px',
-              borderRadius: msg.from === 'player' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
-              background: msg.from === 'player'
-                ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})`
-                : `linear-gradient(135deg, ${alpha(C.blue, 0.25)}, ${alpha(C.blue, 0.15)})`,
-              border: `1px solid ${msg.from === 'player' ? C.border : alpha(C.blue, 0.35)}`,
-              fontSize: 13,
-              color: C.text,
-              lineHeight: 1.6,
-            }}>
-              {msg.text}
+            <div style={{ maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: msg.from === 'player' ? 'flex-start' : 'flex-end', gap: 3 }}>
+              {/* 差出人の名前（LINEのように吹き出しの上）。代理人は名前を出さない */}
+              {msg.from === 'player' && sp.name && (
+                <span
+                  onClick={sp.club ? () => goClubPage(sp.club) : undefined}
+                  style={{ fontSize: 10, color: sp.club ? C.blue : C.textDim, fontWeight: 700, padding: '0 2px', cursor: sp.club ? 'pointer' : 'default' }}
+                >
+                  {sp.name}{sp.club ? ' ▸' : ''}
+                </span>
+              )}
+              <div style={{
+                padding: '10px 13px',
+                borderRadius: msg.from === 'player' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
+                background: msg.from === 'player'
+                  ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})`
+                  : `linear-gradient(135deg, ${alpha(C.blue, 0.25)}, ${alpha(C.blue, 0.15)})`,
+                border: `1px solid ${msg.from === 'player' ? C.border : alpha(C.blue, 0.35)}`,
+                fontSize: 13,
+                color: C.text,
+                lineHeight: 1.6,
+                whiteSpace: 'pre-wrap',
+              }}>
+                {sp.text}
+              </div>
             </div>
           </div>
-        ))}
+        )})}
 
         {chatMessages.length === 0 && (
           <div style={{ textAlign: 'center', color: C.textGhost, fontSize: 12, marginTop: 40 }}>
