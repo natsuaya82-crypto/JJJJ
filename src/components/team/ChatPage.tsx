@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import ActionSheet from '../ui/ActionSheet'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
@@ -159,7 +160,7 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
   })
   if (offer.offerSalary > 0 && offer.status === 'countered') {
     msgs.push({ from: 'gm', text: `年俸${fmtYen(offer.offerSalary)}、${offer.offerYears}年契約でいかがでしょうか。` })
-    msgs.push({ from: 'player', text: `その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
+    msgs.push({ from: 'player', text: `（代理人）その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
   }
   return msgs
 }
@@ -192,7 +193,7 @@ function buildIncomingOfferMessages(
     { from: 'player', kind: 'incoming_offer',
       text: `（代理人）${offers.length}クラブから${player.name}選手の獲得の打診が来ています。\n${list}` },
     ...(wish ? [{ from: 'player' as const, kind: 'incoming_wish',
-      text: `本人に希望を聞きました。「${wish.name}へ行きたい。${wish.reason}から」とのことです。` }] : []),
+      text: `（代理人）本人に希望を聞きました。「${wish.name}へ行きたい。${wish.reason}から」とのことです。` }] : []),
   ]
 }
 
@@ -212,10 +213,22 @@ function buildIncomingLoanMessages(player: Player, offer: IncomingLoanOffer, tea
 function buildStayOrLeaveMessages(): ChatMessage[] {
   return [{
     from: 'player', kind: 'stay_or_leave',
-    text: `移籍先が見つかりませんでした。このままここに残るか、契約を解除して自分で移籍先を探すか、決めていただけますか。`,
+    text: `（代理人）移籍先が見つかりませんでした。このままチームに残るか、契約を解除して自分で移籍先を探すか、決めていただけますか。`,
   }]
 }
 
+// ── 会話の決まり ─────────────────────────────────────────────
+//
+// 話し手は3人。誰が喋っているかを頭の括弧で必ず区別する。
+//   ・自チームの選手本人 … 括弧なし。監督に直接話す
+//   ・相手クラブのGM     … （◯◯GM）。買い取り・レンタルの打診と、その返事
+//   ・代理人             … （代理人）。他クラブの選手・FA・売却の窓口
+// 括弧を付けたり付けなかったりすると、誰の発言か分からなくなる。**付けるなら全部に付ける。**
+//
+// 監督（プレイヤー）の発言は**常に丁寧語**で統一する。
+// 以前は「わかりました／お譲りします」と「わかった。お前の走りは世界レベルだ」が
+// 同じ画面に混ざっていた。
+//
 // --- Chat View ---
 
 function ChatView({
@@ -426,8 +439,20 @@ function ChatView({
     append({ from: 'gm', text: `${fmtYen(offerFee)}であればお譲りします。いかがでしょうか。` })
     const outcome = counterIncomingOffer(incomingOffer.id, offerFee)
     const r = offerResultText(outcome, { playerName: player.name, teamName: incomingFrom, price: offerFee })
-    append({ from: 'player', text: r.text })
+    append({ from: 'player', text: `（代理人）${r.text}` })
     setComposing(false)
+    if (outcome === 'sold') setJustSettled(true)
+  }
+
+  // 移籍先の選択シートを開いているか（複数クラブが取り合いのとき）
+  const [pickingDest, setPickingDest] = useState(false)
+  const nameOfClub = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'
+  const acceptOffer = (o: IncomingOffer) => {
+    setPickingDest(false)
+    append({ from: 'gm', text: `${nameOfClub(o.fromTeamId)}に${fmtYen(o.offeredPrice)}でお譲りします。` })
+    const outcome = acceptIncomingOffer(o.id)
+    const r = offerResultText(outcome, { playerName: player.name, teamName: nameOfClub(o.fromTeamId), price: o.offeredPrice })
+    append({ from: 'player', text: `（代理人）${r.text}` })
     if (outcome === 'sold') setJustSettled(true)
   }
 
@@ -466,12 +491,12 @@ function ChatView({
       append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
       setJustAcquired(true)
     } else if (updated?.status === 'countered') {
-      append({ from: 'player', text: `即断は難しいです。年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意します。` })
+      append({ from: 'player', text: `（代理人）即断は難しいです。年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意します。` })
     } else if (updated?.status === 'rejected') {
       append({ from: 'player', text:
         updated.rejectReason === 'team_refused' ? '（代理人）クラブが主力の放出に応じません。金額の問題ではないようです。'
         : updated.rejectReason === 'demotion' ? '（代理人）2way契約・育成契約では本人が納得しません。本契約を用意できますか？'
-        : '申し訳ありませんが、その条件では合意できません。' })
+        : '（代理人）申し訳ありませんが、その条件では合意できません。' })
     } else {
       // 判定は合意だが署名処理（枠上限）で成立しなかった場合。無言にならないようフォローする
       append({ from: 'player', text: '（代理人）受け入れ枠の都合で契約手続きができなかったようです。ロスターを整理してから改めてお願いします。' })
@@ -579,14 +604,14 @@ function ChatView({
       return [
         { label: '残ってくれ（移籍希望はそのまま）', color: C.blue, action: () => {
           append(
-            { from: 'gm', text: 'まだこのチームで走ってほしい。今季も頼む。' },
+            { from: 'gm', text: 'まだこのチームで走ってほしい。今季もよろしくお願いします。' },
             { from: 'player', text: 'わかりました。ただ、移籍したい気持ちは変わりません。良い話があれば、また相談させてください。' },
           )
           resolveStayOrLeave(player.id, 'stay')
         }},
         { label: '契約を解除する（FA）', color: C.orange, action: () => {
           append(
-            { from: 'gm', text: '分かった。契約を解除する。新しいクラブを自分で探してくれ。' },
+            { from: 'gm', text: 'わかりました。契約を解除します。新しいクラブを探してください。' },
             { from: 'player', text: 'ありがとうございました。お世話になりました。' },
           )
           resolveStayOrLeave(player.id, 'release')
@@ -596,30 +621,22 @@ function ChatView({
     }
 
     // 相手クラブから来た買い取り打診への返事。
-    // 複数クラブが同時に来ているときは、クラブごとに「承諾」を出す（どこへ売るかはGMが選ぶ）。
-    // 本人が納得しない先を選ぶと成立せず、そのクラブは今季もう打診してこない
+    // 複数クラブが来ているときに承諾ボタンを人数分ぶら下げると縦に伸びるので、
+    // 「移籍先を選んで承諾」1つにまとめ、行き先の選択は下から出るシートで受ける。
+    // 画面下から出るものは必ず BottomSheet（ActionSheet）を通す決まり（CLAUDE.md）
     const buildIncomingOfferButtons = (): ReplyBtns | null => {
       if (rankedOffers.length === 0 || justSettled) return null
-      const nameOf = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'
-      const accept = (o: IncomingOffer) => ({
-        label: `${nameOf(o.fromTeamId)}へ承諾（${fmtYen(o.offeredPrice)}）`,
-        color: C.green,
-        action: () => {
-          append({ from: 'gm', text: `${nameOf(o.fromTeamId)}に${fmtYen(o.offeredPrice)}でお譲りします。` })
-          const outcome = acceptIncomingOffer(o.id)
-          const r = offerResultText(outcome, { playerName: player.name, teamName: nameOf(o.fromTeamId), price: o.offeredPrice })
-          append({ from: 'player', text: r.text })
-          if (outcome === 'sold') setJustSettled(true)
-        },
-      })
       const top = rankedOffers[0].offer
+      const one = rankedOffers.length === 1
       return [
-        ...rankedOffers.map(r => accept(r.offer)),
-        { label: `${nameOf(top.fromTeamId)}へ金額を提示する`, color: C.gold, action: openComposeCounterFee },
-        { label: rankedOffers.length > 1 ? 'すべて断る' : '断る', color: C.red, action: () => {
+        one
+          ? { label: `${nameOfClub(top.fromTeamId)}へ承諾（${fmtYen(top.offeredPrice)}）`, color: C.green, action: () => acceptOffer(top) }
+          : { label: `移籍先を選んで承諾（${rankedOffers.length}クラブ）`, color: C.green, action: () => setPickingDest(true) },
+        { label: `${nameOfClub(top.fromTeamId)}へ金額を提示する`, color: C.gold, action: openComposeCounterFee },
+        { label: one ? '断る' : 'すべて断る', color: C.red, action: () => {
           append(
             { from: 'gm', text: `申し訳ありませんが、${player.name}を手放すつもりはありません。` },
-            { from: 'player', text: '（代理人）承知しました。またの機会に。' },
+            { from: 'player', text: `（${nameOfClub(top.fromTeamId)}GM）承知しました。またの機会にお願いします。` },
           )
           for (const r of rankedOffers) declineIncomingOffer(r.offer.id)
           setJustSettled(true)
@@ -637,14 +654,14 @@ function ChatView({
           append({ from: 'gm', text: isLend ? `わかりました。${incomingLoan.years}年、お預けします。` : `わかりました。${incomingLoan.years}年、お借りします。` })
           const ok = acceptIncomingLoanOffer(incomingLoan.id)
           append({ from: 'player', text: ok
-            ? (isLend ? `${player.name}を${incomingLoanFrom}へ${incomingLoan.years}年のレンタルで貸し出しました` : `${player.name}を${incomingLoan.years}年のレンタルで借り入れました`)
-            : `レンタル枠（3人）が埋まっているため、この話は成立しませんでした` })
+            ? (isLend ? `（代理人）${player.name}を${incomingLoanFrom}へ${incomingLoan.years}年のレンタルで貸し出しました` : `（代理人）${player.name}を${incomingLoan.years}年のレンタルで借り入れました`)
+            : `（代理人）レンタルの枠（3人）が埋まっているため、この話は成立しませんでした` })
           if (ok) setJustSettled(true)
         }, disabled: !isLend && loanBorrowedIn >= 3 },
         { label: '断る', color: C.red, action: () => {
           append(
             { from: 'gm', text: '申し訳ありませんが、今回は見送らせてください。' },
-            { from: 'player', text: '（代理人）承知しました。' },
+            { from: 'player', text: `（${incomingLoanFrom}GM）承知しました。またの機会にお願いします。` },
           )
           declineIncomingLoanOffer(incomingLoan.id)
           setJustSettled(true)
@@ -737,7 +754,7 @@ function ChatView({
     const buildOverseasButtons = (): ReplyBtns | null => overseasReq ? [
       { label: `海外挑戦を認める（${OVERSEAS_LABEL[overseasReq.region] ?? '海外'}）`, color: C.purple ?? '#A855F7', action: () => {
         append(
-          { from: 'gm', text: 'わかった。お前の走りはもう世界レベルだ。夢を応援する。良いオファーを待とう。' },
+          { from: 'gm', text: 'わかりました。あなたの走りはもう世界レベルです。夢を応援します。良いオファーを待ちましょう。' },
           { from: 'player', text: 'ありがとうございます！絶対に結果を出します。オファーが来たらよろしくお願いします！' },
         )
         approveOverseasChallenge(player.id)
@@ -745,7 +762,7 @@ function ChatView({
       { label: '今季は残ってくれ', color: C.blue, action: () => {
         const cnt = (player.overseasDeniedCount ?? 0) + 1
         append(
-          { from: 'gm', text: 'まだチームにお前の力が必要だ。今季は残ってくれ。' },
+          { from: 'gm', text: 'まだチームにあなたの力が必要です。今季は残ってください。' },
           { from: 'player', text: cnt >= 2
             ? '…また、ですか。わかりました。でも、この気持ちはもう抑えられないかもしれません。'
             : 'わかりました…。でも、夢は諦めていません。また相談させてください。' },
@@ -886,6 +903,17 @@ function ChatView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP', system-ui, sans-serif" }}>
+      {/* 移籍先の選択。本人の希望順に並び、先頭が本命。乗り気でない先は印を出す */}
+      <ActionSheet
+        open={pickingDest}
+        onClose={() => setPickingDest(false)}
+        header={<div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{player.name}の移籍先を選ぶ</div>}
+        items={rankedOffers.map((r, i) => ({
+          label: `${i === 0 ? '★ ' : ''}${nameOfClub(r.offer.fromTeamId)}  ${fmtYen(r.offer.offeredPrice)}  ${r.appraisal.ok ? r.appraisal.reason : '本人は乗り気でない'}`,
+          color: r.appraisal.ok ? C.green : C.textDim,
+          onClick: () => acceptOffer(r.offer),
+        }))}
+      />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
         <BackButton onClick={onClose} />
         <div {...longPress(player.id)} style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', border: `2px solid ${alpha(specCol, 0.4)}`, flexShrink: 0, cursor: 'pointer' }}>
