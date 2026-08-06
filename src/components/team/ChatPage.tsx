@@ -373,7 +373,11 @@ function ChatView({
   const [justAcquired, setJustAcquired] = useState(false)  // 獲得成立直後（契約更新フローへの誤遷移を防ぐ）
   const [negotiationFailed, setNegotiationFailed] = useState(false)  // 交渉決裂直後（別フローに落ちず締めの表示だけ出す）
   const [justRetired, setJustRetired] = useState(false)  // 引退承認直後（送別メッセージを見せてから閉じる）
-  const [justSettled, setJustSettled] = useState(false)  // 相手クラブへの打診に返事をした直後（結果を見せてから閉じる）
+  // 相手クラブへの打診に返事をした直後（結果を見せてから閉じる）。
+  // 買い取りとレンタルは同時に来るので別々に持つ。1つにまとめていたときは、
+  // レンタルに返事をした瞬間に買い取りの返事ボタンまで消えていた
+  const [settledOffer, setSettledOffer] = useState(false)
+  const [settledLoan, setSettledLoan] = useState(false)
   const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
   const [offerYears, setOfferYears] = useState(2)
   const [offerContractType, setOfferContractType] = useState<'standard' | 'development' | 'dual'>('standard')
@@ -463,7 +467,8 @@ function ChatView({
     const outcome = acceptIncomingOffer(o.id)
     const r = offerResultText(outcome, { playerName: player.name, teamName: nameOfClub(o.fromTeamId), price: o.offeredPrice })
     append({ from: 'player', text: `（代理人）${r.text}` })
-    if (outcome === 'sold') setJustSettled(true)
+    // 売れた時点で本人がチームを離れるので、レンタルの話も同時に終わる
+    if (outcome === 'sold') { setSettledOffer(true); setSettledLoan(true) }
   }
 
   const handleSubmitTransferOffer = () => {
@@ -625,7 +630,7 @@ function ChatView({
             { from: 'player', text: 'ありがとうございました。お世話になりました。' },
           )
           resolveStayOrLeave(player.id, 'release')
-          setJustSettled(true)
+          setSettledOffer(true); setSettledLoan(true)
         }},
       ]
     }
@@ -635,7 +640,7 @@ function ChatView({
     // 「移籍先を選んで承諾」1つにまとめ、行き先の選択は下から出るシートで受ける。
     // 画面下から出るものは必ず BottomSheet（ActionSheet）を通す決まり（CLAUDE.md）
     const buildIncomingOfferButtons = (): ReplyBtns | null => {
-      if (rankedOffers.length === 0 || justSettled) return null
+      if (rankedOffers.length === 0 || settledOffer) return null
       const top = rankedOffers[0].offer
       const one = rankedOffers.length === 1
       return [
@@ -649,7 +654,7 @@ function ChatView({
             { from: 'player', text: `（${nameOfClub(top.fromTeamId)}GM）承知しました。またの機会にお願いします。` },
           )
           for (const r of rankedOffers) declineIncomingOffer(r.offer.id)
-          setJustSettled(true)
+          setSettledOffer(true)
         }},
       ]
     }
@@ -657,7 +662,7 @@ function ChatView({
     // レンタル打診への返事。貸す／借りるの両方向とも会話で答える
     const buildIncomingLoanButtons = (): ReplyBtns | null => {
       if (!incomingLoan) return null
-      if (justSettled) return null
+      if (settledLoan) return null
       const isLend = incomingLoan.direction === 'lend_out'
       return [
         { label: isLend ? `${incomingLoan.years}年で貸し出す` : `${incomingLoan.years}年で借りる`, color: C.blue, action: () => {
@@ -666,7 +671,7 @@ function ChatView({
           append({ from: 'player', text: ok
             ? (isLend ? `（代理人）${player.name}を${incomingLoanFrom}へ${incomingLoan.years}年のレンタルで貸し出しました` : `（代理人）${player.name}を${incomingLoan.years}年のレンタルで借り入れました`)
             : `（代理人）レンタルの枠（3人）が埋まっているため、この話は成立しませんでした` })
-          if (ok) setJustSettled(true)
+          if (ok) setSettledLoan(true)
         }, disabled: !isLend && loanBorrowedIn >= 3 },
         { label: '断る', color: C.red, action: () => {
           append(
@@ -674,15 +679,26 @@ function ChatView({
             { from: 'player', text: `（${incomingLoanFrom}GM）承知しました。またの機会にお願いします。` },
           )
           declineIncomingLoanOffer(incomingLoan.id)
-          setJustSettled(true)
+          setSettledLoan(true)
         }},
       ]
     }
 
     // 相手クラブからの打診は、自チーム外の選手（借り入れ）や退団予定にした選手にも来る。
     // 下の「自チーム以外は閉じるだけ」「退団予定には用件を出さない」より前に置かないと、
-    // 打診が届いているのに会話に「閉じる」しか出ず、返事ができなくなる
-    const incomingEarly = buildStayOrLeaveButtons() ?? buildIncomingOfferButtons() ?? buildIncomingLoanButtons()
+    // 打診が届いているのに会話に「閉じる」しか出ず、返事ができなくなる。
+    //
+    // 買い取りとレンタルは同じ選手に同時に来る。?? でつないでいたので先に見つかった方しか
+    // 出ず、**もう片方には返事ができなかった**。両方あるときは並べて、どちらの話かを頭に付ける
+    const offerBtns = buildIncomingOfferButtons()
+    const loanBtns = buildIncomingLoanButtons()
+    const incomingEarly = buildStayOrLeaveButtons()
+      ?? (offerBtns && loanBtns
+        ? [
+            ...offerBtns.map(b => ({ ...b, label: `［移籍］${b.label}` })),
+            ...loanBtns.map(b => ({ ...b, label: `［レンタル］${b.label}` })),
+          ]
+        : offerBtns ?? loanBtns)
     if (incomingEarly && (!talksHere || player.transferListed)) return incomingEarly
 
     // 自チーム以外の選手（獲得・移籍交渉が終わった相手や海外選手など）と、

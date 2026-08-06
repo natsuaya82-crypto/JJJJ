@@ -84,7 +84,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
+import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
@@ -926,12 +926,12 @@ export const useGameStore = create<GameStore>()(
         // 初年度は前シーズンが無いので「初期予算の逆順（貧乏なチームから）」で指名順を決める。
         // 2巡目はスネークで逆順（1位から）。
         //
-        // ★初年度だけ、プレイヤーは指名に参加しない（観戦のみ）。
-        //   代わりに選手を1人自分で作って加入させる（createMyPlayer の 'inaugural'）。
-        //   ドラフトそのものは走るので、初めてでも「こういう催しがある」ことは見て分かる。
-        //   2年目以降は通常どおりプレイヤーも指名する。
+        // ★指名できるのは1部のクラブだけ（utils/league の joinsDraft）。
+        //   プレイヤーはどのクラブを選んでも3部から始まるので、初年度は必ず観戦になる。
+        //   代わりに選手を1人自分で作って加入させる（createMyPlayer）。
+        //   指名されなかった候補はFAになるので、2部・3部はそこから拾う。
         const inauguralRound1 = [...state.teams]
-          .filter(t => t.id !== state.playerTeamId)
+          .filter(t => joinsDraft(t))
           .sort((a, b) => tierBudget(a) - tierBudget(b))
           .map(t => t.id)
         const pickOrder = [...inauguralRound1, ...[...inauguralRound1].reverse()]
@@ -4790,9 +4790,14 @@ export const useGameStore = create<GameStore>()(
             return { round: pk.round, orderKey, ownerId: t.id }
           }))
           .sort((a, b) => a.round - b.round || a.orderKey - b.orderKey)
-        const pickOrder = ownedYearPicks.length >= state.teams.length
-          ? ownedYearPicks.map(pk => pk.ownerId)
-          : buildDraftOrder(draftOrderTeams(state.teams, state.pastSeasons), state.currentSeason.year, state.playerTeamId)
+        // 指名するのは1部のクラブだけ（joinsDraft）。指名権を持っていても、
+        // その年に1部にいなければ使えない
+        const draftTeams = state.teams.filter(t => joinsDraft(t))
+        const draftTeamIds = new Set(draftTeams.map(t => t.id))
+        const yearPicksInTop = ownedYearPicks.filter(pk => draftTeamIds.has(pk.ownerId))
+        const pickOrder = yearPicksInTop.length >= draftTeams.length
+          ? yearPicksInTop.map(pk => pk.ownerId)
+          : buildDraftOrder(draftOrderTeams(draftTeams, state.pastSeasons), state.currentSeason.year, state.playerTeamId)
 
         // Ensure all teams have future draft picks (backfill for existing saves)
         // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）

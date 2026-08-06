@@ -10,6 +10,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import { audio } from '../../utils/audio'
 import { isForeignNat } from '../../data/nationalities'
 import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
@@ -95,9 +96,18 @@ export default function DraftRoom() {
   // 5位→1位の順にタップでリビールしていく。初年度（前季の順位が無い＝抽選の根拠が無い）は出さない
   const [showLottery, setShowLottery] = useState(() => {
     const s = useGameStore.getState()
+    // 観戦の年（自分の指名が無い）は抽選の演出も出さない
+    if (!s.draftState?.pickOrder.includes(s.playerTeamId)) return false
     return (s.draftState?.picks.length ?? 0) === 0 && (s.pastSeasons?.length ?? 0) > 0
   })
   const [lotteryRevealed, setLotteryRevealed] = useState(0)
+  // 観戦の年（1部にいない＝自分の番が一度も無い）は、最初に「観戦する／スキップ」を聞く。
+  // showLottery と同じく、開いた時点の draftState から決める（effect で set しない）
+  const [watchIntro, setWatchIntro] = useState(() => {
+    const s = useGameStore.getState()
+    const ds = s.draftState
+    return !!ds && !ds.isComplete && ds.currentPick === 0 && !ds.pickOrder.includes(s.playerTeamId)
+  })
   const orderStripRef = useRef<HTMLDivElement>(null)
   const prevIsMyPickRef = useRef(false)
 
@@ -107,6 +117,8 @@ export default function DraftRoom() {
   const picks        = draftState?.picks        ?? []
   const isComplete   = draftState?.isComplete   ?? false
   const isMyPick     = !isComplete && pickOrder[currentPick] === playerTeamId
+  // スキップ中はCPUの自動進行タイマーを止める（二重に指名が走らないように）
+  const [skipping, setSkipping] = useState(false)
 
   useEffect(() => {
     if (isMyPick && !prevIsMyPickRef.current) {
@@ -124,7 +136,7 @@ export default function DraftRoom() {
   }, [currentPick])
 
   useEffect(() => {
-    if (isComplete || isMyPick || showLottery) return
+    if (isComplete || isMyPick || showLottery || watchIntro || skipping) return
     const t = setTimeout(() => {
       const state = useGameStore.getState()
       const ds = state.draftState
@@ -231,6 +243,20 @@ export default function DraftRoom() {
 
   const scoutedIds = new Set((currentSeason?.scoutProspects ?? []).map(p => p.id))
 
+  // 最後まで一気に進める（観戦をスキップ）。指名そのものは全部走るので、
+  // 各クラブにはちゃんと選手が入る
+  function skipAll() {
+    setSkipping(true)
+    const MAX = 400
+    for (let i = 0; i < MAX; i++) {
+      const ds = useGameStore.getState().draftState
+      if (!ds || ds.isComplete) break
+      if (ds.pickOrder[ds.currentPick] === playerTeamId) break   // 自分の番があるなら止まる
+      cpuPick()
+    }
+    setSkipping(false)
+  }
+
   function skipToMyPick() {
     const MAX = 200
     let i = 0
@@ -279,6 +305,10 @@ export default function DraftRoom() {
   }
 
   if (isComplete) {
+    // 1人も指名していない年は「ドラフト終了・契約を決める」が空のまま出るだけなので出さない
+    if (!picks.some(pk => pk.teamId === playerTeamId)) {
+      return <DraftWatchedEnd onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
+    }
     return <DraftComplete picks={picks} teams={teams} playerTeamId={playerTeamId} onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
   }
 
@@ -296,6 +326,18 @@ export default function DraftRoom() {
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',
     }}>
+      {watchIntro && (
+        <ConfirmDialog
+          title="今年のドラフトは観戦のみです"
+          message="指名できるのは1部のクラブだけです。指名されなかった選手はFAになるので、そこから獲得できます。"
+          cancelLabel="スキップ"
+          confirmLabel="観戦する"
+          accent={C.gold}
+          onConfirm={() => setWatchIntro(false)}
+          onCancel={() => { setWatchIntro(false); skipAll() }}
+        />
+      )}
+
       <style>{`
         @keyframes fadeOut    { 0%{opacity:1;transform:scale(1)} 70%{opacity:1} 100%{opacity:0;transform:scale(1.05)} }
         @keyframes announceIn { from{opacity:0;transform:translate(-50%,-50%) scale(.9)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
@@ -844,6 +886,29 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
           <span className="btn-game__inner">{p.name} を指名する</span>
         </button>
       )}
+    </div>
+  )
+}
+
+// 1人も指名していない年の締め。契約を決めるものが無いので、終わったことだけ伝える
+function DraftWatchedEnd({ onFinish }: { onFinish: () => void }) {
+  const adH = useAdHeight()
+  return (
+    <div style={{
+      height: '100svh', backgroundColor: C.bg, maxWidth: 480, margin: '0 auto',
+      paddingTop: 'env(safe-area-inset-top)',
+      fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 24px',
+    }}>
+      <div style={{ fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 800, fontFamily: SAIRA }}>DRAFT COMPLETE</div>
+      <div style={{ fontSize: 22, fontWeight: 900, color: C.text, fontFamily: SAIRA }}>ドラフト終了</div>
+      <div style={{ fontSize: 12, color: C.textSub, textAlign: 'center', lineHeight: 1.7 }}>
+        指名されなかった選手はFAになりました。<br />移籍市場から獲得できます。
+      </div>
+      <button className="btn-game btn-game--gold" onClick={onFinish} style={{ width: '100%', marginTop: 8 }}>
+        <span className="btn-game__inner">シーズン開幕へ！</span>
+      </button>
+      <div style={{ height: `calc(${adH}px + env(safe-area-inset-bottom))` }} />
     </div>
   )
 }

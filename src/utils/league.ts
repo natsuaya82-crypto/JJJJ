@@ -59,6 +59,17 @@ export function teamsInDivision<T extends Pick<Team, 'division'>>(teams: readonl
   return teams.filter(t => divisionOf(t) === division)
 }
 
+/**
+ * ドラフトに参加できるのは1部のクラブだけ。ここが唯一の決まり。
+ *
+ * 指名されなかった候補はFAになるので、2部・3部はそこから拾う。
+ * 「今年は指名できるか」を各所で書き分けないこと（指名順・画面の出し分けとも必ずここを見る）。
+ */
+export const DRAFT_DIVISION: Division = 1
+export function joinsDraft(team: Pick<Team, 'division'> | undefined): boolean {
+  return divisionOf(team) === DRAFT_DIVISION
+}
+
 // ── 区間賞の賞金 ──────────────────────────────────────────────
 //
 // 各区間の上位3人にクラブへ賞金が入る。**自チームもCPUも同じ額**。
