@@ -14,6 +14,7 @@ import { OfferResultList } from '../transfer/OfferResultList'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
+import { offerResultText } from '../../utils/offerResult'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
 import { SPECIALTY_LABELS } from '../../types'
@@ -171,6 +172,29 @@ function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: 
   }]
 }
 
+// 相手クラブから来た買い取りオファーを会話にする。
+// 以前はチャットを通さず、一覧の中のカードに 承諾／カウンター／拒否 のボタンを直接置いていた。
+// 同じ「相手からの打診に返事をする」なのに、契約更新・獲得交渉・トレードは会話、
+// 買い取りとレンタルだけボタン、と2つの作りが混ざっていた。会話1本に寄せる。
+function buildIncomingOfferMessages(player: Player, offer: IncomingOffer, teamName: string): ChatMessage[] {
+  return [{
+    from: 'player',
+    kind: 'incoming_offer',
+    text: `（${teamName}GM）${player.name}選手を移籍金${fmtYen(offer.offeredPrice)}でお譲りいただけないでしょうか。ご検討をお願いします。`,
+  }]
+}
+
+// 相手クラブから来たレンタル打診を会話にする（貸す／借りるの両方向）。
+function buildIncomingLoanMessages(player: Player, offer: IncomingLoanOffer, teamName: string): ChatMessage[] {
+  return [{
+    from: 'player',
+    kind: 'incoming_loan',
+    text: offer.direction === 'lend_out'
+      ? `（${teamName}GM）${player.name}選手を${offer.years}年のレンタルでお借りできませんか。出場機会はこちらで用意します。`
+      : `（${teamName}GM）${player.name}選手を${offer.years}年のレンタルでお預かりいただけませんか。`,
+  }]
+}
+
 // --- Chat View ---
 
 function ChatView({
@@ -195,6 +219,8 @@ function ChatView({
     generateContractRequests, refuseFreeContactRetention,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
     openPlayerSheet, finalizeTransfer, rejectTransferBid,
+    acceptIncomingOffer, counterIncomingOffer, declineIncomingOffer,
+    acceptIncomingLoanOffer, declineIncomingLoanOffer,
   } = useGameStore()
   const longPress = usePlayerLongPress()
   void openPlayerSheet
@@ -238,6 +264,15 @@ function ChatView({
   const transferBid = (currentSeason.transferBids ?? []).find(b => b.playerId === player.id && b.status === 'fee_accepted')
   const isTransfer = !!transferBid && !isAcq
 
+  // 相手クラブから来た打診（買い取り・レンタル）。会話で返事をする用件のひとつとして扱う。
+  // 移籍金0円のオファーは「フリー移籍の接触」で、返事をするのは本人なので別扱い（freeContactOffer）
+  const incomingOffer = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice > 0) ?? null
+  const incomingLoan = (currentSeason.incomingLoanOffers ?? []).find(o => o.playerId === player.id) ?? null
+  const incomingFrom = incomingOffer ? (clubIndex.byId(incomingOffer.fromTeamId)?.shortName ?? '他クラブ') : ''
+  const incomingLoanFrom = incomingLoan ? (clubIndex.byId(incomingLoan.fromTeamId)?.shortName ?? '他クラブ') : ''
+  // 借り入れの枠（3人まで）。貸し出しには枠は要らない（カードでやっていたときと同じ条件）
+  const loanBorrowedIn = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+
   // 自チーム所属かどうか。契約更新・引退・移籍希望・不満・契約残の催促は自チーム選手専用の会話で、
   // 他チーム/FA選手（獲得・移籍交渉の相手）に出してはいけない。
   const isMine = player.teamId === playerTeamId
@@ -256,6 +291,11 @@ function ChatView({
   const loanNote: ChatMessage | null = isMine && isLoanedIn
     ? { from: 'player', kind: 'loaned_in', text: `${clubIndex.byId(player.loan!.ownerTeamId)?.shortName ?? '保有元クラブ'}からレンタルで来ています。契約や進路の話は保有元クラブの管轄なので、こちらではお受けできません。レースでは全力を尽くします！` }
     : null
+  const incomingMsgs: ChatMessage[] = [
+    ...(incomingOffer ? buildIncomingOfferMessages(player, incomingOffer, incomingFrom) : []),
+    ...(incomingLoan ? buildIncomingLoanMessages(player, incomingLoan, incomingLoanFrom) : []),
+  ]
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
     const builtBase = isTransfer
       ? buildTransferMessages(player, transferBid!, clubIndex.byId(transferBid!.targetTeamId)?.name)
@@ -266,7 +306,8 @@ function ChatView({
       : loanNote
       ? [loanNote]
       : []  // 他チーム/FA選手で交渉モードでもない場合は保存ログのみ
-    const built = (talksHere && !isTransfer && !isAcq && contactMsg) ? [...builtBase, contactMsg] : builtBase
+    const withContact = (talksHere && !isTransfer && !isAcq && contactMsg) ? [...builtBase, contactMsg] : builtBase
+    const built = [...withContact, ...incomingMsgs]
     if (!initialMessages || initialMessages.length === 0) return built
     // 保存済みログを開いた後に発生した「新しい用件」だけをログに追記する。
     // 交渉への返答系（承諾・拒否・カウンター等）は会話の流れの一部であり、後から再構築すると
@@ -277,17 +318,21 @@ function ChatView({
       remindMonths,  // 初回の組み立てと同じ条件を使う（別々に書いて食い違わせない）
       !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region,
     ) : loanNote ? [loanNote] : []
-    const freshSource = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
+    const freshSourceWithContact = (talksHere && contactMsg) ? [...freshSourceBase, contactMsg] : freshSourceBase
+    // 打診は後から届くので、開き直したときの差分にも必ず入れる（mergeChatMessages が重複を潰す）
+    const freshSource = [...freshSourceWithContact, ...incomingMsgs]
     // 突き合わせは utils/chatLog.ts の1本だけ（同じ用件は増やさず文面を差し替える）
     return mergeChatMessages(initialMessages, freshSource)
   })
 
   useEffect(() => { onMessagesChange(chatMessages) }, [chatMessages])
   const [composing, setComposing] = useState(false)
-  const [composeMode, setComposeMode] = useState<'renewal' | 'acq' | 'transfer'>('renewal')
+  const [composeMode, setComposeMode] = useState<'renewal' | 'acq' | 'transfer' | 'counterFee'>('renewal')
+  const [offerFee, setOfferFee] = useState(1_000_000)   // 買い取り打診への逆提示額
   const [justAcquired, setJustAcquired] = useState(false)  // 獲得成立直後（契約更新フローへの誤遷移を防ぐ）
   const [negotiationFailed, setNegotiationFailed] = useState(false)  // 交渉決裂直後（別フローに落ちず締めの表示だけ出す）
   const [justRetired, setJustRetired] = useState(false)  // 引退承認直後（送別メッセージを見せてから閉じる）
+  const [justSettled, setJustSettled] = useState(false)  // 相手クラブへの打診に返事をした直後（結果を見せてから閉じる）
   const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
   const [offerYears, setOfferYears] = useState(2)
   const [offerContractType, setOfferContractType] = useState<'standard' | 'development' | 'dual'>('standard')
@@ -331,6 +376,25 @@ function ChatView({
     setOfferYears(2)
     setComposeMode('transfer')
     setComposing(true)
+  }
+
+  // 買い取り打診への逆提示（「この額なら出す」）。金額はここで決めて counterIncomingOffer に渡す
+  const openComposeCounterFee = () => {
+    if (!incomingOffer) return
+    const base = Math.max(1_000_000, Math.round(incomingOffer.offeredPrice * 1.2 / 1_000_000) * 1_000_000)
+    setOfferFee(base)
+    setComposeMode('counterFee')
+    setComposing(true)
+  }
+
+  const handleSubmitCounterFee = () => {
+    if (!incomingOffer) return
+    append({ from: 'gm', text: `${fmtYen(offerFee)}であればお譲りします。いかがでしょうか。` })
+    const outcome = counterIncomingOffer(incomingOffer.id, offerFee)
+    const r = offerResultText(outcome, { playerName: player.name, teamName: incomingFrom, price: offerFee })
+    append({ from: 'player', text: r.text })
+    setComposing(false)
+    if (outcome === 'sold') setJustSettled(true)
   }
 
   const handleSubmitTransferOffer = () => {
@@ -473,6 +537,63 @@ function ChatView({
       ]
     }
 
+    type ReplyBtns = { label: string; color: string; action: () => void; disabled?: boolean }[]
+
+    // 相手クラブから来た買い取り打診への返事。カードのボタンでやっていたものをそのまま会話に移した
+    const buildIncomingOfferButtons = (): ReplyBtns | null => {
+      if (!incomingOffer) return null
+      if (justSettled) return null
+      return [
+        { label: `承諾する（放出・${fmtYen(incomingOffer.offeredPrice)}）`, color: C.green, action: () => {
+          append({ from: 'gm', text: `わかりました。${fmtYen(incomingOffer.offeredPrice)}でお譲りします。` })
+          const outcome = acceptIncomingOffer(incomingOffer.id)
+          const r = offerResultText(outcome, { playerName: player.name, teamName: incomingFrom, price: incomingOffer.offeredPrice })
+          append({ from: 'player', text: r.text })
+          if (outcome === 'sold') setJustSettled(true)
+        }},
+        { label: 'こちらから金額を提示する', color: C.gold, action: openComposeCounterFee },
+        { label: '断る', color: C.red, action: () => {
+          append(
+            { from: 'gm', text: `申し訳ありませんが、${player.name}を手放すつもりはありません。` },
+            { from: 'player', text: '（代理人）承知しました。またの機会に。' },
+          )
+          declineIncomingOffer(incomingOffer.id)
+          setJustSettled(true)
+        }},
+      ]
+    }
+
+    // レンタル打診への返事。貸す／借りるの両方向とも会話で答える
+    const buildIncomingLoanButtons = (): ReplyBtns | null => {
+      if (!incomingLoan) return null
+      if (justSettled) return null
+      const isLend = incomingLoan.direction === 'lend_out'
+      return [
+        { label: isLend ? `${incomingLoan.years}年で貸し出す` : `${incomingLoan.years}年で借りる`, color: C.blue, action: () => {
+          append({ from: 'gm', text: isLend ? `わかりました。${incomingLoan.years}年、お預けします。` : `わかりました。${incomingLoan.years}年、お借りします。` })
+          const ok = acceptIncomingLoanOffer(incomingLoan.id)
+          append({ from: 'player', text: ok
+            ? (isLend ? `${player.name}を${incomingLoanFrom}へ${incomingLoan.years}年のレンタルで貸し出しました` : `${player.name}を${incomingLoan.years}年のレンタルで借り入れました`)
+            : `レンタル枠（3人）が埋まっているため、この話は成立しませんでした` })
+          if (ok) setJustSettled(true)
+        }, disabled: !isLend && loanBorrowedIn >= 3 },
+        { label: '断る', color: C.red, action: () => {
+          append(
+            { from: 'gm', text: '申し訳ありませんが、今回は見送らせてください。' },
+            { from: 'player', text: '（代理人）承知しました。' },
+          )
+          declineIncomingLoanOffer(incomingLoan.id)
+          setJustSettled(true)
+        }},
+      ]
+    }
+
+    // 相手クラブからの打診は、自チーム外の選手（借り入れ）や退団予定にした選手にも来る。
+    // 下の「自チーム以外は閉じるだけ」「退団予定には用件を出さない」より前に置かないと、
+    // 打診が届いているのに会話に「閉じる」しか出ず、返事ができなくなる
+    const incomingEarly = buildIncomingOfferButtons() ?? buildIncomingLoanButtons()
+    if (incomingEarly && (!talksHere || player.transferListed)) return incomingEarly
+
     // 自チーム以外の選手（獲得・移籍交渉が終わった相手や海外選手など）と、
     // レンタルで借りている選手（契約は保有元の管轄）は、交渉モードでない限り閉じるだけ。
     if (!talksHere) return [
@@ -488,7 +609,6 @@ function ChatView({
 
     // ── 自チーム選手の用件。複数溜まっている場合は「最後に来たメッセージの用件」から順に評価し、
     //    実際に押せるボタンがある用件を出す（新しい用件にボタンが無くても、古い用件が詰まないようフォールバック）
-    type ReplyBtns = { label: string; color: string; action: () => void }[]
     const lastIdx = (pred: (m: ChatMessage) => boolean) => { for (let i = chatMessages.length - 1; i >= 0; i--) { if (pred(chatMessages[i])) return i } return -1 }
 
     const buildRetirementButtons = (): ReplyBtns | null => retirementReq ? [
@@ -644,6 +764,8 @@ function ChatView({
 
     // 新しいメッセージの用件から順に試す（メッセージが見つからない用件は後回し・元の優先順を維持）
     const topicOrder = [
+      { present: !!incomingOffer, idx: incomingOffer ? lastIdx(m => m.kind === 'incoming_offer') : -1, build: buildIncomingOfferButtons },
+      { present: !!incomingLoan, idx: incomingLoan ? lastIdx(m => m.kind === 'incoming_loan') : -1, build: buildIncomingLoanButtons },
       { present: !!retirementReq, idx: retirementReq ? lastIdx(m => m.text.includes('引退を考えて')) : -1, build: buildRetirementButtons },
       { present: !!transferReq, idx: transferReq ? lastIdx(m => m.text.includes('移籍を考えて')) : -1, build: buildTransferButtons },
       { present: !!overseasReq, idx: overseasReq ? lastIdx(m => m.text.includes('海外挑戦を認めて')) : -1, build: buildOverseasButtons },
@@ -747,7 +869,25 @@ function ChatView({
       </div>
 
       <div style={{ borderTop: `1px solid ${C.border}`, background: C.bg, position: 'sticky', bottom: 0 }}>
-        {composing ? (
+        {composing && composeMode === 'counterFee' ? (
+          // 買い取り打診への逆提示は「移籍金」だけを決める（年俸・年数は相手クラブが決めること）
+          <div style={{ padding: '12px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 10, color: C.textDim }}>提示する移籍金</div>
+            <div style={{ padding: '4px 0 8px' }}>
+              <NumberDial value={offerFee} onChange={v => setOfferFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.gold} />
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={handleSubmitCounterFee}
+                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.gold, color: '#1a1a1a', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
+                この金額で提示
+              </button>
+              <button onClick={() => setComposing(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                キャンセル
+              </button>
+            </div>
+          </div>
+        ) : composing ? (
           <div style={{ padding: '12px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 10, color: C.textDim }}>提示年俸</div>
             <div style={{ padding: '4px 0 8px' }}>
@@ -778,9 +918,9 @@ function ChatView({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 16px 16px' }}>
             {replyButtons.map((btn, i) => (
-              <button key={i} onClick={btn.action}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${alpha(btn.color, 0.5)}`, backgroundColor: alpha(btn.color, 0.1), color: btn.color, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
-                {btn.label}
+              <button key={i} onClick={btn.action} disabled={btn.disabled}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${alpha(btn.color, btn.disabled ? 0.2 : 0.5)}`, backgroundColor: alpha(btn.color, btn.disabled ? 0.04 : 0.1), color: btn.disabled ? C.textGhost : btn.color, fontSize: 13, fontWeight: 700, cursor: btn.disabled ? 'default' : 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+                {btn.label}{btn.disabled ? '（枠が満杯）' : ''}
               </button>
             ))}
           </div>
@@ -1089,95 +1229,29 @@ function getPlayerStatus(
 }
 
 // 相手から来た移籍オファーのカード（承諾／カウンター＝ダイアル／拒否）
-function IncomingTransferCard({ offer, player, teamName, onAccept, onCounter, onDecline }: {
-  offer: IncomingOffer; player: Player; teamName: string
-  onAccept: () => void; onCounter: (price: number) => void; onDecline: () => void
+// 相手クラブから来た打診の1行。返事は会話（ChatView）でするので、ここはタップして開くだけ。
+function OfferChatRow({ player, accent, badge, title, sub, onOpen }: {
+  player: Player; accent: string; badge?: string; title: string; sub: string; onOpen: () => void
 }) {
-  const [mode, setMode] = useState<'idle' | 'counter'>('idle')
-  // フリー移籍オファー（提示0円）へのカウンターは市場価値ベースで初期化（0を出さない）
-  const feeBase = offer.offeredPrice > 0 ? offer.offeredPrice * 1.2 : calcTransferValue(player)
-  const [fee, setFee] = useState(Math.max(1_000_000, Math.round(feeBase / 1_000_000) * 1_000_000))
-  const specCol = SPEC_COLOR[player.specialty]
   return (
-    <div style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}`, padding: '10px 12px', marginBottom: 2 }}>
+    <button onClick={onOpen} style={{ width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(accent, 0.4)}`, padding: '10px 12px', marginBottom: 2 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.4)}` }}>
+        <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(accent, 0.4)}` }}>
           <PlayerFace playerId={player.id} nationality={player.nationality} size={40} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{player.name}</span>
-            {offer.fromForeign && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 5, background: alpha(C.blue, 0.18), color: C.blue }}>海外</span>}
+            <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+            {badge && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 5, background: alpha(accent, 0.18), color: accent, flexShrink: 0 }}>{badge}</span>}
           </div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
-            {offer.offeredPrice > 0
-              ? <>{teamName}が移籍金 <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmtYen(offer.offeredPrice)}</span> で獲得を打診</>
-              : <>{teamName}がフリー移籍（移籍金なし）で獲得を打診</>}
-          </div>
+          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{sub}</div>
         </div>
         <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</span>
       </div>
-      {mode === 'counter' ? (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ padding: '4px 0 8px' }}><NumberDial value={fee} onChange={v => setFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.gold} /></div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => onCounter(fee)} style={btnStyle(C.gold, true)}>この金額で提示</button>
-            <button onClick={() => setMode('idle')} style={btnStyle(C.textDim, false)}>戻る</button>
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-          <button onClick={onAccept} style={btnStyle(C.green, true)}>承諾（放出）</button>
-          <button onClick={() => setMode('counter')} style={btnStyle(C.gold, false)}>カウンター</button>
-          <button onClick={onDecline} style={btnStyle(C.red, false)}>拒否</button>
-        </div>
-      )}
-    </div>
+    </button>
   )
 }
 
-// 相手から来たレンタル打診のカード（貸す／借りる・断る）
-function IncomingLoanCard({ offer, player, teamName, slotsFull, onAccept, onDecline }: {
-  offer: IncomingLoanOffer; player: Player; teamName: string; slotsFull: boolean
-  onAccept: () => void; onDecline: () => void
-}) {
-  const specCol = SPEC_COLOR[player.specialty]
-  const isLendOut = offer.direction === 'lend_out'
-  const disabled = !isLendOut && slotsFull
-  return (
-    <div style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.blue, 0.4)}`, padding: '10px 12px', marginBottom: 2 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.4)}` }}>
-          <PlayerFace playerId={player.id} nationality={player.nationality} size={40} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{player.name}</span>
-            <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 5, background: alpha(C.blue, 0.18), color: C.blue }}>レンタル</span>
-          </div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
-            {isLendOut ? `${teamName}が${player.name}を${offer.years}年レンタルで借りたいと打診` : `${teamName}が${player.name}を${offer.years}年レンタルで貸したいと打診`}
-          </div>
-        </div>
-        <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</span>
-      </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-        <button onClick={() => { if (!disabled) onAccept() }} disabled={disabled} style={{ ...btnStyle(C.blue, true), opacity: disabled ? 0.4 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
-          {isLendOut ? '貸す' : disabled ? 'レンタル枠が満杯' : '借りる'}
-        </button>
-        <button onClick={onDecline} style={btnStyle(C.textDim, false)}>断る</button>
-      </div>
-    </div>
-  )
-}
-
-function btnStyle(color: string, filled: boolean): React.CSSProperties {
-  return {
-    flex: 1, padding: '9px 6px', borderRadius: 9, fontFamily: 'inherit', fontSize: 12, fontWeight: 800, cursor: 'pointer',
-    background: filled ? alpha(color, 0.18) : 'transparent',
-    border: `1.5px solid ${alpha(color, filled ? 0.6 : 0.4)}`, color,
-  }
-}
 
 // --- Main Page ---
 
@@ -1185,9 +1259,9 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
+  // 買い取り・レンタルの打診への返事は ChatView（会話）が持つ。一覧はタップして開くだけ
   const { players, playerTeamId, currentSeason, teams, generateContractRequests,
-    acceptIncomingOffer, declineIncomingOffer, counterIncomingOffer, acceptIncomingLoanOffer, declineIncomingLoanOffer, openPlayerSheet,
-    acceptFeeCounter, rejectTransferBid, setChatLog } = useGameStore()
+    openPlayerSheet, acceptFeeCounter, rejectTransferBid, setChatLog } = useGameStore()
   const clubIndex = useClubIndex()
   // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1208,8 +1282,9 @@ export default function ChatPage() {
   const chatLogs = currentSeason.chatLogs ?? {}
   const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
   // 買い取り・レンタル打診に対応した結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）。
-  // 状態も見た目も transfer/OfferResultList の1本（移籍画面・オファー一覧と同じもの）
-  const { results: offerResults, push: pushOfferResult, pushText: pushOfferText, dismiss: dismissOfferResult } = useOfferResults()
+  // 状態も見た目も transfer/OfferResultList の1本（移籍画面・オファー一覧と同じもの）。
+  // ここに残るのはオファー一覧など他画面から飛んできた結果だけで、チャットでの返事の結果は会話に出る
+  const { results: offerResults, dismiss: dismissOfferResult } = useOfferResults()
 
   useEffect(() => { generateContractRequests() }, [])
 
@@ -1307,7 +1382,6 @@ export default function ChatPage() {
     players.some(p => p.id === o.playerId && p.teamId === playerTeamId) && !(o.offeredPrice === 0 && o.retentionRefused))
   const incomingLoanOffers = currentSeason.incomingLoanOffers ?? []
   const inboundCount = incomingOffers.length + incomingLoanOffers.length
-  const loanSlotsUsed = players.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length
 
   const closeConversation = (clear: () => void) => {
     if (cameFromParamRef.current) { cameFromParamRef.current = false; navigate(-1) }
@@ -1513,27 +1587,24 @@ export default function ChatPage() {
                 </button>
               )
             })}
+            {/* 買い取り・レンタルの打診も会話で返事をする（承諾・逆提示・拒否はチャットの返信ボタン）。
+                以前はここに 承諾／カウンター／拒否 のボタンを直接置いていて、この画面の中だけ
+                「会話で答える用件」と「ボタンで答える用件」が混ざっていた */}
             {incomingOffers.filter(o => o.offeredPrice > 0).map(o => {
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
-              const tn = teamName(o.fromTeamId)
-              return <IncomingTransferCard key={o.id} offer={o} player={p} teamName={tn}
-                onAccept={() => pushOfferResult(o.id, acceptIncomingOffer(o.id), { playerName: p.name, teamName: tn, price: o.offeredPrice })}
-                onCounter={(price) => pushOfferResult(o.id, counterIncomingOffer(o.id, price), { playerName: p.name, teamName: tn, price })}
-                onDecline={() => declineIncomingOffer(o.id)} />
+              return <OfferChatRow key={o.id} player={p} accent={C.gold} badge={o.fromForeign ? '海外' : undefined}
+                title={`${teamName(o.fromTeamId)}が${p.name}の獲得を打診`}
+                sub={`移籍金 ${fmtYen(o.offeredPrice)} — タップして返事をする`}
+                onOpen={() => setChatPlayerId(p.id)} />
             })}
             {incomingLoanOffers.map(o => {
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
-              const tn = teamName(o.fromTeamId)
-              return <IncomingLoanCard key={o.id} offer={o} player={p} teamName={tn} slotsFull={loanSlotsUsed >= 3}
-                onAccept={() => {
-                  const ok = acceptIncomingLoanOffer(o.id)
-                  pushOfferText(o.id, ok
-                    ? (o.direction === 'lend_out' ? `${p.name}を${tn}へ${o.years}年レンタルで貸し出しました` : `${p.name}を${o.years}年レンタルで借りました`)
-                    : `レンタルは成立しませんでした（枠または条件を満たしていません）`, ok)
-                }}
-                onDecline={() => declineIncomingLoanOffer(o.id)} />
+              return <OfferChatRow key={o.id} player={p} accent={C.purple ?? '#A855F7'} badge="レンタル"
+                title={`${teamName(o.fromTeamId)}が${p.name}のレンタルを打診`}
+                sub={`${o.years}年${o.direction === 'lend_out' ? '貸し出し' : '借り入れ'} — タップして返事をする`}
+                onOpen={() => setChatPlayerId(p.id)} />
             })}
           </>
         )}
