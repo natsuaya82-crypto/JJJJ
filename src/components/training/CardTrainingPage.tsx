@@ -34,7 +34,7 @@ export default function CardTrainingPage() {
   const {
     trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
-    openPlayerSheet, jewels, breakStatLimit, useDailyGreatSuccess,
+    openPlayerSheet, jewels, breakStatLimit, claimDailyGreatSuccess,
   } = useGameStore()
   // 買い切り版の「大成功確約 1日1回」が今日まだ残っているか（区切りは朝10時）
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
@@ -139,7 +139,7 @@ export default function CardTrainingPage() {
       preExp[k] = (targetPlayer.exp ?? {})[k] ?? 0
     })
     // 広告視聴済みならそちらで確約。無料確約(買い切り版1日1回)は選んだときだけ消費する
-    const freeUsed = !adWatched && useFreeGreat && useDailyGreatSuccess()
+    const freeUsed = !adWatched && useFreeGreat && claimDailyGreatSuccess()
     const greatSuccess = adWatched || freeUsed || Math.random() < 0.05
     const multiplier = greatSuccess ? 1.5 : 1.0
     applyTrainingCards(targetPlayer.id, cardIds, multiplier)

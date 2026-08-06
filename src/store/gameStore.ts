@@ -527,7 +527,10 @@ export type GameStore = GameState & {
   // 買い切り版（広告なし）
   setAdsRemoved: (v: boolean) => void
   // 買い切り版の特典：1日1回、カード合成を大成功にする権利を消費する（使えたら true）
-  useDailyGreatSuccess: () => boolean
+  // ★ use〜 という名前にしないこと。Reactのフックと見分けが付かず、eslint の
+  //   rules-of-hooks が「条件付きでフックを呼んでいる」と誤検知する（実際は
+  //   ボタンのハンドラから呼ぶ普通のアクション）
+  claimDailyGreatSuccess: () => boolean
   // レース中の選択イベントを出すか（オフ＝流し見モード。トラック再生と結果だけ進む）
   raceEventsEnabled?: boolean
   setRaceEventsEnabled: (v: boolean) => void
@@ -7223,7 +7226,7 @@ export const useGameStore = create<GameStore>()(
 
       // 買い切り版の特典：カード合成の大成功(×1.5)を1日1回だけ無料で確約。
       // 区切りは動画広告と同じ getAdDay()＝朝10時。未購入・当日消費済みなら false。
-      useDailyGreatSuccess: () => {
+      claimDailyGreatSuccess: () => {
         const state = get()
         if (!state.adsRemoved) return false
         const today = getAdDay()
