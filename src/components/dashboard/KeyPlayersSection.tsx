@@ -1,4 +1,5 @@
 import type { Player, Team } from '../../types'
+import { comparePlayers } from '../../utils/playerSort'
 import { useNavigate } from 'react-router-dom'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, FORM_LABELS, FORM_COLORS, ratingColor, isStatMaxed } from '../../utils/playerUtils'
@@ -16,7 +17,7 @@ interface Props {
 export default function KeyPlayersSection({ players, team }: Props) {
   const navigate = useNavigate()
   const longPress = usePlayerLongPress()
-  const top = [...players].sort((a, b) => ovr(b) - ovr(a)).slice(0, 3)
+  const top = [...players].sort(comparePlayers('ovr')).slice(0, 3)
 
   return (
     <div style={{ padding: '0 12px', marginBottom: 16 }}>

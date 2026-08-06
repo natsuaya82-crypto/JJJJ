@@ -284,7 +284,7 @@ export default function TeamManagement() {
             <div style={{ marginBottom: '8px' }}>
               <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '10px', padding: '0 2px' }}>個別トレーニング設定</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                {[...myMainPlayers].sort((a, b) => ovr(b) - ovr(a)).map(p => {
+                {[...myMainPlayers].sort(comparePlayers('ovr')).map(p => {
                   const currentFocus = (currentSeason.trainingAssignments ?? {})[p.id] ?? ''
                   const specCol = SPEC_COLOR[p.specialty]
                   return (

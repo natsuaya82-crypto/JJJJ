@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { comparePlayers } from '../../utils/playerSort'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ActionSheet from '../ui/ActionSheet'
@@ -1117,8 +1118,8 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
     currentYear: currentSeason.year,
     retiringIds: new Set((currentSeason.retirementRequests ?? []).map(r => r.playerId)),
   }
-  const theirPlayers = players.filter(p => canBePoached(p, { teamId: team.id, currentYear: currentSeason.year })).sort((a, b) => ovr(b) - ovr(a))
-  const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort((a, b) => ovr(b) - ovr(a))
+  const theirPlayers = players.filter(p => canBePoached(p, { teamId: team.id, currentYear: currentSeason.year })).sort(comparePlayers('ovr'))
+  const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort(comparePlayers('ovr'))
   const myTeam = teams.find(t => t.id === playerTeamId)
 
   const [step, setStep] = useState<1 | 2 | 3>(1)

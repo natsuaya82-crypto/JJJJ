@@ -1,5 +1,6 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
 // 端末に紐づくもの（課金の権利など）はスロットをまたいで共通。セーブの中に置かない
@@ -1809,7 +1810,7 @@ export const useGameStore = create<GameStore>()(
             return r.bid
           })
 
-          const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? state.teams.length
+          const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? myDivSize(state)
           // カードは国内の通し順位で決まる（部内順位だと3部優勝も1部優勝も同じだった）。
           // 部内1位のときだけ1段上げる扱いは utils/cardCombo の中
           const myDivForCards = divisionOf(state.teams.find(t => t.id === playerTeamId))
@@ -2121,7 +2122,7 @@ export const useGameStore = create<GameStore>()(
             const domesticIdsRet = new Set(state.teams.map(t => t.id))
             const retiring = finalPlayers.filter(p => p.status === 'active' && domesticIdsRet.has(p.teamId) && (p.age + 1) >= retAgeN(p))
             const mineRet = retiring.filter(p => p.teamId === playerTeamId)
-            const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort((a, b) => ovr(b) - ovr(a)).slice(0, 6)
+            const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
             for (const p of [...mineRet, ...othersRet]) {
               const tn = state.teams.find(t => t.id === p.teamId)?.shortName ?? ''
               seasonEndNews.push({ date: race.date, headline: `【引退表明】${tn}の${p.name}（${p.age}歳）が今季限りでの現役引退を表明`, category: 'race' as const, relatedIds: [p.id] })
@@ -4816,7 +4817,7 @@ export const useGameStore = create<GameStore>()(
         // これで endSeason 側で引き継いだ視察済みプールがドラフトに使われ、シーズン中の視察は常に新しい代になる。
         const freshScoutPool = generateDraftPool(state.currentSeason.year + 1, new Set(state.players.map(pl => pl.name)))
         if ((state.currentSeason.objectives ?? []).length === 0) {
-          const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length)
+          const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, myDivSize(state))
           return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives, scoutProspects: freshScoutPool } }
         }
         return { currentSeason: { ...state.currentSeason, phase: 'regular', scoutProspects: freshScoutPool } }
@@ -4825,7 +4826,7 @@ export const useGameStore = create<GameStore>()(
       initObjectivesIfEmpty: () => set(state => {
         const objs = state.currentSeason.objectives
         if (objs.length === 0) {
-          return { currentSeason: { ...state.currentSeason, objectives: selectSeasonObjectives(!!state.rivalTeamId, state.teams.length) } }
+          return { currentSeason: { ...state.currentSeason, objectives: selectSeasonObjectives(!!state.rivalTeamId, myDivSize(state)) } }
         }
         const hasJewels = objs.some(o => (o.rewardJewels ?? 0) > 0)
         if (!hasJewels) {
@@ -5008,7 +5009,7 @@ export const useGameStore = create<GameStore>()(
               if ((sellCounts[sellTeamId] ?? 0) >= 2) return []   // 1チームから奪うのは最大2人
               const sellRoster = playersAfterCpuTransfer
                 .filter(p => p.teamId === sellTeamId && p.status === 'active')
-                .sort((a, b) => ovr(b) - ovr(a))
+                .sort(comparePlayers('ovr'))
               if (sellRoster.length <= 16) return []   // 薄いチームからは引き抜かない（下限保護）
               const sellTier = cpuTeamTier(sellTeamId, playersAfterCpuTransfer)
               const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
@@ -5086,7 +5087,7 @@ export const useGameStore = create<GameStore>()(
               const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
               const sellRoster = playersAfterCpuTransfer
                 .filter(p => p.teamId === sellerId && p.status === 'active')
-                .sort((a, b) => ovr(b) - ovr(a))
+                .sort(comparePlayers('ovr'))
               const target = sellRoster.slice(3).find(p =>
                 isOwnedBy(p, sellerId) &&
                 !tradedIds.has(p.id) &&
@@ -5162,7 +5163,7 @@ export const useGameStore = create<GameStore>()(
         const cpuSignings: { playerId: string; teamId: string }[] = []
         // 前年順位（運用方針・予算の基準）
         const lastStandings = rankedStandings((state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? []))
-        const totalTeams = state.teams.length
+        const totalTeams = myDivSize(state)
         const rankOf = (teamId: string) => { const r = rankOfTeam(lastStandings, teamId); return r > 0 ? r : Math.ceil(totalTeams / 2) }
         // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
         const tierJitter = new Map(teamsAfterCpuTransfer.map(t => [t.id, Math.random()]))
@@ -5282,7 +5283,7 @@ export const useGameStore = create<GameStore>()(
           }
           const remainForeignFAs = playersWithAllCpuSigns
             .filter(p => p.teamId === '' && p.status === 'active' && isForeignNat(p.nationality))
-            .sort((a, b) => ovr(b) - ovr(a))
+            .sort(comparePlayers('ovr'))
           let clubIdx = 0
           for (const fa of remainForeignFAs) {
             // FA補強は「下限(20人)を割っているクラブの救済」だけ。上限まで埋める強制はしない
@@ -5429,7 +5430,7 @@ export const useGameStore = create<GameStore>()(
               let budget = Math.max(0, tierBudget(state.teams.find(t => t.id === teamId)) - ongoingCommitted)
               const expiring = state.players
                 .filter(p => p.teamId === teamId && p.contract.yearsLeft === 1 && p.status === 'active')
-                .sort((a, b) => ovr(b) - ovr(a))
+                .sort(comparePlayers('ovr'))
               for (const p of expiring) {
                 if (ovr(p) < minOvr) continue
                 const sal = cpuRenewalSalary(p)
@@ -5815,7 +5816,7 @@ export const useGameStore = create<GameStore>()(
           }).filter(Boolean) as typeof faNews
 
           // 来季の目標：今季の最終順位を基準にスケール（順位が上がるほど翌年の目標も厳しく）
-          const newObjectives = selectSeasonObjectives(!!state.rivalTeamId, state.teams.length, finalRank)
+          const newObjectives = selectSeasonObjectives(!!state.rivalTeamId, myDivSize(state), finalRank)
 
           // GM評判＝今季の目標達成率で少しずつ変動（±5以内）
           const objAchieved = completedObjs.filter(o => o.done).length
@@ -6380,7 +6381,7 @@ export const useGameStore = create<GameStore>()(
             playerTeamId: state.playerTeamId,
             finalRank,
             gmRep: newGmRep,
-            teamCount: state.teams.length,
+            teamCount: myDivSize(state),
             nextYear: newYear,
             teams: syncedTeams,
             nextBudgets: cpuNextBudgets,
@@ -7366,7 +7367,7 @@ export const useGameStore = create<GameStore>()(
               // 52を渡すと「52チーム中◯位」の目標になり、16チームの部では達成不能になる
               objectives: selectSeasonObjectives(
                 state.rivalTeamId === offer.teamId ? false : !!state.rivalTeamId,
-                offer.divisionSize ?? state.teams.length,
+                offer.divisionSize ?? myDivSize(state),
                 offer.prevRank,
               ),
               trainingAssignments: {},
@@ -8408,6 +8409,9 @@ export const useGameStore = create<GameStore>()(
   )
 )
 
+/** 自分の部のチーム数。「リーグの規模」を teams.length(52) で見ないための入口 */
+const myDivSize = (st: { teams: Team[]; playerTeamId: string }) => DIVISION_SIZE[divisionOf(st.teams.find(t => t.id === st.playerTeamId))]
+
 function rnd(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
@@ -8550,7 +8554,7 @@ function generateForeignAndLoanOffers(params: {
     const eliteAll = foreignClubs.filter(c => ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(c.leagueId ?? ''))
     const star = [...myMain]
       .filter(p => !offeredIds.has(p.id) && ovr(p) >= 85 && p.age <= 34 && !foreignIncoming.some(o => o.playerId === p.id) && canBePoached(p, eligCtx))
-      .sort((a, b) => ovr(b) - ovr(a))[0]
+      .sort(comparePlayers('ovr'))[0]
     const eliteClub = star && eliteAll.length > 0 ? eliteAll[(ovr(star) + raceIndex) % eliteAll.length] : undefined
     if (star && eliteClub && clubMayOffer(star, eliteClub.id, foreignIncoming)) {
       const club = eliteClub
@@ -8565,7 +8569,7 @@ function generateForeignAndLoanOffers(params: {
     // 高齢選手（34歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
     const targets = [...myMain]
       .filter(p => !offeredIds.has(p.id) && ovr(p) >= 70 && p.age <= 33 && canBePoached(p, eligCtx))
-      .sort((a, b) => ovr(b) - ovr(a))
+      .sort(comparePlayers('ovr'))
       .slice(0, 4)
     const nOffers = targets.length > 0 ? (Math.random() < 0.35 ? 2 : 1) : 0
     for (let oi = 0; oi < Math.min(nOffers, targets.length); oi++) {
@@ -8583,7 +8587,7 @@ function generateForeignAndLoanOffers(params: {
   // 貸出歓迎に設定した選手がいれば優先的・高確率（70%）でその中から。いなければ従来どおり低確率で若手に
   {
     const listedCands = myLoanListed.filter(p => !loanTargetIds.has(p.id))
-    const youngCands = myYoung.filter(p => !loanTargetIds.has(p.id)).sort((a, b) => ovr(b) - ovr(a))
+    const youngCands = myYoung.filter(p => !loanTargetIds.has(p.id)).sort(comparePlayers('ovr'))
     const target = listedCands.length > 0 && Math.random() < 0.70
       ? listedCands[(raceIndex + listedCands.length) % listedCands.length]
       : (youngCands.length > 0 && Math.random() < 0.25 ? youngCands[0] : null)
@@ -8607,7 +8611,7 @@ function generateForeignAndLoanOffers(params: {
       && playFrac(p.id) < 0.35)   // 出場率3.5割未満＝現所属で干されている選手だけが貸しに出される
     const fits = cands.filter(p => myNeedsLoan.includes(p.specialty))
     // 干され組の中では実力上位を提示（借りる価値のある選手にする）
-    const cand = (fits.length > 0 ? fits : cands).sort((a, b) => ovr(b) - ovr(a))[0]
+    const cand = (fits.length > 0 ? fits : cands).sort(comparePlayers('ovr'))[0]
     if (cand) {
       loanOffers.push({ id: `loanin-${raceIndex}-${cand.teamId}-${cand.id}`, fromTeamId: cand.teamId, playerId: cand.id, direction: 'borrow_in', years: 1, expiresAtRace: raceIndex + 3 })
     }

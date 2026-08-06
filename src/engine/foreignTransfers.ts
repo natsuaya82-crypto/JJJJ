@@ -1,4 +1,5 @@
 import type { ForeignLeague, Player, Team, TransferRecord } from '../types'
+import { comparePlayers } from '../utils/playerSort'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 // 「どのタイプが足りていないか」は国内・海外で共通の1本（utils/squadNeeds.ts）
 import { weakestSpecialty, bestOvrInSpecialty } from '../utils/squadNeeds'
@@ -94,7 +95,7 @@ export function simulateForeignTransferMarket(params: {
     const candidates = roster[seller.id]
       .map(id => playerById.get(id))
       .filter((p): p is Player => !!p && !movedPlayers.has(p.id) && p.status === 'active')
-      .sort((a, b) => ovr(b) - ovr(a))
+      .sort(comparePlayers('ovr'))
       .slice(0, 10)   // 上位10人が引き抜き対象
     if (candidates.length === 0) continue
     const target = candidates[Math.floor(Math.random() * candidates.length)]
@@ -120,7 +121,7 @@ export function simulateForeignTransferMarket(params: {
     const sorted = roster[seller.id]
       .map(id => playerById.get(id))
       .filter((p): p is Player => !!p && p.status === 'active' && !movedPlayers.has(p.id))
-      .sort((a, b) => ovr(b) - ovr(a))
+      .sort(comparePlayers('ovr'))
     const fallen = sorted.slice(10).filter(p => p.age >= 30)
     if (fallen.length === 0) continue
     const target = fallen[Math.floor(Math.random() * fallen.length)]
@@ -240,7 +241,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     bestOvrInSpecialty(rosterPlayers(ids), spec)
   // 余剰＝人数の多いタイプの中位選手（エース級は保護）を1人放出候補に
   const surplusTarget = (ids: string[]): Player | null => {
-    const ps = rosterPlayers(ids).sort((a, b) => ovr(b) - ovr(a))
+    const ps = rosterPlayers(ids).sort(comparePlayers('ovr'))
     if (ps.length <= ROSTER_MIN) return null
     const protectedIds = new Set(ps.slice(0, 2).map(p => p.id))   // 全体トップ2＝エース級は保護
     const cnt: Record<string, number> = {}

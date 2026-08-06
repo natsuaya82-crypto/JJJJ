@@ -125,7 +125,7 @@ export default function TransferPage() {
   })
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
-    .sort((a, b) => ovr(b) - ovr(a))
+    .sort(comparePlayers('ovr'))
 
   const salaryUsed = myPlayers.reduce((sum, p) => sum + p.contract.annualSalary, 0)
 

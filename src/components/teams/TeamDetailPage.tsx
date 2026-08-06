@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { comparePlayers } from '../../utils/playerSort'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
@@ -138,7 +139,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
   // ロスター（1軍/2軍の区別なし）。国内チームも海外クラブも判定は同じ
   const mainPlayers = players.filter(p => belongsToClub(p, id))
-    .sort((a, b) => ovr(b) - ovr(a))
+    .sort(comparePlayers('ovr'))
   const teamSalary = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
 
   // 現在順位・ポイント・直近フォーム（国内=standings / 海外=foreignStandings）
