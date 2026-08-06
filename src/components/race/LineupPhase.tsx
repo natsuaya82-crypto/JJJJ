@@ -25,35 +25,63 @@ function autoFill(
   setRaceLineup: (i: number, id: string) => void,
 ) {
   const assignedIds = new Set(Object.values(currentLineup).filter(Boolean))
-  const natCounts: Record<string, number> = {}
-  for (const pid of assignedIds) {
-    const p = players.find(x => x.id === pid)
-    if (p) natCounts[p.nationality] = (natCounts[p.nationality] ?? 0) + 1
-  }
-  // 難所（山＝上り/下りが急な区間）から先に埋める。専門家を的確に置くため、
-  // 区間番号順ではなく地形の極端な区間を優先して最適な選手を割り当てる。
-  const orderedSegs = [...segments].sort((a, b) => Math.max(b.uphillPct, b.downhillPct) - Math.max(a.uphillPct, a.downhillPct))
+  // ── 全区間の組み合わせで最適化する ──────────────────────────────
+  // 区間を1つずつ「その区間で一番いい選手」で埋めていくと、後ろの区間に余り物が回る。
+  // 1区に置いた選手が実は5区でしか活きない、という取りこぼしが起きるので、
+  // 「埋めたあとに入れ替えて良くなるならずっと入れ替える」で全体の合計を上げる。
+  const open = segments.filter(seg => !currentLineup[seg.index])
+  if (open.length === 0) return
+  const pool = players.filter(p => !assignedIds.has(p.id))
+  // 区間×選手の点数表。1回だけ作って使い回す（毎回計算すると入れ替えのたびに重い）
+  const scoreOf = (p: Player, seg: import('../../types').Segment) =>
+    calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
+    * calcSegmentAffinity(p.specialty, seg)
+    * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
+  const table = new Map<string, number>()
+  for (const seg of open) for (const p of pool) table.set(`${seg.index}:${p.id}`, scoreOf(p, seg))
+  const at = (segIdx: number, pid: string) => table.get(`${segIdx}:${pid}`) ?? 0
+
+  // ① まず難所（上り/下りが急な区間）から貪欲に埋める
+  const orderedSegs = [...open].sort((a, b) => Math.max(b.uphillPct, b.downhillPct) - Math.max(a.uphillPct, a.downhillPct))
+  const pick: Record<number, string> = {}
+  const used = new Set<string>()
   for (const seg of orderedSegs) {
-    if (currentLineup[seg.index]) continue
-    const maxNat = Object.entries(natCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
-    const currentMax = Math.max(0, ...Object.values(natCounts))
     let bestId = '', bestScore = -1
-    for (const p of players) {
-      if (assignedIds.has(p.id)) continue
-      // CPUのラインナップ(buildAILineup)と同じく疲労・士気・調子も加味する（能力だけで疲労90を置かない）
-      let score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-                * calcSegmentAffinity(p.specialty, seg)
-                * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
-      if (p.nationality === maxNat && currentMax >= 5) score *= 1.04
-      if (score > bestScore) { bestScore = score; bestId = p.id }
+    for (const p of pool) {
+      if (used.has(p.id)) continue
+      const sc = at(seg.index, p.id)
+      if (sc > bestScore) { bestScore = sc; bestId = p.id }
     }
-    if (bestId) {
-      const chosen = players.find(x => x.id === bestId)
-      if (chosen) natCounts[chosen.nationality] = (natCounts[chosen.nationality] ?? 0) + 1
-      assignedIds.add(bestId)
-      setRaceLineup(seg.index, bestId)
-    }
+    if (bestId) { pick[seg.index] = bestId; used.add(bestId) }
   }
+
+  // ② 入れ替えて合計が上がるなら入れ替える。上がらなくなるまで繰り返す。
+  //    ・出走同士の交換（1区と5区を入れ替える）
+  //    ・控えとの交換（その区間だけ見れば下でも、全体では上がることがある）
+  const segIdx = orderedSegs.map(sg => sg.index)
+  for (let loop = 0; loop < 8; loop++) {
+    let improved = false
+    for (let i = 0; i < segIdx.length; i++) {
+      const a = segIdx[i]
+      // 出走同士
+      for (let j = i + 1; j < segIdx.length; j++) {
+        const b = segIdx[j]
+        const now = at(a, pick[a]) + at(b, pick[b])
+        const swapped = at(a, pick[b]) + at(b, pick[a])
+        if (swapped > now + 1e-9) { const t = pick[a]; pick[a] = pick[b]; pick[b] = t; improved = true }
+      }
+      // 控えとの交換
+      for (const p of pool) {
+        if (used.has(p.id)) continue
+        if (at(a, p.id) > at(a, pick[a]) + 1e-9) {
+          used.delete(pick[a]); used.add(p.id); pick[a] = p.id; improved = true
+        }
+      }
+    }
+    if (!improved) break
+  }
+
+  for (const seg of orderedSegs) if (pick[seg.index]) setRaceLineup(seg.index, pick[seg.index])
 }
 
 const ALL_STATS: [string, keyof import('../../types').Player['ratings']][] = [
