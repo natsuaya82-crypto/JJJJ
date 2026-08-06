@@ -108,7 +108,9 @@ export function ResultsPhase({
     const myRacerIds = [...new Set(racerIds)].filter(id => playerMap.get(id)?.teamId === playerTeamId)
     return myRacerIds.map(id => playerMap.get(id)).filter((p): p is Player => !!p && !!raceExpGains[p.id])
   })()
-  const hasExp = expRacers.length > 0
+  // 経験値は裏で伸ばす。レース後に確認画面を挟まない（ボタンも出さない）。
+  // 画面自体（view==='exp'）は選手の成長を見たいときのために残してあるが、導線は無い
+  const hasExp = false
 
   // 契約満了間近の選手がいれば、レース後に契約対応（通知）へ強制遷移する。
   // 中身の判定は通知ページ・チャット・ホームと同じ contractTalk の1本。
