@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import BackButton from '../ui/BackButton'
 import PlayerRow from '../player/PlayerRow'
 import SortSelect from '../ui/SortSelect'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useGameStore } from '../../store/gameStore'
 import { usePreviewStore } from '../../store/previewStore'
@@ -30,11 +31,16 @@ const SORT_OPTIONS: { value: HofSortKey; label: string }[] = [
 //   一覧    PlayerRow
 //   並び替え SortSelect + comparePlayers
 //   長押し  選手詳細（usePlayerLongPress）/ タップ  殿堂入りを解除
+//
+// 解除は取り消せない（登録した時点の能力ごと消える。同じ姿には二度と戻せない）ので、
+// タップからそのまま消さず ConfirmDialog をはさむ
 export default function HofTeamPage() {
   const hof = useGameStore(s => s.hofRoster) ?? EMPTY
   const remove = useGameStore(s => s.removeHofPlayer)
   const setPreview = usePreviewStore(s => s.setPlayers)
   const [sortKey, setSortKey] = useState<HofSortKey>('registered')
+  const [askId, setAskId] = useState<string | null>(null)
+  const asking = hof.find(h => h.player.id === askId)
 
   // 詳細は「登録した時点の姿」を見せる。いまの本人を開くと能力が違って混乱するので、
   // フレンドのロスターと同じ仕組み（previewStore）に凍らせたコピーを載せる
@@ -72,7 +78,7 @@ export default function HofTeamPage() {
           <PlayerRow
             key={h.player.id}
             player={h.player}
-            handlers={longPress(h.player.id, () => remove(h.player.id))}
+            handlers={longPress(h.player.id, () => setAskId(h.player.id))}
             hideStatusBadges
             extra={
               <span style={{
@@ -89,6 +95,17 @@ export default function HofTeamPage() {
           </div>
         )}
       </div>
+
+      {asking && (
+        <ConfirmDialog
+          title={`${asking.player.name} を殿堂入りから外しますか？`}
+          message={`${asking.year}年 ${asking.teamName} · OVR${asking.ovr} で固定した姿は消えます。取り消せません。`}
+          confirmLabel="外す"
+          accent={C.red}
+          onConfirm={() => { remove(asking.player.id); setAskId(null) }}
+          onCancel={() => setAskId(null)}
+        />
+      )}
     </div>
   )
 }
