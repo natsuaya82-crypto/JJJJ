@@ -6,6 +6,9 @@ import { TERMS_URL, PRIVACY_URL } from '../../utils/termsConsent'
 import { listBlocked, unblockUser, type BlockedUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
+import BottomSheet from '../ui/BottomSheet'
+import { flushSaveNow, slotHasSave } from '../../store/saveStorage'
+import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../../store/saveSlot'
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 
 import { C, alpha } from '../../styles/tokens'
@@ -187,6 +190,31 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
 
   const [detail, setDetail] = useState<Detail>(null)
 
+  // ── セーブスロット（運営用）──
+  // 入口は隠してある。フッターのバージョン表記を7回続けて叩くと出る。
+  // 一般のプレイヤーに見せる機能ではないので設定の一覧には並べない。
+  const [slotTaps, setSlotTaps] = useState(0)
+  const [slotSheet, setSlotSheet] = useState(false)
+  const [slotsUsed, setSlotsUsed] = useState<Record<number, boolean>>({})
+  useEffect(() => {
+    if (!slotSheet) return
+    let alive = true
+    void (async () => {
+      const used: Record<number, boolean> = {}
+      for (const s of SAVE_SLOTS) used[s] = await slotHasSave(s)
+      if (alive) setSlotsUsed(used)
+    })()
+    return () => { alive = false }
+  }, [slotSheet])
+  // 切り替えは必ず書きかけを吐き出してから。switchSaveSlot の中で再読み込みが走る
+  const goToSlot = (s: SaveSlot) => {
+    if (s === currentSaveSlot()) { setSlotSheet(false); return }
+    void (async () => {
+      await flushSaveNow()
+      switchSaveSlot(s)
+    })()
+  }
+
   return (
     <div className="page-enter" style={{ padding: '20px 16px 32px', fontFamily: SAIRA }}>
 
@@ -220,7 +248,16 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
 
       {/* フッター */}
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-        <div style={{ fontSize: 10, color: C.textGhost, letterSpacing: '1px' }}>JPEL Manager {APP_VERSION}</div>
+        {/* 7回叩くとセーブスロットの切り替えが出る（運営用の隠し入口） */}
+        <div
+          onClick={() => {
+            const n = slotTaps + 1
+            if (n >= 7) { setSlotTaps(0); setSlotSheet(true) } else setSlotTaps(n)
+          }}
+          style={{ fontSize: 10, color: C.textGhost, letterSpacing: '1px', cursor: 'default', userSelect: 'none' }}
+        >
+          JPEL Manager {APP_VERSION}{currentSaveSlot() !== 1 && ` (スロット${currentSaveSlot()})`}
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             onClick={() => window.open(PRIVACY_URL, '_blank')}
@@ -245,6 +282,39 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       {detail === 'sound' && <SoundScreen onClose={() => setDetail(null)} />}
       {detail === 'blocked' && <BlockedScreen onClose={() => setDetail(null)} />}
       {detail === 'reset' && <ResetScreen resetGame={resetGame} onClose={() => setDetail(null)} />}
+
+      {/* セーブスロット（運営用）。画面下から出すものは必ず BottomSheet を通すこと */}
+      <BottomSheet open={slotSheet} onClose={() => setSlotSheet(false)} title="セーブスロット（運営用）">
+        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 10 }}>
+          データを分けて持てます。切り替えるとアプリを読み込み直します。<br />
+          空きのスロットを選ぶと、そのスロットは最初から始まります。
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {SAVE_SLOTS.map(s => {
+            const isCurrent = s === currentSaveSlot()
+            const used = slotsUsed[s]
+            return (
+              <button
+                key={s}
+                onClick={() => goToSlot(s)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                  background: isCurrent ? alpha(C.gold, 0.12) : C.surface3,
+                  border: `1px solid ${isCurrent ? alpha(C.gold, 0.5) : C.border}`,
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 800, color: isCurrent ? C.gold : C.text }}>
+                  スロット{s}{s === 1 && <span style={{ fontSize: 10, color: C.textDim, fontWeight: 400 }}>（これまでのデータ）</span>}
+                </span>
+                <span style={{ fontSize: 11, color: isCurrent ? C.gold : C.textDim }}>
+                  {isCurrent ? '使用中' : used === undefined ? '…' : used ? 'データあり' : '空き'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </BottomSheet>
     </div>
   )
 }

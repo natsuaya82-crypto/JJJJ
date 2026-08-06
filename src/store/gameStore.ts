@@ -1,6 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
+import { saveSlotSuffix } from './saveSlot'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
 import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
@@ -7470,7 +7471,9 @@ export const useGameStore = create<GameStore>()(
       }
     },
     {
-      name: 'jpel-manager-save',
+      // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
+      // 今までの名前のままなので、既存のセーブはスロット1として読める
+      name: `jpel-manager-save${saveSlotSuffix()}`,
       version: 32,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),

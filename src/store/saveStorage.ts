@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 import type { StateStorage } from 'zustand/middleware'
 import { getSaveHealth, setSaveHealth } from './saveHealth'
+import { saveSlotSuffix, suffixOfSlot, type SaveSlot } from './saveSlot'
 
 // セーブの保存先。
 // ネイティブ(iOS): アプリ専用領域のファイル（容量制限なし・非同期・iCloudバックアップ対象）。
@@ -13,9 +14,13 @@ import { getSaveHealth, setSaveHealth } from './saveHealth'
 //   「途中まで書かれた壊れたJSON」が残り、次回起動で読み込みに失敗して
 //   セーブが初期状態に見える（＝データが消えたように見える）事故が起きるため。
 //   直前の正常なセーブは .bak に退避しておき、本体が壊れていたらそこから復旧する。
-const FILE = 'jpel-manager-save.json'
-const TMP = 'jpel-manager-save.tmp.json'
-const BAK = 'jpel-manager-save.bak.json'
+// 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
+// 今までのファイル名そのままなので、既存のセーブはスロット1として読める。
+// スロットは起動時に確定していて途中で変わらないので、ここで1回組み立てれば足りる。
+const SUF = saveSlotSuffix()
+const FILE = `jpel-manager-save${SUF}.json`
+const TMP = `jpel-manager-save${SUF}.tmp.json`
+const BAK = `jpel-manager-save${SUF}.bak.json`
 const isNative = Capacitor.isNativePlatform()
 
 // 書き込みは末尾デバウンス（連続する set() のたびに数MBを書かない）。
@@ -262,6 +267,23 @@ export const saveStorage: StateStorage = {
 // 復旧画面から「セーブを削除して新しく始める」を選んだときだけ呼ぶ。
 // セーフモード中の書き込み禁止を解除できる唯一の経路（＝ユーザーの明示的な同意）。
 export async function deleteSaveForRecovery(): Promise<void> {
-  await Promise.resolve(saveStorage.removeItem('jpel-manager-save'))
-  try { localStorage.removeItem('jpel-manager-save') } catch { /* 使えない環境では何もしない */ }
+  const name = `jpel-manager-save${SUF}`
+  await Promise.resolve(saveStorage.removeItem(name))
+  try { localStorage.removeItem(name) } catch { /* 使えない環境では何もしない */ }
+}
+
+/**
+ * そのスロットにデータが入っているか（スロット選択の画面で「空き」を出すため）。
+ * 今いるスロット以外も見るので、パスは slot から組み立てる。
+ */
+export async function slotHasSave(slot: SaveSlot): Promise<boolean> {
+  const name = `jpel-manager-save${suffixOfSlot(slot)}`
+  if (!isNative) {
+    try { return isInit(localStorage.getItem(name)) } catch { return false }
+  }
+  // 本体が無くても .tmp / .bak が残っていれば復旧できるので「データあり」として扱う
+  for (const path of [`${name}.json`, `${name}.tmp.json`, `${name}.bak.json`]) {
+    if (await exists(path)) return true
+  }
+  return false
 }
