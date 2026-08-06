@@ -609,6 +609,12 @@ export type Season = {
   currentRaceIndex: number
   phase: SeasonPhase
   races: Race[]
+  /**
+   * 部ごとのシーズン日程（data/races.ts の drawSeasonSchedules）。
+   * races はこのうち自分の部のぶん。裏で走る他の部はここから自分の日程を引く。
+   * 25コースのうちファイナル3本は部ごとに固定、残り22本を3部で取り合う（重複なし）。
+   */
+  divisionRaces?: Record<number, Race[]>
   collegeRaces: Race[]
   draftPool: CollegeRunner[]
   scoutPoints: number

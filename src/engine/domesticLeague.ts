@@ -11,7 +11,9 @@
 //
 // ■ 海外リーグ（simulateForeignLeagueRound）との違い
 //   走らせる単位が「クラブの集まり(ForeignLeague)」ではなく「部(Division)」であることだけ。
-//   使うレースは自分の部と同じ1本（同じ日に同じコースを別の部が走るイメージ）。
+//   使うレースは**その部自身の日程**（data/races.ts の drawSeasonSchedules）。
+//   部ごとにレース数もコースも違う（1部10戦 / 2部8戦 / 3部7戦）ので、
+//   自分の部のレースを他の部にも走らせてはいけない。
 
 import type { Player, Race, SeasonStanding, Team } from '../types'
 import { simulateRace, buildAILineup } from './raceEngine'
@@ -34,6 +36,10 @@ export type AwayDivisionRound = {
  */
 export function simulateAwayDivisions(
   race: Race, teams: Team[], players: Player[], myDivision: number, seasonProgress: number,
+  /** 部ごとの日程。渡さなければ従来どおり自分の部のレースを流用する（古いセーブの保険） */
+  racesByDivision?: Record<number, Race[]>,
+  /** 自分の部で何戦目か（0始まり）。その部の日程が尽きていればその部は走らない */
+  roundIndex = 0,
 ): AwayDivisionRound {
   const points: Record<string, number> = {}
   const ranks: Record<string, number> = {}
@@ -45,10 +51,15 @@ export function simulateAwayDivisions(
     const divTeams = teamsInDivision(teams, d)
     if (divTeams.length < 2) continue
 
-    const lineups: Record<string, Record<number, string>> = {}
-    for (const t of divTeams) lineups[t.id] = buildAILineup(t.id, players, race)
+    // その部自身のコース。日程が尽きている部はこのラウンドは走らない（1部10戦・3部7戦など）
+    const divRaces = racesByDivision?.[d]
+    if (divRaces && roundIndex >= divRaces.length) continue
+    const divRace = divRaces?.[roundIndex] ?? race
 
-    const results = simulateRace(race, lineups, teams, players, seasonProgress)
+    const lineups: Record<string, Record<number, string>> = {}
+    for (const t of divTeams) lineups[t.id] = buildAILineup(t.id, players, divRace)
+
+    const results = simulateRace(divRace, lineups, teams, players, seasonProgress)
 
     for (const tr of results.teamRankings) {
       points[tr.teamId] = tr.positionPoints + tr.segmentPoints

@@ -331,8 +331,18 @@ export const SEASON_2027_RACES: Race[] = [
 // 未指定は通年OK。location は区間記録の紐付けに使うため、改名しても変更しないこと。
 export type RaceTemplate = Omit<Race, 'id' | 'date' | 'results'> & { months?: number[] }
 
+/**
+ * 既存レース → 抽選用のテンプレ。
+ * ★months を必ず入れること。落とすと「東北桜駅伝が10月」「秋季グランプリが5月」のように
+ *   名前の季節と開催月が食い違う（実際にそうなっていた）。元の開催日の月 ±1 を窓にする。
+ */
 function toTemplate(r: Race): RaceTemplate {
-  return { name: r.name, location: r.location, type: r.type, conditions: r.conditions, segments: r.segments }
+  const m = Number(r.date.slice(5, 7))
+  const wrap = (x: number) => ((x - 1 + 12) % 12) + 1
+  return {
+    name: r.name, location: r.location, type: r.type, conditions: r.conditions, segments: r.segments,
+    months: [wrap(m - 2), wrap(m - 1), m, wrap(m + 1), wrap(m + 2)],
+  }
 }
 
 export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
@@ -549,6 +559,85 @@ export const FINAL_COURSES: RaceTemplate[] = [
     ],
   },
 ]
+
+// ── シーズンの日程を部ごとに抽選する ──────────────────────────
+//
+// 25本のうちファイナル3本は部ごとに固定。残り22本を3つの部が**取り合う**。
+//   1部 プール9 + JPELグランドファイナル = 10戦
+//   2部 プール7 + 金沢ファイナル駅伝     =  8戦
+//   3部 プール6 + 房総ファイナル駅伝     =  7戦
+//   9 + 7 + 6 = 22 でプールをちょうど使い切る（同じコースが2つの部に出ることはない）。
+//
+// 開催月（RaceTemplate.months）は守る。季節が名前に入っているコースを違う季節に置かない。
+
+/** 各部の開催日。1部は SEASON_2027_RACES と同じ10日。2部・3部はその中から間引く */
+const DIVISION_RACE_DATES: Record<number, string[]> = {
+  1: ['03-15', '04-05', '05-03', '05-31', '06-28', '07-19', '09-13', '10-11', '11-08', '12-27'],
+  2: ['03-22', '04-19', '05-24', '06-21', '07-26', '09-27', '10-25', '12-06'],
+  3: ['03-29', '04-26', '05-17', '06-14', '09-20', '10-18', '11-29'],
+}
+
+/** その月に開催してよいコースか（months 未指定は通年OK） */
+function fitsMonth(t: RaceTemplate, month: number): boolean {
+  return !t.months || t.months.includes(month)
+}
+
+/**
+ * 部ごとのシーズン日程を組む。プールは3部で取り合いになり、重複しない。
+ * rng を渡せば結果を固定できる（テスト用。通常は Math.random）。
+ */
+export function drawSeasonSchedules(year: number, rng: () => number = Math.random): Record<number, Race[]> {
+  const pool = [...LEAGUE_COURSE_POOL]
+  // シャッフル（Fisher-Yates）
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  // ファイナル以外の枠を全部（22個）集めてから、**置けるコースが少ない枠から順に**埋める。
+  // 部ごとに順番へ取っていくと、あとの部にその月のコースが残らず月がずれる。
+  type Slot = { div: number; index: number; date: string; month: number }
+  const slots: Slot[] = []
+  for (const div of [1, 2, 3]) {
+    const dates = DIVISION_RACE_DATES[div]
+    for (let i = 0; i < dates.length - 1; i++) {
+      slots.push({ div, index: i, date: dates[i], month: Number(dates[i].slice(0, 2)) })
+    }
+  }
+  // 毎回「置けるコースが一番少ない枠」を選び、そこへ「開催月の窓が一番狭いコース」を入れる。
+  // 窓の広いコース（通年OK）は後回しにしないと、季節限定のコースの置き場が先に潰れる。
+  const picked: Record<number, Race[]> = { 1: [], 2: [], 3: [] }
+  const remaining = [...slots]
+  while (remaining.length > 0) {
+    let si = 0, best = Infinity
+    for (let i = 0; i < remaining.length; i++) {
+      const n = pool.filter(t => fitsMonth(t, remaining[i].month)).length
+      if (n < best) { best = n; si = i }
+    }
+    const [slot] = remaining.splice(si, 1)
+    const fits = pool.map((t, i) => ({ t, i })).filter(x => fitsMonth(x.t, slot.month))
+    const cands = fits.length > 0 ? fits : pool.map((t, i) => ({ t, i }))   // 合うものが無ければ日程を欠かさない方を優先
+    const narrow = Math.min(...cands.map(x => x.t.months?.length ?? 99))
+    const tight = cands.filter(x => (x.t.months?.length ?? 99) === narrow)
+    const chosen = tight[Math.floor(rng() * tight.length)]
+    pool.splice(chosen.i, 1)
+    picked[slot.div].push({
+      ...chosen.t, id: `race-d${slot.div}-${slot.index + 1}`, date: `${year}-${slot.date}`, results: undefined,
+    })
+  }
+
+  const out: Record<number, Race[]> = {}
+  for (const div of [1, 2, 3]) {
+    const dates = DIVISION_RACE_DATES[div]
+    const races = picked[div].sort((a, b) => a.date.localeCompare(b.date))
+    // 最終戦はその部のファイナルで固定
+    races.push({
+      ...FINAL_COURSES[div - 1],
+      id: `race-d${div}-final`, date: `${year}-${dates[dates.length - 1]}`, results: undefined,
+    })
+    out[div] = races
+  }
+  return out
+}
 
 export function generateSeasonRaces(year: number): Race[] {
   return SEASON_2027_RACES.map(r => ({

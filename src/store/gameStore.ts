@@ -25,7 +25,7 @@ export type MyPlayerKind = 'inaugural' | 'gift'
 /** 枠ごとの能力の振り分け合計 */
 export const MY_PLAYER_TOTAL: Record<MyPlayerKind, number> = { inaugural: 500, gift: 560 }
 import { BASE_PLAYERS } from '../data/players'
-import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
+import { SEASON_2027_RACES, generateSeasonRaces, drawSeasonSchedules, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
 import { simulateRace, buildCpuLineups, calcWeatherModifier } from '../engine/raceEngine'
 import { simulateAwayDivisions, applyAwayDivisionRound } from '../engine/domesticLeague'
@@ -878,6 +878,13 @@ export const useGameStore = create<GameStore>()(
             if (t.isPlayerControlled) return { ...t, ...placed, isPlayerControlled: false }
             return { ...t, ...placed }
           })
+          // 部が決まったので日程を引き直す。25コースのうちファイナル3本は部ごとに固定、
+          // 残り22本を3部で取り合う（data/races.ts の drawSeasonSchedules）。
+          // ここでやらないと、部が決まる前に組んだ1部の10戦のまま3部を走ることになる
+          const schedules = drawSeasonSchedules(state.currentSeason.year)
+          // 繰り上げ後の自分の部（列の最後尾なので3部になる）
+          const myDiv = divisionOf(renamedTeams.find(t => t.id === setup.teamId))
+
           // 最初の18人をチームに入れる。入り口はドラフトでも移籍でも同じなので movePlayer を通す
           let players: Player[] = state.players
           let teams = renamedTeams
@@ -894,6 +901,11 @@ export const useGameStore = create<GameStore>()(
           })
           return {
             teams, players, setupData: setup, playerTeamId: setup.teamId,
+            currentSeason: {
+              ...state.currentSeason,
+              races: schedules[myDiv],
+              divisionRaces: schedules,
+            },
             // 監督の在任履歴はここが起点。以後の移籍でここに積んでいく（utils/gmTenure.ts）
             gmTenures: [{ teamId: setup.teamId, fromYear: state.currentSeason.year }],
           }
@@ -1131,7 +1143,10 @@ export const useGameStore = create<GameStore>()(
 
         // 自分の部以外も同じ日に裏で走らせる（海外8リーグと同じ扱い）。
         // これが無いと2部3部の順位表が0ptのまま動かず、昇降格も通算成績も決まらない
-        const awayRound = simulateAwayDivisions(race, teams, players, myDivision, seasonProgress)
+        const awayRound = simulateAwayDivisions(
+          race, teams, players, myDivision, seasonProgress,
+          currentSeason.divisionRaces, raceIndex,
+        )
 
         // Persist results into race, update standings, advance index
         set(state => {
@@ -5587,7 +5602,11 @@ export const useGameStore = create<GameStore>()(
           // 今季の順位表は下で過去シーズンに保存されるので、成績はそこから数え直せる（utils/teamHistory.ts）
           const updatedTeams = state.teams
 
-          const newRaces = generateSeasonRaces(newYear)
+          // 来季の日程も部ごとに引き直す（25コースのうちファイナル3本は固定、22本を3部で取り合う）。
+          // 自分の部は昇降格のあとの部で引く
+          const nextSchedules = drawSeasonSchedules(newYear)
+          const myNextDivision = nextDivisionOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
+          const newRaces = nextSchedules[myNextDivision] ?? generateSeasonRaces(newYear)
           const champion = updatedTeams.find(t => t.id === sortedStandings[0]?.teamId)
           // 翌季のプレシーズンで指名される新人はその年(newYear)に加入するので draftYear=newYear にする。
           // （+1 にすると加入年より1年多い年度で記録され、歴代ドラフトが1年ズレる）
@@ -6261,6 +6280,7 @@ export const useGameStore = create<GameStore>()(
               currentRaceIndex: 0,
               phase: 'preseason',
               races: newRaces,
+              divisionRaces: nextSchedules,
               collegeRaces: [],
               draftPool: [],
               scoutPoints: 5 + objBonus + (state.teams.find(t => t.id === state.playerTeamId)?.facilities?.scoutOffice ?? 0),
