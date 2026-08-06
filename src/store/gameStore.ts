@@ -11,9 +11,10 @@ import { CARD_UNIT_PRICE, CARD_UNIT_EXP } from '../data/cardShop'
 import { LOWER_DIVISION_TEAMS } from '../data/teamsLower'
 
 // リーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
-// 部の切り分けは Team.division が持つので、ここでは1つの配列にまとめておく。
+// 部の切り分けは Team.division が持つ。
 // 「どの部か」を見たいところは utils/league.ts の divisionOf / teamsInDivision を通すこと。
-const ALL_TEAMS = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS]
+// 52チームの名簿そのものは utils/domesticClubs.ts の1本（既存セーブの補完もそこ）
+const ALL_TEAMS = ALL_DOMESTIC_TEAMS
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
@@ -46,6 +47,8 @@ import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
 import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
+// 国内52クラブの名簿と、下部リーグが入っていない古いセーブの補完
+import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs, originalDivisionOf } from '../utils/domesticClubs'
 // 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
 import { SPECIALTIES, thinSpecialties, needsPlayer } from '../utils/squadNeeds'
 import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
@@ -5431,20 +5434,35 @@ export const useGameStore = create<GameStore>()(
           // 通し順位は 部 → 部内順位 の順（domesticThroughRank）。順位表の得点で52チームを
           // 直接並べてはいけない（部ごとにレース数が違うので3部が2部を追い抜く）。
           // 予算もスポンサーもロスターの強さも、全部この格から降りてくる。
+          //
+          // ★下部リーグのクラブが入っていない古いセーブ（build 88 より前に始めたもの）は、
+          //   降格先が存在しないまま落ちたチームが「2チームしかいない2部」にいる。
+          //   その部で数えると通し順位21位＝格11相当になり、本来1部のクラブが1年ぶん
+          //   不当に低い予算を受け取ってしまう。補完する年はデータどおりの部で数える。
+          const clubsIncomplete = !domesticClubsComplete(state.teams)
+          const effDivisionOf = (t: { id: string; division?: Division }): Division =>
+            clubsIncomplete ? originalDivisionOf(t.id) : divisionOf(t)
           const divisionRankOf = (t: { id: string; division?: Division }) => {
-            const divIds = new Set(teamsInDivision(state.teams, divisionOf(t)).map(x => x.id))
+            const d = effDivisionOf(t)
+            const divIds = new Set(state.teams.filter(x => effDivisionOf(x) === d).map(x => x.id))
             return rankedStandings(sortedStandings.filter(s => divIds.has(s.teamId)))
               .findIndex(s => s.teamId === t.id) + 1
           }
           const nextTierOf = (t: { id: string; division?: Division }) =>
-            tierFromDomesticRank(domesticThroughRank(divisionOf(t), divisionRankOf(t)))
+            tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
           const myNextTier = nextTierOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
 
           // ── 昇降格 ──────────────────────────────────────────────────
           // 各部の上位2チームが昇格、下位2チームが降格。プレーオフなし。
           // 1部に上は無く、3部に下は無い。上下2ずつなので各部の人数は変わらない。
           // ★格は「今季走った部」での順位で決まる（nextTierOf）。部の入れ替えはその後。
+          //
+          // ★クラブが足りていないセーブでは、このシーズン終わりに32クラブを補う（下の backfill）。
+          //   降格先が存在しないまま落ちていたぶんは取り消してデータどおりの 20/16/16 に戻し、
+          //   **次の年から**通常の昇降格に戻す。ここで昇降格を通すと、補ったばかりのクラブが
+          //   走ってもいない順位で動いてしまう。
           const nextDivisionOf = (t: { id: string; division?: Division }): Division => {
+            if (clubsIncomplete) return originalDivisionOf(t.id)
             const d = divisionOf(t)
             const r = divisionRankOf(t)
             const size = teamsInDivision(state.teams, d).length
@@ -5452,7 +5470,7 @@ export const useGameStore = create<GameStore>()(
             if (d < DIVISIONS[DIVISIONS.length - 1] && r > size - PROMOTION_SLOTS) return (d + 1) as Division
             return d
           }
-          const divisionMoveNews = state.teams
+          const divisionMoveNews = clubsIncomplete ? [] : state.teams
             .map(t => ({ t, from: divisionOf(t), to: nextDivisionOf(t) }))
             .filter(x => x.from !== x.to)
             .map(({ t, from, to }) => ({
@@ -6123,7 +6141,20 @@ export const useGameStore = create<GameStore>()(
           // 契約満了のFA化（teamId=''）や長期整理での選手削除がroster配列に残存し、
           // 「名簿に居るのにteamIdが違う/存在しない」不整合になるのを根治する
           // レンタル中（loanあり）の選手は名簿外が正規仕様（teamId=借り手だが借り手の名簿には載せない）
-          const syncedTeams = rebuildRosters(cleanedPlayers, crossTx.teams)
+          const syncedTeams0 = rebuildRosters(cleanedPlayers, crossTx.teams)
+
+          // 下部リーグのクラブが入っていない古いセーブに、足りない32クラブを補う。
+          // 補うのは来季の器を組んだこの時点＝**次の年から**参加する（今季の順位表は触らない）。
+          // そろっているセーブでは何もしない（utils/domesticClubs.ts）
+          const backfilled = backfillDomesticClubs({ teams: syncedTeams0, players: cleanedPlayers, year: newYear })
+          const syncedTeams = backfilled.teams
+          const playersWithBackfill = backfilled.players
+          const backfillNews = backfilled.addedTeams.length === 0 ? [] : [{
+            date: `${newYear}-01-05`,
+            headline: `JPEL 2部・3部が発足。${backfilled.addedTeams.length}クラブが加わり全${syncedTeams.length}クラブに`,
+            category: 'race' as const,
+            relatedIds: [],
+          }]
 
           // 他チームから監督の声がかかるか。来季の予算と評判が決まったあとに判定する。
           // 出るのは1シーズンに最大1件で、答えるまでホームに出続ける（utils/gmOffer.ts）
@@ -6141,7 +6172,7 @@ export const useGameStore = create<GameStore>()(
           })
 
           return {
-            players: cleanedPlayers,
+            players: playersWithBackfill,
             removedPlayers,
             teams: syncedTeams,
             gmOffer,
@@ -6224,10 +6255,12 @@ export const useGameStore = create<GameStore>()(
                   points: {},
                 }
               })(),
-              standings: state.teams.map(t => ({
+              // 補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく補完後を使う
+              standings: syncedTeams.map(t => ({
                 teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
               })),
               newsFeed: [
+                ...backfillNews,
                 { date: `${newYear}-03-01`, headline: `${newYear}シーズン開幕！全${newRaces.length}戦のスケジュール決定`, category: 'race' as const, relatedIds: [] },
                 ...crossTx.news,
                 ...foreignTx.news,
