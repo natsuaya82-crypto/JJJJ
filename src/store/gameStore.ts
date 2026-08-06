@@ -7544,7 +7544,9 @@ export const useGameStore = create<GameStore>()(
             markIdentityCleared()   // ログアウトが通り切らなくても古いアカウントに戻さない
             await supabase.auth.signOut()
             resetAuthCache()
-            localStorage.removeItem('jpel_friend_sync_stamp') // 新アカウントで送り直させる
+            // 送信済みの指紋もスロットごと（lib/useFriendSync.ts）。接尾辞なしで消すと、
+            // 別スロットのぶんを消したうえで自分のぶんが残り、新アカウントで一生送られない
+            localStorage.removeItem(`jpel_friend_sync_stamp${saveSlotSuffix()}`)
           } catch (e) {
             console.warn('[reset] failed to clear friend identity', e)
           }
