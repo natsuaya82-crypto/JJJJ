@@ -6,6 +6,8 @@
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+// 国内の帯と順位→格の変換は utils/clubTier.ts の1本（ここで数字を持たない）
+import { DOMESTIC_TIER_BAND, tierFromDomesticRank } from '../src/utils/clubTier'
 // リーグ内の並び順。都市の規模で並べる（データの並び順＝国ごとのまとまり、ではない）。
 // ここに書いたリーグだけ差し替える。書いていないリーグはデータの並び順のまま
 // （北米・オセアニア・南米・中米は元から国順＋国内の都市規模順で、都市順とほぼ同じ）。
@@ -68,9 +70,11 @@ const BANDS: Record<string, Band> = {
   south_america:   { top: 7, bottom: 15, shape: 'heavy', label: '南米' },
   asia_league:     { top: 10, bottom: 20, shape: 'flat', label: 'アジア' },
   central_america: { top: 10, bottom: 20, shape: 'flat', label: '中米・カリブ' },
-  jpel1:           { top: 5, bottom: 12, shape: 'heavy', label: 'JPEL 1部' },
-  jpel2:           { top: 10, bottom: 17, shape: 'heavy', label: 'JPEL 2部' },
-  jpel3:           { top: 14, bottom: 20, shape: 'heavy', label: 'JPEL 3部' },
+  // 国内の帯は utils/clubTier.ts の DOMESTIC_TIER_BAND が唯一の決まり（ここで数字を書かない）。
+  // 実際の格も tierFromDomesticRank で引くので shape は使わない（place の中で分岐）
+  jpel1: { top: DOMESTIC_TIER_BAND[1][0], bottom: DOMESTIC_TIER_BAND[1][1], shape: 'heavy', label: 'JPEL 1部' },
+  jpel2: { top: DOMESTIC_TIER_BAND[2][0], bottom: DOMESTIC_TIER_BAND[2][1], shape: 'heavy', label: 'JPEL 2部' },
+  jpel3: { top: DOMESTIC_TIER_BAND[3][0], bottom: DOMESTIC_TIER_BAND[3][1], shape: 'heavy', label: 'JPEL 3部' },
 }
 
 // 格1の5クラブ。オーナー指定＝アフリカ×2・ヨーロッパ×2・アメリカ×1。
@@ -98,10 +102,17 @@ const buckets: Row[][] = Array.from({ length: 20 }, () => [])
 
 const tier1 = new Set<string>(TIER1_CLUBS)
 
-function place(key: string, clubs: { name: string; note: string }[]) {
+function place(key: string, clubs: { name: string; note: string; throughRank?: number }[]) {
   const band = BANDS[key]
   const n = clubs.length
   clubs.forEach((c, i) => {
+    // 国内は毎年の更新と同じ関数で引く。初期値と更新規則が食い違うと、
+    // 1シーズン終えた瞬間に初期値が上書きされて消える（実際に52クラブ中36件がズレていた）
+    if (c.throughRank != null) {
+      const t = tierFromDomesticRank(c.throughRank)
+      buckets[t - 1].push({ name: c.name, league: band.label, note: c.note })
+      return
+    }
     // 格1は上の5クラブだけ。枠の上が1のリーグでも、選ばれていないクラブは格2から
     const tier = tier1.has(c.name) ? 1 : Math.max(2, tierOfIndex(band, i, n))
     buckets[Math.min(20, Math.max(1, tier)) - 1].push({ name: c.name, league: band.label, note: c.note })
@@ -119,7 +130,7 @@ for (const lg of FOREIGN_LEAGUES) {
 const domestic = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].sort((a, b) => (a.initialRank ?? 99) - (b.initialRank ?? 99))
 for (const [key, div] of [['jpel1', 1], ['jpel2', 2], ['jpel3', 3]] as const) {
   const teams = domestic.filter(t => (t.division ?? 1) === div)
-  place(key, teams.map(t => ({ name: t.name, note: `${t.initialRank}位` })))
+  place(key, teams.map(t => ({ name: t.name, note: `${t.initialRank}位`, throughRank: t.initialRank })))
 }
 
 // --emit を付けると src/data/clubTiers.ts の中身を吐く

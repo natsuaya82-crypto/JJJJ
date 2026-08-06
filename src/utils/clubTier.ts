@@ -19,7 +19,7 @@
 // ■ ここでやらないこと
 //   移籍の可否そのもの。ここは「格がいくつか・いくら払えるか・どこまで伸びるか」だけ。
 
-import type { Team, Rank } from '../types'
+import type { Division, Team, Rank } from '../types'
 import { CLUB_TIER_BY_ID } from '../data/clubTiers'
 import { DIVISIONS, DIVISION_SIZE } from './league'
 
@@ -157,11 +157,37 @@ export const DOMESTIC_BOTTOM_TIER: ClubTier = 20
 /** 国内の総クラブ数（1部20＋2部16＋3部16）。部の構成が変わっても自動で追随する */
 export const DOMESTIC_CLUB_COUNT = DIVISIONS.reduce((s, d) => s + DIVISION_SIZE[d], 0)
 
-/** 国内の通し順位（1〜52）→ 格 */
+/**
+ * 部ごとの格の帯。**格の帯はここが唯一の決まり**。
+ *
+ * 初期値（data/clubTiers.ts の国内52件）も、毎年の更新（tierFromDomesticRank）も、
+ * どちらもこの帯から出す。以前は初期値が手振りで 1部5〜12 / 2部10〜17 / 3部14〜20、
+ * 更新側が等間隔で 1部5〜11 / 2部11〜15 / 3部16〜20 と食い違っていて、
+ * **1シーズン終えた瞬間に初期値が全部上書きされて消えていた**（52クラブ中36件がズレていた）。
+ *
+ * 境目は重ねてある（1部の最下位＝2部の首位＝格11、2部の最下位＝3部の首位＝格16）。
+ * ここを重ねないと「昇格したのに格が下がる」が起きる。
+ */
+export const DOMESTIC_TIER_BAND: Record<Division, readonly [ClubTier, ClubTier]> = {
+  1: [5, 11],
+  2: [11, 16],
+  3: [16, 20],
+}
+
+/** 国内の通し順位（1〜52）→ 格。部ごとの帯の中で、部内順位に応じて配る */
 export function tierFromDomesticRank(rank: number): ClubTier {
   const r = Math.max(1, Math.min(DOMESTIC_CLUB_COUNT, Math.round(rank)))
-  const span = DOMESTIC_BOTTOM_TIER - DOMESTIC_TOP_TIER
-  return (DOMESTIC_TOP_TIER + Math.round((r - 1) * span / (DOMESTIC_CLUB_COUNT - 1))) as ClubTier
+  let offset = 0
+  for (const d of DIVISIONS) {
+    const size = DIVISION_SIZE[d]
+    if (r <= offset + size) {
+      const [lo, hi] = DOMESTIC_TIER_BAND[d]
+      const inDiv = r - offset
+      return (lo + Math.round((inDiv - 1) * (hi - lo) / Math.max(1, size - 1))) as ClubTier
+    }
+    offset += size
+  }
+  return DOMESTIC_BOTTOM_TIER
 }
 
 // ── 読み口 ───────────────────────────────────────────────────────
