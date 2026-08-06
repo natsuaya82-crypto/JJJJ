@@ -362,6 +362,8 @@ export type GameStore = GameState & {
   // Transfer market
   executeTransferPurchase: (listingId: string, price: number) => boolean
   // 返り値は utils/offerResult の OfferOutcome 1本。逆提示(counterIncomingOffer)と同じ言葉で返す
+  // クラブが合意したあと、本人がそのクラブへ行くことに納得するか（売る側の同意ゲート）
+  consentToLeave: (playerId: string, toTeamId: string) => boolean
   acceptIncomingOffer: (offerId: string) => OfferOutcome
   declineIncomingOffer: (offerId: string) => void
   acceptIncomingLoanOffer: (offerId: string) => boolean
@@ -1518,6 +1520,14 @@ export const useGameStore = create<GameStore>()(
               }
               // 買い手が満杯（30人以上）または予算不足なら今回は見送り（出品は残す）
               if ((rosterCount.get(buyerTeamId) ?? 0) >= 30 || buyer.finance.budget < listing.askingPrice) continue
+              // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。
+              // ここは自動成立なので断られても札は消さず、別のクラブ・別のレースで話が来るのを待つ
+              if (!playerConsentToMove(
+                p,
+                tierOfPlayerClub(buyerTeamId, state.teams) ?? tierOf(buyer),
+                tierOfPlayerClub(listing.fromTeamId, state.teams),
+                0.5, 0, 0, true,
+              ).ok) continue
               movedThisRace.add(p.id)
               rosterCount.set(buyerTeamId, (rosterCount.get(buyerTeamId) ?? 0) + 1)
               rosterCount.set(listing.fromTeamId, Math.max(0, (rosterCount.get(listing.fromTeamId) ?? 1) - 1))
@@ -2614,6 +2624,24 @@ export const useGameStore = create<GameStore>()(
         return bought
       },
 
+      // 売る側の本人同意。買う側（submitTransferBid → finalizeTransfer）が通しているのと
+      // 同じ playerConsentToMove 1本を、売る側にも通す。ここだけ判定が無く、GMが承諾した
+      // 瞬間に選手が動いていた（本人の意思が入るのは買うときだけ、という非対称）。
+      // 断られたら今季はこの選手への打診が来なくなる（saleRefusedYear）。
+      // 自チームが買いに行って断られたときの transferLockedUntilYear と同じ扱い。
+      consentToLeave: (playerId, toTeamId) => {
+        const state = get()
+        const player = state.players.find(p => p.id === playerId)
+        if (!player) return false
+        const destTier = tierOfPlayerClub(toTeamId, state.teams) ?? tierOf(state.teams.find(t => t.id === toTeamId))
+        const srcTier = tierOfPlayerClub(player.teamId, state.teams)
+        const races = Math.max(0, state.currentSeason.currentRaceIndex ?? 0)
+        const frac = races > 0 ? seasonAppearances(playerId, state.currentSeason.races) / races : 0.5
+        // clubBlessed=true：移籍金はクラブ間で合意済み。「主力だから残りたい」の減点は掛けず、
+        // 本人は行き先の格・出場機会・愛着だけで決める（買う側の finalizeTransfer と同じ渡し方）
+        return playerConsentToMove(player, destTier, srcTier, frac, races, 0, true).ok
+      },
+
       acceptIncomingOffer: (offerId) => {
         const state = get()
         const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
@@ -2632,6 +2660,14 @@ export const useGameStore = create<GameStore>()(
         }, offer.fromForeign)) { dropOffer(); return 'invalid' }
         // ロスター下限(15人)を割る売却は不可。札は残す＝補強してから改めて返事ができる（逆提示側と同じ）
         if (!canReleaseFromRoster(state.players, state.playerTeamId)) return 'roster_min'
+        // クラブが合意しても本人が納得しなければ成立しない（買う側と同じゲート）
+        if (!get().consentToLeave(offer.playerId, offer.fromTeamId)) {
+          set(st => ({
+            players: st.players.map(p => p.id === offer.playerId ? { ...p, saleRefusedYear: st.currentSeason.year } : p),
+            currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) },
+          }))
+          return 'refused_by_player'
+        }
         // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
         if (offer.fromForeign) {
           const destLeague = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
@@ -3170,6 +3206,14 @@ export const useGameStore = create<GameStore>()(
           if (!canReleaseFromRoster(state.players, state.playerTeamId)) {
             outcome = 'roster_min'
             return state
+          }
+          // クラブが合意しても本人が納得しなければ成立しない（承諾側・買う側と同じゲート）
+          if (!get().consentToLeave(offer.playerId, offer.fromTeamId)) {
+            outcome = 'refused_by_player'
+            return {
+              players: state.players.map(p => p.id === offer.playerId ? { ...p, saleRefusedYear: state.currentSeason.year } : p),
+              currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) },
+            }
           }
           // 海外クラブ：上限は economy.counterCeiling の1本。合意なら海外へ放出
           if (offer.fromForeign) {

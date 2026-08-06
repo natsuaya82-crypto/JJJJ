@@ -1,4 +1,4 @@
-import { MemoryRouter as BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { MemoryRouter as BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from './store/gameStore'
 import { flushSaveNow } from './store/saveStorage'
@@ -67,7 +67,6 @@ import SchedulePage from './components/schedule/SchedulePage'
 import ShopPage from './components/shop/ShopPage'
 import SponsorPage from './components/sponsors/SponsorPage'
 import StarredPlayersPage from './components/transfer/StarredPlayersPage'
-import OfferListPage from './components/transfer/OfferListPage'
 import RentalPage from './components/transfer/RentalPage'
 import FacilitiesPage from './components/facilities/FacilitiesPage'
 import ObjectivesPage from './components/objectives/ObjectivesPage'
@@ -268,7 +267,8 @@ function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBack
           <Route path="/teams/:section" element={<Placeholder title="coming soon" />} />
           <Route path="/transfer" element={<TransferHub />} />
           <Route path="/transfer/starred" element={<StarredPlayersPage />} />
-          <Route path="/transfer/offers" element={<OfferListPage />} />
+          {/* オファー一覧は廃止。受けたオファーも出したオファーもチャットで対応する */}
+          <Route path="/transfer/offers" element={<Navigate to="/team/chat" replace />} />
           <Route path="/transfer/rental" element={<RentalPage />} />
           <Route path="/transfer/:section" element={<TransferPage />} />
           <Route path="/objectives" element={<ObjectivesPage />} />

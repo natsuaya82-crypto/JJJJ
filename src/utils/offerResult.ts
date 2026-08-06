@@ -15,6 +15,7 @@ import { ROSTER_MIN } from '../data/rosterRules'
 export type OfferOutcome =
   | 'sold'        // 成立。選手は移籍した
   | 'refused'     // 相手クラブがその額に応じなかった（逆提示でのみ起きる）
+  | 'refused_by_player'  // クラブは合意したが、本人が行くことを断った。今季はこの選手への打診が来なくなる
   | 'roster_min'  // 自チームが下限人数。放出できない。オファーの札は残す
   | 'invalid'     // 選手が対象外になった（引退の話が決まった等）。札は取り下げる
 
@@ -32,6 +33,8 @@ export function offerResultText(
         : { text: `${a.playerName}を${a.teamName}へフリー移籍で放出しました`, ok: true }
     case 'refused':
       return { text: `${a.teamName}は${man(a.price)}を支払えず、交渉は決裂しました`, ok: false }
+    case 'refused_by_player':
+      return { text: `${a.playerName}が${a.teamName}への移籍を断りました。今季はこの話は進みません`, ok: false }
     case 'roster_min':
       return { text: `ロスターが下限の${ROSTER_MIN}人のため、${a.playerName}を放出できません。補強してから改めて返事をしてください（オファーはそのまま残っています）`, ok: false }
     case 'invalid':

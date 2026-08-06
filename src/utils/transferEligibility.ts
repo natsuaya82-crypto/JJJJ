@@ -83,7 +83,11 @@ function canBeApproached(p: Player, ctx: EligibilityCtx): boolean {
  * 国内オファー・売出への入札・CPUの自動購入・海外からの飛び込みオファー、すべてこれ
  */
 export function canBePoached(p: Player, ctx: EligibilityCtx): boolean {
-  return canBeApproached(p, ctx) && !p.noSale
+  // 本人が今年、売却を断っている選手には話を持ちかけない。
+  // 自チームが買いに行って断られたときの transferLockedUntilYear（1年こちらから打診不可）の裏返し。
+  // 断ったそばから同じ選手に打診が来続けるのを止める
+  const refused = (ctx.currentYear ?? 0) > 0 && p.saleRefusedYear === ctx.currentYear
+  return canBeApproached(p, ctx) && !p.noSale && !refused
 }
 
 /**

@@ -14,15 +14,12 @@ export default function TransferHub() {
 
   const win = getTransferWindow()
   const tradeNegs = currentSeason.tradeNegotiations ?? []
-  const transferBids = (currentSeason.transferBids ?? []).filter(b => b.status !== 'complete' && b.status !== 'failed')
   const allListings = currentSeason.transferListings ?? []
-  const incomingOffers = currentSeason.incomingOffers ?? []
 
   const gmRepColor = (gmRep ?? 50) >= 70 ? C.gold : (gmRep ?? 50) >= 45 ? C.textSub : C.red
 
   void win; void gmRepColor
 
-  const activeBidsNeedAction = transferBids.filter(b => b.status === 'fee_accepted' || b.status === 'countered' || b.status === 'player_neg')
 
 
   // ★はドラフト候補(starredProspects)にも付くので合算（ウォッチリストページの表示件数と揃える）。
@@ -63,17 +60,6 @@ export default function TransferHub() {
       color: C.blue,
       shadow: '#1a2050',
       urgent: false,
-    },
-    {
-      key: 'offers',
-      path: '/transfer/offers',
-      label: 'オファー一覧',
-      desc: '受けたオファー・出したオファーを確認',
-      countLabel: (incomingOffers.length + activeBidsNeedAction.length) > 0 ? `${incomingOffers.length + activeBidsNeedAction.length}件` : 'オファーなし',
-      badge: incomingOffers.length + activeBidsNeedAction.length,
-      color: C.blue,
-      shadow: '#1a2050',
-      urgent: incomingOffers.length > 0,
     },
     {
       key: 'scout',

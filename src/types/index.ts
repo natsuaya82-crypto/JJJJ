@@ -267,6 +267,7 @@ export type Player = {
   joinedYear?: number         // このチームに加入したシーズン年。当該シーズン中は「NEW」表示
   renewalLockedUntilYear?: number  // 更新交渉を最終拒否 → この年まで自チームは更新オファー不可
   transferLockedUntilYear?: number // 移籍交渉が決裂 → この年まで自チームは移籍金オファー不可
+  saleRefusedYear?: number         // 本人が売却を断った年 → その年は他クラブからの買い取り打診が来ない（上の裏返し）
   retirementDeclinedYear?: number  // 引退を引き留めた年。その年は引退希望を再抽選しない
   pendingRetirementYear?: number   // 引退を承認した年。今季限りで引退（実際の引退処理は endSeason で行う）
   overseasListed?: OverseasRegion  // 海外挑戦を承認済み。希望地域の1部リーグから優先的にオファーが来る
