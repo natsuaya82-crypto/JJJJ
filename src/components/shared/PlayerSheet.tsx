@@ -851,10 +851,10 @@ export default function PlayerSheet() {
                       color: inHof ? '#C9A84C' : '#1a0d00', fontSize: 13, fontWeight: 900,
                     }}
                   >
-                    {inHof ? `殿堂入り済み（OVR${hofEntry?.ovr} で固定）· 今の能力で更新する` : '殿堂入りに登録'}
+                    {inHof ? `殿堂入り済み OVR${hofEntry?.ovr} · 今の能力で更新` : '殿堂入りに登録'}
                   </button>
                   <div style={{ fontSize: 10, color: '#5C5870', marginTop: 6, lineHeight: 1.6 }}>
-                    {hofMsg || `押した瞬間の能力で固定されます（${hofCount}/${HOF_MAX}人）。あとで衰えても殿堂入りの側は変わりません。`}
+                    {hofMsg || `${hofCount}/${HOF_MAX}人`}
                   </div>
                 </div>
               )}
