@@ -44,7 +44,6 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferEligibility.ts` | 退団予定・引退予定・海外承認などの「もう出ていく人」判定 |
 | `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties` / `weakestSpecialty`。タイプの一覧 `SPECIALTIES` もここ |
 | `src/utils/playerSort.ts` | 選手一覧の並び替え。`comparePlayers` |
-| `src/utils/reserveSquad.ts` | リザーブ戦に出せる選手（プレイヤー側とCPU側で共通） |
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
