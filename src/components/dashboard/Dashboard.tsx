@@ -328,7 +328,7 @@ export default function Dashboard() {
   const showTTNext = !!dueTT && (!nextRaceData || dueTT.date <= nextRaceData.race.date)
   const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
   const sorted = rankedStandings(currentSeason.standings)
-  const myRank = sorted.findIndex(s => s.teamId === playerTeamId) + 1
+  const myRank = rankOfTeam(sorted, playerTeamId)
 
   // 世界選手権：JPELファイナル後〜シーズン終了の間に挟むステップ。
   // 偶数年=本番 / 奇数年=アジア＋オセアニア予選。実行済み(waDone)になって初めてシーズン終了カードが出る

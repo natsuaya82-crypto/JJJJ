@@ -15,7 +15,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
 import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
 import { contractTalkCtx, contractMonthsLeft, isUrgentRenewal } from '../../utils/contractTalk'
-import { rankedStandings } from '../../utils/league'
+import { rankedStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -137,7 +137,7 @@ export function ResultsPhase({
 
   const standingsSource = reserveStandings ?? currentSeason.standings
   const fullSorted = rankedStandings(standingsSource)
-  const playerSeasonRank = fullSorted.findIndex(s => s.teamId === playerTeamId) + 1
+  const playerSeasonRank = rankOfTeam(fullSorted, playerTeamId)
   // 上位10行。トップ10外なら自チーム行を区切って末尾に追加
   const seasonRows: { s: typeof fullSorted[number]; rank: number; isBreak: boolean }[] =
     fullSorted.map((s, i) => ({ s, rank: i + 1, isBreak: false }))

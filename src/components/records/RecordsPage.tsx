@@ -15,7 +15,7 @@ import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { rankedStandings } from '../../utils/league'
+import { rankedStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -253,7 +253,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
             {[...allSeasons].reverse().map(season => {
               const sorted = rankedStandings((season.standings ?? []))
-              const myStanding = sorted.findIndex(s => s.teamId === playerTeamId) + 1
+              const myStanding = rankOfTeam(sorted, playerTeamId)
               const myRow = season.standings?.find(s => s.teamId === playerTeamId)
               const myPoints = myRow?.totalPoints ?? 0
               const wins = myRow?.raceResults?.filter(r => r.rank === 1).length ?? 0

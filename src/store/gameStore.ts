@@ -1286,7 +1286,7 @@ export const useGameStore = create<GameStore>()(
             const totalRaces = state.currentSeason.races.length
             if (raceIndex >= 3 && raceIndex % 3 === 0) {
               const sortedStandingsNow = rankedStandings(state.currentSeason.standings)
-              const myCurrentRank = sortedStandingsNow.findIndex(s => s.teamId === state.playerTeamId) + 1
+              const myCurrentRank = rankOfTeam(sortedStandingsNow, state.playerTeamId)
               // 「うちは弱い」の基準は**自分の部の中で**見る。52で割ると3部(16)は
               // 最下位でも18位以内に入ってしまい、誰も不満を言わなくなる
               const expectedRank = Math.ceil(DIVISION_SIZE[myDivision] / 3)
@@ -1992,9 +1992,8 @@ export const useGameStore = create<GameStore>()(
           // 順位の物差しは自分の部の中（52で見ると3部が永久に「上位」になる）
           const trTotalTeams = DIVISION_SIZE[myDivision]
           const myStandRank = (() => {
-            const sorted = rankedStandings(updatedStandings)
-            const i = sorted.findIndex(s => s.teamId === playerTeamId)
-            return i >= 0 ? i + 1 : Math.ceil(trTotalTeams / 2)
+            const r = rankOfTeam(updatedStandings, playerTeamId)
+            return r > 0 ? r : Math.ceil(trTotalTeams / 2)
           })()
           const trCandidates = playersAfterLoan
             // canWishTransfer＝借り物・引退の話をしている・海外挑戦を承認済み、を全部外す。
@@ -2493,7 +2492,7 @@ export const useGameStore = create<GameStore>()(
         const ratio = salary / player.contract.annualSalary
         const personality = player.personality ?? 'salary'
         const standings = rankedStandings(state.currentSeason.standings)
-        const myRank = standings.findIndex(s => s.teamId === state.playerTeamId) + 1
+        const myRank = rankOfTeam(standings, state.playerTeamId)
         const isGoodTeam = myRank > 0 && myRank <= 5
         const minRatio =
           personality === 'loyalty' ? 0.98
@@ -3368,8 +3367,8 @@ export const useGameStore = create<GameStore>()(
           const appealAdj = (() => {
             if (personality !== 'winning') return 0
             const sorted = rankedStandings(state.currentSeason.standings)
-            const myRank = sorted.findIndex(s => s.teamId === state.playerTeamId) + 1
-            const theirRank = sorted.findIndex(s => s.teamId === player.teamId) + 1
+            const myRank = rankOfTeam(sorted, state.playerTeamId)
+            const theirRank = rankOfTeam(sorted, player.teamId)
             if (myRank <= 0 || theirRank <= 0) return 0
             // 自チームが相手より上位なら閾値↓(乗りやすい)、下位なら↑
             return Math.max(-0.08, Math.min(0.08, (theirRank - myRank) * -0.012))
@@ -4177,7 +4176,7 @@ export const useGameStore = create<GameStore>()(
           let rank = 0
           if (lastSeason?.standings?.length) {
             const sorted = rankedStandings(lastSeason.standings)
-            rank = sorted.findIndex(s => s.teamId === state.playerTeamId) + 1
+            rank = rankOfTeam(sorted, state.playerTeamId)
           }
           type Dist = { rarity: CardRarity; count: number }
           const dist: Dist[] =
@@ -5164,7 +5163,7 @@ export const useGameStore = create<GameStore>()(
         // 前年順位（運用方針・予算の基準）
         const lastStandings = rankedStandings((state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? []))
         const totalTeams = state.teams.length
-        const rankOf = (teamId: string) => { const i = lastStandings.findIndex(s => s.teamId === teamId); return i >= 0 ? i + 1 : Math.ceil(totalTeams / 2) }
+        const rankOf = (teamId: string) => { const r = rankOfTeam(lastStandings, teamId); return r > 0 ? r : Math.ceil(totalTeams / 2) }
         // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
         const tierJitter = new Map(teamsAfterCpuTransfer.map(t => [t.id, Math.random()]))
         const cpuTeamsSorted = teamsAfterCpuTransfer
@@ -5623,7 +5622,7 @@ export const useGameStore = create<GameStore>()(
           const sortedStandings = rankedStandings(state.currentSeason.standings)
 
           // Morale streak system: apply morale bonus/penalty to player team based on season finish
-          const myFinalRank = sortedStandings.findIndex(s => s.teamId === state.playerTeamId) + 1
+          const myFinalRank = rankOfTeam(sortedStandings, state.playerTeamId)
 
           // ── 来季の格 ────────────────────────────────────────────────
           // 国内クラブの格は「今季の国内通し順位」1本で決まる。1部1位＝格5、3部最下位＝格20。
@@ -5641,8 +5640,7 @@ export const useGameStore = create<GameStore>()(
           const divisionRankOf = (t: { id: string; division?: Division }) => {
             const d = effDivisionOf(t)
             const divIds = new Set(state.teams.filter(x => effDivisionOf(x) === d).map(x => x.id))
-            return rankedStandings(sortedStandings.filter(s => divIds.has(s.teamId)))
-              .findIndex(s => s.teamId === t.id) + 1
+            return rankOfTeam(sortedStandings.filter(s => divIds.has(s.teamId)), t.id)
           }
           const nextTierOf = (t: { id: string; division?: Division }) =>
             tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
@@ -5995,7 +5993,7 @@ export const useGameStore = create<GameStore>()(
           // Generate future draft picks (next 2 seasons) for each team based on final rank
           const numTeams = state.teams.length
           const teamsWithFuturePicks = teamsWithSeasonRewards.map(t => {
-            const teamFinalRank = sortedStandings.findIndex(s => s.teamId === t.id) + 1
+            const teamFinalRank = rankOfTeam(sortedStandings, t.id)
             const pickNum = Math.max(1, numTeams - teamFinalRank + 1)
             const newPicks: typeof t.draftPicks = []
             for (const yr of [newYear, newYear + 1]) {

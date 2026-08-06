@@ -1,3 +1,4 @@
+import { rankOfTeam } from '../utils/league'
 import type { GmOffer, Team } from '../types'
 import { rankedStandings, divisionOf } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
@@ -147,7 +148,7 @@ export function makeGmOffer(params: {
   const destDivision = divisionOf(dest)
   const destDivIds = new Set(teams.filter(t => divisionOf(t) === destDivision).map(t => t.id))
   const inDiv = rankedStandings(standings.filter(s => destDivIds.has(s.teamId)))
-  const prevRank = inDiv.findIndex(s => s.teamId === teamId) + 1
+  const prevRank = rankOfTeam(inDiv, teamId)
   const destDivisionSize = destDivIds.size
   return {
     teamId,
