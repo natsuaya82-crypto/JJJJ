@@ -1670,7 +1670,7 @@ export const useGameStore = create<GameStore>()(
                 continue
               }
               // 買い手が満杯（30人以上）または予算不足なら今回は見送り（出品は残す）
-              if ((rosterCount.get(buyerTeamId) ?? 0) >= 30 || buyer.finance.budget < listing.askingPrice) continue
+              if ((rosterCount.get(buyerTeamId) ?? 0) >= ROSTER_MAX || buyer.finance.budget < listing.askingPrice) continue
               // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。
               // ここは自動成立なので断られても札は消さず、別のクラブ・別のレースで話が来るのを待つ
               if (!appraiseMove(p, get().destinationOf(buyerTeamId, p), {
@@ -4894,7 +4894,7 @@ export const useGameStore = create<GameStore>()(
         // ドラフト加入分を先に差し引いておき、ドラフト後に30を超えないようにする（32人問題の修正）
         const draftPickCounts = new Map<string, number>()
         for (const tid of pickOrder) draftPickCounts.set(tid, (draftPickCounts.get(tid) ?? 0) + 1)
-        const rosterCapFor = (teamId: string) => 30 - (draftPickCounts.get(teamId) ?? 0)
+        const rosterCapFor = (teamId: string) => ROSTER_MAX - (draftPickCounts.get(teamId) ?? 0)
 
         // CPU teams release declining/surplus players
         // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
@@ -5215,8 +5215,9 @@ export const useGameStore = create<GameStore>()(
           if (c.signed >= c.slotsNeeded) return false
           // 外国人枠は廃止したので国籍による人数制限は無い
           const canSign = (fa: Player) => !signedFAIds.has(fa.id) && fa.age < c.ageCap
-          // 総在籍24人未満の間は予算に関係なく最低限補強（戦力崩壊防止）。それ以上は予算内でのみ
-          const budgetOk = (fa: Player) => (c.totalNow + c.signed) < 24 || (c.spent + estCost(fa) <= c.spendable)
+          // 戦力崩壊を防ぐ最低ラインまでは予算に関係なく補強する。それ以上は予算内でのみ。
+          // 人数は rosterRules の1本から出す（24の直書きをやめる）
+          const budgetOk = (fa: Player) => (c.totalNow + c.signed) < ROSTER_MIN + 9 || (c.spent + estCost(fa) <= c.spendable)
           // ① 専門の穴埋め（1つの専門につき2人まで）
           for (const spec of c.needs) {
             const have = playersAfterCpuTransfer.filter(p => p.teamId === c.team.id && p.specialty === spec && p.status === 'active').length
