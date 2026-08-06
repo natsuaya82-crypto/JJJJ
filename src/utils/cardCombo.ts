@@ -140,18 +140,39 @@ function randomRarity(): CardRarity {
 
 // カードドロップ。土台3枚(ランダム) ＋ 区間賞ごと1枚(ランダム) ＋ 順位ボーナス ＋ 25%で完全休養。
 // 順位で枚数・レア度に差をつけつつ、全員に土台3枚を配って低迷時も育成が進むようにする。
-export function generateDropCards(rank: number, _totalTeams: number, segWinCount = 0): TrainingCard[] {
+/**
+ * レース後にもらえるカード。
+ *
+ * ★順位は**国内の通し順位**（utils/league の domesticThroughRank）で見る。
+ *   部内順位で見ていたので「3部で優勝しても1部で優勝しても同じエピック2枚」だった。
+ *   しかも3部は16チームなので5位以内に入りやすく、実質3部のほうが得だった。
+ *   通し順位なら 1部20 → 2部16 → 3部16 と自然に落ちる。
+ *
+ * ただし通し順位だけだと3部優勝がノーマル2枚になってしまうので、
+ * **部内1位のときだけ1段上げる**（昇格の年に手ぶらで終わらせない）。
+ *   1部1位=通し1位 … エピック×2（そのまま最上位）
+ *   2部1位=通し21位 … レア＋ノーマル → 1段上げて レア×2
+ *   3部1位=通し37位 … ノーマル×2   → 1段上げて レア＋ノーマル
+ */
+const RANK_BONUS: { upTo: number; cards: [CardRarity, CardRarity] }[] = [
+  { upTo: 1,  cards: ['epic', 'epic'] },
+  { upTo: 3,  cards: ['epic', 'rare'] },
+  { upTo: 10, cards: ['rare', 'rare'] },
+  { upTo: 26, cards: ['rare', 'normal'] },
+  { upTo: 99, cards: ['normal', 'normal'] },
+]
+
+export function generateDropCards(throughRank: number, segWinCount = 0, divisionTop = false): TrainingCard[] {
   const cards: TrainingCard[] = []
   // 全員：土台3枚（レア度ランダム）
   for (let i = 0; i < 3; i++) cards.push(generateTrainingCard(randomRarity()))
   // 区間賞：取った区の数だけ+1枚（レア度ランダム）
   for (let i = 0; i < Math.max(0, segWinCount); i++) cards.push(generateTrainingCard(randomRarity()))
-  // 順位ボーナス
-  if (rank === 1) { cards.push(generateTrainingCard('epic'), generateTrainingCard('epic')) }
-  else if (rank <= 5) { cards.push(generateTrainingCard('epic'), generateTrainingCard('rare')) }
-  else if (rank <= 10) { cards.push(generateTrainingCard('rare'), generateTrainingCard('rare')) }
-  else if (rank <= 15) { cards.push(generateTrainingCard('rare'), generateTrainingCard('normal')) }
-  else { cards.push(generateTrainingCard('normal'), generateTrainingCard('normal')) }
+  // 順位ボーナス。部内1位は1段上（配列の1つ手前）を使う
+  const at = RANK_BONUS.findIndex(b => throughRank <= b.upTo)
+  const idx = Math.max(0, at < 0 ? RANK_BONUS.length - 1 : divisionTop ? at - 1 : at)
+  const [a, b] = RANK_BONUS[idx].cards
+  cards.push(generateTrainingCard(a), generateTrainingCard(b))
   // 完全休養カード：毎レース必ず1枚（別枠）。レア度は固定確率（順位に依存しない）
   const rr = Math.random()
   const restRarity: CardRarity = rr < 0.50 ? 'normal' : rr < 0.80 ? 'rare' : rr < 0.95 ? 'epic' : 'legendary'

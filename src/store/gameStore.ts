@@ -1757,7 +1757,14 @@ export const useGameStore = create<GameStore>()(
           })
 
           const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? state.teams.length
-          const droppedCards = generateDropCards(finalPlayerRank, state.teams.length, mySegWinCount)
+          // カードは国内の通し順位で決まる（部内順位だと3部優勝も1部優勝も同じだった）。
+          // 部内1位のときだけ1段上げる扱いは utils/cardCombo の中
+          const myDivForCards = divisionOf(state.teams.find(t => t.id === playerTeamId))
+          const droppedCards = generateDropCards(
+            domesticThroughRank(myDivForCards, finalPlayerRank),
+            mySegWinCount,
+            finalPlayerRank === 1,
+          )
 
           const raceAchievements = checkRaceAchievements({
             playerRank: finalPlayerRank,

@@ -471,7 +471,7 @@ function ChatView({
   // 移籍先の選択シートを開いているか（複数クラブが取り合いのとき）
   // 発言の頭に付けた「（◯◯GM）」「（代理人）」から差出人を割り出す。
   //   ・（◯◯GM） … 相手クラブ。名前とロゴをそのクラブのものにして、タップで詳細へ
-  //   ・（代理人） … 名前は出さない（誰が言ったかは本文で分かる）
+  //   ・（代理人） … 名前の欄に「代理人」と出す（本文の括弧は消す）
   //   ・括弧なし   … 本人の発言。名前を出す
   // 本文からは括弧の部分を取り除く（名前は吹き出しの上に出すので二重になる）
   const navigateTo = useNavigate()
@@ -482,7 +482,7 @@ function ChatView({
     if (!hit) return { name: player.name, club: undefined, text: m.text }
     const label = hit[1]
     const body = m.text.slice(hit[0].length)
-    if (label === '代理人') return { name: null, club: undefined, text: body }
+    if (label === '代理人') return { name: '代理人', club: undefined, text: body }
     const short = label.endsWith('GM') ? label.slice(0, -2) : label
     const club = clubIndex.all.find(c => c.shortName === short)
     return { name: club ? club.shortName : short, club, text: body }
