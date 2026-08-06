@@ -150,16 +150,18 @@ function randomRarity(): CardRarity {
  *
  * ただし通し順位だけだと3部優勝がノーマル2枚になってしまうので、
  * **部内1位のときだけ1段上げる**（昇格の年に手ぶらで終わらせない）。
- *   1部1位=通し1位 … エピック×2（そのまま最上位）
- *   2部1位=通し21位 … レア＋ノーマル → 1段上げて レア×2
- *   3部1位=通し37位 … ノーマル×2   → 1段上げて レア＋ノーマル
+ *   1部1位=通し1位 … レジェンダリー＋エピック＋レア（そのまま最上位）
+ *   2部1位=通し21位 … レア×2＋ノーマル → 1段上げて エピック＋レア×2
+ *   3部1位=通し37位 … レア＋ノーマル×2 → 1段上げて レア×2＋ノーマル
  */
-const RANK_BONUS: { upTo: number; cards: [CardRarity, CardRarity] }[] = [
-  { upTo: 1,  cards: ['epic', 'epic'] },
-  { upTo: 3,  cards: ['epic', 'rare'] },
-  { upTo: 10, cards: ['rare', 'rare'] },
-  { upTo: 26, cards: ['rare', 'normal'] },
-  { upTo: 99, cards: ['normal', 'normal'] },
+// 順位ボーナスは全員3枚。中身のレア度だけが順位で変わる（枚数で差を付けない）。
+// 頂点だけレジェンダリー。ここが唯一レジェンダリーが順位で出る場所（完全休養カードは別枠）
+const RANK_BONUS: { upTo: number; cards: [CardRarity, CardRarity, CardRarity] }[] = [
+  { upTo: 1,  cards: ['legendary', 'epic', 'rare'] },
+  { upTo: 3,  cards: ['epic', 'epic', 'rare'] },
+  { upTo: 10, cards: ['epic', 'rare', 'rare'] },
+  { upTo: 26, cards: ['rare', 'rare', 'normal'] },
+  { upTo: 99, cards: ['rare', 'normal', 'normal'] },
 ]
 
 export function generateDropCards(throughRank: number, segWinCount = 0, divisionTop = false): TrainingCard[] {
@@ -171,8 +173,7 @@ export function generateDropCards(throughRank: number, segWinCount = 0, division
   // 順位ボーナス。部内1位は1段上（配列の1つ手前）を使う
   const at = RANK_BONUS.findIndex(b => throughRank <= b.upTo)
   const idx = Math.max(0, at < 0 ? RANK_BONUS.length - 1 : divisionTop ? at - 1 : at)
-  const [a, b] = RANK_BONUS[idx].cards
-  cards.push(generateTrainingCard(a), generateTrainingCard(b))
+  for (const r of RANK_BONUS[idx].cards) cards.push(generateTrainingCard(r))
   // 完全休養カード：毎レース必ず1枚（別枠）。レア度は固定確率（順位に依存しない）
   const rr = Math.random()
   const restRarity: CardRarity = rr < 0.50 ? 'normal' : rr < 0.80 ? 'rare' : rr < 0.95 ? 'epic' : 'legendary'
