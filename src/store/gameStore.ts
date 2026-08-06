@@ -248,6 +248,23 @@ export function applyRaceBoosts(
 // 移籍金の受け取り・名簿からの除外・移籍履歴・退団のお知らせ・1年間の再交渉禁止まで、
 // 全部 movePlayer に任せて同じ後始末になるようにする。
 // 海外クラブは teams に居ないので、買い手側の出金は自動的に起きない（そのままでいい）。
+/**
+ * そのクラブが移籍金の逆提示に応じられる上限。
+ * 上限そのものは data/economy.ts の counterCeiling（市場価値×1.15 か 提示額×1.3 の高い方）。
+ * 国内クラブはさらに手元の予算で頭打ち。海外クラブは teams に居ないので予算を見ない。
+ * ★単発の逆提示と全クラブへの一斉提示で同じ判定を使う（片方だけ緩いと辻褄が合わない）
+ */
+function willingFeeFor(
+  state: { teams: Team[] },
+  offer: { fromTeamId: string; offeredPrice: number; fromForeign?: boolean },
+  player: Player,
+): number {
+  const ceil = counterCeiling(calcTransferValue(player), offer.offeredPrice)
+  if (offer.fromForeign) return ceil
+  const budget = state.teams.find(t => t.id === offer.fromTeamId)?.finance.budget ?? 0
+  return Math.min(budget, ceil)
+}
+
 function sellMove(
   state: Pick<GameState, 'players' | 'teams' | 'playerTeamId' | 'currentSeason'>,
   playerId: string, toTeamId: string, fee: number, toName: string,
@@ -387,6 +404,8 @@ export type GameStore = GameState & {
   reNegotiateAcquisition: (offerId: string) => void
   abandonAcquisitionOffer: (offerId: string) => void
   releasePlayerWithBuyout: (playerId: string) => boolean
+  // 打診してきた全クラブに同じ移籍金を一斉提示する。払えるクラブだけが残る
+  counterAllIncomingOffers: (playerId: string, price: number) => { accepted: string[]; declined: string[]; blocked?: 'roster_min' | 'invalid' }
   counterIncomingOffer: (offerId: string, counterPrice: number) => OfferOutcome
   generateContractRequests: () => void
   dismissRetirementRequest: (playerId: string) => void
@@ -3262,6 +3281,42 @@ export const useGameStore = create<GameStore>()(
         return released
       },
 
+      // 打診してきた全クラブに、同じ移籍金を一斉に提示する。
+      // 払えるクラブだけがその額で残り、払えないクラブは辞退して消える。
+      // ★ここでは成立させない。最後に「どこへ行くか」を決めるのは本人の希望（rankIncomingOffers）
+      counterAllIncomingOffers: (playerId, price) => {
+        const res: { accepted: string[]; declined: string[]; blocked?: 'roster_min' | 'invalid' } =
+          { accepted: [], declined: [] }
+        set(state => {
+          const player = state.players.find(p => p.id === playerId)
+          const mine = (state.currentSeason.incomingOffers ?? []).filter(o => o.playerId === playerId && o.offeredPrice > 0)
+          if (!player || mine.length === 0) { res.blocked = 'invalid'; return state }
+          // 出していい選手かの判定は承諾と同じ canAcceptOfferFor 1本
+          if (!canAcceptOfferFor(player, {
+            teamId: state.playerTeamId,
+            currentYear: state.currentSeason.year,
+            retiringIds: new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId)),
+          })) {
+            res.blocked = 'invalid'
+            return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.playerId !== playerId) } }
+          }
+          // ロスター下限を割る売却はそもそもできない。札は全部残す
+          if (!canReleaseFromRoster(state.players, state.playerTeamId)) { res.blocked = 'roster_min'; return state }
+          const kept: IncomingOffer[] = []
+          for (const o of mine) {
+            if (price <= willingFeeFor(state, o, player)) {
+              kept.push({ ...o, offeredPrice: price, round: o.round + 1 })
+              res.accepted.push(o.fromTeamId)
+            } else {
+              res.declined.push(o.fromTeamId)
+            }
+          }
+          const others = (state.currentSeason.incomingOffers ?? []).filter(o => !(o.playerId === playerId && o.offeredPrice > 0))
+          return { currentSeason: { ...state.currentSeason, incomingOffers: [...others, ...kept] } }
+        })
+        return res
+      },
+
       counterIncomingOffer: (offerId, counterPrice) => {
         // 結果は utils/offerResult の OfferOutcome 1本。承諾(acceptIncomingOffer)と同じ言葉で返す
         let outcome: OfferOutcome = 'invalid'
@@ -3297,7 +3352,7 @@ export const useGameStore = create<GameStore>()(
           }
           // 海外クラブ：上限は economy.counterCeiling の1本。合意なら海外へ放出
           if (offer.fromForeign) {
-            if (player && counterPrice <= counterCeiling(calcTransferValue(player), offer.offeredPrice)) {
+            if (player && counterPrice <= willingFeeFor(state, offer, player)) {
               const destLg = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
               const clubName = destLg?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
               const isElite = ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(destLg?.id ?? '')
@@ -3317,10 +3372,8 @@ export const useGameStore = create<GameStore>()(
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
           const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
-          const maxBudget = buyingTeam?.finance.budget ?? 0
-          // 応じるラインは海外と同じ economy.counterCeiling。ただし相手の予算内。
-          // 相場での逆提示は基本通る（予算が無いチームはそもそもオファーを出さない）
-          const willing = Math.min(maxBudget, counterCeiling(calcTransferValue(player), offer.offeredPrice))
+          // 応じるラインは willingFeeFor 1本（全クラブ一斉の逆提示と同じ判定）
+          const willing = willingFeeFor(state, offer, player)
           if (counterPrice <= willing) {
             outcome = 'sold'
             const moved = sellMove(state, offer.playerId, offer.fromTeamId, counterPrice, buyingTeam?.shortName ?? '')

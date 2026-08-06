@@ -253,7 +253,7 @@ function ChatView({
     generateContractRequests, refuseFreeContactRetention,
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
     openPlayerSheet, finalizeTransfer, rejectTransferBid, rankIncomingOffers,
-    acceptIncomingOffer, counterIncomingOffer, declineIncomingOffer,
+    acceptIncomingOffer, counterAllIncomingOffers, declineIncomingOffer,
     acceptIncomingLoanOffer, declineIncomingLoanOffer, resolveStayOrLeave,
   } = useGameStore()
   const longPress = usePlayerLongPress()
@@ -308,7 +308,6 @@ function ChatView({
   const undecided = (currentSeason.stayOrLeave ?? []).some(x => x.playerId === player.id)
   const incomingOffer = rankedOffers[0]?.offer ?? null
   const incomingLoan = (currentSeason.incomingLoanOffers ?? []).find(o => o.playerId === player.id) ?? null
-  const incomingFrom = incomingOffer ? (clubIndex.byId(incomingOffer.fromTeamId)?.shortName ?? '他クラブ') : ''
   const incomingLoanFrom = incomingLoan ? (clubIndex.byId(incomingLoan.fromTeamId)?.shortName ?? '他クラブ') : ''
   // 借り入れの枠（3人まで）。貸し出しには枠は要らない（カードでやっていたときと同じ条件）
   const loanBorrowedIn = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
@@ -425,23 +424,39 @@ function ChatView({
     setComposing(true)
   }
 
-  // 買い取り打診への逆提示（「この額なら出す」）。金額はここで決めて counterIncomingOffer に渡す
+  // 買い取り打診への逆提示（「この額なら出す」）。
+  // 打診してきた全クラブに同じ額を一斉に出し、払えるクラブだけが残る。
+  // 初期値は一番高い提示額の1.2倍（釣り上げの起点は最高額）
   const openComposeCounterFee = () => {
-    if (!incomingOffer) return
-    const base = Math.max(1_000_000, Math.round(incomingOffer.offeredPrice * 1.2 / 1_000_000) * 1_000_000)
-    setOfferFee(base)
+    if (rankedOffers.length === 0) return
+    const highest = Math.max(...rankedOffers.map(r => r.offer.offeredPrice))
+    setOfferFee(Math.max(1_000_000, Math.round(highest * 1.2 / 1_000_000) * 1_000_000))
     setComposeMode('counterFee')
     setComposing(true)
   }
 
   const handleSubmitCounterFee = () => {
-    if (!incomingOffer) return
-    append({ from: 'gm', text: `${fmtYen(offerFee)}であればお譲りします。いかがでしょうか。` })
-    const outcome = counterIncomingOffer(incomingOffer.id, offerFee)
-    const r = offerResultText(outcome, { playerName: player.name, teamName: incomingFrom, price: offerFee })
-    append({ from: 'player', text: `（代理人）${r.text}` })
+    if (rankedOffers.length === 0) return
+    const n = rankedOffers.length
+    append({ from: 'gm', text: n > 1
+      ? `${fmtYen(offerFee)}であればお譲りします。各クラブのご判断をお聞かせください。`
+      : `${fmtYen(offerFee)}であればお譲りします。いかがでしょうか。` })
+    const res = counterAllIncomingOffers(player.id, offerFee)
     setComposing(false)
-    if (outcome === 'sold') setJustSettled(true)
+    if (res.blocked === 'roster_min') {
+      append({ from: 'player', text: `（代理人）${offerResultText('roster_min', { playerName: player.name, teamName: '', price: offerFee }).text}` })
+      return
+    }
+    if (res.blocked === 'invalid') {
+      append({ from: 'player', text: `（代理人）${player.name}選手は移籍の対象外になったため、話は取り下げられました` })
+      return
+    }
+    const names = (ids: string[]) => ids.map(nameOfClub).join('・')
+    append({ from: 'player', text: res.accepted.length === 0
+      ? `（代理人）${n}クラブに${fmtYen(offerFee)}で打診しましたが、どこも支払えず辞退しました。`
+      : res.declined.length === 0
+      ? `（代理人）${n}クラブに${fmtYen(offerFee)}で打診しました。${names(res.accepted)}が応じています。`
+      : `（代理人）${n}クラブに${fmtYen(offerFee)}で打診しました。${names(res.accepted)}が応じています。${names(res.declined)}は支払えず辞退しました。` })
   }
 
   // 移籍先の選択シートを開いているか（複数クラブが取り合いのとき）
@@ -632,7 +647,7 @@ function ChatView({
         one
           ? { label: `${nameOfClub(top.fromTeamId)}へ承諾（${fmtYen(top.offeredPrice)}）`, color: C.green, action: () => acceptOffer(top) }
           : { label: `移籍先を選んで承諾（${rankedOffers.length}クラブ）`, color: C.green, action: () => setPickingDest(true) },
-        { label: `${nameOfClub(top.fromTeamId)}へ金額を提示する`, color: C.gold, action: openComposeCounterFee },
+        { label: one ? `${nameOfClub(top.fromTeamId)}に金額を提示する` : '全クラブに金額を提示する', color: C.gold, action: openComposeCounterFee },
         { label: one ? '断る' : 'すべて断る', color: C.red, action: () => {
           append(
             { from: 'gm', text: `申し訳ありませんが、${player.name}を手放すつもりはありません。` },
@@ -965,7 +980,7 @@ function ChatView({
         {composing && composeMode === 'counterFee' ? (
           // 買い取り打診への逆提示は「移籍金」だけを決める（年俸・年数は相手クラブが決めること）
           <div style={{ padding: '12px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 10, color: C.textDim }}>提示する移籍金</div>
+            <div style={{ fontSize: 10, color: C.textDim }}>{rankedOffers.length > 1 ? `提示する移籍金（${rankedOffers.length}クラブ一斉）` : '提示する移籍金'}</div>
             <div style={{ padding: '4px 0 8px' }}>
               <NumberDial value={offerFee} onChange={v => setOfferFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.gold} />
             </div>
