@@ -23,6 +23,7 @@ import TermsGate from './components/title/TermsGate'
 import { hasAgreedTerms, agreeTerms } from './utils/termsConsent'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
+import HofTeamPage from './components/online/HofTeamPage'
 import AnnouncementsPage from './components/more/AnnouncementsPage'
 import Dashboard from './components/dashboard/Dashboard'
 import TeamManagement from './components/team/TeamManagement'
@@ -293,6 +294,8 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
           {onlineAvailable() && <Route path="/online/match" element={<MatchEntryPage />} />}
           {onlineAvailable() && <Route path="/online/room/:roomId" element={<RoomLobbyPage />} />}
           {onlineAvailable() && <Route path="/online/history" element={<MatchHistoryPage />} />}
+          {/* 殿堂入りチームはオフラインでも使う（登録・固定は端末内で完結する） */}
+          <Route path="/online/hof" element={<HofTeamPage />} />
           {onlineAvailable() && <Route path="/online/history/:matchId" element={<MatchReplayPage />} />}
           {onlineAvailable() && <Route path="/friends" element={<FriendsPage />} />}
           {onlineAvailable() && <Route path="/friends/list" element={<FriendListPage />} />}

@@ -19,6 +19,8 @@ export default function OnlinePage() {
   const SECTIONS: {
     key: string; label: string; note: string; badge: number; color: string
     icon: React.ReactNode; soon?: boolean
+    /** オンラインが使えない状態でも押せる（端末内で完結する機能） */
+    alwaysOn?: boolean
   }[] = [
     {
       key: '/friends', label: 'フレンド', note: '一覧・申請・自分のコード',
@@ -76,12 +78,25 @@ export default function OnlinePage() {
         </svg>
       ),
     },
+    {
+      // 殿堂入りは端末内で完結するので、オンラインが使えない状態でも押せる（下の soon を付けない）
+      key: '/online/hof', label: '殿堂入りチーム', note: `歴代の30人を登録時の能力で固定`,
+      badge: 0, color: C.gold, alwaysOn: true,
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+          <path d="M7 6H4v1.5A3.5 3.5 0 0 0 7 11M17 6h3v1.5A3.5 3.5 0 0 1 17 11" stroke="currentColor" strokeWidth="1.7"/>
+          <path d="M12 13v4M9 20h6M10 17h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
   ]
 
   // 公開していない間は4つとも薄く表示して押せなくする（説明は「準備中」）
+  // 殿堂入り（alwaysOn）だけは、オンラインが使えない状態でも押せる。端末内で完結するため
   const sections = onlineAvailable()
     ? SECTIONS
-    : SECTIONS.map(s => ({ ...s, soon: true, note: '準備中', badge: 0 }))
+    : SECTIONS.map(s => (s.alwaysOn ? s : { ...s, soon: true, note: '準備中', badge: 0 }))
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>

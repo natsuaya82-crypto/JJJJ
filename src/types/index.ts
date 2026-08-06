@@ -891,6 +891,26 @@ export type GmOffer = {
   kind?: 'promotion' | 'rebuild' | 'comeback'
 }
 
+/**
+ * 殿堂入りチームの1人。**登録した瞬間の選手をそのまま凍らせたコピー**。
+ *
+ * 本人がその後どうなっても（衰えても・引退しても・他クラブへ移っても）ここは変わらない。
+ * OVR87で登録すれば、晩年に82になっても殿堂入りの側は87のまま走る。
+ * もう一度登録し直すと、そのときの数値で上書きされる（82で入れ直せる）。
+ *
+ * 監督が移っても引き継ぐので、いろんなクラブ・いろんな年代の選手が1つのチームに並ぶ。
+ */
+export type HofPlayer = {
+  /** 凍らせた選手そのもの。ID は元の選手と同じ（重複登録の判定に使う） */
+  player: Player
+  /** 登録した年 */
+  year: number
+  /** 登録したときの所属クラブ名（表示用。あとで移籍しても変わらない） */
+  teamName: string
+  /** 登録したときのOVR（並べ替え・表示用。player から再計算しても同じ） */
+  ovr: number
+}
+
 export type GameState = {
   playerTeamId: string
   currentSeason: Season
@@ -907,6 +927,8 @@ export type GameState = {
   // 監督の在任履歴。無い旧セーブは「最初のシーズンからずっと今のチーム」として扱う
   gmTenures?: GmTenure[]
   // 他チームから届いている監督オファー。答えるまで残る（答えたら null）
+  /** 殿堂入りチーム。最大30人。登録時の数値で固定される（utils/hofRoster.ts） */
+  hofRoster?: HofPlayer[]
   gmOffer?: GmOffer | null
   /** 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN） */
   lastGmOfferYear?: number

@@ -71,6 +71,8 @@ import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, is
 import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX } from '../utils/tradeValue'
 import type { TradeValueCtx } from '../utils/tradeValue'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
+// 殿堂入りチーム（登録時の数値で固定）
+import { canRegisterHof, registerHof, removeHof } from '../utils/hofRoster'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
 import { makeGmOffer } from '../utils/gmOffer'
@@ -518,6 +520,10 @@ export type GameStore = GameState & {
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
   // 監督オファーを受ける／断る（utils/gmOffer.ts）
+  /** 殿堂入りチームに登録（既にいればそのときの数値で上書き）。入れたら true */
+  registerHofPlayer: (playerId: string) => boolean
+  /** 殿堂入りチームから外す */
+  removeHofPlayer: (playerId: string) => void
   acceptGmOffer: () => void
   declineGmOffer: () => void
   // ホームで出したジュエル獲得ポップアップを閉じる
@@ -593,6 +599,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     gmRep: 50,
     gmTenures: [],
     gmOffer: null,
+    hofRoster: [],
     // 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN）
     lastGmOfferYear: undefined,
     seenJoinIds: [],
@@ -7156,6 +7163,22 @@ export const useGameStore = create<GameStore>()(
       // 前のチームからは何も持って行かない。予算とスカウトポイントは
       // シーズン終了時に控えておいた移籍先の数字へ差し替える（utils/gmOffer.ts）。
       // 在任履歴には前のチームを前年で閉じてから新しいチームを足す（utils/gmTenure.ts）。
+      // 殿堂入りチーム。判定は utils/hofRoster.ts の1本
+      registerHofPlayer: (playerId) => {
+        const state = get()
+        const p = state.players.find(x => x.id === playerId)
+        if (!p) return false
+        if (!canRegisterHof(state.hofRoster, playerId)) return false
+        const teamName = state.teams.find(t => t.id === p.teamId)?.name
+          ?? findClub(state.teams, state.foreignLeagues ?? [], p.teamId)?.name
+          ?? '—'
+        set({ hofRoster: registerHof(state.hofRoster, p, state.currentSeason.year, teamName) })
+        return true
+      },
+      removeHofPlayer: (playerId) => {
+        set(state => ({ hofRoster: removeHof(state.hofRoster, playerId) }))
+      },
+
       acceptGmOffer: () => {
         set(state => {
           const offer = state.gmOffer

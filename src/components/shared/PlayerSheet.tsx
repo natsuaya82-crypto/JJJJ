@@ -18,6 +18,7 @@ import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed, foreignAp
 import { fmtYen } from '../../utils/money'
 import { rankColor } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
+import { HOF_MAX } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import { safeRatings } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
@@ -169,6 +170,10 @@ export default function PlayerSheet() {
   const [showBadges, setShowBadges] = useState(false)
   // 名前変更ダイアログ（null＝閉じている。文字列＝入力中の名前）
   const [renameDraft, setRenameDraft] = useState<string | null>(null)
+  // 殿堂入りチーム（utils/hofRoster.ts）。登録時の能力で固定するので、ここでは押した結果だけ持つ
+  const [hofMsg, setHofMsg] = useState('')
+  const hofRoster = useGameStore(s => s.hofRoster) ?? []
+  const registerHof = useGameStore(s => s.registerHofPlayer)
   const touchStart = useRef({ x: 0, y: 0 })
   const sheetRef = useRef<HTMLDivElement>(null)
   const shareCardRef = useRef<HTMLDivElement>(null)
@@ -227,6 +232,9 @@ export default function PlayerSheet() {
 
   const team = clubIndex.byId(player.teamId)
   const isMyPlayer = player.teamId === playerTeamId
+  const hofEntry = hofRoster.find(h => h.player.id === player.id)
+  const inHof = !!hofEntry
+  const hofCount = hofRoster.length
   // 記録パッチ（最大5個・優先順: 世界>日本>MVP>新人王>区間記録）
   // パッチ選択は専用ページ（スクロール可）なので上限なしで全部出す（5個で打ち切らない）
   const badges = getPlayerBadges(player, { worldRecords, japanRecords, seasonAwards, segmentRecords, eclHistory, worldRepresentatives, eventSeasonTops, worldAthleticsResults, worldTournament }, 99)
@@ -830,6 +838,26 @@ export default function PlayerSheet() {
           {/* Page 3: 在籍履歴（移籍情報）。ドラフト候補・フレンドのロスターでは非表示 */}
           {page === 3 && pages.includes(3) && (
             <div style={{ padding: '12px 20px 28px' }}>
+              {/* 殿堂入りチーム（utils/hofRoster.ts）。押した瞬間の能力で固定される。
+                  自チームの選手だけ。もう一度押すとそのときの能力で入れ替わる */}
+              {isMyPlayer && !isProspect && (
+                <div data-html2canvas-ignore="true" style={{ marginBottom: 16 }}>
+                  <button
+                    onClick={() => { if (!registerHof(player.id)) setHofMsg(`殿堂入りは${HOF_MAX}人までです`); else setHofMsg(inHof ? '殿堂入りの能力を今の値に更新しました' : '殿堂入りチームに登録しました') }}
+                    style={{
+                      width: '100%', padding: '11px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                      background: inHof ? 'transparent' : 'linear-gradient(180deg, #F0D264 0%, #C9A84C 60%, #8b6914 100%)',
+                      border: `2px solid ${inHof ? '#C9A84C66' : '#8b6914'}`,
+                      color: inHof ? '#C9A84C' : '#1a0d00', fontSize: 13, fontWeight: 900,
+                    }}
+                  >
+                    {inHof ? `殿堂入り済み（OVR${hofEntry?.ovr} で固定）· 今の能力で更新する` : '殿堂入りに登録'}
+                  </button>
+                  <div style={{ fontSize: 10, color: '#5C5870', marginTop: 6, lineHeight: 1.6 }}>
+                    {hofMsg || `押した瞬間の能力で固定されます（${hofCount}/${HOF_MAX}人）。あとで衰えても殿堂入りの側は変わりません。`}
+                  </div>
+                </div>
+              )}
               <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px' }}>在籍履歴</div>
               {historyRows.length > 0 ? (
                 <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
