@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
+import { saveSlotSuffix } from '../store/saveSlot'
 
 /**
  * フレンド機能の「このアカウントは自分だ」という証明書（メールとパスワード）を、
@@ -25,8 +26,14 @@ interface KeychainPlugin {
 
 const Keychain = registerPlugin<KeychainPlugin>('Keychain')
 
-const KEY = 'jpel_identity_v1'
-const FILE = 'jpel-identity.json'
+
+// オンラインの自分（＝フレンドコードの正体）は**スロットごとに別**。
+// セーブを分けたのに同じアカウントを使い回すと、運営用スロットを開いた瞬間に
+// フレンドから見える自分のチームがそちらへ化ける。スロットごとに別人にすれば、
+// サーバーから見れば匿名ユーザーが1人増えるだけで、DB側の変更は要らない。
+// スロット1は接尾辞なし＝これまでのアカウントをそのまま引き継ぐ。
+const KEY = `jpel_identity_v1${saveSlotSuffix()}`
+const FILE = `jpel-identity${saveSlotSuffix()}.json`
 
 const isIOS = () => Capacitor.getPlatform() === 'ios'
 

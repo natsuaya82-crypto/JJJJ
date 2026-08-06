@@ -387,10 +387,11 @@ export default function PlayerSheet() {
   if (!isRetired) {
     const anyThisYear = [...historyMap.keys()].some(k => k.startsWith(`${currentSeason.year}|${player.teamId}|`))
     if (!anyThisYear) {
-      // 海外クラブ所属なら 'foreign'（＝所属リーグ表示）。国内チームだけ 'second'（JPELリザーブ）。
-      // これをやらないと0レースの海外選手が「JPELリザーブリーグ」と誤表示される。
+      // 海外クラブ所属なら 'foreign'（＝所属リーグ表示）、国内なら 'main'（JPEL）。
+      // 以前ここが 'second'（リザーブ）だったため、1レースも走っていない選手の在籍履歴に
+      // **廃止済みの「JPELリザーブリーグ」** が出ていた（リザーブは migrate v30 で廃止）。
       const isForeignClub = clubIndex.byId(player.teamId)?.isDomestic === false
-      const ph: HistComp = isForeignClub ? 'foreign' : 'second'
+      const ph: HistComp = isForeignClub ? 'foreign' : 'main'
       historyMap.set(`${currentSeason.year}|${player.teamId}|${ph}`, { year: currentSeason.year, teamId: player.teamId, comp: ph, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
     }
   }

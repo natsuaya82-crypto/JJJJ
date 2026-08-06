@@ -1,5 +1,3 @@
-import { currentSaveSlot } from '../store/saveSlot'
-
 // 機能のオン・オフをまとめて管理する場所。
 //
 // ONLINE_ENABLED … フレンド／走友会／オンライン対戦をまとめて出すかどうか。
@@ -16,14 +14,12 @@ export const ONLINE_ENABLED = true
 //   通報・ブロックは ReportSheet / moderationApi で用意してある。
 export const CLUB_CHAT_ENABLED = true
 
-// オンラインを使えるのはスロット1だけ（store/saveSlot.ts）。
+// オンラインが使えるか。
 //
-// フレンドコード・プロフィール・走友会の在籍は「端末に1つのアカウント」に紐づいていて、
-// スロットごとには分かれない。運営用のスロットでオンラインに入ると、
-//   ・フレンド一覧に出る自分のチームがそのスロットのものに置き換わる
-//   ・相手がロスターを見ると運営用の選手が並ぶ
-//   ・対戦にもそのチームで出てしまう
-// ので、本編のデータ以外では入口ごと閉じる。同期そのものは lib/useFriendSync.ts でも止めてある。
+// オンラインの自分（フレンドコード・プロフィール・走友会の在籍）は**スロットごとに別人**。
+// アカウントの置き場を lib/durableId.ts と lib/supabase.ts でスロットごとに分けてあるので、
+// どのスロットでもオンラインに入ってよい（別スロットの内容が本編のプロフィールを
+// 上書きすることはない）。スロット1はこれまでのアカウントをそのまま引き継ぐ。
 export function onlineAvailable(): boolean {
-  return ONLINE_ENABLED && currentSaveSlot() === 1
+  return ONLINE_ENABLED
 }

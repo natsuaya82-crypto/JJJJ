@@ -15,9 +15,14 @@ export const SUPABASE_KEY =
 
 import { createClient } from '@supabase/supabase-js'
 import { ONLINE_ENABLED } from '../data/featureFlags'
+import { saveSlotSuffix } from '../store/saveSlot'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
+    // ログイン情報の置き場もスロットごとに分ける。共通のままだと、スロットを
+    // 切り替えても前のスロットのセッションが復元されて別人のまま通信してしまう。
+    // スロット1は接尾辞なし＝これまでの置き場をそのまま使う（作り直しにならない）
+    storageKey: `sb-jpel-auth${saveSlotSuffix()}`,
     // オンラインを公開していない間は、端末に残っているログイン情報を復元しない。
     // ここを true のままにすると、以前のバージョンを入れていた端末では
     // 起動時と復帰時にログインの更新通信が勝手に走ってしまう。

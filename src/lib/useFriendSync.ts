@@ -8,11 +8,11 @@ import { ovr } from '../utils/playerUtils'
 import { ensureMyProfile, pushMyProfile, pushMyRoster } from './friendsApi'
 import { gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
 import { ONLINE_ENABLED } from '../data/featureFlags'
-// オンラインの自分（フレンドコード・プロフィール）は端末に1つで、スロットごとには分かれない。
-// 運営用の別スロットの内容を送ると、フレンドから見た自分のチームがそちらに化ける
-import { currentSaveSlot } from '../store/saveSlot'
+import { saveSlotSuffix } from '../store/saveSlot'
 
-const STAMP_KEY = 'jpel_friend_sync_stamp'
+// 指紋の置き場もスロットごと。共通だと、別スロットで送った指紋と一致して
+// 「前と同じだから送らない」と誤判定し、そのスロットの情報が一生送られない
+const STAMP_KEY = `jpel_friend_sync_stamp${saveSlotSuffix()}`
 
 /** 送信内容が前回と同じかを見るための軽い指紋 */
 function fingerprint(s: string): string {
@@ -28,11 +28,6 @@ let running = false
  * 送る中身が前回と同じなら通信しない。
  */
 export async function syncNow(): Promise<void> {
-  // ★スロット1以外は一切送らない。
-  //   オンラインのアカウントは端末に1つなので、運営用スロットの内容を送ると
-  //   フレンド一覧・走友会・ロスター閲覧に出る自分が、そのスロットのチームに
-  //   置き換わってしまう（相手からは「育てたチームが消えて弱小になった」ように見える）。
-  if (currentSaveSlot() !== 1) return
   if (running) return
   running = true
   try {
