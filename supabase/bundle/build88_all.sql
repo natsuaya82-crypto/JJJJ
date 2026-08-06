@@ -1,11 +1,13 @@
 -- JPEL: build 88 時点のまとめ（この1本を上から順に流せば5本ぶん全部入ります）
 -- drop table は1つも入っていません。既存の走友会・フレンド・対戦履歴のデータは消えません。
--- 中身は下の5本を順番につないだだけで、1行も変えていません:
+-- （drop function は入っています。返す列が変わる関数は落としてから作り直す必要があるため。
+--  関数を落としてもデータは消えません）
+-- 中身は下の5本を順番につないだだけです:
 --   1. club_reactions.sql   掲示板の反応スタンプ
---   2. club_posts_cap.sql   掲示板の投稿数の上限
+--   2. club_posts_cap.sql   掲示板を新しい順に300件へ
 --   3. clubs_roster.sql     走友会からロスターを見る
 --   4. matches_detail.sql   対戦履歴の走者・区間タイム
---   5. matches_prune.sql    対戦履歴の間引き
+--   5. matches_prune.sql    対戦履歴を60日で消す
 
 
 -- ==========================================================================
@@ -84,6 +86,10 @@ grant execute on function public.react_club_post(uuid, integer) to authenticated
 -- 掲示板の反応をまとめて返す。投稿ごとに「番号 → 人数」と「自分が押した番号」。
 -- 投稿の一覧（list_club_posts）とは別に引く。投稿側の関数に手を入れると
 -- 返り値の形が変わって、古いアプリから呼ばれたときに壊れるため。
+-- 返す列が変わるときは create or replace では差し替えられない（42P13）。先に落とす。
+-- 関数を落とすだけでデータは消えない
+drop function if exists public.list_club_reactions();
+
 create or replace function public.list_club_reactions()
 returns table (post_id uuid, emoji integer, count integer, mine boolean)
 language plpgsql
@@ -130,6 +136,10 @@ grant execute on function public.list_club_reactions() to authenticated;
 --
 -- 返り値の列は clubs.sql の club_feed と1つも変えていない。
 -- 変えると古いアプリから呼ばれたときに壊れる。
+
+-- clubs.sql の club_feed と返す列が違うので、置き換える前に古い定義を落とす（42P13）。
+-- 関数を落とすだけでデータは消えない
+drop function if exists public.club_feed();
 
 create or replace function public.club_feed()
 returns table (
@@ -311,6 +321,10 @@ grant execute on function public.prune_old_matches() to authenticated;
 
 -- 自分の対戦履歴を返す。呼ばれたついでに古いものを消す。
 -- アプリ側（roomsApi.myMatchHistory）はこの関数を呼ぶ。
+-- 返す列が変わるときは create or replace では差し替えられない（42P13）。先に落とす。
+-- 関数を落とすだけでデータは消えない
+drop function if exists public.list_my_matches(integer);
+
 create or replace function public.list_my_matches(p_limit integer default 20)
 returns table (
   match_id    uuid,

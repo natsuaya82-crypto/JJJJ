@@ -18,6 +18,10 @@
 -- 返り値の列は clubs.sql の club_feed と1つも変えていない。
 -- 変えると古いアプリから呼ばれたときに壊れる。
 
+-- clubs.sql の club_feed と返す列が違うので、置き換える前に古い定義を落とす（42P13）。
+-- 関数を落とすだけでデータは消えない
+drop function if exists public.club_feed();
+
 create or replace function public.club_feed()
 returns table (
   id uuid, user_id uuid, kind text, phrase integer, rarity text,

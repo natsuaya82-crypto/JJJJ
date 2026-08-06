@@ -70,6 +70,10 @@ grant execute on function public.react_club_post(uuid, integer) to authenticated
 -- 掲示板の反応をまとめて返す。投稿ごとに「番号 → 人数」と「自分が押した番号」。
 -- 投稿の一覧（list_club_posts）とは別に引く。投稿側の関数に手を入れると
 -- 返り値の形が変わって、古いアプリから呼ばれたときに壊れるため。
+-- 返す列が変わるときは create or replace では差し替えられない（42P13）。先に落とす。
+-- 関数を落とすだけでデータは消えない
+drop function if exists public.list_club_reactions();
+
 create or replace function public.list_club_reactions()
 returns table (post_id uuid, emoji integer, count integer, mine boolean)
 language plpgsql

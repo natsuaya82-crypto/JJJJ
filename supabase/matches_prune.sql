@@ -36,6 +36,10 @@ grant execute on function public.prune_old_matches() to authenticated;
 
 -- 自分の対戦履歴を返す。呼ばれたついでに古いものを消す。
 -- アプリ側（roomsApi.myMatchHistory）はこの関数を呼ぶ。
+-- 返す列が変わるときは create or replace では差し替えられない（42P13）。先に落とす。
+-- 関数を落とすだけでデータは消えない
+drop function if exists public.list_my_matches(integer);
+
 create or replace function public.list_my_matches(p_limit integer default 20)
 returns table (
   match_id    uuid,
