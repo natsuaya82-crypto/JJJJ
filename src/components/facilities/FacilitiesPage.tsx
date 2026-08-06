@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { FacilityKey } from '../../types'
@@ -101,7 +100,6 @@ const UPGRADE_COSTS = [100, 300, 500, 1000, 3000]
 const MAX_LV = 5
 
 export default function FacilitiesPage() {
-  const navigate = useNavigate()
   const teams = useGameStore(s => s.teams)
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const upgradeFacility = useGameStore(s => s.upgradeFacility)

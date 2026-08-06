@@ -18,7 +18,7 @@ export function generateRaceEvents(params: {
   gmRep?: number
   teams?: Team[]
 }): GameEvent[] {
-  const { players, playerTeamId, raceIndex, season, gmRep } = params
+  const { players, playerTeamId, raceIndex, season } = params
   const mainPlayers = players.filter(
     p => p.teamId === playerTeamId && p.status === 'active'
   )
@@ -30,10 +30,6 @@ export function generateRaceEvents(params: {
     (season.events ?? [])
       .filter(e => raceIndex - e.raceIndex < 2 && e.playerId)
       .map(e => e.playerId!)
-  )
-  // Budget events: check entire season (not just last 3 races)
-  const seasonTypes = new Set<GameEventType>(
-    (season.events ?? []).map(e => e.type)
   )
 
   const candidates: GameEvent[] = []

@@ -1,10 +1,9 @@
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
-import { ovr, ratingColor, calcTransferValue, isScoutPending } from '../../utils/playerUtils'
-import { C, alpha } from '../../styles/tokens'
+import { ovr, ratingColor } from '../../utils/playerUtils'
+import { C } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
 import BidSheet from '../transfer/BidSheet'
@@ -29,7 +28,6 @@ function PlayerHead({ player }: { player: Player }) {
 
 // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細。移籍オファー・レンタルのオファーが可能。
 export function useOpponentMenu() {
-  const navigate = useNavigate()
   const { players, teams, playerTeamId, currentSeason } = useGameStore()
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const submitTransferBid = useGameStore(s => s.submitTransferBid)

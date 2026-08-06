@@ -3,8 +3,7 @@ import BackButton from '../ui/BackButton'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey } from '../../types'
-import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR, isStatMaxed, getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
+import { ovr, isStatMaxed, getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
 import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
@@ -18,7 +17,6 @@ import { audio } from '../../utils/audio'
 import { showRewardAd, getAdDay } from '../../utils/ads'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
-import { useAdHeight } from '../layout/Layout'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const PURPLE = '#A855F7'
@@ -33,7 +31,6 @@ function requiredExp(level: number): number {
 
 export default function CardTrainingPage() {
   const navigate = useNavigate()
-  const adH = useAdHeight()
   const {
     trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,

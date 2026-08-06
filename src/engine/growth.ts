@@ -103,7 +103,7 @@ export function facilityExpMultiplier(campLv: number): number {
 }
 
 /** 国籍 → EXP倍率。現状は国籍によるEXP差はなく、常に1.0を返す将来のフック。 */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export function nationalityExpMultiplier(_p: Player): number {
   return 1.0
 }

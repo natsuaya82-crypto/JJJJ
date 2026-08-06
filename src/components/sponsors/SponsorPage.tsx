@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha } from '../../styles/tokens'
@@ -33,7 +32,6 @@ function targetText(t: SponsorTarget): string {
 }
 
 export default function SponsorPage() {
-  const navigate = useNavigate()
   const { sponsors, teams, playerTeamId, currentSeason, acceptSponsorOffer, terminateSponsor } = useGameStore()
   const [tab, setTab] = useState<'active' | 'offers'>('active')
 

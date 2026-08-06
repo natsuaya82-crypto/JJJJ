@@ -115,11 +115,11 @@ export default function RacePanel({
     tick()
     const t = setInterval(tick, 300)
     return () => clearInterval(t)
-  }, [segWait])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [segWait])
 
   useEffect(() => {
     if (segWait && segGo >= segWait.seg) goNextSeg()
-  }, [segGo, segWait])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [segGo, segWait])
 
   // レース結果で待っているあいだの残り秒数（表示だけ。進めるのはホスト）
   useEffect(() => {

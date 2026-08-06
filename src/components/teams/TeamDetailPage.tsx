@@ -22,9 +22,6 @@ import { rankedStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
-const TEAM_ROLE_LABEL: Record<string, string> = {
-  ace: 'エース', sub_ace: 'サブエース', key_player: '主力', rotation: 'ローテ', development: '育成',
-}
 
 // 'YYYY-MM-DD' → 'YYYY年M月D日'。日付が無ければ年だけ
 function fmtDate(d: string | undefined, year: number): string {

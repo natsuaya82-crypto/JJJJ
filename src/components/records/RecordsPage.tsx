@@ -1,13 +1,12 @@
 import { useState, useRef, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { GameStore } from '../../store/gameStore'
-import { careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, liveName } from '../../utils/playerUtils'
+import { liveName } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { teamHistoriesOf, teamHistoryOf } from '../../utils/teamHistory'
+import { teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
@@ -68,7 +67,6 @@ export function GmCareerPage() {
     </PageShell>
   )
 }
-
 
 function CardPanel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
@@ -424,69 +422,6 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   ]} />
 }
 
-function LeagueTab({ teams, pastSeasons }: {
-  teams: GameStore['teams']
-  pastSeasons: GameStore['pastSeasons']
-}) {
-  // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  const histories = teamHistoriesOf(pastSeasons)
-  const champCounts = teams.map(t => ({
-    team: t,
-    championships: histories[t.id]?.championships ?? 0,
-  })).sort((a, b) => b.championships - a.championships)
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <CardPanel>
-        <SectionLabel>歴代優勝回数</SectionLabel>
-        {champCounts.filter(c => c.championships > 0).length === 0 ? (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>まだ優勝チームなし</div>
-        ) : (
-          champCounts.filter(c => c.championships > 0).map(({ team, championships }, i) => (
-            <div key={team.id} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '7px 0', borderBottom: `1px solid ${C.border}`,
-            }}>
-              <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: C.gold, width: '18px', textAlign: 'center', textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>
-                {i + 1}
-              </span>
-              <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{team.shortName}</span>
-              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                {Array.from({ length: Math.min(championships, 5) }).map((_, j) => (
-                  <span key={j} style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, textShadow: `0 0 5px ${alpha(C.gold, 0.4)}` }}>★</span>
-                ))}
-                {championships > 5 && <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold }}>×{championships}</span>}
-              </div>
-            </div>
-          ))
-        )}
-      </CardPanel>
-
-      {pastSeasons.length > 0 && (
-        <CardPanel>
-          <SectionLabel>歴代チャンピオン</SectionLabel>
-          {[...pastSeasons].reverse().map(season => {
-            const sorted = rankedStandings((season.standings ?? []))
-            const champId = sorted[0]?.teamId
-            const champ = teams.find(t => t.id === champId)
-            return (
-              <div key={season.year} style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '7px 0', borderBottom: `1px solid ${C.border}`,
-              }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, width: '44px' }}>{season.year}</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '13px', color: C.gold, textShadow: `0 0 5px ${alpha(C.gold, 0.4)}` }}>★</span>
-                <span style={{ flex: 1, fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{champ?.shortName ?? '—'}</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim }}>{sorted[0]?.totalPoints ?? 0}pt</span>
-              </div>
-            )
-          })}
-        </CardPanel>
-      )}
-    </div>
-  )
-}
-
 function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons }: {
   players: GameStore['players']
   teams: GameStore['teams']
@@ -604,7 +539,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
   ]} />
 }
 
-function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, growthReport, players, gmTenures }: {
+function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, players, gmTenures }: {
   gmRep: number
   pastSeasons: GameStore['pastSeasons']
   currentSeason: GameStore['currentSeason']

@@ -7,7 +7,6 @@ import { listBlocked, unblockUser, type BlockedUser } from '../../lib/moderation
 import { TeamLogoSVG } from '../icons/Icons'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
-import NoticeDialog from '../ui/NoticeDialog'
 
 import { C, alpha } from '../../styles/tokens'
 

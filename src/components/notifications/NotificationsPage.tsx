@@ -132,7 +132,6 @@ export default function NotificationsPage() {
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const seenJoinIds = useGameStore(s => s.seenJoinIds) ?? []
   const dismissJoinNotice = useGameStore(s => s.dismissJoinNotice)
-  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   const longPress = usePlayerLongPress()
   const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
   const claimGift = useGameStore(s => s.claimGift)

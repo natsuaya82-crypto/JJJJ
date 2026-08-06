@@ -25,17 +25,9 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
-import { rankedStandings } from '../../utils/league'
 import { tierOf, tierOfPlayerClub } from '../../utils/clubTier'
 import { fmtYen } from '../../utils/money'
 
-const TEAM_ROLE_OPTS: { key: TeamRole; label: string }[] = [
-  { key: 'ace', label: 'エース' },
-  { key: 'key_player', label: '主力' },
-  { key: 'sub_ace', label: 'サブエース' },
-  { key: 'rotation', label: 'ローテ' },
-  { key: 'development', label: '育成' },
-]
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SALARY_STEP = 1000000
@@ -1106,7 +1098,6 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
   const getCount = getP.size + getPk.size
   const giveCount = give.size + givePk.size
   const submitTrade = () => { proposeTrade(team.id, [...give], [...givePk], [...getP], [...getPk]); setSubmitted(true) }
-  const resetAll = () => { setGive(new Set()); setGetP(new Set()); setGivePk(new Set()); setGetPk(new Set()); setSubmitted(false); setStep(1) }
 
   // 下タブの上に固定するアクションバー（sticky）
   const stickyBar = (children: React.ReactNode) => (
@@ -1269,32 +1260,6 @@ function PickChip({ label, selected, color, onToggle }: { label: string; selecte
   )
 }
 
-function OppRow({ player, onClick, bidLabel, bidColor }: { player: Player; onClick: () => void; bidLabel?: string | null; bidColor?: string }) {
-  const specCol = SPEC_COLOR[player.specialty]
-  return (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 9, cursor: 'pointer', textAlign: 'left', width: '100%',
-      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${bidLabel ? alpha(bidColor ?? C.gold, 0.4) : C.border}`, fontFamily: 'inherit',
-    }}>
-      <div style={{ flexShrink: 0, borderRadius: 7, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
-        <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
-          <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: alpha(specCol, 0.15), color: specCol, fontWeight: 700, flexShrink: 0 }}>{SPECIALTY_LABELS[player.specialty]}</span>
-          {bidLabel && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: alpha(bidColor ?? C.gold, 0.18), color: bidColor ?? C.gold, fontWeight: 800, flexShrink: 0 }}>{bidLabel}</span>}
-        </div>
-        <div style={{ fontSize: 9, color: C.textDim }}>{player.age}歳 · {fmtYen(player.contract.annualSalary)} · 残{player.contract.yearsLeft}年</div>
-      </div>
-      <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)), flexShrink: 0 }}>{ovr(player)}</div>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color: C.border2, flexShrink: 0 }}>
-        <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    </button>
-  )
-}
-
 // --- Player status helper ---
 
 function getPlayerStatus(
@@ -1361,7 +1326,6 @@ function OfferChatRow({ player, accent, badge, title, sub, onOpen }: {
   )
 }
 
-
 // --- Main Page ---
 
 export default function ChatPage() {
@@ -1370,7 +1334,7 @@ export default function ChatPage() {
   const [searchParams] = useSearchParams()
   // 買い取り・レンタルの打診への返事は ChatView（会話）が持つ。一覧はタップして開くだけ
   const { players, playerTeamId, currentSeason, teams, generateContractRequests,
-    openPlayerSheet, acceptFeeCounter, rejectTransferBid, setChatLog } = useGameStore()
+    openPlayerSheet, setChatLog } = useGameStore()
   const clubIndex = useClubIndex()
   // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)

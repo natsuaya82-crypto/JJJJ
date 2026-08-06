@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
-import type { TeamRole } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { C, alpha } from '../../styles/tokens'
@@ -15,13 +14,6 @@ const CONTRACT_TYPE_LABEL: Record<string, string> = {
   development: '育成契約',
 }
 
-const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
-  ace: 'エース',
-  sub_ace: 'サブエース',
-  key_player: '主力',
-  rotation: 'ローテ',
-  development: '育成',
-}
 
 function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (

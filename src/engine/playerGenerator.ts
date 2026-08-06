@@ -1,10 +1,10 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
-import { natCategory, natStrengthRegion } from '../data/nationalities'
+import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
 import { curveOvr } from './ageCurve'
-import { tierOf, tierOfClubId, tierPotentialCap, tierRankComposition, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
-import { SPEC_STRONG_STATS, getStatPotentials, faMarketSalary, peakAgeOf } from '../utils/playerUtils'
+import { tierOf, tierOfClubId, tierRankComposition, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
+import { SPEC_STRONG_STATS, faMarketSalary } from '../utils/playerUtils'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
@@ -611,18 +611,6 @@ function tierRange(rank: Rank): { min: number; max: number } {
   const [min, max] = ranges[rank] ?? ranges['A']
   return { min, max }
 }
-
-function rankToBaseRange(rank: Rank, growthCurve: GrowthCurve): { min: number; max: number; potential: [number, number] } {
-  const { min, max } = tierRange(rank)
-  const growthDelta: Record<string, [number, number]> = {
-    early:        [2, 12],
-    normal:       [8, 20],
-    late_bloomer: [15, 28],
-  }
-  const [dMin, dMax] = growthDelta[growthCurve] ?? growthDelta.normal
-  return { min, max, potential: [Math.min(99, max + dMin), Math.min(99, max + dMax)] }
-}
-
 
 function generateRatings(rank: Rank, specialty: Specialty, baseBoost = 0) {
   const { min: min0, max: max0 } = tierRange(rank)

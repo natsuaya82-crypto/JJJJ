@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, SPEC_COLOR, ratingColor, faMarketSalary, statCapBand } from '../../utils/playerUtils'
+import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
@@ -31,13 +31,6 @@ const DC_CONTRACT_OPTS = [
   { key: 'standard' as const, label: '本契約' },
   { key: 'dual' as const, label: '2way契約' },
   { key: 'development' as const, label: '育成契約' },
-]
-const DC_ROLE_OPTS: { key: TeamRole; label: string }[] = [
-  { key: 'ace', label: 'エース' },
-  { key: 'key_player', label: '主力' },
-  { key: 'sub_ace', label: 'サブ' },
-  { key: 'rotation', label: 'ローテ' },
-  { key: 'development', label: '育成' },
 ]
 const DC_SALARY_STEP = 1000000
 const DC_SALARY_MIN = 3000000
@@ -86,71 +79,9 @@ const SELECT_STYLE: React.CSSProperties = {
   flexShrink: 0,
 }
 
-function PickedPlayerSheet({ playerId, players, onClose }: {
-  playerId: string; players: Player[]; onClose: () => void
-}) {
-  const adH = useAdHeight()
-  const p = players.find(pl => pl.id === playerId)
-  if (!p) return null
-  const rating = ovr(p)
-  const isElite = rating >= 80
-  const ovrCol = ratingColor(rating)
-  const growthLabel = GROWTH_LABEL[p.growthCurve]
-  return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 180 }}/>
-      <div style={{
-        position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px', zIndex: 190,
-        background: C.surface, borderRadius: '20px 20px 0 0',
-        border: `1px solid ${C.border2}`, borderBottom: 'none',
-        padding: '20px 16px 40px',
-      }}>
-        <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: C.border2, margin: '0 auto 16px' }}/>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-          <PlayerFaceCard playerId={p.id} nationality={p.nationality} color={ovrCol} size={48}/>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: '800', color: C.text }}>{p.name}</div>
-            <div style={{ fontSize: '11px', color: C.textSub, marginTop: '2px' }}>
-              {SPECIALTY_LABELS[p.specialty]} / {p.age}歳 / {growthLabel}
-            </div>
-          </div>
-          <div style={{ marginLeft: 'auto', textAlign: 'center' }}>
-            <div style={{
-              fontSize: '28px', fontWeight: '900', lineHeight: 1, fontFamily: SAIRA,
-              background: isElite ? 'linear-gradient(180deg,#FFD700,#C9A84C)' : `linear-gradient(180deg,${C.textSub},${C.textDim})`,
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>{rating}</div>
-            <div style={{ fontSize: '8px', color: C.textDim }}>OVR</div>
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '4px', marginBottom: '12px' }}>
-          {(['speed','stamina','mountainUp','mountainDown','pacing','mental','recovery'] as const).map(k => {
-            const labels: Record<string,string> = { speed:'速力', stamina:'持久', mountainUp:'登り', mountainDown:'下り', pacing:'ペース', mental:'精神', recovery:'回復' }
-            return (
-              <div key={k} style={{ textAlign: 'center', padding: '8px 4px', borderRadius: '8px', background: C.surface2, border: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: '7px', color: C.textDim, marginBottom: '2px' }}>{labels[k]}</div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: ratingColor(p.ratings[k]), fontFamily: SAIRA }}>{p.ratings[k]}</div>
-              </div>
-            )
-          })}
-        </div>
-        {p.traits && p.traits.length > 0 && (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            {p.traits.map(t => (
-              <span key={t} style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '7px', backgroundColor: alpha(C.blue, 0.12), color: C.blue, border: `1px solid ${alpha(C.blue, 0.28)}` }}>
-                {t.replace(/_/g, ' ')}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
 
 export default function DraftRoom() {
-  const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason, openPlayerSheet } = useGameStore()
+  const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason } = useGameStore()
   const longPress = usePlayerLongPress()
   const navigate = useNavigate()
   const adH = useAdHeight()

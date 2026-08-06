@@ -11,12 +11,10 @@ import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import NumberDial from '../ui/NumberDial'
 import PlayerRow from '../player/PlayerRow'
 import ActionSheet from '../ui/ActionSheet'
 import BidSheet from './BidSheet'
 import LoanSheet from './LoanSheet'
-import { useAdHeight } from '../layout/Layout'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
 import { canBePoached } from '../../utils/transferEligibility'
 import { useOfferResults } from './useOfferResults'
@@ -51,7 +49,6 @@ export default function TransferPage() {
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
   const toggleStarOpponent = useGameStore(s => s.toggleStarOpponent)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
-  const adH = useAdHeight()
 
   const { section } = useParams<{ section: string }>()
   const navigate = useNavigate()
@@ -373,7 +370,6 @@ export default function TransferPage() {
               const mLocked = mp.transferLockedUntilYear != null && currentSeason.year < mp.transferLockedUntilYear
               const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
               const reqPending = (currentSeason.loanRequests ?? []).some(r => r.playerId === mp.id)
-              const mListing = listings.find(l => l.playerId === mp.id)
               const mVal = calcTransferValue(mp)
               const isStarred = starredOpponents.includes(mp.id)
               const items: { label: string; disabled?: boolean; color?: string; onClick: () => void }[] = isFA ? [
@@ -396,7 +392,7 @@ export default function TransferPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{mp.name}</div>
                         <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · {clubIndex.byId(mp.teamId)?.shortName ?? '未所属'}</div>
-                        <div style={{ fontSize: 10, color: C.textSub, marginTop: 2, fontFamily: SAIRA }}>価値 <span style={{ color: C.gold }}>{fmtYen(mVal)}</span>　年俸 {fmtYen(mp.contract.annualSalary)}</div>
+                        <div style={{ fontSize: 10, color: C.textSub, marginTop: 2, fontFamily: SAIRA }}>価値 <span style={{ color: C.gold }}>{fmtYen(mVal)}</span> 年俸 {fmtYen(mp.contract.annualSalary)}</div>
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>
                     </div>

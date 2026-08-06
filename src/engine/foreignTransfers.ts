@@ -45,7 +45,6 @@ export function simulateForeignTransferMarket(params: {
   const allClubs = foreignLeagues.flatMap(l => l.clubs)
   if (allClubs.length < 2) return { foreignLeagues, players, news: [], records: [] }
 
-  const clubById = new Map(allClubs.map(c => [c.id, c]))
   const nameById = new Map(allClubs.map(c => [c.id, c.name]))
   const playerById = new Map(players.map(p => [p.id, p]))
 

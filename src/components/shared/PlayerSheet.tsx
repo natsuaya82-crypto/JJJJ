@@ -10,7 +10,7 @@ import { clubRoutePath } from '../../utils/clubs'
 import { usePreviewStore } from '../../store/previewStore'
 import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
-import type { Player, TeamRole, Race } from '../../types'
+import type { Player, Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed, foreignAppsOf } from '../../utils/playerUtils'
@@ -26,13 +26,6 @@ import Flag from '../ui/Flag'
 import { natLabel, natGeoRegion, isForeignNat } from '../../data/nationalities'
 import { WA_HOST_CITY } from '../../engine/worldAthletics'
 
-const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
-  ace: 'エース',
-  sub_ace: 'サブエース',
-  key_player: '主力',
-  rotation: 'ローテ',
-  development: '育成',
-}
 
 const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
   { key: 'speed', abbr: '速' },

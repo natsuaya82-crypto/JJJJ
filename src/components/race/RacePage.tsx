@@ -110,7 +110,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                     default: return b.ability - a.ability
                   }
                 })
-              return runners.map(({ p, ability }) => {
+              return runners.map(({ p }) => {
                 const pb = p.eventBests?.[bestKey]
                 const fat = p.fatigue ?? 0
                 const isResting = resting.has(p.id)
@@ -287,7 +287,7 @@ export default function RacePage() {
   const navigate = useNavigate()
   const {
     currentSeason, teams, players, playerTeamId,
-    raceLineup, lastRaceLineup, setRaceLineup, clearRaceLineup, runRace,
+    raceLineup, setRaceLineup, clearRaceLineup, runRace,
     raceStrategy, setRaceStrategy,
     raceTeamTalk, setRaceTeamTalk,
     setActiveRacePhase, setActiveRaceLocked,
@@ -779,7 +779,6 @@ export default function RacePage() {
       setRaceStrategy={setRaceStrategy}
       teamTalk={raceTeamTalk}
       setTeamTalk={setRaceTeamTalk}
-      lastLineup={lastRaceLineup}
       unavailable={unavailableMap}
       competition="jpel"
     />

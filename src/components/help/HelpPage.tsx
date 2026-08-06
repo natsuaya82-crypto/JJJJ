@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { C, alpha } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
@@ -157,7 +156,6 @@ const SECTIONS: Section[] = [
 ]
 
 export default function HelpPage() {
-  const navigate = useNavigate()
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>

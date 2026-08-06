@@ -3,7 +3,7 @@
 // もとは ReserveLeaguePage.tsx の中にあり、ECL と世界選手権がそこから import していた。
 // リザーブ（2軍リーグ）を廃止したので、ページと一緒に消えないようここへ移した。
 // 中身は移動しただけで変えていない。
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { SimPhase } from '../race/SimPhase'
 import type { Race, RaceResults, Team, Player } from '../../types'
 import type { InteractiveSegResult } from '../../engine/interactiveRace'

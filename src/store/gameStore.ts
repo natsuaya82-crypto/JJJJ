@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
-import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanRequest, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
+import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -16,12 +16,12 @@ const ALL_TEAMS = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS]
 import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
-import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
+import { simulateRace, buildAILineup, calcWeatherModifier } from '../engine/raceEngine'
 import { simulateAwayDivisions, applyAwayDivisionRound } from '../engine/domesticLeague'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { individualEventAbility, individualBaseTime, formatRaceTime } from '../utils/eventTime'
-import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidates, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
+import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
 import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
@@ -29,7 +29,7 @@ import { buildEclParticipants, buildEclRaces, eclDateBetweenLeagueRaces } from '
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { applyGrowth, requiredExpForLevel } from '../engine/growth'
-import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, isDataKeyPlayer, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
@@ -1730,7 +1730,6 @@ export const useGameStore = create<GameStore>()(
           const loanRespNews: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[] = []
           const newLoanResponses: LoanResponse[] = []
           if (pendingLoanReqs.length > 0) {
-            const trIdx = raceIndex + 1
             let freeSlots = Math.max(0, 3 - playersWithCpuTx.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length)
             const accepted: { playerId: string; ownerId: string; years: number }[] = []
             for (const req of pendingLoanReqs) {
@@ -2085,7 +2084,7 @@ export const useGameStore = create<GameStore>()(
             },
             nationality: prospect.nationality,
             origin: prospect.origin,
-            
+
             status: 'active',
             fatigue: 0,
             morale: 70,
@@ -2997,7 +2996,7 @@ export const useGameStore = create<GameStore>()(
           // roundの加算は reNegotiateContract 側のみ（獲得交渉と同じ規約）。ここでは進めない＝二重加算しない。
           const updatedReq = { ...req, status: newStatus, offerSalary: salary, offerYears: years, counterSalary, counterYears, offerContractType: contractType, offerTeamRole: teamRole }
           let newPlayers = state.players
-          let newTeams = state.teams
+          const newTeams = state.teams
           if (newStatus === 'accepted') {
             // 契約年数＝現在の残年数＋提示年数（負にはならない）
             const newYears = Math.max(1, player.contract.yearsLeft + years)
@@ -3578,7 +3577,6 @@ export const useGameStore = create<GameStore>()(
         if (myRosterNow >= ROSTER_MAX) return false
         // 相手チームの主力（複数年の出場＋ECL経験で判定）は貸さない（forceなら相手が貸す打診済みなのでスキップ）
         if (!force && keyPlayerStatus(player, st.currentSeason, st.pastSeasons) !== 'open') return false
-        const ownerId = player.teamId
         const yrs = Math.max(1, Math.min(2, years))
         set(state => {
           // 移動は movePlayer 一本。until を渡すとレンタル扱いになり、保有元(ownerId)が残り
@@ -4458,7 +4456,7 @@ export const useGameStore = create<GameStore>()(
         // 出走で通算出走数、区間1位で通算区間賞（選手詳細に反映）
         const ranIds = new Set((result.raceResults?.segmentResults ?? []).flatMap(sr => sr.runners.map(r => r.playerId)))
         const segWinIds = new Set((result.raceResults?.segmentResults ?? []).map(sr => [...sr.runners].sort((a, b) => a.timeSec - b.timeSec)[0]?.playerId).filter(Boolean))
-        let updatedPlayers = ranIds.size > 0
+        const updatedPlayers = ranIds.size > 0
           ? state.players.map(p => ranIds.has(p.id)
             ? { ...p, career: { ...p.career, totalRaces: p.career.totalRaces + 1, segmentWins: p.career.segmentWins + (segWinIds.has(p.id) ? 1 : 0) } }
             : p)
@@ -5212,7 +5210,6 @@ export const useGameStore = create<GameStore>()(
           // CPU team players go to FA automatically; player-team players wait for renewal decision
           // レンタル中の選手は保有元チーム基準で判定する（借り手チーム基準だと、貸し出した自チーム選手が勝手にFA化し、
           // 借りている他人の選手の更新判断をユーザーがさせられる）
-          const contractOwner = (p: Player) => p.loan?.ownerTeamId ?? p.teamId
           // レンタル中の選手は契約満了によるFA化の対象外（レンタル期間を必ず全うさせる）。
           // これが無いと「元契約残り1年の選手を2年レンタル」した場合に、1年目の終わりでFA化して
           // 借り手からも保有元からも消える（＝2年契約が1年で消える）バグになる。
@@ -5581,8 +5578,6 @@ export const useGameStore = create<GameStore>()(
             }
           }
           const leagueMvpId = newSeasonAward.mvpId
-          const leagueMvpPlayer = leagueMvpId ? grownPlayers.find(p => p.id === leagueMvpId) : null
-          const rookiePlayer = newSeasonAward.rookieId ? grownPlayers.find(p => p.id === newSeasonAward.rookieId) : null
 
           let bonusTotalPayout = 0
           const bonusPayoutNews: { date: string; headline: string; category: 'race'; relatedIds: string[] }[] = []

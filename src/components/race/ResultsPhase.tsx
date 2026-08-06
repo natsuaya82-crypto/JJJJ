@@ -135,7 +135,6 @@ export function ResultsPhase({
 
   const standingsSource = reserveStandings ?? currentSeason.standings
   const fullSorted = rankedStandings(standingsSource)
-  const seasonMaxPts = fullSorted[0]?.totalPoints || 1
   const playerSeasonRank = fullSorted.findIndex(s => s.teamId === playerTeamId) + 1
   // 上位10行。トップ10外なら自チーム行を区切って末尾に追加
   const seasonRows: { s: typeof fullSorted[number]; rank: number; isBreak: boolean }[] =

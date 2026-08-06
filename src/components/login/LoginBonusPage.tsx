@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
@@ -56,7 +55,6 @@ function Card({ label, accent, right, grow, bodyJustify, children }: { label: st
 }
 
 export default function LoginBonusPage() {
-  const navigate = useNavigate()
   const { loginStreak, totalLoginDays, lastLoginDate, claimLoginBonus } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   const mult = adsRemoved ? 2 : 1

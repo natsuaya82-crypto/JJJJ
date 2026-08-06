@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
@@ -235,7 +234,6 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
 }
 
 export default function ShopPage() {
-  const navigate = useNavigate()
   const { buyTrainingCard, jewels } = useGameStore()
   const [pendingItem, setPendingItem] = useState<ShopItem | null>(null)
   const [resultCards, setResultCards] = useState<TrainingCard[] | null>(null)

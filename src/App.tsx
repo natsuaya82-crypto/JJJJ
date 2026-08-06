@@ -196,7 +196,7 @@ function SeasonBudgetNotice() {
   )
 }
 
-function AppRoutes({ resetGame, onBackToTitle }: { resetGame: () => void; onBackToTitle: () => void }) {
+function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const prevPath = useRef(location.pathname)

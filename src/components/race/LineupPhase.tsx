@@ -64,7 +64,7 @@ const ALL_STATS: [string, keyof import('../../types').Player['ratings']][] = [
 export function LineupPhase({
   race, raceNumber, totalRaces, mainPlayers, raceLineup, allSegsFilled,
   pickerSeg, setPickerSeg, setRaceLineup, clearRaceLineup, onStart, onSkipRace,
-  onBack, lastLineup, unavailable, competition,
+  onBack, unavailable, competition,
   startLabel, startDisabled, hideBack, bottomInset, headerNote,
 }: {
   race: Race
@@ -86,7 +86,6 @@ export function LineupPhase({
   teamTalk?: string
   setTeamTalk?: (t: string) => void
   onBack?: () => void
-  lastLineup?: Record<number, string>
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
   competition: Competition   // スタートボタンの色（大会ごとに1色。COMPETITION_BTNから引く）
   // ここから下はオンライン対戦で使う差し替え。本編は今までどおり何も渡さない。
