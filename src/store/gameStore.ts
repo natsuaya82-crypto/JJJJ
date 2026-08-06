@@ -9,7 +9,6 @@ import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
 import { CARD_UNIT_PRICE, CARD_UNIT_EXP } from '../data/cardShop'
-import { LOWER_DIVISION_TEAMS } from '../data/teamsLower'
 
 // リーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
 // 部の切り分けは Team.division が持つ。
@@ -83,7 +82,7 @@ import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
-import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, DOMESTIC_BOTTOM_TIER, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
   pool: Player[]
@@ -843,31 +842,27 @@ export const useGameStore = create<GameStore>()(
       startSetup: (setup) => {
         set(state => {
           const baseIds = BASE_PLAYERS.map(p => p.id)
-          // ★どのクラブを選んでも3部・格20から始まる。
-          //   選択はJPEL52クラブ全部から。選んだクラブをそのまま3部へ降ろす。
-          //   ただし降ろしっぱなしにすると 1部19・3部17 のように部の人数が崩れ、
-          //   昇降格は上下2ずつなので二度と揃わない。そこで**入れ替え**にする：
-          //   選んだクラブが3部へ降り、代わりに格20の3部クラブがその枠へ上がる。
-          //   3部のクラブを選んだときは入れ替え不要（そのまま格20だけ合わせる）。
-          const START_DIVISION: Division = 3
-          const START_TIER = DOMESTIC_BOTTOM_TIER
-          const picked = state.teams.find(t => t.id === setup.teamId)
-          const pickedDiv = divisionOf(picked)
-          const pickedTier = tierOf(picked)
-          // 入れ替え相手＝格20の3部クラブ（プレイヤーが選んだクラブ以外）
-          const swapPartner = pickedDiv === START_DIVISION ? undefined : state.teams
-            .filter(t => t.id !== setup.teamId && divisionOf(t) === START_DIVISION)
-            .sort((a, b) => tierOf(b) - tierOf(a))[0]
-          const renamedTeams = state.teams.map(t => {
-            if (swapPartner && t.id === swapPartner.id) {
-              // 選ばれたクラブが空けた枠へ上がる（部と格をそっくり引き継ぐ）
-              return { ...t, division: pickedDiv, tier: pickedTier }
-            }
+          // ★どのクラブを選んでも最下位（通し52位＝3部・格20）から始まる。
+          //   選択はJPEL52クラブ全部から。
+          //
+          //   持っているのは「52クラブの並び」1本で、部はそれを切り分けたものにすぎない。
+          //   選んだクラブを列から抜いて最後尾へ回すと、**下にいたクラブが全部ひとつずつ繰り上がる**。
+          //   1クラブと入れ替えるのではなく列がずれるだけなので、各部の人数は自然に 20/16/16 のまま。
+          //
+          //   繰り上がるのは「枠」＝(部, 格)の組。格は data/clubTiers.ts に手で振ってあり、
+          //   部をまたいで重なっている（2部の上位は1部の下位より格が上）。順位から
+          //   tierFromDomesticRank で引き直すとその値を捨ててしまうので、枠ごと動かす。
+          const orderedTeams = [...state.teams].sort((a, b) => (a.initialRank ?? 999) - (b.initialRank ?? 999))
+          const slots = orderedTeams.map(t => ({ division: divisionOf(t), tier: tierOf(t) }))
+          const reordered = [...orderedTeams.filter(t => t.id !== setup.teamId), orderedTeams.find(t => t.id === setup.teamId)!]
+          const placementOf = new Map(reordered.map((t, i) => [t.id, slots[i]]))
+          const renamedTeams: Team[] = state.teams.map(t => {
+            // initialRank は初期施設のもとになった値なので触らない（枠だけ動かす）
+            const placed = placementOf.get(t.id) ?? { division: divisionOf(t), tier: tierOf(t) }
             if (t.id === setup.teamId) {
               return {
                 ...t,
-                division: START_DIVISION,
-                tier: START_TIER,
+                ...placed,
                 name: setup.teamName,
                 shortName: setup.teamShortName,
                 gmName: setup.gmName,
@@ -878,10 +873,8 @@ export const useGameStore = create<GameStore>()(
                 isPlayerControlled: true,
               }
             }
-            if (t.isPlayerControlled && t.id !== setup.teamId) {
-              return { ...t, isPlayerControlled: false }
-            }
-            return t
+            if (t.isPlayerControlled) return { ...t, ...placed, isPlayerControlled: false }
+            return { ...t, ...placed }
           })
           // 最初の18人をチームに入れる。入り口はドラフトでも移籍でも同じなので movePlayer を通す
           let players: Player[] = state.players
