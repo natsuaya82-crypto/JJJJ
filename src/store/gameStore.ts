@@ -17,6 +17,7 @@ import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
 import { simulateRace, buildAILineup, assignLineupByTerrain, calcWeatherModifier } from '../engine/raceEngine'
+import { simulateAwayDivisions, applyAwayDivisionRound } from '../engine/domesticLeague'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { individualEventAbility, individualBaseTime, formatRaceTime } from '../utils/eventTime'
@@ -66,7 +67,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank } from '../utils/league'
+import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
@@ -1058,13 +1059,17 @@ export const useGameStore = create<GameStore>()(
 
         const results = preComputedResults ?? simulateRace(race, lineups, teams, playersForSimFinal, seasonProgress, playerTeamId, segmentTactics)
 
+        // 自分の部以外も同じ日に裏で走らせる（海外8リーグと同じ扱い）。
+        // これが無いと2部3部の順位表が0ptのまま動かず、昇降格も通算成績も決まらない
+        const awayRound = simulateAwayDivisions(race, teams, players, myDivision, seasonProgress)
+
         // Persist results into race, update standings, advance index
         set(state => {
           const updatedRaces = state.currentSeason.races.map((r, i) =>
             i === raceIndex ? { ...r, results } : r
           )
 
-          const updatedStandings = state.currentSeason.standings.map(s => {
+          const myDivStandings = state.currentSeason.standings.map(s => {
             const tr = results.teamRankings.find(r => r.teamId === s.teamId)
             if (!tr) return s
             const earned = tr.positionPoints + tr.segmentPoints
@@ -1076,6 +1081,7 @@ export const useGameStore = create<GameStore>()(
               raceResults: [...s.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
             }
           })
+          const updatedStandings = applyAwayDivisionRound(myDivStandings, state.teams, myDivision, awayRound, race)
 
           // Update news
           const winnerTeam = teams.find(t => t.id === results.teamRankings[0]?.teamId)
@@ -1259,7 +1265,14 @@ export const useGameStore = create<GameStore>()(
             const segWinsThisRace = isRacer
               ? results.segmentResults.filter(sr => sr.runners[0]?.playerId === p.id).length
               : 0
-            const careerUpdate = isRacer ? { career: { ...p.career, totalRaces: p.career.totalRaces + 1, segmentWins: p.career.segmentWins + segWinsThisRace } } : {}
+            // 裏で走った部（自分の部以外）の選手も同じだけ通算成績が増える。
+            // ここを抜くと2部3部のCPUだけ実績が伸びず、年俸・移籍金の実績倍率が上がらない
+            const away = awayRound.careerAdd[p.id]
+            const careerUpdate = isRacer
+              ? { career: { ...p.career, totalRaces: p.career.totalRaces + 1, segmentWins: p.career.segmentWins + segWinsThisRace } }
+              : away
+                ? { career: { ...p.career, totalRaces: p.career.totalRaces + away.races, segmentWins: p.career.segmentWins + away.segWins } }
+                : {}
 
             if (p.teamId !== playerTeamId) return { ...p, form: newForm, ...careerUpdate }
 
@@ -5144,6 +5157,28 @@ export const useGameStore = create<GameStore>()(
             tierFromDomesticRank(domesticThroughRank(divisionOf(t), divisionRankOf(t)))
           const myNextTier = nextTierOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
 
+          // ── 昇降格 ──────────────────────────────────────────────────
+          // 各部の上位2チームが昇格、下位2チームが降格。プレーオフなし。
+          // 1部に上は無く、3部に下は無い。上下2ずつなので各部の人数は変わらない。
+          // ★格は「今季走った部」での順位で決まる（nextTierOf）。部の入れ替えはその後。
+          const nextDivisionOf = (t: { id: string; division?: Division }): Division => {
+            const d = divisionOf(t)
+            const r = divisionRankOf(t)
+            const size = teamsInDivision(state.teams, d).length
+            if (d > DIVISIONS[0] && r <= PROMOTION_SLOTS) return (d - 1) as Division
+            if (d < DIVISIONS[DIVISIONS.length - 1] && r > size - PROMOTION_SLOTS) return (d + 1) as Division
+            return d
+          }
+          const divisionMoveNews = state.teams
+            .map(t => ({ t, from: divisionOf(t), to: nextDivisionOf(t) }))
+            .filter(x => x.from !== x.to)
+            .map(({ t, from, to }) => ({
+              date: `${state.currentSeason.year}-12-01`,
+              headline: `${t.name} ${DIVISION_LABEL[from]}→${DIVISION_LABEL[to]} ${to < from ? '昇格' : '降格'}`,
+              category: 'race' as const,
+              relatedIds: [t.id],
+            }))
+
           // Sponsor contract processing
           const myActiveSponsorIds = state.teams.find(t => t.id === state.playerTeamId)?.sponsors ?? []
           const mySegWins = state.currentSeason.races
@@ -5424,7 +5459,7 @@ export const useGameStore = create<GameStore>()(
           const cpuNextBudgets: Record<string, typeof newBudgetBreakdown & { budget: number }> = {}
           const teamsWithSeasonRewards = teamsWithFA.map(t => {
             if (t.id === state.playerTeamId) {
-              return { ...t, tier: myNextTier, finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
+              return { ...t, tier: myNextTier, division: nextDivisionOf(t), finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
             }
             const cpuTier = nextTierOf(t)
             const sal = teamSalaryTotal(t.id)
@@ -5450,7 +5485,7 @@ export const useGameStore = create<GameStore>()(
               objBonus: 0,
               expenses: 0,
             }
-            return { ...t, tier: cpuTier, finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
+            return { ...t, tier: cpuTier, division: nextDivisionOf(t), finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
           })
 
           // Generate future draft picks (next 2 seasons) for each team based on final rank
@@ -5910,6 +5945,7 @@ export const useGameStore = create<GameStore>()(
                 ...crossTx.news,
                 ...foreignTx.news,
                 { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year}シーズン王者：${champion?.name ?? ''}！`, category: 'race' as const, relatedIds: [] },
+                ...divisionMoveNews,
                 seasonPrizeNews,
                 ...pickPenaltyNews,
                 ...(objBonus > 0 ? [{ date: `${state.currentSeason.year}-11-01`, headline: `目標達成ボーナス：スカウトPt+${objBonus}・予算+${Math.round(objBudgetBonus / 10000)}万`, category: 'draft' as const, relatedIds: [] }] : []),
