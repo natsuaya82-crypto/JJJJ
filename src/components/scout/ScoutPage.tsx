@@ -3,11 +3,17 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Specialty } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr } from '../../utils/playerUtils'
 import { C, alpha } from '../../styles/tokens'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
+import SortSelect from '../ui/SortSelect'
+import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
+  { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
+  { value: 'specialty', label: PLAYER_SORT_LABEL.specialty },
+  { value: 'age', label: PLAYER_SORT_LABEL.age },
+]
 
 export default function ScoutPage() {
   const { currentSeason, initScoutPool, openPlayerSheet, players } = useGameStore()
@@ -19,7 +25,7 @@ export default function ScoutPage() {
   const enrolledIds = new Set(players.map(p => p.id))
   const prospects = (currentSeason.scoutProspects ?? []).filter(p => !enrolledIds.has(p.id))
 
-  const [sortBy, setSortBy] = useState<'ovr' | 'specialty' | 'age'>('ovr')
+  const [sortBy, setSortBy] = useState<PlayerSortKey>('ovr')
   const [filterSpec, setFilterSpec] = useState<Specialty | null>(null)
 
   // 長押しで選手詳細（ロスターと同じ挙動）
@@ -34,11 +40,7 @@ export default function ScoutPage() {
 
   const sorted = [...prospects]
     .filter(p => filterSpec === null || p.specialty === filterSpec)
-    .sort((a, b) => {
-      if (sortBy === 'ovr') return ovr(b) - ovr(a)
-      if (sortBy === 'specialty') return a.specialty.localeCompare(b.specialty)
-      return a.age - b.age
-    })
+    .sort(comparePlayers(sortBy, sortBy === 'ovr' ? 'desc' : 'asc'))
 
   return (
     <div style={{
@@ -67,15 +69,7 @@ export default function ScoutPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value as 'ovr' | 'specialty' | 'age')} style={{
-            flex: 1, padding: '7px 10px', borderRadius: '10px',
-            background: C.surface2, border: `1px solid ${C.border2}`,
-            color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none',
-          }}>
-            <option value="ovr">評価順</option>
-            <option value="specialty">タイプ順</option>
-            <option value="age">年齢順</option>
-          </select>
+          <SortSelect options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} style={{ flex: 1 }} />
           <select value={filterSpec ?? 'all'} onChange={e => setFilterSpec(e.target.value === 'all' ? null : e.target.value as Specialty)} style={{
             flex: 1, padding: '7px 10px', borderRadius: '10px',
             background: C.surface2, border: `1px solid ${C.border2}`,
