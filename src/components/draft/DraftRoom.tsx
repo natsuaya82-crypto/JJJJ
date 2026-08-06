@@ -306,10 +306,9 @@ export default function DraftRoom() {
   }
 
   if (isComplete) {
-    // 1人も指名していない年は「ドラフト終了・契約を決める」が空のまま出るだけなので出さない
-    if (!picks.some(pk => pk.teamId === playerTeamId)) {
-      return <DraftWatchedEnd onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
-    }
+    // ドラフト終了の画面は「指名した選手の契約を決める」ためにある。
+    // 1人も指名していない年は用が無いので画面ごと出さず、そのままシーズンへ戻す
+    if (!picks.some(pk => pk.teamId === playerTeamId)) return <DraftAutoFinish onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
     return <DraftComplete picks={picks} teams={teams} playerTeamId={playerTeamId} onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
   }
 
@@ -884,27 +883,12 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
   )
 }
 
-// 1人も指名していない年の締め。契約を決めるものが無いので、終わったことだけ伝える
-function DraftWatchedEnd({ onFinish }: { onFinish: () => void }) {
-  const adH = useAdHeight()
-  return (
-    <div style={{
-      height: '100svh', backgroundColor: C.bg, maxWidth: 480, margin: '0 auto',
-      paddingTop: 'env(safe-area-inset-top)',
-      fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 24px',
-    }}>
-      <div style={{ fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 800, fontFamily: SAIRA }}>DRAFT COMPLETE</div>
-      <div style={{ fontSize: 22, fontWeight: 900, color: C.text, fontFamily: SAIRA }}>ドラフト終了</div>
-      <div style={{ fontSize: 12, color: C.textSub, textAlign: 'center', lineHeight: 1.7 }}>
-        指名されなかった選手はFAになりました。<br />移籍市場から獲得できます。
-      </div>
-      <button className="btn-game btn-game--gold" onClick={onFinish} style={{ width: '100%', marginTop: 8 }}>
-        <span className="btn-game__inner">シーズン開幕へ！</span>
-      </button>
-      <div style={{ height: `calc(${adH}px + env(safe-area-inset-bottom))` }} />
-    </div>
-  )
+// 1人も指名していない年は画面を出さずにシーズンへ戻す（描画は一瞬なので中身は空）
+function DraftAutoFinish({ onFinish }: { onFinish: () => void }) {
+  const fn = useRef(onFinish)
+  useEffect(() => { fn.current = onFinish }, [onFinish])
+  useEffect(() => { fn.current() }, [])
+  return null
 }
 
 function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
