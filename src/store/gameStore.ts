@@ -49,7 +49,7 @@ import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer } from '../utils/transferEligibility'
+import { isOwnedBy, canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
 import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
 import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX } from '../utils/tradeValue'
@@ -3252,7 +3252,14 @@ export const useGameStore = create<GameStore>()(
         // 引退の承認と同じで、進路が決まった選手の札は set の1枚（store 冒頭）が全部たたむ。
         // ここでは海外挑戦の直訴と契約更新の2つしか消しておらず、国内の買い取りオファーや
         // 売出は残ったままだった（「海外行っていいよ」の直後に国内へ売られる）
-        const players = state.players.map(p => p.id === playerId ? { ...p, overseasListed: req.region, morale: Math.min(100, (p.morale ?? 70) + 8) } : p)
+        // 移籍方針の「非売」「貸出歓迎」も外す。
+        // 非売のままだと canGoOverseasDream / canBePoached が !p.noSale を要求するので、
+        // 海外挑戦を認めたのに**どのクラブからもオファーが来ない詰み**になっていた。
+        // 移籍容認(allowPlayerTransfer)は既に同じ後始末をしている。承認は「出していい」という
+        // 監督の判断なので、前に付けた非売の指示はそこで上書きされる
+        const players = state.players.map(p => p.id === playerId
+          ? { ...p, overseasListed: req.region, noSale: false, loanListed: false, morale: Math.min(100, (p.morale ?? 70) + 8) }
+          : p)
         return { players }
       }),
 
@@ -3316,6 +3323,10 @@ export const useGameStore = create<GameStore>()(
       toggleNoSale: (playerId) => set(state => {
         const player = state.players.find(p => p.id === playerId)
         if (!player || player.teamId !== state.playerTeamId) return state
+        // 進路が決まった選手（引退承認・海外挑戦承認・退団予定）には非売を付け直せない。
+        // 付けられると canGoOverseasDream / canBePoached が止まり、承認したのにオファーが
+        // 一切来ない状態へ戻ってしまう。解除（ON→OFF）は常に通す
+        if (!player.noSale && isLeavingClub(player)) return state
         const next = !player.noSale
         // 売出（移籍リスト入り）とは矛盾するので、非売ONで売出は自動解除
         const tnsPlayers = state.players.map(p => p.id === playerId ? { ...p, noSale: next, ...(next ? { transferListed: false } : {}) } : p)

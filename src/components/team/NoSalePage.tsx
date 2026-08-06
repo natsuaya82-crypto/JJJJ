@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
+import { isLeavingClub } from '../../utils/transferEligibility'
 import PlayerRow from '../player/PlayerRow'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
@@ -98,8 +99,13 @@ export default function NoSalePage() {
           }
           items={[
             {
-              label: sheetPlayer.noSale ? '非売を解除する' : '非売にする（買い取りオファーを止める）',
+              // 進路が決まった選手（引退承認・海外挑戦承認・退団予定）には非売を付け直せない。
+              // 付けると canGoOverseasDream / canBePoached が止まり、認めたのにオファーが来なくなる
+              label: sheetPlayer.noSale ? '非売を解除する'
+                : isLeavingClub(sheetPlayer) ? '非売にできません（退団・海外挑戦が決まっています）'
+                : '非売にする（買い取りオファーを止める）',
               color: C.red,
+              disabled: !sheetPlayer.noSale && isLeavingClub(sheetPlayer),
               onClick: () => { toggleNoSale(sheetPlayer.id); setSheetPlayerId(null) },
             },
             {
