@@ -2542,6 +2542,9 @@ export const useGameStore = create<GameStore>()(
           let teams = state.teams
           const tradeDate = state.currentSeason.races[state.currentSeason.currentRaceIndex - 1]?.date
           const tradeRecords: TransferRecord[] = []
+          // 自チームから出ていく選手の退団のお知らせ（movePlayerが作る通知は自チーム発だけなので、
+          // 受け取り側 offeredPlayerIds では notice が null になる。ここでは特に区別せず全部集める）
+          const tradeNotices: DepartureNotice[] = []
           // 出入りとも movePlayer 一本。片方だけ加入年が入らない、といった書き分けが起きない
           const runTrade = (pid: string, toTeamId: string) => {
             const m = movePlayer({ players, teams }, pid, toTeamId, {
@@ -2556,6 +2559,7 @@ export const useGameStore = create<GameStore>()(
             players = m.players
             teams = m.teams
             if (m.record) tradeRecords.push(m.record)
+            if (m.notice) tradeNotices.push(m.notice)
           }
           for (const pid of offer.offeredPlayerIds) runTrade(pid, state.playerTeamId)
           for (const pid of offer.requestedPlayerIds) runTrade(pid, offer.fromTeamId)
@@ -2596,6 +2600,7 @@ export const useGameStore = create<GameStore>()(
               ...state.currentSeason,
               pendingTradeOffers: (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.id !== offerId),
               newsFeed: [tradeNews, ...state.currentSeason.newsFeed].slice(0, 30),
+              departureNotices: [...(state.currentSeason.departureNotices ?? []), ...tradeNotices],
             },
           }
         })
@@ -4055,6 +4060,8 @@ export const useGameStore = create<GameStore>()(
           let players = state.players
           let movedTeams = state.teams
           const tradeRecords: TransferRecord[] = []
+          // 自チームから出ていく選手の退団のお知らせ（movePlayerが作る通知は自チーム発だけ）
+          const tradeNotices: DepartureNotice[] = []
           const runTrade = (pid: string, toTeamId: string) => {
             const m = movePlayer({ players, teams: movedTeams }, pid, toTeamId, {
               year: state.currentSeason.year,
@@ -4068,6 +4075,7 @@ export const useGameStore = create<GameStore>()(
             players = m.players
             movedTeams = m.teams
             if (m.record) tradeRecords.push(m.record)
+            if (m.notice) tradeNotices.push(m.notice)
           }
           for (const id of offeredIds) runTrade(id, targetTeamId)
           for (const id of incomingIds) runTrade(id, state.playerTeamId)
@@ -4125,6 +4133,7 @@ export const useGameStore = create<GameStore>()(
             ...state.currentSeason,
             acquisitionOffers: [...keptOffers, ...incomingOffers],
             newsFeed: [tradeNews, ...state.currentSeason.newsFeed].slice(0, 30),
+            departureNotices: [...(state.currentSeason.departureNotices ?? []), ...tradeNotices],
           } }
         })
         return { ok: true }
@@ -6854,11 +6863,13 @@ export const useGameStore = create<GameStore>()(
               individualEvents: state.currentSeason.individualEvents?.map(e =>
                 e.id === eventId ? { ...e, results: ranked, rewardCards } : e
               ),
+              // 他の書き込み箇所と同じ上限(30)。ここだけ無かったため、記録会を連続で消化すると
+              // 次にrunRace等が上限付きで書き込むまでの間、際限なく積み上がっていた
               newsFeed: [
                 ...recordNewsItems,
                 ...(newsItem ? [newsItem] : []),
                 ...(state.currentSeason.newsFeed ?? []),
-              ],
+              ].slice(0, 30),
               scoutProspects: updatedProspects,
             },
           }
