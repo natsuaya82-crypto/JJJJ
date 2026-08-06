@@ -1,29 +1,55 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import BackButton from '../ui/BackButton'
-import PlayerRow from '../player/PlayerRow'
+import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
+import SortSelect from '../ui/SortSelect'
 import { useGameStore } from '../../store/gameStore'
+import { usePreviewStore } from '../../store/previewStore'
 import { HOF_MAX } from '../../utils/hofRoster'
+import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import { C, alpha } from '../../styles/tokens'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
+  { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
+  { value: 'age', label: PLAYER_SORT_LABEL.age },
+  { value: 'specialty', label: PLAYER_SORT_LABEL.specialty },
+  { value: 'name', label: PLAYER_SORT_LABEL.name },
+]
 
 // 殿堂入りチーム。登録した瞬間の選手を凍らせて貯める（utils/hofRoster.ts）。
-// 見た目はロスター（移籍方針ページ等）と同じ PlayerRow を使う。専用の並べ方を作らないこと。
+// 見た目・操作はロスター（TeamManagement / NoSalePage）と同じものを使う。
+//   一覧    PlayerRow
+//   並び替え SortSelect + comparePlayers
+//   タップ  シート / 長押し 詳細
 export default function HofTeamPage() {
   const hof = useGameStore(s => s.hofRoster) ?? []
   const remove = useGameStore(s => s.removeHofPlayer)
+  const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const setPreview = usePreviewStore(s => s.setPlayers)
+  const [sortKey, setSortKey] = useState<PlayerSortKey>('ovr')
   const [sheetId, setSheetId] = useState<string | null>(null)
-  const sorted = [...hof].sort((a, b) => b.ovr - a.ovr)
+  const lp = useRef<{ t?: number; long: boolean }>({ long: false })
+
+  const sorted = [...hof].sort((a, b) => comparePlayers(sortKey, sortKey === 'age' ? 'asc' : 'desc')(a.player, b.player))
   const target = sorted.find(h => h.player.id === sheetId)
 
-  const badge = (text: string) => (
-    <span style={{
-      fontSize: 8, padding: '1px 5px', borderRadius: 4, fontWeight: 700,
-      backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold,
-    }}>{text}</span>
-  )
+  // 詳細は「登録した時点の姿」を見せる。いまの本人を開くと能力が違って混乱するので、
+  // フレンドのロスターと同じ仕組み（previewStore）に凍らせたコピーを載せてから開く
+  const openFrozenDetail = (playerId: string) => {
+    setPreview(hof.map(h => h.player))
+    openPlayerSheet(playerId)
+  }
+
+  // タップ＝シート / 長押し＝詳細。ロスターと同じ操作にそろえる
+  const rowHandlers = (pid: string): RowHandlers => ({
+    onPointerDown: () => { lp.current.long = false; lp.current.t = window.setTimeout(() => { lp.current.long = true; openFrozenDetail(pid) }, 450) },
+    onPointerUp: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onPointerLeave: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onPointerMove: () => { if (lp.current.t) { clearTimeout(lp.current.t); lp.current.t = undefined } },
+    onClick: () => { if (!lp.current.long) setSheetId(pid) },
+  })
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
@@ -38,8 +64,9 @@ export default function HofTeamPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 16px 10px', fontSize: 11, color: C.textDim }}>
-        登録した時点の能力で固定。タップで外せます。
+      <div style={{ padding: '0 12px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, fontSize: 11, color: C.textDim }}>登録した時点の能力で固定</div>
+        <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
       </div>
 
       <div style={{ margin: '0 12px', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
@@ -47,9 +74,14 @@ export default function HofTeamPage() {
           <PlayerRow
             key={h.player.id}
             player={h.player}
-            handlers={{ onClick: () => setSheetId(h.player.id) }}
+            handlers={rowHandlers(h.player.id)}
             hideStatusBadges
-            extra={badge(`${h.year}年 ${h.teamName}`)}
+            extra={
+              <span style={{
+                fontSize: 8, padding: '1px 5px', borderRadius: 4, fontWeight: 700,
+                backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold,
+              }}>{h.year}年 {h.teamName}</span>
+            }
           />
         ))}
         {sorted.length === 0 && (
@@ -75,11 +107,10 @@ export default function HofTeamPage() {
               </div>
             </div>
           }
-          items={[{
-            label: '殿堂入りから外す',
-            color: C.red,
-            onClick: () => { remove(target.player.id); setSheetId(null) },
-          }]}
+          items={[
+            { label: '選手の詳細', onClick: () => { const id = target.player.id; setSheetId(null); openFrozenDetail(id) } },
+            { label: '殿堂入りから外す', color: C.red, onClick: () => { remove(target.player.id); setSheetId(null) } },
+          ]}
         />
       )}
     </div>
