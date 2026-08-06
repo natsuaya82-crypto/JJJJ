@@ -677,6 +677,8 @@ export type Season = {
   individualEvents?: IndividualEvent[]
   sponsorOffers?: SponsorOffer[]
   seasonRaceIncome?: number
+  // クラブID→今季の区間賞賞金の累計。自チームもCPUも同じように積む（翌季の予算に入る）
+  seasonSegPrize?: Record<string, number>
   // 退団予定にしたのに行き先が決まらなかった選手。GMが「FAで出す／残留させる」を選ぶまでロスターに残る。
   // 以前はシーズン終了時に問答無用で強制FA（移籍金0で流出）だった
   stayOrLeave?: { playerId: string }[]

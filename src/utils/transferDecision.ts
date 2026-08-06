@@ -26,11 +26,27 @@
 //   以前は性格(loyalty)が格上への移籍まで潰していて、2段上のクラブでも1/4が断っていた。
 //   性格は「同格・格下のときだけ」効かせる。格上の話を愛着で蹴るのは、移籍の絵として不自然。
 
-import type { Player } from '../types'
+import type { OverseasRegion, Player } from '../types'
 import { ovr } from './playerUtils'
 import { belongsToClub } from './rosterSync'
 import { isDeclining } from '../engine/ageCurve'
 import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
+
+/**
+ * 憧れの地域は選手のタイプで決まる。持久系→アフリカ高地／スピード系→ヨーロッパのトラック／
+ * 山・万能→北米南米。**保存しない**（タイプから毎回同じ答えが出るので持つ必要がない）。
+ * 海外挑戦の直訴（gameStore の overseasRequests）の行き先もここを見る。
+ */
+export function dreamRegionOf(specialty: Player['specialty']): OverseasRegion {
+  return (specialty === 'long' || specialty === 'grinder') ? 'africa'
+    : (specialty === 'sprinter' || specialty === 'kick' || specialty === 'ace') ? 'europe'
+    : 'america'
+}
+
+/** 憧れの地域の呼び方。会話にそのまま出す */
+export const DREAM_LABEL: Record<OverseasRegion, string> = {
+  africa: 'アフリカ', europe: 'ヨーロッパ', america: '北米・南米',
+}
 
 /** 駅伝で実際に走れる人数。ここに入れるかどうかが「出られるか」の境目 */
 export const RUNNING_SLOTS = 7
@@ -44,6 +60,21 @@ export const CONSENT_LINE = 0.5
  * 5件並べて本人に「どこへ行きたいか」を聞く（rankOffers）
  */
 export const MAX_OFFERS_PER_PLAYER = 5
+
+/**
+ * リーグID → 憧れの地域。
+ * 「OVR90でヨーロッパへ行きたいのにアジアへ移籍する」を止めるための対応表。
+ * 海外挑戦の直訴（overseasRequests）が使っている3区分と同じもの。
+ * 国内リーグ（leagueId 無し）は地域を持たない＝憧れの判定の対象外。
+ */
+export function regionOfLeague(leagueId: string | undefined): OverseasRegion | undefined {
+  switch (leagueId) {
+    case 'africa_east': case 'africa_ns': return 'africa'
+    case 'europe_ws': case 'europe_ne': return 'europe'
+    case 'north_america': case 'central_america': case 'south_america': return 'america'
+    default: return undefined   // アジア・オセアニア・国内は「憧れの地域」に該当しない
+  }
+}
 
 /** 行き先クラブの姿。呼び出し側は buildDestination で作る */
 export type Destination = {
@@ -59,6 +90,13 @@ export type Destination = {
   leagueRank?: number
   /** 行き先のリーグのチーム数 */
   leagueSize?: number
+  /** 海外クラブか。国内移籍には「憧れの地域」が効かない */
+  isForeign?: boolean
+  /**
+   * 行き先の地域。憧れの3区分（アフリカ／ヨーロッパ／北米南米）に当たるときだけ入る。
+   * アジア・オセアニアは誰の憧れでもないので undefined＝「憧れではない海外」になる
+   */
+  region?: OverseasRegion
 }
 
 /** 今の状況 */
@@ -83,7 +121,7 @@ export type Appraisal = {
   score: number
   ok: boolean
   /** 一番効いた要素。断った理由・選んだ理由の文言はこれで決める */
-  lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'capped' | 'loyalty' | 'even'
+  lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'dream' | 'wrong_region' | 'capped' | 'loyalty' | 'even'
   reason: string
   parts: {
     tier: number
@@ -91,6 +129,7 @@ export type Appraisal = {
     benched: number
     title: number
     ecl: number
+    dreamFit: number
     capped: number
     personality: number
     morale: number
@@ -103,7 +142,7 @@ export function buildDestination(
   clubId: string,
   tier: ClubTier,
   players: readonly Player[],
-  opts?: { inEcl?: boolean; leagueRank?: number; leagueSize?: number; player?: Player },
+  opts?: { inEcl?: boolean; leagueRank?: number; leagueSize?: number; isForeign?: boolean; region?: OverseasRegion; player?: Player },
 ): Destination {
   const roster = players.filter(p => belongsToClub(p, clubId))
   const squadSize = roster.length
@@ -115,6 +154,8 @@ export function buildDestination(
     inEcl: !!opts?.inEcl,
     leagueRank: opts?.leagueRank,
     leagueSize: opts?.leagueSize,
+    isForeign: opts?.isForeign,
+    region: opts?.region,
   }
 }
 
@@ -161,6 +202,14 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   // 5. ECLに出ているクラブか
   const ecl = d.inEcl ? 0.1 : 0
 
+  // 6. 憧れの地域か。海外へ出るときだけ効く。
+  //    「OVR90でヨーロッパに行きたいのにアジアへ移籍する」を止める。
+  //    憧れの地域なら後押し、別の地域の海外クラブなら渋る。国内移籍には効かない
+  //    アジア・オセアニアは誰の憧れでもないので、海外なのに憧れの地域でない＝減点になる。
+  //    「OVR90でヨーロッパに行きたいのにアジアへ移籍」がこれで止まる
+  const dream = dreamRegionOf(p.specialty)
+  const dreamFit = !d.isForeign ? 0 : d.region === dream ? 0.12 : -0.22
+
   // 今のクラブの成長上限に達していて、行き先の上限が高い＝ここではもう伸びない
   const capped = ctx.srcTier != null && !declining
     && ovr(p) >= TIER_POTENTIAL_CAP[ctx.srcTier] - 1
@@ -176,26 +225,30 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   const morale = (p.morale ?? 60) < 40 ? 0.1 : (p.morale ?? 60) >= 75 ? -0.05 : 0
   const bonus = ctx.bonus ?? 0
 
-  const score = tier + playingTime + benched + title + ecl + capped + personality + morale + bonus
+  const score = tier + playingTime + benched + title + ecl + dreamFit + capped + personality + morale + bonus
   const ok = score >= CONSENT_LINE
-  const parts = { tier, playingTime, benched, title, ecl, capped, personality, morale, bonus }
+  const parts = { tier, playingTime, benched, title, ecl, dreamFit, capped, personality, morale, bonus }
   // 断ったときは「何が足を引っ張ったか」、行くときは「何に惹かれたか」を出す。
   // 同じ順番で見ると、格下でもエース格で行く選手の理由が「格下だが受け入れる」になってしまう
   const lead: Appraisal['lead'] = ok
-    ? (playingTime >= 0.14 ? 'playing_time'
+    ? (dreamFit > 0 ? 'dream'
+      : playingTime >= 0.14 ? 'playing_time'
       : capped > 0 ? 'capped'
       : ecl > 0 ? 'ecl'
       : title > 0 ? 'title'
       : gap > 0 ? 'tier_up'
       : gap < 0 ? 'tier_down'
       : 'even')
-    : (playingTime <= -0.16 ? 'no_playing_time'
+    : (dreamFit < 0 ? 'wrong_region'
+      : playingTime <= -0.16 ? 'no_playing_time'
       : gap < 0 && tier < 0.45 ? 'tier_down'
       : personality <= -0.15 ? 'loyalty'
       : 'even')
 
   const REASON_NO: Record<Appraisal['lead'], string> = {
     no_playing_time: `${p.name}は「${d.squadRank}番手では出番がない」と考えている`,
+    dream: `${p.name}は移籍に納得していない`,
+    wrong_region: `${p.name}が挑戦したいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}で、この地域ではない`,
     tier_down: `${p.name}は格下への移籍に前向きでない`,
     loyalty: `${p.name}は今のチームへの愛着が強く移籍を望んでいない`,
     playing_time: `${p.name}は移籍に納得していない`,
@@ -206,6 +259,8 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
     even: `${p.name}は移籍に納得していない`,
   }
   const REASON_YES: Record<Appraisal['lead'], string> = {
+    dream: `憧れの${DREAM_LABEL[dreamRegionOf(p.specialty)]}で走りたい`,
+    wrong_region: '行きたい地域ではない',
     tier_up: '格上のクラブで挑戦したい',
     playing_time: '出場機会が見込める',
     no_playing_time: '出場機会が見込めない',

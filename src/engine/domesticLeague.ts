@@ -15,7 +15,7 @@
 
 import type { Player, Race, SeasonStanding, Team } from '../types'
 import { simulateRace, buildAILineup } from './raceEngine'
-import { DIVISIONS, divisionOf, teamsInDivision } from '../utils/league'
+import { DIVISIONS, divisionOf, teamsInDivision, segmentPrizeByTeam } from '../utils/league'
 
 export type AwayDivisionRound = {
   /** teamId → このレースで得た勝点 */
@@ -24,6 +24,8 @@ export type AwayDivisionRound = {
   ranks: Record<string, number>
   /** playerId → { races, segWins } 通算成績への加算ぶん */
   careerAdd: Record<string, { races: number; segWins: number }>
+  /** teamId → このレースの区間賞賞金。自チームの部と同じ数え方（utils/league.ts） */
+  segPrize: Record<string, number>
 }
 
 /**
@@ -36,6 +38,7 @@ export function simulateAwayDivisions(
   const points: Record<string, number> = {}
   const ranks: Record<string, number> = {}
   const careerAdd: Record<string, { races: number; segWins: number }> = {}
+  const segPrize: Record<string, number> = {}
 
   for (const d of DIVISIONS) {
     if (d === myDivision) continue
@@ -51,6 +54,9 @@ export function simulateAwayDivisions(
       points[tr.teamId] = tr.positionPoints + tr.segmentPoints
       ranks[tr.teamId] = tr.rank
     }
+    for (const [tid, v] of Object.entries(segmentPrizeByTeam(results.segmentResults))) {
+      segPrize[tid] = (segPrize[tid] ?? 0) + v
+    }
     for (const lineup of Object.values(lineups)) {
       for (const id of Object.values(lineup)) {
         const segWins = results.segmentResults.filter(sr => sr.runners[0]?.playerId === id).length
@@ -59,7 +65,7 @@ export function simulateAwayDivisions(
       }
     }
   }
-  return { points, ranks, careerAdd }
+  return { points, ranks, careerAdd, segPrize }
 }
 
 /**

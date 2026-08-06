@@ -49,7 +49,7 @@ import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { appraiseMove, buildDestination, rankOffers, MAX_OFFERS_PER_PLAYER, type Destination, type Appraisal } from '../utils/transferDecision'
+import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, type Destination, type Appraisal } from '../utils/transferDecision'
 import { isOwnedBy, canBePoached, canClubApproachAgain, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
 import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
@@ -68,7 +68,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
+import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_LABEL, PROMOTION_SLOTS } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierOfPlayerClub, tierFromDomesticRank, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
@@ -1237,12 +1237,10 @@ export const useGameStore = create<GameStore>()(
           // ★順位別のレース賞金と観客収入は廃止した。クラブの収入は「格の年間予算」1本
           //   （data/economy.ts）。順位は翌年の格を通してのみ収入に効く。
           //   ここに残すのは区間賞だけ（走った選手個人の働きに対する賞金）。
-          const SEG_PRIZE = [5000000, 3000000, 1500000]
-          const segPrize = results.segmentResults.reduce((total, sr) => {
-            const myRunner = sr.runners.find(r => r.teamId === playerTeamId)
-            if (!myRunner || myRunner.rank > 3) return total
-            return total + (SEG_PRIZE[myRunner.rank - 1] ?? 0)
-          }, 0)
+          //   数え方は utils/league.ts の segmentPrizeByTeam 1本。自チームもCPUも同額。
+          //   以前はここで自チームぶんだけ数えていて、CPUには1円も入っていなかった
+          const segPrizeByTeam = segmentPrizeByTeam(results.segmentResults)
+          const segPrize = segPrizeByTeam[playerTeamId] ?? 0
 
           const prizeNewsItem = segPrize > 0 ? {
             date: race.date,
@@ -1505,8 +1503,11 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          // 区間賞のぶんだけを翌季の予算に繰り越す（レース賞金・観客収入は廃止）
+          // 区間賞のぶんだけを翌季の予算に繰り越す（レース賞金・観客収入は廃止）。
+          // 自分の部＋裏で走らせた部を合わせて、全クラブぶんを積む
           const raceIncomeAccum = segPrize
+          const segPrizeAll: Record<string, number> = { ...segPrizeByTeam }
+          for (const [tid, v] of Object.entries(awayRound.segPrize)) segPrizeAll[tid] = (segPrizeAll[tid] ?? 0) + v
           const teamsWithPrize = state.teams
 
           // Transfer market activity
@@ -1848,17 +1849,14 @@ export const useGameStore = create<GameStore>()(
           // ── 海外挑戦の直訴：世界レベル（OVR80+・30歳以下）が「海外でやりたい」とチャットで言い出す。
           //    代表帰り（前年〜今年に世界選手権代表）は世界を見てきたので言い出しやすい ──
           // 夢の行き先はタイプで変わる：持久系→アフリカ高地／スピード系→欧州トラック／山・万能→北米
-          const regionForSpec = (s: Player['specialty']): import('../types').OverseasRegion =>
-            (s === 'long' || s === 'grinder') ? 'africa'
-            : (s === 'sprinter' || s === 'kick' || s === 'ace') ? 'europe'
-            : 'america'
+          // 夢の行き先は utils/transferDecision.ts の dreamRegionOf 1本（移籍の判定と同じ表を見る）
           const ovCands = playersAfterLoan.filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan
             && ovr(p) >= 80 && p.age <= 30 && !p.overseasListed && !openWish.has(p.id)
             && p.overseasDeniedYear !== state.currentSeason.year && !p.transferListed)
           let newOvReqs: { playerId: string; region: import('../types').OverseasRegion }[] = []
           for (const p of ovCands) {
             const wasRep = (state.worldRepresentatives ?? []).some(r => r.playerId === p.id && r.year >= state.currentSeason.year - 1)
-            if (Math.random() < (wasRep ? 0.10 : 0.03)) { newOvReqs = [{ playerId: p.id, region: regionForSpec(p.specialty) }]; break }
+            if (Math.random() < (wasRep ? 0.10 : 0.03)) { newOvReqs = [{ playerId: p.id, region: dreamRegionOf(p.specialty) }]; break }
           }
 
           // 契約更新の要求は放置で自動失効する。以前は status:'rejected' にして札を残していたが、
@@ -1976,6 +1974,12 @@ export const useGameStore = create<GameStore>()(
               // 旧セーブの期限なし要求(expiresAtRaceなし)もここで失効する
               contractRequests: (state.currentSeason.contractRequests ?? []).filter(r => !expiredContractIds.has(r.id)),
               seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
+              // 全クラブぶんの区間賞（翌季の予算に入れる。自チームだけの seasonRaceIncome とは別に持つ）
+              seasonSegPrize: (() => {
+                const acc = { ...(state.currentSeason.seasonSegPrize ?? {}) }
+                for (const [tid, v] of Object.entries(segPrizeAll)) acc[tid] = (acc[tid] ?? 0) + v
+                return acc
+              })(),
               expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs],
               freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],
               transferIncome: (state.currentSeason.transferIncome ?? 0) + myCpuSaleIncome,
@@ -2673,14 +2677,17 @@ export const useGameStore = create<GameStore>()(
           const rows = rankedStandings((state.currentSeason.standings ?? []).filter(r => divIds.has(r.teamId)))
           const i = rows.findIndex(r => r.teamId === clubId)
           if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
-        } else {
-          for (const [lid, rows] of Object.entries(state.currentSeason.foreignStandings ?? {})) {
-            const sorted = rankedStandings(rows)
-            const i = sorted.findIndex(r => r.clubId === clubId)
-            if (i >= 0) { leagueRank = i + 1; leagueSize = sorted.length; void lid; break }
-          }
         }
-        return buildDestination(clubId, tier, state.players, { inEcl, leagueRank, leagueSize, player })
+        // 海外クラブは所属リーグから順位と地域を引く（地域は「憧れの地域」の突き合わせに使う）
+        let region: import('../types').OverseasRegion | undefined
+        if (!team) {
+          const lg = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === clubId))
+          region = regionOfLeague(lg?.id)
+          const rows = rankedStandings((state.currentSeason.foreignStandings ?? {})[lg?.id ?? ''] ?? [])
+          const i = rows.findIndex(r => r.clubId === clubId)
+          if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
+        }
+        return buildDestination(clubId, tier, state.players, { inEcl, leagueRank, leagueSize, isForeign: !team, region, player })
       },
 
       // 売る側の本人同意。買う側（submitTransferBid → finalizeTransfer）が通しているのと
@@ -5668,10 +5675,13 @@ export const useGameStore = create<GameStore>()(
             const prevStreak = t.finance.deficitStreak ?? 0
             const cpuBaseGrant = tierBudget({ tier: cpuTier })
             const cpuSponsor = teamSponsorAnnual(t)
+            // 区間賞は自チームと同じ数え方で積んである（currentSeason.seasonSegPrize）
+            const cpuSegPrize = (state.currentSeason.seasonSegPrize ?? {})[t.id] ?? 0
             const b = computeNextSeasonBudget({
               baseGrant: cpuBaseGrant,
               prevBalance: t.finance.budget,
               sponsorAnnual: cpuSponsor,
+              raceIncome: cpuSegPrize,
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
@@ -5682,7 +5692,7 @@ export const useGameStore = create<GameStore>()(
               budget: b,
               carryover: t.finance.budget - (sal + operatingCostOf(sal)),
               grant: cpuBaseGrant,
-              raceIncome: 0,
+              raceIncome: cpuSegPrize,
               sponsor: cpuSponsor,
               objBonus: 0,
               expenses: 0,
@@ -6118,6 +6128,7 @@ export const useGameStore = create<GameStore>()(
               stayOrLeave: undecidedIds.map(id => ({ playerId: id })),
               sponsorOffers: newSponsorOffers,
               seasonRaceIncome: 0,
+              seasonSegPrize: {},
               foreignStandings: initForeignStandings(foreignRefresh.updatedLeagues),
               foreignRaceIndex: 0,
               foreignAppearances: {},

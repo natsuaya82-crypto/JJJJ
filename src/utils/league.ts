@@ -59,6 +59,27 @@ export function teamsInDivision<T extends Pick<Team, 'division'>>(teams: readonl
   return teams.filter(t => divisionOf(t) === division)
 }
 
+// ── 区間賞の賞金 ──────────────────────────────────────────────
+//
+// 各区間の上位3人にクラブへ賞金が入る。**自チームもCPUも同じ額**。
+// 以前は自チームぶんだけ gameStore の中で数えていて、CPUには1円も入らなかった
+// （年に数千万の非対称）。誰の分でも同じ関数で数える。
+export const SEGMENT_PRIZE = [5_000_000, 3_000_000, 1_500_000]
+
+/** 1レースの結果から、クラブID→区間賞賞金 を数える */
+export function segmentPrizeByTeam(
+  segmentResults: readonly { runners: readonly { teamId: string; rank: number }[] }[],
+): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const sr of segmentResults) {
+    for (const r of sr.runners) {
+      const prize = r.rank >= 1 && r.rank <= SEGMENT_PRIZE.length ? SEGMENT_PRIZE[r.rank - 1] : 0
+      if (prize > 0) out[r.teamId] = (out[r.teamId] ?? 0) + prize
+    }
+  }
+  return out
+}
+
 /** 順位を出せる行。国内の SeasonStanding も海外の順位表も totalPoints を持つ */
 export type RankableRow = { totalPoints: number }
 
