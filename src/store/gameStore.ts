@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, divisionTag, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, type NewsItem } from '../utils/newsItems'
+import { clubLabel, divisionTag, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, injuryHeadline, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -1490,7 +1490,7 @@ export const useGameStore = create<GameStore>()(
               if (p.teamId === playerTeamId) {
                 injuryNewsItems.push({
                   date: race.date,
-                  headline: `${p.name}が${injuryName}で負傷 — 全治約${recoveryRaces}か月`,
+                  headline: injuryHeadline({ playerName: p.name, injuryName, races: recoveryRaces }),
                   category: 'injury' as const,
                   relatedIds: [p.id],
                 })

@@ -148,3 +148,11 @@ export function nationalCallUpHeadline(a: { year: number; names: string[]; mineC
   const mine = a.mineCount > 0 ? `（うち自チーム${a.mineCount}名）` : ''
   return `【日本代表】${a.year} 代表に${a.names.length}名が選出${mine}：${a.names.slice(0, 5).join('・')}${a.names.length > 5 ? ' ほか' : ''}`
 }
+
+/**
+ * 負傷。復帰までは**レース数**で管理しているので、そのままレース数で出す。
+ * 以前は同じ数字を「か月」と書いていて、2レース欠場が「全治約2か月」と出ていた。
+ */
+export function injuryHeadline(a: { playerName: string; injuryName: string; races: number }): string {
+  return `${a.playerName}が${a.injuryName}で負傷 — 復帰まで約${a.races}戦`
+}
