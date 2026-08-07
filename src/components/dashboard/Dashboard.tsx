@@ -19,7 +19,7 @@ import { ROSTER_MIN } from '../../data/rosterRules'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
-import { myDivisionStandings, rankOfTeam } from '../../utils/league'
+import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -329,7 +329,7 @@ export default function Dashboard() {
   const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
   // 順位表は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
   // （絞らないと、部ごとにレース数が違うぶんだけ順位がずれる）
-  const sorted = myDivisionStandings(currentSeason.standings, teams, playerTeamId)
+  const sorted = seasonDivisionStandings(currentSeason, teams, playerTeamId)
   const myRank = rankOfTeam(sorted, playerTeamId)
 
   // 世界選手権：JPELファイナル後〜シーズン終了の間に挟むステップ。

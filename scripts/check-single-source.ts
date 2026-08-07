@@ -79,7 +79,8 @@ const RULES: Rule[] = [
   },
   {
     name: '順位表の並べ直し',
-    pattern: /sort\(\s*\(a,\s*b\)\s*=>\s*b\.totalPoints\s*-\s*a\.totalPoints\s*\)/,
+    // 変数名は何でも通す。a2/b2 と書いた1件が素通りしていた
+    pattern: /sort\(\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)\s*=>\s*\2\.totalPoints\s*-\s*\1\.totalPoints\s*\)/,
     allow: ['src/utils/league.ts'],
     fix: 'league.ts の rankedStandings / rankOfTeam を使う',
   },
@@ -121,7 +122,7 @@ RULES.push({
   name: '今季の順位表を部で絞らずに並べている',
   pattern: /rankedStandings\(\s*currentSeason\.standings/,
   allow: ['src/utils/league.ts'],
-  fix: 'league.ts の myDivisionStandings / divisionStandings を通す',
+  fix: 'league.ts の seasonDivisionStandings / divisionStandings を通す',
 })
 
 // 相手のロスターと殿堂入りは同じ行（rosters）に入っている。

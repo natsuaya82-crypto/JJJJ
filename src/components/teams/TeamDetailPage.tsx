@@ -183,7 +183,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: '#C9A84C' })
   } else {
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-    const jpelTitles = teamHistoryOf(pastSeasons, id).championships
+    const jpelTitles = teamHistoryOf(pastSeasons, teams, id).championships
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
       if (!st || st.length === 0) return false
@@ -216,7 +216,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   ]
   const infoChampions = isForeign
     ? (titles[0]?.count ?? 0)
-    : teamHistoryOf(pastSeasons, id).championships
+    : teamHistoryOf(pastSeasons, teams, id).championships
   const infoBestRank = historyRanks.length > 0 ? Math.min(...historyRanks.map(h => h.rank)) : null
 
   // 移籍の入/出：シーズンごとの出場・在籍記録の年またぎ差分から導出する。

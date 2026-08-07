@@ -7,10 +7,10 @@ import { teamHistoriesOf, teamHistoryOf, type TeamHistory, type TeamHistoryMap }
 
 /** 全チーム分をまとめて */
 export function useTeamHistories(): TeamHistoryMap {
-  return useGameStore(s => teamHistoriesOf(s.pastSeasons))
+  return useGameStore(s => teamHistoriesOf(s.pastSeasons, s.teams))
 }
 
 /** 1チーム分だけ */
 export function useTeamHistory(teamId?: string): TeamHistory {
-  return useGameStore(s => teamHistoryOf(s.pastSeasons, teamId))
+  return useGameStore(s => teamHistoryOf(s.pastSeasons, s.teams, teamId))
 }

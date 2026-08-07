@@ -4,21 +4,22 @@ import { teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
-import { rankOfTeam, domesticThroughRankOfTeam } from '../../utils/league'
+import { rankOfTeam, domesticThroughRankOfTeam, seasonDivisionStandings } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function RecordsHub() {
   const navigate = useNavigate()
-  const { currentSeason, pastSeasons, playerTeamId, gmTenures } = useGameStore()
+  const { currentSeason, pastSeasons, playerTeamId, gmTenures, teams } = useGameStore()
 
   // 監督は別のチームへ移れる。過去の順位は「その年に指揮していたチーム」で引く。
   // 今のチームで引くと、移った瞬間に自分の優勝が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
   const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   const championships = (gmTenures?.length ?? 0) > 1
-    ? pastSeasons.filter(s2 => [...(s2.standings ?? [])].sort((a2, b2) => b2.totalPoints - a2.totalPoints)[0]?.teamId === teamIdAt(s2.year)).length
-    : teamHistoryOf(pastSeasons, playerTeamId).championships
+    // その年の自分の部の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
+    ? pastSeasons.filter(s2 => seasonDivisionStandings(s2, teams, teamIdAt(s2.year))[0]?.teamId === teamIdAt(s2.year)).length
+    : teamHistoryOf(pastSeasons, teams, playerTeamId).championships
   const completedRaces = currentSeason.races.filter(r => r.results).length
   // 自分の部の中での順位（得点で52チームを通すと部が混ざる）
   const myStanding = domesticThroughRankOfTeam(currentSeason.standings, useGameStore.getState().teams, playerTeamId)

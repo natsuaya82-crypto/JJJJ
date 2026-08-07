@@ -47,6 +47,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
+| `src/utils/league.ts` | 順位の出し方。`seasonDivisionStandings`（その年の**自分の部だけ**で並べる）／`seasonStandingsByDivision`（全チームの成績を数え直すとき） |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |

@@ -326,6 +326,18 @@ export type Player = {
 
 export type SeasonStanding = {
   teamId: string
+  /**
+   * そのシーズン、そのチームが走った部。**新しいシーズンから入る。**
+   *
+   * 順位表は全52チームぶんを1本で持っているので、順位を出すには部で絞る必要がある。
+   * いまの `Team.division` で過去の年を絞ると、昇降格したチームが間違った部で数えられる
+   * （その年3部で優勝したのに、いま2部にいるから2部の面々と比べられる、など）。
+   * その年の事実をここに焼き込んでおけば、あとから何年経っても正しく数え直せる。
+   *
+   * 無い年（このしくみより前のセーブ）は、読む側が今の部で代用する。
+   * 判定は utils/league.ts の seasonDivisionStandings 1本に任せ、呼ぶ側で分岐を書かないこと。
+   */
+  division?: Division
   leaguePoints: number
   segmentPoints: number
   totalPoints: number

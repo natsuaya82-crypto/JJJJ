@@ -91,7 +91,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave, buildCareerCounts } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS } from '../utils/league'
+import { rankedStandings, rankOfTeam, seasonDivisionStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, isBigClub, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
@@ -167,7 +167,7 @@ function draftLotteryOrder(teams: Team[], histories: TeamHistoryMap): Map<string
 
 // ドラフト順の計算に渡す形。成績はセーブに持たないので、過去シーズンから数え直して詰め替える
 function draftOrderTeams(teams: Team[], pastSeasons: { year: number; standings?: SeasonStanding[] }[]) {
-  const histories = teamHistoriesOf(pastSeasons)
+  const histories = teamHistoriesOf(pastSeasons, teams)
   return teams.map(t => ({ id: t.id, seasonResults: (histories[t.id] ?? EMPTY_TEAM_HISTORY).seasonResults }))
 }
 
@@ -707,9 +707,10 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       acquisitionOffers: [],
       retirementRequests: [],
       transferRequests: [],
-      // 順位表は全52チームぶん1本で持ち、表示するときに部で絞る
+      // 順位表は全52チームぶん1本で持ち、表示するときに部で絞る。
+      // その年の部を行に焼き込んでおく（あとから昇降格しても過去の順位が狂わない）
       standings: ALL_TEAMS.map(t => ({
-        teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
+        teamId: t.id, division: divisionOf(t), leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
       })),
       newsFeed: [],
     },
@@ -1171,7 +1172,7 @@ export const useGameStore = create<GameStore>()(
           // Generate future draft picks for all teams (yr+1, yr+2, rounds 1-2)
           // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
           const currentYear = state.currentSeason.year
-          const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
+          const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons, state.teams))
           const teamsWithPicks = state.teams.map((t) => {
             const pickNum = pickNumMap.get(t.id) ?? 1
             const newPicks: typeof t.draftPicks = []
@@ -2606,7 +2607,9 @@ export const useGameStore = create<GameStore>()(
         if (!player || player.teamId !== state.playerTeamId) return false
         const ratio = salary / player.contract.annualSalary
         const personality = player.personality ?? 'salary'
-        const standings = rankedStandings(state.currentSeason.standings)
+        // 「上位のチームか」は自分が走っている部の中で見る。
+        // 全52チームで並べると、部ごとのレース数の差で5位以内の重みが変わってしまう
+        const standings = seasonDivisionStandings(state.currentSeason, state.teams, state.playerTeamId)
         const myRank = rankOfTeam(standings, state.playerTeamId)
         const isGoodTeam = myRank > 0 && myRank <= 5
         const minRatio =
@@ -4193,7 +4196,7 @@ export const useGameStore = create<GameStore>()(
         )
         if (!anyMissingPicks) return
         // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
-        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
+        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons, state.teams))
         const updatedTeams = state.teams.map((t) => {
           const newPicks: typeof t.draftPicks = []
           for (const year of [yr + 1, yr + 2]) {
@@ -4906,7 +4909,7 @@ export const useGameStore = create<GameStore>()(
         // ドラフト順は「当年分の指名権の所有」で決める：指名スロットの並びは各指名権の
         // 【元保有チームの抽選順】で決まり、現在の保有チームがそこで指名する。
         // 2年目以降は前年下位5チームの加重抽選で1巡目の順を決定。2巡目はスネーク（逆順＝1位から）。
-        const lotteryPos = draftLotteryOrder(state.teams, teamHistoriesOf(state.pastSeasons)) // teamId → 全体指名順位(1=全体1位)
+        const lotteryPos = draftLotteryOrder(state.teams, teamHistoriesOf(state.pastSeasons, state.teams)) // teamId → 全体指名順位(1=全体1位)
         const teamCount = state.teams.length
         const ownedYearPicks = state.teams
           .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => {
@@ -4929,7 +4932,7 @@ export const useGameStore = create<GameStore>()(
         // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）
         // 指名権番号は前年順位の逆順（最下位＝全体1位）。既存の将来指名権も"元保有チームの順位"で振り直し、
         // 初回に配列順で焼き込まれた古い番号を都度上書きして正す（表示と実際の指名順を一致させる）。
-        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
+        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons, state.teams))
         const teamsWithPicks = state.teams.map((t) => {
           const newPicks: typeof t.draftPicks = []
           for (const year of [yr + 1, yr + 2]) {
@@ -5762,7 +5765,7 @@ export const useGameStore = create<GameStore>()(
           const newSponsorOffers = [...renewalOffers, ...generateSponsorOffers(myNextTier, newYear, excludeTplIds)]
           // 連続上位はセーブに持たないので、過去シーズン（＝今季を入れる前）の順位表から数え直す。
           // 昔ここで読んでいた値も「今季を足す前」の連続数だったので、意味は同じ
-          const myTeamStreak = teamHistoryOf(state.pastSeasons, state.playerTeamId).currentStreak
+          const myTeamStreak = teamHistoryOf(state.pastSeasons, state.teams, state.playerTeamId).currentStreak
           const streakMoraleDelta = myFinalRank <= 3
             ? Math.min(12, 4 + myTeamStreak * 2)   // up to +12 for long winning streak
             : myFinalRank >= sortedStandings.length - 2
@@ -6096,7 +6099,7 @@ export const useGameStore = create<GameStore>()(
           const gmRanksAfter = gmSeasonRanks([
             ...state.pastSeasons,
             { year: state.currentSeason.year, standings: state.currentSeason.standings },
-          ], state.gmTenures, state.playerTeamId)
+          ], state.gmTenures, state.playerTeamId, state.teams)
           const gmTotalsAfter = gmCareerTotals(gmRanksAfter)
           const totalChamps = gmTotalsAfter.championships
           const totalSeasons = gmTotalsAfter.seasons
@@ -6518,9 +6521,10 @@ export const useGameStore = create<GameStore>()(
                   points: {},
                 }
               })(),
-              // 補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく補完後を使う
+              // 補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく補完後を使う。
+              // division は昇降格を通したあとの部（＝来季走る部）が入る
               standings: syncedTeams.map(t => ({
-                teamId: t.id, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
+                teamId: t.id, division: divisionOf(t), leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
               })),
               newsFeed: [
                 ...backfillNews,
@@ -7815,7 +7819,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 35,
+      version: 36,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8256,6 +8260,24 @@ export const useGameStore = create<GameStore>()(
                 s.players = (s.players as Record<string, unknown>[]).map(p =>
                   typeof p.injuredUntilRace === 'number' ? { ...p, injuredUntilRace: p.injuredUntilRace + shift } : p)
               }
+            }
+          }
+
+          // v35→v36: 今季の順位表の各行に「その年の部」を焼き込む。
+          // 順位表は全52チームぶんを1本で持っているので、順位を出すには部で絞る必要がある。
+          // 今季ぶんは今の Team.division がそのまま事実なので、ここで入れておける。
+          // （過去シーズンは触らない。昇降格しているとどの部だったか分からないため。
+          //   読む側は utils/league.ts の seasonDivisionStandings が
+          //   「その年の駅伝に一緒に出ていた面々」から復元する）
+          if (version < 36) {
+            const cs = s.currentSeason as Record<string, unknown> | undefined
+            const divById = new Map(
+              (Array.isArray(s.teams) ? s.teams as Record<string, unknown>[] : [])
+                .map(t => [t.id as string, (t.division as number | undefined) ?? 1]),
+            )
+            if (cs && Array.isArray(cs.standings)) {
+              cs.standings = (cs.standings as Record<string, unknown>[]).map(r =>
+                r.division != null ? r : { ...r, division: divById.get(r.teamId as string) ?? 1 })
             }
           }
 

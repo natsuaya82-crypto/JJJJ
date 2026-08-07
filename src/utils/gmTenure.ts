@@ -1,5 +1,5 @@
-import type { GmTenure } from '../types'
-import { rankedStandings } from './league'
+import type { GmTenure, SeasonStanding, Team } from '../types'
+import { seasonDivisionStandings, rankOfTeam, type SeasonStandingsLike } from './league'
 
 // ============================================================================
 // 監督（GM）の在任履歴。「何年から何年まで、どのチームの監督だったか」だけを持つ。
@@ -75,15 +75,16 @@ export function startTenure(
 export type GmSeasonRank = { year: number; teamId: string; rank: number | null }
 
 export function gmSeasonRanks(
-  seasons: { year: number; standings?: { teamId: string; totalPoints: number }[] }[],
+  seasons: (SeasonStandingsLike<SeasonStanding> & { year: number })[],
   tenures: GmTenure[] | undefined,
   playerTeamId: string,
+  teams: readonly Pick<Team, 'id' | 'division'>[],
 ): GmSeasonRank[] {
   const at = makeTeamIdAt(tenures, playerTeamId)
   return seasons.map(s => {
     const teamId = at(s.year)
-    const sorted = rankedStandings((s.standings ?? []))
-    const r = sorted.findIndex(x => x.teamId === teamId) + 1
+    // その年の自分の部だけで数える。全52チームで並べると、部ごとのレース数の差で順位がずれる
+    const r = rankOfTeam(seasonDivisionStandings(s, teams, teamId), teamId)
     return { year: s.year, teamId, rank: r > 0 ? r : null }
   })
 }

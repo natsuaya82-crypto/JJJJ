@@ -10,12 +10,12 @@ import { teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
-import type { SeasonAward } from '../../types'
+import type { SeasonAward, SeasonStanding } from '../../types'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { rankedStandings, rankOfTeam } from '../../utils/league'
+import { seasonDivisionStandings, rankOfTeam, type SeasonStandingsLike } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -184,7 +184,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   const myTeam = teams.find(t => t.id === playerTeamId)
   const longPress = usePlayerLongPress()
   // 優勝回数・連続上位はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  const myHistory = teamHistoryOf(pastSeasons, playerTeamId)
+  const myHistory = teamHistoryOf(pastSeasons, teams, playerTeamId)
   const championships = myHistory.championships
   const bestStreak = myHistory.bestStreak
   const currentStreak = myHistory.currentStreak
@@ -252,7 +252,8 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
             {[...allSeasons].reverse().map(season => {
-              const sorted = rankedStandings((season.standings ?? []))
+              // その年の自分の部だけで数える（utils/league）。全52チームで並べると部の差でずれる
+              const sorted = seasonDivisionStandings(season, teams, playerTeamId)
               const myStanding = rankOfTeam(sorted, playerTeamId)
               const myRow = season.standings?.find(s => s.teamId === playerTeamId)
               const myPoints = myRow?.totalPoints ?? 0
@@ -554,9 +555,8 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
   // 移った瞬間に前のチームの実績が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
   const tenures = normalizeTenures(gmTenures, playerTeamId, allSeasons[0]?.year ?? currentSeason.year)
   const teamIdAt = makeTeamIdAt(tenures, playerTeamId)
-  const rankIn = (s: { year: number; standings?: { teamId: string; totalPoints: number }[] }, teamId: string): number | null => {
-    const sorted = rankedStandings((s.standings ?? []))
-    const r = sorted.findIndex(x => x.teamId === teamId) + 1
+  const rankIn = (s: SeasonStandingsLike<SeasonStanding>, teamId: string): number | null => {
+    const r = rankOfTeam(seasonDivisionStandings(s, teams, teamId), teamId)
     return r > 0 ? r : null
   }
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す
@@ -607,7 +607,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         // 直近10季の順位を折れ線で表示（1位が上）
         const chartSeasons = allSeasons.slice(-10)
         const pts = chartSeasons.map(s => {
-          const sorted = rankedStandings((s.standings ?? []))
+          const sorted = seasonDivisionStandings(s, teams, teamIdAt(s.year))
           return { year: s.year, rank: rankIn(s, teamIdAt(s.year)), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
         })
         const maxTeams = Math.max(8, ...pts.map(p => p.totalTeams))
