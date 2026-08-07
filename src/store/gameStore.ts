@@ -5768,7 +5768,18 @@ export const useGameStore = create<GameStore>()(
           const nextSchedules = drawSeasonSchedules(newYear)
           const myNextDivision = nextDivisionOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
           const newRaces = nextSchedules[myNextDivision] ?? generateSeasonRaces(newYear)
-          const champion = updatedTeams.find(t => t.id === sortedStandings[0]?.teamId)
+          // 王者は「部ごと」。52チームを得点で並べた先頭ではない（部ごとにレース数が違う）。
+          // 表に出すのは1部の王者だが、2部・3部の優勝も同じ形でニュースに出す
+          const championOfDiv = (d: Division) => {
+            const ids = new Set(updatedTeams.filter(t => divisionOf(t) === d).map(t => t.id))
+            const top = rankedStandings(sortedStandings.filter(x => ids.has(x.teamId)))[0]
+            return updatedTeams.find(t => t.id === top?.teamId)
+          }
+          const champion = championOfDiv(1)
+          const divisionChampionNews = DIVISIONS.map(d => {
+            const c = championOfDiv(d)
+            return c ? { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year} JPEL${DIVISION_LABEL[d]} 優勝：${c.name}`, category: 'race' as const, relatedIds: [] } : null
+          }).filter((x): x is NonNullable<typeof x> => !!x)
           // 翌季のプレシーズンで指名される新人はその年(newYear)に加入するので draftYear=newYear にする。
           // （+1 にすると加入年より1年多い年度で記録され、歴代ドラフトが1年ズレる）
           const nextScoutPool = generateDraftPool(newYear, new Set(state.players.map(pl => pl.name)))
@@ -6506,7 +6517,7 @@ export const useGameStore = create<GameStore>()(
                 { date: `${newYear}-03-01`, headline: `${newYear}シーズン開幕！全${newRaces.length}戦のスケジュール決定`, category: 'race' as const, relatedIds: [] },
                 ...crossTx.news,
                 ...foreignTx.news,
-                { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year}シーズン王者：${champion?.name ?? ''}！`, category: 'race' as const, relatedIds: [] },
+                ...divisionChampionNews,
                 ...divisionMoveNews,
                 seasonPrizeNews,
                 ...pickPenaltyNews,
