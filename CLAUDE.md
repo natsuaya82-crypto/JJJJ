@@ -375,9 +375,15 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 アメリカ大陸はジャマイカが通過率トップ。走らせたらアメリカ80%・ケニア87%になりました
 （`scripts/measure-continental.ts` / `scripts/check-continental.ts`）。
 
-**走行記録は `Season.waRaces` に置きます**（海外リーグ・裏の部と同じで、シーズンごとに
-別ファイルへ書き出される）。`worldAthleticsResults` の側に持たせないこと。あちらは普段の
-セーブに入りっぱなしなので、予選年ごとに121KBずつ増え続けます。
+**走行記録は `Season.waRaces` に置きます**（本戦・アジア予選・大陸予選とも。海外リーグ・
+裏の部と同じで、シーズンごとに別ファイルへ書き出される）。`worldAthleticsResults` には
+**順位と代表20人だけ**を残すこと。あちらは状態が変わるたび丸ごと書き直される側なので、
+走行記録を置くと大会のたびに数十KBずつ増え続けます（本戦＋アジアで年50KB、
+大陸予選を入れて年170KB。100シーズンで8MBが毎回の書き込みに乗る）。
+
+**読むのは `src/utils/waRaces.ts` の `waRaceRows` 1本です。** 置き場所が新旧2つあり
+（旧＝`worldAthleticsResults[].races`。v37の移行で移すが、移せない年もある）、
+新しいほうだけを見ると遊んでいるセーブの過去の大会が消えます。`npm run check` が見張ります。
 
 ### まだ無いもの
 

@@ -6948,11 +6948,14 @@ export const useGameStore = create<GameStore>()(
           for (const [id, pt] of Object.entries(out.points)) points[id] = (points[id] ?? 0) + pt
           // 大陸予選も同じ第◯戦を裏で走らせる（同じ年・同じコース・同じ得点）
           const contsNow = t.continentals ? advanceContinentalQualifiers(t.continentals, t.raceIndex, state.players) : undefined
-          // 大陸予選の走行記録はシーズンの側へ置く（海外リーグ・裏の部と同じ。別ファイルへ archive される）
-          const waRaces = contsNow ? { ...(state.currentSeason.waRaces ?? {}), ...contRacesOf(contsNow) } : state.currentSeason.waRaces
-          const seasonWithWa = waRaces === state.currentSeason.waRaces
-            ? state.currentSeason
-            : { ...state.currentSeason, waRaces }
+          // 世界大会の走行記録はシーズンの側へ置く（海外リーグ・裏の部と同じ。別ファイルへ archive される）。
+          // 本戦・アジア予選・大陸予選を分けない。**worldAthleticsResults の側には順位だけ残す**
+          const waRaces = {
+            ...(state.currentSeason.waRaces ?? {}),
+            [t.kind === 'main' ? 'main' : 'asia']: newRaces.filter(r => r.results),
+            ...(contsNow ? contRacesOf(contsNow) : {}),
+          }
+          const seasonWithWa = { ...state.currentSeason, waRaces }
           const nextIdx = t.raceIndex + 1
           const finished = nextIdx >= t.races.length
           if (!finished) {
@@ -7001,7 +7004,8 @@ export const useGameStore = create<GameStore>()(
               // 大陸予選は通過国と代表20人だけを恒久保存する。走行記録は Season.waRaces（別ファイル行き）
               ? { ...composeQualifierResult(t.year, rows, 3, t.host), bestPlayer, continentals: continentals && stripContRaces(continentals) }
               : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows, segPts)),
-            races: newRaces,
+            // 走行記録はここには入れない（Season.waRaces へ。読むのは utils/waRaces の1本）。
+            // ここは普段のセーブに入りっぱなしなので、置くと大会のたびに数十KBずつ増え続ける
             // 選出された駅伝代表20人を恒久保存（チームタブの代表表示・0走でも代表履歴に残すための元データ）
             squads: t.squads,
           }
@@ -7852,7 +7856,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 36,
+      version: 37,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8354,6 +8358,34 @@ export const useGameStore = create<GameStore>()(
             for (const ps of (Array.isArray(s.pastSeasons) ? s.pastSeasons as Record<string, unknown>[] : [])) {
               split(ps, true)
             }
+          }
+          // v36→v37: 世界大会の走行記録を worldAthleticsResults からシーズン側（waRaces）へ移す。
+          //
+          // worldAthleticsResults は普段のセーブに入りっぱなしで、状態が変わるたびに丸ごと
+          // 書き直される。ここに走行記録を置くと、大会のたびに数十KBずつ増え続ける
+          // （100シーズンで数MBが毎回の書き込みに乗る。過去シーズンを別置きにしたのと同じ問題）。
+          // シーズン側に移せば、他のレースと同じく1年に1回だけ別ファイルへ出る。
+          //
+          // その年のシーズンが見つからないぶん（＝今季の大会）は動かさない。
+          // 読む側（utils/waRaces）が古い置き場所も見るので、移らなくても記録は消えない。
+          if (version < 37 && Array.isArray(s.worldAthleticsResults)) {
+            const seasons = [
+              ...(Array.isArray(s.pastSeasons) ? s.pastSeasons as Record<string, unknown>[] : []),
+              ...(s.currentSeason ? [s.currentSeason as Record<string, unknown>] : []),
+            ]
+            const byYear = new Map(seasons.map(x => [x.year as number, x]))
+            s.worldAthleticsResults = (s.worldAthleticsResults as Record<string, unknown>[]).map(res => {
+              const races = res.races as { results?: unknown }[] | undefined
+              if (!Array.isArray(races) || races.length === 0) return res
+              const season = byYear.get(res.year as number)
+              if (!season) return res
+              const code = res.kind === 'main' ? 'main' : 'asia'
+              const wa = (season.waRaces as Record<string, unknown> | undefined) ?? {}
+              if (wa[code]) return res              // すでに移してある
+              season.waRaces = { ...wa, [code]: races.filter(r => r.results) }
+              const { races: _races, ...rest } = res
+              return rest
+            })
           }
 
           return s

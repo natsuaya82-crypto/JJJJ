@@ -175,6 +175,22 @@ RULES.push({
   fix: 'engine/backgroundRace.ts の runBackgroundRace を呼ぶ（並べ方も数え方もそこ）',
 })
 
+// 世界大会の走行記録は置き場所が2つある（新: Season.waRaces / 旧: worldAthleticsResults[].races）。
+// 読む側が新しいほうだけを見ると、いま遊んでいるセーブの過去の大会が丸ごと消える。
+// 取り出しは utils/waRaces の waRaceRows 1本を通すこと。
+RULES.push({
+  name: '世界大会の走行記録を直接読んでいる',
+  pattern: /\.waRaces/,
+  allow: [
+    'src/utils/waRaces.ts',          // 唯一の取り出し口（新旧どちらも吸収する）
+    'src/store/gameStore.ts',        // 書く側と旧セーブの移行
+    'src/store/seasonArchive.ts',    // 別ファイルへの書き出し・読み戻し
+    'src/utils/archiveSeason.ts',    // 過去シーズンへの詰め替え
+    'src/types/index.ts',
+  ],
+  fix: 'utils/waRaces.ts の waRaceRows を使う（本戦・アジア予選・大陸予選が年と大会名つきで返る）',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {
