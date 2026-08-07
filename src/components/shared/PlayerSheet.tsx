@@ -792,9 +792,14 @@ export default function PlayerSheet() {
                 </div>
               </div>
 
-              {/* リーグ戦の races（ドラフト候補では非表示）。縦長を避けるため3列カードで並べる。
-                  コースは毎年ランダムなので「1軍駅伝」という区分の見出しは出さない */}
-              {!isProspect && <div>
+              {/* JPEL 1軍の races（ドラフト候補では非表示）。縦長を避けるため3列カードで並べる。
+                  コースは毎年ランダムなので「1軍駅伝」という区分の見出しは出さない。
+
+                  **JPELに縁のない選手には出さない。** 海外クラブの選手にこの10本を並べると、
+                  一度も走るはずのない「出雲開幕戦」が全部空欄で10個並ぶ。
+                  いま国内クラブに居るか、過去にJPELを走ったことがある選手だけに出す
+                  （国内の新人は0走でも「これから走る10本」として並べたいので在籍で見る）。 */}
+              {!isProspect && (clubIndex.byId(player.teamId)?.isDomestic || MAIN_RACE_NAMES.some(n => raceGroupMap.has(n))) && <div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                   {MAIN_RACE_NAMES.map(name => {
                     const entries = raceGroupMap.get(name) ?? []
