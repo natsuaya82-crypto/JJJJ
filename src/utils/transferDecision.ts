@@ -31,6 +31,9 @@ import { ovr } from './playerUtils'
 import { belongsToClub } from './rosterSync'
 import { isDeclining } from '../engine/ageCurve'
 import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
+import { RUNNING_SLOTS } from '../data/rosterRules'
+// 「そのクラブで何番手か」は squadNeeds の1本
+import { squadRankOf } from './squadNeeds'
 
 /**
  * 憧れの地域は選手のタイプで決まる。持久系→アフリカ高地／スピード系→ヨーロッパのトラック／
@@ -48,8 +51,8 @@ export const DREAM_LABEL: Record<OverseasRegion, string> = {
   africa: 'アフリカ', europe: 'ヨーロッパ', america: '北米・南米',
 }
 
-/** 駅伝で実際に走れる人数。ここに入れるかどうかが「出られるか」の境目 */
-export const RUNNING_SLOTS = 7
+// 走れる人数は data/rosterRules.ts の1本。ここは今までどおり使えるように通すだけ
+export { RUNNING_SLOTS } from '../data/rosterRules'
 
 /**
  * 「そのクラブでは出番が無い」と言える序列。**国内も海外もこの1本で判定する。**
@@ -208,9 +211,8 @@ export function buildDestination(
 ): Destination {
   const roster = players.filter(p => belongsToClub(p, clubId))
   const squadSize = roster.length
-  const myOvr = opts?.player ? ovr(opts.player) : 0
-  // 自分より上手い選手が何人いるか＋1＝その クラブでの番手
-  const squadRank = opts?.player ? roster.filter(p => ovr(p) > myOvr).length + 1 : Math.ceil(squadSize / 2)
+  // 何番手になるかの数え方は squadNeeds の squadRankOf 1本（FAを取るかの判断と同じ物差し）
+  const squadRank = opts?.player ? squadRankOf(roster, opts.player) : Math.ceil(squadSize / 2)
   return {
     clubId, tier, squadRank, squadSize,
     inEcl: !!opts?.inEcl,

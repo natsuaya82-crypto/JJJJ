@@ -1,7 +1,7 @@
 import type { Player, Specialty } from '../types'
 import { SPECIALTY_LABELS } from '../types'
 import { ovr } from './playerUtils'
-import { RUNNING_SLOTS } from './transferDecision'
+import { RUNNING_SLOTS } from '../data/rosterRules'
 
 // 「そのクラブは今どのタイプが足りていないか」「その選手は欲しい選手か」を決める1本。
 //
@@ -127,6 +127,14 @@ export function needDepth(roster: readonly Player[], spec: Specialty): number {
  *   ここを needsPlayer だけで判断していたため、良いFAが誰にも取られず市場に残っていた。
  */
 export function wouldMakeLineup(roster: readonly Player[], player: Player, slots: number = RUNNING_SLOTS): boolean {
-  const better = roster.filter(p => p.status === 'active' && ovr(p) > ovr(player)).length
-  return better < slots
+  return squadRankOf(roster, player) <= slots
+}
+
+/**
+ * そのクラブに入ったら何番手になるか（1が最上位）。**序列の数え方はここ1本。**
+ * 移籍の判断（transferDecision の buildDestination）も、FAを取るかの判断もこれを使う。
+ */
+export function squadRankOf(roster: readonly Player[], player: Player): number {
+  const my = ovr(player)
+  return roster.filter(p => p.status === 'active' && ovr(p) > my).length + 1
 }

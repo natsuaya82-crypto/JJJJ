@@ -6,6 +6,22 @@ import type { Player } from '../types'
 export const ROSTER_MAX = 30          // ロスター人数上限（フラット）
 export const ROSTER_MIN = 15          // ロスター人数下限（15人はOK・14人にしようとするとブロック）
 
+/**
+ * 駅伝で実際に走れる人数。ここに入れるかどうかが「出られるか」の境目。
+ * 移籍の判断（transferDecision）と、クラブの必要（squadNeeds）の両方が使うので、
+ * どちらにも依存しないここに置く。
+ */
+export const RUNNING_SLOTS = 7
+
+/**
+ * そのクラブのロスター上限。**上限を数えるのはここ1本。**
+ * ドラフトで指名した選手を迎える枠を空けておく必要があるので、
+ * 未消化の指名権のぶんだけ上限を下げる（指名が終わっていれば0）。
+ */
+export function rosterCapOf(pendingDraftPicks: number = 0): number {
+  return ROSTER_MAX - Math.max(0, pendingDraftPicks)
+}
+
 // チームの在籍人数（引退除く）。放出・解雇の下限判定に使う。
 export function teamRosterSize(players: Player[], teamId: string): number {
   return players.filter(p => p.teamId === teamId && p.status !== 'retired').length

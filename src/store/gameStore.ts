@@ -48,7 +48,7 @@ import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, transferCapOf, DEFICIT_RESCUE_BUDGET } from '../data/economy'
-import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
+import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize, rosterCapOf } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type CardExchange } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
@@ -1152,8 +1152,8 @@ export const useGameStore = create<GameStore>()(
           //   「指名されなかった候補はFAになるので、2部・3部はそこから拾う」（CLAUDE.md）が
           //   一度も起きていなかった。判断は pickCpuFreeAgents 1本（ドラフト前と同じ）
           {
-            const capForPost = (teamId: string) => ROSTER_MAX - (state.teams.find(t => t.id === teamId)?.draftPicks ?? [])
-              .filter(pk => pk.year === state.currentSeason.year).length
+            // ドラフトは終わっているので空けておく枠は無い。数え方は同じ rosterCapOf
+            const capForPost = () => rosterCapOf(0)
             const postSignings = pickCpuFreeAgents({
               players: updatedPlayers, teams: state.teams,
               playerTeamId: state.playerTeamId, season: state.currentSeason,
@@ -4947,7 +4947,8 @@ export const useGameStore = create<GameStore>()(
         // ドラフト加入分を先に差し引いておき、ドラフト後に30を超えないようにする（32人問題の修正）
         const draftPickCounts = new Map<string, number>()
         for (const tid of pickOrder) draftPickCounts.set(tid, (draftPickCounts.get(tid) ?? 0) + 1)
-        const rosterCapFor = (teamId: string) => ROSTER_MAX - (draftPickCounts.get(teamId) ?? 0)
+        // 上限の数え方は rosterRules の rosterCapOf 1本（未消化の指名権ぶんを空けておく）
+        const rosterCapFor = (teamId: string) => rosterCapOf(draftPickCounts.get(teamId) ?? 0)
 
         // CPU teams release declining/surplus players
         // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
@@ -8611,10 +8612,9 @@ function pickCpuFreeAgents(a: {
   const teams = a.teams
   // 人数がここまでは年俸を気にせず埋める。これを超えると年俸が払える範囲だけ
   const FA_FREE_FILL = ROSTER_MIN + 9
-  const ageAdjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
   const availableFAs = players
     .filter(p => p.teamId === '' && p.status === 'active')
-    .sort((a, b) => ageAdjOvr(b) - ageAdjOvr(a))
+    .sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
   const signedFAIds = new Set<string>()
   const cpuSignings: { playerId: string; teamId: string }[] = []
   // 前年順位（運用方針・予算の基準）
@@ -8987,8 +8987,7 @@ function generateTransferActivity(
     const wantLeaveTargets = targets.filter(p => wantToLeaveIds.has(p.id))
     if (wantLeaveTargets.length > 0) targets = wantLeaveTargets
     if (targets.length === 0) continue
-    const adjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
-    targets.sort((a, b) => adjOvr(b) - adjOvr(a))
+    targets.sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
     const target = targets[0]
     const tv = calcTransferValue(target)
     // 相場まで払えないチームはオファーを出さない。
