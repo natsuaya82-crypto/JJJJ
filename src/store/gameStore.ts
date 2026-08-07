@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, type NewsItem } from '../utils/newsItems'
+import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -4689,7 +4689,13 @@ export const useGameStore = create<GameStore>()(
         const myRaceRank = result.standings.findIndex(s => s.isPlayerTeam) + 1
         const newsItems: typeof state.currentSeason.newsFeed = [{
           date: race.date,
-          headline: raceResultHeadline({ division: divisionOf(state.teams.find(t => t.id === state.playerTeamId)), raceName: race.name, location: race.location, winnerName: raceWinner?.name ?? '', myRank: myRaceRank }),
+          // ECLは部の外の大会なので部は付けない。5戦のポイント制なので何戦目かと通算順位を出す
+          headline: eclRaceHeadline({
+            raceNo: series.raceIndex + 1, totalRaces: series.races.length,
+            raceName: race.name, winnerName: raceWinner?.name ?? '',
+            myRank: myRaceRank,
+            myTotalRank: rankedStandings(series.participants.map(pt => ({ id: pt.id, totalPoints: series.points[pt.id] ?? 0 }))).findIndex(x => x.id === state.playerTeamId) + 1,
+          }),
           category: 'race' as const,
           relatedIds: [race.id],
         }]

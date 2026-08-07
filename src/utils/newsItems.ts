@@ -118,3 +118,33 @@ export function retirementHeadline(a: {
 export function divisionChampionHeadline(year: number, division: Division, clubName: string): string {
   return `${year} JPEL${DIVISION_LABEL[division]} 優勝：${clubName}`
 }
+
+/**
+ * ECLの1戦の結果。ECLは部の外の大会なので部は付けない。
+ * 何戦目か・通算何位かを出す（5戦のポイント制なので、途中経過が分からないと追えない）
+ */
+export function eclRaceHeadline(a: {
+  raceNo: number
+  totalRaces: number
+  raceName: string
+  winnerName: string
+  myRank?: number
+  myTotalRank?: number
+}): string {
+  const mine = a.myRank && a.myRank > 0
+    ? `。自チームは${a.myRank}位${a.myTotalRank && a.myTotalRank > 0 ? `（通算${a.myTotalRank}位）` : ''}`
+    : ''
+  return `【ECL第${a.raceNo}戦/${a.totalRaces}】${a.raceName}：${a.winnerName}が制す${mine}`
+}
+
+/** 世界選手権の本戦の結果 */
+export function worldChampHeadline(a: { year: number; eventName: string; winner: string; japanRank?: number }): string {
+  const jp = a.japanRank && a.japanRank > 0 ? `。日本は${a.japanRank}位` : ''
+  return `【世界選手権】${a.year} ${a.eventName}：${a.winner}が優勝${jp}`
+}
+
+/** 日本代表の選出。自チームから選ばれたかは呼ぶ側が major で立てる */
+export function nationalCallUpHeadline(a: { year: number; names: string[]; mineCount: number }): string {
+  const mine = a.mineCount > 0 ? `（うち自チーム${a.mineCount}名）` : ''
+  return `【日本代表】${a.year} 代表に${a.names.length}名が選出${mine}：${a.names.slice(0, 5).join('・')}${a.names.length > 5 ? ' ほか' : ''}`
+}
