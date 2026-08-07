@@ -75,6 +75,8 @@ export type ContractTalkCtx = {
   retiringIds: Set<string>
   /** フリー移籍で他クラブが接触中の選手ID */
   freeContactIds: Set<string>
+  /** 売却の返事をして、行き先が決まるのを待っている選手ID（pendingSale） */
+  pendingSaleId?: string
   contractRequests: ContractRequest[]
 }
 
@@ -83,6 +85,7 @@ type SeasonLike = {
   contractRequests?: ContractRequest[]
   incomingOffers?: IncomingOffer[]
   retirementRequests?: { playerId: string }[]
+  pendingSale?: { playerId: string }
 }
 
 /** currentSeason から判定に必要なものを1回で取り出す。呼び出し側で組み立て直さないこと */
@@ -92,6 +95,7 @@ export function contractTalkCtx(season: SeasonLike, teamId: string): ContractTal
     year: season.year,
     retiringIds: new Set((season.retirementRequests ?? []).map(r => r.playerId)),
     freeContactIds: freeContactIdsOf(season.incomingOffers),
+    pendingSaleId: season.pendingSale?.playerId,
     contractRequests: season.contractRequests ?? [],
   }
 }
@@ -107,6 +111,9 @@ export function contractTalkCtx(season: SeasonLike, teamId: string): ContractTal
 export function canOfferRenewal(p: Player, ctx: ContractTalkCtx): boolean {
   if (!canStartContractTalk(p, { teamId: ctx.teamId, currentYear: ctx.year, retiringIds: ctx.retiringIds })) return false
   if ((p.renewalLockedUntilYear ?? 0) > ctx.year) return false
+  // 売ると返事をして行き先が決まるのを待っている選手には、契約の話を持ちかけない。
+  // 「1.3億でお譲りします」の直後に「契約延長の話をする（前倒し）」が出ていた
+  if (ctx.pendingSaleId === p.id) return false
   return true
 }
 

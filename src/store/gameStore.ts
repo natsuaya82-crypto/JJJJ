@@ -52,6 +52,7 @@ import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRost
 import type { OfferOutcome } from '../utils/offerResult'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type CardExchange } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
+import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
 import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 // セーブに「何を書かないか」は ephemeralState.ts に集約してある（画面の開閉状態と読まれない残骸）
@@ -7827,7 +7828,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 33,
+      version: 34,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8233,6 +8234,19 @@ export const useGameStore = create<GameStore>()(
           //      過ぎているので「作成済み」にしておく。ここを false のままにすると、
           //      アップデート記念のぶん（配分560）が初年度枠として500で開いてしまう。
           if (version < 33 && s.isInitialized) s.inauguralPlayerCreated = true
+
+          // v34: 海外クラブの表示名が5文字で切られていた（「ストックホルム」が「ストックホ」）。
+          //      正しい都市名は FOREIGN_CLUB_CITY にそろっているのに、shortName に別途
+          //      切り詰めた値を持っていたのが原因。都市名1本に直す。
+          if (version < 34 && Array.isArray(s.foreignLeagues)) {
+            s.foreignLeagues = (s.foreignLeagues as { clubs?: Record<string, unknown>[] }[]).map(l => ({
+              ...l,
+              clubs: (l.clubs ?? []).map(c => {
+                const city = FOREIGN_CLUB_CITY[c.id as string]
+                return city ? { ...c, shortName: city } : c
+              }),
+            }))
+          }
 
           return s
         } catch (e) {

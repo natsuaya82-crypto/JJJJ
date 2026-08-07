@@ -485,7 +485,11 @@ function ChatView({
     const body = m.text.slice(hit[0].length)
     if (label === '代理人') return { name: '代理人', club: undefined, text: body }
     const short = label.endsWith('GM') ? label.slice(0, -2) : label
+    // 前置きの括弧はクラブの表示名で書かれている。海外クラブの名前を都市名に直したので、
+    // それより前に書かれたログは切れた名前（「ストックホ」）のまま残っている。
+    // 前方一致でも拾って、古いログでもクラブ名とロゴが出るようにする
     const club = clubIndex.all.find(c => c.shortName === short)
+      ?? clubIndex.all.find(c => c.shortName.startsWith(short))
     return { name: club ? club.shortName : short, club, text: body }
   }
 
