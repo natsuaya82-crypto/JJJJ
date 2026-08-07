@@ -23,7 +23,8 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
-import { rankedStandings, standingRowOf, domesticThroughRankOfTeam, domesticThroughRank, DIVISIONS, DIVISION_SIZE, DIVISION_LABEL } from '../../utils/league'
+import { rankedStandings, domesticThroughRank, DIVISIONS, DIVISION_LABEL } from '../../utils/league'
+import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague } from '../../utils/clubStanding'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -146,44 +147,25 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     .sort(comparePlayers('ovr'))
   const teamSalary = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
 
-  // 現在順位・ポイント・直近フォーム（国内=standings / 海外=foreignStandings）
-  const curForeignStandings = isForeign ? (currentSeason.foreignStandings?.[leagueId!] ?? []) : []
-  const standing = isForeign
-    ? curForeignStandings.find(s => s.clubId === id)
-    : standingRowOf(currentSeason, id)
-  const rank = isForeign
-    ? rankedStandings(curForeignStandings).findIndex(s => s.clubId === id) + 1
-    // 得点で52チームを直接並べない（部ごとにレース数が違う）。部内順位→通し順位で出す
-    : domesticThroughRankOfTeam(currentSeason, id)
+  // 現在順位・ポイント・直近フォーム。**引き方は utils/clubStanding の1本**（国内も海外も同じ）。
+  // 順位表の置き場所は国内(standings)と海外(foreignStandings)で分かれているが、
+  // 読む側がそれを知る必要はない。以前はここだけで6か所が二重になっていた
+  const standing = clubStandingRow(currentSeason, id)
+  const rank = clubSeasonRank(currentSeason, id).rank
   const standingPoints = standing?.totalPoints ?? 0
   const recentForm = (standing?.raceResults ?? []).slice(-4)
-  const completedRaces = isForeign
-    ? (standing?.raceResults?.length ?? 0)
-    : currentSeason.races.filter(r => r.results).length
+  const completedRaces = clubRacesDone(currentSeason, id)
 
-  // 歴代成績（過去シーズンの最終順位）
-  const historyRanks = (pastSeasons ?? []).map(s => {
-    if (isForeign) {
-      const st = rankedStandings((s.foreignStandings?.[leagueId!] ?? []))
-      const r = st.findIndex(x => x.clubId === id) + 1
-      return { year: s.year, rank: r, total: st.length }
-    }
-    // 国内は通し順位（1〜52）。順位表は部ごとに分かれているので、
-    // その年に走った部の中での順位から通し順位を出す（昇降格していても狂わない）
-    const r = domesticThroughRankOfTeam(s, id)
-    return { year: s.year, rank: r, total: DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0) }
-  }).filter(h => h.rank > 0).slice(-8)
+  // 歴代成績（過去シーズンの最終順位）。国内は通し順位（1〜52）、海外はリーグ内順位。
+  // どちらで数えるかも clubSeasonRank が持っている
+  const historyRanks = (pastSeasons ?? []).map(s => ({ year: s.year, ...clubSeasonRank(s, id) }))
+    .filter(h => h.rank > 0).slice(-8)
 
   // トロフィー
   const titles: { label: string; count: number; color: string }[] = []
   if (isForeign) {
     // 海外はリーグ優勝回数（過去シーズンの当該リーグ順位表1位）
-    const leagueTitles = (pastSeasons ?? []).filter(s => {
-      const st = s.foreignStandings?.[leagueId!]
-      if (!st || st.length === 0) return false
-      const top = rankedStandings(st)[0]
-      return top.clubId === id
-    }).length
+    const leagueTitles = (pastSeasons ?? []).filter(s => clubWonLeague(s, id)).length
     if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: '#C9A84C' })
   } else {
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
