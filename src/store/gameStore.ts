@@ -5134,14 +5134,28 @@ export const useGameStore = create<GameStore>()(
             playersAfterCpuTransfer.filter(p => p.teamId === teamId && p.status === 'active' && !p.loan).length
           const givenLoan: Record<string, number> = {}
           const receivedLoan: Record<string, number> = {}
-          for (const senderId of cpuIdsForLoan) {
-            if (mainCount(senderId) <= 21 || (givenLoan[senderId] ?? 0) >= 1) continue
-            const receiver = cpuIdsForLoan.find(id => id !== senderId && mainCount(id) < 17 && (receivedLoan[id] ?? 0) < 1)
-            if (!receiver) continue
-            const candidate = playersAfterCpuTransfer
-              .filter(p => p.teamId === senderId && p.status === 'active' && !p.loan && !loanedIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
-              .sort((a, b) => ovr(a) - ovr(b))[0]
-            if (!candidate) continue
+          // ★動かすのは借りたい側。**出番の無い若手を、走らせてくれるクラブが借りに行く**。
+          //   以前は「人数が多いクラブが一番弱い選手を、人数の少ないクラブへ渡す」だけで、
+          //   頭数合わせにしかなっていなかった（借りた側は走らせる気のない選手を受け取る）。
+          //   出番の判定は hasNoPlayingTime、必要かどうかは needsPlayer。どちらも既存の1本。
+          const rosterOf = (teamId: string) => playersAfterCpuTransfer
+            .filter(p => p.teamId === teamId && p.status === 'active' && !p.loan)
+            .sort(comparePlayers('ovr'))
+          for (const receiver of cpuIdsForLoan) {
+            if ((receivedLoan[receiver] ?? 0) >= 1 || mainCount(receiver) >= ROSTER_MAX) continue
+            const myRoster = rosterOf(receiver)
+            let candidate: Player | undefined
+            let senderId = ''
+            for (const sid of cpuIdsForLoan) {
+              if (sid === receiver || (givenLoan[sid] ?? 0) >= 1) continue
+              const sRoster = rosterOf(sid)
+              const found = sRoster.find((p, i) =>
+                hasNoPlayingTime(i + 1) && p.age <= 24
+                && !loanedIds.has(p.id) && p.joinedYear !== state.currentSeason.year
+                && needsPlayer(myRoster, p))
+              if (found) { candidate = found; senderId = sid; break }
+            }
+            if (!candidate || !senderId) continue
             loanedIds.add(candidate.id)
             givenLoan[senderId] = (givenLoan[senderId] ?? 0) + 1
             receivedLoan[receiver] = (receivedLoan[receiver] ?? 0) + 1
