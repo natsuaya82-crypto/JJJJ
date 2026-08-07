@@ -51,6 +51,7 @@ export type TalkLists = {
   retirementRequests?: { playerId: string; age: number }[]
   transferRequests?: { playerId: string; reason: 'playing_time' | 'team_performance' | 'unhappy' }[]
   overseasRequests?: { playerId: string; region: OverseasRegion }[]
+  pendingSale?: { offerId: string; playerId: string; atRaceIndex: number }
   chatLogs?: Record<string, ChatMessage[]>
 }
 
@@ -128,7 +129,8 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
   const put = <K extends keyof TalkLists>(key: K, before: TalkLists[K], after: NonNullable<TalkLists[K]>) => {
     if (!before) return
     const b = before as unknown[]
-    if (b.length === after.length && (after as unknown[]).every((x, i) => x === b[i])) return
+    const a = after as unknown[]
+    if (b.length === a.length && a.every((x, i) => x === b[i])) return
     changed[key] = after as TalkLists[K]
   }
 
@@ -148,6 +150,13 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
       if (s === 'overseas') return !!o.fromForeign
       return true
     }))
+
+  // 「譲ります」と返事をした記録。相手の札と同じ前提で立っているので、その選手が
+  // 自チームから居なくなった／引退の話が決まったら一緒にたたむ。
+  // 残ると、決着のときに相手の居ない話を成立させようとする（＝黙って消える）
+  if (talks.pendingSale && (!at(talks.pendingSale.playerId, myTeamId) || settled(talks.pendingSale.playerId) === 'retiring')) {
+    changed.pendingSale = undefined
+  }
 
   // レンタル打診：貸してほしい＝自チームの選手／借りませんか＝相手クラブの選手。
   // 貸してほしい側は、進路が決まった選手なら断るまでもなく取り下げ

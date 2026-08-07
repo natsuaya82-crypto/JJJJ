@@ -24,6 +24,7 @@ import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
+import { offersAwaitingReply } from '../../utils/notifItems'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
@@ -426,8 +427,9 @@ export default function TransferPage() {
 
 
       {tab === 'listings' && (() => {
-        // フリー移籍の接触（offeredPrice=0）はGMが対応できないため対応カードから除外（通知ページで情報表示）
-        const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o => o.offeredPrice > 0)
+        // 返事が要るオファーの判定は offersAwaitingReply 1本（ベル・チャット一覧と同じ）。
+        // フリー移籍の接触（offeredPrice=0）と、「譲ります」と返事済みの選手はここに出ない
+        const incomingOffers = offersAwaitingReply(currentSeason)
         const listings = currentSeason.transferListings ?? []
         const listedIds = new Set(listings.map(l => l.playerId))
 

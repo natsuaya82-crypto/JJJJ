@@ -17,7 +17,7 @@ import { OfferResultList } from '../transfer/OfferResultList'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
-import { offersByPlayer } from '../../utils/notifItems'
+import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
@@ -1535,12 +1535,17 @@ export default function ChatPage() {
   // 相手から来たオファー（移籍・レンタル）＝チャットで対応
   const teamName = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'
   // 引き留めを断られた接触（retentionRefused）は対応済み：一覧・件数に出さず、本人の決断を待つだけ
-  const incomingOffers = (currentSeason.incomingOffers ?? []).filter(o =>
-    players.some(p => p.id === o.playerId && p.teamId === playerTeamId) && !(o.offeredPrice === 0 && o.retentionRefused))
+  const mineHere = (pid: string) => players.some(p => p.id === pid && p.teamId === playerTeamId)
+  // 返事が要る買い取り打診は offersAwaitingReply 1本（ベル・移籍ページと同じ判定）。
+  // 「譲ります」と返事済みの選手はここに出ない
+  const buyOffers = offersAwaitingReply(currentSeason).filter(o => mineHere(o.playerId))
+  // フリー移籍の接触はGMが返事をする話ではない情報通知。引き留めを断られたぶんは対応済み
+  const freeContactOffers = (currentSeason.incomingOffers ?? []).filter(o =>
+    o.offeredPrice === 0 && mineHere(o.playerId) && !o.retentionRefused)
   const incomingLoanOffers = currentSeason.incomingLoanOffers ?? []
   // 数えるのは用件の数＝選手の数。5クラブが1人を取り合っても返事は1回（ベルと同じ数え方）
-  const inboundCount = offersByPlayer(incomingOffers.filter(o => o.offeredPrice > 0)).length
-    + offersByPlayer(incomingOffers.filter(o => o.offeredPrice === 0)).length
+  const inboundCount = offersByPlayer(buyOffers).length
+    + offersByPlayer(freeContactOffers).length
     + incomingLoanOffers.length
 
   const closeConversation = (clear: () => void) => {
@@ -1728,7 +1733,7 @@ export default function ChatPage() {
               </div>
             )}
             <OfferResultList results={offerResults} dismiss={dismissOfferResult} spacing={2} />
-            {incomingOffers.filter(o => o.offeredPrice === 0).map(o => {
+            {freeContactOffers.map(o => {
               // フリー移籍の接触：GMは対応できず、本人が数戦後に決断する（情報表示のみ）
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
@@ -1752,7 +1757,7 @@ export default function ChatPage() {
                 「会話で答える用件」と「ボタンで答える用件」が混ざっていた */}
             {/* 取り合いになっていても行は選手ごとに1つ。返事をするのは1回で、会話も1本。
                 数え方は utils/notifItems.ts の offersByPlayer 1本（ベルの数字と揃える） */}
-            {offersByPlayer(incomingOffers.filter(o => o.offeredPrice > 0)).map(g => {
+            {offersByPlayer(buyOffers).map(g => {
               const p = players.find(pl => pl.id === g.playerId)
               if (!p) return null
               const n = g.offers.length

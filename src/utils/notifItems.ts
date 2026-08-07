@@ -71,6 +71,27 @@ export type NotifInput = {
  * オファーの件数で数えると、ベルは5なのにチャットの行は1つ、という数のズレになる。
  * ベルの数字・通知ページ・チャットの一覧は全部これを通すこと。
  */
+/**
+ * GMの返事を待っている買い取り打診。**「返事が要るオファー」はここ1本。**
+ *
+ * ■なぜ要るのか
+ *   「譲ります」と返事をしても、オファーの札は次のレースまで残る（他クラブの上乗せを
+ *   受けるため）。それを未返事として数えていた場所が4つあり、返事をしたのに
+ *     ・ベルが減らない（押すと同じチャットに戻る）
+ *     ・チャット一覧に「◯◯が獲得を打診」が残る
+ *     ・移籍ページに「他クラブからのオファー N件 — 要確認」が残る
+ *   という状態になっていた。返事済みかどうかは currentSeason.pendingSale が唯一の記録。
+ *
+ * ■フリー移籍の接触（金額0）は含めない
+ *   GMが返事をする話ではない（情報通知）。呼ぶ側でそれぞれ分けていたので、ここで落とす。
+ */
+export function offersAwaitingReply(
+  season: Pick<Season, 'incomingOffers' | 'pendingSale'>,
+): NonNullable<Season['incomingOffers']> {
+  const answered = season.pendingSale?.playerId
+  return (season.incomingOffers ?? []).filter(o => o.offeredPrice > 0 && o.playerId !== answered)
+}
+
 export function offersByPlayer<T extends { playerId: string }>(offers: readonly T[]): { playerId: string; offers: T[] }[] {
   const out: { playerId: string; offers: T[] }[] = []
   for (const o of offers) {
@@ -93,11 +114,8 @@ export function collectNotifications(input: NotifInput) {
   // 移籍金つきのオファーと、フリー移籍の接触（金額0＝GMは関与できない情報通知）は別扱い
   const allIncoming = currentSeason.incomingOffers ?? []
   const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
-  // 「譲ります」と返事済みの選手は数えない。返事をしても他クラブの上乗せを受けるため
-  // オファーの札は次のレースまで残る。そのまま数えていたので、返事をしたのにベルが
-  // 減らず、押すと同じチャットに戻る（＝何度でも返事ができるように見える）状態だった
-  const answeredSaleId = currentSeason.pendingSale?.playerId
-  const incomingOffers = allIncoming.filter(o => o.offeredPrice > 0 && isMine(o.playerId) && o.playerId !== answeredSaleId)
+  // 返事が要るオファーの判定は offersAwaitingReply 1本（返事済み＝pendingSale を除く）
+  const incomingOffers = offersAwaitingReply(currentSeason).filter(o => isMine(o.playerId))
   // 数えるのは選手の数。5クラブが1人を取り合っても返事は1回なので1件
   const incomingOfferPlayers = offersByPlayer(incomingOffers)
   // 行き先が決まらなかった退団予定の選手（FAで出すか残留させるかの返事待ち）。
