@@ -224,6 +224,16 @@ RULES.push({
   fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
 })
 
+// チャットのログは2つの経路で積まれる（ボタンでその場で足す／次に開いて作り直す）。
+// 同じ用件を両方が別の文で書くと、重複を潰す仕組み（kind で突き合わせる）を素通りして
+// 同じ礼が2回並ぶ。承諾したあとの本人の返事は utils/chatLines の1本から取ること。
+RULES.push({
+  name: '承諾後の返事を画面に直書きしている',
+  pattern: /海外挑戦を認めていただき|今季限りで引退します/,
+  allow: ['src/utils/chatLines.ts'],
+  fix: 'utils/chatLines.ts の overseasApprovedLine / retireApprovedLine を使う',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

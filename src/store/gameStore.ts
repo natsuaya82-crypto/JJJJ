@@ -1247,6 +1247,20 @@ export const useGameStore = create<GameStore>()(
               const reason = outcome === 'roster_min'
                 ? `（代理人）在籍人数が下限を下回るため、${p.name}の移籍は成立しませんでした。残留します`
                 : `（代理人）${p.name}は最後まで悩みましたが、移籍しないことに決めました。残留します`
+              // ★本人が「行かない」と決めた以上、**そのとき打診していたクラブは今季もう来ない**。
+              //   ここを入れ忘れていたので、「移籍しないことに決めました。残留します」の直後に
+              //   同じクラブからまた「◯億でお譲りいただけないでしょうか」が並んでいた。
+              //   （断られたクラブだけを止める。全クラブを止めると「格下を蹴って、あとから来る
+              //    格上へ行く」ができなくなる — utils/transferEligibility の canClubApproachAgain）
+              const refusedClubs = outcome === 'refused'
+                ? [...new Set((cs0.incomingOffers ?? []).filter(o => o.playerId === ps.playerId).map(o => o.fromTeamId))]
+                : []
+              if (refusedClubs.length > 0) {
+                const year = get().currentSeason.year
+                set(st => ({ players: st.players.map(pl => pl.id === ps.playerId
+                  ? { ...pl, saleRefused: { ...(pl.saleRefused ?? {}), ...Object.fromEntries(refusedClubs.map(c => [c, year])) } }
+                  : pl) }))
+              }
               set(st => ({ currentSeason: {
                 ...appendChatLog(st.currentSeason, ps.playerId, { from: 'player', text: reason }),
                 // 残った札は全部たたむ。残すと次のレースでまた同じ返事を求められる

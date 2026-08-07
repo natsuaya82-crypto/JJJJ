@@ -16,6 +16,7 @@ import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
+import { overseasApprovedLine, retireApprovedLine, settledLineOf } from '../../utils/chatLines'
 import { settledPath } from '../../utils/talkSync'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
@@ -71,13 +72,11 @@ function buildMessages(
   // 進路が決まった選手（引退を承認した・海外挑戦を承認した）は、ここで会話を閉じる。
   // 判定は talkSync の settledPath 1本。ここは分岐の書き足しになっていて海外挑戦のぶんしか無く、
   // **引退を承認した選手は次に開くと来季契約の話に戻っていた**（そこから移籍にも進めた）
-  const settled = settledPath(player)
-  if (settled === 'retiring') {
-    msgs.push({ from: 'player', kind: 'retire_ok', text: `今季限りで引退します。最後のシーズン、悔いの残らないように走り切ります。` })
-    return msgs
-  }
-  if (settled === 'overseas') {
-    msgs.push({ from: 'player', kind: 'overseas_ok', text: `海外挑戦を認めていただき、ありがとうございます。${OVERSEAS_LABEL[player.overseasListed ?? ''] ?? '海外'}のクラブからの話を待ちます。` })
+  // 文面は utils/chatLines の1本（ボタンで足すときと同じものを使う）。
+  // 別々に書いていたので、承諾したときとその次に開いたときで礼が2回並んでいた
+  const settledLine = settledLineOf(player)
+  if (settledLine) {
+    msgs.push(settledLine)
     return msgs
   }
 
@@ -801,7 +800,8 @@ function ChatView({
         // 即引退ではなく「今季限りで引退」。シーズン終了時に正式に引退する
         append(
           { from: 'gm', text: 'わかりました。今シーズン限り、ですね。最後まで頼みます。' },
-          { from: 'player', text: 'ありがとうございます。今シーズンを最後に引退します。残りのレース、最後まで走り切ります！' },
+          // 次に開いて作り直したときと同じ発言にする（kind が同じなので二重に並ばない）
+          retireApprovedLine(),
         )
         acceptRetirement(player.id)
         setJustRetired(true)
@@ -859,7 +859,8 @@ function ChatView({
       { label: `海外挑戦を認める（${OVERSEAS_LABEL[overseasReq.region] ?? '海外'}）`, color: C.purple ?? '#A855F7', action: () => {
         append(
           { from: 'gm', text: 'わかりました。あなたの走りはもう世界レベルです。夢を応援します。良いオファーを待ちましょう。' },
-          { from: 'player', text: 'ありがとうございます！絶対に結果を出します。オファーが来たらよろしくお願いします！' },
+          // 次に開いて作り直したときと同じ発言にする（kind が同じなので二重に並ばない）
+          overseasApprovedLine(overseasReq.region),
         )
         approveOverseasChallenge(player.id)
       }},
