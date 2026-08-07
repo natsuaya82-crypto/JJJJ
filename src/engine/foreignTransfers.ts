@@ -13,21 +13,12 @@ import { allForeignClubs, leagueIdByClub, isEliteLeague } from '../utils/clubs'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
 import { movePlayer } from '../utils/movePlayer'
 // 海外クラブの年間予算（クラブIDとリーグから毎回同じ額が出る）
-import { foreignClubBudget } from '../utils/foreignClubProfile'
+import { foreignClubBudget, foreignMinOvr, effectiveOvr } from '../utils/foreignClubProfile'
 
 const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
 
-// リーグの格ごとのOVR下限。これ未満の選手はそのリーグへ海外移籍しない（弱いベンチ選手が格上へ流出しないように）
-const FOREIGN_LEAGUE_MIN_OVR: Record<string, number> = {
-  ETH: 85, KEN: 85, UGA: 85, TAN: 85,   // アフリカ
-  USA: 80,                               // 米国
-  KOR: 70, CHN: 70, TWN: 70,             // アジア
-}
-const foreignMinOvr = (country: string): number => FOREIGN_LEAGUE_MIN_OVR[country] ?? 75  // その他
-
-// 年齢を加味した実効OVR。33歳から1歳ごとに3下げる（35歳の85は実効79相当＝格上には打診されない）。
-// 「高齢の高OVRは翌年急落するので海外から打診されない」を表現する。
-const effectiveOvr = (p: Player): number => ovr(p) - Math.max(0, (p.age - 33) * 3)
+// 「そのリーグが受け入れるOVRの下限」と「年齢を加味した実効OVR」は
+// utils/foreignClubProfile.ts の1本（gameStore の打診生成も同じ物差しを使う）
 
 // ニュースの形と文面は utils/newsItems 1本（ここで別の型・別の文面を作らない）
 import type { NewsItem } from '../utils/newsItems'

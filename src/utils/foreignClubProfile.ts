@@ -1,4 +1,5 @@
-import type { Facilities, ForeignClub } from '../types'
+import type { Facilities, ForeignClub, Player } from '../types'
+import { ovr } from './playerUtils'
 import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 import { foreignClubGmName } from '../engine/playerGenerator'
 import { isEliteLeague } from './clubs'
@@ -91,4 +92,31 @@ export function foreignClubFacilities(club: Pick<ForeignClub, 'id' | 'leagueId'>
     scoutOffice: lv(15),
     tacticsRoom: lv(21),
   }
+}
+
+// ── そのリーグが受け入れる選手の水準 ────────────────────────
+//
+// ■なぜ要るのか
+//   海外クラブからの買い取り打診で、行き先のクラブを**全180クラブから機械的に1つ**選んでいた。
+//   そのため3部（格20）のOVR70の選手に、格1のマドリードから打診が来ていた。
+//   海外クラブ同士の移籍（engine/foreignTransfers）には元からこの下限があったのに、
+//   打診の生成側がそれを見ていなかった。**同じ物差しをここ1本から出す。**
+
+/** リーグ（国）ごとのOVR下限。これ未満の選手はそのリーグから声が掛からない */
+const FOREIGN_LEAGUE_MIN_OVR: Record<string, number> = {
+  ETH: 85, KEN: 85, UGA: 85, TAN: 85,   // アフリカ
+  USA: 80,                               // 米国
+  KOR: 70, CHN: 70, TWN: 70,             // アジア
+}
+export function foreignMinOvr(country: string | undefined): number {
+  return FOREIGN_LEAGUE_MIN_OVR[country ?? ''] ?? 75   // その他
+}
+
+/**
+ * 年齢を加味した実効OVR。33歳から1歳ごとに3下げる。
+ * 35歳のOVR85は実効79相当＝格上のリーグからは声が掛からない。
+ * 「高齢の高OVRは翌年急落するので、移籍金を払ってまで獲らない」を表す。
+ */
+export function effectiveOvr(p: Player): number {
+  return ovr(p) - Math.max(0, (p.age - 33) * 3)
 }

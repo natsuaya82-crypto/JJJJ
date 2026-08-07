@@ -63,6 +63,7 @@ import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersB
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs, originalDivisionOf } from '../utils/domesticClubs'
 // 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
 import { SPECIALTIES, thinSpecialties, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
+import { foreignMinOvr, effectiveOvr } from '../utils/foreignClubProfile'
 import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
@@ -8726,20 +8727,39 @@ function generateForeignAndLoanOffers(params: {
     }
   }
 
-  // 1) 海外クラブからの移籍オファー（自チームの上位選手を狙う）。
-  // 発生率30%→55%・最大2件・対象OVR74→70に緩和（海外クラブが多数あるのに打診がほぼ来ない問題の解消）
+  // 1) 海外クラブからの移籍オファー（自チームの選手を狙う）。
+  //
+  // ★行き先は「その選手を欲しがるクラブ」から選ぶこと。
+  //   以前は foreignClubs[(ovr + raceIndex) % 全180クラブ] と、**適当な1クラブ**を
+  //   機械的に選んでいた。そのため3部（格20）のOVR70の選手に、世界最高峰のマドリード
+  //   （格1）から打診が来ていた。「クラブは必要だから動く」という決まりを通っていない。
+  //
+  //   2つの物差しで絞る。どちらも既にある1本を使う（ここで新しい条件を書かない）。
+  //     ・そのリーグが受け入れる水準か … foreignClubProfile の foreignMinOvr／effectiveOvr
+  //       （海外クラブ同士の移籍が元から使っていたのと同じ物差し）
+  //     ・そのクラブが必要としているか … squadNeeds の needsPlayer／wouldMakeLineup
+  //       （穴が空いている、またはそのクラブで走れる7人に入る）
   if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.55) {
     // 高齢選手（34歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
     const targets = [...myMain]
       .filter(p => !offeredIds.has(p.id) && ovr(p) >= 70 && p.age <= 33 && canBePoached(p, eligCtx))
       .sort(comparePlayers('ovr'))
       .slice(0, 4)
+    const rosterOfClub = (clubId: string) => players.filter(p => p.teamId === clubId && p.status === 'active')
+    const suitorsFor = (target: Player) => foreignClubs.filter(c => {
+      if (effectiveOvr(target) < foreignMinOvr(c.country)) return false
+      const r = rosterOfClub(c.id)
+      if (r.length === 0) return false
+      return needsPlayer(r, target) || wouldMakeLineup(r, target)
+    })
     const nOffers = targets.length > 0 ? (Math.random() < 0.35 ? 2 : 1) : 0
     for (let oi = 0; oi < Math.min(nOffers, targets.length); oi++) {
       // 1件目は最上位、2件目はそれ以外からランダム（同じ選手に集中させない）
       const target = oi === 0 ? targets[0] : targets[1 + Math.floor(Math.random() * (targets.length - 1))]
       if (!target) continue
-      const club = foreignClubs[(ovr(target) + raceIndex + oi * 7) % foreignClubs.length]
+      const suitors = suitorsFor(target)
+      if (suitors.length === 0) continue
+      const club = suitors[(ovr(target) + raceIndex + oi * 7) % suitors.length]
       if (!clubMayOffer(target, club.id, foreignIncoming)) continue
       const tv = calcTransferValue(target)
       foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: roundFee(tv * (0.95 + Math.random() * 0.25), 1_000_000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
