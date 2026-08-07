@@ -40,6 +40,8 @@ export async function syncNow(): Promise<void> {
 
     const roster = st.players.filter(p => p.teamId === st.playerTeamId)
     if (roster.length === 0) return
+    // 殿堂入りチーム。ロスターと同じ行に相乗りさせて送る（lib/friendsApi の pushMyRoster）
+    const hof = st.hofRoster ?? []
 
     const avgOvr = Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length)
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）。
@@ -52,11 +54,14 @@ export async function syncNow(): Promise<void> {
       // 名前も指紋に入れる。入れないと、改名しただけのときに「前と同じ」と判断されて
       // 一生送られず、友達側にいつまでも古い名前が出たままになる。
       a: avgOvr, r: roster.map(p => `${p.id}:${p.name}:${ovr(p)}`).join(','),
+      // 殿堂入りも指紋に入れる。入れないと、登録・解除しただけのときに
+      // 「前と同じ」と判断されて一生送られず、相手にいつまでも出ない
+      h: hof.map(x => `${x.player.id}:${x.year}:${x.ovr}`).join(','),
     }))
     if (localStorage.getItem(STAMP_KEY) === stamp) return
 
     await pushMyProfile(team, avgOvr, champs)
-    await pushMyRoster(roster)
+    await pushMyRoster(roster, hof)
     localStorage.setItem(STAMP_KEY, stamp)
   } catch {
     // オフライン等。次回の起動・シーズン更新でまた試す。
@@ -69,7 +74,11 @@ export async function syncNow(): Promise<void> {
 export function useFriendSync() {
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const year = useGameStore(s => s.currentSeason?.year)
+  // 殿堂入りは「登録した直後に相手へ出る」ものなので、シーズンの変わり目まで待たない。
+  // 配列は登録・解除のときだけ差し替わるので、これで通信が増え続けることはない
+  // （中身が前と同じなら syncNow が指紋を見て通信しない）
+  const hofRoster = useGameStore(s => s.hofRoster)
 
   // オンライン（フレンド）を公開していない間は、アカウント作成もチーム情報の送信も一切行わない
-  useEffect(() => { if (ONLINE_ENABLED) void syncNow() }, [playerTeamId, year])
+  useEffect(() => { if (ONLINE_ENABLED) void syncNow() }, [playerTeamId, year, hofRoster])
 }

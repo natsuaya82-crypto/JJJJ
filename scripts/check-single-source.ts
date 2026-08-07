@@ -115,6 +115,15 @@ RULES.push({
   fix: 'raceRecord.ts の seasonHasFullRecords を使う',
 })
 
+// 相手のロスターと殿堂入りは同じ行（rosters）に入っている。
+// 別々に読みに行くと、読める相手の条件（フレンド／同じ走友会）が経路ごとにズレる。
+RULES.push({
+  name: 'rosters を直接読み書きしている',
+  pattern: /from\(\s*'rosters'\s*\)/,
+  allow: ['src/lib/friendsApi.ts'],
+  fix: 'friendsApi.ts の getFriendShare / pushMyRoster を通す（supabase/hof_share.sql）',
+})
+
 // ★走行記録の一本化が終わったら、この見張りを有効にすること（いまは40か所が該当）。
 //   裏の部と海外だけ結果を捨てて出走数の集計に置き換えているのが、
 //   「1部が試合されていない」「海外クラブを引き継ぐと過去が無い」の原因。

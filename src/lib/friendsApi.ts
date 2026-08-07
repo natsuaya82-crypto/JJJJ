@@ -1,7 +1,7 @@
 // フレンド機能のサーバー窓口。mockFriends.ts の置き換え。
 // UI側の型（Friend / FriendRequest）はモック時代と同じ形のまま維持して、
 // 画面側の書き換えを最小限にしている。
-import type { Player, Team } from '../types'
+import type { HofPlayer, Player, Team } from '../types'
 import { supabase, ensureAuth } from './supabase'
 import { withoutBlocked } from './moderationApi'
 import { defaultLogoIdFor, hashedLogoIdFor } from '../data/logoPresets'
@@ -163,12 +163,22 @@ export async function pushMyProfile(team: Team | undefined, avgOvr: number, cham
   if (error) throw new FriendsOffline()
 }
 
-/** 自分のロスター（スナップショット）をサーバーへ反映 */
-export async function pushMyRoster(players: Player[]): Promise<void> {
+/**
+ * 自分のロスターと殿堂入りチーム（スナップショット）をサーバーへ反映。
+ *
+ * 殿堂入りを同じ行に相乗りさせているのは、見せたい相手（フレンドと同じ走友会の人）が
+ * ロスターとまったく同じで、その決まりが rosters のポリシー3つにもう書いてあるため。
+ * 別のテーブルにすると同じ決まりを2か所に書くことになる（supabase/hof_share.sql）。
+ */
+export async function pushMyRoster(players: Player[], hof: readonly HofPlayer[] = []): Promise<void> {
   const me = await uid()
   const { error } = await supabase
     .from('rosters')
-    .upsert({ user_id: me, players: players as unknown as object }, { onConflict: 'user_id' })
+    .upsert({
+      user_id: me,
+      players: players as unknown as object,
+      hof: hof as unknown as object,
+    }, { onConflict: 'user_id' })
   if (error) throw new FriendsOffline()
 }
 
@@ -197,14 +207,33 @@ export async function getFriend(id: string | undefined): Promise<Friend | undefi
   return rows[0] ? toFriend(rows[0]) : undefined
 }
 
-/** フレンドのロスター。フレンド成立済みでないとRLSで弾かれて空になる。 */
-export async function getFriendRoster(id: string): Promise<Player[]> {
+/** 相手が見せているもの。ロスターと殿堂入りチームは同じ行に入っている */
+export type SharedRoster = { players: Player[]; hof: HofPlayer[] }
+
+/**
+ * 相手のロスターと殿堂入りチーム。**読み取りはここ1本**。
+ * フレンドか、同じ走友会の人でないとRLSで弾かれて空になる
+ * （rosters_select_friend / rosters_select_clubmate）。
+ *
+ * 相手が古いバージョンだと hof の列が空のままなので、その場合は殿堂入りが0人になる。
+ */
+export async function getFriendShare(id: string): Promise<SharedRoster> {
   await uid()
   const { data, error } = await supabase
-    .from('rosters').select('players').eq('user_id', id).maybeSingle()
+    .from('rosters').select('players, hof').eq('user_id', id).maybeSingle()
   if (error) throw new FriendsOffline()
   const players = (data?.players ?? []) as Player[]
-  return Array.isArray(players) ? players : []
+  const hof = (data?.hof ?? []) as HofPlayer[]
+  return {
+    players: Array.isArray(players) ? players : [],
+    // 中身の形が違う古い行を掴んでも画面が落ちないようにする（選手が入っていない要素は捨てる）
+    hof: Array.isArray(hof) ? hof.filter(h => h && typeof h === 'object' && h.player?.id) : [],
+  }
+}
+
+/** フレンドのロスターだけ要るとき（オンライン対戦のロビーなど） */
+export async function getFriendRoster(id: string): Promise<Player[]> {
+  return (await getFriendShare(id)).players
 }
 
 // ── 申請 ────────────────────────────────────────────

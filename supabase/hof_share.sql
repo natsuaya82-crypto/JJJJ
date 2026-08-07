@@ -1,0 +1,27 @@
+-- 殿堂入りチームを、フレンドと同じ走友会の人に見せる。
+--
+-- ■なぜ rosters に列を足すだけなのか（新しいテーブルを作らない理由）
+--   殿堂入りは rosters とまったく同じ形（user_id ごとの選手の配列）で、
+--   見せたい相手も rosters と同じ「フレンド」と「同じ走友会の人」。
+--   その読み取りの決まりは、もう3つそろっている。
+--
+--     rosters_select_own       schema.sql        自分
+--     rosters_select_friend    schema.sql        フレンド
+--     rosters_select_clubmate  clubs_roster.sql  同じ走友会
+--
+--   新しいテーブルを作ると、この3つを全部もう一度書くことになる。
+--   片方だけ直してズレる（＝このリポジトリのバグの最大の原因）ので、同じ行に相乗りさせる。
+--   書き込みも rosters_insert_own / rosters_update_own がそのまま効く。
+--
+-- ■中身
+--   アプリ側の HofPlayer[]（types/index.ts）をそのまま入れる。
+--   「登録した瞬間の選手を凍らせたコピー」なので、選手まるごと入る。最大30人（HOF_MAX）。
+--   まるごと入れるのは、相手の殿堂入りでも長押しで選手詳細を開けるようにするため。
+--
+-- ■注意
+--   schema.sql を流し直すと rosters ごと作り直されるので、この列も道連れで消える
+--   （clubs_roster.sql と同じ注意）。そのときはこれも流し直すこと。
+--
+-- テーブルは作らない・消さない。何回流しても大丈夫。
+
+alter table public.rosters add column if not exists hof jsonb not null default '[]'::jsonb;

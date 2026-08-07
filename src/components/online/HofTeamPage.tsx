@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react'
 import BackButton from '../ui/BackButton'
-import PlayerRow from '../player/PlayerRow'
-import SortSelect from '../ui/SortSelect'
 import ConfirmDialog from '../ui/ConfirmDialog'
-import { usePlayerLongPress } from '../player/usePlayerLongPress'
+import HofList from './HofList'
 import { useGameStore } from '../../store/gameStore'
 import { usePreviewStore } from '../../store/previewStore'
 import { HOF_MAX } from '../../utils/hofRoster'
-import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import type { HofPlayer } from '../../types'
 import { C } from '../../styles/tokens'
 
@@ -15,21 +12,8 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 未登録セーブ用の空配列。ここで [] を書くと毎回別物になり、下の useEffect が回り続ける
 const EMPTY: HofPlayer[] = []
 
-// 「登録順」は選手の中身では決まらない（殿堂入りした順番＝配列の並び）ので、
-// comparePlayers のキーではなくこの画面だけの並びとして持つ
-type HofSortKey = 'registered' | PlayerSortKey
-const SORT_OPTIONS: { value: HofSortKey; label: string }[] = [
-  { value: 'registered', label: '登録順' },
-  { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
-  { value: 'age', label: PLAYER_SORT_LABEL.age },
-  { value: 'specialty', label: PLAYER_SORT_LABEL.specialty },
-  { value: 'name', label: PLAYER_SORT_LABEL.name },
-]
-
 // 殿堂入りチーム。登録した瞬間の選手を凍らせて貯める（utils/hofRoster.ts）。
-// 見た目・操作はロスターと同じものを使う。
-//   一覧    PlayerRow
-//   並び替え SortSelect + comparePlayers
+// 一覧の見た目・並び替えは HofList（フレンドの殿堂入りと共通）。
 //   長押し  選手詳細（usePlayerLongPress）/ タップ  殿堂入りを解除
 //
 // 解除は取り消せない（登録した時点の能力ごと消える。同じ姿には二度と戻せない）ので、
@@ -38,7 +22,6 @@ export default function HofTeamPage() {
   const hof = useGameStore(s => s.hofRoster) ?? EMPTY
   const remove = useGameStore(s => s.removeHofPlayer)
   const setPreview = usePreviewStore(s => s.setPlayers)
-  const [sortKey, setSortKey] = useState<HofSortKey>('registered')
   const [askId, setAskId] = useState<string | null>(null)
   const asking = hof.find(h => h.player.id === askId)
 
@@ -48,12 +31,6 @@ export default function HofTeamPage() {
     setPreview(hof.map(h => h.player))
     return () => setPreview([])
   }, [hof, setPreview])
-
-  const longPress = usePlayerLongPress()
-
-  const sorted = sortKey === 'registered'
-    ? hof
-    : [...hof].sort((a, b) => comparePlayers(sortKey, sortKey === 'age' ? 'asc' : 'desc')(a.player, b.player))
 
   return (
     <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
@@ -68,27 +45,13 @@ export default function HofTeamPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 12px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, fontSize: 11, color: C.textDim }}>タップで解除（長押しで詳細）</div>
-        <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
-      </div>
-
-      <div style={{ margin: '0 12px', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-        {sorted.map(h => (
-          <PlayerRow
-            key={h.player.id}
-            player={h.player}
-            handlers={longPress(h.player.id, () => setAskId(h.player.id))}
-            hideStatusBadges
-          />
-        ))}
-        {sorted.length === 0 && (
-          <div style={{ padding: '40px 16px', textAlign: 'center', color: C.textGhost, fontSize: 13, lineHeight: 1.8 }}>
-            まだ誰もいません<br />
-            <span style={{ fontSize: 11 }}>選手のページから登録できます</span>
-          </div>
-        )}
-      </div>
+      <HofList
+        hof={hof}
+        hint="タップで解除（長押しで詳細）"
+        emptyLabel="まだ誰もいません"
+        emptySub="選手のページから登録できます"
+        onTap={h => setAskId(h.player.id)}
+      />
 
       {asking && (
         <ConfirmDialog

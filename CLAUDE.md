@@ -49,6 +49,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
+| `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
+| `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
 
 | `src/utils/newsItems.ts` | ニュースの見出しの文面。**画面や store に見出しを直書きしないこと** |
 | `src/utils/foreignClubProfile.ts` | 海外クラブの姿。`effectiveOvr`（年齢を加味した実効OVR）／`foreignMinOvr`（そのリーグが受け入れる下限） |

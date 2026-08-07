@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -7,15 +7,17 @@ import ActionSheet from '../ui/ActionSheet'
 import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { blockUser } from '../../lib/moderationApi'
 import PlayerRow from '../player/PlayerRow'
+import HofList from '../online/HofList'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { getFriend, getFriendRoster, removeFriend, listFriends, listSent, sendRequest, SEND_RESULT_TEXT } from '../../lib/friendsApi'
+import { getFriend, getFriendShare, removeFriend, listFriends, listSent, sendRequest, SEND_RESULT_TEXT, type SharedRoster } from '../../lib/friendsApi'
 import { clubsOfUsers, type UserClub } from '../../lib/clubsApi'
 import { clubLogoSrc } from '../../data/clubLogos'
 import type { Specialty } from '../../types'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
 import { ovr } from '../../utils/playerUtils'
+import { HOF_MAX } from '../../utils/hofRoster'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 
@@ -25,6 +27,13 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 type SortKey = 'ovr' | 'age' | 'spec'
 const SPEC_ORDER: readonly Specialty[] = SPECIALTIES
 
+// id が無いときに渡す空。ここで毎回 {} を作ると useFriendsQuery が引き直し続ける
+const EMPTY_SHARE: SharedRoster = { players: [], hof: [] }
+
+// 横に並べる2ページ。左＝いまのロスター、右＝殿堂入りチーム。
+// 見出しを押しても、横にスワイプしても切り替わる
+const PAGES = ['現在のロスター', '殿堂入り'] as const
+
 export default function FriendDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -32,7 +41,7 @@ export default function FriendDetailPage() {
   const setPreview = usePreviewStore(s => s.setPlayers)
 
   const head = useFriendsQuery(() => getFriend(id), [id], `friend:${id}`)
-  const list = useFriendsQuery(() => (id ? getFriendRoster(id) : Promise.resolve([])), [id], `roster:${id}`)
+  const list = useFriendsQuery(() => (id ? getFriendShare(id) : Promise.resolve(EMPTY_SHARE)), [id], `roster:${id}`)
   // 所属している走友会。取れなくても画面は普通に出す（出ないだけ）
   const clubQ = useFriendsQuery(
     () => (id ? clubsOfUsers([id]) : Promise.resolve(new Map<string, UserClub>())),
@@ -47,10 +56,25 @@ export default function FriendDetailPage() {
   const isFriend = friendsQ.data ? friendsQ.data.some(f => f.id === id) : friendsQ.error ? true : undefined
   const isSent = (sentQ.data ?? []).some(r => r.id === id)
   const friend = head.data
-  const roster = list.data ?? []
+  const roster = list.data?.players ?? []
+  const hof = list.data?.hof ?? []
   const club = id ? clubQ.data?.get(id) : undefined
 
   const [sortKey, setSortKey] = useState<SortKey>('ovr')
+
+  // 横スワイプで見ているページ。0＝ロスター / 1＝殿堂入り
+  const [page, setPage] = useState(0)
+  const pagerRef = useRef<HTMLDivElement>(null)
+  const goPage = (i: number) => {
+    const el = pagerRef.current
+    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+  }
+  const onPagerScroll = () => {
+    const el = pagerRef.current
+    if (!el) return
+    const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
+    setPage(p => (p === i ? p : i))
+  }
 
   // 自前のポップアップ（端末標準の alert / confirm は使わない）
   const [askRemove, setAskRemove] = useState(false)
@@ -59,12 +83,18 @@ export default function FriendDetailPage() {
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
   const [askBlock, setAskBlock] = useState(false)
 
-  // フレンドのロスター選手を「長押し詳細」で開けるよう、この画面の間だけプレビュー登録する
-  // list.data を依存にする（roster は毎レンダー新しい配列になるため、入れると無限ループする）
+  // 相手の選手を「長押し詳細」で開けるよう、この画面の間だけプレビュー登録する。
+  //
+  // 見ているページのぶんだけ載せる。両方まとめて載せられないのは、殿堂入りが
+  // 「登録した瞬間を凍らせたコピー」で、同じ選手がいまのロスターにも居ることがあるため。
+  // IDが同じなので、まとめると片方の姿しか開けなくなる（殿堂入りを開いたのに今の能力が出る）。
+  //
+  // list.data を依存にする（roster / hof は毎レンダー新しい配列になるため、入れると無限ループする）
   useEffect(() => {
-    setPreview(list.data ?? [])
+    const share = list.data ?? EMPTY_SHARE
+    setPreview(page === 0 ? share.players : share.hof.map(h => h.player))
     return () => setPreview([])
-  }, [id, list.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, list.data, page]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (head.loading) {
     return (
@@ -180,32 +210,69 @@ export default function FriendDetailPage() {
         )}
       </div>
 
-      {/* 現状ロスター（全員）— 既存の PlayerRow を流用。長押しで選手詳細 */}
+      {/* ロスターと殿堂入りを横に並べる。スワイプでも見出しのタップでも切り替わる */}
       <div style={{ padding: '16px 0 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 16px' }}>
-          <div style={{ fontSize: 10, color: alpha(C.gold, 0.55), letterSpacing: '2px', fontWeight: 900 }}>現在のロスター（長押しで詳細）</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8, padding: '0 16px' }}>
+          {PAGES.map((label, i) => (
+            <button
+              key={label}
+              onClick={() => goPage(i)}
+              style={{
+                padding: '2px 0 4px', background: 'none', cursor: 'pointer', fontFamily: SAIRA,
+                fontSize: 10, letterSpacing: '2px', fontWeight: 900,
+                color: page === i ? C.gold : C.textGhost,
+                border: 'none', borderBottom: `2px solid ${page === i ? C.gold : 'transparent'}`,
+              }}
+            >{label}</button>
+          ))}
           <div style={{ flex: 1 }} />
-          <select
-            value={sortKey}
-            onChange={e => setSortKey(e.target.value as SortKey)}
-            aria-label="並び替え"
-            style={{ padding: '5px 8px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: 11, fontFamily: SAIRA, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
-            <option value="ovr">OVR順</option>
-            <option value="age">年齢順</option>
-            <option value="spec">種目順</option>
-          </select>
+          <div style={{ fontSize: 10, color: C.textGhost }}>長押しで詳細</div>
         </div>
+
         {list.loading ? (
           <div style={{ padding: '0 16px' }}><LoadingBox /></div>
         ) : list.error ? (
           <div style={{ padding: '0 16px' }}><ErrorBox onRetry={list.reload} /></div>
-        ) : roster.length === 0 ? (
-          <div style={{ padding: '0 16px' }}><EmptyBox label="相手がまだロスターを共有していません" /></div>
         ) : (
-          <div>
-            {sorted.map(p => (
-              <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
-            ))}
+          <div
+            ref={pagerRef}
+            onScroll={onPagerScroll}
+            style={{
+              display: 'flex', alignItems: 'flex-start', overflowX: 'auto', overflowY: 'hidden',
+              scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
+            }}
+          >
+            {/* 左：いまのロスター（全員）。既存の PlayerRow をそのまま流用 */}
+            <div style={{ minWidth: '100%', flexShrink: 0, scrollSnapAlign: 'start' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 8px' }}>
+                <select
+                  value={sortKey}
+                  onChange={e => setSortKey(e.target.value as SortKey)}
+                  aria-label="並び替え"
+                  style={{ padding: '5px 8px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: 11, fontFamily: SAIRA, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
+                  <option value="ovr">OVR順</option>
+                  <option value="age">年齢順</option>
+                  <option value="spec">種目順</option>
+                </select>
+              </div>
+              {roster.length === 0 ? (
+                <div style={{ padding: '0 16px' }}><EmptyBox label="相手がまだロスターを共有していません" /></div>
+              ) : (
+                sorted.map(p => (
+                  <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
+                ))
+              )}
+            </div>
+
+            {/* 右：殿堂入りチーム。自分の殿堂入りページと同じ一覧（HofList） */}
+            <div style={{ minWidth: '100%', flexShrink: 0, scrollSnapAlign: 'start' }}>
+              <HofList
+                hof={hof}
+                hint={`殿堂入り ${hof.length}/${HOF_MAX}`}
+                emptyLabel="まだ誰もいません"
+                emptySub="相手が殿堂入りに登録すると、ここに並びます"
+              />
+            </div>
           </div>
         )}
       </div>
