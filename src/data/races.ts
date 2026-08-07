@@ -361,6 +361,12 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
       seg(5,13.5, 5,   5, { recovery: 0.36, stamina: 0.28, pacing: 0.22, mental: 0.10, speed: 0.04 }),
       // 6区 6.5km 平坦: 新設アンカー。純粋な速さで締める
       seg(6, 6.5, 0,   0, { speed: 0.60, pacing: 0.20, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
+      // 7区 8.5km 平坦: 追加区間
+      seg(7, 8.5, 0,   0, { speed: 0.52, pacing: 0.26, mental: 0.14, stamina: 0.05, recovery: 0.03 }),
+      // 8区 10.0km 緩起伏: 追加区間
+      seg(8,10.0, 7,   7, { pacing: 0.36, stamina: 0.30, mental: 0.18, recovery: 0.12, speed: 0.04 }, 'undulating'),
+      // 9区 7.0km 平坦: 追加区間。アンカー
+      seg(9, 7.0, 0,   0, { speed: 0.58, pacing: 0.20, mental: 0.13, stamina: 0.06, recovery: 0.03 }, 'sprinter'),
     ],
   },
   {
@@ -386,6 +392,8 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
       seg(5,11.0, 5,   5, { mental: 0.34, pacing: 0.30, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
       // 6区 7.0km 平坦: 新設アンカー。速さ勝負で決着
       seg(6, 7.0, 0,   0, { speed: 0.66, pacing: 0.16, mental: 0.10, stamina: 0.05, recovery: 0.03 }),
+      // 7区 7.5km 平坦: 追加区間。速さで締める
+      seg(7, 7.5, 0,   0, { speed: 0.56, pacing: 0.22, mental: 0.13, stamina: 0.06, recovery: 0.03 }, 'sprinter'),
     ],
   },
   {
@@ -399,6 +407,8 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
       seg(5,12.5, 8,   3, { recovery: 0.38, stamina: 0.28, pacing: 0.20, mental: 0.10, speed: 0.04 }),
       // 6区 10.0km アップダウン: 新設。夏の疲労を回復力で乗り切る仕上げ区間
       seg(6,10.0, 5,   5, { recovery: 0.34, stamina: 0.28, pacing: 0.20, mental: 0.12, speed: 0.06 }),
+      // 7区 8.0km 緩起伏: 追加区間。粘りどころ
+      seg(7, 8.0, 6,   6, { pacing: 0.38, stamina: 0.30, mental: 0.18, recovery: 0.10, speed: 0.04 }, 'grinder'),
     ],
   },
   {
@@ -437,6 +447,8 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
       seg(5,12.0, 0,   0, { pacing: 0.36, stamina: 0.28, recovery: 0.18, mental: 0.14, speed: 0.04 }),
       // 6区 8.0km 平坦: 新設アンカー。速さで押し切る仕上げ
       seg(6, 8.0, 0,   0, { speed: 0.58, pacing: 0.22, mental: 0.12, stamina: 0.05, recovery: 0.03 }),
+      // 7区 6.8km 平坦: 追加区間。アンカー前の勝負区
+      seg(7, 6.8, 0,   0, { speed: 0.54, pacing: 0.24, mental: 0.14, stamina: 0.05, recovery: 0.03 }, 'kick'),
     ],
   },
   {
@@ -475,6 +487,8 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
       seg(4,11.0, 8,   3, { pacing: 0.36, stamina: 0.26, mental: 0.22, recovery: 0.12, speed: 0.04 }),
       seg(5, 9.5, 5,   5, { mental: 0.36, pacing: 0.28, stamina: 0.22, recovery: 0.10, speed: 0.04 }),
       seg(6,13.0, 0,   0, { stamina: 0.40, pacing: 0.26, recovery: 0.20, mental: 0.10, speed: 0.04 }),
+      // 7区 9.5km 緩傾斜: 追加区間。起伏をこなす力が要る
+      seg(7, 9.5, 8,   8, { pacing: 0.34, stamina: 0.30, mental: 0.20, recovery: 0.12, speed: 0.04 }, 'undulating'),
     ],
   },
   {
@@ -513,6 +527,12 @@ export const LEAGUE_COURSE_POOL: RaceTemplate[] = [
       seg(5,14.5, 8,   3, { stamina: 0.44, recovery: 0.26, pacing: 0.18, mental: 0.08, speed: 0.04 }),
       // 6区 2.0km 平坦: 新設。長い耐久戦の締めに置く短い勝負スプリント
       seg(6, 2.0, 0,   0, { speed: 0.30, pacing: 0.26, mental: 0.18, stamina: 0.16, recovery: 0.10 }),
+      // 7区 12.0km 平坦: 追加区間
+      seg(7,12.0, 0,   0, { pacing: 0.38, stamina: 0.30, mental: 0.20, recovery: 0.08, speed: 0.04 }, 'long'),
+      // 8区 9.0km 緩起伏: 追加区間
+      seg(8, 9.0, 6,   6, { pacing: 0.36, stamina: 0.30, mental: 0.18, recovery: 0.12, speed: 0.04 }, 'undulating'),
+      // 9区 7.5km 平坦: 追加区間。アンカー
+      seg(9, 7.5, 0,   0, { speed: 0.56, pacing: 0.22, mental: 0.13, stamina: 0.06, recovery: 0.03 }),
     ],
   },
 ]
