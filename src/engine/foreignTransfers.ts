@@ -1,3 +1,4 @@
+import { hasNoPlayingTime } from '../utils/transferDecision'
 import type { ForeignLeague, Player, Team, TransferRecord } from '../types'
 import { comparePlayers } from '../utils/playerSort'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
@@ -122,7 +123,9 @@ export function simulateForeignTransferMarket(params: {
       .map(id => playerById.get(id))
       .filter((p): p is Player => !!p && p.status === 'active' && !movedPlayers.has(p.id))
       .sort(comparePlayers('ovr'))
-    const fallen = sorted.slice(10).filter(p => p.age >= 30)
+    // 出番が無い＝序列が「走れる人数の2倍」より下（utils/transferDecision 1本）。
+    // 11番手の直書きをやめた。国内CPUもこの判定を通す
+    const fallen = sorted.filter((p, i) => hasNoPlayingTime(i + 1) && p.age >= 30)
     if (fallen.length === 0) continue
     const target = fallen[Math.floor(Math.random() * fallen.length)]
     // 行き先は自クラブより平均の低い（＝出番を得やすい）空きのあるクラブ。行き先の格にも届いていること

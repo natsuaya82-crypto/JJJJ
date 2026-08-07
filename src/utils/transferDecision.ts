@@ -51,6 +51,17 @@ export const DREAM_LABEL: Record<OverseasRegion, string> = {
 /** 駅伝で実際に走れる人数。ここに入れるかどうかが「出られるか」の境目 */
 export const RUNNING_SLOTS = 7
 
+/**
+ * 「そのクラブでは出番が無い」と言える序列。**国内も海外もこの1本で判定する。**
+ *
+ * 走れるのは区間数ぶん（コースは6〜10区間）。故障者が出れば少し下まで回ってくるので、
+ * 「ほぼ出ない」と言えるのは**走れる人数の2倍**より下。7区間なら15番手以降。
+ * 11番手のような直書きを各所に置かないこと。
+ */
+export function hasNoPlayingTime(squadRank: number, slots: number = RUNNING_SLOTS): boolean {
+  return squadRank > slots * 2
+}
+
 /** 承諾ライン。これ以上で行く */
 export const CONSENT_LINE = 0.5
 
