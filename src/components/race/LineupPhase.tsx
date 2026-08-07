@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import BackButton from '../ui/BackButton'
+import { SkipRaceButton } from './SkipRaceButton'
 import type { Player, Race, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { calcBaseAbility, calcSegmentAffinity, calcConditionModifier } from '../../engine/raceEngine'
@@ -475,21 +476,7 @@ export function LineupPhase({
         {allSegsFilled ? (
           <>
             {onSkipRace && (
-              <button
-                onClick={onSkipRace}
-                title="イベントなしで一気に結果へ"
-                style={{
-                  flexShrink: 0, padding: '11px 14px', borderRadius: 11,
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `2px solid ${C.border2}`, color: C.textSub,
-                  fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: '0 4px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  display: 'flex', alignItems: 'center', gap: 4,
-                }}
-              >
-                スキップ
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 4l8 8-8 8M13 4l8 8-8 8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </button>
+              <SkipRaceButton onClick={onSkipRace} />
             )}
             <button
               className={`btn-game ${COMPETITION_BTN[competition]}`}

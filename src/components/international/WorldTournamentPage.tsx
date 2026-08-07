@@ -4,6 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Race, RaceResults, Team, Player } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
+import { SkipRaceButton } from '../race/SkipRaceButton'
 import { ResultsPhase } from '../race/ResultsPhase'
 import { RaceSimPanel } from '../shared/RaceSimPanel'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
@@ -240,7 +241,11 @@ export default function WorldTournamentPage() {
           ) : t.japanIn ? (
             <button onClick={() => setPhase('lineup')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">第{t.raceIndex + 1}戦 区間配置へ →</span></button>
           ) : (
-            <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">第{t.raceIndex + 1}戦を観戦する</span></button>
+            // 日本が出ていない年。再生を見せられ続けないよう、区間配置と同じスキップを並べる
+            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+              <SkipRaceButton onClick={() => runWithLoading('結果を計算中…', () => run(undefined, true), 500)} label="結果だけ見る" />
+              <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--purple" style={{ flex: 1 }}><span className="btn-game__inner">第{t.raceIndex + 1}戦を観戦する</span></button>
+            </div>
           )}
         </div>
       </div>
