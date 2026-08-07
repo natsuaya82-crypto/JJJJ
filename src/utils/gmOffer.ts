@@ -1,6 +1,6 @@
 import { rankOfTeam } from '../utils/league'
 import type { GmOffer, Team } from '../types'
-import { rankedStandings, divisionOf } from './league'
+import { divisionOf, seasonDivisionStandings, type SeasonStandingsLike } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
 
 // ============================================================================
@@ -103,7 +103,8 @@ export function offerCandidates(
 // オファーを1件作る。条件を満たさなければ null。
 // rng は 0〜1 を返す関数（テストで差し替えられるように外から渡す）。
 export function makeGmOffer(params: {
-  standings: { teamId: string; totalPoints: number }[]
+  /** 今季の順位表（部ごと）。移籍先の部の中での順位を引くのに使う */
+  season: SeasonStandingsLike<{ teamId: string; totalPoints: number }>
   playerTeamId: string
   finalRank: number
   gmRep: number
@@ -119,7 +120,7 @@ export function makeGmOffer(params: {
   tenureStartYear?: number
 }): GmOffer | null {
   if (!GM_OFFER_ENABLED) return null
-  const { standings, playerTeamId, finalRank, gmRep, teamCount, nextYear, teams, nextBudgets, objBonus, rng } = params
+  const { season, playerTeamId, finalRank, gmRep, teamCount, nextYear, teams, nextBudgets, objBonus, rng } = params
   const { lastOfferYear, tenureStartYear } = params
   // 就任1年目には来ない。前のオファーからも GM_OFFER_COOLDOWN 年空ける
   if (tenureStartYear != null && nextYear - tenureStartYear < 2) return null
@@ -142,14 +143,11 @@ export function makeGmOffer(params: {
   const teamId = candidates[Math.floor(rng() * candidates.length)] ?? candidates[0]
   const b = nextBudgets[teamId]
   const dest = teams.find(t => t.id === teamId)
-  // 前季順位は**移籍先の部の中での順位**。来季の目標をここから引き直すので、
-  // 52チームを得点で並べた順位を渡すと目標が的外れになる
-  // （部ごとにレース数が10/8/7で違うため、3部のクラブは何位でも下位になる）
+  // 前季順位は**移籍先の部の中での順位**（順位表は部ごとに分かれている）。
+  // 来季の目標をここから引き直すので、部をまたいだ順位を使うと目標が的外れになる
   const destDivision = divisionOf(dest)
-  const destDivIds = new Set(teams.filter(t => divisionOf(t) === destDivision).map(t => t.id))
-  const inDiv = rankedStandings(standings.filter(s => destDivIds.has(s.teamId)))
-  const prevRank = rankOfTeam(inDiv, teamId)
-  const destDivisionSize = destDivIds.size
+  const prevRank = rankOfTeam(seasonDivisionStandings(season, teamId), teamId)
+  const destDivisionSize = teams.filter(t => divisionOf(t) === destDivision).length
   return {
     teamId,
     year: nextYear,

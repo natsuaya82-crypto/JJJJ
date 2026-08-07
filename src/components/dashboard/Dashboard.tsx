@@ -329,7 +329,7 @@ export default function Dashboard() {
   const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
   // 順位表は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
   // （絞らないと、部ごとにレース数が違うぶんだけ順位がずれる）
-  const sorted = seasonDivisionStandings(currentSeason, teams, playerTeamId)
+  const sorted = seasonDivisionStandings(currentSeason, playerTeamId)
   const myRank = rankOfTeam(sorted, playerTeamId)
 
   // 世界選手権：JPELファイナル後〜シーズン終了の間に挟むステップ。
@@ -366,8 +366,8 @@ export default function Dashboard() {
     />
   ) : null
   const lastSeason = pastSeasons[pastSeasons.length - 1]
-  const lastRank = lastSeason?.standings?.length
-    ? rankOfTeam(lastSeason.standings, playerTeamId)
+  const lastRank = lastSeason
+    ? rankOfTeam(seasonDivisionStandings(lastSeason, playerTeamId), playerTeamId)
     : 0
 
   /* Season end */

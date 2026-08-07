@@ -1,4 +1,4 @@
-import type { GmTenure, SeasonStanding, Team } from '../types'
+import type { GmTenure, SeasonStanding } from '../types'
 import { seasonDivisionStandings, rankOfTeam, type SeasonStandingsLike } from './league'
 
 // ============================================================================
@@ -78,13 +78,12 @@ export function gmSeasonRanks(
   seasons: (SeasonStandingsLike<SeasonStanding> & { year: number })[],
   tenures: GmTenure[] | undefined,
   playerTeamId: string,
-  teams: readonly Pick<Team, 'id' | 'division'>[],
 ): GmSeasonRank[] {
   const at = makeTeamIdAt(tenures, playerTeamId)
   return seasons.map(s => {
     const teamId = at(s.year)
-    // その年の自分の部だけで数える。全52チームで並べると、部ごとのレース数の差で順位がずれる
-    const r = rankOfTeam(seasonDivisionStandings(s, teams, teamId), teamId)
+    // その年に走った部の中での順位（順位表は部ごとに分かれている）
+    const r = rankOfTeam(seasonDivisionStandings(s, teamId), teamId)
     return { year: s.year, teamId, rank: r > 0 ? r : null }
   })
 }

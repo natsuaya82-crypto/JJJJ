@@ -18,7 +18,7 @@ export default function TeamHub() {
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
   // 全52チームぶんの順位表から、自分が走っている部だけに絞る（utils/league）
-  const sortedStandings = seasonDivisionStandings(currentSeason, teams, playerTeamId)
+  const sortedStandings = seasonDivisionStandings(currentSeason, playerTeamId)
   const myRank = rankOfTeam(sortedStandings, playerTeamId)
   const avgOvr = myPlayers.length > 0 ? Math.round(myPlayers.reduce((s, p) => s + ovr(p), 0) / myPlayers.length) : 0
 

@@ -41,7 +41,11 @@ type LeagueLike = { id: string; name: string; clubs: ClubLike[] }
  * クラブの戦力（上位10人のOVR合計）の上位2で代替する。
  */
 export function buildEclParticipants(args: {
-  /** JPELの順位表（この年ぶん、または前年ぶん。呼び出し側がどちらを渡すか決める） */
+  /**
+   * JPEL**1部**の順位表（この年ぶん、または前年ぶん。呼び出し側がどちらを渡すか決める）。
+   * 出場枠は1部の上位2クラブ。部をまたいだ順位表を渡さないこと
+   * （部ごとにレース数が違うので、混ぜた順位に意味が無い）
+   */
   standings: readonly { teamId: string; totalPoints: number }[]
   teams: readonly { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }[]
   playerTeamId: string

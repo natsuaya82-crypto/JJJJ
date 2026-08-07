@@ -93,7 +93,7 @@ export default function StandingsPage() {
     const div = division
     return {
       eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',
-      rows: domesticRows(divisionStandings(currentSeason.standings, teams, div)),
+      rows: domesticRows(divisionStandings(currentSeason, div)),
       onRowClick: goDomestic,
       promote: div === 1 ? 0 : PROMOTION_SLOTS,
       relegate: div === DIVISIONS[DIVISIONS.length - 1] ? 0 : PROMOTION_SLOTS,

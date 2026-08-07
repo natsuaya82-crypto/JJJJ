@@ -326,18 +326,6 @@ export type Player = {
 
 export type SeasonStanding = {
   teamId: string
-  /**
-   * そのシーズン、そのチームが走った部。**新しいシーズンから入る。**
-   *
-   * 順位表は全52チームぶんを1本で持っているので、順位を出すには部で絞る必要がある。
-   * いまの `Team.division` で過去の年を絞ると、昇降格したチームが間違った部で数えられる
-   * （その年3部で優勝したのに、いま2部にいるから2部の面々と比べられる、など）。
-   * その年の事実をここに焼き込んでおけば、あとから何年経っても正しく数え直せる。
-   *
-   * 無い年（このしくみより前のセーブ）は、読む側が今の部で代用する。
-   * 判定は utils/league.ts の seasonDivisionStandings 1本に任せ、呼ぶ側で分岐を書かないこと。
-   */
-  division?: Division
   leaguePoints: number
   segmentPoints: number
   totalPoints: number
@@ -652,13 +640,19 @@ export type Season = {
     expenses: number     // 前季支出（年俸＋運営費＋出来高賞与）。いまは繰越に織り込み済みで常に0
   }
   scoutProspects: Player[]
-  standings: {
-    teamId: string
-    leaguePoints: number
-    segmentPoints: number
-    totalPoints: number
-    raceResults: { raceId: string; rank: number; points: number }[]
-  }[]
+  /**
+   * 年間順位表。**部ごとに分けて持つ。**
+   *
+   * 部が違えばレース数が違う（1部10戦 / 2部8戦 / 3部7戦）ので、勝ち点は部をまたいで
+   * 比べられない。1部で毎回8着のチーム（130点）が2部の全勝（128点）より上に来る。
+   * 海外リーグを `foreignStandings`（リーグID → 順位表）で分けているのと同じ理由。
+   *
+   * 以前は全52チームを1本の配列で持ち「表示するときに部で絞る」形にしていた。
+   * 読む側10箇所のうち絞っていたのは順位表ページだけで、ホーム・チーム画面・
+   * レース結果・記録室・ドラフト順・契約更新が全部混ざったまま動いていた。
+   * **1本に戻さないこと。** 絞り忘れができる形そのものが原因だった。
+   */
+  standings: Record<Division, SeasonStanding[]>
   newsFeed: {
     date: string
     headline: string

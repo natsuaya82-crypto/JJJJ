@@ -47,7 +47,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
-| `src/utils/league.ts` | 順位の出し方。`seasonDivisionStandings`（その年の**自分の部だけ**で並べる）／`seasonStandingsByDivision`（全チームの成績を数え直すとき） |
+| `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
@@ -207,6 +207,13 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 1部1位＝格5、2部1位＝格11、3部最下位＝格20。
 通し順位は「部 → 部内順位」の順で数えます。**順位表の得点で52チームを直接
 並べてはいけません**（部ごとにレース数が10/8/7と違うので3部が2部を追い抜く）。
+
+そもそも並べられないように、**順位表は部ごとに分けて持っています**
+（`Season.standings: Record<Division, SeasonStanding[]>`。海外の `foreignStandings` と同じ形）。
+以前は全52チームを1本の配列で持ち「表示するときに部で絞る」形にしていて、
+絞っていたのは順位表ページだけでした。ホーム・チーム画面・レース結果・記録室・
+ドラフト順・契約更新が全部混ざったまま動いていて、2部の首位が9位・3部の首位が13位と
+出ていました。**1本に戻さないこと。**
 
 昇降格は各部の上位2・下位2。プレーオフなし。格は「今季走った部での順位」で
 決まり、部の入れ替えはそのあとです。

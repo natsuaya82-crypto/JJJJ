@@ -31,7 +31,7 @@ const STEPS: Step[] = [
   },
   {
     label: 'チームの成績',
-    run: () => { const st = useGameStore.getState(); teamHistoriesOf(st.pastSeasons, st.teams) },
+    run: () => { teamHistoriesOf(useGameStore.getState().pastSeasons) },
   },
   {
     label: '年度MVP・新人王',

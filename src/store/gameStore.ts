@@ -91,7 +91,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave, buildCareerCounts } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, seasonDivisionStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS } from '../utils/league'
+import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, isBigClub, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 
 type DraftState = {
@@ -166,8 +166,8 @@ function draftLotteryOrder(teams: Team[], histories: TeamHistoryMap): Map<string
 }
 
 // ドラフト順の計算に渡す形。成績はセーブに持たないので、過去シーズンから数え直して詰め替える
-function draftOrderTeams(teams: Team[], pastSeasons: { year: number; standings?: SeasonStanding[] }[]) {
-  const histories = teamHistoriesOf(pastSeasons, teams)
+function draftOrderTeams(teams: Team[], pastSeasons: { year: number; standings?: Partial<Record<Division, SeasonStanding[]>> }[]) {
+  const histories = teamHistoriesOf(pastSeasons)
   return teams.map(t => ({ id: t.id, seasonResults: (histories[t.id] ?? EMPTY_TEAM_HISTORY).seasonResults }))
 }
 
@@ -707,10 +707,9 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       acquisitionOffers: [],
       retirementRequests: [],
       transferRequests: [],
-      // 順位表は全52チームぶん1本で持ち、表示するときに部で絞る。
-      // その年の部を行に焼き込んでおく（あとから昇降格しても過去の順位が狂わない）
-      standings: ALL_TEAMS.map(t => ({
-        teamId: t.id, division: divisionOf(t), leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
+      // 順位表は部ごとに分けて持つ（utils/league の newSeasonStandings）
+      standings: newSeasonStandings(ALL_TEAMS, teamId => ({
+        teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
       })),
       newsFeed: [],
     },
@@ -1172,7 +1171,7 @@ export const useGameStore = create<GameStore>()(
           // Generate future draft picks for all teams (yr+1, yr+2, rounds 1-2)
           // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
           const currentYear = state.currentSeason.year
-          const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons, state.teams))
+          const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
           const teamsWithPicks = state.teams.map((t) => {
             const pickNum = pickNumMap.get(t.id) ?? 1
             const newPicks: typeof t.draftPicks = []
@@ -1310,7 +1309,7 @@ export const useGameStore = create<GameStore>()(
             i === raceIndex ? { ...r, results } : r
           )
 
-          const myDivStandings = state.currentSeason.standings.map(s => {
+          const myDivStandings = (state.currentSeason.standings[myDivision] ?? []).map(s => {
             const tr = results.teamRankings.find(r => r.teamId === s.teamId)
             if (!tr) return s
             const earned = tr.positionPoints + tr.segmentPoints
@@ -1322,7 +1321,10 @@ export const useGameStore = create<GameStore>()(
               raceResults: [...s.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
             }
           })
-          const updatedStandings = applyAwayDivisionRound(myDivStandings, state.teams, myDivision, awayRound, race)
+          const updatedStandings = applyAwayDivisionRound(
+            { ...state.currentSeason.standings, [myDivision]: myDivStandings },
+            myDivision, awayRound, race,
+          )
           // 裏の部の出走記録。通算成績は保存したレース結果から数え直すので、
           // ここに残さないと1部・2部の選手が全員0回出走のままになる（海外の foreignAppearances と同じ役割）
           const awayApps: Record<string, { races: number; wins: number }> = { ...(state.currentSeason.awayAppearances ?? {}) }
@@ -1377,7 +1379,7 @@ export const useGameStore = create<GameStore>()(
             const raceIndex = state.currentSeason.currentRaceIndex
             const totalRaces = state.currentSeason.races.length
             if (raceIndex >= 3 && raceIndex % 3 === 0) {
-              const sortedStandingsNow = rankedStandings(state.currentSeason.standings)
+              const sortedStandingsNow = divisionStandings(state.currentSeason, myDivision)
               const myCurrentRank = rankOfTeam(sortedStandingsNow, state.playerTeamId)
               // 「うちは弱い」の基準は**自分の部の中で**見る。52で割ると3部(16)は
               // 最下位でも18位以内に入ってしまい、誰も不満を言わなくなる
@@ -2108,7 +2110,7 @@ export const useGameStore = create<GameStore>()(
           // 順位の物差しは自分の部の中（52で見ると3部が永久に「上位」になる）
           const trTotalTeams = DIVISION_SIZE[myDivision]
           const myStandRank = (() => {
-            const r = rankOfTeam(updatedStandings, playerTeamId)
+            const r = rankOfTeam(updatedStandings[myDivision], playerTeamId)
             return r > 0 ? r : Math.ceil(trTotalTeams / 2)
           })()
           const trCandidates = playersAfterLoan
@@ -2607,9 +2609,8 @@ export const useGameStore = create<GameStore>()(
         if (!player || player.teamId !== state.playerTeamId) return false
         const ratio = salary / player.contract.annualSalary
         const personality = player.personality ?? 'salary'
-        // 「上位のチームか」は自分が走っている部の中で見る。
-        // 全52チームで並べると、部ごとのレース数の差で5位以内の重みが変わってしまう
-        const standings = seasonDivisionStandings(state.currentSeason, state.teams, state.playerTeamId)
+        // 「上位のチームか」は自分が走っている部の中で見る（順位表は部ごとに分かれている）
+        const standings = seasonDivisionStandings(state.currentSeason, state.playerTeamId)
         const myRank = rankOfTeam(standings, state.playerTeamId)
         const isGoodTeam = myRank > 0 && myRank <= 5
         const minRatio =
@@ -2993,8 +2994,7 @@ export const useGameStore = create<GameStore>()(
         let leagueRank: number | undefined
         let leagueSize: number | undefined
         if (team) {
-          const divIds = new Set(teamsInDivision(state.teams, divisionOf(team)).map(x => x.id))
-          const rows = rankedStandings((state.currentSeason.standings ?? []).filter(r => divIds.has(r.teamId)))
+          const rows = divisionStandings(state.currentSeason, divisionOf(team))
           const i = rows.findIndex(r => r.teamId === clubId)
           if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
         }
@@ -3262,9 +3262,8 @@ export const useGameStore = create<GameStore>()(
               }
             }
           }
-          // 「強豪か」は自分の部の中での順位で見る（52チームを得点で通すと部が混ざる）
-          const myDivForRank = divisionOf(state.teams.find(t => t.id === state.playerTeamId))
-          const myRank = rankOfTeam(state.currentSeason.standings.filter(st2 => divisionOf(state.teams.find(t => t.id === st2.teamId)) === myDivForRank), state.playerTeamId)
+          // 「強豪か」は自分の部の中での順位で見る（順位表は部ごとに分かれている）
+          const myRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
           const isGoodTeam = myRank > 0 && myRank <= 5
           const personality = player.personality ?? 'salary'
           const roundFactor = 1 + (req.round - 1) * 0.03
@@ -3448,9 +3447,9 @@ export const useGameStore = create<GameStore>()(
           // 性格×行き先：優勝型は「今より強いチーム」なら安くても乗る／弱いチームだと渋る。
           const appealAdj = (() => {
             if (personality !== 'winning') return 0
-            const sorted = rankedStandings(state.currentSeason.standings)
-            const myRank = rankOfTeam(sorted, state.playerTeamId)
-            const theirRank = rankOfTeam(sorted, player.teamId)
+            // 部をまたいで比べるので、部内順位ではなく国内通し順位（1〜52）で見る
+            const myRank = domesticThroughRankOfTeam(state.currentSeason, state.playerTeamId)
+            const theirRank = domesticThroughRankOfTeam(state.currentSeason, player.teamId)
             if (myRank <= 0 || theirRank <= 0) return 0
             // 自チームが相手より上位なら閾値↓(乗りやすい)、下位なら↑
             return Math.max(-0.08, Math.min(0.08, (theirRank - myRank) * -0.012))
@@ -4196,7 +4195,7 @@ export const useGameStore = create<GameStore>()(
         )
         if (!anyMissingPicks) return
         // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
-        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons, state.teams))
+        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
         const updatedTeams = state.teams.map((t) => {
           const newPicks: typeof t.draftPicks = []
           for (const year of [yr + 1, yr + 2]) {
@@ -4218,9 +4217,8 @@ export const useGameStore = create<GameStore>()(
           if (state.currentSeason.campBonus?.applied) return state
           const lastSeason = state.pastSeasons[state.pastSeasons.length - 1]
           let rank = 0
-          if (lastSeason?.standings?.length) {
-            const sorted = rankedStandings(lastSeason.standings)
-            rank = rankOfTeam(sorted, state.playerTeamId)
+          if (lastSeason) {
+            rank = rankOfTeam(seasonDivisionStandings(lastSeason, state.playerTeamId), state.playerTeamId)
           }
           type Dist = { rarity: CardRarity; count: number }
           const dist: Dist[] =
@@ -4909,7 +4907,7 @@ export const useGameStore = create<GameStore>()(
         // ドラフト順は「当年分の指名権の所有」で決める：指名スロットの並びは各指名権の
         // 【元保有チームの抽選順】で決まり、現在の保有チームがそこで指名する。
         // 2年目以降は前年下位5チームの加重抽選で1巡目の順を決定。2巡目はスネーク（逆順＝1位から）。
-        const lotteryPos = draftLotteryOrder(state.teams, teamHistoriesOf(state.pastSeasons, state.teams)) // teamId → 全体指名順位(1=全体1位)
+        const lotteryPos = draftLotteryOrder(state.teams, teamHistoriesOf(state.pastSeasons)) // teamId → 全体指名順位(1=全体1位)
         const teamCount = state.teams.length
         const ownedYearPicks = state.teams
           .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => {
@@ -4932,7 +4930,7 @@ export const useGameStore = create<GameStore>()(
         // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）
         // 指名権番号は前年順位の逆順（最下位＝全体1位）。既存の将来指名権も"元保有チームの順位"で振り直し、
         // 初回に配列順で焼き込まれた古い番号を都度上書きして正す（表示と実際の指名順を一致させる）。
-        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons, state.teams))
+        const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
         const teamsWithPicks = state.teams.map((t) => {
           const newPicks: typeof t.draftPicks = []
           for (const year of [yr + 1, yr + 2]) {
@@ -5032,13 +5030,11 @@ export const useGameStore = create<GameStore>()(
         let teamsAfterCpuTransfer = teamsAfterCpuRelease
         {
           // 前年順位（引き抜き時の本人同意＝移籍先の魅力判定に使う）
-          const lastStandingsForTx = rankedStandings((state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? []))
-          // 部を跨いで得点で並べない。そのクラブの部の中での順位で見る
+          const lastSeasonForTx = state.pastSeasons[state.pastSeasons.length - 1]
+          // そのクラブが前年に走った部の中での順位（順位表は部ごとに分かれている）
           const rankOfTx = (teamId: string) => {
-            const d = divisionOf(state.teams.find(t => t.id === teamId))
-            const idsInD = new Set(state.teams.filter(t => divisionOf(t) === d).map(t => t.id))
-            const i = rankedStandings(lastStandingsForTx.filter(r => idsInD.has(r.teamId))).findIndex(s2 => s2.teamId === teamId)
-            return i >= 0 ? i + 1 : Math.ceil(DIVISION_SIZE[d] / 2)
+            const r = lastSeasonForTx ? rankOfTeam(seasonDivisionStandings(lastSeasonForTx, teamId), teamId) : 0
+            return r > 0 ? r : Math.ceil(DIVISION_SIZE[divisionOf(state.teams.find(t => t.id === teamId))] / 2)
           }
 
           // 実際の予算残高（finance.budget）から移籍金を払う。売った側は実際に受け取る（自チームと同じ金の動き）。
@@ -5420,7 +5416,7 @@ export const useGameStore = create<GameStore>()(
             // 順位表へ足すときの raceId は、その回に実際に走った部のコースを使う
             const anyRace = DIVISIONS.map(d => (d === myDivision ? undefined : divRaces[d]?.[r])).find(Boolean)
             if (!anyRace) continue
-            standings = applyAwayDivisionRound(standings, state.teams, myDivision, round, anyRace)
+            standings = applyAwayDivisionRound(standings, myDivision, round, anyRace)
             for (const [pid, v] of Object.entries(round.careerAdd)) {
               const cur = careerAdd[pid] ?? { races: 0, segWins: 0 }
               careerAdd[pid] = { races: cur.races + v.races, segWins: cur.segWins + v.segWins }
@@ -5660,10 +5656,9 @@ export const useGameStore = create<GameStore>()(
             resolved: false,
           }))
 
-          const sortedStandings = rankedStandings(state.currentSeason.standings)
-
           // Morale streak system: apply morale bonus/penalty to player team based on season finish
-          const myFinalRank = rankOfTeam(sortedStandings, state.playerTeamId)
+          const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
+          const myDivRows = seasonDivisionStandings(state.currentSeason, state.playerTeamId)
 
           // ── 来季の格 ────────────────────────────────────────────────
           // 国内クラブの格は「今季の国内通し順位」1本で決まる。1部1位＝格5、3部最下位＝格20。
@@ -5678,11 +5673,20 @@ export const useGameStore = create<GameStore>()(
           const clubsIncomplete = !domesticClubsComplete(state.teams)
           const effDivisionOf = (t: { id: string; division?: Division }): Division =>
             clubsIncomplete ? originalDivisionOf(t.id) : divisionOf(t)
-          const divisionRankOf = (t: { id: string; division?: Division }) => {
-            const d = effDivisionOf(t)
-            const divIds = new Set(state.teams.filter(x => effDivisionOf(x) === d).map(x => x.id))
-            return rankOfTeam(sortedStandings.filter(s => divIds.has(s.teamId)), t.id)
-          }
+          // 効き目のある部でまとめ直す。補完が要らない年は、順位表のキーとまったく同じ組になる
+          const rowsByEffDiv = (() => {
+            const m = new Map<Division, SeasonStanding[]>()
+            for (const d of DIVISIONS) {
+              for (const r of state.currentSeason.standings[d] ?? []) {
+                const e = effDivisionOf(state.teams.find(x => x.id === r.teamId) ?? { id: r.teamId })
+                const list = m.get(e)
+                if (list) list.push(r); else m.set(e, [r])
+              }
+            }
+            return m
+          })()
+          const divisionRankOf = (t: { id: string; division?: Division }) =>
+            rankOfTeam(rowsByEffDiv.get(effDivisionOf(t)), t.id)
           const nextTierOf = (t: { id: string; division?: Division }) =>
             tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
           const myNextTier = nextTierOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
@@ -5765,10 +5769,10 @@ export const useGameStore = create<GameStore>()(
           const newSponsorOffers = [...renewalOffers, ...generateSponsorOffers(myNextTier, newYear, excludeTplIds)]
           // 連続上位はセーブに持たないので、過去シーズン（＝今季を入れる前）の順位表から数え直す。
           // 昔ここで読んでいた値も「今季を足す前」の連続数だったので、意味は同じ
-          const myTeamStreak = teamHistoryOf(state.pastSeasons, state.teams, state.playerTeamId).currentStreak
+          const myTeamStreak = teamHistoryOf(state.pastSeasons, state.playerTeamId).currentStreak
           const streakMoraleDelta = myFinalRank <= 3
             ? Math.min(12, 4 + myTeamStreak * 2)   // up to +12 for long winning streak
-            : myFinalRank >= sortedStandings.length - 2
+            : myFinalRank >= myDivRows.length - 2
             ? Math.max(-12, -4 - myTeamStreak * 2) // down to -12 for losing streak
             : 0
           const playersAfterMorale = streakMoraleDelta !== 0
@@ -5790,8 +5794,7 @@ export const useGameStore = create<GameStore>()(
           // 王者は「部ごと」。52チームを得点で並べた先頭ではない（部ごとにレース数が違う）。
           // 表に出すのは1部の王者だが、2部・3部の優勝も同じ形でニュースに出す
           const championOfDiv = (d: Division) => {
-            const ids = new Set(updatedTeams.filter(t => divisionOf(t) === d).map(t => t.id))
-            const top = rankedStandings(sortedStandings.filter(x => ids.has(x.teamId)))[0]
+            const top = divisionStandings(state.currentSeason, d)[0]
             return updatedTeams.find(t => t.id === top?.teamId)
           }
           const divisionChampionNews = DIVISIONS.map(d => {
@@ -5836,8 +5839,7 @@ export const useGameStore = create<GameStore>()(
 
           // Check objectives + award scout points + budget rewards
           // 目標の順位は自分の部の中での順位（「3位以内」は自分の部での3位）
-          const myDivFinal = divisionOf(state.teams.find(t => t.id === state.playerTeamId))
-          const finalRank = rankOfTeam(state.currentSeason.standings.filter(st2 => divisionOf(state.teams.find(t => t.id === st2.teamId)) === myDivFinal), state.playerTeamId)
+          const finalRank = rankOfTeam(myDivRows, state.playerTeamId)
           const playerBudgetAtSeasonEnd = teamsWithFA.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
           const completedObjs = (state.currentSeason.objectives ?? []).map(obj => {
             if (obj.done) return obj
@@ -6042,7 +6044,8 @@ export const useGameStore = create<GameStore>()(
           // Generate future draft picks (next 2 seasons) for each team based on final rank
           const numTeams = state.teams.length
           const teamsWithFuturePicks = teamsWithSeasonRewards.map(t => {
-            const teamFinalRank = rankOfTeam(sortedStandings, t.id)
+            // 部をまたいで並べるので国内通し順位（1〜52）。下位ほど早い番号になる
+            const teamFinalRank = domesticThroughRankOfTeam(state.currentSeason, t.id)
             const pickNum = Math.max(1, numTeams - teamFinalRank + 1)
             const newPicks: typeof t.draftPicks = []
             for (const yr of [newYear, newYear + 1]) {
@@ -6099,7 +6102,7 @@ export const useGameStore = create<GameStore>()(
           const gmRanksAfter = gmSeasonRanks([
             ...state.pastSeasons,
             { year: state.currentSeason.year, standings: state.currentSeason.standings },
-          ], state.gmTenures, state.playerTeamId, state.teams)
+          ], state.gmTenures, state.playerTeamId)
           const gmTotalsAfter = gmCareerTotals(gmRanksAfter)
           const totalChamps = gmTotalsAfter.championships
           const totalSeasons = gmTotalsAfter.seasons
@@ -6121,10 +6124,11 @@ export const useGameStore = create<GameStore>()(
             : playersAfterMorale
 
           // Update championship team players' career.championships
-          const champTeamId = sortedStandings[0]?.teamId
-          const playersWithChamp = champTeamId
+          // 優勝は部ごとに1クラブ（1部の優勝も3部の優勝も、その部の優勝として数える）
+          const champTeamIds = new Set(DIVISIONS.map(d => divisionStandings(state.currentSeason, d)[0]?.teamId).filter(Boolean))
+          const playersWithChamp = champTeamIds.size > 0
             ? playersWithMVP.map(p =>
-                p.teamId === champTeamId
+                champTeamIds.has(p.teamId)
                   ? { ...p, career: { ...p.career, championships: p.career.championships + 1 } }
                   : p
               )
@@ -6420,7 +6424,7 @@ export const useGameStore = create<GameStore>()(
           // 他チームから監督の声がかかるか。来季の予算と評判が決まったあとに判定する。
           // 出るのは1シーズンに最大1件で、答えるまでホームに出続ける（utils/gmOffer.ts）
           const gmOffer = makeGmOffer({
-            standings: state.currentSeason.standings,
+            season: state.currentSeason,
             playerTeamId: state.playerTeamId,
             finalRank,
             gmRep: newGmRep,
@@ -6506,7 +6510,8 @@ export const useGameStore = create<GameStore>()(
               // 初年度は前年成績が無いためこの経路でしか生成されない＝1年目は開催なし
               eclSeries: (() => {
                 const parts = buildEclParticipants({
-                  standings: sortedStandings,
+                  // ECLの枠は1部の上位2クラブ
+                  standings: divisionStandings(state.currentSeason, TOP_DIVISION),
                   teams: state.teams,
                   playerTeamId: state.playerTeamId,
                   leagues: foreignRefresh.updatedLeagues,
@@ -6522,9 +6527,9 @@ export const useGameStore = create<GameStore>()(
                 }
               })(),
               // 補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく補完後を使う。
-              // division は昇降格を通したあとの部（＝来季走る部）が入る
-              standings: syncedTeams.map(t => ({
-                teamId: t.id, division: divisionOf(t), leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
+              // 部の割り振りは昇降格を通したあとの部（＝来季走る部）で決まる
+              standings: newSeasonStandings(syncedTeams, teamId => ({
+                teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
               })),
               newsFeed: [
                 ...backfillNews,
@@ -7064,7 +7069,7 @@ export const useGameStore = create<GameStore>()(
           if (leagues.length === 0) return state
           const last = state.pastSeasons[state.pastSeasons.length - 1]
           const parts = buildEclParticipants({
-            standings: last?.standings ?? [],
+            standings: last ? divisionStandings(last, TOP_DIVISION) : [],
             teams: state.teams,
             playerTeamId: state.playerTeamId,
             leagues,
@@ -8263,21 +8268,55 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          // v35→v36: 今季の順位表の各行に「その年の部」を焼き込む。
-          // 順位表は全52チームぶんを1本で持っているので、順位を出すには部で絞る必要がある。
-          // 今季ぶんは今の Team.division がそのまま事実なので、ここで入れておける。
-          // （過去シーズンは触らない。昇降格しているとどの部だったか分からないため。
-          //   読む側は utils/league.ts の seasonDivisionStandings が
-          //   「その年の駅伝に一緒に出ていた面々」から復元する）
+          // v35→v36: 順位表を部ごとに分ける。
+          //
+          // それまでは全52チームを1本の配列で持ち「表示するときに部で絞る」形だった。
+          // 絞り忘れができる形そのものが原因で、ホーム・チーム画面・レース結果・記録室・
+          // ドラフト順・契約更新が全部混ざったまま動いていた。海外リーグ（foreignStandings）と
+          // 同じく、部をキーにした入れ物にする。
+          //
+          // どの部に入れるか
+          //   今季  … いまの Team.division がそのままその年の事実
+          //   過去  … その年の駅伝（races）に一緒に出ていた面々＝自分の部。
+          //           それで決まらないチームはいまの Team.division で代用する
+          //           （昇降格していればずれるが、混ぜたままにするよりはるかにまし）
           if (version < 36) {
-            const cs = s.currentSeason as Record<string, unknown> | undefined
             const divById = new Map(
               (Array.isArray(s.teams) ? s.teams as Record<string, unknown>[] : [])
-                .map(t => [t.id as string, (t.division as number | undefined) ?? 1]),
+                .map(t => [t.id as string, ((t.division as number | undefined) ?? 1)]),
             )
-            if (cs && Array.isArray(cs.standings)) {
-              cs.standings = (cs.standings as Record<string, unknown>[]).map(r =>
-                r.division != null ? r : { ...r, division: divById.get(r.teamId as string) ?? 1 })
+            const split = (season: Record<string, unknown> | undefined, useRaces: boolean) => {
+              if (!season || !Array.isArray(season.standings)) return
+              const rows = season.standings as Record<string, unknown>[]
+              // その年の駅伝に出ていた面々＝そのシーズンの自分の部
+              const inMyDiv = new Set<string>()
+              if (useRaces && Array.isArray(season.races)) {
+                for (const r of season.races as Record<string, unknown>[]) {
+                  const res = r.results as { teamRankings?: { teamId: string }[] } | undefined
+                  for (const tr of res?.teamRankings ?? []) inMyDiv.add(tr.teamId)
+                }
+              }
+              // 自分の部が何部だったかは、そこにいるチームのいまの部の最頻値で決める
+              const myDiv = (() => {
+                if (inMyDiv.size === 0) return null
+                const count = new Map<number, number>()
+                for (const id of inMyDiv) {
+                  const d = divById.get(id) ?? 1
+                  count.set(d, (count.get(d) ?? 0) + 1)
+                }
+                return [...count.entries()].sort((a, b) => b[1] - a[1])[0][0]
+              })()
+              const out: Record<number, Record<string, unknown>[]> = { 1: [], 2: [], 3: [] }
+              for (const row of rows) {
+                const id = row.teamId as string
+                const d = (myDiv != null && inMyDiv.has(id)) ? myDiv : (divById.get(id) ?? 1)
+                ;(out[d] ?? out[1]).push(row)
+              }
+              season.standings = out
+            }
+            split(s.currentSeason as Record<string, unknown> | undefined, true)
+            for (const ps of (Array.isArray(s.pastSeasons) ? s.pastSeasons as Record<string, unknown>[] : [])) {
+              split(ps, true)
             }
           }
 
@@ -8670,9 +8709,13 @@ function pickCpuFreeAgents(a: {
   const signedFAIds = new Set<string>()
   const cpuSignings: { playerId: string; teamId: string }[] = []
   // 前年順位（運用方針・予算の基準）
-  const lastStandings = rankedStandings((a.pastSeasons[a.pastSeasons.length - 1]?.standings ?? []))
+  const lastSeasonForFa = a.pastSeasons[a.pastSeasons.length - 1]
   const totalTeams = a.divSize
-  const rankOf = (teamId: string) => { const r = rankOfTeam(lastStandings, teamId); return r > 0 ? r : Math.ceil(totalTeams / 2) }
+  // そのクラブが前年に走った部の中での順位（順位表は部ごとに分かれている）
+  const rankOf = (teamId: string) => {
+    const r = lastSeasonForFa ? rankOfTeam(seasonDivisionStandings(lastSeasonForFa, teamId), teamId) : 0
+    return r > 0 ? r : Math.ceil(totalTeams / 2)
+  }
   // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
   const tierJitter = new Map(teams.map(t => [t.id, Math.random()]))
   const cpuTeamsSorted = teams

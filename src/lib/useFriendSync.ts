@@ -47,7 +47,7 @@ export async function syncNow(): Promise<void> {
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）。
     // 監督は別のチームへ移れるので、年ごとに「その年に指揮していたチーム」で数える。
     // 今のチームで数えると、移籍した瞬間に移籍先の過去の優勝が自分の記録として友達に出る
-    const champs = gmCareerTotals(gmSeasonRanks(st.pastSeasons, st.gmTenures, st.playerTeamId, st.teams)).championships
+    const champs = gmCareerTotals(gmSeasonRanks(st.pastSeasons, st.gmTenures, st.playerTeamId)).championships
     const stamp = fingerprint(JSON.stringify({
       y: st.currentSeason?.year, n: team.name, s: team.shortName, g: team.gmName, l: team.logoId,
       c: [team.colors.primary, team.colors.secondary], ch: champs,

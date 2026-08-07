@@ -19,6 +19,9 @@ import type { Division, Team } from '../types'
 /** 上から順。表示の並びもこの順 */
 export const DIVISIONS: readonly Division[] = [1, 2, 3]
 
+/** 最上位の部。ECLの出場枠や「JPELの王者」はここから出す */
+export const TOP_DIVISION: Division = 1
+
 /** 各部のチーム数。ここを変えるとレースの順位ポイントの上限も変わる */
 export const DIVISION_SIZE: Record<Division, number> = { 1: 20, 2: 16, 3: 16 }
 
@@ -117,108 +120,100 @@ export function rankOfTeam(rows: readonly { teamId: string; totalPoints: number 
   return rankedStandings(rows).findIndex(r => r.teamId === teamId) + 1
 }
 
+/** 順位を出すのに要るものだけ。今シーズンも過去シーズンも同じ形で渡せる */
+export type SeasonStandingsLike<T extends RankableRow & { teamId: string }> = {
+  standings?: Partial<Record<Division, readonly T[]>>
+}
+
+/**
+ * その部の順位表（得点順）。**順位を出すのはここ1本。**
+ *
+ * 順位表は部ごとに分けて持っている（`Season.standings`）ので、ここは取り出して並べるだけ。
+ * 部をまたいで並べる関数は用意しない。レース数が違う（10 / 8 / 7戦）ので、
+ * 勝ち点を部をまたいで比べること自体に意味が無い。
+ */
+export function divisionStandings<T extends RankableRow & { teamId: string }>(
+  season: SeasonStandingsLike<T>,
+  division: Division,
+): T[] {
+  return rankedStandings(season.standings?.[division])
+}
+
+/**
+ * その年、そのチームがどの部で走ったか。順位表に載っていなければ undefined。
+ *
+ * 部が順位表のキーそのものなので、昇降格しても過去の年が狂わない
+ * （いまの `Team.division` を過去の年に当てはめる必要がない）。
+ */
+export function divisionInSeason(
+  season: SeasonStandingsLike<RankableRow & { teamId: string }>,
+  teamId: string,
+): Division | undefined {
+  for (const d of DIVISIONS) {
+    if (season.standings?.[d]?.some(r => r.teamId === teamId)) return d
+  }
+  return undefined
+}
+
+/** そのチームが走った部の順位表（得点順）。載っていなければ空 */
+export function seasonDivisionStandings<T extends RankableRow & { teamId: string }>(
+  season: SeasonStandingsLike<T>,
+  teamId: string,
+): T[] {
+  const d = divisionInSeason(season, teamId)
+  return d == null ? [] : divisionStandings(season, d)
+}
+
+/** その年のそのチームの行（どの部にいたかを気にせず引く）。無ければ undefined */
+export function standingRowOf<T extends RankableRow & { teamId: string }>(
+  season: SeasonStandingsLike<T>,
+  teamId: string,
+): T | undefined {
+  for (const d of DIVISIONS) {
+    const row = season.standings?.[d]?.find(r => r.teamId === teamId)
+    if (row) return row
+  }
+  return undefined
+}
+
+/** 部ごとの順位表をまとめて（得点順）。全チームぶんの成績を数え直すときに使う */
+export function standingsByDivision<T extends RankableRow & { teamId: string }>(
+  season: SeasonStandingsLike<T>,
+): { division: Division; rows: T[] }[] {
+  return DIVISIONS.map(d => ({ division: d, rows: divisionStandings(season, d) }))
+}
+
+/** 空の順位表（部ごとの箱だけ作る）。作る側はここを通す */
+export function emptyStandings<T>(): Record<Division, T[]> {
+  return Object.fromEntries(DIVISIONS.map(d => [d, [] as T[]])) as Record<Division, T[]>
+}
+
+/**
+ * シーズン開始時の順位表を、チーム一覧から部ごとに作る。**作る場所はここ1本。**
+ * 部の割り振りをここでやってしまうので、あとから「どの部だったか」を推測する必要がない。
+ */
+export function newSeasonStandings<T>(
+  teams: readonly Pick<Team, 'id' | 'division'>[],
+  makeRow: (teamId: string) => T,
+): Record<Division, T[]> {
+  const out = emptyStandings<T>()
+  for (const t of teams) out[divisionOf(t)].push(makeRow(t.id))
+  return out
+}
+
 /**
  * 国内クラブの「通し順位」（1〜52）。部内順位を出してから domesticThroughRank へ通す。
  * **順位表の得点で52チームを直接並べてはいけない**（部ごとにレース数が10/8/7と違うので
  * 3部が2部を追い抜く）。チーム詳細の順位・歴代成績もここを通すこと。
  */
 export function domesticThroughRankOfTeam(
-  standings: readonly { teamId: string; totalPoints: number }[] | undefined,
-  teams: readonly Pick<Team, 'id' | 'division'>[],
+  season: SeasonStandingsLike<RankableRow & { teamId: string }>,
   teamId: string,
 ): number {
-  const team = teams.find(t => t.id === teamId)
-  if (!team) return 0
-  const div = divisionOf(team)
-  const idsInDiv = new Set(teams.filter(t => divisionOf(t) === div).map(t => t.id))
-  const inDiv = rankedStandings((standings ?? []).filter(r => idsInDiv.has(r.teamId)))
-  const at = inDiv.findIndex(r => r.teamId === teamId)
-  return at < 0 ? 0 : domesticThroughRank(div, at + 1)
-}
-
-/**
- * その部だけの順位表（得点順）。**自分の順位・順位表を出すときは必ずここを通すこと。**
- *
- * `Season.standings` は全52チームぶんを1本で持っている。部で絞らずに得点で並べると、
- * 部ごとにレース数が違う（10 / 8 / 7戦）ので走った数の多い部がまとめて上に来て、
- * 順位そのものが意味を失う（1部の中位が「30位」になる、など）。
- *
- * 2部・3部が0ptのまま止まっていたころは、絞らなくても下位に沈んでいたので
- * 目立たなかっただけ。裏の部が動くようになった時点で表に出た。
- */
-export function divisionStandings<T extends RankableRow & { teamId: string }>(
-  rows: readonly T[] | undefined,
-  teams: readonly Pick<Team, 'id' | 'division'>[],
-  division: Division,
-): T[] {
-  const inDiv = new Set(teams.filter(t => divisionOf(t) === division).map(t => t.id))
-  return rankedStandings((rows ?? []).filter(r => inDiv.has(r.teamId)))
-}
-
-/** 順位表の1行。部が焼き込んであれば、その年どの部で走ったかが分かる */
-export type StandingRowLike = RankableRow & { teamId: string; division?: Division }
-/** 順位を出すのに要るものだけ。今シーズンも過去シーズンも同じ形で渡せる */
-export type SeasonStandingsLike<T extends StandingRowLike> = {
-  standings?: readonly T[]
-  /** その年の駅伝。**自分の部のぶんだけ**残っている（他の部は残らない） */
-  races?: readonly { results?: { teamRankings?: readonly { teamId: string }[] } | null }[]
-}
-
-/** その年の駅伝に出ていたチーム＝その年の自分の部の面々。結果が無ければ空 */
-function teamIdsInRaces(races: SeasonStandingsLike<StandingRowLike>['races']): Set<string> {
-  const ids = new Set<string>()
-  for (const r of races ?? []) for (const tr of r.results?.teamRankings ?? []) ids.add(tr.teamId)
-  return ids
-}
-
-/**
- * その年、そのチームと同じ部の順位表（得点順）。**部で絞るのはここ1本。**
- * 今シーズンでも過去シーズンでも、順位を出すときは必ずここを通すこと。
- *
- * 見る順番（先に決まったものを使う）
- *   1. 順位表の行に焼き込んである部（`SeasonStanding.division`）。その年の事実そのもの
- *   2. その年の駅伝に一緒に出ていたチーム。races は自分の部のぶんだけ残っているので、
- *      焼き込みが無い古い年でも、自分の部の面々だけは正しく分かる
- *   3. いまの `Team.division`。1も2も無いとき用。昇降格していればずれるが、
- *      全52チームを混ぜて並べるよりはるかにましなので、ここで止める
- */
-export function seasonDivisionStandings<T extends StandingRowLike>(
-  season: SeasonStandingsLike<T>,
-  teams: readonly Pick<Team, 'id' | 'division'>[],
-  teamId: string,
-): T[] {
-  const rows = season.standings ?? []
-  // 1. 焼き込み
-  const mine = rows.find(r => r.teamId === teamId)
-  if (mine?.division != null) return rankedStandings(rows.filter(r => r.division === mine.division))
-  // 2. その年の駅伝の面々
-  const ids = teamIdsInRaces(season.races)
-  if (ids.has(teamId)) return rankedStandings(rows.filter(r => ids.has(r.teamId)))
-  // 3. いまの部
-  return divisionStandings(rows, teams, divisionOf(teams.find(t => t.id === teamId)))
-}
-
-/**
- * その年の順位表を部ごとに分け、それぞれ得点順にしたもの。
- * 全チームぶんの成績（優勝回数・連続3位以内）を数え直すときに使う。
- *
- * こちらは部の**番号**が要るので、焼き込みが無い年は今の `Team.division` で代用する
- * （seasonDivisionStandings の2番目＝駅伝の面々からは、番号までは決まらない）。
- */
-export function seasonStandingsByDivision<T extends StandingRowLike>(
-  season: SeasonStandingsLike<T>,
-  teams: readonly Pick<Team, 'id' | 'division'>[],
-): Map<Division, T[]> {
-  const byId = new Map(teams.map(t => [t.id, t]))
-  const groups = new Map<Division, T[]>()
-  for (const r of season.standings ?? []) {
-    const d = r.division ?? divisionOf(byId.get(r.teamId))
-    const list = groups.get(d)
-    if (list) list.push(r)
-    else groups.set(d, [r])
-  }
-  for (const [d, list] of groups) groups.set(d, rankedStandings(list))
-  return groups
+  const div = divisionInSeason(season, teamId)
+  if (div == null) return 0
+  const at = rankOfTeam(divisionStandings(season, div), teamId)
+  return at === 0 ? 0 : domesticThroughRank(div, at)
 }
 
 /** 年間王者の行。1戦もしていなければ全員0点なので、先頭のチームが返る */

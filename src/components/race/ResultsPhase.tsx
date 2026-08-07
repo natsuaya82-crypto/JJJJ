@@ -139,7 +139,7 @@ export function ResultsPhase({
   // 本編は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
   const fullSorted = reserveStandings
     ? rankedStandings(reserveStandings)
-    : seasonDivisionStandings(currentSeason, teams, playerTeamId)
+    : seasonDivisionStandings(currentSeason, playerTeamId)
   const playerSeasonRank = rankOfTeam(fullSorted, playerTeamId)
   // 上位10行。トップ10外なら自チーム行を区切って末尾に追加
   const seasonRows: { s: typeof fullSorted[number]; rank: number; isBreak: boolean }[] =

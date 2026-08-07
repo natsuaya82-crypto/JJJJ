@@ -10,7 +10,7 @@ const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function RecordsHub() {
   const navigate = useNavigate()
-  const { currentSeason, pastSeasons, playerTeamId, gmTenures, teams } = useGameStore()
+  const { currentSeason, pastSeasons, playerTeamId, gmTenures} = useGameStore()
 
   // 監督は別のチームへ移れる。過去の順位は「その年に指揮していたチーム」で引く。
   // 今のチームで引くと、移った瞬間に自分の優勝が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
@@ -18,11 +18,11 @@ export default function RecordsHub() {
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   const championships = (gmTenures?.length ?? 0) > 1
     // その年の自分の部の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
-    ? pastSeasons.filter(s2 => seasonDivisionStandings(s2, teams, teamIdAt(s2.year))[0]?.teamId === teamIdAt(s2.year)).length
-    : teamHistoryOf(pastSeasons, teams, playerTeamId).championships
+    ? pastSeasons.filter(s2 => seasonDivisionStandings(s2, teamIdAt(s2.year))[0]?.teamId === teamIdAt(s2.year)).length
+    : teamHistoryOf(pastSeasons, playerTeamId).championships
   const completedRaces = currentSeason.races.filter(r => r.results).length
   // 自分の部の中での順位（得点で52チームを通すと部が混ざる）
-  const myStanding = domesticThroughRankOfTeam(currentSeason.standings, useGameStore.getState().teams, playerTeamId)
+  const myStanding = domesticThroughRankOfTeam(currentSeason, playerTeamId)
 
   const SECTIONS = [
     {
@@ -160,7 +160,7 @@ export default function RecordsHub() {
             <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px' }}>過去の成績</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {pastSeasons.slice(-4).reverse().map(season => {
-                const rank = rankOfTeam(season.standings, teamIdAt(season.year))
+                const rank = rankOfTeam(seasonDivisionStandings(season, teamIdAt(season.year)), teamIdAt(season.year))
                 const rankCol = rank === 1 ? C.gold : rank <= 3 ? C.green : C.textDim
                 return (
                   <div key={season.year} style={{ flex: 1, textAlign: 'center', padding: '6px', borderRadius: '8px', background: C.surface }}>

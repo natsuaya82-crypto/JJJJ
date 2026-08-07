@@ -116,13 +116,14 @@ RULES.push({
   fix: 'raceRecord.ts の seasonHasFullRecords を使う',
 })
 
-// 今季の順位表は全52チームぶんを1本で持っている。部で絞らずに得点で並べると、
-// 部ごとにレース数が違う（10/8/7戦）ぶんだけ順位がずれる。
+// 順位表は部ごとに分けて持っている（Season.standings）。1本に戻さないこと。
+// 部が違えばレース数が違う（10/8/7戦）ので、勝ち点を部をまたいで比べることに意味が無い。
+// 型でほぼ防げるが、平らにしてしまえば通ってしまうのでここでも見る。
 RULES.push({
-  name: '今季の順位表を部で絞らずに並べている',
-  pattern: /rankedStandings\(\s*currentSeason\.standings/,
-  allow: ['src/utils/league.ts'],
-  fix: 'league.ts の seasonDivisionStandings / divisionStandings を通す',
+  name: '部ごとの順位表を平らにしている',
+  pattern: /Object\.values\([^)]*[Ss]tandings\s*\)|DIVISIONS\.flatMap\([^)]*standings/,
+  allow: ['src/utils/league.ts', 'scripts/check-division-rank.ts'],
+  fix: 'league.ts の divisionStandings / seasonDivisionStandings で部ごとに取り出す',
 })
 
 // 相手のロスターと殿堂入りは同じ行（rosters）に入っている。

@@ -15,9 +15,9 @@
 //   部ごとにレース数もコースも違う（1部10戦 / 2部8戦 / 3部7戦）ので、
 //   自分の部のレースを他の部にも走らせてはいけない。
 
-import type { Player, Race, SeasonStanding, Team } from '../types'
+import type { Division, Player, Race, SeasonStanding, Team } from '../types'
 import { simulateRace, buildAILineup } from './raceEngine'
-import { DIVISIONS, divisionOf, teamsInDivision, segmentPrizeByTeam } from '../utils/league'
+import { DIVISIONS, teamsInDivision, segmentPrizeByTeam } from '../utils/league'
 
 export type AwayDivisionRound = {
   /** teamId → このレースで得た勝点 */
@@ -84,20 +84,23 @@ export function simulateAwayDivisions(
  * 勝点の内訳（leaguePoints / segmentPoints）は本編と同じ形で持つ。
  */
 export function applyAwayDivisionRound(
-  standings: SeasonStanding[], teams: Team[], myDivision: number,
+  standings: Record<Division, SeasonStanding[]>, myDivision: Division,
   round: AwayDivisionRound, race: Race,
-): SeasonStanding[] {
-  return standings.map(s => {
-    const t = teams.find(x => x.id === s.teamId)
-    if (!t || divisionOf(t) === myDivision) return s
-    const earned = round.points[s.teamId]
-    if (earned == null) return s
-    return {
-      ...s,
-      // 内訳は持たず合計だけを動かす（裏の部は順位さえ出れば足りる）
-      totalPoints: s.totalPoints + earned,
-      leaguePoints: s.leaguePoints + earned,
-      raceResults: [...s.raceResults, { raceId: race.id, rank: round.ranks[s.teamId] ?? 0, points: earned }],
-    }
-  })
+): Record<Division, SeasonStanding[]> {
+  const out = { ...standings }
+  for (const d of DIVISIONS) {
+    if (d === myDivision) continue          // 自分の部は本編のレースで動く
+    out[d] = (standings[d] ?? []).map(s => {
+      const earned = round.points[s.teamId]
+      if (earned == null) return s
+      return {
+        ...s,
+        // 内訳は持たず合計だけを動かす（裏の部は順位さえ出れば足りる）
+        totalPoints: s.totalPoints + earned,
+        leaguePoints: s.leaguePoints + earned,
+        raceResults: [...s.raceResults, { raceId: race.id, rank: round.ranks[s.teamId] ?? 0, points: earned }],
+      }
+    })
+  }
+  return out
 }

@@ -19,7 +19,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
-import { rankedStandings, domesticThroughRankOfTeam, domesticThroughRank, DIVISIONS, DIVISION_SIZE, DIVISION_LABEL } from '../../utils/league'
+import { rankedStandings, standingRowOf, domesticThroughRankOfTeam, domesticThroughRank, DIVISIONS, DIVISION_SIZE, DIVISION_LABEL } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -146,11 +146,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const curForeignStandings = isForeign ? (currentSeason.foreignStandings?.[leagueId!] ?? []) : []
   const standing = isForeign
     ? curForeignStandings.find(s => s.clubId === id)
-    : currentSeason.standings.find(s => s.teamId === id)
+    : standingRowOf(currentSeason, id)
   const rank = isForeign
     ? rankedStandings(curForeignStandings).findIndex(s => s.clubId === id) + 1
     // 得点で52チームを直接並べない（部ごとにレース数が違う）。部内順位→通し順位で出す
-    : domesticThroughRankOfTeam(currentSeason.standings, teams, id)
+    : domesticThroughRankOfTeam(currentSeason, id)
   const standingPoints = standing?.totalPoints ?? 0
   const recentForm = (standing?.raceResults ?? []).slice(-4)
   const completedRaces = isForeign
@@ -164,9 +164,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
       const r = st.findIndex(x => x.clubId === id) + 1
       return { year: s.year, rank: r, total: st.length }
     }
-    // 国内は通し順位（1〜52）。得点で52チームを直接並べると3部が2部を追い抜く。
-    // 過去シーズンは当時の部を保存していないので、いまの部で数えている
-    const r = domesticThroughRankOfTeam(s.standings, teams, id)
+    // 国内は通し順位（1〜52）。順位表は部ごとに分かれているので、
+    // その年に走った部の中での順位から通し順位を出す（昇降格していても狂わない）
+    const r = domesticThroughRankOfTeam(s, id)
     return { year: s.year, rank: r, total: DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0) }
   }).filter(h => h.rank > 0).slice(-8)
 
@@ -183,7 +183,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: '#C9A84C' })
   } else {
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-    const jpelTitles = teamHistoryOf(pastSeasons, teams, id).championships
+    const jpelTitles = teamHistoryOf(pastSeasons, id).championships
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
       if (!st || st.length === 0) return false
@@ -216,7 +216,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   ]
   const infoChampions = isForeign
     ? (titles[0]?.count ?? 0)
-    : teamHistoryOf(pastSeasons, teams, id).championships
+    : teamHistoryOf(pastSeasons, id).championships
   const infoBestRank = historyRanks.length > 0 ? Math.min(...historyRanks.map(h => h.rank)) : null
 
   // 移籍の入/出：シーズンごとの出場・在籍記録の年またぎ差分から導出する。
