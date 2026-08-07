@@ -117,6 +117,24 @@ export const FOREIGN_STAR_PREMIUM = 1.25
 // 選手ごとの上限ではなくクラブごとの上限なので、必要としているクラブは高い選手にも手が届く。
 export const TRANSFER_BUDGET_SHARE = 0.20
 
+/**
+ * そのクラブが1人の移籍金に出せる上限。**買う側の上限はここ1本。**
+ *
+ * 決まりは「格の年間予算の TRANSFER_BUDGET_SHARE まで。手元の資金がそれより少なければそちら」。
+ * この式が store の中に3通り書かれていて、
+ *   ・上乗せの判定は年間予算だけ見て手元の資金を見ていない
+ *   ・打診の生成は手元の資金だけ見て年間予算の上限を見ていない（格の意味が消える）
+ *   ・横取りの判定だけが正しい
+ * という状態だった。海外クラブの打診にいたっては上限が一つも無かった。
+ *
+ * @param annualBudget 格から降りてくる年間予算（utils/clubTier の tierBudget）
+ * @param cash 手元の資金。海外クラブのように持っていない場合は省略
+ */
+export function transferCapOf(annualBudget: number, cash?: number): number {
+  const cap = Math.floor(annualBudget * TRANSFER_BUDGET_SHARE)
+  return cash == null ? cap : Math.max(0, Math.min(cash, cap))
+}
+
 // 入札額 fee に対する受諾確率(0..1)。threshold = base×(0.9 + rand*0.2) の一様分布から算出。
 export function transferAcceptChance(fee: number, base: number): number {
   if (base <= 0) return 1

@@ -47,7 +47,7 @@ import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
-import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, TRANSFER_BUDGET_SHARE, DEFICIT_RESCUE_BUDGET } from '../data/economy'
+import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, transferCapOf, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type CardExchange } from '../utils/cardCombo'
@@ -1143,8 +1143,29 @@ export const useGameStore = create<GameStore>()(
             if (m.ok) undraftedApplied = m.players
           }
           const undraftedSet = new Set(undraftedIds)
-          const updatedPlayers = undraftedApplied.map(p =>
+          let updatedPlayers = undraftedApplied.map(p =>
             undraftedSet.has(p.id) && p.status === 'draft_eligible' ? { ...p, status: 'active' as const } : p)
+
+          // ★指名漏れが出たこのタイミングで、CPUのFA補強をもう一度回す。
+          //   FA補強は beginSeasonDraft（ドラフトの前）でしか走っていなかったので、
+          //   指名されなかった候補は**丸1年FA市場に置き去り**になっていた。
+          //   「指名されなかった候補はFAになるので、2部・3部はそこから拾う」（CLAUDE.md）が
+          //   一度も起きていなかった。判断は pickCpuFreeAgents 1本（ドラフト前と同じ）
+          {
+            const capForPost = (teamId: string) => ROSTER_MAX - (state.teams.find(t => t.id === teamId)?.draftPicks ?? [])
+              .filter(pk => pk.year === state.currentSeason.year).length
+            const postSignings = pickCpuFreeAgents({
+              players: updatedPlayers, teams: state.teams,
+              playerTeamId: state.playerTeamId, season: state.currentSeason,
+              pastSeasons: state.pastSeasons, divSize: myDivSize(state), capFor: capForPost,
+            })
+            for (const sg of postSignings) {
+              const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.teamId, {
+                year: state.currentSeason.year, kind: 'free', years: 2, history: false,
+              })
+              if (m.ok) updatedPlayers = m.players
+            }
+          }
           // Generate future draft picks for all teams (yr+1, yr+2, rounds 1-2)
           // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
           const currentYear = state.currentSeason.year
@@ -1202,7 +1223,7 @@ export const useGameStore = create<GameStore>()(
               const clubs = allTieredClubs(st.teams, st.foreignLeagues)
               const raised = (st.currentSeason.incomingOffers ?? []).map(o => {
                 if (o.id === ps.offerId || o.playerId !== ps.playerId || o.offeredPrice <= 0) return o
-                const cap = Math.round(tierBudget(clubs.find(c => c.id === o.fromTeamId)) * TRANSFER_BUDGET_SHARE)
+                const cap = transferCapOf(tierBudget(clubs.find(c => c.id === o.fromTeamId)))
                 const want = top + 10_000_000
                 // 半々で勝負に出る。払えないクラブは降りる（＝上乗せしない）
                 if (Math.random() < 0.5 || want > cap) return o
@@ -1866,7 +1887,7 @@ export const useGameStore = create<GameStore>()(
               .map(x => ({
                 clubId: x.t.id,
                 name: x.t.shortName,
-                willing: Math.floor(Math.min(Math.max(0, x.t.finance.budget), tierBudget(x.t) * TRANSFER_BUDGET_SHARE)),
+                willing: transferCapOf(tierBudget(x.t), x.t.finance.budget),
               }))
               .filter(r => r.willing > 0)
           }
@@ -5253,106 +5274,12 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // FA補強（受け皿）：移籍市場で動けなかった選手・チームの補完。
-        //
-        // ★人数がここまでは「年俸を気にせず埋める」ライン。これを超えると年俸が払える範囲だけ。
-        //   以前は ROSTER_MIN + 9（＝24）と書いてあり、名前は変わっていても数字は24のままだった。
-        //   24で頭打ちになるのはこの行が理由。上限(30)までの6人ぶんは、
-        //   「穴」か「スタメンに入る」FAを年俸の範囲で取る（下の②）。
-        const FA_FREE_FILL = ROSTER_MIN + 9
-        // 高齢選手は実力どおりに評価しない（33歳以上は年齢ぶん減点した「年齢調整OVR」順で選ぶ＝35歳の高OVRに飛びつかない）
-        const ageAdjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
-        const availableFAs = playersAfterCpuTransfer
-          .filter(p => p.teamId === '' && p.status === 'active')
-          .sort((a, b) => ageAdjOvr(b) - ageAdjOvr(a))
-        const signedFAIds = new Set<string>()
-        const cpuSignings: { playerId: string; teamId: string }[] = []
-        // 前年順位（運用方針・予算の基準）
-        const lastStandings = rankedStandings((state.pastSeasons[state.pastSeasons.length - 1]?.standings ?? []))
-        const totalTeams = myDivSize(state)
-        const rankOf = (teamId: string) => { const r = rankOfTeam(lastStandings, teamId); return r > 0 ? r : Math.ceil(totalTeams / 2) }
-        // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
-        const tierJitter = new Map(teamsAfterCpuTransfer.map(t => [t.id, Math.random()]))
-        const cpuTeamsSorted = teamsAfterCpuTransfer
-          .filter(t => t.id !== state.playerTeamId)
-          .sort((a, b) => (rankOf(b.id) - rankOf(a.id)) || (tierJitter.get(a.id)! - tierJitter.get(b.id)!))
-
-        // チームごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
-        const faCtxList = cpuTeamsSorted.map(team => {
-          // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
-          const currentRoster = playersAfterCpuTransfer.filter(p => p.teamId === team.id && p.status === 'active')
-          const tier = cpuTeamTier(team.id, playersAfterCpuTransfer)
-          const minOvr = tier === 'elite' ? 74 : tier === 'mid' ? 67 : 58
-          const totalNow = currentRoster.length
-          // 運用方針と予算
-          const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
-          const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
-          const committedSalary = playersAfterCpuTransfer.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
-          const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
-          // 補強原資 ＝ 年俸原資の余り（クラブ予算−既存年俸）＋ 実残高の一部。
-          // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く
-          const grantRoom = Math.max(0, tierBudget(team) - committedSalary)
-          const budgetRoom = Math.max(0, team.finance.budget) * 0.3
-          return {
-            team, totalNow,
-            slotsNeeded: Math.max(0, rosterCapFor(team.id) - totalNow),
-            spendable: team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor,
-            spent: 0, signed: 0,
-            needs: cpuSpecialtyNeeds(team.id, playersAfterCpuTransfer),
-            specCounts: {} as Record<string, number>,
-            // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
-            ageCap: strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33),
-            specFloor: strat === 'rebuild' ? 50 : Math.max(50, minOvr - 10),
-            // 若手再建はポテンシャル・若さ優先、それ以外はOVR優先（availableFAsは既にOVR降順）
-            pool: strat === 'rebuild'
-              ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
-              : availableFAs,
-          }
+        // FA補強（受け皿）：移籍市場で動けなかった選手・チームの補完。判断は pickCpuFreeAgents 1本
+        const cpuSignings = pickCpuFreeAgents({
+          players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer,
+          playerTeamId: state.playerTeamId, season: state.currentSeason,
+          pastSeasons: state.pastSeasons, divSize: myDivSize(state), capFor: rosterCapFor,
         })
-        type FaCtx = typeof faCtxList[number]
-        const estCost = (fa: Player) => faMarketSalary(fa, perfOf(state.currentSeason, fa.id))
-        const doSignFA = (c: FaCtx, fa: Player) => {
-          signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: c.team.id })
-          c.signed++; c.spent += estCost(fa)
-        }
-        // 1周につき1人だけ。取れるチームが無くなったら終わり（utils/roundRobin.ts）。
-        // 以前は1チームが枠を埋めきってから次に回していたので、良いFAが上位チームに固まっていた
-        const signOneFA = (c: FaCtx): boolean => {
-          if (c.signed >= c.slotsNeeded) return false
-          // 外国人枠は廃止したので国籍による人数制限は無い
-          const canSign = (fa: Player) => !signedFAIds.has(fa.id) && fa.age < c.ageCap
-          // 戦力崩壊を防ぐ最低ラインまでは予算に関係なく補強する。それ以上は年俸が払える範囲でのみ。
-          // 移籍金はかからないので、止めるのは年俸だけ
-          const budgetOk = (fa: Player) => (c.totalNow + c.signed) < FA_FREE_FILL || (c.spent + estCost(fa) <= c.spendable)
-          // ① 専門の穴埋め（1つの専門につき2人まで）
-          for (const spec of c.needs) {
-            const have = playersAfterCpuTransfer.filter(p => p.teamId === c.team.id && p.specialty === spec && p.status === 'active').length
-            if (have + (c.specCounts[spec] ?? 0) >= 2) continue
-            const fa = c.pool.find(f => f.specialty === spec && canSign(f) && ovr(f) >= c.specFloor && budgetOk(f))
-            if (!fa) continue
-            doSignFA(c, fa)
-            c.specCounts[spec] = (c.specCounts[spec] ?? 0) + 1
-            return true
-          }
-          // ② 穴が空いている（needsPlayer）か、**スタメンに入る**（wouldMakeLineup）なら取る。
-          //    ★FAは移籍金がかからないので、needsPlayer だけで判断してはいけない。
-          //      「必要だから動く」は金を払う移籍の話で、タダなら穴でなくても走れる選手は取る。
-          //      2部・3部にとってOVR77がタダなら破格、というのがここ。
-          //      needsPlayer だけにしていたので、良いFAが誰にも取られず市場に残り続けていた。
-          //    判定は squadNeeds の1本（自チームもCPUも海外も同じ入口）。
-          if (c.totalNow + c.signed < ROSTER_MAX) {
-            const roster = playersAfterCpuTransfer.filter(p => p.teamId === c.team.id && p.status === 'active')
-            const need = c.pool.find(f => canSign(f) && budgetOk(f) && (needsPlayer(roster, f) || wouldMakeLineup(roster, f)))
-            if (need) { doSignFA(c, need); return true }
-          }
-          // ③ 頭数の確保 — 年俸/OVRに関係なく、人数が足りていないクラブは埋める
-          if (c.totalNow + c.signed >= FA_FREE_FILL) return false
-          const fa = availableFAs.find(canSign)
-          if (!fa) return false
-          doSignFA(c, fa)
-          return true
-        }
-        roundRobin(faCtxList, signOneFA)
         const newYear = state.currentSeason.year
         // CPUのFA契約も movePlayer に通す（所属・名簿・加入年をまとめて。名簿に入れるので契約種別も本契約に揃える）
         let playersWithCpuSigns: Player[] = playersAfterCpuTransfer
@@ -8658,6 +8585,127 @@ function cpuTeamTier(teamId: string, players: Player[]): 'elite' | 'mid' | 'weak
 // そのチームが頭数の足りていないタイプ（薄い順）。判定は utils/squadNeeds.ts の1本。
 // 「どのタイプが足りていないか」は海外の補強（engine/foreignTransfers.ts）でも使うので、
 // タイプの一覧も人数の下限もあちらと同じものを見る
+/**
+ * CPUクラブのFA補強。**FAを拾う判断はここ1本。**
+ *
+ * ■なぜ関数にしたのか
+ *   この処理は beginSeasonDraft の中に直接書かれていて、**ドラフトの前**にしか走らなかった。
+ *   ところが指名されなかった候補がFAになるのは**ドラフトが終わったあと**。
+ *   つまり「指名漏れは2部・3部が拾う」（CLAUDE.md）が一度も起きず、
+ *   良い選手が丸1年FA市場に置き去りになっていた。同じ判断を2度書かないために切り出す。
+ *
+ * 返すのは「誰がどこと契約するか」だけ。所属の書き換えは呼ぶ側が movePlayer に通す。
+ */
+function pickCpuFreeAgents(a: {
+  players: Player[]
+  teams: Team[]
+  playerTeamId: string
+  season: import('../types').Season
+  pastSeasons: GameState['pastSeasons']
+  /** 自分の部のチーム数（運用方針の基準） */
+  divSize: number
+  /** そのクラブのロスター上限（指名権ぶんを空けた数） */
+  capFor: (teamId: string) => number
+}): { playerId: string; teamId: string }[] {
+  const players = a.players
+  const teams = a.teams
+  // 人数がここまでは年俸を気にせず埋める。これを超えると年俸が払える範囲だけ
+  const FA_FREE_FILL = ROSTER_MIN + 9
+  const ageAdjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
+  const availableFAs = players
+    .filter(p => p.teamId === '' && p.status === 'active')
+    .sort((a, b) => ageAdjOvr(b) - ageAdjOvr(a))
+  const signedFAIds = new Set<string>()
+  const cpuSignings: { playerId: string; teamId: string }[] = []
+  // 前年順位（運用方針・予算の基準）
+  const lastStandings = rankedStandings((a.pastSeasons[a.pastSeasons.length - 1]?.standings ?? []))
+  const totalTeams = a.divSize
+  const rankOf = (teamId: string) => { const r = rankOfTeam(lastStandings, teamId); return r > 0 ? r : Math.ceil(totalTeams / 2) }
+  // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
+  const tierJitter = new Map(teams.map(t => [t.id, Math.random()]))
+  const cpuTeamsSorted = teams
+    .filter(t => t.id !== a.playerTeamId)
+    .sort((a, b) => (rankOf(b.id) - rankOf(a.id)) || (tierJitter.get(a.id)! - tierJitter.get(b.id)!))
+
+  // チームごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
+  const faCtxList = cpuTeamsSorted.map(team => {
+    // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
+    const currentRoster = players.filter(p => p.teamId === team.id && p.status === 'active')
+    const tier = cpuTeamTier(team.id, players)
+    const minOvr = tier === 'elite' ? 74 : tier === 'mid' ? 67 : 58
+    const totalNow = currentRoster.length
+    // 運用方針と予算
+    const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
+    const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
+    const committedSalary = players.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
+    const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
+    // 補強原資 ＝ 年俸原資の余り（クラブ予算−既存年俸）＋ 実残高の一部。
+    // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く
+    const grantRoom = Math.max(0, tierBudget(team) - committedSalary)
+    const budgetRoom = Math.max(0, team.finance.budget) * 0.3
+    return {
+      team, totalNow,
+      slotsNeeded: Math.max(0, a.capFor(team.id) - totalNow),
+      spendable: team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor,
+      spent: 0, signed: 0,
+      needs: cpuSpecialtyNeeds(team.id, players),
+      specCounts: {} as Record<string, number>,
+      // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
+      ageCap: strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33),
+      specFloor: strat === 'rebuild' ? 50 : Math.max(50, minOvr - 10),
+      // 若手再建はポテンシャル・若さ優先、それ以外はOVR優先（availableFAsは既にOVR降順）
+      pool: strat === 'rebuild'
+        ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
+        : availableFAs,
+    }
+  })
+  type FaCtx = typeof faCtxList[number]
+  const estCost = (fa: Player) => faMarketSalary(fa, perfOf(a.season, fa.id))
+  const doSignFA = (c: FaCtx, fa: Player) => {
+    signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: c.team.id })
+    c.signed++; c.spent += estCost(fa)
+  }
+  // 1周につき1人だけ。取れるチームが無くなったら終わり（utils/roundRobin.ts）。
+  // 以前は1チームが枠を埋めきってから次に回していたので、良いFAが上位チームに固まっていた
+  const signOneFA = (c: FaCtx): boolean => {
+    if (c.signed >= c.slotsNeeded) return false
+    // 外国人枠は廃止したので国籍による人数制限は無い
+    const canSign = (fa: Player) => !signedFAIds.has(fa.id) && fa.age < c.ageCap
+    // 戦力崩壊を防ぐ最低ラインまでは予算に関係なく補強する。それ以上は年俸が払える範囲でのみ。
+    // 移籍金はかからないので、止めるのは年俸だけ
+    const budgetOk = (fa: Player) => (c.totalNow + c.signed) < FA_FREE_FILL || (c.spent + estCost(fa) <= c.spendable)
+    // ① 専門の穴埋め（1つの専門につき2人まで）
+    for (const spec of c.needs) {
+      const have = players.filter(p => p.teamId === c.team.id && p.specialty === spec && p.status === 'active').length
+      if (have + (c.specCounts[spec] ?? 0) >= 2) continue
+      const fa = c.pool.find(f => f.specialty === spec && canSign(f) && ovr(f) >= c.specFloor && budgetOk(f))
+      if (!fa) continue
+      doSignFA(c, fa)
+      c.specCounts[spec] = (c.specCounts[spec] ?? 0) + 1
+      return true
+    }
+    // ② 穴が空いている（needsPlayer）か、**スタメンに入る**（wouldMakeLineup）なら取る。
+    //    ★FAは移籍金がかからないので、needsPlayer だけで判断してはいけない。
+    //      「必要だから動く」は金を払う移籍の話で、タダなら穴でなくても走れる選手は取る。
+    //      2部・3部にとってOVR77がタダなら破格、というのがここ。
+    //      needsPlayer だけにしていたので、良いFAが誰にも取られず市場に残り続けていた。
+    //    判定は squadNeeds の1本（自チームもCPUも海外も同じ入口）。
+    if (c.totalNow + c.signed < ROSTER_MAX) {
+      const roster = players.filter(p => p.teamId === c.team.id && p.status === 'active')
+      const need = c.pool.find(f => canSign(f) && budgetOk(f) && (needsPlayer(roster, f) || wouldMakeLineup(roster, f)))
+      if (need) { doSignFA(c, need); return true }
+    }
+    // ③ 頭数の確保 — 年俸/OVRに関係なく、人数が足りていないクラブは埋める
+    if (c.totalNow + c.signed >= FA_FREE_FILL) return false
+    const fa = availableFAs.find(canSign)
+    if (!fa) return false
+    doSignFA(c, fa)
+    return true
+  }
+  roundRobin(faCtxList, signOneFA)
+  return cpuSignings
+}
+
 function cpuSpecialtyNeeds(teamId: string, players: Player[]): Specialty[] {
   return thinSpecialties(players.filter(p => p.teamId === teamId && p.status === 'active'))
 }
@@ -8691,6 +8739,11 @@ function generateForeignAndLoanOffers(params: {
   const offerCountOf = (pid: string) => existingIncoming.filter(o => o.playerId === pid && o.offeredPrice > 0).length
   const clubsAlreadyOffering = (pid: string) => new Set(existingIncoming.filter(o => o.playerId === pid).map(o => o.fromTeamId))
   const offeredIds = new Set(existingIncoming.filter(o => offerCountOf(o.playerId) >= MAX_OFFERS_PER_PLAYER).map(o => o.playerId))
+  /**
+   * 海外クラブが1人に出せる上限。格→年間予算→20% の1本（economy の transferCapOf）。
+   * ここが無かったので、格20のクラブでも世界最高の選手に上限なしで打診できていた
+   */
+  const foreignCapOf = (clubId: string) => transferCapOf(tierBudget({ id: clubId, tier: tierOfClubId(clubId) }))
   /** そのクラブがその選手に打診していいか（枠・重複・今季すでに断られた相手） */
   const clubMayOffer = (p: Player, clubId: string, pending: IncomingOffer[]) =>
     offerCountOf(p.id) + pending.filter(o => o.playerId === p.id).length < MAX_OFFERS_PER_PLAYER
@@ -8713,8 +8766,10 @@ function generateForeignAndLoanOffers(params: {
     const club = clubs[(ovr(target) + raceIndex) % clubs.length]
     if (!clubMayOffer(target, club.id, foreignIncoming)) continue
     const tv = calcTransferValue(target)
-    // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示
-    foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: roundFee(tv * (1.1 + Math.random() * 0.3), 1_000_000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+    // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示。ただし出せる上限まで
+    const dreamPrice = roundFee(tv * (1.1 + Math.random() * 0.3), 1_000_000)
+    if (dreamPrice > foreignCapOf(club.id)) continue
+    foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: dreamPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
   }
 
   // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでも4大リーグが放っておかない
@@ -8727,7 +8782,8 @@ function generateForeignAndLoanOffers(params: {
     if (star && eliteClub && clubMayOffer(star, eliteClub.id, foreignIncoming)) {
       const club = eliteClub
       const tv = calcTransferValue(star)
-      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: roundFee(tv * (1.1 + Math.random() * 0.25), 1_000_000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+      const starPrice = roundFee(tv * (1.1 + Math.random() * 0.25), 1_000_000)
+      if (starPrice <= foreignCapOf(club.id)) foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: starPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
   }
 
@@ -8766,7 +8822,9 @@ function generateForeignAndLoanOffers(params: {
       const club = suitors[(ovr(target) + raceIndex + oi * 7) % suitors.length]
       if (!clubMayOffer(target, club.id, foreignIncoming)) continue
       const tv = calcTransferValue(target)
-      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: roundFee(tv * (0.95 + Math.random() * 0.25), 1_000_000), expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+      const price = roundFee(tv * (0.95 + Math.random() * 0.25), 1_000_000)
+      if (price > foreignCapOf(club.id)) continue
+      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: price, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
   }
 
@@ -8933,9 +8991,11 @@ function generateTransferActivity(
     targets.sort((a, b) => adjOvr(b) - adjOvr(a))
     const target = targets[0]
     const tv = calcTransferValue(target)
-    // 相場まで払えない（予算＜市場価値）チームはオファーを出さない。
-    // これが無いと「安値で打診→相場に上げると予算不足で必ず決裂」の理不尽が起きる
-    if ((team.finance?.budget ?? 0) < tv) continue
+    // 相場まで払えないチームはオファーを出さない。
+    // 上限は「格の年間予算の20%まで、手元の資金がそれより少なければそちら」の1本
+    // （economy の transferCapOf）。以前はここだけ手元の資金しか見ておらず、
+    // 格の意味が消えていた（貯金さえあれば格20のクラブが上限なしに出せた）
+    if (transferCapOf(tierBudget(team), team.finance?.budget ?? 0) < tv) continue
     // Realistic offer: 85-105% for elite, 80-97% for others
     const ratio = tier === 'elite' ? (0.85 + Math.random() * 0.20) : (0.80 + Math.random() * 0.17)
     newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: roundFee(tv * ratio, 1_000_000), expiresAtRace: raceIndex + 5, round: 1 })
