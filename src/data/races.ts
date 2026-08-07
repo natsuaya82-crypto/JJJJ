@@ -726,4 +726,3 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
   ...LEAGUE_COURSE_POOL.slice(9),
   ...FINAL_COURSES.slice(1),
 ]
-export const RESERVE_RACE_POOL_NAMES: readonly string[] = RESERVE_RACE_POOL.map(r => r.name)

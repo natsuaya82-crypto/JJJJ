@@ -307,7 +307,7 @@ export default function WorldTournamentPage() {
         currentSeason={currentSeason}
         competition="world"
         isLastRace={false}
-        reserveStandings={standRows.map(s => ({
+        altStandings={standRows.map(s => ({
           teamId: s.id, totalPoints: s.points ?? 0,
           raceResults: t.races.filter(r => r.results).map(r => ({ raceId: r.id, rank: r.results!.teamRankings.find(tr => tr.teamId === s.id)?.rank ?? 99, points: 0 })),
         }))}

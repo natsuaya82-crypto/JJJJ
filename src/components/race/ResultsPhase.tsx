@@ -50,7 +50,7 @@ const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties =>
 
 export function ResultsPhase({
   race, results, teams, players, playerTeamId, currentSeason, isLastRace,
-  reserveStandings, onContinue, hideCards, standingsLabel, competition,
+  altStandings, onContinue, hideCards, standingsLabel, competition,
 }: {
   race: Race
   results: RaceResults
@@ -59,7 +59,12 @@ export function ResultsPhase({
   playerTeamId: string
   currentSeason: Season
   isLastRace: boolean
-  reserveStandings?: Season['secondTeamStandings']
+  /**
+   * シーズン順位の代わりに出す順位表（ECL・世界選手権）。
+   * 2軍リーグを廃止したあとも `reserveStandings` という名前のまま使い回されていて、
+   * 「リザーブ専用の何か」に見えていた。中身は「別の大会の順位表」なので名前を合わせる。
+   */
+  altStandings?: Season['secondTeamStandings']
   onContinue?: () => void
   hideCards?: boolean   // ECL等、カード報酬のないレースで前レースの獲得カードが出ないように
   standingsLabel?: string   // 順位表の見出し差し替え（ECL＝「ECL シリーズ順位」等）
@@ -128,17 +133,17 @@ export function ResultsPhase({
 
   const finish = async () => {
     // 契約満了間近の選手がいる場合は先に対応させる。
-    // シーズン最終戦・リザーブリーグ（reserveStandings/onContinue経由）では誘導しない。
+    // シーズン最終戦・別大会（altStandings/onContinue経由）では誘導しない。
     // replace遷移にして、通知から「戻る」を押したときにレース画面（次の記録会等）ではなくホームへ戻す
-    if (urgentRenewalExists && !isLastRace && !reserveStandings && !onContinue) { navigate('/notifications', { replace: true }); return }
+    if (urgentRenewalExists && !isLastRace && !altStandings && !onContinue) { navigate('/notifications', { replace: true }); return }
     // 最終戦直後の広告は廃止（「次シーズン開幕へ」で1回だけ流す。2連続で広告が出るのを防ぐ）
     onContinue ? onContinue() : navigate('/')
   }
 
   // リザーブリーグはその大会だけの順位表なのでそのまま。
   // 本編は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
-  const fullSorted = reserveStandings
-    ? rankedStandings(reserveStandings)
+  const fullSorted = altStandings
+    ? rankedStandings(altStandings)
     : seasonDivisionStandings(currentSeason, playerTeamId)
   const playerSeasonRank = rankOfTeam(fullSorted, playerTeamId)
   // 上位10行。トップ10外なら自チーム行を区切って末尾に追加
@@ -508,9 +513,9 @@ export function ResultsPhase({
       <div style={{ padding: '0 12px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px' }}>
-            {standingsLabel ?? (reserveStandings ? 'リザーブ順位（暫定）' : 'シーズン順位（暫定）')}
+            {standingsLabel ?? (altStandings ? '順位（暫定）' : 'シーズン順位（暫定）')}
           </span>
-          {!reserveStandings && playerSeasonRank > 0 && (
+          {!altStandings && playerSeasonRank > 0 && (
             <span style={{ fontSize: '10px', color: C.textDim }}>
               自チーム
               <span style={{ fontSize: '14px', fontWeight: '900', color: playerSeasonRank === 1 ? C.gold : playerSeasonRank <= 3 ? C.green : C.textSub, fontFamily: SAIRA, margin: '0 3px', textShadow: playerSeasonRank <= 3 ? `0 0 8px ${alpha(C.gold, 0.4)}` : 'none' }}>{playerSeasonRank}</span>

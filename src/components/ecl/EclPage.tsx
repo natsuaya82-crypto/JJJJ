@@ -217,7 +217,7 @@ export default function EclPage() {
         currentSeason={currentSeason}
         competition="ecl"
         isLastRace={false}
-        reserveStandings={standings.map(s => ({
+        altStandings={standings.map(s => ({
           teamId: s.id, totalPoints: s.points,
           raceResults: series.races.filter(r => r.results).map(r => ({ raceId: r.id, rank: r.results!.teamRankings.find(tr => tr.teamId === s.id)?.rank ?? 99, points: 0 })),
         }))}
