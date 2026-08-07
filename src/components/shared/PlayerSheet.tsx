@@ -23,12 +23,12 @@ import { HOF_MAX, isHofEligible } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import { safeRatings } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
-import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 import ShareCard from './ShareCard'
 import Flag from '../ui/Flag'
 import { natLabel, natGeoRegion, isForeignNat } from '../../data/nationalities'
 import { WA_HOST_CITY } from '../../engine/worldAthletics'
-import { waRaceRows, isWaRaceName } from '../../utils/waRaces'
+import { waRaceRows } from '../../utils/waRaces'
+import { ranRaces, raceKey, splitRaceKey, shortRaceName } from '../../utils/raceHistory'
 
 
 const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
@@ -140,6 +140,7 @@ export default function PlayerSheet() {
   const eclHistory = useEclHistory()
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
+  const foreignLeagues = useGameStore(s => s.foreignLeagues)
   const worldTournament = useGameStore(s => s.worldTournament)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
   const setDisplayBadge = useGameStore(s => s.setDisplayBadge)
@@ -297,60 +298,41 @@ export default function PlayerSheet() {
   const specCol = SPEC_COLOR[player.specialty]
 
   type RaceEntry = { year: number; segIdx: number; distKm?: number; rank: number; timeSec: number }
+  // 走ったレースを「リーグ → 駅伝名」で並べる。**どこから拾うかは utils/raceHistory の1本**
+  // （自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会。足し忘れると表示から消える）。
+  // 同じ駅伝名でも部が違えば別の記録として持つ（1部の出雲開幕戦と3部の出雲開幕戦）。
+  // ECL（5戦シリーズ＋旧一発勝負）の結果レース。在籍履歴の集計でも使う
+  const eclRacesOf = (s2: { eclSeries?: { races: Race[] }; eclRace?: Race }) => [
+    ...(s2.eclSeries?.races?.filter(r => r.results) ?? []),
+    ...(s2.eclRace?.results ? [s2.eclRace] : []),
+  ]
   const raceGroupMap = new Map<string, RaceEntry[]>()
-  const addEntry = (name: string, e: RaceEntry) => {
-    if (!raceGroupMap.has(name)) raceGroupMap.set(name, [])
-    raceGroupMap.get(name)!.push(e)
-  }
-  const processRaces = (raceList: typeof currentSeason.races, year: number) => {
-    for (const race of raceList) {
-      if (!race.results) continue
-      const sr = race.results.segmentResults.find(s => s.runners.some(r => r.playerId === player.id))
+  const raceGroups: { league: string; order: number; names: string[] }[] = []
+  {
+    const byLeague = new Map<string, { league: string; order: number; names: string[] }>()
+    const rows = ranRaces({
+      seasons: [...pastSeasons, currentSeason],
+      waResults: worldAthleticsResults,
+      playerTeamId,
+      foreignLeagues,
+    })
+    for (const { year, league, order, race } of rows) {
+      const sr = race.results!.segmentResults.find(sg => sg.runners.some(r => r.playerId === player.id))
       if (!sr) continue
       const runner = sr.runners.find(r => r.playerId === player.id)!
-      const seg = race.segments?.find(s => s.index === sr.segmentIndex)
-      addEntry(race.name, { year, segIdx: sr.segmentIndex, distKm: seg?.distanceKm, rank: runner.rank, timeSec: runner.timeSec })
+      const seg = race.segments?.find(sg => sg.index === sr.segmentIndex)
+      const key = raceKey(league, race.name)
+      const list = raceGroupMap.get(key)
+      const entry = { year, segIdx: sr.segmentIndex, distKm: seg?.distanceKm, rank: runner.rank, timeSec: runner.timeSec }
+      if (list) list.push(entry)
+      else raceGroupMap.set(key, [entry])
+      let g = byLeague.get(league)
+      if (!g) { g = { league, order, names: [] }; byLeague.set(league, g) }
+      if (!g.names.includes(race.name)) g.names.push(race.name)
     }
+    raceGroups.push(...[...byLeague.values()].sort((a, b) => a.order - b.order || a.league.localeCompare(b.league)))
+    for (const g of raceGroups) g.names.sort()
   }
-  // ECL（5戦シリーズ＋旧一発勝負）の結果レース
-  const eclRacesOf = (s: { eclSeries?: { races: Race[] }; eclRace?: Race }) => [
-    ...(s.eclSeries?.races?.filter(r => r.results) ?? []),
-    ...(s.eclRace?.results ? [s.eclRace] : []),
-  ]
-  for (const ps of pastSeasons) {
-    processRaces(ps.races, ps.year)
-    processRaces(ps.secondTeamRaces ?? [], ps.year)   // リザーブ駅伝の結果も履歴に含める
-    processRaces(ps.collegeRaces ?? [], ps.year)
-    processRaces(eclRacesOf(ps), ps.year)   // ECLの出走も駅伝データに含める
-  }
-  processRaces(currentSeason.races, currentSeason.year)
-  processRaces(currentSeason.secondTeamRaces ?? [], currentSeason.year)
-  processRaces(currentSeason.collegeRaces ?? [], currentSeason.year)
-  processRaces(eclRacesOf(currentSeason), currentSeason.year)
-  // 海外リーグの出走も駅伝データへ含める（コース名は地域ごと＝「ナイロビ開幕戦」等）。
-  // いずれ海外のクラブを指揮するので、国内と同じだけ記録が見えるようにする
-  const foreignRaceNames = new Set<string>()
-  for (const s2 of [...pastSeasons, currentSeason]) {
-    for (const rs of Object.values(s2.foreignRaces ?? {})) {
-      processRaces(rs.filter(r => r.results), s2.year)
-      for (const r of rs) if (r.results) foreignRaceNames.add(r.name)
-    }
-  }
-  // 世界大会（本戦・アジア予選・大陸予選）の駅伝出走もECLと同じように駅伝データへ含める。
-  // 走行記録の取り出しは utils/waRaces の1本（新しい置き場所と古いセーブの両方をここが吸収する）
-  const waRows = waRaceRows([...pastSeasons, currentSeason], worldAthleticsResults)
-  for (const row of waRows) processRaces([row.race], row.year)
-
-  // 2軍駅伝は年ごとに開催大会が入れ替わるため、「このセーブで実際に開催されたことのある大会」だけを一覧に出す
-  // （未出場の開催大会は空欄で並ぶ。プールにあるだけで一度も開催されていない大会は出さない）
-  const seenReserveNames = new Set<string>()
-  for (const r of [
-    ...(currentSeason.collegeRaces ?? []), ...pastSeasons.flatMap(ps => ps.collegeRaces ?? []),
-    ...(currentSeason.secondTeamRaces ?? []), ...pastSeasons.flatMap(ps => ps.secondTeamRaces ?? []),
-  ]) {
-    seenReserveNames.add(r.name)
-  }
-  const reserveRaceNames = RESERVE_RACE_POOL_NAMES.filter(n => seenReserveNames.has(n))
 
   // 在籍履歴（移籍情報）集計：年 × teamId × 大会(1軍/リザーブ/ECL/海外) ごとに 出場数・区間賞数・平均区間順位。
   // 表示は年×チームの親行に集約し、タップで大会別の内訳を開く
@@ -540,7 +522,9 @@ export default function PlayerSheet() {
           <BackButton onClick={() => page === 4 ? goToPage(2) : openPlayerSheet(null)}/>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
             {page === 4 ? (
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8' }}>{selectedRaceName}</span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8' }}>
+                {(() => { const { league, raceName } = splitRaceKey(selectedRaceName ?? ''); return league ? `${league} ${shortRaceName(league, raceName)}` : raceName })()}
+              </span>
             ) : (
               pages.map(p => (
                 <div key={p} onClick={() => goToPage(p)} style={{
@@ -792,123 +776,52 @@ export default function PlayerSheet() {
                 </div>
               </div>
 
-              {/* JPEL 1軍の races（ドラフト候補では非表示）。縦長を避けるため3列カードで並べる。
-                  コースは毎年ランダムなので「1軍駅伝」という区分の見出しは出さない。
-
-                  **JPELに縁のない選手には出さない。** 海外クラブの選手にこの10本を並べると、
-                  一度も走るはずのない「出雲開幕戦」が全部空欄で10個並ぶ。
-                  いま国内クラブに居るか、過去にJPELを走ったことがある選手だけに出す
-                  （国内の新人は0走でも「これから走る10本」として並べたいので在籍で見る）。 */}
-              {!isProspect && (clubIndex.byId(player.teamId)?.isDomestic || MAIN_RACE_NAMES.some(n => raceGroupMap.has(n))) && <div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                  {MAIN_RACE_NAMES.map(name => {
-                    const entries = raceGroupMap.get(name) ?? []
-                    return (
-                      <div key={name} onClick={() => openRaceDetail(name)} style={{
+              {/* 走った大会だけを「リーグ → 駅伝名」で並べる（ドラフト候補では非表示）。
+                  拾い方は utils/raceHistory の1本。まだ走っていない大会は出さない
+                  （海外クラブの選手にJPELの10本が空欄で並ぶ、というのが実際に起きていた）。
+                  同じ駅伝名でも部が違えば別の大会として並ぶ（1部の出雲開幕戦と3部の出雲開幕戦）。 */}
+              {!isProspect && raceGroups.map(g => (
+                <div key={g.league}>
+                  <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>{g.league}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                    {g.names.map(name => (
+                      <div key={name} onClick={() => openRaceDetail(raceKey(g.league, name))} style={{
                         padding: '10px 6px', borderRadius: '8px', border: '1px solid #1E1B2E', backgroundColor: '#14121F',
                         cursor: 'pointer', textAlign: 'center', minHeight: 44,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: entries.length > 0 ? '#F0EDE8' : '#3A3758' }}>{name}</span>
+                        <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{shortRaceName(g.league, name)}</span>
                       </div>
-                    )
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>}
+              ))}
 
-              {/* 海外リーグ（出走歴がある選手だけ表示）。ECLと同じ作り */}
+              {/* 世界選手権の個人種目（5000m 等）。駅伝ではないので大会の並びとは別に置く */}
               {!isProspect && (() => {
-                const names = [...raceGroupMap.keys()].filter(n => foreignRaceNames.has(n))
-                if (names.length === 0) return null
-                return (
-                  <div>
-                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#E8A33D', letterSpacing: '2px', marginBottom: '6px' }}>海外リーグ</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                      {names.sort().map(name => (
-                        <div key={name} onClick={() => openRaceDetail(name)} style={{
-                          padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(232,163,61,0.35)', backgroundColor: '#14121F',
-                          cursor: 'pointer', textAlign: 'center', minHeight: 44,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* ECL（出走歴がある選手だけ表示）。1軍駅伝とリザーブの間に置く */}
-              {!isProspect && (() => {
-                const eclNames = [...raceGroupMap.keys()].filter(n => n.startsWith('ECL'))
-                if (eclNames.length === 0) return null
-                return (
-                  <div>
-                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#2ECC71', letterSpacing: '2px', marginBottom: '6px' }}>ECL</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                      {eclNames.sort().map(name => (
-                        <div key={name} onClick={() => openRaceDetail(name)} style={{
-                          padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(46,204,113,0.35)', backgroundColor: '#14121F',
-                          cursor: 'pointer', textAlign: 'center', minHeight: 44,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* 世界選手権（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる。
-                  駅伝の下に個人種目（世界選手権 5000m 等）のカードも並べる */}
-              {!isProspect && (() => {
-                // 大会名の判定は utils/waRaces の1本（本戦・アジア予選・大陸予選）
-                const waNames = [...raceGroupMap.keys()].filter(isWaRaceName)
                 const indLabels = (['5000m', '10000m', 'マラソン'] as const).filter(label => {
                   const ev = label === '5000m' ? 'd5000' : label === '10000m' ? 'd10000' : 'marathon'
                   return (worldAthleticsResults ?? []).some(wr =>
                     wr.kind === 'main' && wr.meet.individuals.some(ir => ir.event === ev && ir.placings.some(pl => pl.playerId === player.id)))
                 })
-                if (waNames.length === 0 && indLabels.length === 0) return null
+                if (indLabels.length === 0) return null
                 return (
                   <div>
-                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界選手権</div>
+                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界選手権 個人種目</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                      {[...waNames.sort(), ...indLabels.map(l => `世界選手権 ${l}`)].map(name => (
-                        <div key={name} onClick={() => openRaceDetail(name)} style={{
+                      {indLabels.map(label => (
+                        <div key={label} onClick={() => openRaceDetail(`世界選手権 ${label}`)} style={{
                           padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.35)', backgroundColor: '#14121F',
                           cursor: 'pointer', textAlign: 'center', minHeight: 44,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{name}</span>
+                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{label}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )
               })()}
-
-              {/* 2軍 races（ドラフト候補では非表示。加入後は通常詳細に切り替わり表示される） */}
-              {!isProspect && reserveRaceNames.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>2軍駅伝</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                    {reserveRaceNames.map(name => {
-                      const entries = raceGroupMap.get(name) ?? []
-                      return (
-                        <div key={name} onClick={() => openRaceDetail(name)} style={{
-                          padding: '10px 6px', borderRadius: '8px', border: '1px solid #1E1B2E', backgroundColor: '#14121F',
-                          cursor: 'pointer', textAlign: 'center', minHeight: 44,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: entries.length > 0 ? '#F0EDE8' : '#3A3758' }}>{name}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -1014,8 +927,8 @@ export default function PlayerSheet() {
                 }
                 // 駅伝出走（保存済みレース詳細から集計。クラブの在籍履歴と同じ 出場/区間賞/平均）。
                 // 本戦・アジア予選・大陸予選を分けず、utils/waRaces の1本から受け取る
-                for (const { year, label, race } of waRows) {
-                  const sr = race.results!.segmentResults.find(s => s.runners.some(rn => rn.playerId === player.id))
+                for (const { year, label, race } of waRaceRows([...pastSeasons, currentSeason], worldAthleticsResults)) {
+                  const sr = race.results!.segmentResults.find((s2: { runners: { playerId: string }[] }) => s2.runners.some(rn => rn.playerId === player.id))
                   if (!sr) continue
                   const runner = sr.runners.find(rn => rn.playerId === player.id)!
                   const compLabel = `${label} 駅伝`
@@ -1178,6 +1091,8 @@ export default function PlayerSheet() {
                 </div>
               )
             }
+            // 鍵は「リーグ␟駅伝名」。区間記録は駅伝名＋区番号で貯まるので、引き当ては駅伝名のほうを使う
+            const { raceName: selectedCourse } = splitRaceKey(selectedRaceName)
             const entries = (raceGroupMap.get(selectedRaceName) ?? []).slice().sort((a, b) => b.year - a.year)
             return (
               <div style={{ padding: '12px 20px 28px' }}>
@@ -1186,7 +1101,7 @@ export default function PlayerSheet() {
                     {entries.map((e, i) => {
                       const rankCol = rankColor(e.rank)
                       // この大会×区間の記録タイムと同タイムの走りなら「区間記録」パッチ（同タイムの共同保持もタイ記録として付く）
-                      const rec = (segmentRecords[`${selectedRaceName}-${e.segIdx}`] ?? [])[0]
+                      const rec = (segmentRecords[`${selectedCourse}-${e.segIdx}`] ?? [])[0]
                       const isSegRecord = !!rec && rec.timeSec === e.timeSec
                       return (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < entries.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>

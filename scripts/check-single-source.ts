@@ -205,6 +205,25 @@ RULES.push({
   fix: 'data/courseNames.ts の courseNameFor / localizeRace を通す',
 })
 
+// 走行記録の置き場所はシーズンの中に7つある（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会）。
+// 画面が1つずつ拾っていたので、足し忘れたぶんはそのまま表示から消えていた
+// （海外リーグの出走が選手ページに1件も出ていなかった）。取り出しは utils/raceHistory 1本。
+RULES.push({
+  name: '走行記録の置き場所を画面から直接読んでいる',
+  pattern: /\.(divisionRaces|foreignRaces)/,
+  allow: [
+    'src/utils/raceHistory.ts',    // 唯一の取り出し口
+    'src/utils/careerStats.ts',    // 通算成績の数え直し
+    'src/utils/playerUtils.ts',    // 海外の在籍履歴（圧縮版の吸収）
+    'src/utils/archiveSeason.ts',  // 過去シーズンへの詰め替え
+    'src/store/seasonArchive.ts',  // 別ファイルへの書き出し・読み戻し
+    'src/store/gameStore.ts',      // ためる側
+    'src/engine/domesticLeague.ts',
+    'src/engine/foreignLeague.ts',
+  ],
+  fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {
