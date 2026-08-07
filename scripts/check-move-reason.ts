@@ -39,5 +39,5 @@ console.log('（代理人）2クラブから佐藤 健司選手の獲得の打�
 for (const o of offers) {
   const a = appraiseMove(sp, o.d as never, { srcTier: 12 })
   console.log(`・${o.name}（移籍金${fmtYen2(o.price)}）`)
-  console.log(`　→ ${o.name}へは${a.ok ? '行きたい' : '行かない'}（${a.shortReason}）`)
+  console.log(`\u3000→ ${o.name}へは${a.ok ? '行きたい' : '行かない'}（${a.shortReason}）`)
 }

@@ -205,7 +205,7 @@ function buildIncomingOfferMessages(
   //   「23番手なのはアムステルダムなのか札幌なのか」が読み取れなかった。
   const list = offers.map(o =>
     `・${o.name}（移籍金${fmtYen(o.price)}）`
-    + `\n　→ ${o.name}へは${o.ok ? '行きたい' : '行かない'}${o.reason ? `（${o.reason}）` : ''}`,
+    + `\n\u3000→ ${o.name}へは${o.ok ? '行きたい' : '行かない'}${o.reason ? `（${o.reason}）` : ''}`,
   ).join('\n')
   return [
     { from: 'player', kind: key,
