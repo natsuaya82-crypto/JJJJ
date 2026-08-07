@@ -53,6 +53,8 @@ import type { OfferOutcome } from '../utils/offerResult'
 import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type CardExchange } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
+// 区間の地形→推奨ポジションは utils/terrain の1本
+import { recommendedSpecialtyFor } from '../utils/terrain'
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
 import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 // セーブに「何を書かないか」は ephemeralState.ts に集約してある（画面の開閉状態と読まれない残骸）
@@ -6853,7 +6855,12 @@ export const useGameStore = create<GameStore>()(
             date: waRaceDate(year, i),
             location: '',
             type: 'league' as const,
-            segments: plan.segments.map((s, j) => ({ index: j + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct })),
+            // 推奨ポジション（区間配置の「◯◯推奨」のパッチ）は地形から出す1本（utils/terrain）。
+            // ここで付け忘れていたので、世界選手権だけパッチが出ていなかった
+            segments: plan.segments.map((s, j) => ({
+              index: j + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct,
+              ...(recommendedSpecialtyFor(s) ? { recommended: recommendedSpecialtyFor(s)! } : {}),
+            })),
             conditions: { temperature: 12, weather: WEATHERS[Math.floor(Math.random() * WEATHERS.length)], elevation: 0 },
           }))
           const individuals = fields ? simulateIndividuals(fields) : undefined
@@ -8560,10 +8567,10 @@ function generateWECRacePlan(profile: 'mountain' | 'flat' | 'mixed' = 'mixed'): 
         uphillPct = Math.floor(Math.random() * 35)
         downhillPct = Math.floor(Math.random() * 25)
       }
-      return {
-        distanceKm: Math.round((5 + Math.random() * 10) * 10) / 10,
-        uphillPct, downhillPct,
-      }
+      const distanceKm = Math.round((5 + Math.random() * 10) * 10) / 10
+      // 推奨ポジションは地形から出す1本（utils/terrain）。ランダム生成のコースにも必ず付ける
+      const rec = recommendedSpecialtyFor({ uphillPct, downhillPct, distanceKm })
+      return { distanceKm, uphillPct, downhillPct, ...(rec ? { recommended: rec } : {}) }
     })
     return { segments }
   })

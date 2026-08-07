@@ -89,6 +89,19 @@ html, body {
   left: 0;
 }
 
+/* 長押しの虫眼鏡（テキスト選択のルーペ）と、コピー／調べるのメニューを全部止める。
+   body だけに書いていたが、iOS は要素ごとに判定するので子要素まで届かず、
+   長押しするとルーペが出ていた。入力欄だけは選択できないと文字が打てないので戻す。 */
+*, *::before, *::after {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 #root {
   height: 100%;
   overflow: hidden;

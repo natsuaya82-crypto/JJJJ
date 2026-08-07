@@ -751,9 +751,9 @@ export default function PlayerSheet() {
                 </div>
               </div>
 
-              {/* 1軍 races（ドラフト候補では非表示）。縦長を避けるため3列カードで並べる */}
+              {/* リーグ戦の races（ドラフト候補では非表示）。縦長を避けるため3列カードで並べる。
+                  コースは毎年ランダムなので「1軍駅伝」という区分の見出しは出さない */}
               {!isProspect && <div>
-                <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>1軍駅伝</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                   {MAIN_RACE_NAMES.map(name => {
                     const entries = raceGroupMap.get(name) ?? []

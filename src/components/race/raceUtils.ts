@@ -1,15 +1,11 @@
+// 地形の判定は utils/terrain.ts の1本。ここは表示用の入口だけ。
+import { terrainKindOf, TERRAIN_LABEL, TERRAIN_COLOR } from '../../utils/terrain'
+
 export function terrainColor(uphillPct: number, downhillPct: number): string {
-  if (uphillPct >= 40) return '#4CAF50'
-  if (downhillPct >= 40) return '#26C6DA'
-  if (uphillPct + downhillPct >= 30) return '#FF9800'
-  return '#7986CB'
+  // 色は距離を見ない（スプリント・長距離・中距離は同じ平坦色）
+  return TERRAIN_COLOR[terrainKindOf(uphillPct, downhillPct, 10)]
 }
 
 export function terrainLabel(uphillPct: number, downhillPct: number, distanceKm: number): string {
-  if (uphillPct >= 40) return '山登り'
-  if (downhillPct >= 40) return '山下り'
-  if (uphillPct + downhillPct >= 30) return '起伏'
-  if (distanceKm <= 8) return 'スプリント'
-  if (distanceKm >= 15) return '長距離'
-  return '中距離'
+  return TERRAIN_LABEL[terrainKindOf(uphillPct, downhillPct, distanceKm)]
 }
