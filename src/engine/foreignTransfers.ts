@@ -3,7 +3,7 @@ import type { ForeignLeague, Player, Team, TransferRecord } from '../types'
 import { comparePlayers } from '../utils/playerSort'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 // 「どのタイプが足りていないか」は国内・海外で共通の1本（utils/squadNeeds.ts）
-import { weakestSpecialty, bestOvrInSpecialty } from '../utils/squadNeeds'
+import { weakestSpecialty, bestOvrInSpecialty, needsPlayer } from '../utils/squadNeeds'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
@@ -97,6 +97,10 @@ export function simulateForeignTransferMarket(params: {
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     // buyer のリーグの格に実効OVR（年齢加味）が届かない選手は引き抜かない（弱い/高齢の選手が格上へ行かない）
     if (effectiveOvr(target) < leagueFloor(buyer)) continue
+    // ★「必要だから動く」の関門。ここが抜けていて、格の下限さえ超えていれば
+    //   どのクラブでも誰でも引き抜けた。国内CPUと同じ needsPlayer 1本を通す
+    const buyerRoster = roster[buyer.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
+    if (!needsPlayer(buyerRoster, target)) continue
 
     // 実行
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)

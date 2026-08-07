@@ -5076,7 +5076,11 @@ export const useGameStore = create<GameStore>()(
                 })
             })
               .filter(({ p }) => ovr(p) >= minOvr - 4)
-              // 買い手のニーズに合う選手・OVRの高い選手を優先
+              // ★「必要だから動く」の関門。ここが抜けていて、needs は下の並び替えの
+              //   優先度にしか使われていなかった＝**どのクラブでも誰でも買えた**。
+              //   判定は squadNeeds の needsPlayer 1本（移籍金を払う移籍なので穴のときだけ）
+              .filter(({ p }) => needsPlayer(buyRoster, p))
+              // 欲しいタイプ・OVRの高い選手を優先
               .sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (ovr(b.p) - ovr(a.p)))
 
             let bought = false
