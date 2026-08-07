@@ -298,6 +298,60 @@ function sellMove(
   })
 }
 
+/**
+ * 自チームの選手を売り払う（成立後の後始末を全部やる）。**売却の唯一の出口。**
+ *
+ * ■なぜ1本にしたのか
+ *   「承諾して売る」と「逆提示に応じて売る」で、同じ後始末が丸ごと2つ書かれていた。
+ *   しかもその中がさらに国内・海外で分かれていたので同じ処理が4つあり、
+ *   ニュース・移籍履歴・退団のお知らせ・出品の掃除のどれかを片方だけ直す事故が起きていた。
+ *   違うのは「いくらで売れたか」だけなので、金額だけ受け取る。
+ *
+ * ■国内と海外の違い
+ *   海外クラブは teams に居ないので入金が自クラブ側だけになる。見出しも変わり、
+ *   4大リーグ（世界最高峰）へ送り出したときだけ実績が付く。その3つ以外は同じ。
+ */
+function finalizeSale(
+  state: GameState,
+  offer: { id: string; playerId: string; fromTeamId: string; fromForeign?: boolean },
+  fee: number,
+): Partial<GameState> {
+  const player = state.players.find(p => p.id === offer.playerId)!
+  const date = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
+  const league = offer.fromForeign ? leagueOfClub(state.foreignLeagues, offer.fromTeamId) : undefined
+  const isElite = offer.fromForeign && isEliteLeague(league?.id)
+  const toName = offer.fromForeign
+    ? (league?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ')
+    : (state.teams.find(t => t.id === offer.fromTeamId)?.shortName ?? '')
+
+  const moved = sellMove(state, offer.playerId, offer.fromTeamId, fee, toName)
+  const headline = offer.fromForeign
+    ? overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName: toName, fee, elite: !!isElite })
+    : soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.teams), fee })
+
+  return {
+    players: moved.players,
+    teams: moved.teams,
+    transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
+    // 世界最高峰へ送り出したのは初回だけ実績になる
+    achievements: isElite && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
+      ? [...(state.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${state.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
+      : state.achievements,
+    currentSeason: {
+      ...state.currentSeason,
+      transferIncome: (state.currentSeason.transferIncome ?? 0) + moved.income,
+      incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offer.id),
+      // 売却した選手の出品（自分のもの含む）は市場から掃除する
+      transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
+      newsFeed: [{
+        date, headline, category: 'trade' as const, relatedIds: [player.id],
+        major: !!isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId),
+      }, ...state.currentSeason.newsFeed].slice(0, 30),
+      departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
+    },
+  }
+}
+
 export type GameStore = GameState & {
   isInitialized: boolean
   setupData: SetupData | null
@@ -2986,46 +3040,10 @@ export const useGameStore = create<GameStore>()(
           }))
           return 'refused_by_player'
         }
-        // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
-        if (offer.fromForeign) {
-          const destLeague = leagueOfClub(state.foreignLeagues, offer.fromTeamId)
-          const clubName = destLeague?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
-          // 4大リーグ（世界最高峰）への送り出しは大ニュース＋初回は実績を獲得
-          const isElite = isEliteLeague(destLeague?.id)
-          // 海外クラブは teams に居ないので、movePlayer では自クラブ側だけ入金される
-          set(st => {
-          const moved = sellMove(st, offer.playerId, offer.fromTeamId, offer.offeredPrice, clubName)
-          return ({
-            players: moved.players,
-            teams: moved.teams,
-            transferHistory: [...(st.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
-            achievements: isElite && !(st.achievements ?? []).some(a => a.id === 'overseas-pioneer')
-              ? [...(st.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${st.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: st.currentSeason.year, rarity: 'legendary' as const }]
-              : st.achievements,
-            currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + moved.income, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName, fee: offer.offeredPrice, elite: isElite }), category: 'trade' as const, relatedIds: [player.id], major: isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId) }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] },
-          })
-          })
-          return 'sold'
-        }
-        const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
-        if (!buyingTeam) { dropOffer(); return 'invalid' }
-        set(state => {
-        const moved = sellMove(state, offer.playerId, offer.fromTeamId, offer.offeredPrice, buyingTeam.shortName)
-        return ({
-          players: moved.players,
-          teams: moved.teams,
-          transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
-          currentSeason: {
-            ...state.currentSeason,
-            transferIncome: (state.currentSeason.transferIncome ?? 0) + moved.income,
-            incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId),
-            // 売却した選手の出品（自分のもの含む）は市場から掃除する
-            transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
-            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.teams), fee: offer.offeredPrice }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
-            departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
-          },
-        })
-        })
+        // 国内へ売るときだけ相手が teams に居ることを確かめる（海外クラブは teams に居ない）
+        if (!offer.fromForeign && !state.teams.some(t => t.id === offer.fromTeamId)) { dropOffer(); return 'invalid' }
+        // 成立後の後始末は finalizeSale 1本（国内・海外の違いもこの中）
+        set(st => finalizeSale(st, offer, offer.offeredPrice))
         return 'sold'
       },
 
@@ -3572,53 +3590,15 @@ export const useGameStore = create<GameStore>()(
               currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) },
             }
           }
-          // 海外クラブ：上限は economy.counterCeiling の1本。合意なら海外へ放出
-          if (offer.fromForeign) {
-            if (player && counterPrice <= willingFeeFor(state, offer, player)) {
-              const destLg = leagueOfClub(state.foreignLeagues, offer.fromTeamId)
-              const clubName = destLg?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
-              const isElite = isEliteLeague(destLg?.id)
-              outcome = 'sold'
-              const moved = sellMove(state, offer.playerId, offer.fromTeamId, counterPrice, clubName)
-              return {
-                players: moved.players,
-                teams: moved.teams,
-                transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
-                achievements: isElite && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
-                  ? [...(state.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${state.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
-                  : state.achievements,
-                currentSeason: { ...state.currentSeason, transferIncome: (state.currentSeason.transferIncome ?? 0) + moved.income, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName, fee: counterPrice, elite: isElite }), category: 'trade' as const, relatedIds: [player.id], major: isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId) }, ...state.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] },
-              }
-            }
+          // 応じるラインは willingFeeFor 1本（国内も海外も、全クラブ一斉の逆提示と同じ判定）。
+          // 以前は海外だけ別の枝で同じ判定と同じ後始末を書いていた
+          if (!player || counterPrice > willingFeeFor(state, offer, player)) {
             outcome = 'refused'
             return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
           }
-          const buyingTeam = state.teams.find(t => t.id === offer.fromTeamId)
-          // 応じるラインは willingFeeFor 1本（全クラブ一斉の逆提示と同じ判定）
-          const willing = willingFeeFor(state, offer, player)
-          if (counterPrice <= willing) {
-            outcome = 'sold'
-            const moved = sellMove(state, offer.playerId, offer.fromTeamId, counterPrice, buyingTeam?.shortName ?? '')
-            const soldDate = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
-            return {
-              players: moved.players,
-              teams: moved.teams,
-              transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
-              currentSeason: {
-                ...state.currentSeason,
-                transferIncome: (state.currentSeason.transferIncome ?? 0) + moved.income,
-                incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId),
-                // 売却した選手の出品（自分のもの含む）は市場から掃除する
-                transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
-                // 逆提示で成立したときも、承諾したときと同じようにニュースと退団のお知らせを出す
-                newsFeed: [{ date: soldDate, headline: soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.teams), fee: counterPrice }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
-                departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
-              },
-            }
-          } else {
-            outcome = 'refused'
-            return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
-          }
+          // 逆提示で成立したときも、承諾したときとまったく同じ後始末を通す（finalizeSale 1本）
+          outcome = 'sold'
+          return finalizeSale(state, offer, counterPrice)
         })
         return outcome
       },
