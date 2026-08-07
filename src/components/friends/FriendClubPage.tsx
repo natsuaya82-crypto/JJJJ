@@ -778,8 +778,12 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   // 投稿1件の見た目。掲示板とカードタブの両方で使うので関数にしておく
   const renderPost = (p: ClubPost) => {
     const done = p.kind === 'req' && p.filled >= p.cap
-    // 1人1枚の縛りは外したので、渡したあとでも空きがあればまた渡せる
-    const canGive = p.kind === 'req' && !p.mine && !done
+    // 1人1枚の縛りは外したので、渡したあとでも空きがあればまた渡せる。
+    // ただし**空いている枠が分からないときは出さない**。
+    // サーバー側の club_feed が古いと open_stats が返らず、押しても全部のカードが
+    // 薄いまま「あと0枚まで入ります」になって、何も渡せないシートが開くだけになる
+    // （supabase/club_feed.sql）
+    const canGive = p.kind === 'req' && !p.mine && !done && p.openStats.length > 0
     const col = p.kind === 'req' && p.rarity ? RARITY_COLORS[p.rarity] : C.border2
     const rc = reacts.data?.[p.id]
     const counts = Object.entries(rc?.counts ?? {}) as [string, number][]
@@ -844,6 +848,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
           {p.kind === 'req' && (
             done ? <Pill color={C.green}>集まりました</Pill> :
             p.mine ? <Pill color={C.textDim}>お願い中</Pill> :
+            p.openStats.length === 0 ? <Pill color={C.textDim}>受付を待っています</Pill> :
             canGive ? (
               <button onClick={() => setPicking(p)} disabled={busy === p.id} className="btn-press"
                 style={actionButton(C.green, busy === p.id)}>わたす</button>

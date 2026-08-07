@@ -414,6 +414,11 @@ create function public.club_req_cap(p_rarity text) returns integer
 language sql immutable
 as $$ select case p_rarity when 'normal' then 5 when 'rare' then 3 when 'epic' then 1 else 0 end $$;
 
+-- ★★ club_feed について ★★
+--   この下の club_feed の定義は**古い**。列が足りないので、このファイルを流したあとは
+--   必ず supabase/club_feed.sql を流し直すこと。
+--   （club_feed は4つのファイルに書いてあり、後から流したものが前の列を消す。
+--     カードの差し入れが「あと0枚」になって使えなくなる事故がこれで起きた）
 -- ── 掲示板を読む ───────────────────────────────────────
 create function public.club_feed()
 returns table (

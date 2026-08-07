@@ -108,12 +108,23 @@ export function contractTalkCtx(season: SeasonLike, teamId: string): ContractTal
  * フリー移籍で他クラブが接触中でも**GMからの引き留めは通す**。ここを止めていたせいで、
  * 「引き留めの条件を提示する」を押しても札が作られず、選手が何も返さない空振りになっていた
  */
+/**
+ * 売ると返事をして、行き先が決まるのを待っている選手か。
+ *
+ * **契約の話を止めるかどうかは、必ずこれで見ること。**
+ * 以前はここの判定が canOfferRenewal（＝札を作るとき）の中にだけ書いてあった。
+ * そのため「まだ札が無い選手」には出なくなったが、**売ると返事をする前から
+ * 出ていた札のボタンはそのまま残っていた**。
+ * 「ジュネーブに1.9億でお譲りします」の下に「要求を飲む（3800万/2年）」が並ぶ状態。
+ */
+export function isSaleAnswerPending(p: Player, ctx: ContractTalkCtx): boolean {
+  return ctx.pendingSaleId === p.id
+}
+
 export function canOfferRenewal(p: Player, ctx: ContractTalkCtx): boolean {
   if (!canStartContractTalk(p, { teamId: ctx.teamId, currentYear: ctx.year, retiringIds: ctx.retiringIds })) return false
   if ((p.renewalLockedUntilYear ?? 0) > ctx.year) return false
-  // 売ると返事をして行き先が決まるのを待っている選手には、契約の話を持ちかけない。
-  // 「1.3億でお譲りします」の直後に「契約延長の話をする（前倒し）」が出ていた
-  if (ctx.pendingSaleId === p.id) return false
+  if (isSaleAnswerPending(p, ctx)) return false
   return true
 }
 

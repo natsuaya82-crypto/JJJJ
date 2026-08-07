@@ -1,3 +1,25 @@
+-- JPEL: build 103 時点のまとめ（この1本を上から順に流せば3本ぶん全部入ります）
+-- drop table は1つも入っていません。既存の走友会・フレンド・対戦履歴のデータは消えません。
+--
+-- ★このまとめは build102_all.sql を流したあとに流してください。
+--   （build102 の2本＝おすすめ走友会・殿堂入りの列 も未実施なら、先にそちらを流すこと）
+--
+-- 中身は下の3本を順番につないだだけです:
+--   1. clubs_cards.sql   カードのお願いを1枚ずつ別の種類にする（stats / taken 列）
+--   2. club_feed.sql     掲示板を読む関数。**club_feed の定義はこの1本だけにする**
+--   3. hof_share.sql     殿堂入りの列（build102 で流していれば何も起きません）
+--
+-- ■なぜ必要か
+--   club_feed が4つのファイルに別々に書いてあり、後から流したものが前の列を消していました。
+--   build 88 のまとめには club_posts_cap.sql（列が古い版）が入っていて clubs_cards.sql が
+--   入っていなかったため、これを流した走友会では open_stats が返らなくなります。
+--   その結果、カードの差し入れで**全部のカードが薄いまま押せず「あと0枚まで入ります」**になります。
+
+
+-- ==========================================================================
+-- 1/3  clubs_cards.sql
+-- ==========================================================================
+
 -- ============================================================
 -- 走友会のカードまわり（2.0.1 追加ぶん・その2）
 --
@@ -194,11 +216,6 @@ end $$;
 -- ── 掲示板（1枚ずつの希望と、まだ空いている枠を返す） ───
 drop function if exists public.club_feed();
 
--- ★★ club_feed について ★★
---   この下の club_feed の定義は**古い**。列が足りないので、このファイルを流したあとは
---   必ず supabase/club_feed.sql を流し直すこと。
---   （club_feed は4つのファイルに書いてあり、後から流したものが前の列を消す。
---     カードの差し入れが「あと0枚」になって使えなくなる事故がこれで起きた）
 create function public.club_feed()
 returns table (
   id uuid, user_id uuid, kind text, phrase integer, rarity text, stat text,
@@ -282,3 +299,129 @@ grant execute on function public.club_gift_list()                              t
 grant execute on function public.claim_club_gift(uuid)                         to authenticated;
 
 commit;
+
+-- ==========================================================================
+-- 2/3  club_feed.sql  ★必ず clubs_cards.sql のあとに流すこと
+-- ==========================================================================
+
+-- 走友会の掲示板を読む関数。**club_feed の定義はこのファイルだけ。**
+--
+-- ■なぜこのファイルを作ったのか（実際に起きた事故）
+--   club_feed が4つのファイルに別々に書いてあった。
+--     clubs.sql          … 最初の版
+--     clubs_roles.sql    … stat を足した版
+--     clubs_cards.sql    … stat / stats / open_stats を足した版
+--     club_posts_cap.sql … 掲示板の掃除を足した版（**列は古いまま**）
+--   どれも `drop function` してから作り直すので、**後から流したものが前の列を消す**。
+--   build 88 のまとめ（bundle/build88_all.sql）には club_posts_cap.sql が入っていて
+--   clubs_cards.sql は入っていなかったため、これを流した走友会では open_stats が
+--   返らなくなった。アプリ側は「空いている枠が0」と受け取るので、
+--   カードの差し入れで**全部のカードが薄いまま押せず、「あと0枚まで入ります」**になる。
+--
+-- ■決まり
+--   club_feed を変えたくなったら**このファイルだけ**を直して流す。
+--   他のファイルに書かないこと。列を1つ足すだけでも、書く場所が2つあれば必ず片方が消える。
+--
+-- 先に流しておくもの: clubs.sql / clubs_roles.sql / clubs_cards.sql / club_posts_cap.sql
+-- テーブルは作らない・消さない。何回流しても大丈夫。
+
+-- 返す列が変わるので、いったん落としてから作り直す（42P13 を避ける）。
+-- 関数を落としてもデータは消えない。
+drop function if exists public.club_feed();
+
+create function public.club_feed()
+returns table (
+  id uuid, user_id uuid, kind text, phrase integer, rarity text, stat text,
+  stats text[], open_stats text[],
+  filled integer, cap integer, mine boolean, donated boolean, created_at timestamptz,
+  team_name text, short_name text, gm_name text,
+  logo_id text, color_primary text, color_secondary text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare me uuid := auth.uid(); my_club uuid;
+begin
+  if me is null then return; end if;
+  my_club := public.my_club_id();
+  if my_club is null then return; end if;
+
+  -- ── 掃除 ──────────────────────────────────────────
+  -- 集まったお願いを下ろす。
+  -- ただし「今日はもうお願いした」の判定（post_club_request）はこの行を見ているので、
+  -- 当日ぶんは消さない。消すと、集まった人だけ同じ日にもう一度お願いできてしまう。
+  delete from public.club_posts t
+   where t.club_id = my_club
+     and t.kind = 'req'
+     and t.filled >= public.club_req_cap(t.rarity)
+     and (t.created_at at time zone 'Asia/Tokyo')::date
+       < (now() at time zone 'Asia/Tokyo')::date;
+
+  -- 古い書き込みを落とす（別名 old は必須。返り値の列名にも created_at があるので、
+  -- 付けないと column reference "created_at" is ambiguous でこの関数ごと落ちる）
+  delete from public.club_posts old
+   where old.club_id = my_club
+     and old.created_at < now() - interval '3 days';
+
+  -- 新しい順に300件だけ残す
+  delete from public.club_posts t
+   where t.id in (
+     select x.id from (
+       select p.id, row_number() over (order by p.created_at desc, p.id desc) as rn
+         from public.club_posts p
+        where p.club_id = my_club
+     ) x
+     where x.rn > 300
+   );
+
+  -- ── 本体 ──────────────────────────────────────────
+  return query
+    select t.id, t.user_id, t.kind, t.phrase, t.rarity, t.stat,
+           t.stats, public.club_open_stats(t.rarity, t.stats, t.stat, t.taken),
+           t.filled, public.club_req_cap(t.rarity), t.user_id = me,
+           exists (select 1 from public.club_gifts g where g.post_id = t.id and g.from_user = me),
+           t.created_at,
+           p.team_name, p.short_name, p.gm_name,
+           p.logo_id, p.color_primary, p.color_secondary
+    from public.club_posts t
+    left join public.profiles p on p.user_id = t.user_id
+    where t.club_id = my_club
+    order by t.created_at desc
+    limit 100;
+end $$;
+
+revoke all     on function public.club_feed() from public, anon;
+grant  execute on function public.club_feed() to authenticated;
+
+-- ==========================================================================
+-- 3/3  hof_share.sql（build102 で流していれば何も起きません）
+-- ==========================================================================
+
+-- 殿堂入りチームを、フレンドと同じ走友会の人に見せる。
+--
+-- ■なぜ rosters に列を足すだけなのか（新しいテーブルを作らない理由）
+--   殿堂入りは rosters とまったく同じ形（user_id ごとの選手の配列）で、
+--   見せたい相手も rosters と同じ「フレンド」と「同じ走友会の人」。
+--   その読み取りの決まりは、もう3つそろっている。
+--
+--     rosters_select_own       schema.sql        自分
+--     rosters_select_friend    schema.sql        フレンド
+--     rosters_select_clubmate  clubs_roster.sql  同じ走友会
+--
+--   新しいテーブルを作ると、この3つを全部もう一度書くことになる。
+--   片方だけ直してズレる（＝このリポジトリのバグの最大の原因）ので、同じ行に相乗りさせる。
+--   書き込みも rosters_insert_own / rosters_update_own がそのまま効く。
+--
+-- ■中身
+--   アプリ側の HofPlayer[]（types/index.ts）をそのまま入れる。
+--   「登録した瞬間の選手を凍らせたコピー」なので、選手まるごと入る。最大30人（HOF_MAX）。
+--   まるごと入れるのは、相手の殿堂入りでも長押しで選手詳細を開けるようにするため。
+--
+-- ■注意
+--   schema.sql を流し直すと rosters ごと作り直されるので、この列も道連れで消える
+--   （clubs_roster.sql と同じ注意）。そのときはこれも流し直すこと。
+--
+-- テーブルは作らない・消さない。何回流しても大丈夫。
+
+alter table public.rosters add column if not exists hof jsonb not null default '[]'::jsonb;

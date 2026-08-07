@@ -19,7 +19,7 @@ import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
-import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention } from '../../utils/contractTalk'
+import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention, isSaleAnswerPending } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
 import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
@@ -878,6 +878,9 @@ function ChatView({
 
     const buildContractButtons = (): ReplyBtns | null => {
       if (!contractReq) return null
+      // 売ると返事をして行き先待ちの選手には、契約の話の返事を出さない。
+      // 札を作る側（canOfferRenewal）は止めていたが、**先に出ていた札のボタン**が残っていた
+      if (isSaleAnswerPending(player, talkCtx)) return null
       // 海外挑戦を認めた選手からは、こちらから切り出さない限り年俸の話をさせない。
       // （承認した直後に同じ選手が「年俸○○で更新したい」と言い出すのを防ぐ。
       //   GM側から契約延長を持ちかける導線は後段に残してあるので、行き先が決まらなくても塩漬けにはならない）
