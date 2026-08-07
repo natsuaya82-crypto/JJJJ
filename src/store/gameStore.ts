@@ -98,6 +98,7 @@ import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, isBigClub, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { normalizeForeignStandings } from '../utils/clubStanding'
 
 type DraftState = {
   pool: Player[]
@@ -1333,8 +1334,8 @@ export const useGameStore = create<GameStore>()(
             const earned = tr.positionPoints + tr.segmentPoints
             return {
               ...s,
-              leaguePoints: s.leaguePoints + tr.positionPoints,
-              segmentPoints: s.segmentPoints + tr.segmentPoints,
+              leaguePoints: (s.leaguePoints ?? 0) + tr.positionPoints,
+              segmentPoints: (s.segmentPoints ?? 0) + tr.segmentPoints,
               totalPoints: s.totalPoints + earned,
               raceResults: [...s.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
             }
@@ -3010,7 +3011,7 @@ export const useGameStore = create<GameStore>()(
           const lg = leagueOfClub(state.foreignLeagues, clubId)
           region = regionOfLeague(lg?.id)
           const rows = rankedStandings((state.currentSeason.foreignStandings ?? {})[lg?.id ?? ''] ?? [])
-          const i = rows.findIndex(r => r.clubId === clubId)
+          const i = rows.findIndex(r => r.teamId === clubId)
           if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
         }
         return buildDestination(clubId, tier, state.players, { inEcl, leagueRank, leagueSize, isForeign: !team, region, player })
@@ -6204,7 +6205,7 @@ export const useGameStore = create<GameStore>()(
           const leaguesWithTier = foreignRefresh.updatedLeagues.map(lg => {
             const rows = rankedStandings(foreignStandingsFinal[lg.id] ?? [])
             if (rows.length === 0) return lg   // 1戦もしていないリーグは触らない
-            const rankOf = new Map(rows.map((r, i) => [r.clubId, i + 1]))
+            const rankOf = new Map(rows.map((r, i) => [r.teamId, i + 1]))
             return {
               ...lg,
               clubs: lg.clubs.map(c => {
@@ -6449,7 +6450,7 @@ export const useGameStore = create<GameStore>()(
           // セーブ容量の節約：1シーズンあたり約120KB
           const archivedForeignStandings = Object.fromEntries(
             Object.entries(state.currentSeason.foreignStandings ?? {})
-              .map(([lid, st]) => [lid, st.map(s2 => ({ clubId: s2.clubId, totalPoints: s2.totalPoints, raceResults: [] }))]),
+              .map(([lid, st]) => [lid, st.map(s2 => ({ teamId: s2.teamId, totalPoints: s2.totalPoints, raceResults: [] }))]),
           )
           // 国内も同様：今季1度も出走しなかった在籍選手の所属を記録して保存（在籍履歴の空白防止）
           const appearedIds = new Set<string>()
@@ -7951,7 +7952,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 38,
+      version: 39,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8490,6 +8491,24 @@ export const useGameStore = create<GameStore>()(
             const old = (s as { gmOffer?: unknown }).gmOffer
             if (old) s.gmOffers = [old]
             delete (s as { gmOffer?: unknown }).gmOffer
+          }
+
+          // v38→v39: 順位表の行を国内・海外で1つの型にした（キーは teamId）。
+          // 海外だけ clubId で書かれていたので、今シーズンぶんと過去シーズンぶんを均す。
+          // ここを飛ばすと海外リーグの順位表が全部「順位0・優勝回数0」になる。
+          // 均し方は utils/clubStanding の normalizeForeignStandings 1本
+          // （別ファイルに出してある過去シーズンの読み戻しも同じ関数を通る）。
+          if (version < 39) {
+            const cs = s.currentSeason as Record<string, unknown> | undefined
+            if (cs?.foreignStandings) {
+              cs.foreignStandings = normalizeForeignStandings(cs.foreignStandings as Record<string, unknown[]>)
+            }
+            if (Array.isArray(s.pastSeasons)) {
+              s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps =>
+                ps?.foreignStandings
+                  ? { ...ps, foreignStandings: normalizeForeignStandings(ps.foreignStandings as Record<string, unknown[]>) }
+                  : ps)
+            }
           }
 
           return s

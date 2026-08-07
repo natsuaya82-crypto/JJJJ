@@ -24,6 +24,7 @@ import { ranRaces } from '../src/utils/raceHistory'
 import { waRaceRows } from '../src/utils/waRaces'
 import { buildCareerCounts } from '../src/utils/careerStats'
 import { divisionStandings, DIVISIONS } from '../src/utils/league'
+import { clubSeasonRank, clubWonLeague } from '../src/utils/clubStanding'
 import type { Race } from '../src/types'
 
 const problems: string[] = []
@@ -61,8 +62,21 @@ const oldSave: Record<string, unknown> = {
   playerTeamId: teams[0].id,
   teams,
   players,
-  currentSeason: { year: YEAR, races, standings: flatStandings, newsFeed: [], objectives: [] },
-  pastSeasons: [{ year: YEAR - 1, races: [mkRace(3)], standings: flatStandings }],
+  // 海外リーグの順位表は v38 まで行のキーが clubId だった（v39 で teamId に統一）
+  currentSeason: {
+    year: YEAR, races, standings: flatStandings, newsFeed: [], objectives: [],
+    foreignStandings: { africa_east: [
+      { clubId: 'ken_1', totalPoints: 42, raceResults: [{ raceId: 'fr0', rank: 1, points: 20 }] },
+      { clubId: 'eth_1', totalPoints: 31, raceResults: [{ raceId: 'fr0', rank: 2, points: 16 }] },
+    ] },
+  },
+  pastSeasons: [{
+    year: YEAR - 1, races: [mkRace(3)], standings: flatStandings,
+    foreignStandings: { africa_east: [
+      { clubId: 'eth_1', totalPoints: 55, raceResults: [{ raceId: 'pfr0', rank: 1, points: 20 }] },
+      { clubId: 'ken_1', totalPoints: 12, raceResults: [{ raceId: 'pfr0', rank: 2, points: 16 }] },
+    ] },
+  }],
   worldAthleticsResults: [{ year: YEAR - 1, kind: 'qualifier', host: 'JPN', standings: [], advanced: [], races: [waRace] }],
   worldRepresentatives: [],
 }
@@ -134,6 +148,30 @@ console.log('[予算]')
 const fin = (after.teams as { finance?: { budget?: number; deficitStreak?: number } }[])[0].finance
 check('残高が格の年間予算で入り直している', (fin?.budget ?? 0) > 0, `${fin?.budget}`)
 check('連続赤字が0に戻る', fin?.deficitStreak === 0)
+
+// ── 海外リーグの順位表（v39）──
+// 行のキーが clubId → teamId に変わった。均し損ねると海外の順位が全部0になり、
+// 優勝回数も格の更新も止まる（最下位を続けても格が動かない状態に戻る）
+console.log('')
+console.log('[海外リーグの順位表]')
+{
+  const csAfter = after.currentSeason as { foreignStandings?: Record<string, Record<string, unknown>[]> }
+  const psAfter = (after.pastSeasons as { foreignStandings?: Record<string, Record<string, unknown>[]> }[])[0]
+  const cur = csAfter.foreignStandings?.africa_east ?? []
+  const past = psAfter?.foreignStandings?.africa_east ?? []
+  check('今季ぶんが teamId になっている', cur.length === 2 && cur.every(r => typeof r.teamId === 'string' && r.teamId !== ''),
+    JSON.stringify(cur.map(r => r.teamId)))
+  check('過去シーズンぶんも teamId になっている', past.length === 2 && past.every(r => typeof r.teamId === 'string' && r.teamId !== ''),
+    JSON.stringify(past.map(r => r.teamId)))
+  check('clubId は残っていない', ![...cur, ...past].some(r => 'clubId' in r))
+  check('勝ち点と走行結果は消えていない', cur[0]?.totalPoints === 42 && (cur[0]?.raceResults as unknown[])?.length === 1)
+  // 均したあとの順位表を読み口に通す（画面が見るのと同じ経路）
+  const rank = clubSeasonRank(after.currentSeason as never, 'ken_1')
+  const pastRank = clubSeasonRank(psAfter as never, 'eth_1')
+  check('読み口から今季の順位が引ける', rank.rank === 1 && rank.total === 2, JSON.stringify(rank))
+  check('読み口から過去の順位が引ける', pastRank.rank === 1, JSON.stringify(pastRank))
+  check('過去のリーグ優勝が数えられる', clubWonLeague(psAfter as never, 'eth_1') && !clubWonLeague(psAfter as never, 'ken_1'))
+}
 
 console.log('')
 if (problems.length === 0) {

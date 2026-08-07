@@ -331,12 +331,25 @@ export type Player = {
   teamRole?: TeamRole
 }
 
+/**
+ * 順位表の1行。**国内も海外も同じ型**（キーは teamId）。
+ *
+ * もとは国内 SeasonStanding（teamId）と海外 ForeignStanding（clubId）に割れていた。
+ * 中身は同じなのにキー名だけが違うので、読む側は必ず if (isForeign) を書かされ、
+ * チーム詳細だけで6か所が二重になっていた（2部の首位が9位と出る類のバグの温床）。
+ * 海外クラブも「クラブID」ではなく teamId に入れる（Team と ForeignClub を
+ * 1つの型にしたのと同じ理由：地域はただの項目で、扱いを分けない）。
+ */
 export type SeasonStanding = {
   teamId: string
-  leaguePoints: number
-  segmentPoints: number
   totalPoints: number
   raceResults: { raceId: string; rank: number; points: number }[]
+  /**
+   * 順位ぶんと区間賞ぶんの内訳。**国内だけ**（区間賞は国内のレースにしかない）。
+   * 合計は totalPoints にあるので、読む側はふつうそちらを見る。
+   */
+  leaguePoints?: number
+  segmentPoints?: number
 }
 
 export type CardStatKey = 'speed' | 'stamina' | 'mountainUp' | 'mountainDown' | 'pacing' | 'mental' | 'recovery'
@@ -459,7 +472,12 @@ export type ForeignLeague = {
 }
 
 // 海外リーグの順位表（1クラブぶん）。currentSeason.foreignStandings に leagueId 単位で保持。
-export type ForeignStanding = { clubId: string; totalPoints: number; raceResults: { raceId: string; rank: number; points: number }[] }
+/**
+ * 海外リーグの順位表の1行。**国内とまったく同じ型**（別名として残してあるだけ）。
+ * v39 より前のセーブは行のキーが clubId なので、読むときは
+ * utils/clubStanding.ts を通すこと（そこで teamId に均す）。
+ */
+export type ForeignStanding = SeasonStanding
 
 // ECL（Ekiden Champions League）：日本リーグ上位2＋海外各リーグ上位2の計16チームが3戦のポイント制で優勝を争う国際大会。
 export type EclStanding = {

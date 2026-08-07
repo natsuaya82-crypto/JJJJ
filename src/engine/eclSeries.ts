@@ -50,7 +50,7 @@ export function buildEclParticipants(args: {
   teams: readonly { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }[]
   playerTeamId: string
   leagues: readonly LeagueLike[]
-  foreignStandings: Record<string, { clubId: string; totalPoints: number }[]>
+  foreignStandings: Record<string, { teamId: string; totalPoints: number }[]>
   /** 戦力での代替に使う。順位表がある年は読まれない */
   players: readonly Player[]
 }): EclSeriesParticipant[] {
@@ -82,7 +82,7 @@ export function buildEclParticipants(args: {
   for (const league of leagues) {
     const st = rankedStandings(foreignStandings[league.id] ?? []).slice(0, ECL_SLOTS_PER_LEAGUE)
     const clubs = st.length >= ECL_SLOTS_PER_LEAGUE
-      ? st.map(s => league.clubs.find(c => c.id === s.clubId)).filter((c): c is ClubLike => !!c)
+      ? st.map(s => league.clubs.find(c => c.id === s.teamId)).filter((c): c is ClubLike => !!c)
       : [...league.clubs].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, ECL_SLOTS_PER_LEAGUE)
     for (const club of clubs) {
       parts.push({

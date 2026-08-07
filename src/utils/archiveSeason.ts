@@ -67,7 +67,7 @@ export function toArchivedShape(raw: Record<string, unknown>): Record<string, un
       Object.entries(fStand as Record<string, unknown>).map(([lid, st]) => [
         lid,
         Array.isArray(st)
-          ? (st as Record<string, unknown>[]).map(x => ({ clubId: x.clubId, totalPoints: x.totalPoints, raceResults: [] }))
+          ? (st as Record<string, unknown>[]).map(x => ({ teamId: x.teamId ?? x.clubId, totalPoints: x.totalPoints, raceResults: [] }))
           : st,
       ]),
     )

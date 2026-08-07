@@ -10,7 +10,7 @@ import { rankedStandings } from '../utils/league'
 export function initForeignStandings(foreignLeagues: ForeignLeague[]): Record<string, ForeignStanding[]> {
   const out: Record<string, ForeignStanding[]> = {}
   for (const league of foreignLeagues) {
-    out[league.id] = league.clubs.map(c => ({ clubId: c.id, totalPoints: 0, raceResults: [] }))
+    out[league.id] = league.clubs.map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
   }
   return out
 }
@@ -61,14 +61,14 @@ export function simulateForeignLeagueRound(
     })
     raced[league.id] = out.race
 
-    const prev = newStandings[league.id] ?? league.clubs.map(c => ({ clubId: c.id, totalPoints: 0, raceResults: [] }))
+    const prev = newStandings[league.id] ?? league.clubs.map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
     newStandings[league.id] = prev.map(s => {
-      const earned = out.points[s.clubId]
+      const earned = out.points[s.teamId]
       if (earned == null) return s
       return {
         ...s,
         totalPoints: s.totalPoints + earned,
-        raceResults: [...s.raceResults, { raceId: race.id, rank: out.ranks[s.clubId] ?? 0, points: earned }],
+        raceResults: [...s.raceResults, { raceId: race.id, rank: out.ranks[s.teamId] ?? 0, points: earned }],
       }
     })
 
@@ -102,7 +102,7 @@ export function applyForeignChampions(
     if (!st || st.length === 0) continue
     const champ = rankedStandings(st)[0]
     if (!champ) continue
-    for (const p of players) if (belongsToClub(p, champ.clubId)) champIds.add(p.id)
+    for (const p of players) if (belongsToClub(p, champ.teamId)) champIds.add(p.id)
   }
   if (champIds.size === 0) return players
   return players.map(p => champIds.has(p.id)

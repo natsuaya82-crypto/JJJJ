@@ -4,7 +4,7 @@
  *   npx esbuild --bundle --platform=node --format=cjs scripts/check-club-standing.ts --outfile=/tmp/ccs.cjs && node /tmp/ccs.cjs
  *
  * 順位表の置き場所は国内(standings: 部ごと)と海外(foreignStandings: リーグごと)で分かれている。
- * 形は同じなのに行のキーが teamId / clubId で違うだけなので、読む側は必ず if (isForeign) を
+ * もとは行のキーが teamId / clubId で違うだけだったので、読む側は必ず if (isForeign) を
  * 書かされていた。チーム詳細ページだけで6か所が二重になっていた。
  *
  * ここで見るのは
@@ -14,7 +14,7 @@
  *      （旧：自分の部のレース数を全チームに使い回していたので、2部・3部のクラブを見ると
  *        10と出ていた。部ごとにレース数は10/8/7と違う）
  */
-import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague } from '../src/utils/clubStanding'
+import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague, normalizeStandingRows, normalizeForeignStandings } from '../src/utils/clubStanding'
 import {
   DIVISIONS, DIVISION_SIZE, DIVISION_RACES, divisionOf,
   domesticThroughRankOfTeam, standingRowOf, rankedStandings, newSeasonStandings,
@@ -52,7 +52,7 @@ for (const d of DIVISIONS) {
 // 海外は各リーグ6戦
 const foreignStandings: Record<string, ForeignStanding[]> = {}
 for (const l of FOREIGN_LEAGUES) {
-  foreignStandings[l.id] = l.clubs.map(c => ({ clubId: c.id, totalPoints: 0, raceResults: [] }))
+  foreignStandings[l.id] = l.clubs.map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
   for (let r = 0; r < 6; r++) {
     for (const row of foreignStandings[l.id]) {
       const pts = Math.round(rnd() * 20)
@@ -90,8 +90,8 @@ console.log('[2] 海外クラブ：これまでの引き方と1件も違わな�
     const sorted = rankedStandings(foreignStandings[l.id])
     for (const c of l.clubs) {
       n++
-      const oldRank = sorted.findIndex(x => x.clubId === c.id) + 1
-      const oldRow = foreignStandings[l.id].find(x => x.clubId === c.id)
+      const oldRank = sorted.findIndex(x => x.teamId === c.id) + 1
+      const oldRow = foreignStandings[l.id].find(x => x.teamId === c.id)
       const got = clubSeasonRank(season, c.id)
       if (got.rank !== oldRank) rankDiff++
       if (got.total !== l.clubs.length) totalDiff++
@@ -131,6 +131,18 @@ console.log('[4] 優勝の判定（国内＝部の1位／海外＝リーグの1�
   console.log(`  国内 ${champs.length}クラブ（3部あるので3件）／海外 ${fChamps.length}クラブ（9リーグなので9件）`)
   check('国内は部の数だけ1位が出る', champs.length === DIVISIONS.length, `${champs.length}件`)
   check('海外はリーグの数だけ1位が出る', fChamps.length === FOREIGN_LEAGUES.length, `${fChamps.length}件`)
+}
+
+console.log('')
+console.log('[5] 旧セーブ（行のキーが clubId）を均せる')
+{
+  const legacy = FOREIGN_LEAGUES[0].clubs.map((c, i) => ({ clubId: c.id, totalPoints: 100 - i, raceResults: [] }))
+  const normalized = normalizeStandingRows(legacy)
+  check('全部 teamId になる', normalized.every(r => r.teamId !== ''), JSON.stringify(normalized.slice(0, 2)))
+  check('clubId は消える', !normalized.some(r => 'clubId' in r))
+  check('勝ち点は変わらない', normalized[0].totalPoints === 100)
+  const wrapped = normalizeForeignStandings({ [FOREIGN_LEAGUES[0].id]: legacy })
+  check('リーグ単位でも均せる', (wrapped?.[FOREIGN_LEAGUES[0].id] ?? []).every(r => r.teamId !== ''))
 }
 
 console.log('')

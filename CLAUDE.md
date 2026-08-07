@@ -50,9 +50,9 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/engine/backgroundRace.ts` | **裏で走るレースの唯一の入口**。`runBackgroundRace`（裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここを通る）。区間への並べ方は `raceEngine` の `bgLineup` 1本 |
 | `src/data/courseNames.ts` | **コースの呼び名**。中身は25本のまま、名前だけ地域ごと（国内／アジア／アフリカ／ヨーロッパ／アメリカ）。`courseNameFor` / `localizeRace` |
 | `src/utils/facilities.ts` | **施設**。レベル（自分で建てたぶん or 格から）と維持費。`facilitiesOf` / `facilityUpkeepOf` / `FACILITY_UPKEEP_PER_LEVEL` |
-| `src/utils/chatLines.ts` | チャットで**2か所以上に出る文面**。承諾の返事・契約の提示・引き留めなど。`npm run check` が重複を見張る |
+| `src/utils/chatLines.ts` | チャットで**2か所以上に出る文面**。承諾の返事・契約の提示・引き留めなど。**発言には必ず `kind` を付ける**（付いていないと重複が潰せない）。`npm run check` が文面の重複と `kind` の有無を見張る |
 | `src/utils/raceHistory.ts` | **走ったレースの取り出し**。`ranRaces`（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会をリーグ名つきで返す）。同じ駅伝名でも部が違えば別の記録 |
-| `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。国内(`standings`)と海外(`foreignStandings`)で置き場所は分かれているが、読む側は区別しない |
+| `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。順位表の**行の型は1つ**（`SeasonStanding`・キーは `teamId`）。置き場所は国内(`standings`)と海外(`foreignStandings`)で分かれているが、読む側は区別しない。旧セーブ（キーが `clubId`）を均すのも `normalizeForeignStandings` 1本 |
 | `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |

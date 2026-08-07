@@ -29,7 +29,7 @@ export default function ForeignLeagueDetailPage() {
   const clubStandings = league.clubs.map(club => {
     const clubPlayers = players.filter(p => belongsToClub(p, club.id))
     const avgOvr = clubPlayers.length > 0 ? Math.round(clubPlayers.reduce((s, p) => s + ovr(p), 0) / clubPlayers.length) : 0
-    const st = leagueStandings?.find(s => s.clubId === club.id)
+    const st = leagueStandings?.find(s => s.teamId === club.id)
     return { club, avgOvr, points: st?.totalPoints ?? 0, form: (st?.raceResults ?? []).map(r => r.rank) }
   }).sort((a, b) => hasResults ? b.points - a.points : b.avgOvr - a.avgOvr)
 

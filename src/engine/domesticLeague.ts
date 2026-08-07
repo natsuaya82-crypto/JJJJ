@@ -102,7 +102,7 @@ export function applyAwayDivisionRound(
         ...s,
         // 内訳は持たず合計だけを動かす（裏の部は順位さえ出れば足りる）
         totalPoints: s.totalPoints + earned,
-        leaguePoints: s.leaguePoints + earned,
+        leaguePoints: (s.leaguePoints ?? 0) + earned,
         raceResults: [...s.raceResults, { raceId: race.id, rank: round.ranks[s.teamId] ?? 0, points: earned }],
       }
     })
