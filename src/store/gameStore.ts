@@ -5775,7 +5775,6 @@ export const useGameStore = create<GameStore>()(
             const top = rankedStandings(sortedStandings.filter(x => ids.has(x.teamId)))[0]
             return updatedTeams.find(t => t.id === top?.teamId)
           }
-          const champion = championOfDiv(1)
           const divisionChampionNews = DIVISIONS.map(d => {
             const c = championOfDiv(d)
             return c ? { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year} JPEL${DIVISION_LABEL[d]} 優勝：${c.name}`, category: 'race' as const, relatedIds: [] } : null
