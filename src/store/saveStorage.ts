@@ -264,6 +264,48 @@ export const saveStorage: StateStorage = {
   },
 }
 
+// ── 過去シーズンの記録の置き場所 ─────────────────────────────
+//
+// ■なぜ普段のセーブと分けるのか
+//   セーブは状態が変わるたびに**全部を書き直す**。走行記録を全大会ぶん残すと
+//   1シーズン0.38MB、100シーズンで38MBになり、選手を1人タップするたびに
+//   1.4秒（実機で3〜5秒）固まる。実測した数字（scripts/measure-save-size.ts）。
+//   だから終わったシーズンの記録は本体から外し、**シーズン終了時に1回だけ**書く。
+//   読むのは記録室や選手の履歴を開いたときだけ。
+//
+// ■本体と同じ約束を守る
+//   セーフモード中は書かない（壊れたセーブの上に書くと本当に消える）。
+//   保存先の分岐（ネイティブ＝ファイル／Web＝localStorage）も本体と同じ。
+//   ここを別に書かないこと。
+
+const archivePath = (key: string) => `${key}${SUF}.json`
+
+/** 過去シーズンの記録を1年ぶん書く。シーズン終了時に1回だけ呼ぶ */
+export async function writeArchive(key: string, json: string): Promise<void> {
+  if (isSaveSafeMode()) {
+    console.error('[archive] BLOCKED: セーフモード中のため書き込みを行いません')
+    return
+  }
+  if (!isNative) { try { localStorage.setItem(key, json) } catch (e) { console.error('[archive] write failed', e) } ; return }
+  try {
+    await Filesystem.writeFile({ path: archivePath(key), data: json, directory: Directory.Data, encoding: Encoding.UTF8 })
+  } catch (e) {
+    console.error('[archive] write failed', e)
+  }
+}
+
+/** 過去シーズンの記録を読む。無ければ null（古いセーブには存在しない） */
+export async function readArchive(key: string): Promise<string | null> {
+  if (!isNative) { try { return localStorage.getItem(key) } catch { return null } }
+  return await readText(archivePath(key))
+}
+
+/** 過去シーズンの記録を消す。データ削除のときだけ */
+export async function removeArchive(key: string): Promise<void> {
+  if (!isNative) { try { localStorage.removeItem(key) } catch { /* 使えない環境では何もしない */ } ; return }
+  await removeIfExists(archivePath(key))
+}
+
 // 復旧画面から「セーブを削除して新しく始める」を選んだときだけ呼ぶ。
 // セーフモード中の書き込み禁止を解除できる唯一の経路（＝ユーザーの明示的な同意）。
 export async function deleteSaveForRecovery(): Promise<void> {
