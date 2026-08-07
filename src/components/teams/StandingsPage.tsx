@@ -8,7 +8,7 @@ import BackButton from '../ui/BackButton'
 import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C } from '../../styles/tokens'
-import { rankedStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
+import { rankedStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
 import type { Division } from '../../types'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -89,12 +89,11 @@ export default function StandingsPage() {
         onRowClick: goClub,
       }
     }
-    // 部の順位表。順位表は全52チームぶんを1本で持っているので、ここで所属の部だけに絞る
+    // 部の順位表。順位表は全52チームぶんを1本で持っているので、所属の部だけに絞る（utils/league）
     const div = division
-    const idsInDiv = new Set(teams.filter(t => divisionOf(t) === div).map(t => t.id))
     return {
       eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',
-      rows: domesticRows(currentSeason.standings.filter(s => idsInDiv.has(s.teamId))),
+      rows: domesticRows(divisionStandings(currentSeason.standings, teams, div)),
       onRowClick: goDomestic,
       promote: div === 1 ? 0 : PROMOTION_SLOTS,
       relegate: div === DIVISIONS[DIVISIONS.length - 1] ? 0 : PROMOTION_SLOTS,

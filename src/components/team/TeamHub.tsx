@@ -5,7 +5,7 @@ import { fmtYen } from '../../utils/money'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
-import { rankedStandings, rankOfTeam } from '../../utils/league'
+import { myDivisionStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -17,7 +17,8 @@ export default function TeamHub() {
   const myTeam = teams.find(t => t.id === playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
-  const sortedStandings = rankedStandings(currentSeason.standings)
+  // 全52チームぶんの順位表から、自分が走っている部だけに絞る（utils/league）
+  const sortedStandings = myDivisionStandings(currentSeason.standings, teams, playerTeamId)
   const myRank = rankOfTeam(sortedStandings, playerTeamId)
   const avgOvr = myPlayers.length > 0 ? Math.round(myPlayers.reduce((s, p) => s + ovr(p), 0) / myPlayers.length) : 0
 

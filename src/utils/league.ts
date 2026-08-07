@@ -136,6 +136,34 @@ export function domesticThroughRankOfTeam(
   return at < 0 ? 0 : domesticThroughRank(div, at + 1)
 }
 
+/**
+ * その部だけの順位表（得点順）。**自分の順位・順位表を出すときは必ずここを通すこと。**
+ *
+ * `Season.standings` は全52チームぶんを1本で持っている。部で絞らずに得点で並べると、
+ * 部ごとにレース数が違う（10 / 8 / 7戦）ので走った数の多い部がまとめて上に来て、
+ * 順位そのものが意味を失う（1部の中位が「30位」になる、など）。
+ *
+ * 2部・3部が0ptのまま止まっていたころは、絞らなくても下位に沈んでいたので
+ * 目立たなかっただけ。裏の部が動くようになった時点で表に出た。
+ */
+export function divisionStandings<T extends RankableRow & { teamId: string }>(
+  rows: readonly T[] | undefined,
+  teams: readonly Pick<Team, 'id' | 'division'>[],
+  division: Division,
+): T[] {
+  const inDiv = new Set(teams.filter(t => divisionOf(t) === division).map(t => t.id))
+  return rankedStandings((rows ?? []).filter(r => inDiv.has(r.teamId)))
+}
+
+/** そのチームが走っている部の順位表（得点順）。自チームの順位はここ1本 */
+export function myDivisionStandings<T extends RankableRow & { teamId: string }>(
+  rows: readonly T[] | undefined,
+  teams: readonly Pick<Team, 'id' | 'division'>[],
+  teamId: string,
+): T[] {
+  return divisionStandings(rows, teams, divisionOf(teams.find(t => t.id === teamId)))
+}
+
 /** 年間王者の行。1戦もしていなければ全員0点なので、先頭のチームが返る */
 export function championRow<T extends RankableRow>(rows: readonly T[] | undefined): T | undefined {
   return rankedStandings(rows)[0]

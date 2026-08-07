@@ -15,7 +15,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
 import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
 import { contractTalkCtx, contractMonthsLeft, isUrgentRenewal } from '../../utils/contractTalk'
-import { rankedStandings, rankOfTeam } from '../../utils/league'
+import { rankedStandings, myDivisionStandings, rankOfTeam } from '../../utils/league'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -135,8 +135,11 @@ export function ResultsPhase({
     onContinue ? onContinue() : navigate('/')
   }
 
-  const standingsSource = reserveStandings ?? currentSeason.standings
-  const fullSorted = rankedStandings(standingsSource)
+  // リザーブリーグはその大会だけの順位表なのでそのまま。
+  // 本編は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
+  const fullSorted = reserveStandings
+    ? rankedStandings(reserveStandings)
+    : myDivisionStandings(currentSeason.standings, teams, playerTeamId)
   const playerSeasonRank = rankOfTeam(fullSorted, playerTeamId)
   // 上位10行。トップ10外なら自チーム行を区切って末尾に追加
   const seasonRows: { s: typeof fullSorted[number]; rank: number; isBreak: boolean }[] =

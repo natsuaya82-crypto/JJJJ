@@ -115,6 +115,15 @@ RULES.push({
   fix: 'raceRecord.ts の seasonHasFullRecords を使う',
 })
 
+// 今季の順位表は全52チームぶんを1本で持っている。部で絞らずに得点で並べると、
+// 部ごとにレース数が違う（10/8/7戦）ぶんだけ順位がずれる。
+RULES.push({
+  name: '今季の順位表を部で絞らずに並べている',
+  pattern: /rankedStandings\(\s*currentSeason\.standings/,
+  allow: ['src/utils/league.ts'],
+  fix: 'league.ts の myDivisionStandings / divisionStandings を通す',
+})
+
 // 相手のロスターと殿堂入りは同じ行（rosters）に入っている。
 // 別々に読みに行くと、読める相手の条件（フレンド／同じ走友会）が経路ごとにズレる。
 RULES.push({
