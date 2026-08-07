@@ -8,6 +8,7 @@ import { formatRaceTime, individualEventAbility, individualBaseTime } from '../u
 import { calcBaseAbility, calcAffinity } from './raceEngine'
 import { runBackgroundRace } from './backgroundRace'
 import { worldRace, worldRaceName } from '../utils/worldCourses'
+import { RUNNING_SLOTS } from '../data/rosterRules'
 // コースの呼び名は地域ごと（中身は同じ）。アメリカ予選が「大阪カップ」にならないようにする
 import { COURSE_REGION_BY_CONT } from '../data/courseNames'
 
@@ -521,7 +522,7 @@ function runEkiden(players: Player[], nats: Nationality[], year: number, manual?
       const stars = individualStarIds(players, nat, year)
       squad = autoSelectEkiden(cands, stars, 20)
     }
-    const legs = squad.slice(0, 7)
+    const legs = squad.slice(0, RUNNING_SLOTS)   // 走れる人数は data/rosterRules 1本
     // 7人の距離スコア合計に当日ブレ。高いほど速い→順位は降順。
     const score = legs.reduce((s, p) => s + distanceScore(p, year) * (1 + (rnd() * 0.08 - 0.04)), 0)
     rows.push({ nat, timeScore: score, rank: 0, runnerIds: legs.map(p => p.id) })
@@ -721,7 +722,7 @@ export function simulateQualifier(players: Player[], year: number, advance = 3, 
   const japanStrength = (): number => {
     if (!japanSquadIds || japanSquadIds.length === 0) return nationStrength(players, 'JPN', year)
     const squad = japanSquadIds.map(id => byId.get(id)).filter((p): p is Player => !!p && p.status !== 'retired')
-    return squad.map(p => distanceScore(p, year)).sort((a, b) => b - a).slice(0, 7).reduce((s, v) => s + v, 0)
+    return squad.map(p => distanceScore(p, year)).sort((a, b) => b - a).slice(0, RUNNING_SLOTS).reduce((s, v) => s + v, 0)
   }
   const rows = nats
     .filter(n => natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア')

@@ -78,6 +78,42 @@ export function thanksLine(): ChatMessage {
   return { from: 'player', text: 'ありがとうございます。よろしくお願いします。' }
 }
 
+// ── 組み立て側とボタン側で二重に書かれていたもの ────────────────
+//
+// チャットの発言は2系統から積まれる。
+//   ・組み立て（buildMessages）… いまの状態から作り直す。kind が付いている
+//   ・ボタン（append）        … 押した瞬間にその場で足す
+// 同じ用件を両方が別々に書いていたので、**片方の書き方が変わった瞬間に2行並ぶ**。
+// 実際に4件が重なっていた（承諾の礼・逆提示・合意・断りの受け）。
+// 文面をここに出して、どちらもこれを呼ぶ。
+
+/** 契約更新を本人が承諾した（組み立て L130 とボタン L611 で二重だった） */
+export function contractAcceptLine(): ChatMessage {
+  return { from: 'player', kind: 'contract_accept', text: 'ありがとうございます。その条件で合意します。よろしくお願いします。' }
+}
+
+/** 本人からの逆提示（組み立て L135 とボタン L613 で二重だった） */
+export function contractCounterLine(salaryText: string, years: number | undefined): ChatMessage {
+  return {
+    from: 'player', kind: 'contract_counter',
+    text: `考えましたが、年俸${salaryText}、${years}年であれば合意できます。これ以上は難しいです。`,
+  }
+}
+
+/** GMが相手の逆提示を飲む（契約更新と獲得の2か所で同じ文面だった） */
+export function agreeTermsLine(salaryText: string, years: number | undefined): ChatMessage {
+  return { from: 'gm', kind: 'agree_terms', text: `了解しました。年俸${salaryText}、${years}年で合意します。` }
+}
+
+/**
+ * 断られた相手クラブGMの受け（買い取りの断りとレンタルの断りの2か所で同じ文面だった）。
+ * 買い取りとレンタルは同時に来るので、**クラブ名を kind に入れて別々の用件として扱う**
+ * （1つの kind にすると、両方断ったときに片方が消える）。
+ */
+export function clubDeclinedAckLine(clubName: string): ChatMessage {
+  return { from: 'player', kind: `club_declined_ack:${clubName}`, text: `（${clubName}GM）承知しました。またの機会にお願いします。` }
+}
+
 /**
  * 進路が決まっている選手の返事（決まっていなければ null）。
  * 判定は talkSync の settledPath 1本を通す。

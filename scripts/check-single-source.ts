@@ -273,6 +273,35 @@ RULES.push({
   fix: 'utils/clubs.ts に「クラブなら誰でも通る」形で置く（clubCity / clubFounded / clubGmName と同じ）',
 })
 
+// 「本人が行く気になるか」を、行き先の姿ぬきで判定していないか。
+//
+// playerConsentToMove は以前 buildDestination(..., [], {}) ＝ 空のロスター・空の条件で
+// 行き先を作っていた。序列・優勝・ECL・憧れの地域・成長上限が全部抜けた答えになるので、
+// 入札画面の「意欲」表示と本人の実際の答えが 40.4% 食い違っていた。
+// 行き先は必ず store の destinationOf から取ること。
+RULES.push({
+  name: '空のロスターから行き先を作っている（判定が行き先を見なくなる）',
+  pattern: /buildDestination\([^;\n]*?\[\s*\]/,
+  allow: ['src/utils/transferDecision.ts'],
+  fix: 'store の destinationOf(clubId, player) を使う。格だけで判定しない',
+})
+
+// 人数の決まりは data/rosterRules 1本。エンジンや画面に別の数字を置かない。
+RULES.push({
+  name: 'ロスター人数の数字を直書きしている',
+  pattern: /(length\s*[<>=]+\s*30\b|slice\(30\)|ROSTER_MIN\s*=\s*\d|_ROSTER_MIN\s*=)/,
+  allow: ['src/data/rosterRules.ts'],
+  fix: 'ROSTER_MAX / ROSTER_MIN / CPU_SELL_FLOOR（data/rosterRules.ts）を使う',
+})
+
+// 金額の書き方は utils/money の fmtYen 1本。桁を自分で割らない。
+RULES.push({
+  name: '金額を自分で「億」に直している',
+  pattern: /\/\s*100[_0]{6,}\s*\)?\s*\.toFixed/,
+  allow: ['src/utils/money.ts'],
+  fix: 'utils/money.ts の fmtYen を使う',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

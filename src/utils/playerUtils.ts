@@ -2,7 +2,7 @@ import type { Player, Specialty, Ratings, CardStatKey, Nationality } from '../ty
 import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
 import { peakAgeOfCurve } from '../engine/ageCurve'
 import { type ClubTier } from './clubTier'
-import { appraiseMove, buildDestination, CONSENT_LINE } from './transferDecision'
+import { appraiseMove, CONSENT_LINE, type Destination } from './transferDecision'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -391,20 +391,28 @@ export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastS
 /**
  * 移籍・トレードで動く選手本人が「移籍先クラブに行くことに納得するか」。
  *
- * ★判断の本体は utils/transferDecision.ts の appraiseMove 1本。ここはその窓口。
- *   行き先の姿（そのクラブで何番手か・ECLに出ているか・順位）が分かる呼び出し側は
- *   appraiseMove を直接使うこと。ここは「格しか分からない」古い経路のための入口で、
- *   序列が分からないぶんだけ判定が甘くなる。
+ * ★判断の本体は utils/transferDecision.ts の appraiseMove 1本。ここはその窓口で、
+ *   **「主力だから残りたい」の1行を足すためだけ**に存在する（行き先の情報とは別軸なので
+ *   appraiseMove の中には入れられない）。
  *
- * @param destTier 行き先クラブの格
+ * ■行き先は必ず本物を渡すこと
+ *   以前ここは行き先の「格」だけを受け取り、中で
+ *       buildDestination(String(destTier), destTier, [], {})
+ *   と**空のロスター・空の条件**から行き先を作っていた。つまり
+ *   序列（そのクラブで何番手か）・優勝・ECL・憧れの地域・成長上限が全部抜けた答えを返す。
+ *   実測すると本物の判定と **40.4%（22,950通り中9,281件）が食い違って**いて、
+ *   入札画面の「意欲」表示が本人の答えと違う、という状態だった。
+ *   引数を Destination にしてあるので、格だけで呼ぶことはもうできない。
+ *   行き先は store の `destinationOf(clubId, player)` から取ること。
+ *
+ * @param dest     行き先クラブの姿（destinationOf で作る）
  * @param srcTier  今の所属クラブの格。無所属（FA）は undefined ＝ 格差なしとして扱う
  * @param clubBlessed クラブ間で移籍金が合意済みの公認移籍。「主力だから残りたい」の減点が働かない
  */
 export function playerConsentToMove(
-  p: Player, destTier: ClubTier, srcTier: ClubTier | undefined,
+  p: Player, dest: Destination, srcTier: ClubTier | undefined,
   playFraction = 0.5, teamRaces = 0, consentBonus = 0, clubBlessed = false,
 ): { ok: boolean; reason: string } {
-  const dest = buildDestination(String(destTier), destTier, [], {})
   const a = appraiseMove(p, dest, { srcTier, playFraction, teamRaces, bonus: consentBonus, clubBlessed })
   // 「主力だから残りたい」は行き先の情報とは別軸。ここだけ従来どおり残す
   const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
@@ -418,9 +426,9 @@ export function playerConsentToMove(
 // 通常の移籍同意より腰が重い（-0.2）＋現チームでの出場実績を必ず加味する。
 // 出場している選手・愛着のある選手は基本残留し、干されている選手だけが出て行きやすい。
 export function freeContactConsent(
-  p: Player, suitorTier: ClubTier, srcTier: ClubTier | undefined, playFraction = 0.5, teamRaces = 0,
+  p: Player, dest: Destination, srcTier: ClubTier | undefined, playFraction = 0.5, teamRaces = 0,
 ): boolean {
-  return playerConsentToMove(p, suitorTier, srcTier, playFraction, teamRaces, -0.2).ok
+  return playerConsentToMove(p, dest, srcTier, playFraction, teamRaces, -0.2).ok
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { Player, TransferBid, ExpiredNegotiation } from '../types'
 import { keyPlayerStatus, calcTransferValue } from './playerUtils'
 import { bidThreshold, BID_COUNTER_RATIO, listedThreshold, LISTED_COUNTER_RATIO, roundFee } from '../data/economy'
+import { fmtYen } from './money'
 
 // 入札(移籍金オファー)の合否を出す1本。
 // 以前は gameStore の中に「本編の1戦を進めたとき」と「サブの1戦を進めたとき」で
@@ -98,7 +99,7 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
       bid: { ...bid, status: 'rejected' },
       expired: {
         id: bid.id, playerId: bid.playerId, playerName: player.name, kind: 'outbid',
-        detail: `${topRival.name}が${(winFee / 100_000_000).toFixed(1)}億で上回りました`,
+        detail: `${topRival.name}が${fmtYen(winFee)}で上回りました`,   // 金額の書き方は utils/money 1本
       },
       outbidBy: { clubId: topRival.clubId, name: topRival.name, fee: winFee },
     }

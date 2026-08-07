@@ -1841,7 +1841,7 @@ export const useGameStore = create<GameStore>()(
             const isRetiringFl = (state.currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
             const leaves = suitorSize >= 30 || isRetiringFl ? false
               : pl.contract.yearsLeft > 1 ? false
-              : freeContactConsent(pl, tierOf(suitor), tierOfPlayerClub(pl.teamId, allTieredClubs(state.teams, state.foreignLeagues)), flFrac, nextRaceIndex)
+              : freeContactConsent(pl, get().destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, allTieredClubs(state.teams, state.foreignLeagues)), flFrac, nextRaceIndex)
             freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
             if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
           })
@@ -3255,8 +3255,7 @@ export const useGameStore = create<GameStore>()(
           if (freeContact) {
             const fcRaces = Math.max(1, state.currentSeason.currentRaceIndex)
             const fcFrac = seasonAppearances(player.id, state.currentSeason.races) / fcRaces
-            const suitorTier = tierOf(state.teams.find(t => t.id === freeContact.fromTeamId))
-            if (freeContactConsent(player, suitorTier, tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces)) {
+            if (freeContactConsent(player, get().destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces)) {
               // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
               return {
                 currentSeason: {
@@ -4012,7 +4011,7 @@ export const useGameStore = create<GameStore>()(
         const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
         // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
         // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
-        const consent = playerConsentToMove(player, tierOf(myTeam), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
+        const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
         if (!consent.ok) {
           // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
           set(s => ({
@@ -4309,10 +4308,9 @@ export const useGameStore = create<GameStore>()(
 
         // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
         // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
-        const myTierNow = tierOf(state.teams.find(t => t.id === state.playerTeamId))
         const consentBonusT = tradeVals.ratio >= 1.2 ? 0.15 : 0
         for (const rp of requested) {
-          if (!playerConsentToMove(rp, myTierNow, tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
+          if (!playerConsentToMove(rp, get().destinationOf(state.playerTeamId, rp), tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
         }
 
         function matchPick(picks: typeof state.teams[0]['draftPicks'], key: string) {
@@ -4435,12 +4433,11 @@ export const useGameStore = create<GameStore>()(
         const round = (existing?.round ?? 0) + 1
 
         // 獲得選手の同意（相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる）
-        const myTierT = tierOf(state.teams.find(t => t.id === state.playerTeamId))
         const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
         let hardNo = ''
         for (const id of getIds) {
           const rp = state.players.find(p => p.id === id); if (!rp) continue
-          if (!playerConsentToMove(rp, myTierT, tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
+          if (!playerConsentToMove(rp, get().destinationOf(state.playerTeamId, rp), tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
         }
 
         let status: TradeNegotiation['status'] = 'countered'
@@ -5128,7 +5125,7 @@ export const useGameStore = create<GameStore>()(
               const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
               if (remainBudget < fee + newSalary) continue
               // 引き抜きは本人が移籍先の魅力で納得するか判定（クラブは割増で合意済み＝clubBlessed）
-              if (!surplus && !playerConsentToMove(target, tierOf(buyTeam), tierOfPlayerClub(target.teamId, teamsAfterCpuTransfer), 0.5, 0, 0, true).ok) continue
+              if (!surplus && !playerConsentToMove(target, get().destinationOf(buyTeam.id, target), tierOfPlayerClub(target.teamId, teamsAfterCpuTransfer), 0.5, 0, 0, true).ok) continue
               const txYear = state.currentSeason.year
               // 所属・名簿・移籍金・移籍履歴は movePlayer にまとめて任せる（自チームの獲得と同じ後始末）
               const moved = movePlayer({ players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer }, target.id, buyTeam.id, {
@@ -6300,12 +6297,13 @@ export const useGameStore = create<GameStore>()(
             for (const l of crossTx.foreignLeagues) {
               for (const c of l.clubs) {
                 const ids = membersByClub.get(c.id) ?? []
-                if (ids.length <= 30) continue
+                // 人数上限は data/rosterRules の ROSTER_MAX 1本。30 と書かない
+                if (ids.length <= ROSTER_MAX) continue
                 const sorted = [...ids].sort((a, b) => {
                   const pa = playerByIdCl.get(a); const pb = playerByIdCl.get(b)
                   return (pb ? ovr(pb) : 0) - (pa ? ovr(pa) : 0)
                 })
-                sorted.slice(30).forEach(id => foreignDropIds.add(id))
+                sorted.slice(ROSTER_MAX).forEach(id => foreignDropIds.add(id))
               }
             }
           }

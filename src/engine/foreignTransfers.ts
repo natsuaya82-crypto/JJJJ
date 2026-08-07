@@ -4,7 +4,7 @@ import { comparePlayers } from '../utils/playerSort'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 // 「どのタイプが足りていないか」は国内・海外で共通の1本（utils/squadNeeds.ts）
 import { weakestSpecialty, bestOvrInSpecialty, needsPlayer } from '../utils/squadNeeds'
-import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
+import { ROSTER_MAX, ROSTER_MIN, CPU_SELL_FLOOR } from '../data/rosterRules'
 import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub } from '../utils/rosterSync'
@@ -16,7 +16,6 @@ import { movePlayer } from '../utils/movePlayer'
 import { foreignMinOvr, effectiveOvr } from '../utils/foreignClubProfile'
 import { tierBudget } from '../utils/clubTier'
 
-const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
 
 // 「そのリーグが受け入れるOVRの下限」と「年齢を加味した実効OVR」は
 // utils/foreignClubProfile.ts の1本（gameStore の打診生成も同じ物差しを使う）
@@ -83,7 +82,7 @@ export function simulateForeignTransferMarket(params: {
     // 4大リーグのクラブほど積極的に引き抜く（世界のスターが集まる）
     const buyer = weightedPick(buyerPool, c => (ROSTER_MAX - roster[c.id].length) * (roster[c.id].length < 22 ? 3 : 1) * (isEliteClub(c) ? 2.4 : 1))
     // 売る側：buyer 以外で下限(18)超のクラブから、buyerより平均が低い相手を優先（放出しても18で止まる）
-    const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length > FOREIGN_ROSTER_MIN)
+    const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length > CPU_SELL_FLOOR)
     if (sellers.length === 0) continue
     const weaker = sellers.filter(c => clubAvg[c.id] <= clubAvg[buyer.id])
     const seller = (weaker.length > 0 ? weaker : sellers)[Math.floor(Math.random() * (weaker.length > 0 ? weaker.length : sellers.length))]
@@ -116,7 +115,7 @@ export function simulateForeignTransferMarket(params: {
   const declineMoved = new Set<string>()
   const DECLINE_MOVES = params.includeDecline === false ? 0 : 2 + Math.floor(Math.random() * 3)
   for (let i = 0; i < DECLINE_MOVES; i++) {
-    const sellers = allClubs.filter(c => roster[c.id].length > FOREIGN_ROSTER_MIN)
+    const sellers = allClubs.filter(c => roster[c.id].length > CPU_SELL_FLOOR)
     if (sellers.length === 0) break
     const seller = sellers[Math.floor(Math.random() * sellers.length)]
     const sorted = roster[seller.id]
@@ -278,7 +277,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // 海外→日本CPU：予算に余裕のあるチームが、自分の弱いタイプ（穴）を海外から補強。移籍金を支払う。
   for (let i = 0; i < N_IN; i++) {
     const buyers = cpuTeams.filter(t => jpnSize(t.id) < ROSTER_MAX && budget[t.id] >= MIN_BUY_BUDGET)
-    const sellers = foreignClubs.filter(c => fRoster[c.id].length > FOREIGN_ROSTER_MIN)
+    const sellers = foreignClubs.filter(c => fRoster[c.id].length > CPU_SELL_FLOOR)
     if (buyers.length === 0 || sellers.length === 0) break
     const buyer = weightedPick(buyers, t => budget[t.id])   // 予算が多いほど動く
     const spec = weakestSpec(jpnRoster[buyer.id])

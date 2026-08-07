@@ -7,6 +7,20 @@ export const ROSTER_MAX = 30          // ロスター人数上限（フラット
 export const ROSTER_MIN = 15          // ロスター人数下限（15人はOK・14人にしようとするとブロック）
 
 /**
+ * CPUクラブが「これ以上は売らない」と止まる人数。**下限（ROSTER_MIN）とは別の話。**
+ *
+ * ROSTER_MIN(15) は自チームの操作をブロックする線で、こちらは
+ * 「裏で走っているクラブが選手を売り続けて名簿が痩せないようにする」線。
+ * 数が違うのは意図的（15人まで痩せると裏のレースで区間が埋まらなくなる）。
+ *
+ * ★以前は engine/foreignTransfers.ts の中に FOREIGN_ROSTER_MIN として置いてあった。
+ *   人数の決まりが data/rosterRules と engine の2か所に分かれていたので、
+ *   「上限は ROSTER_MAX を見るのに下限はエンジンの中」という状態だった。
+ *   国内CPUにも同じ線が要るので、名前から foreign を外してここへ移した。
+ */
+export const CPU_SELL_FLOOR = 18
+
+/**
  * 駅伝で実際に走れる人数。ここに入れるかどうかが「出られるか」の境目。
  * 移籍の判断（transferDecision）と、クラブの必要（squadNeeds）の両方が使うので、
  * どちらにも依存しないここに置く。

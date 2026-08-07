@@ -16,7 +16,7 @@ import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
-import { overseasApprovedLine, retireApprovedLine, settledLineOf, offerTermsLine, joinAcceptedLine, rosterFullLine, reconsiderLine, stillWantsRenewalLine, stayPleaLine, thanksLine } from '../../utils/chatLines'
+import { overseasApprovedLine, retireApprovedLine, settledLineOf, offerTermsLine, joinAcceptedLine, rosterFullLine, reconsiderLine, stillWantsRenewalLine, stayPleaLine, thanksLine, contractAcceptLine, contractCounterLine, agreeTermsLine, clubDeclinedAckLine } from '../../utils/chatLines'
 import { settledPath } from '../../utils/talkSync'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
@@ -29,7 +29,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
-import { tierOf, tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
+import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import { fmtYen } from '../../utils/money'
 
 
@@ -127,12 +127,12 @@ function buildMessages(
   }
 
   if (contractReq.status === 'accepted') {
-    msgs.push({ from: 'player', kind: 'contract_accept', text: `ありがとうございます。その条件で合意します。よろしくお願いします。` })
+    msgs.push(contractAcceptLine())
     return msgs
   }
 
   if (contractReq.status === 'countered') {
-    msgs.push({ from: 'player', kind: 'contract_counter', text: `考えましたが、年俸${fmtYen(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年であれば合意できます。これ以上は難しいです。` })
+    msgs.push(contractCounterLine(fmtYen(contractReq.counterSalary ?? 0), contractReq.counterYears))
     return msgs
   }
 
@@ -149,16 +149,17 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
   const msgs: ChatMessage[] = []
   msgs.push({
     from: 'player',
+    kind: 'agent_intro',
     text: offer.source === 'fa'
       ? `（代理人）${player.name}への関心ありがとうございます。良い条件を提示いただければ前向きに検討します。`
       : `（代理人）${player.name}は現在${teamName ?? '他クラブ'}に在籍中ですが、話は伺います。条件次第です。`,
   })
   // 取り合いの件数（クラブ名は出さない）。文面は utils/newsItems の1本
   const rivals = rivalCountLine(offer.rivalCount)
-  if (rivals) msgs.push({ from: 'player', text: rivals })
+  if (rivals) msgs.push({ from: 'player', kind: 'rival_count', text: rivals })
   if (offer.offerSalary > 0 && offer.status === 'countered') {
     msgs.push(offerTermsLine(fmtYen(offer.offerSalary), offer.offerYears))
-    msgs.push({ from: 'player', text: `（代理人）その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
+    msgs.push({ from: 'player', kind: 'agent_counter', text: `（代理人）その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
   }
   return msgs
 }
@@ -167,11 +168,12 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
 function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: string): ChatMessage[] {
   const msgs: ChatMessage[] = [{
     from: 'player',
+    kind: 'agent_fee_agreed',
     text: `（代理人）移籍金${fmtYen(bid.offeredFee)}で${fromTeamName ?? '所属クラブ'}との合意が取れました。あとは${player.name}本人との契約条件次第です。ご提示ください。`,
   }]
   // 取り合いの件数（クラブ名は出さない）。FAの獲得オファーと同じ文面
   const rivals = rivalCountLine(bid.rivalCount)
-  if (rivals) msgs.push({ from: 'player', text: rivals })
+  if (rivals) msgs.push({ from: 'player', kind: 'rival_count', text: rivals })
   return msgs
 }
 
@@ -282,7 +284,7 @@ function ChatView({
     submitAcquisitionOffer, acceptAcquisitionCounter, reNegotiateAcquisition, abandonAcquisitionOffer,
     openPlayerSheet, finalizeTransfer, rejectTransferBid, rankIncomingOffers,
     acceptIncomingOffer, counterAllIncomingOffers, declineIncomingOffer,
-    acceptIncomingLoanOffer, declineIncomingLoanOffer, resolveStayOrLeave,
+    acceptIncomingLoanOffer, declineIncomingLoanOffer, resolveStayOrLeave, destinationOf,
   } = useGameStore()
   // 海外クラブの格も毎年動くので、格を引くときは国内＋海外をまとめて渡す（allTieredClubs）
   const foreignLeagues = useGameStore(s => s.foreignLeagues)
@@ -484,21 +486,21 @@ function ChatView({
   const handleSubmitCounterFee = () => {
     if (rankedOffers.length === 0) return
     const n = rankedOffers.length
-    append({ from: 'gm', text: n > 1
+    append({ from: 'gm', kind: 'counter_fee', text: n > 1
       ? `${fmtYen(offerFee)}であればお譲りします。各クラブのご判断をお聞かせください。`
       : `${fmtYen(offerFee)}であればお譲りします。いかがでしょうか。` })
     const res = counterAllIncomingOffers(player.id, offerFee)
     setComposing(false)
     if (res.blocked === 'roster_min') {
-      append({ from: 'player', text: `（代理人）${offerResultText('roster_min', { playerName: player.name, teamName: '', price: offerFee }).text}` })
+      append({ from: 'player', kind: 'roster_min_block', text: `（代理人）${offerResultText('roster_min', { playerName: player.name, teamName: '', price: offerFee }).text}` })
       return
     }
     if (res.blocked === 'invalid') {
-      append({ from: 'player', text: `（代理人）${player.name}選手は移籍の対象外になったため、話は取り下げられました` })
+      append({ from: 'player', kind: 'offer_withdrawn', text: `（代理人）${player.name}選手は移籍の対象外になったため、話は取り下げられました` })
       return
     }
     const names = (ids: string[]) => ids.map(nameOfClub).join('・')
-    append({ from: 'player', text: res.accepted.length === 0
+    append({ from: 'player', kind: 'counter_fee_result', text: res.accepted.length === 0
       ? `（代理人）${n}クラブに${fmtYen(offerFee)}で打診しましたが、どこも支払えず辞退しました。`
       : res.declined.length === 0
       ? `（代理人）${n}クラブに${fmtYen(offerFee)}で打診しました。${names(res.accepted)}が応じています。`
@@ -533,7 +535,7 @@ function ChatView({
   const nameOfClub = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'
   const acceptOffer = (o: IncomingOffer) => {
     setPickingDest(false)
-    append({ from: 'gm', text: `${nameOfClub(o.fromTeamId)}に${fmtYen(o.offeredPrice)}でお譲りします。` })
+    append({ from: 'gm', kind: `sale_accepted:${o.fromTeamId}`, text: `${nameOfClub(o.fromTeamId)}に${fmtYen(o.offeredPrice)}でお譲りします。` })
     const outcome = acceptIncomingOffer(o.id)
     // 断られたときは、なぜ断ったのか（出場機会・地域・格）をそのまま会話に出す
     const appraisal = rankedOffers.find(x => x.offer.id === o.id)?.appraisal
@@ -541,7 +543,7 @@ function ChatView({
       playerName: player.name, teamName: nameOfClub(o.fromTeamId), price: o.offeredPrice,
       reason: appraisal?.ok === false ? appraisal.reason : undefined,
     })
-    append({ from: 'player', text: `（代理人）${r.text}` })
+    append({ from: 'player', kind: 'sale_outcome', text: `（代理人）${r.text}` })
     // 売れた時点で本人がチームを離れるので、レンタルの話も同時に終わる。
     // 'pending'（1レース待って決着）は返事が済んだ扱い＝買い取りの返事だけ閉じる
     if (outcome === 'sold') { setSettledOffer(true); setSettledLoan(true) }
@@ -556,10 +558,10 @@ function ChatView({
       append(joinAcceptedLine())
       setJustAcquired(true)
     } else {
-      append({ from: 'player', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` })
+      append({ from: 'player', kind: 'bid_failed', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` })
       const currentBid = useGameStore.getState().currentSeason.transferBids?.find(b => b.id === transferBid.id)
       if (!currentBid || currentBid.status === 'failed') {
-        append({ from: 'player', text: '（代理人）今回はご縁がなかったということで。またの機会によろしくお願いいたします。' })
+        append({ from: 'player', kind: 'negotiation_closed', text: '（代理人）今回はご縁がなかったということで。またの機会によろしくお願いいたします。' })
         setNegotiationFailed(true)
       }
     }
@@ -583,15 +585,15 @@ function ChatView({
       append(joinAcceptedLine())
       setJustAcquired(true)
     } else if (updated?.status === 'countered') {
-      append({ from: 'player', text: `（代理人）即断は難しいです。年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意します。` })
+      append({ from: 'player', kind: 'agent_hesitates', text: `（代理人）即断は難しいです。年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意します。` })
     } else if (updated?.status === 'rejected') {
-      append({ from: 'player', text:
+      append({ from: 'player', kind: 'bid_rejected', text:
         updated.rejectReason === 'team_refused' ? '（代理人）クラブが主力の放出に応じません。金額の問題ではないようです。'
         : updated.rejectReason === 'demotion' ? '（代理人）2way契約・育成契約では本人が納得しません。本契約を用意できますか？'
         : '（代理人）申し訳ありませんが、その条件では合意できません。' })
     } else {
       // 判定は合意だが署名処理（枠上限）で成立しなかった場合。無言にならないようフォローする
-      append({ from: 'player', text: '（代理人）受け入れ枠の都合で契約手続きができなかったようです。ロスターを整理してから改めてお願いします。' })
+      append({ from: 'player', kind: 'sign_no_slot', text: '（代理人）受け入れ枠の都合で契約手続きができなかったようです。ロスターを整理してから改めてお願いします。' })
     }
     setComposing(false)
   }
@@ -608,21 +610,21 @@ function ChatView({
       submitContractRenewalOffer(req.id, offerSalary, offerYears, offerContractType, offerTeamRole ?? undefined)
       const updated = (useGameStore.getState().currentSeason.contractRequests ?? []).find(r => r.id === req.id)
       if (updated?.status === 'accepted') {
-        append({ from: 'player', text: 'ありがとうございます。その条件で合意します。よろしくお願いします。' })
+        append(contractAcceptLine())
       } else if (updated?.status === 'countered') {
-        append({ from: 'player', text: `考えましたが、年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意できます。これ以上は難しいです。` })
+        append(contractCounterLine(fmtYen(updated.counterSalary ?? 0), updated.counterYears))
       } else if (updated?.status === 'rejected') {
         // フリー移籍の接触中で本人が移籍に傾いている場合は、条件の問題ではないことを伝える
         // （引き留め拒否が実際に起きた時だけ。残留寄りの選手が条件で断った時は通常の断り文句）
         const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0 && o.retentionRefused)
-        append({ from: 'player', text: courted
+        append({ from: 'player', kind: 'renewal_rejected', text: courted
           ? '申し訳ありません…実は他クラブから誘いを受けていて、移籍を前向きに考えています。条件の問題ではないんです。'
           : '申し訳ありませんが、その条件では受け入れられません。' })
       }
     } else {
       // 札が作れない状態（引退の話・海外挑戦を承認済み・退団予定・決裂後の更新ロック）。
       // 以前はここに何も無く、ボタンを押しても本人が黙ったままだった
-      append({ from: 'player', text: 'すみません…今はその話をお受けできる状況ではないんです。' })
+      append({ from: 'player', kind: 'cannot_talk_now', text: 'すみません…今はその話をお受けできる状況ではないんです。' })
     }
     setComposing(false)
   }
@@ -668,8 +670,8 @@ function ChatView({
             return
           }
           append(
-            { from: 'gm', text: `了解しました。年俸${fmtYen(acqOffer.counterSalary ?? 0)}、${acqOffer.counterYears}年で合意します。` },
-            { from: 'player', text: 'ありがとうございます。加入します。よろしくお願いします。' }
+            agreeTermsLine(fmtYen(acqOffer.counterSalary ?? 0), acqOffer.counterYears),
+            { from: 'player', kind: 'join_accepted', text: 'ありがとうございます。加入します。よろしくお願いします。' }
           )
           acceptAcquisitionCounter(acqOffer.id)
           setJustAcquired(true)
@@ -696,15 +698,15 @@ function ChatView({
       return [
         { label: '残ってくれ（移籍希望はそのまま）', color: C.blue, action: () => {
           append(
-            { from: 'gm', text: 'まだこのチームで走ってほしい。今季もよろしくお願いします。' },
-            { from: 'player', text: 'わかりました。ただ、移籍したい気持ちは変わりません。良い話があれば、また相談させてください。' },
+            { from: 'gm', kind: 'stay_asked', text: 'まだこのチームで走ってほしい。今季もよろしくお願いします。' },
+            { from: 'player', kind: 'stay_reluctant', text: 'わかりました。ただ、移籍したい気持ちは変わりません。良い話があれば、また相談させてください。' },
           )
           resolveStayOrLeave(player.id, 'stay')
         }},
         { label: '契約を解除する（FA）', color: C.orange, action: () => {
           append(
-            { from: 'gm', text: 'わかりました。契約を解除します。新しいクラブを探してください。' },
-            { from: 'player', text: 'ありがとうございました。お世話になりました。' },
+            { from: 'gm', kind: 'release_granted', text: 'わかりました。契約を解除します。新しいクラブを探してください。' },
+            { from: 'player', kind: 'release_thanks', text: 'ありがとうございました。お世話になりました。' },
           )
           resolveStayOrLeave(player.id, 'release')
           setSettledOffer(true); setSettledLoan(true)
@@ -727,8 +729,8 @@ function ChatView({
         { label: one ? `${nameOfClub(top.fromTeamId)}に金額を提示する` : '全クラブに金額を提示する', color: C.gold, action: openComposeCounterFee },
         { label: one ? '断る' : 'すべて断る', color: C.red, action: () => {
           append(
-            { from: 'gm', text: `申し訳ありませんが、${player.name}を手放すつもりはありません。` },
-            { from: 'player', text: `（${nameOfClub(top.fromTeamId)}GM）承知しました。またの機会にお願いします。` },
+            { from: 'gm', kind: 'sale_refused', text: `申し訳ありませんが、${player.name}を手放すつもりはありません。` },
+            clubDeclinedAckLine(nameOfClub(top.fromTeamId)),
           )
           for (const r of rankedOffers) declineIncomingOffer(r.offer.id)
           setSettledOffer(true)
@@ -743,17 +745,17 @@ function ChatView({
       const isLend = incomingLoan.direction === 'lend_out'
       return [
         { label: isLend ? `${incomingLoan.years}年で貸し出す` : `${incomingLoan.years}年で借りる`, color: C.blue, action: () => {
-          append({ from: 'gm', text: isLend ? `わかりました。${incomingLoan.years}年、お預けします。` : `わかりました。${incomingLoan.years}年、お借りします。` })
+          append({ from: 'gm', kind: 'loan_accepted', text: isLend ? `わかりました。${incomingLoan.years}年、お預けします。` : `わかりました。${incomingLoan.years}年、お借りします。` })
           const ok = acceptIncomingLoanOffer(incomingLoan.id)
-          append({ from: 'player', text: ok
+          append({ from: 'player', kind: 'loan_result', text: ok
             ? (isLend ? `（代理人）${player.name}を${incomingLoanFrom}へ${incomingLoan.years}年のレンタルで貸し出しました` : `（代理人）${player.name}を${incomingLoan.years}年のレンタルで借り入れました`)
             : `（代理人）レンタルの枠（3人）が埋まっているため、この話は成立しませんでした` })
           if (ok) setSettledLoan(true)
         }, disabled: !isLend && loanBorrowedIn >= 3 },
         { label: '断る', color: C.red, action: () => {
           append(
-            { from: 'gm', text: '申し訳ありませんが、今回は見送らせてください。' },
-            { from: 'player', text: `（${incomingLoanFrom}GM）承知しました。またの機会にお願いします。` },
+            { from: 'gm', kind: 'loan_refused', text: '申し訳ありませんが、今回は見送らせてください。' },
+            clubDeclinedAckLine(incomingLoanFrom),
           )
           declineIncomingLoanOffer(incomingLoan.id)
           setSettledLoan(true)
@@ -799,7 +801,7 @@ function ChatView({
       { label: '引退を承認する', color: C.textSub, action: () => {
         // 即引退ではなく「今季限りで引退」。シーズン終了時に正式に引退する
         append(
-          { from: 'gm', text: 'わかりました。今シーズン限り、ですね。最後まで頼みます。' },
+          { from: 'gm', kind: 'retire_granted', text: 'わかりました。今シーズン限り、ですね。最後まで頼みます。' },
           // 次に開いて作り直したときと同じ発言にする（kind が同じなので二重に並ばない）
           retireApprovedLine(),
         )
@@ -808,8 +810,8 @@ function ChatView({
       }},
       { label: '引き留める', color: C.blue, action: () => {
         append(
-          { from: 'gm', text: 'まだチームにあなたの力が必要です。もう少し頑張ってもらえませんか。' },
-          { from: 'player', text: 'わかりました。もう少し頑張ってみます。' }
+          { from: 'gm', kind: 'retire_persuade', text: 'まだチームにあなたの力が必要です。もう少し頑張ってもらえませんか。' },
+          { from: 'player', kind: 'retire_stay', text: 'わかりました。もう少し頑張ってみます。' }
         )
         // 契約更新の要求も抱えている場合、引き留めの直後に出る「要求を飲む」の脈絡を作る
         if (contractReq?.status === 'pending_gm') {
@@ -824,8 +826,8 @@ function ChatView({
       { label: '移籍を認める', color: C.orange, action: () => {
         // 選んだ返答を自分（GM）の吹き出しとして必ず残す（会話が一方通行に見える問題の修正）
         append(
-          { from: 'gm', text: 'わかりました。あなたのキャリアを尊重します。移籍を認めましょう。' },
-          { from: 'player', text: 'ありがとうございます。移籍先を探します。' },
+          { from: 'gm', kind: 'transfer_granted', text: 'わかりました。あなたのキャリアを尊重します。移籍を認めましょう。' },
+          { from: 'player', kind: 'transfer_thanks', text: 'ありがとうございます。移籍先を探します。' },
         )
         allowPlayerTransfer(player.id)
       }},
@@ -834,7 +836,7 @@ function ChatView({
         if (courtedAway) {
           append(
             stayPleaLine(),
-            { from: 'player', text: `すみません…実は${freeContactClub ?? '他クラブ'}から誘いを受けていて、移籍を前向きに考えています。お約束はできません。` }
+            { from: 'player', kind: 'courted_no_promise', text: `すみません…実は${freeContactClub ?? '他クラブ'}から誘いを受けていて、移籍を前向きに考えています。お約束はできません。` }
           )
           dismissTransferRequest(player.id)
           refuseFreeContactRetention(player.id)
@@ -842,7 +844,7 @@ function ChatView({
         }
         append(
           stayPleaLine(),
-          { from: 'player', text: 'わかりました。もう少し様子を見てみます。' }
+          { from: 'player', kind: 'wait_and_see', text: 'わかりました。もう少し様子を見てみます。' }
         )
         // 同じ選手が契約更新の要求も抱えている場合、残留の返事だけだと
         // 次に出る「要求を飲む」ボタンの脈絡が無くなるため、ここで要求を言わせる
@@ -858,7 +860,7 @@ function ChatView({
     const buildOverseasButtons = (): ReplyBtns | null => overseasReq ? [
       { label: `海外挑戦を認める（${OVERSEAS_LABEL[overseasReq.region] ?? '海外'}）`, color: C.purple ?? '#A855F7', action: () => {
         append(
-          { from: 'gm', text: 'わかりました。あなたの走りはもう世界レベルです。夢を応援します。良いオファーを待ちましょう。' },
+          { from: 'gm', kind: 'overseas_granted', text: 'わかりました。あなたの走りはもう世界レベルです。夢を応援します。良いオファーを待ちましょう。' },
           // 次に開いて作り直したときと同じ発言にする（kind が同じなので二重に並ばない）
           overseasApprovedLine(overseasReq.region),
         )
@@ -867,8 +869,8 @@ function ChatView({
       { label: '今季は残ってくれ', color: C.blue, action: () => {
         const cnt = (player.overseasDeniedCount ?? 0) + 1
         append(
-          { from: 'gm', text: 'まだチームにあなたの力が必要です。今季は残ってください。' },
-          { from: 'player', text: cnt >= 2
+          { from: 'gm', kind: 'overseas_denied', text: 'まだチームにあなたの力が必要です。今季は残ってください。' },
+          { from: 'player', kind: 'overseas_denied_reply', text: cnt >= 2
             ? '…また、ですか。わかりました。でも、この気持ちはもう抑えられないかもしれません。'
             : 'わかりました…。でも、夢は諦めていません。また相談させてください。' },
         )
@@ -882,7 +884,8 @@ function ChatView({
       if (!freeContact) return false
       const fcRaces = Math.max(1, currentSeason.currentRaceIndex ?? 0)
       const fcFrac = seasonAppearances(player.id, currentSeason.races) / fcRaces
-      return freeContactConsent(player, tierOf(teams.find(t => t.id === freeContact.fromTeamId)), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), fcFrac, fcRaces)
+      // 行き先は store の destinationOf 1本（決断のときに使われるものと同じ）
+      return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), fcFrac, fcRaces)
     })()
 
     const buildContractButtons = (): ReplyBtns | null => {
@@ -909,7 +912,7 @@ function ChatView({
       if (contractReq.status === 'countered') return [
         { label: `承諾する（${fmtYen(contractReq.counterSalary ?? 0)}/${contractReq.counterYears}年）`, color: C.green, action: () => {
           append(
-            { from: 'gm', text: `了解しました。年俸${fmtYen(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年で合意します。` },
+            agreeTermsLine(fmtYen(contractReq.counterSalary ?? 0), contractReq.counterYears),
             thanksLine()
           )
           acceptContractCounter(contractReq.id)
@@ -925,7 +928,7 @@ function ChatView({
         const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
         return [
           { label: `要求を飲む（${fmtYen(effDemand)}/${contractReq.demandYears}年）`, color: C.green, action: () => {
-            append({ from: 'gm', text: `了解です。年俸${fmtYen(effDemand)}、${contractReq.demandYears}年で承諾します。` })
+            append({ from: 'gm', kind: 'demand_accepted', text: `了解です。年俸${fmtYen(effDemand)}、${contractReq.demandYears}年で承諾します。` })
             submitContractRenewalOffer(contractReq.id, effDemand, contractReq.demandYears, contractReq.offerContractType ?? player.contract.contractType ?? 'standard', undefined)
             const updated = (useGameStore.getState().currentSeason.contractRequests ?? []).find(r => r.id === contractReq.id)
             if (updated?.status === 'accepted') {
@@ -933,7 +936,7 @@ function ChatView({
             } else {
               // フリー移籍の接触中で本人が移籍に傾いている場合、要求どおりでも断られる。条件の問題ではないことを伝える
               const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0 && o.retentionRefused)
-              append({ from: 'player', text: courted
+              append({ from: 'player', kind: 'demand_rejected', text: courted
                 ? 'すみません…実は他クラブから誘いを受けていて、移籍を前向きに考えています。条件の問題ではないんです。'
                 : '申し訳ありませんが、その条件では受け入れられません。' })
             }
@@ -941,8 +944,8 @@ function ChatView({
           { label: 'カウンターオファーを出す', color: C.blue, action: openCompose },
           { label: '移籍を認める', color: C.orange, action: () => {
             append(
-              { from: 'gm', text: '今回は契約更新を見送り、移籍を認めます。' },
-              { from: 'player', text: 'わかりました。新しいクラブを探します。' }
+              { from: 'gm', kind: 'renewal_declined', text: '今回は契約更新を見送り、移籍を認めます。' },
+              { from: 'player', kind: 'renewal_declined_ok', text: 'わかりました。新しいクラブを探します。' }
             )
             allowPlayerTransfer(player.id)
           }},
@@ -1154,7 +1157,7 @@ function ChatView({
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
 function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
-  const { players, teams, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation } = useGameStore()
+  const { players, teams, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, destinationOf } = useGameStore()
   const foreignLeagues = useGameStore(s => s.foreignLeagues)
   // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
   // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
@@ -1189,11 +1192,11 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
       inExtra: [...getPk].reduce((s, k) => s + pickKeyValue(k), 0) }
     const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
     const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
-    const myTier = tierOf(teams.find(t => t.id === playerTeamId))
     const consentBonus = ratio >= 1.2 ? 0.15 : 0
     let blockMsg = ''
     for (const rp of getPlayers) {
-      const consent = playerConsentToMove(rp, myTier, tierOfPlayerClub(rp.teamId, allTieredClubs(teams, foreignLeagues)), 0.5, 0, consentBonus)
+      // 行き先は store の destinationOf 1本（トレード成立時に使われるものと同じ）
+      const consent = playerConsentToMove(rp, destinationOf(playerTeamId, rp), tierOfPlayerClub(rp.teamId, allTieredClubs(teams, foreignLeagues)), 0.5, 0, consentBonus)
       if (!consent.ok) { blockMsg = consent.reason; break }
     }
     const nextRound = (neg?.round ?? 0) + 1

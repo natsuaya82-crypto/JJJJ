@@ -17,9 +17,18 @@ export function mergeChatMessages(saved: ChatMessage[], fresh: ChatMessage[]): C
   if (saved.length === 0) return fresh
   const known = new Set(saved.map(m => m.kind).filter(Boolean))
 
-  // 同じ用件が既にあるものは、文面だけ最新に差し替える
-  const replaced = saved.map(m => {
-    const up = m.kind ? fresh.find(f => f.kind === m.kind) : undefined
+  // 同じ用件が既にあるものは、文面だけ最新に差し替える。
+  //
+  // ★差し替えるのは**その用件のいちばん新しい1件だけ**。
+  //   同じ用件はログに2回以上出ることがある（契約交渉を2ラウンドやれば
+  //   「年俸5000万で合意できます」「年俸5500万で合意できます」が並ぶ）。
+  //   全部を最新の文面で上書きすると、**過去のやりとりが今の金額に書き換わって**
+  //   1ラウンド目と2ラウンド目が同じ額に見える。書き換えていいのは最後の1件。
+  const lastIndexOfKind = new Map<string, number>()
+  saved.forEach((m, i) => { if (m.kind) lastIndexOfKind.set(m.kind, i) })
+  const replaced = saved.map((m, i) => {
+    if (!m.kind || lastIndexOfKind.get(m.kind) !== i) return m
+    const up = fresh.find(f => f.kind === m.kind)
     return up && up.text !== m.text ? { ...m, text: up.text } : m
   })
 
