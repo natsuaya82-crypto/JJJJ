@@ -69,7 +69,7 @@ import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
 import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, RUNNING_SLOTS, hasNoPlayingTime, seeksPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
 import { isOwnedBy, canBePoached, canClubApproachAgain, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
-import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
+import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS, contractMonthsLeft, RENEWAL_ATTENTION_MONTHS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
 import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX } from '../utils/tradeValue'
 import type { TradeValueCtx } from '../utils/tradeValue'
@@ -1821,7 +1821,7 @@ export const useGameStore = create<GameStore>()(
             category: 'trade' as const,
             relatedIds: [n.playerId],
           }))
-          const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year)
+          const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length)
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
           const foreignClubs = allForeignClubs(state.foreignLeagues).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, leagueId: c.leagueId, country: c.country }))
@@ -8786,6 +8786,7 @@ function generateTransferActivity(
   transferRequests: { playerId: string; reason: string }[] = [],
   retiringIds: Set<string> = new Set(),  // 引退希望中の選手（オファー・接触の対象外にする）
   currentYear = 0,                       // 今のシーズン年。加入1年目の選手をオファー対象から外すのに使う
+  totalRaces = 0,                        // 今季のレース数。契約残りの月数を出すのに使う（フリー接触の解禁時期）
 ): { listings: TransferListing[]; incomingOffers: IncomingOffer[] } {
   const validListings = existingListings.filter(l => l.expiresAtRace > raceIndex)
   const validIncoming = existingIncoming.filter(o => o.expiresAtRace > raceIndex)
@@ -8943,9 +8944,18 @@ function generateTransferActivity(
     }
   }
 
-  // 契約残りわずか（残1年以下）の自チーム選手には、他チームからフリー移籍（移籍金なし）のオファーが来る
-  // レンタルで借りている選手は保有権が無いので対象外。引退希望中の選手は「引退か引き留めか」の話なので勧誘しない
-  const expiringMine = players.filter(p => p.contract.yearsLeft <= 1 && canReceiveFreeContact(p, eligCtx))
+  // 契約が切れそうな自チーム選手には、他チームからフリー移籍（移籍金なし）のオファーが来る。
+  // レンタルで借りている選手は保有権が無いので対象外。引退希望中の選手は「引退か引き留めか」の話なので勧誘しない。
+  //
+  // ★解禁は「残り6ヶ月を切ってから」。残1年になった瞬間（＝開幕直後）から来ていたので、
+  //   GMが契約更新を切り出す前に他クラブが接触し、更新の窓が実質なかった。
+  //   6ヶ月は contractTalk の RENEWAL_ATTENTION_MONTHS＝「契約が切れそう」とGMに知らせ始める
+  //   タイミングそのもの。**同じ1本を使う**（片方だけ動かすと窓がまたズレる）。
+  //   月数の出し方も contractMonthsLeft 1本（通知・ホーム・チャットと同じ式）。
+  const expiringMine = players.filter(p =>
+    p.contract.yearsLeft <= 1
+    && contractMonthsLeft(p.contract.yearsLeft, raceIndex, Math.max(1, totalRaces)) < RENEWAL_ATTENTION_MONTHS
+    && canReceiveFreeContact(p, eligCtx))
   for (const ep of expiringMine) {
     // フリー移籍の接触は本人の話なので1人1件のまま（GMは関与できない）
     if (allIncomingNow().some(o => o.playerId === ep.id)) continue
