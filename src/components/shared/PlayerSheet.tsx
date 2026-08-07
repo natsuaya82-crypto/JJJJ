@@ -667,6 +667,36 @@ export default function PlayerSheet() {
                       </div>
                     ))}
                   </div>
+
+                  {/* 殿堂入りチーム（utils/hofRoster.ts）。押した瞬間の能力で固定される。
+                      もう一度押すとそのときの能力で入れ替わる。
+                      いつ・どのクラブの姿で固定したかは上の「殿堂入り」の欄に出ているので、
+                      ボタンには出さない（同じことを2か所に書かない）。
+
+                      登録していい相手かは hofRoster の isHofEligible 1本。
+                      レンタルで借りている選手は teamId が自クラブになるので、isMyPlayer だけだと
+                      借り物まで殿堂入りに登録できてしまっていた。
+
+                      isPreview を見るのは、フレンドや殿堂入りチームから開いた選手を弾くため。
+                      別のセーブの選手なので teamId が自分と同じことがあり、それだけでは通ってしまう */}
+                  {!isPreview && isHofEligible(player, playerTeamId) && (
+                    <div data-html2canvas-ignore="true" style={{ marginTop: 8 }}>
+                      <button
+                        onClick={() => { if (!registerHof(player.id)) setHofMsg(`殿堂入りは${HOF_MAX}人までです`); else setHofMsg(inHof ? '殿堂入りの能力を今の値に更新しました' : '殿堂入りチームに登録しました') }}
+                        style={{
+                          width: '100%', padding: '11px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                          background: inHof ? 'transparent' : 'linear-gradient(180deg, #F0D264 0%, #C9A84C 60%, #8b6914 100%)',
+                          border: `2px solid ${inHof ? '#C9A84C66' : '#8b6914'}`,
+                          color: inHof ? '#C9A84C' : '#1a0d00', fontSize: 13, fontWeight: 900,
+                        }}
+                      >
+                        {inHof ? '殿堂入り更新' : '殿堂入り登録'}
+                      </button>
+                      <div style={{ fontSize: 10, color: '#5C5870', marginTop: 6, lineHeight: 1.6 }}>
+                        {hofMsg || `${hofCount}/${HOF_MAX}人`}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -846,29 +876,6 @@ export default function PlayerSheet() {
           {/* Page 3: 在籍履歴（移籍情報）。ドラフト候補・フレンドのロスターでは非表示 */}
           {page === 3 && pages.includes(3) && (
             <div style={{ padding: '12px 20px 28px' }}>
-              {/* 殿堂入りチーム（utils/hofRoster.ts）。押した瞬間の能力で固定される。
-                  自チームの選手だけ。もう一度押すとそのときの能力で入れ替わる */}
-              {/* 登録していい相手かは hofRoster の isHofEligible 1本。
-                  レンタルで借りている選手は teamId が自クラブになるので、isMyPlayer だけだと
-                  借り物まで殿堂入りに登録できてしまっていた */}
-              {isHofEligible(player, playerTeamId) && !isProspect && (
-                <div data-html2canvas-ignore="true" style={{ marginBottom: 16 }}>
-                  <button
-                    onClick={() => { if (!registerHof(player.id)) setHofMsg(`殿堂入りは${HOF_MAX}人までです`); else setHofMsg(inHof ? '殿堂入りの能力を今の値に更新しました' : '殿堂入りチームに登録しました') }}
-                    style={{
-                      width: '100%', padding: '11px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
-                      background: inHof ? 'transparent' : 'linear-gradient(180deg, #F0D264 0%, #C9A84C 60%, #8b6914 100%)',
-                      border: `2px solid ${inHof ? '#C9A84C66' : '#8b6914'}`,
-                      color: inHof ? '#C9A84C' : '#1a0d00', fontSize: 13, fontWeight: 900,
-                    }}
-                  >
-                    {inHof ? `殿堂入り済み ${hofEntry?.year}年 ${hofEntry?.teamName} · 今の能力で更新` : '殿堂入りに登録'}
-                  </button>
-                  <div style={{ fontSize: 10, color: '#5C5870', marginTop: 6, lineHeight: 1.6 }}>
-                    {hofMsg || `${hofCount}/${HOF_MAX}人`}
-                  </div>
-                </div>
-              )}
               <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px' }}>在籍履歴</div>
               {historyRows.length > 0 ? (
                 <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
