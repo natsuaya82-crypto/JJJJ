@@ -48,6 +48,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
 | `src/engine/backgroundRace.ts` | **裏で走るレースの唯一の入口**。`runBackgroundRace`（裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここを通る）。区間への並べ方は `raceEngine` の `bgLineup` 1本 |
+| `src/data/courseNames.ts` | **コースの呼び名**。中身は25本のまま、名前だけ地域ごと（国内／アジア／アフリカ／ヨーロッパ／アメリカ）。`courseNameFor` / `localizeRace` |
 | `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
@@ -363,6 +364,29 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 以前は5か所が同じ手順（区間に走者を並べる → `simulateRace` → 得点と通算成績を数える）を
 別々に書いていて、**並べ方だけが3通り**ありました。海外リーグだけ空区間を埋めておらず、
 「再生では総合タイムが少なく＝1位、結果画面では最下位」という食い違いが残っていました。
+
+### コースは25本のまま、呼び名だけ地域ごと
+
+**中身（区間の距離・登り・下り）は `data/races.ts` の25本しかありません。増やしません。**
+その上に地域ごとの呼び名を載せます（`data/courseNames.ts`。国内25 ＋ 4地域 × 25 ＝ 100本）。
+
+以前は海外リーグも世界選手権も、25本を**名前ごとそのまま**走っていました。
+
+- ケニアのクラブが「出雲開幕戦」を走る
+- アメリカ大陸予選が「アメリカ予選 大阪カップ」になる
+
+いずれ海外のクラブを指揮するので、これでは移った先にそのリーグの大会が1つもありません。
+地形は同じなのでタイムはそのまま比べられ、**記録表だけが地域ごとに分かれます。**
+
+| どこで決まるか | 地域 |
+|---|---|
+| 海外リーグ | そのリーグの代表国（`courseRegionOfNation(league.country)`） |
+| 世界選手権・アジア予選 | 開催国。**日本開催なら国内の名前のまま** |
+| 大陸予選 | その地域（`COURSE_REGION_BY_CONT`） |
+
+呼び名は**必ず `courseNameFor` / `localizeRace` を通すこと。** 国内の名前を国外のレースに
+直接書くと `npm run check` が落ちます。同じ地域のリーグ同士（北米・中米・南米など）は
+同じ呼び名になります＝記録は地域でまとまります。
 
 ### 世界選手権の予選は4地域とも実際に走ります
 

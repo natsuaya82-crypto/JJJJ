@@ -8,6 +8,8 @@ import { formatRaceTime, individualEventAbility, individualBaseTime } from '../u
 import { calcBaseAbility, calcAffinity } from './raceEngine'
 import { runBackgroundRace } from './backgroundRace'
 import { worldRace, worldRaceName } from '../utils/worldCourses'
+// コースの呼び名は地域ごと（中身は同じ）。アメリカ予選が「大阪カップ」にならないようにする
+import { COURSE_REGION_BY_CONT } from '../data/courseNames'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
@@ -376,7 +378,7 @@ export function startContinentalQualifiers(players: Player[], year: number, plan
     }
     const races = plans.map((plan, i) => worldRace(plan, {
       id: `wa-${year}-r${i + 1}@${CONT_REGION_CODE[region]}`,
-      name: worldRaceName(plan, CONT_QUAL_LABEL[region], `${year} ${CONT_QUAL_LABEL[region]} 第${i + 1}戦`),
+      name: worldRaceName(plan, CONT_QUAL_LABEL[region], `${year} ${CONT_QUAL_LABEL[region]} 第${i + 1}戦`, COURSE_REGION_BY_CONT[region]),
       date: waRaceDate(year, i),
     }))
     out.push({ region, standings: [], advanced: [], squads, races, points: {} })

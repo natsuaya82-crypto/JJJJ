@@ -1,6 +1,7 @@
 import type { Race, WECRacePlan } from '../types'
 import { LEAGUE_COURSE_POOL, FINAL_COURSES } from '../data/races'
 import { terrainKindOf, recommendedSpecialtyFor } from './terrain'
+import { courseNameFor, type CourseRegion } from '../data/courseNames'
 
 // 世界選手権のコースを決める場所。
 //
@@ -53,12 +54,14 @@ export function worldRacePlans(year: number, profile: 'mountain' | 'flat' | 'mix
 
 /**
  * 国際大会のレース名。**年と開催地は入れない**（入れると毎年別の記録表になって貯まらない）。
+ * コース名はその地域の呼び名にする（`data/courseNames`）。中身は本編と同じままで、
+ * 「アメリカ予選 大阪カップ」のような取り違えを防ぐ。
  * コース名が無い古いセーブだけ、これまでどおり年つきの名前で出す。
  * @param meetName 大会名（世界選手権 / 世界選手権アジア予選 / ユーロ予選 …）
  */
-export function worldRaceName(plan: WECRacePlan, meetName: string, fallback: string): string {
+export function worldRaceName(plan: WECRacePlan, meetName: string, fallback: string, region: CourseRegion): string {
   if (!plan.courseName) return fallback
-  return `${meetName} ${plan.courseName}`
+  return `${meetName} ${courseNameFor(plan.courseName, region)}`
 }
 
 const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const

@@ -327,6 +327,15 @@ export default function PlayerSheet() {
   processRaces(currentSeason.secondTeamRaces ?? [], currentSeason.year)
   processRaces(currentSeason.collegeRaces ?? [], currentSeason.year)
   processRaces(eclRacesOf(currentSeason), currentSeason.year)
+  // 海外リーグの出走も駅伝データへ含める（コース名は地域ごと＝「ナイロビ開幕戦」等）。
+  // いずれ海外のクラブを指揮するので、国内と同じだけ記録が見えるようにする
+  const foreignRaceNames = new Set<string>()
+  for (const s2 of [...pastSeasons, currentSeason]) {
+    for (const rs of Object.values(s2.foreignRaces ?? {})) {
+      processRaces(rs.filter(r => r.results), s2.year)
+      for (const r of rs) if (r.results) foreignRaceNames.add(r.name)
+    }
+  }
   // 世界大会（本戦・アジア予選・大陸予選）の駅伝出走もECLと同じように駅伝データへ含める。
   // 走行記録の取り出しは utils/waRaces の1本（新しい置き場所と古いセーブの両方をここが吸収する）
   const waRows = waRaceRows([...pastSeasons, currentSeason], worldAthleticsResults)
@@ -801,6 +810,28 @@ export default function PlayerSheet() {
                   })}
                 </div>
               </div>}
+
+              {/* 海外リーグ（出走歴がある選手だけ表示）。ECLと同じ作り */}
+              {!isProspect && (() => {
+                const names = [...raceGroupMap.keys()].filter(n => foreignRaceNames.has(n))
+                if (names.length === 0) return null
+                return (
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#E8A33D', letterSpacing: '2px', marginBottom: '6px' }}>海外リーグ</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                      {names.sort().map(name => (
+                        <div key={name} onClick={() => openRaceDetail(name)} style={{
+                          padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(232,163,61,0.35)', backgroundColor: '#14121F',
+                          cursor: 'pointer', textAlign: 'center', minHeight: 44,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* ECL（出走歴がある選手だけ表示）。1軍駅伝とリザーブの間に置く */}
               {!isProspect && (() => {

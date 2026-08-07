@@ -49,6 +49,7 @@ import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
 import { rivalClubsFor } from '../utils/transferRivals'
 import { worldRacePlans, worldRaceName, worldRace } from '../utils/worldCourses'
+import { courseRegionOfNation } from '../data/courseNames'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, transferCapOf, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize, rosterCapOf } from '../data/rosterRules'
@@ -6886,9 +6887,11 @@ export const useGameStore = create<GameStore>()(
           // 毎年別の記録表になって区間記録が1年で使い捨てになる。
           // コース名を持っていない古いセーブだけ、これまでどおり年つきの名前で出す
           const meetName = isMain ? '世界選手権' : '世界選手権アジア予選'
+          // コース名は開催国の地域のもの（日本開催なら国内の名前のまま）
+          const courseRegion = courseRegionOfNation(host)
           const races: import('../types').Race[] = plans.map((plan, i) => worldRace(plan, {
             id: `wa-${year}-r${i + 1}`,
-            name: worldRaceName(plan, meetName, `${year} ${meetName} ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`),
+            name: worldRaceName(plan, meetName, `${year} ${meetName} ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`, courseRegion),
             // JPELグランドファイナル(12/27)の後、オフシーズンの1月開催。年をまたぐので year+1 になる
             date: waRaceDate(year, i),
           }))

@@ -191,6 +191,20 @@ RULES.push({
   fix: 'utils/waRaces.ts の waRaceRows を使う（本戦・アジア予選・大陸予選が年と大会名つきで返る）',
 })
 
+// コースの中身は25本しかないが、呼び名は地域ごとに持つ（data/courseNames.ts）。
+// 国内の名前をそのまま国外のレースに使うと「ケニアのクラブが出雲開幕戦を走る」
+// 「アメリカ予選 大阪カップ」になる。名前を直接書かず courseNameFor / localizeRace を通すこと。
+RULES.push({
+  name: '国内のコース名を直に書いている',
+  pattern: /['"`](出雲開幕戦|富士山岳駅伝|大阪カップ|JPELグランドファイナル)/,
+  allow: [
+    'src/data/races.ts',        // コースの実体
+    'src/data/courseNames.ts',  // 地域ごとの呼び名の対応表
+    'src/utils/newsItems.ts',   // ゲーム開始時のニュース（国内の話なので国内の名前でよい）
+  ],
+  fix: 'data/courseNames.ts の courseNameFor / localizeRace を通す',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

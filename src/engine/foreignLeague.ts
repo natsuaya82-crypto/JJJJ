@@ -1,5 +1,7 @@
 import type { ForeignLeague, ForeignStanding, Player, Race } from '../types'
 import { runBackgroundRace, applyCareerAdd } from './backgroundRace'
+// コースの呼び名は地域ごと（中身は同じ）。ケニアのクラブが「出雲開幕戦」を走らないようにする
+import { courseRegionOfNation, localizeRace } from '../data/courseNames'
 // 所属の判定は国内チームと同じものを使う（クラブ側に名簿は持たない）
 import { belongsToClub } from '../utils/rosterSync'
 import { rankedStandings } from '../utils/league'
@@ -49,8 +51,11 @@ export function simulateForeignLeagueRound(
     // 走らせるのは engine/backgroundRace の1本。teams は渡さない（海外クラブはteams未登録
     // ＝本拠地補正1.0中立）。レースIDはリーグごとに分ける（同じコースを9リーグが同じ日に
     // 走るので、そのままだと同じIDのレースが9本できて記録の紐付けが壊れる）
+    // コースの中身は本編と同じ。名前だけをそのリーグの地域のものに差し替える
+    // （いずれ海外のクラブを指揮するので、その先に「出雲開幕戦」しか無い状態にしない）
     const out = runBackgroundRace({
-      race, players, seasonProgress,
+      race: localizeRace(race, courseRegionOfNation(league.country as Parameters<typeof courseRegionOfNation>[0])),
+      players, seasonProgress,
       raceId: `${race.id}@${league.id}`,
       entrants: league.clubs.map(c => ({ id: c.id, roster: clubRoster(c.id, players) })),
     })
