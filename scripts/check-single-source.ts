@@ -106,6 +106,17 @@ RULES.push({
   fix: 'playerUtils の racesConsumed（ECL・記録会も1本）で数える',
 })
 
+// ★走行記録の一本化が終わったら、この見張りを有効にすること（いまは40か所が該当）。
+//   裏の部と海外だけ結果を捨てて出走数の集計に置き換えているのが、
+//   「1部が試合されていない」「海外クラブを引き継ぐと過去が無い」の原因。
+//   utils/raceRecord.ts に寄せ切ったあと、下のコメントを外す。
+// RULES.push({
+//   name: '走行記録の別集計（結果を捨てている印）',
+//   pattern: /awayAppearances|foreignAppearances|foreignAppsC/,
+//   allow: ['src/utils/raceRecord.ts'],
+//   fix: 'utils/raceRecord.ts の packRace で結果ごと保存する（出走数は careerStats が数え直す）',
+// })
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {
