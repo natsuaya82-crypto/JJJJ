@@ -1,6 +1,7 @@
 import type { Facilities, ForeignClub } from '../types'
 import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 import { foreignClubGmName } from '../engine/playerGenerator'
+import { isEliteLeague } from './clubs'
 
 // ============================================================================
 // 海外クラブを国内チームと同じ作りにするための「クラブ情報」。
@@ -79,11 +80,10 @@ export function foreignClubBudget(
 
 // 施設のレベル（各Lv1〜5）。強いリーグほど高く、同じリーグの中でも差が出る。
 // 国内は初期が順位連動で1〜4なので、海外は2〜5にして「格上」を表す。
-const ELITE_LEAGUES = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
 
 export function foreignClubFacilities(club: Pick<ForeignClub, 'id' | 'leagueId'>): Facilities {
   const h = hashId(club.id)
-  const base = ELITE_LEAGUES.has(club.leagueId) ? 3 : 2
+  const base = isEliteLeague(club.leagueId) ? 3 : 2
   const lv = (shift: number) => Math.min(5, base + ((h >>> shift) % 3))
   return {
     trainingCamp: lv(3),

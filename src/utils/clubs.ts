@@ -150,3 +150,53 @@ export function findClub(
   }
   return undefined
 }
+
+// ── 海外リーグの引き場所 ─────────────────────────────────────
+//
+// 「海外クラブを全部並べる」「このIDは海外クラブか」「このクラブはどのリーグか」を
+// その場で書く箇所が store と engine に散らばっていた（flatMap(l => l.clubs) が7か所、
+// 同じ Set の作り直しが3か所）。どれも中身は同じなのでここへ集約する。
+
+/** 全リーグのクラブを1本に並べる */
+export function allForeignClubs(foreignLeagues: ForeignLeague[] | null | undefined): ForeignClub[] {
+  return (foreignLeagues ?? []).flatMap(l => l?.clubs ?? [])
+}
+
+/** 海外クラブIDの集合。「このIDは海外クラブか」の判定に使う */
+export function foreignClubIdSet(foreignLeagues: ForeignLeague[] | null | undefined): Set<string> {
+  return new Set(allForeignClubs(foreignLeagues).map(c => c.id))
+}
+
+/** そのクラブが所属するリーグ。国内クラブ・不明なIDでは undefined */
+export function leagueOfClub(
+  foreignLeagues: ForeignLeague[] | null | undefined,
+  clubId: string | null | undefined,
+): ForeignLeague | undefined {
+  if (!clubId) return undefined
+  return (foreignLeagues ?? []).find(l => (l?.clubs ?? []).some(c => c.id === clubId))
+}
+
+/** クラブID → リーグID の索引。1件ずつ探すより速いので、まとめて引くときはこちら */
+export function leagueIdByClub(foreignLeagues: ForeignLeague[] | null | undefined): Map<string, string> {
+  return new Map((foreignLeagues ?? []).flatMap(l => (l?.clubs ?? []).map(c => [c.id, l.id] as [string, string])))
+}
+
+// ── 4大リーグ（世界最高峰）─────────────────────────────────
+//
+// 東アフリカ・北南アフリカ・欧州西南・北米。ここが世界のスターを引き抜き、
+// 日本人がここへ渡れば「世界へ挑戦」の大ニュースになる。
+// 同じ4件のIDが7か所（gameStore 3・foreignTransfers 3・foreignClubProfile 1）に
+// コピーされていて、片方だけ増やすと引き抜きとニュースの基準がズレる状態だった。
+// ★ 4大リーグを増減するときはここだけを変えること。
+export const ELITE_LEAGUE_IDS: ReadonlySet<string> = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
+
+export function isEliteLeague(leagueId: string | null | undefined): boolean {
+  return ELITE_LEAGUE_IDS.has(leagueId ?? '')
+}
+
+/** 憧れの地域 → その地域の4大リーグ。海外挑戦の行き先を選ぶときに使う */
+export const ELITE_LEAGUES_BY_REGION: Readonly<Record<string, readonly string[]>> = {
+  africa: ['africa_east', 'africa_ns'],
+  europe: ['europe_ws'],
+  america: ['north_america'],
+}

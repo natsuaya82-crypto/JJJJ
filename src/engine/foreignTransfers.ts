@@ -8,6 +8,8 @@ import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub } from '../utils/rosterSync'
+// 海外クラブ・4大リーグの引き場所は utils/clubs 1本
+import { allForeignClubs, leagueIdByClub, isEliteLeague } from '../utils/clubs'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
 import { movePlayer } from '../utils/movePlayer'
 // 海外クラブの年間予算（クラブIDとリーグから毎回同じ額が出る）
@@ -48,7 +50,7 @@ export function simulateForeignTransferMarket(params: {
 }): { foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
   const { foreignLeagues, players, year } = params
   const txDate = params.date ?? `${year}-01-20`
-  const allClubs = foreignLeagues.flatMap(l => l.clubs)
+  const allClubs = allForeignClubs(foreignLeagues)
   if (allClubs.length < 2) return { foreignLeagues, players, news: [], records: [] }
 
   const nameById = new Map(allClubs.map(c => [c.id, c.name]))
@@ -72,8 +74,7 @@ export function simulateForeignTransferMarket(params: {
   const MOVE_BASE = Math.max(12, Math.round(allClubs.length * 0.4))
   const MOVE_COUNT = params.maxMoves ?? (MOVE_BASE + Math.floor(Math.random() * (MOVE_BASE * 0.5)))
   // 4大リーグ（北米/アフリカ東/アフリカ北南/欧州西南）。ここが世界のスターを引き抜く＝サッカー式。
-  const ELITE_LEAGUE_IDS = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
-  const isEliteClub = (c: { leagueId?: string }) => ELITE_LEAGUE_IDS.has(c.leagueId ?? '')
+  const isEliteClub = (c: { leagueId?: string }) => isEliteLeague(c.leagueId)
   // 格上リーグへ行ける実効OVRの下限：4大は高く（弱い選手は入れない）、他は緩め
   const leagueFloor = (c: { leagueId?: string }) => isEliteClub(c) ? 84 : 74
   const weightedPick = <U,>(arr: U[], w: (x: U) => number): U => {
@@ -202,8 +203,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   excludeIds?: Set<string>   // このオフに既に移籍済みの選手（1オフ1移動を守るため対象外にする）
 }): { teams: T[]; foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
   const { teams, foreignLeagues, players, playerTeamId, year, excludeIds } = params
-  const foreignClubs = foreignLeagues.flatMap(l => l.clubs)
-  const clubCountry = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, c.country as string])))
+  const foreignClubs = allForeignClubs(foreignLeagues)
+  const clubCountry = new Map(allForeignClubs(foreignLeagues).map(c => [c.id, c.country as string]))
   const cpuTeams = teams.filter(t => t.id !== playerTeamId)
   if (foreignClubs.length === 0 || cpuTeams.length === 0) return { teams, foreignLeagues, players, news: [], records: [] }
 
@@ -325,8 +326,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // （OVR82+・32歳以下）を高額移籍金で年1〜2人強奪する。「世界レベルは世界レベルに集まる」の実現。
   // 従来のN_OUTは余剰・準主力しか動かさないため、日本代表クラスが国内に固定される問題への対策
   {
-    const ELITE_LEAGUE_IDS = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
-    const clubLeague = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, l.id])))
+    const clubLeague = leagueIdByClub(foreignLeagues)
     const N_STAR = Math.random() < 0.55 ? 1 : 2
     for (let i = 0; i < N_STAR; i++) {
       const sellers = cpuTeams.filter(t => jpnSize(t.id) > ROSTER_MIN)
@@ -338,7 +338,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       if (starPool.length === 0) break
       const { p: target, sellerId } = weightedPick(starPool, x => ovr(x.p) - 80)
       const fee = Math.round(calcTransferValue(target) * FOREIGN_STAR_PREMIUM)
-      const buyerPool = foreignClubs.filter(c => ELITE_LEAGUE_IDS.has(clubLeague.get(c.id) ?? '') && fRoster[c.id].length < ROSTER_MAX && fBudget[c.id] >= fee)
+      const buyerPool = foreignClubs.filter(c => isEliteLeague(clubLeague.get(c.id)) && fRoster[c.id].length < ROSTER_MAX && fBudget[c.id] >= fee)
       if (buyerPool.length === 0) break
       const buyer = weightedPick(buyerPool, c => fBudget[c.id])
       jpnRoster[sellerId] = jpnRoster[sellerId].filter(id => id !== target.id)
@@ -359,9 +359,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // 日本より格上のリーグへの移籍は「日本人が世界最高峰へ挑む」大ニュースにする。
   // 国コード（旧判定）に加えて4大リーグ所属クラブも対象（欧州の国コードGBR/GER等が漏れていた）
   const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'USA'])
-  const NEWS_ELITE_LEAGUES = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
-  const newsClubLeague = new Map(foreignLeagues.flatMap(l => l.clubs.map(c => [c.id, l.id])))
-  const isStrongDest = (toId: string) => STRONG_COUNTRIES.has(clubCountry.get(toId) ?? '') || NEWS_ELITE_LEAGUES.has(newsClubLeague.get(toId) ?? '')
+  const newsClubLeague = leagueIdByClub(foreignLeagues)
+  const isStrongDest = (toId: string) => STRONG_COUNTRIES.has(clubCountry.get(toId) ?? '') || isEliteLeague(newsClubLeague.get(toId))
   // 成立日をオフシーズン期間に分散（全部同日に見える不自然さの解消）
   const XB_DAYS = ['01-14', '01-19', '01-24', '01-29', '02-02', '02-08', '02-13', '02-19', '02-24', '03-02', '03-08', '03-14']
   const xbDate = (i: number) => `${year}-${XB_DAYS[i % XB_DAYS.length]}`

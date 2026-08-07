@@ -72,7 +72,7 @@ import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, is
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
 import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX } from '../utils/tradeValue'
 import type { TradeValueCtx } from '../utils/tradeValue'
-import { findClub, domesticTeamIdSet as domesticTeamIdSet_ } from '../utils/clubs'
+import { findClub, domesticTeamIdSet as domesticTeamIdSet_, allForeignClubs, foreignClubIdSet, leagueOfClub, isEliteLeague, ELITE_LEAGUES_BY_REGION } from '../utils/clubs'
 // 殿堂入りチーム（登録時の数値で固定）
 import { canRegisterHof, registerHof, removeHof } from '../utils/hofRoster'
 // 監督の在任履歴と、他チームからの監督オファー
@@ -1150,7 +1150,7 @@ export const useGameStore = create<GameStore>()(
               const p = get().players.find(x => x.id === ps.playerId)
               const winnerId = ranked.find(r => r.offer.id === winner)?.offer.fromTeamId
               const winnerName = get().teams.find(t => t.id === winnerId)?.shortName
-                ?? (get().foreignLeagues ?? []).flatMap(l => l.clubs).find(c => c.id === winnerId)?.shortName
+                ?? findClub(get().teams, get().foreignLeagues, winnerId)?.shortName
               if (p) set(st => ({ currentSeason: { ...st.currentSeason, newsFeed: [{
                 date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`,
                 headline: auctionSettledHeadline({ playerName: p.name, winnerName }),
@@ -1730,7 +1730,7 @@ export const useGameStore = create<GameStore>()(
           const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year)
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
-          const foreignClubs = (state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, leagueId: c.leagueId, country: c.country }))
+          const foreignClubs = allForeignClubs(state.foreignLeagues).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, leagueId: c.leagueId, country: c.country }))
           const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextRaceIndex && finalPlayers.some(p => p.id === o.playerId))
           const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
@@ -2881,7 +2881,7 @@ export const useGameStore = create<GameStore>()(
         // 海外クラブは所属リーグから順位と地域を引く（地域は「憧れの地域」の突き合わせに使う）
         let region: import('../types').OverseasRegion | undefined
         if (!team) {
-          const lg = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === clubId))
+          const lg = leagueOfClub(state.foreignLeagues, clubId)
           region = regionOfLeague(lg?.id)
           const rows = rankedStandings((state.currentSeason.foreignStandings ?? {})[lg?.id ?? ''] ?? [])
           const i = rows.findIndex(r => r.clubId === clubId)
@@ -2988,10 +2988,10 @@ export const useGameStore = create<GameStore>()(
         }
         // 海外クラブへの放出：teams に無いので選手を海外へ移し、資金だけ受け取る
         if (offer.fromForeign) {
-          const destLeague = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
+          const destLeague = leagueOfClub(state.foreignLeagues, offer.fromTeamId)
           const clubName = destLeague?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
           // 4大リーグ（世界最高峰）への送り出しは大ニュース＋初回は実績を獲得
-          const isElite = ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(destLeague?.id ?? '')
+          const isElite = isEliteLeague(destLeague?.id)
           // 海外クラブは teams に居ないので、movePlayer では自クラブ側だけ入金される
           set(st => {
           const moved = sellMove(st, offer.playerId, offer.fromTeamId, offer.offeredPrice, clubName)
@@ -3575,9 +3575,9 @@ export const useGameStore = create<GameStore>()(
           // 海外クラブ：上限は economy.counterCeiling の1本。合意なら海外へ放出
           if (offer.fromForeign) {
             if (player && counterPrice <= willingFeeFor(state, offer, player)) {
-              const destLg = (state.foreignLeagues ?? []).find(l => l.clubs.some(c => c.id === offer.fromTeamId))
+              const destLg = leagueOfClub(state.foreignLeagues, offer.fromTeamId)
               const clubName = destLg?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ'
-              const isElite = ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(destLg?.id ?? '')
+              const isElite = isEliteLeague(destLg?.id)
               outcome = 'sold'
               const moved = sellMove(state, offer.playerId, offer.fromTeamId, counterPrice, clubName)
               return {
@@ -5335,7 +5335,7 @@ export const useGameStore = create<GameStore>()(
 
         // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）。海外クラブも総在籍30を超えないようにする。
         // 所属は選手側の teamId だけを書き換える（クラブ側に名簿は持たない）
-        const foreignClubsList = (state.foreignLeagues ?? []).flatMap(l => l.clubs)
+        const foreignClubsList = allForeignClubs(state.foreignLeagues)
         let playersWithForeignSigns: Player[] = playersWithAllCpuSigns
         if (foreignClubsList.length > 0) {
           const clubCount = new Map<string, number>()
@@ -5620,7 +5620,7 @@ export const useGameStore = create<GameStore>()(
           // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）。
           // ただし旧セーブの大再編が保留中なら、この年度更新で新9リーグへ丸ごと置換し旧海外選手は退場させる。
           const pendingRestructure = (state.currentSeason as unknown as { pendingForeignRestructure?: boolean }).pendingForeignRestructure === true
-          const oldForeignClubIds = new Set((state.foreignLeagues ?? []).flatMap(l => l.clubs.map(c => c.id)))
+          const oldForeignClubIds = foreignClubIdSet(state.foreignLeagues)
           const removedForeignPlayerIds = pendingRestructure
             ? new Set(state.players.filter(p => oldForeignClubIds.has(p.teamId)).map(p => p.id))
             : new Set<string>()
@@ -6397,7 +6397,7 @@ export const useGameStore = create<GameStore>()(
           // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
           const archivedForeignApps = { ...(state.currentSeason.foreignAppearances ?? {}) }
           {
-            const foreignClubIds = new Set((state.foreignLeagues ?? []).flatMap(l => l.clubs.map(c => c.id)))
+            const foreignClubIds = foreignClubIdSet(state.foreignLeagues)
             for (const p of state.players) {
               if (!foreignClubIds.has(p.teamId)) continue
               if (!archivedForeignApps[p.id]) archivedForeignApps[p.id] = { clubId: p.teamId, races: 0, wins: 0 }
@@ -7140,7 +7140,7 @@ export const useGameStore = create<GameStore>()(
           const FOREIGN_TT_KEYS = ['tt-5k-1', 'tt-10k-2', 'tt-mara', 'tt-half-2']
           const foreignAllowed = FOREIGN_TT_KEYS.some(k => event.id.startsWith(k))
           const foreignClubIds = foreignAllowed
-            ? new Set((state.foreignLeagues ?? []).flatMap(l => l.clubs).map(c => c.id))
+            ? foreignClubIdSet(state.foreignLeagues)
             : new Set<string>()
           // スカウト候補（大学/高校のドラフト候補）も記録会に参加させ、実力タイムを残す（チーム未所属＝teamId空）。
           const prospects = (state.currentSeason.scoutProspects ?? []).filter(p => (p.status === 'active' || p.status === 'draft_eligible') && !skip.has(p.id) && !state.players.some(pl => pl.id === p.id))
@@ -8345,7 +8345,7 @@ export const useGameStore = create<GameStore>()(
           // 海外クラブ名を静的データ（foreignLeagues.ts）の最新名に同期する（冪等）。
           // 「〜AC」ばかりに平坦化された旧名を、既存セーブでも個性名へ差し替えるための処理
           if (Array.isArray(p.foreignLeagues)) {
-            const staticClub = new Map(FOREIGN_LEAGUES.flatMap(l => l.clubs).map(c => [c.id, c]))
+            const staticClub = new Map(allForeignClubs(FOREIGN_LEAGUES).map(c => [c.id, c]))
             p.foreignLeagues = p.foreignLeagues.map(l => ({
               ...l,
               clubs: l.clubs.map(c => {
@@ -8642,14 +8642,13 @@ function generateForeignAndLoanOffers(params: {
 
   // 1a) 海外挑戦リストの選手：希望地域の1部リーグ（4大リーグ）から高確率で指名オファー。
   //     実力がその地域の水準（アフリカ84/欧州80/北米80）に届いていることが条件
-  const ELITE_BY_REGION: Record<string, string[]> = { africa: ['africa_east', 'africa_ns'], europe: ['europe_ws'], america: ['north_america'] }
   const OV_MIN_OVR: Record<string, number> = { africa: 84, europe: 80, america: 80 }
   for (const target of myMain.filter(p => !offeredIds.has(p.id) && canGoOverseasDream(p, eligCtx))) {
     if (foreignIncoming.length >= 2) break
     const region = target.overseasListed!
     if (ovr(target) < (OV_MIN_OVR[region] ?? 80)) continue
     if (Math.random() > 0.75) continue
-    const clubs = foreignClubs.filter(c => (ELITE_BY_REGION[region] ?? []).includes(c.leagueId ?? ''))
+    const clubs = foreignClubs.filter(c => (ELITE_LEAGUES_BY_REGION[region] ?? []).includes(c.leagueId ?? ''))
     if (clubs.length === 0) continue
     const club = clubs[(ovr(target) + raceIndex) % clubs.length]
     if (!clubMayOffer(target, club.id, foreignIncoming)) continue
@@ -8660,7 +8659,7 @@ function generateForeignAndLoanOffers(params: {
 
   // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでも4大リーグが放っておかない
   if (foreignClubs.length > 0 && Math.random() < 0.6) {
-    const eliteAll = foreignClubs.filter(c => ['africa_east', 'africa_ns', 'europe_ws', 'north_america'].includes(c.leagueId ?? ''))
+    const eliteAll = foreignClubs.filter(c => isEliteLeague(c.leagueId))
     const star = [...myMain]
       .filter(p => !offeredIds.has(p.id) && ovr(p) >= 85 && p.age <= 34 && !foreignIncoming.some(o => o.playerId === p.id) && canBePoached(p, eligCtx))
       .sort(comparePlayers('ovr'))[0]
