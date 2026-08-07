@@ -1,3 +1,5 @@
+import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
+import { hashedGmName } from '../engine/playerGenerator'
 import type { ForeignClub, ForeignLeague, Nationality, Team } from '../types'
 
 // ============================================================================
@@ -56,6 +58,35 @@ export function clubOfTeam(t: Team): Club {
     logoId: t.logoId,
     team: t,
   }
+}
+
+// ── クラブの姿。**国内も海外も同じ入口。**
+//
+// 保存されている値があればそれを返し、無いときだけクラブIDから決め打ちで作る。
+// 海外クラブには昔これらの入れ物が無く、IDのハッシュから作った値を
+// 「海外専用の関数」で返していた（国内には別の道があった）。
+// いまは同じ入れ物を持てるので、埋めた側から本物に変わる。
+
+/** 本拠地（都市名） */
+export function clubCity(club: { id: string; shortName: string; city?: string }): string {
+  return club.city ?? FOREIGN_CLUB_CITY[club.id] ?? club.shortName
+}
+
+/** 創設年。保存が無い海外クラブはIDから 1921〜2000 で固定 */
+export function clubFounded(club: { id: string; founded?: number }): number {
+  return club.founded ?? 1921 + (hashClubId(club.id) % 80)
+}
+
+/** 監督名。保存が無い海外クラブは国の名前プールから固定で1つ */
+export function clubGmName(club: { id: string; gmName?: string; country?: string }): string {
+  return club.gmName ?? hashedGmName(club.id, club.country ?? '')
+}
+
+/** クラブIDから決め打ちの値を作るときのハッシュ（同じIDなら毎回同じ） */
+function hashClubId(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
+  return Math.abs(h)
 }
 
 export function clubOfForeign(c: ForeignClub, leagueName?: string): Club {

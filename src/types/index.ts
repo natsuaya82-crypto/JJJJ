@@ -427,7 +427,13 @@ export type WECRacePlan = {
   segments: { distanceKm: number; uphillPct: number; downhillPct: number }[]
 }
 
-export type ForeignClub = {
+/**
+ * 海外クラブ。**中身は Team と同じ形**（Team を参照）。
+ * 国内でしか埋まっていない項目は任意にしてあるが、置き場所は同じなので
+ * 予算も施設も監督名も、埋めればそのまま国内と同じ決まりが効く。
+ * 新しく「海外用の◯◯」を作らないこと。
+ */
+export type ForeignClub = Partial<Omit<Team, 'id' | 'name' | 'shortName' | 'colors' | 'leagueId' | 'country'>> & {
   id: string
   name: string
   shortName: string
@@ -523,10 +529,29 @@ export type Division = 1 | 2 | 3
  *  実際のOVRは（ランク・年齢・成長型）の3つで決まる（engine/ageCurve.ts） */
 export type Rank = 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS'
 
+// クラブの型。**国内と海外で分けません。**
+//
+// ■なぜ1つにするのか（実際に起きたこと）
+//   もとは Team（20項目）と ForeignClub（7項目）の2つに割れていた。
+//   海外クラブには finance / facilities / gmName / roster など13項目が無いので、
+//   それを必要とするルールは共通の関数を呼べず、**その場で海外用の偽物を作る**しかなかった。
+//     ・年間予算 … リーグ別の基準額 × 順位 × クラブIDのハッシュ（格を見ていない）
+//     ・施設    … クラブIDのハッシュ（保存も成長もしない飾り）
+//     ・創設年・監督名 … クラブIDのハッシュ
+//     ・移籍資金 … 置き場所が無いので処理のたびに満タンに戻る
+//   同じ種類のバグが何度も出たのはこれが原因。**入れ物を揃えれば偽物を作る理由が消える。**
+//
+// ■違うのは地域だけ
+//   `leagueId` と `country` が「どこのクラブか」。それ以外の扱いは同じ。
+//   国内は leagueId='jpel' / country='JPN'。
 export type Team = {
   id: string
   name: string
   shortName: string
+  /** 所属リーグ。国内は 'jpel'、海外は data/foreignLeagues の ID。**唯一の地域の違い** */
+  leagueId?: string
+  /** クラブの国。国内は 'JPN' */
+  country?: Nationality
   city: string
   region: string
   founded: number

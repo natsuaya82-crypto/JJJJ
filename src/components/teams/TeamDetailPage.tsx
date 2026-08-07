@@ -5,9 +5,10 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { teamHistoryOf } from '../../utils/teamHistory'
 // 海外クラブの本拠地・創設年・監督名（クラブIDから毎回同じ値を出す）
-import { foreignClubCity, foreignClubFounded, foreignClubGm } from '../../utils/foreignClubProfile'
+
 // 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
 import { tierBudget } from '../../utils/clubTier'
+import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
 import { facilitiesOf, FACILITY_LABEL } from '../../utils/facilities'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { useEclHistory } from '../../lib/useEclHistory'
@@ -203,11 +204,14 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   // TEAM INFO（本拠地行 + 創設年/優勝回数/最高順位）
   // 海外クラブも国内チームと同じ作りにする。本拠地・創設年・監督名はクラブIDから
   // 毎回同じ値を出す（utils/foreignClubProfile.ts）
+  // 本拠地・創設年・監督名は国内も海外も同じ入口（utils/clubs）。
+  // 保存されていればその値、無ければクラブIDから決め打ち
+  const anyClub = (isForeign ? club! : domesticTeam!) as { id: string; shortName: string; city?: string; founded?: number; gmName?: string; country?: string }
   const infoLocation = isForeign
-    ? `${league?.countryName ?? league?.name ?? '—'} · ${foreignClubCity(club!)}`
-    : `${domesticTeam!.region} · ${domesticTeam!.city}`
-  const infoFounded = isForeign ? String(foreignClubFounded(club!)) : String(domesticTeam!.founded)
-  const infoGm = isForeign ? foreignClubGm(club!) : domesticTeam!.gmName
+    ? `${league?.countryName ?? league?.name ?? '—'} · ${clubCity(anyClub)}`
+    : `${domesticTeam!.region} · ${clubCity(anyClub)}`
+  const infoFounded = String(clubFounded(anyClub))
+  const infoGm = clubGmName(anyClub)
   // クラブ規模（年間予算と施設）。**国内も海外も同じ出どころ**（格1本・施設1本）。
   // 以前は海外クラブだけ別の式で、しかも施設はクラブIDのハッシュから作った飾りだった
   const foreignBudget = tierBudget(isForeign ? club! : domesticTeam!)

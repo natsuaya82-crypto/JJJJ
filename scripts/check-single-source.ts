@@ -257,6 +257,22 @@ RULES.push({
   fix: 'data/events.ts の greatSuccessChance() を呼ぶ（イベント中は自動で100%になる）',
 })
 
+// クラブの型は1つ（Team = ForeignClub）。海外だけの入れ物・海外だけの決まりを作らないこと。
+//
+// もとは Team(20項目) と ForeignClub(7項目) に割れていて、海外に無い項目を必要とする
+// ルールは共通の関数を呼べず、その場で海外用の偽物を作るしかなかった。
+//   予算 → リーグ別 × 順位 × IDのハッシュ／施設 → IDのハッシュ／創設年・監督名 → IDのハッシュ
+// 同じ種類のバグが何度も出た原因がこれ。**新しく foreignClub◯◯ を生やさない。**
+// 見張るのは「クラブの中身を海外だけ別に作る」もの（予算・施設・都市・創設年・監督名・格）。
+// foreignClubIdSet / foreignClubsOf のような**引き場所**は海外リーグという入れ物を辿るだけで、
+// クラブの中身を作っていないので対象外。
+RULES.push({
+  name: '海外クラブの中身を海外だけ別に作っている',
+  pattern: /export function foreignClub(Budget|Facilit|City|Founded|Gm|Tier|Salary|Rank|Finance|Sponsor)/,
+  allow: [],
+  fix: 'utils/clubs.ts に「クラブなら誰でも通る」形で置く（clubCity / clubFounded / clubGmName と同じ）',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

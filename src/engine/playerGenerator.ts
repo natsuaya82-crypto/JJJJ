@@ -540,9 +540,11 @@ function pickForeignName(pool: ForeignNamePool): { name: string; origin: string;
   }
 }
 
-// 海外クラブの監督名。クラブIDから毎回まったく同じ名前が出る（セーブに持たない）。
+// gmName を持っていないクラブの監督名。クラブIDから毎回まったく同じ名前が出る（セーブに持たない）。
 // 乱数を使うと画面を開くたびに監督が変わってしまうので、IDのハッシュで固定する。
-export function foreignClubGmName(clubId: string, country: string): string {
+// 国のプールを引くだけなので国内・海外を問わない（国が分からなければ _default）。
+// 呼ぶのは utils/clubs.ts の clubGmName 1本。
+export function hashedGmName(clubId: string, country: string): string {
   let h = 2166136261
   for (let i = 0; i < clubId.length; i++) {
     h ^= clubId.charCodeAt(i)

@@ -1,7 +1,5 @@
-import type { ForeignClub, Player } from '../types'
+import type { Player } from '../types'
 import { ovr } from './playerUtils'
-import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
-import { foreignClubGmName } from '../engine/playerGenerator'
 
 // ============================================================================
 // 海外クラブを国内チームと同じ作りにするための「クラブ情報」。
@@ -15,30 +13,10 @@ import { foreignClubGmName } from '../engine/playerGenerator'
 // 5文字で切られている）ので、data/foreignClubCities.ts の表から引く。
 // ============================================================================
 
-// クラブIDを数値にする（FNV-1a）。同じIDなら必ず同じ数になる。
-function hashId(id: string): number {
-  let h = 2166136261
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return Math.abs(h)
-}
 
-// 本拠地（都市名）。表に無ければ略称で代用する。
-export function foreignClubCity(club: Pick<ForeignClub, 'id' | 'shortName'>): string {
-  return FOREIGN_CLUB_CITY[club.id] ?? club.shortName
-}
-
-// 創設年。1921〜2000年のあいだでクラブごとに固定。
-export function foreignClubFounded(club: Pick<ForeignClub, 'id'>): number {
-  return 1921 + (hashId(club.id) % 80)
-}
-
-// 監督名。クラブの国の名前プールから固定で1つ選ぶ（engine/playerGenerator.ts）。
-export function foreignClubGm(club: Pick<ForeignClub, 'id' | 'country'>): string {
-  return foreignClubGmName(club.id, club.country as string)
-}
+// ※ 本拠地・創設年・監督名を返す海外専用の関数はここにあったが消した。
+//   クラブの型を1つにしたので、国内も海外も utils/clubs の
+//   clubCity / clubFounded / clubGmName 1本で引ける（保存があればその値、無ければIDから決め打ち）。
 
 // リーグごとの予算の基準額。
 // ※ ここには海外クラブ専用の「年間予算」と「施設レベル」があったが消した。
