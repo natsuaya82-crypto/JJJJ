@@ -1,6 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
+import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -1689,7 +1690,10 @@ export const useGameStore = create<GameStore>()(
             date: race.date,
             // どの部からどの部へ動いたかを出す。市場の流れ（1部の控え→2部・3部）が
             // ニュースだけで追えるようにする
-            headline: `${tx.toShort}（${DIVISION_LABEL[divisionOf(state.teams.find(t => t.id === tx.toTeamId))]}）が${tx.fromShort}（${DIVISION_LABEL[divisionOf(state.teams.find(t => t.id === tx.fromTeamId))]}）から${tx.playerName}（OVR${tx.playerOvr}）を獲得 移籍金${fmtYen(tx.fee)}`,
+            headline: transferHeadline({
+              playerName: tx.playerName, playerOvr: tx.playerOvr, fee: tx.fee,
+              fromLabel: clubLabel(tx.fromTeamId, state.teams), toLabel: clubLabel(tx.toTeamId, state.teams),
+            }),
             category: 'trade' as const,
             relatedIds: [tx.playerId],
             // 大ニュースはOVR85以上か格1のクラブが絡んだとき（utils/clubTier 1本）
@@ -1853,7 +1857,7 @@ export const useGameStore = create<GameStore>()(
               newSegRecordMarks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
               segRecordNewsItems.push({
                 date: race.date,
-                headline: `【区間新記録】${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${formatRaceTime(fastestRunner.timeSec)}（従来 ${formatRaceTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
+                headline: `【区間新記録】${divisionTag(myDivision)}${race.name} 第${sr.segmentIndex}区 ${plName}（${tmShort}）${formatRaceTime(fastestRunner.timeSec)}（従来 ${formatRaceTime(prevBest)}）${isMine ? ' ★自チーム' : ''}`,
                 category: 'race' as const,
                 relatedIds: [fastestRunner.playerId],
               })
@@ -2119,8 +2123,8 @@ export const useGameStore = create<GameStore>()(
             const award = computeSeasonAwards(updatedRaces, finalPlayers, state.currentSeason.year)
             const mvpP = award.mvpId ? finalPlayers.find(p => p.id === award.mvpId) : undefined
             const rookieP = award.rookieId ? finalPlayers.find(p => p.id === award.rookieId) : undefined
-            if (mvpP) seasonEndNews.push({ date: race.date, headline: `【シーズンMVP】${state.teams.find(t => t.id === mvpP.teamId)?.shortName ?? ''}の${mvpP.name}が受賞`, category: 'race' as const, relatedIds: [mvpP.id] })
-            if (rookieP) seasonEndNews.push({ date: race.date, headline: `【新人王】${state.teams.find(t => t.id === rookieP.teamId)?.shortName ?? ''}の${rookieP.name}が受賞`, category: 'race' as const, relatedIds: [rookieP.id] })
+            if (mvpP) seasonEndNews.push({ date: race.date, headline: awardHeadline({ kind: 'mvp', division: divisionOf(state.teams.find(t => t.id === mvpP.teamId)), clubShort: state.teams.find(t => t.id === mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
+            if (rookieP) seasonEndNews.push({ date: race.date, headline: awardHeadline({ kind: 'rookie', division: divisionOf(state.teams.find(t => t.id === rookieP.teamId)), clubShort: state.teams.find(t => t.id === rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
             // 引退表明（次シーズン開幕時の引退判定と同じ決定式を1歳先で評価）。自チームは全員、他チームは実力者を上位6人まで
             const idHashN = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h }
             const retAgeN = (p: Player) => { const o = ovr(p); const bonus = o >= 80 ? 2 : o >= 72 ? 1 : 0; return Math.min(40, 32 + (idHashN(p.id) % 7) + bonus) }
@@ -2130,7 +2134,7 @@ export const useGameStore = create<GameStore>()(
             const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
             for (const p of [...mineRet, ...othersRet]) {
               const tn = state.teams.find(t => t.id === p.teamId)?.shortName ?? ''
-              seasonEndNews.push({ date: race.date, headline: `【引退表明】${tn}の${p.name}（${p.age}歳）が今季限りでの現役引退を表明`, category: 'race' as const, relatedIds: [p.id] })
+              seasonEndNews.push({ date: race.date, headline: retirementHeadline({ division: divisionOf(state.teams.find(t => t.id === p.teamId)), clubShort: tn, playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
             }
           }
 
@@ -4685,7 +4689,7 @@ export const useGameStore = create<GameStore>()(
         const myRaceRank = result.standings.findIndex(s => s.isPlayerTeam) + 1
         const newsItems: typeof state.currentSeason.newsFeed = [{
           date: race.date,
-          headline: `${race.name}（${race.location}）：${raceWinner?.name ?? ''}が制す${myRaceRank > 0 ? `。自チームは${myRaceRank}位` : ''}`,
+          headline: raceResultHeadline({ division: divisionOf(state.teams.find(t => t.id === state.playerTeamId)), raceName: race.name, location: race.location, winnerName: raceWinner?.name ?? '', myRank: myRaceRank }),
           category: 'race' as const,
           relatedIds: [race.id],
         }]
@@ -5782,7 +5786,7 @@ export const useGameStore = create<GameStore>()(
           }
           const divisionChampionNews = DIVISIONS.map(d => {
             const c = championOfDiv(d)
-            return c ? { date: `${state.currentSeason.year}-10-25`, headline: `${state.currentSeason.year} JPEL${DIVISION_LABEL[d]} 優勝：${c.name}`, category: 'race' as const, relatedIds: [] } : null
+            return c ? { date: `${state.currentSeason.year}-10-25`, headline: divisionChampionHeadline(state.currentSeason.year, d, c.name), category: 'race' as const, relatedIds: [] } : null
           }).filter((x): x is NonNullable<typeof x> => !!x)
           // 翌季のプレシーズンで指名される新人はその年(newYear)に加入するので draftYear=newYear にする。
           // （+1 にすると加入年より1年多い年度で記録され、歴代ドラフトが1年ズレる）
