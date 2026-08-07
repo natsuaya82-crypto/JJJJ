@@ -19,6 +19,7 @@ import { mergeChatMessages } from '../../utils/chatLog'
 import { settledPath } from '../../utils/talkSync'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
+import { rivalCountLine } from '../../utils/newsItems'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention, isSaleAnswerPending } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
 import { SPECIALTY_LABELS } from '../../types'
@@ -153,6 +154,9 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
       ? `（代理人）${player.name}への関心ありがとうございます。良い条件を提示いただければ前向きに検討します。`
       : `（代理人）${player.name}は現在${teamName ?? '他クラブ'}に在籍中ですが、話は伺います。条件次第です。`,
   })
+  // 取り合いの件数（クラブ名は出さない）。文面は utils/newsItems の1本
+  const rivals = rivalCountLine(offer.rivalCount)
+  if (rivals) msgs.push({ from: 'player', text: rivals })
   if (offer.offerSalary > 0 && offer.status === 'countered') {
     msgs.push({ from: 'gm', text: `年俸${fmtYen(offer.offerSalary)}、${offer.offerYears}年契約でいかがでしょうか。` })
     msgs.push({ from: 'player', text: `（代理人）その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
@@ -162,10 +166,14 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
 
 // 移籍金合意後の契約交渉（他チームとの移籍金合意が済んだ選手）
 function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: string): ChatMessage[] {
-  return [{
+  const msgs: ChatMessage[] = [{
     from: 'player',
     text: `（代理人）移籍金${fmtYen(bid.offeredFee)}で${fromTeamName ?? '所属クラブ'}との合意が取れました。あとは${player.name}本人との契約条件次第です。ご提示ください。`,
   }]
+  // 取り合いの件数（クラブ名は出さない）。FAの獲得オファーと同じ文面
+  const rivals = rivalCountLine(bid.rivalCount)
+  if (rivals) msgs.push({ from: 'player', text: rivals })
+  return msgs
 }
 
 // 相手クラブから来た買い取りオファーを会話にする。

@@ -47,6 +47,10 @@ export type BidResult = {
 
 export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
   const rand = ctx.rand ?? Math.random
+  // 取り合いになっている数を札に焼き込む。**数だけ**（クラブ名は出さない）。
+  // 名前まで出すと「この5クラブを避ければいい」という読み合いになって競売にならない。
+  // 数え方は rivals を組んだ側（gameStore の rivalsFor）と同じものをそのまま使う
+  if (ctx.rivals) bid = { ...bid, rivalCount: ctx.rivals.length }
   const keep: BidResult = { bid, expired: null }
 
   // 費用合意・逆提示の途中

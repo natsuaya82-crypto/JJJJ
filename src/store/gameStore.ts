@@ -46,6 +46,8 @@ import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, 
 import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
+import { rivalClubsFor } from '../utils/transferRivals'
+import { worldRacePlans, worldRaceName } from '../utils/worldCourses'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, transferCapOf, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize, rosterCapOf } from '../data/rosterRules'
@@ -71,7 +73,7 @@ import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, RUNNING_SLOTS, hasNoPlayingTime, seeksPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
+import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, seeksPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
 import { isOwnedBy, canBePoached, canClubApproachAgain, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
 import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS, contractMonthsLeft, RENEWAL_ATTENTION_MONTHS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
@@ -1860,28 +1862,11 @@ export const useGameStore = create<GameStore>()(
           // 出せる額は「格の年間予算の TRANSFER_BUDGET_SHARE まで」。手元の資金がそれより
           // 少なければそちらが上限になる。**誰が参加するかは需要、誰が勝つかは格**。
           // 以前は市場価値×1.4の頭打ちで、全クラブが同額を出すので競売になっていなかった
-          const activeRosterByTeam = new Map<string, Player[]>()
-          for (const p of finalPlayers) {
-            if (p.status !== 'active') continue
-            const list = activeRosterByTeam.get(p.teamId)
-            if (list) list.push(p); else activeRosterByTeam.set(p.teamId, [p])
-          }
-          const rosterCountOf = (tid: string) => finalPlayers.filter(p => p.teamId === tid && p.status !== 'retired').length
-          const rivalsFor = (target: Player) => {
-            const srcTier = tierOfPlayerClub(target.teamId, allTieredClubs(state.teams, state.foreignLeagues))
-            return state.teams
-              .filter(t => t.id !== playerTeamId && t.id !== target.teamId && rosterCountOf(t.id) < ROSTER_MAX)
-              .filter(t => needsPlayer(activeRosterByTeam.get(t.id) ?? [], target))
-              .map(t => ({ t, dest: get().destinationOf(t.id, target) }))
-              .filter(x => x.dest.squadRank <= RUNNING_SLOTS)
-              .filter(x => appraiseMove(target, x.dest, { srcTier }).ok)
-              .map(x => ({
-                clubId: x.t.id,
-                name: x.t.shortName,
-                willing: transferCapOf(tierBudget(x.t), x.t.finance.budget),
-              }))
-              .filter(r => r.willing > 0)
-          }
+          const rivalsFor = (target: Player) => rivalClubsFor(target, {
+            teams: state.teams, players: finalPlayers, playerTeamId,
+            foreignLeagues: state.foreignLeagues ?? [],
+            destinationOf: (clubId, p) => get().destinationOf(clubId, p),
+          })
           // 競り負けた選手（相手クラブへ実際に移す）
           const outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[] = []
           const processedBids = (state.currentSeason.transferBids ?? []).map(bid => {
@@ -3402,11 +3387,17 @@ export const useGameStore = create<GameStore>()(
           // 自主的な取り下げ(abandon)は rejectReason が無いので対象外。offers はシーズン開始で[]にリセットされる。
           const failed = offers.find(o => o.playerId === playerId && o.status === 'rejected' && !!o.rejectReason)
           if (failed) return state
+          // 取り合いになっている数（移籍の入札と同じ数え方＝rivalClubsFor 1本）
           const newOffer: AcquisitionOffer = {
             id: `ao_${Date.now()}_${playerId}`,
             playerId, source, round: 1, status: 'pending',
             offerSalary: 0, offerYears: 2,
             offerContractType: 'standard',
+            rivalCount: rivalClubsFor(player, {
+              teams: state.teams, players: state.players, playerTeamId: state.playerTeamId,
+              foreignLeagues: state.foreignLeagues ?? [],
+              destinationOf: (clubId, p) => get().destinationOf(clubId, p),
+            }).length,
           }
           // 同一選手の過去オファー(rejected/accepted)は置換
           const filtered = offers.filter(o => o.playerId !== playerId)
@@ -6866,7 +6857,7 @@ export const useGameStore = create<GameStore>()(
           const japanManual = japanIn && state.worldSquad?.year === year && state.worldSquad.playerIds.length > 0
             ? state.worldSquad.playerIds : undefined
           // コースは選考画面で公開したものをそのまま使う（無ければここで生成）。他国の選抜もこの地形を見る
-          const plans = state.worldRacePlans?.year === year ? state.worldRacePlans.plans : generateWECRacePlan()
+          const plans = state.worldRacePlans?.year === year ? state.worldRacePlans.plans : worldRacePlans(year)
           const squads: Record<string, string[]> = {}
           for (const nat of nations) {
             if (nat === 'JPN' && japanManual) {
@@ -6893,10 +6884,16 @@ export const useGameStore = create<GameStore>()(
           const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
           const races: import('../types').Race[] = plans.map((plan, i) => ({
             id: `wa-${year}-r${i + 1}`,
-            // 例: 「2030 世界選手権 テグ 第1戦」「2029 アジア＋オセアニア予選 第1戦」
-            name: isMain
-              ? `${year} 世界選手権 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
-              : `${year} 世界選手権アジア予選 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`,
+            // 「世界選手権 出雲開幕戦」のようにコース名で呼ぶ（utils/worldCourses）。
+            // 年と開催地を名前に入れると毎年別の記録表になって、区間記録が1年で使い捨てになる。
+            // コース名を持っていない古いセーブだけ、これまでどおり年つきの名前で出す
+            name: worldRaceName(
+              plan,
+              isMain
+                ? `${year} 世界選手権 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
+                : `${year} 世界選手権アジア予選 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`,
+              isMain,
+            ),
             // JPELグランドファイナル(12/27)の後、オフシーズンの1月開催。年をまたぐので year+1 になる
             date: waRaceDate(year, i),
             location: '',
@@ -7064,7 +7061,7 @@ export const useGameStore = create<GameStore>()(
           // コースは開催国の地形で作る（本番＝世界選手権の開催国、予選＝アジア予選の開催国）
           const isMain = (year - 2028) % 2 === 0
           const host = isMain ? hostForYear(year) : qualHostForYear(year)
-          return { worldRacePlans: { year, plans: generateWECRacePlan(hostTerrain(host)) } }
+          return { worldRacePlans: { year, plans: worldRacePlans(year, hostTerrain(host)) } }
         })
       },
 
@@ -8663,33 +8660,6 @@ export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 
   const weatherFactor = 1 + weatherExcess * distDamp
   const t = (base + formPen + fatiguePen + moralePen + noise) * weatherFactor
   return Math.max(400, Math.round(t))
-}
-
-// 開催国の地形プロファイルに合わせてコースを作る。
-// mountain=山の国（登り下りが激しい）/ flat=平坦な国（スピードコース）/ mixed=従来のランダム
-function generateWECRacePlan(profile: 'mountain' | 'flat' | 'mixed' = 'mixed'): import('../types').WECRacePlan[] {
-  return Array.from({ length: 3 }, () => {
-    // 20人選抜しているので、区間は必ず6区間以上にする（4区間だと走る人数が少なすぎる）
-    const segmentCount = 6 + Math.floor(Math.random() * 5)   // 6〜10区間
-    const segments = Array.from({ length: segmentCount }, () => {
-      let uphillPct: number, downhillPct: number
-      if (profile === 'mountain') {
-        uphillPct = 8 + Math.floor(Math.random() * 37)   // 8〜44%
-        downhillPct = 5 + Math.floor(Math.random() * 28) // 5〜32%
-      } else if (profile === 'flat') {
-        uphillPct = Math.floor(Math.random() * 12)       // 0〜11%
-        downhillPct = Math.floor(Math.random() * 9)      // 0〜8%
-      } else {
-        uphillPct = Math.floor(Math.random() * 35)
-        downhillPct = Math.floor(Math.random() * 25)
-      }
-      const distanceKm = Math.round((5 + Math.random() * 10) * 10) / 10
-      // 推奨ポジションは地形から出す1本（utils/terrain）。ランダム生成のコースにも必ず付ける
-      const rec = recommendedSpecialtyFor({ uphillPct, downhillPct, distanceKm })
-      return { distanceKm, uphillPct, downhillPct, ...(rec ? { recommended: rec } : {}) }
-    })
-    return { segments }
-  })
 }
 
 // タイム表示は utils/eventTime.ts の formatRaceTime に一本化した（同じ処理が3つ手書き

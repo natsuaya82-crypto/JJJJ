@@ -507,3 +507,14 @@ export function initialNews(): NewsItem[] {
     { date: '2027-03-08', headline: '第1回JPEL開幕直前！注目のルーキーたちを紹介', category: 'draft', relatedIds: [] },
   ]
 }
+
+/**
+ * 取り合いになっていることを伝える一言。**数だけ**で、クラブ名は出さない。
+ * 名前まで出すと「この5クラブを避ければいい」という読み合いになって競売にならない。
+ * 移籍の入札（TransferBid.rivalCount）とFAの獲得オファー（AcquisitionOffer.rivalCount）が
+ * 同じ文面を使う。0件のときは何も言わない（undefined）。
+ */
+export function rivalCountLine(count: number | undefined): string | undefined {
+  if (!count || count <= 0) return undefined
+  return `（代理人）いま他に${count}クラブから話が来ています。決着まで3レースお待ちください。`
+}

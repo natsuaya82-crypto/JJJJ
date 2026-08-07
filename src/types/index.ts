@@ -157,6 +157,11 @@ export type TransferBid = {
   outbidBy?: string
   /** すでに一度競り上げを受けたか。2回目は上乗せの機会なしで決着する */
   outbidOnce?: boolean
+  /**
+   * いま同じ選手を狙っている他クラブの数。**数だけ**を持つ（クラブ名は出さない）。
+   * 名前まで出すと「この5クラブを避ければいい」という読み合いになって競売にならない。
+   */
+  rivalCount?: number
 }
 
 // 交渉が流れた理由の種類。通知の文言はこの1つから出す（種類ごとに箱を増やさない）
@@ -205,6 +210,8 @@ export type AcquisitionOffer = {
   counterYears?: number
   offerTeamRole?: TeamRole
   rejectReason?: 'team_refused' | 'low_offer' | 'demotion'   // team_refused=主力で放出拒否, low_offer=条件不足, demotion=2軍契約を拒否
+  /** いま同じ選手を狙っている他クラブの数。移籍の入札（TransferBid.rivalCount）と同じ扱い */
+  rivalCount?: number
 }
 
 export type TraitId =
@@ -410,6 +417,13 @@ export type IndividualEvent = {
 }
 
 export type WECRacePlan = {
+  /**
+   * 使うコースの名前。**世界選手権も本編と同じコースを走る**（utils/worldCourses.ts）。
+   * 以前は毎年その場でランダムに区間を作っていたので、同じコースが二度と来ず、
+   * 区間記録が1年で使い捨てになっていた。
+   * 無い年（この仕組みより前のセーブ）は、これまでどおり年つきの名前で出す。
+   */
+  courseName?: string
   segments: { distanceKm: number; uphillPct: number; downhillPct: number }[]
 }
 
