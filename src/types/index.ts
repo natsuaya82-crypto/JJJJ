@@ -153,6 +153,10 @@ export type TransferBid = {
   offeredYears?: number
   submittedAtRace: number
   feeAcceptedAtRace?: number
+  /** 競り上げられて逆提示になったときの相手クラブ名（1回だけ上乗せの機会を出す） */
+  outbidBy?: string
+  /** すでに一度競り上げを受けたか。2回目は上乗せの機会なしで決着する */
+  outbidOnce?: boolean
 }
 
 // 交渉が流れた理由の種類。通知の文言はこの1つから出す（種類ごとに箱を増やさない）

@@ -1997,6 +1997,22 @@ export const useGameStore = create<GameStore>()(
           for (const mv of outbidMoves) {
             const before = playersWithCpuTx.find(p => p.id === mv.playerId)
             const fromShort = before ? findClub(teamsWithCpuTx, state.foreignLeagues, before.teamId)?.shortName ?? '' : ''
+            // ★移す直前に本人の意思をもう一度みる。**移籍の可否は appraiseMove 1本**。
+            //   他の入口（承諾・逆提示・トレード・引き抜き）は移す瞬間に本人へ聞いているのに、
+            //   ここだけ「競り勝ったクラブがいる＝確定」で、本人が断って残る道が無かった。
+            //   競り上げの間に序列や状況が変わることもあるので、ここで聞き直す。
+            if (before) {
+              const dest = get().destinationOf(mv.toTeamId, before)
+              const srcTier = tierOfPlayerClub(before.teamId, allTieredClubs(state.teams, state.foreignLeagues))
+              if (!appraiseMove(before, dest, { srcTier }).ok) {
+                // 本人が断った＝残留。誰の手にも渡らないので、理由を通知に残す
+                bidExpiredNegs.push({
+                  id: `stay_${mv.playerId}_${nextClock}`, playerId: mv.playerId, playerName: mv.playerName,
+                  kind: 'outbid', detail: `${mv.clubName}の提示を${mv.playerName}が断り、残留しました`,
+                })
+                continue
+              }
+            }
             const m = movePlayer({ players: playersWithCpuTx, teams: teamsWithCpuTx }, mv.playerId, mv.toTeamId, {
               year: state.currentSeason.year,
               date: race.date,

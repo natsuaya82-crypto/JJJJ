@@ -79,7 +79,11 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
           <FaceOvr playerId={player.id} nationality={player.nationality} pOvr={pOvr} accentColor={C.green} />
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{player.name}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{targetTeamName} へ移籍打診中</div>
+            {/* 競り上げのときは「誰にいくらで抜かれたか」を出す。
+                クラブが値を吊り上げてきたのか、他クラブに抜かれたのかで打つ手が違う */}
+            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: bid.outbidBy ? C.orange : C.textSub, marginTop: '2px' }}>
+              {bid.outbidBy ? `${bid.outbidBy}に競り上げられています` : `${targetTeamName} へ移籍打診中`}
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '8px 12px', borderRadius: '10px', background: alpha(counterRating.color, 0.07), border: `1px solid ${alpha(counterRating.color, 0.2)}` }}>
@@ -89,7 +93,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke={C.textGhost} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           <div style={{ flex: 1, textAlign: 'right' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>先方希望</div>
+            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{bid.outbidBy ? '勝つのに必要' : '先方希望'}</div>
             <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: counterRating.color }}>{fmtYen(counterFee)}</div>
           </div>
           <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: counterRating.color, padding: '2px 7px', borderRadius: '6px', background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>

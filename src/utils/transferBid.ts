@@ -75,6 +75,21 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
     // 勝つのに必要なだけ払う（出せる上限まで積むわけではない）。刻みは1000万。
     // roundFee は四捨五入なので必ず1段上がる＝こちらの提示額を必ず上回る
     const winFee = Math.min(topRival.willing, roundFee(fee, 10_000_000) + 10_000_000)
+
+    // ★1回目は取られない。「上乗せしますか」を出して1レース待つ。
+    //   以前はここで即決着していたので、競り負けた瞬間に選手が相手クラブへ移り、
+    //   こちらは通知を受け取るだけで何もできなかった。
+    //   逆提示(countered)と同じ札に乗せる＝画面もボタンも既存のものをそのまま使う。
+    if (!bid.outbidOnce) {
+      // 相手を上回るのに必要な額。これ未満で出し直すと次の決着で持っていかれる
+      const needed = Math.min(topRival.willing + 10_000_000, roundFee(winFee, 10_000_000) + 10_000_000)
+      return {
+        bid: { ...bid, status: 'countered', counterFee: needed, outbidBy: topRival.name, outbidOnce: true },
+        expired: null,
+      }
+    }
+
+    // 2回目＝上乗せしても届かなかった。ここで決着する
     return {
       bid: { ...bid, status: 'rejected' },
       expired: {
