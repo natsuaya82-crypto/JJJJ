@@ -29,8 +29,8 @@ const effectiveOvr = (p: Player): number => ovr(p) - Math.max(0, (p.age - 33) * 
 
 // ニュースの形と文面は utils/newsItems 1本（ここで別の型・別の文面を作らない）
 import type { NewsItem } from '../utils/newsItems'
-import { transferHeadline, seekPlayingTimeHeadline } from '../utils/newsItems'
-import { fmtYen } from '../utils/money'
+import { transferHeadline, seekPlayingTimeHeadline, crossBorderHeadline, overseasBreakthroughHeadline } from '../utils/newsItems'
+
 // 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す。
 // movePlayer が作る記録をそのまま積むので、型は本体の TransferRecord に合わせる
 type TxRecord = TransferRecord
@@ -375,7 +375,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       if (toStrongLeague && ovr(p) >= 76) {
         return {
           date: xbDate(ni),
-          headline: `【世界へ挑戦】${p.name}（OVR${ovr(p)}）が世界最高峰・${nameById.get(m.toId) ?? ''}へ電撃移籍！日本人ランナーの歴史的な挑戦に列島が沸く（移籍金${fmtYen(m.fee)}）`,
+          headline: overseasBreakthroughHeadline({ playerName: p.name, playerOvr: ovr(p), toName: nameById.get(m.toId) ?? '', fee: m.fee }),
           category: 'trade' as const,
           relatedIds: [p.id],
           major: true,
@@ -383,11 +383,10 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       }
       return {
         date: xbDate(ni),
-        headline: m.dir === 'in'
-          ? `【海外→日本】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${fmtYen(m.fee)}）`
-          : toStrongLeague
-          ? `【日本→海外】${p.name}（OVR${ovr(p)}）が格上の${nameById.get(m.toId) ?? ''}へ移籍。世界の舞台で腕試し（移籍金${fmtYen(m.fee)}）`
-          : `【日本→海外】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${fmtYen(m.fee)}）`,
+        headline: crossBorderHeadline({
+          playerName: p.name, playerOvr: ovr(p), fee: m.fee, dir: m.dir, toStrongLeague,
+          fromName: nameById.get(m.fromId) ?? '', toName: nameById.get(m.toId) ?? '',
+        }),
         category: 'trade' as const,
         relatedIds: [p.id],
       }
