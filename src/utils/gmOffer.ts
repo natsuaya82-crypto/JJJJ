@@ -141,16 +141,35 @@ export function makeGmOffer(params: {
   }
   if (candidates.length === 0) return null
   const teamId = candidates[Math.floor(rng() * candidates.length)] ?? candidates[0]
-  const b = nextBudgets[teamId]
-  const dest = teams.find(t => t.id === teamId)
+  return buildOffer({ teamId, kind, season, teams, nextBudgets, nextYear, objBonus, finalRank })
+}
+
+/**
+ * オファー1件を組み立てる。**中身の作り方はここ1本。**
+ * 年に1回ランダムに来るぶん（makeGmOffer）も、退任したときに一度に届くぶん（resignOffers）も
+ * 同じ形にする。別々に書くと、片方だけ予算や目標の引き直しがずれる。
+ */
+export function buildOffer(a: {
+  teamId: string
+  kind: GmOfferKind
+  season: SeasonStandingsLike<{ teamId: string; totalPoints: number }>
+  teams: Team[]
+  nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }>
+  nextYear: number
+  objBonus: number
+  /** 移籍先の前季順位が引けないときの代わり */
+  finalRank: number
+}): GmOffer {
+  const b = a.nextBudgets[a.teamId]
+  const dest = a.teams.find(t => t.id === a.teamId)
   // 前季順位は**移籍先の部の中での順位**（順位表は部ごとに分かれている）。
   // 来季の目標をここから引き直すので、部をまたいだ順位を使うと目標が的外れになる
   const destDivision = divisionOf(dest)
-  const prevRank = rankOfTeam(seasonDivisionStandings(season, teamId), teamId)
-  const destDivisionSize = teams.filter(t => divisionOf(t) === destDivision).length
+  const prevRank = rankOfTeam(seasonDivisionStandings(a.season, a.teamId), a.teamId)
+  const destDivisionSize = a.teams.filter(t => divisionOf(t) === destDivision).length
   return {
-    teamId,
-    year: nextYear,
+    teamId: a.teamId,
+    year: a.nextYear,
     budget: b.budget,
     budgetBreakdown: {
       carryover: b.carryover,
@@ -162,10 +181,43 @@ export function makeGmOffer(params: {
     },
     // 目標達成ボーナスのスカウトポイントは監督個人の成果なので持って行く。
     // 施設ぶんは移籍先のスカウト部門を使う
-    scoutPoints: 5 + objBonus + (dest?.facilities?.scoutOffice ?? 0),
-    prevRank: prevRank > 0 ? prevRank : finalRank,
+    scoutPoints: 5 + a.objBonus + (dest?.facilities?.scoutOffice ?? 0),
+    prevRank: prevRank > 0 ? prevRank : a.finalRank,
     // 目標を引き直すときに使う。52ではなく移籍先の部の人数
     divisionSize: destDivisionSize,
-    kind,
+    kind: a.kind,
   }
+}
+
+/**
+ * 監督が自分から退任したときに届くオファー。**声がかかるかの抽選はしない**
+ * （辞めると決めた以上、行き先が0件では詰むため）。
+ *
+ * 3つの話（栄転・名門再建・再起）から**1件ずつ**選ぶので、
+ * 「格上」「落ちぶれた名門」「3部」が並ぶ。候補が居ない話は飛ばす。
+ */
+export function resignOffers(params: {
+  season: SeasonStandingsLike<{ teamId: string; totalPoints: number }>
+  playerTeamId: string
+  finalRank: number
+  nextYear: number
+  teams: Team[]
+  nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }>
+  rng: () => number
+  tierNow: (id: string) => number
+  tierSeed: (id: string) => number
+}): GmOffer[] {
+  const { season, playerTeamId, finalRank, nextYear, teams, nextBudgets, rng, tierNow, tierSeed } = params
+  const ids = teams.map(t => t.id)
+  const out: GmOffer[] = []
+  const taken = new Set<string>()
+  for (const kind of ['promotion', 'rebuild', 'comeback'] as GmOfferKind[]) {
+    const c = offerCandidates(kind, ids, playerTeamId, tierNow, tierSeed)
+      .filter(id => nextBudgets[id] && !taken.has(id))
+    if (c.length === 0) continue
+    const teamId = c[Math.floor(rng() * c.length)] ?? c[0]
+    taken.add(teamId)
+    out.push(buildOffer({ teamId, kind, season, teams, nextBudgets, nextYear, objBonus: 0, finalRank }))
+  }
+  return out
 }

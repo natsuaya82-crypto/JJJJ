@@ -997,7 +997,12 @@ export type GameState = {
    * 載っていない年はセーブに残る（重いほうがまし。消えたら戻せない）。
    */
   archivedYears?: number[]
-  gmOffer?: GmOffer | null
+  /**
+   * 届いている監督オファー。**1件でも複数でも同じ形で持つ。**
+   * 年に1回ランダムに来るぶんは1件、自分から退任したときは3件まで一度に届く。
+   * 別々の入れ物にすると、受ける・断るの処理が2本になって片方だけ直し漏れる。
+   */
+  gmOffers?: GmOffer[]
   /** 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN） */
   lastGmOfferYear?: number
   sponsors: Sponsor[]

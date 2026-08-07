@@ -9,7 +9,7 @@ import { saveSlotSuffix } from './saveSlot'
 import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDeviceTwitterIntroSeen } from './deviceFlags'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
-import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind } from '../types'
+import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind, GmOffer } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -86,7 +86,7 @@ import { findClub, domesticTeamIdSet as domesticTeamIdSet_, allForeignClubs, for
 import { canRegisterHof, registerHof, removeHof, isHofEligible } from '../utils/hofRoster'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
-import { makeGmOffer } from '../utils/gmOffer'
+import { makeGmOffer, resignOffers } from '../utils/gmOffer'
 import { restoreTeamIdsFromLegacyClubs, dropLegacyClubRosters } from '../utils/legacyClubRoster'
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
 import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
@@ -604,8 +604,10 @@ export type GameStore = GameState & {
   registerHofPlayer: (playerId: string) => boolean
   /** 殿堂入りチームから外す */
   removeHofPlayer: (playerId: string) => void
-  acceptGmOffer: () => void
+  acceptGmOffer: (teamId?: string) => void
   declineGmOffer: () => void
+  /** 自分から退任する。行き先の候補が一度に届く（設定から） */
+  resignAsGm: () => void
   // ホームで出したジュエル獲得ポップアップを閉じる
   dismissJewelGains: () => void
 
@@ -678,7 +680,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     rivalTeamId: null,
     gmRep: 50,
     gmTenures: [],
-    gmOffer: null,
+    gmOffers: [],
     hofRoster: [],
     // 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN）
     lastGmOfferYear: undefined,
@@ -6474,7 +6476,8 @@ export const useGameStore = create<GameStore>()(
             players: playersWithBackfill,
             removedPlayers,
             teams: syncedTeams,
-            gmOffer,
+            // 1件でも複数でも同じ入れ物（退任したときは3件まで一度に届く）
+            gmOffers: gmOffer ? [gmOffer] : [],
             // 出た年を控えて、次のオファーまで間隔を空ける
             lastGmOfferYear: gmOffer ? newYear : state.lastGmOfferYear,
             foreignLeagues: cappedForeignLeagues,
@@ -7459,12 +7462,13 @@ export const useGameStore = create<GameStore>()(
         set(state => ({ hofRoster: removeHof(state.hofRoster, playerId) }))
       },
 
-      acceptGmOffer: () => {
+      acceptGmOffer: (teamId) => {
         set(state => {
-          const offer = state.gmOffer
+          // 届いている中から選ぶ。1件しか無いときは指定なしでもよい
+          const offer = teamId ? (state.gmOffers ?? []).find(o => o.teamId === teamId) : (state.gmOffers ?? [])[0]
           if (!offer) return {}
           const dest = state.teams.find(t => t.id === offer.teamId)
-          if (!dest) return { gmOffer: null }
+          if (!dest) return { gmOffers: [] }
           const oldTeamId = state.playerTeamId
           // 監督名は人について回る。前のチームには元のGM名を戻す
           const myGmName = state.teams.find(t => t.id === oldTeamId)?.gmName
@@ -7493,7 +7497,7 @@ export const useGameStore = create<GameStore>()(
             playerTeamId: offer.teamId,
             teams,
             players,
-            gmOffer: null,
+            gmOffers: [],
             // 前のチームのオーダーは「前回のオーダー」として残さない
             lastRaceLineup: {},
             gmTenures: startTenure(state.gmTenures, offer.teamId, offer.year, oldTeamId),
@@ -7523,7 +7527,38 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
-      declineGmOffer: () => set({ gmOffer: null }),
+      declineGmOffer: () => set({ gmOffers: [] }),
+
+      // 自分から退任する（設定から）。行き先の候補が一度に届く。
+      // シーズン途中でも押せて、受けたその日から新しいクラブを指揮する。
+      // 声がかかるかの抽選はしない（辞めると決めた以上、行き先0件では詰むため）。
+      resignAsGm: () => {
+        set(state => {
+          if ((state.gmOffers ?? []).length > 0) return {}   // すでに届いている
+          // 候補クラブの「いま使えるお金」をそのまま持って行く（年度更新を待たない）。
+          // 予算は格1本（utils/clubTier）なので、内訳のグラントもそこから出す
+          const tiered = allTieredClubs(state.teams, state.foreignLeagues ?? [])
+          const nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }> = {}
+          for (const t of state.teams) {
+            nextBudgets[t.id] = {
+              budget: t.finance.budget,
+              carryover: 0, grant: tierBudget(t), raceIncome: 0, sponsor: 0, objBonus: 0, expenses: 0,
+            }
+          }
+          const offers = resignOffers({
+            season: state.currentSeason,
+            playerTeamId: state.playerTeamId,
+            finalRank: rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId),
+            nextYear: state.currentSeason.year,
+            teams: state.teams,
+            nextBudgets,
+            rng: Math.random,
+            tierNow: id => tierOf(tiered.find(c => c.id === id)),
+            tierSeed: id => tierOfClubId(id),
+          })
+          return { gmOffers: offers }
+        })
+      },
 
       // 確認済みキーは増える一方なので直近100件で打ち切る（負傷通知と同じ扱い）
       dismissJoinNotice: (key) => set(s => ({ seenJoinIds: s.seenJoinIds.includes(key) ? s.seenJoinIds : [...s.seenJoinIds, key].slice(-100) })),
@@ -7875,7 +7910,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 37,
+      version: 38,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8405,6 +8440,15 @@ export const useGameStore = create<GameStore>()(
               const { races: _races, ...rest } = res
               return rest
             })
+          }
+
+          // v37→v38: 監督オファーの入れ物を「1件」から「一覧」へ。
+          // 自分から退任すると行き先が複数届くので、1件と複数で入れ物を分けない
+          // （分けると受ける・断るの処理が2本になり、片方だけ直し漏れる）。
+          if (version < 38) {
+            const old = (s as { gmOffer?: unknown }).gmOffer
+            if (old) s.gmOffers = [old]
+            delete (s as { gmOffer?: unknown }).gmOffer
           }
 
           return s

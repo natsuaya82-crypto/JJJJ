@@ -140,11 +140,13 @@ const OFFER_KIND_TEXT: Record<string, string> = {
 // 他チームからの監督オファーをホームで出す。答えるまで消えない。
 // 受けると指揮するチームが入れ替わる（store の acceptGmOffer / utils/gmOffer.ts）。
 function GmOfferNotice() {
-  const offer = useGameStore(s => s.gmOffer)
+  const offers = useGameStore(s => s.gmOffers) ?? []
   const teams = useGameStore(s => s.teams)
   const accept = useGameStore(s => s.acceptGmOffer)
   const decline = useGameStore(s => s.declineGmOffer)
-  if (!offer) return null
+  const [pick, setPick] = useState(0)
+  if (offers.length === 0) return null
+  const offer = offers[Math.min(pick, offers.length - 1)]
   const dest = teams.find(t => t.id === offer.teamId)
   if (!dest) return null
   const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -153,6 +155,23 @@ function GmOfferNotice() {
     <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 11, color: '#f5c842', letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>OFFER</div>
+        {/* 退任したときは複数届く。タブで見比べてから選ぶ（1件のときは出さない） */}
+        {offers.length > 1 && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {offers.map((o, i) => {
+              const t = teams.find(x => x.id === o.teamId)
+              const on = i === Math.min(pick, offers.length - 1)
+              return (
+                <button key={o.teamId} onClick={() => setPick(i)} style={{
+                  flex: 1, padding: '7px 4px', borderRadius: 9, cursor: 'pointer',
+                  border: `1px solid ${on ? '#f5c842' : '#3c4d68'}`,
+                  background: on ? 'rgba(245,200,66,0.16)' : 'transparent',
+                  color: on ? '#f5c842' : '#8fa0bb', fontSize: 11, fontWeight: 800, fontFamily: 'inherit',
+                }}>{t?.shortName ?? '—'}</button>
+              )
+            })}
+          </div>
+        )}
         <div style={{ fontSize: 11, color: '#f5c842', fontWeight: 800, marginBottom: 8 }}>{OFFER_KIND_LABEL[offer.kind ?? 'promotion']}</div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <TeamLogoSVG primary={dest.colors.primary} secondary={dest.colors.secondary} shortName={dest.shortName} teamId={dest.id} logoId={dest.logoId} size={56} />
@@ -175,8 +194,8 @@ function GmOfferNotice() {
           今のチームの選手や予算は持って行けません。
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={decline} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid #6b7a94', background: 'transparent', color: '#cfd8e8', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>断る</button>
-          <button onClick={accept} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>受ける</button>
+          <button onClick={() => decline()} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid #6b7a94', background: 'transparent', color: '#cfd8e8', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>{offers.length > 1 ? 'すべて断る' : '断る'}</button>
+          <button onClick={() => accept(offer.teamId)} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>受ける</button>
         </div>
       </div>
     </div>
@@ -188,9 +207,9 @@ function SeasonBudgetNotice() {
   const notice = useGameStore(s => s.seasonBudgetNotice)
   const dismiss = useGameStore(s => s.dismissBudgetNotice)
   // 監督オファーに答えると予算が移籍先のものに入れ替わる。答えるまでは出さない
-  const offer = useGameStore(s => s.gmOffer)
+  const offers = useGameStore(s => s.gmOffers) ?? []
   const navigate = useNavigate()
-  if (offer) return null
+  if (offers.length > 0) return null
   if (!notice) return null
   const SAIRA = "'Saira Condensed', system-ui, sans-serif"
   // 予算ページと同じ万円単位表記（億に切り上げない）

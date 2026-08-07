@@ -106,7 +106,7 @@ function DetailScreen({ title, onClose, children }: { title: string; onClose: ()
   )
 }
 
-type Detail = null | 'team' | 'sound' | 'reset' | 'blocked'
+type Detail = null | 'team' | 'sound' | 'reset' | 'blocked' | 'resign'
 
 // ── ブロックした利用者 ──────────────────────────────────
 // App Store の審査基準 1.2 で「ブロックできること」が要る。
@@ -242,6 +242,12 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         />
         <SettingRow icon={IcX} label="公式X（@JPEL_MANAGER）" sub="アップデート情報・お問い合わせ" onClick={() => window.open('https://x.com/JPEL_MANAGER', '_blank')} />
         {onlineAvailable() && <SettingRow icon={IcBlock} label="ブロックした利用者" sub="オンラインで表示しない相手" onClick={() => setDetail('blocked')} />}
+        <SettingRow
+          icon={IcRace}
+          label="監督を退任する"
+          sub="他クラブから就任の打診が届きます"
+          onClick={() => setDetail('resign')}
+        />
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />
       </div>
@@ -282,6 +288,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       {detail === 'sound' && <SoundScreen onClose={() => setDetail(null)} />}
       {detail === 'blocked' && <BlockedScreen onClose={() => setDetail(null)} />}
       {detail === 'reset' && <ResetScreen resetGame={resetGame} onClose={() => setDetail(null)} />}
+      {detail === 'resign' && <ResignScreen onClose={() => setDetail(null)} />}
 
       {/* セーブスロット（運営用）。画面下から出すものは必ず BottomSheet を通すこと */}
       <BottomSheet open={slotSheet} onClose={() => setSlotSheet(false)} title="セーブスロット（運営用）">
@@ -499,6 +506,37 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
             <div key={i} style={{ fontSize: 11, color: C.textGhost, lineHeight: 1.7, wordBreak: 'break-all' }}>{d}</div>
           ))}
         </div>
+      )}
+    </DetailScreen>
+  )
+}
+
+// 監督を自分から辞める。押すと行き先の候補が届く（ホームに OFFER として出る）。
+// シーズン途中でも押せて、受けたその日から新しいクラブを指揮する。
+function ResignScreen({ onClose }: { onClose: () => void }) {
+  const resign = useGameStore(s => s.resignAsGm)
+  const myTeam = useGameStore(s => s.teams.find(t => t.id === s.playerTeamId))
+  const [done, setDone] = useState(false)
+  return (
+    <DetailScreen title="監督を退任する" onClose={onClose}>
+      <div style={{ fontSize: 12, color: C.textDim, lineHeight: 1.9, marginBottom: 16 }}>
+        {myTeam?.name ?? '現在のクラブ'}の監督を辞め、他クラブからの打診を待ちます。<br /><br />
+        ・打診は<strong style={{ color: C.text }}>すぐに届きます</strong>。受けたその日から新しいクラブを指揮します<br />
+        ・<strong style={{ color: C.text }}>殿堂入りチームだけは持っていきます。</strong>選手・予算・施設は移籍先のものです<br />
+        ・すべて断ったら無職のまま。次のシーズンにまた声がかかります
+      </div>
+      {done ? (
+        <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
+          打診が届きました。ホームで確認してください。
+        </div>
+      ) : (
+        <button
+          onClick={() => { resign(); setDone(true) }}
+          className="btn-game btn-game--red"
+          style={{ width: '100%' }}
+        >
+          <span className="btn-game__inner">退任して打診を受け取る</span>
+        </button>
       )}
     </DetailScreen>
   )
