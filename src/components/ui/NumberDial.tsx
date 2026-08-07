@@ -14,6 +14,9 @@ function DigitWheel({ digit, onChange, accent }: {
   accent: string
 }) {
   const [offset, setOffset] = useState(0)          // ドラッグ中の残り移動量(px)
+  // ドラッグ中はアニメーションを切る。ref を描画中に読むと、指を離した瞬間の再描画で
+  // 古い値のまま transition が付いたり付かなかったりするので state で持つ
+  const [dragging, setDragging] = useState(false)
   const drag = useRef<{ startY: number; base: number; moved: boolean } | null>(null)
 
   const wrap = (n: number) => ((n % 10) + 10) % 10
@@ -21,6 +24,7 @@ function DigitWheel({ digit, onChange, accent }: {
   const onPointerDown = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     drag.current = { startY: e.clientY, base: digit, moved: false }
+    setDragging(true)
   }
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag.current) return
@@ -41,6 +45,7 @@ function DigitWheel({ digit, onChange, accent }: {
       onChange(wrap(digit + (upper ? -1 : 1)))
     }
     drag.current = null
+    setDragging(false)
     setOffset(0)
   }
 
@@ -63,7 +68,7 @@ function DigitWheel({ digit, onChange, accent }: {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(180deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(0deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>
       {/* 数字列：上=-1、中央=現在値、下=+1。上にドラッグすると下の大きい数字が中央に入ってくる（＝増える） */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${offset}px)`, transition: drag.current ? 'none' : 'transform 0.12s ease' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${offset}px)`, transition: dragging ? 'none' : 'transform 0.12s ease' }}>
         {[wrap(digit - 1), digit, wrap(digit + 1)].map((n, i) => (
           <div key={i} style={{
             height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',

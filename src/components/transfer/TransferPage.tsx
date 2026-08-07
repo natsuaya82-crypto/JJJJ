@@ -71,21 +71,22 @@ export default function TransferPage() {
     if (tab === 'trade') ensureFuturePicks()
   }, [tab])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const restoredNavKey = useRef<string | null>(null)
-  useEffect(() => {
-    if (tab !== 'market') return
-    if (restoredNavKey.current === location.key) return
-    restoredNavKey.current = location.key
+  // 戻ってきたときに絞り込みを復元する。useEffect でやると復元前の1フレームだけ
+  // **絞り込み無しの全選手**が出てちらつくので、描画中に直す（Reactの標準の形）
+  const [restoredNavKey, setRestoredNavKey] = useState<string | null>(null)
+  if (tab === 'market' && restoredNavKey !== location.key) {
+    setRestoredNavKey(location.key)
     const s = location.state as { search?: string; spec?: Specialty | 'all'; nat?: Nationality | 'all'; avail?: 'all' | 'listed' | 'expiring'; team?: string; age?: string; league?: string } | null
-    if (!s || typeof s.search !== 'string') return
-    setMktSearch(s.search)
-    setMktSpec(s.spec ?? 'all')
-    setMktNat(s.nat ?? 'all')
-    setMktAvail(s.avail ?? 'all')
-    setMktTeam(s.team ?? 'all')
-    setMktAge(s.age ?? 'all')
-    setMktLeague(s.league ?? 'all')
-  }, [location.key, location.state, tab])
+    if (s && typeof s.search === 'string') {
+      setMktSearch(s.search)
+      setMktSpec(s.spec ?? 'all')
+      setMktNat(s.nat ?? 'all')
+      setMktAvail(s.avail ?? 'all')
+      setMktTeam(s.team ?? 'all')
+      setMktAge(s.age ?? 'all')
+      setMktLeague(s.league ?? 'all')
+    }
+  }
   const [mktSortKey, setMktSortKey] = useState<PlayerSortKey>(savedF.sortKey as PlayerSortKey)
   const [mktSortDir, setMktSortDir] = useState<'desc' | 'asc'>(savedF.sortDir as 'desc' | 'asc')
   // フィルタ変更をモジュールスコープへ同期（アンマウント後の復元用）

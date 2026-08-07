@@ -211,14 +211,19 @@ export default function PlayerSheet() {
     ?? (currentSeason.scoutProspects ?? []).find(p => p.id === openPlayerId)
     ?? draftPool.find(p => p.id === openPlayerId)
 
-  useEffect(() => {
-    // 引退選手は1ページ目を出さないので2ページ目から開く。
-    // フレンドのロスターは1ページ目しか無いので必ず1から（下の pages と揃える）
+  // 別の選手を開いたらページと選択を初期化する。
+  // これを useEffect でやると、開いた直後の1フレームだけ**前の選手のページ**が出る
+  // （引退選手を閉じて次を開くと2ページ目が一瞬見える）。描画中に直すのが正しい形。
+  // 引退選手は1ページ目を出さないので2ページ目から開く。
+  // フレンドのロスターは1ページ目しか無いので必ず1から（下の pages と揃える）
+  const [shownPlayerId, setShownPlayerId] = useState<string | null>(openPlayerId)
+  if (shownPlayerId !== openPlayerId) {
+    setShownPlayerId(openPlayerId)
     const preview = previewPlayers.some(p => p.id === openPlayerId)
     setPage(!preview && player?.status === 'retired' ? 2 : 1)
     setSelectedRaceName(null)
     setShowBadges(false)
-  }, [openPlayerId])
+  }
 
   // シート表示中は背景ページのスクロールをロックする
   useEffect(() => {
