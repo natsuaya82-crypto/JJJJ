@@ -62,7 +62,7 @@ import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersB
 // 国内52クラブの名簿と、下部リーグが入っていない古いセーブの補完
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs, originalDivisionOf } from '../utils/domesticClubs'
 // 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
-import { SPECIALTIES, thinSpecialties, needsPlayer } from '../utils/squadNeeds'
+import { SPECIALTIES, thinSpecialties, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
 import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
@@ -5249,6 +5249,12 @@ export const useGameStore = create<GameStore>()(
         }
 
         // FA補強（受け皿）：移籍市場で動けなかった選手・チームの補完。
+        //
+        // ★人数がここまでは「年俸を気にせず埋める」ライン。これを超えると年俸が払える範囲だけ。
+        //   以前は ROSTER_MIN + 9（＝24）と書いてあり、名前は変わっていても数字は24のままだった。
+        //   24で頭打ちになるのはこの行が理由。上限(30)までの6人ぶんは、
+        //   「穴」か「スタメンに入る」FAを年俸の範囲で取る（下の②）。
+        const FA_FREE_FILL = ROSTER_MIN + 9
         // 高齢選手は実力どおりに評価しない（33歳以上は年齢ぶん減点した「年齢調整OVR」順で選ぶ＝35歳の高OVRに飛びつかない）
         const ageAdjOvr = (p: Player) => ovr(p) - Math.max(0, p.age - 32) * 3
         const availableFAs = playersAfterCpuTransfer
@@ -5310,9 +5316,9 @@ export const useGameStore = create<GameStore>()(
           if (c.signed >= c.slotsNeeded) return false
           // 外国人枠は廃止したので国籍による人数制限は無い
           const canSign = (fa: Player) => !signedFAIds.has(fa.id) && fa.age < c.ageCap
-          // 戦力崩壊を防ぐ最低ラインまでは予算に関係なく補強する。それ以上は予算内でのみ。
-          // 人数は rosterRules の1本から出す（24の直書きをやめる）
-          const budgetOk = (fa: Player) => (c.totalNow + c.signed) < ROSTER_MIN + 9 || (c.spent + estCost(fa) <= c.spendable)
+          // 戦力崩壊を防ぐ最低ラインまでは予算に関係なく補強する。それ以上は年俸が払える範囲でのみ。
+          // 移籍金はかからないので、止めるのは年俸だけ
+          const budgetOk = (fa: Player) => (c.totalNow + c.signed) < FA_FREE_FILL || (c.spent + estCost(fa) <= c.spendable)
           // ① 専門の穴埋め（1つの専門につき2人まで）
           for (const spec of c.needs) {
             const have = playersAfterCpuTransfer.filter(p => p.teamId === c.team.id && p.specialty === spec && p.status === 'active').length
@@ -5323,18 +5329,19 @@ export const useGameStore = create<GameStore>()(
             c.specCounts[spec] = (c.specCounts[spec] ?? 0) + 1
             return true
           }
-          // ② そのクラブに必要な選手なら取る。判定は squadNeeds の needsPlayer 1本
-          //    （薄いポジション、または一番弱いポジションで今いる誰よりも強い）。
-          //    ここが無いと「24人いて薄いポジションも無いクラブは、OVR90のFAが余っていても
-          //    絶対に取らない」状態になり、良いFAが誰にも取られず市場に残り続けていた。
-          //    ドラフトを1部だけにして指名漏れがFAへ流れるようになったので、受け皿が要る
+          // ② 穴が空いている（needsPlayer）か、**スタメンに入る**（wouldMakeLineup）なら取る。
+          //    ★FAは移籍金がかからないので、needsPlayer だけで判断してはいけない。
+          //      「必要だから動く」は金を払う移籍の話で、タダなら穴でなくても走れる選手は取る。
+          //      2部・3部にとってOVR77がタダなら破格、というのがここ。
+          //      needsPlayer だけにしていたので、良いFAが誰にも取られず市場に残り続けていた。
+          //    判定は squadNeeds の1本（自チームもCPUも海外も同じ入口）。
           if (c.totalNow + c.signed < ROSTER_MAX) {
             const roster = playersAfterCpuTransfer.filter(p => p.teamId === c.team.id && p.status === 'active')
-            const need = c.pool.find(f => canSign(f) && budgetOk(f) && needsPlayer(roster, f))
+            const need = c.pool.find(f => canSign(f) && budgetOk(f) && (needsPlayer(roster, f) || wouldMakeLineup(roster, f)))
             if (need) { doSignFA(c, need); return true }
           }
-          // ③ 頭数の確保 — 予算/OVRに関係なくロスター下限までは埋める
-          if (c.totalNow + c.signed >= ROSTER_MIN + 9) return false
+          // ③ 頭数の確保 — 年俸/OVRに関係なく、人数が足りていないクラブは埋める
+          if (c.totalNow + c.signed >= FA_FREE_FILL) return false
           const fa = availableFAs.find(canSign)
           if (!fa) return false
           doSignFA(c, fa)

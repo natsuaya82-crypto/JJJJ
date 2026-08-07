@@ -1,6 +1,7 @@
 import type { Player, Specialty } from '../types'
 import { SPECIALTY_LABELS } from '../types'
 import { ovr } from './playerUtils'
+import { RUNNING_SLOTS } from './transferDecision'
 
 // 「そのクラブは今どのタイプが足りていないか」「その選手は欲しい選手か」を決める1本。
 //
@@ -114,4 +115,18 @@ export function needDepth(roster: readonly Player[], spec: Specialty): number {
   if (same.length === 0) return teamAvg
   const specAvg = same.reduce((s, p) => s + ovr(p), 0) / same.length
   return Math.max(0, teamAvg - specAvg)
+}
+
+/**
+ * そのクラブに入ったら、走れる人数（RUNNING_SLOTS）に入るか。
+ *
+ * ■なぜ needsPlayer とは別に要るのか
+ *   needsPlayer は「穴が空いているか」を見る。**移籍金を払って獲るとき**はそれでいい
+ *   （必要でもないのに金を出さない）。だがFAは移籍金がかからないので、穴でなくても
+ *   スタメンに入る選手なら取らない理由がない。2部・3部にとってOVR77がタダなら破格。
+ *   ここを needsPlayer だけで判断していたため、良いFAが誰にも取られず市場に残っていた。
+ */
+export function wouldMakeLineup(roster: readonly Player[], player: Player, slots: number = RUNNING_SLOTS): boolean {
+  const better = roster.filter(p => p.status === 'active' && ovr(p) > ovr(player)).length
+  return better < slots
 }
