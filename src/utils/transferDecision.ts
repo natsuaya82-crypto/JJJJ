@@ -333,7 +333,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   // 「→ 佐藤 健司は「23番手では出番がない」と考えている」だと、その1クラブの話なのか
   // その選手の全体の話なのかが読み取れなかった
   const SHORT_NO: Record<Appraisal['lead'], string> = {
-    no_playing_time: `ここでは${d.squadRank}番手。出番がない`,
+    no_playing_time: `${d.squadRank}番手で出番がない`,
     wrong_region: `行きたいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}。この地域ではない`,
     tier_down: '格下への移籍に前向きでない',
     loyalty: '今のチームへの愛着が強い',

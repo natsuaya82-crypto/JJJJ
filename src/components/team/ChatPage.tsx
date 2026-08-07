@@ -198,12 +198,20 @@ function buildIncomingOfferMessages(
         : []),
     ]
   }
-  // 取り合いになっているときは、まとめて出して本人の希望を言わせる
-  // 断る相手はその場で理由を言う（「なぜこのクラブには行かないのか」が分からなかった）
-  const list = offers.map(o => `・${o.name}（移籍金${fmtYen(o.price)}）${o.ok === false && o.reason ? `\n  → ${o.reason}` : ''}`).join('\n')
+  // 取り合いになっているときは、まとめて出して本人の希望を言わせる。
+  //
+  // ★理由は**全部のクラブに1行ずつ**、クラブ名を添えて付けること。
+  //   断る相手にだけ付けていたので、2クラブ来ているのに矢印が1行しか出ず、
+  //   「23番手なのはアムステルダムなのか札幌なのか」が読み取れなかった。
+  const list = offers.map(o =>
+    `・${o.name}（移籍金${fmtYen(o.price)}）`
+    + `\n　→ ${o.name}へは${o.ok ? '行きたい' : '行かない'}${o.reason ? `（${o.reason}）` : ''}`,
+  ).join('\n')
   return [
     { from: 'player', kind: key,
       text: `（代理人）${offers.length}クラブから${player.name}選手の獲得の打診が来ています。\n${list}` },
+    // 「行きたい」先が2つ以上あるときだけ、本命を言わせる。
+    // 1つしか無いときは上の一覧で言い切っているので繰り返さない
     ...(wish ? [{ from: 'player' as const, kind: `incoming_wish:${key}`,
       text: `（代理人）本人に希望を聞きました。「${wish.name}へ行きたい。${wish.reason}から」とのことです。` }] : []),
   ]
@@ -356,8 +364,9 @@ function ChatView({
         // 一覧に1行ずつ並べるので短い形（選手名を繰り返さない）
         ok: r.appraisal.ok, reason: r.appraisal.shortReason,
       })),
-      rankedOffers.length > 1 && rankedOffers[0].appraisal.ok
-        ? { name: clubIndex.byId(rankedOffers[0].offer.fromTeamId)?.shortName ?? '他クラブ', reason: rankedOffers[0].appraisal.reason }
+      // 行ってもいい先が2つ以上あるときだけ本命を聞く（1つなら一覧で言い切っている）
+      rankedOffers.filter(r => r.appraisal.ok).length > 1
+        ? { name: clubIndex.byId(rankedOffers[0].offer.fromTeamId)?.shortName ?? '他クラブ', reason: rankedOffers[0].appraisal.shortReason }
         : undefined,
     ),
     ...(incomingLoan ? buildIncomingLoanMessages(player, incomingLoan, incomingLoanFrom) : []),

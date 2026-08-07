@@ -26,3 +26,18 @@ for (const c of cases) {
   const a = appraiseMove(p, c.d, c.ctx)
   console.log(`${c.label.padEnd(28)} → ${a.ok ? '行く' : '断る'} (${a.score.toFixed(2)})  ${a.reason}`)
 }
+
+// 取り合いの一覧が「どのクラブの話か」読めるかを見る
+const fmtYen2 = (y: number) => y >= 1e8 ? `${(y/1e8).toFixed(1)}億` : `${Math.round(y/1e4)}万`
+const offers = [
+  { name: 'アムステル', price: 80_000_000, d: { clubId: 'a', tier: 6, squadRank: 4, squadSize: 26, inEcl: false, isForeign: true, region: 'europe' } },
+  { name: '札幌', price: 74_000_000, d: { clubId: 'b', tier: 8, squadRank: 23, squadSize: 27, inEcl: false, isForeign: false } },
+]
+const sp = { ...p, specialty: 'sprinter' } as unknown as Player
+console.log('')
+console.log('（代理人）2クラブから佐藤 健司選手の獲得の打診が来ています。')
+for (const o of offers) {
+  const a = appraiseMove(sp, o.d as never, { srcTier: 12 })
+  console.log(`・${o.name}（移籍金${fmtYen2(o.price)}）`)
+  console.log(`　→ ${o.name}へは${a.ok ? '行きたい' : '行かない'}（${a.shortReason}）`)
+}
