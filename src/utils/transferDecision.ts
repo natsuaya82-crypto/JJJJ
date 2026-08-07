@@ -62,6 +62,55 @@ export function hasNoPlayingTime(squadRank: number, slots: number = RUNNING_SLOT
   return squadRank > slots * 2
 }
 
+// ── 誰が市場に出るか（供給の唯一の決まり）─────────────────────
+//
+// ■なぜ要るのか
+//   「序列から落ちた人は移籍する」だけにすると、ロスター30人のクラブは毎年
+//   下半分（15人以上）がまるごと市場に出る。1クラブ23人が動く計算になり、市場が壊れる。
+//   実際に出ていくのは「走れていたのに走れなくなった」人で、かつ待っていられない人だけ。
+//
+// ■3つの条件（全部満たしたときだけ出る）
+//   1. 序列が届いていない            … hasNoPlayingTime
+//   2. 実際に走れていない            … 今季の出走率が APPEARANCE_FLOOR 未満
+//   3. 待っていられない              … SEEK_MIN_AGE 以上。若手は残ってレンタルで出番を作る
+//
+// ■「落ちた」か「続いている」か
+//   去年は走れていたのに今季走れなくなった（＝スタメンを失った）人は、その年に動く。
+//   もともと走れていない人は、若いうちは伸びしろに賭けて残り、SEEK_PATIENCE_AGE を超えたら動く。
+
+/** 「走れている」と言える出走率。今季これを下回ると出番が無い扱い */
+export const APPEARANCE_FLOOR = 0.34
+/** これ未満は移籍せず残る（出番はレンタルで作る） */
+export const SEEK_MIN_AGE = 24
+/** もともと控えの選手が「もう待てない」と判断する年齢 */
+export const SEEK_PATIENCE_AGE = 27
+
+export function seeksPlayingTime(a: {
+  /** そのクラブでの序列（1が最上位） */
+  squadRank: number
+  age: number
+  /** 今季の出走数とチームのレース数 */
+  races: number
+  teamRaces: number
+  /** 前季の出走数とチームのレース数。分からなければ省略 */
+  prevRaces?: number
+  prevTeamRaces?: number
+  /** 走れる区間数（コースによって6〜10） */
+  slots?: number
+}): boolean {
+  if (!hasNoPlayingTime(a.squadRank, a.slots)) return false
+  if (a.age < SEEK_MIN_AGE) return false
+  const rate = a.teamRaces > 0 ? a.races / a.teamRaces : 0
+  if (rate >= APPEARANCE_FLOOR) return false
+  // 前季が分からない（加入1年目・古いセーブ）なら今季だけで判断する
+  if (a.prevRaces == null || !a.prevTeamRaces) return true
+  const prevRate = a.prevRaces / a.prevTeamRaces
+  // 去年は走れていた＝スタメンを失った年。すぐ動く
+  if (prevRate >= APPEARANCE_FLOOR) return true
+  // もともと控え。伸びしろに賭けられる年齢のうちは残る
+  return a.age >= SEEK_PATIENCE_AGE
+}
+
 /** 承諾ライン。これ以上で行く */
 export const CONSENT_LINE = 0.5
 

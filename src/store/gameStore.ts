@@ -66,7 +66,7 @@ import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, RUNNING_SLOTS, hasNoPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
+import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, RUNNING_SLOTS, hasNoPlayingTime, seeksPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
 import { isOwnedBy, canBePoached, canClubApproachAgain, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
 import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
@@ -84,7 +84,7 @@ import { backfillRetiredTeamIds } from '../utils/retiredTeamBackfill'
 import { generateSponsorOffers } from '../data/sponsors'
 import { computeSeasonAwards, seasonAwardsOf } from '../utils/awards'
 import { eclHistoryOf } from '../utils/eclHistory'
-import { withCareerCounts, stripCareerForSave } from '../utils/careerStats'
+import { withCareerCounts, stripCareerForSave, buildCareerCounts } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS } from '../utils/league'
@@ -5005,6 +5005,14 @@ export const useGameStore = create<GameStore>()(
           const sellCounts: Record<string, number> = {}   // 1チームが1オフに失う人数の上限（薄くしすぎない）
           const txNeeds = new Map(cpuTeamsForTransfer.map(x => [x.team.id, new Set(cpuSpecialtyNeeds(x.team.id, playersAfterCpuTransfer))]))
 
+          // 「出場機会を求めて出ていく人」を決めるための出走数。序列だけで決めると
+          // 30人ロスターの下半分がまるごと市場に出るので、実際に走れたかを見る（utils/transferDecision）。
+          // 数はレース結果から数え直す1本（utils/careerStats）。今季と前季を別々に取る
+          const txThisSeason = buildCareerCounts([state.currentSeason])
+          const txPrevSeason = buildCareerCounts([state.pastSeasons[state.pastSeasons.length - 1]])
+          const txThisRaces = state.currentSeason.races.filter(r => r.results).length
+          const txPrevRaces = (state.pastSeasons[state.pastSeasons.length - 1]?.races ?? []).filter(r => r.results).length
+
           // 1周につき1人だけ買う。以前は1チームが上限まで買い切ってから次に回していたので、
           // 市場の良い選手が予算の多い上位チームに固まっていた（utils/roundRobin.ts）
           const buyOnePlayer = ({ team: buyTeam, tier: buyTier }: typeof cpuTeamsForTransfer[number]): boolean => {
@@ -5032,12 +5040,17 @@ export const useGameStore = create<GameStore>()(
                 // isOwnedBy でレンタル中の選手を外す。ここが抜けていたため、貸し出した選手が
                 // オフシーズンに貸出先の名簿として売られ、保有元に何も残らず消えていた
                 .filter(p => isOwnedBy(p, sellTeamId) && !cpuTransferIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
-                // 余剰＝弱い or 人数過多 に加えて、**序列から落ちて出番が無い選手**も対象にする。
-                // 判定は utils/transferDecision の hasNoPlayingTime 1本（海外の序列陥落と同じ入口）。
-                // これが無いと国内は「弱いから売る」しか起きず、1部の控えベテランが動かなかった
+                // 余剰＝弱い or 人数過多 に加えて、**出場機会を求めて出ていく選手**も対象にする。
+                // 判定は utils/transferDecision の seeksPlayingTime 1本（海外の序列陥落と同じ入口）。
+                // 序列だけを見ていたころは30人ロスターの下半分が毎年まるごと市場に出ていたので、
+                // 「今季どれだけ走れたか」「去年は走れていたか」「待っていられる年齢か」まで見る
                 .map(p => {
                   const rank = sellRoster.findIndex(x => x.id === p.id) + 1
-                  const benched = hasNoPlayingTime(rank)
+                  const benched = seeksPlayingTime({
+                    squadRank: rank, age: p.age,
+                    races: txThisSeason.get(p.id)?.totalRaces ?? 0, teamRaces: txThisRaces,
+                    prevRaces: txPrevSeason.get(p.id)?.totalRaces, prevTeamRaces: txPrevRaces,
+                  })
                   return { p, rank, benched, sellTeamId, surplus: ovr(p) < sellMinOvr || sellRoster.length > 21 || benched }
                 })
             })
