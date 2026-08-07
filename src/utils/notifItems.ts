@@ -30,6 +30,11 @@ export const EXPIRED_NEG_TEXT: Record<ExpiredNegKind, { title: (name: string) =>
   trade: { title: n => `${n}のトレードは成立しませんでした`, note: '打診のあとで状況が変わりました' },
   // 同じくトレードだが、こちらは今の評価だと釣り合わなくなっていた場合
   trade_unfair: { title: n => `${n}のトレードは成立しませんでした`, note: '今の評価では釣り合いません' },
+  // 「譲る」と返事をしたのに、次のレースまでに本人が翻意した（他クラブの上乗せを含めても納得しなかった）。
+  // 以前は決着のときに何も出さずオファーだけ消していたので、返事をしたのに音沙汰なしに見えていた
+  sale_refused: { title: n => `${n}選手の移籍は成立しませんでした`, note: '本人が移籍を望まなかったため、残留します' },
+  // 同じく決着時。放出するとロスター下限を割るので成立しなかった
+  sale_roster_min: { title: n => `${n}選手の移籍は成立しませんでした`, note: '在籍人数が下限を下回るため放出できません' },
 }
 // 古いセーブには種類が入っていない。元々この箱は入札ぶんだけだったので入札として扱う
 export function expiredNegText(kind: ExpiredNegKind | undefined) {
@@ -88,7 +93,11 @@ export function collectNotifications(input: NotifInput) {
   // 移籍金つきのオファーと、フリー移籍の接触（金額0＝GMは関与できない情報通知）は別扱い
   const allIncoming = currentSeason.incomingOffers ?? []
   const seenFreeContactIds = currentSeason.seenFreeContactIds ?? []
-  const incomingOffers = allIncoming.filter(o => o.offeredPrice > 0 && isMine(o.playerId))
+  // 「譲ります」と返事済みの選手は数えない。返事をしても他クラブの上乗せを受けるため
+  // オファーの札は次のレースまで残る。そのまま数えていたので、返事をしたのにベルが
+  // 減らず、押すと同じチャットに戻る（＝何度でも返事ができるように見える）状態だった
+  const answeredSaleId = currentSeason.pendingSale?.playerId
+  const incomingOffers = allIncoming.filter(o => o.offeredPrice > 0 && isMine(o.playerId) && o.playerId !== answeredSaleId)
   // 数えるのは選手の数。5クラブが1人を取り合っても返事は1回なので1件
   const incomingOfferPlayers = offersByPlayer(incomingOffers)
   // 行き先が決まらなかった退団予定の選手（FAで出すか残留させるかの返事待ち）。

@@ -1201,8 +1201,8 @@ export const useGameStore = create<GameStore>()(
             const winner = ranked.find(r => r.appraisal.ok)?.offer.id ?? ps.offerId
             set(st => ({ currentSeason: { ...st.currentSeason, pendingSale: undefined } }))
             const outcome = get().acceptIncomingOffer(winner, true)
+            const p = get().players.find(x => x.id === ps.playerId)
             if (outcome === 'sold' && winner !== ps.offerId) {
-              const p = get().players.find(x => x.id === ps.playerId)
               const winnerId = ranked.find(r => r.offer.id === winner)?.offer.fromTeamId
               const winnerName = get().teams.find(t => t.id === winnerId)?.shortName
                 ?? findClub(get().teams, get().foreignLeagues, winnerId)?.shortName
@@ -1211,6 +1211,20 @@ export const useGameStore = create<GameStore>()(
                 headline: auctionSettledHeadline({ playerName: p.name, winnerName }),
                 category: 'trade' as const, relatedIds: [p.id],
               }, ...st.currentSeason.newsFeed].slice(0, 30) } }))
+            }
+            // 成立しなかったときは黙って消さず、必ず理由を通知に残す。
+            // ここで何も出していなかったので、「譲ります」と返事をしたのに音沙汰が無く、
+            // 選手だけ残っている状態になっていた（GMからは何が起きたか分からない）
+            if (outcome !== 'sold' && p) {
+              const kind = outcome === 'roster_min' ? 'sale_roster_min' as const : 'sale_refused' as const
+              set(st => ({ currentSeason: { ...st.currentSeason,
+                // 残った札は全部たたむ。残すと次のレースでまた同じ返事を求められる
+                incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.playerId !== ps.playerId),
+                expiredNegotiations: [
+                  ...(st.currentSeason.expiredNegotiations ?? []),
+                  { id: `sale_${ps.playerId}_${st.currentSeason.currentRaceIndex}`, playerId: p.id, playerName: p.name, kind },
+                ],
+              } }))
             }
           }
         }

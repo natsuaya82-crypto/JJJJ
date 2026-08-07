@@ -387,7 +387,12 @@ function ChatView({
   // 相手クラブへの打診に返事をした直後（結果を見せてから閉じる）。
   // 買い取りとレンタルは同時に来るので別々に持つ。1つにまとめていたときは、
   // レンタルに返事をした瞬間に買い取りの返事ボタンまで消えていた
-  const [settledOffer, setSettledOffer] = useState(false)
+  const [settledOfferLocal, setSettledOffer] = useState(false)
+  // 「譲ります」と返事をしたあとは、行き先が決まるまで返事のボタンを出さない。
+  // 返事の記録は store の pendingSale が持っている（オファーの札は上乗せを受けるため残る）。
+  // ここを画面の state だけで持っていたので、**一度閉じて開き直すと同じ返事ボタンが戻り**、
+  // 何度でも返事ができるように見えていた
+  const settledOffer = settledOfferLocal || currentSeason.pendingSale?.playerId === player.id
   const [settledLoan, setSettledLoan] = useState(false)
   const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
   const [offerYears, setOfferYears] = useState(2)
