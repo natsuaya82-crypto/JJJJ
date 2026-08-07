@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, divisionTag, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, type NewsItem } from '../utils/newsItems'
+import { clubLabel, divisionTag, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -6799,7 +6799,47 @@ export const useGameStore = create<GameStore>()(
               for (const rid of ek.runnerIds) reps.push({ playerId: rid, year, nat: ek.nat, label: '駅伝', rank: ek.rank })
             }
           }
-          return { worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])], worldRepresentatives: reps }
+          // 世界選手権はニュースに1件も出ていなかった（大陸予選の閉幕だけ）。
+          // 本戦の駅伝と個人種目の結果、日本代表に誰が入ったかを出す
+          const wcNews: NewsItem[] = []
+          if (result.kind === 'main') {
+            for (const ek of result.meet.ekiden.filter(e => e.rank === 1)) {
+              const jp = result.meet.ekiden.find(e => e.nat === 'JPN')?.rank
+              wcNews.push({
+                date: `${year}-02-15`,
+                headline: worldChampHeadline({ year, eventName: '駅伝', winner: natLabel(ek.nat), japanRank: jp }),
+                category: 'race', relatedIds: [], major: true,
+              })
+            }
+            const EVN: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
+            for (const ir of result.meet.individuals) {
+              const top = ir.placings.find(x => x.rank === 1)
+              const jp = ir.placings.find(x => x.nat === 'JPN')?.rank
+              if (top) wcNews.push({
+                date: `${year}-02-15`,
+                headline: worldChampHeadline({ year, eventName: EVN[ir.event] ?? ir.event, winner: natLabel(top.nat), japanRank: jp }),
+                category: 'race', relatedIds: [], major: false,
+              })
+            }
+            // 日本代表の顔ぶれ。自チームから選ばれていたら大ニュース
+            const jpIds = [...new Set(reps.filter(r => r.year === year && r.nat === 'JPN').map(r => r.playerId))]
+            if (jpIds.length > 0) {
+              const names = jpIds.map(id => state.players.find(p => p.id === id)?.name ?? '').filter(Boolean)
+              const mine = jpIds.filter(id => state.players.find(p => p.id === id)?.teamId === state.playerTeamId).length
+              wcNews.push({
+                date: `${year}-02-10`,
+                headline: nationalCallUpHeadline({ year, names, mineCount: mine }),
+                category: 'race', relatedIds: jpIds, major: mine > 0,
+              })
+            }
+          }
+          return {
+            worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])],
+            worldRepresentatives: reps,
+            currentSeason: wcNews.length > 0
+              ? { ...state.currentSeason, newsFeed: [...wcNews, ...state.currentSeason.newsFeed].slice(0, 30) }
+              : state.currentSeason,
+          }
         })
       },
 
