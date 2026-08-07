@@ -5,7 +5,10 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { teamHistoryOf } from '../../utils/teamHistory'
 // 海外クラブの本拠地・創設年・監督名（クラブIDから毎回同じ値を出す）
-import { foreignClubCity, foreignClubFounded, foreignClubGm, foreignClubBudget, foreignClubFacilities } from '../../utils/foreignClubProfile'
+import { foreignClubCity, foreignClubFounded, foreignClubGm } from '../../utils/foreignClubProfile'
+// 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
+import { tierBudget } from '../../utils/clubTier'
+import { facilitiesOf, FACILITY_LABEL } from '../../utils/facilities'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { useEclHistory } from '../../lib/useEclHistory'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -205,14 +208,15 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     : `${domesticTeam!.region} · ${domesticTeam!.city}`
   const infoFounded = isForeign ? String(foreignClubFounded(club!)) : String(domesticTeam!.founded)
   const infoGm = isForeign ? foreignClubGm(club!) : domesticTeam!.gmName
-  // 海外クラブの規模（年間予算と施設）。国内の他チームは同じリーグの相手なので出さない
-  const foreignBudget = isForeign ? foreignClubBudget(club!, rank, curForeignStandings.length || 20) : 0
-  const foreignFac = isForeign ? foreignClubFacilities(club!) : null
+  // クラブ規模（年間予算と施設）。**国内も海外も同じ出どころ**（格1本・施設1本）。
+  // 以前は海外クラブだけ別の式で、しかも施設はクラブIDのハッシュから作った飾りだった
+  const foreignBudget = tierBudget(isForeign ? club! : domesticTeam!)
+  const foreignFac = facilitiesOf(isForeign ? club! : domesticTeam!)
   const FAC_LABEL: { key: 'trainingCamp' | 'medicalCenter' | 'scoutOffice' | 'tacticsRoom'; label: string; color: string }[] = [
-    { key: 'trainingCamp', label: '合宿', color: '#4CAF50' },
-    { key: 'medicalCenter', label: '医療', color: '#4FC3F7' },
-    { key: 'scoutOffice', label: 'スカウト', color: '#FF9800' },
-    { key: 'tacticsRoom', label: '戦術', color: '#7986CB' },
+    { key: 'trainingCamp', label: FACILITY_LABEL.trainingCamp, color: '#4CAF50' },
+    { key: 'medicalCenter', label: FACILITY_LABEL.medicalCenter, color: '#4FC3F7' },
+    { key: 'scoutOffice', label: FACILITY_LABEL.scoutOffice, color: '#FF9800' },
+    { key: 'tacticsRoom', label: FACILITY_LABEL.tacticsRoom, color: '#7986CB' },
   ]
   const infoChampions = isForeign
     ? (titles[0]?.count ?? 0)

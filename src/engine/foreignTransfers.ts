@@ -13,7 +13,8 @@ import { allForeignClubs, leagueIdByClub, isEliteLeague } from '../utils/clubs'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
 import { movePlayer } from '../utils/movePlayer'
 // 海外クラブの年間予算（クラブIDとリーグから毎回同じ額が出る）
-import { foreignClubBudget, foreignMinOvr, effectiveOvr } from '../utils/foreignClubProfile'
+import { foreignMinOvr, effectiveOvr } from '../utils/foreignClubProfile'
+import { tierBudget } from '../utils/clubTier'
 
 const FOREIGN_ROSTER_MIN = 18  // 海外クラブのロスター下限（絶対固定）。上限は ROSTER_MAX(30)
 
@@ -229,7 +230,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // 海外クラブにも予算を持たせる。これが無いと海外側だけ無限にお金を払えてしまい、
   // 日本の主力がいくらでも引き抜かれる。額はリーグの規模で決まる（utils/foreignClubProfile.ts）
   const fBudget: Record<string, number> = {}
-  for (const c of foreignClubs) fBudget[c.id] = foreignClubBudget(c)
+  // 予算は格1本（utils/clubTier）。海外だけ別の式を持たない
+  for (const c of foreignClubs) fBudget[c.id] = tierBudget(c)
 
   const nameById = new Map<string, string>()
   for (const t of teams) nameById.set(t.id, t.shortName)

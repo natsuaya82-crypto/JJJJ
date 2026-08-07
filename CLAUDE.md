@@ -49,6 +49,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
 | `src/engine/backgroundRace.ts` | **裏で走るレースの唯一の入口**。`runBackgroundRace`（裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここを通る）。区間への並べ方は `raceEngine` の `bgLineup` 1本 |
 | `src/data/courseNames.ts` | **コースの呼び名**。中身は25本のまま、名前だけ地域ごと（国内／アジア／アフリカ／ヨーロッパ／アメリカ）。`courseNameFor` / `localizeRace` |
+| `src/utils/facilities.ts` | **施設**。レベル（自分で建てたぶん or 格から）と維持費。`facilitiesOf` / `facilityUpkeepOf` / `FACILITY_UPKEEP_PER_LEVEL` |
+| `src/utils/chatLines.ts` | 承諾したあとの本人の返事。**ボタンで足すときも作り直すときも同じ文面** |
 | `src/utils/raceHistory.ts` | **走ったレースの取り出し**。`ranRaces`（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会をリーグ名つきで返す）。同じ駅伝名でも部が違えば別の記録 |
 | `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
@@ -224,7 +226,13 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 ### 予算は格1本
 
     収入 = 格の年間予算 + スポンサー + 区間賞 + 目標達成ボーナス
-    支出 = 総年俸 + 運営費(総年俸の1割) + 出来高ボーナス
+    支出 = 総年俸 + 運営費(総年俸の1割) + 出来高ボーナス + 施設の維持費
+
+**施設維持費は一度廃止したが戻しました。** 無いと年俸が年間予算の54%しか使われず、
+232クラブ全部が毎年「年間予算の4割」を貯め込みます（半年で移籍金の上限に届く＝資金が実質無制限）。
+額は `utils/facilities.ts` の `FACILITY_UPKEEP_PER_LEVEL` 1本（レベル1つにつき2500万／年 × 4施設）。
+**施設のレベルは自チームだけが自分で建て、それ以外は格から出ます**（格1→Lv5／格20→Lv1）。
+以前は自チーム・国内CPU・海外で3通りあり、海外はクラブIDのハッシュから作った飾りでした。
 
 `src/data/economy.ts` の `computeNextSeasonBudget` 1本。自チームもCPUも海外も同じです。
 **次のものは廃止済みです。復活させないこと。**
@@ -237,7 +245,6 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 - 連続赤字のグラント減額 — 減るのは収入なのに脱出手段は年俸削減だけの一方通行。
   赤字のペナルティは補強禁止だけ
 - 育成義務ペナルティ（在籍22人以下で-20%）
-- 施設維持費（施設レベルそのものは残る）
 - `generateCpuRosters` の `RANK_UP`（国内CPUのランクを一段引き上げ）
 
 ### 値段も1本

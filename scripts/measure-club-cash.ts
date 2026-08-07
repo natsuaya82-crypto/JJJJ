@@ -3,7 +3,7 @@
  *   npx esbuild --bundle --platform=node --format=cjs scripts/measure-club-cash.ts --outfile=/tmp/mcc.cjs && node /tmp/mcc.cjs
  *
  * 収入 = 格の年間予算 + スポンサー + 区間賞 + 目標達成ボーナス
- * 支出 = 総年俸 + 運営費(年俸の1割) + 出来高ボーナス
+ * 支出 = 総年俸 + 運営費(年俸の1割) + 出来高ボーナス + 施設の維持費
  * （data/economy.ts の computeNextSeasonBudget）
  *
  * 見たいのは「1年でいくら余るか」。余りが年間予算に対して大きいと、
@@ -15,6 +15,7 @@ import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { tierOf, tierOfClubId, tierBudget, tierSponsorIncome, operatingCostOf, TIER_BUDGET } from '../src/utils/clubTier'
 import { transferCapOf } from '../src/data/economy'
+import { facilityUpkeepOf, FACILITY_UPKEEP_PER_LEVEL } from '../src/utils/facilities'
 import { belongsToClub } from '../src/utils/rosterSync'
 import { divisionOf } from '../src/utils/league'
 import type { Player, Team } from '../src/types'
@@ -27,7 +28,7 @@ const { players: foreign, updatedLeagues } = generateForeignLeaguePlayers(FOREIG
 const oku = (n: number) => (n / 1e8).toFixed(2)
 const salaryOf = (roster: Player[]) => roster.reduce((s, p) => s + (p.contract?.annualSalary ?? 0), 0)
 
-type Row = { name: string; tier: number; budget: number; salary: number; sponsor: number; surplus: number; cap: number }
+type Row = { name: string; tier: number; budget: number; salary: number; sponsor: number; surplus: number; cap: number; upkeep: number }
 const rows: Row[] = []
 
 for (const t of teams) {
@@ -36,8 +37,9 @@ for (const t of teams) {
   const salary = salaryOf(domestic.filter(p => p.teamId === t.id))
   const sponsor = tierSponsorIncome(tier)
   // スポンサーは3枠すべて埋めた場合の上限。埋まっていない年もあるので上振れ側の見積り
-  const surplus = budget + sponsor - salary - operatingCostOf(salary)
-  rows.push({ name: t.shortName, tier, budget, salary, sponsor, surplus, cap: transferCapOf(budget) })
+  const upkeep = facilityUpkeepOf(t)
+  const surplus = budget + sponsor - salary - operatingCostOf(salary) - upkeep
+  rows.push({ name: t.shortName, tier, budget, salary, sponsor, surplus, cap: transferCapOf(budget), upkeep })
 }
 for (const l of updatedLeagues) {
   for (const c of l.clubs) {
@@ -45,15 +47,17 @@ for (const l of updatedLeagues) {
     const budget = TIER_BUDGET[tier]
     const salary = salaryOf(foreign.filter(p => belongsToClub(p, c.id)))
     const sponsor = tierSponsorIncome(tier)
-    const surplus = budget + sponsor - salary - operatingCostOf(salary)
-    rows.push({ name: c.shortName, tier, budget, salary, sponsor, surplus, cap: transferCapOf(budget) })
+    const upkeep = facilityUpkeepOf(c)
+    const surplus = budget + sponsor - salary - operatingCostOf(salary) - upkeep
+    rows.push({ name: c.shortName, tier, budget, salary, sponsor, surplus, cap: transferCapOf(budget), upkeep })
   }
 }
 
 console.log(`クラブ ${rows.length}（国内${teams.length} / 海外${rows.length - teams.length}）`)
+console.log(`施設の維持費: レベル1つにつき ${(FACILITY_UPKEEP_PER_LEVEL / 1e8).toFixed(2)}億／年 × 4施設`)
 console.log('')
 console.log('■ 格ごとの1年の収支（スポンサー3枠を全部埋めた場合＝上振れ側）')
-console.log('  格  クラブ数  年間予算   スポンサー  総年俸    運営費   1年の余り   移籍上限')
+console.log('  格  クラブ数  年間予算   スポンサー  総年俸    運営費   施設維持費  1年の余り   移籍上限')
 const byTier = new Map<number, Row[]>()
 for (const r of rows) (byTier.get(r.tier) ?? byTier.set(r.tier, []).get(r.tier)!).push(r)
 for (const tier of [...byTier.keys()].sort((a, b) => a - b)) {
@@ -63,6 +67,7 @@ for (const tier of [...byTier.keys()].sort((a, b) => a - b)) {
     `  ${String(tier).padStart(2)}  ${String(rs.length).padStart(6)}  `
     + `${oku(avg(r => r.budget)).padStart(7)}億  ${oku(avg(r => r.sponsor)).padStart(7)}億  `
     + `${oku(avg(r => r.salary)).padStart(7)}億  ${oku(avg(r => operatingCostOf(r.salary))).padStart(6)}億  `
+    + `${oku(avg(r => r.upkeep)).padStart(8)}億  `
     + `${oku(avg(r => r.surplus)).padStart(8)}億  ${oku(avg(r => r.cap)).padStart(6)}億`,
   )
 }

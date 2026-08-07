@@ -1,8 +1,7 @@
-import type { Facilities, ForeignClub, Player } from '../types'
+import type { ForeignClub, Player } from '../types'
 import { ovr } from './playerUtils'
 import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 import { foreignClubGmName } from '../engine/playerGenerator'
-import { isEliteLeague } from './clubs'
 
 // ============================================================================
 // 海外クラブを国内チームと同じ作りにするための「クラブ情報」。
@@ -42,57 +41,15 @@ export function foreignClubGm(club: Pick<ForeignClub, 'id' | 'country'>): string
 }
 
 // リーグごとの予算の基準額。
-// 国内(JPEL)の1位が5.2億なので、海外はどのリーグもそれ以上。
-// 4大リーグ（北米・東アフリカ・アフリカ北南・欧州西南）が一番大きい。
-// ここを1本の表にしておかないと、順位別の表（data/economy.ts の RANK_BUDGET）を
-// そのまま流用することになり、9リーグぶん＝10クラブが「1位の金額」を持ってしまう。
-export const FOREIGN_LEAGUE_BUDGET_BASE: Record<string, number> = {
-  north_america: 1_150_000_000,
-  africa_east: 1_150_000_000,
-  europe_ws: 1_100_000_000,
-  africa_ns: 1_050_000_000,
-  europe_ne: 900_000_000,
-  asia_league: 880_000_000,
-  south_america: 850_000_000,
-  oceania: 850_000_000,
-  central_america: 800_000_000,
-}
-const FOREIGN_BUDGET_DEFAULT = 850_000_000
-
-// 前季順位ぶんの増減。1位で+15%、最下位で-12%（国内の1位/最下位の開きと同じくらい）。
-// 順位が分からないとき（rank<=0）は基準額のまま。
-function rankFactor(rank: number, clubCount: number): number {
-  if (rank <= 0 || clubCount <= 1) return 1
-  const t = (rank - 1) / (clubCount - 1)   // 1位=0 〜 最下位=1
-  return 1.15 - t * 0.27
-}
-
-// クラブの年間予算。
-export function foreignClubBudget(
-  club: Pick<ForeignClub, 'id' | 'leagueId'>,
-  rank = 0,
-  clubCount = 20,
-): number {
-  const base = FOREIGN_LEAGUE_BUDGET_BASE[club.leagueId] ?? FOREIGN_BUDGET_DEFAULT
-  // クラブごとの色づけ（±4%）。同じリーグの全クラブが同じ額にならないように
-  const jitter = 0.96 + ((hashId(club.id) % 9) / 100)
-  return Math.round((base * rankFactor(rank, clubCount) * jitter) / 1_000_000) * 1_000_000
-}
-
-// 施設のレベル（各Lv1〜5）。強いリーグほど高く、同じリーグの中でも差が出る。
-// 国内は初期が順位連動で1〜4なので、海外は2〜5にして「格上」を表す。
-
-export function foreignClubFacilities(club: Pick<ForeignClub, 'id' | 'leagueId'>): Facilities {
-  const h = hashId(club.id)
-  const base = isEliteLeague(club.leagueId) ? 3 : 2
-  const lv = (shift: number) => Math.min(5, base + ((h >>> shift) % 3))
-  return {
-    trainingCamp: lv(3),
-    medicalCenter: lv(9),
-    scoutOffice: lv(15),
-    tacticsRoom: lv(21),
-  }
-}
+// ※ ここには海外クラブ専用の「年間予算」と「施設レベル」があったが消した。
+//
+//   年間予算  … リーグ別の基準額 × 前季順位 × クラブIDのハッシュ、という別の式だった。
+//               予算は格1本（utils/clubTier の tierBudget）と決めてあるのに、
+//               **海外クラブが選手を買うときの資金がこの古い式から出ていた**
+//               （engine/foreignTransfers）。格を上げても買えるようにならず、
+//               画面に出ていた「年間予算 9.9億」も格と食い違う別の数字だった。
+//   施設レベル … クラブIDのハッシュから作った飾り。保存も成長もせず、何にも効いていなかった。
+//               施設は utils/facilities の1本（国内CPUも海外も同じ決まり）。
 
 // ── そのリーグが受け入れる選手の水準 ────────────────────────
 //

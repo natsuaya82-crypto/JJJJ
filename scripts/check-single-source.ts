@@ -234,6 +234,19 @@ RULES.push({
   fix: 'utils/chatLines.ts の overseasApprovedLine / retireApprovedLine を使う',
 })
 
+// 施設のレベルは「自分で建てたぶん」か「格から出す」かの2択で、判定は utils/facilities の1本。
+// 以前は自チーム・国内CPU・海外クラブで3通りあり、海外はクラブIDのハッシュから作った
+// 飾り（保存も成長もせず、何にも効かない）だった。画面には Lv4 と出るのに中身が無かった。
+RULES.push({
+  name: '施設のレベルを自分で組み立てている',
+  pattern: /trainingCamp:\s*\w/,
+  allow: [
+    'src/utils/facilities.ts',   // 唯一の決まり
+    'src/types/index.ts',
+  ],
+  fix: 'utils/facilities.ts の facilitiesOf を使う（自分で建てたぶんが無ければ格から出る）',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

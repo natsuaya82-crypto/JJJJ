@@ -31,14 +31,6 @@ export function domesticClubsComplete(teams: readonly { id: string }[]): boolean
 }
 
 /**
- * 施設の初期レベル。新規データの作り方（gameStore の初期 teams）と同じ式。
- * 下部リーグは initialRank が21以降なので全員Lv1になる
- */
-function initialFacilityLevel(initialRank: number): number {
-  return initialRank <= 5 ? 4 : initialRank <= 10 ? 3 : initialRank <= 15 ? 2 : 1
-}
-
-/**
  * 足りない国内クラブを補い、部をデータどおりに並べ直す。
  *
  * 部を並べ直すのは、補う時点で「降格先が存在しないのに落ちた」チームがいるため。
@@ -58,15 +50,13 @@ export function backfillDomesticClubs(params: {
   if (missing.length === 0) return { teams, players, addedTeams: [] }
 
   // 補うクラブの器。予算は格から引く（tierBudget）。データの finance.budget は使わない
-  const seeded: Team[] = missing.map(t => {
-    const lv = initialFacilityLevel(t.initialRank)
-    return {
-      ...t,
-      roster: { main: [] },
-      facilities: { trainingCamp: lv, medicalCenter: lv, scoutOffice: lv, tacticsRoom: lv },
-      finance: { ...t.finance, budget: tierBudget(t) },
-    }
-  })
+  // 施設は持たせない。自チーム以外のレベルは格から出す（utils/facilities の facilitiesOf）。
+  // 初期順位から別の式で焼き込んでいたので、格が動いても施設だけ初期値のまま残っていた
+  const seeded: Team[] = missing.map(t => ({
+    ...t,
+    roster: { main: [] },
+    finance: { ...t.finance, budget: tierBudget(t) },
+  }))
 
   // 選手は今の年で作る（生成4経路と同じ buildRatingsForRank を通る）。
   // 選手IDは `ai-<teamId>-<連番>` なので、そのクラブが居なかったセーブとは衝突しない

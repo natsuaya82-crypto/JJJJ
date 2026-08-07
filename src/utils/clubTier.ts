@@ -231,7 +231,7 @@ export function tierFromForeignRank(leagueId: string, rank: number, clubCount: n
 
 // ── 読み口 ───────────────────────────────────────────────────────
 
-type TieredTeam = { id?: string; tier?: ClubTier; initialRank?: Team['initialRank'] }
+export type TieredTeam = { id?: string; tier?: ClubTier; initialRank?: Team['initialRank'] }
 
 /**
  * そのクラブの格。国内クラブも海外クラブも同じ入口。

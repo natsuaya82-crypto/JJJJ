@@ -7,11 +7,14 @@
 //   RANK_BUDGET は1〜20位ぶんしか無いので52チーム制では2部と3部が同額になっていた。
 //   いまは utils/clubTier.ts の tierBudget(team) だけが収入の元。順位は「翌年の格」を通してのみ効く。
 //
-// ■ 支出は 年俸 ＋ 運営費（年俸の1割）だけ
-//   施設維持費は廃止（施設レベル自体は残る）。
+// ■ 支出は 年俸 ＋ 運営費（年俸の1割） ＋ 施設の維持費
+//   施設維持費は一度廃止したが戻した。無いと年俸が年間予算の54%しか使われず、
+//   232クラブ全部が毎年「年間予算の4割」を貯め込む状態になっていた（半年で移籍金の上限に届く）。
+//   維持費はレベルに比例するので、格の低いクラブは高い施設を維持できない。
+//   額は utils/facilities の FACILITY_UPKEEP_PER_LEVEL 1本。
 //
 // 収入: 格の年間予算 ＋ スポンサー ＋ 目標達成ボーナス
-// 支出: 総年俸 ＋ 運営費(総年俸×10%) ＋ 出来高ボーナス
+// 支出: 総年俸 ＋ 運営費(総年俸×10%) ＋ 出来高ボーナス ＋ 施設の維持費
 
 import { operatingCostOf } from '../utils/clubTier'
 export { operatingCostOf, OPERATING_COST_RATE } from '../utils/clubTier'
@@ -65,9 +68,10 @@ export function computeNextSeasonBudget(args: {
   objBudgetBonus: number
   bonusPayout: number      // 出来高ボーナスの支払い
   salaryTotal: number      // ロスター総年俸
+  facilityUpkeep?: number  // 施設の維持費（utils/facilities の facilityUpkeepOf）。全クラブが払う
 }): number {
   const income = args.baseGrant + args.sponsorAnnual + (args.raceIncome ?? 0) + args.objBudgetBonus
-  const expenses = args.bonusPayout + args.salaryTotal + operatingCostOf(args.salaryTotal)
+  const expenses = args.bonusPayout + args.salaryTotal + operatingCostOf(args.salaryTotal) + (args.facilityUpkeep ?? 0)
   return Math.max(DEFICIT_LIMIT, args.prevBalance + income - expenses)
 }
 

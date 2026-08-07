@@ -51,6 +51,7 @@ import { rivalClubsFor } from '../utils/transferRivals'
 import { worldRacePlans, worldRaceName, worldRace } from '../utils/worldCourses'
 import { courseRegionOfNation } from '../data/courseNames'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
+import { facilityUpkeepOf } from '../utils/facilities'
 import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, transferCapOf, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize, rosterCapOf } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
@@ -720,17 +721,14 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     pastSeasons: [],
     growthReport: null,
     seasonBudgetNotice: null,
-    // 初期予算はクラブの格から算出。teams.tsの旧ハードコード値に依存しない
-    // 初期施設もinitialRank連動（1-5位:各Lv4=維持費8000万/年、6-10位:Lv3=6000万、11-15位:Lv2=4000万、16-20位:Lv1=2000万）
-    teams: ALL_TEAMS.map(t => {
-      const facLv = t.initialRank <= 5 ? 4 : t.initialRank <= 10 ? 3 : t.initialRank <= 15 ? 2 : 1
-      return {
-        ...t,
-        roster: { main: [] },
-        facilities: { trainingCamp: facLv, medicalCenter: facLv, scoutOffice: facLv, tacticsRoom: facLv },
-        finance: { ...t.finance, budget: tierBudget(t) },
-      }
-    }),
+    // 初期予算はクラブの格から算出。teams.tsの旧ハードコード値に依存しない。
+    // 施設は焼き込まない。自チーム以外のレベルは格から出す（utils/facilities の facilitiesOf）。
+    // 自チームは 0 から自分で建てる（startSetup で facilities: {} を入れる）
+    teams: ALL_TEAMS.map(t => ({
+      ...t,
+      roster: { main: [] },
+      finance: { ...t.finance, budget: tierBudget(t) },
+    })),
     players: basePlayers,
     saveTimestamp: new Date().toISOString(),
     version: '0.1.0',
@@ -5997,6 +5995,7 @@ export const useGameStore = create<GameStore>()(
             objBudgetBonus,
             bonusPayout: bonusTotalPayout,
             salaryTotal: playerSalaryTotal,
+            facilityUpkeep: facilityUpkeepOf(state.teams.find(t => t.id === state.playerTeamId)),
           })
           // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。
           // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
@@ -6042,6 +6041,8 @@ export const useGameStore = create<GameStore>()(
               objBudgetBonus: 0,
               bonusPayout: 0,
               salaryTotal: sal,
+              // 施設の維持費は全クラブが払う（自チームと同じ1本。レベルは格から出る）
+              facilityUpkeep: facilityUpkeepOf({ ...t, tier: cpuTier }),
             })
             // 自チームと同じ判定：精算後の残高がマイナスなら連続赤字+1、プラスなら0
             const cpuStreak = b < 0 ? prevStreak + 1 : 0
