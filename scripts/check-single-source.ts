@@ -106,6 +106,15 @@ RULES.push({
   fix: 'playerUtils の racesConsumed（ECL・記録会も1本）で数える',
 })
 
+// 「このシーズンは記録を全部残してある年か」を、呼ぶ側で自分で判定しないこと。
+// 年で分けたりフィールドの有無で分けたりすると、通算出走数が経路によって食い違う。
+RULES.push({
+  name: '記録の有無の判定を自分で書いている',
+  pattern: /recordsFull\s*(===|!==|\?\?|&&|\|\|)|\.recordsFull\b(?!\s*=[^=])/,
+  allow: ['src/utils/raceRecord.ts', 'src/types/index.ts'],
+  fix: 'raceRecord.ts の seasonHasFullRecords を使う',
+})
+
 // ★走行記録の一本化が終わったら、この見張りを有効にすること（いまは40か所が該当）。
 //   裏の部と海外だけ結果を捨てて出走数の集計に置き換えているのが、
 //   「1部が試合されていない」「海外クラブを引き継ぐと過去が無い」の原因。

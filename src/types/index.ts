@@ -619,6 +619,12 @@ export type Season = {
    * 25コースのうちファイナル3本は部ごとに固定、残り22本を3部で取り合う（重複なし）。
    */
   divisionRaces?: Record<number, Race[]>
+  /**
+   * このシーズンは全大会の走行記録を残してあるか（utils/raceRecord）。
+   * 目印が無い年は、記録を残していなかった年＝古い集計で読む。
+   * **新しいシーズンから立てる。すでに遊んだ年には後から立てないこと**（記録が存在しないため）
+   */
+  recordsFull?: boolean
   collegeRaces: Race[]
   draftPool: CollegeRunner[]
   scoutPoints: number

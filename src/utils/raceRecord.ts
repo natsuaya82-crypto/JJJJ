@@ -73,3 +73,36 @@ export type SeasonArchive = {
 export function archiveKeyOf(year: number): string {
   return `jpel-archive-${year}`
 }
+
+// ── 既存データを壊さないための境目 ─────────────────────────────
+//
+// ■原則
+//   **すでに遊んだシーズンは一切さわらない。** 走行記録を残していなかった年は、
+//   あとから作れない（結果が存在しない）。無理に作れば嘘の記録になる。
+//   新しい数え方は**新しいシーズンから**動かし、古い年は今までどおり
+//   出走数の集計（awayAppearances / foreignAppearances）で読む。
+//
+// ■そのための目印
+//   シーズンごとに「このシーズンは走行記録を全部残してあるか」を持つ。
+//   読む側はこれを見て、数え方を選ぶ。**判断はここ1本**。
+//   呼ぶ側で「年で分ける」「フィールドの有無で分ける」と書かないこと。
+//   （片方だけ直すと、通算出走数が経路によって食い違う）
+//
+// ■安全網
+//   1. 目印が無いシーズンは絶対に新しい数え方をしない（古い集計をそのまま使う）
+//   2. 書き出しは「書く → 読み戻して一致を確認 → そのとき初めて本体から外す」
+//      確認できなければ本体に残したままにする（消えるより重い方がまし）
+//   3. 古い集計は消さない。新しい年で使わなくなるだけ
+
+/** そのシーズンが「走行記録を全部残してある」年か。数え方の分岐はここだけ */
+export function seasonHasFullRecords(season: { recordsFull?: boolean } | undefined): boolean {
+  return season?.recordsFull === true
+}
+
+/**
+ * 書き出したものを読み戻して、中身が一致するかを確かめる。
+ * 一致しなければ呼ぶ側は**本体から外さない**こと（安全網2）。
+ */
+export function archiveMatches(written: string, readBack: string | null): boolean {
+  return typeof readBack === 'string' && readBack.length === written.length && readBack === written
+}
