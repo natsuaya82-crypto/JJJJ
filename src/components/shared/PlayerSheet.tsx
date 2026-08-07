@@ -28,7 +28,7 @@ import ShareCard from './ShareCard'
 import Flag from '../ui/Flag'
 import { natLabel, natGeoRegion, isForeignNat } from '../../data/nationalities'
 import { WA_HOST_CITY } from '../../engine/worldAthletics'
-import { waRaceRows } from '../../utils/waRaces'
+import { waRaceRows, isWaRaceName } from '../../utils/waRaces'
 
 
 const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
@@ -827,7 +827,8 @@ export default function PlayerSheet() {
               {/* 世界選手権（出走歴がある選手だけ表示）。ECLと同じ作りで大会ごとにカードを並べる。
                   駅伝の下に個人種目（世界選手権 5000m 等）のカードも並べる */}
               {!isProspect && (() => {
-                const waNames = [...raceGroupMap.keys()].filter(n => n.includes('世界選手権') || n.includes('アジア＋オセアニア予選'))
+                // 大会名の判定は utils/waRaces の1本（本戦・アジア予選・大陸予選）
+                const waNames = [...raceGroupMap.keys()].filter(isWaRaceName)
                 const indLabels = (['5000m', '10000m', 'マラソン'] as const).filter(label => {
                   const ev = label === '5000m' ? 'd5000' : label === '10000m' ? 'd10000' : 'marathon'
                   return (worldAthleticsResults ?? []).some(wr =>

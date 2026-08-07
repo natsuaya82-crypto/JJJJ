@@ -12,7 +12,7 @@
  *   2. 移したあと（シーズン側にある）でも同じ数だけ読めるか
  *   3. 両方に入っている年を二重に数えないか
  */
-import { waRaceRows, WA_LABEL_BY_CODE } from '../src/utils/waRaces'
+import { waRaceRows, isWaRaceName, WA_LABEL_BY_CODE } from '../src/utils/waRaces'
 import type { Race } from '../src/types'
 
 const race = (id: string, pid: string): Race => ({
@@ -76,6 +76,19 @@ console.log('[4] 走っていないレース')
   const empty: Race = { ...race('x1', 'p1'), results: undefined }
   const rows = waRaceRows([{ year: 2030, waRaces: { asia: [empty] } }], [])
   check('走っていないレースは履歴に出さない', rows.length === 0, `${rows.length}戦`)
+}
+
+// ── 5. レース名から世界大会だと分かるか（選手ページのタイル） ──
+console.log('[5] レース名の判定')
+{
+  check('本戦', isWaRaceName('世界選手権 出雲開幕戦'))
+  check('アジア予選', isWaRaceName('世界選手権アジア予選 大阪カップ'))
+  check('ユーロ予選', isWaRaceName('ユーロ予選 浜松東海駅伝'))
+  check('アフリカ予選', isWaRaceName('アフリカ予選 富士山岳駅伝'))
+  check('アメリカ予選', isWaRaceName('アメリカ予選 大阪カップ'))
+  check('古い名前', isWaRaceName('2029 アジア＋オセアニア予選 第1戦'))
+  check('本編のレースは含めない', !isWaRaceName('出雲開幕戦'))
+  check('ECLは含めない', !isWaRaceName('ECL 第1戦'))
 }
 
 console.log('')

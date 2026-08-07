@@ -23,6 +23,16 @@ export const WA_LABEL_BY_CODE: Record<string, string> = {
   ...CONT_LABEL_BY_CODE,
 }
 
+/**
+ * そのレース名が世界大会のものか。レース名は「<大会名> <コース名>」なので大会名で判定する。
+ * **画面で「世界選手権」の文字を探さないこと。** 大陸予選は「ユーロ予選 出雲開幕戦」のように
+ * 世界選手権の文字を含まないので、素朴に探すと大陸予選の出走がどこにも出なくなる（実際に出なかった）。
+ */
+export function isWaRaceName(name: string): boolean {
+  return Object.values(WA_LABEL_BY_CODE).some(l => name.startsWith(l))
+    || name.includes('アジア＋オセアニア予選')   // 名前を付け替える前の古いセーブ
+}
+
 /** 恒久保存する側の大会結果（走行記録を持っているのは古いセーブだけ） */
 export type WaResultLike = { year: number; kind: 'main' | 'qualifier'; races?: Race[] }
 /** シーズン（今季・過去どちらも） */
