@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { ovr, calcTransferValue, ratingColor } from '../../utils/playerUtils'
+import { ovr, calcTransferValue, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { C, alpha } from '../../styles/tokens'
 import { collectNotifications, expiredNegText } from '../../utils/notifItems'
@@ -176,7 +176,6 @@ export default function NotificationsPage() {
     clubGiftsCount: clubGifts.length,
   })
   const renewalNeeded = renewalPlayers.length
-  const raceIndex = currentSeason.currentRaceIndex ?? 0
   const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
   const myTeamFinance = teams.find(t => t.id === playerTeamId)?.finance
 
@@ -415,7 +414,7 @@ export default function NotificationsPage() {
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {injuredPlayers.map(p => {
                   const pOvr = ovr(p)
-                  const left = p.injuredUntilRace != null ? Math.max(0, p.injuredUntilRace - raceIndex) : null
+                  const left = p.injuredUntilRace != null ? Math.max(0, p.injuredUntilRace - racesConsumed(currentSeason)) : null
                   return (
                     <div key={p.id} style={cardStyle(alpha(C.red, 0.45), '#5a1010')}>
                       <div style={inset}/>
@@ -639,7 +638,7 @@ export default function NotificationsPage() {
                   const target = players.find(p => p.id === o.playerId)
                   if (!target) return null
                   const clubName = clubIndex.byId(o.fromTeamId)?.shortName ?? '他クラブ'
-                  const decidesIn = Math.max(1, o.expiresAtRace - (currentSeason.currentRaceIndex ?? 0))
+                  const decidesIn = Math.max(1, o.expiresAtRace - racesConsumed(currentSeason))
                   return (
                     <button key={o.id} onClick={() => { navigate(`/team/chat?player=${target.id}`); markFreeContactSeen(o.id) }} style={{ ...cardStyle(alpha(C.orange, 0.4), '#5a2800'), width: '100%', textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
                       <div style={inset}/>
@@ -859,7 +858,7 @@ export default function NotificationsPage() {
                   if (!target) return null
                   const pOvr = ovr(target)
                   const isFreeOffer = offer.offeredPrice === 0
-                  const expiresIn = Math.max(0, offer.expiresAtRace - currentSeason.currentRaceIndex)
+                  const expiresIn = Math.max(0, offer.expiresAtRace - racesConsumed(currentSeason))
                   const mv = calcTransferValue(target)
                   const ratio = mv > 0 ? offer.offeredPrice / mv : 0
                   const mvRating = ratio >= 0.95 ? { label: '適正', color: C.green } : ratio >= 0.75 ? { label: 'やや安', color: C.orange } : { label: '安値', color: C.red }

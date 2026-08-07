@@ -1271,6 +1271,11 @@ export const useGameStore = create<GameStore>()(
         const state = get()
         const { currentSeason, teams, players, playerTeamId } = state
         const raceIndex = currentSeason.currentRaceIndex
+        // 日程の位置(raceIndex)と、時間の進み(clock)は別物。
+        // 期限・回復は「何本走ったか」で数える。ECLも記録会も1本（utils/playerUtils の racesConsumed）。
+        // ここを currentRaceIndex で兼ねていたので、ECLと記録会のあいだは時間が止まっていた
+        const clock = racesConsumed(currentSeason)
+        const nextClock = clock + 1
         if (raceIndex >= currentSeason.races.length) return null
 
         const race = currentSeason.races[raceIndex]
@@ -1567,7 +1572,7 @@ export const useGameStore = create<GameStore>()(
                   relatedIds: [p.id],
                 })
               }
-              return { ...p, status: 'injured' as const, injuredUntilRace: raceIndex + 1 + recoveryRaces, injuryName }
+              return { ...p, status: 'injured' as const, injuredUntilRace: nextClock + recoveryRaces, injuryName }
             }
             return p
           })
@@ -1600,7 +1605,7 @@ export const useGameStore = create<GameStore>()(
 
           // Recover already-injured players whose recovery race has passed
           const recoveredPlayers = playersWithPBs.map(p => {
-            if (p.status === 'injured' && p.injuredUntilRace != null && raceIndex + 1 >= p.injuredUntilRace) {
+            if (p.status === 'injured' && p.injuredUntilRace != null && nextClock >= p.injuredUntilRace) {
               // Comeback penalty: form -1 for first race back
               return { ...p, status: 'active' as const, injuredUntilRace: undefined, injuryName: undefined, form: Math.max(-2, (p.form ?? 0) - 1) }
             }
@@ -1629,7 +1634,7 @@ export const useGameStore = create<GameStore>()(
             gmRep: state.gmRep ?? 50,
             teams: state.teams,
           })
-          const existingTrades = (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.expiresAtRace > raceIndex + 1)
+          const existingTrades = (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.expiresAtRace > nextClock)
 
           // CPUからのトレード打診を低頻度で生成（打診が既に無い時だけ・1件まで）。
           // 相手の余剰選手と自チーム選手の価値が釣り合う1対1交換を提案する
@@ -1783,7 +1788,7 @@ export const useGameStore = create<GameStore>()(
           const offerExpiredPlayerIds: string[] = [];
           (state.currentSeason.incomingOffers ?? []).forEach(o => {
             if (o.offeredPrice === 0) return
-            if (o.expiresAtRace <= nextRaceIndex) {
+            if (o.expiresAtRace <= nextClock) {
               const pl = finalPlayers.find(p => p.id === o.playerId)
               if (pl) {
                 offerExpiredNegs.push({ id: o.id, playerId: o.playerId, playerName: pl.name, kind: 'offer' })
@@ -1797,7 +1802,7 @@ export const useGameStore = create<GameStore>()(
           const freeDecisionNotices: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[] = []
           const freeMoves: { playerId: string; toTeamId: string }[] = []
           ;(state.currentSeason.incomingOffers ?? []).forEach(o => {
-            if (o.offeredPrice !== 0 || o.expiresAtRace > nextRaceIndex) return
+            if (o.offeredPrice !== 0 || o.expiresAtRace > nextClock) return
             const pl = finalPlayers.find(p => p.id === o.playerId)
             const suitor = state.teams.find(t => t.id === o.fromTeamId)
             if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
@@ -1821,12 +1826,12 @@ export const useGameStore = create<GameStore>()(
             category: 'trade' as const,
             relatedIds: [n.playerId],
           }))
-          const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextRaceIndex, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length)
+          const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length)
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
           const foreignClubs = allForeignClubs(state.foreignLeagues).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, leagueId: c.leagueId, country: c.country }))
-          const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextRaceIndex && finalPlayers.some(p => p.id === o.playerId))
-          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextRaceIndex, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
+          const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))
+          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
           const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
@@ -1878,7 +1883,7 @@ export const useGameStore = create<GameStore>()(
               listings: transferData.listings,
               currentSeason: { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries },
               pastSeasons: state.pastSeasons,
-              raceIndex: nextRaceIndex,
+              raceIndex: nextClock,
               rivals: bid.status === 'pending' && target ? rivalsFor(target) : undefined,
             })
             if (r.expired) {
@@ -2159,7 +2164,7 @@ export const useGameStore = create<GameStore>()(
           // countered（こちらの返事待ち）も同じく失効させる。以前は pending_gm しか見ておらず、
           // 返事待ちのまま通知にも出ずに永久に残る札があった
           const expiredContractReqs = (state.currentSeason.contractRequests ?? [])
-            .filter(r => isLiveContract(r) && (r.expiresAtRace ?? 0) <= nextRaceIndex)
+            .filter(r => isLiveContract(r) && (r.expiresAtRace ?? 0) <= nextClock)
           const expiredContractIds = new Set(expiredContractReqs.map(r => r.id))
           // 契約更新の期限切れ。移籍の話ではないので kind で区別する。
           // （通知の文言が「移籍を拒否しました／来季まで交渉できません」で固定されていて、
@@ -7787,7 +7792,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 34,
+      version: 35,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8205,6 +8210,30 @@ export const useGameStore = create<GameStore>()(
                 return city ? { ...c, shortName: city } : c
               }),
             }))
+          }
+
+          // v35: 期限・回復の数え方を「リーグ戦の何番目か」から「何本走ったか」へ変えた
+          //      （ECLと記録会も1本と数える）。基準がずれるぶんだけ、保存してある期限を
+          //      同じだけ後ろへずらす。やらないと、読み込んだ瞬間に全部が期限切れになる。
+          if (version < 35 && s.currentSeason) {
+            const cs = s.currentSeason as Record<string, unknown>
+            const ecl = (((cs.eclSeries as { races?: { results?: unknown }[] } | undefined)?.races) ?? []).filter(r => r.results).length
+            const iev = ((cs.individualEvents as { results?: unknown }[] | undefined) ?? []).filter(e => e.results).length
+            const shift = ecl + iev
+            if (shift > 0) {
+              const bump = <T extends { expiresAtRace?: number }>(list: T[] | undefined) =>
+                (list ?? []).map(o => o.expiresAtRace != null ? { ...o, expiresAtRace: o.expiresAtRace + shift } : o)
+              cs.incomingOffers = bump(cs.incomingOffers as { expiresAtRace?: number }[] | undefined)
+              cs.incomingLoanOffers = bump(cs.incomingLoanOffers as { expiresAtRace?: number }[] | undefined)
+              cs.transferListings = bump(cs.transferListings as { expiresAtRace?: number }[] | undefined)
+              cs.pendingTradeOffers = bump(cs.pendingTradeOffers as { expiresAtRace?: number }[] | undefined)
+              cs.contractRequests = bump(cs.contractRequests as { expiresAtRace?: number }[] | undefined)
+              cs.acquisitionOffers = bump(cs.acquisitionOffers as { expiresAtRace?: number }[] | undefined)
+              if (Array.isArray(s.players)) {
+                s.players = (s.players as Record<string, unknown>[]).map(p =>
+                  typeof p.injuredUntilRace === 'number' ? { ...p, injuredUntilRace: p.injuredUntilRace + shift } : p)
+              }
+            }
           }
 
           return s

@@ -97,6 +97,15 @@ const RULES: Rule[] = [
   },
 ]
 
+// 「あと何レース」を currentRaceIndex で数えないこと。
+// ECLと記録会を走ってもそこは増えないので、時間が止まる（打診の期限が減らない・ケガが治らない）。
+RULES.push({
+  name: '期限・回復を currentRaceIndex で数えている',
+  pattern: /(expiresAtRace|injuredUntilRace)[^\n]*currentRaceIndex|currentRaceIndex[^\n]*(expiresAtRace|injuredUntilRace)/,
+  allow: ['src/store/gameStore.ts'],
+  fix: 'playerUtils の racesConsumed（ECL・記録会も1本）で数える',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

@@ -8,7 +8,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
 import { clubRoutePath, type Club } from '../../utils/clubs'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, playerConsentToMove, freeContactConsent } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, playerConsentToMove, freeContactConsent, racesConsumed } from '../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
 import { tradeValues, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../utils/tradeValue'
 import { canSignPlayer, ROSTER_MAX } from '../../data/rosterRules'
@@ -1762,7 +1762,7 @@ export default function ChatPage() {
               // フリー移籍の接触：GMは対応できず、本人が数戦後に決断する（情報表示のみ）
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
-              const decidesIn = Math.max(1, o.expiresAtRace - (currentSeason.currentRaceIndex ?? 0))
+              const decidesIn = Math.max(1, o.expiresAtRace - racesConsumed(currentSeason))
               return (
                 <button key={o.id} onClick={() => setChatPlayerId(p.id)} style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.orange, 0.4)}`, padding: '10px 12px', marginBottom: 2, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

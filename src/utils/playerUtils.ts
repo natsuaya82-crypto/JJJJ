@@ -476,13 +476,30 @@ export const CAREER_STAGE_COLOR: Record<CareerStage, string> = {
 type ScoutSeasonLike = {
   currentRaceIndex?: number
   individualEvents?: { results?: unknown }[]
+  eclSeries?: { races?: { results?: unknown }[] }
   scoutedOpponents?: { playerId: string; reqAt?: number; year: number }[]
 }
 
 // そのシーズンに消化したレース総数（リーグ戦＋記録会）。
 // リザーブ（2軍リーグ）を廃止したので、その分は数えない。
+/**
+ * 今季これまでに「レースが何本済んだか」。**時間の進み方はここ1本。**
+ *
+ * ■なぜ要るのか
+ *   交渉の期限・負傷の回復といった「あと何レース」を、全部 currentRaceIndex で数えていた。
+ *   currentRaceIndex はリーグ戦の日程の何番目かなので、ECLを走っても記録会を走っても増えない。
+ *   その結果、ECLと記録会のあいだは**時間が止まって**いた（打診の期限が減らない・ケガが治らない）。
+ *   走ったのはレースなのだから、どれも1本と数える。
+ *
+ * ■currentRaceIndex と役割を分ける
+ *   currentRaceIndex … 日程の何番目か（次にどのリーグ戦を走るか）
+ *   racesConsumed    … 何本走ったか（期限・回復などの時間）
+ *   同じ変数で兼ねていたのが原因なので、時間を数えるところは必ずこちらを使う。
+ */
 export function racesConsumed(season: ScoutSeasonLike): number {
+  const ecl = (season.eclSeries?.races ?? []).filter(r => r.results).length
   return (season.currentRaceIndex ?? 0)
+    + ecl
     + ((season.individualEvents ?? []).filter(e => e.results).length)
 }
 

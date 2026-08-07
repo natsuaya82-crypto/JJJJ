@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore, individualEventAbility, applyRaceBoosts } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { ovr, ratingColor } from '../../utils/playerUtils'
+import { ovr, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { runWithLoading } from '../../store/loadingStore'
 import type { RaceResults, IndividualEvent, Player } from '../../types'
 import BackButton from '../ui/BackButton'
@@ -342,7 +342,7 @@ export default function RacePage() {
   const unavailableMap: Record<string, string> = {}
   for (const p of mainPlayers) {
     if (p.status === 'injured' && !allowInjured) {
-      const left = p.injuredUntilRace != null ? p.injuredUntilRace - raceIndex : 0
+      const left = p.injuredUntilRace != null ? p.injuredUntilRace - racesConsumed(currentSeason) : 0
       unavailableMap[p.id] = left > 0 ? `故障中・復帰まで約${left}戦` : '故障中'
     }
     // 移籍/トレード加入直後の出走制限は撤廃（加入したレースからいつでも出走可）
