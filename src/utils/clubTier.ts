@@ -256,6 +256,18 @@ export function tierOf(team: TieredTeam | undefined): ClubTier {
  * クラブIDから直接引く。**初期値しか見ない**ので、毎年動いた格は拾えない。
  * クラブの実体（Team / ForeignClub）が手元にあるなら tierOf を使うこと。
  */
+/**
+ * 「大ニュースにする」基準。**ここ1本で決める。**
+ *   ・OVR85以上の選手が動いた
+ *   ・格1のクラブ（世界に数クラブしかない）が絡んだ
+ * 移籍金いくら以上、という基準は使わない（クラブの規模で額が変わるので、
+ * 同じ1億でも格1では小さく格20では巨額になり、意味が揃わない）。
+ */
+export const MAJOR_NEWS_OVR = 85
+export function isBigClub(clubId: string): boolean {
+  return tierOfClubId(clubId) === 1
+}
+
 export function tierOfClubId(clubId: string): ClubTier {
   return (CLUB_TIER_BY_ID[clubId] as ClubTier) ?? DOMESTIC_BOTTOM_TIER
 }
