@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, injuryHeadline, signedWithFeeHeadline, soldPlayerHeadline, joinedHeadline, renewalHeadline, loanInOutHeadline, segmentPrizeHeadline, overseasMoveHeadline, foreignSignedHeadline, freeTransferHeadline, auctionSettledHeadline, cpuSignedHeadline, loanReplyHeadline, raceWinnerHeadline, myFinishHeadline, segmentWinHeadline, boardEvalHeadline, rivalHeadline, segmentRecordHeadline, eclSeasonEndHeadline, worldChampFinishHeadline, recordHeadline, continentalQualifierHeadline, divisionMoveHeadline, seasonOpenHeadline, divisionsFoundedHeadline, massFreeAgentHeadline, growthHeadline, retiredHeadline, bonusPayoutHeadline, sponsorEndHeadline, objectiveBonusHeadline, seasonBudgetHeadline, draftPickSoldHeadline, deficitPickPenaltyHeadline, deficitRescueHeadline, tradeAcceptedHeadline, tradeSummaryHeadline, dynastyHeadlines, initialNews, type NewsItem } from '../utils/newsItems'
+import { clubLabel, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, injuryHeadline, signedWithFeeHeadline, soldPlayerHeadline, joinedHeadline, renewalHeadline, loanInOutHeadline, segmentPrizeHeadline, overseasMoveHeadline, foreignSignedHeadline, freeTransferHeadline, cpuSignedHeadline, loanReplyHeadline, raceWinnerHeadline, myFinishHeadline, segmentWinHeadline, boardEvalHeadline, rivalHeadline, segmentRecordHeadline, eclSeasonEndHeadline, worldChampFinishHeadline, recordHeadline, continentalQualifierHeadline, divisionMoveHeadline, seasonOpenHeadline, divisionsFoundedHeadline, massFreeAgentHeadline, growthHeadline, retiredHeadline, bonusPayoutHeadline, sponsorEndHeadline, objectiveBonusHeadline, seasonBudgetHeadline, draftPickSoldHeadline, deficitPickPenaltyHeadline, deficitRescueHeadline, tradeAcceptedHeadline, tradeSummaryHeadline, dynastyHeadlines, initialNews, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -1210,53 +1210,31 @@ export const useGameStore = create<GameStore>()(
       runRace: (lineup, segmentTactics, preComputedResults) => {
         // ── 「譲る」と返事をした話の決着 ─────────────────────────────
         // 買う側の入札が1レース待つのに、売る側だけタップで即成立していたので揃える。
-        // 待っているあいだに、同じ選手を欲しがっている他クラブが上乗せしてくる。
-        // 最後にどこへ行くかは本人が選ぶ（判定は rankIncomingOffers＝transferDecision 1本）
+        //
+        // ★行き先は**GMが選んだクラブで確定**。
+        //   以前はここで全オファーを本人の希望順に並べ直し、一番良いものを勝たせていた。
+        //   そのため「台北に譲る」を押したのにマドリードへ移籍する、という
+        //   GMの意思をまるごと無視する動きになっていた。売る相手を決めるのはGM。
+        //   本人にできるのは「その行き先なら行く／行かない」だけ（下の consentToLeave）。
         {
           const cs0 = get().currentSeason
           const ps = cs0.pendingSale
           if (ps) {
-            // 他クラブの上乗せ。出せる上限はクラブの年間予算の TRANSFER_BUDGET_SHARE（買う側と同じ）
-            set(st => {
-              const offers = (st.currentSeason.incomingOffers ?? []).filter(o => o.playerId === ps.playerId && o.offeredPrice > 0)
-              const top = Math.max(...offers.map(o => o.offeredPrice), 0)
-              const clubs = allTieredClubs(st.teams, st.foreignLeagues)
-              const raised = (st.currentSeason.incomingOffers ?? []).map(o => {
-                if (o.id === ps.offerId || o.playerId !== ps.playerId || o.offeredPrice <= 0) return o
-                const cap = transferCapOf(tierBudget(clubs.find(c => c.id === o.fromTeamId)))
-                const want = top + 10_000_000
-                // 半々で勝負に出る。払えないクラブは降りる（＝上乗せしない）
-                if (Math.random() < 0.5 || want > cap) return o
-                return { ...o, offeredPrice: want }
-              })
-              return { currentSeason: { ...st.currentSeason, incomingOffers: raised } }
-            })
-            // 上乗せ後、本人の希望順に並べ直して行き先を決める。
-            // 誰にも納得できなければ、最初に返事をした相手のまま
-            const ranked = get().rankIncomingOffers(ps.playerId)
-            const winner = ranked.find(r => r.appraisal.ok)?.offer.id ?? ps.offerId
             set(st => ({ currentSeason: { ...st.currentSeason, pendingSale: undefined } }))
+            const winner = ps.offerId
             const beforeName = get().players.find(x => x.id === ps.playerId)?.name ?? ''
+            const winnerId = (cs0.incomingOffers ?? []).find(o => o.id === winner)?.fromTeamId
+            const winnerName = findClub(get().teams, get().foreignLeagues, winnerId)?.shortName ?? '相手クラブ'
             const outcome = get().acceptIncomingOffer(winner, true)
             const p = get().players.find(x => x.id === ps.playerId)
-            const winnerId = ranked.find(r => r.offer.id === winner)?.offer.fromTeamId
-            const winnerName = findClub(get().teams, get().foreignLeagues, winnerId)?.shortName ?? '相手クラブ'
 
             // ★決着は必ず会話に書く。ここが無かったので「譲ります」と返事をしてレースを
             //   進めても、成立したのか流れたのかが会話にも通知にも出ず、次の打診だけが来ていた。
             if (outcome === 'sold') {
               set(st => ({ currentSeason: appendChatLog(st.currentSeason, ps.playerId, {
                 from: 'player',
-                text: winner === ps.offerId
-                  ? `（代理人）${beforeName}の${winnerName}への移籍が成立しました。お世話になりました`
-                  : `（代理人）他クラブの上乗せがあり、${beforeName}は${winnerName}を選びました。移籍が成立しています`,
+                text: `（代理人）${beforeName}の${winnerName}への移籍が成立しました。お世話になりました`,
               }) }))
-              // 取り合いになって行き先が変わったときだけニュースにする
-              set(st => ({ currentSeason: { ...st.currentSeason, newsFeed: winner === ps.offerId ? st.currentSeason.newsFeed : [{
-                date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`,
-                headline: auctionSettledHeadline({ playerName: beforeName, winnerName }),
-                category: 'trade' as const, relatedIds: [ps.playerId],
-              }, ...st.currentSeason.newsFeed].slice(0, 30) } }))
             } else if (p) {
               // 流れたときも黙って消さず、会話と通知の両方に理由を残す
               const kind = outcome === 'roster_min' ? 'sale_roster_min' as const : 'sale_refused' as const

@@ -230,11 +230,6 @@ export function freeTransferHeadline(a: { playerName: string; toLabel: string })
   return `${a.playerName}が契約満了に伴い${a.toLabel}へフリー移籍を決断`
 }
 
-/** 取り合いの末に移籍先が決まった（複数クラブが競った） */
-export function auctionSettledHeadline(a: { playerName: string; winnerName?: string }): string {
-  return `${a.playerName}の移籍先が競り合いの末に決まった${a.winnerName ? `（${a.winnerName}）` : ''}`
-}
-
 /** CPUクラブがFA選手と合意した */
 export function cpuSignedHeadline(a: { clubShort: string; playerName: string; playerOvr: number }): string {
   return `${a.clubShort}が${a.playerName}（OVR${a.playerOvr}）と契約合意`
