@@ -28,6 +28,12 @@ export type AwayDivisionRound = {
   careerAdd: Record<string, { races: number; segWins: number }>
   /** teamId → このレースの区間賞賞金。自チームの部と同じ数え方（utils/league.ts） */
   segPrize: Record<string, number>
+  /**
+   * 実際に走らせたレース（結果つき）。呼ぶ側が Season.divisionRaces へ書き戻す。
+   * 以前はここを捨てて出走数だけ残していたので、区間タイムも順位も誰と競ったかも
+   * 残らなかった。区間記録・移籍の判断材料・監督が海外へ移ったときの過去が作れない。
+   */
+  raced: { division: Division; roundIndex: number; race: Race }[]
 }
 
 /**
@@ -45,6 +51,9 @@ export function simulateAwayDivisions(
   const ranks: Record<string, number> = {}
   const careerAdd: Record<string, { races: number; segWins: number }> = {}
   const segPrize: Record<string, number> = {}
+  // 走らせた結果そのもの。以前はここで捨てて出走数だけ残していたので、区間タイムも
+  // 誰と競ったかも残らなかった（区間記録も移籍の判断材料も作れない）
+  const raced: { division: Division; roundIndex: number; race: Race }[] = []
 
   for (const d of DIVISIONS) {
     if (d === myDivision) continue
@@ -75,8 +84,9 @@ export function simulateAwayDivisions(
         careerAdd[id] = { races: cur.races + 1, segWins: cur.segWins + segWins }
       }
     }
+    raced.push({ division: d, roundIndex, race: { ...divRace, results } })
   }
-  return { points, ranks, careerAdd, segPrize }
+  return { points, ranks, careerAdd, segPrize, raced }
 }
 
 /**
@@ -101,6 +111,25 @@ export function applyAwayDivisionRound(
         raceResults: [...s.raceResults, { raceId: race.id, rank: round.ranks[s.teamId] ?? 0, points: earned }],
       }
     })
+  }
+  return out
+}
+
+/**
+ * 走らせた結果を、部ごとの日程へ書き戻す。**書き戻しはここ1本。**
+ * レース中の反映とシーズン終了時の追い上げの2か所から呼ぶので、
+ * 別々に書くと片方だけ記録が残らない。
+ */
+export function applyRacedToSchedule(
+  schedule: Record<number, Race[]> | undefined,
+  raced: AwayDivisionRound['raced'],
+): Record<number, Race[]> | undefined {
+  if (!schedule || raced.length === 0) return schedule
+  const out: Record<number, Race[]> = { ...schedule }
+  for (const { division, roundIndex, race } of raced) {
+    const list = out[division]
+    if (!list || !list[roundIndex]) continue
+    out[division] = list.map((r, i) => (i === roundIndex ? race : r))
   }
   return out
 }

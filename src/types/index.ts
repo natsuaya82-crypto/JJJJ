@@ -721,6 +721,13 @@ export type Season = {
   // 海外リーグの裏進行（プレイヤーの本編レースに同期して1戦ずつ進む）
   foreignStandings?: Record<string, ForeignStanding[]>   // leagueId → 順位表
   foreignRaceIndex?: number                              // 消化した海外マッチデー数
+  /**
+   * 海外リーグの走行記録。リーグID → そのリーグが走ったレース（結果つき）。
+   * 国内の裏の部（divisionRaces）と同じ扱い。**大会で残す／捨てるを分けない。**
+   * 以前は結果を捨てて出走数（foreignAppearances）だけ残していたので、
+   * 区間タイムも順位も残らず、海外クラブを指揮したときに過去が空になっていた。
+   */
+  foreignRaces?: Record<string, Race[]>
   pendingForeignRestructure?: boolean                    // 旧セーブの海外リーグ大再編を次の年度更新で適用するフラグ
   // 海外リーグの選手ごとの出場記録（playerId → 所属クラブ・今季の出場数・区間賞数・区間順位の合計）。
   // rankSum/rankedRaces は平均区間順位の算出用（後から追加。無い旧データは平均を出さない）。
@@ -782,6 +789,8 @@ export type Season = {
 export type ArchivedSeason = Pick<Season,
   | 'year'
   | 'races'                 // 1軍の駅伝結果。記録室・在籍履歴・区間記録の元データ
+  | 'divisionRaces'         // 裏の部（自分以外の部）の駅伝結果
+  | 'foreignRaces'          // 海外リーグの駅伝結果
   | 'collegeRaces'          // 大学駅伝の結果
   | 'standings'             // 年間順位表。歴代優勝・チーム成績・翌季のクラブの格の元
   | 'secondTeamRaces'       // 旧リザーブ駅伝の結果（build 88 まで。読むだけ）

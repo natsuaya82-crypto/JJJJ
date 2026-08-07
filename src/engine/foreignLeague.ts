@@ -30,10 +30,21 @@ export function simulateForeignLeagueRound(
   players: Player[],
   standingsByLeague: Record<string, ForeignStanding[]>,
   seasonProgress: number,
-): { standingsByLeague: Record<string, ForeignStanding[]>; players: Player[]; appearances: Record<string, { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }> } {
+): {
+  standingsByLeague: Record<string, ForeignStanding[]>
+  players: Player[]
+  appearances: Record<string, { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }>
+  /**
+   * リーグID → 走らせたレース（結果つき）。呼ぶ側が Season.foreignRaces へ足す。
+   * 以前はここを捨てて出走数だけ残していたので、海外クラブの過去が空になっていた。
+   * いずれ海外のクラブを指揮するので、国内と同じだけ残す（CLAUDE.md）
+   */
+  raced: Record<string, Race>
+} {
   const careerAdd: Record<string, { races: number; segWins: number; rankSum: number }> = {}
   const clubOf: Record<string, string> = {}   // playerId → 今走ったクラブ
   const newStandings: Record<string, ForeignStanding[]> = { ...standingsByLeague }
+  const raced: Record<string, Race> = {}
 
   for (const league of foreignLeagues) {
     const lineups: Record<string, Record<number, string>> = {}
@@ -42,6 +53,9 @@ export function simulateForeignLeagueRound(
     }
     // teams=[] で呼ぶ（海外クラブはteams未登録＝本拠地補正1.0中立になる）
     const results = simulateRace(race, lineups, [], players, seasonProgress)
+    // レースIDはリーグごとに分ける（同じコースを9リーグが同じ日に走るので、
+    // そのままだと同じIDのレースが9本できて記録の紐付けが壊れる）
+    raced[league.id] = { ...race, id: `${race.id}@${league.id}`, results }
 
     const prev = newStandings[league.id] ?? league.clubs.map(c => ({ clubId: c.id, totalPoints: 0, raceResults: [] }))
     newStandings[league.id] = prev.map(s => {
@@ -80,7 +94,7 @@ export function simulateForeignLeagueRound(
     appearances[id] = { clubId: clubOf[id] ?? '', races: add.races, wins: add.segWins, rankSum: add.rankSum, rankedRaces: add.races }
   }
 
-  return { standingsByLeague: newStandings, players: updatedPlayers, appearances }
+  return { standingsByLeague: newStandings, players: updatedPlayers, appearances, raced }
 }
 
 // シーズン終了時、各海外リーグの優勝クラブ所属選手に career.championships +1。

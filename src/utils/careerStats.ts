@@ -26,6 +26,11 @@ export type CareerCounts = { totalRaces: number; segmentWins: number; mvpAwards:
 export type CareerSeasonLike = SeasonRacesLike & {
   eclRace?: Race
   eclSeries?: { races: Race[] }
+  /** 裏の部（自分以外の部）の走行記録。ある年はここから数える */
+  divisionRaces?: Record<number, Race[]>
+  /** 海外リーグの走行記録。ある年はここから数える */
+  foreignRaces?: Record<string, Race[]>
+  // ↓ 走行記録を残していなかった年ぶんの古い集計。**新しい年では使わない**
   foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
   foreignAppsC?: Record<string, Record<string, [number, number, number, number]>>
   awayAppearances?: Record<string, { races: number; wins: number }>
@@ -62,10 +67,23 @@ function addSeason(out: Map<string, Counts>, s: CareerSeasonLike | undefined) {
   // ECL。今の5戦シリーズと、古いセーブに残っている一発勝負のどちらも当時から通算に入れていた
   for (const r of s.eclSeries?.races ?? []) addRace(out, r)
   if (!s.eclSeries?.races?.length) addRace(out, s.eclRace)
-  for (const [pid, a] of Object.entries(foreignAppsOf(s))) bump(out, pid, a.races, a.wins)
-  // 自分の部以外（裏で走らせた部）。ここを足さないと1部・2部の選手が全員0回出走になり、
-  // 実績倍率が上がらないので年俸も移籍金も安いままになる
-  for (const [pid, a] of Object.entries(s.awayAppearances ?? {})) bump(out, pid, a.races, a.wins)
+  // 裏の部（自分以外の部）と海外リーグ。
+  // **走行記録が残っている年はそこから数え、残っていない古い年だけ集計を使う。**
+  // 数え方の分岐はここだけ。呼ぶ側で年を見て振り分けないこと（経路ごとに食い違う）。
+  const awayRaces = Object.values(s.divisionRaces ?? {}).flat()
+  if (awayRaces.length > 0) {
+    for (const r of awayRaces) addRace(out, r)
+  } else {
+    // 走行記録を残していなかった年。ここを足さないと1部・2部の選手が全員0回出走になり、
+    // 実績倍率が上がらないので年俸も移籍金も安いままになる
+    for (const [pid, a] of Object.entries(s.awayAppearances ?? {})) bump(out, pid, a.races, a.wins)
+  }
+  const foreignRaces = Object.values(s.foreignRaces ?? {}).flat()
+  if (foreignRaces.length > 0) {
+    for (const r of foreignRaces) addRace(out, r)
+  } else {
+    for (const [pid, a] of Object.entries(foreignAppsOf(s))) bump(out, pid, a.races, a.wins)
+  }
 }
 
 export function buildCareerCounts(seasons: (CareerSeasonLike | undefined)[]): Map<string, Counts> {

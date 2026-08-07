@@ -30,7 +30,7 @@ import { BASE_PLAYERS } from '../data/players'
 import { SEASON_2027_RACES, generateSeasonRaces, drawSeasonSchedules, generateIndividualEvents } from '../data/races'
 import { generateDraftPool, buildDraftOrder, generateCpuRosters, generateForeignLeaguePlayers, refreshForeignLeagues, nationalityToForeignCategory, generatePlayerInitialRoster, generateJpelForeignName } from '../engine/playerGenerator'
 import { simulateRace, buildCpuLineups, calcWeatherModifier } from '../engine/raceEngine'
-import { simulateAwayDivisions, applyAwayDivisionRound } from '../engine/domesticLeague'
+import { simulateAwayDivisions, applyAwayDivisionRound, applyRacedToSchedule } from '../engine/domesticLeague'
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { individualEventAbility, individualBaseTime } from '../utils/eventTime'
@@ -1326,6 +1326,8 @@ export const useGameStore = create<GameStore>()(
             { ...state.currentSeason.standings, [myDivision]: myDivStandings },
             myDivision, awayRound, race,
           )
+          // 裏の部の走行記録を日程へ書き戻す。捨てると区間タイムも順位も戻らない
+          const updatedDivisionRaces = applyRacedToSchedule(state.currentSeason.divisionRaces, awayRound.raced)
           // 裏の部の出走記録。通算成績は保存したレース結果から数え直すので、
           // ここに残さないと1部・2部の選手が全員0回出走のままになる（海外の foreignAppearances と同じ役割）
           const awayApps: Record<string, { races: number; wins: number }> = { ...(state.currentSeason.awayAppearances ?? {}) }
@@ -2274,6 +2276,7 @@ export const useGameStore = create<GameStore>()(
               phase: raceIndex + 1 >= state.currentSeason.races.length ? 'postseason' as const : 'regular' as const,
               races: updatedRaces,
               standings: updatedStandings,
+              divisionRaces: updatedDivisionRaces,
               objectives: updatedObjectives,
               scoutMissions: activeMissions,
               scoutProspects: updatedScoutProspects,
@@ -4528,7 +4531,10 @@ export const useGameStore = create<GameStore>()(
         if (!race) return {}
         const prevStandings = state.currentSeason.foreignStandings ?? initForeignStandings(leagues)
         const seasonProgress = races.length > 0 ? idx / races.length : 0
-        const { standingsByLeague, players, appearances } = simulateForeignLeagueRound(race, leagues, state.players, prevStandings, seasonProgress)
+        const { standingsByLeague, players, appearances, raced } = simulateForeignLeagueRound(race, leagues, state.players, prevStandings, seasonProgress)
+        // 走らせた結果をそのまま残す。捨てると区間タイムも順位も戻らない（utils/raceRecord.ts）
+        const foreignRaces = { ...(state.currentSeason.foreignRaces ?? {}) }
+        for (const [lid, r] of Object.entries(raced)) foreignRaces[lid] = [...(foreignRaces[lid] ?? []), r]
         // 今季の海外出場記録に加算（選手詳細の在籍履歴に海外クラブ行として表示するため）
         const foreignAppearances = { ...(state.currentSeason.foreignAppearances ?? {}) }
         for (const [id, add] of Object.entries(appearances)) {
@@ -4541,7 +4547,7 @@ export const useGameStore = create<GameStore>()(
         }
         return {
           players,
-          currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1, foreignAppearances },
+          currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1, foreignAppearances, foreignRaces },
         }
       }),
 
@@ -5407,6 +5413,7 @@ export const useGameStore = create<GameStore>()(
           const maxRounds = Math.max(...Object.values(divRaces).map(rs => rs.length))
           if (maxRounds <= doneRounds) return state
           let standings = state.currentSeason.standings
+          let catchUpSchedule = state.currentSeason.divisionRaces
           const careerAdd: Record<string, { races: number; segWins: number }> = {}
           const segPrize: Record<string, number> = { ...(state.currentSeason.seasonSegPrize ?? {}) }
           for (let r = doneRounds; r < maxRounds; r++) {
@@ -5418,6 +5425,8 @@ export const useGameStore = create<GameStore>()(
             const anyRace = DIVISIONS.map(d => (d === myDivision ? undefined : divRaces[d]?.[r])).find(Boolean)
             if (!anyRace) continue
             standings = applyAwayDivisionRound(standings, myDivision, round, anyRace)
+            // 走行記録も日程へ書き戻す（レース中の反映と同じ関数を通す）
+            catchUpSchedule = applyRacedToSchedule(catchUpSchedule, round.raced)
             for (const [pid, v] of Object.entries(round.careerAdd)) {
               const cur = careerAdd[pid] ?? { races: 0, segWins: 0 }
               careerAdd[pid] = { races: cur.races + v.races, segWins: cur.segWins + v.segWins }
@@ -5430,7 +5439,7 @@ export const useGameStore = create<GameStore>()(
             awayApps2[pid] = { races: cur.races + v.races, wins: cur.wins + v.segWins }
           }
           return {
-            currentSeason: { ...state.currentSeason, standings, seasonSegPrize: segPrize, awayAppearances: awayApps2 },
+            currentSeason: { ...state.currentSeason, standings, divisionRaces: catchUpSchedule, seasonSegPrize: segPrize, awayAppearances: awayApps2 },
             players: state.players.map(p => {
               const add = careerAdd[p.id]
               return add
