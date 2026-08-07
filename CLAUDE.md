@@ -50,6 +50,26 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
 
+| `src/utils/newsItems.ts` | ニュースの見出しの文面。**画面や store に見出しを直書きしないこと** |
+| `src/utils/foreignClubProfile.ts` | 海外クラブの姿。`effectiveOvr`（年齢を加味した実効OVR）／`foreignMinOvr`（そのリーグが受け入れる下限） |
+| `src/data/economy.ts` | `transferCapOf`（1人に出せる移籍金の上限＝格の年間予算の20%と手元資金の小さい方） |
+| `src/data/rosterRules.ts` | `ROSTER_MAX` / `ROSTER_MIN` / `RUNNING_SLOTS`（走れる人数）／`rosterCapOf` |
+| `src/utils/squadNeeds.ts` | `squadRankOf`（そのクラブで何番手か）／`wouldMakeLineup`（走れる7人に入るか） |
+
+### `npm run check` — 一本化の見張り番
+
+**後付けを増やしたら落ちます。** コミットする前に必ず通すこと。
+
+同じ判断を2か所に書くのが、このリポジトリのバグの最大の原因です。実際に見つかったものだけでも
+
+- 年齢調整OVRが3か所にあり、**基準の年齢が32歳と33歳で食い違っていた**
+- ロスター上限の数え方が2通りあり、片方は数えている物が違った
+- 移籍金の上限の式が3通りあり、格を見ないものが混ざっていた
+- 見出しの文面が82か所に直書きされ、金額の書き方がバラバラだった
+
+人が気をつけるだけでは必ず再発するので、`scripts/check-single-source.ts` が機械的に見つけます。
+**新しく「唯一の決まり」を作ったら、その式が他所に現れないルールをここに1行足すこと。**
+
 ### 画面下から出るものは必ず `BottomSheet` を通すこと
 
 ページの中に `position: fixed` で自前のシートを書くと、**実機でだけ**下タブに食われて操作できなくなります。
@@ -358,6 +378,7 @@ npm install
 npm run dev       # 開発サーバ
 npm run build     # tsc -b && vite build
 npm run lint      # eslint（既存エラーが多数あります。新規に増やさないこと）
+npm run check     # 一本化の点検。後付けが増えていたら落ちる
 ```
 
 テストランナーは導入していません。挙動を変えないリファクタをするときは、
