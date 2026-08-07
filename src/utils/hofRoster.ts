@@ -1,5 +1,7 @@
 import type { HofPlayer, Player } from '../types'
 import { ovr } from './playerUtils'
+// 所属の判定は rosterSync 1本（レンタル中の選手を除くのも向こうの決まり）
+import { isSquadMember } from './rosterSync'
 
 // 殿堂入りチームの決まりを1本にまとめる場所。
 //
@@ -15,6 +17,17 @@ import { ovr } from './playerUtils'
 
 /** 殿堂入りチームの人数上限 */
 export const HOF_MAX = 30
+
+/**
+ * 殿堂入りに登録していい選手か。**自分のクラブの選手だけ。**
+ *
+ * レンタルで借りている選手は teamId が自クラブになるので、「自チームの選手か」を
+ * `p.teamId === myTeamId` で見ていると登録できてしまっていた。借り物を自分の歴史に
+ * 加えることになるので除く。判定は所属の唯一の決まり（rosterSync の isSquadMember）に任せる。
+ */
+export function isHofEligible(p: Player | undefined, myTeamId: string): boolean {
+  return !!p && isSquadMember(p, myTeamId)
+}
 
 /** その選手はもう殿堂入りしているか（IDで見る） */
 export function isInHof(hof: readonly HofPlayer[] | undefined, playerId: string): boolean {

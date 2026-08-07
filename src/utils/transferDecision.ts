@@ -183,6 +183,8 @@ export type Appraisal = {
   /** 一番効いた要素。断った理由・選んだ理由の文言はこれで決める */
   lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'dream' | 'wrong_region' | 'capped' | 'loyalty' | 'even'
   reason: string
+  /** 一覧で1行ずつ並べるときの短い理由（選手名を繰り返さない） */
+  shortReason: string
   parts: {
     tier: number
     playingTime: number
@@ -327,6 +329,22 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
     tier_up: `${p.name}は移籍に納得していない`,
     even: `${p.name}は移籍に納得していない`,
   }
+  // 取り合いのときは1行ずつクラブの下に並べるので、選手名を繰り返さない短い形も持つ。
+  // 「→ 佐藤 健司は「23番手では出番がない」と考えている」だと、その1クラブの話なのか
+  // その選手の全体の話なのかが読み取れなかった
+  const SHORT_NO: Record<Appraisal['lead'], string> = {
+    no_playing_time: `ここでは${d.squadRank}番手。出番がない`,
+    wrong_region: `行きたいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}。この地域ではない`,
+    tier_down: '格下への移籍に前向きでない',
+    loyalty: '今のチームへの愛着が強い',
+    dream: '乗り気ではない',
+    playing_time: '乗り気ではない',
+    capped: '乗り気ではない',
+    ecl: '乗り気ではない',
+    title: '乗り気ではない',
+    tier_up: '乗り気ではない',
+    even: '乗り気ではない',
+  }
   const REASON_YES: Record<Appraisal['lead'], string> = {
     dream: `憧れの${DREAM_LABEL[dreamRegionOf(p.specialty)]}で走りたい`,
     wrong_region: '行きたい地域ではない',
@@ -340,7 +358,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
     title: '優勝を争えるクラブで走りたい',
     even: '条件は悪くない',
   }
-  return { score, ok, lead, reason: ok ? REASON_YES[lead] : REASON_NO[lead], parts }
+  return { score, ok, lead, reason: ok ? REASON_YES[lead] : REASON_NO[lead], shortReason: ok ? REASON_YES[lead] : SHORT_NO[lead], parts }
 }
 
 /**

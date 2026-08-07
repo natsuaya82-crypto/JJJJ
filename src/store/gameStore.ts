@@ -75,7 +75,7 @@ import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RAT
 import type { TradeValueCtx } from '../utils/tradeValue'
 import { findClub, domesticTeamIdSet as domesticTeamIdSet_, allForeignClubs, foreignClubIdSet, leagueOfClub, isEliteLeague, ELITE_LEAGUES_BY_REGION } from '../utils/clubs'
 // 殿堂入りチーム（登録時の数値で固定）
-import { canRegisterHof, registerHof, removeHof } from '../utils/hofRoster'
+import { canRegisterHof, registerHof, removeHof, isHofEligible } from '../utils/hofRoster'
 // 監督の在任履歴と、他チームからの監督オファー
 import { startTenure, gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
 import { makeGmOffer } from '../utils/gmOffer'
@@ -7445,6 +7445,8 @@ export const useGameStore = create<GameStore>()(
         const state = get()
         const p = state.players.find(x => x.id === playerId)
         if (!p) return false
+        // 登録していい相手かは hofRoster の1本（レンタルで借りている選手は入れない）
+        if (!isHofEligible(p, state.playerTeamId)) return false
         if (!canRegisterHof(state.hofRoster, playerId)) return false
         const teamName = state.teams.find(t => t.id === p.teamId)?.name
           ?? findClub(state.teams, state.foreignLeagues ?? [], p.teamId)?.name

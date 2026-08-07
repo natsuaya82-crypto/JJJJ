@@ -353,7 +353,8 @@ function ChatView({
         id: r.offer.id,
         name: clubIndex.byId(r.offer.fromTeamId)?.shortName ?? '他クラブ',
         price: r.offer.offeredPrice,
-        ok: r.appraisal.ok, reason: r.appraisal.reason,
+        // 一覧に1行ずつ並べるので短い形（選手名を繰り返さない）
+        ok: r.appraisal.ok, reason: r.appraisal.shortReason,
       })),
       rankedOffers.length > 1 && rankedOffers[0].appraisal.ok
         ? { name: clubIndex.byId(rankedOffers[0].offer.fromTeamId)?.shortName ?? '他クラブ', reason: rankedOffers[0].appraisal.reason }

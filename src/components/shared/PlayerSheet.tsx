@@ -18,7 +18,7 @@ import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed, foreignAp
 import { fmtYen } from '../../utils/money'
 import { rankColor } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
-import { HOF_MAX } from '../../utils/hofRoster'
+import { HOF_MAX, isHofEligible } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import { safeRatings } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
@@ -848,7 +848,10 @@ export default function PlayerSheet() {
             <div style={{ padding: '12px 20px 28px' }}>
               {/* 殿堂入りチーム（utils/hofRoster.ts）。押した瞬間の能力で固定される。
                   自チームの選手だけ。もう一度押すとそのときの能力で入れ替わる */}
-              {isMyPlayer && !isProspect && (
+              {/* 登録していい相手かは hofRoster の isHofEligible 1本。
+                  レンタルで借りている選手は teamId が自クラブになるので、isMyPlayer だけだと
+                  借り物まで殿堂入りに登録できてしまっていた */}
+              {isHofEligible(player, playerTeamId) && !isProspect && (
                 <div data-html2canvas-ignore="true" style={{ marginBottom: 16 }}>
                   <button
                     onClick={() => { if (!registerHof(player.id)) setHofMsg(`殿堂入りは${HOF_MAX}人までです`); else setHofMsg(inHof ? '殿堂入りの能力を今の値に更新しました' : '殿堂入りチームに登録しました') }}
