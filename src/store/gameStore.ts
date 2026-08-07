@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, type NewsItem } from '../utils/newsItems'
+import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -5033,15 +5033,18 @@ export const useGameStore = create<GameStore>()(
                 // 余剰＝弱い or 人数過多 に加えて、**序列から落ちて出番が無い選手**も対象にする。
                 // 判定は utils/transferDecision の hasNoPlayingTime 1本（海外の序列陥落と同じ入口）。
                 // これが無いと国内は「弱いから売る」しか起きず、1部の控えベテランが動かなかった
-                .map(p => ({ p, surplus: ovr(p) < sellMinOvr || sellRoster.length > 21
-                  || hasNoPlayingTime(sellRoster.findIndex(x => x.id === p.id) + 1) }))
+                .map(p => {
+                  const rank = sellRoster.findIndex(x => x.id === p.id) + 1
+                  const benched = hasNoPlayingTime(rank)
+                  return { p, rank, benched, sellTeamId, surplus: ovr(p) < sellMinOvr || sellRoster.length > 21 || benched }
+                })
             })
               .filter(({ p }) => ovr(p) >= minOvr - 4)
               // 買い手のニーズに合う選手・OVRの高い選手を優先
               .sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (ovr(b.p) - ovr(a.p)))
 
             let bought = false
-            for (const { p: target, surplus } of candidates) {
+            for (const { p: target, surplus, benched, rank: sellRank, sellTeamId } of candidates) {
               // 余剰は通常額、主力の引き抜きは割増移籍金＋昇給要求＋本人同意
               const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * POACH_PREMIUM)
               const tgtPerf = perfOf(state.currentSeason, target.id)
@@ -5066,6 +5069,24 @@ export const useGameStore = create<GameStore>()(
                 p.id !== target.id ? p : { ...p, contract: { ...p.contract, faEligibleYear: txYear + 2 } })
               teamsAfterCpuTransfer = moved.teams
               if (moved.record) offseasonTxRecords.push(moved.record)
+              // 序列から落ちて出番が無くなった選手は、その事情がわかる見出しにする。
+              // 「何番手だったか」を出すと、市場が効いているかがニュースだけで追える
+              offseasonTxNews.push({
+                date: `${state.currentSeason.year}-11-10`,
+                headline: benched
+                  ? seekPlayingTimeHeadline({
+                      playerName: target.name, age: target.age, squadRank: sellRank,
+                      fromLabel: clubLabel(sellTeamId, teamsAfterCpuTransfer),
+                      toLabel: clubLabel(buyTeam.id, teamsAfterCpuTransfer),
+                    })
+                  : transferHeadline({
+                      playerName: target.name, playerOvr: ovr(target), fee,
+                      fromLabel: clubLabel(sellTeamId, teamsAfterCpuTransfer),
+                      toLabel: clubLabel(buyTeam.id, teamsAfterCpuTransfer),
+                    }),
+                category: 'trade', relatedIds: [target.id],
+                major: ovr(target) >= MAJOR_NEWS_OVR || isBigClub(sellTeamId) || isBigClub(buyTeam.id),
+              })
               bought = true
               break
             }
