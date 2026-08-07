@@ -6231,7 +6231,7 @@ export const useGameStore = create<GameStore>()(
             ...(removedForeignPlayerIds.size > 0 ? playersWithForeignChamp.filter(p => !removedForeignPlayerIds.has(p.id)) : playersWithForeignChamp),
             ...foreignRefresh.newPlayers,
           ]
-          let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[]; records: TransferRecord[] }
+          let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: NewsItem[]; records: TransferRecord[] }
           try {
             foreignTx = simulateForeignTransferMarket({
               foreignLeagues: leaguesWithTier,

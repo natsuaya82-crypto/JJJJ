@@ -27,7 +27,10 @@ const foreignMinOvr = (country: string): number => FOREIGN_LEAGUE_MIN_OVR[countr
 // 「高齢の高OVRは翌年急落するので海外から打診されない」を表現する。
 const effectiveOvr = (p: Player): number => ovr(p) - Math.max(0, (p.age - 33) * 3)
 
-type NewsItem = { date: string; headline: string; category: 'trade'; relatedIds: string[]; major?: boolean }
+// ニュースの形と文面は utils/newsItems 1本（ここで別の型・別の文面を作らない）
+import type { NewsItem } from '../utils/newsItems'
+import { transferHeadline, seekPlayingTimeHeadline } from '../utils/newsItems'
+import { fmtYen } from '../utils/money'
 // 移籍履歴（transferHistory）に積む成立記録。チーム詳細の移籍ページで日付・移籍金を表示するために返す。
 // movePlayer が作る記録をそのまま積むので、型は本体の TransferRecord に合わせる
 type TxRecord = TransferRecord
@@ -170,8 +173,14 @@ export function simulateForeignTransferMarket(params: {
     .map(({ m, p }) => ({
       date: txDate,
       headline: declineMoved.has(p.id)
-        ? `【海外移籍】${p.name}（OVR${ovr(p)}・${p.age}歳）が出場機会を求め${nameById.get(m.fromClubId) ?? ''}から${nameById.get(m.toClubId) ?? ''}へ移籍`
-        : `【海外移籍】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromClubId) ?? ''}から${nameById.get(m.toClubId) ?? ''}へ移籍`,
+        ? seekPlayingTimeHeadline({
+            playerName: p.name, age: p.age, squadRank: 0,
+            fromLabel: nameById.get(m.fromClubId) ?? '', toLabel: nameById.get(m.toClubId) ?? '',
+          })
+        : transferHeadline({
+            playerName: p.name, playerOvr: ovr(p), fee: 0,
+            fromLabel: nameById.get(m.fromClubId) ?? '', toLabel: nameById.get(m.toClubId) ?? '',
+          }),
       category: 'trade' as const,
       relatedIds: [p.id],
     }))
@@ -347,7 +356,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // クラブ側の名簿は持たない（所属は players の teamId が唯一の記録）
   const updatedLeagues = foreignLeagues
 
-  const feeStr = (v: number) => v >= 100_000_000 ? `${(v / 100_000_000).toFixed(1)}億` : `${Math.round(v / 10_000)}万`
   // 日本より格上のリーグへの移籍は「日本人が世界最高峰へ挑む」大ニュースにする。
   // 国コード（旧判定）に加えて4大リーグ所属クラブも対象（欧州の国コードGBR/GER等が漏れていた）
   const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'USA'])
@@ -367,7 +375,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       if (toStrongLeague && ovr(p) >= 76) {
         return {
           date: xbDate(ni),
-          headline: `【世界へ挑戦】${p.name}（OVR${ovr(p)}）が世界最高峰・${nameById.get(m.toId) ?? ''}へ電撃移籍！日本人ランナーの歴史的な挑戦に列島が沸く（移籍金${feeStr(m.fee)}）`,
+          headline: `【世界へ挑戦】${p.name}（OVR${ovr(p)}）が世界最高峰・${nameById.get(m.toId) ?? ''}へ電撃移籍！日本人ランナーの歴史的な挑戦に列島が沸く（移籍金${fmtYen(m.fee)}）`,
           category: 'trade' as const,
           relatedIds: [p.id],
           major: true,
@@ -376,10 +384,10 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       return {
         date: xbDate(ni),
         headline: m.dir === 'in'
-          ? `【海外→日本】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${feeStr(m.fee)}）`
+          ? `【海外→日本】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${fmtYen(m.fee)}）`
           : toStrongLeague
-          ? `【日本→海外】${p.name}（OVR${ovr(p)}）が格上の${nameById.get(m.toId) ?? ''}へ移籍。世界の舞台で腕試し（移籍金${feeStr(m.fee)}）`
-          : `【日本→海外】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${feeStr(m.fee)}）`,
+          ? `【日本→海外】${p.name}（OVR${ovr(p)}）が格上の${nameById.get(m.toId) ?? ''}へ移籍。世界の舞台で腕試し（移籍金${fmtYen(m.fee)}）`
+          : `【日本→海外】${p.name}（OVR${ovr(p)}）が${nameById.get(m.fromId) ?? ''}から${nameById.get(m.toId) ?? ''}へ移籍（移籍金${fmtYen(m.fee)}）`,
         category: 'trade' as const,
         relatedIds: [p.id],
       }
