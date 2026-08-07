@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, type NewsItem } from '../utils/newsItems'
+import { clubLabel, divisionTag, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -1243,19 +1243,21 @@ export const useGameStore = create<GameStore>()(
             : null
 
           const rng01 = Math.random()
+          // どの部のレースかを頭に付ける（3部のレースも1部のレースも同じ見出しだった）
+          const divTag = divisionTag(myDivision)
           const winVariants = [
-            `${race.name}：${winnerTeam?.name ?? ''}が圧倒的な走りで優勝！`,
-            `${race.name}：${winnerTeam?.name ?? ''}が頂点に立つ`,
-            `${race.name} 優勝は${winnerTeam?.name ?? ''}。完璧なチーム運営が光った`,
-            `${race.name}：${winnerTeam?.name ?? ''}、今季${results.teamRankings[0]?.positionPoints}pt獲得で圧勝`,
+            `${divTag}${race.name}：${winnerTeam?.name ?? ''}が圧倒的な走りで優勝！`,
+            `${divTag}${race.name}：${winnerTeam?.name ?? ''}が頂点に立つ`,
+            `${divTag}${race.name} 優勝は${winnerTeam?.name ?? ''}。完璧なチーム運営が光った`,
+            `${divTag}${race.name}：${winnerTeam?.name ?? ''}、今季${results.teamRankings[0]?.positionPoints}pt獲得で圧勝`,
           ]
           const playerRankVariants = playerRank === 1
-            ? [`${race.name} — 自チームが優勝！完璧な作戦が結実`, `${race.name} 優勝。チーム全員の力を証明した`]
+            ? [`${divTag}${race.name} — 自チームが優勝！完璧な作戦が結実`, `${divTag}${race.name} 優勝。チーム全員の力を証明した`]
             : playerRank <= 3
-            ? [`${race.name} — 自チームは${rankSuffix}。表彰台確保`, `${race.name} ${rankSuffix}フィニッシュ。確かな進歩を示した`]
+            ? [`${divTag}${race.name} — 自チームは${rankSuffix}。表彰台確保`, `${divTag}${race.name} ${rankSuffix}フィニッシュ。確かな進歩を示した`]
             : playerRank <= 8
-            ? [`${race.name} — ${rankSuffix}フィニッシュ。上位との差を縮めたい`, `${race.name} ${rankSuffix}。課題は明確、次戦に向け修正を`]
-            : [`${race.name} — ${rankSuffix}。改善点を洗い出し立て直しが必要`, `${race.name} ${rankSuffix}フィニッシュ。厳しい現実と向き合う時`]
+            ? [`${divTag}${race.name} — ${rankSuffix}フィニッシュ。上位との差を縮めたい`, `${divTag}${race.name} ${rankSuffix}。課題は明確、次戦に向け修正を`]
+            : [`${divTag}${race.name} — ${rankSuffix}。改善点を洗い出し立て直しが必要`, `${divTag}${race.name} ${rankSuffix}フィニッシュ。厳しい現実と向き合う時`]
           const segWinVariants = mySegWinPlayer ? [
             `${mySegWinPlayer.name}が第${mySegWins[0].segmentIndex}区で区間賞`,
             `区間賞：第${mySegWins[0].segmentIndex}区で${mySegWinPlayer.name}が最速タイムをマーク`,
