@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha } from '../../styles/tokens'
 import type { Player } from '../../types'
@@ -15,7 +16,9 @@ export default function LoanSheet({ player, slots, pending, onSubmit, onClose }:
   const adH = useAdHeight()
   const full = slots >= 3
 
-  return (
+  // 画面下から出るものは document.body へ出す。<main> の中に position:fixed で書くと
+  // iOS の実機では main の内側しか覆えず、下タブ(z-index:50)より上に来られない（CLAUDE.md）
+  return createPortal((
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
       <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
         <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
@@ -38,5 +41,5 @@ export default function LoanSheet({ player, slots, pending, onSubmit, onClose }:
         <button onClick={onClose} style={{ display: 'block', width: '100%', marginTop: 12, padding: '13px', borderRadius: 12, border: `1px solid ${C.border}`, background: C.surface2, color: C.textDim, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>キャンセル</button>
       </div>
     </div>
-  )
+  ), document.body)
 }

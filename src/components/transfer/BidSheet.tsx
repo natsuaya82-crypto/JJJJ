@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useState } from 'react'
 import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
@@ -53,7 +54,9 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   // 本人が拒否なら、クラブと金額合意できても成立しない＝成立見込み0%
   const overallPct = mind === 'refuse' ? 0 : chancePct
 
-  return (
+  // 画面下から出るものは document.body へ出す。<main> の中に position:fixed で書くと
+  // iOS の実機では main の内側しか覆えず、下タブ(z-index:50)より上に来られない（CLAUDE.md）
+  return createPortal((
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
       <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface, borderRadius: '18px 18px 0 0', border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
         <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 12px' }} />
@@ -87,5 +90,5 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
