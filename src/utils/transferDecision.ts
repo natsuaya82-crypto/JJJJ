@@ -290,22 +290,29 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   const score = tier + playingTime + benched + title + ecl + dreamFit + capped + personality + morale + bonus
   const ok = score >= CONSENT_LINE
   const parts = { tier, playingTime, benched, title, ecl, dreamFit, capped, personality, morale, bonus }
-  // 断ったときは「何が足を引っ張ったか」、行くときは「何に惹かれたか」を出す。
-  // 同じ順番で見ると、格下でもエース格で行く選手の理由が「格下だが受け入れる」になってしまう
-  const lead: Appraisal['lead'] = ok
-    ? (dreamFit > 0 ? 'dream'
-      : playingTime >= 0.14 ? 'playing_time'
-      : capped > 0 ? 'capped'
-      : ecl > 0 ? 'ecl'
-      : title > 0 ? 'title'
-      : gap > 0 ? 'tier_up'
-      : gap < 0 ? 'tier_down'
-      : 'even')
-    : (dreamFit < 0 ? 'wrong_region'
-      : playingTime <= -0.16 ? 'no_playing_time'
-      : gap < 0 && tier < 0.45 ? 'tier_down'
-      : personality <= -0.15 ? 'loyalty'
-      : 'even')
+  // 見出しにする理由は「一番効いた要素」。行くときは一番の後押し、断るときは一番の足かせ。
+  //
+  // ★決め打ちの順番で選ばないこと。
+  //   以前は ok のとき dreamFit を最初に見ていたので、格上(+0.40)に惹かれて行く選手でも
+  //   憧れ(+0.12)が付いていれば必ず「憧れの◯◯で走りたい」になっていた。
+  //   行き先で23番手（出番 -0.28）でも見出しは憧れのままなので、
+  //   「出番がないのに憧れだから行きたい」という筋の通らない話に見える。
+  //
+  // 格(tier)だけは0.50が「同格＝素の状態」なので、そこからの差で他と比べる。
+  // 生の値で比べると、同格の0.50が常に最大になって全部「格」の話になってしまう。
+  const weights: { lead: Appraisal['lead']; v: number }[] = [
+    { lead: gap > 0 ? 'tier_up' : gap < 0 ? 'tier_down' : 'even', v: tier - 0.50 },
+    { lead: playingTime > 0 ? 'playing_time' : 'no_playing_time', v: playingTime },
+    { lead: 'playing_time', v: benched },
+    { lead: 'title', v: title },
+    { lead: 'ecl', v: ecl },
+    { lead: dreamFit >= 0 ? 'dream' : 'wrong_region', v: dreamFit },
+    { lead: 'capped', v: capped },
+    { lead: personality < 0 ? 'loyalty' : 'even', v: personality },
+  ]
+  const best = weights.reduce((a, b) => (ok ? b.v > a.v : b.v < a.v) ? b : a)
+  // どれも効いていない（横並び）なら「条件は悪くない」で締める
+  const lead: Appraisal['lead'] = (ok ? best.v <= 0 : best.v >= 0) ? 'even' : best.lead
 
   const REASON_NO: Record<Appraisal['lead'], string> = {
     no_playing_time: `${p.name}は「${d.squadRank}番手では出番がない」と考えている`,
