@@ -1,36 +1,22 @@
 import type { EclResult, EclStanding, Player, Race, Team } from '../types'
-import { simulateRace, assignLineupByTerrain } from './raceEngine'
+import { runBackgroundRace } from './backgroundRace'
 
 // ECL出場チーム（日本チーム or 海外クラブ）。playerIds から各区間へ地形適性に応じて割り当てて走らせる。
 export type EclParticipant = Omit<EclStanding, 'points'> & { playerIds: string[] }
 
-export function lineupFor(playerIds: string[], players: Player[], race: Race): Record<number, string> {
-  // 出場不可（引退/負傷）だけ除外。status未設定の海外選手も走れるようにする。
-  const roster = playerIds
-    .map(id => players.find(p => p.id === id))
-    .filter((p): p is Player => !!p && p.status !== 'retired' && p.status !== 'injured')
-  // OVR順の機械配置ではなく、区間の地形（山・下り）に応じて専門選手を最適配置する。
-  return assignLineupByTerrain(roster, race)
-}
-
-// 全区間に必ず走者を立てる（空区間を控えで穴埋め）。
-// 1区間でも走者が欠けると「再生では総合タイムが少なく＝1位、結果画面ではバケット方式で最下位」という
-// 順位の食い違いが起きるため、シミュ前に必ず全区間を埋めて incomplete を発生させない。
-export function ensureAllSegments(lineup: Record<number, string>, playerIds: string[], players: Player[], race: Race): Record<number, string> {
-  const out: Record<number, string> = { ...lineup }
-  const used = new Set(Object.values(out).filter(Boolean))
-  const roster = playerIds
+/**
+ * 名簿の選手IDを「走れる人」と「最後の穴埋めにだけ使う人」に分ける。
+ * **区間への並べ方は決めない**（engine/backgroundRace の bgLineup 1本）。
+ *
+ * 負傷者を reserve に回すのは、1区間でも走者が欠けると「再生では総合タイムが少なく＝1位、
+ * 結果画面ではバケット方式で最下位」という順位の食い違いが起きるため。
+ * 空区間を残すよりは負傷者でも走らせる。
+ */
+export function eclRoster(playerIds: string[], players: Player[]): { roster: Player[]; reserve: Player[] } {
+  const all = playerIds
     .map(id => players.find(p => p.id === id))
     .filter((p): p is Player => !!p && p.status !== 'retired')
-  // 空区間はまず健康な控えで、足りなければ負傷者でも埋める（空区間を残すよりは走らせる）
-  const bench = [...roster.filter(p => p.status !== 'injured'), ...roster.filter(p => p.status === 'injured')]
-  for (const seg of race.segments) {
-    const cur = out[seg.index]
-    if (cur && players.some(p => p.id === cur)) continue   // 既に有効な選手が入っている
-    const pick = bench.find(p => !used.has(p.id))
-    if (pick) { out[seg.index] = pick.id; used.add(pick.id) }
-  }
-  return out
+  return { roster: all.filter(p => p.status !== 'injured'), reserve: all.filter(p => p.status === 'injured') }
 }
 
 // ECLを開催（一発勝負）。16チームが1つの国際コースを走り、総合タイムで世界一を決める。
@@ -46,16 +32,17 @@ export function simulateEclEvent(params: {
   const { year, participants, races, teams, players, playerLineup } = params
   const race = races[0]
 
-  const lineups: Record<string, Record<number, string>> = {}
-  participants.forEach(p => {
-    const base = (playerLineup && p.id === playerLineup.teamId && Object.keys(playerLineup.lineup).length > 0)
-      ? playerLineup.lineup
-      : lineupFor(p.playerIds, players, race)
-    // 自チーム・AIとも、空区間を必ず控えで埋めて全区間完走させる（順位の食い違いバグの根本対策）
-    lineups[p.id] = ensureAllSegments(base, p.playerIds, players, race)
+  // 走らせるのは engine/backgroundRace の1本（並べ方も穴埋めもそこ）。
+  // 自チームが出るときだけ監督の配置を差し込む
+  const out = runBackgroundRace({
+    race, teams, players, seasonProgress: 0.5,
+    entrants: participants.map(p => ({
+      id: p.id,
+      ...eclRoster(p.playerIds, players),
+      lineup: (playerLineup && p.id === playerLineup.teamId) ? playerLineup.lineup : undefined,
+    })),
   })
-
-  const results = simulateRace(race, lineups, teams, players, 0.5)
+  const results = out.race.results!
 
   // 最終順位＝総合タイム昇順
   const timeById = new Map(results.teamRankings.map(tr => [tr.teamId, tr.totalTimeSec]))

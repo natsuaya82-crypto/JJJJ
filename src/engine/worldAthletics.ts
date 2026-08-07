@@ -2,10 +2,12 @@
 // 国籍で選手を集め、5000/10000/マラソンの持ちタイムで候補を作る。
 // 駅伝優先：まず駅伝代表20人（監督 or AI）→ 個人種目は駅伝に入らなかった選手から
 // 実物方式で選考（標準突破優先＋ランキング補充・国別3人・マラソン専任）。
-import type { Player, Nationality, WECRacePlan } from '../types'
+import type { Player, Nationality, Race, WECRacePlan } from '../types'
 import { natGeoRegion, NATIONALITY_META, type GeoRegion } from '../data/nationalities'
 import { formatRaceTime, individualEventAbility, individualBaseTime } from '../utils/eventTime'
 import { calcBaseAbility, calcAffinity } from './raceEngine'
+import { runBackgroundRace } from './backgroundRace'
+import { worldRace, worldRaceName } from '../utils/worldCourses'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
@@ -307,35 +309,140 @@ export const CONT_QUAL_LABEL: Record<'アフリカ' | 'ヨーロッパ' | 'ア�
   アメリカ大陸: 'アメリカ予選',
 }
 
-export type ContinentalQualResult = {
-  region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'
-  standings: { nat: Nationality; rank: number }[]
-  advanced: Nationality[]
-  squads: Record<string, string[]>   // nat_XXX → 選出された駅伝代表20人（パッチ・代表履歴の元）
+/** レースIDに使う地域の記号（同じコースを同じ日に4地域が走るのでIDを分ける） */
+export const CONT_REGION_CODE: Record<'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸', string> = {
+  アフリカ: 'afr',
+  ヨーロッパ: 'eur',
+  アメリカ大陸: 'ame',
 }
 
-// 大陸予選（欧州・アフリカ・アメリカ）を裏で回す：レースはせず国力+当日ブレで順位を決める。
-// アジア予選（実レース）の年に同時開催され、通過国が翌年の本戦出場枠になる。
-// 各参加国も駅伝代表20人を選出する（レースはしないが「代表に選ばれた」記録＝パッチが付く）。
-export function simulateContinentalQualifiers(players: Player[], year: number): ContinentalQualResult[] {
+/** 地域の記号（Season.waRaces のキー）→ 大会名。走行記録から大会名を出すのはここ1本 */
+export const CONT_LABEL_BY_CODE: Record<string, string> = Object.fromEntries(
+  (Object.keys(CONT_QUAL_LABEL) as (keyof typeof CONT_QUAL_LABEL)[]).map(r => [CONT_REGION_CODE[r], CONT_QUAL_LABEL[r]]),
+)
+
+export type ContinentalQualResult = {
+  region: 'アフリカ' | 'ヨーロッパ' | 'アメリカ大陸'
+  standings: { nat: Nationality; rank: number; points?: number }[]
+  advanced: Nationality[]
+  squads: Record<string, string[]>   // nat_XXX → 選出された駅伝代表20人（パッチ・代表履歴の元）
+  /**
+   * 開催中の3戦。**大会が終わったら外して Season.waRaces へ移す**（stripContRaces）。
+   * 走行記録をこちら側に残すと worldAthleticsResults ＝普段のセーブに入りっぱなしになり、
+   * 予選年ごとに121KBずつ増え続ける。記録の置き場所は他の大会と同じくシーズンの側。
+   */
+  races?: Race[]
+  /** 3戦の合計得点（nat_XXX → 得点）。決着したら standings に落とす */
+  points?: Record<string, number>
+}
+
+// ───────────────────────────────────────────────────────────────
+// 大陸予選（欧州・アフリカ・アメリカ）
+//
+// ■ 昔どうだったか
+//   レースをせず、国力（上位7人の持ちタイム合計）× 当日ブレ±8% で順位を決め打ちしていた。
+//   ところが国力は全16か国が 6.73〜6.90 に潰れており（幅2.5%）、ブレのほうが3倍大きい。
+//   結果、通過国は**実質くじ引き**になっていた。実測（scripts/measure-continental.ts）で
+//     ケニアの通過率45% / エチオピア46%、アメリカ大陸ではジャマイカが通過率トップ
+//   という状態。代表20人の平均OVRで並べるとケニア88.8〜ナイジェリア82.3と6.5点の差が
+//   あるので、**走らせれば差が出る**。だからアジア予選と同じく実レースにした。
+//
+// ■ アジア予選との違いは「プレイヤーが見るかどうか」だけ
+//   同じ年・同じコース・同じ3戦・同じ得点で決まる。地域をまたいでタイムを比べられる。
+//   走らせ方は engine/backgroundRace の1本（裏の部・海外リーグ・ECLと同じ）。
+// ───────────────────────────────────────────────────────────────
+
+/** その地域で予選に出る国（その国籍の選手が居る国だけ） */
+function contNations(players: Player[], region: string, year: number): Nationality[] {
   const allNats = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
+  return allNats.filter(n => meetRegion(n) === region && nationStrength(players, n, year) > 0)
+}
+
+/**
+ * 大陸予選を開幕させる：参加国・代表20人・3戦のコースを決める（まだ走らない）。
+ * コースはアジア予選と同じ plans を渡すこと（地域をまたいでタイムを比べるため）。
+ */
+export function startContinentalQualifiers(players: Player[], year: number, plans: WECRacePlan[]): ContinentalQualResult[] {
   const out: ContinentalQualResult[] = []
-  for (const { region, slots } of REGION_QUOTA) {
+  for (const { region } of REGION_QUOTA) {
     if (region === 'アジア+オセアニア') continue
-    const nats = allNats.filter(n => meetRegion(n) === region && nationStrength(players, n, year) > 0)
-    const rows = nats
-      .map(n => ({ nat: n, score: nationStrength(players, n, year) * (0.92 + rnd() * 0.16) }))  // 当日ブレで番狂わせも起きる
-      .sort((a, b) => b.score - a.score)
-    const standings = rows.map((r, i) => ({ nat: r.nat, rank: i + 1 }))
-    // 各国の駅伝代表20人（持ちタイム順）。個人種目スターは除外せず駅伝に全振り（予選は駅伝のみ）
+    const nats = contNations(players, region, year)
+    // 各国の駅伝代表20人。個人種目スターは除外せず駅伝に全振り（予選は駅伝のみ）。
+    // アジア予選と同じく「持ちタイム14人＋コース適性6人」で選ぶ（山のコースで登り屋が居ない代表を防ぐ）
     const squads: Record<string, string[]> = {}
     for (const n of nats) {
-      const cands = ekidenCandidates(players, n, year)
+      const cands = ekidenCandidatesWithFit(players, n, year, plans, 20, 6)
       squads[`nat_${n}`] = autoSelectEkiden(cands, new Set<string>(), 20).map(p => p.id)
     }
-    out.push({ region, standings, advanced: standings.slice(0, slots).map(s => s.nat), squads })
+    const races = plans.map((plan, i) => worldRace(plan, {
+      id: `wa-${year}-r${i + 1}@${CONT_REGION_CODE[region]}`,
+      name: worldRaceName(plan, CONT_QUAL_LABEL[region], `${year} ${CONT_QUAL_LABEL[region]} 第${i + 1}戦`),
+      date: waRaceDate(year, i),
+    }))
+    out.push({ region, standings: [], advanced: [], squads, races, points: {} })
   }
   return out
+}
+
+/** 大陸予選を1戦進める。アジア予選の第i戦と同じタイミングで呼ぶ */
+export function advanceContinentalQualifiers(
+  conts: ContinentalQualResult[], raceIndex: number, players: Player[],
+): ContinentalQualResult[] {
+  return conts.map(c => {
+    const race = c.races?.[raceIndex]
+    if (!race) return c
+    const byId = new Map(players.map(p => [p.id, p]))
+    const out = runBackgroundRace({
+      race, players, seasonProgress: 0.7,
+      entrants: Object.entries(c.squads).map(([natId, ids]) => ({
+        id: natId,
+        roster: ids.map(id => byId.get(id)).filter((p): p is Player => !!p && p.status !== 'retired'),
+      })),
+    })
+    const points = { ...(c.points ?? {}) }
+    for (const [id, pt] of Object.entries(out.points)) points[id] = (points[id] ?? 0) + pt
+    return { ...c, points, races: c.races!.map((r, i) => (i === raceIndex ? out.race : r)) }
+  })
+}
+
+/** 3戦の合計得点で順位と通過国を確定する */
+export function finishContinentalQualifiers(conts: ContinentalQualResult[]): ContinentalQualResult[] {
+  return conts.map(c => {
+    // 走っていないのに通過国が決まっているのは、実レースにする前のセーブで開幕した大会。
+    // その年はもう決着しているので、得点0で並べ直して塗り替えてはいけない
+    if (!(c.races ?? []).some(r => r.results) && c.advanced.length > 0) return c
+    const slots = REGION_QUOTA.find(q => q.region === c.region)?.slots ?? 0
+    const standings = Object.keys(c.squads)
+      .map(natId => ({ nat: natId.slice(4) as Nationality, points: c.points?.[natId] ?? 0 }))
+      .sort((a, b) => b.points - a.points)
+      .map((r, i) => ({ ...r, rank: i + 1 }))
+    return { ...c, standings, advanced: standings.slice(0, slots).map(s => s.nat) }
+  })
+}
+
+/** 走り終えた3戦を、シーズンへ移すための形（地域の記号 → レース）で取り出す */
+export function contRacesOf(conts: ContinentalQualResult[]): Record<string, Race[]> {
+  const out: Record<string, Race[]> = {}
+  for (const c of conts) {
+    const done = (c.races ?? []).filter(r => r.results)
+    if (done.length > 0) out[CONT_REGION_CODE[c.region]] = done
+  }
+  return out
+}
+
+/** 恒久保存する側から走行記録を外す（記録は Season.waRaces にある） */
+export function stripContRaces(conts: ContinentalQualResult[]): ContinentalQualResult[] {
+  return conts.map(({ races: _races, points: _points, ...rest }) => rest)
+}
+
+/**
+ * 開幕から決着までを一度に回す。**判定は上の3本と同じ**（合成しているだけ）。
+ * 大陸予選を持っていない古いセーブが本戦の枠を決めるときの保険用。
+ */
+export function runContinentalQualifiers(players: Player[], year: number, plans: WECRacePlan[]): ContinentalQualResult[] {
+  let conts = startContinentalQualifiers(players, year, plans)
+  for (let i = 0; i < plans.length; i++) conts = advanceContinentalQualifiers(conts, i, players)
+  return finishContinentalQualifiers(conts)
 }
 
 // ───────────────────────────────────────────────────────────────

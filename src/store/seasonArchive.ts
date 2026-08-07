@@ -26,9 +26,10 @@ import { writeArchive, readArchive, removeArchive } from './saveStorage'
 
 // 大会ごとの取り出し口。**大会で残す／捨てるを分けない**（utils/raceRecord.ts）。
 //   固定キー  jpel / college / reserve / ecl
-//   動的キー  div-<部>（裏の部）、lg-<リーグID>（海外リーグ）
+//   動的キー  div-<部>（裏の部）、lg-<リーグID>（海外リーグ）、wa-<地域>（大陸予選）
 const DIV_PREFIX = 'div-'
 const LEAGUE_PREFIX = 'lg-'
+const WA_PREFIX = 'wa-'
 
 /** その年のシーズンから、大会ごとのレース一覧を取り出す。**取り出し方はここ1本** */
 function racesByCompetition(s: ArchivedSeason): Record<string, Race[]> {
@@ -40,6 +41,7 @@ function racesByCompetition(s: ArchivedSeason): Record<string, Race[]> {
   }
   for (const [d, rs] of Object.entries(s.divisionRaces ?? {})) out[`${DIV_PREFIX}${d}`] = rs
   for (const [lid, rs] of Object.entries(s.foreignRaces ?? {})) out[`${LEAGUE_PREFIX}${lid}`] = rs
+  for (const [rg, rs] of Object.entries(s.waRaces ?? {})) out[`${WA_PREFIX}${rg}`] = rs
   return out
 }
 
@@ -91,6 +93,7 @@ export function stripArchivedResults(
       races: strip(s.races),
       divisionRaces: stripMap(s.divisionRaces),
       foreignRaces: stripMap(s.foreignRaces),
+      waRaces: stripMap(s.waRaces),
       collegeRaces: strip(s.collegeRaces),
       secondTeamRaces: strip(s.secondTeamRaces),
       eclRace: s.eclRace?.results ? { ...s.eclRace, results: undefined } : s.eclRace,
@@ -119,6 +122,7 @@ function applyArchive(s: ArchivedSeason, a: SeasonArchive): ArchivedSeason {
     races: put(s.races, a.races.jpel),
     divisionRaces: putMap(s.divisionRaces, DIV_PREFIX, a),
     foreignRaces: putMap(s.foreignRaces, LEAGUE_PREFIX, a),
+    waRaces: putMap(s.waRaces, WA_PREFIX, a),
     collegeRaces: put(s.collegeRaces, a.races.college),
     secondTeamRaces: put(s.secondTeamRaces, a.races.reserve),
     eclRace: s.eclRace && !s.eclRace.results

@@ -34,8 +34,9 @@ import { simulateAwayDivisions, applyAwayDivisionRound, applyRacedToSchedule } f
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { individualEventAbility, individualBaseTime } from '../utils/eventTime'
-import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, simulateContinentalQualifiers, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
-import { simulateEclEvent, lineupFor as terrainLineupFor, ensureAllSegments as fillAllSegments } from '../engine/ecl'
+import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, startContinentalQualifiers, advanceContinentalQualifiers, finishContinentalQualifiers, runContinentalQualifiers, contRacesOf, stripContRaces, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
+import { simulateEclEvent } from '../engine/ecl'
+import { runBackgroundRace } from '../engine/backgroundRace'
 import type { EclParticipant } from '../engine/ecl'
 import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
 import { buildEclParticipants, buildEclRaces, eclDateBetweenLeagueRaces } from '../engine/eclSeries'
@@ -47,7 +48,7 @@ import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
 import { rivalClubsFor } from '../utils/transferRivals'
-import { worldRacePlans, worldRaceName } from '../utils/worldCourses'
+import { worldRacePlans, worldRaceName, worldRace } from '../utils/worldCourses'
 import { getAdDay, ADS_PER_DAY } from '../utils/ads'
 import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM, transferCapOf, DEFICIT_RESCUE_BUDGET } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize, rosterCapOf } from '../data/rosterRules'
@@ -56,7 +57,6 @@ import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type Ca
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 // 区間の地形→推奨ポジションは utils/terrain の1本
-import { recommendedSpecialtyFor } from '../utils/terrain'
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
 import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 // セーブに「何を書かないか」は ephemeralState.ts に集約してある（画面の開閉状態と読まれない残骸）
@@ -6881,30 +6881,16 @@ export const useGameStore = create<GameStore>()(
             id: `nat_${nat}`, nat, name: natLabel(nat), shortName: natLabel(nat).slice(0, 5),
             colors: clubColor(nat), isPlayerTeam: nat === 'JPN' && japanIn,
           }))
-          const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
-          const races: import('../types').Race[] = plans.map((plan, i) => ({
+          // レースの組み立ては utils/worldCourses の worldRace 1本（本戦・アジア予選・大陸予選で共通）。
+          // 「世界選手権 出雲開幕戦」のようにコース名で呼ぶ。年と開催地を名前に入れると
+          // 毎年別の記録表になって区間記録が1年で使い捨てになる。
+          // コース名を持っていない古いセーブだけ、これまでどおり年つきの名前で出す
+          const meetName = isMain ? '世界選手権' : '世界選手権アジア予選'
+          const races: import('../types').Race[] = plans.map((plan, i) => worldRace(plan, {
             id: `wa-${year}-r${i + 1}`,
-            // 「世界選手権 出雲開幕戦」のようにコース名で呼ぶ（utils/worldCourses）。
-            // 年と開催地を名前に入れると毎年別の記録表になって、区間記録が1年で使い捨てになる。
-            // コース名を持っていない古いセーブだけ、これまでどおり年つきの名前で出す
-            name: worldRaceName(
-              plan,
-              isMain
-                ? `${year} 世界選手権 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`
-                : `${year} 世界選手権アジア予選 ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`,
-              isMain,
-            ),
+            name: worldRaceName(plan, meetName, `${year} ${meetName} ${WA_HOST_CITY[host!] ?? natLabel(host!)} 第${i + 1}戦`),
             // JPELグランドファイナル(12/27)の後、オフシーズンの1月開催。年をまたぐので year+1 になる
             date: waRaceDate(year, i),
-            location: '',
-            type: 'league' as const,
-            // 推奨ポジション（区間配置の「◯◯推奨」のパッチ）は地形から出す1本（utils/terrain）。
-            // ここで付け忘れていたので、世界選手権だけパッチが出ていなかった
-            segments: plan.segments.map((s, j) => ({
-              index: j + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct,
-              ...(recommendedSpecialtyFor(s) ? { recommended: recommendedSpecialtyFor(s)! } : {}),
-            })),
-            conditions: { temperature: 12, weather: WEATHERS[Math.floor(Math.random() * WEATHERS.length)], elevation: 0 },
           }))
           const individuals = fields ? simulateIndividuals(fields) : undefined
           // 代表は選出された時点で代表：駅伝20人＋個人種目エントリーをここで代表記録に積む
@@ -6924,10 +6910,11 @@ export const useGameStore = create<GameStore>()(
             const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
             for (const ir of individuals) for (const pl of ir.placings) pushRep({ playerId: pl.playerId, year, nat: pl.nat, label: EV[ir.event] ?? ir.event })
           }
-          // 予選年は欧州・アフリカ・アメリカの大陸予選も同時に裏開催（レースはしないが代表20人を選出）。
+          // 予選年は欧州・アフリカ・アメリカの大陸予選も同時に裏開催。
+          // **アジア予選と同じコース・同じ3戦を実際に走る**（advanceWorldRace で一緒に進む）。
           // 各国の代表はここで確定＝アジア予選と同じタイミングで「駅伝 [国旗]代表」パッチが付く。
           // 代表20人は continentals.squads にまとめて持つ（worldRepresentativesへは重複保存しない＝セーブ肥大を回避）
-          const continentals = !isMain ? simulateContinentalQualifiers(state.players, year) : undefined
+          const continentals = !isMain ? startContinentalQualifiers(state.players, year, plans) : undefined
           return {
             worldTournament: {
               year, kind: isMain ? 'main' as const : 'qualifier' as const, host,
@@ -6945,22 +6932,34 @@ export const useGameStore = create<GameStore>()(
           const t = state.worldTournament
           if (!t || t.finished || t.raceIndex >= t.races.length) return state
           const race = t.races[t.raceIndex]
-          const lineups: Record<string, Record<number, string>> = {}
-          for (const pt of t.participants) {
-            const ids = t.squads[pt.id] ?? []
-            const base = (pt.isPlayerTeam && japanLineup && Object.keys(japanLineup).length > 0)
-              ? japanLineup
-              : terrainLineupFor(ids, state.players, race)
-            lineups[pt.id] = fillAllSegments(base, ids, state.players, race)
-          }
-          const results = simulateRace(race, lineups, [], state.players, 0.7)
-          const newRaces = t.races.map((r, i) => i === t.raceIndex ? { ...r, results } : r)
+          const byId = new Map(state.players.map(p => [p.id, p]))
+          // 走らせるのは engine/backgroundRace の1本（裏の部・海外リーグ・ECLと同じ）。
+          // 日本だけ監督の配置を差し込む
+          const out = runBackgroundRace({
+            race, players: state.players, seasonProgress: 0.7,
+            entrants: t.participants.map(pt => ({
+              id: pt.id,
+              roster: (t.squads[pt.id] ?? []).map(id => byId.get(id)).filter((p): p is Player => !!p && p.status !== 'retired'),
+              lineup: (pt.isPlayerTeam && japanLineup && Object.keys(japanLineup).length > 0) ? japanLineup : undefined,
+            })),
+          })
+          const newRaces = t.races.map((r, i) => i === t.raceIndex ? out.race : r)
           const points = { ...t.points }
-          for (const tr of results.teamRankings) points[tr.teamId] = (points[tr.teamId] ?? 0) + tr.positionPoints + tr.segmentPoints
+          for (const [id, pt] of Object.entries(out.points)) points[id] = (points[id] ?? 0) + pt
+          // 大陸予選も同じ第◯戦を裏で走らせる（同じ年・同じコース・同じ得点）
+          const contsNow = t.continentals ? advanceContinentalQualifiers(t.continentals, t.raceIndex, state.players) : undefined
+          // 大陸予選の走行記録はシーズンの側へ置く（海外リーグ・裏の部と同じ。別ファイルへ archive される）
+          const waRaces = contsNow ? { ...(state.currentSeason.waRaces ?? {}), ...contRacesOf(contsNow) } : state.currentSeason.waRaces
+          const seasonWithWa = waRaces === state.currentSeason.waRaces
+            ? state.currentSeason
+            : { ...state.currentSeason, waRaces }
           const nextIdx = t.raceIndex + 1
           const finished = nextIdx >= t.races.length
           if (!finished) {
-            return { worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, finished } }
+            return {
+              worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, continentals: contsNow, finished },
+              currentSeason: seasonWithWa,
+            }
           }
           // 最終戦消化 → 3戦合計ポイントで最終結果を確定
           const runnersOf = (pid: string) => {
@@ -6988,14 +6987,19 @@ export const useGameStore = create<GameStore>()(
             }
             return best ? { playerId: best.playerId, nat: best.nat, avgRank: best.avgRank } : undefined
           })()
-          // 大陸予選は大会開始時に確定済み（worldTournament.continentals）。無い旧セーブ用に念のためフォールバック
-          const continentals = t.kind === 'qualifier' ? (t.continentals ?? simulateContinentalQualifiers(state.players, t.year)) : undefined
+          // 大陸予選は開幕時に始まり、上でアジア予選と一緒にここまで走ってきている。
+          // 3戦の合計得点で通過国を確定する。
+          // 大陸予選を持っていない旧セーブだけ、ここで開幕から決着までを一度に回す（判定は同じ1本）
+          const continentals = t.kind === 'qualifier'
+            ? finishContinentalQualifiers(contsNow ?? runContinentalQualifiers(state.players, t.year, worldRacePlans(t.year)))
+            : undefined
           // 駅伝3戦のレース詳細も結果に残す（ECLのeclSeriesと同じ扱い。選手詳細の駅伝データ等で使う）
           // 駅伝の区間ポイント（全3戦の各区間で区間順位1位3/2位2/3位1）を国別に集計
           const segPts = t.kind === 'main' ? ekidenSegmentPoints(newRaces) : undefined
           const result = {
             ...(t.kind === 'qualifier'
-              ? { ...composeQualifierResult(t.year, rows, 3, t.host), bestPlayer, continentals }
+              // 大陸予選は通過国と代表20人だけを恒久保存する。走行記録は Season.waRaces（別ファイル行き）
+              ? { ...composeQualifierResult(t.year, rows, 3, t.host), bestPlayer, continentals: continentals && stripContRaces(continentals) }
               : composeMainResult(t.year, t.host!, t.participants.map(p => p.nat), t.individuals ?? [], rows, segPts)),
             races: newRaces,
             // 選出された駅伝代表20人を恒久保存（チームタブの代表表示・0走でも代表履歴に残すための元データ）
@@ -7038,7 +7042,9 @@ export const useGameStore = create<GameStore>()(
             worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, finished: true },
             worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])],
             worldRepresentatives: reps,
-            ...(contNews.length > 0 ? { currentSeason: { ...state.currentSeason, newsFeed: [...contNews, ...state.currentSeason.newsFeed].slice(0, 30) } } : {}),
+            currentSeason: contNews.length > 0
+              ? { ...seasonWithWa, newsFeed: [...contNews, ...seasonWithWa.newsFeed].slice(0, 30) }
+              : seasonWithWa,
           }
         })
       },

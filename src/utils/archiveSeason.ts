@@ -33,6 +33,7 @@ export function archiveSeason(
     // 裏の部と海外も同じだけ残す。大会で残す／捨てるを分けない（utils/raceRecord.ts）
     divisionRaces: season.divisionRaces,
     foreignRaces: season.foreignRaces,
+    waRaces: season.waRaces,
     collegeRaces: season.collegeRaces,
     standings: season.standings,
     secondTeamRaces: season.secondTeamRaces,
@@ -76,6 +77,7 @@ export function toArchivedShape(raw: Record<string, unknown>): Record<string, un
     races: raw.races,
     divisionRaces: raw.divisionRaces,
     foreignRaces: raw.foreignRaces,
+    waRaces: raw.waRaces,
     collegeRaces: raw.collegeRaces,
     standings: raw.standings,
     secondTeamRaces: raw.secondTeamRaces,

@@ -16,8 +16,8 @@
 //   自分の部のレースを他の部にも走らせてはいけない。
 
 import type { Division, Player, Race, SeasonStanding, Team } from '../types'
-import { simulateRace, buildAILineup } from './raceEngine'
-import { DIVISIONS, teamsInDivision, segmentPrizeByTeam } from '../utils/league'
+import { runBackgroundRace } from './backgroundRace'
+import { DIVISIONS, teamsInDivision } from '../utils/league'
 
 export type AwayDivisionRound = {
   /** teamId → このレースで得た勝点 */
@@ -65,26 +65,21 @@ export function simulateAwayDivisions(
     if (divRaces && roundIndex >= divRaces.length) continue
     const divRace = divRaces?.[roundIndex] ?? race
 
-    const lineups: Record<string, Record<number, string>> = {}
-    for (const t of divTeams) lineups[t.id] = buildAILineup(t.id, players, divRace)
+    // 走らせるのは engine/backgroundRace の1本（並べ方も数え方もそこ）。
+    // 出られるのは active の選手だけ＝国内の決まり。ここが大会ごとに違うので呼ぶ側で絞る
+    const out = runBackgroundRace({
+      race: divRace, players, teams, seasonProgress,
+      entrants: divTeams.map(t => ({ id: t.id, roster: players.filter(p => p.teamId === t.id && p.status === 'active') })),
+    })
 
-    const results = simulateRace(divRace, lineups, teams, players, seasonProgress)
-
-    for (const tr of results.teamRankings) {
-      points[tr.teamId] = tr.positionPoints + tr.segmentPoints
-      ranks[tr.teamId] = tr.rank
+    Object.assign(points, out.points)
+    Object.assign(ranks, out.ranks)
+    for (const [tid, v] of Object.entries(out.segPrize)) segPrize[tid] = (segPrize[tid] ?? 0) + v
+    for (const [id, add] of Object.entries(out.careerAdd)) {
+      const cur = careerAdd[id] ?? { races: 0, segWins: 0 }
+      careerAdd[id] = { races: cur.races + add.races, segWins: cur.segWins + add.segWins }
     }
-    for (const [tid, v] of Object.entries(segmentPrizeByTeam(results.segmentResults))) {
-      segPrize[tid] = (segPrize[tid] ?? 0) + v
-    }
-    for (const lineup of Object.values(lineups)) {
-      for (const id of Object.values(lineup)) {
-        const segWins = results.segmentResults.filter(sr => sr.runners[0]?.playerId === id).length
-        const cur = careerAdd[id] ?? { races: 0, segWins: 0 }
-        careerAdd[id] = { races: cur.races + 1, segWins: cur.segWins + segWins }
-      }
-    }
-    raced.push({ division: d, roundIndex, race: { ...divRace, results } })
+    raced.push({ division: d, roundIndex, race: out.race })
   }
   return { points, ranks, careerAdd, segPrize, raced }
 }

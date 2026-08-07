@@ -1,6 +1,6 @@
-import type { WECRacePlan } from '../types'
+import type { Race, WECRacePlan } from '../types'
 import { LEAGUE_COURSE_POOL, FINAL_COURSES } from '../data/races'
-import { terrainKindOf } from './terrain'
+import { terrainKindOf, recommendedSpecialtyFor } from './terrain'
 
 // 世界選手権のコースを決める場所。
 //
@@ -52,14 +52,34 @@ export function worldRacePlans(year: number, profile: 'mountain' | 'flat' | 'mix
 }
 
 /**
- * 世界選手権のレース名。**年と開催地は入れない**（入れると毎年別の記録表になって貯まらない）。
+ * 国際大会のレース名。**年と開催地は入れない**（入れると毎年別の記録表になって貯まらない）。
  * コース名が無い古いセーブだけ、これまでどおり年つきの名前で出す。
+ * @param meetName 大会名（世界選手権 / 世界選手権アジア予選 / ユーロ予選 …）
  */
-export function worldRaceName(
-  plan: WECRacePlan,
-  fallback: string,
-  isMain: boolean,
-): string {
+export function worldRaceName(plan: WECRacePlan, meetName: string, fallback: string): string {
   if (!plan.courseName) return fallback
-  return `${isMain ? '世界選手権' : '世界選手権アジア予選'} ${plan.courseName}`
+  return `${meetName} ${plan.courseName}`
+}
+
+const WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
+
+/**
+ * コースの下書き（WECRacePlan）から実際に走るレースを作る。**組み立てはここ1本。**
+ * 本戦・アジア予選・大陸予選が同じ形のレースを走るので、区間の推奨タイプの付け忘れや
+ * 気温の食い違いが起きないようにここへ寄せている
+ * （以前は世界選手権だけ「◯◯推奨」のパッチが出ていなかった）。
+ */
+export function worldRace(plan: WECRacePlan, o: { id: string; name: string; date: string }): Race {
+  return {
+    id: o.id,
+    name: o.name,
+    date: o.date,
+    location: '',
+    type: 'league',
+    segments: plan.segments.map((s, j) => ({
+      index: j + 1, distanceKm: s.distanceKm, uphillPct: s.uphillPct, downhillPct: s.downhillPct,
+      ...(recommendedSpecialtyFor(s) ? { recommended: recommendedSpecialtyFor(s)! } : {}),
+    })),
+    conditions: { temperature: 12, weather: WEATHERS[Math.floor(Math.random() * WEATHERS.length)], elevation: 0 },
+  }
 }

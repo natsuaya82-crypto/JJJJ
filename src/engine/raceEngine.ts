@@ -239,34 +239,40 @@ export function assignLineupByTerrain(roster: Player[], race: Race): Record<numb
   return lineup
 }
 
-export function buildAILineup(teamId: string, players: Player[], race: Race): Record<number, string> {
-  const available = players.filter(p => p.teamId === teamId && p.status === 'active')
-  const sortedSegs = [...race.segments].sort((a, b) => Math.max(b.uphillPct, b.downhillPct) - Math.max(a.uphillPct, a.downhillPct))
-  const used = new Set<string>()
+// ※ buildAILineup（チームIDから配置を組む関数）はここにあったが消した。
+//   中身が下の bgLineup とまったく同じ判断で、置き場所が2つある状態だった。
+/**
+ * 区間に走者を並べる。**並べ方はここ1本。**
+ * 1. 監督が組んだ配置があればそれを先に確定
+ * 2. 地形の起伏が大きい区間から、適性の高い選手を置く（assignLineupByTerrain）
+ * 3. それでも空いた区間を、残った選手 → 控え（reserve）の順で一番速い人で埋める
+ *
+ * 3が要るのは、走者が区間数より少ないと assignLineupByTerrain が途中で止まるため。
+ * 空区間のまま走らせると総合タイムが短くなり、再生と結果画面で順位が食い違う。
+ * 埋めきれない（人が足りない）ときだけ空区間が残る。
+ */
+export function bgLineup(roster: Player[], race: Race, base?: Record<number, string>, reserve: Player[] = []): Record<number, string> {
+  const byId = new Map([...roster, ...reserve].map(p => [p.id, p]))
   const lineup: Record<number, string> = {}
-  for (const seg of sortedSegs) {
-    if (available.length === used.size) break
-    const candidates = available
-      .filter(p => !used.has(p.id))
-      .map(p => ({
-        id: p.id,
-        score: calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
-             * calcSegmentAffinity(p.specialty, seg)
-             * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0),
-      }))
-      .sort((a, b) => b.score - a.score)
-    if (candidates.length === 0) continue
-    lineup[seg.index] = candidates[0].id
-    used.add(candidates[0].id)
+  const used = new Set<string>()
+  // 監督が組んだぶんを先に確定させる（同じ選手を2区間に置かない）
+  for (const [seg, pid] of Object.entries(base ?? {})) {
+    if (!pid || used.has(pid) || !byId.has(pid)) continue
+    lineup[Number(seg)] = pid
+    used.add(pid)
   }
+  const rest = roster.filter(p => !used.has(p.id))
+  const openSegs = race.segments.filter(s => !lineup[s.index])
+  const auto = assignLineupByTerrain(rest, { ...race, segments: openSegs })
+  for (const [seg, pid] of Object.entries(auto)) { lineup[Number(seg)] = pid; used.add(pid) }
+
   for (const seg of race.segments) {
     if (lineup[seg.index]) continue
-    const leftover = available.filter(p => !used.has(p.id))
-    if (leftover.length === 0) continue
-    const best = leftover.reduce((a, b) =>
+    const left = [...roster, ...reserve].filter(p => !used.has(p.id))
+    if (left.length === 0) continue
+    const best = left.reduce((a, b) =>
       calcBaseAbility(b.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights) >
-      calcBaseAbility(a.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights) ? b : a
-    )
+      calcBaseAbility(a.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights) ? b : a)
     lineup[seg.index] = best.id
     used.add(best.id)
   }
@@ -349,7 +355,7 @@ export function buildCpuLineups(
   const out: Record<string, Record<number, string>> = {}
   for (const team of teamsInDivision(teams, myDivision)) {
     if (team.id === playerTeamId) continue
-    out[team.id] = buildAILineup(team.id, players, race)
+    out[team.id] = bgLineup(players.filter(p => p.teamId === team.id && p.status === 'active'), race)
   }
   return out
 }

@@ -47,6 +47,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
+| `src/engine/backgroundRace.ts` | **裏で走るレースの唯一の入口**。`runBackgroundRace`（裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここを通る）。区間への並べ方は `raceEngine` の `bgLineup` 1本 |
 | `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
@@ -354,6 +355,29 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 0ptのまま動かず、昇降格も通算成績も決まりませんでした。
 `src/engine/domesticLeague.ts` が、海外8リーグ（`engine/foreignLeague.ts`）と
 同じ形で自分の部以外も裏で走らせます。順位表も通算成績も本編と同じだけ動きます。
+
+**裏で走らせるレースは `engine/backgroundRace.ts` の `runBackgroundRace` 1本を通します。**
+裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここです。`simulateRace` を直接呼ぶと
+`npm run check` が落ちます。
+
+以前は5か所が同じ手順（区間に走者を並べる → `simulateRace` → 得点と通算成績を数える）を
+別々に書いていて、**並べ方だけが3通り**ありました。海外リーグだけ空区間を埋めておらず、
+「再生では総合タイムが少なく＝1位、結果画面では最下位」という食い違いが残っていました。
+
+### 世界選手権の予選は4地域とも実際に走ります
+
+アジア予選（プレイヤーが見る）と、欧州・アフリカ・アメリカの大陸予選（裏）は
+**同じ年・同じコース・同じ3戦・同じ得点**です。違うのは見えるかどうかだけ。
+
+以前、大陸予選はレースをせず「国力（上位7人の持ちタイム合計）× 当日ブレ±8%」で
+順位を決め打ちしていました。ところが国力は全16か国が 6.73〜6.90 に潰れており（幅2.5%）、
+ブレのほうが3倍大きいので**通過は実質くじ引き**でした。実測でケニアの通過率45%、
+アメリカ大陸はジャマイカが通過率トップ。走らせたらアメリカ80%・ケニア87%になりました
+（`scripts/measure-continental.ts` / `scripts/check-continental.ts`）。
+
+**走行記録は `Season.waRaces` に置きます**（海外リーグ・裏の部と同じで、シーズンごとに
+別ファイルへ書き出される）。`worldAthleticsResults` の側に持たせないこと。あちらは普段の
+セーブに入りっぱなしなので、予選年ごとに121KBずつ増え続けます。
 
 ### まだ無いもの
 

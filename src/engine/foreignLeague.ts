@@ -1,5 +1,5 @@
 import type { ForeignLeague, ForeignStanding, Player, Race } from '../types'
-import { simulateRace, assignLineupByTerrain } from './raceEngine'
+import { runBackgroundRace, applyCareerAdd } from './backgroundRace'
 // 所属の判定は国内チームと同じものを使う（クラブ側に名簿は持たない）
 import { belongsToClub } from '../utils/rosterSync'
 import { rankedStandings } from '../utils/league'
@@ -13,13 +13,12 @@ export function initForeignStandings(foreignLeagues: ForeignLeague[]): Record<st
   return out
 }
 
-// 各クラブの選手を race の各区間へ地形適性に応じて割り当てる。
-function buildClubLineup(clubId: string, players: Player[], race: Race): Record<number, string> {
-  // 出場不可（引退/負傷）だけ除外。status未設定(undefined)の海外選手も走れるようにする
-  // （status==='active'で絞ると、statusが付いていない海外選手が全員弾かれ空ラインナップ＝出走0になる）
-  const roster = players.filter(p => belongsToClub(p, clubId) && p.status !== 'injured')
-  // OVR順の機械配置ではなく、区間の地形に応じて専門選手を最適配置する（プレイヤーとの非対称を解消）。
-  return assignLineupByTerrain(roster, race)
+// そのクラブで走れる選手。出場不可（引退/負傷）だけ除外し、status未設定(undefined)の
+// 海外選手も走れるようにする（status==='active'で絞ると、statusが付いていない海外選手が
+// 全員弾かれ空ラインナップ＝出走0になる）。
+// **区間への並べ方はここでは決めない**（engine/backgroundRace の bgLineup 1本）。
+function clubRoster(clubId: string, players: Player[]): Player[] {
+  return players.filter(p => belongsToClub(p, clubId) && p.status !== 'injured')
 }
 
 // 海外リーグを1マッチデー進める。全リーグの各クラブが race を走り、順位表と
@@ -47,46 +46,35 @@ export function simulateForeignLeagueRound(
   const raced: Record<string, Race> = {}
 
   for (const league of foreignLeagues) {
-    const lineups: Record<string, Record<number, string>> = {}
-    for (const club of league.clubs) {
-      lineups[club.id] = buildClubLineup(club.id, players, race)
-    }
-    // teams=[] で呼ぶ（海外クラブはteams未登録＝本拠地補正1.0中立になる）
-    const results = simulateRace(race, lineups, [], players, seasonProgress)
-    // レースIDはリーグごとに分ける（同じコースを9リーグが同じ日に走るので、
-    // そのままだと同じIDのレースが9本できて記録の紐付けが壊れる）
-    raced[league.id] = { ...race, id: `${race.id}@${league.id}`, results }
+    // 走らせるのは engine/backgroundRace の1本。teams は渡さない（海外クラブはteams未登録
+    // ＝本拠地補正1.0中立）。レースIDはリーグごとに分ける（同じコースを9リーグが同じ日に
+    // 走るので、そのままだと同じIDのレースが9本できて記録の紐付けが壊れる）
+    const out = runBackgroundRace({
+      race, players, seasonProgress,
+      raceId: `${race.id}@${league.id}`,
+      entrants: league.clubs.map(c => ({ id: c.id, roster: clubRoster(c.id, players) })),
+    })
+    raced[league.id] = out.race
 
     const prev = newStandings[league.id] ?? league.clubs.map(c => ({ clubId: c.id, totalPoints: 0, raceResults: [] }))
     newStandings[league.id] = prev.map(s => {
-      const tr = results.teamRankings.find(r => r.teamId === s.clubId)
-      if (!tr) return s
-      const earned = tr.positionPoints + tr.segmentPoints
+      const earned = out.points[s.clubId]
+      if (earned == null) return s
       return {
         ...s,
         totalPoints: s.totalPoints + earned,
-        raceResults: [...s.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
+        raceResults: [...s.raceResults, { raceId: race.id, rank: out.ranks[s.clubId] ?? 0, points: earned }],
       }
     })
 
-    // career: 出走選手の通算レース+1、区間賞ぶんの segmentWins を加算
-    for (const [clubId, lineup] of Object.entries(lineups)) {
-      for (const id of Object.values(lineup)) {
-        clubOf[id] = clubId
-        const segWins = results.segmentResults.filter(sr => sr.runners[0]?.playerId === id).length
-        // 平均区間順位の算出用に区間順位も積む（1レース1区間走る）
-        const myRank = results.segmentResults.flatMap(sr => sr.runners).find(r => r.playerId === id)?.rank ?? 0
-        const cur = careerAdd[id] ?? { races: 0, segWins: 0, rankSum: 0 }
-        careerAdd[id] = { races: cur.races + 1, segWins: cur.segWins + segWins, rankSum: cur.rankSum + myRank }
-      }
+    Object.assign(clubOf, out.ranFor)
+    for (const [id, add] of Object.entries(out.careerAdd)) {
+      const cur = careerAdd[id] ?? { races: 0, segWins: 0, rankSum: 0 }
+      careerAdd[id] = { races: cur.races + add.races, segWins: cur.segWins + add.segWins, rankSum: cur.rankSum + add.rankSum }
     }
   }
 
-  const updatedPlayers = players.map(p => {
-    const add = careerAdd[p.id]
-    if (!add) return p
-    return { ...p, career: { ...p.career, totalRaces: p.career.totalRaces + add.races, segmentWins: p.career.segmentWins + add.segWins } }
-  })
+  const updatedPlayers = applyCareerAdd(players, careerAdd)
 
   // このマッチデーの出場記録（playerId → クラブ・出場数・区間賞数・区間順位合計）。呼び出し側で今季分に加算する。
   const appearances: Record<string, { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }> = {}

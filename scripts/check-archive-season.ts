@@ -4,7 +4,7 @@
  *   npx jiti scripts/check-archive-season.ts
  *
  * 見ているのは3つ。
- *   1. 旧セーブ（Season丸ごと）を移行すると、残す13項目だけになるか
+ *   1. 旧セーブ（Season丸ごと）を移行すると、残す項目だけになるか
  *   2. 記録室・在籍履歴・歴代優勝が使う元データが1件も欠けていないか
  *   3. 保存時（archiveSeason）と移行時（toArchivedShape）の形が一致するか
  *      ＝ 片方だけ直して形がズレる事故を防ぐ
@@ -26,7 +26,7 @@ const race = (id: string, pid: string, teamId: string) => ({
   results: { segmentResults: [{ segment: 1, runners: [{ playerId: pid, teamId, rank: 1, time: 1800, name: 'テスト選手' }] }], teamResults: [] },
 })
 const oldSeason: Record<string, unknown> = {
-  // 残るはず（13項目）
+  // 残るはず（KEEP と同じ顔ぶれ）
   year: 2046,
   races: [race('r1', 'p1', 't1')],
   collegeRaces: [race('c1', 'p9', 'univ')],
@@ -35,6 +35,9 @@ const oldSeason: Record<string, unknown> = {
   secondTeamStandings: [{ teamId: 't1', totalPoints: 8, raceResults: [] }],
   foreignStandings: { l1: [{ clubId: 'fc1', totalPoints: 30, raceResults: [{ raceId: 'x', rank: 1, points: 30 }] }] },
   foreignRaceIndex: 12,
+  divisionRaces: { 2: [race('d1', 'p6', 't9')] },
+  foreignRaces: { l1: [race('f1', 'p7', 'fc1')] },
+  waRaces: { ame: [race('w1', 'p8', 'nat_USA')] },
   foreignAppearances: { p3: { clubId: 'fc1', races: 10, wins: 2, rankSum: 25, rankedRaces: 10 } },
   zeroAppearances: [{ playerId: 'p4', teamId: 't2', tier: 'main' }],
   eclRace: race('e0', 'p5', 't1'),
@@ -61,12 +64,14 @@ const oldSeason: Record<string, unknown> = {
 
 const KEEP = ['year', 'races', 'collegeRaces', 'standings', 'secondTeamRaces', 'secondTeamStandings',
   'foreignStandings', 'foreignRaceIndex', 'foreignAppearances', 'foreignAppsC', 'zeroAppearances',
-  'eclRace', 'eclSeries'] as const
+  'eclRace', 'eclSeries',
+  // 走行記録（別ファイルへ書き出す対象）。増やしたらここにも足すこと
+  'divisionRaces', 'foreignRaces', 'waRaces'] as const
 
 console.log('\n[1] 旧セーブの移行')
 const migrated = toArchivedShape(oldSeason)
 const leftover = Object.keys(migrated).filter(k => !(KEEP as readonly string[]).includes(k))
-check('残す13項目以外が消えている', leftover.length === 0, `残っている: ${leftover.join(', ')}`)
+check('残す項目以外が消えている', leftover.length === 0, `残っている: ${leftover.join(', ')}`)
 for (const k of ['objectives', 'initialBudget', 'eclResult', 'newsFeed', 'chatLogs', 'trainingAssignments']) {
   check(`${k} が消えている`, migrated[k] === undefined)
 }

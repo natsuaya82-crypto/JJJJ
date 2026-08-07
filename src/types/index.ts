@@ -742,6 +742,16 @@ export type Season = {
    * 区間タイムも順位も残らず、海外クラブを指揮したときに過去が空になっていた。
    */
   foreignRaces?: Record<string, Race[]>
+  /**
+   * 大陸予選（欧州・アフリカ・アメリカ）の走行記録。地域の記号 → 走ったレース（結果つき）。
+   * 海外リーグ（foreignRaces）・裏の部（divisionRaces）と同じ扱いで、シーズンと一緒に
+   * 別ファイルへ書き出される（store/seasonArchive）。
+   *
+   * **worldAthleticsResults の側に持たせないこと。** あちらは普段のセーブに入りっぱなしなので、
+   * 予選年ごとに121KBずつ増え続け、100シーズンで6MBが毎回の書き込みに乗る
+   * （過去シーズンを別置きにしたのと同じ問題が世界大会だけで再発する）。
+   */
+  waRaces?: Record<string, Race[]>
   pendingForeignRestructure?: boolean                    // 旧セーブの海外リーグ大再編を次の年度更新で適用するフラグ
   // 海外リーグの選手ごとの出場記録（playerId → 所属クラブ・今季の出場数・区間賞数・区間順位の合計）。
   // rankSum/rankedRaces は平均区間順位の算出用（後から追加。無い旧データは平均を出さない）。
@@ -805,6 +815,7 @@ export type ArchivedSeason = Pick<Season,
   | 'races'                 // 1軍の駅伝結果。記録室・在籍履歴・区間記録の元データ
   | 'divisionRaces'         // 裏の部（自分以外の部）の駅伝結果
   | 'foreignRaces'          // 海外リーグの駅伝結果
+  | 'waRaces'               // 大陸予選（欧州・アフリカ・アメリカ）の駅伝結果
   | 'collegeRaces'          // 大学駅伝の結果
   | 'standings'             // 年間順位表。歴代優勝・チーム成績・翌季のクラブの格の元
   | 'secondTeamRaces'       // 旧リザーブ駅伝の結果（build 88 まで。読むだけ）

@@ -156,6 +156,25 @@ RULES.push({
   fix: 'utils/careerStats.ts の buildCareerCounts を通す（走行記録がある年はそこから数える）',
 })
 
+// 裏で走るレースは engine/backgroundRace の1本を通す。
+//
+// プレイヤーが見ていないレースを走らせる場所が4つあり（裏の部・海外リーグ・ECL・世界選手権）、
+// 「区間に走者を並べる → simulateRace → 得点と通算成績を数える」を4回書いていた。
+// 並べ方だけが3通りに分かれ、海外リーグだけ空区間を埋めていなかった。
+// 空区間があると「再生では総合タイムが少なく＝1位、結果画面では最下位」という食い違いが起きる。
+// 新しい大会（大陸予選など）を足すたびに同じことが起きるので、入口を1本に固定する。
+RULES.push({
+  name: '裏レースを自分で組み立てている（simulateRace の直接呼び出し）',
+  pattern: /simulateRace\(/,
+  allow: [
+    'src/engine/backgroundRace.ts',  // 唯一の入口
+    'src/engine/raceEngine.ts',      // 実体
+    'src/store/gameStore.ts',        // 自チームの本編レース（監督が配置を組む。裏レースではない）
+    'src/lib/matchSim.ts',           // オンライン対戦（相手のロスターが手元に無いので別経路）
+  ],
+  fix: 'engine/backgroundRace.ts の runBackgroundRace を呼ぶ（並べ方も数え方もそこ）',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

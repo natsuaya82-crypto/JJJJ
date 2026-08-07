@@ -27,7 +27,7 @@ import { MAIN_RACE_NAMES, RESERVE_RACE_POOL_NAMES } from '../../data/races'
 import ShareCard from './ShareCard'
 import Flag from '../ui/Flag'
 import { natLabel, natGeoRegion, isForeignNat } from '../../data/nationalities'
-import { WA_HOST_CITY } from '../../engine/worldAthletics'
+import { WA_HOST_CITY, CONT_LABEL_BY_CODE } from '../../engine/worldAthletics'
 
 
 const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
@@ -1016,7 +1016,29 @@ export default function PlayerSheet() {
                   if (rep.playerId !== player.id || rep.label !== '駅伝') continue
                   addRepRow(rep.year)
                 }
-                // 大陸予選（欧州・アフリカ・アメリカ）の代表は continentals.squads に入っている（0走＝レース詳細なし）
+                // 大陸予選（欧州・アフリカ・アメリカ）の走行記録はシーズンの側にある（Season.waRaces）。
+                // アジア予選・本戦と同じ数え方で「出場・区間賞・平均区間順位」を出す
+                for (const s of [...(pastSeasons ?? []), currentSeason]) {
+                  if (!s) continue
+                  for (const [code, races] of Object.entries(s.waRaces ?? {})) {
+                    const compLabel = `${CONT_LABEL_BY_CODE[code] ?? '大陸予選'} 駅伝`
+                    for (const race of races) {
+                      const sr = race.results?.segmentResults.find(sg => sg.runners.some(rn => rn.playerId === player.id))
+                      if (!sr) continue
+                      const runner = sr.runners.find(rn => rn.playerId === player.id)!
+                      const row = touch(s.year)
+                      row.races += 1
+                      if (runner.rank === 1) row.wins += 1
+                      if (runner.rank != null) { row.rankSum += runner.rank; row.ranked += 1 }
+                      let c = row.comps.get(compLabel)
+                      if (!c) { c = { label: compLabel, races: 0, wins: 0, rankSum: 0, ranked: 0 }; row.comps.set(compLabel, c) }
+                      c.races += 1
+                      if (runner.rank === 1) c.wins += 1
+                      if (runner.rank != null) { c.rankSum += runner.rank; c.ranked += 1 }
+                    }
+                  }
+                }
+                // 代表に選ばれたが1本も走らなかった年は、行だけ作る（continentals.squads が元）
                 for (const wr of worldAthleticsResults ?? []) {
                   if (wr.kind !== 'qualifier') continue
                   for (const c of wr.continentals ?? []) {
