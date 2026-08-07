@@ -227,11 +227,16 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const fRoster: Record<string, string[]> = {}
   const fMembersByClub = clubMembersByClub(players)
   for (const c of foreignClubs) fRoster[c.id] = [...(fMembersByClub.get(c.id) ?? [])]
-  // 海外クラブにも予算を持たせる。これが無いと海外側だけ無限にお金を払えてしまい、
-  // 日本の主力がいくらでも引き抜かれる。額はリーグの規模で決まる（utils/foreignClubProfile.ts）
+  // 海外クラブの手元資金。**国内チームと同じで finance.budget が唯一の置き場所**。
+  //
+  // 以前はここで毎回 tierBudget(c) に戻していた。つまり海外クラブは
+  // 「毎年きっかり年間予算ぶんだけ使えて、使っても翌年には満タン」という別のお金で動いていて、
+  // 繰越の上限も施設維持費も年俸も効いていなかった。国内が節約して買えないときに
+  // 海外だけが必ず買える状態だったので、日本の主力が一方的に抜けていた。
+  // 精算は endSeason（computeNextSeasonBudget）が国内CPUとまったく同じ式でやる。
+  // finance が無い古いセーブは、その年だけ格の年間予算から始める。
   const fBudget: Record<string, number> = {}
-  // 予算は格1本（utils/clubTier）。海外だけ別の式を持たない
-  for (const c of foreignClubs) fBudget[c.id] = tierBudget(c)
+  for (const c of foreignClubs) fBudget[c.id] = c.finance?.budget ?? tierBudget(c)
 
   const nameById = new Map<string, string>()
   for (const t of teams) nameById.set(t.id, t.shortName)
@@ -291,6 +296,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     jpnRoster[buyer.id] = [...jpnRoster[buyer.id], target.id]
     sizeCount[buyer.id] = (sizeCount[buyer.id] ?? 0) + 1
     budget[buyer.id] -= fee
+    fBudget[clubId] += fee   // 売った海外クラブが移籍金を受け取る（国内が売ったときと同じ）
     moved.add(target.id)
     moves.push({ playerId: target.id, fromId: clubId, toId: buyer.id, dir: 'in', fee })
   }
@@ -350,8 +356,17 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
 
   if (moves.length === 0) return { teams, foreignLeagues, players, news: [], records: [] }
 
-  // クラブ側の名簿は持たない（所属は players の teamId が唯一の記録）
-  const updatedLeagues = foreignLeagues
+  // クラブ側の名簿は持たない（所属は players の teamId が唯一の記録）。
+  // 動くのはお金だけ：買えば減り、売れば増える。**書き戻さないと使っても減らない**ので、
+  // ここを飛ばすと海外クラブだけが実質無限の資金で買い続けることになる。
+  const updatedLeagues = foreignLeagues.map(l => ({
+    ...l,
+    clubs: l.clubs.map(c => (
+      fBudget[c.id] === (c.finance?.budget ?? tierBudget(c))
+        ? c
+        : { ...c, finance: { ...c.finance, budget: fBudget[c.id] } }
+    )),
+  }))
 
   // 日本より格上のリーグへの移籍は「日本人が世界最高峰へ挑む」大ニュースにする。
   // 国コード（旧判定）に加えて4大リーグ所属クラブも対象（欧州の国コードGBR/GER等が漏れていた）

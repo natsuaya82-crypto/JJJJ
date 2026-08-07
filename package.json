@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "news": "node scripts/gen_news.mjs",
     "preview": "vite preview",
-    "check": "npx esbuild --bundle --platform=node --format=cjs scripts/check-single-source.ts --outfile=node_modules/.cache/check-ss.cjs --log-level=error && node node_modules/.cache/check-ss.cjs && npx esbuild --bundle --platform=node --format=cjs scripts/check-chat-dup.ts --outfile=node_modules/.cache/check-chat.cjs --log-level=error && node node_modules/.cache/check-chat.cjs"
+    "check": "npx esbuild --bundle --platform=node --format=cjs scripts/check-single-source.ts --outfile=node_modules/.cache/check-ss.cjs --log-level=error && node node_modules/.cache/check-ss.cjs && npx esbuild --bundle --platform=node --format=cjs scripts/check-chat-dup.ts --outfile=node_modules/.cache/check-chat.cjs --log-level=error && node node_modules/.cache/check-chat.cjs && npx esbuild --bundle --platform=node --format=cjs scripts/check-foreign-money.ts --outfile=node_modules/.cache/check-fm.cjs --log-level=error && node node_modules/.cache/check-fm.cjs"
   },
   "dependencies": {
     "@capacitor-community/admob": "^8.0.0",

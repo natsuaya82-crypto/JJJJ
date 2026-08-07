@@ -9,7 +9,7 @@ import { saveSlotSuffix } from './saveSlot'
 import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDeviceTwitterIntroSeen } from './deviceFlags'
 import { setSaveHealth } from './saveHealth'
 import { markDataUpdateNeeded } from './dataUpdate'
-import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind, GmOffer } from '../types'
+import type { GameState, Division, Player, Team, RaceResults, TransferListing, IncomingOffer, IncomingLoanOffer, LoanResponse, TradeNegotiation, ContractRequest, AcquisitionOffer, AITradeOffer, TeamRole, ForeignCategory, FacilityKey, Achievement, CardRarity, CardStatKey, TrainingCard, Gift, Ratings, Race, TransferRecord, SeasonAward, EclStanding, Nationality, Specialty, SeasonStanding, ExpiredNegotiation, ExpiredNegKind, GmOffer, ForeignClub } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
@@ -1854,7 +1854,9 @@ export const useGameStore = create<GameStore>()(
           const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length)
 
           // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
-          const foreignClubs = allForeignClubs(state.foreignLeagues).map(c => ({ id: c.id, name: c.name, shortName: c.shortName, leagueId: c.leagueId, country: c.country }))
+          // クラブはそのまま渡す。**ここで id/name/leagueId/country だけに削っていた**ので、
+          // 受け取る側は格も手元資金も見られず、いくらまで出せるかを初期値の格から作り直していた。
+          const foreignClubs = allForeignClubs(state.foreignLeagues)
           const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))
           const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
@@ -5493,16 +5495,19 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
+          // 格を引くクラブ一覧。国内だけ渡すと海外の格が初期値のままになるので必ず両方入れる
+          const tieredClubsForGrowth = allTieredClubs(state.teams, state.foreignLeagues)
           // 加齢処理 + 契約更新適用
           const grownPlayers = state.players.map(pRaw => {
             // オフシーズンで負傷は全快（負傷状態と復帰カウントを持ち越さない）
             const p = pRaw.status === 'injured' ? { ...pRaw, status: 'active' as const, injuredUntilRace: undefined, injuryName: undefined } : pRaw
             // 自チーム以外(CPU・海外)は毎年ポテンシャルへ向けて成長させる。自チームはレース/カードEXPで成長。
             const allowAnnualGrowth = p.teamId !== state.playerTeamId
-            // 伸びる量はそのクラブの格で決まる。
-            // 国内クラブは Team から、海外クラブは Team に無いので clubTiers の表から引く
-            const homeTeam = state.teams.find(t => t.id === p.teamId)
-            const growTier = homeTeam ? tierOf(homeTeam) : tierOfClubId(p.teamId)
+            // 伸びる量はそのクラブの格で決まる。国内・海外を問わず**いまの格**を引く。
+            // 以前は海外だけ tierOfClubId＝clubTiers.ts の初期値を読んでいたので、
+            // 海外の格が毎年動くようになったあとも、育つ速さだけが初期値のまま固定だった
+            // （最下位を続けて格20まで落ちたクラブの選手が、格1の速さで伸び続ける）。
+            const growTier = tierOfPlayerClub(p.teamId, tieredClubsForGrowth)
             const grown = p.status === 'active' || p.status === 'injured'
               ? growPlayer(p, allowAnnualGrowth, growTier)
               : p
@@ -6218,16 +6223,54 @@ export const useGameStore = create<GameStore>()(
             ...(removedForeignPlayerIds.size > 0 ? playersWithForeignChamp.filter(p => !removedForeignPlayerIds.has(p.id)) : playersWithForeignChamp),
             ...foreignRefresh.newPlayers,
           ]
+          // 海外クラブの来季予算。**国内CPUとまったく同じ computeNextSeasonBudget 1本**を通す。
+          //   収入 = 格の年間予算   支出 = 総年俸 + 運営費(年俸の1割) + 施設維持費
+          // これまで海外クラブには資金の置き場所（finance）が無く、移籍の処理に入るたびに
+          // tierBudget へ満タンに戻っていた。使っても減らないので、
+          //   ・繰越の上限（CARRYOVER_CAP_SHARE）が効かない
+          //   ・施設維持費も年俸も払わない
+          //   ・格を上げても下げても手元の額が変わらない
+          // という状態で、国内だけが資金のやりくりをしていた。
+          // 総年俸は補充・引退を反映した後の名簿（foreignBasePlayers）から数える。
+          const foreignSalaryTotal = new Map<string, number>()
+          for (const p of foreignBasePlayers) {
+            if (p.status === 'retired') continue
+            foreignSalaryTotal.set(p.teamId, (foreignSalaryTotal.get(p.teamId) ?? 0) + p.contract.annualSalary)
+          }
+          const leaguesWithFinance = leaguesWithTier.map(lg => ({
+            ...lg,
+            clubs: lg.clubs.map(c => {
+              const sal = foreignSalaryTotal.get(c.id) ?? 0
+              return {
+                ...c,
+                finance: {
+                  ...c.finance,
+                  budget: computeNextSeasonBudget({
+                    baseGrant: tierBudget(c),
+                    // 古いセーブには finance が無い。その年は「格の年間予算ちょうど」から始める
+                    prevBalance: c.finance?.budget ?? tierBudget(c),
+                    sponsorAnnual: 0,   // 海外クラブはスポンサー契約を結ばない（国内CPUも同じ）
+                    raceIncome: 0,      // 区間賞は国内のレースだけ
+                    objBudgetBonus: 0,
+                    bonusPayout: 0,
+                    salaryTotal: sal,
+                    facilityUpkeep: facilityUpkeepOf(c),
+                  }),
+                },
+              }
+            }),
+          }))
+
           let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: NewsItem[]; records: TransferRecord[] }
           try {
             foreignTx = simulateForeignTransferMarket({
-              foreignLeagues: leaguesWithTier,
+              foreignLeagues: leaguesWithFinance,
               players: foreignBasePlayers,
               year: newYear,
             })
           } catch (e) {
             console.error('simulateForeignTransferMarket failed', e)
-            foreignTx = { foreignLeagues: leaguesWithTier, players: foreignBasePlayers, news: [], records: [] }
+            foreignTx = { foreignLeagues: leaguesWithFinance, players: foreignBasePlayers, news: [], records: [] }
           }
 
           // シーズンオフの日本↔海外クロスボーダー移籍（CPU同士）。プレイヤーのチームは対象外。
@@ -8919,7 +8962,7 @@ function cpuSpecialtyNeeds(teamId: string, players: Player[]): Specialty[] {
 function generateForeignAndLoanOffers(params: {
   players: Player[]
   teams: Team[]
-  foreignClubs: { id: string; name: string; shortName: string; leagueId?: string; country?: string }[]
+  foreignClubs: ForeignClub[]
   playerTeamId: string
   raceIndex: number
   existingIncoming: IncomingOffer[]
@@ -8945,10 +8988,19 @@ function generateForeignAndLoanOffers(params: {
   const clubsAlreadyOffering = (pid: string) => new Set(existingIncoming.filter(o => o.playerId === pid).map(o => o.fromTeamId))
   const offeredIds = new Set(existingIncoming.filter(o => offerCountOf(o.playerId) >= MAX_OFFERS_PER_PLAYER).map(o => o.playerId))
   /**
-   * 海外クラブが1人に出せる上限。格→年間予算→20% の1本（economy の transferCapOf）。
-   * ここが無かったので、格20のクラブでも世界最高の選手に上限なしで打診できていた
+   * 海外クラブが1人に出せる上限。格→年間予算→20% と手元資金の小さい方（economy の transferCapOf）。
+   * **国内クラブとまったく同じ引き方**（gameStore の入札側と同じ2引数）。
+   *
+   * ここが無かったころは、格20のクラブでも世界最高の選手に上限なしで打診できていた。
+   * そのあと格は見るようになったが、見ていたのは tierOfClubId ＝ **初期値の格**で、
+   * しかも手元資金を渡していなかった。海外の格は毎年動くので、
+   *   ・最下位を続けて格が落ちたクラブが、初期値の格のまま大金を出す
+   *   ・使い切っていても毎回「年間予算の20%」を出せる
+   * という状態だった。クラブをそのまま受け取るようにしたので、両方とも引ける。
    */
-  const foreignCapOf = (clubId: string) => transferCapOf(tierBudget({ id: clubId, tier: tierOfClubId(clubId) }))
+  const foreignCapOf = (c: ForeignClub) =>
+    // finance が無い古いセーブは、次の endSeason で入るまで格の年間予算ちょうどとみなす
+    transferCapOf(tierBudget(c), c.finance?.budget ?? tierBudget(c))
   /** そのクラブがその選手に打診していいか（枠・重複・今季すでに断られた相手） */
   const clubMayOffer = (p: Player, clubId: string, pending: IncomingOffer[]) =>
     offerCountOf(p.id) + pending.filter(o => o.playerId === p.id).length < MAX_OFFERS_PER_PLAYER
@@ -8973,7 +9025,7 @@ function generateForeignAndLoanOffers(params: {
     const tv = calcTransferValue(target)
     // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示。ただし出せる上限まで
     const dreamPrice = roundFee(tv * (1.1 + Math.random() * 0.3), 1_000_000)
-    if (dreamPrice > foreignCapOf(club.id)) continue
+    if (dreamPrice > foreignCapOf(club)) continue
     foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: dreamPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
   }
 
@@ -8988,7 +9040,7 @@ function generateForeignAndLoanOffers(params: {
       const club = eliteClub
       const tv = calcTransferValue(star)
       const starPrice = roundFee(tv * (1.1 + Math.random() * 0.25), 1_000_000)
-      if (starPrice <= foreignCapOf(club.id)) foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: starPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
+      if (starPrice <= foreignCapOf(club)) foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: starPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
   }
 
@@ -9028,7 +9080,7 @@ function generateForeignAndLoanOffers(params: {
       if (!clubMayOffer(target, club.id, foreignIncoming)) continue
       const tv = calcTransferValue(target)
       const price = roundFee(tv * (0.95 + Math.random() * 0.25), 1_000_000)
-      if (price > foreignCapOf(club.id)) continue
+      if (price > foreignCapOf(club)) continue
       foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: price, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
     }
   }

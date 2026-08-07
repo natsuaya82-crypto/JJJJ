@@ -240,6 +240,18 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 **施設のレベルは自チームだけが自分で建て、それ以外は格から出ます**（格1→Lv5／格20→Lv1）。
 以前は自チーム・国内CPU・海外で3通りあり、海外はクラブIDのハッシュから作った飾りでした。
 
+**海外クラブの資金も本物です。置き場所は `finance.budget` 1本**（国内チームとまったく同じ項目）。
+買えば減り、売れば増え、毎年 `computeNextSeasonBudget` で精算されます。
+以前は資金の置き場所そのものが無く、移籍の処理に入るたび `tierBudget(c)` に満タンで戻っていました。
+つまり海外だけ「使っても減らない・繰越の上限も年俸も施設維持費も効かない」別のお金で動いていて、
+国内が節約して手が出せない場面でも海外は必ず買えるので、日本の主力が一方的に抜けていました。
+**`fBudget` を格から作り直さないこと**（`scripts/check-foreign-money.ts` が `npm run check` で見張ります）。
+
+海外クラブが1人に出せる上限も国内と同じ2引数（`transferCapOf(tierBudget(c), c.finance.budget)`）。
+`tierOfClubId`（＝`data/clubTiers.ts` の初期値）で引かないこと。海外の格は毎年動くので、
+初期値で引くと「格20まで落ちたクラブが格1の額を出す」が起きます。
+**同じ理由で、選手の成長速度も `tierOfPlayerClub(teamId, allTieredClubs(...))` から引きます。**
+
 `src/data/economy.ts` の `computeNextSeasonBudget` 1本。自チームもCPUも海外も同じです。
 **次のものは廃止済みです。復活させないこと。**
 
