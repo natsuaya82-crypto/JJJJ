@@ -59,6 +59,7 @@ import { recommendedSpecialtyFor } from '../utils/terrain'
 import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 // セーブに「何を書かないか」は ephemeralState.ts に集約してある（画面の開閉状態と読まれない残骸）
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
+import { stripArchivedResults, hydratePastSeasons, writeSeasonArchive, clearSeasonArchives } from './seasonArchive'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
 import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
 // 国内52クラブの名簿と、下部リーグが入っていない古いセーブの補完
@@ -6438,6 +6439,21 @@ export const useGameStore = create<GameStore>()(
             tenureStartYear: (state.gmTenures ?? []).slice(-1)[0]?.fromYear,
           })
 
+          // 終わったシーズンを別ファイルへ書き出す。**書けて読み戻せた年だけ**を archivedYears に足し、
+          // その年の走行記録は次のセーブから外れる（store/seasonArchive.ts）。
+          // 書けなければ何も起きない＝セーブに残ったままになるだけで、記録は消えない
+          const archivedThisSeason = archiveSeason(state.currentSeason, {
+            foreignAppsC: packForeignApps(archivedForeignApps),
+            foreignStandings: archivedForeignStandings,
+            zeroAppearances,
+          })
+          void writeSeasonArchive(archivedThisSeason).then(ok => {
+            if (!ok) return
+            useGameStore.setState(st => ({
+              archivedYears: [...new Set([...(st.archivedYears ?? []), archivedThisSeason.year])],
+            }))
+          })
+
           return {
             players: playersWithBackfill,
             removedPlayers,
@@ -6460,11 +6476,7 @@ export const useGameStore = create<GameStore>()(
             sponsors: updatedSponsors,
             // 過去シーズンは archiveSeason() が「残す項目」だけを書き出す（許可リスト方式）。
             // 何を残すかは types の ArchivedSeason と archiveSeason() の2箇所だけを見ればよい
-            pastSeasons: [...state.pastSeasons, archiveSeason(state.currentSeason, {
-              foreignAppsC: packForeignApps(archivedForeignApps),
-              foreignStandings: archivedForeignStandings,
-              zeroAppearances,
-            })],
+            pastSeasons: [...state.pastSeasons, archivedThisSeason],
             raceLineup: {},
             raceStrategy: 'balanced' as const,
             growthReport: { year: state.currentSeason.year, entries: growthEntries },
@@ -7793,7 +7805,11 @@ export const useGameStore = create<GameStore>()(
         // 初期状態を flush していただけで、セーブ破壊ガード（進行中セーブに初期状態を書かせない仕組み）に
         // 弾かれて何も書かれず、再起動すると削除したはずの古いセーブが復活していた。
         // 先にファイルを削除してガードを解除してから初期状態を書き込む。
+        // 別ファイルに出してある過去シーズンの走行記録（store/seasonArchive.ts）。
+        // 消さないと、新しく始めたゲームが同じ年に達したときに前のデータを読み戻してしまう
+        const archivedYearsToClear = get().archivedYears
         void (async () => {
+          await clearSeasonArchives(archivedYearsToClear)
           await deleteSaveForRecovery()
           // フレンド用のアカウント（Keychainに保存している証明書）もここで消す。
           // アプリ削除や機種変更では残る仕様なので、消えるのはこのデータ削除のときだけ。
@@ -7832,7 +7848,15 @@ export const useGameStore = create<GameStore>()(
       // 何を除外するかは ephemeralState.ts の1箇所だけ見ればよい
       // 選手の通算成績（通算出走数・通算区間賞・MVP回数）は保存してあるレース結果から
       // 数え直せるので書かない（utils/careerStats.ts）。優勝回数だけは復元できないので残す
-      partialize: (s) => ({ ...stripEphemeral(s), players: stripCareerForSave(s.players) }),
+      // 過去シーズンの走行記録は別ファイルに出してある（store/seasonArchive.ts）。
+      // セーブは状態が変わるたびに全部を書き直すので、ここを落とさないと
+      // 選手を1人動かすたびに過去100シーズンぶんの区間タイムまで書き直される。
+      // **落とすのは archivedYears に載っている年だけ**（書いて読み戻して確かめた年）
+      partialize: (s) => ({
+        ...stripEphemeral(s),
+        players: stripCareerForSave(s.players),
+        pastSeasons: stripArchivedResults(s.pastSeasons, s.archivedYears),
+      }),
       migrate: (persistedState: unknown, version: number) => {
         try {
           const s = persistedState as Record<string, unknown>
@@ -8591,6 +8615,12 @@ export const useGameStore = create<GameStore>()(
           if (state.twitterIntroSeen && !deviceTwitterIntroSeen()) setDeviceTwitterIntroSeen(true)
           state.adsRemoved = state.adsRemoved || deviceAdsRemoved()
           state.twitterIntroSeen = state.twitterIntroSeen || deviceTwitterIntroSeen()
+          // 別ファイルに出してある過去シーズンの走行記録を読み戻す。
+          // 戻したあとの形は今までとまったく同じなので、読む側の画面は何も変わらない。
+          // 読めなくても画面は出す（記録が出ないだけ）
+          void hydratePastSeasons(state.pastSeasons ?? [], state.archivedYears).then(ps => {
+            useGameStore.setState({ pastSeasons: ps })
+          })
         }
       },
     }

@@ -1,4 +1,5 @@
-import type { Race } from '../types'
+import type { Race, RaceResults } from '../types'
+import { buildTeamRankings } from '../engine/raceEngine'
 
 // レースの走行記録の「唯一の形」。
 //
@@ -8,64 +9,102 @@ import type { Race } from '../types'
 //     裏の部（1部・2部）        … 捨てて awayAppearances（出走数だけ）に置き換え
 //     海外リーグ                … 捨てて foreignAppearances（出走数だけ）に置き換え
 //   捨てた2つは「区間タイムも順位も誰と競ったかも残らない」ので、
-//   移籍の判断材料・区間記録・日程の「実施済み」・監督が海外へ移ったときの過去が作れない。
-//   後付けの集計2つも、結果を捨てたから必要になっただけのもの。
+//   移籍の判断材料・区間記録・監督が海外へ移ったときの過去が作れない。
 //
 // ■決まり
 //   どの大会でも走行記録はここで詰めた形で持つ。大会で残す／捨てるを分けない。
 //   通算成績はここから数え直す（utils/careerStats）ので、別の集計を作らないこと。
 //
-// ■なぜ詰めるのか（実測）
-//   1走者ぶんが {"playerId":…,"timeSec":…,"rank":…} で52バイト、詰めると20バイト。
-//   全大会ぶんで1シーズン19,758行なので、0.98MB → 0.38MB。
-//   100シーズン遊ぶ前提だと 98MB → 38MB。詰めないと保存も読み込みも保たない。
+// ■何を残して、何を作り直すか
+//   残すのは「誰が・どのクラブで・何秒で走ったか」と「そのレースに出たクラブ」だけ。
+//   区間内順位・チーム順位・順位ポイント・区間賞ポイントは**全部そこから作り直せる**ので持たない。
+//     区間内順位   タイムの昇順
+//     チーム順位   区間タイムの合計（走り切れなかったクラブは下）… engine/raceEngine の buildTeamRankings
+//     順位ポイント 出走クラブ数 + 1 - 着順（utils/league の positionPointsFor）
+//     区間賞       各区間の1〜3位に 3 / 2 / 1
+//   順位の決まりは buildTeamRankings 1本を呼ぶ。ここで別に書くと、
+//   本編のレースと過去の記録で順位のつけ方がズレる。
+//
+// ■大きさ（実測）
+//   1走者ぶんが {"playerId":…,"teamId":…,"timeSec":…,"rank":…} で約70バイト、詰めると約25バイト。
+//   タイムは1/100秒の整数で持つ（表示は0.1秒まで）。
 
-/** 1走者ぶん。[選手ID, タイム(秒・整数), 区間内順位] */
+/** 1走者ぶん。[選手ID, チームの番号（teams の添字）, タイム(1/100秒)] */
 export type PackedRunner = [string, number, number]
-/** 1区間ぶん。[区間番号, 走者…] */
+/** 1区間ぶん。[区間番号, 走者…]。走者はタイムの昇順 */
 export type PackedSegment = [number, ...PackedRunner[]]
-/** 1レースぶん */
-export type PackedRace = { id: string; segs: PackedSegment[] }
+/** 1レースぶん。teams はそのレースに出たクラブ（1人も走らせなかったクラブも含む） */
+export type PackedRace = { id: string; teams: string[]; segs: PackedSegment[] }
 
-type RunnerLike = { playerId: string; timeSec: number; rank: number }
-type SegmentLike = { segmentIndex: number; runners: RunnerLike[] }
+/** タイムの持ち方。1/100秒の整数 */
+const toCs = (sec: number) => Math.round(sec * 100)
+const fromCs = (cs: number) => cs / 100
 
-/** レース結果を詰める。タイムは秒の整数まで（表示は分秒なので小数は要らない） */
-export function packRace(raceId: string, segments: readonly SegmentLike[]): PackedRace {
+/** レース結果を詰める。出たクラブの一覧も一緒に渡すこと（走者0人のクラブが消えないように） */
+export function packRace(raceId: string, teamIds: readonly string[], results: RaceResults): PackedRace {
+  const teams = [...teamIds]
+  const idx = new Map(teams.map((t, i) => [t, i]))
   return {
     id: raceId,
-    segs: segments.map(s => [
+    teams,
+    segs: results.segmentResults.map(s => [
       s.segmentIndex,
-      ...s.runners.map(r => [r.playerId, Math.round(r.timeSec), r.rank] as PackedRunner),
+      ...[...s.runners]
+        .sort((a, b) => a.timeSec - b.timeSec)
+        .map(r => [r.playerId, idx.get(r.teamId) ?? 0, toCs(r.timeSec)] as PackedRunner),
     ] as PackedSegment),
   }
 }
 
-/** 詰めた形を元に戻す。読む側は今までと同じ形で受け取れる */
-export function unpackRace(p: PackedRace): { segmentIndex: number; runners: RunnerLike[] }[] {
-  return p.segs.map(([segmentIndex, ...runners]) => ({
-    segmentIndex,
-    runners: runners.map(([playerId, timeSec, rank]) => ({ playerId, timeSec, rank })),
-  }))
-}
-
 /** Race からそのまま詰める（結果が無いレースは undefined） */
 export function packRaceResults(race: Race): PackedRace | undefined {
-  const segs = race.results?.segmentResults
-  if (!segs || segs.length === 0) return undefined
-  return packRace(race.id, segs as unknown as SegmentLike[])
+  const res = race.results
+  if (!res || res.segmentResults.length === 0) return undefined
+  // 出たクラブは teamRankings が持っている（走者0人のクラブもここには並ぶ）
+  return packRace(race.id, res.teamRankings.map(tr => tr.teamId), res)
+}
+
+/**
+ * 詰めた形からレース結果を作り直す。読む側は今までとまったく同じ形で受け取れる。
+ * 順位・勝ち点の付け方は本編のレースと同じ関数（buildTeamRankings）を通す。
+ */
+export function unpackRace(p: PackedRace): RaceResults {
+  const cumTime: Record<string, number> = {}
+  const segCountByTeam: Record<string, number> = {}
+  const segPts: Record<string, number> = {}
+  for (const t of p.teams) { cumTime[t] = 0; segCountByTeam[t] = 0; segPts[t] = 0 }
+
+  const segmentResults: RaceResults['segmentResults'] = p.segs.map(([segmentIndex, ...runners]) => ({
+    segmentIndex,
+    runners: runners.map(([playerId, teamIdx, cs], i) => {
+      const teamId = p.teams[teamIdx] ?? ''
+      const timeSec = fromCs(cs)
+      cumTime[teamId] = (cumTime[teamId] ?? 0) + timeSec
+      segCountByTeam[teamId] = (segCountByTeam[teamId] ?? 0) + 1
+      // 区間賞は各区間の1〜3位に 3 / 2 / 1（走者はタイムの昇順で入っている）
+      if (i < 3) segPts[teamId] = (segPts[teamId] ?? 0) + (3 - i)
+      return { playerId, teamId, timeSec, rank: i + 1 }
+    }),
+  }))
+
+  return {
+    teamRankings: buildTeamRankings({
+      teamIds: p.teams, cumTime, segCountByTeam, segPts, totalSegs: p.segs.length,
+    }),
+    segmentResults,
+  }
 }
 
 /**
  * 終わったシーズンの走行記録をまとめた箱。**普段のセーブには入れない。**
  *
- * セーブは状態が変わるたびに全部を書き直すので、100シーズンぶん（40MB）を
- * 抱えたままだと1回の操作で1.4秒（実機で3〜5秒）固まる。
- * シーズンが終わったときに1回だけ書き、記録室や選手の履歴を開いたときだけ読む。
+ * セーブは状態が変わるたびに全部を書き直すので、100シーズンぶんを抱えたままだと
+ * 1回の操作で数秒固まる（実測：40MBで書き込み1.4秒、実機はさらに2〜4倍）。
+ * シーズンが終わったときに1回だけ書き、アプリを開いたときに1回だけ読む。
  */
 export type SeasonArchive = {
   year: number
-  /** 大会ごとの走行記録。キーは 'jpel' / 'ecl' / 'world' / リーグID */
+  /** 大会ごとの走行記録。キーは utils/seasonArchive の COMPETITIONS */
   races: Record<string, PackedRace[]>
 }
 
@@ -77,31 +116,13 @@ export function archiveKeyOf(year: number): string {
 // ── 既存データを壊さないための境目 ─────────────────────────────
 //
 // ■原則
-//   **すでに遊んだシーズンは一切さわらない。** 走行記録を残していなかった年は、
-//   あとから作れない（結果が存在しない）。無理に作れば嘘の記録になる。
-//   新しい数え方は**新しいシーズンから**動かし、古い年は今までどおり
-//   出走数の集計（awayAppearances / foreignAppearances）で読む。
-//
-// ■そのための目印
-//   シーズンごとに「このシーズンは走行記録を全部残してあるか」を持つ。
-//   読む側はこれを見て、数え方を選ぶ。**判断はここ1本**。
-//   呼ぶ側で「年で分ける」「フィールドの有無で分ける」と書かないこと。
-//   （片方だけ直すと、通算出走数が経路によって食い違う）
-//
-// ■安全網
-//   1. 目印が無いシーズンは絶対に新しい数え方をしない（古い集計をそのまま使う）
-//   2. 書き出しは「書く → 読み戻して一致を確認 → そのとき初めて本体から外す」
-//      確認できなければ本体に残したままにする（消えるより重い方がまし）
-//   3. 古い集計は消さない。新しい年で使わなくなるだけ
-
-/** そのシーズンが「走行記録を全部残してある」年か。数え方の分岐はここだけ */
-export function seasonHasFullRecords(season: { recordsFull?: boolean } | undefined): boolean {
-  return season?.recordsFull === true
-}
+//   **本体から外すのは、書き出したものを読み戻して中身が一致したときだけ。**
+//   一致しなければ本体に残したままにする（重いほうがまし。消えたら戻せない）。
+//   外した年は GameState.archivedYears に記録し、そこに無い年は絶対に外さない。
 
 /**
  * 書き出したものを読み戻して、中身が一致するかを確かめる。
- * 一致しなければ呼ぶ側は**本体から外さない**こと（安全網2）。
+ * 一致しなければ呼ぶ側は**本体から外さない**こと。
  */
 export function archiveMatches(written: string, readBack: string | null): boolean {
   return typeof readBack === 'string' && readBack.length === written.length && readBack === written

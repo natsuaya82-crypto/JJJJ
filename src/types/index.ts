@@ -957,6 +957,12 @@ export type GameState = {
   // 他チームから届いている監督オファー。答えるまで残る（答えたら null）
   /** 殿堂入りチーム。最大30人。登録時の数値で固定される（utils/hofRoster.ts） */
   hofRoster?: HofPlayer[]
+  /**
+   * 走行記録を別ファイルへ出し終えた年。**書いて読み戻して一致した年だけが載る。**
+   * セーブを書くときは、ここに載っている年の結果だけを落とす（store/seasonArchive.ts）。
+   * 載っていない年はセーブに残る（重いほうがまし。消えたら戻せない）。
+   */
+  archivedYears?: number[]
   gmOffer?: GmOffer | null
   /** 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN） */
   lastGmOfferYear?: number
