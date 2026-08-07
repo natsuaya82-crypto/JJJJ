@@ -7531,8 +7531,9 @@ export const useGameStore = create<GameStore>()(
       // 負傷通知をOKで確認済みにする（復帰で自動的に対象からも消える。キーは playerId-injuredUntilRace）
       dismissInjuryNotice: (key) => set(s => ({ seenInjuryIds: (s.seenInjuryIds ?? []).includes(key) ? s.seenInjuryIds : [...(s.seenInjuryIds ?? []), key].slice(-100) })),
 
-      // アップデートギフト配布＋期限切れギフトの掃除（毎回起動時に呼ばれる・冪等）。
-      // 1.0.6：不具合のお詫びとしてジュエル1000個を配布（受け取り期間1か月）。
+      // ギフト配布＋期限切れギフトの掃除（毎回起動時に呼ばれる・冪等）。
+      // **配るのは常に1件だけ。** 新しいギフトを出すときは GIFT_VERSION を変え、
+      // 前のギフトを未受け取りの人からは取り下げる（古いお知らせが残り続けないように）。
       grantUpdateGifts: () => {
         set(state => {
           // 期限切れ（expiresAt を過ぎた）ギフトは毎回掃除する
@@ -7540,21 +7541,24 @@ export const useGameStore = create<GameStore>()(
           const pruned = (state.pendingGifts ?? []).filter(g => !g.expiresAt || g.expiresAt >= nowISO)
           const prunedChanged = pruned.length !== (state.pendingGifts ?? []).length
 
-          const GIFT_VERSION = '1.0.6-apology'
+          const GIFT_VERSION = 'dl1000'
           if ((state.giftGivenVersions ?? []).includes(GIFT_VERSION)) {
             return prunedChanged ? { pendingGifts: pruned } : state
           }
+          // 前のギフト（1.0.6のお詫び）を未受け取りの人から取り下げてから配る。
+          // 残すと「お詫び」と「1000DL記念」が2件並んで、どちらも同じジュエル1000個になる
+          const withoutOld = pruned.filter(g => !g.id.startsWith('gift_1.0.6-'))
           const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()  // 配布から1か月
           const gift: Gift = {
             id: `gift_${GIFT_VERSION}`,
-            title: 'バグ修正のお詫び',
-            message: '不具合でご迷惑をおかけしたお詫びに、ジュエル1000個をお贈りします。受け取り期間は配布から1か月です。',
+            title: '1000ダウンロード達成',
+            message: 'おかげさまで1000ダウンロードを超えました。ここまで遊んでくださったお礼に、ジュエル1000個をお贈りします。受け取り期間は配布から1か月です。',
             cards: [],
             jewels: 1000,
             expiresAt,
           }
           return {
-            pendingGifts: [...pruned, gift],
+            pendingGifts: [...withoutOld, gift],
             giftGivenVersions: [...(state.giftGivenVersions ?? []), GIFT_VERSION],
           }
         })

@@ -247,6 +247,16 @@ RULES.push({
   fix: 'utils/facilities.ts の facilitiesOf を使う（自分で建てたぶんが無ければ格から出る）',
 })
 
+// 期間限定イベントの数字を画面に直書きしないこと。
+// 合成の大成功確率(5%)が CardTrainingPage の中に埋まっていて外から触れなかった。
+// 期間も中身も data/events.ts に集めて、画面は「いまの値」を聞くだけにする。
+RULES.push({
+  name: 'イベントの数字を画面に直書きしている',
+  pattern: /Math\.random\(\)\s*<\s*0\.05/,
+  allow: ['src/data/events.ts'],
+  fix: 'data/events.ts の greatSuccessChance() を呼ぶ（イベント中は自動で100%になる）',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

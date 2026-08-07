@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { greatSuccessChance, activeEvents } from '../../data/events'
 import { comparePlayers } from '../../utils/playerSort'
 import BackButton from '../ui/BackButton'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -141,7 +142,8 @@ export default function CardTrainingPage() {
     })
     // 広告視聴済みならそちらで確約。無料確約(買い切り版1日1回)は選んだときだけ消費する
     const freeUsed = !adWatched && useFreeGreat && claimDailyGreatSuccess()
-    const greatSuccess = adWatched || freeUsed || Math.random() < 0.05
+    // 大成功の確率は data/events の1本（期間限定イベント中は100%になる）
+    const greatSuccess = adWatched || freeUsed || Math.random() < greatSuccessChance()
     const multiplier = greatSuccess ? 1.5 : 1.0
     applyTrainingCards(targetPlayer.id, cardIds, multiplier)
     setApplied({ combo, greatSuccess, preRatings, preExp })
@@ -162,6 +164,18 @@ export default function CardTrainingPage() {
       position: 'relative',
     }}>
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(PURPLE, 0.3)}, transparent)`, pointerEvents: 'none' }}/>
+      {/* 開催中のイベント（data/events の1本。終わったら自動的に消える） */}
+      {activeEvents().map(ev => (
+        <div key={ev.id} style={{
+          marginBottom: 8, padding: '6px 10px', borderRadius: 8,
+          background: `linear-gradient(180deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.08)})`,
+          border: `1px solid ${alpha(C.gold, 0.5)}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 900, color: C.gold }}>{ev.title}</span>
+          <span style={{ fontSize: 9, color: C.textDim }}>{ev.to.slice(5).replace('-', '/')}まで</span>
+        </div>
+      ))}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton onClick={onBack}/>
         {backLabel && <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: C.textSub }}>{backLabel}</div>}
