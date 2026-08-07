@@ -172,17 +172,29 @@ function buildTransferMessages(player: Player, bid: TransferBid, fromTeamName?: 
 // 以前はチャットを通さず、一覧の中のカードに 承諾／カウンター／拒否 のボタンを直接置いていた。
 // 同じ「相手からの打診に返事をする」なのに、契約更新・獲得交渉・トレードは会話、
 // 買い取りとレンタルだけボタン、と2つの作りが混ざっていた。会話1本に寄せる。
+/**
+ * 打診の用件キー。**どのクラブから来ている話か**までを含める。
+ *
+ * ここを 'incoming_offer' の決め打ちにしていたため、mergeChatMessages が
+ * 「同じ用件がもうある」と判断して、**新しいクラブからの打診が古い打診の行を
+ * 上書きしていた**。会話の末尾には何も増えないので、通知には出ているのに
+ * 「チャットが来ない」状態になる。相手が変われば別の用件として下に積む。
+ * 同じ相手が金額を上げただけなら、キーは変わらないので文面だけ差し替わる（意図どおり）。
+ */
+const offerTopicKey = (ids: readonly string[]) => `incoming_offer:${[...ids].sort().join(',')}`
+
 function buildIncomingOfferMessages(
-  player: Player, offers: { name: string; price: number; ok?: boolean; reason?: string }[], wish?: { name: string; reason: string },
+  player: Player, offers: { id: string; name: string; price: number; ok?: boolean; reason?: string }[], wish?: { name: string; reason: string },
 ): ChatMessage[] {
   if (offers.length === 0) return []
+  const key = offerTopicKey(offers.map(o => o.id))
   if (offers.length === 1) {
     const o = offers[0]
     return [
-      { from: 'player', kind: 'incoming_offer',
+      { from: 'player', kind: key,
         text: `（${o.name}GM）${player.name}選手を移籍金${fmtYen(o.price)}でお譲りいただけないでしょうか。ご検討をお願いします。` },
       ...(o.ok === false && o.reason
-        ? [{ from: 'player' as const, kind: 'incoming_wish' as const, text: `（代理人）本人に確認しました。${o.reason}とのことです。` }]
+        ? [{ from: 'player' as const, kind: `incoming_wish:${o.id}`, text: `（代理人）本人に確認しました。${o.reason}とのことです。` }]
         : []),
     ]
   }
@@ -190,9 +202,9 @@ function buildIncomingOfferMessages(
   // 断る相手はその場で理由を言う（「なぜこのクラブには行かないのか」が分からなかった）
   const list = offers.map(o => `・${o.name}（移籍金${fmtYen(o.price)}）${o.ok === false && o.reason ? `\n  → ${o.reason}` : ''}`).join('\n')
   return [
-    { from: 'player', kind: 'incoming_offer',
+    { from: 'player', kind: key,
       text: `（代理人）${offers.length}クラブから${player.name}選手の獲得の打診が来ています。\n${list}` },
-    ...(wish ? [{ from: 'player' as const, kind: 'incoming_wish',
+    ...(wish ? [{ from: 'player' as const, kind: `incoming_wish:${key}`,
       text: `（代理人）本人に希望を聞きました。「${wish.name}へ行きたい。${wish.reason}から」とのことです。` }] : []),
   ]
 }
@@ -201,7 +213,8 @@ function buildIncomingOfferMessages(
 function buildIncomingLoanMessages(player: Player, offer: IncomingLoanOffer, teamName: string): ChatMessage[] {
   return [{
     from: 'player',
-    kind: 'incoming_loan',
+    // 買い取りと同じ理由で、どの打診かまでをキーにする（別の相手の話が古い行を上書きしない）
+    kind: `incoming_loan:${offer.id}`,
     text: offer.direction === 'lend_out'
       ? `（${teamName}GM）${player.name}選手を${offer.years}年のレンタルでお借りできませんか。出場機会はこちらで用意します。`
       : `（${teamName}GM）${player.name}選手を${offer.years}年のレンタルでお預かりいただけませんか。`,
@@ -337,6 +350,7 @@ function ChatView({
     ...buildIncomingOfferMessages(
       player,
       rankedOffers.map(r => ({
+        id: r.offer.id,
         name: clubIndex.byId(r.offer.fromTeamId)?.shortName ?? '他クラブ',
         price: r.offer.offeredPrice,
         ok: r.appraisal.ok, reason: r.appraisal.reason,
@@ -918,8 +932,9 @@ function ChatView({
     // 新しいメッセージの用件から順に試す（メッセージが見つからない用件は後回し・元の優先順を維持）
     const topicOrder = [
       { present: undecided, idx: undecided ? lastIdx(m => m.kind === 'stay_or_leave') : -1, build: buildStayOrLeaveButtons },
-      { present: !!incomingOffer, idx: incomingOffer ? lastIdx(m => m.kind === 'incoming_offer') : -1, build: buildIncomingOfferButtons },
-      { present: !!incomingLoan, idx: incomingLoan ? lastIdx(m => m.kind === 'incoming_loan') : -1, build: buildIncomingLoanButtons },
+      // 用件キーは相手ごとに分かれる（incoming_offer:xxx）ので前方一致で拾う
+      { present: !!incomingOffer, idx: incomingOffer ? lastIdx(m => !!m.kind?.startsWith('incoming_offer')) : -1, build: buildIncomingOfferButtons },
+      { present: !!incomingLoan, idx: incomingLoan ? lastIdx(m => !!m.kind?.startsWith('incoming_loan')) : -1, build: buildIncomingLoanButtons },
       { present: !!retirementReq, idx: retirementReq ? lastIdx(m => m.text.includes('引退を考えて')) : -1, build: buildRetirementButtons },
       { present: !!transferReq, idx: transferReq ? lastIdx(m => m.text.includes('移籍を考えて')) : -1, build: buildTransferButtons },
       { present: !!overseasReq, idx: overseasReq ? lastIdx(m => m.text.includes('海外挑戦を認めて')) : -1, build: buildOverseasButtons },

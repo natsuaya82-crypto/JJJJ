@@ -353,6 +353,20 @@ function finalizeSale(
   }
 }
 
+/**
+ * チャットの履歴に発言を足す。**store 側から会話に書き込むのはここだけ。**
+ *
+ * 画面（ChatPage）は自分で会話を組み立てて setChatLog で丸ごと保存するが、
+ * レース進行の中で起きたこと（売却の決着など）は画面が開いていないので、
+ * 進行側から会話に書いておかないと**GMには何も伝わらない**。
+ * 実際、「譲ります」と返事をしてレースを進めても、成立したのか流れたのかが
+ * 会話にも通知にも出ず、次の打診だけが来る状態になっていた。
+ */
+function appendChatLog(season: import('../types').Season, playerId: string, ...msgs: import('../types').ChatMessage[]): import('../types').Season {
+  const logs = season.chatLogs ?? {}
+  return { ...season, chatLogs: { ...logs, [playerId]: [...(logs[playerId] ?? []), ...msgs].slice(-60) } }
+}
+
 export type GameStore = GameState & {
   isInitialized: boolean
   setupData: SetupData | null
@@ -1200,24 +1214,35 @@ export const useGameStore = create<GameStore>()(
             const ranked = get().rankIncomingOffers(ps.playerId)
             const winner = ranked.find(r => r.appraisal.ok)?.offer.id ?? ps.offerId
             set(st => ({ currentSeason: { ...st.currentSeason, pendingSale: undefined } }))
+            const beforeName = get().players.find(x => x.id === ps.playerId)?.name ?? ''
             const outcome = get().acceptIncomingOffer(winner, true)
             const p = get().players.find(x => x.id === ps.playerId)
-            if (outcome === 'sold' && winner !== ps.offerId) {
-              const winnerId = ranked.find(r => r.offer.id === winner)?.offer.fromTeamId
-              const winnerName = get().teams.find(t => t.id === winnerId)?.shortName
-                ?? findClub(get().teams, get().foreignLeagues, winnerId)?.shortName
-              if (p) set(st => ({ currentSeason: { ...st.currentSeason, newsFeed: [{
+            const winnerId = ranked.find(r => r.offer.id === winner)?.offer.fromTeamId
+            const winnerName = findClub(get().teams, get().foreignLeagues, winnerId)?.shortName ?? '相手クラブ'
+
+            // ★決着は必ず会話に書く。ここが無かったので「譲ります」と返事をしてレースを
+            //   進めても、成立したのか流れたのかが会話にも通知にも出ず、次の打診だけが来ていた。
+            if (outcome === 'sold') {
+              set(st => ({ currentSeason: appendChatLog(st.currentSeason, ps.playerId, {
+                from: 'player',
+                text: winner === ps.offerId
+                  ? `（代理人）${beforeName}の${winnerName}への移籍が成立しました。お世話になりました`
+                  : `（代理人）他クラブの上乗せがあり、${beforeName}は${winnerName}を選びました。移籍が成立しています`,
+              }) }))
+              // 取り合いになって行き先が変わったときだけニュースにする
+              set(st => ({ currentSeason: { ...st.currentSeason, newsFeed: winner === ps.offerId ? st.currentSeason.newsFeed : [{
                 date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`,
-                headline: auctionSettledHeadline({ playerName: p.name, winnerName }),
-                category: 'trade' as const, relatedIds: [p.id],
+                headline: auctionSettledHeadline({ playerName: beforeName, winnerName }),
+                category: 'trade' as const, relatedIds: [ps.playerId],
               }, ...st.currentSeason.newsFeed].slice(0, 30) } }))
-            }
-            // 成立しなかったときは黙って消さず、必ず理由を通知に残す。
-            // ここで何も出していなかったので、「譲ります」と返事をしたのに音沙汰が無く、
-            // 選手だけ残っている状態になっていた（GMからは何が起きたか分からない）
-            if (outcome !== 'sold' && p) {
+            } else if (p) {
+              // 流れたときも黙って消さず、会話と通知の両方に理由を残す
               const kind = outcome === 'roster_min' ? 'sale_roster_min' as const : 'sale_refused' as const
-              set(st => ({ currentSeason: { ...st.currentSeason,
+              const reason = outcome === 'roster_min'
+                ? `（代理人）在籍人数が下限を下回るため、${p.name}の移籍は成立しませんでした。残留します`
+                : `（代理人）${p.name}は最後まで悩みましたが、移籍しないことに決めました。残留します`
+              set(st => ({ currentSeason: {
+                ...appendChatLog(st.currentSeason, ps.playerId, { from: 'player', text: reason }),
                 // 残った札は全部たたむ。残すと次のレースでまた同じ返事を求められる
                 incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.playerId !== ps.playerId),
                 expiredNegotiations: [
