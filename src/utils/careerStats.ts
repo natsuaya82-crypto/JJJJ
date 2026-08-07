@@ -60,6 +60,45 @@ function addRace(out: Map<string, Counts>, race: Race | undefined) {
   for (const id of ran) bump(out, id, 1, 0)
 }
 
+/** 海外リーグの1年ぶん。誰がどのクラブで何戦走ったか */
+export type ForeignSeasonApp = { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }
+
+/**
+ * その年の海外リーグの出場記録。**海外の数え方はここ1本。**
+ *
+ * 走行記録が残っている年（Season.foreignRaces）はそこから数え直し、
+ * 残っていない古い年だけ昔の集計を使う。通算成績も在籍履歴もここを通すので、
+ * 「通算では5戦なのに在籍履歴は3戦」のような食い違いが起きない。
+ */
+export function foreignSeasonApps(s: CareerSeasonLike | undefined): Record<string, ForeignSeasonApp> {
+  if (!s) return {}
+  const races = Object.values(s.foreignRaces ?? {}).flat()
+  if (races.length === 0) {
+    // 走行記録を残していなかった年
+    const out: Record<string, ForeignSeasonApp> = {}
+    for (const [pid, a] of Object.entries(foreignAppsOf(s))) {
+      out[pid] = { clubId: a.clubId, races: a.races, wins: a.wins, rankSum: a.rankSum ?? 0, rankedRaces: a.rankedRaces ?? 0 }
+    }
+    return out
+  }
+  const out: Record<string, ForeignSeasonApp> = {}
+  for (const race of races) {
+    for (const sr of race.results?.segmentResults ?? []) {
+      for (const r of sr.runners ?? []) {
+        const cur = out[r.playerId] ?? { clubId: r.teamId, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 }
+        out[r.playerId] = {
+          clubId: r.teamId || cur.clubId,
+          races: cur.races + 1,
+          wins: cur.wins + (r.rank === 1 ? 1 : 0),
+          rankSum: cur.rankSum + r.rank,
+          rankedRaces: cur.rankedRaces + 1,
+        }
+      }
+    }
+  }
+  return out
+}
+
 /** 1シーズンぶん（JPEL・ECL・海外リーグ）を足す */
 function addSeason(out: Map<string, Counts>, s: CareerSeasonLike | undefined) {
   if (!s) return
@@ -78,12 +117,7 @@ function addSeason(out: Map<string, Counts>, s: CareerSeasonLike | undefined) {
     // 実績倍率が上がらないので年俸も移籍金も安いままになる
     for (const [pid, a] of Object.entries(s.awayAppearances ?? {})) bump(out, pid, a.races, a.wins)
   }
-  const foreignRaces = Object.values(s.foreignRaces ?? {}).flat()
-  if (foreignRaces.length > 0) {
-    for (const r of foreignRaces) addRace(out, r)
-  } else {
-    for (const [pid, a] of Object.entries(foreignAppsOf(s))) bump(out, pid, a.races, a.wins)
-  }
+  for (const [pid, a] of Object.entries(foreignSeasonApps(s))) bump(out, pid, a.races, a.wins)
 }
 
 export function buildCareerCounts(seasons: (CareerSeasonLike | undefined)[]): Map<string, Counts> {

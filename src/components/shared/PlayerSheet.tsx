@@ -14,7 +14,8 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Player, Race } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed, foreignAppsOf } from '../../utils/playerUtils'
+import { foreignSeasonApps } from '../../utils/careerStats'
+import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { rankColor } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
@@ -385,8 +386,8 @@ export default function PlayerSheet() {
     row.rankSum += a.rankSum ?? 0
     row.rankedRaces += a.rankedRaces ?? 0
   }
-  for (const ps of pastSeasons) addForeignHistory(ps.year, foreignAppsOf(ps))
-  addForeignHistory(currentSeason.year, foreignAppsOf(currentSeason))
+  for (const ps of pastSeasons) addForeignHistory(ps.year, foreignSeasonApps(ps))
+  addForeignHistory(currentSeason.year, foreignSeasonApps(currentSeason))
   // 出走ゼロだった年の国内所属（シーズン終了時に保存）からも行を埋める（0戦でも在籍は表示する）
   for (const ps of pastSeasons) {
     const z = (ps.zeroAppearances ?? []).find(e => e.playerId === player.id)

@@ -196,6 +196,19 @@ export type ForeignAppSeasonLike = {
 
 const foreignAppsCache = new WeakMap<object, Record<string, ForeignApp>>()
 
+/**
+ * その年、誰がどの海外クラブにいたか。**在籍履歴の表示はこれを使う。**
+ *
+ * 出走数を数えるのは careerStats の仕事で、そちらは走行記録（Season.foreignRaces）から
+ * 数え直す。表示側が出走数の集計に触ると、走行記録がある年と無い年で答えが食い違う。
+ * ここは「どのクラブにいたか」だけを返すので、その心配がない。
+ */
+export function foreignClubsOf(s: ForeignAppSeasonLike | undefined): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [pid, a] of Object.entries(foreignAppsOf(s))) if (a.clubId) out[pid] = a.clubId
+  return out
+}
+
 export function foreignAppsOf(s: ForeignAppSeasonLike | undefined): Record<string, ForeignApp> {
   if (!s) return {}
   if (s.foreignAppearances) return s.foreignAppearances

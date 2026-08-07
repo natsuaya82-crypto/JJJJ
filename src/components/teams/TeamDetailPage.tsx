@@ -9,7 +9,7 @@ import { foreignClubCity, foreignClubFounded, foreignClubGm, foreignClubBudget, 
 import { useClubIndex } from '../../lib/useClubIndex'
 import { useEclHistory } from '../../lib/useEclHistory'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, playerLabel, foreignAppsOf } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, playerLabel, foreignClubsOf } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
@@ -239,7 +239,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         if (!race.results) continue
         for (const sr of race.results.segmentResults) for (const r of sr.runners) add(r.playerId, s.year, r.teamId)
       }
-      for (const [pid, a] of Object.entries(foreignAppsOf(s))) if (a.clubId) add(pid, s.year, a.clubId)
+      for (const [pid, clubId] of Object.entries(foreignClubsOf(s))) add(pid, s.year, clubId)
       for (const z of s.zeroAppearances ?? []) add(z.playerId, s.year, z.teamId)
     }
     // 今季未出走の現役選手も今季の所属として拾う（加入直後の選手を落とさない）

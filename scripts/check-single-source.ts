@@ -135,16 +135,26 @@ RULES.push({
   fix: 'friendsApi.ts の getFriendShare / pushMyRoster を通す（supabase/hof_share.sql）',
 })
 
-// ★走行記録の一本化が終わったら、この見張りを有効にすること（いまは40か所が該当）。
-//   裏の部と海外だけ結果を捨てて出走数の集計に置き換えているのが、
-//   「1部が試合されていない」「海外クラブを引き継ぐと過去が無い」の原因。
-//   utils/raceRecord.ts に寄せ切ったあと、下のコメントを外す。
-// RULES.push({
-//   name: '走行記録の別集計（結果を捨てている印）',
-//   pattern: /awayAppearances|foreignAppearances|foreignAppsC/,
-//   allow: ['src/utils/raceRecord.ts'],
-//   fix: 'utils/raceRecord.ts の packRace で結果ごと保存する（出走数は careerStats が数え直す）',
-// })
+// 裏の部と海外の走行記録は残すようになった（Season.divisionRaces / foreignRaces）。
+// ただし**走行記録を残していなかった年**を読むために、古い集計は消せない。
+// 消すと、いま遊んでいるデータの過去シーズンで1部・2部・海外の選手が全員「0回出走」になり、
+// 実績倍率が下がって年俸と移籍金まで動く。
+//
+// なので「古い集計を使ってよいのは careerStats の中だけ」を見張る。
+// 新しく別の場所で出走数を数え始めたら、そこだけ古い年と新しい年で答えが食い違う。
+RULES.push({
+  name: '走行記録の別集計を careerStats の外で使っている',
+  pattern: /awayAppearances|foreignAppearances|foreignAppsC|foreignAppsOf/,
+  allow: [
+    'src/utils/careerStats.ts',   // 古い年だけここで使う（分岐は addSeason 1か所）
+    'src/utils/playerUtils.ts',   // foreignAppsOf の実体（旧形式と圧縮版の吸収）
+    'src/utils/archiveSeason.ts', // 過去シーズンへ書き出すときの詰め替え
+    'src/types/index.ts',
+    'src/store/gameStore.ts',     // 走らせた年にためる側（読む側ではない）
+    'src/utils/retiredTeamBackfill.ts',  // 型が付いていない生データの形を書いているだけ
+  ],
+  fix: 'utils/careerStats.ts の buildCareerCounts を通す（走行記録がある年はそこから数える）',
+})
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 

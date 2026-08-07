@@ -18,6 +18,7 @@
 //   海外の方が後（または同year）のときだけ海外クラブ扱いにする。
 //   判断が付かない選手には何も書かない＝今まで通り国内扱いのまま（歴代記録が急に消えない）。
 // ============================================================================
+import { foreignClubsOf } from './playerUtils'
 
 type RawSeason = {
   year?: unknown
@@ -27,26 +28,6 @@ type RawSeason = {
   foreignAppearances?: unknown
 }
 
-// その年の「海外クラブに居た選手 → クラブID」。圧縮版・旧形式の両方に対応する。
-function foreignMembersOf(s: RawSeason): Record<string, string> {
-  const out: Record<string, string> = {}
-  const packed = s.foreignAppsC
-  if (packed && typeof packed === 'object') {
-    for (const [clubId, byPlayer] of Object.entries(packed as Record<string, unknown>)) {
-      if (!byPlayer || typeof byPlayer !== 'object') continue
-      for (const pid of Object.keys(byPlayer as Record<string, unknown>)) out[pid] = clubId
-    }
-    return out
-  }
-  const legacy = s.foreignAppearances
-  if (legacy && typeof legacy === 'object') {
-    for (const [pid, v] of Object.entries(legacy as Record<string, unknown>)) {
-      const clubId = (v as { clubId?: unknown })?.clubId
-      if (typeof clubId === 'string') out[pid] = clubId
-    }
-  }
-  return out
-}
 
 // その年の国内駅伝（1軍・リザーブ）に出た選手ID
 function domesticRunnersOf(s: RawSeason, into: Set<string>): void {
@@ -94,7 +75,8 @@ export function backfillRetiredTeamIds(
   const lastDomestic = new Map<string, number>()
   for (const s of seasons) {
     const year = s.year as number
-    for (const [pid, clubId] of Object.entries(foreignMembersOf(s))) {
+    // migrate から呼ぶので型が付いていない生データ。中身の吸収は foreignAppsOf 側でやる
+    for (const [pid, clubId] of Object.entries(foreignClubsOf(s as Parameters<typeof foreignClubsOf>[0]))) {
       if (targets.has(pid) && !lastForeign.has(pid)) lastForeign.set(pid, { year, clubId })
     }
     const runners = new Set<string>()
