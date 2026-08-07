@@ -16,9 +16,40 @@
 --   club_feed を変えたくなったら**このファイルだけ**を直して流す。
 --   他のファイルに書かないこと。列を1つ足すだけでも、書く場所が2つあれば必ず片方が消える。
 --
--- 先に流しておくもの: clubs.sql / clubs_roles.sql / clubs_cards.sql / club_posts_cap.sql
+-- 先に流しておくもの: clubs.sql / clubs_roles.sql
+-- clubs_cards.sql をまだ流していなくても動くよう、この関数が要る列と club_open_stats も
+-- 下に同梱してある（すでにあれば何も起きない）。
 -- テーブルは作らない・消さない。何回流しても大丈夫。
 
+-- ── この関数が要るもの（clubs_cards.sql と同じ。すでにあれば何も起きない）──
+-- お願い1件のなかの「1枚ずつの希望」。長さは枚数ぶん。'' は「その枠はおまかせ」
+alter table public.club_posts add column if not exists stats text[] not null default '{}';
+-- 埋まった枠。カードは受け取られると行ごと消えるので、埋まりはお願いの側に持たせる
+alter table public.club_posts add column if not exists taken integer[] not null default '{}';
+-- 既にあるぶんは、集まった枚数ぶんだけ先頭から埋まっていたことにする
+update public.club_posts
+   set taken = coalesce((select array_agg(g) from generate_series(0, filled - 1) g), '{}')
+ where kind = 'req' and filled > 0 and cardinality(taken) = 0;
+
+-- まだ埋まっていない枠が欲しい種類。返すのは枠の並び順。
+-- 例：{speed,'',stamina} なら「スピード1枚・おまかせ1枚・スタミナ1枚がまだ空いている」
+create or replace function public.club_open_stats(
+  p_rarity text, p_stats text[], p_stat text, p_taken integer[]
+) returns text[]
+language sql
+immutable
+as $$
+  select coalesce(array_agg(w.s order by w.i), '{}'::text[])
+  from (
+    select i, coalesce(p_stats[i], nullif(p_stat, ''), '') as s
+    from generate_series(1, case p_rarity when 'normal' then 5 when 'rare' then 3 when 'epic' then 1 else 0 end) as i
+  ) w
+  where not (w.i - 1 = any (coalesce(p_taken, '{}'::integer[])))
+$$;
+revoke all     on function public.club_open_stats(text, text[], text, integer[]) from public, anon;
+grant  execute on function public.club_open_stats(text, text[], text, integer[]) to authenticated;
+
+-- ── 本体 ────────────────────────────────────────────
 -- 返す列が変わるので、いったん落としてから作り直す（42P13 を避ける）。
 -- 関数を落としてもデータは消えない。
 drop function if exists public.club_feed();
