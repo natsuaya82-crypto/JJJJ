@@ -39,6 +39,45 @@ export function retireApprovedLine(): ChatMessage {
   }
 }
 
+// ── 2か所以上に同じ文面が書かれていたもの ──────────────────────
+// 同じ話を別の場所で書き直すと、片方だけ言い回しや金額の書き方が変わる。
+// 実際に数えたら7種類が2〜3か所に重複していた。ここに出して呼ぶ側は組み立てない。
+
+/** 契約の提示（更新・獲得・引き抜き。3か所で同じ文面だった） */
+export function offerTermsLine(salaryText: string, years: number): ChatMessage {
+  return { from: 'gm', text: `年俸${salaryText}、${years}年契約でいかがでしょうか。` }
+}
+
+/** 提示を飲んでもらえたとき（獲得・引き抜きの2か所で同じ文面だった） */
+export function joinAcceptedLine(): ChatMessage {
+  return { from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' }
+}
+
+/** ロスターがいっぱいで契約できない（2か所で同じ文面だった） */
+export function rosterFullLine(max: number): ChatMessage {
+  return { from: 'gm', text: `（ロスターが上限${max}人です。誰かを放出してから改めて提示してください）` }
+}
+
+/** 逆提示を持ち帰る（2か所で同じ文面だった） */
+export function reconsiderLine(): ChatMessage {
+  return { from: 'gm', text: '条件を再考させてください。' }
+}
+
+/** 引き留めたあとに契約更新の話へ戻る（2か所で同じ文面だった） */
+export function stillWantsRenewalLine(salaryText: string, years: number): ChatMessage {
+  return { from: 'player', text: `ただ、契約の件なのですが…年俸${salaryText}・${years}年での更新を希望しています。ご検討ください。` }
+}
+
+/** 移籍希望を引き留める（2か所で同じ文面だった） */
+export function stayPleaLine(): ChatMessage {
+  return { from: 'gm', text: 'まだあなたの力が必要です。残ってください。' }
+}
+
+/** 合意したときの短い礼（2か所で同じ文面だった） */
+export function thanksLine(): ChatMessage {
+  return { from: 'player', text: 'ありがとうございます。よろしくお願いします。' }
+}
+
 /**
  * 進路が決まっている選手の返事（決まっていなければ null）。
  * 判定は talkSync の settledPath 1本を通す。

@@ -16,7 +16,7 @@ import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
 import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
-import { overseasApprovedLine, retireApprovedLine, settledLineOf } from '../../utils/chatLines'
+import { overseasApprovedLine, retireApprovedLine, settledLineOf, offerTermsLine, joinAcceptedLine, rosterFullLine, reconsiderLine, stillWantsRenewalLine, stayPleaLine, thanksLine } from '../../utils/chatLines'
 import { settledPath } from '../../utils/talkSync'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
@@ -157,7 +157,7 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
   const rivals = rivalCountLine(offer.rivalCount)
   if (rivals) msgs.push({ from: 'player', text: rivals })
   if (offer.offerSalary > 0 && offer.status === 'countered') {
-    msgs.push({ from: 'gm', text: `年俸${fmtYen(offer.offerSalary)}、${offer.offerYears}年契約でいかがでしょうか。` })
+    msgs.push(offerTermsLine(fmtYen(offer.offerSalary), offer.offerYears))
     msgs.push({ from: 'player', text: `（代理人）その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
   }
   return msgs
@@ -550,10 +550,10 @@ function ChatView({
 
   const handleSubmitTransferOffer = () => {
     if (!transferBid) return
-    append({ from: 'gm', text: `年俸${fmtYen(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
+    append(offerTermsLine(fmtYen(offerSalary), offerYears))
     const res = finalizeTransfer(transferBid.id, offerSalary, offerYears)
     if (res.ok) {
-      append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
+      append(joinAcceptedLine())
       setJustAcquired(true)
     } else {
       append({ from: 'player', text: `（代理人）申し訳ありません。${res.reason ?? '今回は成立しませんでした。'}` })
@@ -573,14 +573,14 @@ function ChatView({
     // 以前はここが canSignContract を直に呼んでいたため、30人ちょうどでトレード加入した選手と
     // 契約できず、しかも案内が、もう存在しない「契約形態の切り替え」を促す文章のままだった
     if (!canSignPlayer(players, playerTeamId, acqOffer.playerId)) {
-      append({ from: 'gm', text: `（ロスターが上限${ROSTER_MAX}人です。誰かを放出してから改めて提示してください）` })
+      append(rosterFullLine(ROSTER_MAX))
       return
     }
-    append({ from: 'gm', text: `年俸${fmtYen(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
+    append(offerTermsLine(fmtYen(offerSalary), offerYears))
     submitAcquisitionOffer(acqOffer.id, offerSalary, offerYears, offerContractType, offerTeamRole ?? undefined)
     const updated = (useGameStore.getState().currentSeason.acquisitionOffers ?? []).find(o => o.id === acqOffer.id)
     if (updated?.status === 'accepted') {
-      append({ from: 'player', text: 'ありがとうございます。その条件で加入します！よろしくお願いします。' })
+      append(joinAcceptedLine())
       setJustAcquired(true)
     } else if (updated?.status === 'countered') {
       append({ from: 'player', text: `（代理人）即断は難しいです。年俸${fmtYen(updated.counterSalary ?? 0)}、${updated.counterYears}年であれば合意します。` })
@@ -597,7 +597,7 @@ function ChatView({
   }
 
   const handleSubmitOffer = () => {
-    append({ from: 'gm', text: `年俸${fmtYen(offerSalary)}、${offerYears}年契約でいかがでしょうか。` })
+    append(offerTermsLine(fmtYen(offerSalary), offerYears))
     // 進行中の札が無ければここで作る。作れるかどうかは contractTalk の canOfferRenewal（ストア側）で決まる
     if (!liveContractOf(useGameStore.getState().currentSeason.contractRequests, player.id)) {
       initiateContractRenewal(player.id)
@@ -664,7 +664,7 @@ function ChatView({
         { label: `承諾する（${fmtYen(acqOffer.counterSalary ?? 0)}/${acqOffer.counterYears}年）`, color: C.green, action: () => {
           // 枠の事前チェック（承諾パスにも必要）。提示パスと同じ canSignPlayer 1本
           if (!canSignPlayer(players, playerTeamId, acqOffer.playerId)) {
-            append({ from: 'gm', text: `（ロスターが上限${ROSTER_MAX}人です。誰かを放出してから改めて提示してください）` })
+            append(rosterFullLine(ROSTER_MAX))
             return
           }
           append(
@@ -675,7 +675,7 @@ function ChatView({
           setJustAcquired(true)
         }},
         ...(acqOffer.round < 3 ? [{ label: '再交渉する', color: C.gold, action: () => {
-          append({ from: 'gm', text: '条件を再考させてください。' })
+          append(reconsiderLine())
           reNegotiateAcquisition(acqOffer.id)
           openComposeAcq()
         }}] : []),
@@ -814,7 +814,7 @@ function ChatView({
         // 契約更新の要求も抱えている場合、引き留めの直後に出る「要求を飲む」の脈絡を作る
         if (contractReq?.status === 'pending_gm') {
           const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
-          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmtYen(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
+          append(stillWantsRenewalLine(fmtYen(effDemand), contractReq.demandYears))
         }
         dismissRetirementRequest(player.id)
       }},
@@ -833,7 +833,7 @@ function ChatView({
         // 他クラブに心が傾いている選手は「わかりました」と言わず、最初から正直に断る（以後は本人の決断待ち）
         if (courtedAway) {
           append(
-            { from: 'gm', text: 'まだあなたの力が必要です。残ってください。' },
+            stayPleaLine(),
             { from: 'player', text: `すみません…実は${freeContactClub ?? '他クラブ'}から誘いを受けていて、移籍を前向きに考えています。お約束はできません。` }
           )
           dismissTransferRequest(player.id)
@@ -841,14 +841,14 @@ function ChatView({
           return
         }
         append(
-          { from: 'gm', text: 'まだあなたの力が必要です。残ってください。' },
+          stayPleaLine(),
           { from: 'player', text: 'わかりました。もう少し様子を見てみます。' }
         )
         // 同じ選手が契約更新の要求も抱えている場合、残留の返事だけだと
         // 次に出る「要求を飲む」ボタンの脈絡が無くなるため、ここで要求を言わせる
         if (contractReq?.status === 'pending_gm') {
           const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
-          append({ from: 'player', text: `ただ、契約の件なのですが…年俸${fmtYen(effDemand)}・${contractReq.demandYears}年での更新を希望しています。ご検討ください。` })
+          append(stillWantsRenewalLine(fmtYen(effDemand), contractReq.demandYears))
         }
         dismissTransferRequest(player.id)
       }},
@@ -910,12 +910,12 @@ function ChatView({
         { label: `承諾する（${fmtYen(contractReq.counterSalary ?? 0)}/${contractReq.counterYears}年）`, color: C.green, action: () => {
           append(
             { from: 'gm', text: `了解しました。年俸${fmtYen(contractReq.counterSalary ?? 0)}、${contractReq.counterYears}年で合意します。` },
-            { from: 'player', text: 'ありがとうございます。よろしくお願いします。' }
+            thanksLine()
           )
           acceptContractCounter(contractReq.id)
         }},
         ...(canRedo ? [{ label: '再交渉する', color: C.gold, action: () => {
-          append({ from: 'gm', text: '条件を再考させてください。' })
+          append(reconsiderLine())
           reNegotiateContract(contractReq.id)
           openCompose()
         }}] : []),
@@ -929,7 +929,7 @@ function ChatView({
             submitContractRenewalOffer(contractReq.id, effDemand, contractReq.demandYears, contractReq.offerContractType ?? player.contract.contractType ?? 'standard', undefined)
             const updated = (useGameStore.getState().currentSeason.contractRequests ?? []).find(r => r.id === contractReq.id)
             if (updated?.status === 'accepted') {
-              append({ from: 'player', text: 'ありがとうございます。よろしくお願いします。' })
+              append(thanksLine())
             } else {
               // フリー移籍の接触中で本人が移籍に傾いている場合、要求どおりでも断られる。条件の問題ではないことを伝える
               const courted = (useGameStore.getState().currentSeason.incomingOffers ?? []).some(o => o.playerId === player.id && o.offeredPrice === 0 && o.retentionRefused)
