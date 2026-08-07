@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, divisionTag, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, injuryHeadline, type NewsItem } from '../utils/newsItems'
+import { clubLabel, divisionTag, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, injuryHeadline, signedWithFeeHeadline, soldPlayerHeadline, joinedHeadline, renewalHeadline, loanInOutHeadline, segmentPrizeHeadline, overseasMoveHeadline, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -1366,7 +1366,7 @@ export const useGameStore = create<GameStore>()(
 
           const prizeNewsItem = segPrize > 0 ? {
             date: race.date,
-            headline: `${race.name} 区間賞賞金 +${fmtYen(segPrize)}円${playerRank > 0 ? `（${playerRank}位）` : ''}`,
+            headline: segmentPrizeHeadline({ raceName: race.name, prize: segPrize, myRank: playerRank }),
             category: 'race' as const,
             relatedIds: [race.id],
           } : null
@@ -2521,7 +2521,7 @@ export const useGameStore = create<GameStore>()(
             ...state.currentSeason,
             newsFeed: [{
               date: state.currentSeason.races[state.currentSeason.currentRaceIndex - 1]?.date ?? `${state.currentSeason.year}-06-01`,
-              headline: `${player.name}が${years}年契約更新`,
+              headline: renewalHeadline({ playerName: player.name, years }),
               category: 'fa' as const,
               relatedIds: [playerId],
             }, ...state.currentSeason.newsFeed].slice(0, 30),
@@ -2864,7 +2864,7 @@ export const useGameStore = create<GameStore>()(
             ...state.currentSeason,
             transferSpend: (state.currentSeason.transferSpend ?? 0) + moved.spend,
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.id !== listingId),
-            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を移籍金${fmtYen(price)}で獲得`, category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || isBigClub(listing.fromTeamId), fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId }, ...state.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: price }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || isBigClub(listing.fromTeamId), fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId }, ...state.currentSeason.newsFeed].slice(0, 30),
           },
         })
         })
@@ -3016,7 +3016,7 @@ export const useGameStore = create<GameStore>()(
             achievements: isElite && !(st.achievements ?? []).some(a => a.id === 'overseas-pioneer')
               ? [...(st.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${st.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: st.currentSeason.year, rarity: 'legendary' as const }]
               : st.achievements,
-            currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + moved.income, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: isElite ? `【世界へ挑戦】${player.name}（OVR${ovr(player)}）が世界最高峰・${clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(offer.offeredPrice)}）` : `${player.name}が海外クラブ${clubName}へ移籍（移籍金${fmtYen(offer.offeredPrice)}）`, category: 'trade' as const, relatedIds: [player.id], major: isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId) }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] },
+            currentSeason: { ...st.currentSeason, transferIncome: (st.currentSeason.transferIncome ?? 0) + moved.income, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (st.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: st.currentSeason.races[st.currentSeason.currentRaceIndex]?.date ?? `${st.currentSeason.year}-06-01`, headline: overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName, fee: offer.offeredPrice, elite: isElite }), category: 'trade' as const, relatedIds: [player.id], major: isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId) }, ...st.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(st.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] },
           })
           })
           return 'sold'
@@ -3035,7 +3035,7 @@ export const useGameStore = create<GameStore>()(
             incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId),
             // 売却した選手の出品（自分のもの含む）は市場から掃除する
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
-            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${buyingTeam.shortName}へ移籍金${fmtYen(offer.offeredPrice)}で放出`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.teams), fee: offer.offeredPrice }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
             departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
           },
         })
@@ -3412,7 +3412,7 @@ export const useGameStore = create<GameStore>()(
                   : o),
                 newsFeed: [{
                   date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`,
-                  headline: `${player.name}が加入（年俸${fmtYen(salary)}・${years}年）`,
+                  headline: joinedHeadline({ playerName: player.name, salary, years }),
                   category: 'fa' as const,
                   relatedIds: [player.id],
                 }, ...state.currentSeason.newsFeed].slice(0, 30),
@@ -3466,7 +3466,7 @@ export const useGameStore = create<GameStore>()(
               acquisitionOffers: (state.currentSeason.acquisitionOffers ?? []).map(o => o.id === offerId ? { ...o, status: 'accepted' as const } : o),
               newsFeed: [{
                 date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`,
-                headline: `${player?.name ?? ''}が加入（年俸${fmtYen(offer.counterSalary)}・${offer.counterYears}年）`,
+                headline: joinedHeadline({ playerName: player?.name ?? '', salary: offer.counterSalary, years: offer.counterYears }),
                 category: 'fa' as const,
                 relatedIds: [offer.playerId],
               }, ...state.currentSeason.newsFeed].slice(0, 30),
@@ -3601,7 +3601,7 @@ export const useGameStore = create<GameStore>()(
                 achievements: isElite && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
                   ? [...(state.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${state.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
                   : state.achievements,
-                currentSeason: { ...state.currentSeason, transferIncome: (state.currentSeason.transferIncome ?? 0) + moved.income, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: isElite ? `【世界へ挑戦】${player.name}（OVR${ovr(player)}）が世界最高峰・${clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(counterPrice)}）` : `${player.name}が海外クラブ${clubName}へ移籍（移籍金${fmtYen(counterPrice)}）`, category: 'trade' as const, relatedIds: [player.id], major: isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId) }, ...state.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] },
+                currentSeason: { ...state.currentSeason, transferIncome: (state.currentSeason.transferIncome ?? 0) + moved.income, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId), transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId), newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName, fee: counterPrice, elite: isElite }), category: 'trade' as const, relatedIds: [player.id], major: isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId) }, ...state.currentSeason.newsFeed].slice(0, 30), departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] },
               }
             }
             outcome = 'refused'
@@ -3625,7 +3625,7 @@ export const useGameStore = create<GameStore>()(
                 // 売却した選手の出品（自分のもの含む）は市場から掃除する
                 transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
                 // 逆提示で成立したときも、承諾したときと同じようにニュースと退団のお知らせを出す
-                newsFeed: [{ date: soldDate, headline: `${player.name}を${buyingTeam?.shortName ?? ''}へ移籍金${fmtYen(counterPrice)}で放出`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+                newsFeed: [{ date: soldDate, headline: soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.teams), fee: counterPrice }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
                 departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
               },
             }
@@ -3818,7 +3818,7 @@ export const useGameStore = create<GameStore>()(
             teams: moved.teams,
             currentSeason: {
               ...state.currentSeason,
-              newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${yrs}シーズンのレンタルで獲得`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+              newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'in' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
             },
           }
         })
@@ -3857,7 +3857,7 @@ export const useGameStore = create<GameStore>()(
             teams: moved.teams,
             currentSeason: {
               ...state.currentSeason,
-              newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: `${player.name}を${yrs}シーズンのレンタルで放出`, category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+              newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'out' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
               departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
             },
           }
@@ -4002,7 +4002,7 @@ export const useGameStore = create<GameStore>()(
             transferSpend: (s.currentSeason.transferSpend ?? 0) + moved.spend,
             transferBids: (s.currentSeason.transferBids ?? []).map(b => b.id === bidId ? { ...b, status: 'complete' as const } : b),
             transferListings: (s.currentSeason.transferListings ?? []).filter(l => l.playerId !== bid.playerId),
-            newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: `${player.name}を移籍金${fmtYen(bid.offeredFee)}・年俸${fmtYen(salary)}で獲得`, category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || isBigClub(bid.targetTeamId), fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId }, ...s.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: bid.offeredFee, salary }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || isBigClub(bid.targetTeamId), fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId }, ...s.currentSeason.newsFeed].slice(0, 30),
           },
         }))
         return { ok: true }

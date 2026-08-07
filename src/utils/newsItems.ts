@@ -156,3 +156,45 @@ export function nationalCallUpHeadline(a: { year: number; names: string[]; mineC
 export function injuryHeadline(a: { playerName: string; injuryName: string; races: number }): string {
   return `${a.playerName}が${a.injuryName}で負傷 — 復帰まで約${a.races}戦`
 }
+
+// ── 自チームの出来事 ─────────────────────────────────────────
+// 部を書く必要はない（全部自分のクラブの話）が、文面をここでしか変えられなくするために置く。
+
+/** 選手を獲得した（移籍金を払った） */
+export function signedWithFeeHeadline(a: { playerName: string; fee: number; salary?: number }): string {
+  const sal = a.salary != null ? `・年俸${fmtYen(a.salary)}` : ''
+  return `${a.playerName}を移籍金${fmtYen(a.fee)}${sal}で獲得`
+}
+
+/** 選手を放出した */
+export function soldPlayerHeadline(a: { playerName: string; toLabel: string; fee: number }): string {
+  return `${a.playerName}を${a.toLabel}へ移籍金${fmtYen(a.fee)}で放出`
+}
+
+/** FA・契約で加入した */
+export function joinedHeadline(a: { playerName: string; salary: number; years: number }): string {
+  return `${a.playerName}が加入（年俸${fmtYen(a.salary)}・${a.years}年）`
+}
+
+/** 契約更新 */
+export function renewalHeadline(a: { playerName: string; years: number }): string {
+  return `${a.playerName}が${a.years}年契約更新`
+}
+
+/** レンタルの出入り */
+export function loanInOutHeadline(a: { playerName: string; years: number; dir: 'in' | 'out' }): string {
+  return `${a.playerName}を${a.years}シーズンのレンタルで${a.dir === 'in' ? '獲得' : '放出'}`
+}
+
+/** 区間賞の賞金 */
+export function segmentPrizeHeadline(a: { raceName: string; prize: number; myRank?: number }): string {
+  const rank = a.myRank && a.myRank > 0 ? `（${a.myRank}位）` : ''
+  return `${a.raceName} 区間賞賞金 +${fmtYen(a.prize)}${rank}`
+}
+
+/** 海外へ送り出した。世界最高峰なら特別扱いにする */
+export function overseasMoveHeadline(a: { playerName: string; playerOvr: number; clubName: string; fee: number; elite: boolean }): string {
+  return a.elite
+    ? `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(a.fee)}）`
+    : `${a.playerName}が海外クラブ${a.clubName}へ移籍（移籍金${fmtYen(a.fee)}）`
+}
