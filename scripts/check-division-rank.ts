@@ -7,23 +7,33 @@
  * 焼き込み（SeasonStanding.division）が無い古い年でも、その年の駅伝に
  * 一緒に出ていた面々から復元できることも一緒に見る。
  */
-import { rankedStandings, rankOfTeam, seasonDivisionStandings, DIVISIONS, DIVISION_SIZE, DIVISION_RACES, DIVISION_LABEL } from '../src/utils/league'
+import { rankedStandings, rankOfTeam, seasonDivisionStandings, positionPointsFor, DIVISIONS, DIVISION_SIZE, DIVISION_RACES, DIVISION_LABEL } from '../src/utils/league'
 import type { Division } from '../src/types'
 
 type Row = { teamId: string; division?: Division; totalPoints: number }
 
-// 52クラブぶんの順位表を作る。1レースあたりの得点は部によらず同じ（＝走った数だけ差が付く）
-const PER_RACE = 12
+// 52クラブぶんの順位表を、**実際の配点**で作る。
+//   順位ポイント = そのレースに出たチーム数 + 1 - 着順（utils/league.ts の positionPointsFor）
+// 毎回同じ着順で走ったチーム、という単純な形にする（区間賞は乗せない。
+// 区間賞もレース数に比例して増えるので、乗せると差はさらに開く方向にしか動かない）。
 const teams: { id: string; division: Division }[] = []
 const rows: Row[] = []
 for (const d of DIVISIONS) {
-  for (let i = 0; i < DIVISION_SIZE[d]; i++) {
+  const n = DIVISION_SIZE[d]
+  for (let i = 0; i < n; i++) {
     const id = `d${d}-${String(i).padStart(2, '0')}`
     teams.push({ id, division: d })
-    // 部内i番目は「i個ぶん取りこぼした」とする
-    rows.push({ teamId: id, division: d, totalPoints: (DIVISION_RACES[d] * PER_RACE) - i * 3 })
+    // 部内 i+1 着を毎レース取ったチーム
+    rows.push({ teamId: id, division: d, totalPoints: DIVISION_RACES[d] * positionPointsFor(n, i + 1) })
   }
 }
+
+console.log('■ 実際の配点（1位 = 出走クラブ数ぶん、以下1点ずつ減る）')
+for (const d of DIVISIONS) {
+  const n = DIVISION_SIZE[d]
+  console.log(`  ${DIVISION_LABEL[d].padEnd(3)} ${n}クラブ × ${DIVISION_RACES[d]}戦 → 全勝で ${DIVISION_RACES[d] * positionPointsFor(n, 1)}点`)
+}
+console.log('')
 
 const me = 'd1-09'          // 1部の10番手（＝本当は10位）
 const season = { standings: rows }
