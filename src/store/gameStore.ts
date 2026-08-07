@@ -1,7 +1,7 @@
 ﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
-import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline } from '../utils/newsItems'
+import { clubLabel, divisionTag, transferHeadline, raceResultHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
@@ -4975,6 +4975,9 @@ export const useGameStore = create<GameStore>()(
         // CPU間移籍（メイン市場）：予算の多いチームから優先で他チームの余剰選手を引き抜く
         // オフシーズンの移籍成立記録（チーム詳細の移籍ページ用）。年は新シーズン（現 currentSeason.year）
         const offseasonTxRecords: TransferRecord[] = []
+        // オフの市場の動きをニュースに出す。「1部の控えが下位クラブへ」「若手がレンタルで
+        // 走りに出る」が見えないと、市場が効いているかを確かめられない
+        const offseasonTxNews: NewsItem[] = []
         const cpuTransferIds = new Set<string>()
         let playersAfterCpuTransfer = playersAfterCpuRelease
         let teamsAfterCpuTransfer = teamsAfterCpuRelease
@@ -5177,6 +5180,15 @@ export const useGameStore = create<GameStore>()(
             if (!m.ok) continue
             playersAfterCpuTransfer = m.players
             teamsAfterCpuTransfer = m.teams
+            offseasonTxNews.push({
+              date: `${state.currentSeason.year}-11-15`,
+              headline: loanHeadline({
+                playerName: candidate.name, age: candidate.age, years: 1,
+                ownerLabel: clubLabel(senderId, teamsAfterCpuTransfer),
+                borrowerLabel: clubLabel(receiver, teamsAfterCpuTransfer),
+              }),
+              category: 'trade', relatedIds: [candidate.id],
+            })
           }
         }
 
@@ -5370,7 +5382,7 @@ export const useGameStore = create<GameStore>()(
           ].slice(-800),
           currentSeason: {
             ...state.currentSeason,
-            newsFeed: [...cpuSigningNewsItems, ...state.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [...offseasonTxNews, ...cpuSigningNewsItems, ...state.currentSeason.newsFeed].slice(0, 30),
           },
         })
       },
