@@ -60,6 +60,26 @@ export const DEFICIT_RESCUE_BUDGET = 50_000_000
  * ★連続赤字によるグラント減額は廃止した。減るのは収入なのに脱出手段は年俸削減しか無く、
  *   減額→さらに赤字、の一方通行だったため。赤字のペナルティは「補強禁止」だけにする。
  */
+/**
+ * 前季から持ち越せる上限 ＝ そのクラブの年間予算のこの割合。
+ *
+ * ■なぜ要るのか（実測）
+ *   上限が無いと繰越が毎年積み上がる。10シーズン回すと「使えるお金」が年間予算の2.6倍になり、
+ *   移籍金の上限（年間予算の20%）いっぱいの選手を**同時に13人**買える。
+ *   1人あたりの上限は格で効いているのに、**回数が無制限**なので格の差が消える。
+ *
+ *   繰越上限   10年目の使えるお金   年間予算の何倍   同時に買える人数
+ *   上限なし        31.7億             2.60倍           13人
+ *   1.0倍           25.2億             2.00倍           10人
+ *   0.4倍           17.6億             1.40倍            7人
+ *   0.3倍                                               ← いまここ
+ *   0.2倍           15.1億             1.20倍            6人
+ *
+ *   上限を付けると3年目で頭打ちになり、そこから増えない。
+ *   貯めて大型補強、はできる（1年ぶんの繰越は残る）が、無限には貯まらない。
+ */
+export const CARRYOVER_CAP_SHARE = 0.30
+
 export function computeNextSeasonBudget(args: {
   baseGrant: number        // そのクラブの格の年間予算（utils/clubTier.ts の tierBudget(team)）
   prevBalance: number      // 今季終了時点の残高（繰り越し）
@@ -72,7 +92,10 @@ export function computeNextSeasonBudget(args: {
 }): number {
   const income = args.baseGrant + args.sponsorAnnual + (args.raceIncome ?? 0) + args.objBudgetBonus
   const expenses = args.bonusPayout + args.salaryTotal + operatingCostOf(args.salaryTotal) + (args.facilityUpkeep ?? 0)
-  return Math.max(DEFICIT_LIMIT, args.prevBalance + income - expenses)
+  // 前季の精算後に残ったぶん（＝繰越）。ここに上限をかける。
+  // 赤字側は DEFICIT_LIMIT まで持ち越す（借金は消えない）
+  const carryover = Math.min(args.prevBalance - expenses, args.baseGrant * CARRYOVER_CAP_SHARE)
+  return Math.max(DEFICIT_LIMIT, carryover + income)
 }
 
 // 連続赤字の判定は computeNextSeasonBudget の結果（＝精算後の残高）がマイナスかどうかだけで行う。

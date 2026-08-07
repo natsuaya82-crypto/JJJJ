@@ -5,7 +5,8 @@ import { useTeamHistory } from '../../lib/useTeamHistory'
 import { C, alpha } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { operatingCostOf } from '../../data/economy'
+import { operatingCostOf, CARRYOVER_CAP_SHARE } from '../../data/economy'
+import { facilityUpkeepOf } from '../../utils/facilities'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
@@ -58,8 +59,9 @@ export default function BudgetPage() {
     .filter((s): s is NonNullable<typeof s> => s != null)
   const sponsorAnnual = sponsorList.reduce((s, sp) => s + sp.annualPayment, 0)
 
-  // 運営費＝総年俸の1割（施設維持費は廃止。施設レベルそのものは残る）
+  // 運営費＝総年俸の1割。施設の維持費はレベルに比例（utils/facilities の1本。全クラブが払う）
   const opCost = operatingCostOf(squadSalaryTotal)
+  const facUpkeep = facilityUpkeepOf(myTeam)
   // 初期予算（そのシーズンの開始予算・固定）と今季収支（初期予算 ＋ 移籍金収支 − 固定支出）
   const initialBudget = currentSeason.initialBudget ?? budget
   const transferIncome = currentSeason.transferIncome ?? 0
@@ -68,7 +70,7 @@ export default function BudgetPage() {
   // 以前は初期予算＋移籍金収支から組み立て直していたため、ECL賞金・イベント・海外移籍金などが
   // 一切乗らず、来季の初期予算と数字が合わなかった。実際の残高を基準にする。
   const otherIncome = budget - (initialBudget + transferIncome - transferSpend)
-  const seasonBalance = budget - squadSalaryTotal - opCost
+  const seasonBalance = budget - squadSalaryTotal - opCost - facUpkeep
   // 初期予算の内訳（2年目以降。前季endSeasonで確定）。何が合わさって初期予算かを表示。
   // 旧形式（繰越=精算前の期末残高・支出が別行）のセーブは、表示時に精算後の最終収支へ変換する
   const bdRaw = currentSeason.budgetBreakdown
@@ -164,10 +166,13 @@ export default function BudgetPage() {
             {otherIncome !== 0 && <Row label="その他収支" value={`${otherIncome >= 0 ? '+' : '-'}${fmt(Math.abs(otherIncome))}`} color={otherIncome >= 0 ? C.green : C.red} sub="ECL賞金・イベント・海外移籍など" />}
             <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
             <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="総年俸の10%" />
+            <Row label="施設維持費" value={`-${fmt(facUpkeep)}`} color={C.red} sub="レベル1つにつき2500万／年 × 4施設" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px', borderTop: `1px solid ${C.border}` }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>期末残高</div>
-                <div style={{ fontSize: 9, color: C.textGhost }}>来季へ繰り越す総額</div>
+                <div style={{ fontSize: 9, color: C.textGhost }}>
+                  来季へ繰り越せるのはクラブ予算の{Math.round(CARRYOVER_CAP_SHARE * 100)}%まで
+                </div>
               </div>
               <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: seasonBalance >= 0 ? C.green : C.red, textShadow: seasonBalance >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
                 {fmt(seasonBalance, true)}
