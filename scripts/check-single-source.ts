@@ -32,6 +32,17 @@ type Rule = {
 
 const RULES: Rule[] = [
   {
+    // `currentSeason.races` は**自分の部の日程だけ**。ここで出場率を数えると、
+    // 1部・2部のクラブの選手は1本も載らないので**必ず0**になる。
+    // 出場率0は transferDecision の「今のクラブで干されている」(+0.2)を全員に付けるので、
+    // 1部の主力が3部のクラブへの移籍に同意してしまう（実際にそうなっていた）。
+    // 分母も `currentRaceIndex`（自分の部の消化数）で、部ごとにレース数が違う。
+    name: '出場率を自分の部の日程だけで数えている',
+    pattern: /seasonAppearances\([^)]*(currentSeason\.races|currentRaceIndex)/,
+    allow: ['src/utils/playRate.ts'],
+    fix: 'utils/playRate.ts の playRateOf を使う（そのクラブが走っている日程で数える）',
+  },
+  {
     // 通し順位（1〜52）は**格を決めるためだけの内部の数**。画面に出すと
     // 「47位」「52位」のような、遊ぶ側にとって意味の無い数になる。
     // あるのは1部・2部・3部それぞれの中での順位だけ（utils/clubStanding の clubSeasonRank）。
@@ -257,6 +268,7 @@ RULES.push({
     'src/utils/segmentRecords.ts',
     'src/utils/awards.ts',
     'src/store/bootRepair.ts',      // 過去シーズンの部を日程から直す側
+    'src/utils/playRate.ts',        // 「そのクラブが走っている日程」を引く側
   ],
   fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
 })

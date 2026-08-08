@@ -112,7 +112,12 @@ export function seeksPlayingTime(a: {
 }): boolean {
   if (!hasNoPlayingTime(a.squadRank, a.slots)) return false
   if (a.age < SEEK_MIN_AGE) return false
-  const rate = a.teamRaces > 0 ? a.races / a.teamRaces : 0
+  // ★まだ1戦も走っていない（＝分からない）を「出番が無い」と読まないこと。
+  //   出場率は utils/playRate の playRateOf で数えるが、シーズン頭や日程が引けない
+  //   クラブでは 0戦になる。それを0%として扱うと、**その時点で全員が「出番が無い」**に
+  //   なり、他の部の主力まで市場へ出てくる（3部で遊ぶと1部の主力が流れてきていた）。
+  if (a.teamRaces <= 0) return false
+  const rate = a.races / a.teamRaces
   if (rate >= APPEARANCE_FLOOR) return false
   // 前季が分からない（加入1年目・古いセーブ）なら今季だけで判断する
   if (a.prevRaces == null || !a.prevTeamRaces) return true

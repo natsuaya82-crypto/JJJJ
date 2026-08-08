@@ -71,6 +71,8 @@ import { squadPlayersOf, squadIdsOf, belongsToClub, clubMembersByClub } from '..
 // 国内52クラブの名簿と、下部リーグが入っていない古いセーブの補完
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs, originalDivisionOf } from '../utils/domesticClubs'
 import { repairLoadedSave } from './bootRepair'
+// 出場率は「そのクラブが走っている日程」で数える1本（自分の部・他の部・海外を区別しない）
+import { playRateOf } from '../utils/playRate'
 // 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
 import { SPECIALTIES, thinSpecialties, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
 import { effectiveOvr } from '../utils/foreignClubProfile'
@@ -3092,8 +3094,11 @@ export const useGameStore = create<GameStore>()(
         if (!player) return []
         const offers = (state.currentSeason.incomingOffers ?? []).filter(o => o.playerId === playerId && o.offeredPrice > 0)
         if (offers.length === 0) return []
-        const races = Math.max(0, state.currentSeason.currentRaceIndex ?? 0)
-        const frac = races > 0 ? seasonAppearances(playerId, state.currentSeason.races) / races : 0.5
+        // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）。
+        //   currentSeason.races は自分の部だけなので、1部・2部の選手は必ず0になり、
+        //   appraiseMove の「干されている」(+0.2)が全員に付いていた
+        const { fraction: frac, teamRaces: races } = playRateOf(
+          playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
         const ctx = {
           srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
           playFraction: frac, teamRaces: races, clubBlessed: true,
@@ -3113,8 +3118,9 @@ export const useGameStore = create<GameStore>()(
         // ここで改めて聞くと「行きたい」と言った本人が断る（愛着の強い性格ほど断る）ので聞かない。
         // canGoOverseasDream が「本人とGMが望んだ移籍」として加入1年目すら止めないのと同じ扱い
         if (player.overseasListed && fromForeign) return true
-        const races = Math.max(0, state.currentSeason.currentRaceIndex ?? 0)
-        const frac = races > 0 ? seasonAppearances(playerId, state.currentSeason.races) / races : 0.5
+        // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）
+        const { fraction: frac, teamRaces: races } = playRateOf(
+          playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
         // clubBlessed=true：移籍金はクラブ間で合意済み。「主力だから残りたい」の減点は掛けず、
         // 本人は行き先の姿だけで決める（買う側の finalizeTransfer と同じ渡し方）
         return appraiseMove(player, get().destinationOf(toTeamId, player), {
@@ -3294,8 +3300,8 @@ export const useGameStore = create<GameStore>()(
           // （判定は決断時と同じ freeContactConsent＝出場実績込み）
           const freeContact = (state.currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
           if (freeContact) {
-            const fcRaces = Math.max(1, state.currentSeason.currentRaceIndex)
-            const fcFrac = seasonAppearances(player.id, state.currentSeason.races) / fcRaces
+            const fc = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
+            const fcRaces = fc.teamRaces, fcFrac = fc.fraction
             if (freeContactConsent(player, get().destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces)) {
               // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
               return {
@@ -3469,9 +3475,8 @@ export const useGameStore = create<GameStore>()(
           const player = state.players.find(p => p.id === offer.playerId)
           if (!player) return state
           // 出場データ（年俸ではなくデータで主力度を判定）
-          const teamRaces = state.currentSeason.currentRaceIndex
-          const apps = seasonAppearances(player.id, state.currentSeason.races)
-          const playFraction = teamRaces > 0 ? apps / teamRaces : 0.5
+          const pr = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
+          const teamRaces = pr.teamRaces, playFraction = pr.fraction
           const rejectWith = (reason: AcquisitionOffer['rejectReason']) => ({
             currentSeason: {
               ...state.currentSeason,

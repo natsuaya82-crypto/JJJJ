@@ -8,7 +8,8 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
 import { clubRoutePath, type Club } from '../../utils/clubs'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, seasonAppearances, playerConsentToMove, freeContactConsent, racesConsumed } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, playerConsentToMove, freeContactConsent, racesConsumed } from '../../utils/playerUtils'
+import { playRateOf } from '../../utils/playRate'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
 import { tradeValues, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../utils/tradeValue'
 import { canSignPlayer, ROSTER_MAX } from '../../data/rosterRules'
@@ -884,8 +885,9 @@ function ChatView({
     const courtedAway = (() => {
       const freeContact = (currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
       if (!freeContact) return false
-      const fcRaces = Math.max(1, currentSeason.currentRaceIndex ?? 0)
-      const fcFrac = seasonAppearances(player.id, currentSeason.races) / fcRaces
+      // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
+      // 決断のときと同じ数字でないと、画面の予告と結果が食い違う
+      const { teamRaces: fcRaces, fraction: fcFrac } = playRateOf(player.id, player.teamId, currentSeason, teams, foreignLeagues)
       // 行き先は store の destinationOf 1本（決断のときに使われるものと同じ）
       return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), fcFrac, fcRaces)
     })()

@@ -59,6 +59,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/chatLines.ts` | チャットで**2か所以上に出る文面**。承諾の返事・契約の提示・引き留めなど。**発言には必ず `kind` を付ける**（付いていないと重複が潰せない）。`npm run check` が文面の重複と `kind` の有無を見張る |
 | `src/utils/raceHistory.ts` | **走ったレースの取り出し**。`ranRaces`（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会をリーグ名つきで返す）。同じ駅伝名でも部が違えば別の記録 |
 | `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。順位表の**行の型は1つ**（`SeasonStanding`・キーは `teamId`）。置き場所は国内(`standings`)と海外(`foreignStandings`)で分かれているが、読む側は区別しない。旧セーブ（キーが `clubId`）を均すのも `normalizeForeignStandings` 1本 |
+| `src/utils/playRate.ts` | **その選手が今季どれだけ走っているか**。`playRateOf` / `clubSeasonRaces`。自分の部・他の部・海外で日程の置き場所が違うだけなので、読む側は区別しない。**`currentSeason.races` で数えないこと**（自分の部だけなので他の部の選手が全員0％になり、移籍判定の「干されている」が全員に付く） |
 | `src/utils/clubStanding.ts` の `clubSeasonRank` | **画面に出す順位**。国内＝部内順位（1部1〜20／2部・3部1〜16）、海外＝リーグ内順位。**通し順位（1〜52）は返さない**（格を決める内部の数。「47位」「52位」に意味は無い）。`{rank, total, division}` |
 | `src/utils/segmentRecords.ts` | **区間記録**。1部・2部・3部は同じコースを分け合って走るので、**そのコースでいちばん速いタイム1本**。部で分けない（`divisionRaces` も一緒に数える） |
 | `src/utils/awards.ts` | **年度表彰（MVP・新人王）。部ごとに選ぶ**（1部MVP・2部MVP・3部MVP）。走る相手も本数も違うので混ぜない。分け方は `racesByDivision` 1本 |
