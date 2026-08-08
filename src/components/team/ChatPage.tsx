@@ -15,12 +15,13 @@ import { tradeValues, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, 
 import { canSignPlayer, ROSTER_MAX } from '../../data/rosterRules'
 import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
-import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
+import { canBePoached, canTradeAway, eligibilityCtx } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { overseasApprovedLine, retireApprovedLine, settledLineOf, offerTermsLine, joinAcceptedLine, rosterFullLine, reconsiderLine, stillWantsRenewalLine, stayPleaLine, thanksLine, contractAcceptLine, contractCounterLine, agreeTermsLine, clubDeclinedAckLine } from '../../utils/chatLines'
 import { settledPath } from '../../utils/talkSync'
 import { dreamLabelOf } from '../../utils/transferDecision'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
+import { isSaleAnswered } from '../../utils/saleAnswer'
 import { offerResultText } from '../../utils/offerResult'
 import { rivalCountLine } from '../../utils/newsItems'
 import { contractTalkCtx, contractMonthsLeft, effectiveDemandSalary, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention, isSaleAnswerPending } from '../../utils/contractTalk'
@@ -425,10 +426,11 @@ function ChatView({
   // レンタルに返事をした瞬間に買い取りの返事ボタンまで消えていた
   const [settledOfferLocal, setSettledOffer] = useState(false)
   // 「譲ります」と返事をしたあとは、行き先が決まるまで返事のボタンを出さない。
-  // 返事の記録は store の pendingSale が持っている（オファーの札は上乗せを受けるため残る）。
+  // 返事の記録は utils/saleAnswer 1本（オファーの札は上乗せを受けるため残る）。
   // ここを画面の state だけで持っていたので、**一度閉じて開き直すと同じ返事ボタンが戻り**、
-  // 何度でも返事ができるように見えていた
-  const settledOffer = settledOfferLocal || currentSeason.pendingSale?.playerId === player.id
+  // 何度でも返事ができるように見えていた。
+  // 記録の側もシーズンに1件しか持てず、2人目に返事をすると1人目の返事が消えていた
+  const settledOffer = settledOfferLocal || isSaleAnswered(currentSeason, player.id)
   const [settledLoan, setSettledLoan] = useState(false)
   const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
   const [offerYears, setOfferYears] = useState(2)
@@ -649,13 +651,6 @@ function ChatView({
       { label: '閉じる', color: C.textSub, action: onClose },
     ]
 
-    // 進路が決まった選手（引退を承認した・海外挑戦を承認した）は閉じるだけ。
-    // buildMessages と同じ settledPath 1本で判断する。ここが無かったせいで、
-    // 引退を承認した選手に「契約条件を提示する」が出て、話が続いてしまっていた
-    if (settledPath(player)) return [
-      { label: '閉じる', color: C.textSub, action: onClose },
-    ]
-
     // 移籍金合意後の契約交渉モード（他チームから移籍金OKが出た選手）
     if (isTransfer) return [
       { label: '契約条件を提示する', color: C.blue, action: openComposeTransfer },
@@ -782,6 +777,19 @@ function ChatView({
           ]
         : offerBtns ?? loanBtns)
     if (incomingEarly && (!talksHere || player.transferListed)) return incomingEarly
+
+    // 進路が決まった選手（引退を承認した・海外挑戦を承認した）には**新しい用件**を出さない。
+    // buildMessages と同じ settledPath 1本で判断する。ここが無かったころは、
+    // 引退を承認した選手に「契約条件を提示する」が出て話が続いてしまっていた。
+    //
+    // ★ただし**もう届いている打診への返事だけは通す**。
+    //   海外挑戦を認めた選手に海外クラブからオファーが来るのは本人が望んだ話で、
+    //   札も残る側（utils/talkSync が海外からのぶんだけ残す）。それなのにここが
+    //   無条件に「閉じる」を返していたので、**1.3億のオファーが会話に出ているのに
+    //   閉じることしかできない**状態になっていた。残す札と返せるボタンを揃える
+    if (settledPath(player)) return incomingEarly ?? [
+      { label: '閉じる', color: C.textSub, action: onClose },
+    ]
 
     // 自チーム以外の選手（獲得・移籍交渉が終わった相手や海外選手など）と、
     // レンタルで借りている選手（契約は保有元の管轄）は、交渉モードでない限り閉じるだけ。
@@ -958,7 +966,10 @@ function ChatView({
       return null
     }
 
-    // 新しいメッセージの用件から順に試す（メッセージが見つからない用件は後回し・元の優先順を維持）
+    // ★用件が2つ以上たまっているときは、**古い方から順に**返事をする。
+    //   以前は新しい方から出していたので、あとから来た話に先に答えることになり、
+    //   会話の並び（上が古い）と、下に出るボタンの相手が食い違っていた。
+    //   メッセージが見つからない用件（idx = -1）は最後に回す＝元の優先順のまま
     const topicOrder = [
       { present: undecided, idx: undecided ? lastIdx(m => m.kind === 'stay_or_leave') : -1, build: buildStayOrLeaveButtons },
       // 用件キーは相手ごとに分かれる（incoming_offer:xxx）ので前方一致で拾う
@@ -968,7 +979,7 @@ function ChatView({
       { present: !!transferReq, idx: transferReq ? lastIdx(m => m.text.includes('移籍を考えて')) : -1, build: buildTransferButtons },
       { present: !!overseasReq, idx: overseasReq ? lastIdx(m => m.text.includes('海外挑戦を認めて')) : -1, build: buildOverseasButtons },
       { present: !!contractReq && contractReq.status !== 'accepted', idx: contractReq ? lastIdx(m => m.text.includes('契約について') || m.text.includes('契約の件')) : -1, build: buildContractButtons },
-    ].filter(t => t.present).sort((a, b) => b.idx - a.idx)
+    ].filter(t => t.present).sort((a, b) => (a.idx < 0 ? 1 : 0) - (b.idx < 0 ? 1 : 0) || a.idx - b.idx)
     for (const t of topicOrder) {
       const btns = t.build()
       if (btns && btns.length > 0) return btns
@@ -1166,11 +1177,9 @@ function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: (
   // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
   // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
   // 選ぶと「いいだろう、その条件で成立だ」と言われるのに選手は動かなかった
-  const tradeCtxT = {
-    teamId: playerTeamId,
-    currentYear: currentSeason.year,
-    retiringIds: new Set((currentSeason.retirementRequests ?? []).map(r => r.playerId)),
-  }
+  // 判定に渡す材料はシーズンから1本で作る（utils/transferEligibility の eligibilityCtx）。
+  // 手書きしていたので「譲ります」と返事をした選手がトレードの候補に残っていた
+  const tradeCtxT = eligibilityCtx(currentSeason, playerTeamId)
   const theirPlayers = players.filter(p => canBePoached(p, { teamId: team.id, currentYear: currentSeason.year })).sort(comparePlayers('ovr'))
   const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort(comparePlayers('ovr'))
   const myTeam = teams.find(t => t.id === playerTeamId)

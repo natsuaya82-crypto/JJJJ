@@ -26,6 +26,7 @@
 // （scripts/check-contract-talk.ts が検出する）。
 import type { ContractRequest, IncomingOffer, Player } from '../types'
 import { canStartContractTalk } from './transferEligibility'
+import { saleAnsweredIds, type SaleAnswerSeason } from './saleAnswer'
 
 /** 交渉は最大3ラウンド。ここを見ずに round を進めない */
 export const MAX_CONTRACT_ROUNDS = 3
@@ -90,8 +91,8 @@ export type ContractTalkCtx = {
   retiringIds: Set<string>
   /** フリー移籍で他クラブが接触中の選手ID */
   freeContactIds: Set<string>
-  /** 売却の返事をして、行き先が決まるのを待っている選手ID（pendingSale） */
-  pendingSaleId?: string
+  /** 売却の返事をして、行き先が決まるのを待っている選手ID（utils/saleAnswer） */
+  saleAnsweredIds: Set<string>
   contractRequests: ContractRequest[]
 }
 
@@ -100,8 +101,7 @@ type SeasonLike = {
   contractRequests?: ContractRequest[]
   incomingOffers?: IncomingOffer[]
   retirementRequests?: { playerId: string }[]
-  pendingSale?: { playerId: string }
-}
+} & SaleAnswerSeason
 
 /** currentSeason から判定に必要なものを1回で取り出す。呼び出し側で組み立て直さないこと */
 export function contractTalkCtx(season: SeasonLike, teamId: string): ContractTalkCtx {
@@ -110,7 +110,7 @@ export function contractTalkCtx(season: SeasonLike, teamId: string): ContractTal
     year: season.year,
     retiringIds: new Set((season.retirementRequests ?? []).map(r => r.playerId)),
     freeContactIds: freeContactIdsOf(season.incomingOffers),
-    pendingSaleId: season.pendingSale?.playerId,
+    saleAnsweredIds: saleAnsweredIds(season),
     contractRequests: season.contractRequests ?? [],
   }
 }
@@ -133,7 +133,7 @@ export function contractTalkCtx(season: SeasonLike, teamId: string): ContractTal
  * 「ジュネーブに1.9億でお譲りします」の下に「要求を飲む（3800万/2年）」が並ぶ状態。
  */
 export function isSaleAnswerPending(p: Player, ctx: ContractTalkCtx): boolean {
-  return ctx.pendingSaleId === p.id
+  return ctx.saleAnsweredIds.has(p.id)
 }
 
 export function canOfferRenewal(p: Player, ctx: ContractTalkCtx): boolean {

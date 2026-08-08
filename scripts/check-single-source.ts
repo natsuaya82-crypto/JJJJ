@@ -32,6 +32,25 @@ type Rule = {
 
 const RULES: Rule[] = [
   {
+    // 「譲ります」と返した記録は選手ごとに1件（utils/saleAnswer）。
+    // 以前はシーズンに1件しか無い `pendingSale` に直接書いていて、2人目に返事をすると
+    // 1人目の返事が丸ごと消えた（決着せず、チャットに承諾ボタンが戻る）。
+    // 置き場所が新旧2つあるので、直接読むと片方を見落とす。
+    name: '売却の返事を直接読み書きしている（pendingSale）',
+    pattern: /\.pendingSales?\b|pendingSaleId/,
+    allow: ['src/utils/saleAnswer.ts', 'src/types/index.ts'],
+    fix: 'utils/saleAnswer.ts の isSaleAnswered / saleAnswers / withSaleAnswer / keepSaleAnswers を使う',
+  },
+  {
+    // 「この選手を対象にしていいか」に渡す材料は eligibilityCtx 1本。
+    // 手書きしていたので、材料を足すたびに入れ忘れた場所だけが素通りしていた
+    // （返事済みの選手がトレードの候補に残っていたのがこれ）。
+    name: '移籍の可否に渡す材料を手書きしている',
+    pattern: /retiringIds:\s*new Set\(/,
+    allow: ['src/utils/transferEligibility.ts', 'src/utils/contractTalk.ts'],
+    fix: 'utils/transferEligibility.ts の eligibilityCtx(season, teamId) を使う',
+  },
+  {
     // `currentSeason.races` は**自分の部の日程だけ**。ここで出場率を数えると、
     // 1部・2部のクラブの選手は1本も載らないので**必ず0**になる。
     // 出場率0は transferDecision の「今のクラブで干されている」(+0.2)を全員に付けるので、

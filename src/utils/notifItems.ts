@@ -10,6 +10,7 @@
 import type { Season, Player, Team, ExpiredNegKind } from '../types'
 import { ROSTER_MAX } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
+import { saleAnsweredIds } from './saleAnswer'
 
 // 「交渉期限切れ」の通知に出す文言。
 // この箱には3種類（入札・獲得オファー・契約更新）が入るのに、通知ページ側が
@@ -80,16 +81,18 @@ export type NotifInput = {
  *     ・ベルが減らない（押すと同じチャットに戻る）
  *     ・チャット一覧に「◯◯が獲得を打診」が残る
  *     ・移籍ページに「他クラブからのオファー N件 — 要確認」が残る
- *   という状態になっていた。返事済みかどうかは currentSeason.pendingSale が唯一の記録。
+ *   という状態になっていた。返事済みかどうかの記録は utils/saleAnswer 1本。
  *
  * ■フリー移籍の接触（金額0）は含めない
  *   GMが返事をする話ではない（情報通知）。呼ぶ側でそれぞれ分けていたので、ここで落とす。
  */
 export function offersAwaitingReply(
-  season: Pick<Season, 'incomingOffers' | 'pendingSale'>,
+  season: Pick<Season, 'incomingOffers' | 'pendingSales' | 'pendingSale'>,
 ): NonNullable<Season['incomingOffers']> {
-  const answered = season.pendingSale?.playerId
-  return (season.incomingOffers ?? []).filter(o => o.offeredPrice > 0 && o.playerId !== answered)
+  // ★返事済みは**選手ごと**に落とす。1件枠だったころは2人目に返事をした瞬間に
+  //   1人目がまた「返事待ち」に戻り、ベルが減らなかった
+  const answered = saleAnsweredIds(season)
+  return (season.incomingOffers ?? []).filter(o => o.offeredPrice > 0 && !answered.has(o.playerId))
 }
 
 export function offersByPlayer<T extends { playerId: string }>(offers: readonly T[]): { playerId: string; offers: T[] }[] {

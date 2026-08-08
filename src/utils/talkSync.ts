@@ -13,6 +13,7 @@ import type {
 import { belongsToClub } from './rosterSync'
 import { isLeavingClub } from './transferEligibility'
 import { isLiveContract } from './contractTalk'
+import { keepSaleAnswers, type SaleAnswerSeason } from './saleAnswer'
 
 // ============================================================================
 // 「選手が動いたら、その選手についての話は全部たたむ」を扱う唯一の場所。
@@ -51,9 +52,8 @@ export type TalkLists = {
   retirementRequests?: { playerId: string; age: number }[]
   transferRequests?: { playerId: string; reason: 'playing_time' | 'team_performance' | 'unhappy' }[]
   overseasRequests?: { playerId: string; region: OverseasRegion }[]
-  pendingSale?: { offerId: string; playerId: string; atRaceIndex: number }
   chatLogs?: Record<string, ChatMessage[]>
-}
+} & SaleAnswerSeason
 
 // 前提が崩れたトレード交渉に出す文言。押した瞬間に弾く側（acceptTradeCounter）でも同じ文言を使う
 export const STALE_TRADE_MSG = '対象の選手はすでに別のクラブへ移っている。この話は白紙だ。'
@@ -151,12 +151,7 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
       return true
     }))
 
-  // 「譲ります」と返事をした記録。相手の札と同じ前提で立っているので、その選手が
-  // 自チームから居なくなった／引退の話が決まったら一緒にたたむ。
-  // 残ると、決着のときに相手の居ない話を成立させようとする（＝黙って消える）
-  if (talks.pendingSale && (!at(talks.pendingSale.playerId, myTeamId) || settled(talks.pendingSale.playerId) === 'retiring')) {
-    changed.pendingSale = undefined
-  }
+  // 「譲ります」と返事をした記録は、この関数の最後にまとめて片付ける（saleKeep）
 
   // レンタル打診：貸してほしい＝自チームの選手／借りませんか＝相手クラブの選手。
   // 貸してほしい側は、進路が決まった選手なら断るまでもなく取り下げ
@@ -232,5 +227,11 @@ export function reconcileTalks<T extends TalkLists>(talks: T, players: Player[],
     }
   }
 
-  return Object.keys(changed).length === 0 ? talks : { ...talks, ...changed }
+  const out = Object.keys(changed).length === 0 ? talks : { ...talks, ...changed }
+
+  // 「譲ります」と返事をした記録。相手の札と同じ前提で立っているので、その選手が
+  // 自チームから居なくなった／引退の話が決まったら一緒にたたむ。
+  // 残ると、決着のときに相手の居ない話を成立させようとする（＝黙って消える）。
+  // **返事は選手ごとに1件**なので、前提が崩れたものだけを落とす（utils/saleAnswer）
+  return keepSaleAnswers(out, a => at(a.playerId, myTeamId) && settled(a.playerId) !== 'retiring')
 }

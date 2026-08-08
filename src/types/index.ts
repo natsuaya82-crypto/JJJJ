@@ -747,8 +747,14 @@ export type Season = {
   incomingOffers?: IncomingOffer[]
   /**
    * 「譲る」と返事をした話。決着は次のレース（その間に他クラブが上乗せしてくる）。
-   * 買う側の入札が1レース待つのと揃える（gameStore の resolvePendingSale）
+   * 買う側の入札が1レース待つのと揃える（gameStore の runRace の頭）。
+   *
+   * ★**選手ごとに1件**。読み書きは `utils/saleAnswer` を必ず通すこと。
+   *   以前はシーズンに1件しか持てず（下の pendingSale）、同じレース間に2人ぶん返事をすると
+   *   前の返事が丸ごと消えて、決着もせず、チャットにまた承諾ボタンが戻っていた。
    */
+  pendingSales?: { offerId: string; playerId: string; atRaceIndex: number }[]
+  /** 旧セーブの置き場所（シーズンに1件）。`utils/saleAnswer` が読むときだけ吸収する */
   pendingSale?: { offerId: string; playerId: string; atRaceIndex: number }
   incomingLoanOffers?: IncomingLoanOffer[]
   loanRequests?: LoanRequest[]

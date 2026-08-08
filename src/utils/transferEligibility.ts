@@ -10,6 +10,7 @@
 // 新しい条件を足すときは、必ずこのファイルの関数に足すこと。
 // 呼び出し側に直接 p.noSale や p.overseasListed を書かないこと（scripts/check-transfer-eligibility.ts が検出する）。
 import type { Player } from '../types'
+import { saleAnsweredIds, type SaleAnswerSeason } from './saleAnswer'
 
 export type EligibilityCtx = {
   /** 判定の基準になる所属チームID。この選手が「そのチームの持ち物か」を見る */
@@ -21,6 +22,33 @@ export type EligibilityCtx = {
    * currentSeason.retirementRequests から作る（承認するとこのリストからは消える）
    */
   retiringIds?: Set<string>
+  /**
+   * 買い取り打診に「譲ります」と返事をして、決着（次のレース）を待っている選手のID。
+   * utils/saleAnswer から作る。**GM側の処分（トレード・貸出・売出）だけを止める。**
+   */
+  saleAnsweredIds?: Set<string>
+}
+
+/** ここに渡す用の、シーズンから読むもの */
+type EligibilitySeason = {
+  year?: number
+  retirementRequests?: { playerId: string }[]
+} & SaleAnswerSeason
+
+/**
+ * ★判定に渡す材料は、シーズンからここ1本で作ること。★
+ *
+ * 以前は呼ぶ側が `{ teamId, currentYear, retiringIds: new Set(...) }` を毎回手書きしていて、
+ * 14箇所に散っていた。材料を1つ足すたびに入れ忘れた場所だけが素通りする
+ * （実際、返事済みの選手をトレードに出せる穴がこれで残っていた）。
+ */
+export function eligibilityCtx(season: EligibilitySeason, teamId: string): EligibilityCtx {
+  return {
+    teamId,
+    currentYear: season.year,
+    retiringIds: new Set((season.retirementRequests ?? []).map(r => r.playerId)),
+    saleAnsweredIds: saleAnsweredIds(season),
+  }
 }
 
 /** 今季加入した選手か。1シーズンに何度も移籍させないための判定 */
@@ -70,6 +98,18 @@ export function isTalkFree(p: Player, ctx: EligibilityCtx): boolean {
   if (isRetiring(p, ctx.retiringIds)) return false
   if (p.overseasListed) return false
   return true
+}
+
+/**
+ * 「譲ります」と返事をして、決着（次のレース）を待っている選手か。
+ *
+ * ★この状態の選手を**GMが別の形で処分できてはいけない**。
+ *   返事は出したが選手はまだ在籍しているので、トレード・貸出・売出の候補に出てしまい、
+ *   1人の選手を二重に処分できた（トレードを成立させたあとに移籍も承諾できる、の正体）。
+ *   他クラブからの上乗せは受けたいので、止めるのはGM側の処分だけ（canBePoached は通す）
+ */
+function saleAnswered(p: Player, ctx: EligibilityCtx): boolean {
+  return !!ctx.saleAnsweredIds?.has(p.id)
 }
 
 /** 他クラブが移籍の話を持ちかけていい選手か（引き抜き・フリー接触の共通の土台） */
@@ -124,7 +164,7 @@ export function canGoOverseasDream(p: Player, ctx: EligibilityCtx): boolean {
  * そのあとCPUが勝手に買っていた
  */
 export function canListForSale(p: Player, ctx: EligibilityCtx): boolean {
-  return isTalkFree(p, ctx)
+  return isTalkFree(p, ctx) && !saleAnswered(p, ctx)
 }
 
 /**
@@ -145,7 +185,7 @@ export function canAcceptOfferFor(p: Player, ctx: EligibilityCtx, fromForeign?: 
  * 相手クラブから受け取る側は canBePoached（引き抜きと同じ条件）を使う
  */
 export function canTradeAway(p: Player, ctx: EligibilityCtx): boolean {
-  return isTalkFree(p, ctx)
+  return isTalkFree(p, ctx) && !saleAnswered(p, ctx)
 }
 
 /**
@@ -183,5 +223,5 @@ export function canWishTransfer(p: Player, ctx: EligibilityCtx): boolean {
 
 /** GMがこの選手をレンタルに出していいか（売出と貸出は排他） */
 export function canLoanOut(p: Player, ctx: EligibilityCtx): boolean {
-  return isTalkFree(p, ctx) && !p.transferListed
+  return isTalkFree(p, ctx) && !p.transferListed && !saleAnswered(p, ctx)
 }

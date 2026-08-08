@@ -39,6 +39,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 |---|---|
 | `src/utils/rosterSync.ts` | **所属**。`player.teamId` が唯一の持ち場（クラブ側に名簿は持たない）。`belongsToClub` / `isSquadMember` / `squadIdsOf` |
 | `src/utils/talkSync.ts` | 選手が動いたときに、その選手についての交渉の札をたたむ処理 |
+| `src/utils/saleAnswer.ts` | **買い取り打診への「譲ります」という返事**。`isSaleAnswered` / `saleAnswers` / `withSaleAnswer` / `keepSaleAnswers`。**選手ごとに1件**（`Season.pendingSales`）。`pendingSale`（シーズンに1件の旧枠）を直接読まないこと |
+| `src/utils/transferEligibility.ts` の `eligibilityCtx` | **移籍の可否に渡す材料**（所属・年・引退希望・返事済み）をシーズンから作る1本。呼ぶ側で `{ teamId, currentYear, retiringIds }` を手書きしないこと |
 | `src/utils/contractTalk.ts` | 契約更新の可否と「要対応」。`canRequestRenewal` / `needsRenewalAttention` |
 | `src/utils/transferDecision.ts` | **移籍の意思決定**。その選手がそのクラブへ行くか。`appraiseMove` / `rankOffers` |
 | `src/utils/transferEligibility.ts` | 退団予定・引退予定・海外承認などの「もう出ていく人」判定 |
@@ -496,6 +498,24 @@ OVR84 なら格1〜20の153クラブになります。
 - 代理人 … `（代理人）`
 
 監督（プレイヤー）の発言は**常に丁寧語**。
+
+### 返事は消えない・二重に処分できない・古い用件から
+
+チャットのバグはほぼ全部、**「答えた」という事実の置き場所**が原因でした。
+
+- **返事は選手ごとに1件**（`utils/saleAnswer`）。以前は `Season.pendingSale` という
+  シーズンに1件の枠で、同じレース間に2人ぶん返事をすると前の返事が丸ごと消え、
+  ベルも通知も「返事待ち」に戻り、レースを進めても決着しませんでした
+  （＝「一回答えたのにまた同じ答えを求められる」）
+- **返事をした選手は他の形で処分できない**。`eligibilityCtx` が返事済みを材料に入れ、
+  `canTradeAway` / `canLoanOut` / `canListForSale` が止めます。他クラブの上乗せは通す
+  （`canBePoached` は止めない）
+- **進路が決まっていても、届いている打診には返事ができる**。海外挑戦を認めた選手には
+  海外からのオファーだけ札が残る（`talkSync`）のに、ボタン側が「進路が決まった選手＝閉じるだけ」で
+  先に打ち切っていて、1.3億のオファーに閉じることしかできませんでした。
+  **残す札と返せるボタンを必ず揃えること。**
+- **用件が2つ以上たまったら古い方から**（`ChatPage` の `topicOrder`）。会話は上が古いので、
+  新しい方から出すとボタンの相手と会話の並びが食い違います
 
 ### 他の部も裏で走ります
 
