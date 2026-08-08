@@ -1,9 +1,10 @@
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team } from '../types'
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs } from '../utils/domesticClubs'
 import {
-  syncSeasonStandings, reconcileStandingsDivisions, rebalanceDivisions,
-  divisionOf, rankOfTeam, DIVISIONS, DIVISION_SIZE,
+  syncSeasonStandings, reconcileStandingsDivisions, rebalanceDivisions, divisionOfRaces,
+  divisionOf, divisionInSeason, rankOfTeam, DIVISIONS, DIVISION_SIZE,
 } from '../utils/league'
+import type { Division, SeasonStanding } from '../types'
 import { normalizeForeignStandings } from '../utils/clubStanding'
 
 // ============================================================================
@@ -106,7 +107,32 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
     currentSeason = { ...currentSeason, standings }
   }
 
-  // ── 4. 海外の順位表の行の形をそろえる ────────────────────────
+  // ── 4. 過去シーズンの「自分がどの部で走ったか」を直す ────────────
+  // 順位表のキー（＝部）は、在籍履歴のラベル・通算成績・その年の順位を全部決めている。
+  // build 110 までのズレで、3部を走った年が「JPEL 2部」と記録され、
+  // 部が分からない年は出場0の「JPEL」として出ていた。
+  //
+  // 過去の年は `Team.division`（いまの部）では直せない。走った日程だけが手がかりなので、
+  // `divisionOfRaces` で「その年その部を走った」を引き、順位表の行をその部へ移す。
+  // 導出なので何度通しても同じ結果になる。
+  if (isInitialized && playerTeamId && Array.isArray(pastSeasons)) {
+    let moved = 0
+    pastSeasons = pastSeasons.map(ps => {
+      const want = divisionOfRaces(ps?.races, ps?.divisionRaces)
+      const have = divisionInSeason(ps as never, playerTeamId)
+      if (want == null || have == null || want === have) return ps
+      const row = (ps.standings?.[have] ?? []).find(r => r.teamId === playerTeamId)
+      if (!row) return ps
+      moved++
+      const standings = { ...ps.standings } as Record<Division, SeasonStanding[]>
+      standings[have] = (ps.standings?.[have] ?? []).filter(r => r.teamId !== playerTeamId)
+      standings[want] = [...(ps.standings?.[want] ?? []), row]
+      return { ...ps, standings }
+    })
+    if (moved > 0) repairs.push(`過去 ${moved}シーズンの自チームの部を、実際に走った部へ直した`)
+  }
+
+  // ── 5. 海外の順位表の行の形をそろえる ────────────────────────
   // 旧セーブはキーが clubId、いまは teamId。読む側は国内・海外を区別しないので、
   // ここでそろえておかないと海外だけ順位が引けない（utils/clubStanding の解説を参照）。
   if (currentSeason?.foreignStandings) {
@@ -121,7 +147,7 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
       : ps)
   }
 
-  // ── 5. 存在しないチームに所属している選手をFAへ戻す ──────────
+  // ── 6. 存在しないチームに所属している選手をFAへ戻す ──────────
   // クラブが消えた／IDが変わったときに、名簿からも市場からも消えた選手が生まれる。
   // 在籍は player.teamId 1本（utils/rosterSync）なので、指し先が無ければ無所属が正しい。
   if (Array.isArray(players) && Array.isArray(teams)) {

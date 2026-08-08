@@ -143,6 +143,46 @@ check('  2回目は直すものが無い', twice.repairs.length === 0, twice.rep
   check('  補ったあとの人数も 20/16/16', sizes.join('/') === '20/16/16', sizes.join('/'))
 }
 
+// ── 過去シーズンの部は「実際に走った日程」から直る ──────────────────
+// 在籍履歴のラベル（「JPEL 3部」）も通算成績もその年の順位も、順位表のキー＝部で決まる。
+// build 110 までのズレで、3部を走った年が「JPEL 2部」と記録され、
+// 部が引けない年は出場0の「JPEL」として出ていた。過去の年は Team.division では直せない
+// （いまの部なので昇降格したあとの年に当てはめると記録が動く）。走った日程だけが手がかり。
+{
+  const my3 = teams.filter(t => divisionOf(t) === 3)
+  const past = {
+    year: 2027,
+    // 自分は3部の日程を走った（結果入り）
+    races: races.map(r => ({ ...r, id: `d3-${r.id}` })),
+    divisionRaces: {
+      1: [{ id: 'd1-0', name: '1部戦', results: undefined }],
+      2: [{ id: 'd2-0', name: '2部戦', results: undefined }],
+      3: races.map(r => ({ ...r, id: `d3-${r.id}`, results: undefined })),
+    },
+    // ところが順位表は自分を2部に置いている（＝在籍履歴が「JPEL 2部」になる）
+    standings: {
+      1: teams.filter(t => divisionOf(t) === 1).map(t => zero(t.id)),
+      2: [...teams.filter(t => divisionOf(t) === 2).map(t => zero(t.id)), zero(pickedId)],
+      3: my3.filter(t => t.id !== pickedId).map(t => zero(t.id)),
+    },
+  }
+  check('前提：過去シーズンの部がズレている（3部を走ったのに順位表は2部）',
+    divisionInSeason(past as never, pickedId) === 2)
+
+  const out = repairLoadedSave({
+    isInitialized: true, teams, players: [], playerTeamId: pickedId,
+    currentSeason: { year: 2028, races: [], standings: newSeasonStandings(teams, zero) } as never,
+    pastSeasons: [past] as never, foreignLeagues: [],
+  })
+  const fixed = (out.pastSeasons ?? [])[0]
+  check('過去シーズンの部が、実際に走った部（3部）へ直る',
+    divisionInSeason(fixed as never, pickedId) === 3)
+  check('  2部の側から消えている（両方に居ない）',
+    !(fixed?.standings?.[2] ?? []).some(r => r.teamId === pickedId))
+  const again = repairLoadedSave(out as never)
+  check('  2回目は直すものが無い（冪等）', again.repairs.length === 0, again.repairs.join(' / '))
+}
+
 console.log('')
 if (problems.length > 0) {
   console.log(`✗ 起動時に直りきらないものがあります（${problems.length}件）`)

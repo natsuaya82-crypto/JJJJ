@@ -256,6 +256,7 @@ RULES.push({
     // 記録は部をまたいで1本（同じコースの最速）、表彰は部ごと（1部MVP・2部MVP・3部MVP）。
     'src/utils/segmentRecords.ts',
     'src/utils/awards.ts',
+    'src/store/bootRepair.ts',      // 過去シーズンの部を日程から直す側
   ],
   fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
 })

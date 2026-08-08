@@ -9,7 +9,7 @@
 // 表彰はセーブに貯めず、保存してあるレース結果から毎回選び直す（下の seasonAwardsOf）。
 // 選び方は上のルールのまま変えていないので、これまでの受賞者がそのまま出る。
 import type { Division, Nationality, Player, Race, SeasonAward } from '../types'
-import { DIVISIONS } from './league'
+import { DIVISIONS, divisionOfRaces } from './league'
 
 type Stat = { races: number; rankSum: number; segWins: number }
 /** 選手ID → その年の出走数・区間順位の合計・区間賞数 */
@@ -80,16 +80,14 @@ export function racesByDivision(s: SeasonRacesLike): { division?: Division; race
     .map(d => ({ division: d as Division, races: s.divisionRaces?.[d] ?? [] }))
     .filter(b => b.races.length > 0)
   if (buckets.length === 0) return mine.length > 0 ? [{ races: mine }] : []
+  // 自分がどの部で走ったかは日程の重なりで分かる（utils/league の divisionOfRaces 1本）
+  const myDiv = divisionOfRaces(mine, s.divisionRaces)
   const myIds = new Set(mine.map(r => r.id))
-  let placed = false
-  const out = buckets.map(b => {
-    if (!b.races.some(r => myIds.has(r.id))) return b
-    placed = true
+  const out = buckets.map(b => (b.division !== myDiv ? b
     // 同じIDは結果の入っている season.races 側を採る
-    return { division: b.division, races: [...mine, ...b.races.filter(r => !myIds.has(r.id))] }
-  })
+    : { division: b.division, races: [...mine, ...b.races.filter(r => !myIds.has(r.id))] }))
   // どの部にも重ならなかったとき（部の日程が壊れているセーブ）は落とさず部無しで残す
-  return placed || mine.length === 0 ? out : [...out, { races: mine }]
+  return myDiv != null || mine.length === 0 ? out : [...out, { races: mine }]
 }
 
 // ── 歴代の表彰（保存してあるレース結果から作り直す） ──────────────────

@@ -63,6 +63,29 @@ export function domesticThroughRank(division: Division, rankInDivision: number):
   return offset + Math.max(1, rankInDivision)
 }
 
+/**
+ * その日程がどの部のものか。**「その年その部で走った」の唯一の引き方。**
+ *
+ * 自分の部の結果は `season.races` に、他の部は `season.divisionRaces` に入っている
+ * （`races` は `divisionRaces[自分の部]` と同じ日程だが、結果が入るのは `races` の側）。
+ * どちらも同じレースIDなので、重なりを見れば自分がどの部で走ったかが分かる。
+ *
+ * 過去シーズンではこれが唯一の手がかり。`Team.division` は「いまの部」なので、
+ * 昇降格したあとの年に当てはめると過去の記録が動いてしまう。
+ * 順位表のキーも当てにならない（キー自体がズレていたのが build 110 までの不具合）。
+ */
+export function divisionOfRaces(
+  races: readonly { id: string }[] | undefined,
+  divisionRaces: Partial<Record<number, readonly { id: string }[]>> | undefined,
+): Division | undefined {
+  if (!races?.length || !divisionRaces) return undefined
+  const ids = new Set(races.map(r => r.id))
+  for (const d of DIVISIONS) {
+    if ((divisionRaces[d] ?? []).some(r => ids.has(r.id))) return d
+  }
+  return undefined
+}
+
 /** 指定した部に所属するチームだけを返す */
 export function teamsInDivision<T extends Pick<Team, 'division'>>(teams: readonly T[], division: Division): T[] {
   return teams.filter(t => divisionOf(t) === division)
