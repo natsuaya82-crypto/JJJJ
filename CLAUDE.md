@@ -47,6 +47,12 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
+| `src/utils/hash.ts` | **文字列→数値のハッシュ**。`strHash`。引退年齢・能力のゆらぎ・GM名・ロゴが全部これ |
+| `src/utils/condition.ts` | **士気と疲労の上げ下げ**。`withMorale` / `withFatigue` / `setMorale`（0〜100に収めるのと既定値はここだけ） |
+| `src/utils/playerUtils.ts` の `retirementAgeOf` | **引退年齢**（選手IDから決まる32〜40）。引退表明のニュースと実際の引退が同じ式 |
+| `src/utils/contractTalk.ts` の `effectiveDemandSalary` | **契約更新の要求額**（ラウンドごとに+3%・50万円刻み）。チャットで見せる額と承諾の判定が同じ式 |
+| `src/utils/clubTier.ts` の `tierRankSlots` | ロスターに配るランクの並び（構成→25個→シャッフル） |
+| `src/styles/tokens.ts` の `bottomStack` | **画面の一番下に貼り付けるものの位置**。広告バナー＋セーフエリア＋下タブ(`NAV_H`) |
 | `src/engine/backgroundRace.ts` | **裏で走るレースの唯一の入口**。`runBackgroundRace`（裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここを通る）。区間への並べ方は `raceEngine` の `bgLineup` 1本 |
 | `src/data/courseNames.ts` | **コースの呼び名**。中身は25本のまま、名前だけ地域ごと（国内／アジア／アフリカ／ヨーロッパ／アメリカ）。`courseNameFor` / `localizeRace` |
 | `src/utils/facilities.ts` | **施設**。レベル（自分で建てたぶん or 格から）と維持費。`facilitiesOf` / `facilityUpkeepOf` / `FACILITY_UPKEEP_PER_LEVEL` |
@@ -65,6 +71,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 
 | `src/utils/newsItems.ts` | ニュースの見出しの文面。**画面や store に見出しを直書きしないこと** |
 | `src/utils/foreignClubProfile.ts` | `effectiveOvr`（年齢を加味した実効OVR）。**クラブが選手を獲るかどうかは「必要か」と「そこで走れるか」だけ**（`utils/squadNeeds`）。国やリーグごとのOVR下限表は持たない |
+| `src/utils/clubTier.ts` の `MAJOR_NEWS_OVR` | **「世界レベルの選手」の線（85）**。大ニュースになるか・海外の最上位が放っておかないか・「世界へ挑戦」の見出しになるか。以前は 85／82／76 と3つに割れていた |
+| `src/utils/clubTier.ts` の `isBigClub` | 格1のクラブか。**クラブの実体を渡すこと**（IDだけだと初期値しか見えず、格が落ちても名門のまま） |
 | `src/data/economy.ts` | `transferCapOf`（1人に出せる移籍金の上限＝格の年間予算の20%と手元資金の小さい方） |
 | `src/data/rosterRules.ts` | `ROSTER_MAX` / `ROSTER_MIN` / `RUNNING_SLOTS`（走れる人数）／`rosterCapOf` |
 | `src/utils/squadNeeds.ts` | `squadRankOf`（そのクラブで何番手か）／`wouldMakeLineup`（走れる7人に入るか） |
@@ -310,6 +318,34 @@ OVR84 なら格1〜20の153クラブになります。
 | 引き抜きの積極さ | 4大リーグなら×2.4 | 格から（格1が一番動く） |
 | スターの受け入れ先 | 4大リーグのクラブだけ | 必要か・走れるか |
 | 「日本より格上へ移籍」の大ニュース | 国コードの表＋4大リーグ | 格 < 5（国内の頭打ちが格5） |
+| クラブ同士の強弱（海外の引き抜き） | ロスターの平均OVR | `tierOf` |
+
+### `cpuTeamTier` は廃止しました。戻さないこと
+
+国内側だけに **ロスターの平均OVR から elite / mid / weak を出す第2の物差し**があり、
+そこからOVRの下限表が6つぶら下がっていました
+（買う74/67/60・引き抜く74/67/58・更新72/65/58・FA74/67/58・売出72/65/58・打診72/65と78/73）。
+
+- 格が既に同じ仕事をしています。海外側はずっと格1本で動いていました
+- **平均OVRは循環します**。強い名簿だから強い選手を買える → だから強い名簿のまま。
+  格は前年の順位で外から決まるので循環しません
+- 6つの表が微妙に食い違っていて、どれが正なのか誰にも分かりませんでした
+
+いまは3本に分かれています。
+
+| 何を決めるか | どこ |
+|---|---|
+| どれだけ動くか・何人獲れるか | `clubTier.ts` の `tierStrength(格)`（格1が1.0、格20が0.0）。打診率は 15%＋30%×これ、獲得枠は 2＋2×これ |
+| 誰を獲るか | `squadNeeds` の `needsPlayer` / `wouldMakeLineup` |
+| 誰が余っているか（出す・更新しない） | `transferDecision` の `hasNoPlayingTime`（走れる人数の2倍より下） |
+
+**「そのクラブにとってOVRいくつ以上か」という下限をどこにも書かないこと。**
+下限はクラブの平均に連動するので、弱いクラブほど下限も下がって実質全員が通り、
+強いクラブでは走れない控えまで全員が通ります。実際、契約更新は52クラブ合計で
+1237人中1237人に近い数が「更新の対象」になっていて、判定として機能していませんでした。
+
+`scripts/check-offseason.ts` が `npm run check` で **232クラブ・5800人のオフシーズンを
+実際に1回走らせて**、ロスターが下限15人を割らないか・格が名簿の強さに効いているかを見ます。
 
 ### 移籍の同意も格から降りてきます
 
