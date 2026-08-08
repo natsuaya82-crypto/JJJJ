@@ -20,15 +20,32 @@ import { saveSlotSuffix, suffixOfSlot, type SaveSlot } from './saveSlot'
 const SUF = saveSlotSuffix()
 const FILE = `jpel-manager-save${SUF}.json`
 const TMP = `jpel-manager-save${SUF}.tmp.json`
+/** 旧形式の1本だけのバックアップ。読み込みの候補としては今も見る（過去のセーブに残っている） */
 const BAK = `jpel-manager-save${SUF}.bak.json`
 const isNative = Capacitor.isNativePlatform()
+
+// ── 世代バックアップ ──
+//
+// 以前は .bak が1本だけで、1分ごとに上書きしていた。つまり異変に気づいたときには
+// 本体と .bak の両方が新しくなっていて、戻す先が無い。
+// 5世代を順ぐりに使い、いちばん古いものから書き換える。10分に1回なので
+// おおよそ50分ぶんの履歴が残る。1本7MB前後 × 5 = 35MB 程度。
+const BAK_SLOTS = 5
+const bakPath = (i: number) => `jpel-manager-save${SUF}.bak${i}.json`
+
+/**
+ * セーブ形式の版を上げる直前の退避。**版ごとに1つ、消さずに残す。**
+ * 移行そのものが壊れていても、ここから前の版のセーブを取り出せる。
+ * build 106 で30シーズンぶんが失われたとき、これがあれば戻せた。
+ */
+const versionSnapshotPath = (v: number) => `jpel-manager-save${SUF}.v${v}.json`
 
 // 書き込みは末尾デバウンス（連続する set() のたびに数MBを書かない）。
 let pending: string | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
-// .bak の更新は最大1分に1回（毎回コピーすると数MBのI/Oが重なるため）。
+// 世代バックアップの間隔。毎回コピーすると数MBのI/Oが重なるため。
 let lastBackupAt = 0
-const BACKUP_INTERVAL_MS = 60_000
+const BACKUP_INTERVAL_MS = 10 * 60_000
 
 // ── セーフモード ──
 // 次のどちらかで立つ。
@@ -81,6 +98,12 @@ let loadedPlayerCount = 0
 // **セーブを1度でも読んだ**ことをここに残し、画面側（App.tsx）が新規ゲーム画面の代わりに
 // 復旧画面を出せるようにする。
 let sawSave = false
+
+// セーブ形式の版。**gameStore の SAVE_VERSION が正**で、起動時にそこから教えてもらう。
+// ここで数字を持つと2か所になるので持たない（npm run check が見張る）。
+let SAVE_FORMAT_VERSION = 0
+/** gameStore が起動時に一度だけ呼ぶ。版を上げる前の退避の判定に使う */
+export function setSaveFormatVersion(v: number): void { SAVE_FORMAT_VERSION = v }
 /** この起動でセーブ（本体・.tmp・.bak・旧localStorage）を読み込んだか */
 export function sawSavedGame(): boolean { return sawSave }
 
@@ -117,6 +140,81 @@ const parses = (s: string): boolean => {
   try { JSON.parse(s); return true } catch { return false }
 }
 
+/** いちばん古い世代を探して、そこへ本体をコピーする */
+async function rotateBackup(): Promise<void> {
+  let oldest = 1
+  let oldestAt = Number.POSITIVE_INFINITY
+  for (let i = 1; i <= BAK_SLOTS; i++) {
+    try {
+      const st = await Filesystem.stat({ path: bakPath(i), directory: Directory.Data })
+      const at = typeof st.mtime === 'number' ? st.mtime : 0
+      if (at < oldestAt) { oldestAt = at; oldest = i }
+    } catch {
+      // 無い世代があるなら、まずそこを埋める
+      oldest = i
+      break
+    }
+  }
+  await removeIfExists(bakPath(oldest))
+  await Filesystem.copy({ from: FILE, to: bakPath(oldest), directory: Directory.Data, toDirectory: Directory.Data })
+}
+
+/** JSON を丸ごと読まずに版だけ取り出す（数MBのパースを避ける） */
+function versionOf(raw: string): number | null {
+  const m = raw.match(/"version"\s*:\s*(\d+)\s*}\s*$/) ?? raw.match(/"version"\s*:\s*(\d+)/)
+  return m ? Number(m[1]) : null
+}
+
+/**
+ * セーブ形式の版を上げる前に、そのままの姿を1つ残す。**版ごとに1つ、消さない。**
+ * すでにその版の退避があれば何もしない（同じ版で何度起動しても増えない）。
+ */
+async function snapshotBeforeMigrate(raw: string, current: number): Promise<void> {
+  const v = versionOf(raw)
+  if (v == null || v >= current) return
+  const path = versionSnapshotPath(v)
+  if (await exists(path)) return
+  try {
+    await Filesystem.writeFile({ path, data: raw, directory: Directory.Data, encoding: Encoding.UTF8 })
+    console.log(`[save] 版を上げる前のセーブを ${path} に退避しました`)
+  } catch (e) {
+    console.error('[save] version snapshot failed', e)
+  }
+}
+
+/** 復旧に使える候補（新しい順）。復旧画面が一覧で見せる */
+export type Recoverable = { path: string; label: string; size: number; mtime: number }
+export async function listRecoverables(): Promise<Recoverable[]> {
+  if (!isNative) return []
+  const out: Recoverable[] = []
+  const add = async (path: string, label: string) => {
+    try {
+      const st = await Filesystem.stat({ path, directory: Directory.Data })
+      out.push({ path, label, size: typeof st.size === 'number' ? st.size : 0, mtime: typeof st.mtime === 'number' ? st.mtime : 0 })
+    } catch { /* 無ければ候補にしない */ }
+  }
+  await add(FILE, 'いまのセーブ')
+  await add(TMP, '書きかけ（直前の操作）')
+  await add(BAK, 'ひとつ前（旧形式）')
+  for (let i = 1; i <= BAK_SLOTS; i++) await add(bakPath(i), `世代バックアップ ${i}`)
+  for (let v = 1; v <= 200; v++) await add(versionSnapshotPath(v), `アップデート前（形式 v${v}）`)
+  return out.sort((a, b) => b.mtime - a.mtime)
+}
+
+/** 選んだ候補を本体に戻す。**戻す前に、いまの本体も世代へ逃がす** */
+export async function restoreFrom(path: string): Promise<void> {
+  if (!isNative) return
+  if (await exists(FILE)) { try { await rotateBackup() } catch { /* 逃がせなくても復元は進める */ } }
+  await removeIfExists(FILE)
+  await Filesystem.copy({ from: path, to: FILE, directory: Directory.Data, toDirectory: Directory.Data })
+}
+
+/** セーブファイルの中身を読み出す（書き出し・共有に使う） */
+export async function readSaveText(path = FILE): Promise<string | null> {
+  if (!isNative) return localStorage.getItem(`jpel-manager-save${SUF}`)
+  try { return await readText(path) } catch { return null }
+}
+
 async function flushWrite() {
   if (pending == null) return
   const data = pending
@@ -147,13 +245,14 @@ async function flushWrite() {
       return
     }
 
-    // 3) 直前の正常セーブを .bak へ退避（本体が壊れたときの復旧元）。最大1分に1回。
+    // 3) 直前の正常セーブを世代バックアップへ退避（本体が壊れたときの復旧元）。
+    //    **いちばん古い世代から書き換える。** 1本だけを上書きしていた頃は、
+    //    異変に気づいたときには本体もバックアップも新しくなっていて戻す先が無かった。
     const now = Date.now()
     if (await exists(FILE)) {
       if (now - lastBackupAt >= BACKUP_INTERVAL_MS) {
         try {
-          await removeIfExists(BAK)
-          await Filesystem.copy({ from: FILE, to: BAK, directory: Directory.Data, toDirectory: Directory.Data })
+          await rotateBackup()
           lastBackupAt = now
         } catch (e) {
           console.error('[save] backup failed', e)
@@ -197,7 +296,17 @@ export async function flushSaveNow(): Promise<void> {
 // （本体の差し替え中にキルされた場合は .tmp が最新の正常データになっている可能性がある）
 async function loadFromDisk(): Promise<{ raw: string | null; sawFile: boolean }> {
   let sawFile = false
-  for (const path of [FILE, TMP, BAK]) {
+  // 本体 → 書きかけ → 旧形式のバックアップ → 世代バックアップ（新しい順）。
+  // 前は本体・書きかけ・.bak の3つだけで、そこが全部だめなら打つ手が無かった。
+  const gens: { path: string; mtime: number }[] = []
+  for (let i = 1; i <= BAK_SLOTS; i++) {
+    try {
+      const st = await Filesystem.stat({ path: bakPath(i), directory: Directory.Data })
+      gens.push({ path: bakPath(i), mtime: typeof st.mtime === 'number' ? st.mtime : 0 })
+    } catch { /* 無い世代は飛ばす */ }
+  }
+  gens.sort((a, b) => b.mtime - a.mtime)
+  for (const path of [FILE, TMP, BAK, ...gens.map(g => g.path)]) {
     if (!await exists(path)) continue
     sawFile = true
     let raw: string | null
@@ -238,6 +347,10 @@ export const saveStorage: StateStorage = {
       if (raw !== null) {
         if (isInit(raw)) { loadedInitialized = true; sawSave = true }
         loadedPlayerCount = countPlayers(raw)
+        // ★セーブ形式の版を上げる前に、そのままの姿を1つ残す（版ごとに1つ・消さない）。
+        //   移行そのものが壊れていても、ここから前の版のセーブを取り出せる。
+        //   書き込みより先に済ませる（この時点ではまだ何も上書きしていない）。
+        await snapshotBeforeMigrate(raw, SAVE_FORMAT_VERSION)
         return raw
       }
       if (sawFile) {
@@ -314,6 +427,10 @@ export const saveStorage: StateStorage = {
       await removeIfExists(FILE)
       await removeIfExists(TMP)
       await removeIfExists(BAK)
+      // 世代バックアップと版ごとの退避も消す。ここを残すと「削除したのに前のデータが
+      // 復旧画面から戻せる」状態になり、削除したことにならない
+      for (let i = 1; i <= BAK_SLOTS; i++) await removeIfExists(bakPath(i))
+      for (let v = 1; v <= 200; v++) await removeIfExists(versionSnapshotPath(v))
     })()
   },
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getSaveHealthReason } from '../../store/saveHealth'
-import { deleteSaveForRecovery } from '../../store/saveStorage'
+import { deleteSaveForRecovery, listRecoverables, restoreFrom, type Recoverable } from '../../store/saveStorage'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { APP_VERSION } from '../../data/appMeta'
 
@@ -19,7 +19,22 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
   // 「読み込みは通ったのに中身が初期状態」のときは呼ぶ側から理由をもらう（App.tsx）
   const detail = getSaveHealthReason() || reason || ''
 
+  // 端末に残っている復旧の候補（本体・書きかけ・世代バックアップ・アップデート前の退避）。
+  // 「戻す先が何も無い」状態を作らないために、必ず一覧で見せて選べるようにする。
+  const [saves, setSaves] = useState<Recoverable[] | null>(null)
+  useEffect(() => { void listRecoverables().then(setSaves) }, [])
+
   const reload = () => { setBusy(true); window.location.reload() }
+  const restore = (path: string) => {
+    setBusy(true)
+    void restoreFrom(path).finally(() => window.location.reload())
+  }
+  const fmtSize = (n: number) => `${(n / 1024 / 1024).toFixed(1)}MB`
+  const fmtWhen = (ms: number) => {
+    if (!ms) return ''
+    const d = new Date(ms)
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
   const wipe = () => {
     setBusy(true)
     void deleteSaveForRecovery().finally(() => window.location.reload())
@@ -72,6 +87,36 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
       >
         もう一度読み込む
       </button>
+
+      {/* 端末に残っている復旧の候補。選んで戻せる。
+          戻す前に、いまの本体も世代バックアップへ逃がすので、選び直しがきく */}
+      {saves && saves.length > 0 && (
+        <div style={{ width: '100%', maxWidth: 330, marginTop: 6, textAlign: 'left' }}>
+          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6, fontFamily: SAIRA, letterSpacing: 1 }}>
+            端末に残っているデータ（{saves.length}件）— 選んで戻せます
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+            {saves.map(s2 => (
+              <button
+                key={s2.path}
+                disabled={busy}
+                onClick={() => restore(s2.path)}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                  padding: '9px 11px', borderRadius: 9, cursor: busy ? 'default' : 'pointer',
+                  background: C.surface2, border: `1px solid ${C.border2}`, color: C.text,
+                  fontSize: 11, fontWeight: 700, fontFamily: 'inherit', textAlign: 'left',
+                }}
+              >
+                <span>{s2.label}</span>
+                <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, whiteSpace: 'nowrap' }}>
+                  {fmtWhen(s2.mtime)} / {fmtSize(s2.size)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <button
         onClick={() => {

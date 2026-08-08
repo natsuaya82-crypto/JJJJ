@@ -355,6 +355,12 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
   )
 }
 
+// 起動時のロード表示の最低時間。
+// 読み込みそのものが終わるまでは必ず待つ（時間で先へ進めることはしない）うえで、
+// 揃ったかを見る余裕を持たせるためにここまでは出しておく。
+// 昔ここに「5秒で必ず先へ進める」保険があり、アップデート後にセーブが消える最大の原因だった。
+const LOAD_MIN_MS = 1800
+
 export default function App() {
   const { isInitialized, draftState, resetGame } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
@@ -501,8 +507,18 @@ export default function App() {
       // アップデート後の初回だけは、続けて「データ更新中」を出す。
       // 進み具合は向こうの画面で見せるので、ロード表示はすぐ消す
       if (isDataUpdateNeeded()) { hide(); setDataUpdating(true); return }
-      // 最低表示時間は確保しつつ、読み込み完了まで待つ
-      setTimeout(hide, Math.max(0, 800 - (Date.now() - start)))
+      // 【読み込みは急がない】
+      //   読み込みが終わってから、中身が揃っているかを見てロード表示を閉じる。
+      //   ここを急いで閉じると、まだ揃っていない画面が一瞬でも操作できてしまい、
+      //   そのまま保存が走って本物のセーブを上書きする。数秒待つほうが安い。
+      const st = useGameStore.getState()
+      if (st.isInitialized && (st.players?.length ?? 0) === 0) {
+        // セーブは読めたのに中身が空。ここで遊ばせない（保存層のガードも書き込みを止める）
+        setSaveHealth('failed', 'セーブは読み込めましたが、選手のデータが入っていませんでした')
+        hide()
+        return
+      }
+      setTimeout(hide, Math.max(0, LOAD_MIN_MS - (Date.now() - start)))
     }
     if (useGameStore.persist.hasHydrated()) finish()
     else {

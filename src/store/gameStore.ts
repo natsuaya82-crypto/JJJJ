@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { fmtYen } from '../utils/money'
 import { clubLabel, transferHeadline, awardHeadline, retirementHeadline, divisionChampionHeadline, loanHeadline, seekPlayingTimeHeadline, eclRaceHeadline, worldChampHeadline, nationalCallUpHeadline, injuryHeadline, signedWithFeeHeadline, soldPlayerHeadline, joinedHeadline, renewalHeadline, loanInOutHeadline, segmentPrizeHeadline, overseasMoveHeadline, foreignSignedHeadline, freeTransferHeadline, cpuSignedHeadline, loanReplyHeadline, raceWinnerHeadline, myFinishHeadline, segmentWinHeadline, boardEvalHeadline, rivalHeadline, segmentRecordHeadline, eclSeasonEndHeadline, worldChampFinishHeadline, recordHeadline, continentalQualifierHeadline, divisionMoveHeadline, seasonOpenHeadline, divisionsFoundedHeadline, massFreeAgentHeadline, growthHeadline, retiredHeadline, bonusPayoutHeadline, sponsorEndHeadline, objectiveBonusHeadline, seasonBudgetHeadline, draftPickSoldHeadline, deficitPickPenaltyHeadline, deficitRescueHeadline, tradeAcceptedHeadline, tradeSummaryHeadline, dynastyHeadlines, initialNews, type NewsItem } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
-import { saveStorage, flushSaveNow, deleteSaveForRecovery } from './saveStorage'
+import { saveStorage, flushSaveNow, deleteSaveForRecovery, setSaveFormatVersion } from './saveStorage'
 import { saveSlotSuffix } from './saveSlot'
 // 端末に紐づくもの（課金の権利など）はスロットをまたいで共通。セーブの中に置かない
 import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDeviceTwitterIntroSeen } from './deviceFlags'
@@ -112,6 +112,9 @@ import { clearGameStorage } from './appStorage'
  *   既存のセーブで一度も読ませずに実機へ出したから。
  */
 const SAVE_VERSION = 40
+// 保存層に版を教える（版を上げる前のセーブを退避するかの判定に使う）。
+// 数字を2か所に持たないため、あちらは持たずここから受け取る
+setSaveFormatVersion(SAVE_VERSION)
 
 type DraftState = {
   pool: Player[]
