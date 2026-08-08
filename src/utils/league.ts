@@ -44,6 +44,12 @@ export function divisionOf(team: Pick<Team, 'division'> | undefined): Division {
 /**
  * 部内順位 → 国内通し順位（1〜52）。1部1位＝1位、2部1位＝21位、3部最下位＝52位。
  *
+ * ★これは**格を決めるためだけの内部の数**。**画面には絶対に出さないこと。**
+ *   遊ぶ側にあるのは1部・2部・3部それぞれの中での順位だけで、「47位」「52位」には
+ *   意味が無い（部をまたいだ順位という考え方自体が無い）。画面に出す順位は
+ *   `utils/clubStanding` の `clubSeasonRank`（部内順位＋どの部か）1本。
+ *   `scripts/check-single-source.ts` が src/components/ での使用を見張る。
+ *
  * クラブの格はこの通し順位で決まる（utils/clubTier.ts の tierFromDomesticRank）。
  * 順位表の得点で全52チームを並べてはいけない。部ごとにレース数が違う（10/8/7戦）ので、
  * 得点で通すと3部の上位が2部を追い抜く。

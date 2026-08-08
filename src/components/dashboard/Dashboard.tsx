@@ -12,6 +12,7 @@ import HeroCard from './HeroCard'
 import KeyPlayersSection from './KeyPlayersSection'
 import NextRaceCard from './NextRaceCard'
 import { computeSeasonAwards } from '../../utils/awards'
+import { clubSeasonRank } from '../../utils/clubStanding'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
@@ -371,7 +372,8 @@ export default function Dashboard() {
   /* Season end */
   const isChampion = seasonDone && sorted[0]?.teamId === playerTeamId
   // リーグMVP・新人王（endSeasonで保存されるのと同じルール: 6戦以上・平均区間順位）
-  const seasonAward = seasonDone ? computeSeasonAwards(currentSeason.races, players, currentSeason.year) : null
+  // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
+  const seasonAward = seasonDone ? computeSeasonAwards(currentSeason.races, players, currentSeason.year, clubSeasonRank(currentSeason, playerTeamId).division) : null
   const mvp = seasonAward?.mvpId ? players.find(p => p.id === seasonAward.mvpId) : null
   const rookie = seasonAward?.rookieId ? players.find(p => p.id === seasonAward.rookieId) : null
 

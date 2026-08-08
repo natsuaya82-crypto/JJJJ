@@ -10,6 +10,14 @@ import type { Race, SegmentRecord } from '../types'
 // ■キーの形
 //   `${大会名}-${区番号}`。以前セーブに入っていたキーと同じなので、読む側の書き方は変わらない。
 //
+// ■どの部の走りも同じ記録に入る
+//   1部・2部・3部は同じ25本のコースを分け合って走る（data/races.ts の drawSeasonSchedules）。
+//   同じコースなら距離も起伏も同じなので、**区間記録はそのコースでいちばん速いタイム**であって
+//   部ごとに分ける意味がない。以前は自分の部（`season.races`）しか数えておらず、
+//   裏で走っている他の部の走りが記録に一切載らなかった。
+//   ここで `divisionRaces`（3部ぶん全部）も一緒に数える。`races` と重なるが、
+//   選手ごとに最速の1本だけを残すので二重には数えない。
+//
 // ■並び
 //   同じ選手は一番速い1本だけ。速い順に10人まで。
 
@@ -23,6 +31,8 @@ export type SegmentRecordMap = Record<string, SegmentRecord[]>
 export type SeasonRacesLike = {
   year: number
   races?: Race[]
+  /** 部ごとの日程（1部・2部・3部）。自分が走っていない部もここに入っている */
+  divisionRaces?: Partial<Record<number, Race[]>>
   secondTeamRaces?: Race[]
   eclRace?: Race
   eclSeries?: { races: Race[] }
@@ -33,6 +43,8 @@ function racesOf(s: SeasonRacesLike, kind: RecordKind): Race[] {
   // ECLは5戦シリーズ。旧セーブの一発勝負（eclRace）も同じコース名なので一緒に数える
   return [
     ...(s.races ?? []),
+    // 他の部の走りも同じコースの記録に入る（同じコース＝同じ距離・同じ起伏）
+    ...Object.values(s.divisionRaces ?? {}).flat().filter((r): r is Race => !!r),
     ...(s.eclSeries?.races ?? []),
     ...(s.eclRace ? [s.eclRace] : []),
   ]
@@ -75,7 +87,7 @@ const cache: Record<RecordKind, CacheSlot | null> = { main: null, reserve: null 
 function depsOf(pastSeasons: SeasonRacesLike[], currentSeason: SeasonRacesLike, kind: RecordKind): unknown[] {
   return kind === 'reserve'
     ? [pastSeasons, currentSeason?.secondTeamRaces]
-    : [pastSeasons, currentSeason?.races, currentSeason?.eclSeries, currentSeason?.eclRace]
+    : [pastSeasons, currentSeason?.races, currentSeason?.divisionRaces, currentSeason?.eclSeries, currentSeason?.eclRace]
 }
 
 /**

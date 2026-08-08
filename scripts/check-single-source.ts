@@ -24,11 +24,23 @@ type Rule = {
   pattern: RegExp
   /** そこに在ってよいファイル（唯一の決まりの置き場所） */
   allow: string[]
+  /** ここで始まるファイルだけを見る（省略すると src 全部） */
+  only?: string
   /** 直し方 */
   fix: string
 }
 
 const RULES: Rule[] = [
+  {
+    // 通し順位（1〜52）は**格を決めるためだけの内部の数**。画面に出すと
+    // 「47位」「52位」のような、遊ぶ側にとって意味の無い数になる。
+    // あるのは1部・2部・3部それぞれの中での順位だけ（utils/clubStanding の clubSeasonRank）。
+    name: '通し順位（1〜52）を画面に出している',
+    pattern: /domesticThroughRank/,
+    allow: ['src/utils/league.ts', 'src/utils/clubTier.ts', 'src/store/gameStore.ts', 'src/store/bootRepair.ts', 'src/utils/cardCombo.ts'],
+    only: 'src/components/',
+    fix: 'utils/clubStanding.ts の clubSeasonRank（部内順位＋部）を使う。通し順位は格の計算だけ',
+  },
   {
     name: 'ニュースの見出しの直書き',
     pattern: /headline:\s*[`']/,
@@ -240,6 +252,10 @@ RULES.push({
     'src/store/gameStore.ts',      // ためる側
     'src/engine/domesticLeague.ts',
     'src/engine/foreignLeague.ts',
+    // 区間記録と年度表彰は「どの部の走りか」を自分で分ける側なので、生の日程を直接読む。
+    // 記録は部をまたいで1本（同じコースの最速）、表彰は部ごと（1部MVP・2部MVP・3部MVP）。
+    'src/utils/segmentRecords.ts',
+    'src/utils/awards.ts',
   ],
   fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
 })
@@ -565,6 +581,7 @@ let violations = 0
 for (const rule of RULES) {
   const hits: string[] = []
   for (const f of files) {
+    if (rule.only && !f.startsWith(rule.only)) continue
     if (rule.allow.some(a => f === a || f.endsWith(a))) continue
     const lines = readFileSync(f, 'utf8').split('\n')
     lines.forEach((line, i) => {

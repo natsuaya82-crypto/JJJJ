@@ -16,6 +16,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR, playerLabel, foreignClubsOf } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
+import type { Division } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { belongsToClub } from '../../utils/rosterSync'
 import { C, rankColor, SAIRA } from '../../styles/tokens'
@@ -23,7 +24,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
-import { rankedStandings, domesticThroughRank, DIVISIONS, DIVISION_LABEL } from '../../utils/league'
+import { rankedStandings, DIVISION_LABEL } from '../../utils/league'
 import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague } from '../../utils/clubStanding'
 
 
@@ -38,9 +39,10 @@ function fmtDate(d: string | undefined, year: number): string {
 }
 
 // 歴代成績の折れ線グラフ（順位なので上が1位になるようY軸反転）。
-// 国内は通し順位（1〜52）なので、部の境目に点線を引く。
-// いちばん上が1部1位、次の点線のすぐ下が2部1位、その次が3部1位
-function RankHistoryChart({ history, color, divisionBands }: { history: { year: number; rank: number; total: number }[]; color: string; divisionBands?: boolean }) {
+// ★国内も海外も「その集団の中での順位」1本（国内は部内順位、海外はリーグ内順位）。
+//   通し順位（1〜52）は格を決めるための内部の数なので画面には出さない。
+//   部が変わった年は下の年号の横に部を出して、どの中での順位かが分かるようにする。
+function RankHistoryChart({ history, color }: { history: { year: number; rank: number; total: number; division?: Division }[]; color: string }) {
   const maxRank = Math.max(2, ...history.map(h => h.total), ...history.map(h => h.rank))
   const W = 320, H = 150, padL = 20, padR = 20, padT = 18, padB = 26
   const plotW = W - padL - padR, plotH = H - padT - padB
@@ -52,17 +54,7 @@ function RankHistoryChart({ history, color, divisionBands }: { history: { year: 
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
       <line x1={padL} x2={W - padR} y1={y(1)} y2={y(1)} stroke="#C9A84C" strokeWidth="0.5" opacity="0.35" strokeDasharray="3 3"/>
       <line x1={padL} x2={W - padR} y1={y(maxRank)} y2={y(maxRank)} stroke="#2E2B42" strokeWidth="0.5"/>
-      {/* 部の境目。点線のすぐ下がその部の1位（2部1位＝21位、3部1位＝37位） */}
-      {divisionBands && DIVISIONS.slice(1).map(d => {
-        const top = domesticThroughRank(d, 1)
-        return (
-          <g key={d}>
-            <line x1={padL} x2={W - padR} y1={y(top) - 3} y2={y(top) - 3} stroke="#5C5870" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.7"/>
-            <text x={W - padR} y={y(top) - 5} textAnchor="end" fontSize="7" fill="#5C5870" fontFamily={SAIRA}>{DIVISION_LABEL[d]}</text>
-          </g>
-        )
-      })}
-      {n > 1 && <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.85"/>}
+      {n > 1 &&<polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.85"/>}
       {history.map((h, i) => {
         const col = h.rank === 1 ? '#C9A84C' : h.rank <= 3 ? '#4CAF50' : '#9B97A8'
         return (
@@ -70,6 +62,9 @@ function RankHistoryChart({ history, color, divisionBands }: { history: { year: 
             <circle cx={x(i)} cy={y(h.rank)} r="3.5" fill={col}/>
             <text x={x(i)} y={y(h.rank) - 8} textAnchor="middle" fontSize="9" fontWeight="900" fill={col} fontFamily={SAIRA}>{h.rank}</text>
             <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="#5C5870" fontFamily={SAIRA}>{h.year}</text>
+            {h.division != null && (
+              <text x={x(i)} y={H - 1} textAnchor="middle" fontSize="7" fill="#3A3758">{DIVISION_LABEL[h.division]}</text>
+            )}
           </g>
         )
       })}
@@ -150,12 +145,14 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   // 順位表の置き場所は国内(standings)と海外(foreignStandings)で分かれているが、
   // 読む側がそれを知る必要はない。以前はここだけで6か所が二重になっていた
   const standing = clubStandingRow(currentSeason, id)
-  const rank = clubSeasonRank(currentSeason, id).rank
+  // ★順位は「その集団の中での順位」（国内＝部内順位／海外＝リーグ内順位）。
+  //   通し順位（1〜52）は格を決める内部の数なので出さない（utils/clubStanding）
+  const { rank, division: myDivision } = clubSeasonRank(currentSeason, id)
   const standingPoints = standing?.totalPoints ?? 0
   const recentForm = (standing?.raceResults ?? []).slice(-4)
   const completedRaces = clubRacesDone(currentSeason, id)
 
-  // 歴代成績（過去シーズンの最終順位）。国内は通し順位（1〜52）、海外はリーグ内順位。
+  // 歴代成績（過去シーズンの最終順位）。国内は部内順位、海外はリーグ内順位。
   // どちらで数えるかも clubSeasonRank が持っている
   const historyRanks = (pastSeasons ?? []).map(s => ({ year: s.year, ...clubSeasonRank(s, id) }))
     .filter(h => h.rank > 0).slice(-8)
@@ -206,7 +203,10 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const infoChampions = isForeign
     ? (titles[0]?.count ?? 0)
     : teamHistoryOf(pastSeasons, id).championships
-  const infoBestRank = historyRanks.length > 0 ? Math.min(...historyRanks.map(h => h.rank)) : null
+  // 最高順位。**部をまたいで数の大小では比べられない**（3部1位と1部10位はどちらも「1」「10」）。
+  // 部が上のほう → その中で順位が上のほう、の順で選び、部つきで出す
+  const infoBest = historyRanks.filter(h => h.rank > 0)
+    .sort((a, b) => (a.division ?? 9) - (b.division ?? 9) || a.rank - b.rank)[0] ?? null
 
   // 移籍の入/出：シーズンごとの出場・在籍記録の年またぎ差分から導出する。
   // レンタルによる所属変化は完全移籍ではないので除外
@@ -342,7 +342,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '28px', fontWeight: '900', color: rankColor(rank), fontFamily: 'monospace', lineHeight: 1 }}>{rank > 0 ? rank : '—'}</div>
-            <div style={{ fontSize: '8px', color: '#3A3758' }}>位</div>
+            <div style={{ fontSize: '8px', color: '#3A3758' }}>{myDivision != null ? `${DIVISION_LABEL[myDivision]} 位` : '位'}</div>
           </div>
         </div>
 
@@ -440,7 +440,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                   </div>
                   <div style={{ width: '1px', background: '#1A1828' }} />
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#9B97A8' }}>{infoBestRank != null ? infoBestRank : '—'}<span style={{ fontSize: 11, color: '#3A3758' }}>位</span></div>
+                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#9B97A8' }}>{infoBest ? <>{infoBest.division != null && <span style={{ fontSize: 10, color: '#5C5870' }}>{DIVISION_LABEL[infoBest.division]} </span>}{infoBest.rank}<span style={{ fontSize: 11, color: '#3A3758' }}>位</span></> : '—'}</div>
                     <div style={{ fontSize: '8px', color: '#3A3758' }}>最高順位</div>
                   </div>
                 </div>
@@ -478,7 +478,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                 {historyRanks.length === 0 ? (
                   <div style={{ fontSize: '11px', color: '#3A3758', textAlign: 'center', padding: '12px 4px' }}>まだ過去シーズンの記録がありません</div>
                 ) : (
-                  <RankHistoryChart history={historyRanks} color={colors.primary} divisionBands={!isForeign} />
+                  <RankHistoryChart history={historyRanks} color={colors.primary} />
                 )}
               </div>
             </div>

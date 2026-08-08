@@ -1,7 +1,7 @@
 import type { Division, ForeignStanding, SeasonStanding } from '../types'
 import {
   DIVISIONS, DIVISION_SIZE, divisionInSeason, divisionStandings,
-  domesticThroughRank, rankedStandings, rankOfTeam,
+  rankedStandings, rankOfTeam,
 } from './league'
 
 // ============================================================================
@@ -16,10 +16,12 @@ import {
 //   キー名が違うだけで、読む側は必ず if (isForeign) を書かされ、チーム詳細ページだけで
 //   順位・勝ち点・直近フォーム・消化数・歴代順位・優勝回数の6か所が二重になっていた。
 //
-// ■順位の数え方は国内と海外で違う。それは仕様
-//   国内は「通し順位」（1〜52。部 → 部内順位の順に数える）。
-//   海外は「そのリーグの中での順位」。リーグ同士の入れ替えが無いので通し順位に意味がない。
-//   違うのはそこだけなので、returns の {rank, total} でどちらも同じ形にして返す。
+// ■順位は「その集団の中での順位」1本。国内も海外も同じ
+//   国内は部の中での順位（1部1〜20／2部・3部1〜16）、海外はリーグの中での順位。
+//   **通し順位（1〜52）は返さない。** あれは格を決めるためだけの内部の数で、
+//   画面に出すと「47位」「52位」のような、遊ぶ側にとって意味の無い数になる。
+//   部をまたいだ順位という考え方は無く、あるのは1部・2部・3部の中の順位だけ。
+//   returns は {rank, total, division} で国内も海外も同じ形。
 // ============================================================================
 
 /** 順位表の1行のうち、どの画面でも読む部分だけ */
@@ -86,17 +88,24 @@ export function clubStandingRow(season: StandingSeasonLike, clubId: string): Clu
 
 /**
  * そのクラブの順位と、比べる相手の数。**載っていなければ rank 0。**
- *   国内 … 通し順位（1〜52）。得点で52チームを直接並べてはいけないので domesticThroughRank を通す
- *   海外 … そのリーグの中での順位
+ *
+ * ★国内は**その部の中での順位**（1部なら1〜20、2部・3部なら1〜16）。
+ *   通し順位（1〜52）は返さない。あれは格を決めるためだけの内部の数で、
+ *   画面に出すものではない（`utils/league` の `domesticThroughRank` の注意書きを参照）。
+ *   「47位」「52位」のような、遊ぶ側にとって意味の無い数が出ていた。
+ *   部をまたいだ順位という考え方は無く、あるのは1部・2部・3部の中の順位だけ。
+ *
+ * 海外はそのリーグの中での順位。国内と同じ「所属する集団の中での順位」なので形は同じ。
+ * `division` は国内のときだけ入る（画面で「3部 5位」と出せるように）。
  */
-export function clubSeasonRank(season: StandingSeasonLike, clubId: string): { rank: number; total: number } {
+export function clubSeasonRank(
+  season: StandingSeasonLike,
+  clubId: string,
+): { rank: number; total: number; division?: Division } {
   const div = divisionInSeason(season as { standings?: Partial<Record<Division, readonly SeasonStanding[]>> }, clubId)
   if (div != null) {
-    const at = rankOfTeam(divisionStandings(season as { standings?: Partial<Record<Division, readonly SeasonStanding[]>> }, div), clubId)
-    return {
-      rank: at === 0 ? 0 : domesticThroughRank(div, at),
-      total: DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0),
-    }
+    const rows = divisionStandings(season as { standings?: Partial<Record<Division, readonly SeasonStanding[]>> }, div)
+    return { rank: rankOfTeam(rows, clubId), total: rows.length || DIVISION_SIZE[div], division: div }
   }
   const leagueId = foreignLeagueOfClub(season, clubId)
   if (leagueId == null) return { rank: 0, total: 0 }
@@ -109,12 +118,7 @@ export function clubRacesDone(season: StandingSeasonLike, clubId: string): numbe
   return clubStandingRow(season, clubId)?.raceResults.length ?? 0
 }
 
-/** そのクラブがそのリーグ（部）で優勝した年か */
+/** そのクラブがそのリーグ（部）で優勝した年か。国内も海外も「その集団の1位」1本 */
 export function clubWonLeague(season: StandingSeasonLike, clubId: string): boolean {
-  const { rank } = clubSeasonRank(season, clubId)
-  if (rank === 0) return false
-  const div = divisionInSeason(season as { standings?: Partial<Record<Division, readonly SeasonStanding[]>> }, clubId)
-  // 国内は通し順位なので「部内1位」に直して見る。海外はそのままリーグ1位
-  if (div != null) return rank === domesticThroughRank(div, 1)
-  return rank === 1
+  return clubSeasonRank(season, clubId).rank === 1
 }

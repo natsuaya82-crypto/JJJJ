@@ -15,7 +15,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { seasonDivisionStandings, standingRowOf, rankOfTeam, type SeasonStandingsLike } from '../../utils/league'
+import { seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
@@ -259,8 +259,10 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
               const wins = myRow?.raceResults?.filter(r => r.rank === 1).length ?? 0
               const isCurrent = season.year === currentSeason.year
               const rankCol = myStanding === 1 ? C.gold : myStanding <= 3 ? C.green : myStanding <= 5 ? C.textSub : C.textDim
-              // 年間表彰（MVP・新人王）。名前が焼き込まれているので選手が抜けても表示できる
-              const award = seasonAwards.find(a => a.year === season.year)
+              // 年間表彰（MVP・新人王）。**部ごとに選ぶ**ので、その年に自分がいた部のぶんを引く
+              // （3部の選手と1部の選手を同じ土俵で並べても意味が無い・utils/awards.ts）
+              const myDiv = divisionInSeason(season, playerTeamId)
+              const award = seasonAwards.find(a => a.year === season.year && (a.division ?? myDiv) === myDiv)
               const mvpName = liveName(players, award?.mvpId, award?.mvpName) || undefined
               const rookieName = liveName(players, award?.rookieId, award?.rookieName) || undefined
 

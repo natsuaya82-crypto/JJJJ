@@ -950,6 +950,8 @@ export type EventTimeRecord = { playerId: string; playerName: string; timeSec: n
 // 新人王はその年のドラフト指名選手が対象（6戦該当ゼロなら3戦に緩和、それでもゼロなら該当なし）
 export type SeasonAward = {
   year: number
+  /** どの部の表彰か。1部・2部・3部で別々に選ぶ（部が無い旧データだけ undefined） */
+  division?: Division
   mvpId?: string
   mvpName?: string
   mvpAvgRank?: number

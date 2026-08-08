@@ -17,7 +17,8 @@
 import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague, normalizeStandingRows, normalizeForeignStandings } from '../src/utils/clubStanding'
 import {
   DIVISIONS, DIVISION_SIZE, DIVISION_RACES, divisionOf,
-  domesticThroughRankOfTeam, standingRowOf, rankedStandings, newSeasonStandings,
+  standingRowOf, rankedStandings, newSeasonStandings,
+  divisionInSeason, divisionStandings, rankOfTeam,
 } from '../src/utils/league'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -63,22 +64,30 @@ for (const l of FOREIGN_LEAGUES) {
 }
 
 const season = { standings: standings as Partial<Record<Division, SeasonStanding[]>>, foreignStandings }
-const TOTAL_DOMESTIC = DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0)
 
-console.log('[1] 国内クラブ：これまでの引き方と1件も違わない')
+// ★順位は「その集団の中での順位」1本。国内は部内順位（1部1〜20／2部・3部1〜16）。
+//   通し順位（1〜52）は格を決めるためだけの内部の数で、画面には出さない。
+//   「47位」「52位」は遊ぶ側にとって意味が無く、部をまたいだ順位という考え方も無い。
+console.log('[1] 国内クラブ：順位はその部の中での順位（通し順位を返さない）')
 {
-  let rankDiff = 0, rowDiff = 0, totalDiff = 0
+  let rankDiff = 0, rowDiff = 0, totalDiff = 0, divDiff = 0, over = 0
   for (const t of teams) {
-    const oldRank = domesticThroughRankOfTeam(season, t.id)
+    const div = divisionInSeason(season, t.id)!
+    const want = rankOfTeam(divisionStandings(season, div), t.id)
     const oldRow = standingRowOf(season, t.id)
     const got = clubSeasonRank(season, t.id)
-    if (got.rank !== oldRank) rankDiff++
-    if (got.total !== TOTAL_DOMESTIC) totalDiff++
+    if (got.rank !== want) rankDiff++
+    if (got.total !== DIVISION_SIZE[div]) totalDiff++
+    if (got.division !== div) divDiff++
+    // 通し順位が漏れていれば、その部の人数を超える数が出る
+    if (got.rank > DIVISION_SIZE[div]) over++
     if (clubStandingRow(season, t.id)?.totalPoints !== oldRow?.totalPoints) rowDiff++
   }
   console.log(`  ${teams.length}クラブを突き合わせ`)
-  check('通し順位が同じ', rankDiff === 0, `${rankDiff}件ズレ`)
-  check('比べる相手の数が52', totalDiff === 0, `${totalDiff}件ズレ`)
+  check('順位はその部の中での順位', rankDiff === 0, `${rankDiff}件ズレ`)
+  check('比べる相手の数はその部の人数', totalDiff === 0, `${totalDiff}件ズレ`)
+  check('どの部かも一緒に返る', divDiff === 0, `${divDiff}件ズレ`)
+  check('部の人数を超える順位は出ない（通し順位が漏れていない）', over === 0, `${over}件`)
   check('順位表の行（勝ち点）が同じ', rowDiff === 0, `${rowDiff}件ズレ`)
 }
 

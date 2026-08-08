@@ -2280,7 +2280,8 @@ export const useGameStore = create<GameStore>()(
           const isFinalRace = raceIndex + 1 >= state.currentSeason.races.length
           const seasonEndNews: typeof newsItems = []
           if (isFinalRace) {
-            const award = computeSeasonAwards(updatedRaces, finalPlayers, state.currentSeason.year)
+            // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
+            const award = computeSeasonAwards(updatedRaces, finalPlayers, state.currentSeason.year, divisionOf(state.teams.find(t => t.id === state.playerTeamId)))
             const mvpP = award.mvpId ? finalPlayers.find(p => p.id === award.mvpId) : undefined
             const rookieP = award.rookieId ? finalPlayers.find(p => p.id === award.rookieId) : undefined
             if (mvpP) seasonEndNews.push({ date: race.date, headline: awardHeadline({ kind: 'mvp', division: divisionOf(state.teams.find(t => t.id === mvpP.teamId)), clubShort: state.teams.find(t => t.id === mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
@@ -5957,7 +5958,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           // League MVP・新人王（選出ルールは utils/awards.ts に一元化。画面表示側と同じ実装を使う）
-          const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year)
+          const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year, divisionOf(state.teams.find(t => t.id === state.playerTeamId)))
 
           // 記録会のシーズン別トップ10を軽量アーカイブ（記録会の全結果はこの後破棄されるため、
           // 歴代優勝ページ用に種目ごとの上位だけ名前焼き込みで残す）

@@ -4,7 +4,7 @@ import { teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
-import { rankOfTeam, domesticThroughRankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 
 
 export default function RecordsHub() {
@@ -20,8 +20,8 @@ export default function RecordsHub() {
     ? pastSeasons.filter(s2 => seasonDivisionStandings(s2, teamIdAt(s2.year))[0]?.teamId === teamIdAt(s2.year)).length
     : teamHistoryOf(pastSeasons, playerTeamId).championships
   const completedRaces = currentSeason.races.filter(r => r.results).length
-  // 自分の部の中での順位（得点で52チームを通すと部が混ざる）
-  const myStanding = domesticThroughRankOfTeam(currentSeason, playerTeamId)
+  // 自分の部の中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
+  const myStanding = rankOfTeam(seasonDivisionStandings(currentSeason, playerTeamId), playerTeamId)
 
   const SECTIONS = [
     {
