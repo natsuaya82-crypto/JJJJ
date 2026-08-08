@@ -180,10 +180,6 @@ export function tierRankSlots(tier: ClubTier): Rank[] {
 // ★国内の頭打ちは格5。格4以上は海外クラブだけ。
 //   3部最下位（格20・4.2億）から1部優勝（格5・16.8億）まで4倍。
 
-/** 国内の最上位の格。1部優勝でここに到達し、これ以上は上がらない */
-export const DOMESTIC_TOP_TIER: ClubTier = 5
-/** 国内の最下位の格。3部最下位 */
-export const DOMESTIC_BOTTOM_TIER: ClubTier = 20
 /** 国内の総クラブ数（1部20＋2部16＋3部16）。部の構成が変わっても自動で追随する */
 export const DOMESTIC_CLUB_COUNT = DIVISIONS.reduce((s, d) => s + DIVISION_SIZE[d], 0)
 
@@ -203,6 +199,16 @@ export const DOMESTIC_TIER_BAND: Record<Division, readonly [ClubTier, ClubTier]>
   2: [11, 16],
   3: [16, 20],
 }
+
+// 国内の上下の端も帯から出す。**数字を書き写さないこと。**
+// 以前は 5 と 20 を別に持っていて、帯を動かしたら2か所を直す形になっていた
+// （そのうえ DOMESTIC_TOP_TIER は「世界最高峰の線」としても使われていたので、
+//  帯の端と大ニュースの線という別々の意味が1つの定数に乗っていた）。
+
+/** 国内の最上位の格。1部優勝でここに到達し、これ以上は上がらない（格4以上は海外だけ） */
+export const DOMESTIC_TOP_TIER: ClubTier = DOMESTIC_TIER_BAND[DIVISIONS[0]][0]
+/** 国内の最下位の格。3部最下位 */
+export const DOMESTIC_BOTTOM_TIER: ClubTier = DOMESTIC_TIER_BAND[DIVISIONS[DIVISIONS.length - 1]][1]
 
 /** 国内の通し順位（1〜52）→ 格。部ごとの帯の中で、部内順位に応じて配る */
 export function tierFromDomesticRank(rank: number): ClubTier {

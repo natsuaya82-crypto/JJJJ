@@ -37,7 +37,7 @@ import { squadRankOf } from './squadNeeds'
 
 /**
  * 憧れの地域は選手のタイプで決まる。持久系→アフリカ高地／スピード系→ヨーロッパのトラック／
- * 山・万能→北米南米。**保存しない**（タイプから毎回同じ答えが出るので持つ必要がない）。
+ * 山・万能→北米。**保存しない**（タイプから毎回同じ答えが出るので持つ必要がない）。
  * 海外挑戦の直訴（gameStore の overseasRequests）の行き先もここを見る。
  */
 export function dreamRegionOf(specialty: Player['specialty']): OverseasRegion {
@@ -46,9 +46,18 @@ export function dreamRegionOf(specialty: Player['specialty']): OverseasRegion {
     : 'america'
 }
 
-/** 憧れの地域の呼び方。会話にそのまま出す */
+/**
+ * 憧れの地域の呼び方。会話にそのまま出す。**呼び名はここ1本。**
+ * 以前は3か所にあり、`america` だけ「北米・南米」と「北米」で食い違っていた
+ * （chatLines.ts と ChatPage.tsx は同じ表の丸写し）。
+ */
 export const DREAM_LABEL: Record<OverseasRegion, string> = {
-  africa: 'アフリカ', europe: 'ヨーロッパ', america: '北米・南米',
+  africa: 'アフリカ', europe: 'ヨーロッパ', america: '北米',
+}
+
+/** 地域の呼び名（保存された文字列から引くとき用）。分からなければ「海外」 */
+export function dreamLabelOf(region: string | undefined): string {
+  return DREAM_LABEL[(region ?? '') as OverseasRegion] ?? '海外'
 }
 
 // 走れる人数は data/rosterRules.ts の1本。ここは今までどおり使えるように通すだけ
@@ -130,13 +139,17 @@ export const MAX_OFFERS_PER_PLAYER = 5
  * ・満たしたか（`regionOfLeague`）… 移籍の同意で「憧れの地域か」を見る
  * ・声が掛かるか（`leaguesOfRegion`）… 海外挑戦に登録した選手へオファーが来る発生源
  *
- * 以前はこの2つが別の表だった。満たす側はここ（欧州＝西南＋北東、アメリカ＝北米＋中米＋南米）、
- * 声が掛かる側は clubs.ts の `ELITE_LEAGUES_BY_REGION`（欧州＝西南だけ、アメリカ＝北米だけ）。
- * その結果、**南米へ移った選手は「憧れのアメリカへ行けた」と加点されるのに、
- * 海外挑戦に登録しても南米からは一生オファーが来ない**という状態だった
- * （呼び名も DREAM_LABEL は「北米・南米」なのに南米は発生源に入っていなかった）。
+ * 以前はこの2つが別の表だった。満たす側はここ、声が掛かる側は clubs.ts の
+ * `ELITE_LEAGUES_BY_REGION`。**欧州北東へ移った選手は「憧れのヨーロッパへ行けた」と
+ * 加点されるのに、海外挑戦に登録しても欧州北東からは一生オファーが来ない**状態だった。
  *
- * アジア・オセアニア・国内はどの地域にも属さない＝憧れの対象外。
+ * ★アメリカは北米だけ。中米・南米は別の地域なので、どちらにも属さない。
+ *   以前ここだけ north_america / central_america / south_america を全部 'america' に
+ *   潰していて、呼び名も DREAM_LABEL だけ「北米・南米」（チャット側は2か所とも「北米」）
+ *   と3通りに割れていた。**呼び名は DREAM_LABEL 1本。**
+ *
+ * アジア・オセアニア・中米・南米・国内はどの地域にも属さない＝憧れの対象外
+ * （海外なのに憧れの地域ではない＝減点になる）。
  */
 const REGION_BY_LEAGUE: Readonly<Record<string, OverseasRegion>> = {
   africa_east: 'africa',
@@ -144,8 +157,6 @@ const REGION_BY_LEAGUE: Readonly<Record<string, OverseasRegion>> = {
   europe_ws: 'europe',
   europe_ne: 'europe',
   north_america: 'america',
-  central_america: 'america',
-  south_america: 'america',
 }
 
 /** リーグID → 憧れの地域。該当しないリーグ（アジア・オセアニア・国内）は undefined */

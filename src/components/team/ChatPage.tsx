@@ -18,6 +18,7 @@ import { canBePoached, canTradeAway } from '../../utils/transferEligibility'
 import { mergeChatMessages } from '../../utils/chatLog'
 import { overseasApprovedLine, retireApprovedLine, settledLineOf, offerTermsLine, joinAcceptedLine, rosterFullLine, reconsiderLine, stillWantsRenewalLine, stayPleaLine, thanksLine, contractAcceptLine, contractCounterLine, agreeTermsLine, clubDeclinedAckLine } from '../../utils/chatLines'
 import { settledPath } from '../../utils/talkSync'
+import { dreamLabelOf } from '../../utils/transferDecision'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
 import { rivalCountLine } from '../../utils/newsItems'
@@ -55,7 +56,9 @@ const OVERSEAS_DREAM: Record<string, string> = {
   europe: 'ヨーロッパのトラックで、自分のスピードがどこまで通用するか試したいんです。',
   america: '北米の大きな舞台で走ってみたいんです。',
 }
-const OVERSEAS_LABEL: Record<string, string> = { africa: 'アフリカ', europe: 'ヨーロッパ', america: '北米' }
+// 地域の呼び名は transferDecision の DREAM_LABEL 1本（ここに表を持たない）。
+// 以前はこの表が chatLines.ts と丸写しで、さらに DREAM_LABEL だけ america が
+// 「北米・南米」になっていて、同じ選手の希望が画面によって別の名前で出ていた
 
 function buildMessages(
   player: ReturnType<typeof useGameStore.getState>['players'][0],
@@ -857,7 +860,7 @@ function ChatView({
 
     // 海外挑戦の直訴：認める（夢を応援）／引き留める（モラール低下・2回目は大）
     const buildOverseasButtons = (): ReplyBtns | null => overseasReq ? [
-      { label: `海外挑戦を認める（${OVERSEAS_LABEL[overseasReq.region] ?? '海外'}）`, color: C.purple ?? '#A855F7', action: () => {
+      { label: `海外挑戦を認める（${dreamLabelOf(overseasReq.region)}）`, color: C.purple ?? '#A855F7', action: () => {
         append(
           { from: 'gm', kind: 'overseas_granted', text: 'わかりました。あなたの走りはもう世界レベルです。夢を応援します。良いオファーを待ちましょう。' },
           // 次に開いて作り直したときと同じ発言にする（kind が同じなので二重に並ばない）

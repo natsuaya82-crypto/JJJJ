@@ -1,5 +1,7 @@
 import type { ChatMessage, Player } from '../types'
 import { settledPath } from './talkSync'
+// 憧れの地域の呼び名は transferDecision の DREAM_LABEL 1本（ここに表を持たない）
+import { dreamLabelOf } from './transferDecision'
 
 // 進路が決まった選手の「本人の返事」を書く唯一の場所。
 //
@@ -19,14 +21,12 @@ import { settledPath } from './talkSync'
 //   承諾したあとの本人の返事は、**ボタンから足すときも作り直すときも、ここを呼ぶ**。
 //   文面を画面に直書きしないこと（`npm run check` が見張る）。
 
-const OVERSEAS_LABEL: Record<string, string> = { africa: 'アフリカ', europe: 'ヨーロッパ', america: '北米' }
-
-/** 海外挑戦を認めたあとの本人の返事 */
+/** 海外挑戦を認めたあとの本人の返事。地域の呼び名は transferDecision の DREAM_LABEL 1本 */
 export function overseasApprovedLine(region: string | undefined): ChatMessage {
   return {
     from: 'player',
     kind: 'overseas_ok',
-    text: `海外挑戦を認めていただき、ありがとうございます。${OVERSEAS_LABEL[region ?? ''] ?? '海外'}のクラブからの話を待ちます。`,
+    text: `海外挑戦を認めていただき、ありがとうございます。${dreamLabelOf(region)}のクラブからの話を待ちます。`,
   }
 }
 

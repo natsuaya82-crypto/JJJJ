@@ -9068,8 +9068,8 @@ function generateForeignAndLoanOffers(params: {
   // 1a) 海外挑戦リストの選手：希望した地域のリーグから高確率で指名オファー。
   //     ★発生源は transferDecision の `leaguesOfRegion` 1本。移籍の同意で「憧れの地域か」を
   //       見ている表とまったく同じものを裏返して使う。以前は clubs.ts に別の表があり、
-  //       南米へ移れば「憧れのアメリカへ行けた」と加点されるのに、海外挑戦に登録しても
-  //       南米からは一生オファーが来なかった（欧州北東も同じ）。
+  //       欧州北東へ移れば「憧れのヨーロッパへ行けた」と加点されるのに、海外挑戦に
+  //       登録しても欧州北東からは一生オファーが来なかった。
   //     以前はここに地域ごとのOVR下限表（アフリカ84／欧州80／北米80）があったが、
   //     それは「必要か・走れるか」を通していないただの後付けだった。clubWants 1本にする。
   for (const target of myMain.filter(p => !offeredIds.has(p.id) && canGoOverseasDream(p, eligCtx))) {
@@ -9077,18 +9077,13 @@ function generateForeignAndLoanOffers(params: {
     const region = target.overseasListed!
     if (Math.random() > 0.75) continue
     const dreamLeagues = new Set(leaguesOfRegion(region))
-    const tv = calcTransferValue(target)
     const clubs = foreignClubs
       .filter(c => dreamLeagues.has(c.leagueId ?? ''))
       .filter(c => clubWants(c, target))
-      // 払えないクラブは先に外す。**選んでから払えるか見ない。**
-      // 発生源が4大リーグ（格1〜9）だけだった頃はどこも払えたので後ろで弾いても同じだったが、
-      // 地域まるごと（アジア地域なら格20まで）になると、払えないクラブを引き当てた回だけ
-      // オファーが丸ごと消える＝声が掛かる回数が減る、という取りこぼしになる。
-      .filter(c => foreignCapOf(c) >= tv * 1.1)
     if (clubs.length === 0) continue
     const club = clubs[(ovr(target) + raceIndex) % clubs.length]
     if (!clubMayOffer(target, club.id, foreignIncoming)) continue
+    const tv = calcTransferValue(target)
     // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示。ただし出せる上限まで
     const dreamPrice = roundFee(tv * (1.1 + Math.random() * 0.3), 1_000_000)
     if (dreamPrice > foreignCapOf(club)) continue

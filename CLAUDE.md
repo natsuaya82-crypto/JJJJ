@@ -73,7 +73,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/foreignClubProfile.ts` | `effectiveOvr`（年齢を加味した実効OVR）。**クラブが選手を獲るかどうかは「必要か」と「そこで走れるか」だけ**（`utils/squadNeeds`）。国やリーグごとのOVR下限表は持たない |
 | `src/utils/clubTier.ts` の `MAJOR_NEWS_OVR` | **「世界レベルの選手」の線（85）**。大ニュースになるか・海外の最上位が放っておかないか・「世界へ挑戦」の見出しになるか。以前は 85／82／76 と3つに割れていた |
 | `src/utils/clubTier.ts` の `isBigClub` / `isStepUp` | **移籍の大きさ**。ビッグクラブ（格2以上＝絶対）と、ステップアップ（行き先の格 < 今のクラブの格＝相対）。**クラブの実体を渡すこと**（IDだけだと初期値しか見えず、格が落ちても名門のまま） |
-| `src/utils/transferDecision.ts` の `REGION_BY_LEAGUE` | **憧れの地域とリーグの対応**。満たしたか（`regionOfLeague`）と、声が掛かるか（`leaguesOfRegion`）を**同じ表の両方向**から引く |
+| `src/utils/transferDecision.ts` の `REGION_BY_LEAGUE` | **憧れの地域とリーグの対応**。満たしたか（`regionOfLeague`）と、声が掛かるか（`leaguesOfRegion`）を**同じ表の両方向**から引く。**アメリカは北米だけ**（中米・南米は別の地域） |
+| `src/utils/transferDecision.ts` の `DREAM_LABEL` | 憧れの地域の**呼び名**。会話・ボタン・移籍の理由が同じ文字を使う（`dreamLabelOf`） |
 | `src/data/economy.ts` | `transferCapOf`（1人に出せる移籍金の上限＝格の年間予算の20%と手元資金の小さい方） |
 | `src/data/rosterRules.ts` | `ROSTER_MAX` / `ROSTER_MIN` / `RUNNING_SLOTS`（走れる人数）／`rosterCapOf` |
 | `src/utils/squadNeeds.ts` | `squadRankOf`（そのクラブで何番手か）／`wouldMakeLineup`（走れる7人に入るか） |
@@ -373,8 +374,9 @@ OVR84 なら格1〜20の153クラブになります。
 | 性格 | **同格・格下のときだけ**効く。格上の話を愛着で蹴らせない |
 
 憧れの地域は**保存しません**。タイプから決まります（`dreamRegionOf`：持久系→アフリカ／
-スピード系→ヨーロッパ／山・万能→北米南米）。アジア・オセアニアは誰の憧れでもないので、
-海外なのに憧れではない＝減点になります（「ヨーロッパに行きたいのにアジアへ」を止める）。
+スピード系→ヨーロッパ／山・万能→北米）。**アメリカは北米だけです。中米・南米は別の地域**で、
+アジア・オセアニアと同じく誰の憧れでもありません（海外なのに憧れではない＝減点になり、
+「ヨーロッパに行きたいのにアジアへ」を止める）。
 
 **地域とリーグの対応は `REGION_BY_LEAGUE` 1本で、両方向ともここから引きます。**
 
@@ -382,11 +384,12 @@ OVR84 なら格1〜20の153クラブになります。
 |---|---|---|
 | リーグ → 地域 | `regionOfLeague` | 移籍の同意で「憧れの地域か」を見る |
 | 地域 → リーグ | `leaguesOfRegion` | 海外挑戦に登録した選手へオファーが来る**発生源** |
+| 地域 → 呼び名 | `DREAM_LABEL` / `dreamLabelOf` | 会話・ボタンに出す文字 |
 
-以前はこの2つが別の表でした（発生源の側は `clubs.ts` の `ELITE_LEAGUES_BY_REGION`）。
-満たす側は欧州＝西南＋北東・アメリカ＝北米＋中米＋南米なのに、発生源の側は欧州＝西南だけ・
-アメリカ＝北米だけ。**南米へ移れば「憧れのアメリカへ行けた」と加点されるのに、海外挑戦に
-登録しても南米からは一生オファーが来ない**状態でした（呼び名も「北米・南米」なのに）。
+以前はこの3つが別々でした。発生源は `clubs.ts` の `ELITE_LEAGUES_BY_REGION`（欧州＝西南だけ）で、
+**欧州北東へ移れば「憧れのヨーロッパへ行けた」と加点されるのに、海外挑戦に登録しても
+欧州北東からは一生オファーが来ない**状態。呼び名は3か所にあり、`america` だけ
+「北米・南米」と「北米」に割れていました（`chatLines.ts` と `ChatPage.tsx` は丸写し）。
 
 ### 「4大リーグ」は廃止しました。戻さないこと
 

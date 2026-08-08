@@ -84,6 +84,14 @@ const RULES: Rule[] = [
     fix: 'transferDecision.ts の regionOfLeague / leaguesOfRegion を使う（表は REGION_BY_LEAGUE 1本）',
   },
   {
+    // 地域の呼び名が3か所にあり、america だけ「北米」と「北米・南米」に割れていた
+    // （chatLines.ts と ChatPage.tsx は同じ表の丸写し）。同じ選手の希望が画面で別名になる。
+    name: '憧れの地域の呼び名の写し',
+    pattern: /africa:\s*'アフリカ'\s*,\s*europe:/,
+    allow: ['src/utils/transferDecision.ts'],
+    fix: 'transferDecision.ts の DREAM_LABEL / dreamLabelOf を使う',
+  },
+  {
     name: '海外クラブの総なめ',
     pattern: /flatMap\(\s*l\s*=>\s*l\.clubs\s*\)/,
     allow: ['src/utils/clubs.ts'],
