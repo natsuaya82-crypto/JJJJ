@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import type { SponsorTarget } from '../../types'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MAX_SPONSORS = 3
 
 const TIER_COLOR: Record<string, string> = {

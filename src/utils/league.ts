@@ -237,7 +237,33 @@ export function topRows<T extends RankableRow>(rows: readonly T[] | undefined, n
  * @param rank 1始まりの着順
  */
 export function positionPointsFor(teamCount: number, rank: number): number {
-  return Math.max(0, teamCount + 1 - rank)
+  // 1位＝出走クラブ数、2位＝それ-1、…、最下位＝1点。0点は出さない
+  return Math.max(1, teamCount + 1 - rank)
+}
+
+/**
+ * 区間賞のポイント。**本編もオンラインもここ1本。**
+ *
+ * ■人数で変える
+ *   2チームしか出ていないレースで1位に3点は多すぎる（相手1人に勝っただけ）。
+ *   出走数が少ないほど配る点も減らす。
+ *     15チーム以上 … 3 / 2 / 1
+ *      9〜14チーム … 2 / 1
+ *      それ未満    … 1位に1点だけ
+ *
+ * ■本編の点は変わらない
+ *   本編で1レースに出るのは 1部20 / 2部16 / 3部16 / 海外リーグ20 / ECL16 /
+ *   世界選手権16 / アジア予選21 / 大陸予選16 で、**全部15以上**。
+ *   よってどのレースでも 3/2/1 になり、これまで raceEngine に直書きしてあった値と一致する。
+ *   人数で減るのが効くのはオンライン対戦（2〜8人）だけ。
+ *
+ * ★以前は raceEngine が「常に3/2/1」を直書きし、lib/matchSim がこの表を別に持っていた。
+ *   さらに matchSim は simulateRace が返した点を捨てて自分で計算し直していた。
+ */
+export function segmentAwardPoints(teamCount: number, rank: number): number {
+  if (teamCount >= 15) return rank === 1 ? 3 : rank === 2 ? 2 : rank === 3 ? 1 : 0
+  if (teamCount >= 9) return rank === 1 ? 2 : rank === 2 ? 1 : 0
+  return rank === 1 ? 1 : 0
 }
 
 // ── ドラフトの巡目 ─────────────────────────────────────────────

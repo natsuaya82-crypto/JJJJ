@@ -5,12 +5,11 @@ import NumberDial from '../ui/NumberDial'
 import { calcTransferValue, playerConsentToMove, keyPlayerStatus } from '../../utils/playerUtils'
 import { bidThreshold, transferAcceptChance, listedAcceptChance, roundFee } from '../../data/economy'
 import { useGameStore } from '../../store/gameStore'
-import { C } from '../../styles/tokens'
+import { C, SAIRA } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 移籍金オファーの下部シート（成立確率つき）。移籍市場・他チームタブ共通。
 export default function BidSheet({ player, budget, listing, onSubmit, onClose }: {

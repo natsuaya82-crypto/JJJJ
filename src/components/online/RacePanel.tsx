@@ -12,9 +12,8 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { asPlayer, asTeam, type MatchRacePayload } from '../../lib/matchSim'
 import { serverNow } from '../../lib/serverTime'
-import { C, alpha, rankColor } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type Stage = 'countdown' | 'track' | 'segresult' | 'final'
 

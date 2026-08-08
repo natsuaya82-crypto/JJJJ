@@ -14,10 +14,9 @@ import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { rankedStandings, seasonDivisionStandings } from '../../utils/league'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
 const OVERALL = '__overall__'   // 総合優勝を表す特別なraceName

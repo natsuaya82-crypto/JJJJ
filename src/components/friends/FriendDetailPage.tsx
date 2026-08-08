@@ -19,9 +19,8 @@ import { usePreviewStore } from '../../store/previewStore'
 import { ovr } from '../../utils/playerUtils'
 import { HOF_MAX } from '../../utils/hofRoster'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 /** ロスターの並び替え。種目は「同じ種目でまとめて、中はOVR順」 */
 type SortKey = 'ovr' | 'age' | 'spec'

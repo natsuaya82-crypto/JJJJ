@@ -3,10 +3,9 @@ import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const CONTRACT_TYPE_LABEL: Record<string, string> = {
   standard: '本契約',

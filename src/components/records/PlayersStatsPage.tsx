@@ -7,10 +7,9 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { useClubIndex } from '../../lib/useClubIndex'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type Category = 'jpel' | 'ecl' | 'reserve'
 const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', reserve: 'リザーブ駅伝' }

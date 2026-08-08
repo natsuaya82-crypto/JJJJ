@@ -1,4 +1,4 @@
-import { C } from '../../styles/tokens'
+import { C, SAIRA } from '../../styles/tokens'
 
 // 新加入（joinedYear が現在のシーズン年と一致）の選手に付く「NEW」バッジ。
 export default function NewBadge({ joinedYear, currentYear, size = 8 }: { joinedYear?: number; currentYear: number; size?: number }) {
@@ -9,7 +9,7 @@ export default function NewBadge({ joinedYear, currentYear, size = 8 }: { joined
       padding: '1px 5px', borderRadius: 4, lineHeight: 1.3,
       background: `linear-gradient(180deg, ${C.red}, #b01020)`,
       color: '#fff', boxShadow: `0 0 6px ${C.red}66`,
-      fontFamily: "'Saira Condensed', system-ui, sans-serif",
+      fontFamily: SAIRA,
     }}>NEW</span>
   )
 }

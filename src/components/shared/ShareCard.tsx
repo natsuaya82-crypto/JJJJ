@@ -10,8 +10,8 @@ import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
+import { SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const STATS: { key: keyof Player['ratings']; label: string }[] = [
   { key: 'speed', label: '速力' },

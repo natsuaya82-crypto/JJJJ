@@ -17,7 +17,7 @@ import { useAdHeight } from '../layout/Layout'
 import { buildCpuLineups } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import {
   calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
   generateSegmentEvents, resolveChoice, finalizeSegment,
@@ -29,7 +29,6 @@ type Phase = 'lineup' | 'simulating' | 'results'
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const TT_COLOR = '#5EC8B8'
 const TT_DIST_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 

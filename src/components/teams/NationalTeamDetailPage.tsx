@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { C } from '../../styles/tokens'
+import { C, SAIRA } from '../../styles/tokens'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 import { ekidenCandidates } from '../../engine/worldAthletics'
@@ -10,7 +10,6 @@ import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality, Player } from '../../types'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 代表候補として表示する上位人数（全選手ではなく代表クラスだけ）
 const SQUAD_SIZE = 30
 

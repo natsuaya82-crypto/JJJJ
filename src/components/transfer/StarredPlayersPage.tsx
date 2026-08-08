@@ -4,12 +4,11 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useOpponentMenu } from '../teams/opponentMenu'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function StarredPlayersPage() {
   const players = useGameStore(s => s.players)

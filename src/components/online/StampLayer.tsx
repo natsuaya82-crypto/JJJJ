@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import PlayerFace from '../player/PlayerFace'
 import type { Nationality } from '../../types'
 import { RACE_EMOJI, RACE_CHEERS, type StampPayload } from './stampKinds'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 対戦中の応援スタンプ。
 //

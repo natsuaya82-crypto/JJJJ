@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const STEP = 1_000_000            // 100万円単位
 const MAXV = 9_999_000_000        // 99億9900万
 const ITEM_H = 30                 // ホイール1目盛りの高さ

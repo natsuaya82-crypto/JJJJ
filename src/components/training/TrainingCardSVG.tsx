@@ -1,8 +1,8 @@
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, RARITY_COLORS, RARITY_LABELS, REST_CARD_NAME } from '../../utils/cardCombo'
 import { STAT_ICON_MAP } from '../icons/StatIcons'
+import { SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const REST_ACCENT = '#5EC8B8'
 

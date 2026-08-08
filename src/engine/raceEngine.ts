@@ -1,6 +1,6 @@
 import type { Player, Specialty, RaceResults, Race, Team, Segment } from '../types'
 import type { TraitId } from '../utils/traitUtils'
-import { positionPointsFor, divisionOf, teamsInDivision } from '../utils/league'
+import { positionPointsFor, segmentAwardPoints, divisionOf, teamsInDivision } from '../utils/league'
 
 // セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
 // 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
@@ -413,9 +413,10 @@ export function simulateRace(
     runners.sort((a, b) => a.timeSec - b.timeSec)
     runners.forEach((r, i) => {
       r.rank = i + 1
-      if (i === 0) segPts[r.teamId] = (segPts[r.teamId] ?? 0) + 3
-      else if (i === 1) segPts[r.teamId] = (segPts[r.teamId] ?? 0) + 2
-      else if (i === 2) segPts[r.teamId] = (segPts[r.teamId] ?? 0) + 1
+      // 区間賞の配点は utils/league の segmentAwardPoints 1本（オンライン対戦も同じ）。
+      // 本編は出走数が必ず15以上なので、これまでの直書き 3/2/1 とまったく同じ値になる
+      const pt = segmentAwardPoints(teamIds.length, r.rank)
+      if (pt > 0) segPts[r.teamId] = (segPts[r.teamId] ?? 0) + pt
       cumTime[r.teamId] = (cumTime[r.teamId] ?? 0) + r.timeSec
     })
     segmentResults.push({ segmentIndex: seg.index, runners })

@@ -9,7 +9,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
 import ActionSheet from '../ui/ActionSheet'
@@ -18,7 +18,6 @@ import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
   { value: 'age', label: PLAYER_SORT_LABEL.age },

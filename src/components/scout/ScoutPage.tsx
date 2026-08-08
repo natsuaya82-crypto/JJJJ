@@ -3,12 +3,11 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Specialty } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
   { value: 'specialty', label: PLAYER_SORT_LABEL.specialty },

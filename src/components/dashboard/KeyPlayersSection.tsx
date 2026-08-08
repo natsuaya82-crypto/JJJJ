@@ -3,11 +3,10 @@ import { comparePlayers } from '../../utils/playerSort'
 import { useNavigate } from 'react-router-dom'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { ovr, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, FORM_LABELS, FORM_COLORS, ratingColor, isStatMaxed } from '../../utils/playerUtils'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { isForeignNat } from '../../data/nationalities'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 interface Props {
   players: Player[]

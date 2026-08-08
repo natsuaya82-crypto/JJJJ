@@ -3,9 +3,8 @@ import BackButton from '../ui/BackButton'
 import { myMatchHistory, myMatchStats, type MatchHistoryItem } from '../../lib/roomsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from '../friends/friendsUi'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // オンライン対戦の履歴。
 // 記録は finish_match() が matches / match_results に残しているものをそのまま読む。
@@ -97,7 +96,7 @@ export default function MatchHistoryPage() {
 
   return (
     <div style={{
-      fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif",
+      fontFamily: FONT,
       paddingBottom: 80, background: C.bg, minHeight: '100dvh',
     }}>
       <div style={{ padding: '10px 12px 6px' }}>

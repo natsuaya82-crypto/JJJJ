@@ -11,11 +11,10 @@ import { flushSaveNow, slotHasSave } from '../../store/saveStorage'
 import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../../store/saveSlot'
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
 import { APP_VERSION } from '../../data/appMeta'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 
 const OVERLAY_BG = C.bg

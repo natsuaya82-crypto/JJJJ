@@ -1,6 +1,5 @@
-import { C } from '../../styles/tokens'
+import { C, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 選手一覧の並び替えセレクトの見た目はここ1本（ScoutPageの見た目を基準にした）。
 // 幅などレイアウトに関わる指定だけ、呼び出し側が style で足す（見た目の値そのものは書かせない）。

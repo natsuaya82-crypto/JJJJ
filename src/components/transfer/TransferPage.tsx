@@ -22,12 +22,11 @@ import { OfferResultList } from './OfferResultList'
 import { draftPickValue, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import { offersAwaitingReply } from '../../utils/notifItems'
 import { SpecChip } from '../player/PlayerChips'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
   { value: 'value', label: PLAYER_SORT_LABEL.value },

@@ -4,13 +4,12 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
-import { C } from '../../styles/tokens'
+import { C, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
 import BidSheet from '../transfer/BidSheet'
 import LoanSheet from '../transfer/LoanSheet'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 function PlayerHead({ player }: { player: Player }) {
   return (

@@ -1,9 +1,8 @@
 // フレンド系画面で共通の「読み込み中／通信失敗」表示と、取得用の小さなフック。
 // 見た目は既存の空状態（薄い箱＋中央テキスト）に合わせてある。
 import { useCallback, useEffect, useState } from 'react'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export type QueryState<T> = {
   data: T | undefined

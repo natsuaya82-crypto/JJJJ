@@ -9,10 +9,8 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const FONT = "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif"
 
 const STATS: { key: keyof Ratings; label: string }[] = [
   { key: 'speed', label: '速力' },

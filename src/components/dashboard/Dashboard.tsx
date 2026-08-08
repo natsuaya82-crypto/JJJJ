@@ -6,7 +6,7 @@ import { showInterstitialAd } from '../../utils/ads'
 import PressButton from '../ui/PressButton'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
 import JewelGainPopup from '../ui/JewelGainPopup'
 import HeroCard from './HeroCard'
 import KeyPlayersSection from './KeyPlayersSection'
@@ -21,7 +21,6 @@ import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 function StepDoneIcon({ color }: { color: string }) {
   return (
@@ -377,7 +376,6 @@ export default function Dashboard() {
   const mvp = seasonAward?.mvpId ? players.find(p => p.id === seasonAward.mvpId) : null
   const rookie = seasonAward?.rookieId ? players.find(p => p.id === seasonAward.rookieId) : null
 
-  const RANK_COLOR = (r: number) => r === 1 ? C.gold : r === 2 ? '#c5c5d4' : r === 3 ? '#cd7f32' : C.textDim
 
   // 契約の「未解決」は通知・チャット一覧・レース後と同じ needsRenewalAttention 1本で数える。
   // ここだけ独自に数えていたので、退団予定・引退の話・海外挑戦を承認した選手や、
@@ -441,7 +439,7 @@ export default function Dashboard() {
           >
             <div style={{ position: 'absolute', top: 3, left: 6, right: 6, height: '36%', background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 100%)', borderRadius: '6px 6px 50% 50%', pointerEvents: 'none' }}/>
             <div style={{ position: 'relative', zIndex: 1 }}>{icon}</div>
-            <div style={{ fontFamily: "'Saira Condensed', system-ui, sans-serif", fontSize: 10, fontWeight: 700, color, lineHeight: 1.3, textAlign: 'center', letterSpacing: '0.04em', position: 'relative', zIndex: 1 }}>{label}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 700, color, lineHeight: 1.3, textAlign: 'center', letterSpacing: '0.04em', position: 'relative', zIndex: 1 }}>{label}</div>
           </PressButton>
         ))}
       </div>
@@ -487,7 +485,7 @@ export default function Dashboard() {
           }}>
             <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.purple, 0.35)}`, borderRadius: 13, pointerEvents: 'none' }}/>
             <div style={{ padding: '18px 18px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.purple, 0.18)}`, position: 'relative' }}>
-              <div style={{ fontFamily: "'Saira Condensed', system-ui, sans-serif", fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD LONG DISTANCE</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD LONG DISTANCE</div>
               <div style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{waTitle}</div>
               <div style={{ fontSize: 11, color: waJapanIn ? C.textSub : C.red, marginTop: 4 }}>
                 {!waJapanIn
@@ -692,7 +690,7 @@ export default function Dashboard() {
             const t = teams.find(tm => tm.id === s.teamId)
             const isMe = s.teamId === playerTeamId
             const rank = i + 1
-            const rc = RANK_COLOR(rank)
+            const rc = rankColor(rank)
             const isLeader = rank === 1
             return (
               <div key={s.teamId} onClick={() => navigate(`/teams/detail/${s.teamId}`)} style={{

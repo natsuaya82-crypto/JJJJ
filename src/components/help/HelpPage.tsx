@@ -1,9 +1,8 @@
 import BackButton from '../ui/BackButton'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from '../ui/TipText'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type Section = {
   no: string
@@ -203,7 +202,7 @@ const SECTIONS: Section[] = [
 export default function HelpPage() {
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <BackButton />

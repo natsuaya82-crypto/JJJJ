@@ -70,3 +70,16 @@ export const alpha = (hex: string, a: number) => {
   const n = Math.round(a * 255).toString(16).padStart(2, '0')
   return `${h}${n}`
 }
+
+// ── フォント ────────────────────────────────────────────────
+//
+// 同じフォント指定を画面ごとに `const SAIRA = ...` と書いていて、実測で93ファイルにあった。
+// フォントを差し替えるときに93か所を直すことになるので、ここ1本にする。
+// FONT も3ファイルにあり、空白の入れ方だけが違っていた。
+
+/** 数字・英字用。順位・タイム・金額など「数える」ものに使う */
+export const SAIRA = "'Saira Condensed', system-ui, sans-serif"
+/** 日本語の本文用 */
+export const FONT = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
+/** 日本語（Noto 指定のもの。規約画面など） */
+export const JP = "'Noto Sans JP', system-ui, sans-serif"

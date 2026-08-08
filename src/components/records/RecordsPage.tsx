@@ -11,13 +11,12 @@ import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward, SeasonStanding } from '../../types'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { seasonDivisionStandings, standingRowOf, rankOfTeam, type SeasonStandingsLike } from '../../utils/league'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
 function PageShell({ title, children }: { title: string; children: React.ReactNode }) {

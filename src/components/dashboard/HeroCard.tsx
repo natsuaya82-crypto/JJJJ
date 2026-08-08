@@ -1,10 +1,9 @@
 import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { ProgressBar } from '../ui'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 interface Props {
   team: Team

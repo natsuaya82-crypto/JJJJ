@@ -29,9 +29,8 @@ import { loadClubGifts, clearClubGifts } from '../../lib/useClubGifts'
 import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { useLongPress } from '../../lib/useLongPress'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const JOIN_COLOR: Record<JoinType, string> = {
   open: C.green, approval: C.cyan, closed: C.textGhost,

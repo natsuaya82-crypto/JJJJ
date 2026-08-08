@@ -7,11 +7,10 @@ import { LeagueLogoSVG } from '../icons/Icons'
 import BackButton from '../ui/BackButton'
 import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
-import { C } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
 import { rankedStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
 import type { Division } from '../../types'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 順位表のページ。
 //
@@ -101,7 +100,7 @@ export default function StandingsPage() {
   })()
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '10px 12px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <BackButton />

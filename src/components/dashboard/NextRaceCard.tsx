@@ -1,24 +1,12 @@
-import type { Race, Segment } from '../../types'
-import { C, alpha, COMPETITION_BTN } from '../../styles/tokens'
+import type { Race } from '../../types'
+import { C, alpha, COMPETITION_BTN, SAIRA } from '../../styles/tokens'
 import { InfoTile } from '../ui'
+import { courseTypeOf } from '../../data/races'
 
 const WEATHER_LABEL: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 const WEATHER_COLOR: Record<string, string> = { sunny: C.gold, cloudy: '#9B97A8', rainy: C.blue, windy: C.cyan }
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const RACE_TYPE_LABEL: Record<string, string> = { league: 'LEAGUE', college: 'COLLEGE' }
-
-function getCourseType(segments: Segment[]): string {
-  const totalDist = segments.reduce((s, sg) => s + sg.distanceKm, 0)
-  if (totalDist === 0) return 'バランス'
-  const avgUp = segments.reduce((s, sg) => s + sg.uphillPct * sg.distanceKm, 0) / totalDist
-  const avgDown = segments.reduce((s, sg) => s + sg.downhillPct * sg.distanceKm, 0) / totalDist
-  if (avgUp > 30) return '山岳'
-  if (avgUp + avgDown > 25) return '起伏'
-  if (totalDist / segments.length < 10) return 'スピード'
-  if (totalDist / segments.length > 14) return '持久'
-  return 'バランス'
-}
 
 interface Props {
   race: Race
@@ -139,7 +127,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
           null,
           { label: '総距離', value: `${totalDist}km` },
           null,
-          { label: 'コース', value: getCourseType(race.segments) },
+          { label: 'コース', value: courseTypeOf(race.segments) },
           null,
           { label: '天候', value: WEATHER_LABEL[race.conditions.weather] ?? '—', color: WEATHER_COLOR[race.conditions.weather] },
         ].map((item, i) => {

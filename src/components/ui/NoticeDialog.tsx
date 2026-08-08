@@ -1,6 +1,5 @@
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // アプリ調のお知らせダイアログ（素の window.alert の置き換え用）。
 // ボタンは1つだけ。確認・キャンセルが要る場面は ConfirmDialog を使うこと。

@@ -1,9 +1,8 @@
 import { TeamLogoSVG } from '../icons/Icons'
 import Flag from '../ui/Flag'
-import { C, alpha, rankColor } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
 import type { Nationality } from '../../types'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export type StandRow = {
   id: string

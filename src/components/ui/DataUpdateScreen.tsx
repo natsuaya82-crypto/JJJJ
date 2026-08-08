@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { useGameStore } from '../../store/gameStore'
 import { flushSaveNow } from '../../store/saveStorage'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
@@ -8,7 +8,6 @@ import { seasonAwardsOf } from '../../utils/awards'
 import { eclHistoryOf } from '../../utils/eclHistory'
 import { withCareerCounts } from '../../utils/careerStats'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // アップデート後の初回起動だけ出す「データ更新中」画面。
 //
@@ -109,7 +108,7 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
       position: 'fixed', inset: 0, zIndex: 9998, overflow: 'hidden',
       background: 'radial-gradient(120% 80% at 50% 32%, #12101c 0%, #09070f 46%, #050409 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif",
+      fontFamily: FONT,
       padding: '0 28px',
     }}>
       <style>{`

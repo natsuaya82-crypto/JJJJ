@@ -1,8 +1,8 @@
 import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
+import { SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const GOLD = '#C9A84C'
 
 // SNS共有用のGMカード（固定幅・オフスクリーンで描画して html2canvas でキャプチャ）。

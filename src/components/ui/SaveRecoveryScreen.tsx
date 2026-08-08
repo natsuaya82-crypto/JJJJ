@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { getSaveHealthReason } from '../../store/saveHealth'
 import { deleteSaveForRecovery } from '../../store/saveStorage'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { APP_VERSION } from '../../data/appMeta'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // セーブの読み込み（hydration）が正常に完了しなかったときに出す画面。
 //

@@ -5,11 +5,10 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 function CardPanel({ children }: { children: React.ReactNode }) {
   return (

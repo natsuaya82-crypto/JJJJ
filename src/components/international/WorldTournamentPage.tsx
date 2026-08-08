@@ -14,11 +14,9 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { WA_EVENT_LABEL } from '../../engine/worldAthletics'
 import { formatRaceTime } from '../../utils/eventTime'
 import { runWithLoading } from '../../store/loadingStore'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, FONT } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 
-const FONT = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type Phase = 'individuals' | 'entry' | 'lineup' | 'simulating' | 'results'
 
@@ -174,7 +172,6 @@ export default function WorldTournamentPage() {
     const ir = t.individuals![revealIdx]
     const isFinal = t.raceIndex >= t.races.length && revealIdx >= (t.individuals!.length - 1)
     const nextLabel = isFinal ? '総合成績へ →' : `駅伝 第${t.raceIndex + 1}戦へ →`
-    const medalCol = (rank: number) => rank === 1 ? C.gold : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : C.textDim
     return (
       <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: `calc(${adH + 58 + 88}px + env(safe-area-inset-bottom))` }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -189,7 +186,7 @@ export default function WorldTournamentPage() {
               const p = players.find(x => x.id === pl.playerId)
               return (
                 <div key={pl.playerId} {...(p ? longPress(p.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 6px', borderBottom: `1px solid ${C.border}`, cursor: p ? 'pointer' : 'default', background: pl.nat === 'JPN' ? alpha(C.gold, 0.05) : 'transparent' }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: pl.rank <= 3 ? 16 : 13, fontWeight: 900, color: medalCol(pl.rank), width: 24, textAlign: 'center', flexShrink: 0 }}>{pl.rank}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: pl.rank <= 3 ? 16 : 13, fontWeight: 900, color: rankColor(pl.rank), width: 24, textAlign: 'center', flexShrink: 0 }}>{pl.rank}</span>
                   <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
                   <Flag code={pl.nat} width={20} />
                   <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>

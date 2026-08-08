@@ -2,12 +2,11 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
 import { useState } from 'react'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { cardPackPrice } from '../../data/cardShop'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 値段は data/cardShop.ts の1本から出す（1枚あたり × 枚数）。
 // 以前はここにパックの値段を直書きしていて、ストア側の1枚あたりの値段と

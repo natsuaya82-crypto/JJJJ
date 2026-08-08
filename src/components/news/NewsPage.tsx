@@ -6,10 +6,9 @@ import { ovr, faMarketSalary, SPEC_COLOR } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { ForeignChip } from '../player/PlayerChips'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const CAT_COLOR: Record<string, string> = {
   race: C.gold, fa: C.cyan, draft: C.green, trade: C.orange,

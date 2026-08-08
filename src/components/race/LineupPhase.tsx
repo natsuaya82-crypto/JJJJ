@@ -11,12 +11,12 @@ import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, COMPETITION_BTN } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, SAIRA } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { natLabel } from '../../data/nationalities'
 import { SpecChip } from '../player/PlayerChips'
+import { courseProfile } from '../../data/races'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 
@@ -157,7 +157,6 @@ export function LineupPhase({
       })),
     [race?.segments],
   )
-  const totalDist = segments.reduce((s, sg) => s + sg.distanceKm, 0)
   const filledCount = Object.values(raceLineup).filter(Boolean).length
 
   const availablePlayers = useMemo(() => mainPlayers.filter(p => !unavailable?.[p.id]), [mainPlayers, unavailable])
@@ -203,10 +202,10 @@ export function LineupPhase({
     setPickerSeg(null)
   }
 
-  const avgUp = totalDist > 0
-    ? Math.round(segments.reduce((s, sg) => s + sg.uphillPct * sg.distanceKm, 0) / totalDist) : 0
-  const avgDown = totalDist > 0
-    ? Math.round(segments.reduce((s, sg) => s + sg.downhillPct * sg.distanceKm, 0) / totalDist) : 0
+  // 起伏の平均は data/races の courseProfile 1本（コースの種別の判定と同じ計算）
+  const profile = courseProfile(segments)
+  const avgUp = Math.round(profile.avgUp)
+  const avgDown = Math.round(profile.avgDown)
 
   const assignedPlayers = Object.values(raceLineup).filter(Boolean).map(id => mainPlayers.find(p => p.id === id)).filter((p): p is Player => !!p)
   const lineupNatCounts: Record<string, number> = {}

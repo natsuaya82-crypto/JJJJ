@@ -17,7 +17,7 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { foreignSeasonApps } from '../../utils/careerStats'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { rankColor } from '../../styles/tokens'
+import { rankColor, FONT, SAIRA } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
 import { HOF_MAX, isHofEligible } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
@@ -78,10 +78,10 @@ function RadarChart({ ratings: ratingsIn, color, player }: { ratings: Player['ra
           <g key={i}>
             <text x={px(i,labelR)} y={py(i,labelR)-6}
               textAnchor="middle" dominantBaseline="middle" fill={color} opacity={0.85}
-              fontSize="8" fontWeight="700" fontFamily="'Saira Condensed',system-ui,sans-serif">{a.abbr}</text>
+              fontSize="8" fontWeight="700" fontFamily={SAIRA}>{a.abbr}</text>
             <text x={px(i,labelR)} y={py(i,labelR)+6}
               textAnchor="middle" dominantBaseline="middle" fill={valCol}
-              fontSize="11" fontWeight="900" fontFamily="'Saira Condensed',system-ui,sans-serif">{val}</text>
+              fontSize="11" fontWeight="900" fontFamily={SAIRA}>{val}</text>
           </g>
         )
       })}
@@ -458,11 +458,11 @@ export default function PlayerSheet() {
           position: 'fixed', top: 'env(safe-area-inset-top)', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`,
           left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 210,
           background: '#0E0D17', borderRadius: '16px 16px 0 0', overflowY: 'auto',
-          fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif",
+          fontFamily: FONT,
         }}>
           <div style={{ padding: '10px 12px 2px' }}><BackButton onClick={() => setShowBadges(false)} /></div>
           <div style={{ padding: '0 20px 4px' }}>
-            <div style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 20, fontWeight: 900, color: '#F0EDE8' }}>記録パッチ</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: '#F0EDE8' }}>記録パッチ</div>
             <div style={{ fontSize: 10, color: '#5C5870', marginTop: 2 }}>
               {player.name} · {badges.length}個{isMyPlayer ? ' · タップでロスターに表示するパッチを選択' : ''}
             </div>
@@ -602,7 +602,7 @@ export default function PlayerSheet() {
                   }}
                 >
                   パッチを確認する
-                  <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontWeight: 900 }}>{badges.length}</span>
+                  <span style={{ fontFamily: SAIRA, fontWeight: 900 }}>{badges.length}</span>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </button>
               )}
@@ -713,7 +713,7 @@ export default function PlayerSheet() {
                     }}
                   >
                     パッチを見る
-                    <span style={{ fontFamily: "'Saira Condensed',system-ui,sans-serif", fontWeight: 900 }}>{badges.length}</span>
+                    <span style={{ fontFamily: SAIRA, fontWeight: 900 }}>{badges.length}</span>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
                   </button>
                 </div>
@@ -1133,7 +1133,7 @@ export default function PlayerSheet() {
           style={{
             position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-            fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif",
+            fontFamily: FONT,
           }}
         >
           <div
@@ -1144,7 +1144,7 @@ export default function PlayerSheet() {
               boxShadow: '0 0 40px rgba(201,168,76,0.2), 0 8px 32px rgba(0,0,0,0.6)',
             }}
           >
-            <div style={{ fontSize: 9, color: '#C9A84C', letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: "'Saira Condensed',system-ui,sans-serif" }}>名前を変更</div>
+            <div style={{ fontSize: 9, color: '#C9A84C', letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>名前を変更</div>
             <div style={{ fontSize: 12, color: '#9B97A8', lineHeight: 1.6, marginBottom: 12 }}>
               変更した名前は移籍しても引退しても残ります（過去の記録に載っている名前は当時のままです）。
             </div>
@@ -1157,7 +1157,7 @@ export default function PlayerSheet() {
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', marginBottom: 16,
                 backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: 15, boxSizing: 'border-box',
-                fontFamily: "'Saira Condensed',system-ui,sans-serif", outline: 'none',
+                fontFamily: SAIRA, outline: 'none',
                 boxShadow: 'inset 0 0 0 1px rgba(201,168,76,0.14)',
               }}
             />
@@ -1167,7 +1167,7 @@ export default function PlayerSheet() {
                 style={{
                   flex: 1, padding: '12px', borderRadius: 12, cursor: 'pointer',
                   border: '2px solid #3A3758', background: 'transparent', color: '#9B97A8',
-                  fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 15, fontWeight: 900,
+                  fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
                 }}
               >
                 キャンセル
@@ -1179,7 +1179,7 @@ export default function PlayerSheet() {
                   flex: 1, padding: '12px', borderRadius: 12, cursor: renameDraft.trim() === '' ? 'default' : 'pointer',
                   border: '2px solid #C9A84C', opacity: renameDraft.trim() === '' ? 0.4 : 1,
                   background: 'linear-gradient(180deg, rgba(201,168,76,0.25), rgba(201,168,76,0.1))',
-                  color: '#C9A84C', fontFamily: "'Saira Condensed',system-ui,sans-serif", fontSize: 15, fontWeight: 900,
+                  color: '#C9A84C', fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
                   boxShadow: '0 4px 0 rgba(201,168,76,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
                 }}
               >

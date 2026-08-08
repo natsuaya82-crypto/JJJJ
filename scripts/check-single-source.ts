@@ -314,6 +314,32 @@ RULES.push({
   fix: 'components/player/PlayerChips.tsx の SpecChip / ForeignChip を使う',
 })
 
+// 得点・フォント・コース種別を画面や別のエンジンで作り直さないこと。
+RULES.push({
+  name: 'レースの得点を自前で書いている',
+  pattern: /rank === 1 \? 3 : rank === 2 \? 2 : rank === 3 \? 1|teamCount\s*[-+]\s*rank\s*[+-]\s*1/,
+  allow: ['src/utils/league.ts'],
+  fix: 'utils/league.ts の positionPointsFor / segmentAwardPoints を使う',
+})
+RULES.push({
+  name: 'フォントの文字列を直書きしている',
+  pattern: /['"]'?Saira Condensed'?|['"]'?Zen Kaku Gothic New'?/,
+  allow: ['src/styles/tokens.ts', 'index.html'],
+  fix: 'styles/tokens.ts の SAIRA / FONT / JP を import する',
+})
+RULES.push({
+  name: 'コースの種別を自前で判定している',
+  pattern: /uphillPct \* \w+\.distanceKm/,
+  allow: ['src/data/races.ts'],
+  fix: 'data/races.ts の courseTypeOf を使う',
+})
+RULES.push({
+  name: '成長に必要なEXPの式を写している',
+  pattern: /0\.5 \* level \* level|level < 80 \? 1 : level < 90 \? 2 : 4/,
+  allow: ['src/engine/growth.ts'],
+  fix: 'engine/growth.ts の requiredExpForLevel を import する',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

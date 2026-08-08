@@ -7,12 +7,11 @@ import type { Race, RaceResults, Team, Player, Nationality } from '../../types'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import PillTabs from '../ui/PillTabs'
 import { TeamLogoSVG } from '../icons/Icons'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export type SegRunner = { playerId: string; teamId: string; timeSec: number; rank: number }
 export type SegResult = RaceResults['segmentResults'][number]

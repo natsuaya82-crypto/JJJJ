@@ -1,9 +1,8 @@
 import { createPortal } from 'react-dom'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import type { Player } from '../../types'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // レンタル要請の下部シート。移籍市場・他チームタブ共通。
 export default function LoanSheet({ player, slots, pending, onSubmit, onClose }: {

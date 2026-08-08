@@ -9,41 +9,29 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha, COMPETITION_BTN, rankColor } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, rankColor, SAIRA } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
 import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
 import { contractTalkCtx, contractMonthsLeft, isUrgentRenewal } from '../../utils/contractTalk'
 import { rankedStandings, seasonDivisionStandings, rankOfTeam } from '../../utils/league'
+import { requiredExpForLevel } from '../../engine/growth'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-
-function requiredExp(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 2 : 4   // gameStoreのrequiredExpForLevelと常に一致させる
-  return Math.floor(0.5 * level * level * dull)
-}
-
-// tokens.ts の rankColor と同じ色だが、この1箇所だけ4位以下のフォールバックが
-// C.textDim（他は全部 C.textGhost）になっている。rankColor に置き換えると色が
-// 変わってしまうため、ここだけ意図的にローカル定義のまま残している（挙動維持）。
 
 const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties => {
   if (isPlayer) return {
     background: `linear-gradient(90deg, ${alpha(C.cyan, 0.1)}, transparent)`,
     borderLeft: `3px solid ${C.cyan}`,
   }
-  if (rank === 1) return {
-    background: `linear-gradient(90deg, ${alpha(C.gold, 0.1)}, transparent)`,
-    borderLeft: `3px solid ${C.gold}`,
-  }
-  if (rank === 2) return {
-    background: `linear-gradient(90deg, ${alpha('#9B97A8', 0.08)}, transparent)`,
-    borderLeft: '3px solid #9B97A8',
-  }
-  if (rank === 3) return {
-    background: `linear-gradient(90deg, ${alpha('#CD7F32', 0.08)}, transparent)`,
-    borderLeft: '3px solid #CD7F32',
+  // 表彰台の色は tokens の rankColor 1本（金・銀・銅の値をここに写さない）。
+  // 4位以下は帯を出さないので、色は引かない
+  if (rank <= 3) {
+    const col = rankColor(rank)
+    return {
+      background: `linear-gradient(90deg, ${alpha(col, rank === 1 ? 0.1 : 0.08)}, transparent)`,
+      borderLeft: `3px solid ${col}`,
+    }
   }
   return { paddingLeft: 3 }
 }
@@ -238,7 +226,7 @@ export function ResultsPhase({
                         const gained = gains[k] ?? 0
                         const cur = p.ratings[k] ?? 0
                         const curExp = p.exp?.[k] ?? 0
-                        const req = requiredExp(cur)
+                        const req = requiredExpForLevel(cur)
                         const beforeExp = Math.max(0, curExp - gained)
                         const basePct = req > 0 ? Math.min(beforeExp / req, 1) : 1
                         const gainPct = req > 0 ? Math.min(gained / req, 1 - basePct) : 0

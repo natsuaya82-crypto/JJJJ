@@ -8,12 +8,11 @@ import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { useEclHistory } from '../../lib/useEclHistory'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
 import { SpecChip, ForeignChip } from './PlayerChips'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // カードの押下ハンドラ。長押し検出用の pointer 系は任意（タップだけの用途では onClick のみでOK）。
 export type RowHandlers = {

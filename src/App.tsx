@@ -81,6 +81,7 @@ import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
 import JewelsPage from './components/jewels/JewelsPage'
 import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
+import { SAIRA } from './styles/tokens'
 
 const BUNDLE_ID = 'com.tokinets.jpelmanager'
 // 強制アップデート判定用の現在バージョン。過去に App.tsx 内の手書き定数の上げ忘れで
@@ -149,7 +150,6 @@ function GmOfferNotice() {
   const offer = offers[Math.min(pick, offers.length - 1)]
   const dest = teams.find(t => t.id === offer.teamId)
   if (!dest) return null
-  const SAIRA = "'Saira Condensed', system-ui, sans-serif"
   const fmtYen = (yen: number) => `${Math.round(yen / 10000).toLocaleString()}万`
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -211,7 +211,6 @@ function SeasonBudgetNotice() {
   const navigate = useNavigate()
   if (offers.length > 0) return null
   if (!notice) return null
-  const SAIRA = "'Saira Condensed', system-ui, sans-serif"
   // 予算ページと同じ万円単位表記（億に切り上げない）
   const fmtYen = (yen: number) => `${Math.round(yen / 10000).toLocaleString()}万`
   return (

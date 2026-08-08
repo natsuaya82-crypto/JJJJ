@@ -10,7 +10,7 @@ import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
@@ -19,17 +19,12 @@ import { audio } from '../../utils/audio'
 import { showRewardAd, getAdDay } from '../../utils/ads'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
+import { requiredExpForLevel } from '../../engine/growth'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const PURPLE = '#A855F7'
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
 const MENU_MULT_LABEL: Record<number, string> = { 2: '1.2', 3: '1.4', 4: '1.6', 5: '1.8' }
-
-function requiredExp(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 2 : 4   // gameStoreのrequiredExpForLevelと常に一致させる
-  return Math.floor(0.5 * level * level * dull)
-}
 
 export default function CardTrainingPage() {
   const navigate = useNavigate()
@@ -214,7 +209,7 @@ export default function CardTrainingPage() {
   // ── STEP 1: Player selection ──────────────────────────────────
   if (!targetPlayer) {
     return (
-      <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text, paddingBottom: 80 }}>
+      <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: FONT, color: C.text, paddingBottom: 80 }}>
         {sharedHeader(() => navigate(-1))}
 
         <div style={{ padding: '14px 14px 6px' }}>
@@ -240,7 +235,7 @@ export default function CardTrainingPage() {
 
   // ── STEP 2: Fusion (パズドラ風) ────────────────────────────────
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", color: C.text }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: FONT, color: C.text }}>
       {adConfirmOpen && (
         <ConfirmDialog
           title="動画を見ますか？"
@@ -308,7 +303,7 @@ export default function CardTrainingPage() {
             const maxed = isStatMaxed(targetPlayer, k)
             const delta = combo?.statDeltas[k] ?? 0
             const curExp = targetPlayer.exp?.[k] ?? 0
-            const req = requiredExp(current)
+            const req = requiredExpForLevel(current)
             const basePct = req > 0 ? Math.min(curExp / req, 1) : 1
             const gainExp = Math.min(curExp + delta, req)
             const gainPct = req > 0 ? Math.max(0, gainExp / req - basePct) : 0
@@ -571,7 +566,7 @@ export default function CardTrainingPage() {
                 const preExpVal = applied.preExp[k] ?? 0
                 const rawDelta = applied.combo.statDeltas[k] ?? 0
                 const effectiveDelta = applied.greatSuccess ? Math.round(rawDelta * 1.5) : rawDelta
-                const preReq = requiredExp(preLevel)
+                const preReq = requiredExpForLevel(preLevel)
                 const levelUp = preReq > 0 && (preExpVal + effectiveDelta >= preReq)
                 const prePct = preReq > 0 ? Math.min(preExpVal / preReq, 1) : 1
                 const targetPct = levelUp ? 1 : (preReq > 0 ? Math.min((preExpVal + effectiveDelta) / preReq, 1) : 1)

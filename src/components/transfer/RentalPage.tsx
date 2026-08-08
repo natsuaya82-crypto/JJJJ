@@ -3,11 +3,10 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Player } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
-import { C } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { SpecChip } from '../player/PlayerChips'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MAX_SLOTS = 3
 
 export default function RentalPage() {
@@ -44,7 +43,7 @@ export default function RentalPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100%' }}>
       <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton/>
         <div style={{ flex: 1 }}>

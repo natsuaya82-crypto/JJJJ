@@ -7,9 +7,8 @@ import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { assignLineupByTerrain } from '../../engine/raceEngine'
 import { serverNow } from '../../lib/serverTime'
 import type { Player } from '../../types'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 /** 1レースぶんの提出内容（区間番号 → 選手ID） */
 export type Order = { lineup: Record<number, string> }

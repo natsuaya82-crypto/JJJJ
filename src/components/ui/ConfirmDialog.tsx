@@ -1,6 +1,5 @@
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // アプリ調の確認ダイアログ（素の window.confirm の置き換え用）
 export default function ConfirmDialog({

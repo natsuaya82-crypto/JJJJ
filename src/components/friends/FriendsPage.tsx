@@ -2,9 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { listFriends, listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from './friendsUi'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 記録室（RecordsHub）と同じカード意匠でフレンド各画面への入口をまとめる。
 export default function FriendsPage() {
@@ -43,7 +42,7 @@ export default function FriendsPage() {
   const offline = friends.error && received.error
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '8px 12px 0' }}><BackButton /></div>
       <div style={{ padding: '8px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>FRIENDS</div>

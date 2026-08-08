@@ -10,9 +10,8 @@ import { courseById, courseToRace } from '../../data/matchCourses'
 import { asPlayer, asTeam, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { SegmentDetailCard, SegmentTabs } from '../race/SegmentDetailCard'
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha, rankColor } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function FinishPanel({
   races, meId, onLeave, history = false, leaveLabel,

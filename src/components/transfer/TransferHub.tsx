@@ -1,9 +1,8 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { C } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function TransferHub() {
   const navigate = useNavigate()
@@ -150,7 +149,7 @@ export default function TransferHub() {
   }
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: '80px', background: C.bg, minHeight: '100%' }}>
       <div style={{ padding: '12px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>
           {currentSeason.year} TRANSFER

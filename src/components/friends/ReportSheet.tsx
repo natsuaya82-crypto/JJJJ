@@ -4,10 +4,9 @@
 // 送り先は Supabase の reports テーブルで、他の利用者からは見えない。
 // 相手が利用者の場合は、ここから同時にブロックもできるようにしてある。
 import { useState } from 'react'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { REPORT_REASONS, REPORT_DETAIL_MAX, sendReport, blockUser, invalidateBlocked, type ReportReason } from '../../lib/moderationApi'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export type ReportTarget = {
   /** 相手の利用者id。走友会だけを通報するときは省く */

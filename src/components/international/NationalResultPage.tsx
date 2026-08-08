@@ -2,18 +2,16 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import { C } from '../../styles/tokens'
+import { C, rankColor, SAIRA, FONT } from '../../styles/tokens'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import { WA_EVENT_LABEL, formatMeetMedal } from '../../engine/worldAthletics'
 import { formatRaceTime } from '../../utils/eventTime'
 import type { Nationality } from '../../types'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const natName = (n: Nationality) => NAT_LABEL[n] ?? n
 const MEDAL = ['🥇', '🥈', '🥉'] // 表示は下でSVG国旗＋色。絵文字は使わないので色で表現
-const medalColor = (rank: number) => rank === 1 ? C.gold : rank === 2 ? '#C0C7D0' : rank === 3 ? '#CD7F32' : C.textDim
 void MEDAL
 
 export default function NationalResultPage() {
@@ -40,7 +38,7 @@ export default function NationalResultPage() {
   }
 
   const wrap = (title: string, children: React.ReactNode) => (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif", background: C.bg, minHeight: '100dvh', paddingBottom: 96 }}>
+    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', paddingBottom: 96 }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton onClick={() => navigate('/')} />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{title}</span>
@@ -56,7 +54,7 @@ export default function NationalResultPage() {
   )
   const natRow = (n: Nationality, right: React.ReactNode, rank?: number) => (
     <div key={n + String(rank)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 6px', borderBottom: `1px solid ${C.border}` }}>
-      {rank != null && <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: medalColor(rank), width: 22, textAlign: 'center' }}>{rank}</span>}
+      {rank != null && <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: rankColor(rank), width: 22, textAlign: 'center' }}>{rank}</span>}
       <Flag code={n} width={24} />
       <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: n === 'JPN' ? C.gold : C.text }}>{natName(n)}</span>
       {right}
@@ -141,7 +139,7 @@ export default function NationalResultPage() {
       title: `${WA_EVENT_LABEL[ir.event]} 決勝`,
       body: card(`${WA_EVENT_LABEL[ir.event]} メダル`, ir.placings.slice(0, 8).map(pl => (
         <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>
-          <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: medalColor(pl.rank), width: 22, textAlign: 'center' }}>{pl.rank}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: rankColor(pl.rank), width: 22, textAlign: 'center' }}>{pl.rank}</span>
           <Flag code={pl.nat} width={22} />
           <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveName(pl)}</span>
           <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold }}>{formatRaceTime(pl.timeSec)}</span>

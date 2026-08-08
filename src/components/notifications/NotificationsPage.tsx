@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { collectNotifications, expiredNegText } from '../../utils/notifItems'
 import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
@@ -21,7 +21,6 @@ import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
 import { claimClubGift } from '../../lib/clubsApi'
 import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const EMPTY_IDS: string[] = []
 
 function SectionHead({ label, color, count }: { label: string; color: string; count: number }) {

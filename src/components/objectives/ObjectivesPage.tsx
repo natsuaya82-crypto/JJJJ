@@ -1,8 +1,7 @@
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const PROGRESS_IDS = new Set(['segWins', 'winRace', 'rivalBeat'])
 

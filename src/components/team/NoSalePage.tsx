@@ -7,9 +7,8 @@ import PlayerRow from '../player/PlayerRow'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
 import BackButton from '../ui/BackButton'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 移籍方針：選手ごとに 非売 / 貸出歓迎 / 売出 を設定する。
 // - 非売: 他クラブからの買い取りオファーを全ブロック

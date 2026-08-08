@@ -18,7 +18,7 @@ import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { belongsToClub } from '../../utils/rosterSync'
-import { C, rankColor } from '../../styles/tokens'
+import { C, rankColor, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
@@ -26,7 +26,6 @@ import { useOpponentMenu } from './opponentMenu'
 import { rankedStandings, domesticThroughRank, DIVISIONS, DIVISION_LABEL } from '../../utils/league'
 import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague } from '../../utils/clubStanding'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 
 // 'YYYY-MM-DD' → 'YYYY年M月D日'。日付が無ければ年だけ

@@ -726,3 +726,40 @@ export const RESERVE_RACE_POOL: RaceTemplate[] = [
   ...LEAGUE_COURSE_POOL.slice(9),
   ...FINAL_COURSES.slice(1),
 ]
+
+/**
+ * コースの種別（「山岳」「起伏」「スプリント」「持久」「バランス」）。**判定はここ1本。**
+ *
+ * 距離で重みを付けた平均の登り・下りで山岳・起伏を見て、そのあと1区間の平均距離で
+ * スプリント・持久を分ける。
+ *
+ * ★以前は dashboard/NextRaceCard と schedule/SchedulePage が同じ式を別々に持っていて、
+ *   短いコースの呼び名だけが「スピード」と「スプリント」で食い違っていた。
+ *   同じ駅伝がホームでは「スピード」、日程表では「スプリント」と出ていた。
+ *   区間の呼び名（utils/terrain の sprint）に合わせて「スプリント」で揃えた。
+ */
+export function courseTypeOf(segments: readonly { uphillPct: number; downhillPct: number; distanceKm: number }[]): string {
+  const { totalDist, avgUp, avgDown } = courseProfile(segments)
+  if (totalDist === 0) return 'バランス'
+  if (avgUp > 30) return '山岳'
+  if (avgUp + avgDown > 25) return '起伏'
+  if (totalDist / segments.length < 10) return 'スプリント'
+  if (totalDist / segments.length > 14) return '持久'
+  return 'バランス'
+}
+
+/**
+ * コースの起伏の平均（距離で重みを付ける）。**計算はここ1本。**
+ * コースの種別（courseTypeOf）も、区間配置の画面に出す「平均登り◯%」もここから引く。
+ */
+export function courseProfile(segments: readonly { uphillPct: number; downhillPct: number; distanceKm: number }[]): {
+  totalDist: number; avgUp: number; avgDown: number
+} {
+  const totalDist = segments.reduce((s, sg) => s + sg.distanceKm, 0)
+  if (totalDist === 0) return { totalDist: 0, avgUp: 0, avgDown: 0 }
+  return {
+    totalDist,
+    avgUp: segments.reduce((s, sg) => s + sg.uphillPct * sg.distanceKm, 0) / totalDist,
+    avgDown: segments.reduce((s, sg) => s + sg.downhillPct * sg.distanceKm, 0) / totalDist,
+  }
+}

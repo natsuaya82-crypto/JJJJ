@@ -6,9 +6,8 @@ import { useGameStore } from '../../store/gameStore'
 import { usePreviewStore } from '../../store/previewStore'
 import { HOF_MAX } from '../../utils/hofRoster'
 import type { HofPlayer } from '../../types'
-import { C } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 // 未登録セーブ用の空配列。ここで [] を書くと毎回別物になり、下の useEffect が回り続ける
 const EMPTY: HofPlayer[] = []
 
@@ -33,7 +32,7 @@ export default function HofTeamPage() {
   }, [hof, setPreview])
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton />
         <div style={{ flex: 1 }}>

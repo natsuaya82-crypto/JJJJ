@@ -5,9 +5,8 @@ import { ovr } from '../../utils/playerUtils'
 import { belongsToClub } from '../../utils/rosterSync'
 import { LeagueLogoSVG } from '../icons/Icons'
 import StandingsTable, { type StandRow } from './StandingsTable'
-import { C } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function ForeignLeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>()
@@ -40,7 +39,7 @@ export default function ForeignLeagueDetailPage() {
   }))
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '10px 12px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <BackButton />

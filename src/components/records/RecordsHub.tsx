@@ -2,11 +2,10 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 import { rankOfTeam, domesticThroughRankOfTeam, seasonDivisionStandings } from '../../utils/league'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function RecordsHub() {
   const navigate = useNavigate()
@@ -123,7 +122,7 @@ export default function RecordsHub() {
   ]
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 16px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>
           {currentSeason.year} RECORDS

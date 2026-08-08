@@ -3,9 +3,8 @@ import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import NoticeDialog from '../ui/NoticeDialog'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // ============================================================================
 // GMパス（買い切りIAP）の購入カード。

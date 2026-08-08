@@ -5,7 +5,7 @@ import { choiceSuccessProb } from '../../engine/interactiveRace'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha, rankColor } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
@@ -13,7 +13,6 @@ import { useAdHeight } from '../layout/Layout'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 function computeAnimGaps(
   ratio: number,

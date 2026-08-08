@@ -1,7 +1,6 @@
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const JEWEL = '#6dd5fa'
 
 function JewelIcon({ size = 15 }: { size?: number }) {

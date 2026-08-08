@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Club } from '../../utils/clubs'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
 import { ovr, ratingColor, isStatMaxed } from '../../utils/playerUtils'
@@ -15,7 +15,6 @@ import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
 import { useAdHeight } from '../layout/Layout'
 import { SpecChip } from '../player/PlayerChips'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SQUAD = 20
 
 const ALL_STATS: [string, keyof Player['ratings']][] = [
@@ -270,7 +269,7 @@ export default function NationalSquadSelectPage() {
 
   // ── メイン画面（20枠一覧・区間配置の区リストと同じ構造）──
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif", background: C.bg, minHeight: '100dvh', paddingBottom: `calc(${adH + 58 + 96}px + env(safe-area-inset-bottom))` }}>
+    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', paddingBottom: `calc(${adH + 58 + 96}px + env(safe-area-inset-bottom))` }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本代表 選考</span>

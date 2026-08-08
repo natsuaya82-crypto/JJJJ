@@ -25,9 +25,8 @@ import StampBar from './StampBar'
 import type { StampPayload } from './stampKinds'
 import { buildRacePayload, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { defaultLogoIdFor } from '../../data/logoPresets'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 /** 開始に必要な最少チーム数（CPUを足さない場合） */
 const MIN_TEAMS = 2
@@ -669,7 +668,7 @@ export default function RoomLobbyPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
       {/* ヘッダー：戻るではなく「退出」。黙って抜けると相手側に残ってしまうため。 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px 6px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.cyan, 0.7), letterSpacing: '3px', fontWeight: 900 }}>ROOM</div>

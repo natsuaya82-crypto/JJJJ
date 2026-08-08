@@ -3,11 +3,10 @@ import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function TeamHub() {
   const navigate = useNavigate()
@@ -153,7 +152,7 @@ export default function TeamHub() {
 
   return (
     <div style={{
-      fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif",
+      fontFamily: FONT,
       paddingBottom: 80,
       background: C.bg, minHeight: '100%',
     }}>

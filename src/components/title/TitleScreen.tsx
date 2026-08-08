@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { audio } from '../../utils/audio'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function TitleScreen({ onStart }: { onStart: () => void }) {
   // unlock済み（ゲームから戻った場合）なら開いた瞬間にBGMを再開

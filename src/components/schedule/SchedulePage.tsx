@@ -5,24 +5,11 @@ import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear, qualHostForYear, WA_HOST_CITY, waRaceDate } from '../../engine/worldAthletics'
 import { NAT_LABEL } from '../../data/nationalities'
 import Flag from '../ui/Flag'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
+import { courseTypeOf } from '../../data/races'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const TT_COLOR = '#5EC8B8'
 const TT_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
-
-function getCourseType(race: { segments: { uphillPct: number; downhillPct: number; distanceKm: number }[] }): string {
-  const segs = race.segments
-  const totalDist = segs.reduce((s, sg) => s + sg.distanceKm, 0)
-  if (totalDist === 0) return 'バランス'
-  const avgUp = segs.reduce((s, sg) => s + sg.uphillPct * sg.distanceKm, 0) / totalDist
-  const avgDown = segs.reduce((s, sg) => s + sg.downhillPct * sg.distanceKm, 0) / totalDist
-  if (avgUp > 30) return '山岳'
-  if (avgUp + avgDown > 25) return '起伏'
-  if (totalDist / segs.length < 10) return 'スプリント'
-  if (totalDist / segs.length > 14) return '持久'
-  return 'バランス'
-}
 
 function getCourseColor(type: string): string {
   if (type === '山岳') return C.red
@@ -345,7 +332,7 @@ export default function SchedulePage() {
                       {race.date.replace(/-/g, '/')} · {race.location}
                     </div>
                     {!isDone && (() => {
-                      const courseType = getCourseType(race)
+                      const courseType = courseTypeOf(race.segments)
                       const courseCol = getCourseColor(courseType)
                       return (
                         <div style={{ display: 'flex', gap: '5px', marginTop: '5px', flexWrap: 'wrap' }}>

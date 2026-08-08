@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CHANGELOG } from '../../data/appMeta'
-import { C } from '../../styles/tokens'
+import { C, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type NewsItem = { date: string; title: string; body: string }
 

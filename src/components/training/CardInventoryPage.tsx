@@ -4,10 +4,9 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 

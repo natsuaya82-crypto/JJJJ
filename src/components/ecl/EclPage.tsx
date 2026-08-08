@@ -15,10 +15,8 @@ import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
 import { useAdHeight } from '../layout/Layout'
 import { runWithLoading } from '../../store/loadingStore'
-import { C, alpha, rankColor } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const FONT = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 
 type Phase = 'entry' | 'lineup' | 'simulating' | 'results' | 'view'

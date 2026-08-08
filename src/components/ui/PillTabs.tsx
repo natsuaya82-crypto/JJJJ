@@ -4,9 +4,8 @@
 // 手書きされていた。「同じ操作なのに画面ごとに見た目が違う」を無くすため、ここ1本にする。
 //
 // ★横並びで何かを切り替えたくなったら、必ずこれを使うこと。button を新しく書かないこと。
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function PillTabs({ labels, value, onChange, fill = false, style }: {
   labels: string[]

@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { serverNow } from '../../lib/serverTime'
 import { CATEGORY_LABEL, type MatchCourse } from '../../data/matchCourses'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function CoursePanel({
   courses, deadline, isHost, onNext,

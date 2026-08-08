@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLoadingStore } from '../../store/loadingStore'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from './TipText'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 全画面ローディング。真っ暗＋中央TIPS＋右下ローディングバー（スピナー廃止）。App直下に常駐。
 export default function LoadingOverlay() {
@@ -30,7 +29,7 @@ export default function LoadingOverlay() {
       position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden',
       background: 'radial-gradient(120% 80% at 50% 32%, #12101c 0%, #09070f 46%, #050409 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif",
+      fontFamily: FONT,
     }}>
       <style>{`
         @keyframes jpel-lo-breathe {0%,100%{transform:translateY(6%) scale(1);opacity:.7}50%{transform:translateY(-4%) scale(1.15);opacity:1}}

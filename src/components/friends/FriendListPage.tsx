@@ -5,9 +5,8 @@ import { listFriends } from '../../lib/friendsApi'
 import { clubsOfUsers } from '../../lib/clubsApi'
 import { clubLogoSrc } from '../../data/clubLogos'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 export default function FriendListPage() {
   const navigate = useNavigate()

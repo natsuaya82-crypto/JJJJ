@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { LeagueLogoSVG } from '../icons/Icons'
-import { C } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
 import { ovr } from '../../utils/playerUtils'
 import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
 import Flag from '../ui/Flag'
@@ -10,7 +10,6 @@ import BackButton from '../ui/BackButton'
 import { NationalTeamRoster } from './NationalTeamDetailPage'
 import type { Nationality } from '../../types'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type NatEntry = { code: Nationality; label: string; top: number }
 
@@ -116,7 +115,7 @@ export default function TeamsHub() {
     [...arr].sort((a, b) => a.label.localeCompare(b.label, 'ja'))
 
   const wrap = (children: React.ReactNode) => (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>{children}</div>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>{children}</div>
   )
   const listBox = (children: React.ReactNode) => (
     <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>

@@ -5,9 +5,8 @@ import NoticeDialog from '../ui/NoticeDialog'
 import { useFriendsQuery, LoadingBox, ErrorBox } from '../friends/friendsUi'
 import { createRoom, joinRoom, myMatchStats, DEFAULT_RULES } from '../../lib/roomsApi'
 import { syncServerTime } from '../../lib/serverTime'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // オンライン対戦の入口。部屋を立てるか、6桁の番号で入るかだけの画面。
 export default function MatchEntryPage() {
@@ -55,7 +54,7 @@ export default function MatchEntryPage() {
   const s = stats.data
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '8px 12px 0' }}><BackButton /></div>
       <div style={{ padding: '8px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE MATCH</div>

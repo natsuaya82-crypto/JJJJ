@@ -27,13 +27,12 @@ import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingL
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import { pickKeyValue } from '../../data/economy'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import { fmtYen } from '../../utils/money'
 import { SpecChip } from '../player/PlayerChips'
 
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SALARY_STEP = 1000000
 const SALARY_MIN = 3000000
 const SALARY_MAX = 80000000

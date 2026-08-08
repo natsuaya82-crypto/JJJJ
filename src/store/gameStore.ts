@@ -765,6 +765,14 @@ const ACHIEVEMENT_JEWELS: Record<string, number> = {
   bronze: 10, silver: 20, gold: 50, legendary: 100,
 }
 
+/**
+ * 年間の表彰台に立ったときのジュエル。**国内の最終順位もECLの年間総合も同じ表。**
+ * 同じ 200/100/50 が2か所に書かれていたので、片方だけ変えるとどちらかがズレる。
+ */
+function podiumJewels(rank: number): number {
+  return rank === 1 ? 200 : rank === 2 ? 100 : rank === 3 ? 50 : 0
+}
+
 function checkRaceAchievements(params: {
   playerRank: number
   mySegWinCount: number
@@ -4851,7 +4859,7 @@ export const useGameStore = create<GameStore>()(
           }
         }
         // 年間総合（最終戦時のみ）。自チームが出ていないシリーズでは eclFinalRank が0になるので付かない
-        const eclTotalJ = eclFinalRank === 1 ? 200 : eclFinalRank === 2 ? 100 : eclFinalRank === 3 ? 50 : 0
+        const eclTotalJ = podiumJewels(eclFinalRank)
         if (eclTotalJ > 0) eclJewelGains.push({ label: `ECL年間総合${eclFinalRank}位`, amount: eclTotalJ })
         const eclJewels = eclJewelGains.reduce((s, g) => s + g.amount, 0)
 
@@ -6182,7 +6190,7 @@ export const useGameStore = create<GameStore>()(
 
           const objJewels = newlyCompletedObjs.reduce((s, o) => s + (o.rewardJewels ?? 30), 0)
           const seasonAchievementJewels = seasonAchievements.reduce((s, a) => s + (ACHIEVEMENT_JEWELS[a.rarity] ?? 0), 0)
-          const rankJewels = finalRank === 1 ? 200 : finalRank === 2 ? 100 : finalRank === 3 ? 50 : 0
+          const rankJewels = podiumJewels(finalRank)
 
           // シーズン終了ぶんのジュエル内訳（ホームに戻ったときのポップアップ用）。加算は下の jewels: が担当
           const seasonJewelGains: { label: string; amount: number }[] = []

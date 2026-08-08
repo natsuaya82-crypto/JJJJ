@@ -1,10 +1,9 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { flushSaveNow } from '../../store/saveStorage'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { APP_VERSION } from '../../data/appMeta'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // アプリ全体のエラーバウンダリ。
 // React は描画中の例外を受け止める境界が無いとルートごとアンマウントするため、

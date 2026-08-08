@@ -3,11 +3,10 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { loginTodayKey } from '../../utils/loginDate'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { useAdHeight, HEADER_H, NAV_H, MAIN_GAP } from '../layout/Layout'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 function JewelIcon({ size = 14 }: { size?: number }) {
   return (
@@ -94,7 +93,7 @@ export default function LoginBonusPage() {
   ]
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", background: C.bg, minHeight: pageMinHeight, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ fontFamily: FONT, background: C.bg, minHeight: pageMinHeight, display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '10px 16px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '12px' }}>
           <BackButton />

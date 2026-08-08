@@ -5,7 +5,7 @@ import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -16,7 +16,6 @@ import { audio } from '../../utils/audio'
 import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
 import { SpecChip, ForeignChip } from '../player/PlayerChips'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 type SortKey = 'ovr' | 'potential' | 'age'
 type TabKey = 'players' | 'board' | 'teams'

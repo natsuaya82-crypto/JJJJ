@@ -1,10 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from '../friends/friendsUi'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { onlineAvailable } from '../../data/featureFlags'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 下タブ「オンライン」の入口。通信を使う機能をここに集める。
 // この下にさらにハブがある（例：フレンド → フレンド一覧／申請・承認）。
@@ -99,7 +98,7 @@ export default function OnlinePage() {
     : SECTIONS.map(s => (s.alwaysOn ? s : { ...s, soon: true, badge: 0 }))
 
   return (
-    <div style={{ fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE</div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>オンライン</div>

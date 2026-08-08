@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { showRewardAd, getAdDay, ADS_PER_DAY } from '../../utils/ads'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 function JewelIcon({ size = 14, opacity = 1 }: { size?: number; opacity?: number }) {
   return (

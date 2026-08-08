@@ -2,14 +2,12 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore, reinforcementBanned } from '../../store/gameStore'
 import { useTeamHistory } from '../../lib/useTeamHistory'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { operatingCostOf, CARRYOVER_CAP_SHARE } from '../../data/economy'
 import { facilityUpkeepOf } from '../../utils/facilities'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const font = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
 
 // 財務ページは万円単位で統一表示（例: 4.2億→42,000万、3500万→3,500万）。
 // 丸めないので内訳の合計が初期予算とぴったり一致して見える
@@ -87,7 +85,7 @@ export default function BudgetPage() {
   return (
     <div style={{
       minHeight: '100dvh', background: C.bg,
-      fontFamily: font, color: C.text, paddingBottom: 80,
+      fontFamily: FONT, color: C.text, paddingBottom: 80,
     }}>
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
@@ -250,7 +248,7 @@ export default function BudgetPage() {
         <div style={{ textAlign: 'right', marginTop: 6 }}>
           <button onClick={() => navigate('/sponsors')} style={{
             background: 'none', border: 'none', color: C.gold,
-            fontSize: 11, cursor: 'pointer', fontFamily: font, padding: '2px 0',
+            fontSize: 11, cursor: 'pointer', fontFamily: FONT, padding: '2px 0',
           }}>スポンサー管理 →</button>
         </div>
       </div>
@@ -299,7 +297,7 @@ export default function BudgetPage() {
         <div style={{ textAlign: 'right', marginTop: 6 }}>
           <button onClick={() => navigate('/team/roster')} style={{
             background: 'none', border: 'none', color: C.gold,
-            fontSize: 11, cursor: 'pointer', fontFamily: font, padding: '2px 0',
+            fontSize: 11, cursor: 'pointer', fontFamily: FONT, padding: '2px 0',
           }}>ロスター →</button>
         </div>
       </div>

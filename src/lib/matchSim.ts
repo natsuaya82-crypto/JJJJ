@@ -9,6 +9,7 @@
 //     自分のチームの表示だけは元のIDに戻すので、顔も長押しも手元のゲームと同じになる。
 import type { Player, Team } from '../types'
 import { simulateRace } from '../engine/raceEngine'
+import { segmentAwardPoints, positionPointsFor } from '../utils/league'
 import { courseToRace, type MatchCourse } from '../data/matchCourses'
 
 /** 表示に必要なチーム情報だけ（プロフィールから作る） */
@@ -127,16 +128,9 @@ const srcOf = (id: string) => { const i = id.indexOf(NS); return i < 0 ? id : id
  * 区間賞ポイント。参加チーム数で配点が変わる（開始時の数で固定する）。
  *   15〜20チーム → 3/2/1、9〜14チーム → 2/1、それ未満 → 1位に1点だけ
  */
-export function segAwardPoints(teamCount: number, rank: number): number {
-  if (teamCount >= 15) return rank === 1 ? 3 : rank === 2 ? 2 : rank === 3 ? 1 : 0
-  if (teamCount >= 9) return rank === 1 ? 2 : rank === 2 ? 1 : 0
-  return rank === 1 ? 1 : 0
-}
-
-/** 順位ポイント。1位＝参加チーム数、以下1点ずつ下がって最下位1点。 */
-export function rankPoints(teamCount: number, rank: number): number {
-  return Math.max(1, teamCount - rank + 1)
-}
+// ※ 区間賞ポイントと順位ポイントの表はここにあったが消した。
+//   本編とまったく同じルール（utils/league の segmentAwardPoints / positionPointsFor）を使う。
+//   順位ポイントは本編と同じ式が2つ書かれていて、下限だけ 0 と 1 で食い違っていた。
 
 /** 表示用の Team。計算に効くのは所在地だけなので空にしてある（全チーム同条件）。 */
 export function asTeam(info: MatchTeamInfo): Team {
@@ -210,11 +204,14 @@ export function buildRacePayload(args: {
 
   const results = simulateRace(race, lineups, teams.map(asTeam), simPlayers, 0)
 
-  // 区間賞ポイントは参加チーム数で配点が変わるのでここで数え直す
+  // 配点のルールは本編と同じ1本（utils/league）。ただし**人数は開始時のもので固定**する。
+  // simulateRace が返す点はそのときの出走数で計算されるので、途中で誰かが抜けると
+  // 配点が変わってしまう。シリーズの途中で得点表が動かないよう、ここで teamCount
+  // （開始時の参加数）を渡して数え直す。ルールが1本なので値が食い違うことはない
   const segPts: Record<string, number> = {}
   const segments: MatchSegResult[] = results.segmentResults.map(sr => {
     for (const r of sr.runners) {
-      const pt = segAwardPoints(teamCount, r.rank)
+      const pt = segmentAwardPoints(teamCount, r.rank)
       if (pt) segPts[r.teamId] = (segPts[r.teamId] ?? 0) + pt
     }
     return { segmentIndex: sr.segmentIndex, runners: sr.runners }
@@ -227,7 +224,7 @@ export function buildRacePayload(args: {
       totalTimeSec: tr.totalTimeSec,
       rank: tr.rank,
       segPts: sp,
-      points: rankPoints(teamCount, tr.rank) + sp,
+      points: positionPointsFor(teamCount, tr.rank) + sp,
     }
   })
 

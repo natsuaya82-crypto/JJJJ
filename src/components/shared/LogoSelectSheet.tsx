@@ -1,9 +1,8 @@
 import { LOGO_PRESETS, logoPresetSrc } from '../../data/logoPresets'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const HEADER_H = 49  // Layout.tsx のヘッダー高と同値
 
 // チームロゴの選択画面（フルスクリーンのオーバーレイ）。設定・オンボーディング両方から使う。

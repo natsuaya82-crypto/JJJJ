@@ -7,11 +7,9 @@
 // 同意するまで先へ進めない（枠の外を押しても閉じない）。
 
 import { useState } from 'react'
-import { C, R, alpha } from '../../styles/tokens'
+import { C, R, alpha, SAIRA, JP } from '../../styles/tokens'
 import { TERMS_UPDATED, TERMS_INTRO, TERMS_HIGHLIGHT, TERMS_SECTIONS } from '../../data/termsText'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
-const JP = "'Noto Sans JP', system-ui, sans-serif"
 
 export default function TermsGate({ onAgree }: { onAgree: () => void }) {
   const [reachedEnd, setReachedEnd] = useState(false)

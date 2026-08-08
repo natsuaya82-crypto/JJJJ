@@ -3,9 +3,8 @@ import { createPortal } from 'react-dom'
 import { secondsLeft } from '../../lib/serverTime'
 import type { MatchRules } from '../../lib/roomsApi'
 import { MATCH_COURSES, CATEGORY_LABEL, courseById, randomCourseIds, type CourseCategory } from '../../data/matchCourses'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, SAIRA } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 const RACE_COUNTS = [1, 3, 5, 10] as const
 

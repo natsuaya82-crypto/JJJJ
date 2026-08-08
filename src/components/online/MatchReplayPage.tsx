@@ -6,9 +6,8 @@ import { getMatchDetail } from '../../lib/roomsApi'
 import { racesFromDetail } from '../../lib/matchSim'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from '../friends/friendsUi'
 import { ensureAuth } from '../../lib/supabase'
-import { C } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
 
-const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
 // 対戦履歴から1試合を開く画面。
 // 中身は対戦直後とまったく同じ FinishPanel を history モードで出すだけ。
@@ -29,7 +28,7 @@ export default function MatchReplayPage() {
 
   return (
     <div style={{
-      fontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif",
+      fontFamily: FONT,
       paddingBottom: 80, background: C.bg, minHeight: '100dvh',
     }}>
       <div style={{ padding: '10px 12px 0' }}>
