@@ -143,7 +143,6 @@ export function asTeam(info: MatchTeamInfo): Team {
     founded: 0,
     colors: { primary: info.primary, secondary: info.secondary },
     logoId: info.logoId,
-    roster: { main: [] },
     finance: { budget: 0 },
     draftPicks: [],
     initialRank: 0,

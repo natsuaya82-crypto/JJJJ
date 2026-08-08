@@ -5,22 +5,13 @@ import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME, detectCombo } from '../../utils/cardCombo'
 import { isStatMaxed } from '../../utils/playerUtils'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, SELECT_STYLE, PURPLE } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 
-const PURPLE = '#A855F7'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 const MENU_MULT_LABEL: Record<number, string> = { 2: '1.2', 3: '1.4', 4: '1.6', 5: '1.8' }
 
-const selectStyle = {
-  padding: '6px 28px 6px 10px', borderRadius: 8,
-  background: C.surface2, border: `1px solid ${C.border}`,
-  color: C.textSub, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
-  appearance: 'none' as const, WebkitAppearance: 'none' as const,
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-}
 
 const RARITY_RANK: Record<CardRarity, number> = { legendary: 4, epic: 3, rare: 2, normal: 1 }
 
@@ -129,19 +120,19 @@ export default function CardSelectPage() {
 
         {/* 絞り込み（種類＋レア度） */}
         <div style={{ padding: '0 14px 10px', display: 'flex', gap: 8 }}>
-          <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...selectStyle, flex: 1, minWidth: 0 }}>
+          <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...SELECT_STYLE, flex: 1, minWidth: 0 }}>
             <option value="all">すべての種類</option>
             {statKeys.map(k => <option key={k} value={k}>{CARD_NAMES[k]}</option>)}
             <option value="rest">{REST_CARD_NAME}</option>
           </select>
-          <select value={filterRarity} onChange={e => setFilterRarity(e.target.value as typeof filterRarity)} style={{ ...selectStyle, flex: 1, minWidth: 0 }}>
+          <select value={filterRarity} onChange={e => setFilterRarity(e.target.value as typeof filterRarity)} style={{ ...SELECT_STYLE, flex: 1, minWidth: 0 }}>
             <option value="all">全レア度</option>
             <option value="legendary">レジェンダリー</option>
             <option value="epic">エピック</option>
             <option value="rare">レア</option>
             <option value="normal">ノーマル</option>
           </select>
-          <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} style={{ ...selectStyle, flex: 1, minWidth: 0 }}>
+          <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} style={{ ...SELECT_STYLE, flex: 1, minWidth: 0 }}>
             <option value="obtained">入手順</option>
             <option value="rarity">レア度順</option>
             <option value="stat">種類順</option>

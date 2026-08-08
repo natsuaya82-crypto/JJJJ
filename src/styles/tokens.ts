@@ -83,3 +83,21 @@ export const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 export const FONT = "'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif"
 /** 日本語（Noto 指定のもの。規約画面など） */
 export const JP = "'Noto Sans JP', system-ui, sans-serif"
+
+/** 絞り込みの <select> の見た目。カードの一覧と選択で同じものを使う */
+export const SELECT_STYLE = {
+  padding: '6px 28px 6px 10px', borderRadius: 8,
+  background: C.surface2, border: `1px solid ${C.border}`,
+  color: C.textSub, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
+  appearance: 'none' as const, WebkitAppearance: 'none' as const,
+}
+
+/** ヘッダーの高さ。Layout のヘッダーと、その下から始める画面が同じ値を使う */
+export const HEADER_H = 49
+
+/** 記録会（タイムトライアル）の色 */
+export const TT_COLOR = '#5EC8B8'
+/** 完全休養カードの色 */
+export const REST_ACCENT = '#5EC8B8'
+/** マイプレイヤー・合成まわりの紫 */
+export const PURPLE = '#A855F7'

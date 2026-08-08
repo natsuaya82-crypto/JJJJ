@@ -7,7 +7,7 @@ import { weakestSpecialty, bestOvrInSpecialty, needsPlayer } from '../utils/squa
 import { ROSTER_MAX, ROSTER_MIN, CPU_SELL_FLOOR } from '../data/rosterRules'
 import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
-import { clubMembersByClub } from '../utils/rosterSync'
+import { clubMembersByClub, squadIdsOf } from '../utils/rosterSync'
 // 海外クラブ・4大リーグの引き場所は utils/clubs 1本
 import { allForeignClubs, leagueIdByClub, isEliteLeague } from '../utils/clubs'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
@@ -214,7 +214,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const jpnRoster: Record<string, string[]> = {}
   const budget: Record<string, number> = {}
   for (const t of cpuTeams) {
-    jpnRoster[t.id] = [...(t.roster?.main ?? [])]
+    jpnRoster[t.id] = squadIdsOf(players, t.id)   // 在籍は player.teamId 1本
     budget[t.id] = t.finance?.budget ?? 0
   }
   // 人数はroster配列でなくplayers基準で数える。レンタル返却直後などはplayers側（teamId）に

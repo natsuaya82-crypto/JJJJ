@@ -1,10 +1,9 @@
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, RARITY_COLORS, RARITY_LABELS, REST_CARD_NAME } from '../../utils/cardCombo'
 import { STAT_ICON_MAP } from '../icons/StatIcons'
-import { SAIRA } from '../../styles/tokens'
+import { SAIRA, REST_ACCENT } from '../../styles/tokens'
 
 
-const REST_ACCENT = '#5EC8B8'
 
 // 練習カードのビジュアル。SVGでカード枠（レア度で色/ホロ演出）を描き、中央に能力アイコンを載せる。
 // kind==='rest' の完全休養カードは休養アイコン＋「疲労 -N」を表示する。

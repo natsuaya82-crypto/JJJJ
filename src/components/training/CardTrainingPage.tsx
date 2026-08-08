@@ -10,7 +10,7 @@ import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, PURPLE } from '../../styles/tokens'
 import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
@@ -21,7 +21,6 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { requiredExpForLevel } from '../../engine/growth'
 
-const PURPLE = '#A855F7'
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
 const MENU_MULT_LABEL: Record<number, string> = { 2: '1.2', 3: '1.4', 4: '1.6', 5: '1.8' }

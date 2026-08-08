@@ -311,8 +311,7 @@ export default function Dashboard() {
   }
 
   const gmRepVal = gmRep ?? 50
-  // ロスター（team.roster.main）と同じソースに統一。players.teamIdベースだと
-  // roster配列と不整合な選手が「注目にいるのにロスターにいない」状態になるため。
+  // 在籍は player.teamId 1本（utils/rosterSync）。ロスター画面と同じ取り方
   const mainPlayers = getTeamPlayers(playerTeamId).filter(p => p.status !== 'retired')
   const avgMorale = mainPlayers.length > 0
     ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? 70), 0) / mainPlayers.length) : 70

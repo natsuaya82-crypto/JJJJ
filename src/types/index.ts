@@ -551,7 +551,7 @@ export type Rank = 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS'
 //
 // ■なぜ1つにするのか（実際に起きたこと）
 //   もとは Team（20項目）と ForeignClub（7項目）の2つに割れていた。
-//   海外クラブには finance / facilities / gmName / roster など13項目が無いので、
+//   海外クラブには finance / facilities / gmName など12項目が無いので、
 //   それを必要とするルールは共通の関数を呼べず、**その場で海外用の偽物を作る**しかなかった。
 //     ・年間予算 … リーグ別の基準額 × 順位 × クラブIDのハッシュ（格を見ていない）
 //     ・施設    … クラブIDのハッシュ（保存も成長もしない飾り）
@@ -576,9 +576,6 @@ export type Team = {
   colors: { primary: string; secondary: string }
   logoId?: string   // プレイヤーが選んだプリセットロゴ（'logo_01'〜'logo_30'）。設定時はこれを最優先で表示。未設定なら従来のteamId基準ロゴ
 
-  roster: {
-    main: string[]
-  }
   finance: {
     budget: number
     deficitStreak?: number  // 連続赤字シーズン数（0=黒字）。赤字ペナルティの段階判定に使う

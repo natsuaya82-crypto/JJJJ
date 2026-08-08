@@ -34,7 +34,11 @@ const check = (name: string, ok: boolean, detail = '') => {
 }
 
 const YEAR = 2030
-const teams = INITIAL_TEAMS.map(t => { const { division: _d, ...rest } = t as Record<string, unknown>; return rest })
+// v39 までのセーブはクラブ側にも名簿（roster.main）を持っていた。v40 で落とす
+const teams = INITIAL_TEAMS.map((t, i) => {
+  const { division: _d, ...rest } = t as Record<string, unknown>
+  return { ...rest, roster: { main: [`ghost-${i}`] } }
+})
 const players = generateCpuRosters(INITIAL_TEAMS as never, YEAR).cpuPlayers
 
 // v29 当時のレース（結果つき）。走者は各チームの先頭8人
@@ -148,6 +152,16 @@ console.log('[予算]')
 const fin = (after.teams as { finance?: { budget?: number; deficitStreak?: number } }[])[0].finance
 check('残高が格の年間予算で入り直している', (fin?.budget ?? 0) > 0, `${fin?.budget}`)
 check('連続赤字が0に戻る', fin?.deficitStreak === 0)
+
+// ── クラブ側の名簿の廃止（v40）──
+console.log('')
+console.log('[クラブ側の名簿]')
+{
+  const tA = after.teams as Record<string, unknown>[]
+  check('team.roster が落ちている', !tA.some(t => 'roster' in t),
+    `${tA.filter(t => 'roster' in t).length}件残っている`)
+  check('チームの他の項目は残っている', tA.every(t => typeof t.id === 'string' && t.finance != null))
+}
 
 // ── 海外リーグの順位表（v39）──
 // 行のキーが clubId → teamId に変わった。均し損ねると海外の順位が全部0になり、

@@ -29,7 +29,7 @@ import { ovr } from './playerUtils'
 //   3ヶ所でそれぞれ起きていた。
 //
 // ■ここでやること / やらないこと
-//   やる   … 所属(teamId)、名簿(roster.main)の出し入れ、移籍金の受け渡し、
+//   やる   … 所属(teamId)の付け替え、移籍金の受け渡し、
 //            加入年・加入節、レンタルの設定と解除、移籍リスト/海外移籍リストの札はがし、
 //            調子リセット、再移籍の禁止期限、契約内容、移籍履歴と退団のお知らせの下書き、
 //            引退（所属を消して引退時の所属を控える）
@@ -100,24 +100,9 @@ export type MoveResult = {
   income: number
 }
 
-// 名簿(roster.main)を選手1人ぶん付け替える。
-// rosterSync.rebuildRosters と同じ決まり（引退とレンタル中は名簿に載せない）に揃えてある。
-// 念のため移動先以外からは全部外すので、どこかに残った古い名前もここで消える。
-function withRoster(teams: Team[], playerId: string, toTeamId: string, inSquad: boolean): Team[] {
-  let changed = false
-  const next = teams.map(t => {
-    const has = t.roster.main.includes(playerId)
-    if (t.id === toTeamId && inSquad) {
-      if (has) return t
-      changed = true
-      return { ...t, roster: { main: [...t.roster.main, playerId] } }
-    }
-    if (!has) return t
-    changed = true
-    return { ...t, roster: { main: t.roster.main.filter(id => id !== playerId) } }
-  })
-  return changed ? next : teams
-}
+// ※ 名簿(roster.main)の付け替えはここにあったが消した。
+//   在籍は player.teamId が唯一の持ち場で、クラブ側の名簿は同じ事実の写しだった。
+//   写しがある限り「片方だけ更新して食い違う」が起き続ける（実際にトレードが片落ちしていた）。
 
 // 移籍金を動かす。移動先が払い、移動元が受け取る。
 // 海外クラブは teams に居ないので、その側は自動的に素通りする（片側だけ動く）。
@@ -195,9 +180,7 @@ export function movePlayer(
     return q
   })
 
-  // 名簿に載るのは「所属していて、引退でもレンタル中でもない」選手だけ
-  const inSquad = !!dest && !onLoan
-  let nextTeams = withRoster(teams, playerId, dest, inSquad)
+  let nextTeams = teams
   if (opts.money !== false) nextTeams = withMoney(nextTeams, fromTeamId, dest, fee)
 
   // 移籍履歴。レンタル・レンタルからの復帰・放出（無所属になるだけ）は残さない

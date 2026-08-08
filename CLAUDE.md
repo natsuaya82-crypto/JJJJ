@@ -37,7 +37,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 
 | モジュール | 何の「唯一の決まり」か |
 |---|---|
-| `src/utils/rosterSync.ts` | 所属の判定。`belongsToClub` / `isSquadMember`（レンタル中の選手を除く） |
+| `src/utils/rosterSync.ts` | **所属**。`player.teamId` が唯一の持ち場（クラブ側に名簿は持たない）。`belongsToClub` / `isSquadMember` / `squadIdsOf` |
 | `src/utils/talkSync.ts` | 選手が動いたときに、その選手についての交渉の札をたたむ処理 |
 | `src/utils/contractTalk.ts` | 契約更新の可否と「要対応」。`canRequestRenewal` / `needsRenewalAttention` |
 | `src/utils/transferDecision.ts` | **移籍の意思決定**。その選手がそのクラブへ行くか。`appraiseMove` / `rankOffers` |
@@ -54,8 +54,11 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/raceHistory.ts` | **走ったレースの取り出し**。`ranRaces`（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会をリーグ名つきで返す）。同じ駅伝名でも部が違えば別の記録 |
 | `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。順位表の**行の型は1つ**（`SeasonStanding`・キーは `teamId`）。置き場所は国内(`standings`)と海外(`foreignStandings`)で分かれているが、読む側は区別しない。旧セーブ（キーが `clubId`）を均すのも `normalizeForeignStandings` 1本 |
 | `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
-| `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
+| `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` / `CPU_SELL_FLOOR` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
+| `src/styles/tokens.ts` | 色・フォント（`SAIRA` / `FONT` / `JP`）・順位の色（`rankColor`）・`HEADER_H` |
+| `src/utils/league.ts` の得点 | `positionPointsFor`（1位＝出走数…最下位1点）／`segmentAwardPoints`（出走数で3/2/1→2/1→1）。**本編もオンラインも同じ** |
+| `src/data/races.ts` | コースの実体と、`courseTypeOf`（種別）／`courseProfile`（起伏の平均） |
 | `src/components/player/PlayerChips.tsx` | **選手の名前の横に出る小さな札**。`SpecChip`（タイプ）／`ForeignChip`（外国籍）。大きさ（sm/md）だけ選べて、色・濃さ・枠線・丸みは1つに固定 |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |

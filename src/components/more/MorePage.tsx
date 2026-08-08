@@ -11,14 +11,13 @@ import { flushSaveNow, slotHasSave } from '../../store/saveStorage'
 import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../../store/saveSlot'
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
 
 import { APP_VERSION } from '../../data/appMeta'
 
 
 
 const OVERLAY_BG = C.bg
-const HEADER_H = 49  // Layout.tsx のヘッダー高と同値。詳細画面をヘッダーの下から始める
 
 const CARD: React.CSSProperties = {
   background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,

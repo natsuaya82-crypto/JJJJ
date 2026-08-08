@@ -340,6 +340,15 @@ RULES.push({
   fix: 'engine/growth.ts の requiredExpForLevel を import する',
 })
 
+// クラブ側に名簿（roster）を持たせないこと。在籍は player.teamId 1本。
+// 写しがある限り「片方だけ更新して食い違う」が起き続ける（片落ちトレードが実際に起きた）。
+RULES.push({
+  name: 'クラブ側に名簿を持たせている',
+  pattern: /roster:\s*\{\s*main|\.roster\.main|\.roster\?\.main|rebuildRosters/,
+  allow: ['src/utils/rosterSync.ts', 'src/store/gameStore.ts'],
+  fix: 'utils/rosterSync の squadIdsOf / squadPlayersOf で player.teamId から引く',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

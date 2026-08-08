@@ -5,10 +5,9 @@ import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear, qualHostForYear, WA_HOST_CITY, waRaceDate } from '../../engine/worldAthletics'
 import { NAT_LABEL } from '../../data/nationalities'
 import Flag from '../ui/Flag'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, TT_COLOR } from '../../styles/tokens'
 import { courseTypeOf } from '../../data/races'
 
-const TT_COLOR = '#5EC8B8'
 const TT_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
 function getCourseColor(type: string): string {

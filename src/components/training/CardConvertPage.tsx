@@ -6,12 +6,11 @@ import {
   RARITY_LABELS, RARITY_COLORS, REST_CARD_NAME, STAT_KEYS, CARD_NAMES,
   CARD_EXCHANGES, canPickStat, exchangeSource, type CardExchange,
 } from '../../utils/cardCombo'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, REST_ACCENT } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { audio } from '../../utils/audio'
 
-const REST_ACCENT = '#5EC8B8'
 
 // カード変換ページ。
 // レート（何枚で何枚か）はページにも store にも手書きせず、utils/cardCombo.ts の

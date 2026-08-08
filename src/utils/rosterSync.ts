@@ -1,4 +1,4 @@
-import type { Player, Team } from '../types'
+import type { Player } from '../types'
 
 // ============================================================================
 // 「どの選手がどのクラブに居るか」を決める唯一の場所。
@@ -14,10 +14,12 @@ import type { Player, Team } from '../types'
 //   トレードや獲得の処理で (A) だけ更新して (B) を更新し損ねると、
 //   「ロスターに出ないのに駅伝には出せる選手」が生まれる。実際にそれが起きていた。
 //
-// ■方針
-//   (A) の player.teamId を正とし、(B) は毎回そこから組み直す“控え”とみなす。
-//   画面は下の squadPlayersOf() を通して選手を取る。
-//   セーブ読み込み時に rebuildRosters() を通すので、すでにズレているセーブもその場で直る。
+// ■方針：**(B) は無くした**
+//   player.teamId が唯一の持ち場。クラブ側の名簿は同じ事実の写しでしかなく、
+//   写しがある限り「片方だけ更新して食い違う」が起き続ける。
+//   毎回組み直す rebuildRosters を置いて誤魔化していたが、
+//   組み直す関数が要ること自体が二重に持っている証拠だった。
+//   一覧が要るときは下の squadPlayersOf() / squadIdsOf() で player から引く。
 //
 // ■所属の条件（ここが唯一の定義）。使い分けは2つだけ。
 //   belongsToClub … そのクラブでプレーする人。teamId がそのクラブで、引退していない。
@@ -65,26 +67,6 @@ export function squadIdsOf(players: Player[], teamId: string): string[] {
   return ids
 }
 
-// team.roster を player.teamId から組み直す。1軍/2軍の区分は廃止済みなので second は常に空。
-// 中身が変わらないチームは元のオブジェクトをそのまま返す（無駄な再描画とセーブ書き込みを避ける）。
-export function rebuildRosters(players: Player[], teams: Team[]): Team[] {
-  const byTeam = new Map<string, string[]>()
-  for (const p of players) {
-    if (p.status === 'retired' || p.loan || !p.teamId) continue
-    const list = byTeam.get(p.teamId)
-    if (list) list.push(p.id)
-    else byTeam.set(p.teamId, [p.id])
-  }
-  let changed = false
-  const next = teams.map(t => {
-    const main = byTeam.get(t.id) ?? []
-    const cur = t.roster
-    const same = cur
-      && cur.main.length === main.length
-      && cur.main.every((id, i) => id === main[i])
-    if (same) return t
-    changed = true
-    return { ...t, roster: { main } }
-  })
-  return changed ? next : teams
-}
+// ※ rebuildRosters（team.roster を player.teamId から組み直す）はここにあったが消した。
+//   組み直す関数が要るということは、同じ事実を2か所に持っている証拠だった。
+//   クラブ側の名簿そのものを無くしたので、ズレようがない。

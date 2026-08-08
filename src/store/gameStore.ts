@@ -65,7 +65,7 @@ import { archiveSeason, toArchivedShape } from '../utils/archiveSeason'
 import { EPHEMERAL_KEYS, stripEphemeral } from './ephemeralState'
 import { stripArchivedResults, hydratePastSeasons, writeSeasonArchive, clearSeasonArchives } from './seasonArchive'
 // 「どの選手がどのチームに居るか」は rosterSync.ts に集約（player.teamId が正・team.roster は組み直す）
-import { squadPlayersOf, squadIdsOf, rebuildRosters, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
+import { squadPlayersOf, squadIdsOf, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
 // 国内52クラブの名簿と、下部リーグが入っていない古いセーブの補完
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs, originalDivisionOf } from '../utils/domesticClubs'
 // 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
@@ -729,7 +729,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     // 自チームは 0 から自分で建てる（startSetup で facilities: {} を入れる）
     teams: ALL_TEAMS.map(t => ({
       ...t,
-      roster: { main: [] },
       finance: { ...t.finance, budget: tierBudget(t) },
     })),
     players: basePlayers,
@@ -1065,7 +1064,7 @@ export const useGameStore = create<GameStore>()(
         ]
         // 最初の名簿は人数が多いので1人ずつ通さず、所属から一気に組み直す。
         // 決まり（引退とレンタル中は載せない）は movePlayer と同じ1つなのでズレない
-        const teams = rebuildRosters(players, seededTeams)
+        const teams = seededTeams
         set({ draftState, players, teams, foreignLeagues: updatedLeagues })
       },
 
@@ -4327,9 +4326,9 @@ export const useGameStore = create<GameStore>()(
         }
 
         set(state => {
-          // 在籍判定は player.teamId が単一ソース。team.roster.main には古いセーブ由来の
-          // ゴーストIDが残ることがあり、それを見ると該当選手だけ movePlayer が呼ばれず、
-          // こちらの選手だけ出て行って相手の選手が来ない片落ちトレードになる
+          // 在籍判定は player.teamId 1本（クラブ側の名簿は廃止）。
+          // 以前はクラブ側の名簿に古いセーブ由来のゴーストIDが残ることがあり、
+          // それを見た選手だけ movePlayer が呼ばれず片落ちトレードになっていた
           const myIdsAfterTrade = squadIdsOf(state.players, state.playerTeamId).filter(id => !offeredIds.includes(id))
           const incomingIds = requestedIds.filter(id => !myIdsAfterTrade.includes(id))
           const tradeDate = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
@@ -5654,7 +5653,7 @@ export const useGameStore = create<GameStore>()(
 
           // 引退を反映する。引退も「所属が無くなる」だけなので movePlayer の分岐を通す
           // （引退時の所属の控え・レンタル解除・名簿からの外しがまとめて付いてくる）。
-          // 名簿(teams)はこのあと rebuildRosters で組み直すので、ここでは選手だけ触る
+          // クラブ側に名簿は無い（在籍は player.teamId 1本）ので、ここは選手だけ触る
           let playersAfterRetire: Player[] = playersAfterFA
           for (const id of retiringIds) {
             const m = movePlayer({ players: playersAfterRetire, teams: [] }, id, '', { year: state.currentSeason.year, retire: true })
@@ -5855,7 +5854,7 @@ export const useGameStore = create<GameStore>()(
           // レンタル返却された選手は保有元チームのロスターへ戻す
           // 名簿は所属(player.teamId)から組み直す。契約満了・引退・売れ残りの強制FAで抜けた選手が消え、
           // レンタルから返ってきた選手が戻る。どこか1ヶ所を書き忘れて食い違うことが無くなる
-          const teamsWithFA = rebuildRosters(playersAfterRetire, updatedTeams).map(t => (
+          const teamsWithFA = updatedTeams.map(t => (
             t.id === state.playerTeamId && expiredSponsorIds.size > 0
               ? { ...t, sponsors: (t.sponsors ?? []).filter(id => !expiredSponsorIds.has(id)) }
               : t
@@ -5906,7 +5905,9 @@ export const useGameStore = create<GameStore>()(
           // ここは teamsWithFA の名簿を見る（シーズン開始時の state.players ではなく）。
           // teamsWithFA は契約切れ・引退・強制FAを反映したあとの所属から組み直してあるので、
           // 退団が決まった選手にボーナスを払ってしまう事故を防げる
-          const playerTeamRosterIds = teamsWithFA.find(t => t.id === state.playerTeamId)?.roster.main ?? []
+          // 在籍は player.teamId が唯一の持ち場（utils/rosterSync の squadIdsOf）。
+          // teamsWithFA はこの playersAfterRetire から組み直したものなので、直接数えても同じ
+          const playerTeamRosterIds = squadIdsOf(playersAfterRetire, state.playerTeamId)
 
           // Count segment wins per player this season from race results
           const playerSegWinsSeason: Record<string, number> = {}
@@ -6475,7 +6476,7 @@ export const useGameStore = create<GameStore>()(
           // 契約満了のFA化（teamId=''）や長期整理での選手削除がroster配列に残存し、
           // 「名簿に居るのにteamIdが違う/存在しない」不整合になるのを根治する
           // レンタル中（loanあり）の選手は名簿外が正規仕様（teamId=借り手だが借り手の名簿には載せない）
-          const syncedTeams0 = rebuildRosters(cleanedPlayers, crossTx.teams)
+          const syncedTeams0 = crossTx.teams
 
           // 下部リーグのクラブが入っていない古いセーブに、足りない32クラブを補う。
           // 補うのは来季の器を組んだこの時点＝**次の年から**参加する（今季の順位表は触らない）。
@@ -7960,7 +7961,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 39,
+      version: 40,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8028,13 +8029,6 @@ export const useGameStore = create<GameStore>()(
           }
           // v7: ロスターをフラット化（1軍/2軍・契約種別を廃止し、単一ロスター(main)へ統合）
           if (version < 7) {
-            if (Array.isArray(s.teams)) {
-              s.teams = (s.teams as Record<string, unknown>[]).map(t => {
-                const roster = (t.roster ?? {}) as { main?: string[]; second?: string[] }
-                const merged = Array.from(new Set([...(roster.main ?? []), ...(roster.second ?? [])]))
-                return { ...t, roster: { main: merged } }
-              })
-            }
             if (Array.isArray(s.players)) {
               s.players = (s.players as Record<string, unknown>[]).map(p => {
                 const contract = (p.contract ?? {}) as Record<string, unknown>
@@ -8241,13 +8235,6 @@ export const useGameStore = create<GameStore>()(
           // 実際の所属は player.teamId が正なので、これで消える選手はいない。
           // セーブの容量も減る。
           if (version < 23) {
-            if (Array.isArray(s.teams)) {
-              s.teams = (s.teams as Record<string, unknown>[]).map(t => {
-                const roster = (t.roster ?? {}) as { main?: string[]; second?: string[] }
-                const merged = Array.from(new Set([...(roster.main ?? []), ...(roster.second ?? [])]))
-                return { ...t, roster: { main: merged } }
-              })
-            }
             if (Array.isArray(s.players)) {
               s.players = (s.players as Record<string, unknown>[]).map(p => {
                 const next = { ...p }
@@ -8519,6 +8506,19 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
+          // v39→v40: クラブ側の名簿（team.roster）を廃止した。
+          // 在籍は player.teamId が唯一の持ち場で、team.roster はそこから毎回組み直す
+          // “控え”でしかなかった。組み直す関数が要ること自体が二重に持っている証拠で、
+          // 片方だけ更新して食い違う事故（片落ちトレード）が実際に起きていた。
+          // 古いセーブには残っているので、読み込んだときに落としてセーブを軽くする。
+          if (version < 40 && Array.isArray(s.teams)) {
+            s.teams = (s.teams as Record<string, unknown>[]).map(t => {
+              if (!t || !('roster' in t)) return t
+              const { roster: _roster, ...rest } = t
+              return rest
+            })
+          }
+
           return s
         } catch (e) {
           // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。
@@ -8726,13 +8726,8 @@ export const useGameStore = create<GameStore>()(
             }
           }
           // ── チーム名簿の自動修復（毎回・冪等）──
-          // 所属は player.teamId が正。team.roster はそこから毎回組み直す（rosterSync.ts）。
-          // トレードや獲得の処理で片方だけ更新されて食い違うと、
-          // 「ロスター画面に出ないのに駅伝には出せる・カード練習だけできない」選手が生まれる。
-          // すでにその状態になっているセーブも、ここを通るだけで直る。
-          if (Array.isArray(p.players)) {
-            if (Array.isArray(p.teams)) p.teams = rebuildRosters(p.players, p.teams)
-          }
+          // ※ ここで team.roster を player.teamId から組み直していたが、
+          //   クラブ側の名簿そのものを廃止したので不要になった（在籍は teamId 1本）。
           // ── 通算成績の組み立て（毎回・冪等）──
           // 通算出走数・通算区間賞・MVP回数はセーブに持たず、保存してあるレース結果から
           // 数え直す（utils/careerStats.ts）。優勝回数はシーズン終了時点の在籍で決まり

@@ -54,7 +54,6 @@ export function backfillDomesticClubs(params: {
   // 初期順位から別の式で焼き込んでいたので、格が動いても施設だけ初期値のまま残っていた
   const seeded: Team[] = missing.map(t => ({
     ...t,
-    roster: { main: [] },
     finance: { ...t.finance, budget: tierBudget(t) },
   }))
 

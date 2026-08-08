@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, SELECT_STYLE } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 
 
@@ -20,14 +20,6 @@ type SortKey = typeof SORT_OPTIONS[number]['key']
 const RARITY_RANK: Record<CardRarity, number> = { legendary: 4, epic: 3, rare: 2, normal: 1 }
 
 // 絞り込み・並べ替えはプルダウン（<select>）で統一
-const selectStyle = {
-  padding: '6px 28px 6px 10px', borderRadius: 8,
-  background: C.surface2, border: `1px solid ${C.border}`,
-  color: C.textSub, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
-  appearance: 'none' as const, WebkitAppearance: 'none' as const,
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-}
 
 export default function CardInventoryPage() {
   const navigate = useNavigate()
@@ -107,12 +99,12 @@ export default function CardInventoryPage() {
 
       {/* 絞り込み・並べ替え（プルダウン） */}
       <div style={{ padding: '0 14px 12px', display: 'flex', gap: 8 }}>
-        <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...selectStyle, flex: 1 }}>
+        <select value={filterStat} onChange={e => setFilterStat(e.target.value as typeof filterStat)} style={{ ...SELECT_STYLE, flex: 1 }}>
           <option value="all">すべての種類</option>
           {statKeys.map(k => <option key={k} value={k}>{CARD_NAMES[k]}</option>)}
           <option value="rest">{REST_CARD_NAME}</option>
         </select>
-        <select value={sort} onChange={e => setSort(e.target.value as SortKey)} style={{ ...selectStyle, flex: 1 }}>
+        <select value={sort} onChange={e => setSort(e.target.value as SortKey)} style={{ ...SELECT_STYLE, flex: 1 }}>
           {SORT_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
       </div>

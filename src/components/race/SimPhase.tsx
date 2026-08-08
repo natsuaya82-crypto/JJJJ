@@ -6,12 +6,12 @@ import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
-import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
 import { useAdHeight } from '../layout/Layout'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
+import { FaceOrDot } from './SegmentDetailCard'
 
 
 function computeAnimGaps(
@@ -94,20 +94,6 @@ type Props = {
   onAdvance: () => void
   onSkip: () => void
   onSkipSegment?: () => void
-}
-
-function FaceOrDot({ playerId, nationality, size = 32 }: { playerId?: string; nationality?: string; size?: number }) {
-  if (playerId && nationality) {
-    return <PlayerFace playerId={playerId} nationality={nationality as import('../../types').Nationality} size={size} />
-  }
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: `linear-gradient(135deg, ${C.surface3}, ${C.border2})`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.4, color: C.textGhost,
-    }}>?</div>
-  )
 }
 
 // ランナー位置計算（総合順位ベース）
