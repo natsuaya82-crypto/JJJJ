@@ -70,6 +70,7 @@ import { stripArchivedResults, hydratePastSeasons, writeSeasonArchive, clearSeas
 import { squadPlayersOf, squadIdsOf, belongsToClub, clubMembersByClub } from '../utils/rosterSync'
 // 国内52クラブの名簿と、下部リーグが入っていない古いセーブの補完
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs, originalDivisionOf } from '../utils/domesticClubs'
+import { repairLoadedSave } from './bootRepair'
 // 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
 import { SPECIALTIES, thinSpecialties, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
 import { effectiveOvr } from '../utils/foreignClubProfile'
@@ -8560,19 +8561,17 @@ export const useGameStore = create<GameStore>()(
           // migrate が途中の年代変換で例外を出すと v22 まで届かないまま version だけ22になる。
           // ここは毎回通るので、取りこぼしたセーブもここで拾える（新しいセーブでは何もしない）
           if (Array.isArray(p.players)) p.players = restoreTeamIdsFromLegacyClubs(p.players, p.foreignLeagues)
-          // 順位表をチームの部に合わせる（utils/league の syncSeasonStandings 1本）。
-          // ★migrate ではなくここ。毎回通るので、いつどこで部がズレても開き直せば直る。
-          //   何度呼んでも同じ結果になる（点は保存済みのレース結果から数え直す）。
-          if (p.isInitialized && Array.isArray(p.teams) && p.currentSeason) {
-            p.currentSeason = {
-              ...p.currentSeason,
-              standings: syncSeasonStandings({
-                standings: p.currentSeason.standings,
-                races: p.currentSeason.races,
-                teams: p.teams,
-                playerTeamId: p.playerTeamId,
-              }),
-            }
+          // ── 起動時のつじつま合わせ（store/bootRepair.ts 1本）──
+          // 版でゲートせず毎回通す。冪等かつ導出なので、いつどこで壊れても開き直せば直る。
+          // 新しい「読み込んだら直すもの」は migrate ではなく bootRepair へ足すこと。
+          {
+            const r = repairLoadedSave(p)
+            p.teams = r.teams
+            p.players = r.players
+            p.currentSeason = r.currentSeason
+            p.pastSeasons = r.pastSeasons
+            p.foreignLeagues = r.foreignLeagues
+            if (r.repairs.length > 0) console.warn('[save] 起動時に直したもの:', r.repairs.join(' / '))
           }
           dropLegacyClubRosters(p.foreignLeagues)
           // 監督の在任履歴が無い旧セーブは「最初のシーズンからずっと今のチーム」として1件だけ入れる。
