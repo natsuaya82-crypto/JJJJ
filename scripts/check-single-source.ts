@@ -416,6 +416,19 @@ RULES.push({
   fix: 'utils/condition.ts の withMorale / withFatigue を使う',
 })
 
+RULES.push({
+  name: '画面下に貼り付けるものの位置の手計算',
+  pattern: /px \+ env\(safe-area-inset-bottom\)\)`/,
+  allow: ['src/styles/tokens.ts'],
+  fix: 'styles/tokens.ts の bottomStack(adH, { aboveNav, extra }) を使う',
+})
+RULES.push({
+  name: '下タブの高さ(58)の直書き',
+  pattern: /\b58\b\s*\+\s*adH|adH\s*\+\s*58\b|NAV_H\s*=\s*\d/,
+  allow: ['src/styles/tokens.ts'],
+  fix: 'styles/tokens.ts の NAV_H を import する（bottomStack の aboveNav でもよい）',
+})
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     if (SKIP_DIRS.has(e)) continue

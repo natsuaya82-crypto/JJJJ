@@ -11,7 +11,7 @@ import { terrainColor, terrainLabel } from './raceUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, COMPETITION_BTN, SAIRA } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, SAIRA, bottomStack } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { natLabel } from '../../data/nationalities'
 import { SpecChip } from '../player/PlayerChips'
@@ -334,7 +334,7 @@ export function LineupPhase({
 
   // --- メイン画面（区一覧） ---
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: `calc(88px + env(safe-area-inset-bottom))` }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: bottomStack(adH, { extra: 88 }) }}>
 
       {/* ヘッダー */}
       <div style={{ background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`, padding: '10px 16px 12px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -464,7 +464,7 @@ export function LineupPhase({
 
       {/* ボトムバー（fixed：常に画面下端＝広告の上に固定。選手を何人置いても位置が動かない） */}
       <div style={{
-        position: 'fixed', bottom: `calc(${adH + (bottomInset ?? 0)}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: bottomStack(adH, { extra: bottomInset ?? 0 }), left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
         padding: '8px 14px calc(10px)',
         background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,

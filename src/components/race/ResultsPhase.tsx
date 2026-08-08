@@ -9,7 +9,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha, COMPETITION_BTN, rankColor, SAIRA } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, rankColor, SAIRA, bottomStack } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
@@ -188,7 +188,7 @@ export function ResultsPhase({
   // 経験値獲得：最終結果のあとに表示する専用画面
   if (view === 'exp') {
     return (
-      <div style={{ fontFamily: SAIRA, paddingBottom: `calc(88px + env(safe-area-inset-bottom))`, background: C.bg, minHeight: '100dvh' }}>
+      <div style={{ fontFamily: SAIRA, paddingBottom: bottomStack(adH, { extra: 88 }), background: C.bg, minHeight: '100dvh' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.surface2, borderBottom: `1px solid ${C.border}`, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => setView('main')} style={{
             background: 'none', border: 'none', cursor: 'pointer', color: C.textSub,
@@ -252,7 +252,7 @@ export function ResultsPhase({
           </div>
         </div>
         <div style={{
-          position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+          position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
           background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
         }}>
@@ -275,7 +275,7 @@ export function ResultsPhase({
   }
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: `calc(88px + env(safe-area-inset-bottom))` }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: bottomStack(adH, { extra: 88 }) }}>
 
       <div style={{
         padding: '12px 16px 11px', textAlign: 'center',
@@ -583,7 +583,7 @@ export function ResultsPhase({
       )}
 
       <div style={{
-        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
         background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
       }}>

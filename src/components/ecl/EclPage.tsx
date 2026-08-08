@@ -15,7 +15,7 @@ import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
 import { useAdHeight } from '../layout/Layout'
 import { runWithLoading } from '../../store/loadingStore'
-import { C, alpha, rankColor, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, FONT, bottomStack } from '../../styles/tokens'
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 
@@ -151,7 +151,7 @@ export default function EclPage() {
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
         <StandingsTable rows={standRows} onRowClick={goTeam} />
         {/* 下タブ(58px)＋広告の上に固定 */}
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--red" style={{ width: '100%' }}>
             <span className="btn-game__inner" style={{ fontSize: 15, fontWeight: 900 }}>観戦する</span>
           </button>

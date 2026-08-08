@@ -4,7 +4,7 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Club } from '../../utils/clubs'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, bottomStack } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
 import { ovr, ratingColor, isStatMaxed } from '../../utils/playerUtils'
@@ -29,7 +29,7 @@ export default function NationalSquadSelectPage() {
   const navigate = useNavigate()
   const adH = useAdHeight()
   // タブバー(58px)＋広告の上に確定バーを置く（下端に置くとタブバーと広告の裏に隠れて押せない）
-  const barBottom = `calc(${adH + 58}px + env(safe-area-inset-bottom))`
+  const barBottom = bottomStack(adH, { aboveNav: true })
   const players = useGameStore(s => s.players)
   const clubIndex = useClubIndex()
   const year = useGameStore(s => s.currentSeason.year)
@@ -175,7 +175,7 @@ export default function NationalSquadSelectPage() {
   // ── 候補ピッカー（区間配置のピッカーと同じ構造・ロスターと同じ全数値行・一括選択制）──
   if (pickerSlot !== null) {
     return (
-      <div style={{ fontFamily: SAIRA, background: C.bg, minHeight: '100dvh', paddingBottom: `calc(${adH + 58 + 96}px + env(safe-area-inset-bottom))` }}>
+      <div style={{ fontFamily: SAIRA, background: C.bg, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
         {/* ピッカーヘッダー */}
         <div style={{
           background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`,
@@ -269,7 +269,7 @@ export default function NationalSquadSelectPage() {
 
   // ── メイン画面（20枠一覧・区間配置の区リストと同じ構造）──
   return (
-    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', paddingBottom: `calc(${adH + 58 + 96}px + env(safe-area-inset-bottom))` }}>
+    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本代表 選考</span>

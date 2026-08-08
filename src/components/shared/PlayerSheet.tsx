@@ -17,7 +17,7 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { foreignSeasonApps } from '../../utils/careerStats'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { rankColor, FONT, SAIRA } from '../../styles/tokens'
+import { rankColor, FONT, SAIRA, bottomStack } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
 import { HOF_MAX, isHofEligible } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
@@ -455,7 +455,7 @@ export default function PlayerSheet() {
       {/* 記録パッチ専用パネル（閲覧＋自チームは表示パッチ選択） */}
       {showBadges && (
         <div style={{
-          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`,
+          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: bottomStack(adH),
           left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 210,
           background: '#0E0D17', borderRadius: '16px 16px 0 0', overflowY: 'auto',
           fontFamily: FONT,
@@ -503,7 +503,7 @@ export default function PlayerSheet() {
         onTouchEnd={handleTouchEnd}
         style={{
           // 上端はダイナミックアイランドの下（セーフエリア）から。下は広告バナー＋ホームバーの上で止める。
-          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
           overflowY: 'auto',
           touchAction: 'pan-y',

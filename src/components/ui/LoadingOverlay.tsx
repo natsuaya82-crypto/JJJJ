@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLoadingStore } from '../../store/loadingStore'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, bottomStack } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from './TipText'
 
@@ -75,7 +75,7 @@ export default function LoadingOverlay() {
       </div>
 
       {/* 右下ローディングバー（広告バナーに隠れないよう広告分だけ上げる。広告なしなら従来位置） */}
-      <div style={{ position: 'absolute', right: 16, bottom: `calc(${20 + adH}px + env(safe-area-inset-bottom))`, zIndex: 4, textAlign: 'right' }}>
+      <div style={{ position: 'absolute', right: 16, bottom: bottomStack(adH, { extra: 20 }), zIndex: 4, textAlign: 'right' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
           <span style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: 11, letterSpacing: 4, color: C.textSub }}>
             <span style={{ color: C.gold }}>◆</span> {label || 'NOW LOADING'}

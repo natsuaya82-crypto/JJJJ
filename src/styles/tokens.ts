@@ -95,6 +95,24 @@ export const SELECT_STYLE = {
 /** ヘッダーの高さ。Layout のヘッダーと、その下から始める画面が同じ値を使う */
 export const HEADER_H = 49
 
+/** 下タブの高さ。Layout の下タブと、その上に何かを置く画面が同じ値を使う */
+export const NAV_H = 58
+
+/**
+ * 画面の一番下に貼り付けるものの `bottom`。**この足し算はここ1本。**
+ *
+ * 広告バナーの高さ（adH。買い切り版は0）とセーフエリアを足す。下タブの上に置きたいときは
+ * `aboveNav` を true にする。`calc(${adH + 58}px + env(safe-area-inset-bottom))` という
+ * 同じ式が8ファイル13か所に手書きされていて、58（下タブの高さ）も直書きされていた。
+ *
+ * ★画面下から**出てくるシート**はこれを使わず BottomSheet を通すこと（実機で下タブに食われる）。
+ *   ここは「その場に居座る固定バー」用。
+ */
+export function bottomStack(adH: number, opts?: { aboveNav?: boolean; extra?: number }): string {
+  const px = adH + (opts?.aboveNav ? NAV_H : 0) + (opts?.extra ?? 0)
+  return `calc(${px}px + env(safe-area-inset-bottom))`
+}
+
 /** 記録会（タイムトライアル）の色 */
 export const TT_COLOR = '#5EC8B8'
 /** 完全休養カードの色 */

@@ -14,7 +14,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { WA_EVENT_LABEL } from '../../engine/worldAthletics'
 import { formatRaceTime } from '../../utils/eventTime'
 import { runWithLoading } from '../../store/loadingStore'
-import { C, alpha, rankColor, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, FONT, bottomStack } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 
 
@@ -124,7 +124,7 @@ export default function WorldTournamentPage() {
       return a.nat.localeCompare(b.nat) || shownName(a).localeCompare(shownName(b), 'ja')
     })
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: `calc(${adH + 58 + 88}px + env(safe-area-inset-bottom))` }}>
+      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton onClick={() => navigate('/')} />
           <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title} 代表発表</span>
@@ -149,7 +149,7 @@ export default function WorldTournamentPage() {
           </div>
         </div>
         {/* 次へは下部固定（タブバー＋広告の上）。スクロール不要 */}
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           <button
             onClick={() => {
               if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1)
@@ -173,7 +173,7 @@ export default function WorldTournamentPage() {
     const isFinal = t.raceIndex >= t.races.length && revealIdx >= (t.individuals!.length - 1)
     const nextLabel = isFinal ? '総合成績へ →' : `駅伝 第${t.raceIndex + 1}戦へ →`
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: `calc(${adH + 58 + 88}px + env(safe-area-inset-bottom))` }}>
+      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton onClick={() => navigate('/')} />
           <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{WA_EVENT_LABEL[ir.event]} 決勝</span>
@@ -197,7 +197,7 @@ export default function WorldTournamentPage() {
           </div>
         </div>
         {/* 次へは下部固定・次に何が来るか明記（駅伝第N戦へ / 総合成績へ） */}
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           <button
             onClick={() => {
               markWorldIndividualRevealed()
@@ -229,7 +229,7 @@ export default function WorldTournamentPage() {
         </div>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>順位（{t.raceIndex}/{t.races.length}戦消化・合計ポイント）・国を長押しで代表詳細</div>
         <StandingsTable rows={standRows} onRowLongPress={id => { if (id.startsWith('nat_')) navigate(`/teams/national/${id.slice(4)}`) }} />
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${adH + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           {pendingReveal ? (
             // 種目結果が未発表なら、まず結果を見せる（何の結果かを明記）
             <button onClick={() => { setRevealOpen(true); window.scrollTo(0, 0) }} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">{WA_EVENT_LABEL[t.individuals![revealIdx].event]}の結果を見る →</span></button>

@@ -1,7 +1,7 @@
 import { LOGO_PRESETS, logoPresetSrc } from '../../data/logoPresets'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
+import { C, alpha, SAIRA, HEADER_H, bottomStack } from '../../styles/tokens'
 
 
 // チームロゴの選択画面（フルスクリーンのオーバーレイ）。設定・オンボーディング両方から使う。
@@ -49,7 +49,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
       </div>
 
       {/* グリッド（下タブ・広告に最終行が隠れないよう、下に余白を確保してスクロールで抜けられるように） */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingBottom: `calc(${58 + adH + 24}px + env(safe-area-inset-bottom))` }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 24 }) }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {/* デフォルト（元チームロゴ） */}
           <button type="button" onClick={() => pick('')} style={tile(value === '')}>

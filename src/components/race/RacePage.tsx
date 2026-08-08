@@ -17,7 +17,7 @@ import { useAdHeight } from '../layout/Layout'
 import { buildCpuLineups } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
-import { C, alpha, SAIRA, TT_COLOR } from '../../styles/tokens'
+import { C, alpha, SAIRA, TT_COLOR, bottomStack } from '../../styles/tokens'
 import {
   calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
   generateSegmentEvents, resolveChoice, finalizeSegment,
@@ -253,7 +253,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
           </div>
 
         </div>
-        <div style={{ position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 10px', background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`, zIndex: 35 }}>
+        <div style={{ position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 10px', background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`, zIndex: 35 }}>
           <button className="btn-game btn-game--gold" onClick={onDone} style={{ width: '100%' }}>
             <span className="btn-game__inner">ホームに戻る</span>
           </button>

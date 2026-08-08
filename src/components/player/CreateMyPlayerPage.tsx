@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import PlayerFace from './PlayerFace'
 import BottomSheet from '../ui/BottomSheet'
+import { useAdHeight } from '../layout/Layout'
 import Flag from '../ui/Flag'
 import { useGameStore, MY_PLAYER_POINTS } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, bottomStack } from '../../styles/tokens'
 
 
 const STATS: { key: keyof Ratings; label: string }[] = [
@@ -38,6 +39,7 @@ export default function CreateMyPlayerPage() {
   const TOTAL = MY_PLAYER_POINTS
   const alreadyCreated = useGameStore(s => s.inauguralPlayerCreated)
 
+  const adH = useAdHeight()
   const [name, setName] = useState('')
   const [age, setAge] = useState(20)
   const [specialty, setSpecialty] = useState<Specialty>('ace')
@@ -119,7 +121,7 @@ export default function CreateMyPlayerPage() {
   )
 
   return (
-    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: `calc(${50 + 58 + 84}px + env(safe-area-inset-bottom))` }}>
+    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 84 }) }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton onClick={() => navigate('/')} />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>マイプレイヤー作成</span>
@@ -240,7 +242,7 @@ export default function CreateMyPlayerPage() {
       </BottomSheet>
 
       {/* 確定バー（下部固定） */}
-      <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${50 + 58}px + env(safe-area-inset-bottom))`, maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+      <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
         <button onClick={confirm} disabled={!canConfirm} className={`btn-game ${canConfirm ? 'btn-game--gold' : ''}`} style={{ width: '100%', opacity: canConfirm ? 1 : 0.5 }}>
           <span className="btn-game__inner">{remaining !== 0 ? `残り ${remaining} を振り分けてください` : !name.trim() ? '名前を入力してください' : 'この選手で確定'}</span>
         </button>

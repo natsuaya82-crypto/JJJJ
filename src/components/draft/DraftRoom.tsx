@@ -5,7 +5,7 @@ import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, bottomStack } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -320,7 +320,7 @@ export default function DraftRoom() {
       maxWidth: '480px', margin: '0 auto',
       // 上端はダイナミックアイランドの下（セーフエリア）から、下は広告＋ホームバーの上で止める
       paddingTop: 'env(safe-area-inset-top)',
-      paddingBottom: `calc(${adH}px + env(safe-area-inset-bottom))`,
+      paddingBottom: bottomStack(adH),
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',

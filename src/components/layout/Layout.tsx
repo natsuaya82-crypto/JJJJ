@@ -4,7 +4,7 @@ import { audio } from '../../utils/audio'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
-import { C, alpha, HEADER_H } from '../../styles/tokens'
+import { C, alpha, HEADER_H, NAV_H, bottomStack } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
@@ -69,7 +69,8 @@ const AD_H = 50
 // ページ側が「ヘッダーと下タブの間にちょうど収まる高さ」を計算できるように公開する。
 // main は position:fixed で top/bottom を固定しているため、ページで 100dvh を使うと
 // ヘッダー＋タブ＋広告のぶんだけ縦に溢れて無駄なスクロールが生まれる。
-export const NAV_H = 58
+// 下タブの高さは styles/tokens.ts の1本（HEADER_H と同じ場所）。ここは再輸出だけ
+export { NAV_H }
 export const MAIN_GAP = 6   // main の bottom に足している余白（下タブとの隙間）
 
 // 画面下部の広告バナーの高さ。買い切り版（adsRemoved）なら0。
@@ -288,7 +289,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main ref={mainRef} style={{
         position: 'fixed', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px',
         top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
-        bottom: `calc(${raceInProgress ? adH : NAV_H + adH + MAIN_GAP}px + env(safe-area-inset-bottom))`,
+        bottom: bottomStack(adH, { aboveNav: !raceInProgress, extra: raceInProgress ? 0 : MAIN_GAP }),
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}>
         <PageWrapper locationKey={location.pathname}>
@@ -298,7 +299,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Bottom Nav ── */}
       {raceInProgress ? null : <nav style={{
-        position: 'fixed', bottom: `calc(${adH}px + env(safe-area-inset-bottom))`, left: 0, right: 0, margin: '0 auto',
+        position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
         width: '100%', maxWidth: '480px',
         height: `${NAV_H}px`,
         background: `linear-gradient(180deg, #1a2c47 0%, #0a1729 100%)`,
