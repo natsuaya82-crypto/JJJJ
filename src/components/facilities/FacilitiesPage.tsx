@@ -2,21 +2,8 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { FacilityKey } from '../../types'
 import { C, alpha, SAIRA } from '../../styles/tokens'
+import { JewelIcon } from '../icons/Icons'
 
-
-function JewelIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-      <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#fsg)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
-      <defs>
-        <linearGradient id="fsg" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#a8e4ff"/>
-          <stop offset="100%" stopColor="#3b9fd4"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
 
 function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: FacilityKey; color: string; size?: number }) {
   if (facilityKey === 'trainingCamp') return (

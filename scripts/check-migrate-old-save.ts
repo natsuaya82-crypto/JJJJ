@@ -73,6 +73,12 @@ const oldSave: Record<string, unknown> = {
       { clubId: 'ken_1', totalPoints: 42, raceResults: [{ raceId: 'fr0', rank: 1, points: 20 }] },
       { clubId: 'eth_1', totalPoints: 31, raceResults: [{ raceId: 'fr0', rank: 2, points: 16 }] },
     ] },
+    // 同じ礼が2行並んでしまっているログ（A A B A）。続いた重複だけ消えて A A B A → A B A
+    chatLogs: { dup: [
+      { from: 'player', text: 'A' }, { from: 'player', text: 'A' },
+      { from: 'gm', text: 'B' },
+      { from: 'player', text: 'A' }, { from: 'player', text: 'A' },
+    ] },
   },
   pastSeasons: [{
     year: YEAR - 1, races: [mkRace(3)], standings: flatStandings,
@@ -152,6 +158,17 @@ console.log('[予算]')
 const fin = (after.teams as { finance?: { budget?: number; deficitStreak?: number } }[])[0].finance
 check('残高が格の年間予算で入り直している', (fin?.budget ?? 0) > 0, `${fin?.budget}`)
 check('連続赤字が0に戻る', fin?.deficitStreak === 0)
+
+// ── すでに並んでいるチャットの重複の掃除（v40）──
+console.log('')
+console.log('[チャットの重複]')
+{
+  const cs = after.currentSeason as { chatLogs?: Record<string, { from?: string; text?: string }[]> }
+  const log = cs.chatLogs?.dup ?? []
+  console.log(`  掃除前 5件 → 掃除後 ${log.length}件`)
+  check('続けて並んだ同じ発言が1つになる', log.length === 3, JSON.stringify(log.map(m => m.text)))
+  check('離れた場所の同じ発言は残る', log.filter(m => m.text === 'A').length === 2, JSON.stringify(log.map(m => m.text)))
+}
 
 // ── クラブ側の名簿の廃止（v40）──
 console.log('')

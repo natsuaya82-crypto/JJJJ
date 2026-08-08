@@ -5,27 +5,13 @@ import { showRewardAd, getAdDay, ADS_PER_DAY } from '../../utils/ads'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { JewelIcon } from '../icons/Icons'
 
-
-function JewelIcon({ size = 14, opacity = 1 }: { size?: number; opacity?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ opacity }}>
-      <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#jg-p)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
-      <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="none" stroke="#a8e4ff" strokeWidth="0.6" strokeLinejoin="round" opacity="0.5" transform="scale(0.55) translate(10.9 10.9)"/>
-      <defs>
-        <linearGradient id="jg-p" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#a8e4ff"/>
-          <stop offset="100%" stopColor="#3b9fd4"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
 
 function J({ n, dim }: { n: number; dim?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-      <JewelIcon size={12} opacity={dim ? 0.4 : 1}/>
+      <JewelIcon size={12} opacity={dim ? 0.4 : 1}detailed />
       <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: dim ? 'rgba(109,213,250,0.4)' : '#6dd5fa' }}>+{n}</span>
     </span>
   )
@@ -118,7 +104,7 @@ export default function JewelsPage() {
       <div style={{ margin: '16px 16px 8px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.35)}`, borderRadius: 16, padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
         <div style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#6dd5fa', 0.6), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <JewelIcon size={28}/>
+          <JewelIcon size={28}detailed />
           <span style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: '#6dd5fa', textShadow: '0 0 20px rgba(109,213,250,0.6)', lineHeight: 1 }}>{jewels.toLocaleString()}</span>
         </div>
       </div>
@@ -147,7 +133,7 @@ export default function JewelsPage() {
               color: adsLeft > 0 ? '#6dd5fa' : C.textGhost, flexShrink: 0,
             }}
           >
-            <JewelIcon size={14}/>
+            <JewelIcon size={14}detailed />
             +100
           </button>
         </div>

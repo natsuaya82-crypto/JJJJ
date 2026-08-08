@@ -4,7 +4,7 @@ import { audio } from '../../utils/audio'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, HEADER_H } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
@@ -70,7 +70,6 @@ const AD_H = 50
 // main は position:fixed で top/bottom を固定しているため、ページで 100dvh を使うと
 // ヘッダー＋タブ＋広告のぶんだけ縦に溢れて無駄なスクロールが生まれる。
 export const NAV_H = 58
-export const HEADER_H = 49  // ヘッダー実効高（ボタンminHeight44+上下padding2+border1）。safe-area分は別途加算
 export const MAIN_GAP = 6   // main の bottom に足している余白（下タブとの隙間）
 
 // 画面下部の広告バナーの高さ。買い切り版（adsRemoved）なら0。

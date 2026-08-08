@@ -3,24 +3,11 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { loginTodayKey } from '../../utils/loginDate'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
-import { useAdHeight, HEADER_H, NAV_H, MAIN_GAP } from '../layout/Layout'
+import { C, alpha, SAIRA, FONT, HEADER_H } from '../../styles/tokens'
+import { useAdHeight, NAV_H, MAIN_GAP } from '../layout/Layout'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
+import { JewelIcon } from '../icons/Icons'
 
-
-function JewelIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, verticalAlign: 'middle' }}>
-      <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#lbsg)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
-      <defs>
-        <linearGradient id="lbsg" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#a8e4ff"/>
-          <stop offset="100%" stopColor="#3b9fd4"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
 
 // ヘルプ・設定など他ページと同じカードの型（グラデ地＋下影＋アクセント帯の見出し）。
 // このページだけ平坦なべた塗りで浮いていたので、見た目だけ揃える。

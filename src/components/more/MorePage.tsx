@@ -14,6 +14,7 @@ import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
 
 import { APP_VERSION } from '../../data/appMeta'
+import { Chevron } from '../ui'
 
 
 
@@ -33,7 +34,6 @@ const IcX = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
 const IcHome = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcTrash = <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcBlock = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/><path d="M5.6 5.6l12.8 12.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-const Chevron = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: C.textDim, flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
 
 // ── 課金カードの特典アイコン ──
 
@@ -68,7 +68,7 @@ function SettingRow({ icon, label, sub, onClick, danger }: {
         <div style={{ fontSize: 15, fontWeight: 800, color: danger ? C.red : C.text }}>{label}</div>
         {sub && <div style={{ fontSize: 10, color: C.textDim, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
       </div>
-      {Chevron}
+      <Chevron size={13} />
     </button>
   )
 }
@@ -377,7 +377,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
           <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} logoId={logoId} size={40}/>
         </div>
         <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 700, color: C.text, fontFamily: SAIRA }}>変更する</span>
-        {Chevron}
+        <Chevron size={13} />
       </button>
 
       {/* チーム名 */}

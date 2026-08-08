@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { cardPackPrice } from '../../data/cardShop'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
+import { JewelIcon } from '../icons/Icons'
 
 
 
@@ -36,20 +37,6 @@ function CardIcon({ size = 40, color }: { size?: number; color: string }) {
       <rect x="6" y="15" width="20" height="3" rx="1.5" fill={color} opacity="0.3"/>
       <rect x="6" y="21" width="16" height="3" rx="1.5" fill={color} opacity="0.3"/>
       <path d="M20 32l2.5 5 5.5.8-4 3.9.95 5.5L20 44.5l-4.95 2.7.95-5.5-4-3.9 5.5-.8z" fill={color} opacity="0.85"/>
-    </svg>
-  )
-}
-
-function JewelIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-      <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#shopsg)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
-      <defs>
-        <linearGradient id="shopsg" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#a8e4ff"/>
-          <stop offset="100%" stopColor="#3b9fd4"/>
-        </linearGradient>
-      </defs>
     </svg>
   )
 }

@@ -8518,6 +8518,23 @@ export const useGameStore = create<GameStore>()(
               return rest
             })
           }
+          // v40: すでにチャットに並んでしまった重複を掃除する。
+          // 発言の突き合わせ（utils/chatLog の mergeChatMessages）は「保存済みに無いものを足す」
+          // 側なので、**すでに2行並んでいるものは自分では消せない**。
+          // 二重に書かれていた文面（承諾の礼・逆提示・合意・断りの受け）を1本にしたので
+          // これから増えることは無いが、いま入っているぶんはここで1つにする。
+          // 消すのは「同じ人の同じ文が続けて並んでいる」ときだけ（離れた場所にある同じ発言は残す）。
+          if (version < 40) {
+            const cs = s.currentSeason as { chatLogs?: Record<string, { from?: string; text?: string }[]> } | undefined
+            if (cs?.chatLogs) {
+              const cleaned: Record<string, unknown[]> = {}
+              for (const [pid, log] of Object.entries(cs.chatLogs)) {
+                cleaned[pid] = (log ?? []).filter((m, i, arr) =>
+                  i === 0 || m?.from !== arr[i - 1]?.from || m?.text !== arr[i - 1]?.text)
+              }
+              cs.chatLogs = cleaned as never
+            }
+          }
 
           return s
         } catch (e) {

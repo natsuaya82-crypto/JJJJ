@@ -1,21 +1,8 @@
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA } from '../../styles/tokens'
+import { JewelIcon } from '../icons/Icons'
 
 const JEWEL = '#6dd5fa'
-
-function JewelIcon({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#jgp)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
-      <defs>
-        <linearGradient id="jgp" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#a8e4ff"/>
-          <stop offset="100%" stopColor="#3b9fd4"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
 
 /**
  * レース・シーズン終了で獲得したジュエルの内訳をホームで知らせるポップアップ。

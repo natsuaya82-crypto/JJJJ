@@ -948,3 +948,28 @@ export function SpecialtyIcon({ specialty, size = 14 }: { specialty: string; siz
   }
   return <IconRace size={size} />
 }
+
+// ジュエルのアイコン。**5画面が同じSVGを別々に持っていた**（グラデーションの id だけ違う）。
+// 大きさと透明度だけ選べる。中の面取り（detailed）はジュエルのページだけが出していたので
+// 見た目を変えないよう任意にしてある。
+export function JewelIcon({ size = 14, opacity = 1, detailed = false }: {
+  size?: number
+  opacity?: number
+  /** 中に面取りの線を1本入れる（ジュエルのページの表示） */
+  detailed?: boolean
+}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ opacity, flexShrink: 0 }}>
+      <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#jewel-grad)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
+      {detailed && (
+        <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="none" stroke="#a8e4ff" strokeWidth="0.6" strokeLinejoin="round" opacity="0.5" transform="scale(0.55) translate(10.9 10.9)"/>
+      )}
+      <defs>
+        <linearGradient id="jewel-grad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#a8e4ff"/>
+          <stop offset="100%" stopColor="#3b9fd4"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
