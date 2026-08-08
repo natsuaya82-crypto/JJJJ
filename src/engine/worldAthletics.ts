@@ -1,11 +1,19 @@
-// 世界選手権：代表選出エンジン（OVRではなく持ちタイム=eventBests基準）。
-// 国籍で選手を集め、5000/10000/マラソンの持ちタイムで候補を作る。
-// 駅伝優先：まず駅伝代表20人（監督 or AI）→ 個人種目は駅伝に入らなかった選手から
-// 実物方式で選考（標準突破優先＋ランキング補充・国別3人・マラソン専任）。
+// 世界選手権：代表選出エンジン。
+//
+// ■候補は OVR 上位100人（ekidenCandidates 1本）
+//   駅伝代表の候補は国籍だけで集めて OVR 順に並べる。所属も持ちタイムも問わない。
+//   以前は持ちタイム（記録会の eventBests）基準だったが、記録会に出られる回数が
+//   所属で違う（国内7回／海外4回・疲労40未満）ため、海外組が候補から落ち、
+//   国単位では国力0＝予選の出場国から消える、というところまで繋がっていた。
+//
+// ■個人種目は今までどおり持ちタイム基準
+//   標準突破＋ランキング補充・国別3人・マラソン専任。実物の選考方式をなぞる。
+//   こちらは「その距離を実際に何秒で走ったか」の話なので OVR では代用できない。
 import type { Player, Nationality, Race, WECRacePlan } from '../types'
-import { natGeoRegion, NATIONALITY_META, type GeoRegion } from '../data/nationalities'
-import { formatRaceTime, individualEventAbility, individualBaseTime } from '../utils/eventTime'
-import { calcBaseAbility, calcAffinity } from './raceEngine'
+import { natGeoRegion, NATIONALITY_META, HOME_NATION, type GeoRegion } from '../data/nationalities'
+import { formatRaceTime } from '../utils/eventTime'
+import { ovr } from '../utils/playerUtils'
+
 import { runBackgroundRace } from './backgroundRace'
 import { worldRace, worldRaceName } from '../utils/worldCourses'
 import { RUNNING_SLOTS } from '../data/rosterRules'
@@ -80,65 +88,50 @@ export function bestPBLabel(p: Player, currentYear: number): string | null {
 
 export type Candidate = { player: Player; score: number; bests: Partial<Record<WAEvent, number>> }
 
-// 駅伝代表の候補（持ちタイム順・約50人）。日本人は所属問わず nationality で集める。
-// 種目 → 距離(m)。推定タイムの換算に使う
-const WA_DIST: Record<WAEvent, 5000 | 10000 | 42195> = { d5000: 5000, d10000: 10000, marathon: 42195 }
+/**
+ * 代表候補の人数（唯一の決まり）。**OVRの上位からこの人数**。
+ * 選考画面に並ぶのも、CPUの国が自動で20人を組むのも、国力を測るのも全部この1本。
+ */
+export const NATIONAL_POOL = 100
 
-export function ekidenCandidates(players: Player[], nat: Nationality, currentYear: number, limit = 50): Candidate[] {
+/**
+ * 駅伝代表の候補。**OVR上位100人。所属は問わない（国籍だけで集める）。**
+ *
+ * ■なぜ持ちタイムをやめたのか
+ *   以前は「直近2年の記録会の持ちタイム」順で、タイムが無い選手は**候補にすら入らなかった**。
+ *   ところが記録会に出られる条件が所属で違う。
+ *     国内クラブ … 年7回すべてに出る
+ *     海外クラブ … 4回だけ（春季5000m・夏季10000m・夏季マラソン・冬季ハーフ）、しかも疲労40未満
+ *   その結果「海外に出した主力が代表に選ばれない」が起き、
+ *   国単位では **持ちタイムを持つ選手が1人も居ない国の国力が0** になって、
+ *   予選の出場国リストから丸ごと消えるところまで繋がっていた。
+ *   OVRなら全選手が必ず持っているので、この穴が構造的に無くなる。
+ *
+ * ■持ちタイムは捨てない
+ *   並べる基準に使わないだけで、画面に出すために bests には入れて返す。
+ */
+export function ekidenCandidates(players: Player[], nat: Nationality, currentYear: number, limit = NATIONAL_POOL): Candidate[] {
   const out: Candidate[] = []
   for (const p of players) {
     if (p.status === 'retired') continue
     if (p.nationality !== nat) continue
+    // 持ちタイムは表示用（無くても候補から外さない）
     const bests: Partial<Record<WAEvent, number>> = {}
-    let has = false
     for (const ev of WA_EVENTS) {
       const t = recentBest(p, ev, currentYear)
-      if (t != null) { bests[ev] = t; has = true }
+      if (t != null) bests[ev] = t
     }
-    if (!has) {
-      // 直近2年の持ちタイムが無い選手は、能力からの推定タイムで候補に入れる。
-      // 海外クラブの日本人は出られる記録会が少なく eventBests がほぼ残らないため、
-      // タイム必須のままだと日本最強クラス（OVR91等）が候補50人にすら入れない。
-      // 推定は基準タイム+2%として、実測の持ちタイムを持つ選手より少しだけ弱く扱う
-      for (const ev of WA_EVENTS) {
-        const dist = WA_DIST[ev]
-        bests[ev] = Math.round(individualBaseTime(individualEventAbility(p, dist), dist) * 1.02)
-      }
-    }
-    // スコアは組み上げた bests から計算する（推定タイムの選手も同じ土俵で並べるため）。
-    // 実測の選手は distanceScore(p) と同じ値になる
-    let score = 0
-    for (const ev of WA_EVENTS) {
-      const t = bests[ev]
-      if (t == null) continue
-      const v = WA_REF[ev] / t
-      if (v > score) score = v
-    }
-    out.push({ player: p, score, bests })
+    out.push({ player: p, score: ovr(p), bests })
   }
   out.sort((a, b) => b.score - a.score)
   return out.slice(0, limit)
 }
 
-// 日本代表の候補50人＝持ちタイム上位40＋大会適性上位10。
-// 持ちタイムだけだと登り屋・下り屋（平地タイムが平凡）が候補にすら入らないため、
-// その年の3戦のコース地形への適性（能力×特性相性）上位を必ず混ぜる。山型の年は登り屋が入る
-export function ekidenCandidatesWithFit(
-  players: Player[], nat: Nationality, year: number, plans: WECRacePlan[], limit = 50, fitSlots = 10,
-): Candidate[] {
-  const all = ekidenCandidates(players, nat, year, Number.MAX_SAFE_INTEGER)
-  if (plans.length === 0 || all.length <= limit) return all.slice(0, limit)
-  const timePick = all.slice(0, limit - fitSlots)
-  const picked = new Set(timePick.map(c => c.player.id))
-  const segs = plans.flatMap(p => p.segments)
-  const fit = (c: Candidate) => segs.reduce((s, seg) =>
-    s + calcBaseAbility(c.player.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm)
-      * calcAffinity(c.player.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm), 0)
-  const fitPick = all.filter(c => !picked.has(c.player.id))
-    .sort((a, b) => fit(b) - fit(a))
-    .slice(0, fitSlots)
-  return [...timePick, ...fitPick].sort((a, b) => b.score - a.score)
-}
+// ★`ekidenCandidatesWithFit`（持ちタイム40＋コース適性10）は廃止しました。**戻さないこと。**
+//   候補の出どころが2本あると「選考画面に出る顔ぶれ」と「CPUが組む20人」と「国力」がズレます。
+//   実際、選考画面は50人（適性混ぜ）、CPUは20人（適性6人）、国力は上位7人と3通りに割れていました。
+//   いまは ekidenCandidates 1本（OVR上位100人）。100人まで広げたので、
+//   登り屋・下り屋が候補から漏れる心配も無くなっています（旧50人＋適性枠の目的はここで満たされる）。
 
 export type IndividualEntry = { player: Player; timeSec: number }
 
@@ -262,9 +255,32 @@ function meetRegion(nat: Nationality): typeof REGION_QUOTA[number]['region'] | '
   return 'その他'
 }
 
-// 国の距離力（候補上位7の距離スコア合計）。持ちタイムを持つ選手が居ない国は0。
+/**
+ * 国の力（代表候補の上位7人の合計）。**候補の出どころは ekidenCandidates 1本**。
+ * OVRは全選手が必ず持っているので、**選手が1人でも居れば 0 にはならない**。
+ * 以前は持ちタイム基準だったため、記録会に出ていない国が丸ごと0になり、
+ * 予選の出場国リストから消えていた。
+ */
 export function nationStrength(players: Player[], nat: Nationality, year: number): number {
   return ekidenCandidates(players, nat, year, 7).reduce((s, c) => s + c.score, 0)
+}
+
+/**
+ * アジア＋オセアニア予選の出場国（唯一の決まり）。
+ *
+ * ★**自国（日本）は必ず入れる。** 予選は「代表を選んで走らせる」入口そのもので、
+ *   ここに入れないとプレイヤーは代表選考を一度もできない。本戦へ行けるかは
+ *   予選の結果で決まる（上位3カ国）＝そちらは勝ち取るものなので触らない。
+ */
+export function qualifierNations(players: Player[], year: number, host: Nationality | undefined, limit = 20): Nationality[] {
+  const strength = (n: Nationality) => nationStrength(players, n, year)
+  const pool = ([...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[])
+    .filter(n => (natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア') && strength(n) > 0)
+    .sort((a, b) => strength(b) - strength(a))
+  // 先に確保する国＝自国と開催国。残りを強い順で埋める（枠から溢れるのは弱い国のほうから）
+  const fixed = [HOME_NATION, ...(host ? [host] : [])].filter(n => pool.includes(n))
+  const seen = new Set(fixed)
+  return [...fixed, ...pool.filter(n => !seen.has(n))].slice(0, limit)
 }
 
 // 本番出場20カ国を決める。hostNat は予選免除で必ず入る（+1枠）。
@@ -371,10 +387,10 @@ export function startContinentalQualifiers(players: Player[], year: number, plan
     if (region === 'アジア+オセアニア') continue
     const nats = contNations(players, region, year)
     // 各国の駅伝代表20人。個人種目スターは除外せず駅伝に全振り（予選は駅伝のみ）。
-    // アジア予選と同じく「持ちタイム14人＋コース適性6人」で選ぶ（山のコースで登り屋が居ない代表を防ぐ）
+    // アジア予選・本戦とまったく同じ候補（ekidenCandidates ＝ OVR上位）から選ぶ
     const squads: Record<string, string[]> = {}
     for (const n of nats) {
-      const cands = ekidenCandidatesWithFit(players, n, year, plans, 20, 6)
+      const cands = ekidenCandidates(players, n, year, 20)
       squads[`nat_${n}`] = autoSelectEkiden(cands, new Set<string>(), 20).map(p => p.id)
     }
     const races = plans.map((plan, i) => worldRace(plan, {
@@ -714,37 +730,11 @@ export const WA_HOST_CITY: Partial<Record<Nationality, string>> = {
   VEN: 'カラカス', GUA: 'グアテマラシティ', BOL: 'ラパス', CRC: 'サンホセ', CUB: 'ハバナ', JAM: 'キングストン',
 }
 
-// アジア＋オセアニア予選：国の距離力（当日ブレ込み）で並べ、上位 advance カ国が本番へ。
-// 日本は選考した駅伝代表（japanSquadIds）の上位7人で戦う＝選考が予選の強さに直結する。
-export function simulateQualifier(players: Player[], year: number, advance = 3, japanSquadIds?: string[]): WAQualifierResult {
-  const nats = [...new Set(players.filter(p => p.status !== 'retired').map(p => p.nationality))] as Nationality[]
-  const byId = new Map(players.map(p => [p.id, p]))
-  const japanStrength = (): number => {
-    if (!japanSquadIds || japanSquadIds.length === 0) return nationStrength(players, 'JPN', year)
-    const squad = japanSquadIds.map(id => byId.get(id)).filter((p): p is Player => !!p && p.status !== 'retired')
-    return squad.map(p => distanceScore(p, year)).sort((a, b) => b - a).slice(0, RUNNING_SLOTS).reduce((s, v) => s + v, 0)
-  }
-  const rows = nats
-    .filter(n => natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア')
-    .map(n => ({ nat: n, strength: (n === 'JPN' ? japanStrength() : nationStrength(players, n, year)) * (1 + (rnd() * 0.16 - 0.08)) }))
-    .filter(r => r.strength > 0)
-    .sort((a, b) => b.strength - a.strength)
-  const standings: QualStanding[] = rows.map((r, i) => ({ nat: r.nat, strength: r.strength, rank: i + 1, advanced: i < advance }))
-  return { year, kind: 'qualifier', region: 'アジア＋オセアニア', standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
-}
-
-// その年の世界選手権を実行。偶数年＝本番、奇数年＝予選。
-// japanSquadIds＝日本の駅伝代表（予選の強さ・本番の駅伝で使用）。
-// prevAdvanced＝前年予選の通過国（本番のアジア＋オセ枠。通過してない国＝日本含む は出場できない）。
-export function runWorldAthleticsYear(players: Player[], year: number, japanSquadIds?: string[], prevAdvanced?: Nationality[]): WAYearResult {
-  const isMain = (year - 2028) % 2 === 0
-  if (!isMain) return simulateQualifier(players, year, 3, japanSquadIds)
-  const host = hostForYear(year)
-  const nations = qualifyNations(players, year, host, prevAdvanced)
-  const manual = japanSquadIds && japanSquadIds.length > 0 && nations.includes('JPN')
-    ? { JPN: japanSquadIds } as Partial<Record<Nationality, string[]>>
-    : undefined
-  const meet = simulateWorldMeet(players, nations, year, manual)
-  const japanRank = nations.includes('JPN') ? (meet.totals.find(t => t.nat === 'JPN')?.rank ?? null) : null
-  return { year, kind: 'main', host, nations, meet, japanRank }
-}
+// ★`simulateQualifier` / `runWorldAthleticsYear` は削除しました。**戻さないこと。**
+//   予選をレースせず「国力 × 当日ブレ±8%」で順位を決め打ちする、大会の2つ目の実装でした。
+//   本編は startWorldTournament → advanceWorldRace で**実際に3戦を走ります**（大陸予選も同じ）。
+//   決め打ちの側は呼び出し元がひとつも無いまま残っていて、しかも
+//     ・日本だけ距離スコア、他国は国力、と物差しが違う
+//     ・出場国の組み立てが qualifierNations と別（自国が必ず入る保証が無い）
+//     ・アジア枠3を自前で持っている
+//   と、生きている側と食い違ったままでした。

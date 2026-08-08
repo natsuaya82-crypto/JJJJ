@@ -99,8 +99,14 @@ export const NATIONALITY_META: Record<Nationality, NatMeta> = {
  * 昔は国籍そのものが 'FOREIGN'（国不明）だったので「国籍が FOREIGN か」で判定していたが、
  * 外国人にも実際の国籍を持たせたので「日本人でないか」で見る。表示（「外」マーク）用。
  */
+/**
+ * プレイヤーの国（＝この作品の自国）。国籍を 'JPN' と直書きしないための1本。
+ * 代表選考・予選の出場国など「自国だから特別扱いする」場所はここを見る。
+ */
+export const HOME_NATION: Nationality = 'JPN'
+
 export function isForeignNat(nat: Nationality): boolean {
-  return nat !== 'JPN'
+  return nat !== HOME_NATION
 }
 
 export const NAT_LABEL: Record<Nationality, string> =

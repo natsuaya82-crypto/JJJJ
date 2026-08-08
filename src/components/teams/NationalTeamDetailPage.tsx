@@ -37,8 +37,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   // 引退した選手も落とさない。選出は年に一度で、次の選出までは「その年の代表20人」が正。
   // 引退で消すと翌年の代表タブが18人になり、20人選ばれたはずの表示が勝手に減る。
   //
-  // 未選出の国だけ候補を出す。並びは選考と同じ ekidenCandidates（持ちタイム順、
-  // 持ちタイムが無い選手は能力からの推定タイムで同じ土俵に乗る）。
+  // 未選出の国だけ候補を出す。並びは選考画面とまったく同じ ekidenCandidates（OVR上位）。
   const roster = isSquad
     ? squadIds!.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     : ekidenCandidates(players, nat, year, SQUAD_SIZE).map(c => c.player)

@@ -515,6 +515,33 @@ RULES.push({
 //   読み込みは版ごとの退避を見ておらず、空き判定は世代バックアップを見ていない。
 //   その結果「端末にデータが残っているのに新規ゲーム画面が出る」「世代しか残っていない
 //   スロットが空きに見える」という、そのまま上書きにつながる穴が空いていた。
+// ★代表候補の出どころ。**ここが割れると「選考できない」が起きる。**
+//   以前は選考画面（持ちタイム40＋適性10の50人）・CPUの自動選抜（20人）・国力（上位7人）で
+//   出どころが3通りあり、しかも全部が「持ちタイムが無い選手は候補外」だった。
+//   記録会に出られる回数は所属で違うので、海外組が落ち、国単位では国力0＝予選の出場国から消えた。
+RULES.push({
+  name: '代表候補を ekidenCandidates 以外から作っている',
+  pattern: /ekidenCandidatesWithFit/,
+  allow: [],
+  fix: 'engine/worldAthletics.ts の ekidenCandidates（OVR上位100人）1本を使う',
+})
+RULES.push({
+  name: '予選の出場国を自前で組み立てている',
+  pattern: /natGeoRegion\([^)]*\)\s*===\s*'(アジア|オセアニア)'/,
+  allow: ['src/engine/worldAthletics.ts'],
+  fix: 'engine/worldAthletics.ts の qualifierNations を使う（自国が必ず入る）',
+})
+// ★世界選手権の日程。生きている経路は waRaceDate / WA_CLOSING_DATE だが、
+//   呼び出し元の無い関数の中に 2/15・2/10 を直書きした2つ目の日程が残っていた。
+RULES.push({
+  name: '世界選手権の日付の直書き',
+  // 大会の3戦（1/9・1/16・1/23）と閉幕（1/24）、および旧・死にコードの日付（2/10・2/15）。
+  // 他の用途の日付（移籍の 1/20、シーズン中の 2/1 など）を巻き込まないよう、この6つだけを見る
+  pattern: /-01-(09|16|23|24)\b|-02-(10|15)\b/,
+  allow: ['src/engine/worldAthletics.ts'],
+  fix: 'engine/worldAthletics.ts の waRaceDate / WA_CLOSING_DATE を使う',
+})
+
 RULES.push({
   name: 'セーブファイルの名前の組み立て',
   pattern: /`jpel-manager-save\$\{[^`]*\}\.(json|tmp|bak|v)/,

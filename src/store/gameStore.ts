@@ -34,11 +34,11 @@ import { simulateAwayDivisions, applyAwayDivisionRound, applyRacedToSchedule } f
 import { generateRaceEvents } from '../engine/eventEngine'
 import { simulateForeignLeagueRound, applyForeignChampions, initForeignStandings } from '../engine/foreignLeague'
 import { individualEventAbility, individualBaseTime } from '../utils/eventTime'
-import { runWorldAthleticsYear, hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, startContinentalQualifiers, advanceContinentalQualifiers, finishContinentalQualifiers, runContinentalQualifiers, contRacesOf, stripContRaces, ekidenCandidatesWithFit, autoSelectEkiden, nationStrength, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
+import { hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations, qualifierNations, startContinentalQualifiers, advanceContinentalQualifiers, finishContinentalQualifiers, runContinentalQualifiers, contRacesOf, stripContRaces, ekidenCandidates, autoSelectEkiden, selectIndividualFields, simulateIndividuals, composeQualifierResult, composeMainResult, ekidenSegmentPoints, waRaceDate, WA_CLOSING_DATE } from '../engine/worldAthletics'
 import { simulateEclEvent } from '../engine/ecl'
 import { runBackgroundRace } from '../engine/backgroundRace'
 import type { EclParticipant } from '../engine/ecl'
-import { natLabel, natGeoRegion, natStrengthRegion, isForeignNat, NAT_LABEL } from '../data/nationalities'
+import { natLabel, natStrengthRegion, isForeignNat, NAT_LABEL, HOME_NATION } from '../data/nationalities'
 import { buildEclParticipants, buildEclRaces, eclDateBetweenLeagueRaces } from '../engine/eclSeries'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
@@ -603,7 +603,6 @@ export type GameStore = GameState & {
 
   // National team
   setWorldSquad: (playerIds: string[]) => void
-  runWorldAthletics: () => void
   startWorldTournament: () => void
   advanceWorldRace: (japanLineup?: Record<number, string>) => void
   markWorldIndividualsSeen: () => void
@@ -6854,71 +6853,6 @@ export const useGameStore = create<GameStore>()(
         set(state => ({ worldSquad: { year: state.currentSeason.year, playerIds: playerIds.slice(0, 20) } }))
       },
 
-      // 世界選手権／予選をその年ぶん実行して結果を保存（既に実行済みの年は何もしない）
-      runWorldAthletics: () => {
-        set(state => {
-          const year = state.currentSeason.year
-          const done = (state.worldAthleticsResults ?? []).some(r => r.year === year)
-          if (done) return state
-          const squad = state.worldSquad?.year === year ? state.worldSquad.playerIds : undefined
-          // 本番年は前年のアジア＋オセアニア予選の通過国で出場を決める（予選落ちなら日本は出ない）
-          const prevQual = (state.worldAthleticsResults ?? []).find(r => r.kind === 'qualifier' && r.year === year - 1)
-          const result = runWorldAthleticsYear(state.players, year, squad, prevQual?.kind === 'qualifier' ? prevQual.advanced : undefined)
-          // 本番なら代表出場記録を積む（個人種目の出場者＋駅伝の走者）。パッチ・代表履歴の元。
-          const reps = [...(state.worldRepresentatives ?? [])]
-          if (result.kind === 'main') {
-            const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
-            for (const ir of result.meet.individuals) {
-              for (const pl of ir.placings) reps.push({ playerId: pl.playerId, year, nat: pl.nat, label: EV[ir.event] ?? ir.event, rank: pl.rank })
-            }
-            for (const ek of result.meet.ekiden) {
-              for (const rid of ek.runnerIds) reps.push({ playerId: rid, year, nat: ek.nat, label: '駅伝', rank: ek.rank })
-            }
-          }
-          // 世界選手権はニュースに1件も出ていなかった（大陸予選の閉幕だけ）。
-          // 本戦の駅伝と個人種目の結果、日本代表に誰が入ったかを出す
-          const wcNews: NewsItem[] = []
-          if (result.kind === 'main') {
-            for (const ek of result.meet.ekiden.filter(e => e.rank === 1)) {
-              const jp = result.meet.ekiden.find(e => e.nat === 'JPN')?.rank
-              wcNews.push({
-                date: `${year}-02-15`,
-                headline: worldChampHeadline({ year, eventName: '駅伝', winner: natLabel(ek.nat), japanRank: jp }),
-                category: 'race', relatedIds: [], major: true,
-              })
-            }
-            const EVN: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
-            for (const ir of result.meet.individuals) {
-              const top = ir.placings.find(x => x.rank === 1)
-              const jp = ir.placings.find(x => x.nat === 'JPN')?.rank
-              if (top) wcNews.push({
-                date: `${year}-02-15`,
-                headline: worldChampHeadline({ year, eventName: EVN[ir.event] ?? ir.event, winner: natLabel(top.nat), japanRank: jp }),
-                category: 'race', relatedIds: [], major: false,
-              })
-            }
-            // 日本代表の顔ぶれ。自チームから選ばれていたら大ニュース
-            const jpIds = [...new Set(reps.filter(r => r.year === year && r.nat === 'JPN').map(r => r.playerId))]
-            if (jpIds.length > 0) {
-              const names = jpIds.map(id => state.players.find(p => p.id === id)?.name ?? '').filter(Boolean)
-              const mine = jpIds.filter(id => state.players.find(p => p.id === id)?.teamId === state.playerTeamId).length
-              wcNews.push({
-                date: `${year}-02-10`,
-                headline: nationalCallUpHeadline({ year, names, mineCount: mine }),
-                category: 'race', relatedIds: jpIds, major: mine > 0,
-              })
-            }
-          }
-          return {
-            worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])],
-            worldRepresentatives: reps,
-            currentSeason: wcNews.length > 0
-              ? { ...state.currentSeason, newsFeed: [...wcNews, ...state.currentSeason.newsFeed].slice(0, 30) }
-              : state.currentSeason,
-          }
-        })
-      },
-
       // 世界選手権トーナメント開始：出場国・各国の駅伝代表20・3戦のコースを確定。
       // 予選＝アジア＋オセアニア（最大20カ国）／本番＝20カ国（前年予選の通過国でアジア＋オセ枠を決定）。
       // 本番は個人種目の結果もここで確定（発表は画面側で段階表示）。
@@ -6937,13 +6871,8 @@ export const useGameStore = create<GameStore>()(
             // アジアは実レース予選、欧州・アフリカ・アメリカは前年に裏で回した大陸予選の通過国から
             nations = qualifyNations(state.players, year, host!, pq?.advanced, pq?.continentals)
           } else {
-            const pool = ([...new Set(state.players.filter(p => p.status !== 'retired').map(p => p.nationality))] as import('../types').Nationality[])
-              .filter(n => (natGeoRegion(n) === 'アジア' || natGeoRegion(n) === 'オセアニア') && nationStrength(state.players, n, year) > 0)
-              .sort((a, b) => nationStrength(state.players, b, year) - nationStrength(state.players, a, year))
-            // 開催国は自動出場（選手がいる場合のみ）。残りを強い順で埋める
-            nations = pool.includes(host!)
-              ? [host!, ...pool.filter(n => n !== host)].slice(0, 20)
-              : pool.slice(0, 20)
+            // 予選の出場国は engine/worldAthletics の qualifierNations 1本（自国は必ず入る）
+            nations = qualifierNations(state.players, year, host)
           }
           const japanIn = nations.includes('JPN')
           // 駅伝優先：まず各国が最強20人を駅伝代表に投入（日本は手動選考があればそれ）。
@@ -6960,7 +6889,7 @@ export const useGameStore = create<GameStore>()(
             }
             // 他国も日本と同じく「持ちタイム14人＋コース適性6人」の混成で20人を選抜する
             // （タイム上位だけだと山岳コースで登り・下り専門が居ない適当な代表になるため）
-            const cands = ekidenCandidatesWithFit(state.players, nat, year, plans, 20, 6)
+            const cands = ekidenCandidates(state.players, nat, year, 20)
             squads[`nat_${nat}`] = autoSelectEkiden(cands, new Set<string>(), 20).map(p => p.id)
           }
           const ekidenIds = new Set(Object.values(squads).flat())
@@ -7127,23 +7056,63 @@ export const useGameStore = create<GameStore>()(
           } else {
             for (const pt of t.participants) for (const pid of t.squads[pt.id] ?? []) pushEndRep({ playerId: pid, year: t.year, nat: pt.nat, label: '駅伝' })
           }
-          // 大陸予選の結果をニュースに流す（通過国を国名で）
-          const contNews = (result.kind === 'qualifier' && result.continentals)
-            ? [{
-                date: `${t.year + 1}${WA_CLOSING_DATE}`,
-                headline: continentalQualifierHeadline({
-                  regions: result.continentals.map(c => ({ region: c.region, nations: c.advanced.map(n => natLabel(n)) })),
+          // 大会が終わったときのニュース。**日付は WA_CLOSING_DATE 1本**（閉幕＝最終戦の翌日）。
+          // 以前これは呼び出し元の無い関数の中にだけ書かれていて、しかも日付が 2/15・2/10 と
+          // 直書きされていた。生きている側からは世界選手権のニュースが1件も出ていなかった。
+          const waNews: NewsItem[] = []
+          const closing = `${t.year + 1}${WA_CLOSING_DATE}`
+          if (result.kind === 'qualifier' && result.continentals) {
+            waNews.push({
+              date: closing,
+              headline: continentalQualifierHeadline({
+                regions: result.continentals.map(c => ({ region: c.region, nations: c.advanced.map(n => natLabel(n)) })),
+              }),
+              category: 'race', relatedIds: [],
+            })
+          }
+          if (result.kind === 'main') {
+            const jpRank = result.meet.ekiden.find(e => e.nat === HOME_NATION)?.rank
+            for (const ek of result.meet.ekiden.filter(e => e.rank === 1)) {
+              waNews.push({
+                date: closing,
+                headline: worldChampHeadline({ year: t.year, eventName: '駅伝', winner: natLabel(ek.nat), japanRank: jpRank }),
+                category: 'race', relatedIds: [], major: true,
+              })
+            }
+            const EVN: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
+            for (const ir of result.meet.individuals) {
+              const top = ir.placings.find(x => x.rank === 1)
+              if (!top) continue
+              waNews.push({
+                date: closing,
+                headline: worldChampHeadline({
+                  year: t.year, eventName: EVN[ir.event] ?? ir.event, winner: natLabel(top.nat),
+                  japanRank: ir.placings.find(x => x.nat === HOME_NATION)?.rank,
                 }),
-                category: 'race' as const,
-                relatedIds: [] as string[],
-              }]
-            : []
+                category: 'race', relatedIds: [], major: false,
+              })
+            }
+            // 代表の顔ぶれ。自チームから選ばれていたら大ニュース
+            const jpIds = [...new Set(reps.filter(r => r.year === t.year && r.nat === HOME_NATION).map(r => r.playerId))]
+            if (jpIds.length > 0) {
+              const mine = jpIds.filter(id => state.players.find(p => p.id === id)?.teamId === state.playerTeamId).length
+              waNews.push({
+                date: closing,
+                headline: nationalCallUpHeadline({
+                  year: t.year,
+                  names: jpIds.map(id => state.players.find(p => p.id === id)?.name ?? '').filter(Boolean),
+                  mineCount: mine,
+                }),
+                category: 'race', relatedIds: jpIds, major: mine > 0,
+              })
+            }
+          }
           return {
             worldTournament: { ...t, races: newRaces, raceIndex: nextIdx, points, finished: true },
             worldAthleticsResults: [result, ...(state.worldAthleticsResults ?? [])],
             worldRepresentatives: reps,
-            currentSeason: contNews.length > 0
-              ? { ...seasonWithWa, newsFeed: [...contNews, ...seasonWithWa.newsFeed].slice(0, 30) }
+            currentSeason: waNews.length > 0
+              ? { ...seasonWithWa, newsFeed: [...waNews, ...seasonWithWa.newsFeed].slice(0, 30) }
               : seasonWithWa,
           }
         })
