@@ -70,7 +70,7 @@ import { squadPlayersOf, squadIdsOf, belongsToClub, clubMembersByClub } from '..
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs, originalDivisionOf } from '../utils/domesticClubs'
 // 「そのクラブはどのタイプが足りていないか／この選手は欲しい選手か」は国内・海外で共通の1本
 import { SPECIALTIES, thinSpecialties, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
-import { foreignMinOvr, effectiveOvr } from '../utils/foreignClubProfile'
+import { effectiveOvr } from '../utils/foreignClubProfile'
 import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
@@ -9089,7 +9089,7 @@ function generateForeignAndLoanOffers(params: {
   //   （格1）から打診が来ていた。「クラブは必要だから動く」という決まりを通っていない。
   //
   //   2つの物差しで絞る。どちらも既にある1本を使う（ここで新しい条件を書かない）。
-  //     ・そのリーグが受け入れる水準か … foreignClubProfile の foreignMinOvr／effectiveOvr
+  //     ・そのクラブが必要としていて、そこで走れるか … utils/squadNeeds
   //       （海外クラブ同士の移籍が元から使っていたのと同じ物差し）
   //     ・そのクラブが必要としているか … squadNeeds の needsPlayer／wouldMakeLineup
   //       （穴が空いている、またはそのクラブで走れる7人に入る）
@@ -9100,8 +9100,10 @@ function generateForeignAndLoanOffers(params: {
       .sort(comparePlayers('ovr'))
       .slice(0, 4)
     const rosterOfClub = (clubId: string) => players.filter(p => p.teamId === clubId && p.status === 'active')
+    // 声をかけるかどうかは「必要か」と「そのクラブで走れるか」だけ（utils/squadNeeds 1本）。
+    // 国やリーグごとのOVR下限表は持たない。格1のクラブは名簿が強いので、
+    // 弱い選手はそこでは序列の下に沈み、自動的に声が掛からなくなる
     const suitorsFor = (target: Player) => foreignClubs.filter(c => {
-      if (effectiveOvr(target) < foreignMinOvr(c.country)) return false
       const r = rosterOfClub(c.id)
       if (r.length === 0) return false
       return needsPlayer(r, target) || wouldMakeLineup(r, target)

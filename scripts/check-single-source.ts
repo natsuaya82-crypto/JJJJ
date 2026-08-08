@@ -359,6 +359,27 @@ RULES.push({
   fix: 'clubTier.ts の tierInBand を使う（帯と配り方は FOREIGN_TIER_BAND 1本）',
 })
 
+// クラブの強さは**クラブごとの格**が唯一の物差し。国やリーグの表で判断しないこと。
+//
+// 「そのクラブが相手にする選手のOVRの下限」を国の表（ETH/KEN 85・USA 80・KOR/CHN 70）と
+// リーグの表（4大84・その他74）で持っていた。格とは別の物差しが2本立っている状態で、
+// 同じ格3〜9のクラブが74と84に割れ、しかも格は毎年動くのに国もリーグも動かないので、
+// 格2から格9まで落ちたクラブがいつまでも「OVR84以上しか獲らない」ままだった。
+//
+// 獲るかどうかは「必要か」と「そのクラブで走れるか」だけ（utils/squadNeeds）。
+// 格1のクラブは名簿が強いので、弱い選手はそこでは序列の下に沈んで自動的に外れる。
+RULES.push({
+  name: 'クラブの強さを国やリーグの表で判断している',
+  pattern: /(ETH|KEN|UGA|TAN):\s*\d{2}|isEliteLeague\([^)]*\)\s*\?\s*\d|STRONG_COUNTRIES/,
+  allow: [
+    'src/data/nationalities.ts',
+    // 国ごとの「選手の数」（勢力図）。強さはここでは決めていない（そのファイルにも明記）。
+    // クラブの強さの話ではないので対象外
+    'src/data/nationTalent.ts',
+  ],
+  fix: '格（utils/clubTier）か、必要かどうか（utils/squadNeeds の needsPlayer / wouldMakeLineup）で判断する',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

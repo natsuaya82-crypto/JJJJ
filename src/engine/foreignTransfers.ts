@@ -3,18 +3,17 @@ import type { ForeignLeague, Player, Team, TransferRecord } from '../types'
 import { comparePlayers } from '../utils/playerSort'
 import { ovr, calcTransferValue } from '../utils/playerUtils'
 // 「どのタイプが足りていないか」は国内・海外で共通の1本（utils/squadNeeds.ts）
-import { weakestSpecialty, bestOvrInSpecialty, needsPlayer } from '../utils/squadNeeds'
+import { weakestSpecialty, bestOvrInSpecialty, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
 import { ROSTER_MAX, ROSTER_MIN, CPU_SELL_FLOOR } from '../data/rosterRules'
 import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub, squadIdsOf } from '../utils/rosterSync'
 // 海外クラブ・4大リーグの引き場所は utils/clubs 1本
-import { allForeignClubs, leagueIdByClub, isEliteLeague } from '../utils/clubs'
+import { allForeignClubs } from '../utils/clubs'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
 import { movePlayer } from '../utils/movePlayer'
 // 海外クラブの年間予算（クラブIDとリーグから毎回同じ額が出る）
-import { foreignMinOvr, effectiveOvr } from '../utils/foreignClubProfile'
-import { tierBudget } from '../utils/clubTier'
+import { tierBudget, tierOfClubId, DOMESTIC_TOP_TIER } from '../utils/clubTier'
 
 
 // 「そのリーグが受け入れるOVRの下限」と「年齢を加味した実効OVR」は
@@ -64,10 +63,10 @@ export function simulateForeignTransferMarket(params: {
   // 件数はクラブ数に比例（移籍を活発化：180クラブなら約72〜108件/年）。
   const MOVE_BASE = Math.max(12, Math.round(allClubs.length * 0.4))
   const MOVE_COUNT = params.maxMoves ?? (MOVE_BASE + Math.floor(Math.random() * (MOVE_BASE * 0.5)))
-  // 4大リーグ（北米/アフリカ東/アフリカ北南/欧州西南）。ここが世界のスターを引き抜く＝サッカー式。
-  const isEliteClub = (c: { leagueId?: string }) => isEliteLeague(c.leagueId)
-  // 格上リーグへ行ける実効OVRの下限：4大は高く（弱い選手は入れない）、他は緩め
-  const leagueFloor = (c: { leagueId?: string }) => isEliteClub(c) ? 84 : 74
+  // どれだけ積極的に引き抜くかは**そのクラブの格**で決まる（格1が一番動く）。
+  // 以前は「4大リーグかどうか」で見ていたが、格は毎年動くのにリーグは動かないので、
+  // 格2から格9まで落ちたクラブがいつまでも最上位と同じ勢いで引き抜いていた。
+  const aggression = (c: { id: string }) => 1 + 1.4 * (20 - tierOfClubId(c.id)) / 19
   const weightedPick = <U,>(arr: U[], w: (x: U) => number): U => {
     const total = arr.reduce((s, x) => s + Math.max(1, w(x)), 0)
     let r = Math.random() * total
@@ -80,7 +79,7 @@ export function simulateForeignTransferMarket(params: {
     const buyerPool = allClubs.filter(c => roster[c.id].length < ROSTER_MAX)
     if (buyerPool.length === 0) continue
     // 4大リーグのクラブほど積極的に引き抜く（世界のスターが集まる）
-    const buyer = weightedPick(buyerPool, c => (ROSTER_MAX - roster[c.id].length) * (roster[c.id].length < 22 ? 3 : 1) * (isEliteClub(c) ? 2.4 : 1))
+    const buyer = weightedPick(buyerPool, c => (ROSTER_MAX - roster[c.id].length) * (roster[c.id].length < 22 ? 3 : 1) * aggression(c))
     // 売る側：buyer 以外で下限(18)超のクラブから、buyerより平均が低い相手を優先（放出しても18で止まる）
     const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length > CPU_SELL_FLOOR)
     if (sellers.length === 0) continue
@@ -95,12 +94,11 @@ export function simulateForeignTransferMarket(params: {
       .slice(0, 10)   // 上位10人が引き抜き対象
     if (candidates.length === 0) continue
     const target = candidates[Math.floor(Math.random() * candidates.length)]
-    // buyer のリーグの格に実効OVR（年齢加味）が届かない選手は引き抜かない（弱い/高齢の選手が格上へ行かない）
-    if (effectiveOvr(target) < leagueFloor(buyer)) continue
-    // ★「必要だから動く」の関門。ここが抜けていて、格の下限さえ超えていれば
-    //   どのクラブでも誰でも引き抜けた。国内CPUと同じ needsPlayer 1本を通す
+    // ★関門は「必要か」と「そのクラブで走れるか」だけ（utils/squadNeeds 1本）。
+    //   格1のクラブは名簿が強いので弱い選手は自動的に序列の下に沈み、ここで落ちる。
+    //   OVRの下限表は要らない（16番手になる選手をわざわざ獲るクラブはいない）。
     const buyerRoster = roster[buyer.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
-    if (!needsPlayer(buyerRoster, target)) continue
+    if (!needsPlayer(buyerRoster, target) && !wouldMakeLineup(buyerRoster, target)) continue
 
     // 実行
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
@@ -127,10 +125,12 @@ export function simulateForeignTransferMarket(params: {
     const fallen = sorted.filter((p, i) => hasNoPlayingTime(i + 1) && p.age >= 30)
     if (fallen.length === 0) continue
     const target = fallen[Math.floor(Math.random() * fallen.length)]
-    // 行き先は自クラブより平均の低い（＝出番を得やすい）空きのあるクラブ。行き先の格にも届いていること
-    const dests = allClubs.filter(c =>
-      c.id !== seller.id && roster[c.id].length < ROSTER_MAX && clubAvg[c.id] < clubAvg[seller.id]
-      && effectiveOvr(target) >= foreignMinOvr(c.country ?? ''))
+    // 行き先は自クラブより平均の低い（＝出番を得やすい）空きのあるクラブ。
+    // 「そこで走れるか」が条件（出場機会を求めて動くのだから、走れない先へは行かない）
+    const dests = allClubs.filter(c => {
+      if (c.id === seller.id || roster[c.id].length >= ROSTER_MAX || clubAvg[c.id] >= clubAvg[seller.id]) return false
+      return wouldMakeLineup(roster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x), target)
+    })
     if (dests.length === 0) continue
     const dest = dests[Math.floor(Math.random() * dests.length)]
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
@@ -199,7 +199,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
 }): { teams: T[]; foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
   const { teams, foreignLeagues, players, playerTeamId, year, excludeIds } = params
   const foreignClubs = allForeignClubs(foreignLeagues)
-  const clubCountry = new Map(allForeignClubs(foreignLeagues).map(c => [c.id, c.country as string]))
   const cpuTeams = teams.filter(t => t.id !== playerTeamId)
   if (foreignClubs.length === 0 || cpuTeams.length === 0) return { teams, foreignLeagues, players, news: [], records: [] }
 
@@ -310,9 +309,13 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const target = surplusTarget(jpnRoster[seller.id])
     if (!target || moved.has(target.id)) continue
     // 買う側（海外クラブ）は上限(30)未満＋リーグの格にOVRが届くクラブのみ（弱い選手は格上リーグに行かない）
-    const tOvr = effectiveOvr(target)
     const fee = calcTransferValue(target)
-    const buyerPool = foreignClubs.filter(c => fRoster[c.id].length < ROSTER_MAX && tOvr >= foreignMinOvr(clubCountry.get(c.id) ?? '') && fBudget[c.id] >= fee)
+    // 買うのは「必要か、そのクラブで走れるか」で決まる（国やリーグの下限表は持たない）
+    const buyerPool = foreignClubs.filter(c => {
+      if (fRoster[c.id].length >= ROSTER_MAX || fBudget[c.id] < fee) return false
+      const r = fRoster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
+      return needsPlayer(r, target) || wouldMakeLineup(r, target)
+    })
     if (buyerPool.length === 0) continue
     const buyer = weightedPick(buyerPool, c => fBudget[c.id])   // 予算が多いクラブほど動く
     jpnRoster[seller.id] = jpnRoster[seller.id].filter(id => id !== target.id)
@@ -328,7 +331,6 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // （OVR82+・32歳以下）を高額移籍金で年1〜2人強奪する。「世界レベルは世界レベルに集まる」の実現。
   // 従来のN_OUTは余剰・準主力しか動かさないため、日本代表クラスが国内に固定される問題への対策
   {
-    const clubLeague = leagueIdByClub(foreignLeagues)
     const N_STAR = Math.random() < 0.55 ? 1 : 2
     for (let i = 0; i < N_STAR; i++) {
       const sellers = cpuTeams.filter(t => jpnSize(t.id) > ROSTER_MIN)
@@ -340,7 +342,13 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       if (starPool.length === 0) break
       const { p: target, sellerId } = weightedPick(starPool, x => ovr(x.p) - 80)
       const fee = Math.round(calcTransferValue(target) * FOREIGN_STAR_PREMIUM)
-      const buyerPool = foreignClubs.filter(c => isEliteLeague(clubLeague.get(c.id)) && fRoster[c.id].length < ROSTER_MAX && fBudget[c.id] >= fee)
+      // スターの行き先も「必要か・走れるか」と払えるかだけ。4大リーグかどうかでは絞らない
+      // （名簿が強いクラブほどスターしか序列に入れないので、結果的に上位クラブへ集まる）
+      const buyerPool = foreignClubs.filter(c => {
+        if (fRoster[c.id].length >= ROSTER_MAX || fBudget[c.id] < fee) return false
+        const r = fRoster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
+        return needsPlayer(r, target) || wouldMakeLineup(r, target)
+      })
       if (buyerPool.length === 0) break
       const buyer = weightedPick(buyerPool, c => fBudget[c.id])
       jpnRoster[sellerId] = jpnRoster[sellerId].filter(id => id !== target.id)
@@ -367,11 +375,11 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     )),
   }))
 
-  // 日本より格上のリーグへの移籍は「日本人が世界最高峰へ挑む」大ニュースにする。
-  // 国コード（旧判定）に加えて4大リーグ所属クラブも対象（欧州の国コードGBR/GER等が漏れていた）
-  const STRONG_COUNTRIES = new Set(['ETH', 'KEN', 'UGA', 'TAN', 'USA'])
-  const newsClubLeague = leagueIdByClub(foreignLeagues)
-  const isStrongDest = (toId: string) => STRONG_COUNTRIES.has(clubCountry.get(toId) ?? '') || isEliteLeague(newsClubLeague.get(toId))
+  // 「日本より格上のクラブへ行った」は大ニュース。**格でそのまま言える。**
+  // 国内の頭打ちは格5（DOMESTIC_TOP_TIER）なので、それより上＝格1〜4のクラブが対象。
+  // 以前は国コードの表（ETH/KEN/UGA/TAN/USA）＋4大リーグで判定していて、
+  // 国コードの漏れ（GBR/GER など）を4大リーグで塞ぐ、という継ぎ足しになっていた。
+  const isStrongDest = (toId: string) => tierOfClubId(toId) < DOMESTIC_TOP_TIER
   // 成立日をオフシーズン期間に分散（全部同日に見える不自然さの解消）
   const XB_DAYS = ['01-14', '01-19', '01-24', '01-29', '02-02', '02-08', '02-13', '02-19', '02-24', '03-02', '03-08', '03-14']
   const xbDate = (i: number) => `${year}-${XB_DAYS[i % XB_DAYS.length]}`

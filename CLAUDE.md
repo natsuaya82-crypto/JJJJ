@@ -64,7 +64,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
 
 | `src/utils/newsItems.ts` | ニュースの見出しの文面。**画面や store に見出しを直書きしないこと** |
-| `src/utils/foreignClubProfile.ts` | 海外クラブの姿。`effectiveOvr`（年齢を加味した実効OVR）／`foreignMinOvr`（そのリーグが受け入れる下限） |
+| `src/utils/foreignClubProfile.ts` | `effectiveOvr`（年齢を加味した実効OVR）。**クラブが選手を獲るかどうかは「必要か」と「そこで走れるか」だけ**（`utils/squadNeeds`）。国やリーグごとのOVR下限表は持たない |
 | `src/data/economy.ts` | `transferCapOf`（1人に出せる移籍金の上限＝格の年間予算の20%と手元資金の小さい方） |
 | `src/data/rosterRules.ts` | `ROSTER_MAX` / `ROSTER_MIN` / `RUNNING_SLOTS`（走れる人数）／`rosterCapOf` |
 | `src/utils/squadNeeds.ts` | `squadRankOf`（そのクラブで何番手か）／`wouldMakeLineup`（走れる7人に入るか） |
@@ -284,6 +284,32 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 年俸に年齢係数は掛けません（衰えは年齢カーブでOVRが下がることだけで表す）。
 移籍金に実績倍率を掛け直しません（年俸の中で既に効いている）。
 ポテンシャル係数は廃止（伸びしろは年齢倍率で表す）。
+
+### クラブの強さの物差しは格1本
+
+**国やリーグの表で「そのクラブがどれだけ強いか」を判断しないこと。**
+
+以前は格とは別に2つの表があり、「そのクラブが相手にする選手のOVRの下限」を決めていました。
+
+- 国の表 … ETH/KEN/UGA/TAN 85 ／ USA 80 ／ KOR/CHN/TWN 70 ／ その他 75
+- リーグの表 … 4大リーグ 84 ／ その他 74
+
+同じ格3〜9のクラブが74と84の2通りに割れ、さらに**格は毎年動くのに国もリーグも動かない**ので、
+格2から格9まで落ちたクラブがいつまでも「OVR84以上しか獲らない」ままでした。
+
+**下限は要りません。** クラブが選手を獲るのは「必要だから」と「そこで走れるから」だけです
+（`utils/squadNeeds` の `needsPlayer` / `wouldMakeLineup`）。格1のクラブは名簿が強いので、
+弱い選手はそこでは20番手あたりに沈んで自動的に外れます。16番手になる選手をわざわざ獲る
+クラブはいない、というだけの話です。実測でも OVR70 に声をかけるのは格4〜20の22クラブ、
+OVR84 なら格1〜20の153クラブになります。
+
+同じ理由で、次のものも格から出します。
+
+| 何 | 前 | いま |
+|---|---|---|
+| 引き抜きの積極さ | 4大リーグなら×2.4 | 格から（格1が一番動く） |
+| スターの受け入れ先 | 4大リーグのクラブだけ | 必要か・走れるか |
+| 「日本より格上へ移籍」の大ニュース | 国コードの表＋4大リーグ | 格 < 5（国内の頭打ちが格5） |
 
 ### 移籍の同意も格から降りてきます
 
