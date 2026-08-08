@@ -1,7 +1,7 @@
 import { MemoryRouter as BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from './store/gameStore'
-import { flushSaveNow } from './store/saveStorage'
+import { flushSaveNow, sawSavedGame } from './store/saveStorage'
 import { getSaveHealth, onSaveHealthChange, setSaveHealth } from './store/saveHealth'
 import { clearDataUpdateNeeded, isDataUpdateNeeded } from './store/dataUpdate'
 import DataUpdateScreen from './components/ui/DataUpdateScreen'
@@ -527,6 +527,13 @@ export default function App() {
     // アップデート後の初回起動。数え直しを先に済ませ、新しい形でセーブを書き直す。
     // 終わるまで先へ進めない（途中で閉じても冪等なので壊れない）
     content = <DataUpdateScreen onDone={finishDataUpdate} />
+  } else if (!isInitialized && !draftState && sawSavedGame()) {
+    // 【最後の砦】セーブは読めたのに、開始前の状態で起動した。
+    //   読み込み自体は成功しているので saveHealth は 'ok' のままで、このままだと
+    //   新規ゲーム画面が出る。そこで新チームを作られると、破壊ガードから見れば
+    //   「isInitialized:true を書いているだけ」なので素通りし、本物のセーブが物理的に消える。
+    //   ここでは絶対に新規作成させず、復旧画面（書き込み停止中・再試行できる）だけを見せる。
+    content = <SaveRecoveryScreen reason="セーブは見つかりましたが、中身を読み出せませんでした" />
   } else if (!isInitialized && !draftState) {
     content = <Onboarding />
   } else if (draftState && !draftState.isComplete) {

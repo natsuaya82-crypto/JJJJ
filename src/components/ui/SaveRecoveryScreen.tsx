@@ -12,10 +12,12 @@ import { APP_VERSION } from '../../data/appMeta'
 // 本物のセーブが上書きされて復元不能になっていた。
 // この画面が出ている間はセーブへの書き込みを完全に停止しているので、
 // 再読み込みすれば元のデータで復帰できる。
-export default function SaveRecoveryScreen() {
+export default function SaveRecoveryScreen({ reason }: { reason?: string } = {}) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
-  const detail = getSaveHealthReason()
+  // 読み込みが失敗した起動では saveHealth に理由が入る。
+  // 「読み込みは通ったのに中身が初期状態」のときは呼ぶ側から理由をもらう（App.tsx）
+  const detail = getSaveHealthReason() || reason || ''
 
   const reload = () => { setBusy(true); window.location.reload() }
   const wipe = () => {

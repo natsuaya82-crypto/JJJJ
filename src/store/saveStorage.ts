@@ -72,6 +72,18 @@ const countPlayers = (v: string): number => {
 }
 let loadedPlayerCount = 0
 
+// ── 「セーブがあったのに、開始前の状態で起動した」を検知する ──
+//
+// 読み込みが**成功したのに**中身が初期状態、という起動が最後の穴だった。
+// saveHealth は 'ok' なので復旧画面へ回らず、そのまま新規ゲーム画面（Onboarding）が出る。
+// そこで新チームを作られると、破壊ガードも「isInitialized:true を書いているだけ」に見えるので
+// 素通りし、本物のセーブが物理的に消える。
+// **セーブを1度でも読んだ**ことをここに残し、画面側（App.tsx）が新規ゲーム画面の代わりに
+// 復旧画面を出せるようにする。
+let sawSave = false
+/** この起動でセーブ（本体・.tmp・.bak・旧localStorage）を読み込んだか */
+export function sawSavedGame(): boolean { return sawSave }
+
 async function exists(path: string): Promise<boolean> {
   try {
     await Filesystem.stat({ path, directory: Directory.Data })
@@ -217,14 +229,14 @@ export const saveStorage: StateStorage = {
   getItem: (name) => {
     if (!isNative) {
       const v = localStorage.getItem(name)
-      if (isInit(v)) loadedInitialized = true
+      if (isInit(v)) { loadedInitialized = true; sawSave = true }
       if (v) loadedPlayerCount = countPlayers(v)
       return v
     }
     return (async () => {
       const { raw, sawFile } = await loadFromDisk()
       if (raw !== null) {
-        if (isInit(raw)) loadedInitialized = true
+        if (isInit(raw)) { loadedInitialized = true; sawSave = true }
         loadedPlayerCount = countPlayers(raw)
         return raw
       }
@@ -251,7 +263,7 @@ export const saveStorage: StateStorage = {
           console.error('[save] migration failed, keep using localStorage data', e)
         }
       }
-      if (isInit(legacy)) loadedInitialized = true
+      if (isInit(legacy)) { loadedInitialized = true; sawSave = true }
       if (legacy) loadedPlayerCount = countPlayers(legacy)
       return legacy
     })()
@@ -291,6 +303,7 @@ export const saveStorage: StateStorage = {
   removeItem: (name) => {
     loadedInitialized = false   // データ削除＝ガード解除（新規ゲームを保存できるように）
     loadedPlayerCount = 0       // 中身の基準も外す（明示的な削除のあとは何を書いてもよい）
+    sawSave = false             // 削除したので「セーブがあった」も外す（新規ゲーム画面へ進んでよい）
     safeMode = false
     setSaveHealth('ok', '')
     lastBackupAt = 0

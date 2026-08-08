@@ -108,9 +108,19 @@ export type SeasonArchive = {
   races: Record<string, PackedRace[]>
 }
 
-/** 過去シーズンの記録を置くキー。読み書きするのはここ1本 */
-export function archiveKeyOf(year: number): string {
-  return `jpel-archive-${year}`
+/**
+ * 過去シーズンの記録を置くキー。読み書きするのはここ1本。
+ *
+ * ★**スロットごとに分ける。** セーブ本体はスロットごとに分かれているのに、
+ *   記録だけ全スロット共通だった。スロット2で2035年まで遊ぶと、スロット1の
+ *   2035年の記録を上書きする。データ削除でも「今のスロットの archivedYears に
+ *   載っている年」しか消さないので、他スロットのぶんが残っていた。
+ *
+ * ★スロット1は接尾辞なし＝**今までのキーのまま**。既存の記録はそのまま読める。
+ *   移行の作業は要らない（スロット2以降だけが新しい名前になる）。
+ */
+export function archiveKeyOf(year: number, suffix = ''): string {
+  return `jpel-archive-${year}${suffix}`
 }
 
 // ── 既存データを壊さないための境目 ─────────────────────────────

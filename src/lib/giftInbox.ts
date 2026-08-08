@@ -8,8 +8,13 @@
 // localStorage を使うのは、セーブ本体（Filesystem）の書き込みが少し遅れて行われるため。
 // こちらは書いた時点で確実に残る。
 import type { TrainingCard } from '../types'
+import { saveSlotSuffix } from '../store/saveSlot'
 
-const KEY = 'jpel_gift_inbox'
+// 置き場所は store/appStorage.ts の登録表に載せてある（データ削除で消える側）。
+// **スロットごとに分ける**。以前は全スロット共通で、しかもデータ削除でも残っていたので、
+// 消したはずの前のゲームでもらったカードが、新しいゲームに入ってきていた。
+// スロット1は接尾辞なし＝今までのキーのままなので、いま箱に入っているものは失われない。
+const KEY = `jpel_gift_inbox${saveSlotSuffix()}`
 
 /** 受け取った中身を箱に入れる（手元に足す前に必ず呼ぶ） */
 export function stashGifts(cards: TrainingCard[]): void {

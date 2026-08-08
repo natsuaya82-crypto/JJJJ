@@ -411,6 +411,36 @@ RULES.push({
   fix: 'clubTier の isBigClub（格2以上）／ isStepUp（行き先の格 < 今のクラブの格）を使う',
 })
 
+// 端末に置くものは store/appStorage.ts の登録表に載せる。
+// 置き場所が11か所に散っていて、「データ削除で何を消すか」が resetGame の中に
+// 手書きで並んでいた。書き足し忘れると消えずに残る（もらったカードの箱が実際そうだった）。
+RULES.push({
+  name: 'localStorage を登録表の外で直接使っている',
+  pattern: /localStorage\.(setItem|removeItem)\(/,
+  allow: [
+    'src/store/appStorage.ts',   // 登録表そのもの
+    'src/store/saveStorage.ts',  // セーブ本体（ネイティブはファイル。ここが唯一の入口）
+    'src/store/saveSlot.ts',     // どのスロットか（セーブを読む前に要るので例外）
+    'src/store/deviceFlags.ts',  // 端末のもの（登録表に載せてある）
+    'src/lib/durableId.ts',      // フレンド用の証明書（登録表に載せてある）
+    'src/lib/supabase.ts',       // 身元を消した印（登録表に載せてある）
+    'src/lib/giftInbox.ts',      // もらったカードの箱（登録表に載せてある）
+    'src/lib/useFriendSync.ts',  // 送信済みの指紋（登録表に載せてある）
+    'src/utils/termsConsent.ts', // 規約への同意（登録表に載せてある）
+    'src/utils/audio.ts',        // 音量（登録表に載せてある）
+    'src/components/more/MorePage.tsx', // 音量の設定画面
+  ],
+  fix: 'store/appStorage.ts の登録表にキーと寿命を足す（データ削除で消すかどうかが決まる）',
+})
+
+// セーブ形式の版は1本。version: NN と、更新画面を出す判定の両方に同じ数字を書かない。
+RULES.push({
+  name: 'セーブ形式の版の直書き',
+  pattern: /version:\s*\d\d\s*,/,
+  allow: ['src/store/gameStore.ts'],   // SAVE_VERSION の定義とその使用のみ
+  fix: 'gameStore.ts の SAVE_VERSION を使う',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 // ── 今回の一本化ぶん ───────────────────────────────────────────

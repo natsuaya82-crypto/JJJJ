@@ -101,6 +101,17 @@ import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap
 import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierStrength, isBigClub, isStepUp, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 import { normalizeForeignStandings } from '../utils/clubStanding'
+// 端末に置いているものの登録表（キーと寿命）。データ削除で消すのはここから引く
+import { clearGameStorage } from './appStorage'
+
+/**
+ * セーブ形式の版。**上げるのはここ1本。**
+ *
+ * ★上げたら必ず `scripts/check-load-v39.ts`（前の版のセーブを読ませる確認）を通すこと。
+ *   build 106 で30シーズンぶんのセーブが失われたのは、これを上げた変更を
+ *   既存のセーブで一度も読ませずに実機へ出したから。
+ */
+const SAVE_VERSION = 40
 
 type DraftState = {
   pool: Player[]
@@ -7955,9 +7966,12 @@ export const useGameStore = create<GameStore>()(
             markIdentityCleared()   // ログアウトが通り切らなくても古いアカウントに戻さない
             await supabase.auth.signOut()
             resetAuthCache()
-            // 送信済みの指紋もスロットごと（lib/useFriendSync.ts）。接尾辞なしで消すと、
-            // 別スロットのぶんを消したうえで自分のぶんが残り、新アカウントで一生送られない
-            localStorage.removeItem(`jpel_friend_sync_stamp${saveSlotSuffix()}`)
+            // 端末に置いているもののうち「データ削除で消える」ものを全部消す。
+            // **ここに消すものを手書きで並べないこと。** 置き場所と寿命の登録表は
+            // store/appStorage.ts の1本で、新しい保存場所を足す人はそこに足す。
+            // 以前はここに手書きの一覧があり、書き足し忘れたもの（もらったカードの箱）が
+            // データ削除でも残っていた。
+            clearGameStorage()
           } catch (e) {
             console.warn('[reset] failed to clear friend identity', e)
           }
@@ -7971,7 +7985,7 @@ export const useGameStore = create<GameStore>()(
       // 保存先はスロットごとに分かれる（store/saveSlot.ts）。スロット1は接尾辞なし＝
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
-      version: 40,
+      version: SAVE_VERSION,
       // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
       storage: createJSONStorage(() => saveStorage),
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
@@ -8320,7 +8334,11 @@ export const useGameStore = create<GameStore>()(
           // ここまでの v25〜v29 が「セーブに持たず数え直す」への切り替え。
           // 変換自体は自動で終わっているが、古いセーブの初回起動だけは
           // 数え直しを先に済ませて新しい形で書き直したいので、更新画面を出す合図を立てる。
-          if (version < 29 && s.isInitialized) markDataUpdateNeeded()
+          // ★版が上がったときは**必ず**更新画面を出す。
+          //   以前は「v29より古いとき」だけで、次に版を上げても出なかった。
+          //   この画面が出ているあいだは先へ進めないので、読み込みと書き直しが
+          //   終わる前にプレイして壊す、という事故が起きない。
+          if (version < SAVE_VERSION && s.isInitialized) markDataUpdateNeeded()
 
           // v30: リザーブ（2軍リーグ）を廃止。
           // 今シーズンの進行中データだけを落とす。過去シーズン（pastSeasons）の

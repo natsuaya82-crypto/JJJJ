@@ -4,6 +4,12 @@ import {
   type PackedRace, type SeasonArchive,
 } from '../utils/raceRecord'
 import { writeArchive, readArchive, removeArchive } from './saveStorage'
+import { saveSlotSuffix } from './saveSlot'
+
+// 記録の置き場所もスロットごと（セーブ本体と同じ分け方）。
+// スロット1は接尾辞なし＝今までのキーのままなので、既存の記録はそのまま読める。
+const SUF = saveSlotSuffix()
+const keyOf = (year: number) => archiveKeyOf(year, SUF)
 
 // 過去シーズンの走行記録を、普段のセーブの外に置くための唯一の場所。
 //
@@ -62,7 +68,7 @@ function packSeason(s: ArchivedSeason): SeasonArchive {
 export async function writeSeasonArchive(s: ArchivedSeason): Promise<boolean> {
   try {
     const json = JSON.stringify(packSeason(s))
-    const key = archiveKeyOf(s.year)
+    const key = keyOf(s.year)
     await writeArchive(key, json)
     const back = await readArchive(key)
     return archiveMatches(json, back)
@@ -148,7 +154,7 @@ export async function hydratePastSeasons(
   for (const s of pastSeasons) {
     if (!done.has(s.year)) { out.push(s); continue }
     try {
-      const raw = await readArchive(archiveKeyOf(s.year))
+      const raw = await readArchive(keyOf(s.year))
       if (!raw) { out.push(s); continue }
       out.push(applyArchive(s, JSON.parse(raw) as SeasonArchive))
     } catch (e) {
@@ -166,6 +172,6 @@ export async function hydratePastSeasons(
  */
 export async function clearSeasonArchives(archivedYears: readonly number[] | undefined): Promise<void> {
   for (const y of archivedYears ?? []) {
-    try { await removeArchive(archiveKeyOf(y)) } catch (e) { console.warn('[archive] failed to remove', y, e) }
+    try { await removeArchive(keyOf(y)) } catch (e) { console.warn('[archive] failed to remove', y, e) }
   }
 }
