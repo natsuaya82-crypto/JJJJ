@@ -20,8 +20,8 @@ import { saveSlotSuffix, suffixOfSlot, type SaveSlot } from './saveSlot'
 const SUF = saveSlotSuffix()
 const FILE = `jpel-manager-save${SUF}.json`
 const TMP = `jpel-manager-save${SUF}.tmp.json`
-/** 旧形式の1本だけのバックアップ。読み込みの候補としては今も見る（過去のセーブに残っている） */
-const BAK = `jpel-manager-save${SUF}.bak.json`
+// 旧形式の1本だけのバックアップ（`.bak.json`）は過去のセーブに残っているが、
+// 名前を書き出す必要は無い。下の describeSave が名前から拾う。
 const isNative = Capacitor.isNativePlatform()
 
 // ── 世代バックアップ ──
@@ -39,6 +39,89 @@ const bakPath = (i: number) => `jpel-manager-save${SUF}.bak${i}.json`
  * build 106 で30シーズンぶんが失われたとき、これがあれば戻せた。
  */
 const versionSnapshotPath = (v: number) => `jpel-manager-save${SUF}.v${v}.json`
+
+// ── セーブが置かれうる場所、その一覧（唯一の決まり）─────────────────
+//
+// 【なぜ1本にするのか】
+//   同じ一覧が4か所に手書きされていて、全部が食い違っていた。
+//     読み込み    本体・書きかけ・旧bak・世代          … **版ごとの退避を見ていない**
+//     復旧の一覧  上記 ＋ 版ごとの退避
+//     データ削除  上記 ＋ 版ごとの退避（v1〜200 の決め打ち）
+//     空き判定    本体・書きかけ・旧bak                … **世代も退避も見ていない**
+//   結果こうなっていた。
+//     ・退避しか残っていないと「セーブが1つも無い」と判断して新規ゲーム画面が出る
+//       （復旧の一覧には出るのに、そこへ行く手段が無い）
+//     ・世代バックアップが残っているスロットが「空き」に見えて、上から新規作成できる
+//   **エラーが起きた＝復旧が要る**ということなので、読み込みの側が最初から全部を見る。
+//   復旧画面は「自動で戻せなかったときに、どれに戻すかを選ぶ」ためだけのものにする。
+//
+// 【どう数えるか】
+//   ファイル名を決め打ちで並べない。保存先のフォルダを1回読んで、名前から判別する。
+//   世代を増やしても版が上がっても、一覧を書き足す必要が無い（増やし忘れが起きない）。
+//   フォルダが読めない環境のためだけに、既知の名前をあたる道も残す（判別は下の1本を通る）。
+
+/** 復旧に使える1件。rank は読み込みで試す順（小さいほど先） */
+export type Recoverable = { path: string; label: string; size: number; mtime: number }
+type SaveSource = Recoverable & { rank: number }
+
+/**
+ * ファイル名がセーブかどうかを決める**唯一の場所**。
+ * ここに載っていない名前はセーブとして扱わない（＝読まない・消さない・数えない）。
+ */
+function describeSave(name: string, suf: string): { label: string; rank: number } | null {
+  const base = `jpel-manager-save${suf}`
+  if (!name.startsWith(`${base}.`) || !name.endsWith('.json')) return null
+  // 'jpel-manager-save.json' → ''、'…bak3.json' → 'bak3'、'…v39.json' → 'v39'
+  const mid = name.slice(base.length + 1, -'.json'.length)
+  if (mid === '') return { label: 'いまのセーブ', rank: 0 }
+  if (mid === 'tmp') return { label: '書きかけ（直前の操作）', rank: 1 }
+  if (mid === 'bak') return { label: 'ひとつ前（旧形式）', rank: 2 }
+  const gen = /^bak(\d+)$/.exec(mid)
+  if (gen) return { label: `世代バックアップ ${gen[1]}`, rank: 3 }
+  const ver = /^v(\d+)$/.exec(mid)
+  if (ver) return { label: `アップデート前（形式 v${ver[1]}）`, rank: 4 }
+  return null
+}
+
+/** 決め打ちであたる名前（フォルダが読めないときの道）。判別は describeSave に任せる */
+function knownSaveNames(suf: string): string[] {
+  const base = `jpel-manager-save${suf}`
+  const out = [`${base}.json`, `${base}.tmp.json`, `${base}.bak.json`]
+  for (let i = 1; i <= BAK_SLOTS; i++) out.push(`${base}.bak${i}.json`)
+  // 版の退避は「今の版まで」あたれば足りる（それより上の版の退避は存在しえない）
+  for (let v = 1; v <= SAVE_FORMAT_VERSION; v++) out.push(`${base}.v${v}.json`)
+  return out
+}
+
+/**
+ * いま端末に残っているセーブを全部集める。**読み込み・復旧・削除・空き判定の4つが全部ここを通る。**
+ * 並びは読み込みで試す順（本体 → 書きかけ → 旧bak → 世代の新しい順 → 退避の新しい版から）。
+ */
+async function collectSaveSources(suf = SUF): Promise<SaveSource[]> {
+  if (!isNative) return []
+  const out: SaveSource[] = []
+  const add = async (name: string) => {
+    const d = describeSave(name, suf)
+    if (!d) return
+    try {
+      const st = await Filesystem.stat({ path: name, directory: Directory.Data })
+      out.push({
+        path: name, label: d.label, rank: d.rank,
+        size: typeof st.size === 'number' ? st.size : 0,
+        mtime: typeof st.mtime === 'number' ? st.mtime : 0,
+      })
+    } catch { /* 無ければ候補にしない */ }
+  }
+  try {
+    const res = await Filesystem.readdir({ path: '', directory: Directory.Data })
+    for (const f of res.files) await add(typeof f === 'string' ? f : f.name)
+  } catch (e) {
+    // フォルダが読めない環境。既知の名前を1つずつあたる（見つかる範囲は狭いが空にはしない）
+    console.error('[save] readdir failed; falling back to known names', e)
+    for (const name of knownSaveNames(suf)) await add(name)
+  }
+  return out.sort((a, b) => a.rank - b.rank || b.mtime - a.mtime)
+}
 
 // 書き込みは末尾デバウンス（連続する set() のたびに数MBを書かない）。
 let pending: string | null = null
@@ -183,22 +266,10 @@ async function snapshotBeforeMigrate(raw: string, current: number): Promise<void
 }
 
 /** 復旧に使える候補（新しい順）。復旧画面が一覧で見せる */
-export type Recoverable = { path: string; label: string; size: number; mtime: number }
 export async function listRecoverables(): Promise<Recoverable[]> {
-  if (!isNative) return []
-  const out: Recoverable[] = []
-  const add = async (path: string, label: string) => {
-    try {
-      const st = await Filesystem.stat({ path, directory: Directory.Data })
-      out.push({ path, label, size: typeof st.size === 'number' ? st.size : 0, mtime: typeof st.mtime === 'number' ? st.mtime : 0 })
-    } catch { /* 無ければ候補にしない */ }
-  }
-  await add(FILE, 'いまのセーブ')
-  await add(TMP, '書きかけ（直前の操作）')
-  await add(BAK, 'ひとつ前（旧形式）')
-  for (let i = 1; i <= BAK_SLOTS; i++) await add(bakPath(i), `世代バックアップ ${i}`)
-  for (let v = 1; v <= 200; v++) await add(versionSnapshotPath(v), `アップデート前（形式 v${v}）`)
-  return out.sort((a, b) => b.mtime - a.mtime)
+  const all = await collectSaveSources()
+  // 画面では新しい順に見せる（読み込みの優先順とは別）
+  return [...all].sort((a, b) => b.mtime - a.mtime)
 }
 
 /** 選んだ候補を本体に戻す。**戻す前に、いまの本体も世代へ逃がす** */
@@ -296,18 +367,11 @@ export async function flushSaveNow(): Promise<void> {
 // （本体の差し替え中にキルされた場合は .tmp が最新の正常データになっている可能性がある）
 async function loadFromDisk(): Promise<{ raw: string | null; sawFile: boolean }> {
   let sawFile = false
-  // 本体 → 書きかけ → 旧形式のバックアップ → 世代バックアップ（新しい順）。
-  // 前は本体・書きかけ・.bak の3つだけで、そこが全部だめなら打つ手が無かった。
-  const gens: { path: string; mtime: number }[] = []
-  for (let i = 1; i <= BAK_SLOTS; i++) {
-    try {
-      const st = await Filesystem.stat({ path: bakPath(i), directory: Directory.Data })
-      gens.push({ path: bakPath(i), mtime: typeof st.mtime === 'number' ? st.mtime : 0 })
-    } catch { /* 無い世代は飛ばす */ }
-  }
-  gens.sort((a, b) => b.mtime - a.mtime)
-  for (const path of [FILE, TMP, BAK, ...gens.map(g => g.path)]) {
-    if (!await exists(path)) continue
+  // 残っているものを**全部**、読み込みの優先順で試す（collectSaveSources 1本）。
+  // 「エラーが起きた＝復旧が要る」ので、ここで手を抜かない。版ごとの退避まで含めて
+  // 1つでも読めればそれを本体に戻す。ここを縮めると復旧画面にすらたどり着けなくなる。
+  const sources = await collectSaveSources()
+  for (const { path } of sources) {
     sawFile = true
     let raw: string | null
     try {
@@ -424,13 +488,9 @@ export const saveStorage: StateStorage = {
     return (async () => {
       pending = null
       if (timer) { clearTimeout(timer); timer = null }
-      await removeIfExists(FILE)
-      await removeIfExists(TMP)
-      await removeIfExists(BAK)
-      // 世代バックアップと版ごとの退避も消す。ここを残すと「削除したのに前のデータが
-      // 復旧画面から戻せる」状態になり、削除したことにならない
-      for (let i = 1; i <= BAK_SLOTS; i++) await removeIfExists(bakPath(i))
-      for (let v = 1; v <= 200; v++) await removeIfExists(versionSnapshotPath(v))
+      // 残っているものを全部（世代バックアップも版ごとの退避も）。ここを残すと
+      // 「削除したのに前のデータが復旧画面から戻せる」状態になり、削除したことにならない
+      for (const { path } of await collectSaveSources()) await removeIfExists(path)
     })()
   },
 }
@@ -494,9 +554,7 @@ export async function slotHasSave(slot: SaveSlot): Promise<boolean> {
   if (!isNative) {
     try { return isInit(localStorage.getItem(name)) } catch { return false }
   }
-  // 本体が無くても .tmp / .bak が残っていれば復旧できるので「データあり」として扱う
-  for (const path of [`${name}.json`, `${name}.tmp.json`, `${name}.bak.json`]) {
-    if (await exists(path)) return true
-  }
-  return false
+  // 本体が無くても、書きかけ・世代バックアップ・版ごとの退避が残っていれば復旧できる。
+  // ここを狭く数えると「世代しか残っていないスロット」が空きに見えて、上から新規作成できてしまう
+  return (await collectSaveSources(suffixOfSlot(slot))).length > 0
 }

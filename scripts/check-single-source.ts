@@ -510,6 +510,18 @@ RULES.push({
   fix: 'utils/tradeValue.ts の tradeBalance を使う',
 })
 
+// ★セーブの置き場所の一覧。**ここが割れるとデータが消える。**
+//   同じ一覧が読み込み・復旧・削除・空き判定の4か所に手書きされていて、全部が食い違っていた。
+//   読み込みは版ごとの退避を見ておらず、空き判定は世代バックアップを見ていない。
+//   その結果「端末にデータが残っているのに新規ゲーム画面が出る」「世代しか残っていない
+//   スロットが空きに見える」という、そのまま上書きにつながる穴が空いていた。
+RULES.push({
+  name: 'セーブファイルの名前の組み立て',
+  pattern: /`jpel-manager-save\$\{[^`]*\}\.(json|tmp|bak|v)/,
+  allow: ['src/store/saveStorage.ts'],
+  fix: 'store/saveStorage.ts の collectSaveSources / describeSave を通す（名前を自分で組み立てない）',
+})
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     if (SKIP_DIRS.has(e)) continue

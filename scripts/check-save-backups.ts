@@ -65,6 +65,22 @@ async function main() {
   check('復旧の候補が一覧に出る', list.length >= 2, `${list.length}件`)
   check('候補にアップデート前の退避が含まれる', list.some(r => r.label.includes('アップデート前')))
 
+  // ★退避しか残っていなくても読み戻せること。
+  //   以前は読み込みが本体・書きかけ・旧bak・世代の4種類しか見ておらず、退避だけが
+  //   残った端末では「セーブが1つも無い」と判断して新規ゲーム画面が出ていた。
+  //   一覧には出るのにそこへ行けない＝復旧できない、という状態だった。
+  for (const k of [...files.keys()]) if (k !== snap) files.delete(k)
+  const onlySnap = await st2.saveStorage.getItem(KEY)
+  check('アップデート前の退避しか無くても読み戻せる', typeof onlySnap === 'string' && onlySnap.includes('"isInitialized":true'))
+  check('読み戻したものが本体に復元される', files.has(FILE))
+
+  // ★スロットの空き判定も同じ一覧を見ること。
+  //   以前は本体・書きかけ・旧bak の3つしか見ておらず、世代バックアップだけが残った
+  //   スロットが「空き」に見えた。そこに新規作成されると本当に消える。
+  for (const k of [...files.keys()]) files.delete(k)
+  files.set('jpel-manager-save.bak2.json', { data: mkSave(2000, 40), mtime: 9 })
+  check('世代バックアップだけのスロットは「空き」にならない', await st2.slotHasSave(1))
+
   // データ削除では退避も世代も消える（消したのに戻せる、を作らない）
   await st2.saveStorage.removeItem(KEY)
   const left = [...files.keys()].filter(k => k.startsWith('jpel-manager-save'))

@@ -11,6 +11,9 @@ export const Filesystem = {
     if (!f) throw new Error(`not found: ${path}`)
     return { size: f.data.length, mtime: f.mtime, type: 'file', uri: path }
   },
+  readdir: async () => ({
+    files: [...__files.entries()].map(([name, f]) => ({ name, size: f.data.length, mtime: f.mtime, type: 'file', uri: name })),
+  }),
   readFile: async ({ path }: { path: string }) => {
     const f = __files.get(path)
     if (!f) throw new Error(`not found: ${path}`)
