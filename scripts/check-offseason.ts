@@ -1,0 +1,162 @@
+/**
+ * オフシーズン（endSeason）を実際に走らせて、CPUクラブのロスターが壊れないかを見る。
+ *   npx esbuild --bundle --platform=node --format=cjs scripts/check-offseason.ts --outfile=/tmp/mos.cjs && node /tmp/mos.cjs
+ *
+ * ■なぜ要るのか
+ *   「クラブの規模」を平均OVR（cpuTeamTier）から格へ寄せたとき、
+ *   契約更新・売り出し・引き抜きの判定が全部 needsPlayer / hasNoPlayingTime に変わる。
+ *   ここを間違えると **CPUが誰も更新せずロスターが溶ける**（下限15人を割る）。
+ *   ブラウザは localStorage が5MBで1シーズン回せないので、ここで直接回す。
+ */
+import { useGameStore } from '../src/store/gameStore'
+import { INITIAL_TEAMS } from '../src/data/teams'
+import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
+import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
+import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
+import { generateSeasonRaces } from '../src/data/races'
+import { ROSTER_MIN, ROSTER_MAX } from '../src/data/rosterRules'
+import { tierOf } from '../src/utils/clubTier'
+import { ovr, retirementAgeOf } from '../src/utils/playerUtils'
+import type { SeasonStanding, Team, Player } from '../src/types'
+
+const problems: string[] = []
+const check = (name: string, ok: boolean, detail = '') => {
+  console.log(`  ${ok ? 'ok' : 'NG'}  ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  if (!ok) problems.push(name)
+}
+
+const YEAR = 2030
+const MY = 'tokyo'
+const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
+const cpu = generateCpuRosters(base, YEAR)
+const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
+
+// 契約年数をばらけさせる（満了が出ないと契約更新の枝を通らない）
+let sd = 11
+const rnd = () => { sd = (sd * 1103515245 + 12345) & 0x7fffffff; return sd / 0x7fffffff }
+players = players.map(p => ({ ...p, contract: { ...p.contract, yearsLeft: 1 + Math.floor(rnd() * 3) } }))
+
+const standings = newSeasonStandings<SeasonStanding>(base, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))
+for (const d of DIVISIONS) {
+  const rows = standings[d]
+  rows.forEach((row, i) => {
+    row.totalPoints = (rows.length - i) * DIVISION_RACES[d]
+    for (let r = 0; r < DIVISION_RACES[d]; r++) row.raceResults.push({ raceId: `d${d}-r${r}`, rank: i + 1, points: rows.length - i })
+  })
+}
+const foreignStandings: Record<string, SeasonStanding[]> = {}
+for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+
+const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
+const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!))
+
+const before = new Map(teams.map(t => [t.id, players.filter(p => p.teamId === t.id && p.status === 'active').length]))
+console.log(`開始：選手 ${players.length}人 / 国内 ${teams.length}クラブ / 海外 ${fgen.updatedLeagues.reduce((s, l) => s + l.clubs.length, 0)}クラブ`)
+console.log('')
+
+useGameStore.setState({
+  isInitialized: true,
+  playerTeamId: MY,
+  teams,
+  players,
+  foreignLeagues: fgen.updatedLeagues,
+  currentSeason: {
+    year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
+    races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } })),
+    standings, foreignStandings, newsFeed: [], objectives: [],
+    incomingOffers: [], transferListings: [], contractRequests: [],
+  },
+  pastSeasons: [],
+  worldAthleticsResults: [],
+  worldRepresentatives: [],
+} as never)
+
+console.log('[1] endSeason を実行')
+let threw: string | null = null
+try {
+  useGameStore.getState().endSeason()
+} catch (e) {
+  threw = (e as Error).message
+}
+check('例外なく走り切る', threw === null, threw ?? '')
+if (threw) { console.log(`✗ ${threw}`); process.exit(1) }
+
+const after = useGameStore.getState()
+const roster = (id: string) => after.players.filter(p => p.teamId === id && p.status === 'active')
+
+console.log('')
+console.log('[2] ロスターが溶けていないか（国内52クラブ）')
+{
+  const sizes = after.teams.map(t => roster(t.id).length)
+  const under = after.teams.filter(t => roster(t.id).length < ROSTER_MIN)
+  const over = after.teams.filter(t => roster(t.id).length > ROSTER_MAX)
+  console.log(`  在籍  最少 ${Math.min(...sizes)}人 / 中央 ${sizes.slice().sort((a, b) => a - b)[26]}人 / 最多 ${Math.max(...sizes)}人`)
+  for (const t of under.slice(0, 5)) console.log(`    ${t.shortName} ${roster(t.id).length}人`)
+  check(`下限(${ROSTER_MIN}人)を割ったクラブが無い`, under.length === 0, `${under.length}クラブ`)
+  check(`上限(${ROSTER_MAX}人)を超えたクラブが無い`, over.length === 0, `${over.length}クラブ`)
+}
+
+console.log('')
+console.log('[3] 海外クラブ（180）も同じ')
+{
+  const fClubs = after.foreignLeagues.flatMap(l => l.clubs)
+  const sizes = fClubs.map(c => roster(c.id).length)
+  const under = fClubs.filter(c => roster(c.id).length < ROSTER_MIN)
+  console.log(`  在籍  最少 ${Math.min(...sizes)}人 / 中央 ${sizes.slice().sort((a, b) => a - b)[90]}人 / 最多 ${Math.max(...sizes)}人`)
+  check(`下限(${ROSTER_MIN}人)を割ったクラブが無い`, under.length === 0, `${under.length}クラブ`)
+}
+
+console.log('')
+console.log('[4] 格が高いクラブほど名簿が強いか（格が効いているか）')
+{
+  const rows = after.teams.map(t => {
+    const r = roster(t.id)
+    return { tier: tierOf(t), avg: r.length ? r.reduce((s, p) => s + ovr(p), 0) / r.length : 0 }
+  }).filter(x => x.avg > 0)
+  const band = (lo: number, hi: number) => {
+    const v = rows.filter(x => x.tier >= lo && x.tier <= hi)
+    return v.length ? (v.reduce((s, x) => s + x.avg, 0) / v.length).toFixed(1) : '—'
+  }
+  console.log(`  格5〜8   平均OVR ${band(5, 8)}`)
+  console.log(`  格9〜13  平均OVR ${band(9, 13)}`)
+  console.log(`  格14〜20 平均OVR ${band(14, 20)}`)
+  const top = Number(band(5, 8)), bot = Number(band(14, 20))
+  check('格上のクラブのほうが名簿が強い', top > bot, `${top} vs ${bot}`)
+}
+
+console.log('')
+console.log('[5] 選手が消えていないか')
+{
+  const active = after.players.filter(p => p.status === 'active').length
+  const retired = after.players.filter(p => p.status === 'retired').length
+  const freeAgents = after.players.filter(p => p.status === 'active' && (!p.teamId || p.teamId === '' || p.teamId === '__pool__')).length
+  console.log(`  現役 ${active}人 / 引退 ${retired}人 / 無所属(FA) ${freeAgents}人`)
+  check('現役が半分以上残っている', active > players.length * 0.5, `${active} / ${players.length}`)
+  // 引退年齢は32〜40。生成直後の名簿は若いので、初回のオフでは出ないことがある。
+  // 引退の式そのものは retirementAgeOf を直接見て確かめる
+  const ages = after.players.filter(p => p.status === 'active').map(p => p.age)
+  console.log(`  年齢  最少 ${Math.min(...ages)}歳 / 最多 ${Math.max(...ages)}歳`)
+  const sample = after.players.filter(p => p.status === 'active').slice(0, 5)
+  console.log(`  引退年齢の例  ${sample.map(p => `${p.age}歳→${retirementAgeOf(p)}`).join(' / ')}`)
+  const willRetire = after.players.filter(p => p.status === 'active' && p.age + 1 >= retirementAgeOf(p)).length
+  check('引退の式が効いている（来季引退に届く選手がいる）', willRetire > 0, `${willRetire}人`)
+}
+
+console.log('')
+console.log('[6] 在籍の増減（国内・上位10クラブ）')
+{
+  const rows = after.teams.map(t => ({ t, b: before.get(t.id) ?? 0, a: roster(t.id).length })).sort((x, y) => (y.a - y.b) - (x.a - x.b))
+  for (const r of [...rows.slice(0, 3), ...rows.slice(-3)]) {
+    console.log(`  ${r.t.shortName.padEnd(8)} 格${String(tierOf(r.t)).padStart(2)}  ${r.b} → ${r.a}`)
+  }
+}
+
+console.log('')
+if (problems.length === 0) {
+  console.log('✓ オフシーズンを1回通してもロスターは壊れない。格が名簿の強さに効いている')
+  process.exit(0)
+}
+console.log(`✗ ${problems.length}件`)
+process.exit(1)
