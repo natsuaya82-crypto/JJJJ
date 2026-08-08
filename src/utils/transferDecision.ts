@@ -317,8 +317,11 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
     && TIER_POTENTIAL_CAP[d.tier] > TIER_POTENTIAL_CAP[ctx.srcTier]
     ? 0.15 : 0
 
-  // 性格は「同格・格下のとき」だけ効く。格上の話を愛着で蹴らせない
-  const personality = gap > 0 ? 0
+  // 性格は「同格・格下のとき」だけ効く。格上の話を愛着で蹴らせない。
+  // ★無所属（srcTier が無い）には効かない。愛着は「今のクラブへの」愛着で、
+  //   FAには対象になるクラブが無い。ここを効かせていたので、無所属の選手が
+  //   愛着を理由に加入を断るという意味の通らない判定になっていた
+  const personality = gap > 0 || ctx.srcTier == null ? 0
     : (p.personality ?? 'salary') === 'loyalty' ? -0.15
     : (p.personality ?? 'salary') === 'winning' ? 0.05
     : 0

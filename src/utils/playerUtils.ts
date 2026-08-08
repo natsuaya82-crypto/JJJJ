@@ -422,6 +422,16 @@ export function playerConsentToMove(
   return { ok: a.ok, reason: a.ok ? '' : a.reason }
 }
 
+/**
+ * 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）。
+ * **移籍金つきの移籍（finalizeTransfer）もFA・引き抜き（submitAcquisitionOffer）も同じ式。**
+ * 片方に手書きされていて、獲得オファー側にはそもそも本人の同意ゲート自体が無かった。
+ */
+export function salaryAppealBonus(offerSalary: number, marketSalary: number): number {
+  if (marketSalary <= 0) return 0
+  return offerSalary >= marketSalary * 1.5 ? 0.2 : offerSalary >= marketSalary * 1.2 ? 0.1 : 0
+}
+
 // フリー移籍の勧誘に本人が乗るか（接触の決断・接触中の契約更新拒否の判定を共有）。
 // 通常の移籍同意より腰が重い（-0.2）＋現チームでの出場実績を必ず加味する。
 // 出場している選手・愛着のある選手は基本残留し、干されている選手だけが出て行きやすい。

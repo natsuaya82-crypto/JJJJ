@@ -47,8 +47,12 @@ export function rivalClubsFor(
     const list = activeRosterByTeam.get(p.teamId)
     if (list) list.push(p); else activeRosterByTeam.set(p.teamId, [p])
   }
-  const srcTier = tierOfPlayerClub(target.teamId, allTieredClubs(ctx.teams as Team[], ctx.foreignLeagues as ForeignLeague[]))
-  return ctx.teams
+  // ★国内クラブと海外クラブを分けない。獲りにくる理由は同じ（必要か・走れるか・本人が行くか）で、
+  //   海外クラブの資金も本物（finance.budget 1本）。国内だけを見ていたので、
+  //   「◯クラブが動いています」が実際に動くクラブより少なく、海外は競りに参加していなかった
+  const allClubs = allTieredClubs(ctx.teams as Team[], ctx.foreignLeagues as ForeignLeague[]) as unknown as readonly Team[]
+  const srcTier = tierOfPlayerClub(target.teamId, allClubs)
+  return allClubs
     .filter(t => t.id !== ctx.playerTeamId && t.id !== target.teamId && (rosterCount.get(t.id) ?? 0) < ROSTER_MAX)
     .filter(t => needsPlayer(activeRosterByTeam.get(t.id) ?? [], target))
     .map(t => ({ t, dest: ctx.destinationOf(t.id, target) }))
@@ -57,7 +61,7 @@ export function rivalClubsFor(
     .map(x => ({
       clubId: x.t.id,
       name: x.t.shortName,
-      willing: transferCapOf(tierBudget(x.t), x.t.finance.budget),
+      willing: transferCapOf(tierBudget(x.t), x.t.finance?.budget ?? 0),
     }))
     .filter(r => r.willing > 0)
 }

@@ -38,12 +38,12 @@ import { hostForYear, qualHostForYear, hostTerrain, WA_HOST_CITY, qualifyNations
 import { simulateEclEvent } from '../engine/ecl'
 import { runBackgroundRace } from '../engine/backgroundRace'
 import type { EclParticipant } from '../engine/ecl'
-import { natLabel, natStrengthRegion, isForeignNat, NAT_LABEL, HOME_NATION } from '../data/nationalities'
+import { natLabel, natStrengthRegion, NAT_LABEL, HOME_NATION } from '../data/nationalities'
 import { buildEclParticipants, buildEclRaces, eclDateBetweenLeagueRaces } from '../engine/eclSeries'
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { applyGrowth, requiredExpForLevel } from '../engine/growth'
-import { ovr, peakAgeOf, retirementAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, peakAgeOf, retirementAgeOf, faMarketSalary, salaryAppealBonus, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
 import { strHash } from '../utils/hash'
 import { withMorale, withFatigue, setMorale, MORALE_DEFAULT } from '../utils/condition'
 import { roundRobin } from '../utils/roundRobin'
@@ -104,7 +104,7 @@ import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, syncSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierStrength, isBigClub, isStepUp, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
-import { normalizeForeignStandings } from '../utils/clubStanding'
+import { normalizeForeignStandings, clubSeasonRank } from '../utils/clubStanding'
 // 端末に置いているものの登録表（キーと寿命）。データ削除で消すのはここから引く
 import { clearGameStorage } from './appStorage'
 
@@ -1210,13 +1210,16 @@ export const useGameStore = create<GameStore>()(
           {
             // ドラフトは終わっているので空けておく枠は無い。数え方は同じ rosterCapOf
             const capForPost = () => rosterCapOf(0)
+            const postForeign = allForeignClubs(state.foreignLeagues)
+            const postForeignIds = new Set(postForeign.map(c => c.id))
             const postSignings = pickCpuFreeAgents({
-              players: updatedPlayers, teams: state.teams,
+              players: updatedPlayers, clubs: [...state.teams, ...postForeign],
               playerTeamId: state.playerTeamId, season: state.currentSeason,
-              pastSeasons: state.pastSeasons, divSize: myDivSize(state), capFor: capForPost,
+              capFor: (id) => (postForeignIds.has(id) ? ROSTER_MAX : capForPost()),
+              phase: 'offseason',
             })
             for (const sg of postSignings) {
-              const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.teamId, {
+              const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.clubId, {
                 year: state.currentSeason.year, kind: 'free', years: 2, history: false,
               })
               if (m.ok) updatedPlayers = m.players
@@ -2256,6 +2259,7 @@ export const useGameStore = create<GameStore>()(
           // 期限切れ交渉のプレイヤーを1年間ロック（移籍交渉のみ。契約更新はロックしない）
           const allExpiredPlayerIds = [...new Set([...bidExpiredPlayerIds, ...offerExpiredPlayerIds])]
           const allExpiredNegs: ExpiredNegotiation[] = [...bidExpiredNegs, ...offerExpiredNegs, ...contractExpiredNegs]
+          // ★シーズン中のFA補強で先を越されたぶんは下（faSnipedNegs）で足す
           const playersWithExpiredLocks = allExpiredPlayerIds.length > 0
             ? playersAfterLoan.map(p => allExpiredPlayerIds.includes(p.id) ? { ...p, transferLockedUntilYear: state.currentSeason.year + 1 } : p)
             : playersAfterLoan
@@ -2277,6 +2281,65 @@ export const useGameStore = create<GameStore>()(
             playersAfterFreeMoves = m.players
             teamsAfterFreeMoves = m.teams
             if (m.record) freeMoveRecords.push(m.record)
+          }
+
+          // ── シーズン中のFA補強 ─────────────────────────────────
+          // ★クラブがFAを獲るのは「必要か」「そこで走れるか」だけ。オフシーズンと同じ
+          //   pickCpuFreeAgents 1本で、国内クラブも海外クラブも同じ入口を通る。
+          //
+          //   ここが無かったので、**シーズン中のFA市場は自チームの独占**だった。
+          //   17クラブが欲しがっているOVR83のFAが誰にも獲られず市場に残り続け、
+          //   前年俸のまま即加入できていた（「必要な選手ならFAでも取るだろ」）。
+          //   頭数合わせ（③）はオフシーズンだけ・1クラブ1レース1人までなので、
+          //   1レースで市場が空になることはない。
+          const inSeasonForeignIds = new Set(foreignClubs.map(c => c.id))
+          const faSignings = pickCpuFreeAgents({
+            players: playersAfterFreeMoves,
+            clubs: [...teamsAfterFreeMoves, ...foreignClubs],
+            playerTeamId,
+            season: { ...state.currentSeason, races: updatedRaces },
+            capFor: (id) => (inSeasonForeignIds.has(id) ? ROSTER_MAX : rosterCapOf(0)),
+            phase: 'inseason',
+          })
+          const faSignNews: typeof newsItems = []
+          // 自チームが交渉中だったFAを先に獲られたら、黙って消さずに理由を残す
+          // （札の片付けそのものは reconcileTalks の仕事）
+          const faSnipedNegs: ExpiredNegotiation[] = []
+          const negotiatingFaIds = new Set(
+            (state.currentSeason.acquisitionOffers ?? [])
+              .filter(o => o.status === 'pending' || o.status === 'countered')
+              .map(o => o.playerId))
+          for (const sg of faSignings) {
+            const before = playersAfterFreeMoves.find(x => x.id === sg.playerId)
+            if (!before) continue
+            const m = movePlayer({ players: playersAfterFreeMoves, teams: teamsAfterFreeMoves }, sg.playerId, sg.clubId, {
+              year: state.currentSeason.year,
+              date: race.date,
+              kind: 'free',
+              years: 2,
+              myTeamId: playerTeamId,
+              contract: { yearsLeft: 2, annualSalary: faMarketSalary(before, perfOf(state.currentSeason, sg.playerId)), contractType: 'standard' },
+            })
+            if (!m.ok) continue
+            playersAfterFreeMoves = m.players
+            teamsAfterFreeMoves = m.teams
+            if (m.record) freeMoveRecords.push(m.record)
+            const club = findClub(teamsAfterFreeMoves, state.foreignLeagues, sg.clubId)
+            if (ovr(before) >= 65) {
+              faSignNews.push({
+                date: race.date,
+                headline: cpuSignedHeadline({ clubShort: club?.shortName ?? '', playerName: before.name, playerOvr: ovr(before) }),
+                category: 'fa' as const,
+                relatedIds: [before.id],
+              })
+            }
+            if (negotiatingFaIds.has(sg.playerId)) {
+              faSnipedNegs.push({
+                id: `fa_sniped_${sg.playerId}_${nextClock}`,
+                playerId: before.id, playerName: before.name, kind: 'outbid',
+                detail: `${club?.shortName ?? '他クラブ'}が先に契約しました`,
+              })
+            }
           }
 
           // シーズン最終戦なら、表彰（MVP/新人王）と引退表明を「そのシーズンのニュース」として流す
@@ -2332,7 +2395,7 @@ export const useGameStore = create<GameStore>()(
               objectives: updatedObjectives,
               scoutMissions: activeMissions,
               scoutProspects: updatedScoutProspects,
-              newsFeed: [...seasonEndNews, ...freeMoveNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...outbidNewsItems, ...injuryNewsItems, ...(prizeNewsItem ? [prizeNewsItem] : []), ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
+              newsFeed: [...seasonEndNews, ...freeMoveNews, ...faSignNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...outbidNewsItems, ...injuryNewsItems, ...(prizeNewsItem ? [prizeNewsItem] : []), ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
               events: [...(state.currentSeason.events ?? []), ...newEvents],
               pendingTradeOffers: [...existingTrades, ...newTradeOffers],
               transferListings: transferData.listings,
@@ -2356,7 +2419,7 @@ export const useGameStore = create<GameStore>()(
                 for (const [tid, v] of Object.entries(segPrizeAll)) acc[tid] = (acc[tid] ?? 0) + v
                 return acc
               })(),
-              expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs],
+              expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs, ...faSnipedNegs],
               freeTransferNotices: [...(state.currentSeason.freeTransferNotices ?? []), ...freeDecisionNotices],
               transferIncome: (state.currentSeason.transferIncome ?? 0) + myCpuSaleIncome,
               departureNotices: [...(state.currentSeason.departureNotices ?? []), ...myCpuSaleNotices],
@@ -3514,6 +3577,26 @@ export const useGameStore = create<GameStore>()(
           const isLastRound = offer.round >= 3
 
           if (ratio >= acceptThresh) {
+            // ★条件が揃っても、本人がその行き先を選ぶかは別。
+            //   **移籍の可否は appraiseMove 1本**（utils/transferDecision）。
+            //   ここだけこのゲートが無く、年俸が希望額に届いたかどうかだけで決めていた。
+            //   だから格差も出場機会も憧れの地域も一切効かず、17クラブが欲しがるOVR83が
+            //   3部のクラブに前年俸のまま加入していた。入札ルート（finalizeTransfer）は
+            //   最初から通していたので、FA・引き抜きだけが素通りしていた。
+            //
+            //   ・無所属（fa）は「今のクラブ」が無いので srcTier は無し＝格差の項もclubBlessedも効かない
+            //   ・引き抜き（scout）はクラブの合意が無いので clubBlessed は false
+            const srcTierAcq = offer.source === 'scout'
+              ? tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues))
+              : undefined
+            const marketAcq = faMarketSalary(player, perfOf(state.currentSeason, player.id, teamRaces))
+            const consentAcq = playerConsentToMove(
+              player, get().destinationOf(state.playerTeamId, player), srcTierAcq,
+              playFraction, teamRaces,
+              scoutNegoBonus + salaryAppealBonus(salary, marketAcq),
+              offer.source === 'fa',
+            )
+            if (!consentAcq.ok) return rejectWith('not_convinced')
             const moved = movePlayer(state, player.id, state.playerTeamId, {
               year: state.currentSeason.year,
               date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date,
@@ -4031,9 +4114,10 @@ export const useGameStore = create<GameStore>()(
         }
         // 選手本人の同意ゲート
         const scoutLvT = myTeam.facilities?.scoutOffice ?? 0
-        // 相場を大きく上回る年俸は本人の説得材料になる（相場1.2倍で+0.1、1.5倍で+0.2）
+        // 相場を大きく上回る年俸は本人の説得材料になる。式は playerUtils の salaryAppealBonus 1本
+        // （獲得オファー側にも同じ説得材料が要るので、手書きを2つに増やさない）
         const marketSalary = faMarketSalary(player, perfOf(state.currentSeason, player.id))
-        const salaryBonus = salary >= marketSalary * 1.5 ? 0.2 : salary >= marketSalary * 1.2 ? 0.1 : 0
+        const salaryBonus = salaryAppealBonus(salary, marketSalary)
         // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
         // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
         const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
@@ -5302,11 +5386,18 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // FA補強（受け皿）：移籍市場で動けなかった選手・チームの補完。判断は pickCpuFreeAgents 1本
+        // FA補強（受け皿）：移籍市場で動けなかった選手・クラブの補完。判断は pickCpuFreeAgents 1本。
+        // ★国内クラブと海外クラブをまとめて渡す。以前は海外だけ endSeason の中に別実装があり、
+        //   「在籍20人を割ったクラブの救済」しか見ていなかった（必要かどうかを見ていない）。
+        //   海外クラブのロスター上限も国内と同じ ROSTER_MAX
+        const foreignClubsForFa = allForeignClubs(state.foreignLeagues)
+        const foreignIdSet = new Set(foreignClubsForFa.map(c => c.id))
         const cpuSignings = pickCpuFreeAgents({
-          players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer,
+          players: playersAfterCpuTransfer,
+          clubs: [...teamsAfterCpuTransfer, ...foreignClubsForFa],
           playerTeamId: state.playerTeamId, season: state.currentSeason,
-          pastSeasons: state.pastSeasons, divSize: myDivSize(state), capFor: rosterCapFor,
+          capFor: (id) => (foreignIdSet.has(id) ? ROSTER_MAX : rosterCapFor(id)),
+          phase: 'offseason',
         })
         const newYear = state.currentSeason.year
         // CPUのFA契約も movePlayer に通す（所属・名簿・加入年をまとめて。名簿に入れるので契約種別も本契約に揃える）
@@ -5315,7 +5406,7 @@ export const useGameStore = create<GameStore>()(
         for (const sg of cpuSignings) {
           const before = playersWithCpuSigns.find(x => x.id === sg.playerId)
           if (!before) continue
-          const m = movePlayer({ players: playersWithCpuSigns, teams: teamsWithCpuSigns }, sg.playerId, sg.teamId, {
+          const m = movePlayer({ players: playersWithCpuSigns, teams: teamsWithCpuSigns }, sg.playerId, sg.clubId, {
             year: newYear,
             date: `${newYear}-02-01`,
             kind: 'free',
@@ -5333,40 +5424,12 @@ export const useGameStore = create<GameStore>()(
         const playersWithAllCpuSigns = playersWithCpuSigns
         const teamsWithAllCpuSigns = teamsWithCpuSigns
 
-        // ③ 海外クラブFA補強（外国籍FA中心に海外クラブが獲得）。海外クラブも総在籍30を超えないようにする。
-        // 所属は選手側の teamId だけを書き換える（クラブ側に名簿は持たない）
-        const foreignClubsList = allForeignClubs(state.foreignLeagues)
-        let playersWithForeignSigns: Player[] = playersWithAllCpuSigns
-        if (foreignClubsList.length > 0) {
-          const clubCount = new Map<string, number>()
-          for (const p of playersWithAllCpuSigns) {
-            if (p.status === 'active' && foreignClubsList.some(c => c.id === p.teamId)) {
-              clubCount.set(p.teamId, (clubCount.get(p.teamId) ?? 0) + 1)
-            }
-          }
-          const remainForeignFAs = playersWithAllCpuSigns
-            .filter(p => p.teamId === '' && p.status === 'active' && isForeignNat(p.nationality))
-            .sort(comparePlayers('ovr'))
-          let clubIdx = 0
-          for (const fa of remainForeignFAs) {
-            // FA補強は「下限(20人)を割っているクラブの救済」だけ。上限まで埋める強制はしない
-            // （全クラブが常時30人満杯になると空き枠が無くなり、海外間の移籍市場が窒息する）
-            let club: typeof foreignClubsList[0] | null = null
-            for (let tries = 0; tries < foreignClubsList.length; tries++) {
-              const cand = foreignClubsList[clubIdx % foreignClubsList.length]
-              clubIdx++
-              if ((clubCount.get(cand.id) ?? 0) < 20) { club = cand; break }
-            }
-            if (!club) break
-            clubCount.set(club.id, (clubCount.get(club.id) ?? 0) + 1)
-            // 海外クラブへのFA加入も movePlayer に通す（海外クラブは teams に居ないので名簿と金は素通りする）
-            const m = movePlayer({ players: playersWithForeignSigns, teams: teamsWithAllCpuSigns }, fa.id, club.id, {
-              year: newYear,
-              history: false,
-            })
-            if (m.ok) playersWithForeignSigns = m.players
-          }
-        }
+        // ★海外クラブのFA補強は、もう上の pickCpuFreeAgents に入っている。
+        //   ここに別実装（在籍20人を割ったクラブの救済／外国籍FAだけ）があったのを畳んだ。
+        //   救済は「必要か」を見ていないので、必要でもないクラブが頭数だけ埋め、
+        //   逆に必要としているクラブは20人居ると1人も獲れなかった。日本と海外で
+        //   獲る理由が違う状態になっていたのがここ。
+        const playersWithForeignSigns: Player[] = playersWithAllCpuSigns
 
         // FA契約の成立日をオフシーズン期間（1/12〜3/21）に分散させる（全員同日に5人契約のような不自然さを消す）
         const OFF_DAYS = ['01-12', '01-16', '01-21', '01-25', '01-30', '02-03', '02-07', '02-10', '02-14', '02-18', '02-21', '02-25', '03-01', '03-05', '03-09', '03-13', '03-17', '03-21']
@@ -5380,7 +5443,7 @@ export const useGameStore = create<GameStore>()(
           .slice(0, 10)
           .map(({ s, i }) => {
             const p = playersAfterCpuTransfer.find(x => x.id === s.playerId)!
-            const team = teamsAfterCpuTransfer.find(t => t.id === s.teamId)
+            const team = findClub(teamsAfterCpuTransfer, state.foreignLeagues, s.clubId)
             return {
               date: offDate(i),
               headline: cpuSignedHeadline({ clubShort: team?.shortName ?? '', playerName: p.name, playerOvr: ovr(p) }),
@@ -5401,7 +5464,7 @@ export const useGameStore = create<GameStore>()(
           transferHistory: [
             ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),
             ...offseasonTxRecords,
-            ...cpuSignings.map((s, i) => ({ year: newYear, date: offDate(i), playerId: s.playerId, fromTeamId: '', toTeamId: s.teamId, fee: 0, kind: 'free' as const, years: 2 })),
+            ...cpuSignings.map((s, i) => ({ year: newYear, date: offDate(i), playerId: s.playerId, fromTeamId: '', toTeamId: s.clubId, fee: 0, kind: 'free' as const, years: 2 })),
           ].slice(-800),
           currentSeason: {
             ...state.currentSeason,
@@ -8857,51 +8920,65 @@ function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'con
 // 「どのタイプが足りていないか」は海外の補強（engine/foreignTransfers.ts）でも使うので、
 // タイプの一覧も人数の下限もあちらと同じものを見る
 /**
- * CPUクラブのFA補強。**FAを拾う判断はここ1本。**
+ * クラブがFAを獲る判断。**FAを拾う判断はここ1本。国内も海外も同じ入口。**
  *
- * ■なぜ関数にしたのか
- *   この処理は beginSeasonDraft の中に直接書かれていて、**ドラフトの前**にしか走らなかった。
- *   ところが指名されなかった候補がFAになるのは**ドラフトが終わったあと**。
- *   つまり「指名漏れは2部・3部が拾う」（CLAUDE.md）が一度も起きず、
- *   良い選手が丸1年FA市場に置き去りになっていた。同じ判断を2度書かないために切り出す。
+ * ■獲る理由は1つしかない
+ *   「必要か（needsPlayer）」と「そこで走れるか（wouldMakeLineup）」だけ。
+ *   FA・移籍金つきの移籍・引き抜き・海外、どれも同じ。**FAを別の話にしないこと。**
+ *
+ * ■前はここが3つに割れていた
+ *   ・国内CPU … この関数。ただし**オフシーズンにしか呼ばれていなかった**ので、
+ *     シーズン中のFA市場は自チームの独占だった。17クラブが欲しがっている選手が
+ *     誰にも獲られず置きっぱなしになり、前年俸のまま即加入できた
+ *   ・海外クラブ … endSeason の中に別実装があり、「在籍20人を割ったクラブの救済」
+ *     しか見ていなかった（必要かどうかを見ていない）。しかも外国籍のFAだけが対象
+ *   ・自チーム … チャットの獲得オファー（submitAcquisitionOffer）
  *
  * 返すのは「誰がどこと契約するか」だけ。所属の書き換えは呼ぶ側が movePlayer に通す。
  */
+/** FAを獲りにいくクラブ。国内チーム（Team）も海外クラブ（ForeignClub）もこの形で渡す */
+type FaClub = { id: string; tier?: import('../utils/clubTier').ClubTier; initialRank?: number; finance?: { budget: number } }
+
 function pickCpuFreeAgents(a: {
   players: Player[]
-  teams: Team[]
+  /** 獲りにいくクラブ。**国内と海外を分けて渡さないこと**（区別しないのが決まり） */
+  clubs: FaClub[]
   playerTeamId: string
   season: import('../types').Season
-  pastSeasons: GameState['pastSeasons']
-  /** 自分の部のチーム数（運用方針の基準） */
-  divSize: number
   /** そのクラブのロスター上限（指名権ぶんを空けた数） */
-  capFor: (teamId: string) => number
-}): { playerId: string; teamId: string }[] {
+  capFor: (clubId: string) => number
+  /**
+   * いつの補強か。
+   *   'offseason' … ロスターを組み直す時期。人数の足りないクラブは頭数も埋める
+   *   'inseason'  … シーズン中。**必要な選手だけ**を獲る（頭数合わせはしない）。
+   *                 1クラブ1人まで＝1レースのあいだに市場を空にしない
+   */
+  phase: 'offseason' | 'inseason'
+}): { playerId: string; clubId: string }[] {
   const players = a.players
-  const teams = a.teams
+  const clubs = a.clubs
+  const inSeason = a.phase === 'inseason'
   // 人数がここまでは年俸を気にせず埋める。これを超えると年俸が払える範囲だけ
   const FA_FREE_FILL = ROSTER_MIN + 9
   const availableFAs = players
     .filter(p => p.teamId === '' && p.status === 'active')
     .sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
   const signedFAIds = new Set<string>()
-  const cpuSignings: { playerId: string; teamId: string }[] = []
-  // 前年順位（運用方針・予算の基準）
-  const lastSeasonForFa = a.pastSeasons[a.pastSeasons.length - 1]
-  const totalTeams = a.divSize
-  // そのクラブが前年に走った部の中での順位（順位表は部ごとに分かれている）
-  const rankOf = (teamId: string) => {
-    const r = lastSeasonForFa ? rankOfTeam(seasonDivisionStandings(lastSeasonForFa, teamId), teamId) : 0
-    return r > 0 ? r : Math.ceil(totalTeams / 2)
+  const cpuSignings: { playerId: string; clubId: string }[] = []
+  // そのクラブが「今どこにいるか」。国内は部内順位、海外はリーグ内順位。
+  // 引き方は utils/clubStanding の clubSeasonRank 1本（読む側は国内・海外を区別しない）
+  const standingOf = (clubId: string) => {
+    const r = clubSeasonRank(a.season, clubId)
+    const total = r.total > 0 ? r.total : DIVISION_SIZE[3]
+    return { rank: r.rank > 0 ? r.rank : Math.ceil(total / 2), total }
   }
-  // 順番は「前年順位が下のチームから」。同順の並びは毎年シャッフル（特定チームだけが毎年得をしないように）
-  const tierJitter = new Map(teams.map(t => [t.id, Math.random()]))
-  const cpuTeamsSorted = teams
-    .filter(t => t.id !== a.playerTeamId)
-    .sort((a, b) => (rankOf(b.id) - rankOf(a.id)) || (tierJitter.get(a.id)! - tierJitter.get(b.id)!))
+  // 順番は「順位が下のクラブから」。同順の並びは毎回シャッフル（特定クラブだけが毎年得をしないように）
+  const tierJitter = new Map(clubs.map(c => [c.id, Math.random()]))
+  const cpuTeamsSorted = clubs
+    .filter(c => c.id !== a.playerTeamId)
+    .sort((a, b) => (standingOf(b.id).rank - standingOf(a.id).rank) || (tierJitter.get(a.id)! - tierJitter.get(b.id)!))
 
-  // チームごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
+  // クラブごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
   const faCtxList = cpuTeamsSorted.map(team => {
     // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
     const currentRoster = players.filter(p => p.teamId === team.id && p.status === 'active')
@@ -8909,17 +8986,21 @@ function pickCpuFreeAgents(a: {
     const totalNow = currentRoster.length
     // 運用方針と予算
     const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
-    const strat = cpuStrategy(rankOf(team.id), totalTeams, avgAge)
+    const st = standingOf(team.id)
+    const strat = cpuStrategy(st.rank, st.total, avgAge)
     const committedSalary = players.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
     const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
     // 補強原資 ＝ 年俸原資の余り（クラブ予算−既存年俸）＋ 実残高の一部。
-    // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く
+    // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く。
+    // ★海外クラブの資金も本物（finance.budget 1本）。格から作り直さないこと
+    const budget = team.finance?.budget ?? tierBudget(team)
     const grantRoom = Math.max(0, tierBudget(team) - committedSalary)
-    const budgetRoom = Math.max(0, team.finance.budget) * 0.3
+    const budgetRoom = Math.max(0, budget) * 0.3
     return {
       team, totalNow,
-      slotsNeeded: Math.max(0, a.capFor(team.id) - totalNow),
-      spendable: team.finance.budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor,
+      // シーズン中は1レースにつき1人まで。1回で市場を空にしない
+      slotsNeeded: inSeason ? Math.min(1, Math.max(0, a.capFor(team.id) - totalNow)) : Math.max(0, a.capFor(team.id) - totalNow),
+      spendable: budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor,
       spent: 0, signed: 0,
       needs: cpuSpecialtyNeeds(team.id, players),
       specCounts: {} as Record<string, number>,
@@ -8935,7 +9016,7 @@ function pickCpuFreeAgents(a: {
   type FaCtx = typeof faCtxList[number]
   const estCost = (fa: Player) => faMarketSalary(fa, perfOf(a.season, fa.id))
   const doSignFA = (c: FaCtx, fa: Player) => {
-    signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, teamId: c.team.id })
+    signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, clubId: c.team.id })
     c.signed++; c.spent += estCost(fa)
   }
   // 1周につき1人だけ。取れるチームが無くなったら終わり（utils/roundRobin.ts）。
@@ -8970,7 +9051,10 @@ function pickCpuFreeAgents(a: {
       const need = c.pool.find(f => canSign(f) && budgetOk(f) && (needsPlayer(faRoster, f) || wouldMakeLineup(faRoster, f)))
       if (need) { doSignFA(c, need); return true }
     }
-    // ③ 頭数の確保 — 年俸/OVRに関係なく、人数が足りていないクラブは埋める
+    // ③ 頭数の確保 — 年俸/OVRに関係なく、人数が足りていないクラブは埋める。
+    //    ★シーズン中はやらない。頭数合わせはロスターを組み直す時期の話で、
+    //      シーズン中に走らせると「必要でもない選手」でFA市場が毎レース空になる
+    if (inSeason) return false
     if (c.totalNow + c.signed >= FA_FREE_FILL) return false
     const fa = availableFAs.find(canSign)
     if (!fa) return false

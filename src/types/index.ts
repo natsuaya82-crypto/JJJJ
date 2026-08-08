@@ -210,7 +210,9 @@ export type AcquisitionOffer = {
   counterSalary?: number
   counterYears?: number
   offerTeamRole?: TeamRole
-  rejectReason?: 'team_refused' | 'low_offer' | 'demotion'   // team_refused=主力で放出拒否, low_offer=条件不足, demotion=2軍契約を拒否
+  // team_refused=主力で放出拒否, low_offer=条件不足, demotion=2軍契約を拒否,
+  // not_convinced=金額ではなく行き先の問題（appraiseMove が通らない）
+  rejectReason?: 'team_refused' | 'low_offer' | 'demotion' | 'not_convinced'
   // ★rivalCount は置かない。獲得オファー（FA・引き抜き）は**その場で決まる**ので、
   //   取り合いも待ち時間も無い。数だけ持って会話に出していたので、
   //   「17クラブから話が来ています。決着まで3レースお待ちください」と言った次の行で

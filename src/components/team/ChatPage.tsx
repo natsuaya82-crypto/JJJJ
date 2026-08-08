@@ -21,6 +21,7 @@ import { overseasApprovedLine, retireApprovedLine, settledLineOf, offerTermsLine
 import { settledPath } from '../../utils/talkSync'
 import { dreamLabelOf } from '../../utils/transferDecision'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
+import { rivalClubsFor } from '../../utils/transferRivals'
 import { isSaleAnswered } from '../../utils/saleAnswer'
 import { offerResultText } from '../../utils/offerResult'
 import { rivalCountLine } from '../../utils/newsItems'
@@ -149,7 +150,7 @@ function buildMessages(
 }
 
 // 獲得オファー（FA・他チーム選手）のチャット初期メッセージ
-function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: string): ChatMessage[] {
+function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: string, rivalCount?: number): ChatMessage[] {
   const msgs: ChatMessage[] = []
   msgs.push({
     from: 'player',
@@ -158,10 +159,11 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
       ? `（代理人）${player.name}への関心ありがとうございます。良い条件を提示いただければ前向きに検討します。`
       : `（代理人）${player.name}は現在${teamName ?? '他クラブ'}に在籍中ですが、話は伺います。条件次第です。`,
   })
-  // ★取り合いの件数はここに出さない。獲得オファーは押した瞬間に合否が出るので、
-  //   割り込むクラブも待つレースも無い（utils/newsItems の rivalCountLine の解説）。
-  //   出していたせいで「17クラブから話が来ています。決着まで3レースお待ちください」の
-  //   次の行で、その場で加入が成立していた
+  // 取り合いの件数（クラブ名は出さない）。文面は utils/newsItems の rivalCountLine 1本。
+  // 数え方は rivalClubsFor（必要か・そこで走れるか・本人が行くか）で、移籍金つきの入札と同じ。
+  // シーズン中もクラブがFAを獲るようになったので、もたつけば先に契約される
+  const rivals = rivalCountLine(rivalCount)
+  if (rivals) msgs.push({ from: 'player', kind: 'rival_count', text: rivals })
   if (offer.offerSalary > 0 && offer.status === 'countered') {
     msgs.push(offerTermsLine(fmtYen(offer.offerSalary), offer.offerYears))
     msgs.push({ from: 'player', kind: 'agent_counter', text: `（代理人）その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
@@ -386,11 +388,20 @@ function ChatView({
     ...(incomingLoan ? buildIncomingLoanMessages(player, incomingLoan, incomingLoanFrom) : []),
   ]
 
+  // 取り合いの件数。数え方は utils/transferRivals の rivalClubsFor 1本（入札と同じ）。
+  // 獲得オファーが立っているときだけ数える
+  const acqRivalCount = isAcq && acqOffer
+    ? rivalClubsFor(player, {
+        teams, players, playerTeamId, foreignLeagues: foreignLeagues ?? [],
+        destinationOf: (clubId, p) => destinationOf(clubId, p),
+      }).length
+    : 0
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
     const builtBase = isTransfer
       ? buildTransferMessages(player, transferBid!, clubIndex.byId(transferBid!.targetTeamId)?.name)
       : isAcq
-      ? buildAcqMessages(player, acqOffer!, clubIndex.byId(player.teamId)?.name)
+      ? buildAcqMessages(player, acqOffer!, clubIndex.byId(player.teamId)?.name, acqRivalCount)
       : talksHere
       ? buildMessages(player, contractReq, remindMonths, !!retirementReq, !!transferReq, transferReq?.reason, overseasReq?.region)
       : loanNote
@@ -596,6 +607,9 @@ function ChatView({
       append({ from: 'player', kind: 'bid_rejected', text:
         updated.rejectReason === 'team_refused' ? '（代理人）クラブが主力の放出に応じません。金額の問題ではないようです。'
         : updated.rejectReason === 'demotion' ? '（代理人）2way契約・育成契約では本人が納得しません。本契約を用意できますか？'
+        // 条件は足りているが、行き先そのものを本人が選ばない（appraiseMove が通らない）。
+        // 金額の問題ではないと伝えないと、上乗せを繰り返す押し損になる
+        : updated.rejectReason === 'not_convinced' ? '（代理人）条件ではなく、移籍先としてご縁を感じないとのことです。金額の問題ではありません。'
         : '（代理人）申し訳ありませんが、その条件では合意できません。' })
     } else {
       // 判定は合意だが署名処理（枠上限）で成立しなかった場合。無言にならないようフォローする
