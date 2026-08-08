@@ -98,7 +98,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { withCareerCounts, stripCareerForSave, buildCareerCounts } from '../utils/careerStats'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
-import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
+import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, syncSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
 import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierStrength, isBigClub, isStepUp, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 import { normalizeForeignStandings } from '../utils/clubStanding'
 // 端末に置いているものの登録表（キーと寿命）。データ削除で消すのはここから引く
@@ -111,7 +111,7 @@ import { clearGameStorage } from './appStorage'
  *   build 106 で30シーズンぶんのセーブが失われたのは、これを上げた変更を
  *   既存のセーブで一度も読ませずに実機へ出したから。
  */
-const SAVE_VERSION = 40
+const SAVE_VERSION = 41
 // 保存層に版を教える（版を上げる前のセーブを退避するかの判定に使う）。
 // 数字を2か所に持たないため、あちらは持たずここから受け取る
 setSaveFormatVersion(SAVE_VERSION)
@@ -1032,6 +1032,13 @@ export const useGameStore = create<GameStore>()(
               ...state.currentSeason,
               races: schedules[myDiv],
               divisionRaces: schedules,
+              // ★ここで部が動いたので順位表も合わせる（utils/league の syncSeasonStandings 1本）。
+              //   順位表は部ごとに分けて持つ＝部がキーなので、teams の部だけ動かすと
+              //   「走る部」と「順位表に載っている部」が食い違い、自分の行が書き込み先に
+              //   存在しなくなる（2部のクラブを選ぶと自分だけ0ptのまま・元の2部が裏で走り続けた）
+              standings: syncSeasonStandings({
+                standings: state.currentSeason.standings, races: [], teams, playerTeamId: setup.teamId,
+              }),
             },
             // 監督の在任履歴はここが起点。以後の移籍でここに積んでいく（utils/gmTenure.ts）
             gmTenures: [{ teamId: setup.teamId, fromYear: state.currentSeason.year }],
@@ -8535,7 +8542,6 @@ export const useGameStore = create<GameStore>()(
               cs.chatLogs = cleaned as never
             }
           }
-
           return s
         } catch (e) {
           // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。
@@ -8554,6 +8560,20 @@ export const useGameStore = create<GameStore>()(
           // migrate が途中の年代変換で例外を出すと v22 まで届かないまま version だけ22になる。
           // ここは毎回通るので、取りこぼしたセーブもここで拾える（新しいセーブでは何もしない）
           if (Array.isArray(p.players)) p.players = restoreTeamIdsFromLegacyClubs(p.players, p.foreignLeagues)
+          // 順位表をチームの部に合わせる（utils/league の syncSeasonStandings 1本）。
+          // ★migrate ではなくここ。毎回通るので、いつどこで部がズレても開き直せば直る。
+          //   何度呼んでも同じ結果になる（点は保存済みのレース結果から数え直す）。
+          if (p.isInitialized && Array.isArray(p.teams) && p.currentSeason) {
+            p.currentSeason = {
+              ...p.currentSeason,
+              standings: syncSeasonStandings({
+                standings: p.currentSeason.standings,
+                races: p.currentSeason.races,
+                teams: p.teams,
+                playerTeamId: p.playerTeamId,
+              }),
+            }
+          }
           dropLegacyClubRosters(p.foreignLeagues)
           // 監督の在任履歴が無い旧セーブは「最初のシーズンからずっと今のチーム」として1件だけ入れる。
           // これまで出ていたキャリアの数字がそのまま出るので、既存プレイヤーの見た目は変わらない。

@@ -202,6 +202,100 @@ export function newSeasonStandings<T>(
 }
 
 /**
+ * 順位表の行を「いまの Team.division」の側へ並べ直す。**部を動かしたら必ずここを通すこと。**
+ *
+ * 順位表は部ごとに分けて持つ（`Record<Division, 行[]>`）ので、**部そのものがキー**になっている。
+ * チームの部を動かしておいて順位表を作り直さないと、
+ *   ・走る部（`divisionOf` ＝ Team.division）と、順位表に載っている部（`divisionInSeason`
+ *     ＝ 順位表のキー）が食い違う
+ *   ・走った結果の書き込み先に自分の行が無いので、**点がどこにも入らない**
+ *   ・自分の部は裏レースの対象外なのに、順位表の側の部は裏で走り続ける
+ * という状態になる。build 110 まで、チーム選択（`startSetup`）がまさにこれだった。
+ * 選んだクラブを列の最後尾へ回して部を動かしているのに順位表は元の部のままで、
+ * 2部のクラブを選ぶと自分だけ0ptのまま・元の2部が裏で走り続けていた。
+ *
+ * 行が無いチームには `makeRow` で作る。居なくなったチームの行は落とす。
+ */
+export function reconcileStandingsDivisions<T extends { teamId: string }>(
+  standings: Record<Division, T[]> | undefined,
+  teams: readonly Pick<Team, 'id' | 'division'>[],
+  makeRow: (teamId: string) => T,
+): Record<Division, T[]> {
+  const rows = new Map<string, T>()
+  for (const d of DIVISIONS) for (const r of standings?.[d] ?? []) rows.set(r.teamId, r)
+  const out = emptyStandings<T>()
+  for (const t of teams) out[divisionOf(t)].push(rows.get(t.id) ?? makeRow(t.id))
+  return out
+}
+
+/** 順位表の1行。得点は positionPoints + segmentPoints（utils/league の配点1本） */
+type StandingRow = {
+  teamId: string
+  leaguePoints?: number
+  segmentPoints?: number
+  totalPoints: number
+  raceResults: { raceId: string; rank: number; points: number }[]
+}
+/** 走り終わったレース。結果はセーブに残っているので、点はここから数え直せる */
+type RanRace = {
+  id: string
+  results?: { teamRankings?: { teamId: string; rank: number; positionPoints: number; segmentPoints: number }[] }
+}
+
+/**
+ * 自分の部の順位表を、**保存してあるレース結果から数え直す**。
+ *
+ * 通算成績（出走数・区間賞）を貯めるのをやめて保存済みのレース結果から出す形にしたのと同じ理由。
+ * 貯める形だと、書き込み先を1回でも取り違えた瞬間に点が永久に消え、あとから直しようがない。
+ * 結果さえ残っていれば何度でも同じ数字が出る。
+ */
+export function divisionStandingsFromRaces(
+  rows: readonly StandingRow[],
+  races: readonly RanRace[],
+): StandingRow[] {
+  return rows.map(row => {
+    let r: StandingRow = { teamId: row.teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] }
+    for (const race of races) {
+      const tr = race.results?.teamRankings?.find(x => x.teamId === row.teamId)
+      if (!tr) continue
+      const earned = tr.positionPoints + tr.segmentPoints
+      r = {
+        teamId: row.teamId,
+        leaguePoints: (r.leaguePoints ?? 0) + tr.positionPoints,
+        segmentPoints: (r.segmentPoints ?? 0) + tr.segmentPoints,
+        totalPoints: r.totalPoints + earned,
+        raceResults: [...r.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
+      }
+    }
+    // 1本も走っていない部（シーズン頭）は、いま持っている行のまま
+    return r.raceResults.length > 0 ? r : row
+  })
+}
+
+/**
+ * 順位表をチームの部に合わせる。**順位表を触る入口はここ1本。**
+ *
+ * 1. 行を「いまの Team.division」の側へ並べ直す
+ * 2. 自分の部だけ、走り終わったレースの結果から点を数え直す
+ *
+ * 起動時（persist の merge）とチーム選択（startSetup）の両方から呼ぶ。
+ * 何度呼んでも同じ結果になるので、壊れたセーブは開き直すだけで直る。
+ */
+export function syncSeasonStandings(params: {
+  standings: Record<Division, StandingRow[]> | undefined
+  races: readonly RanRace[] | undefined
+  teams: readonly Pick<Team, 'id' | 'division'>[]
+  playerTeamId: string | undefined
+}): Record<Division, StandingRow[]> {
+  const { standings, races, teams, playerTeamId } = params
+  const fixed = reconcileStandingsDivisions(standings, teams, teamId => ({
+    teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
+  }))
+  const myDiv = divisionOf(teams.find(t => t.id === playerTeamId))
+  return { ...fixed, [myDiv]: divisionStandingsFromRaces(fixed[myDiv], races ?? []) }
+}
+
+/**
  * 国内クラブの「通し順位」（1〜52）。部内順位を出してから domesticThroughRank へ通す。
  * **順位表の得点で52チームを直接並べてはいけない**（部ごとにレース数が10/8/7と違うので
  * 3部が2部を追い抜く）。チーム詳細の順位・歴代成績もここを通すこと。
