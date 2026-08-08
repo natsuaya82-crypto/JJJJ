@@ -7,7 +7,7 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 // 国内の帯と順位→格の変換は utils/clubTier.ts の1本（ここで数字を持たない）
-import { DOMESTIC_TIER_BAND, FOREIGN_TIER_BAND, tierFromDomesticRank } from '../src/utils/clubTier'
+import { DOMESTIC_TIER_BAND, FOREIGN_TIER_BAND, tierFromDomesticRank, tierInBand, type TierSpread } from '../src/utils/clubTier'
 // リーグ内の並び順。都市の規模で並べる（データの並び順＝国ごとのまとまり、ではない）。
 // ここに書いたリーグだけ差し替える。書いていないリーグはデータの並び順のまま
 // （北米・オセアニア・南米・中米は元から国順＋国内の都市規模順で、都市順とほぼ同じ）。
@@ -57,26 +57,22 @@ const CITY_ORDER: Record<string, string[]> = {
 
 // 'heavy' = 下に厚い（上位は少なく、下ほど多い。サッカーのリーグの形）
 // 'flat'  = 範囲に点在（均等にばらまく）
-type Shape = 'heavy' | 'flat'
-type Band = { top: number; bottom: number; shape: Shape; label: string }
+type Band = { top: number; bottom: number; shape: TierSpread; label: string; leagueId?: string }
 
-const BANDS: Record<string, Band> = {
-  // 海外の帯も utils/clubTier.ts の FOREIGN_TIER_BAND が唯一の決まり（ここで数字を書かない）
-  africa_east:     { top: FOREIGN_TIER_BAND.africa_east[0],     bottom: FOREIGN_TIER_BAND.africa_east[1],     shape: 'heavy', label: '東アフリカ' },
-  africa_ns:       { top: FOREIGN_TIER_BAND.africa_ns[0],       bottom: FOREIGN_TIER_BAND.africa_ns[1],       shape: 'heavy', label: 'アフリカ北・南' },
-  europe_ws:       { top: FOREIGN_TIER_BAND.europe_ws[0],       bottom: FOREIGN_TIER_BAND.europe_ws[1],       shape: 'heavy', label: 'ヨーロッパ西・南' },
-  north_america:   { top: FOREIGN_TIER_BAND.north_america[0],   bottom: FOREIGN_TIER_BAND.north_america[1],   shape: 'heavy', label: '北米' },
-  europe_ne:       { top: FOREIGN_TIER_BAND.europe_ne[0],       bottom: FOREIGN_TIER_BAND.europe_ne[1],       shape: 'heavy', label: 'ヨーロッパ北・東' },
-  oceania:         { top: FOREIGN_TIER_BAND.oceania[0],         bottom: FOREIGN_TIER_BAND.oceania[1],         shape: 'heavy', label: 'オセアニア' },
-  south_america:   { top: FOREIGN_TIER_BAND.south_america[0],   bottom: FOREIGN_TIER_BAND.south_america[1],   shape: 'heavy', label: '南米' },
-  asia_league:     { top: FOREIGN_TIER_BAND.asia_league[0],     bottom: FOREIGN_TIER_BAND.asia_league[1],     shape: 'flat',  label: 'アジア' },
-  central_america: { top: FOREIGN_TIER_BAND.central_america[0], bottom: FOREIGN_TIER_BAND.central_america[1], shape: 'flat',  label: '中米・カリブ' },
-  // 国内の帯は utils/clubTier.ts の DOMESTIC_TIER_BAND が唯一の決まり（ここで数字を書かない）。
-  // 実際の格も tierFromDomesticRank で引くので shape は使わない（place の中で分岐）
-  jpel1: { top: DOMESTIC_TIER_BAND[1][0], bottom: DOMESTIC_TIER_BAND[1][1], shape: 'heavy', label: 'JPEL 1部' },
-  jpel2: { top: DOMESTIC_TIER_BAND[2][0], bottom: DOMESTIC_TIER_BAND[2][1], shape: 'heavy', label: 'JPEL 2部' },
-  jpel3: { top: DOMESTIC_TIER_BAND[3][0], bottom: DOMESTIC_TIER_BAND[3][1], shape: 'heavy', label: 'JPEL 3部' },
+// 帯も配り方も utils/clubTier.ts の FOREIGN_TIER_BAND / DOMESTIC_TIER_BAND が唯一の決まり。
+// **ここに数字も配り方も書かない。** 以前は配り方（heavy/flat）だけをここが持っていて、
+// 実行時（tierFromForeignRank）は常に heavy で計算していたので、
+// アジアと中米・カリブの40クラブが1シーズンで別の分布に塗り替わっていた。
+const LABELS: Record<string, string> = {
+  africa_east: '東アフリカ', africa_ns: 'アフリカ北・南', europe_ws: 'ヨーロッパ西・南',
+  north_america: '北米', europe_ne: 'ヨーロッパ北・東', oceania: 'オセアニア',
+  south_america: '南米', asia_league: 'アジア', central_america: '中米・カリブ',
 }
+const BANDS: Record<string, Band> = Object.fromEntries([
+  ...Object.entries(FOREIGN_TIER_BAND).map(([id, b]) => [id, { top: b[0], bottom: b[1], shape: b[2], label: LABELS[id] ?? id, leagueId: id }]),
+  // 国内は tierFromDomesticRank で引くので配り方は使わない（place の中で分岐）
+  ...([1, 2, 3] as const).map(d => [`jpel${d}`, { top: DOMESTIC_TIER_BAND[d][0], bottom: DOMESTIC_TIER_BAND[d][1], shape: 'heavy' as TierSpread, label: `JPEL ${d}部` }]),
+])
 
 // 格1の5クラブ。オーナー指定＝アフリカ×2・ヨーロッパ×2・アメリカ×1。
 // リーグ内の並び順（データの並び＝国ごとのまとまり）で機械的に取ると
@@ -89,13 +85,9 @@ const TIER1_CLUBS = [
   'ニューヨーク陸上クラブ',      // アメリカ
 ]
 
-// 範囲の中での配り方。i は0始まり（0がそのリーグの最上位）。
-// heavy は指数0.7で下に寄せる。flat は範囲に均等。
+// 配り方は utils/clubTier の tierInBand 1本（実行時の格の更新とまったく同じ）
 function tierOfIndex(band: Band, i: number, n: number): number {
-  const span = band.bottom - band.top
-  if (n <= 1) return band.top
-  if (band.shape === 'flat') return band.top + Math.round(span * i / (n - 1))
-  return band.top + Math.round(span * Math.pow(i / (n - 1), 0.7))
+  return tierInBand([band.top as never, band.bottom as never, band.shape], i, n)
 }
 
 type Row = { name: string; league: string; note: string }

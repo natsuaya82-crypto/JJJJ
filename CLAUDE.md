@@ -184,7 +184,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | 運営費 | `operatingCostOf(総年俸)`（年俸の1割） |
 | 国内の順位→格 | `tierFromDomesticRank(通し順位)`。通し順位は `utils/league.ts` の `domesticThroughRank` |
 | 部ごとの格の帯 | `DOMESTIC_TIER_BAND`（1部5〜11 / 2部11〜16 / 3部16〜20）。**初期値も毎年の更新もここ1本から出す** |
-| 海外リーグごとの格の帯 | `FOREIGN_TIER_BAND`（東アフリカ1〜7、アジア10〜20 など）。国内と同じく初期値も更新もここから |
+| 海外リーグごとの格 | `FOREIGN_TIER_BAND`（東アフリカ1〜7、アジア10〜20 など）。**帯だけでなく配り方（heavy／flat）もここ**。帯の中での位置→格は `tierInBand` 1本で、初期値も毎年の更新も同じ |
 | 海外の順位→格 | `tierFromForeignRank(リーグID, 順位, クラブ数)` |
 | 格を引くクラブ一覧 | `allTieredClubs(teams, foreignLeagues)`。**国内だけ渡すと海外の格が初期値のまま**になる |
 

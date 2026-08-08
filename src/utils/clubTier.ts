@@ -197,34 +197,52 @@ export function tierFromDomesticRank(rank: number): ClubTier {
 // 東アフリカの最下位がアジアの首位より格上、という関係は保たれる。
 // ★この帯が唯一の決まり。scripts/draft-club-tiers.ts もここを読む（数字を持たない）。
 
-/** 海外リーグごとの格の帯 [最上位, 最下位] */
-export const FOREIGN_TIER_BAND: Record<string, readonly [ClubTier, ClubTier]> = {
-  africa_east:     [1, 7],
-  europe_ws:       [1, 7],
-  north_america:   [1, 8],
-  africa_ns:       [3, 9],
-  europe_ne:       [3, 10],
-  oceania:         [5, 12],
-  south_america:   [7, 15],
-  asia_league:     [10, 20],
-  central_america: [10, 20],
+/**
+ * 海外リーグごとの格。**帯（どこからどこまで）と配り方（帯の中でどう散らすか）の両方**。
+ *
+ * ★配り方も格の一部。ここに無いと初期値と毎年の更新で食い違う。
+ *   実際、配り方だけが初期値を作るスクリプト（draft-club-tiers.ts）にしか無く、
+ *   実行時は常に 'heavy' で計算していた。アジアと中米・カリブは初期値が 'flat' なので、
+ *   **1シーズン終えた瞬間に40クラブの格が別の分布へ塗り替わっていた**（中位が1段下がる）。
+ *
+ *   heavy … 下に寄せる（指数0.7）。上位が薄く下位が厚い。帯が狭いリーグ向き
+ *   flat  … 等間隔。帯が広い（10〜20）リーグで、全員が最下位付近に固まるのを避ける
+ */
+export type TierSpread = 'heavy' | 'flat'
+export const FOREIGN_TIER_BAND: Record<string, readonly [ClubTier, ClubTier, TierSpread]> = {
+  africa_east:     [1, 7, 'heavy'],
+  europe_ws:       [1, 7, 'heavy'],
+  north_america:   [1, 8, 'heavy'],
+  africa_ns:       [3, 9, 'heavy'],
+  europe_ne:       [3, 10, 'heavy'],
+  oceania:         [5, 12, 'heavy'],
+  south_america:   [7, 15, 'heavy'],
+  asia_league:     [10, 20, 'flat'],
+  central_america: [10, 20, 'flat'],
 }
 
 /**
- * 海外リーグの順位 → 格。
- * 配り方は初期値を作ったときと同じ（指数0.7で下に寄せる＝上位が薄く下位が厚い）。
- * ここを等間隔にすると、初期値と毎年の更新が食い違って国内と同じ事故になる。
+ * 帯の中の何番目か（0..1）から格を出す。**初期値も毎年の更新もここを通る。**
+ * scripts/draft-club-tiers.ts もこれを呼ぶ（あちらに配り方の式を持たせない）。
+ */
+export function tierInBand(band: readonly [ClubTier, ClubTier, TierSpread], i: number, n: number): ClubTier {
+  const [top, bottom, spread] = band
+  if (n <= 1) return top
+  const at = Math.max(0, Math.min(n - 1, i)) / (n - 1)
+  const span = bottom - top
+  const t = top + Math.round(span * (spread === 'flat' ? at : Math.pow(at, 0.7)))
+  return Math.min(20, Math.max(1, t)) as ClubTier
+}
+
+/**
+ * 海外リーグの順位 → 格。配り方はそのリーグの格の定義（FOREIGN_TIER_BAND）から出す。
  */
 export function tierFromForeignRank(leagueId: string, rank: number, clubCount: number): ClubTier {
   const band = FOREIGN_TIER_BAND[leagueId]
   if (!band) return DOMESTIC_BOTTOM_TIER
-  const [top, bottom] = band
-  const n = Math.max(1, clubCount)
-  if (n <= 1) return top
-  const i = Math.max(0, Math.min(n - 1, Math.round(rank) - 1))
-  const t = top + Math.round((bottom - top) * Math.pow(i / (n - 1), 0.7))
+  const t = tierInBand(band, Math.round(rank) - 1, Math.max(1, clubCount))
   // 格1は世界の数クラブだけ。順位で1に上がってくることはさせない（初期値と同じ扱い）
-  return Math.min(20, Math.max(2, t)) as ClubTier
+  return Math.max(2, t) as ClubTier
 }
 
 // ── 読み口 ───────────────────────────────────────────────────────

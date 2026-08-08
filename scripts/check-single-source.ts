@@ -349,6 +349,16 @@ RULES.push({
   fix: 'utils/rosterSync の squadIdsOf / squadPlayersOf で player.teamId から引く',
 })
 
+// 格の配り方（帯の中でどう散らすか）を clubTier.ts の外に持たないこと。
+// 初期値を作るスクリプトだけが配り方を持っていて、実行時が知らなかったため、
+// アジアと中米・カリブの40クラブが1シーズンで別の分布へ塗り替わっていた。
+RULES.push({
+  name: '格の配り方を clubTier.ts の外に書いている',
+  pattern: /Math\.pow\([^)]*,\s*0\.7\)/,
+  allow: ['src/utils/clubTier.ts'],
+  fix: 'clubTier.ts の tierInBand を使う（帯と配り方は FOREIGN_TIER_BAND 1本）',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {
