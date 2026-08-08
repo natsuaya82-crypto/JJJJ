@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import type { Player, Team, CardStatKey } from '../../types'
-import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, formColor, isStatMaxed } from '../../utils/playerUtils'
 import { safeRatings } from '../../engine/raceEngine'
 import { getPlayerBadges } from '../../utils/badges'
@@ -12,7 +11,7 @@ import { useEclHistory } from '../../lib/useEclHistory'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
-import { isForeignNat } from '../../data/nationalities'
+import { SpecChip, ForeignChip } from './PlayerChips'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -103,9 +102,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
               }}>
                 {player.name}
               </span>
-              <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(specColor, 0.08), border: `1px solid ${alpha(specColor, 0.25)}`, color: specColor, fontWeight: 700, flexShrink: 0 }}>
-                {SPECIALTY_LABELS[player.specialty]}
-              </span>
+              <SpecChip specialty={player.specialty} />
               {pForm !== 0 && <span style={{ fontSize: 10, color: fColor, fontWeight: 800, flexShrink: 0 }}>{pForm > 0 ? '↑' : '↓'}</span>}
               {!hideStatusBadges && fatigue > 0 && <span style={{ fontSize: 9, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>疲{fatigue}</span>}
               {extra}
@@ -113,7 +110,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
             {/* 2行目: 年齢 その他情報（FA/FA間近/負傷/レンタル等） パッチ */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
               <span style={{ fontSize: 10, color: C.textDim, flexShrink: 0 }}>{player.age}歳</span>
-              {isForeignNat(player.nationality) && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: C.blue, fontWeight: 700, flexShrink: 0 }}>外</span>}
+              <ForeignChip nationality={player.nationality} />
               {!hideStatusBadges && isFreeAgent && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.25)}`, color: C.orange, fontWeight: 700, flexShrink: 0 }}>FA</span>}
               {!hideStatusBadges && isLastYear && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>FA間近</span>}
               {player.status === 'injured' && (() => {

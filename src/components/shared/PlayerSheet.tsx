@@ -25,10 +25,11 @@ import { safeRatings } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import ShareCard from './ShareCard'
 import Flag from '../ui/Flag'
-import { natLabel, natGeoRegion, isForeignNat } from '../../data/nationalities'
+import { natLabel, natGeoRegion } from '../../data/nationalities'
 import { WA_HOST_CITY } from '../../engine/worldAthletics'
 import { waRaceRows } from '../../utils/waRaces'
 import { ranRaces, raceKey, splitRaceKey, shortRaceName } from '../../utils/raceHistory'
+import { ForeignChip } from '../player/PlayerChips'
 
 
 const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
@@ -578,9 +579,7 @@ export default function PlayerSheet() {
                     </svg>
                   </button>
                 )}
-                {isForeignNat(player.nationality) && (
-                  <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#7986CB18', border: '1px solid #7986CB35', color: '#7986CB', fontWeight: '700' }}>外</span>
-                )}
+                <ForeignChip nationality={player.nationality} />
                 {player.status === 'injured' && (
                   <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#E8462A18', border: '1px solid #E8462A35', color: '#E8462A', fontWeight: '700' }}>負傷中</span>
                 )}

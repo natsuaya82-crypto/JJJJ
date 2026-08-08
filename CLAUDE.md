@@ -56,6 +56,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
+| `src/components/player/PlayerChips.tsx` | **選手の名前の横に出る小さな札**。`SpecChip`（タイプ）／`ForeignChip`（外国籍）。大きさ（sm/md）だけ選べて、色・濃さ・枠線・丸みは1つに固定 |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
 

@@ -23,7 +23,6 @@ import { offerResultText } from '../../utils/offerResult'
 import { rivalCountLine } from '../../utils/newsItems'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention, isSaleAnswerPending } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
-import { SPECIALTY_LABELS } from '../../types'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
@@ -31,6 +30,7 @@ import { pickKeyValue } from '../../data/economy'
 import { C, alpha } from '../../styles/tokens'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import { fmtYen } from '../../utils/money'
+import { SpecChip } from '../player/PlayerChips'
 
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
@@ -1367,7 +1367,7 @@ function TradeSelRow({ player, selected, color, onToggle }: { player: Player; se
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
-          <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: alpha(specCol, 0.15), color: specCol, fontWeight: 700, flexShrink: 0 }}>{SPECIALTY_LABELS[player.specialty]}</span>
+          <SpecChip specialty={player.specialty} size="sm" />
         </div>
         <div style={{ fontSize: 10, color: C.textDim }}>{player.age}歳 · {fmtYen(player.contract.annualSalary)} · 残{player.contract.yearsLeft}年</div>
       </div>
@@ -1630,9 +1630,7 @@ export default function ChatPage() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
               <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
-              <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(specCol, 0.15), color: specCol, fontWeight: 700, flexShrink: 0 }}>
-                {SPECIALTY_LABELS[player.specialty]}
-              </span>
+              <SpecChip specialty={player.specialty} size="sm" />
               {status && (
                 <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(status.color, 0.18), border: `1px solid ${alpha(status.color, 0.4)}`, color: status.color, fontWeight: 800, flexShrink: 0 }}>
                   {status.label}

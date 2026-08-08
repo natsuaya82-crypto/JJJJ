@@ -13,8 +13,8 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { audio } from '../../utils/audio'
-import { isForeignNat } from '../../data/nationalities'
 import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
+import { SpecChip, ForeignChip } from '../player/PlayerChips'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -624,7 +624,7 @@ export default function DraftRoom() {
                         {pk ? (
                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: '13px', fontWeight: '700', color: isMe ? C.gold : C.text }}>{pk.playerName}</span>
-                            {pk.specialty && <span style={{ fontSize: '9px', color: SPEC_COLOR[pk.specialty], padding: '1px 5px', borderRadius: '4px', backgroundColor: alpha(SPEC_COLOR[pk.specialty], 0.1) }}>{SPECIALTY_LABELS[pk.specialty]}</span>}
+                            {pk.specialty && <SpecChip specialty={pk.specialty} />}
                           </div>
                         ) : isCurr ? (
                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -813,9 +813,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
               <span style={{ fontSize: '14px', fontWeight: '700', color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.name}
               </span>
-              {isForeignNat(p.nationality) && (
-                <span style={{ padding: '1px 4px', borderRadius: '3px', backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, fontSize: '8px', color: C.blue, fontWeight: '700', flexShrink: 0 }}>外</span>
-              )}
+              <ForeignChip nationality={p.nationality} />
               {isRecommend && (
                 <span style={{ padding: '1px 5px', borderRadius: '4px', flexShrink: 0, backgroundColor: alpha(C.green, 0.18), border: `1px solid ${alpha(C.green, 0.4)}`, fontSize: '8px', color: C.green, fontWeight: '800' }}>補強ニーズ◎</span>
               )}
@@ -824,9 +822,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ padding: '2px 6px', borderRadius: '10px', backgroundColor: alpha(specCol, 0.08), border: `1px solid ${alpha(specCol, 0.3)}`, fontSize: '9px', fontWeight: '700', color: specCol }}>
-                {SPECIALTY_LABELS[p.specialty]}
-              </span>
+              <SpecChip specialty={p.specialty} />
               <span style={{ fontSize: '10px', color: C.textDim }}>{p.age}歳</span>
               <span style={{ fontSize: '9px', fontWeight: '700', color: growthColor, padding: '1px 5px', borderRadius: '5px', backgroundColor: alpha(growthColor, 0.1) }}>
                 {growthLabel}

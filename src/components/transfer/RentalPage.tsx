@@ -1,11 +1,11 @@
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
-import { C, alpha } from '../../styles/tokens'
+import { ovr, ratingColor } from '../../utils/playerUtils'
+import { C } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { SpecChip } from '../player/PlayerChips'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MAX_SLOTS = 3
@@ -24,7 +24,6 @@ export default function RentalPage() {
   const loanedOut = players.filter(p => p.loan && p.loan.ownerTeamId === playerTeamId && p.teamId !== playerTeamId)
 
   const row = (p: Player, sub: string) => {
-    const specCol = SPEC_COLOR[p.specialty]
     return (
       <div key={p.id} style={{
         marginBottom: 6, borderRadius: 12, padding: '9px 12px',
@@ -34,9 +33,7 @@ export default function RentalPage() {
         <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border2}` }}>
           <PlayerFace playerId={p.id} nationality={p.nationality} size={44} />
         </div>
-        <span style={{ padding: '2px 6px', borderRadius: 7, flexShrink: 0, background: alpha(specCol, 0.15), color: specCol, fontSize: 9, fontWeight: 700 }}>
-          {SPECIALTY_LABELS[p.specialty]}
-        </span>
+        <SpecChip specialty={p.specialty} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
           <div style={{ fontSize: 10, color: C.textDim, marginTop: 1 }}>{sub}</div>

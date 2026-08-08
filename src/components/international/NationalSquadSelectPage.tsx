@@ -7,12 +7,13 @@ import type { Club } from '../../utils/clubs'
 import { C, alpha } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
-import { ovr, SPEC_COLOR, ratingColor, isStatMaxed } from '../../utils/playerUtils'
+import { ovr, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import { ekidenCandidatesWithFit, type Candidate } from '../../engine/worldAthletics'
 import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
 import { useAdHeight } from '../layout/Layout'
+import { SpecChip } from '../player/PlayerChips'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const SQUAD = 20
@@ -322,7 +323,6 @@ export default function NationalSquadSelectPage() {
       <div style={{ margin: '0 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {Array.from({ length: SQUAD }, (_, i) => i + 1).map(idx => {
           const player = players.find(p => p.id === slots[idx])
-          const specCol = player ? SPEC_COLOR[player.specialty] : C.textGhost
           return (
             <div
               key={idx}
@@ -386,7 +386,7 @@ export default function NationalSquadSelectPage() {
               {/* スペシャリティ + 全ステータス */}
               {player && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 7, paddingLeft: 46 }}>
-                  <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(specCol, 0.1), color: specCol, fontWeight: 700, flexShrink: 0 }}>{SPECIALTY_LABELS[player.specialty]}</span>
+                  <SpecChip specialty={player.specialty} size="sm" />
                   {ALL_STATS.map(([label, key]) => {
                     const val = player.ratings[key] as number
                     return (

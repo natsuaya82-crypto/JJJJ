@@ -6,7 +6,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
+import { ovr, ratingColor, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, seasonAppearances, isDataKeyPlayer } from '../../utils/playerUtils'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerFace from '../player/PlayerFace'
@@ -25,6 +25,7 @@ import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import { offersAwaitingReply } from '../../utils/notifItems'
+import { SpecChip } from '../player/PlayerChips'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
@@ -450,7 +451,6 @@ export default function TransferPage() {
                   const offerFrom = clubIndex.byId(offer.fromTeamId)?.shortName ?? '他クラブ'
                   if (!p) return null
                   const rating = ovr(p)
-                  const specCol = SPEC_COLOR[p.specialty]
                   // 移籍金0＝契約満了間近の選手へのフリー移籍オファー
                   const isFreeOffer = offer.offeredPrice === 0
                   // フリー移籍へのカウンターは市場価値ベース（0×1.3=0を出さない）
@@ -477,9 +477,7 @@ export default function TransferPage() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: '14px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{p.name}</div>
                             <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '2px' }}>
-                              <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '6px', backgroundColor: alpha(specCol, 0.09), color: specCol, fontWeight: '700', fontFamily: SAIRA }}>
-                                {SPECIALTY_LABELS[p.specialty]}
-                              </span>
+                              <SpecChip specialty={p.specialty} />
                               <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
                             </div>
                           </div>
@@ -548,7 +546,6 @@ export default function TransferPage() {
               1軍選手 — 出品管理
             </div>
             {myPlayers.map(p => {
-              const specCol = SPEC_COLOR[p.specialty]
               const isListed = listedIds.has(p.id)
               const myListing = listings.find(l => l.playerId === p.id && l.fromTeamId === playerTeamId)
               const val = calcTransferValue(p)
@@ -580,7 +577,7 @@ export default function TransferPage() {
                             {isPeakSell && !isListed && <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold, fontWeight: '800', fontFamily: SAIRA, flexShrink: 0 }}>売り時</span>}
                           </div>
                           <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '2px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '8px', padding: '1px 4px', borderRadius: '5px', backgroundColor: alpha(specCol, 0.08), color: specCol, fontWeight: '700', fontFamily: SAIRA }}>{SPECIALTY_LABELS[p.specialty]}</span>
+                            <SpecChip specialty={p.specialty} size="sm" />
                             <span style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
                             <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '4px', backgroundColor: alpha(stageCol, 0.08), color: stageCol, fontWeight: '700', fontFamily: SAIRA }}>{CAREER_STAGE_LABEL[stage]}</span>
                             <span style={{ fontSize: '9px', color: C.textSub, fontFamily: SAIRA }}>{fmtYen(val)}</span>

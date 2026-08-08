@@ -7,7 +7,7 @@ import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha } from '../../styles/tokens'
-import { isForeignNat } from '../../data/nationalities'
+import { ForeignChip } from '../player/PlayerChips'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -140,9 +140,7 @@ export default function NewsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: SAIRA }}>{relPlayer.name}</span>
-                      {isForeignNat(relPlayer.nationality) && (
-                        <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: alpha('#6B7BE8', 0.15), color: '#6B7BE8', border: '1px solid #6B7BE830', fontWeight: 700 }}>海外</span>
-                      )}
+                      <ForeignChip nationality={relPlayer.nationality} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: specCol, fontFamily: SAIRA }}>{SPECIALTY_LABELS[relPlayer.specialty]}</span>

@@ -302,6 +302,18 @@ RULES.push({
   fix: 'utils/money.ts の fmtYen を使う',
 })
 
+// 選手の名前の横に出る札は components/player/PlayerChips.tsx 1本で描く。
+//
+// タイプの札を画面ごとに手書きしていて、同じ札のはずなのに実測で8通りあった
+// （角の丸み 4/5/6/7/10、背景の濃さ 0.08〜0.15、枠線あり／なし）。
+// 「外」の札も3通りの青（C.blue / #7986CB / #6B7BE8）で、文字まで「外」と「海外」に割れていた。
+RULES.push({
+  name: '選手の札（タイプ・外国人）を自前で描いている',
+  pattern: /SPECIALTY_LABELS\[[^\]]*\][^\n]*(backgroundColor|background):|(backgroundColor|background):[^\n]*SPECIALTY_LABELS\[|>外<\/span>|>海外<\/span>/,
+  allow: ['src/components/player/PlayerChips.tsx'],
+  fix: 'components/player/PlayerChips.tsx の SpecChip / ForeignChip を使う',
+})
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
 function walk(dir: string, out: string[] = []): string[] {

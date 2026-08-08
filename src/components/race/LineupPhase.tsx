@@ -14,6 +14,7 @@ import { useAdHeight } from '../layout/Layout'
 import { C, alpha, COMPETITION_BTN } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { natLabel } from '../../data/nationalities'
+import { SpecChip } from '../player/PlayerChips'
 
 const SAIRA = "'Saira Condensed', system-ui, sans-serif"
 
@@ -383,7 +384,6 @@ export function LineupPhase({
           const player = mainPlayers.find(p => p.id === raceLineup[seg.index])
           const segCol = terrainColor(seg.uphillPct, seg.downhillPct)
           const playerOvr = player ? ovr(player) : 0
-          const specCol = player ? SPEC_COLOR[player.specialty] : C.textGhost
           return (
             <div
               key={seg.index}
@@ -446,7 +446,7 @@ export function LineupPhase({
               {/* スペシャリティ + 全ステータス */}
               {player && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 7, paddingLeft: 46 }}>
-                  <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(specCol, 0.1), color: specCol, fontWeight: 700, flexShrink: 0, border: seg.recommended === player.specialty ? `1px solid ${specCol}` : 'none' }}>{SPECIALTY_LABELS[player.specialty]}{seg.recommended === player.specialty ? ' ✓' : ''}</span>
+                  <SpecChip specialty={player.specialty} size="sm" highlight={seg.recommended === player.specialty} />
                   {ALL_STATS.map(([label, key]) => {
                     const val = player.ratings[key] as number
                     return (
