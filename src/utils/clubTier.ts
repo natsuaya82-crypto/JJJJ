@@ -34,8 +34,6 @@ export const CLUB_TIERS: readonly ClubTier[] =
 /** 初期ロスターの人数。国内・海外とも同じ（前は国内28・海外22でズレていた） */
 export const INITIAL_ROSTER_SIZE = 25
 
-/** 予算のうち年俸に回す割合。残りが補強・移籍金の原資になる */
-export const SALARY_SHARE = 0.6
 
 /**
  * 格 → 年間予算（円）。
@@ -308,6 +306,3 @@ export function tierBudget(team: TieredTeam | undefined): number {
 }
 
 /** そのクラブの成長上限（OVR） */
-export function tierPotentialCap(team: TieredTeam | undefined): number {
-  return TIER_POTENTIAL_CAP[tierOf(team)]
-}

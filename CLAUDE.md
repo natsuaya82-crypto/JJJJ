@@ -177,7 +177,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | 格（1〜20）と年間予算 | `clubTier.ts` の `TIER_BUDGET` |
 | そのクラブの格を読む | `tierOf(team)` / `tierOfClubId(id)` / `tierOfPlayerClub(teamId, teams)`。`team.tier` を直接見ないこと |
 | そのクラブの予算 | `tierBudget(team)` |
-| 成長の上限（OVR） | `TIER_POTENTIAL_CAP` / `tierPotentialCap(team)` |
+| 成長の上限（OVR） | `TIER_POTENTIAL_CAP`（生成時に効く。育つときの上限は選手ごとの potential） |
 | 成長の速さ（CPU・海外） | `tierGrowthRate(tier)` |
 | ロスターのランク構成 | `tierRankComposition(tier)`（25人ぶん） |
 | スポンサー収入 | `tierSponsorIncome(tier)`（3枠を埋めた合計） |
