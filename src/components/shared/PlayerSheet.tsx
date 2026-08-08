@@ -11,7 +11,7 @@ import { divisionOf, DIVISION_LABEL } from '../../utils/league'
 import { usePreviewStore } from '../../store/previewStore'
 import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
-import type { Player, Race } from '../../types'
+import type { Player } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { foreignSeasonApps } from '../../utils/careerStats'
@@ -302,22 +302,20 @@ export default function PlayerSheet() {
   // 走ったレースを「リーグ → 駅伝名」で並べる。**どこから拾うかは utils/raceHistory の1本**
   // （自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会。足し忘れると表示から消える）。
   // 同じ駅伝名でも部が違えば別の記録として持つ（1部の出雲開幕戦と3部の出雲開幕戦）。
-  // ECL（5戦シリーズ＋旧一発勝負）の結果レース。在籍履歴の集計でも使う
-  const eclRacesOf = (s2: { eclSeries?: { races: Race[] }; eclRace?: Race }) => [
-    ...(s2.eclSeries?.races?.filter(r => r.results) ?? []),
-    ...(s2.eclRace?.results ? [s2.eclRace] : []),
-  ]
+  // 走った駅伝は utils/raceHistory の ranRaces 1本で受け取る（自分の部・他の部・大学・
+  // 2軍・ECL・海外・世界大会が、どの部のものかのラベル付きで全部返る）。
+  // ここで日程を自分で組み立てると、自分の部の分しか数えない書き方に必ず戻る。
+  const ranRows = ranRaces({
+    seasons: [...pastSeasons, currentSeason],
+    waResults: worldAthleticsResults,
+    playerTeamId,
+    foreignLeagues,
+  })
   const raceGroupMap = new Map<string, RaceEntry[]>()
   const raceGroups: { league: string; order: number; names: string[] }[] = []
   {
     const byLeague = new Map<string, { league: string; order: number; names: string[] }>()
-    const rows = ranRaces({
-      seasons: [...pastSeasons, currentSeason],
-      waResults: worldAthleticsResults,
-      playerTeamId,
-      foreignLeagues,
-    })
-    for (const { year, league, order, race } of rows) {
+    for (const { year, league, order, race } of ranRows) {
       const sr = race.results!.segmentResults.find(sg => sg.runners.some(r => r.playerId === player.id))
       if (!sr) continue
       const runner = sr.runners.find(r => r.playerId === player.id)!
@@ -358,14 +356,16 @@ export default function PlayerSheet() {
       }
     }
   }
-  for (const ps of pastSeasons) {
-    addHistory(ps.year, 'main', ps.races)
-    addHistory(ps.year, 'second', ps.secondTeamRaces)
-    addHistory(ps.year, 'ecl', eclRacesOf(ps))
+  // ★在籍履歴も ranRows から積む。以前は currentSeason.races（自分の部の日程）だけを
+  //   数えていたので、**他の部のクラブの選手は出場0・区間賞0・平均「—」**のままだった。
+  //   大学駅伝と世界大会はこれまでどおり在籍履歴には積まない（所属クラブの成績ではない）。
+  for (const { year, league, race } of ranRows) {
+    const comp: HistComp | null = league.startsWith('JPEL') ? 'main'
+      : league === '2軍駅伝' ? 'second'
+      : league === 'ECL' ? 'ecl'
+      : null
+    if (comp) addHistory(year, comp, [race])
   }
-  addHistory(currentSeason.year, 'main', currentSeason.races)
-  addHistory(currentSeason.year, 'second', currentSeason.secondTeamRaces)
-  addHistory(currentSeason.year, 'ecl', eclRacesOf(currentSeason))
   // 海外リーグの出場（国内レースには出ないので foreignAppearances から年×クラブで積む）
   const addForeignHistory = (year: number, appMap: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }> | undefined) => {
     const a = appMap?.[player.id]
