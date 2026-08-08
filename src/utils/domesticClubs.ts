@@ -43,8 +43,10 @@ export function backfillDomesticClubs(params: {
   teams: Team[]
   players: Player[]
   year: number
+  /** 自チームのID。**このクラブの部だけはデータどおりに戻さない**（下の理由を参照） */
+  playerTeamId?: string
 }): { teams: Team[]; players: Player[]; addedTeams: Team[] } {
-  const { teams, players, year } = params
+  const { teams, players, year, playerTeamId } = params
   const have = new Set(teams.map(t => t.id))
   const missing = ALL_DOMESTIC_TEAMS.filter(t => !have.has(t.id))
   if (missing.length === 0) return { teams, players, addedTeams: [] }
@@ -63,8 +65,18 @@ export function backfillDomesticClubs(params: {
   const addedTeams = seeded.map(t => ({ ...t, roster: teamRosters[t.id] ?? { main: [] } }))
 
   return {
-    // 既存クラブの部はデータどおりに戻す（降格先が無いまま落ちたぶんの取り消し）
-    teams: [...teams.map(t => ({ ...t, division: originalDivisionOf(t.id) })), ...addedTeams],
+    // 既存クラブの部はデータどおりに戻す（降格先が無いまま落ちたぶんの取り消し）。
+    //
+    // ★自チームだけは戻さない。プレイヤーはどのクラブを選んでも列の最後尾（3部・格20）から
+    //   始まる（gameStore の startSetup）。クラブのIDは選んだクラブのままなので、
+    //   ここでデータどおりに戻すと**選んだクラブの元の部へ引き戻される**。
+    //   3部で始めたはずが順位表では1部や2部に並び、通し順位も格もそちら側で計算される
+    //   （実際に「3部なのに通し順位23位」＝2部3位として出ていた）。
+    //   選んだ時点の部が正なので、自チームはいまの値を保つ。
+    teams: [
+      ...teams.map(t => (t.id === playerTeamId ? t : { ...t, division: originalDivisionOf(t.id) })),
+      ...addedTeams,
+    ],
     players: [...players, ...cpuPlayers],
     addedTeams,
   }

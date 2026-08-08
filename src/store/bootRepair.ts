@@ -1,6 +1,9 @@
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team } from '../types'
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs } from '../utils/domesticClubs'
-import { syncSeasonStandings, reconcileStandingsDivisions, divisionOf, DIVISIONS, DIVISION_SIZE } from '../utils/league'
+import {
+  syncSeasonStandings, reconcileStandingsDivisions, rebalanceDivisions,
+  divisionOf, rankOfTeam, DIVISIONS, DIVISION_SIZE,
+} from '../utils/league'
 import { normalizeForeignStandings } from '../utils/clubStanding'
 
 // ============================================================================
@@ -56,13 +59,38 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // 「開いた瞬間から3部が空」のまま1年遊ぶことになっていた。
   if (isInitialized && Array.isArray(teams) && Array.isArray(players) && !domesticClubsComplete(teams)) {
     const before = teams.length
-    const out = backfillDomesticClubs({ teams, players, year: currentSeason?.year ?? new Date().getFullYear() })
+    const out = backfillDomesticClubs({
+      teams, players, playerTeamId, year: currentSeason?.year ?? new Date().getFullYear(),
+    })
     teams = out.teams
     players = out.players
     repairs.push(`国内クラブを ${before} → ${teams.length} に補完`)
   }
 
-  // ── 2. 順位表の部と、チームの部を合わせる ─────────────────────
+  // ── 2. 各部の人数（20 / 16 / 16）を戻す ──────────────────────
+  // 順位表は teams の部に合わせる（次の3）ので、**先に teams 側の部を正しくする**。
+  // 人数が狂ったまま合わせると、狂ったほうへ全部そろってしまう。
+  // 部を持たないチームは divisionOf の既定値で全部1部に入り、domesticThroughRank には
+  // 上限が無いので「3部のクラブが通し順位23位」のような表示になる。
+  // 合っているセーブでは何も動かない（並びは いまの部 → その部での順位 を保つ）。
+  if (isInitialized && Array.isArray(teams) && teams.length > 0) {
+    const before = DIVISIONS.map(d => teams!.filter(t => divisionOf(t) === d).length)
+    if (before.some((n, i) => n !== DIVISION_SIZE[DIVISIONS[i]])) {
+      const rankOf = (t: Team) => {
+        const at = rankOfTeam(currentSeason?.standings?.[divisionOf(t)], t.id)
+        return at > 0 ? at : (t.initialRank ?? 999)
+      }
+      teams = rebalanceDivisions(teams, rankOf, t => t.id === playerTeamId)
+      const after = DIVISIONS.map(d => teams!.filter(t => divisionOf(t) === d).length)
+      repairs.push(
+        after.join('/') === DIVISIONS.map(d => DIVISION_SIZE[d]).join('/')
+          ? `各部の人数を ${before.join('/')} → ${after.join('/')} に戻した`
+          : `⚠ 各部の人数が ${before.join('/')}（本来 ${DIVISIONS.map(d => DIVISION_SIZE[d]).join('/')}）。クラブ数 ${teams!.length} では戻せない`,
+      )
+    }
+  }
+
+  // ── 3. 順位表の部と、チームの部を合わせる ─────────────────────
   // 順位表は部ごとに分けて持つ＝部がキー。teams の部だけ動くと、走った結果の
   // 書き込み先に自分の行が無い＝点がどこにも入らない状態になる（utils/league の解説を参照）。
   if (isInitialized && Array.isArray(teams) && currentSeason) {
@@ -76,17 +104,6 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
     const after = JSON.stringify(DIVISIONS.map(d => (standings[d] ?? []).map(r => r.teamId)))
     if (before !== after) repairs.push('順位表の部をチームの部に合わせ直した')
     currentSeason = { ...currentSeason, standings }
-  }
-
-  // ── 3. 各部の人数（20 / 16 / 16）─────────────────────────────
-  // 合っていなければ直せないが、黙って進むと昇降格が毎年ズレ続けるので必ず残す。
-  if (isInitialized && Array.isArray(teams) && teams.length > 0) {
-    const wrong = DIVISIONS
-      .map(d => ({ d, n: teams!.filter(t => divisionOf(t) === d).length }))
-      .filter(x => x.n !== DIVISION_SIZE[x.d])
-    if (wrong.length > 0) {
-      repairs.push(`⚠ 各部の人数が ${DIVISIONS.map(d => teams!.filter(t => divisionOf(t) === d).length).join('/')}（本来 20/16/16）`)
-    }
   }
 
   // ── 4. 海外の順位表の行の形をそろえる ────────────────────────

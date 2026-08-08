@@ -6512,7 +6512,11 @@ export const useGameStore = create<GameStore>()(
           // 下部リーグのクラブが入っていない古いセーブに、足りない32クラブを補う。
           // 補うのは来季の器を組んだこの時点＝**次の年から**参加する（今季の順位表は触らない）。
           // そろっているセーブでは何もしない（utils/domesticClubs.ts）
-          const backfilled = backfillDomesticClubs({ teams: syncedTeams0, players: cleanedPlayers, year: newYear })
+          // ★自チームのIDを渡すこと。渡さないと自チームの部まで「データどおり」に戻され、
+          //   3部から始めたはずのクラブが選んだクラブの元の部（1部・2部）へ引き戻される
+          const backfilled = backfillDomesticClubs({
+            teams: syncedTeams0, players: cleanedPlayers, year: newYear, playerTeamId: state.playerTeamId,
+          })
           const syncedTeams = backfilled.teams
           const playersWithBackfill = backfilled.players
           const backfillNews = backfilled.addedTeams.length === 0 ? [] : [{

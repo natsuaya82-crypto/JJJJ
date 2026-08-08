@@ -100,6 +100,49 @@ check('  2回目は直すものが無い', twice.repairs.length === 0, twice.rep
   check('壊れていないセーブには手を出さない', out.repairs.length === 0, out.repairs.join(' / '))
 }
 
+// ── 各部の人数が狂ったセーブは、開き直すと 20/16/16 に戻る ──────────────
+// 部を持たないチームは divisionOf の既定値で全部1部に入る。domesticThroughRank に
+// 上限は無いので、膨らんだ1部では21位・22位…が出て、3部のクラブが
+// 「通し順位23位」のように別の部の順位で表示される（実際にそう出ていた）。
+{
+  // 3部の8クラブから部を落とす（旧セーブや変換の取りこぼしと同じ形）
+  const dropped = new Set(teams.filter(t => divisionOf(t) === 3 && t.id !== pickedId).slice(0, 8).map(t => t.id))
+  const bent = teams.map(t => (dropped.has(t.id) ? { ...t, division: undefined } : t)) as Team[]
+  const sizesBefore = DIVISIONS.map(d => bent.filter(t => divisionOf(t) === d).length)
+  check('前提：人数が狂った状態を作れている', sizesBefore.join('/') !== '20/16/16', sizesBefore.join('/'))
+
+  const out = repairLoadedSave({
+    isInitialized: true, teams: bent, players: [], playerTeamId: pickedId,
+    currentSeason: { year: 2027, races: [], standings: newSeasonStandings(bent, zero) } as never,
+    pastSeasons: [], foreignLeagues: [],
+  })
+  const sizes = DIVISIONS.map(d => (out.teams ?? []).filter(t => divisionOf(t) === d).length)
+  check('人数が狂ったセーブは 20/16/16 に戻る', sizes.join('/') === '20/16/16', sizes.join('/'))
+  check('  自チームは3部のまま（別の部へ吸い上げられない）',
+    divisionOf((out.teams ?? []).find(t => t.id === pickedId)) === 3
+    && divisionInSeason(out.currentSeason as Season, pickedId) === 3)
+  const again = repairLoadedSave(out as never)
+  check('  2回目は直すものが無い（冪等）', again.repairs.length === 0, again.repairs.join(' / '))
+}
+
+// ── クラブが足りない旧セーブを補っても、自チームは元の部へ引き戻されない ────
+// backfillDomesticClubs は既存クラブの部をデータどおりに戻す（降格先が無いまま
+// 落ちたぶんの取り消し）。**自チームまで戻すと、選んだクラブの元の部へ帰ってしまう。**
+// プレイヤーはどのクラブを選んでも3部・格20から始まるので、これは必ず誤り。
+{
+  const upper = teams.filter(t => divisionOf(t) === 1 || t.id === pickedId)
+  const out = repairLoadedSave({
+    isInitialized: true, teams: upper, players: [], playerTeamId: pickedId,
+    currentSeason: { year: 2027, races: [], standings: newSeasonStandings(upper, zero) } as never,
+    pastSeasons: [], foreignLeagues: [],
+  })
+  check('クラブを補ったあとも、自チームは3部のまま',
+    divisionOf((out.teams ?? []).find(t => t.id === pickedId)) === 3,
+    `${divisionOf((out.teams ?? []).find(t => t.id === pickedId))}部になった`)
+  const sizes = DIVISIONS.map(d => (out.teams ?? []).filter(t => divisionOf(t) === d).length)
+  check('  補ったあとの人数も 20/16/16', sizes.join('/') === '20/16/16', sizes.join('/'))
+}
+
 console.log('')
 if (problems.length > 0) {
   console.log(`✗ 起動時に直りきらないものがあります（${problems.length}件）`)

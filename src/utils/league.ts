@@ -228,6 +228,52 @@ export function reconcileStandingsDivisions<T extends { teamId: string }>(
   return out
 }
 
+/**
+ * 各部の人数を 20 / 16 / 16 に戻す。**部の人数を直す入口はここ1本。**
+ *
+ * 部そのものが順位表のキーなので、人数が狂うと
+ *   ・`divisionOf` は部を持たないチームを全部1部に入れる（既定値が1）
+ *   ・`domesticThroughRank` に上限は無いので、膨らんだ1部では21位・22位…が出る
+ * となり、3部のクラブが「通し順位23位」のように別の部の順位で表示される。
+ * 昇降格も上下2ずつなので、一度狂うと二度と戻らない。
+ *
+ * 並びは「いまの部 → その部での順位」を保つので、正しいセーブでは何も動かない。
+ *
+ * `pin` を渡したクラブは**いまの部から動かさない**。人数を詰め直すと、空いている部へ
+ * 上から順に吸い上げられる。自チームはどのクラブを選んでも3部から始まり、部が動くのは
+ * 昇降格だけなので、つじつま合わせで勝手に昇格させてはいけない。
+ *
+ * @param rankOf 小さいほど上。順位表があればその順位、無ければ initialRank を渡す
+ * @param pin その部から動かさないクラブ（自チーム）
+ */
+export function rebalanceDivisions<T extends Pick<Team, 'id' | 'division'>>(
+  teams: readonly T[],
+  rankOf: (team: T) => number,
+  pin?: (team: T) => boolean,
+): T[] {
+  const total = DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0)
+  // 人数が合っているか、そもそも52クラブ揃っていないセーブには手を出さない
+  if (teams.length !== total) return [...teams]
+  if (DIVISIONS.every(d => teams.filter(t => divisionOf(t) === d).length === DIVISION_SIZE[d])) return [...teams]
+
+  const placed = new Map<string, Division>()
+  const left: Record<Division, number> = { 1: DIVISION_SIZE[1], 2: DIVISION_SIZE[2], 3: DIVISION_SIZE[3] }
+  // 動かさないクラブを先に席へ着かせる（枠を先に押さえる）
+  for (const t of teams) {
+    if (!pin?.(t)) continue
+    const d = divisionOf(t)
+    if (left[d] <= 0) continue
+    placed.set(t.id, d)
+    left[d]--
+  }
+  const ordered = [...teams]
+    .filter(t => !placed.has(t.id))
+    .sort((a, b) => divisionOf(a) - divisionOf(b) || rankOf(a) - rankOf(b))
+  let i = 0
+  for (const d of DIVISIONS) for (let n = 0; n < left[d]; n++) placed.set(ordered[i++].id, d)
+  return teams.map(t => ({ ...t, division: placed.get(t.id) ?? divisionOf(t) }))
+}
+
 /** 順位表の1行。得点は positionPoints + segmentPoints（utils/league の配点1本） */
 type StandingRow = {
   teamId: string
@@ -291,7 +337,11 @@ export function syncSeasonStandings(params: {
   const fixed = reconcileStandingsDivisions(standings, teams, teamId => ({
     teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
   }))
-  const myDiv = divisionOf(teams.find(t => t.id === playerTeamId))
+  // ★自チームが見つからないときに `divisionOf(undefined)` の既定値（1部）へ落ちないこと。
+  //   落ちると1部だけ数え直し、自分の部の点はいつまでも0のまま＝直したつもりで直らない。
+  const me = teams.find(t => t.id === playerTeamId)
+  if (!me) return fixed
+  const myDiv = divisionOf(me)
   return { ...fixed, [myDiv]: divisionStandingsFromRaces(fixed[myDiv], races ?? []) }
 }
 
