@@ -125,18 +125,37 @@ export const CONSENT_LINE = 0.5
 export const MAX_OFFERS_PER_PLAYER = 5
 
 /**
- * リーグID → 憧れの地域。
- * 「OVR90でヨーロッパへ行きたいのにアジアへ移籍する」を止めるための対応表。
- * 海外挑戦の直訴（overseasRequests）が使っている3区分と同じもの。
- * 国内リーグ（leagueId 無し）は地域を持たない＝憧れの判定の対象外。
+ * リーグ → 憧れの地域。**この表が唯一の決まり。両方向ともここから引く。**
+ *
+ * ・満たしたか（`regionOfLeague`）… 移籍の同意で「憧れの地域か」を見る
+ * ・声が掛かるか（`leaguesOfRegion`）… 海外挑戦に登録した選手へオファーが来る発生源
+ *
+ * 以前はこの2つが別の表だった。満たす側はここ（欧州＝西南＋北東、アメリカ＝北米＋中米＋南米）、
+ * 声が掛かる側は clubs.ts の `ELITE_LEAGUES_BY_REGION`（欧州＝西南だけ、アメリカ＝北米だけ）。
+ * その結果、**南米へ移った選手は「憧れのアメリカへ行けた」と加点されるのに、
+ * 海外挑戦に登録しても南米からは一生オファーが来ない**という状態だった
+ * （呼び名も DREAM_LABEL は「北米・南米」なのに南米は発生源に入っていなかった）。
+ *
+ * アジア・オセアニア・国内はどの地域にも属さない＝憧れの対象外。
  */
+const REGION_BY_LEAGUE: Readonly<Record<string, OverseasRegion>> = {
+  africa_east: 'africa',
+  africa_ns: 'africa',
+  europe_ws: 'europe',
+  europe_ne: 'europe',
+  north_america: 'america',
+  central_america: 'america',
+  south_america: 'america',
+}
+
+/** リーグID → 憧れの地域。該当しないリーグ（アジア・オセアニア・国内）は undefined */
 export function regionOfLeague(leagueId: string | undefined): OverseasRegion | undefined {
-  switch (leagueId) {
-    case 'africa_east': case 'africa_ns': return 'africa'
-    case 'europe_ws': case 'europe_ne': return 'europe'
-    case 'north_america': case 'central_america': case 'south_america': return 'america'
-    default: return undefined   // アジア・オセアニア・国内は「憧れの地域」に該当しない
-  }
+  return REGION_BY_LEAGUE[leagueId ?? '']
+}
+
+/** 憧れの地域 → そのリーグID一覧。海外挑戦のオファーがどこから来るか */
+export function leaguesOfRegion(region: OverseasRegion): string[] {
+  return Object.keys(REGION_BY_LEAGUE).filter(id => REGION_BY_LEAGUE[id] === region)
 }
 
 /** 行き先クラブの姿。呼び出し側は buildDestination で作る */

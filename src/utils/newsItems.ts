@@ -193,11 +193,18 @@ export function segmentPrizeHeadline(a: { raceName: string; prize: number; myRan
   return `${a.raceName} 区間賞賞金 +${fmtYen(a.prize)}${rank}`
 }
 
-/** 海外へ送り出した。世界最高峰なら特別扱いにする */
-export function overseasMoveHeadline(a: { playerName: string; playerOvr: number; clubName: string; fee: number; elite: boolean }): string {
-  return a.elite
-    ? `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(a.fee)}）`
-    : `${a.playerName}が海外クラブ${a.clubName}へ移籍（移籍金${fmtYen(a.fee)}）`
+/**
+ * 海外へ送り出した。行き先の格で3段階に書き分ける。
+ *   big    … ビッグクラブ（格2以上）へ＝世界最高峰
+ *   stepUp … 自クラブより格上へ＝ステップアップ
+ *   どちらでもない … ただの海外移籍
+ * ★どのクラブが big / stepUp かは utils/clubTier の `isBigClub` / `isStepUp` 1本。
+ *   ここで格の数字を判定しないこと（見出しは文面だけを持つ）。
+ */
+export function overseasMoveHeadline(a: { playerName: string; playerOvr: number; clubName: string; fee: number; big: boolean; stepUp: boolean }): string {
+  if (a.big) return `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(a.fee)}）`
+  if (a.stepUp) return `【ステップアップ】${a.playerName}（OVR${a.playerOvr}）が格上の${a.clubName}へ移籍。より高いレベルへ挑む（移籍金${fmtYen(a.fee)}）`
+  return `${a.playerName}が海外クラブ${a.clubName}へ移籍（移籍金${fmtYen(a.fee)}）`
 }
 
 /** 海外クラブから獲得した */
@@ -205,7 +212,11 @@ export function foreignSignedHeadline(a: { playerName: string; nationality: stri
   return `${a.playerName}（${a.nationality}）を海外移籍金${fmtYen(a.fee)}で獲得`
 }
 
-/** 日本↔海外の移籍（裏で動いた分）。格上へ行くのか、日本へ来るのかで書き分ける */
+/**
+ * 日本↔海外の移籍（裏で動いた分）。格上へ行くのか、日本へ来るのかで書き分ける。
+ * ★`stepUp` は utils/clubTier の `isStepUp`（行き先の格 < 送り出したクラブの格）で作ること。
+ *   以前はここだけ「格1〜4のクラブなら」という絶対の線で、自チームの見出しと基準が違っていた。
+ */
 export function crossBorderHeadline(a: {
   playerName: string
   playerOvr: number
@@ -213,10 +224,10 @@ export function crossBorderHeadline(a: {
   toName: string
   fee: number
   dir: 'in' | 'out'
-  toStrongLeague: boolean
+  stepUp: boolean
 }): string {
   if (a.dir === 'in') return `【海外→日本】${a.playerName}（OVR${a.playerOvr}）が${a.fromName}から${a.toName}へ移籍（移籍金${fmtYen(a.fee)}）`
-  if (a.toStrongLeague) return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が格上の${a.toName}へ移籍。世界の舞台で腕試し（移籍金${fmtYen(a.fee)}）`
+  if (a.stepUp) return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が格上の${a.toName}へ移籍。世界の舞台で腕試し（移籍金${fmtYen(a.fee)}）`
   return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が${a.fromName}から${a.toName}へ移籍（移籍金${fmtYen(a.fee)}）`
 }
 

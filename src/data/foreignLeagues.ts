@@ -1,6 +1,6 @@
 import type { ForeignLeague } from '../types'
 
-// ⚠ このファイルは scripts の生成物。9海外リーグ×20クラブ。tier(4大リーグ=elite)は playerGenerator の強さ設定で参照。
+// ⚠ このファイルは scripts の生成物。9海外リーグ×20クラブ。クラブの格は utils/clubTier（毎年動く）。
 //
 // ★ shortName は data/foreignClubCities.ts の FOREIGN_CLUB_CITY（本拠地の都市名）と必ず同じにすること。
 //   以前ここだけ5文字で切った別の値を持っていて、「ストックホルム」が「ストックホ」と出ていた。

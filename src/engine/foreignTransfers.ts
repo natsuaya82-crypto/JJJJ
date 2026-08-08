@@ -8,12 +8,12 @@ import { ROSTER_MAX, ROSTER_MIN, CPU_SELL_FLOOR } from '../data/rosterRules'
 import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub, squadIdsOf } from '../utils/rosterSync'
-// 海外クラブ・4大リーグの引き場所は utils/clubs 1本
+// 海外クラブの引き場所は utils/clubs 1本。「4大リーグ」は廃止（強さは格で言う）
 import { allForeignClubs } from '../utils/clubs'
 // 選手がクラブを移るときの後始末は movePlayer.ts に一本化（所属・名簿・移籍金・移籍履歴）
 import { movePlayer } from '../utils/movePlayer'
 // 海外クラブの年間予算（クラブIDとリーグから毎回同じ額が出る）
-import { tierBudget, tierOf, tierStrength, DOMESTIC_TOP_TIER, MAJOR_NEWS_OVR } from '../utils/clubTier'
+import { tierBudget, tierOf, tierStrength, isBigClub, isStepUp, MAJOR_NEWS_OVR } from '../utils/clubTier'
 
 
 // 「そのリーグが受け入れるOVRの下限」と「年齢を加味した実効OVR」は
@@ -77,7 +77,7 @@ export function simulateForeignTransferMarket(params: {
     // 引き抜く側：上限(30)未満のクラブ。引退等で人数が減ったクラブほど動く（穴埋め型の補強）
     const buyerPool = allClubs.filter(c => roster[c.id].length < ROSTER_MAX)
     if (buyerPool.length === 0) continue
-    // 4大リーグのクラブほど積極的に引き抜く（世界のスターが集まる）
+    // 格上のクラブほど積極的に引き抜く（世界のスターが集まる）
     const buyer = weightedPick(buyerPool, c => (ROSTER_MAX - roster[c.id].length) * (roster[c.id].length < 22 ? 3 : 1) * aggression(c))
     // 売る側：buyer 以外で下限(18)超のクラブから、buyer と同格以下の相手を優先（放出しても18で止まる）
     const sellers = allClubs.filter(c => c.id !== buyer.id && roster[c.id].length > CPU_SELL_FLOOR)
@@ -326,7 +326,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     moves.push({ playerId: target.id, fromId: seller.id, toId: buyer.id, dir: 'out', fee })
   }
 
-  // スター引き抜き：4大リーグ（アフリカ東/アフリカ北南/欧州西南/北米）がJPELの世界レベル
+  // スター引き抜き：海外クラブがJPELの世界レベル
   // （32歳以下）を高額移籍金で年1〜2人強奪する。「世界レベルは世界レベルに集まる」の実現。
   // 従来のN_OUTは余剰・準主力しか動かさないため、日本代表クラスが国内に固定される問題への対策。
   // ★「世界レベル」の線は clubTier の MAJOR_NEWS_OVR 1本。以前ここだけ82で、
@@ -343,7 +343,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       if (starPool.length === 0) break
       const { p: target, sellerId } = weightedPick(starPool, x => ovr(x.p) - (MAJOR_NEWS_OVR - 5))
       const fee = Math.round(calcTransferValue(target) * FOREIGN_STAR_PREMIUM)
-      // スターの行き先も「必要か・走れるか」と払えるかだけ。4大リーグかどうかでは絞らない
+      // スターの行き先も「必要か・走れるか」と払えるかだけ。リーグでは絞らない
       // （名簿が強いクラブほどスターしか序列に入れないので、結果的に上位クラブへ集まる）
       const buyerPool = foreignClubs.filter(c => {
         if (fRoster[c.id].length >= ROSTER_MAX || fBudget[c.id] < fee) return false
@@ -376,16 +376,21 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     )),
   }))
 
-  // 「日本より格上のクラブへ行った」は大ニュース。**格でそのまま言える。**
-  // 国内の頭打ちは格5（DOMESTIC_TOP_TIER）なので、それより上＝格1〜4のクラブが対象。
-  // 以前は国コードの表（ETH/KEN/UGA/TAN/USA）＋4大リーグで判定していて、
-  // 国コードの漏れ（GBR/GER など）を4大リーグで塞ぐ、という継ぎ足しになっていた。
+  // 移籍の大きさは2つの線で言う。**どちらも utils/clubTier の1本**（自チームの見出しと同じ）。
+  //   ・ビッグクラブ（格2以上）へ … 世界最高峰。列島が沸くやつ
+  //   ・送り出したクラブより格上へ … ステップアップ
+  // 以前はここだけ「格1〜4（DOMESTIC_TOP_TIER より上）」という絶対の線で、
+  // 自チームが送り出したときの見出し（4大リーグのID）とも major の判定（格1）とも
+  // 基準が違っていた。3つの物差しが同じ問いに答えていた。
+  // 相対にすると、3部（格18）の選手が格12のクラブへ渡るのも拾える（以前は素通りだった）。
   // ★格はクラブの実体から引く。海外の格は毎年動くので、初期値で引くと
   //   格9まで落ちたクラブへの移籍がいつまでも「世界へ挑戦」の大ニュースになる。
   const clubById = new Map(foreignClubs.map(c => [c.id, c]))
-  const isStrongDest = (toId: string) => {
-    const c = clubById.get(toId)
-    return !!c && tierOf(c) < DOMESTIC_TOP_TIER
+  const teamById = new Map(cpuTeams.map(t => [t.id, t]))
+  const isBigDest = (toId: string) => isBigClub(clubById.get(toId))
+  const isStepUpDest = (fromId: string, toId: string) => {
+    const to = clubById.get(toId)
+    return !!to && isStepUp(teamById.get(fromId), to)
   }
   // 成立日をオフシーズン期間に分散（全部同日に見える不自然さの解消）
   const XB_DAYS = ['01-14', '01-19', '01-24', '01-29', '02-02', '02-08', '02-13', '02-19', '02-24', '03-02', '03-08', '03-14']
@@ -396,8 +401,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     .sort((a, b) => ovr(b.p) - ovr(a.p))
     .slice(0, 8)
     .map(({ m, p }, ni) => {
-      const toStrongLeague = m.dir === 'out' && isStrongDest(m.toId)
-      if (toStrongLeague && ovr(p) >= MAJOR_NEWS_OVR) {
+      const stepUp = m.dir === 'out' && isStepUpDest(m.fromId, m.toId)
+      if (m.dir === 'out' && isBigDest(m.toId) && ovr(p) >= MAJOR_NEWS_OVR) {
         return {
           date: xbDate(ni),
           headline: overseasBreakthroughHeadline({ playerName: p.name, playerOvr: ovr(p), toName: nameById.get(m.toId) ?? '', fee: m.fee }),
@@ -409,7 +414,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       return {
         date: xbDate(ni),
         headline: crossBorderHeadline({
-          playerName: p.name, playerOvr: ovr(p), fee: m.fee, dir: m.dir, toStrongLeague,
+          playerName: p.name, playerOvr: ovr(p), fee: m.fee, dir: m.dir, stepUp,
           fromName: nameById.get(m.fromId) ?? '', toName: nameById.get(m.toId) ?? '',
         }),
         category: 'trade' as const,

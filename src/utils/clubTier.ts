@@ -312,14 +312,38 @@ export function tierOf(team: TieredTeam | undefined): ClubTier {
 export const MAJOR_NEWS_OVR = 85
 
 /**
- * 世界に数クラブしかない格1のクラブか。大ニュースの判定に使う。
+ * ビッグクラブの線（格2以上＝格1と格2）。**「世界最高峰か」はここ1本。**
+ *
+ * 以前は同じ問いに3つの物差しがあった：
+ *   ・`isEliteLeague`（4大リーグのIDを手書き）… 自チームが送り出したときの見出しと実績
+ *   ・`tierOf(c) < DOMESTIC_TOP_TIER`（格1〜4）… 裏で動いた日本→海外の見出し
+ *   ・`isBigClub`（格1のみ）… ニュースの大扱い（major）
+ * リーグで判定すると、格3まで上がった欧州北東のクラブが「最高峰ではない」のに
+ * 格9まで落ちた北南アフリカのクラブが「最高峰」のまま、という逆転が起きる。
+ * リーグは動かないがクラブの格は毎年動くので、**クラブの格で言う**。
+ */
+export const BIG_CLUB_TIER: ClubTier = 2
+
+/**
+ * そのクラブはビッグクラブ（格2以上）か。大ニュースと「世界最高峰へ」の見出しに使う。
  *
  * ★クラブの実体を渡すこと（tierOf と同じ引き方）。以前はクラブIDだけを受け取って
  *   clubTiers.ts の**初期値**を見ていたので、格9まで落ちた海外クラブが
  *   いつまでも「世界的名門」として大ニュース扱いのままだった。
  */
 export function isBigClub(club: TieredTeam | undefined): boolean {
-  return tierOf(club) === 1
+  return tierOf(club) <= BIG_CLUB_TIER
+}
+
+/**
+ * 「ステップアップか」＝行き先の格が今のクラブより上か。**相対の判定はここ1本。**
+ *
+ * ビッグクラブ（絶対の線）と対になる。3部（格18）の選手が格12のクラブへ渡るのは
+ * 世界最高峰ではないがステップアップで、以前はどちらの見出しにもならず
+ * ただの移籍として流れていた。国内・海外の区別はしない（格は同じ物差し）。
+ */
+export function isStepUp(from: TieredTeam | undefined, to: TieredTeam | undefined): boolean {
+  return tierOf(to) < tierOf(from)
 }
 
 export function tierOfClubId(clubId: string): ClubTier {

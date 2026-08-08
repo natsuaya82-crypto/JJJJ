@@ -211,22 +211,17 @@ export function leagueIdByClub(foreignLeagues: ForeignLeague[] | null | undefine
   return new Map((foreignLeagues ?? []).flatMap(l => (l?.clubs ?? []).map(c => [c.id, l.id] as [string, string])))
 }
 
-// ── 4大リーグ（世界最高峰）─────────────────────────────────
+// ── 「4大リーグ」は廃止しました。戻さないこと ──────────────────
 //
-// 東アフリカ・北南アフリカ・欧州西南・北米。ここが世界のスターを引き抜き、
-// 日本人がここへ渡れば「世界へ挑戦」の大ニュースになる。
-// 同じ4件のIDが7か所（gameStore 3・foreignTransfers 3・foreignClubProfile 1）に
-// コピーされていて、片方だけ増やすと引き抜きとニュースの基準がズレる状態だった。
-// ★ 4大リーグを増減するときはここだけを変えること。
-export const ELITE_LEAGUE_IDS: ReadonlySet<string> = new Set(['africa_east', 'africa_ns', 'europe_ws', 'north_america'])
-
-export function isEliteLeague(leagueId: string | null | undefined): boolean {
-  return ELITE_LEAGUE_IDS.has(leagueId ?? '')
-}
-
-/** 憧れの地域 → その地域の4大リーグ。海外挑戦の行き先を選ぶときに使う */
-export const ELITE_LEAGUES_BY_REGION: Readonly<Record<string, readonly string[]>> = {
-  africa: ['africa_east', 'africa_ns'],
-  europe: ['europe_ws'],
-  america: ['north_america'],
-}
+// ここには `ELITE_LEAGUE_IDS`（東アフリカ・北南アフリカ・欧州西南・北米の手書き）と
+// `ELITE_LEAGUES_BY_REGION` がありました。**リーグでは強さを言えません。**
+//
+//   ・リーグは動かないが、クラブの格は毎年動く。格3まで上がった欧州北東のクラブが
+//     「最高峰ではない」のに、格9まで落ちた北南アフリカのクラブが「最高峰」のままになる
+//   ・帯（FOREIGN_TIER_BAND）の下端が9以内、という機械的な線でもあるので、
+//     欧州北東（3〜10）が1違いで落ちるだけの紙一重の区別でしかなかった
+//
+// いまは2つに分かれています。
+//   ・世界最高峰か       … utils/clubTier.ts の `isBigClub`（格2以上）
+//   ・ステップアップか   … utils/clubTier.ts の `isStepUp`（行き先の格 < 今のクラブの格）
+//   ・憧れの地域の行き先 … utils/transferDecision.ts の `leaguesOfRegion`

@@ -66,10 +66,22 @@ const RULES: Rule[] = [
     fix: 'rosterRules.ts の RUNNING_SLOTS を import する',
   },
   {
-    name: '4大リーグのIDの直書き',
-    pattern: /'africa_east'\s*,\s*'africa_ns'/,
-    allow: ['src/utils/clubs.ts'],
-    fix: 'clubs.ts の ELITE_LEAGUE_IDS / isEliteLeague を使う',
+    // 「4大リーグ」は廃止した。リーグは動かないがクラブの格は毎年動くので、
+    // リーグのIDでは「世界最高峰か」を言えない（格3の欧州北東が最高峰でなく、
+    // 格9まで落ちた北南アフリカが最高峰のまま、という逆転が起きる）。
+    name: '4大リーグのIDの直書き（廃止済み）',
+    pattern: /ELITE_LEAGUE_IDS|isEliteLeague|ELITE_LEAGUES_BY_REGION|'africa_east'\s*,\s*'africa_ns'/,
+    allow: [],
+    fix: '世界最高峰は clubTier の isBigClub（格2以上）、格上かは isStepUp、憧れの行き先は transferDecision の leaguesOfRegion',
+  },
+  {
+    // 「憧れの地域 ↔ リーグ」の対応は1つの表から両方向を引く。
+    // 以前は「満たしたか」と「声が掛かるか」で別々の表を持っていて、
+    // 南米へ移れば憧れが満たされるのに、海外挑戦に登録しても南米からは来なかった。
+    name: '憧れの地域とリーグの対応表の写し',
+    pattern: /'(north_america|south_america|central_america)'\s*(,|\])/,
+    allow: ['src/utils/transferDecision.ts', 'src/data/foreignLeagues.ts'],
+    fix: 'transferDecision.ts の regionOfLeague / leaguesOfRegion を使う（表は REGION_BY_LEAGUE 1本）',
   },
   {
     name: '海外クラブの総なめ',
@@ -370,7 +382,7 @@ RULES.push({
 // 格1のクラブは名簿が強いので、弱い選手はそこでは序列の下に沈んで自動的に外れる。
 RULES.push({
   name: 'クラブの強さを国やリーグの表で判断している',
-  pattern: /(ETH|KEN|UGA|TAN):\s*\d{2}|isEliteLeague\([^)]*\)\s*\?\s*\d|STRONG_COUNTRIES/,
+  pattern: /(ETH|KEN|UGA|TAN):\s*\d{2}|STRONG_COUNTRIES/,
   allow: [
     'src/data/nationalities.ts',
     // 国ごとの「選手の数」（勢力図）。強さはここでは決めていない（そのファイルにも明記）。
@@ -378,6 +390,17 @@ RULES.push({
     'src/data/nationTalent.ts',
   ],
   fix: '格（utils/clubTier）か、必要かどうか（utils/squadNeeds の needsPlayer / wouldMakeLineup）で判断する',
+})
+
+// 「その移籍はどれだけ大きいか」の線を格の数字で直書きしないこと。
+// 同じ問いに3つの物差しがあった：4大リーグのID（自チームの見出しと実績）／
+// 格1〜4（裏で動いた日本→海外の見出し）／格1（ニュースの大扱い）。
+// いまは絶対＝isBigClub（格2以上）、相対＝isStepUp（行き先の格 < 今のクラブの格）の2本だけ。
+RULES.push({
+  name: '移籍の大きさを格の数字で直書きしている',
+  pattern: /tierOf\([^)]*\)\s*(===|<=|<)\s*(1|2|BIG_CLUB_TIER|DOMESTIC_TOP_TIER)\b/,
+  allow: ['src/utils/clubTier.ts', 'scripts/'],
+  fix: 'clubTier の isBigClub（格2以上）／ isStepUp（行き先の格 < 今のクラブの格）を使う',
 })
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])

@@ -77,13 +77,13 @@ import { reconcileTalks, openWishIds, STALE_TRADE_MSG } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
-import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, seeksPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
+import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, leaguesOfRegion, MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, seeksPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
 import { isOwnedBy, canBePoached, canClubApproachAgain, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
 import { contractTalkCtx, effectiveDemandSalary, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS, contractMonthsLeft, RENEWAL_ATTENTION_MONTHS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
 import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX } from '../utils/tradeValue'
 import type { TradeValueCtx } from '../utils/tradeValue'
-import { findClub, domesticTeamIdSet as domesticTeamIdSet_, allForeignClubs, foreignClubIdSet, leagueOfClub, isEliteLeague, ELITE_LEAGUES_BY_REGION } from '../utils/clubs'
+import { findClub, domesticTeamIdSet as domesticTeamIdSet_, allForeignClubs, foreignClubIdSet, leagueOfClub } from '../utils/clubs'
 // 殿堂入りチーム（登録時の数値で固定）
 import { canRegisterHof, registerHof, removeHof, isHofEligible } from '../utils/hofRoster'
 // 監督の在任履歴と、他チームからの監督オファー
@@ -99,7 +99,7 @@ import { withCareerCounts, stripCareerForSave, buildCareerCounts } from '../util
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
-import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierStrength, isBigClub, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierStrength, isBigClub, isStepUp, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 import { normalizeForeignStandings } from '../utils/clubStanding'
 
 type DraftState = {
@@ -321,7 +321,7 @@ function sellMove(
  *
  * ■国内と海外の違い
  *   海外クラブは teams に居ないので入金が自クラブ側だけになる。見出しも変わり、
- *   4大リーグ（世界最高峰）へ送り出したときだけ実績が付く。その3つ以外は同じ。
+ *   ビッグクラブ（格2以上＝世界最高峰）へ送り出したときだけ実績が付く。その3つ以外は同じ。
  */
 /**
  * そのクラブは格1（世界に数クラブ）か。**大ニュースの判定はこれを通す。**
@@ -340,23 +340,30 @@ function finalizeSale(
   const player = state.players.find(p => p.id === offer.playerId)!
   const date = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
   const league = offer.fromForeign ? leagueOfClub(state.foreignLeagues, offer.fromTeamId) : undefined
-  const isElite = offer.fromForeign && isEliteLeague(league?.id)
+  // 行き先がどれだけ大きいかは**クラブの格**で言う（リーグでは言えない。utils/clubTier）。
+  //   ビッグクラブ（格2以上）＝世界最高峰／自クラブより格上＝ステップアップ
+  // 以前は「4大リーグのIDに入っているか」で、格3まで上がったクラブが最高峰扱いされず、
+  // 格9まで落ちたクラブが最高峰のままだった。
+  const destClub = allTieredClubs(state.teams, state.foreignLeagues).find(c => c.id === offer.fromTeamId)
+  const myClub = state.teams.find(t => t.id === state.playerTeamId)
+  const toBigClub = !!offer.fromForeign && isBigClub(destClub)
+  const toStepUp = !!offer.fromForeign && isStepUp(myClub, destClub)
   const toName = offer.fromForeign
     ? (league?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ')
     : (state.teams.find(t => t.id === offer.fromTeamId)?.shortName ?? '')
 
   const moved = sellMove(state, offer.playerId, offer.fromTeamId, fee, toName)
   const headline = offer.fromForeign
-    ? overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName: toName, fee, elite: !!isElite })
+    ? overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName: toName, fee, big: toBigClub, stepUp: toStepUp })
     : soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.teams), fee })
 
   return {
     players: moved.players,
     teams: moved.teams,
     transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
-    // 世界最高峰へ送り出したのは初回だけ実績になる
-    achievements: isElite && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
-      ? [...(state.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${state.currentSeason.year}年 ${player.name}を世界最高峰リーグへ送り出した`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
+    // 世界最高峰（ビッグクラブ）へ送り出したのは初回だけ実績になる
+    achievements: toBigClub && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
+      ? [...(state.achievements ?? []), { id: 'overseas-pioneer', name: '世界へ翔ぶ', desc: `${state.currentSeason.year}年 ${player.name}を世界最高峰のクラブへ送り出した`, earnedAtYear: state.currentSeason.year, rarity: 'legendary' as const }]
       : state.achievements,
     currentSeason: {
       ...state.currentSeason,
@@ -366,7 +373,7 @@ function finalizeSale(
       transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
       newsFeed: [{
         date, headline, category: 'trade' as const, relatedIds: [player.id],
-        major: !!isElite || ovr(player) >= MAJOR_NEWS_OVR || bigClub(state, offer.fromTeamId),
+        major: toBigClub || ovr(player) >= MAJOR_NEWS_OVR || bigClub(state, offer.fromTeamId),
       }, ...state.currentSeason.newsFeed].slice(0, 30),
       departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
     },
@@ -9058,32 +9065,43 @@ function generateForeignAndLoanOffers(params: {
     return needsPlayer(r, target) || wouldMakeLineup(r, target)
   }
 
-  // 1a) 海外挑戦リストの選手：希望地域の1部リーグ（4大リーグ）から高確率で指名オファー。
+  // 1a) 海外挑戦リストの選手：希望した地域のリーグから高確率で指名オファー。
+  //     ★発生源は transferDecision の `leaguesOfRegion` 1本。移籍の同意で「憧れの地域か」を
+  //       見ている表とまったく同じものを裏返して使う。以前は clubs.ts に別の表があり、
+  //       南米へ移れば「憧れのアメリカへ行けた」と加点されるのに、海外挑戦に登録しても
+  //       南米からは一生オファーが来なかった（欧州北東も同じ）。
   //     以前はここに地域ごとのOVR下限表（アフリカ84／欧州80／北米80）があったが、
   //     それは「必要か・走れるか」を通していないただの後付けだった。clubWants 1本にする。
   for (const target of myMain.filter(p => !offeredIds.has(p.id) && canGoOverseasDream(p, eligCtx))) {
     if (foreignIncoming.length >= 2) break
     const region = target.overseasListed!
     if (Math.random() > 0.75) continue
+    const dreamLeagues = new Set(leaguesOfRegion(region))
+    const tv = calcTransferValue(target)
     const clubs = foreignClubs
-      .filter(c => (ELITE_LEAGUES_BY_REGION[region] ?? []).includes(c.leagueId ?? ''))
+      .filter(c => dreamLeagues.has(c.leagueId ?? ''))
       .filter(c => clubWants(c, target))
+      // 払えないクラブは先に外す。**選んでから払えるか見ない。**
+      // 発生源が4大リーグ（格1〜9）だけだった頃はどこも払えたので後ろで弾いても同じだったが、
+      // 地域まるごと（アジア地域なら格20まで）になると、払えないクラブを引き当てた回だけ
+      // オファーが丸ごと消える＝声が掛かる回数が減る、という取りこぼしになる。
+      .filter(c => foreignCapOf(c) >= tv * 1.1)
     if (clubs.length === 0) continue
     const club = clubs[(ovr(target) + raceIndex) % clubs.length]
     if (!clubMayOffer(target, club.id, foreignIncoming)) continue
-    const tv = calcTransferValue(target)
     // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示。ただし出せる上限まで
     const dreamPrice = roundFee(tv * (1.1 + Math.random() * 0.3), 1_000_000)
     if (dreamPrice > foreignCapOf(club)) continue
     foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: dreamPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
   }
 
-  // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでも4大リーグが放っておかない
+  // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでもビッグクラブが放っておかない。
+  //     ★「ビッグクラブか」は格（isBigClub）。4大リーグのIDでは言えない
   if (foreignClubs.length > 0 && Math.random() < 0.6) {
     const star = [...myMain]
       .filter(p => !offeredIds.has(p.id) && ovr(p) >= MAJOR_NEWS_OVR && p.age <= 34 && !foreignIncoming.some(o => o.playerId === p.id) && canBePoached(p, eligCtx))
       .sort(comparePlayers('ovr'))[0]
-    const eliteAll = star ? foreignClubs.filter(c => isEliteLeague(c.leagueId) && clubWants(c, star)) : []
+    const eliteAll = star ? foreignClubs.filter(c => isBigClub(c) && clubWants(c, star)) : []
     const eliteClub = star && eliteAll.length > 0 ? eliteAll[(ovr(star) + raceIndex) % eliteAll.length] : undefined
     if (star && eliteClub && clubMayOffer(star, eliteClub.id, foreignIncoming)) {
       const club = eliteClub
