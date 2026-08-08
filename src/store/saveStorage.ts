@@ -50,6 +50,28 @@ export function isSaveSafeMode(): boolean { return safeMode || getSaveHealth() =
 let loadedInitialized = false
 const isInit = (v: string | null) => !!v && v.includes('"isInitialized":true')
 
+// ── 中身が消し飛んだセーブを書かせないガード ──
+//
+// 【なぜ要るのか】
+//   上の `isInit` だけでは「開始済みのまま、中身だけ空」を止められない。
+//   読み込みの途中でおかしくなり、isInitialized:true・選手0人という状態になると、
+//   そのまま保存が通って本物のセーブが物理的に消える。build 106 で
+//   30シーズンぶんのセーブが失われたときの、いちばんありそうな筋がこれ。
+//
+// 【どう見るか】
+//   選手1人につき1つだけ出る文字列を数えて、読み込んだときより極端に減っていたら拒否する。
+//   数MBを毎回 JSON.parse すると重いので、文字列を数えるだけにする（数ミリ秒）。
+//   引退で減るのは1シーズンで数%なので、半分を割るのは異常しかない。
+const PLAYER_MARK = '"specialty":'
+const COLLAPSE_RATIO = 0.5
+const COLLAPSE_MIN = 100        // これ未満の小さなセーブでは判定しない（作りかけ・新規）
+const countPlayers = (v: string): number => {
+  let n = 0
+  for (let i = v.indexOf(PLAYER_MARK); i !== -1; i = v.indexOf(PLAYER_MARK, i + PLAYER_MARK.length)) n++
+  return n
+}
+let loadedPlayerCount = 0
+
 async function exists(path: string): Promise<boolean> {
   try {
     await Filesystem.stat({ path, directory: Directory.Data })
@@ -196,12 +218,14 @@ export const saveStorage: StateStorage = {
     if (!isNative) {
       const v = localStorage.getItem(name)
       if (isInit(v)) loadedInitialized = true
+      if (v) loadedPlayerCount = countPlayers(v)
       return v
     }
     return (async () => {
       const { raw, sawFile } = await loadFromDisk()
       if (raw !== null) {
         if (isInit(raw)) loadedInitialized = true
+        loadedPlayerCount = countPlayers(raw)
         return raw
       }
       if (sawFile) {
@@ -228,6 +252,7 @@ export const saveStorage: StateStorage = {
         }
       }
       if (isInit(legacy)) loadedInitialized = true
+      if (legacy) loadedPlayerCount = countPlayers(legacy)
       return legacy
     })()
   },
@@ -242,6 +267,21 @@ export const saveStorage: StateStorage = {
       console.error('[save] BLOCKED: attempted to overwrite an initialized save with a fresh (uninitialized) state')
       return
     }
+    // 中身が消し飛んだセーブを書かせないガード。
+    // isInitialized は true のまま選手だけ消えている、という壊れ方をここで止める。
+    // 止めたあとは**この起動中いっさい書かない**（セーフモード）。復旧画面へ回して、
+    // ファイル（本体・.tmp・.bak）が無事なうちに再起動してもらう。
+    if (loadedPlayerCount >= COLLAPSE_MIN) {
+      const now = countPlayers(value)
+      if (now < loadedPlayerCount * COLLAPSE_RATIO) {
+        safeMode = true
+        setSaveHealth('failed', `セーブの中身が急に減ったため保存を止めました（選手 ${loadedPlayerCount} → ${now}）`)
+        console.error(`[save] BLOCKED: player records collapsed ${loadedPlayerCount} -> ${now}; refusing to overwrite and entering safe mode`)
+        return
+      }
+      // 正常に書けたぶんを新しい基準にする（増える方向はそのまま追随する）
+      if (now > loadedPlayerCount) loadedPlayerCount = now
+    }
     if (isInit(value)) loadedInitialized = true
     if (!isNative) { localStorage.setItem(name, value); return }
     pending = value
@@ -250,6 +290,7 @@ export const saveStorage: StateStorage = {
   },
   removeItem: (name) => {
     loadedInitialized = false   // データ削除＝ガード解除（新規ゲームを保存できるように）
+    loadedPlayerCount = 0       // 中身の基準も外す（明示的な削除のあとは何を書いてもよい）
     safeMode = false
     setSaveHealth('ok', '')
     lastBackupAt = 0
