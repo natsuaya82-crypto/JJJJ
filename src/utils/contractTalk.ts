@@ -39,6 +39,21 @@ export const RENEWAL_ATTENTION_MONTHS = 6
  */
 export const RENEWAL_URGENT_MONTHS = 3
 
+/**
+ * いま選手が求めている年俸。**要求額はここ1本。**
+ *
+ * ラウンドが進むほど選手は強気になる（1ラウンドにつき+3%）。50万円刻みに丸める。
+ *
+ * ■なぜ1本にしたのか
+ *   同じ式が4か所にあった。チャットで**見せる**側が3か所（ChatPage）、
+ *   実際に**承諾するか判定する**側が1か所（gameStore）。別々に書いてあるので、
+ *   +3% や刻みを片方だけ触ると「提示した額どおりに払ったのに蹴られる」が起きる。
+ */
+export function effectiveDemandSalary(r: Pick<ContractRequest, 'demandSalary' | 'round'>): number {
+  const roundFactor = 1 + (r.round - 1) * 0.03
+  return Math.round(r.demandSalary * roundFactor / 500000) * 500000
+}
+
 /** 契約残りの月数。チャットの表示・通知のリマインダー・ホームの警告が全部この式を使う */
 export function contractMonthsLeft(yearsLeft: number, raceIndex: number, totalRaces: number): number {
   return Math.round((yearsLeft - 1 + Math.max(0, totalRaces - raceIndex) / Math.max(1, totalRaces)) * 12)

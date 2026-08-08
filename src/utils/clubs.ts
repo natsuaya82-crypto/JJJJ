@@ -1,6 +1,7 @@
 import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 import { hashedGmName } from '../engine/playerGenerator'
 import type { ForeignClub, ForeignLeague, Nationality, Team } from '../types'
+import { strHash } from './hash'
 
 // ============================================================================
 // 「クラブ」は1種類だけ。ここが唯一の引き場所。
@@ -82,11 +83,9 @@ export function clubGmName(club: { id: string; gmName?: string; country?: string
   return club.gmName ?? hashedGmName(club.id, club.country ?? '')
 }
 
-/** クラブIDから決め打ちの値を作るときのハッシュ（同じIDなら毎回同じ） */
+/** クラブIDから決め打ちの値を作るときのハッシュ。式は utils/hash の1本（`| 0` は既存のGM名を変えないため） */
 function hashClubId(id: string): number {
-  let h = 0
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
-  return Math.abs(h)
+  return Math.abs(strHash(id) | 0)
 }
 
 export function clubOfForeign(c: ForeignClub, leagueName?: string): Club {

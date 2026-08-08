@@ -1,3 +1,4 @@
+import { strHash } from '../utils/hash'
 // プレイヤーが自チームロゴに選べるプリセット画像（27種）。
 // 画像は public/logos/preset/logo_01.png 〜 logo_27.png に配置。
 // Team.logoId にこのIDを保存し、TeamLogoSVG が最優先で表示する。
@@ -55,7 +56,6 @@ export function defaultLogoIdFor(teamId: string | undefined): string {
 /** 表示側でチームIDが手に入らないときの保険。IDのハッシュでプリセットを1つ選ぶ。 */
 export function hashedLogoIdFor(seed: string | undefined): string {
   if (!seed) return LOGO_PRESET_DEFAULT
-  let h = 0
-  for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0
-  return LOGO_PRESETS[Math.abs(h) % LOGO_PRESETS.length]
+  // 式は utils/hash の1本（`| 0` で畳むのは既に割り当たっているロゴを変えないため）
+  return LOGO_PRESETS[Math.abs(strHash(seed) | 0) % LOGO_PRESETS.length]
 }

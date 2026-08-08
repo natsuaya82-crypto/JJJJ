@@ -43,7 +43,9 @@ import { buildEclParticipants, buildEclRaces, eclDateBetweenLeagueRaces } from '
 import { ECL_COURSES } from '../data/eclCourses'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { applyGrowth, requiredExpForLevel } from '../engine/growth'
-import { ovr, peakAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, peakAgeOf, retirementAgeOf, faMarketSalary, seasonPerfProfile, foreignPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { strHash } from '../utils/hash'
+import { withMorale, withFatigue, setMorale, MORALE_DEFAULT } from '../utils/condition'
 import { roundRobin } from '../utils/roundRobin'
 import type { PerfProfile } from '../utils/playerUtils'
 import { resolveBid } from '../utils/transferBid'
@@ -77,7 +79,7 @@ import type { DepartureNotice } from '../utils/movePlayer'
 import { movePlayer } from '../utils/movePlayer'
 import { appraiseMove, buildDestination, rankOffers, dreamRegionOf, regionOfLeague, MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, seeksPlayingTime, type Destination, type Appraisal } from '../utils/transferDecision'
 import { isOwnedBy, canBePoached, canClubApproachAgain, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut, canTradeAway, canAcceptOfferFor, canWishTransfer, isLeavingClub } from '../utils/transferEligibility'
-import { contractTalkCtx, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS, contractMonthsLeft, RENEWAL_ATTENTION_MONTHS } from '../utils/contractTalk'
+import { contractTalkCtx, effectiveDemandSalary, canOfferRenewal, canRequestRenewal, canReNegotiate, isLiveContract, liveContractOf, hasContractTalk, MAX_CONTRACT_ROUNDS, contractMonthsLeft, RENEWAL_ATTENTION_MONTHS } from '../utils/contractTalk'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
 import { tradeValues, faceValueOf, tradeBalance, tradeNotLopsided, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX } from '../utils/tradeValue'
 import type { TradeValueCtx } from '../utils/tradeValue'
@@ -269,7 +271,7 @@ export function applyRaceBoosts(
   const dominantNat = Object.entries(natCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
   return boosted.map(p => {
     if (p.teamId !== playerTeamId || !lineupIdSet.has(p.id) || p.nationality !== dominantNat) return p
-    return { ...p, morale: Math.min(100, (p.morale ?? 70) + chemBonus) }
+    return withMorale(p, chemBonus)
   })
 }
 
@@ -1454,15 +1456,15 @@ export const useGameStore = create<GameStore>()(
               const recoveryMult = 1.0 - (p.ratings.recovery - 50) * 0.003
               const fatigueGain = Math.round(baseFatigueGain * medMult * Math.max(0.7, recoveryMult))
               // 自然回復: 出場選手は毎レース疲労が6減る
-              return { ...p, fatigue: Math.max(0, Math.min(100, p.fatigue + fatigueGain) - 6) }
+              return withFatigue(withFatigue(p, fatigueGain), -6)
             } else if (p.status === 'injured') {
               // Injured players recover 18 fatigue per race
-              const newFatigue = Math.max(0, p.fatigue - 18)
-              return { ...p, fatigue: newFatigue, status: newFatigue < 40 ? 'active' as const : p.status }
+              const rested = withFatigue(p, -18)
+              return { ...rested, status: rested.fatigue < 40 ? 'active' as const : p.status }
             } else {
               // Resting players recover 12 fatigue per race (+ bonus from recovery rating)
               const recoveryBonus = Math.round((p.ratings.recovery - 50) * 0.08)
-              return { ...p, fatigue: Math.max(0, p.fatigue - 16 - recoveryBonus) }
+              return withFatigue(p, -16 - recoveryBonus)
             }
           })
 
@@ -1584,7 +1586,7 @@ export const useGameStore = create<GameStore>()(
                 }
               }
             }
-            return { ...p, form: newForm, morale: newMorale, ratings: newRatings, exp: newExp, fatigue: Math.max(0, Math.min(100, (p.fatigue ?? 0) + planFatigueDelta)), ...careerUpdate }
+            return { ...p, form: newForm, morale: newMorale, ratings: newRatings, exp: newExp, fatigue: withFatigue(p, planFatigueDelta).fatigue, ...careerUpdate }
           })
 
           // Injury system: racers with high fatigue may get injured (CPUチームの選手も対象)
@@ -2246,11 +2248,9 @@ export const useGameStore = create<GameStore>()(
             const rookieP = award.rookieId ? finalPlayers.find(p => p.id === award.rookieId) : undefined
             if (mvpP) seasonEndNews.push({ date: race.date, headline: awardHeadline({ kind: 'mvp', division: divisionOf(state.teams.find(t => t.id === mvpP.teamId)), clubShort: state.teams.find(t => t.id === mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
             if (rookieP) seasonEndNews.push({ date: race.date, headline: awardHeadline({ kind: 'rookie', division: divisionOf(state.teams.find(t => t.id === rookieP.teamId)), clubShort: state.teams.find(t => t.id === rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
-            // 引退表明（次シーズン開幕時の引退判定と同じ決定式を1歳先で評価）。自チームは全員、他チームは実力者を上位6人まで
-            const idHashN = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h }
-            const retAgeN = (p: Player) => { const o = ovr(p); const bonus = o >= 80 ? 2 : o >= 72 ? 1 : 0; return Math.min(40, 32 + (idHashN(p.id) % 7) + bonus) }
+            // 引退表明。開幕時の引退判定と同じ式（utils/playerUtils の retirementAgeOf 1本）を1歳先で評価する
             const domesticIdsRet = new Set(state.teams.map(t => t.id))
-            const retiring = finalPlayers.filter(p => p.status === 'active' && domesticIdsRet.has(p.teamId) && (p.age + 1) >= retAgeN(p))
+            const retiring = finalPlayers.filter(p => p.status === 'active' && domesticIdsRet.has(p.teamId) && (p.age + 1) >= retirementAgeOf(p))
             const mineRet = retiring.filter(p => p.teamId === playerTeamId)
             const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
             for (const p of [...mineRet, ...othersRet]) {
@@ -2664,38 +2664,38 @@ export const useGameStore = create<GameStore>()(
 
           if (event.type === 'player_fatigue' && pid) {
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, fatigue: Math.max(0, p.fatigue - 40), form: Math.min(2, (p.form ?? 0) + 1), missNextRace: true } : p)
+              players = players.map(p => p.id === pid ? { ...withFatigue(p, -40), form: Math.min(2, (p.form ?? 0) + 1), missNextRace: true } : p)
             } else if (choiceIndex === 1) {
-              players = players.map(p => p.id === pid ? { ...p, fatigue: Math.max(0, p.fatigue - 15) } : p)
+              players = players.map(p => p.id === pid ? withFatigue(p, -15) : p)
             } else {
-              players = players.map(p => p.id === pid ? { ...p, fatigue: Math.min(100, p.fatigue + 15) } : p)
+              players = players.map(p => p.id === pid ? withFatigue(p, 15) : p)
             }
           } else if (event.type === 'player_morale_low' && pid) {
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 25) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 25) : p)
             } else if (choiceIndex === 1) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 15) : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
             } else {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 15) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, -15) : p)
             }
           } else if (event.type === 'player_form_up' && pid) {
             if (choiceIndex === 0) {
               const stat = STATS[Math.floor(Math.random() * STATS.length)]
-              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 1) }, fatigue: Math.min(100, p.fatigue + 8) } : p)
+              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 1) }, fatigue: withFatigue(p, 8).fatigue } : p)
             } else {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 10) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 10) : p)
             }
           } else if (event.type === 'young_breakout' && pid) {
             if (choiceIndex === 0) {
               const stat = STATS[Math.floor(Math.random() * STATS.length)]
-              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 2) }, fatigue: Math.min(100, p.fatigue + 10) } : p)
+              players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 2) }, fatigue: withFatigue(p, 10).fatigue } : p)
             }
           } else if (event.type === 'player_wants_renewal' && pid) {
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 10) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 10) : p)
             } else {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 5) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, -5) : p)
             }
           } else if (event.type === 'sponsor_offer') {
             if (choiceIndex === 0) {
@@ -2707,36 +2707,36 @@ export const useGameStore = create<GameStore>()(
           } else if (event.type === 'media_interview') {
             if (choiceIndex === 0) {
               gmRep = Math.min(100, gmRep + 4)
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 5) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 5) : p)
             } else if (choiceIndex === 1) {
               gmRep = Math.min(100, gmRep + 2)
             } else {
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 8) : p)
             }
           } else if (event.type === 'press_conference') {
             if (choiceIndex === 0) {
               gmRep = Math.min(100, gmRep + 3)
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 6) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 6) : p)
             } else if (choiceIndex === 1) {
               gmRep = Math.min(100, gmRep + 1)
             } else {
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 10) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 10) : p)
             }
           } else if (event.type === 'playing_time_demand' && pid) {
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 20) : p)
             } else if (choiceIndex === 1) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 5) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 5) : p)
             } else {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 15) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, -15) : p)
             }
           } else if (event.type === 'transfer_request' && pid) {
             const reqPlayer = players.find(p => p.id === pid)
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 15) : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
             } else if (choiceIndex === 2 && reqPlayer) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 25) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, -25) : p)
               const escalation = {
                 id: `evt_${Date.now()}`,
                 raceIndex: season.currentRaceIndex + 1,
@@ -2759,50 +2759,50 @@ export const useGameStore = create<GameStore>()(
             }
           } else if (event.type === 'player_milestone' && pid) {
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 15) : p)
             } else {
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 8) : p)
             }
           } else if (event.type === 'veteran_ambition' && pid) {
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 30), fatigue: Math.min(100, p.fatigue + 5) } : p)
-              players = players.map(p => p.teamId === state.playerTeamId && p.id !== pid ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
+              players = players.map(p => p.id === pid ? withFatigue(withMorale(p, 30), 5) : p)
+              players = players.map(p => p.teamId === state.playerTeamId && p.id !== pid ? withMorale(p, 8) : p)
             } else if (choiceIndex === 1) {
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 12) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 12) : p)
             }
           } else if (event.type === 'rival_provocation') {
             if (choiceIndex === 0) {
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 15) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 15) : p)
               gmRep = Math.min(100, gmRep + 3)
             } else if (choiceIndex === 1) {
               gmRep = Math.min(100, gmRep + 4)
             }
           } else if (event.type === 'ai_poaching' && pid) {
             if (choiceIndex === 0) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 20) : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
             } else if (choiceIndex === 1) {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 5) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 5) : p)
             } else {
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.max(0, p.morale - 20) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, -20) : p)
             }
           } else if (event.type === 'team_chemistry') {
             if (choiceIndex === 0) {
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 10), fatigue: Math.min(100, p.fatigue + 3) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withFatigue(withMorale(p, 10), 3) : p)
             } else if (choiceIndex === 1) {
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 20), fatigue: Math.min(100, p.fatigue + 8) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withFatigue(withMorale(p, 20), 8) : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
             }
           } else if (event.type === 'player_retirement' && pid) {
             if (choiceIndex === 0) {
               // Stay bonus — pay 20M, player morale up
-              players = players.map(p => p.id === pid ? { ...p, morale: Math.min(100, p.morale + 20) } : p)
+              players = players.map(p => p.id === pid ? withMorale(p, 20) : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 20000000 } } : t)
             } else {
               // Accept retirement — 即引退はせず「今季限りで引退」フラグを立てる。
               // 実際の引退処理（ロスター除外・レジェンド登録）はendSeasonで行う
               players = players.map(p => p.id === pid ? { ...p, pendingRetirementYear: state.currentSeason.year } : p)
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.min(100, p.morale + 8) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 8) : p)
             }
           } else if (event.type === 'budget_boost') {
             if (choiceIndex === 0) {
@@ -2818,7 +2818,7 @@ export const useGameStore = create<GameStore>()(
               gmRep = Math.max(0, gmRep - 2)
             } else if (choiceIndex === 1) {
               // Wage cut: main players morale -10, budget +15M
-              players = players.map(p => p.teamId === state.playerTeamId ? { ...p, morale: Math.max(0, p.morale - 10) } : p)
+              players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, -10) : p)
               teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + 15000000 } } : t)
             }
           }
@@ -3195,12 +3195,7 @@ export const useGameStore = create<GameStore>()(
           // 引退の話が湧くかどうかは Math.random ではなく「選手ID＋年＋消化レース数」から決める。
           // この関数はチャットを開くたびに走るので、乱数だと開き直すだけで何度も抽選が回り、
           // 35歳以上が次々に引退を言い出していた。同じレース内なら何度開いても結果は同じにする
-          const retRoll = (id: string) => {
-            let h = 0
-            const seed = `${id}|${state.currentSeason.year}|${racesPlayed}`
-            for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
-            return h % 100
-          }
+          const retRoll = (id: string) => strHash(`${id}|${state.currentSeason.year}|${racesPlayed}`) % 100
           // 今季すでに引き留めた選手は再抽選しない
           const newRet = retPlayers.filter(p => !openWish.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && retRoll(p.id) < 40).map(p => ({ playerId: p.id, age: p.age }))
           // 引退の話をしている選手には契約更新の話を出さない。この2つは別々に選んでいたので、
@@ -3279,8 +3274,8 @@ export const useGameStore = create<GameStore>()(
           const myRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
           const isGoodTeam = myRank > 0 && myRank <= 5
           const personality = player.personality ?? 'salary'
-          const roundFactor = 1 + (req.round - 1) * 0.03
-          const demand = Math.round(req.demandSalary * roundFactor / 500000) * 500000
+          // 要求額は contractTalk の effectiveDemandSalary 1本（チャットで見せている額と同じ）
+          const demand = effectiveDemandSalary(req)
           const ratio = demand > 0 ? salary / demand : 2
           // 士気が高い選手は譲歩する（要求を丸呑みしなくても交渉で下げられる余地を作る）
           const moraleDiscount = (player.morale ?? 60) >= 80 ? 0.05 : (player.morale ?? 60) >= 65 ? 0.02 : 0
@@ -3721,7 +3716,7 @@ export const useGameStore = create<GameStore>()(
         // 移籍容認(allowPlayerTransfer)は既に同じ後始末をしている。承認は「出していい」という
         // 監督の判断なので、前に付けた非売の指示はそこで上書きされる
         const players = state.players.map(p => p.id === playerId
-          ? { ...p, overseasListed: req.region, noSale: false, loanListed: false, morale: Math.min(100, (p.morale ?? 70) + 8) }
+          ? { ...withMorale(p, 8), overseasListed: req.region, noSale: false, loanListed: false }
           : p)
         return { players }
       }),
@@ -3731,7 +3726,7 @@ export const useGameStore = create<GameStore>()(
         const cnt = ((state.players.find(p => p.id === playerId)?.overseasDeniedCount) ?? 0) + 1
         const drop = cnt >= 2 ? 20 : 12
         return {
-          players: state.players.map(p => p.id === playerId ? { ...p, overseasDeniedYear: state.currentSeason.year, overseasDeniedCount: cnt, morale: Math.max(0, (p.morale ?? 70) - drop) } : p),
+          players: state.players.map(p => p.id === playerId ? { ...withMorale(p, -drop), overseasDeniedYear: state.currentSeason.year, overseasDeniedCount: cnt } : p),
           currentSeason: { ...state.currentSeason, overseasRequests: (state.currentSeason.overseasRequests ?? []).filter(r => r.playerId !== playerId) },
         }
       }),
@@ -5598,19 +5593,11 @@ export const useGameStore = create<GameStore>()(
           }
 
           // ── RETIREMENT SYSTEM ──
-          // 選手ごとに引退年齢を32〜40でばらつかせる（idから決定的に算出＝毎シーズンぶれない）。
-          // 実力者(高OVR)は少し長く現役を続ける。到達したら引退。
-          const idHash = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h }
-          const retirementAge = (p: Player) => {
-            const o = ovr(p)
-            const bonus = o >= 80 ? 2 : o >= 72 ? 1 : 0
-            return Math.min(40, 32 + (idHash(p.id) % 7) + bonus)   // 32〜40でばらつく
-          }
-
+          // 引退年齢は utils/playerUtils の retirementAgeOf 1本（最終戦後の引退表明ニュースと同じ式）
           const retiringIds = new Set(
             grownPlayers
               .filter(p => p.status === 'active' && p.teamId && p.teamId !== '__pool__' && !expiredIds.has(p.id))
-              .filter(p => p.age >= retirementAge(p))
+              .filter(p => p.age >= retirementAgeOf(p))
               .map(p => p.id)
           )
           // 引退承認済み（今季限りで引退フラグ）はここで確実に引退させる（承認時は即引退しない仕様）
@@ -5804,7 +5791,8 @@ export const useGameStore = create<GameStore>()(
           const playersAfterMorale = streakMoraleDelta !== 0
             ? playersAfterRetire.map(p => {
                 if (p.teamId !== state.playerTeamId || p.status === 'retired') return p
-                return { ...p, morale: Math.max(10, Math.min(100, (p.morale ?? 70) + streakMoraleDelta)) }
+                // 連勝・連敗の効き。連敗でも10は下回らせない（上下限は condition.ts）
+                return setMorale(p, Math.max(10, (p.morale ?? MORALE_DEFAULT) + streakMoraleDelta))
               })
             : playersAfterRetire
 
@@ -7262,16 +7250,16 @@ export const useGameStore = create<GameStore>()(
             const ran = timeByPlayer.get(p.id)
             let next = p
             if (ran != null) {
-              next = { ...next, fatigue: Math.min(100, (next.fatigue ?? 0) + fatGain) }
+              next = withFatigue(next, fatGain)
               const prev = p.eventBests?.[bestKey]
               if (!prev || ran < prev.timeSec) {
                 next = { ...next, eventBests: { ...next.eventBests, [bestKey]: { timeSec: ran, year: state.currentSeason.year } } }
               }
             } else if (p.status === 'active' && p.teamId) {
-              next = { ...next, fatigue: Math.max(0, (next.fatigue ?? 0) - 8) }
+              next = withFatigue(next, -8)
             }
             if (playerTeamTop.some(r => r.playerId === p.id)) {
-              next = { ...next, morale: Math.min(100, (next.morale ?? 70) + 8), form: Math.min(2, (next.form ?? 0) + 1) }
+              next = { ...withMorale(next, 8), form: Math.min(2, (next.form ?? 0) + 1) }
             }
             return next
           })
@@ -9447,14 +9435,13 @@ function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrowth: imp
   // 成長期・ピーク前後: レース/カードEXPに委ねる（growPlayerでは変化なし）
 
   return {
-    ...p,
+    ...withMorale(p, 5),
     age: nextAge,
     yearsPro: p.yearsPro + 1,
     ratings,
     potential,
     fatigue: 5,
     form: 0,
-    morale: Math.min(100, (p.morale ?? 70) + 5),
     contract: { ...p.contract, yearsLeft: Math.max(0, p.contract.yearsLeft - 1) },
   }
 }

@@ -1,3 +1,4 @@
+import { strHash } from '../../utils/hash'
 import { useGameStore } from '../../store/gameStore'
 import { logoPresetSrc, teamLogoIdOf } from '../../data/logoPresets'
 import { INITIAL_TEAMS } from '../../data/teams'
@@ -696,10 +697,9 @@ const DEFAULT_LOGO: LogoFn = (p, s) => <>
 // 専用ロゴを持たないクラブ（海外クラブ等）用の紋章プール。全部同じ六角形にならないよう、
 // クラブIDのハッシュで多彩なデザインを割り当てる。
 const LOGO_POOL: LogoFn[] = Object.values(LOGOS)
+// 式は utils/hash の1本（`| 0` で畳むのは既に割り当たっているロゴを変えないため）
 function logoHash(id: string): number {
-  let h = 0
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0
-  return Math.abs(h)
+  return Math.abs(strHash(id) | 0)
 }
 
 // 専用ロゴ（public/logos/<id>.png）を持つチーム。

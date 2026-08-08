@@ -3,6 +3,7 @@ import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } fro
 import { peakAgeOfCurve } from '../engine/ageCurve'
 import { type ClubTier } from './clubTier'
 import { appraiseMove, CONSENT_LINE, type Destination } from './transferDecision'
+import { strHash } from './hash'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -68,11 +69,10 @@ const ALL_STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountai
 // 各能力の成長上限（内部の正確値）。得意 potential+9(最大99) / 苦手 potential-8、現在値未満にはしない。
 // 得意と苦手の差を広げ、選手を尖らせる（例：スプリンターは速さ99・登り80台）。
 // 平均は概ね potential 付近に収まるので OVR(=7能力平均)は potential 前後を維持。
-// 文字列→安定な数値ハッシュ（選手ごと・能力ごとに固定のゆらぎを作る）。
+// 文字列→安定な数値ハッシュ（選手ごと・能力ごとに固定のゆらぎを作る）。式は utils/hash の1本。
+// `| 0` で符号ありに畳んでから abs するのは、**既に配ってある選手の能力値を変えないため**。
 function hashStr(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
-  return Math.abs(h)
+  return Math.abs(strHash(s) | 0)
 }
 
 export function getStatPotentials(p: Player): Ratings {
@@ -440,6 +440,23 @@ export function freeContactConsent(
  */
 export function peakAgeOf(p: Pick<Player, 'growthCurve'>): number {
   return peakAgeOfCurve(p.growthCurve ?? 'normal')
+}
+
+/**
+ * その選手が引退する年齢。**引退の話はここ1本。**
+ *
+ * 選手IDから決まるので毎シーズンぶれない（32〜40でばらつき、実力者は少し長く現役）。
+ *
+ * ■なぜ1本にしたのか
+ *   まったく同じ式が gameStore の2か所に、**ハッシュ関数ごと**書いてあった。
+ *   片方は最終戦後の「引退表明」のニュース、もう片方は開幕時の**実際に引退させる処理**で、
+ *   コメントに「同じ決定式を1歳先で評価」と書いて人が手で合わせていた。
+ *   32 や 7 を片方だけ触ると「引退しますと言ったのに翌年も走っている」が出る。
+ */
+export function retirementAgeOf(p: Player): number {
+  const o = ovr(p)
+  const bonus = o >= 80 ? 2 : o >= 72 ? 1 : 0
+  return Math.min(40, 32 + (strHash(p.id) % 7) + bonus)
 }
 
 /**

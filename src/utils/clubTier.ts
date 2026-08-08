@@ -140,6 +140,22 @@ export function tierRankComposition(tier: ClubTier): Record<Rank, number> {
   return out
 }
 
+/**
+ * そのクラブに配るランクを、名簿1人につき1つの並びにしてシャッフルして返す。
+ *
+ * ロスターを作る3つの経路（国内CPU生成・汎用生成・海外リーグ生成）が
+ * 同じ「構成 → 25個の並びへ展開 → シャッフル」を別々に書いていた。
+ * シャッフルするのは、先頭から数人を新加入として拾う処理（refreshForeignLeagues）が
+ * 常にスターばかり拾わないようにするため。**展開の仕方はここ1本。**
+ */
+export function tierRankSlots(tier: ClubTier): Rank[] {
+  const comp = tierRankComposition(tier)
+  const slots: Rank[] = []
+  for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) slots.push(r as Rank)
+  slots.sort(() => Math.random() - 0.5)
+  return slots
+}
+
 // ── 国内（JPEL 52クラブ）─────────────────────────────────────────
 //
 // 国内の格は前年の通し順位（1〜52位）で決まる。1位＝格5、52位＝格20。

@@ -3,8 +3,9 @@ import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
 import { curveOvr } from './ageCurve'
-import { tierOf, tierOfClubId, tierRankComposition, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
+import { tierOf, tierOfClubId, tierRankSlots, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, faMarketSalary } from '../utils/playerUtils'
+import { strHash } from '../utils/hash'
 import { SPECIALTIES } from '../utils/squadNeeds'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
@@ -1076,11 +1077,8 @@ export function generateCpuRosters(
     // OVRから計算し直していたので、年俸が2つあって互いを見ていない状態だった。
     // いまは 格 → ランク構成 → 年齢カーブ → OVR → 年俸 の1本。
     const tier = tierOf(team)
-    const comp = tierRankComposition(tier)
     const cap = TIER_POTENTIAL_CAP[tier]
-    const slots: Rank[] = []
-    for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) slots.push(r as Rank)
-    slots.sort(() => Math.random() - 0.5)
+    const slots = tierRankSlots(tier)
 
     const ids: string[] = []
     let teamForeignCount = 0
@@ -1111,11 +1109,8 @@ export function generatePlayerInitialRoster(year: number, tier: ClubTier): {
   dualIds: string[]
   secondIds: string[]
 } {
-  const comp = tierRankComposition(tier)
   const potentialCap = TIER_POTENTIAL_CAP[tier]
-  const slots: Rank[] = []
-  for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) slots.push(r as Rank)
-  slots.sort(() => Math.random() - 0.5)
+  const slots = tierRankSlots(tier)
 
   const specialties: Specialty[] = [...SPECIALTIES]
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
@@ -1353,10 +1348,9 @@ export function statCapsFor(id: string, specialty: Specialty, potential: number)
   }
   return out
 }
+// 式は utils/hash の1本。`| 0` で畳むのは既存セーブの数値を変えないため
 function hashForCap(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
-  return Math.abs(h)
+  return Math.abs(strHash(s) | 0)
 }
 
 export function generateForeignLeaguePlayers(
@@ -1405,10 +1399,7 @@ export function generateForeignLeaguePlayers(
       // ロスターの中身は格が決める（そのクラブに各ランクが何人いるか）。
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため
       // （常にスターだけが入るのを防ぐ）
-      const comp = tierRankComposition(tier)
-      const rankSlots: Rank[] = []
-      for (const [r, n] of Object.entries(comp)) for (let k = 0; k < n; k++) rankSlots.push(r as Rank)
-      rankSlots.sort(() => Math.random() - 0.5)
+      const rankSlots = tierRankSlots(tier)
       const clubUsedNames = new Set<string>()
 
       rankSlots.forEach((rank) => {

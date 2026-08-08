@@ -21,7 +21,7 @@ import { settledPath } from '../../utils/talkSync'
 import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
 import { offerResultText } from '../../utils/offerResult'
 import { rivalCountLine } from '../../utils/newsItems'
-import { contractTalkCtx, contractMonthsLeft, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention, isSaleAnswerPending } from '../../utils/contractTalk'
+import { contractTalkCtx, contractMonthsLeft, effectiveDemandSalary, liveContractOf, hasContractTalk, canReNegotiate, canOfferRenewal, needsRenewalAttention, isSaleAnswerPending } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -814,7 +814,7 @@ function ChatView({
         )
         // 契約更新の要求も抱えている場合、引き留めの直後に出る「要求を飲む」の脈絡を作る
         if (contractReq?.status === 'pending_gm') {
-          const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
+          const effDemand = effectiveDemandSalary(contractReq)
           append(stillWantsRenewalLine(fmtYen(effDemand), contractReq.demandYears))
         }
         dismissRetirementRequest(player.id)
@@ -848,7 +848,7 @@ function ChatView({
         // 同じ選手が契約更新の要求も抱えている場合、残留の返事だけだと
         // 次に出る「要求を飲む」ボタンの脈絡が無くなるため、ここで要求を言わせる
         if (contractReq?.status === 'pending_gm') {
-          const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
+          const effDemand = effectiveDemandSalary(contractReq)
           append(stillWantsRenewalLine(fmtYen(effDemand), contractReq.demandYears))
         }
         dismissTransferRequest(player.id)
@@ -924,7 +924,7 @@ function ChatView({
       ]
       if (contractReq.status === 'pending_gm') {
         // 要求額はラウンドごとに3%ずつ上がる（エンジン側と同じ式）。古い額を出すと「飲んだのに拒否」される
-        const effDemand = Math.round(contractReq.demandSalary * (1 + (contractReq.round - 1) * 0.03) / 500000) * 500000
+        const effDemand = effectiveDemandSalary(contractReq)
         return [
           { label: `要求を飲む（${fmtYen(effDemand)}/${contractReq.demandYears}年）`, color: C.green, action: () => {
             append({ from: 'gm', kind: 'demand_accepted', text: `了解です。年俸${fmtYen(effDemand)}、${contractReq.demandYears}年で承諾します。` })

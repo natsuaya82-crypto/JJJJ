@@ -382,6 +382,40 @@ RULES.push({
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'ios', '.git', 'public'])
 
+// ── 今回の一本化ぶん ───────────────────────────────────────────
+// 文字列ハッシュ・引退年齢・契約更新の要求額・ランクの並べ方・士気と疲労の上下限。
+// どれも「まったく同じ式が2か所以上」で見つかったもの。
+RULES.push({
+  name: '文字列ハッシュの写し',
+  pattern: /charCodeAt\(\w+\)\s*\)\s*(>>>|\|)\s*0/,
+  allow: ['src/utils/hash.ts'],
+  fix: 'utils/hash.ts の strHash を使う',
+})
+RULES.push({
+  name: '引退年齢の式の写し',
+  pattern: /32\s*\+\s*\([^)]*%\s*7\)/,
+  allow: ['src/utils/playerUtils.ts'],
+  fix: 'playerUtils.ts の retirementAgeOf を使う',
+})
+RULES.push({
+  name: '契約更新の要求額の式の写し',
+  pattern: /demandSalary\s*\*[^\n]*0\.03|round\s*-\s*1\)\s*\*\s*0\.03/,
+  allow: ['src/utils/contractTalk.ts'],
+  fix: 'contractTalk.ts の effectiveDemandSalary を使う',
+})
+RULES.push({
+  name: 'ランク構成のスロット展開の写し',
+  pattern: /Object\.entries\(comp\)/,
+  allow: ['src/utils/clubTier.ts'],
+  fix: 'clubTier.ts の tierRankSlots を使う',
+})
+RULES.push({
+  name: '士気・疲労の上下限の直書き',
+  pattern: /(morale|fatigue):\s*Math\.(min|max)\(/,
+  allow: ['src/utils/condition.ts'],
+  fix: 'utils/condition.ts の withMorale / withFatigue を使う',
+})
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     if (SKIP_DIRS.has(e)) continue
