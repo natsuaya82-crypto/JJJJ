@@ -522,10 +522,21 @@ export function initialNews(): NewsItem[] {
 /**
  * 取り合いになっていることを伝える一言。**数だけ**で、クラブ名は出さない。
  * 名前まで出すと「この5クラブを避ければいい」という読み合いになって競売にならない。
- * 移籍の入札（TransferBid.rivalCount）とFAの獲得オファー（AcquisitionOffer.rivalCount）が
- * 同じ文面を使う。0件のときは何も言わない（undefined）。
+ * 0件のときは何も言わない（undefined）。
+ *
+ * ★**本当に取り合いが起きる話にしか出さないこと。**
+ *   使っていいのは移籍金の入札（TransferBid）だけ。あそこは resolveBid が実際に
+ *   他クラブの上限額と比べて、負ければ選手を持っていかれる（1回だけ上乗せの機会が出る）。
+ *
+ *   獲得オファー（FA・引き抜き）にも同じ文を出していたが、あちらは
+ *   submitAcquisitionOffer が**その場で**合否を出す。割り込むクラブも待つレースも無い。
+ *   その結果「いま他に17クラブから話が来ています。決着まで3レースお待ちください」と
+ *   言った次の行で、その場で加入が成立していた。
+ *
+ * ★待ち時間も口約束にしないこと。決着は**次のレース**（1本）。
+ *   「3レース」と書いてあったが、そんな待ち方をする処理はどこにも無かった。
  */
 export function rivalCountLine(count: number | undefined): string | undefined {
   if (!count || count <= 0) return undefined
-  return `（代理人）いま他に${count}クラブから話が来ています。決着まで3レースお待ちください。`
+  return `（代理人）いま他に${count}クラブから話が来ています。決着は次のレースです。`
 }

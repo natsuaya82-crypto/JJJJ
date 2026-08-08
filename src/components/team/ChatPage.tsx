@@ -158,9 +158,10 @@ function buildAcqMessages(player: Player, offer: AcquisitionOffer, teamName?: st
       ? `（代理人）${player.name}への関心ありがとうございます。良い条件を提示いただければ前向きに検討します。`
       : `（代理人）${player.name}は現在${teamName ?? '他クラブ'}に在籍中ですが、話は伺います。条件次第です。`,
   })
-  // 取り合いの件数（クラブ名は出さない）。文面は utils/newsItems の1本
-  const rivals = rivalCountLine(offer.rivalCount)
-  if (rivals) msgs.push({ from: 'player', kind: 'rival_count', text: rivals })
+  // ★取り合いの件数はここに出さない。獲得オファーは押した瞬間に合否が出るので、
+  //   割り込むクラブも待つレースも無い（utils/newsItems の rivalCountLine の解説）。
+  //   出していたせいで「17クラブから話が来ています。決着まで3レースお待ちください」の
+  //   次の行で、その場で加入が成立していた
   if (offer.offerSalary > 0 && offer.status === 'countered') {
     msgs.push(offerTermsLine(fmtYen(offer.offerSalary), offer.offerYears))
     msgs.push({ from: 'player', kind: 'agent_counter', text: `（代理人）その条件では即断できません。年俸${fmtYen(offer.counterSalary ?? 0)}、${offer.counterYears}年であれば合意します。` })
@@ -1048,8 +1049,13 @@ function ChatView({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{player.name}</div>
+          {/* 無所属の選手に契約の残りを出さない。誰とも結んでいない契約の残り月数が
+              「残1年2ヶ月」と出ていた（前のクラブとの契約が消えずに残っているだけ）。
+              年俸は交渉の目安として要るので、前のクラブでの額だと分かる形で出す */}
           <div style={{ fontSize: 10, color: C.textDim }}>
-            {player.age}歳 · {fmtYen(player.contract.annualSalary)} · 残{fmtDuration(months)}
+            {player.teamId === ''
+              ? `${player.age}歳 · 無所属 · 前年俸${fmtYen(player.contract.annualSalary)}`
+              : `${player.age}歳 · ${fmtYen(player.contract.annualSalary)} · 残${fmtDuration(months)}`}
           </div>
         </div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(playerOvr) }}>{playerOvr}</div>

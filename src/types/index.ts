@@ -211,8 +211,10 @@ export type AcquisitionOffer = {
   counterYears?: number
   offerTeamRole?: TeamRole
   rejectReason?: 'team_refused' | 'low_offer' | 'demotion'   // team_refused=主力で放出拒否, low_offer=条件不足, demotion=2軍契約を拒否
-  /** いま同じ選手を狙っている他クラブの数。移籍の入札（TransferBid.rivalCount）と同じ扱い */
-  rivalCount?: number
+  // ★rivalCount は置かない。獲得オファー（FA・引き抜き）は**その場で決まる**ので、
+  //   取り合いも待ち時間も無い。数だけ持って会話に出していたので、
+  //   「17クラブから話が来ています。決着まで3レースお待ちください」と言った次の行で
+  //   その場で加入が成立していた。持たせるなら先に仕組みを作ること
 }
 
 export type TraitId =

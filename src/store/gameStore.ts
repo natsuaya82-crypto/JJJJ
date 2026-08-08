@@ -3447,17 +3447,15 @@ export const useGameStore = create<GameStore>()(
           // 自主的な取り下げ(abandon)は rejectReason が無いので対象外。offers はシーズン開始で[]にリセットされる。
           const failed = offers.find(o => o.playerId === playerId && o.status === 'rejected' && !!o.rejectReason)
           if (failed) return state
-          // 取り合いになっている数（移籍の入札と同じ数え方＝rivalClubsFor 1本）
+          // ★取り合いの数は持たない。獲得オファーは submitAcquisitionOffer が**その場で**
+          //   合否を出す（相手クラブが割り込む仕組みも、待つレースも無い）。
+          //   数だけ焼き込んで会話に出していたので「17クラブから話が来ています。
+          //   決着まで3レースお待ちください」の次の行でその場で加入が決まっていた
           const newOffer: AcquisitionOffer = {
             id: `ao_${Date.now()}_${playerId}`,
             playerId, source, round: 1, status: 'pending',
             offerSalary: 0, offerYears: 2,
             offerContractType: 'standard',
-            rivalCount: rivalClubsFor(player, {
-              teams: state.teams, players: state.players, playerTeamId: state.playerTeamId,
-              foreignLeagues: state.foreignLeagues ?? [],
-              destinationOf: (clubId, p) => get().destinationOf(clubId, p),
-            }).length,
           }
           // 同一選手の過去オファー(rejected/accepted)は置換
           const filtered = offers.filter(o => o.playerId !== playerId)
