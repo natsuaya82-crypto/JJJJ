@@ -99,7 +99,7 @@ import { withCareerCounts, stripCareerForSave, buildCareerCounts } from '../util
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import { teamHistoriesOf, teamHistoryOf, EMPTY_TEAM_HISTORY, type TeamHistoryMap } from '../utils/teamHistory'
 import { rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, domesticThroughRankOfTeam, newSeasonStandings, draftRoundOf, divisionOf, teamsInDivision, joinsDraft, domesticThroughRank, segmentPrizeByTeam, DIVISIONS, DIVISION_SIZE, PROMOTION_SLOTS, TOP_DIVISION } from '../utils/league'
-import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, isBigClub, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
+import { tierBudget, tierGrowthRate, tierOf, tierOfClubId, tierStrength, isBigClub, MAJOR_NEWS_OVR, tierOfPlayerClub, tierFromDomesticRank, tierFromForeignRank, allTieredClubs, ANNUAL_BASE_EXP } from '../utils/clubTier'
 import { normalizeForeignStandings } from '../utils/clubStanding'
 
 type DraftState = {
@@ -323,6 +323,15 @@ function sellMove(
  *   海外クラブは teams に居ないので入金が自クラブ側だけになる。見出しも変わり、
  *   4大リーグ（世界最高峰）へ送り出したときだけ実績が付く。その3つ以外は同じ。
  */
+/**
+ * そのクラブは格1（世界に数クラブ）か。**大ニュースの判定はこれを通す。**
+ * 格は毎年動くので、必ず「いまのクラブ」から引く（clubTiers.ts の初期値を見ない）。
+ */
+function bigClub(state: Pick<GameState, 'teams' | 'foreignLeagues'>, clubId: string | undefined): boolean {
+  if (!clubId) return false
+  return isBigClub(allTieredClubs(state.teams, state.foreignLeagues).find(c => c.id === clubId))
+}
+
 function finalizeSale(
   state: GameState,
   offer: { id: string; playerId: string; fromTeamId: string; fromForeign?: boolean },
@@ -357,7 +366,7 @@ function finalizeSale(
       transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.playerId !== offer.playerId),
       newsFeed: [{
         date, headline, category: 'trade' as const, relatedIds: [player.id],
-        major: !!isElite || ovr(player) >= MAJOR_NEWS_OVR || isBigClub(offer.fromTeamId),
+        major: !!isElite || ovr(player) >= MAJOR_NEWS_OVR || bigClub(state, offer.fromTeamId),
       }, ...state.currentSeason.newsFeed].slice(0, 30),
       departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])],
     },
@@ -1811,7 +1820,7 @@ export const useGameStore = create<GameStore>()(
             category: 'trade' as const,
             relatedIds: [tx.playerId],
             // 大ニュースはOVR85以上か格1のクラブが絡んだとき（utils/clubTier 1本）
-            major: tx.playerOvr >= MAJOR_NEWS_OVR || isBigClub(tx.fromTeamId) || isBigClub(tx.toTeamId),
+            major: tx.playerOvr >= MAJOR_NEWS_OVR || bigClub(state, tx.fromTeamId) || bigClub(state, tx.toTeamId),
             fromTeamId: tx.fromTeamId,
             toTeamId: tx.toTeamId,
           }))
@@ -2053,7 +2062,7 @@ export const useGameStore = create<GameStore>()(
               category: 'trade' as const,
               relatedIds: [mv.playerId],
               // 大ニュースはOVR85以上か格1のクラブが絡んだとき（utils/clubTier 1本）
-              major: (ovr(state.players.find(x => x.id === mv.playerId) ?? ({ ratings: {} } as Player)) >= MAJOR_NEWS_OVR) || isBigClub(mv.toTeamId),
+              major: (ovr(state.players.find(x => x.id === mv.playerId) ?? ({ ratings: {} } as Player)) >= MAJOR_NEWS_OVR) || bigClub(state, mv.toTeamId),
               toTeamId: mv.toTeamId,
             })
           }
@@ -2985,7 +2994,7 @@ export const useGameStore = create<GameStore>()(
             ...state.currentSeason,
             transferSpend: (state.currentSeason.transferSpend ?? 0) + moved.spend,
             transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.id !== listingId),
-            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: price }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || isBigClub(listing.fromTeamId), fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId }, ...state.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: price }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || bigClub(state, listing.fromTeamId), fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId }, ...state.currentSeason.newsFeed].slice(0, 30),
           },
         })
         })
@@ -4047,7 +4056,7 @@ export const useGameStore = create<GameStore>()(
             transferSpend: (s.currentSeason.transferSpend ?? 0) + moved.spend,
             transferBids: (s.currentSeason.transferBids ?? []).map(b => b.id === bidId ? { ...b, status: 'complete' as const } : b),
             transferListings: (s.currentSeason.transferListings ?? []).filter(l => l.playerId !== bid.playerId),
-            newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: bid.offeredFee, salary }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || isBigClub(bid.targetTeamId), fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId }, ...s.currentSeason.newsFeed].slice(0, 30),
+            newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: bid.offeredFee, salary }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || bigClub(s, bid.targetTeamId), fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId }, ...s.currentSeason.newsFeed].slice(0, 30),
           },
         }))
         return { ok: true }
@@ -5056,7 +5065,7 @@ export const useGameStore = create<GameStore>()(
           // 順番は「前年順位が下のチームから」。同順は残高の多い方から
           const cpuTeamsForTransfer = teamsAfterCpuRelease
             .filter(t => t.id !== state.playerTeamId)
-            .map(t => ({ team: t, tier: cpuTeamTier(t.id, playersAfterCpuRelease), budget: Math.max(0, t.finance.budget) }))
+            .map(t => ({ team: t, tier: tierOf(t), budget: Math.max(0, t.finance.budget) }))
             .sort((a, b) => (rankOfTx(b.team.id) - rankOfTx(a.team.id)) || (b.budget - a.budget))
 
           const transferPurchases: Record<string, number> = {}
@@ -5074,9 +5083,8 @@ export const useGameStore = create<GameStore>()(
           // 1周につき1人だけ買う。以前は1チームが上限まで買い切ってから次に回していたので、
           // 市場の良い選手が予算の多い上位チームに固まっていた（utils/roundRobin.ts）
           const buyOnePlayer = ({ team: buyTeam, tier: buyTier }: typeof cpuTeamsForTransfer[number]): boolean => {
-            const minOvr = buyTier === 'elite' ? 74 : buyTier === 'mid' ? 67 : 60
-            // 有料移籍・引き抜きを補強の主体にする：獲得上限をtier別に引き上げ（旧: 一律2人）
-            const buyCap = buyTier === 'elite' ? 4 : buyTier === 'mid' ? 3 : 2
+            // 1オフに獲れる人数は格から（格1が4人、格20が2人）。強さの物差しは格1本
+            const buyCap = 2 + Math.round(2 * tierStrength(buyTier))
             const needs = txNeeds.get(buyTeam.id)!
             if ((transferPurchases[buyTeam.id] ?? 0) >= buyCap) return false
             const remainBudget = Math.max(0, teamsAfterCpuTransfer.find(t => t.id === buyTeam.id)?.finance.budget ?? 0)
@@ -5091,8 +5099,6 @@ export const useGameStore = create<GameStore>()(
                 .filter(p => p.teamId === sellTeamId && p.status === 'active')
                 .sort(comparePlayers('ovr'))
               if (sellRoster.length <= 16) return []   // 薄いチームからは引き抜かない（下限保護）
-              const sellTier = cpuTeamTier(sellTeamId, playersAfterCpuTransfer)
-              const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
               // 売り手の絶対的エース(1番手)だけ保護。それ以外は主力でも引き抜き対象にする。
               return sellRoster.slice(1)
                 // isOwnedBy でレンタル中の選手を外す。ここが抜けていたため、貸し出した選手が
@@ -5109,10 +5115,13 @@ export const useGameStore = create<GameStore>()(
                     races: txThisSeason.get(p.id)?.totalRaces ?? 0, teamRaces: txThisRaces,
                     prevRaces: txPrevSeason.get(p.id)?.totalRaces, prevTeamRaces: txPrevRaces,
                   })
-                  return { p, rank, benched, sellTeamId, surplus: ovr(p) < sellMinOvr || sellRoster.length > 21 || benched }
+                  // 「余剰か（通常額）／主力の引き抜きか（割増＋本人同意）」も既にある1本で言う。
+                  // 以前はここに売り手の平均OVRから作った下限表（74/67/58）があった。
+                  // 出番が無い序列（走れる人数の2倍より下）なら、それがそのまま余剰という意味
+                  const surplus = hasNoPlayingTime(rank) || sellRoster.length > 21 || benched
+                  return { p, rank, benched, sellTeamId, surplus }
                 })
             })
-              .filter(({ p }) => ovr(p) >= minOvr - 4)
               // ★「必要だから動く」の関門。ここが抜けていて、needs は下の並び替えの
               //   優先度にしか使われていなかった＝**どのクラブでも誰でも買えた**。
               //   判定は squadNeeds の needsPlayer 1本（移籍金を払う移籍なので穴のときだけ）
@@ -5162,7 +5171,7 @@ export const useGameStore = create<GameStore>()(
                       toLabel: clubLabel(buyTeam.id, teamsAfterCpuTransfer),
                     }),
                 category: 'trade', relatedIds: [target.id],
-                major: ovr(target) >= MAJOR_NEWS_OVR || isBigClub(sellTeamId) || isBigClub(buyTeam.id),
+                major: ovr(target) >= MAJOR_NEWS_OVR || bigClub(state, sellTeamId) || bigClub(state, buyTeam.id),
               })
               bought = true
               break
@@ -5184,32 +5193,34 @@ export const useGameStore = create<GameStore>()(
           )]
           for (const buyerId of cpuIdsForTrade) {
             if ((tradeCount[buyerId] ?? 0) >= 1) continue
-            const buyTier = cpuTeamTier(buyerId, playersAfterCpuTransfer)
-            const buyMinOvr = buyTier === 'elite' ? 74 : buyTier === 'mid' ? 67 : 60
             const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyerId && p.status === 'active')
             if (buyRoster.length >= 23) continue
-            const buyerSurplus = buyRoster
+            // 出すのは「自分のところで出番が無い選手」（transferDecision の hasNoPlayingTime 1本）。
+            // 以前はここに平均OVRから作った下限表（74/67/60）があった＝格とは別の物差し
+            const buyerRanked = [...buyRoster].sort(comparePlayers('ovr'))
+            const buyerSurplus = buyerRanked
               // レンタルで借りている選手は保有権が無いのでトレードに出せない
-              .filter(p => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && p.joinedYear !== state.currentSeason.year && ovr(p) < buyMinOvr)
+              .filter((p, i) => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && p.joinedYear !== state.currentSeason.year && hasNoPlayingTime(i + 1))
               .sort((a, b) => calcTransferValue(b) - calcTransferValue(a))
             if (buyerSurplus.length === 0) continue
             const offered = buyerSurplus[0]
-            const offeredVal = calcTransferValue(offered)
             for (const sellerId of cpuIdsForTrade) {
               if (sellerId === buyerId || (tradeCount[sellerId] ?? 0) >= 1) continue
-              const sellTier = cpuTeamTier(sellerId, playersAfterCpuTransfer)
-              const sellMinOvr = sellTier === 'elite' ? 74 : sellTier === 'mid' ? 67 : 58
               const sellRoster = playersAfterCpuTransfer
                 .filter(p => p.teamId === sellerId && p.status === 'active')
                 .sort(comparePlayers('ovr'))
-              const target = sellRoster.slice(3).find(p =>
+              // もらう側で走れて、出す側では走れない選手＝両方が得をする交換（squadNeeds 1本）。
+              // 釣り合いは utils/tradeValue の tradeBalance 1本（以前はここだけ「×1.3」と直書きで、
+              // 自チームのトレードが通る tradeValue.ts とは別の判定になっていた）
+              const target = sellRoster.slice(3).find((p, i) =>
                 isOwnedBy(p, sellerId) &&
                 !tradedIds.has(p.id) &&
                 p.joinedYear !== state.currentSeason.year &&
-                ovr(p) >= buyMinOvr && ovr(p) < sellMinOvr &&
-                calcTransferValue(p) <= offeredVal * 1.3
+                wouldMakeLineup(buyRoster, p) && hasNoPlayingTime(i + 4) &&
+                tradeBalance({ outPlayers: [offered], inPlayers: [p] }, tradeValueCtxOf(state)).ok
               )
-              if (!target || ovr(offered) < sellMinOvr - 6) continue
+              // 売り手が受け取る側でも使えること（needsPlayer / wouldMakeLineup）
+              if (!target || !(needsPlayer(sellRoster, offered) || wouldMakeLineup(sellRoster, offered))) continue
               tradedIds.add(offered.id); tradedIds.add(target.id)
               tradeCount[buyerId] = (tradeCount[buyerId] ?? 0) + 1
               tradeCount[sellerId] = (tradeCount[sellerId] ?? 0) + 1
@@ -5475,8 +5486,11 @@ export const useGameStore = create<GameStore>()(
                 .map(p => p.teamId)
             )]
             for (const teamId of cpuTeamIdsRenewal) {
-              const tier = cpuTeamTier(teamId, state.players)
-              const minOvr = tier === 'elite' ? 72 : tier === 'mid' ? 65 : 58
+              // 誰を更新するかは「そのクラブで出番があるか」（transferDecision の hasNoPlayingTime）と
+              // 「穴が空いているか」（squadNeeds の needsPlayer）だけ。
+              // 以前はここに平均OVRから作った下限表（72/65/58）があり、格とは別の物差しだった。
+              // 下限はクラブの平均に連動するので、弱いクラブほど下限も下がって実質全員が通っていた
+              const renewRoster = [...state.players.filter(p => p.teamId === teamId && p.status === 'active')].sort(comparePlayers('ovr'))
               const ongoingCommitted = state.players
                 .filter(p => p.teamId === teamId && p.status === 'active' && p.contract.yearsLeft > 1)
                 .reduce((s, p) => s + p.contract.annualSalary, 0)
@@ -5486,7 +5500,8 @@ export const useGameStore = create<GameStore>()(
                 .filter(p => p.teamId === teamId && p.contract.yearsLeft === 1 && p.status === 'active')
                 .sort(comparePlayers('ovr'))
               for (const p of expiring) {
-                if (ovr(p) < minOvr) continue
+                const renewRank = renewRoster.findIndex(x => x.id === p.id) + 1
+                if (hasNoPlayingTime(renewRank) && !needsPlayer(renewRoster, p)) continue
                 const sal = cpuRenewalSalary(p)
                 if (budget < sal) continue
                 cpuRenewIds.add(p.id)
@@ -8845,13 +8860,6 @@ function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'con
   return 'balanced'
 }
 
-function cpuTeamTier(teamId: string, players: Player[]): 'elite' | 'mid' | 'weak' {
-  const roster = players.filter(p => p.teamId === teamId && p.status === 'active')
-  if (roster.length === 0) return 'weak'
-  const avg = roster.reduce((s, p) => s + ovr(p), 0) / roster.length
-  return avg >= 79 ? 'elite' : avg >= 73 ? 'mid' : 'weak'
-}
-
 // そのチームが頭数の足りていないタイプ（薄い順）。判定は utils/squadNeeds.ts の1本。
 // 「どのタイプが足りていないか」は海外の補強（engine/foreignTransfers.ts）でも使うので、
 // タイプの一覧も人数の下限もあちらと同じものを見る
@@ -8904,8 +8912,7 @@ function pickCpuFreeAgents(a: {
   const faCtxList = cpuTeamsSorted.map(team => {
     // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
     const currentRoster = players.filter(p => p.teamId === team.id && p.status === 'active')
-    const tier = cpuTeamTier(team.id, players)
-    const minOvr = tier === 'elite' ? 74 : tier === 'mid' ? 67 : 58
+    const tier = tierOf(team)
     const totalNow = currentRoster.length
     // 運用方針と予算
     const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
@@ -8924,8 +8931,8 @@ function pickCpuFreeAgents(a: {
       needs: cpuSpecialtyNeeds(team.id, players),
       specCounts: {} as Record<string, number>,
       // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
-      ageCap: strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : (tier === 'elite' ? 31 : 33),
-      specFloor: strat === 'rebuild' ? 50 : Math.max(50, minOvr - 10),
+      // 格が高いクラブほど若手志向（格1で31歳まで、格20で33歳まで）。強さの物差しは格1本
+      ageCap: strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : 31 + Math.round(2 * (1 - tierStrength(tier))),
       // 若手再建はポテンシャル・若さ優先、それ以外はOVR優先（availableFAsは既にOVR降順）
       pool: strat === 'rebuild'
         ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
@@ -8947,11 +8954,14 @@ function pickCpuFreeAgents(a: {
     // 戦力崩壊を防ぐ最低ラインまでは予算に関係なく補強する。それ以上は年俸が払える範囲でのみ。
     // 移籍金はかからないので、止めるのは年俸だけ
     const budgetOk = (fa: Player) => (c.totalNow + c.signed) < FA_FREE_FILL || (c.spent + estCost(fa) <= c.spendable)
-    // ① 専門の穴埋め（1つの専門につき2人まで）
+    // ① 専門の穴埋め（1つの専門につき2人まで）。
+    //    要るかどうかは squadNeeds 1本。以前はここに平均OVRから作った下限（minOvr - 10）が
+    //    あったが、「薄い専門は頭数が要るので強さは問わない」という決まりと矛盾していた
+    const faRoster = players.filter(p => p.teamId === c.team.id && p.status === 'active')
     for (const spec of c.needs) {
       const have = players.filter(p => p.teamId === c.team.id && p.specialty === spec && p.status === 'active').length
       if (have + (c.specCounts[spec] ?? 0) >= 2) continue
-      const fa = c.pool.find(f => f.specialty === spec && canSign(f) && ovr(f) >= c.specFloor && budgetOk(f))
+      const fa = c.pool.find(f => f.specialty === spec && canSign(f) && budgetOk(f) && (needsPlayer(faRoster, f) || wouldMakeLineup(faRoster, f)))
       if (!fa) continue
       doSignFA(c, fa)
       c.specCounts[spec] = (c.specCounts[spec] ?? 0) + 1
@@ -8964,8 +8974,7 @@ function pickCpuFreeAgents(a: {
     //      needsPlayer だけにしていたので、良いFAが誰にも取られず市場に残り続けていた。
     //    判定は squadNeeds の1本（自チームもCPUも海外も同じ入口）。
     if (c.totalNow + c.signed < ROSTER_MAX) {
-      const roster = players.filter(p => p.teamId === c.team.id && p.status === 'active')
-      const need = c.pool.find(f => canSign(f) && budgetOk(f) && (needsPlayer(roster, f) || wouldMakeLineup(roster, f)))
+      const need = c.pool.find(f => canSign(f) && budgetOk(f) && (needsPlayer(faRoster, f) || wouldMakeLineup(faRoster, f)))
       if (need) { doSignFA(c, need); return true }
     }
     // ③ 頭数の確保 — 年俸/OVRに関係なく、人数が足りていないクラブは埋める
@@ -9035,15 +9044,30 @@ function generateForeignAndLoanOffers(params: {
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
 
+  /**
+   * そのクラブがその選手に声をかけるか。**海外から自チームへの打診はこの1本だけを見る。**
+   *
+   * 「必要か（穴が空いている）」と「そこで走れるか（7人に入る）」だけ（utils/squadNeeds）。
+   * 国・地域・リーグごとのOVR下限表は持たない。格1のクラブは名簿が強いので、
+   * 弱い選手はそこでは序列の下に沈み、自動的に声が掛からなくなる。
+   */
+  const rosterOfClub = (clubId: string) => players.filter(p => p.teamId === clubId && p.status === 'active')
+  const clubWants = (c: ForeignClub, target: Player) => {
+    const r = rosterOfClub(c.id)
+    if (r.length === 0) return false
+    return needsPlayer(r, target) || wouldMakeLineup(r, target)
+  }
+
   // 1a) 海外挑戦リストの選手：希望地域の1部リーグ（4大リーグ）から高確率で指名オファー。
-  //     実力がその地域の水準（アフリカ84/欧州80/北米80）に届いていることが条件
-  const OV_MIN_OVR: Record<string, number> = { africa: 84, europe: 80, america: 80 }
+  //     以前はここに地域ごとのOVR下限表（アフリカ84／欧州80／北米80）があったが、
+  //     それは「必要か・走れるか」を通していないただの後付けだった。clubWants 1本にする。
   for (const target of myMain.filter(p => !offeredIds.has(p.id) && canGoOverseasDream(p, eligCtx))) {
     if (foreignIncoming.length >= 2) break
     const region = target.overseasListed!
-    if (ovr(target) < (OV_MIN_OVR[region] ?? 80)) continue
     if (Math.random() > 0.75) continue
-    const clubs = foreignClubs.filter(c => (ELITE_LEAGUES_BY_REGION[region] ?? []).includes(c.leagueId ?? ''))
+    const clubs = foreignClubs
+      .filter(c => (ELITE_LEAGUES_BY_REGION[region] ?? []).includes(c.leagueId ?? ''))
+      .filter(c => clubWants(c, target))
     if (clubs.length === 0) continue
     const club = clubs[(ovr(target) + raceIndex) % clubs.length]
     if (!clubMayOffer(target, club.id, foreignIncoming)) continue
@@ -9056,10 +9080,10 @@ function generateForeignAndLoanOffers(params: {
 
   // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでも4大リーグが放っておかない
   if (foreignClubs.length > 0 && Math.random() < 0.6) {
-    const eliteAll = foreignClubs.filter(c => isEliteLeague(c.leagueId))
     const star = [...myMain]
-      .filter(p => !offeredIds.has(p.id) && ovr(p) >= 85 && p.age <= 34 && !foreignIncoming.some(o => o.playerId === p.id) && canBePoached(p, eligCtx))
+      .filter(p => !offeredIds.has(p.id) && ovr(p) >= MAJOR_NEWS_OVR && p.age <= 34 && !foreignIncoming.some(o => o.playerId === p.id) && canBePoached(p, eligCtx))
       .sort(comparePlayers('ovr'))[0]
+    const eliteAll = star ? foreignClubs.filter(c => isEliteLeague(c.leagueId) && clubWants(c, star)) : []
     const eliteClub = star && eliteAll.length > 0 ? eliteAll[(ovr(star) + raceIndex) % eliteAll.length] : undefined
     if (star && eliteClub && clubMayOffer(star, eliteClub.id, foreignIncoming)) {
       const club = eliteClub
@@ -9083,19 +9107,12 @@ function generateForeignAndLoanOffers(params: {
   //       （穴が空いている、またはそのクラブで走れる7人に入る）
   if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.55) {
     // 高齢選手（34歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
+    // OVRの下限は置かない。欲しがるクラブが1つも無ければ、そのあとの clubWants で自然に外れる
     const targets = [...myMain]
-      .filter(p => !offeredIds.has(p.id) && ovr(p) >= 70 && p.age <= 33 && canBePoached(p, eligCtx))
+      .filter(p => !offeredIds.has(p.id) && p.age <= 33 && canBePoached(p, eligCtx))
       .sort(comparePlayers('ovr'))
       .slice(0, 4)
-    const rosterOfClub = (clubId: string) => players.filter(p => p.teamId === clubId && p.status === 'active')
-    // 声をかけるかどうかは「必要か」と「そのクラブで走れるか」だけ（utils/squadNeeds 1本）。
-    // 国やリーグごとのOVR下限表は持たない。格1のクラブは名簿が強いので、
-    // 弱い選手はそこでは序列の下に沈み、自動的に声が掛からなくなる
-    const suitorsFor = (target: Player) => foreignClubs.filter(c => {
-      const r = rosterOfClub(c.id)
-      if (r.length === 0) return false
-      return needsPlayer(r, target) || wouldMakeLineup(r, target)
-    })
+    const suitorsFor = (target: Player) => foreignClubs.filter(c => clubWants(c, target))
     const nOffers = targets.length > 0 ? (Math.random() < 0.35 ? 2 : 1) : 0
     for (let oi = 0; oi < Math.min(nOffers, targets.length); oi++) {
       // 1件目は最上位、2件目はそれ以外からランダム（同じ選手に集中させない）
@@ -9175,9 +9192,14 @@ function generateTransferActivity(
     const teamPlayers = players.filter(p => isOwnedBy(p, team.id))
     if (validListings.filter(l => l.fromTeamId === team.id).length >= 3) continue
 
-    const avgOvr = teamPlayers.length > 0 ? teamPlayers.reduce((s, p) => s + ovr(p), 0) / teamPlayers.length : 60
-    const tier = cpuTeamTier(team.id, players)
-    const threshold = tier === 'elite' ? 72 : tier === 'mid' ? 65 : 58
+    // 「余っている選手」＝そのクラブで出番が無い序列の選手（transferDecision の hasNoPlayingTime 1本、
+    // 走れる人数の2倍より下）。以前はここに平均OVRから作った下限表（72/65/58）と、
+    // OVR65の下限が4か所にあった。下限はクラブの平均に連動するので、
+    // 弱いクラブでは誰も出せず（52クラブ中17クラブが1人も出せなかった）、
+    // 強いクラブでは「平均より5低い」だけで走れる主力まで市場に出ていた
+    const listRanked = [...teamPlayers.filter(p => p.status === 'active')].sort(comparePlayers('ovr'))
+    const spare = (p: Player) =>
+      !listedPlayerIds.has(p.id) && hasNoPlayingTime(listRanked.findIndex(x => x.id === p.id) + 1)
     let listed = false
 
     // Surplus specialist: 3+ players of same specialty → list the weakest
@@ -9189,7 +9211,7 @@ function generateTransferActivity(
       }
       for (const group of Object.values(specGroups)) {
         if (listed || group.length < 3) continue
-        const c = [...group].filter(p => !listedPlayerIds.has(p.id) && p.contract.yearsLeft > 0 && ovr(p) >= 65).sort((a, b) => ovr(a) - ovr(b))[0]
+        const c = [...group].filter(p => spare(p) && p.contract.yearsLeft > 0).sort((a, b) => ovr(a) - ovr(b))[0]
         if (c) {
           const price = roundFee(calcTransferValue(c) * (c.age > 28 ? 0.85 : 1.0))
           newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: price, listedAtRace: raceIndex, expiresAtRace: raceIndex + 6, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.5).slice(0, 3).map(t => t.id) })
@@ -9200,7 +9222,7 @@ function generateTransferActivity(
 
     // Surplus roster > 20: list player well below team average
     if (!listed && teamPlayers.length > 20) {
-      const c = [...teamPlayers].filter(p => !listedPlayerIds.has(p.id) && p.contract.yearsLeft > 0 && ovr(p) >= 65 && ovr(p) < avgOvr - 5).sort((a, b) => ovr(a) - ovr(b))[0]
+      const c = [...teamPlayers].filter(p => spare(p) && p.contract.yearsLeft > 0).sort((a, b) => ovr(a) - ovr(b))[0]
       if (c) {
         newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c)), listedAtRace: raceIndex, expiresAtRace: raceIndex + 5, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.4).slice(0, 3).map(t => t.id) })
         listedPlayerIds.add(c.id); listed = true
@@ -9209,16 +9231,16 @@ function generateTransferActivity(
 
     // Aging player (>30) with expiring contract below team average
     if (!listed) {
-      const c = [...teamPlayers].filter(p => p.age > 30 && ovr(p) >= 65 && ovr(p) < avgOvr - 3 && !listedPlayerIds.has(p.id) && p.contract.yearsLeft <= 1).sort((a, b) => a.age - b.age)[0]
+      const c = [...teamPlayers].filter(p => p.age > 30 && spare(p) && p.contract.yearsLeft <= 1).sort((a, b) => a.age - b.age)[0]
       if (c) {
         newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c) * 0.7), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
         listedPlayerIds.add(c.id); listed = true
       }
     }
 
-    // Expiring contract below tier threshold
+    // 契約満了間近で、走れる7人に入らない選手
     if (!listed) {
-      const c = [...teamPlayers].filter(p => p.contract.yearsLeft <= 1 && ovr(p) >= 65 && ovr(p) < threshold && !listedPlayerIds.has(p.id)).sort((a, b) => ovr(a) - ovr(b))[0]
+      const c = [...teamPlayers].filter(p => p.contract.yearsLeft <= 1 && spare(p)).sort((a, b) => ovr(a) - ovr(b))[0]
       if (c) {
         newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c) * 0.65), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
         listedPlayerIds.add(c.id)
@@ -9245,10 +9267,12 @@ function generateTransferActivity(
     if (offeringTeams.has(team.id)) continue
     const teamPlayers = players.filter(p => p.teamId === team.id)
     const teamRoster = teamPlayers.filter(p => p.status === 'active')
-    const tier = cpuTeamTier(team.id, players)
+    const tier = tierOf(team)
     const needsSlot = teamPlayers.length < 20
-    // 打診の発生率を引き上げ（35/20/8% → 45/30/15%。自チームに打診がほぼ来ない問題の緩和）
-    const wantsUpgrade = tier === 'elite' ? Math.random() < 0.45 : tier === 'mid' ? Math.random() < 0.30 : Math.random() < 0.15
+    // どれだけ動くかは**そのクラブの格**で決まる（格1が45%、格20が15%）。
+    // 海外の引き抜きの積極さ（engine/foreignTransfers の aggression）と同じ形。
+    // 以前はロスターの平均OVRから作った elite/mid/weak の3段階だった
+    const wantsUpgrade = Math.random() < 0.15 + 0.30 * tierStrength(tier)
 
     // Teams are also attracted by players who have requested transfers
     const transferWantedPlayers = playerTeamPlayers.filter(p => wantToLeaveIds.has(p.id) && !offerTargets.has(p.id))
@@ -9256,17 +9280,16 @@ function generateTransferActivity(
 
     if (!needsSlot && !wantsUpgrade && !hasTransferTarget) continue
 
-    const minTargetOvr = needsSlot
-      ? (tier === 'elite' ? 72 : 65)
-      : (tier === 'elite' ? 78 : 73)
-
     // 高齢選手（34歳超）は移籍金オファーの対象外。並びも年齢調整OVR（33歳以上は減点）で若い実力者を優先。
     // ★そのクラブが本当に必要としているタイプだけを狙う（utils/squadNeeds.ts の needsPlayer）。
     //   買う側の取り合い（rivalsFor）と同じ判定で、ここに新しい条件を書かないこと。
     //   以前は cpuSpecialtyNeeds（人数が2人未満のタイプ）を並び替えの優先にしか使っておらず、
     //   足りているタイプのエースにも打診が飛んでいた（買う側と非対称だった）。
+    //   OVRの下限表（72/65・78/73）もここにあったが、needsPlayer の直前に置かれた
+    //   ただの重複だった。人数が足りないときは走れるかどうかも見る
     let targets = playerTeamPlayers.filter(p =>
-      !offerTargets.has(p.id) && ovr(p) >= minTargetOvr && p.age <= 34 && needsPlayer(teamRoster, p))
+      !offerTargets.has(p.id) && p.age <= 34
+      && (needsPlayer(teamRoster, p) || (needsSlot && wouldMakeLineup(teamRoster, p))))
     // Prioritize players who want to leave
     const wantLeaveTargets = targets.filter(p => wantToLeaveIds.has(p.id))
     if (wantLeaveTargets.length > 0) targets = wantLeaveTargets
@@ -9279,8 +9302,8 @@ function generateTransferActivity(
     // （economy の transferCapOf）。以前はここだけ手元の資金しか見ておらず、
     // 格の意味が消えていた（貯金さえあれば格20のクラブが上限なしに出せた）
     if (transferCapOf(tierBudget(team), team.finance?.budget ?? 0) < tv) continue
-    // Realistic offer: 85-105% for elite, 80-97% for others
-    const ratio = tier === 'elite' ? (0.85 + Math.random() * 0.20) : (0.80 + Math.random() * 0.17)
+    // 提示額は相場の80〜105%。格が高いクラブほど強気に出す（格1で85〜105%、格20で80〜97%）
+    const ratio = 0.80 + 0.05 * tierStrength(tier) + Math.random() * (0.17 + 0.03 * tierStrength(tier))
     newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: roundFee(tv * ratio, 1_000_000), expiresAtRace: raceIndex + 5, round: 1 })
     offerTargets.add(target.id)
     offeringTeams.add(team.id)

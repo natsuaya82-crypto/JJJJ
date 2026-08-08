@@ -429,6 +429,26 @@ RULES.push({
   fix: 'styles/tokens.ts の NAV_H を import する（bottomStack の aboveNav でもよい）',
 })
 
+// クラブの「強さ・規模」は格1本。平均OVRから elite/mid/weak を作る第2の物差しを戻さない。
+RULES.push({
+  name: 'クラブの規模を格以外で決めている',
+  pattern: /'elite'|'mid'\s*[:?)]|=== *'weak'|avg[Oo]vr\s*>=\s*\d+\s*\?\s*\d/,
+  allow: [],
+  fix: 'clubTier.ts の tierOf / tierStrength を使う（格1本）',
+})
+RULES.push({
+  name: 'クラブ同士の強弱を平均OVRで比べている',
+  pattern: /clubAvg|avgOvr\[[^\]]+\]\s*[<>]/,
+  allow: [],
+  fix: '格で比べる（tierOf）。平均OVRは循環するので使わない',
+})
+RULES.push({
+  name: 'トレードの釣り合いの直書き',
+  pattern: /calcTransferValue\([^)]*\)\s*<=?\s*\w+\s*\*\s*1\.3|TRADE_MAX_RATIO\s*=\s*\d/,
+  allow: ['src/utils/tradeValue.ts'],
+  fix: 'utils/tradeValue.ts の tradeBalance を使う',
+})
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     if (SKIP_DIRS.has(e)) continue

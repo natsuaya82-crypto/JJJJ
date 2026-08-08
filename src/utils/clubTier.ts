@@ -90,6 +90,22 @@ export function tierGrowthRate(tier: ClubTier): number {
 }
 
 /**
+ * 格 → 0〜1（格1が1.0、格20が0.0）。**「格が高いほど◯◯」を作るときは必ずこれを通す。**
+ *
+ * ■なぜ要るのか
+ *   「そのクラブがどれだけ大きいか」を、格とは別に**ロスターの平均OVR**で決める
+ *   `cpuTeamTier`（elite/mid/weak）という第2の物差しが国内側にあり、そこから
+ *   OVRの下限表が6つぶら下がっていた（74/67/60・74/67/58・72/65/58 …）。
+ *   ・格が既に同じ仕事をしている（海外側は格1本で動いている）
+ *   ・平均OVRは循環する（強い名簿だから強い選手を買える → だから強い名簿のまま）。
+ *     格は「前年どこにいたか」で外から決まるので循環しない
+ *   ・6つの表が微妙に食い違っていて、どれが正なのか分からなかった
+ */
+export function tierStrength(tier: ClubTier): number {
+  return (DOMESTIC_BOTTOM_TIER - tier) / (DOMESTIC_BOTTOM_TIER - 1)
+}
+
+/**
  * 全員に毎年入る一律EXP。所属していればレースに出ていなくても同じだけ入る。
  * （前は「走った選手＝地形別EXP／走らなかった選手＝全能力50EXP」と分かれていた）
  *
@@ -285,19 +301,25 @@ export function tierOf(team: TieredTeam | undefined): ClubTier {
 }
 
 /**
- * クラブIDから直接引く。**初期値しか見ない**ので、毎年動いた格は拾えない。
- * クラブの実体（Team / ForeignClub）が手元にあるなら tierOf を使うこと。
- */
-/**
- * 「大ニュースにする」基準。**ここ1本で決める。**
- *   ・OVR85以上の選手が動いた
- *   ・格1のクラブ（世界に数クラブしかない）が絡んだ
+ * 「世界レベルの選手」の線。**ここ1本で決める。**
+ *   ・移籍が大ニュースになるか
+ *   ・海外の最上位クラブが放っておかないか
+ *   ・日本から海外へ渡ったのが「世界へ挑戦」の見出しになるか
+ * 以前はこの3つが 85 / 85 / 76 と別々の数字で、さらに引き抜きの「スター」だけ 82 だった。
  * 移籍金いくら以上、という基準は使わない（クラブの規模で額が変わるので、
  * 同じ1億でも格1では小さく格20では巨額になり、意味が揃わない）。
  */
 export const MAJOR_NEWS_OVR = 85
-export function isBigClub(clubId: string): boolean {
-  return tierOfClubId(clubId) === 1
+
+/**
+ * 世界に数クラブしかない格1のクラブか。大ニュースの判定に使う。
+ *
+ * ★クラブの実体を渡すこと（tierOf と同じ引き方）。以前はクラブIDだけを受け取って
+ *   clubTiers.ts の**初期値**を見ていたので、格9まで落ちた海外クラブが
+ *   いつまでも「世界的名門」として大ニュース扱いのままだった。
+ */
+export function isBigClub(club: TieredTeam | undefined): boolean {
+  return tierOf(club) === 1
 }
 
 export function tierOfClubId(clubId: string): ClubTier {
