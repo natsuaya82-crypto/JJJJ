@@ -38,7 +38,7 @@ const RULES: Rule[] = [
     // 1部の主力が3部のクラブへの移籍に同意してしまう（実際にそうなっていた）。
     // 分母も `currentRaceIndex`（自分の部の消化数）で、部ごとにレース数が違う。
     name: '出場率を自分の部の日程だけで数えている',
-    pattern: /seasonAppearances\([^)]*(currentSeason\.races|currentRaceIndex)/,
+    pattern: /seasonAppearances\([^)]*(currentSeason\.races|currentRaceIndex)|seasonAppearances\(\w+,\s*races\)\s*\/\s*raceIndex/,
     allow: ['src/utils/playRate.ts'],
     fix: 'utils/playRate.ts の playRateOf を使う（そのクラブが走っている日程で数える）',
   },

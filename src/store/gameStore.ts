@@ -1907,7 +1907,7 @@ export const useGameStore = create<GameStore>()(
           // 受け取る側は格も手元資金も見られず、いくらまで出せるかを初期値の格から作り直していた。
           const foreignClubs = allForeignClubs(state.foreignLeagues)
           const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))
-          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
+          const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, season: { ...state.currentSeason, races: updatedRaces }, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
           const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
           const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
@@ -9028,10 +9028,12 @@ function generateForeignAndLoanOffers(params: {
   existingIncoming: IncomingOffer[]
   existingLoans: IncomingLoanOffer[]
   races?: Race[]   // 出場機会の判定用（borrow_in打診は出番のない選手から選ぶ）
+  /** 今シーズン。出場率は「そのクラブが走っている日程」で数える（utils/playRate） */
+  season?: import('../utils/playRate').PlayRateSeason
   retiringIds?: Set<string>   // 引退希望中の選手（オファー・打診の対象外）
   currentYear?: number        // 今のシーズン年。加入1年目の選手を引き抜き対象から外す
 }): { foreignIncoming: IncomingOffer[]; loanOffers: IncomingLoanOffer[] } {
-  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingIncoming, existingLoans, races, retiringIds, currentYear } = params
+  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingIncoming, existingLoans, races, season, retiringIds, currentYear } = params
   // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約
   const eligCtx = { teamId: playerTeamId, currentYear, retiringIds }
   const foreignIncoming: IncomingOffer[] = []
@@ -9182,11 +9184,15 @@ function generateForeignAndLoanOffers(params: {
   // クラブが貸しに出すのは「出番のない選手」：出場率が低い26歳以下から、こちらの補強ニーズに合う選手を優先して提示
   if (aiTeams.length > 0 && Math.random() < 0.20) {
     const myNeedsLoan = cpuSpecialtyNeeds(playerTeamId, players)
-    const playFrac = (pid: string) => raceIndex > 0 && races ? seasonAppearances(pid, races) / raceIndex : 0
+    // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）。
+    //   自分の部の日程で数えると、他の部のクラブの選手は全員0＝全員が「干されている」に
+    //   なり、1部・2部の選手が丸ごとレンタルの出し手候補になっていた
+    const playFrac = (pid: string, clubId: string) =>
+      playRateOf(pid, clubId, season ?? { races }, teams).fraction
     const cands = players.filter(p =>
       p.teamId !== playerTeamId && p.teamId !== '' && aiTeams.some(t => t.id === p.teamId)
       && p.status === 'active' && !p.loan && p.age <= 26 && ovr(p) < 76 && !loanTargetIds.has(p.id)
-      && playFrac(p.id) < 0.35)   // 出場率3.5割未満＝現所属で干されている選手だけが貸しに出される
+      && playFrac(p.id, p.teamId) < 0.35)   // 出場率3.5割未満＝現所属で干されている選手だけが貸しに出される
     const fits = cands.filter(p => myNeedsLoan.includes(p.specialty))
     // 干され組の中では実力上位を提示（借りる価値のある選手にする）
     const cand = (fits.length > 0 ? fits : cands).sort(comparePlayers('ovr'))[0]
