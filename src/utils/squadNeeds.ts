@@ -90,7 +90,20 @@ export function needsPlayer(roster: readonly Player[], player: Player): boolean 
   const depth = squadDepth(roster)
   const d = depth[player.specialty]
   if (!d) return false
-  // ① 不在のポジションは無条件で埋める（走らせる人がいない）
+  // ★どの穴でも、**そこで走れる選手でなければ獲らない**（走れるのは7区間）。
+  //   「16番手になる選手をわざわざ獲るクラブはいない」（CLAUDE.md）を、
+  //   言葉だけでなく判定に入れる。以前は①が無条件、②も序列を見ていなかったので、
+  //   1部のクラブが3部で1戦も走っていないOVR64を「必要」と言っていた。
+  if (!wouldMakeLineup(roster, player)) return false
+  // ① 不在のポジションは埋めたい
+  //
+  //   ★以前はここが無条件（`return true`）だった。強さを一切見ないので、
+  //     1部のクラブに粘り型が1人もいなければ、3部で1戦も走っていないOVR64の
+  //     粘り型を「必要」と判断して獲っていた。サッカーで言えば、1部のクラブが
+  //     3部の出場ゼロの選手を獲るのと同じで、現実には起きない。
+  //     実測：OVR68の選手を9タイプ×1部20クラブ＝180通りで試すと、
+  //     「必要」15通りに対して「走れる7人に入る」は0通り。全部この枝だった。
+  //   タイプが0人でも、そこで20番手になる選手を入れて埋まるわけではない。
   if (d.count === 0) return true
   // ② そのポジションの平均がチーム平均を下回っているか（＝穴）
   const active = roster.filter(p => p.status === 'active')

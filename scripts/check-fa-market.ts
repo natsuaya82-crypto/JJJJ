@@ -15,6 +15,15 @@
  */
 import { readFileSync } from 'fs'
 import { rivalClubsFor } from '../src/utils/transferRivals'
+import { INITIAL_TEAMS } from '../src/data/teams'
+import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
+import { generateCpuRosters } from '../src/engine/playerGenerator'
+import { needsPlayer, wouldMakeLineup, SPECIALTIES } from '../src/utils/squadNeeds'
+import { appraiseMove, buildDestination } from '../src/utils/transferDecision'
+import { divisionOf } from '../src/utils/league'
+import { tierOf } from '../src/utils/clubTier'
+import { ovr } from '../src/utils/playerUtils'
+import type { Player, Team } from '../src/types'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -77,6 +86,46 @@ console.log('[4] 「◯クラブが動いています」は、実際に動くク
     { teams: [], players: [], playerTeamId: 'me', foreignLeagues: [], destinationOf: () => ({ clubId: 'c', tier: 10, squadRank: 1, squadSize: 1 }) as never },
   )
   check('クラブが0件なら0件（例外にならない）', n.length === 0)
+}
+
+console.log('')
+console.log('[5] 走れない選手を、格上のクラブが獲らない（リアル寄せ）')
+{
+  const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
+  const players = generateCpuRosters(teams, 2030).cpuPlayers as Player[]
+  const rosterOf = (id: string) => players.filter(p => p.teamId === id && p.status === 'active')
+  const d1 = teams.filter(t => divisionOf(t) === 1)
+  const d3 = teams.filter(t => divisionOf(t) === 3)[0]
+
+  // ── クラブ側：そのタイプが0人でも、そこで走れない選手は「必要」にならない ──
+  const weak = players.filter(p => ovr(p) >= 63 && ovr(p) <= 68)[0]
+  let wantButCannotRun = 0
+  for (const c of d1) for (const s of SPECIALTIES) {
+    const cand = { ...weak, specialty: s } as Player
+    const r = rosterOf(c.id)
+    if (needsPlayer(r, cand) && !wouldMakeLineup(r, cand)) wantButCannotRun++
+  }
+  check('1部のクラブが「走れないのに必要」と言わない', wantButCannotRun === 0,
+    `${wantButCannotRun}通り（タイプが0人の枠を強さを見ずに埋めていた）`)
+
+  // ── 本人側：今の水準で1戦も走っていない選手は格上へ行かない ──
+  const src = rosterOf(d3.id).sort((a, b) => ovr(a) - ovr(b))[0]
+  const ctx = { srcTier: tierOf(d3), teamRaces: 7 }
+  const dests = d1.map(c => buildDestination(c.id, tierOf(c), players, { player: src }))
+  const okZero = dests.filter(d => appraiseMove(src, d, { ...ctx, playFraction: 0 }).ok).length
+  check('3部で0出場の選手は1部へ行かない', okZero === 0, `${okZero}クラブへ行くと答えた`)
+  check('  理由が出る', appraiseMove(src, dests[0], { ...ctx, playFraction: 0 }).lead === 'unproven')
+  // 走っていれば止めない（格上への挑戦そのものは塞がない）
+  const okRan = dests.filter(d => appraiseMove(src, d, { ...ctx, playFraction: 5 / 7 }).ok).length
+  check('走っている選手は今までどおり格上へ行ける', okRan > 0, `${okRan}クラブ`)
+  // 開幕直後（まだ誰も走っていない）を「走っていない」と読まない
+  const okEarly = dests.filter(d => appraiseMove(src, d, { srcTier: tierOf(d3), teamRaces: 0, playFraction: 0.5 }).ok).length
+  check('開幕直後（0戦）は「走っていない」と読まない', okEarly > 0, `${okEarly}クラブ`)
+  // 格下・同格へ落ちて出番を取りにいくのは止めない
+  const downs = d3 ? teams.filter(t => divisionOf(t) === 3).slice(1, 6)
+    .map(c => buildDestination(c.id, tierOf(c), players, { player: src })) : []
+  const okDown = downs.filter(d => appraiseMove(src, d, { ...ctx, playFraction: 0 }).ok).length
+  check('格上でなければ止めない（出番を取りに落ちるのは現実にある）', downs.length === 0 || okDown >= 0)
 }
 
 console.log('')

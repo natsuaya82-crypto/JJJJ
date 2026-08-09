@@ -219,7 +219,7 @@ export type Appraisal = {
   score: number
   ok: boolean
   /** 一番効いた要素。断った理由・選んだ理由の文言はこれで決める */
-  lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'dream' | 'wrong_region' | 'capped' | 'loyalty' | 'even'
+  lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'dream' | 'wrong_region' | 'capped' | 'loyalty' | 'even' | 'unproven'
   reason: string
   /** 一覧で1行ずつ並べるときの短い理由（選手名を繰り返さない） */
   shortReason: string
@@ -329,8 +329,18 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   const morale = (p.morale ?? 60) < 40 ? 0.1 : (p.morale ?? 60) >= 75 ? -0.05 : 0
   const bonus = ctx.bonus ?? 0
 
+  // ★今の水準で1戦も走っていない選手は、格上のクラブへは移らない。
+  //   サッカーで「3部で試合に出ていない選手を1部が獲る」は起きない。走れることを
+  //   示していない選手は、上のクラブが動く材料そのものが無い。
+  //   点数で表さず関門にするのは、格上の加点(+0.65〜0.90)が大きすぎて必ず押し切られるため。
+  //
+  //   ・格上へ行くときだけ（同格・格下へ落ちて出番を取りに行くのは現実にある）
+  //   ・そのクラブが3戦以上こなしているときだけ（開幕直後の「まだ分からない」を
+  //     「走っていない」と読まない。出場率は utils/playRate の1本で出す）
+  const unproven = gap > 0 && races >= 3 && frac <= 0
+
   const score = tier + playingTime + benched + title + ecl + dreamFit + capped + personality + morale + bonus
-  const ok = score >= CONSENT_LINE
+  const ok = score >= CONSENT_LINE && !unproven
   const parts = { tier, playingTime, benched, title, ecl, dreamFit, capped, personality, morale, bonus }
   // 見出しにする理由は「一番効いた要素」。行くときは一番の後押し、断るときは一番の足かせ。
   //
@@ -353,10 +363,13 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
     { lead: personality < 0 ? 'loyalty' : 'even', v: personality },
   ]
   const best = weights.reduce((a, b) => (ok ? b.v > a.v : b.v < a.v) ? b : a)
-  // どれも効いていない（横並び）なら「条件は悪くない」で締める
-  const lead: Appraisal['lead'] = (ok ? best.v <= 0 : best.v >= 0) ? 'even' : best.lead
+  // どれも効いていない（横並び）なら「条件は悪くない」で締める。
+  // 関門で止めたときは、その理由をそのまま見出しにする（点数の内訳から選ばない）
+  const lead: Appraisal['lead'] = unproven ? 'unproven'
+    : (ok ? best.v <= 0 : best.v >= 0) ? 'even' : best.lead
 
   const REASON_NO: Record<Appraisal['lead'], string> = {
+    unproven: `${p.name}は今のクラブで1戦も走っておらず、格上のクラブが動く段階にない`,
     no_playing_time: `${p.name}は「${d.squadRank}番手では出番がない」と考えている`,
     dream: `${p.name}は移籍に納得していない`,
     wrong_region: `${p.name}が挑戦したいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}で、この地域ではない`,
@@ -373,6 +386,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   // 「→ 佐藤 健司は「23番手では出番がない」と考えている」だと、その1クラブの話なのか
   // その選手の全体の話なのかが読み取れなかった
   const SHORT_NO: Record<Appraisal['lead'], string> = {
+    unproven: '今のクラブで1戦も走っていない',
     no_playing_time: `${d.squadRank}番手で出番がない`,
     wrong_region: `行きたいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}。この地域ではない`,
     tier_down: '格下への移籍に前向きでない',
@@ -386,6 +400,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
     even: '乗り気ではない',
   }
   const REASON_YES: Record<Appraisal['lead'], string> = {
+    unproven: '条件は悪くない',
     dream: `憧れの${DREAM_LABEL[dreamRegionOf(p.specialty)]}で走りたい`,
     wrong_region: '行きたい地域ではない',
     tier_up: '格上のクラブで挑戦したい',
