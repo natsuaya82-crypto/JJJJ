@@ -3,6 +3,7 @@
 import type { GameStore, SetGame } from '../gameStore'
 import { recoverInjuredPlayers, rollRaceInjuries } from '../../engine/raceInjury'
 import { applySegmentPBs } from '../../engine/segmentPB'
+import { generateAiTradeOffers } from '../../engine/aiTradeOffer'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -10,14 +11,14 @@ import { CARD_UNIT_EXP } from '../../data/cardShop'
 import { generateIndividualEvents } from '../../data/races'
 import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
-import { cpuSpecialtyNeeds, generateForeignAndLoanOffers, generateTransferActivity, pickCpuFreeAgents } from '../../engine/cpuMarket'
+import { generateForeignAndLoanOffers, generateTransferActivity, pickCpuFreeAgents } from '../../engine/cpuMarket'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
 import { generateRaceEvents } from '../../engine/eventEngine'
 import { GROW_STAT_KEYS, applyGrowth } from '../../engine/growth'
 import { simulateIndividualTime } from '../../engine/individualRace'
 import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
-import { type AITradeOffer, type CardRarity, type CardStatKey, type ExpiredNegotiation, type GameState, type LoanResponse, type Player, type Ratings, type TrainingCard, type TransferRecord } from '../../types'
+import { type CardRarity, type CardStatKey, type ExpiredNegotiation, type GameState, type LoanResponse, type Player, type Ratings, type TrainingCard, type TransferRecord } from '../../types'
 import { computeSeasonAwards } from '../../utils/awards'
 import { generateDropCards } from '../../utils/cardCombo'
 import { ANNUAL_BASE_EXP, MAJOR_NEWS_OVR, allTieredClubs, tierOfPlayerClub } from '../../utils/clubTier'
@@ -28,14 +29,13 @@ import { DIVISION_SIZE, divisionOf, divisionStandings, domesticThroughRank, rank
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
 import { type NewsItem, awardHeadline, boardEvalHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, myFinishHeadline, raceWinnerHeadline, recordHeadline, retirementHeadline, rivalHeadline, segmentPrizeHeadline, segmentRecordHeadline, segmentWinHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { calcTransferValue, faMarketSalary, freeContactConsent, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
+import { faMarketSalary, freeContactConsent, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { openWishIds } from '../../utils/talkSync'
-import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN } from '../../utils/tradeValue'
 import { resolveBid } from '../../utils/transferBid'
 import { appraiseMove, dreamRegionOf } from '../../utils/transferDecision'
-import { canBePoached, canWishTransfer, eligibilityCtx } from '../../utils/transferEligibility'
+import { canBePoached, canWishTransfer } from '../../utils/transferEligibility'
 import { rivalClubsFor } from '../../utils/transferRivals'
 
 type Slice = Pick<GameStore,
@@ -449,72 +449,11 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         teams: state.teams })
       const existingTrades = (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.expiresAtRace > nextClock)
 
-      // CPUからのトレード打診を低頻度で生成（打診が既に無い時だけ・1件まで）。
-      // 相手の余剰選手と自チーム選手の価値が釣り合う1対1交換を提案する
-      const newTradeOffers: AITradeOffer[] = []
-      if (existingTrades.length === 0 && Math.random() < 0.25) {
-        // トレード提案の質を上げる：
-        // - 相手チームは「自チームの手薄なポジションを埋められるチーム」を優先
-        // - 欲しがるのは相手（CPU）の補強ニーズに合う自チーム選手、差し出すのは自チームの穴に合う選手
-        // - 価値が釣り合う候補の中から「もらえる選手のOVRが最も高い」1件を提案（低OVR同士の消化試合をなくす）
-        // トレードで欲しがられる条件も他の移籍と同じ（utils/transferEligibility.ts）。
-        // ここだけ非売しか見ておらず、海外挑戦を承認した選手や引退希望の選手にも打診が来ていた
-        const tradeCtx = eligibilityCtx(state.currentSeason, playerTeamId)
-        const myTradables = state.players.filter(p => canBePoached(p, tradeCtx) && ovr(p) >= 62)
-        const myNeeds = cpuSpecialtyNeeds(playerTeamId, state.players)
-        const cpuIds = state.teams.map(t => t.id).filter(id => id !== playerTeamId)
-        // 自チームの穴を埋められる選手(OVR68+)を持つチームを優先。いなければランダム
-        const teamsWithFit = cpuIds.filter(id => state.players.some(p =>
-          p.teamId === id && p.status === 'active' && !p.loan && myNeeds.includes(p.specialty) && ovr(p) >= 68))
-        const fromId = teamsWithFit.length > 0
-          ? teamsWithFit[Math.floor(Math.random() * teamsWithFit.length)]
-          : cpuIds[Math.floor(Math.random() * cpuIds.length)]
-        const theirNeeds = cpuSpecialtyNeeds(fromId, state.players)
-        // 「自チームで出番がある選手」しか提示させない：自チーム10番手のOVRを下回る選手の打診は出さない
-        const myMainOvrs = state.players
-          .filter(p => p.teamId === playerTeamId && p.status === 'active')
-          .map(p => ovr(p)).sort((a, b) => b - a)
-        const lineupBar = myMainOvrs[Math.min(9, Math.max(0, myMainOvrs.length - 1))] ?? 0
-        const theirRoster = state.players.filter(p =>
-          p.teamId === fromId && p.status === 'active' && !p.loan && ovr(p) >= Math.max(65, lineupBar) && p.age <= 33)
-        // 自チームの穴（手薄なポジション）に合う選手を優先。いなければ出番基準を満たす全員から
-        const fitRoster = theirRoster.filter(p => myNeeds.includes(p.specialty))
-        const offerPool = fitRoster.length > 0 ? fitRoster : theirRoster
-        // 相手が欲しがるのは補強ニーズに合う自チーム選手（いなければ全員から）
-        const wantedByThem = myTradables.filter(p => theirNeeds.includes(p.specialty))
-        const askPool = wantedByThem.length > 0 ? wantedByThem : myTradables
-        // 価値が釣り合う全組み合わせから選ぶ。
-        // もらう選手が出す選手よりOVRで明確に下回る提案は不成立（弱点ポジ適合でも、
-        // 数値が低ければ結局使わないので意味がない。市場価値の年齢補正で「若手60⇄ベテラン75」が
-        // 等価になっても、額面で損する交換は提示しない）。上回る分は制限なし。
-        // 選定はニーズ適合を最優先し、その中でOVR最上位
-        let best: { mine: Player; theirs: Player; fits: boolean } | null = null
-        for (const mine of askPool) {
-          const myVal = calcTransferValue(mine)
-          for (const theirs of offerPool) {
-            // ここは「こちらがもらう額面 ÷ こちらが出す額面」なので、成立判定の定数とは逆向き。
-            // 同じ数字を使い回すと片方の調整がもう片方に逆向きに効くので別の定数にしてある
-            const r = calcTransferValue(theirs) / Math.max(1, myVal)
-            if (r < AI_OFFER_GAIN_MIN || r > AI_OFFER_GAIN_MAX) continue
-            if (ovr(theirs) < ovr(mine) - 3) continue
-            const fits = myNeeds.includes(theirs.specialty)
-            const better = !best
-              || (fits && !best.fits)
-              || (fits === best.fits && ovr(theirs) > ovr(best.theirs))
-            if (better) best = { mine, theirs, fits }
-          }
-        }
-        if (best) {
-          const fromShort = state.teams.find(t => t.id === fromId)?.shortName ?? ''
-          newTradeOffers.push({
-            id: `aito-${raceIndex + 1}-${best.mine.id}`,
-            fromTeamId: fromId,
-            offeredPlayerIds: [best.theirs.id],
-            requestedPlayerIds: [best.mine.id],
-            expiresAtRace: raceIndex + 5,
-            message: `${fromShort}が${best.mine.name}（OVR${ovr(best.mine)}）との交換に${best.theirs.name}（OVR${ovr(best.theirs)}）を提示しています` })
-        }
-      }
+      // CPUからのトレード打診（低頻度・1件まで）。engine/aiTradeOffer 1本
+      const newTradeOffers = generateAiTradeOffers({
+        players: state.players, teams: state.teams, playerTeamId,
+        currentSeason: state.currentSeason, raceIndex,
+        hasExistingOffer: existingTrades.length > 0 })
 
       // 区間賞のぶんだけを翌季の予算に繰り越す（レース賞金・観客収入は廃止）。
       // 自分の部＋裏で走らせた部を合わせて、全クラブぶんを積む
