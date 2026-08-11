@@ -195,7 +195,29 @@
  },
  "deficitRescue": "number",
  "draftState": "null",
- "foreignLeagues": "undefined",
+ "foreignLeagues": {
+  "$len": 9,
+  "$item": {
+   "clubs": {
+    "$len": 20,
+    "$item": {
+     "colors": {
+      "primary": "string",
+      "secondary": "string"
+     },
+     "country": "string",
+     "id": "string",
+     "leagueId": "string",
+     "name": "string",
+     "shortName": "string"
+    }
+   },
+   "country": "string",
+   "countryName": "string",
+   "id": "string",
+   "name": "string"
+  }
+ },
  "giftGivenVersions": {
   "$len": 0
  },
