@@ -10,6 +10,7 @@ import { applyRaceProgress } from '../../engine/raceProgress'
 import { detectSegmentRecords } from '../../engine/raceRecords'
 import { settleCpuTransfers } from '../../engine/cpuTransfers'
 import { resolveExpiredOffers } from '../../engine/offerExpiry'
+import { resolveTransferBids } from '../../engine/bidResolution'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -37,10 +38,8 @@ import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
 import { openWishIds } from '../../utils/talkSync'
-import { resolveBid } from '../../utils/transferBid'
 import { appraiseMove, dreamRegionOf } from '../../utils/transferDecision'
 import { canWishTransfer } from '../../utils/transferEligibility'
-import { rivalClubsFor } from '../../utils/transferRivals'
 
 type Slice = Pick<GameStore,
   'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setRaceTeamTalk' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'resolveEvent' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
@@ -354,48 +353,17 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
       const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
-      // 入札(移籍金オファー)の応答。判定は utils/transferBid の resolveBid 1本。
-      // サブの1戦を進めたときも同じ関数を呼ぶので、進め方で結果が変わらない
-      const bidExpiredNegs: ExpiredNegotiation[] = []
-      const bidExpiredPlayerIds: string[] = []
-      // 同じ選手を狙う他クラブ。買う側も取り合いになる（売る側だけ5クラブなのは非対称だった）。
-      //
-      // クラブは「強いから」ではなく「必要だから」動く。山が薄いクラブは山型を狙うし、
-      // 山が足りているクラブは同じ山型のエースが出ても手を出さない。
-      //   ・そのタイプが必要（utils/squadNeeds.ts。頭数が足りない or 今いる同タイプより強い）
-      //   ・そのクラブで7区間に入れる＝実際に走れる（弱い専門家を穴埋めで買わない）
-      //   ・ロスターに空きがある（ROSTER_MAX）
-      //   ・本人がそのクラブへ行く気になる（utils/transferDecision.ts の1本）
-      // 需要で絞る前は「強い選手は全クラブが欲しがる」状態で、1人に43クラブが群がっていた。
-      //
-      // 出せる額は「格の年間予算の TRANSFER_BUDGET_SHARE まで」。手元の資金がそれより
-      // 少なければそちらが上限になる。**誰が参加するかは需要、誰が勝つかは格**。
-      // 以前は市場価値×1.4の頭打ちで、全クラブが同額を出すので競売になっていなかった
-      const rivalsFor = (target: Player) => rivalClubsFor(target, {
-        teams: state.teams, players: finalPlayers, playerTeamId,
-        foreignLeagues: state.foreignLeagues ?? [],
+      // 入札の応答は engine/bidResolution 1本（判定は utils/transferBid の resolveBid）
+      const bidResult = resolveTransferBids({
+        bids: state.currentSeason.transferBids ?? [],
+        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues ?? [],
+        listings: transferData.listings, currentSeason: state.currentSeason,
+        pastSeasons: state.pastSeasons, races: updatedRaces, raceClock: nextClock, playerTeamId,
         destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
-      // 競り負けた選手（相手クラブへ実際に移す）
-      const outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[] = []
-      const processedBids = (state.currentSeason.transferBids ?? []).map(bid => {
-        const target = finalPlayers.find(p => p.id === bid.playerId)
-        const r = resolveBid(bid, {
-          players: finalPlayers,
-          listings: transferData.listings,
-          currentSeason: { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries },
-          pastSeasons: state.pastSeasons,
-          raceIndex: nextClock,
-          rivals: bid.status === 'pending' && target ? rivalsFor(target) : undefined })
-        if (r.expired) {
-          bidExpiredNegs.push(r.expired)
-          // 競り負けは金額の問題なので、来季まで交渉不可のロックはかけない
-          if (r.expired.kind !== 'outbid') bidExpiredPlayerIds.push(r.expired.playerId)
-        }
-        if (r.outbidBy && target) {
-          outbidMoves.push({ playerId: target.id, toTeamId: r.outbidBy.clubId, fee: r.outbidBy.fee, playerName: target.name, clubName: r.outbidBy.name })
-        }
-        return r.bid
-      })
+      const processedBids = bidResult.bids
+      const bidExpiredNegs = bidResult.expiredNegs
+      const bidExpiredPlayerIds = bidResult.expiredPlayerIds
+      const outbidMoves = bidResult.outbidMoves
 
       const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? myDivSize(state)
       // カードは国内の通し順位で決まる（部内順位だと3部優勝も1部優勝も同じだった）。
