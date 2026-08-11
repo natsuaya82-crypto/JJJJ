@@ -62,7 +62,14 @@ const CHECKS = [
   { name: 'save-guard', shim: true },
   { name: 'boot-gate', shim: true },
   { name: 'save-backups', shim: true, nativeFakes: true },
-  { name: 'load-v39', shim: true },
+  // ★実機から取り出した本物のセーブを読む点検。リポジトリには入っていないので、
+  //   ファイルが無い環境では走らせずに「見送り」にする（落とさない・`?` も付けない）。
+  //   **セーブ形式（persist の version）を上げるときは必ず手で走らせること。**
+  {
+    name: 'load-v39', shim: true,
+    needsFile: () => process.env.V39_SAVE ?? '/tmp/v39-save.json',
+    why: '実機のセーブが要る。V39_SAVE=<path> npm run check で走らせる',
+  },
   { name: 'migrate-old-save', shim: true },
   // 旧セーブ（v29相当）を migrate+merge に通したあとの**形**が変わっていないか。
   // セーブ互換の唯一の自動確認で、外すと移行事故に気づけない
@@ -151,7 +158,20 @@ const built = entries.map(e => {
 // ── 走らせる ──
 const failed = []
 const pendingFailed = []
+const skipped = []
 for (const e of built) {
+  // ── 見送り（環境が足りなくて走らせられないもの）──
+  // **落としてはいけないし、`?` でもない。** `?` は「壊れているが直していない」印で、
+  // 「この環境では材料が無い」とは別の話。混ぜると `?` の意味が薄まる。
+  // 材料が揃えば必ず走る＝黙って外れるのとも違うので、毎回この一覧に名前を出す。
+  if (e.needsFile) {
+    const path = e.needsFile()
+    if (!existsSync(path)) {
+      console.log(`--   ${e.name}  (見送り: ${path} が無い)`)
+      skipped.push(`${e.name}（${e.why}）`)
+      continue
+    }
+  }
   const st = Date.now()
   let ok, out
   if (e.buildError) {
@@ -174,7 +194,8 @@ for (const e of built) {
 }
 
 console.log('')
-console.log(`点検 ${built.length}本 / ${((Date.now() - t0) / 1000).toFixed(1)}秒（意図して外した ${Object.keys(SKIP).length}本）`)
+console.log(`点検 ${built.length - skipped.length}本 / ${((Date.now() - t0) / 1000).toFixed(1)}秒（意図して外した ${Object.keys(SKIP).length}本）`)
+for (const s of skipped) console.log(`見送り: ${s}`)
 if (failed.length > 0) {
   console.log(`✗ 落ちました: ${failed.join(', ')}`)
   process.exit(1)
