@@ -165,7 +165,7 @@ const RULES: Rule[] = [
 RULES.push({
   name: '期限・回復を currentRaceIndex で数えている',
   pattern: /(expiresAtRace|injuredUntilRace)[^\n]*currentRaceIndex|currentRaceIndex[^\n]*(expiresAtRace|injuredUntilRace)/,
-  allow: ['src/store/gameStore.ts'],
+  allow: ['src/store/gameStore.ts', 'src/store/slices/marketSlice.ts', 'src/store/slices/raceSlice.ts'],   // 書く側の移設先
   fix: 'playerUtils の racesConsumed（ECL・記録会も1本）で数える',
 })
 

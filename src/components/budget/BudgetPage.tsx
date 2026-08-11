@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
-import { useGameStore, reinforcementBanned } from '../../store/gameStore'
+import { useGameStore } from '../../store/gameStore'
+import { reinforcementBanned } from '../../data/economy'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
