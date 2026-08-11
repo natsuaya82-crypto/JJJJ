@@ -10,8 +10,10 @@ import { APP_VERSION } from '../../data/appMeta'
 // 境界が1枚も無いと「画面が真っ白・タップは効くが何も出ない」状態になり、
 // ユーザーはタスクキルするしかなくなる。そのタスクキルがセーブ書き込みの中断＝
 // セーブ破損を招いていたので、まずここで受け止めて安全に立て直せるようにする。
-export default class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state: { error: Error | null } = { error: null }
+type BoundaryState = { error: Error | null; componentStack: string }
+
+export default class ErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
+  state: BoundaryState = { error: null, componentStack: '' }
 
   static getDerivedStateFromError(error: Error) {
     return { error }
@@ -19,6 +21,11 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[app] uncaught render error', error, info.componentStack)
+    // ★どこで落ちたかは componentStack にしか無い。
+    //   これをコンソールにだけ出していたので、実機から上がってくる報告は
+    //   「TypeError: ○○」の一行だけになり、**原理的に場所が特定できなかった**。
+    //   画面に出す文字は今までどおり短いまま、コピーする中身にだけ積む。
+    this.setState({ componentStack: info.componentStack ?? '' })
     // 落ちた時点の状態そのものは正常なので、この場で安全に書き切っておく。
     // （ユーザーがタスクキルする前に確定させることで「白画面→キル→データ消失」を断つ）
     void flushSaveNow()
@@ -28,7 +35,14 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
     const err = this.state.error
     if (!err) return this.props.children
 
+    // 画面に出すのは1行だけ（枠の高さは変えない）。コピーする側にだけ場所の手がかりを積む
     const detail = `${err.name}: ${err.message}`
+    const report = [
+      `JPEL Manager ${APP_VERSION}`,
+      detail,
+      err.stack ?? '(stack なし)',
+      this.state.componentStack ? `--- component stack ---${this.state.componentStack}` : '(component stack なし)',
+    ].join('\n')
     return (
       <div style={{
         minHeight: '100dvh', background: C.bg, color: C.text,
@@ -74,8 +88,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
 
         <button
           onClick={() => {
-            const body = `JPEL Manager ${APP_VERSION}\n${detail}`
-            void navigator.clipboard?.writeText(body).catch(() => {})
+            void navigator.clipboard?.writeText(report).catch(() => {})
           }}
           style={{
             padding: '9px 18px', borderRadius: 10, cursor: 'pointer',
