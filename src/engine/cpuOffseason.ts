@@ -24,18 +24,15 @@ import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
 import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, ovr, perfOf, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, seekPlayingTimeHeadline, transferHeadline, type NewsItem } from '../utils/newsItems'
-import { needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
-import { MAJOR_NEWS_OVR, tierOf, tierOfPlayerClub, tierStrength } from '../utils/clubTier'
+import { needsPlayer } from '../utils/squadNeeds'
+import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfPlayerClub, tierStrength } from '../utils/clubTier'
 import { DIVISION_SIZE, divisionOf, rankOfTeam, seasonDivisionStandings } from '../utils/league'
 import { cpuSpecialtyNeeds } from './cpuMarket'
 import { POACH_PREMIUM } from '../data/economy'
 import { ROSTER_MAX } from '../data/rosterRules'
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
 
-/**
- * 1軍の登録上限。解雇（超過ぶんを切る）とトレード（ここまで埋まっていたらもらう側に
- * ならない）が同じ数を見ている。元は両方 23 の直書きだった
- */
+/** 1軍の登録上限。**解雇で超過ぶんを切るときだけ**使う（元は 23 の直書き） */
 const FIRST_SQUAD_MAX = 23
 /** 売り手の上位何人を保護するか（エース級は出さない） */
 const TRADE_SELLER_PROTECTED = 3
@@ -371,6 +368,10 @@ export function runCpuTrades(
     maxTrades?: number
     /** その日の日付。**省略＝オフの既定（2/1）** */
     date?: string
+    /** ④本人の同意に渡す材料。**省略すると聞かない**（旧セーブ経路の保険） */
+    destinationOf?: (clubId: string, player: Player) => Destination
+    allTeams?: Team[]
+    foreignLeagues?: ForeignLeague[]
   },
 ): { players: Player[]; teams: Team[]; records: TransferRecord[] } {
   let players = world.players
@@ -385,7 +386,11 @@ export function runCpuTrades(
     if (ctx.maxTrades != null && done >= ctx.maxTrades) break
     if ((tradeCount[buyerId] ?? 0) >= 1) continue
     const buyRoster = players.filter(p => p.teamId === buyerId && p.status === 'active')
-    if (buyRoster.length >= FIRST_SQUAD_MAX) continue
+    // ★人数の門は**置かない**。1対1の交換なので在籍数は増えも減りもしない。
+    //   以前は「23人以上は買い手にならない」と書いてあったが、その直前の解雇が
+    //   1軍上限23人に揃えるので**51クラブ全部がちょうど23人**になり、買い手が
+    //   1クラブも残らなかった（`docs/AUDIT_TRANSFERS.md` 2-4）。
+    //   実際に通っていたのは「その前の移籍で人が抜けて22人になったクラブ」だけ。
     // 出すのは「自分のところで出番が無い選手」（transferDecision の hasNoPlayingTime 1本）。
     // 以前はここに平均OVRから作った下限表（74/67/60）があった＝格とは別の物差し
     const buyerRanked = [...buyRoster].sort(comparePlayers('ovr'))
@@ -401,18 +406,33 @@ export function runCpuTrades(
       const sellRoster = players
         .filter(p => p.teamId === sellerId && p.status === 'active')
         .sort(comparePlayers('ovr'))
-      // もらう側で走れて、出す側では走れない選手＝両方が得をする交換（squadNeeds 1本）。
-      // 釣り合いは utils/tradeValue の tradeBalance 1本（以前はここだけ「×1.3」と直書きで、
-      // 自チームのトレードが通る tradeValue.ts とは別の判定になっていた）
+      // ★**問いは現金の移籍とまったく同じ**（`docs/AUDIT_TRANSFERS.md` §3）。
+      //   ① 買う側が要るか      … needsPlayer（穴があって、そこで走れる）
+      //   ② 売る側で出せる選手か … 保有権・今季加入でない・出番が無い（hasNoPlayingTime）
+      //   ③ 対価が足りるか      … **形に応じたやり方**。現金なら予算、選手なら tradeBalance
+      //   ④ 本人が行くか        … 下の playerConsentToMove（2人とも動くので2人に聞く）
+      //
+      //   以前はここに**5つ目**があった：「売り手も、もらう選手を使えること」。
+      //   現金の移籍にはこの問いがありません（売り手は対価をもらうだけ）。
+      //   トレードだけ両側に「必要か」を課していたので、
+      //   「相手で15番手以降なのに、うちの走れる7人に入る」を**両クラブが互いに**
+      //   満たす必要があり、実測で1件も成立しませんでした。
       const target = sellRoster.slice(TRADE_SELLER_PROTECTED).find((p, i) =>
         isOwnedBy(p, sellerId) &&
         !tradedIds.has(p.id) &&
         p.joinedYear !== ctx.year &&
-        wouldMakeLineup(buyRoster, p) && hasNoPlayingTime(i + TRADE_SELLER_PROTECTED + 1) &&
+        needsPlayer(buyRoster, p) && hasNoPlayingTime(i + TRADE_SELLER_PROTECTED + 1) &&
         tradeBalance({ outPlayers: [offered], inPlayers: [p] }, ctx.tradeValueCtx).ok
       )
-      // 売り手が受け取る側でも使えること（needsPlayer / wouldMakeLineup）
-      if (!target || !(needsPlayer(sellRoster, offered) || wouldMakeLineup(sellRoster, offered))) continue
+      if (!target) continue
+      // ④ 本人が行くか。**2人とも動くので2人に聞く**（現金の移籍と同じ入口）。
+      //   クラブ同士は釣り合いで合意済みなので clubBlessed = true
+      if (ctx.destinationOf) {
+        const clubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
+        const asks: [Player, string][] = [[target, buyerId], [offered, sellerId]]
+        if (asks.some(([pl, to]) =>
+          !playerConsentToMove(pl, ctx.destinationOf!(to, pl), tierOfPlayerClub(pl.teamId, clubs), 0.5, 0, 0, true).ok)) continue
+      }
       done++
       tradedIds.add(offered.id); tradedIds.add(target.id)
       tradeCount[buyerId] = (tradeCount[buyerId] ?? 0) + 1
@@ -522,7 +542,8 @@ export function runCpuMarketTick(
   const excludeIds = new Set<string>()
   const bought = runCpuTransfers(world, { ...ctx, excludeIds, maxMoves: CPU_TICK_TRANSFERS })
   const traded = runCpuTrades({ players: bought.players, teams: bought.teams },
-    { playerTeamId: ctx.playerTeamId, year: ctx.year, tradeValueCtx: ctx.tradeValueCtx, excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date })
+    { playerTeamId: ctx.playerTeamId, year: ctx.year, tradeValueCtx: ctx.tradeValueCtx, excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date,
+      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues })
   const lent = runCpuLoans({ players: traded.players, teams: traded.teams },
     { playerTeamId: ctx.playerTeamId, year: ctx.year, excludeIds, maxLoans: CPU_TICK_LOANS, date: ctx.date })
   return {

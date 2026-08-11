@@ -544,7 +544,9 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       const traded = runCpuTrades(
         { players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
-          tradeValueCtx: tradeValueCtxOf(state), excludeIds: cpuTransferIds })
+          tradeValueCtx: tradeValueCtxOf(state), excludeIds: cpuTransferIds,
+          // ④本人の同意（現金の移籍と同じ入口）
+          destinationOf: get().destinationOf, allTeams: state.teams, foreignLeagues: state.foreignLeagues })
       playersAfterCpuTransfer = traded.players
       teamsAfterCpuTransfer = traded.teams
       offseasonTxRecords.push(...traded.records)
