@@ -191,6 +191,15 @@ endSeason: () => set(state => runSeasonEnd(state, [
 - ESLintの既存エラーは「新規に増やさない」ルール（CLAUDE.md）を維持。ビュー分割(P6)で触った
   ファイルだけ解消していく
 
+**P0で見つかったcheck群の課題（P7で対処）:**
+
+- `npm run check` に接続されているのは約50本中**19本**（P0でmigrate系2本＋snapshot1本を接続済み）。
+  残りの孤立スクリプトを棚卸しし、「接続する／手動計測ツールと明示する」に振り分ける
+- `check-transfer-bid.ts` は**10件NGのまま exit 0 を返す**（rival検査の経路が古く、問題があっても
+  落ちない）。P4のmarketスライス分割時に検査を現行コードに合わせて直し、exit codeも修正する
+- 乱数でスポット検証するスクリプトは偽陽性で落ちうる（check-fa-marketはP0でシード固定済み）。
+  同型の他スクリプトも接続時にシード固定する
+
 ---
 
 ## 6. 残っている重複の掃除リスト（P0・小粒）
@@ -228,7 +237,7 @@ endSeason: () => set(state => runSeasonEnd(state, [
 
 | フェーズ | 内容 | リスク |
 |---|---|---|
-| **P0 足場** | セーブfixture＋スナップショットをcheckに追加 / §6の残重複掃除（万表示統一含む）/ 給与定数化 | 低 |
+| **P0 足場** ✅完了(2026-08-11) | セーブfixture＋スナップショットをcheckに追加 / §6の残重複掃除（万表示統一含む）/ 給与定数化 / check-fa-marketのシード固定 | 低 |
 | **P1 成長統合** | `growPlayer`→engine/growth に1本化、ageCurve照合（§3） | 中 |
 | **P2 persist抽出** | L8020–8877 → `store/persistence/`、merge補正のbootRepair集約、migrate失敗時のsaveHealth接続（§4） | 中 |
 | **P3 engine抽出** | 末尾~690行・冒頭~290行・実績~150行の純関数を engine/（cpuMarket・individualRace・draft・achievements）へ移動。当面re-exportで互換維持 | 低〜中 |
