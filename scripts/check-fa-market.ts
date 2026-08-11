@@ -31,6 +31,16 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) problems.push(name)
 }
 
+// 乱数をシード固定して毎回同じロスターで見る。
+// 「3部の選手が1部へ行けるか」をスポットで見る検査なので、生成の引きが悪いと
+// 走っている選手ですら全クラブに断られて偽陽性でNGになっていた（体感3割で落ちる）。
+// 判定コードの検査であって分布の検査ではないため、入力を固定する。
+let rngSeed = 20260811
+Math.random = () => {
+  rngSeed = (rngSeed * 1664525 + 1013904223) >>> 0
+  return rngSeed / 4294967296
+}
+
 const store = readFileSync('src/store/gameStore.ts', 'utf8')
 
 console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')

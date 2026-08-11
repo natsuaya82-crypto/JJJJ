@@ -1,0 +1,516 @@
+{
+ "adsRemoved": "boolean",
+ "adsWatchedToday": "undefined",
+ "balancePatch": "number",
+ "currentSeason": {
+  "acquisitionOffers": {
+   "$len": 0
+  },
+  "chatLogs": {
+   "dup": {
+    "$len": 2,
+    "$item": {
+     "from": "string",
+     "text": "string"
+    }
+   }
+  },
+  "collegeRaces": {
+   "$len": 0
+  },
+  "contractRequests": {
+   "$len": 0
+  },
+  "currentRaceIndex": "number",
+  "draftPool": {
+   "$len": 0
+  },
+  "events": {
+   "$len": 0
+  },
+  "faVisits": {
+   "$len": 0
+  },
+  "foreignStandings": {
+   "africa_east": {
+    "$len": 2,
+    "$item": {
+     "raceResults": {
+      "$len": 1,
+      "$item": {
+       "points": "number",
+       "raceId": "string",
+       "rank": "number"
+      }
+     },
+     "teamId": "string",
+     "totalPoints": "number"
+    }
+   }
+  },
+  "incomingOffers": {
+   "$len": 0
+  },
+  "initialBudget": "number",
+  "newsFeed": {
+   "$len": 1,
+   "$item": {
+    "category": "string",
+    "date": "string",
+    "headline": "string",
+    "relatedIds": {
+     "$len": 0
+    }
+   }
+  },
+  "objectives": {
+   "$len": 0
+  },
+  "pendingTradeOffers": {
+   "$len": 0
+  },
+  "phase": "string",
+  "races": {
+   "$len": 2,
+   "$item": {
+    "conditions": {
+     "elevation": "number",
+     "temperature": "number",
+     "weather": "string"
+    },
+    "date": "string",
+    "id": "string",
+    "location": "string",
+    "name": "string",
+    "results": {
+     "segmentResults": {
+      "$len": 1,
+      "$item": {
+       "runners": {
+        "$len": 20,
+        "$item": {
+         "playerId": "string",
+         "rank": "number",
+         "teamId": "string",
+         "timeSec": "number"
+        }
+       },
+       "segmentIndex": "number"
+      }
+     },
+     "teamRankings": {
+      "$len": 0
+     }
+    },
+    "segments": {
+     "$len": 10,
+     "$item": {
+      "distanceKm": "number",
+      "downhillPct": "number",
+      "index": "number",
+      "recommended": "string",
+      "statWeights": {
+       "mental": "number",
+       "pacing": "number",
+       "recovery": "number",
+       "speed": "number",
+       "stamina": "number"
+      },
+      "uphillPct": "number"
+     }
+    },
+    "type": "string"
+   }
+  },
+  "retirementRequests": {
+   "$len": 0
+  },
+  "scoutMissions": {
+   "$len": 0
+  },
+  "scoutPoints": "number",
+  "scoutProspects": {
+   "$len": 0
+  },
+  "scoutedOpponents": {
+   "$len": 0
+  },
+  "seasonGrant": "number",
+  "seasonRaceIncome": "number",
+  "standings": {
+   "1": {
+    "$len": 20,
+    "$item": {
+     "leaguePoints": "number",
+     "raceResults": {
+      "$len": 1,
+      "$item": {
+       "points": "number",
+       "raceId": "string",
+       "rank": "number"
+      }
+     },
+     "segmentPoints": "number",
+     "teamId": "string",
+     "totalPoints": "number"
+    }
+   },
+   "2": {
+    "$len": 16,
+    "$item": {
+     "leaguePoints": "number",
+     "raceResults": {
+      "$len": 0
+     },
+     "segmentPoints": "number",
+     "teamId": "string",
+     "totalPoints": "number"
+    }
+   },
+   "3": {
+    "$len": 16,
+    "$item": {
+     "leaguePoints": "number",
+     "raceResults": {
+      "$len": 0
+     },
+     "segmentPoints": "number",
+     "teamId": "string",
+     "totalPoints": "number"
+    }
+   }
+  },
+  "trainingAssignments": {},
+  "trainingPlan": "null",
+  "transferBids": {
+   "$len": 0
+  },
+  "transferListings": {
+   "$len": 0
+  },
+  "transferRequests": {
+   "$len": 0
+  },
+  "year": "number"
+ },
+ "deficitRescue": "number",
+ "draftState": "null",
+ "foreignLeagues": "undefined",
+ "giftGivenVersions": {
+  "$len": 0
+ },
+ "gmOffers": {
+  "$len": 0
+ },
+ "gmRep": "number",
+ "gmTenures": {
+  "$len": 1,
+  "$item": {
+   "fromYear": "number",
+   "teamId": "string"
+  }
+ },
+ "growthReport": "null",
+ "hofRoster": {
+  "$len": 0
+ },
+ "inauguralPlayerCreated": "boolean",
+ "isInitialized": "boolean",
+ "japanRecords": {},
+ "jewels": "number",
+ "lastAdDate": "undefined",
+ "lastGmOfferYear": "undefined",
+ "lastLoginDate": "undefined",
+ "lastRaceLineup": {},
+ "loginStreak": "number",
+ "myPlayerCreated": "boolean",
+ "pastSeasons": {
+  "$len": 1,
+  "$item": {
+   "foreignStandings": {
+    "africa_east": {
+     "$len": 2,
+     "$item": {
+      "raceResults": {
+       "$len": 1,
+       "$item": {
+        "points": "number",
+        "raceId": "string",
+        "rank": "number"
+       }
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "races": {
+    "$len": 1,
+    "$item": {
+     "conditions": {
+      "elevation": "number",
+      "temperature": "number",
+      "weather": "string"
+     },
+     "date": "string",
+     "id": "string",
+     "location": "string",
+     "name": "string",
+     "results": {
+      "segmentResults": {
+       "$len": 1,
+       "$item": {
+        "runners": {
+         "$len": 20,
+         "$item": {
+          "playerId": "string",
+          "rank": "number",
+          "teamId": "string",
+          "timeSec": "number"
+         }
+        },
+        "segmentIndex": "number"
+       }
+      },
+      "teamRankings": {
+       "$len": 0
+      }
+     },
+     "segments": {
+      "$len": 6,
+      "$item": {
+       "distanceKm": "number",
+       "downhillPct": "number",
+       "index": "number",
+       "recommended": "string",
+       "statWeights": {
+        "mountainDown": "number",
+        "mountainUp": "number",
+        "pacing": "number",
+        "recovery": "number",
+        "stamina": "number"
+       },
+       "uphillPct": "number"
+      }
+     },
+     "type": "string"
+    }
+   },
+   "standings": {
+    "1": {
+     "$len": 20,
+     "$item": {
+      "leaguePoints": "number",
+      "raceResults": {
+       "$len": 1,
+       "$item": {
+        "points": "number",
+        "raceId": "string",
+        "rank": "number"
+       }
+      },
+      "segmentPoints": "number",
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    },
+    "2": {
+     "$len": 0
+    },
+    "3": {
+     "$len": 0
+    }
+   },
+   "waRaces": {
+    "asia": {
+     "$len": 1,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": {
+       "segmentResults": {
+        "$len": 1,
+        "$item": {
+         "runners": {
+          "$len": 20,
+          "$item": {
+           "playerId": "string",
+           "rank": "number",
+           "teamId": "string",
+           "timeSec": "number"
+          }
+         },
+         "segmentIndex": "number"
+        }
+       },
+       "teamRankings": {
+        "$len": 0
+       }
+      },
+      "segments": {
+       "$len": 8,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    }
+   },
+   "year": "number"
+  }
+ },
+ "pendingGifts": {
+  "$len": 0
+ },
+ "playerTeamId": "string",
+ "players": {
+  "$len": 1300,
+  "$item": {
+   "age": "number",
+   "career": {
+    "championships": "number",
+    "mvpAwards": "number",
+    "segmentWins": "number",
+    "totalRaces": "number"
+   },
+   "contract": {
+    "annualSalary": "number",
+    "contractType": "string",
+    "faEligibleYear": "number",
+    "yearsLeft": "number"
+   },
+   "draftPick": "null",
+   "draftRound": "null",
+   "draftYear": "number",
+   "fatigue": "number",
+   "form": "number",
+   "growthCurve": "string",
+   "id": "string",
+   "morale": "number",
+   "name": "string",
+   "nameKana": "string",
+   "nationality": "string",
+   "origin": "string",
+   "personality": "string",
+   "potential": "number",
+   "ratings": {
+    "mental": "number",
+    "mountainDown": "number",
+    "mountainUp": "number",
+    "pacing": "number",
+    "recovery": "number",
+    "speed": "number",
+    "stamina": "number"
+   },
+   "specialty": "string",
+   "status": "string",
+   "teamId": "string",
+   "traits": {
+    "$len": 0
+   },
+   "yearsPro": "number"
+  }
+ },
+ "raceDroppedCards": {
+  "$len": 0
+ },
+ "raceLineup": {},
+ "raceStrategy": "string",
+ "raceTeamTalk": "string",
+ "rivalTeamId": "null",
+ "saveTimestamp": "string",
+ "seasonBudgetNotice": "null",
+ "seenInjuryIds": {
+  "$len": 0
+ },
+ "seenJoinIds": {
+  "$len": 0
+ },
+ "sponsors": {
+  "$len": 0
+ },
+ "starredOpponents": {
+  "$len": 0
+ },
+ "starredProspects": {
+  "$len": 0
+ },
+ "teams": {
+  "$len": 52,
+  "$item": {
+   "city": "string",
+   "colors": {
+    "primary": "string",
+    "secondary": "string"
+   },
+   "division": "number",
+   "draftPicks": {
+    "$len": 0
+   },
+   "finance": {
+    "budget": "number",
+    "deficitStreak": "number"
+   },
+   "founded": "number",
+   "gmName": "string",
+   "id": "string",
+   "initialRank": "number",
+   "isPlayerControlled": "boolean",
+   "name": "string",
+   "region": "string",
+   "roster?": {
+    "main": {
+     "$len": 25,
+     "$item": "string"
+    }
+   },
+   "shortName": "string"
+  }
+ },
+ "totalLoginDays": "number",
+ "trainingCards": {
+  "$len": 0
+ },
+ "transferHistory": {
+  "$len": 0
+ },
+ "twitterIntroSeen": "boolean",
+ "version": "string",
+ "worldAthleticsResults": {
+  "$len": 1,
+  "$item": {
+   "advanced": {
+    "$len": 0
+   },
+   "host": "string",
+   "kind": "string",
+   "standings": {
+    "$len": 0
+   },
+   "year": "number"
+  }
+ },
+ "worldRecords": {},
+ "worldRepresentatives": {
+  "$len": 0
+ }
+}
