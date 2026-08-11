@@ -47,7 +47,11 @@ if (!CHROME) {
 type Dev = { url: string; stop: () => void }
 function startDev(): Promise<Dev> {
   return new Promise((resolve, reject) => {
-    const child = spawn('npm', ['run', 'dev'], { cwd: process.cwd(), env: process.env })
+    // ★プロセスグループごと起こす。`npm run dev` は sh → vite と孫が生えるので、
+    //   子だけ kill しても vite が生き残り、その stdio がこちらを終わらせない
+    //   （結果を出したあと固まる。落ちるときは process.exit で抜けるので、
+    //     **緑になって初めて出る**種類の穴だった）
+    const child = spawn('npm', ['run', 'dev'], { cwd: process.cwd(), env: process.env, detached: true })
     let buf = ''
     const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`dev サーバが立ち上がりませんでした:\n${buf.slice(-500)}`)) }, 60000)
     const onData = (d: Buffer) => {
@@ -56,7 +60,7 @@ function startDev(): Promise<Dev> {
       if (m) {
         clearTimeout(timer)
         child.stdout?.off('data', onData)
-        resolve({ url: m[0] + '/', stop: () => { try { child.kill('SIGKILL') } catch { /* もう死んでいる */ } } })
+        resolve({ url: m[0] + '/', stop: () => { try { process.kill(-child.pid!, 'SIGKILL') } catch { /* もう死んでいる */ } } })
       }
     }
     child.stdout?.on('data', onData)
@@ -125,6 +129,7 @@ async function main() {
   }
   console.log('')
   console.log('✓ 開いてタイトル画面まで出ました')
+  process.exit(0)
 
 }
 
