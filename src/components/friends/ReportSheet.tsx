@@ -4,6 +4,7 @@
 // 送り先は Supabase の reports テーブルで、他の利用者からは見えない。
 // 相手が利用者の場合は、ここから同時にブロックもできるようにしてある。
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { REPORT_REASONS, REPORT_DETAIL_MAX, sendReport, blockUser, invalidateBlocked, type ReportReason } from '../../lib/moderationApi'
 
@@ -47,7 +48,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
     onDone(blocked ? '通報してブロックしました' : '通報しました', blocked)
   }
 
-  return (
+  return createPortal((
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
@@ -159,5 +160,5 @@ export default function ReportSheet({ target, onClose, onDone }: {
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
