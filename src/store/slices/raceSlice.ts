@@ -14,6 +14,7 @@ import { resolveTransferBids } from '../../engine/bidResolution'
 import { signInSeasonFreeAgents } from '../../engine/inSeasonFa'
 import { buildSeasonFinaleNews } from '../../engine/seasonFinaleNews'
 import { applySettledTransfers } from '../../engine/applyTransfers'
+import { resolveLoanRequests } from '../../engine/loanRequests'
 import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -26,15 +27,15 @@ import { generateRaceEvents } from '../../engine/eventEngine'
 import { simulateIndividualTime } from '../../engine/individualRace'
 import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
-import { type CardRarity, type CardStatKey, type ExpiredNegotiation, type GameState, type LoanResponse, type Player, type Ratings, type TrainingCard, type TransferRecord } from '../../types'
+import { type CardRarity, type CardStatKey, type ExpiredNegotiation, type GameState, type Player, type Ratings, type TrainingCard, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
 import { allForeignClubs, findClub, foreignClubIdSet } from '../../utils/clubs'
 import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { DIVISION_SIZE, divisionOf, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { loanReplyHeadline, recordHeadline, segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
-import { faMarketSalary, getStatPotentials, keyPlayerStatus, ovr, racesConsumed, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
+import { recordHeadline, segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { faMarketSalary, getStatPotentials, ovr, racesConsumed, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
 import { openWishIds } from '../../utils/talkSync'
 import { dreamRegionOf } from '../../utils/transferDecision'
@@ -409,43 +410,15 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const outbidNewsItems = applied.outbidNews
       bidExpiredNegs.push(...applied.stayNegs)
 
-      // レンタル要請（移籍市場から出したもの）の応答。相手が承諾なら借用成立、拒否ならニュース。
-      const pendingLoanReqs = state.currentSeason.loanRequests ?? []
-      let playersAfterLoan: Player[] = playersWithCpuTx
-      let teamsAfterLoan = teamsWithCpuTx
-      const loanRespNews: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[] = []
-      const newLoanResponses: LoanResponse[] = []
-      if (pendingLoanReqs.length > 0) {
-        let freeSlots = Math.max(0, 3 - playersWithCpuTx.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length)
-        const accepted: { playerId: string; ownerId: string; years: number }[] = []
-        for (const req of pendingLoanReqs) {
-          const pl = playersWithCpuTx.find(p => p.id === req.playerId)
-          if (!pl || pl.teamId !== req.targetTeamId || pl.loan) { continue }
-          const loanable = keyPlayerStatus(pl, { year: state.currentSeason.year, races: updatedRaces, eclSeries: state.currentSeason.eclSeries }, state.pastSeasons) === 'open'
-          const ownerShort = findClub(teamsWithCpuTx, state.foreignLeagues, pl.teamId)?.shortName
-            ?? '相手クラブ'
-          if (loanable && freeSlots > 0) {
-            accepted.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
-            loanRespNews.push({ date: race.date, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: pl.name, years: req.years, accepted: true }), category: 'trade', relatedIds: [pl.id] })
-            newLoanResponses.push({ id: `lresp_${pl.id}_${raceIndex}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: true, years: req.years })
-          } else {
-            loanRespNews.push({ date: race.date, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: pl.name, years: req.years, accepted: false }), category: 'trade', relatedIds: [pl.id] })
-            newLoanResponses.push({ id: `lresp_${pl.id}_${raceIndex}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: false, years: req.years })
-          }
-        }
-        // 借用成立も movePlayer に通す（保有元を残して、貸した側の名簿から外す）
-        for (const a of accepted) {
-          const m = movePlayer({ players: playersAfterLoan, teams: teamsAfterLoan }, a.playerId, playerTeamId, {
-            year: state.currentSeason.year,
-            until: state.currentSeason.year + a.years,
-            raceIndex: raceIndex + 1,
-            years: a.years,
-            myTeamId: playerTeamId })
-          if (!m.ok) continue
-          playersAfterLoan = m.players
-          teamsAfterLoan = m.teams
-        }
-      }
+      // レンタル要請への返事は engine/loanRequests 1本（成立も movePlayer を通る）
+      const loanResult = resolveLoanRequests({
+        players: playersWithCpuTx, teams: teamsWithCpuTx, foreignLeagues: state.foreignLeagues,
+        currentSeason: state.currentSeason, pastSeasons: state.pastSeasons, races: updatedRaces,
+        playerTeamId, raceIndex, raceDate: race.date })
+      const playersAfterLoan = loanResult.players
+      const teamsAfterLoan = loanResult.teams
+      const loanRespNews = loanResult.news
+      const newLoanResponses = loanResult.responses
 
       const prevDoneIds = new Set((state.currentSeason.objectives ?? []).filter(o => o.done).map(o => o.id))
       const midRaceObjJewels = updatedObjectives
