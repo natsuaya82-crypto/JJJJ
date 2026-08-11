@@ -8,6 +8,7 @@ import { buildRaceNews } from '../../engine/raceNews'
 import { applyRaceFatigue } from '../../engine/raceFatigue'
 import { applyRaceProgress } from '../../engine/raceProgress'
 import { detectSegmentRecords } from '../../engine/raceRecords'
+import { settleCpuTransfers } from '../../engine/cpuTransfers'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -30,14 +31,14 @@ import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { DIVISION_SIZE, divisionOf, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
-import { awardHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { awardHeadline, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, freeContactConsent, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
 import { openWishIds } from '../../utils/talkSync'
 import { resolveBid } from '../../utils/transferBid'
 import { appraiseMove, dreamRegionOf } from '../../utils/transferDecision'
-import { canBePoached, canWishTransfer } from '../../utils/transferEligibility'
+import { canWishTransfer } from '../../utils/transferEligibility'
 import { rivalClubsFor } from '../../utils/transferRivals'
 
 type Slice = Pick<GameStore,
@@ -317,61 +318,15 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 「移籍受付中」なのに何も来ない期間ができていたので、常時オープンに揃えた
       // 引退希望を受理済みの選手（移籍の話は持ちかけない）。売出の成立判定でも使う
       const retiringWishIds = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
-      // CPU-to-CPU transfer completions
-      type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
-      const cpuTxList: CpuTx[] = []
-      const cpuTxListingIds = new Set<string>()
-      {
-        const movedThisRace = new Set<string>()
-        // 買い手の総在籍数（引退除く）。30人以上のチームは補強不可＝ロスター肥大を止める
-        const rosterCount = new Map<string, number>()
-        for (const pl of finalPlayers) {
-          if (pl.status === 'active' && pl.teamId) rosterCount.set(pl.teamId, (rosterCount.get(pl.teamId) ?? 0) + 1)
-        }
-        for (const listing of (state.currentSeason.transferListings ?? [])) {
-          // 自チームの出品は原則対象外だが、「移籍を認めた」選手（lst-allow-）はCPUが直接買い取れる
-          const isMyAllowListing = listing.fromTeamId === playerTeamId && listing.id.startsWith('lst-allow-')
-          if ((listing.fromTeamId === playerTeamId && !isMyAllowListing) || listing.competingTeams.length === 0) continue
-          if (Math.random() >= 0.5) continue
-          const buyerTeamId = listing.competingTeams[Math.floor(Math.random() * listing.competingTeams.length)]
-          const p = finalPlayers.find(pl => pl.id === listing.playerId)
-          const seller = state.teams.find(t => t.id === listing.fromTeamId)
-          const buyer = state.teams.find(t => t.id === buyerTeamId)
-          if (!p || !seller || !buyer) continue
-          // 出品後に選手が移籍していた古い出品は成立させない（現所属と出品元が一致するときのみ）。
-          // レンタル中・非売品・海外挑戦を承認済み・今季加入の除外は canBePoached が見る。
-          // 同一レース内で同じ選手が二重に動くのと、買い手が現所属と同じ場合はここで弾く
-          if (!canBePoached(p, { teamId: listing.fromTeamId, currentYear: state.currentSeason.year, retiringIds: retiringWishIds }) || movedThisRace.has(p.id) || buyerTeamId === p.teamId) {
-            cpuTxListingIds.add(listing.id)  // 無効な出品は掃除する
-            continue
-          }
-          // 買い手が満杯（30人以上）または予算不足なら今回は見送り（出品は残す）
-          if ((rosterCount.get(buyerTeamId) ?? 0) >= ROSTER_MAX || buyer.finance.budget < listing.askingPrice) continue
-          // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。
-          // ここは自動成立なので断られても札は消さず、別のクラブ・別のレースで話が来るのを待つ
-          if (!appraiseMove(p, get().destinationOf(buyerTeamId, p), {
-            srcTier: tierOfPlayerClub(listing.fromTeamId, allTieredClubs(state.teams, state.foreignLeagues)),
-            playFraction: 0.5, teamRaces: 0, clubBlessed: true }).ok) continue
-          movedThisRace.add(p.id)
-          rosterCount.set(buyerTeamId, (rosterCount.get(buyerTeamId) ?? 0) + 1)
-          rosterCount.set(listing.fromTeamId, Math.max(0, (rosterCount.get(listing.fromTeamId) ?? 1) - 1))
-          cpuTxList.push({ playerId: p.id, fromTeamId: listing.fromTeamId, toTeamId: buyerTeamId, playerName: p.name, playerOvr: ovr(p), fromShort: seller.shortName, toShort: buyer.shortName, fee: listing.askingPrice })
-          cpuTxListingIds.add(listing.id)
-        }
-      }
-      const cpuTxNewsItems: typeof state.currentSeason.newsFeed = cpuTxList.map(tx => ({
-        date: race.date,
-        // どの部からどの部へ動いたかを出す。市場の流れ（1部の控え→2部・3部）が
-        // ニュースだけで追えるようにする
-        headline: transferHeadline({
-          playerName: tx.playerName, playerOvr: tx.playerOvr, fee: tx.fee,
-          fromLabel: clubLabel(tx.fromTeamId, state.teams), toLabel: clubLabel(tx.toTeamId, state.teams) }),
-        category: 'trade' as const,
-        relatedIds: [tx.playerId],
-        // 大ニュースはOVR85以上か格1のクラブが絡んだとき（utils/clubTier 1本）
-        major: tx.playerOvr >= MAJOR_NEWS_OVR || bigClub(state, tx.fromTeamId) || bigClub(state, tx.toTeamId),
-        fromTeamId: tx.fromTeamId,
-        toTeamId: tx.toTeamId }))
+      // CPU同士の移籍の成立は engine/cpuTransfers 1本
+      const cpuSettle = settleCpuTransfers({
+        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        currentSeason: state.currentSeason, playerTeamId, raceDate: race.date,
+        retiringWishIds, destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
+      const cpuTxList = cpuSettle.txList
+      const cpuTxListingIds = cpuSettle.settledListingIds
+      const cpuTxNewsItems = cpuSettle.news
+
       const existingListingsFiltered = (state.currentSeason.transferListings ?? []).filter(l => !cpuTxListingIds.has(l.id))
 
       // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
