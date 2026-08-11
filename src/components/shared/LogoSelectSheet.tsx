@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { LOGO_PRESETS, logoPresetSrc } from '../../data/logoPresets'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useAdHeight } from '../layout/Layout'
@@ -22,7 +23,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
     border: selected ? `2px solid ${C.gold}` : `1px solid ${alpha(C.gold, 0.14)}`,
   })
 
-  return (
+  return createPortal((
     <div style={{
       position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, left: 0, right: 0, bottom: 0, zIndex: 1100,
       backgroundColor: C.bg,
@@ -63,5 +64,5 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
