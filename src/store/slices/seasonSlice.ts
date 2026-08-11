@@ -6,7 +6,6 @@ import { computeNextSeasonBudget, draftPickValue, operatingCostOf } from '../../
 import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { ROSTER_MAX } from '../../data/rosterRules'
-import { generateSponsorOffers } from '../../data/sponsors'
 import { INITIAL_TEAMS } from '../../data/teams'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
@@ -20,6 +19,7 @@ import { type Division, type GameState, type GmOffer, type Nationality, type Pla
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
 import { computePromotion } from '../../engine/promotion'
+import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { allTieredClubs, tierBudget, tierFromForeignRank, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { findClub, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
@@ -30,7 +30,7 @@ import { makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { gmCareerTotals, gmSeasonRanks, startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, domesticThroughRankOfTeam, myDivSize, newSeasonStandings, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { type NewsItem, bonusPayoutHeadline, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline, sponsorEndHeadline } from '../../utils/newsItems'
+import { type NewsItem, bonusPayoutHeadline, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, ovr, packForeignApps, perfOf, retirementAgeOf } from '../../utils/playerUtils'
 import { clubMembersByClub, squadIdsOf } from '../../utils/rosterSync'
@@ -359,52 +359,16 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const myNextTier = promo.myNextTier
       const divisionMoveNews = promo.divisionMoveNews
 
-      // Sponsor contract processing
-      const myActiveSponsorIds = state.teams.find(t => t.id === state.playerTeamId)?.sponsors ?? []
-      const mySegWins = state.currentSeason.races
-        .filter(r => r.results)
-        .flatMap(r => r.results!.segmentResults)
-        .filter(sr => sr.runners[0]?.teamId === state.playerTeamId)
-        .length
-      const expiredSponsorIds = new Set<string>()
-      const sponsorNews: typeof state.currentSeason.newsFeed = []
-      const renewalOffers: import('../../types').SponsorOffer[] = []
-      const updatedSponsors = (state.sponsors ?? []).map(sp => {
-        if (!myActiveSponsorIds.includes(sp.id)) return sp
-        const newYearsLeft = sp.yearsLeft - 1
-        if (newYearsLeft <= 0) {
-          expiredSponsorIds.add(sp.id)
-          let targetMet = true
-          if (sp.target) {
-            if (sp.target.type === 'rank') targetMet = myFinalRank > 0 && myFinalRank <= sp.target.value
-            else if (sp.target.type === 'segmentWins') targetMet = mySegWins >= sp.target.value
-            else if (sp.target.type === 'championship') targetMet = myFinalRank === 1
-          }
-          if (targetMet) {
-            renewalOffers.push({
-              id: `offer_renewal_${sp.id}_${newYear}`,
-              name: sp.name,
-              tier: sp.tier,
-              annualPayment: Math.round(sp.annualPayment * 1.05 / 500000) * 500000,
-              contractYears: Math.min((sp.contractYears ?? 1) + 1, 3),
-              target: sp.target ?? { type: 'rank', value: 5, description: '5位以内' },
-              logoColor: sp.logoColor })
-          }
-          sponsorNews.push({
-            date: `${state.currentSeason.year}-10-27`,
-            headline: sponsorEndHeadline({ sponsorName: sp.name, met: targetMet, targetDesc: sp.target?.description }),
-            category: 'finance' as const,
-            relatedIds: [] })
-        }
-        return { ...sp, yearsLeft: Math.max(0, newYearsLeft) }
-      })
-      // 前年にオファーが来た会社・契約中の会社は翌年の新規候補から除外（毎年同じ顔ぶれになるのを防ぐ）
-      const tplIdOf = (id: string) => /^(?:sp_)?offer_(.+)_\d+_\d+$/.exec(id)?.[1]
-      const excludeTplIds = [
-        ...(state.currentSeason.sponsorOffers ?? []).map(o => tplIdOf(o.id)),
-        ...updatedSponsors.filter(sp => sp.yearsLeft > 0).map(sp => tplIdOf(sp.id)),
-      ].filter((x): x is string => !!x)
-      const newSponsorOffers = [...renewalOffers, ...generateSponsorOffers(myNextTier, newYear, excludeTplIds)]
+      // スポンサー契約の年度処理は engine/sponsorSeason 1本
+      const sponsorResult = processSeasonSponsors({
+        sponsors: state.sponsors ?? [], teams: state.teams, currentSeason: state.currentSeason,
+        playerTeamId: state.playerTeamId, myFinalRank, myNextTier, newYear })
+      const updatedSponsors = sponsorResult.sponsors
+      const expiredSponsorIds = sponsorResult.expiredIds
+      const sponsorNews = sponsorResult.news
+      const newSponsorOffers = sponsorResult.offers
+      const myActiveSponsorIds = sponsorResult.activeIds
+
       // 連続上位はセーブに持たないので、過去シーズン（＝今季を入れる前）の順位表から数え直す。
       // 昔ここで読んでいた値も「今季を足す前」の連続数だったので、意味は同じ
       const myTeamStreak = teamHistoryOf(state.pastSeasons, state.playerTeamId).currentStreak
