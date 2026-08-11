@@ -240,7 +240,7 @@ endSeason: () => set(state => runSeasonEnd(state, [
 | **P0 足場** ✅完了(2026-08-11) | セーブfixture＋スナップショットをcheckに追加 / §6の残重複掃除（万表示統一含む）/ 給与定数化 / check-fa-marketのシード固定 | 低 |
 | **P1 成長統合** ✅完了(2026-08-11) | `growPlayer`→engine/growth に純移動。係数の食い違いは無し（ageCurveで統一済みと確認、オーナー判断は不要だった）。bakeAgeGrowthへの古い言及も掃除 | 中→低 |
 | **P2 persist抽出** ✅完了(2026-08-11) | migrate→persistence/migrateSave.ts、merge→mergeSave.ts、SAVE_VERSION分離。merge内の補正7ブロックは bootRepair ではなく **persistence/normalizeSave.ts** に集約（bootRepairは「冪等な導出修復」専用のまま保ち、一回きりパッチと混ぜないため）。migrate失敗時は saveHealth=failed でセーフモード接続（意図した挙動変更・独立コミット） | 中 |
-| **P3 engine抽出** | 末尾~690行・冒頭~290行・実績~150行の純関数を engine/（cpuMarket・individualRace・draft・achievements）へ移動。当面re-exportで互換維持 | 低〜中 |
+| **P3 engine抽出** ✅完了(2026-08-11) | cpuMarket(約580行)・achievements・draftOrder・individualRace・raceBoosts を engine/ へ、perfOf を utils/playerUtils へ移設。re-exportは残さず参照元を直接更新（RacePageのgameStore依存も解消）。gameStoreは7,479行に。**売却フロー系ヘルパー（willingFeeFor/sellMove/finalizeSale/appendChatLog等）は意図的に残置**——チャット・ニュースと絡む「取引の実行」であり、P4のmarketスライスの私有部分として一緒に動かすほうが安全 | 低〜中 |
 | **P4 スライス分割** | `set`ラッパーのmiddleware化（§2.3）→ §2.2の番号順に10分割。**ロジック変更なし・移動のみ**。1スライスごとに独立コミット | 中〜高 |
 | **P5 巨大アクション分解** | runRace / endSeason / beginSeasonDraft をフェーズ関数列に（§2.4）。rng注入・seed固定ダンプで新旧一致を確認。**1アクション=1PR** | **高** |
 | **P6 ビュー分解** | §7 の7ファイル | 中 |
