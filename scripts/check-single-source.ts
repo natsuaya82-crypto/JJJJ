@@ -246,6 +246,7 @@ RULES.push({
   allow: [
     'src/utils/waRaces.ts',          // 唯一の取り出し口（新旧どちらも吸収する）
     'src/store/gameStore.ts',        // 書く側
+    'src/store/slices/worldAthleticsSlice.ts',  // 書く側（世界選手権スライス）
     'src/store/persistence/migrateSave.ts',  // 旧セーブの移行（v37の詰め替え）
     'src/store/seasonArchive.ts',    // 別ファイルへの書き出し・読み戻し
     'src/utils/archiveSeason.ts',    // 過去シーズンへの詰め替え
