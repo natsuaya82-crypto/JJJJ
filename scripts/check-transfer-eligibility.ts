@@ -17,7 +17,7 @@ import {
 import type { Player } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { storeSource, actionBody } from './storeSource'
+import { storeSource, logicSource, actionBody } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -193,7 +193,11 @@ check('オファー逆提示（counterIncomingOffer）が canAcceptOfferFor を�
 // 契約更新の判定は utils/contractTalk.ts に寄せてある（canRequestRenewal の中で canStartContractTalk を通る）
 check('契約要求の生成（generateContractRequests）が canRequestRenewal を通る', has('generateContractRequests', 'canRequestRenewal'))
 check('契約更新の判定の土台が canStartContractTalk のまま', readFileSync(join('src', 'utils', 'contractTalk.ts'), 'utf-8').includes('canStartContractTalk(p, {'))
-check('移籍希望の生成（runRace）が canWishTransfer を通る', store.includes('canWishTransfer(p, {'))
+// ここだけ logicSource（store＋engine）で見る。**「どこに書いてあるか」ではなく
+// 「その決まりを通っているか」を見る判定**で、直訴の生成は engine/playerWishes へ移した。
+// 上の has(...) 群は「store にこれを手書きしていないか」を見る別の性格の判定なので
+// storeSource のままにしてある（engine を混ぜると主張が変わってしまう）
+check('移籍希望の生成（playerWishes）が canWishTransfer を通る', logicSource().includes('canWishTransfer(p, {'))
 
 console.log('\n[12] 退団予定（isLeavingClub）を1箇所で見ている')
 // 「移籍を認めたのに引き留めの条件が出る」の対策。
