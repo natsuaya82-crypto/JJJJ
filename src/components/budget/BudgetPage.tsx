@@ -3,18 +3,13 @@ import BackButton from '../ui/BackButton'
 import { useGameStore, reinforcementBanned } from '../../store/gameStore'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { fmtYen } from '../../utils/money'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { operatingCostOf, CARRYOVER_CAP_SHARE } from '../../data/economy'
 import { facilityUpkeepOf } from '../../utils/facilities'
 
 
-// 財務ページは万円単位で統一表示（例: 4.2億→42,000万、3500万→3,500万）。
-// 丸めないので内訳の合計が初期予算とぴったり一致して見える
-function fmt(yen: number, showSign = false) {
-  const sign = showSign && yen >= 0 ? '+' : ''
-  return `${sign}${Math.round(yen / 10_000).toLocaleString()}万`
-}
 
 function Row({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
   return (
@@ -120,7 +115,7 @@ export default function BudgetPage() {
               今シーズンの予算
             </div>
             <div style={{ fontFamily: SAIRA, fontSize: 42, fontWeight: 900, color: budgetColor, lineHeight: 1, textShadow: budgetColor === C.green ? '0 0 10px rgba(46,204,113,0.4)' : budgetColor === C.red ? '0 0 10px rgba(255,71,87,0.4)' : '0 0 10px rgba(255,152,0,0.4)' }}>
-              {fmt(budget)}
+              {fmtYen(budget)}
             </div>
             <div style={{ fontSize: 11, color: C.textDim, marginTop: 6 }}>
               {budget >= 0 ? '移籍・補強に今使えるお金' : '予算不足 — 選手放出を検討してください'}
@@ -141,7 +136,7 @@ export default function BudgetPage() {
         }}>
           <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <Row label="初期予算" value={`+${fmt(initialBudget)}`} color={C.gold} />
+            <Row label="初期予算" value={`+${fmtYen(initialBudget)}`} color={C.gold} />
             {bd && (
               <div style={{ padding: '4px 0 8px 12px', marginLeft: 4, marginBottom: 4, borderLeft: `2px solid ${alpha(C.gold, 0.25)}` }}>
                 <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 3, letterSpacing: 1 }}>初期予算の内訳</div>
@@ -154,17 +149,17 @@ export default function BudgetPage() {
                 ] as [string, number][]).map(([label, v]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
                     <span style={{ fontSize: 11, color: C.textDim }}>{label}</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: v >= 0 ? C.textSub : C.red }}>{v >= 0 ? '+' : '-'}{fmt(Math.abs(v))}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: v >= 0 ? C.textSub : C.red }}>{v >= 0 ? '+' : '-'}{fmtYen(Math.abs(v))}</span>
                   </div>
                 ))}
               </div>
             )}
-            {transferIncome > 0 && <Row label="移籍金収入" value={`+${fmt(transferIncome)}`} color={C.green} sub="選手・指名権の売却" />}
-            {transferSpend > 0 && <Row label="移籍金支出" value={`-${fmt(transferSpend)}`} color={C.red} sub="移籍金での選手獲得" />}
-            {otherIncome !== 0 && <Row label="その他収支" value={`${otherIncome >= 0 ? '+' : '-'}${fmt(Math.abs(otherIncome))}`} color={otherIncome >= 0 ? C.green : C.red} sub="ECL賞金・イベント・海外移籍など" />}
-            <Row label="総年俸" value={`-${fmt(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
-            <Row label="運営費" value={`-${fmt(opCost)}`} color={C.red} sub="総年俸の10%" />
-            <Row label="施設維持費" value={`-${fmt(facUpkeep)}`} color={C.red} sub="レベル1つにつき2500万／年 × 4施設" />
+            {transferIncome > 0 && <Row label="移籍金収入" value={`+${fmtYen(transferIncome)}`} color={C.green} sub="選手・指名権の売却" />}
+            {transferSpend > 0 && <Row label="移籍金支出" value={`-${fmtYen(transferSpend)}`} color={C.red} sub="移籍金での選手獲得" />}
+            {otherIncome !== 0 && <Row label="その他収支" value={`${otherIncome >= 0 ? '+' : '-'}${fmtYen(Math.abs(otherIncome))}`} color={otherIncome >= 0 ? C.green : C.red} sub="ECL賞金・イベント・海外移籍など" />}
+            <Row label="総年俸" value={`-${fmtYen(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
+            <Row label="運営費" value={`-${fmtYen(opCost)}`} color={C.red} sub="総年俸の10%" />
+            <Row label="施設維持費" value={`-${fmtYen(facUpkeep)}`} color={C.red} sub="レベル1つにつき2500万／年 × 4施設" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px', borderTop: `1px solid ${C.border}` }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>期末残高</div>
@@ -173,7 +168,7 @@ export default function BudgetPage() {
                 </div>
               </div>
               <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: seasonBalance >= 0 ? C.green : C.red, textShadow: seasonBalance >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
-                {fmt(seasonBalance, true)}
+                {fmtYen(seasonBalance, true)}
               </div>
             </div>
             {/* 「今季の純増」＝繰越を除いた今シーズン単体の損益。残高が大きくても純増は小さい、を明示する */}
@@ -183,7 +178,7 @@ export default function BudgetPage() {
               return (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0 6px' }}>
                   <div style={{ fontSize: 11, color: C.textSub }}>今季の純増<span style={{ fontSize: 9, color: C.textGhost }}>（繰越・移籍金を含む）</span></div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: netThisSeason >= 0 ? C.green : C.red }}>{fmt(netThisSeason, true)}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: netThisSeason >= 0 ? C.green : C.red }}>{fmtYen(netThisSeason, true)}</div>
                 </div>
               )
             })()}
@@ -231,14 +226,14 @@ export default function BudgetPage() {
                   <Row
                     key={sp.id}
                     label={sp.name}
-                    value={fmt(sp.annualPayment) + '/年'}
+                    value={fmtYen(sp.annualPayment) + '/年'}
                     color={C.green}
                     sub={`残り${sp.yearsLeft}年`}
                   />
                 ))}
                 <Row
                   label="年間スポンサー収入合計"
-                  value={fmt(sponsorAnnual)}
+                  value={fmtYen(sponsorAnnual)}
                   color={C.green}
                 />
               </>
@@ -284,13 +279,13 @@ export default function BudgetPage() {
                   <div style={{ fontSize: 10, color: C.textDim }}>残{p.contract.yearsLeft}年</div>
                 </div>
                 <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 800, color: C.textSub }}>
-                  {fmt(p.contract.annualSalary)}
+                  {fmtYen(p.contract.annualSalary)}
                 </div>
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 4px' }}>
               <div style={{ fontSize: 11, color: C.textDim }}>総年俸（{rosterPlayers.length}名）</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>{fmt(squadSalaryTotal)}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>{fmtYen(squadSalaryTotal)}</div>
             </div>
           </div>
         </div>

@@ -7,7 +7,8 @@
 // ★ 金額を表示したくなったら、必ずここの fmtYen を使うこと。新しく関数を書かないこと。
 // ★ 億表示を復活させたくなったら、ここ1箇所を変えれば全画面に効く（呼び出し側を触らない）。
 
-/** 円→「X万」表示（万を四捨五入）。接頭辞・接尾辞は呼び出し側で付ける。 */
-export function fmtYen(yen: number): string {
-  return `${Math.round(yen / 10000)}万`
+/** 円→「X,XXX万」表示（万を四捨五入・カンマ区切り）。showSign=true でプラスにも符号を付ける。 */
+export function fmtYen(yen: number, showSign = false): string {
+  const sign = showSign && yen >= 0 ? '+' : ''
+  return `${sign}${Math.round(yen / 10000).toLocaleString()}万`
 }

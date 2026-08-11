@@ -12,6 +12,8 @@
 // 受け取った種類を渡すだけにすること。
 import { ROSTER_MIN } from '../data/rosterRules'
 
+import { fmtYen } from './money'
+
 export type OfferOutcome =
   | 'sold'        // 成立。選手は移籍した
   | 'refused'     // 相手クラブがその額に応じなかった（逆提示でのみ起きる）
@@ -20,7 +22,6 @@ export type OfferOutcome =
   | 'invalid'     // 選手が対象外になった（引退の話が決まった等）。札は取り下げる
   | 'pending'     // 譲ると返事はした。決着は次のレース（その間に他クラブが上乗せしてくる）
 
-const man = (v: number) => `${Math.round(v / 10000).toLocaleString()}万`
 
 // 結果の見せ方。ok が true のときだけ緑（成功）で出す
 export function offerResultText(
@@ -32,10 +33,10 @@ export function offerResultText(
   switch (outcome) {
     case 'sold':
       return a.price > 0
-        ? { text: `${a.playerName}を${a.teamName}へ売却しました（移籍金${man(a.price)}を獲得）`, ok: true }
+        ? { text: `${a.playerName}を${a.teamName}へ売却しました（移籍金${fmtYen(a.price)}を獲得）`, ok: true }
         : { text: `${a.playerName}を${a.teamName}へフリー移籍で放出しました`, ok: true }
     case 'refused':
-      return { text: `${a.teamName}は${man(a.price)}を支払えず、交渉は決裂しました`, ok: false }
+      return { text: `${a.teamName}は${fmtYen(a.price)}を支払えず、交渉は決裂しました`, ok: false }
     case 'refused_by_player':
       return { text: `${a.playerName}が${a.teamName}への移籍を断りました。${a.reason ? `${a.reason}とのことです。` : ''}今季はこの話は進みません`, ok: false }
     case 'roster_min':

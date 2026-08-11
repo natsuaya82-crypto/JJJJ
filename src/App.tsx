@@ -11,6 +11,7 @@ import { initAds, removeBanner, showBanner, setAdsDisabled } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
 import { hasAdFree } from './utils/iap'
 import { clearMarketFilters } from './utils/marketFilters'
+import { fmtYen } from './utils/money'
 import LoadingOverlay from './components/ui/LoadingOverlay'
 import { TeamLogoSVG } from './components/icons/Icons'
 import ForceUpdateModal from './components/ui/ForceUpdateModal'
@@ -153,7 +154,6 @@ function GmOfferNotice() {
   const offer = offers[Math.min(pick, offers.length - 1)]
   const dest = teams.find(t => t.id === offer.teamId)
   if (!dest) return null
-  const fmtYen = (yen: number) => `${Math.round(yen / 10000).toLocaleString()}万`
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
@@ -214,8 +214,6 @@ function SeasonBudgetNotice() {
   const navigate = useNavigate()
   if (offers.length > 0) return null
   if (!notice) return null
-  // 予算ページと同じ万円単位表記（億に切り上げない）
-  const fmtYen = (yen: number) => `${Math.round(yen / 10000).toLocaleString()}万`
   return (
     <div onClick={dismiss} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
