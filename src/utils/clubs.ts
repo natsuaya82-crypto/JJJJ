@@ -225,3 +225,10 @@ export function leagueIdByClub(foreignLeagues: ForeignLeague[] | null | undefine
 //   ・世界最高峰か       … utils/clubTier.ts の `isBigClub`（格2以上）
 //   ・ステップアップか   … utils/clubTier.ts の `isStepUp`（行き先の格 < 今のクラブの格）
 //   ・憧れの地域の行き先 … utils/transferDecision.ts の `leaguesOfRegion`
+
+// 「そのクラブはビッグクラブか」をIDから引く（実体を探して isBigClub へ）。gameStore から移設
+import { isBigClub, allTieredClubs } from './clubTier'
+export function bigClub(state: { teams: import('../types').Team[]; foreignLeagues: import('../types').ForeignLeague[] }, clubId: string | undefined): boolean {
+  if (!clubId) return false
+  return isBigClub(allTieredClubs(state.teams, state.foreignLeagues).find(c => c.id === clubId))
+}

@@ -215,6 +215,7 @@ RULES.push({
     'src/store/gameStore.ts',     // 走らせた年にためる側（読む側ではない）
     'src/utils/retiredTeamBackfill.ts',  // 型が付いていない生データの形を書いているだけ
     'src/store/slices/competitionSlice.ts',   // 書く側（海外リーグ進行の移設先）
+    'src/store/slices/raceSlice.ts',   // 書く側（runRaceの移設先）
   ],
   fix: 'utils/careerStats.ts の buildCareerCounts を通す（走行記録がある年はそこから数える）',
 })
@@ -234,6 +235,7 @@ RULES.push({
     'src/engine/raceEngine.ts',      // 実体
     'src/store/gameStore.ts',        // 自チームの本編レース（監督が配置を組む。裏レースではない）
     'src/lib/matchSim.ts',           // オンライン対戦（相手のロスターが手元に無いので別経路）
+    'src/store/slices/raceSlice.ts',   // 書く側（runRaceの移設先）
   ],
   fix: 'engine/backgroundRace.ts の runBackgroundRace を呼ぶ（並べ方も数え方もそこ）',
 })
@@ -292,6 +294,7 @@ RULES.push({
     'src/store/bootRepair.ts',      // 過去シーズンの部を日程から直す側
     'src/utils/playRate.ts',        // 「そのクラブが走っている日程」を引く側
     'src/store/slices/competitionSlice.ts',   // 書く側（海外リーグ進行の移設先）
+    'src/store/slices/raceSlice.ts',   // 書く側（runRaceの移設先）
   ],
   fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
 })

@@ -11,7 +11,7 @@
 //   ・kind が無い発言 → これまで通り文字列で見比べて、無ければ足す
 // にすること。返り値は、何も変わらなければ渡された配列をそのまま返す
 // （毎回新しい配列を返すと保存が走って無駄な書き込みになるため）。
-import type { ChatMessage } from '../types'
+import type {ChatMessage, Season } from '../types'
 
 export function mergeChatMessages(saved: ChatMessage[], fresh: ChatMessage[]): ChatMessage[] {
   if (saved.length === 0) return fresh
@@ -39,4 +39,18 @@ export function mergeChatMessages(saved: ChatMessage[], fresh: ChatMessage[]): C
   const changed = replaced.some((m, i) => m !== saved[i])
   if (added.length === 0) return changed ? replaced : saved
   return [...replaced, ...added]
+}
+
+/**
+ * チャットの履歴に発言を足す。**store 側から会話に書き込むのはここだけ。**
+ *
+ * 画面（ChatPage）は自分で会話を組み立てて setChatLog で丸ごと保存するが、
+ * レース進行の中で起きたこと（売却の決着など）は画面が開いていないので、
+ * 進行側から会話に書いておかないと**GMには何も伝わらない**。
+ * 実際、「譲ります」と返事をしてレースを進めても、成立したのか流れたのかが
+ * 会話にも通知にも出ず、次の打診だけが来る状態になっていた。
+ */
+export function appendChatLog(season: Season, playerId: string, ...msgs: ChatMessage[]): Season {
+  const logs = season.chatLogs ?? {}
+  return { ...season, chatLogs: { ...logs, [playerId]: [...(logs[playerId] ?? []), ...msgs].slice(-60) } }
 }

@@ -461,3 +461,6 @@ export function draftRoundOf(pickIndex: number, pickOrderLength: number): { roun
     pickInRound: (pickIndex % perRound) + 1,
   }
 }
+
+/** 自分の部のチーム数。「リーグの規模」を teams.length(52) で見ないための入口。gameStore から移設 */
+export const myDivSize = (st: { teams: import('../types').Team[]; playerTeamId: string }) => DIVISION_SIZE[divisionOf(st.teams.find(t => t.id === st.playerTeamId))]
