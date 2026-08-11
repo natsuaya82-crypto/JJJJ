@@ -16,20 +16,21 @@ import { applyForeignChampions, initForeignStandings } from '../../engine/foreig
 import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../../engine/foreignTransfers'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
-import { type Division, type GameState, type GmOffer, type Nationality, type Player, SPECIALTY_LABELS, type SeasonAward, type SeasonStanding, type TransferRecord } from '../../types'
+import { type Division, type GameState, type GmOffer, type Nationality, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
-import { allTieredClubs, tierBudget, tierFromDomesticRank, tierFromForeignRank, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
+import { computePromotion } from '../../engine/promotion'
+import { allTieredClubs, tierBudget, tierFromForeignRank, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { findClub, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
-import { backfillDomesticClubs, domesticClubsComplete, originalDivisionOf } from '../../utils/domesticClubs'
+import { backfillDomesticClubs } from '../../utils/domesticClubs'
 import { eclHistoryOf } from '../../utils/eclHistory'
 import { facilityUpkeepOf } from '../../utils/facilities'
 import { makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { gmCareerTotals, gmSeasonRanks, startTenure } from '../../utils/gmTenure'
-import { DIVISIONS, PROMOTION_SLOTS, TOP_DIVISION, divisionOf, divisionStandings, domesticThroughRank, domesticThroughRankOfTeam, myDivSize, newSeasonStandings, rankOfTeam, rankedStandings, seasonDivisionStandings, teamsInDivision } from '../../utils/league'
+import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, domesticThroughRankOfTeam, myDivSize, newSeasonStandings, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { type NewsItem, bonusPayoutHeadline, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionMoveHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline, sponsorEndHeadline } from '../../utils/newsItems'
+import { type NewsItem, bonusPayoutHeadline, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline, sponsorEndHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, ovr, packForeignApps, perfOf, retirementAgeOf } from '../../utils/playerUtils'
 import { clubMembersByClub, squadIdsOf } from '../../utils/rosterSync'
@@ -350,63 +351,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
       const myDivRows = seasonDivisionStandings(state.currentSeason, state.playerTeamId)
 
-      // ── 来季の格 ────────────────────────────────────────────────
-      // 国内クラブの格は「今季の国内通し順位」1本で決まる。1部1位＝格5、3部最下位＝格20。
-      // 通し順位は 部 → 部内順位 の順（domesticThroughRank）。順位表の得点で52チームを
-      // 直接並べてはいけない（部ごとにレース数が違うので3部が2部を追い抜く）。
-      // 予算もスポンサーもロスターの強さも、全部この格から降りてくる。
-      //
-      // ★下部リーグのクラブが入っていない古いセーブ（build 88 より前に始めたもの）は、
-      //   降格先が存在しないまま落ちたチームが「2チームしかいない2部」にいる。
-      //   その部で数えると通し順位21位＝格11相当になり、本来1部のクラブが1年ぶん
-      //   不当に低い予算を受け取ってしまう。補完する年はデータどおりの部で数える。
-      const clubsIncomplete = !domesticClubsComplete(state.teams)
-      const effDivisionOf = (t: { id: string; division?: Division }): Division =>
-        clubsIncomplete ? originalDivisionOf(t.id) : divisionOf(t)
-      // 効き目のある部でまとめ直す。補完が要らない年は、順位表のキーとまったく同じ組になる
-      const rowsByEffDiv = (() => {
-        const m = new Map<Division, SeasonStanding[]>()
-        for (const d of DIVISIONS) {
-          for (const r of state.currentSeason.standings[d] ?? []) {
-            const e = effDivisionOf(state.teams.find(x => x.id === r.teamId) ?? { id: r.teamId })
-            const list = m.get(e)
-            if (list) list.push(r); else m.set(e, [r])
-          }
-        }
-        return m
-      })()
-      const divisionRankOf = (t: { id: string; division?: Division }) =>
-        rankOfTeam(rowsByEffDiv.get(effDivisionOf(t)), t.id)
-      const nextTierOf = (t: { id: string; division?: Division }) =>
-        tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
-      const myNextTier = nextTierOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
-
-      // ── 昇降格 ──────────────────────────────────────────────────
-      // 各部の上位2チームが昇格、下位2チームが降格。プレーオフなし。
-      // 1部に上は無く、3部に下は無い。上下2ずつなので各部の人数は変わらない。
-      // ★格は「今季走った部」での順位で決まる（nextTierOf）。部の入れ替えはその後。
-      //
-      // ★クラブが足りていないセーブでは、このシーズン終わりに32クラブを補う（下の backfill）。
-      //   降格先が存在しないまま落ちていたぶんは取り消してデータどおりの 20/16/16 に戻し、
-      //   **次の年から**通常の昇降格に戻す。ここで昇降格を通すと、補ったばかりのクラブが
-      //   走ってもいない順位で動いてしまう。
-      const nextDivisionOf = (t: { id: string; division?: Division }): Division => {
-        if (clubsIncomplete) return originalDivisionOf(t.id)
-        const d = divisionOf(t)
-        const r = divisionRankOf(t)
-        const size = teamsInDivision(state.teams, d).length
-        if (d > DIVISIONS[0] && r <= PROMOTION_SLOTS) return (d - 1) as Division
-        if (d < DIVISIONS[DIVISIONS.length - 1] && r > size - PROMOTION_SLOTS) return (d + 1) as Division
-        return d
-      }
-      const divisionMoveNews = clubsIncomplete ? [] : state.teams
-        .map(t => ({ t, from: divisionOf(t), to: nextDivisionOf(t) }))
-        .filter(x => x.from !== x.to)
-        .map(({ t, from, to }) => ({
-          date: `${state.currentSeason.year}-12-01`,
-          headline: divisionMoveHeadline({ clubName: t.name, from, to }),
-          category: 'race' as const,
-          relatedIds: [t.id] }))
+      // 来季の格と昇降格は engine/promotion 1本
+      // （格は「今季走った部」での順位から。部の入れ替えはそのあと）
+      const promo = computePromotion({ teams: state.teams, currentSeason: state.currentSeason, playerTeamId: state.playerTeamId })
+      const nextTierOf = promo.nextTierOf
+      const nextDivisionOf = promo.nextDivisionOf
+      const myNextTier = promo.myNextTier
+      const divisionMoveNews = promo.divisionMoveNews
 
       // Sponsor contract processing
       const myActiveSponsorIds = state.teams.find(t => t.id === state.playerTeamId)?.sponsors ?? []
@@ -1369,5 +1320,4 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         tierSeed: id => tierOfClubId(id) })
       return { gmOffers: offers }
     })
-  },
-})
+  } })
