@@ -4,6 +4,7 @@ import type { GameStore, SetGame } from '../gameStore'
 import { recoverInjuredPlayers, rollRaceInjuries } from '../../engine/raceInjury'
 import { applySegmentPBs } from '../../engine/segmentPB'
 import { generateAiTradeOffers } from '../../engine/aiTradeOffer'
+import { buildRaceNews } from '../../engine/raceNews'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -25,9 +26,9 @@ import { ANNUAL_BASE_EXP, MAJOR_NEWS_OVR, allTieredClubs, tierOfPlayerClub } fro
 import { allForeignClubs, findClub, foreignClubIdSet } from '../../utils/clubs'
 import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
-import { DIVISION_SIZE, divisionOf, divisionStandings, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
+import { DIVISION_SIZE, divisionOf, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
-import { type NewsItem, awardHeadline, boardEvalHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, myFinishHeadline, raceWinnerHeadline, recordHeadline, retirementHeadline, rivalHeadline, segmentPrizeHeadline, segmentRecordHeadline, segmentWinHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { awardHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, segmentRecordHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, freeContactConsent, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
@@ -192,75 +193,12 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         awayApps[pid] = { races: cur.races + v.races, wins: cur.wins + v.segWins }
       }
 
-      // Update news
-      const winnerTeam = teams.find(t => t.id === results.teamRankings[0]?.teamId)
+      // レース結果のニュースは engine/raceNews 1本（見出しの文面は utils/newsItems）
       const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
       const playerRank = playerResult?.rank ?? 0
-      const rankSuffix = playerRank === 1 ? '優勝' : `第${playerRank}位`
-
-      // Segment awards from player team
-      const mySegWins = results.segmentResults
-        .filter(sr => sr.runners[0]?.teamId === playerTeamId)
-      const mySegWinPlayer = mySegWins.length > 0
-        ? players.find(p => p.id === mySegWins[0].runners[0]?.playerId)
-        : null
-
-      // 見出しの文面は utils/newsItems 1本。ここは「何が起きたか」だけ渡す
-      const rng01 = Math.random()
-
-      const newsItems: NewsItem[] = [
-        {
-          date: race.date,
-          headline: raceWinnerHeadline({
-            division: myDivision, raceName: race.name,
-            winnerName: winnerTeam?.name ?? '',
-            points: results.teamRankings[0]?.positionPoints, pick: rng01 }),
-          category: 'race' as const,
-          relatedIds: [race.id] },
-        ...(playerRank > 0 ? [{
-          date: race.date,
-          headline: myFinishHeadline({ division: myDivision, raceName: race.name, rank: playerRank, rankSuffix, pick: rng01 }),
-          category: 'race' as const,
-          relatedIds: [race.id] }] : []),
-        ...(mySegWinPlayer ? [{
-          date: race.date,
-          headline: segmentWinHeadline({ playerName: mySegWinPlayer.name, segmentIndex: mySegWins[0].segmentIndex, pick: rng01 }),
-          category: 'race' as const,
-          relatedIds: [mySegWinPlayer.id] }] : []),
-      ]
-
-      // Board expectation news (every 3 races after race 3)
-      if (playerRank > 0) {
-        const raceIndex = state.currentSeason.currentRaceIndex
-        const totalRaces = state.currentSeason.races.length
-        if (raceIndex >= 3 && raceIndex % 3 === 0) {
-          const sortedStandingsNow = divisionStandings(state.currentSeason, myDivision)
-          const myCurrentRank = rankOfTeam(sortedStandingsNow, state.playerTeamId)
-          // 「うちは弱い」の基準は**自分の部の中で**見る。52で割ると3部(16)は
-          // 最下位でも18位以内に入ってしまい、誰も不満を言わなくなる
-          const expectedRank = Math.ceil(DIVISION_SIZE[myDivision] / 3)
-          const remainingRaces = totalRaces - raceIndex
-          const satisfied = myCurrentRank <= expectedRank
-          if (satisfied || myCurrentRank > expectedRank + 4) {
-            newsItems.push({
-              date: race.date,
-              headline: boardEvalHeadline({ rank: myCurrentRank, remainingRaces, satisfied, pick: Math.random() }),
-              category: 'finance' as const, relatedIds: [] })
-          }
-        }
-      }
-
-      // Rivalry news
-      if (state.rivalTeamId && playerRank > 0) {
-        const rivalRank = results.teamRankings.find(r => r.teamId === state.rivalTeamId)?.rank
-        const rivalShort = teams.find(t => t.id === state.rivalTeamId)?.shortName
-        if (rivalRank != null && rivalShort && playerRank !== rivalRank) {
-          newsItems.push({
-            date: race.date,
-            headline: rivalHeadline({ rivalShort, myRank: playerRank, rivalRank }),
-            category: 'race' as const, relatedIds: [state.rivalTeamId] })
-        }
-      }
+      const newsItems = buildRaceNews({
+        race, results, teams, players, playerTeamId, myDivision,
+        currentSeason: state.currentSeason, rivalTeamId: state.rivalTeamId })
 
       // Fatigue + injury (strategy modifier)
       const racingIds = new Set(
