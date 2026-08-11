@@ -42,14 +42,16 @@ const CHECKS = [
   'consent-single', 'move-reason', 'offer-result', 'gm-offer',
   // 移籍・市場
   'fa-market', 'transfer-eligibility',
-  // transfer-bid の残り8件は**仕様が変わったのにテストが旧仕様のまま**。
+  // transfer-bid の残りは**仕様が変わったのにテストが旧仕様のまま**。
   //   旧「上回るクラブがいれば即 rejected」→ 今「1回目は countered で上乗せの機会を出す」。
-  // trade-value の残り19件も旧仕様。年齢倍率が段（〜22×5／23〜27×4／28〜31×3／32〜×2）に
+  // trade-value の残りも旧仕様。年齢倍率が段（〜22×5／23〜27×4／28〜31×3／32〜×2）に
   //   なったのに滑らかなカーブを期待している（実測 1.332 = 4/3 で CLAUDE.md どおり）。
   //   早熟のピーク年齢も 24 → 22 に変わっているが、これは 011ff08「決定事項の実装」
   //   （2026-08-05・今回のリファクタより前）で**意図して**変えたもの。分解による劣化ではない。
   // **どちらも数字と方針の話なのでオーナー確認まで書き換えない。**
-  'transfer-bid?', 'trade-value?',
+  // ★件数を必ず書くこと（下の pending の説明）。ここに書いた数を1件でも超えたら落ちる。
+  { name: 'transfer-bid', pending: 12, why: '旧仕様のまま（countered の段が入る前のテスト）' },
+  { name: 'trade-value', pending: 18, why: '旧仕様のまま（年齢倍率が段になる前・早熟ピーク24のテスト）' },
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'clubs', 'offseason',
   // レース・順位・記録
@@ -130,11 +132,24 @@ const SKIP = {
   'foreign-suitors': 'foreignMinOvr（クラブごとのOVR下限表）を廃止した。獲るかどうかは needsPlayer と wouldMakeLineup だけ',
 }
 
-// 名前の末尾 "?" は「まだ通っていないので、落ちても全体は止めない」印。
-// 直したら "?" を外すこと。**"?" を増やすのは禁止**（増やせるなら見張りの意味が無い）。
+// ── 未修理（pending）──
+// 「まだ通っていないので、落ちても全体は止めない」印。直したら pending ごと消すこと。
+// **増やすのは禁止**（増やせるなら見張りの意味が無い）。
+//
+// ★必ず「いま何件落ちるか」を書く。 { name: 'x', pending: 12, why: '…' }
+//   以前は名前の末尾に "?" を付けるだけで、**何件落ちても緑**だった。
+//   その結果、コメントには「trade-value 19件」と書いてあるのに実際は20件あり、
+//   **増えた1件に誰も気づけなかった**（`?` の下が新しい壊れの隠し場所になっていた）。
+//   いまは NG の行数を数えて、
+//     書いた数より多い → 本物の NG として止める（新しく壊れた）
+//     書いた数より少ない → 通すが「減った」と言って書き換えを促す
+//     1件も NG が出ていないのに落ちた → 点検そのものが壊れているので止める
 const entries = CHECKS.map(c => {
   const o = typeof c === 'string' ? { name: c } : { ...c }
-  if (o.name.endsWith('?')) { o.name = o.name.slice(0, -1); o.pending = true }
+  if (o.name.endsWith('?')) {
+    console.log(`✗ ${o.name} … 未修理の印は名前の "?" ではなく { name: '${o.name.slice(0, -1)}', pending: <いま落ちる件数> } で書いてください`)
+    process.exit(1)
+  }
   return o
 })
 
@@ -196,6 +211,7 @@ const failed = []
 const pendingFailed = []
 const skipped = []
 const wobbles = []
+const shrinks = []
 for (const e of built) {
   // ★見送りより先に「組めたか」を見る。
   //   見送りの判定を先にすると、**組めない点検が見送りに隠れて誰も気づけない**。
@@ -259,16 +275,32 @@ for (const e of built) {
   }
   const ms = Date.now() - st
   const wobbled = ok && tries > 1          // 引き直して通った＝分布のゆらぎ
-  const mark = wobbled ? '~   ' : ok ? 'ok  ' : e.pending ? 'todo' : 'NG  '
-  const note = wobbled ? `  ← ${tries}回目で通りました（分布のゆらぎ）` : ''
+
+  // ── 未修理（pending）の件数を数える ──
+  // 点検はどれも落ちた項目を "  NG  <名前>" の形で1行ずつ出す。その行数が件数。
+  const ngLines = e.pending != null && !ok ? (out.match(/^\s*NG\b/gm) ?? []).length : 0
+  const grew = e.pending != null && !ok && ngLines > e.pending
+  const broke = e.pending != null && !ok && ngLines === 0   // 落ちたのに NG が1件も無い＝点検自体が壊れた
+  const shrank = e.pending != null && (ok || (ngLines > 0 && ngLines < e.pending))
+
+  const isFailure = !ok && (e.pending == null || grew || broke)
+  const mark = wobbled ? '~   ' : ok ? 'ok  ' : isFailure ? 'NG  ' : 'todo'
+  const note = wobbled ? `  ← ${tries}回目で通りました（分布のゆらぎ）`
+    : (!ok && e.pending != null && !broke) ? `  (${ngLines}件 / 未修理として登録済み ${e.pending}件)` : ''
   console.log(`${mark} ${e.name}${verbose ? '' : `  (${ms}ms)`}${note}`)
   if (verbose && out) console.log(out.replace(/^/gm, '    '))
   if (wobbled) wobbles.push(`${e.name}（${e.why}）`)
+
+  // 減ったときは通すが、放っておくと登録件数が実態から離れて見張りが緩むので毎回言う
+  if (shrank) shrinks.push(`${e.name}: ${e.pending}件 → ${ok ? 0 : ngLines}件。run-checks.mjs の pending を${ok ? '外して' : `${ngLines}へ書き換えて`}ください`)
+
   if (!ok) {
     if (!verbose) console.log(out.replace(/^/gm, '    '))
     // 分布の検査が**毎回**落ちたときは、ゆらぎでは説明できない＝本物として扱う
     if (e.flaky) console.log(`    ※ ${e.flaky}回とも落ちました。分布のゆらぎでは説明できません（${e.why}）`)
-    ;(e.pending ? pendingFailed : failed).push(e.name)
+    if (grew) console.log(`    ※ 未修理として登録してあるのは ${e.pending}件ですが ${ngLines}件落ちています。**増えたぶんは新しい壊れです。**`)
+    if (broke) console.log('    ※ NG の行が1件も無いのに落ちました。点検そのものが壊れています（未修理の印では見逃せません）')
+    ;(isFailure ? failed : pendingFailed).push(e.name)
   }
 }
 
@@ -276,6 +308,7 @@ console.log('')
 console.log(`点検 ${built.length - skipped.length}本 / ${((Date.now() - t0) / 1000).toFixed(1)}秒（意図して外した ${Object.keys(SKIP).length}本）`)
 for (const s of skipped) console.log(`見送り: ${s}`)
 for (const w of wobbles) console.log(`ゆらぎ: ${w}`)
+for (const s of shrinks) console.log(`減りました: ${s}`)
 if (failed.length > 0) {
   console.log(`✗ 落ちました: ${failed.join(', ')}`)
   process.exit(1)
