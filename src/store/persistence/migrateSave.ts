@@ -17,6 +17,7 @@ import { backfillRetiredTeamIds } from '../../utils/retiredTeamBackfill'
 import { markDataUpdateNeeded } from '../dataUpdate'
 import { EPHEMERAL_KEYS } from '../ephemeralState'
 import { SAVE_VERSION } from './saveVersion'
+import { setSaveHealth } from '../saveHealth'
 
 export const migrateSave = (persistedState: unknown, version: number) => {
   try {
@@ -578,6 +579,13 @@ export const migrateSave = (persistedState: unknown, version: number) => {
     // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。
     // ここで throw すると persist の内部の .catch に吸われ、セーブが無かったことになる。
     console.error('[save] migrate failed; using the persisted state as-is', e)
+    // ただし変換が途中で止まったまま遊ばせると危ない：persist はこのあと version を最新に
+    // 刻むため、届かなかった段は二度と走らず、次の保存で「未変換の形＋最新の版数」が確定する。
+    // 実データのあるセーブならセーフモードにする（saveStorage が書き込みを拒否して元の
+    // セーブを守り、App の復旧画面が案内する）。
+    const s0 = persistedState as Record<string, unknown> | null
+    const looksReal = !!s0 && (s0.isInitialized === true || (Array.isArray(s0.players) && s0.players.length > 0))
+    if (looksReal) setSaveHealth('failed', 'セーブの変換に失敗しました（元のセーブは保護されています）')
     return persistedState as Record<string, unknown>
   }
 }
