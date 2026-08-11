@@ -85,15 +85,22 @@ const copies = walk('src').filter(f => f !== self && /initialMessages\.some\(/.t
 check('突き合わせているのは chatLog.ts だけ', copies.length === 0, copies.join(', '))
 const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
 check('チャット画面が mergeChatMessages を使っている', chat.includes('mergeChatMessages'))
-// 用件の目印を付け忘れると、その用件だけ昔と同じように積み上がる
+// 用件の目印を付け忘れると、その用件だけ昔と同じように積み上がる。
+// **2か所以上に出る文面は utils/chatLines へ移した**ので、画面と文面の両方を見る
+// （retire_ok / overseas_ok は chatLines 側にある。片方だけ見ていて落ちていた）
+const lines = readFileSync(join('src', 'utils', 'chatLines.ts'), 'utf-8')
 for (const kind of ['contract_remind', 'contract_demand', 'transfer_wish', 'retire', 'retire_ok', 'overseas_wish', 'overseas_ok', 'free_contact'])
-  check(`用件の目印がある（${kind}）`, chat.includes(`kind: '${kind}'`))
+  check(`用件の目印がある（${kind}）`, chat.includes(`kind: '${kind}'`) || lines.includes(`kind: '${kind}'`))
 
 console.log('\n[7] 進路が決まった選手との会話は、そこで閉じている')
 // 引退を承認した選手は、次に開くと来季契約の話に戻っていた（そこから移籍にも進めた）。
 // 会話の中身もボタンも、talkSync の settledPath 1本で閉じること
 check('チャット画面が settledPath を使っている', chat.includes('settledPath'))
-check('会話とボタンの両方で見ている', (chat.match(/settledPath\(player\)/g) ?? []).length >= 3)
+// 会話の中身は chatLines の settledLineOf（中で settledPath を呼ぶ）、ボタンは画面側で直接。
+// 文面を chatLines へ寄せたぶん画面側の呼び出しは減ったので、**両方の入口があること**を見る
+check('会話の中身が settledPath を通っている（settledLineOf 経由）',
+  chat.includes('settledLineOf(player)') && /settledPath\(player\)/.test(lines))
+check('ボタン側も settledPath で閉じている', (chat.match(/settledPath\(player\)/g) ?? []).length >= 2)
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

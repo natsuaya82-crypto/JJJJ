@@ -129,7 +129,12 @@ console.log('[5] 走れない選手を、格上のクラブが獲らない（リ
     `${wantButCannotRun}通り（タイプが0人の枠を強さを見ずに埋めていた）`)
 
   // ── 本人側：今の水準で1戦も走っていない選手は格上へ行かない ──
-  const src = rosterOf(d3.id).sort((a, b) => ovr(a) - ovr(b))[0]
+  // ★3部のエースを使うこと。**いちばん弱い選手だと判定にならない。**
+  //   弱い選手はそもそも1部で20番手あたりに沈むので「出場機会が無い」で断る＝
+  //   「走っていないから断った」のか「元々行かない選手」なのか区別が付かない。
+  //   実際、生成しだいでは走っていても1部から声が掛からず、25回に1回ほど落ちていた。
+  //   エースなら「走っていれば行く／走っていなければ行かない」がはっきり出る。
+  const src = rosterOf(d3.id).sort((a, b) => ovr(b) - ovr(a))[0]
   const ctx = { srcTier: tierOf(d3), teamRaces: 7 }
   const dests = d1.map(c => buildDestination(c.id, tierOf(c), players, { player: src }))
   const okZero = dests.filter(d => appraiseMove(src, d, { ...ctx, playFraction: 0 }).ok).length

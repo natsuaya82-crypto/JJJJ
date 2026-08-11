@@ -63,7 +63,6 @@ console.log('\n[2] 用件を1つ足すと数がちょうど1つ増える')
     { label: 'レンタルの返事', input: base(S({ loanResponses: [{ id: 'l1' }] })) },
     { label: '獲得オファーの逆提示', input: base(S({ acquisitionOffers: [{ id: 'a1', playerId: 'p1', status: 'countered' }] }), [P('p1', 'b')], [T('a'), T('b')]) },
     { label: 'レンタルの申し込み', input: base(S({ incomingLoanOffers: [{ id: 'i1', fromTeamId: 'b', playerId: 'p1', direction: 'lend_out', years: 1, expiresAtRace: 5 }] }), [P('p1', 'a')], [T('a'), T('b')]) },
-    { label: 'マイプレイヤー未作成', input: { ...base(S()), myPlayerCreated: false } },
     { label: 'ログインボーナス未受け取り', input: { ...base(S()), lastLoginDate: '2000-01-01' } },
     { label: '運営からのプレゼント', input: { ...base(S()), pendingGiftsCount: 1 } },
     { label: '走友会のなかまからのカード', input: { ...base(S()), clubGiftsCount: 1 } },
@@ -256,9 +255,11 @@ check('通知ページが collectNotifications を使っている', page.include
 // 節が増えたのに合計に足し忘れる／カードは1枚なのに人数分数える、が起きると落ちる
 const headCounts = [...page.matchAll(/<SectionHead[^>]*count=\{([^}]+)\}/g)].map(m => m[1].trim())
 const expected = [
-  // まとめて1枚のカードにしている節（アップデート記念・ログインボーナス・補強禁止・
-  // ロスター超過・スポンサー）は必ず 1
-  '1', '1', '1', '1', '1',
+  // まとめて1枚のカードにしている節（ログインボーナス・補強禁止・ロスター超過・
+  // スポンサー）は必ず 1。
+  // ★アップデート記念（マイプレイヤー未作成）は廃止済みなので、ここは5つではなく4つ。
+  //   配布枠560が終了し、GameState.myPlayerCreated は古いセーブに残るだけになった
+  '1', '1', '1', '1',
   'pendingGifts.length', 'clubGifts.length', 'joinNotices.length', 'tradeOffers.length',
   'renewalNeeded', 'injuredPlayers.length', 'retirementRequests.length', 'transferReqs.length',
   'overseasReqs.length', 'chatReplies.length',
@@ -277,13 +278,20 @@ check('ベルも同じ collectNotifications を使っている', bell.includes('
 
 // 「交渉期限切れ」の節は種類ごとに文言を変える箱。種類を増やして文言を足し忘れると
 // undefined が出て画面が真っ白になるので、全種類ぶん揃っているかを見る
-const NEG_KINDS = ['bid', 'outbid', 'offer', 'contract', 'trade', 'trade_unfair'] as const
+// ★一覧をここに写さないこと。写した瞬間に「増やしたのに片方だけ古い」が起きる
+//   （実際に sale_refused / sale_roster_min を足したとき、この写しだけ6件のままだった）。
+//   種類が全部そろっているかは EXPIRED_NEG_TEXT が Record<ExpiredNegKind, …> なので tsc が見る。
+//   ここで見るのは「どの種類にもちゃんと文言が入っているか」だけ。
+const NEG_KINDS = Object.keys(EXPIRED_NEG_TEXT) as (keyof typeof EXPIRED_NEG_TEXT)[]
 for (const k of NEG_KINDS) {
   const t = expiredNegText(k)
   check(`交渉期限切れ「${k}」の文言がある`, typeof t?.title === 'function' && typeof t?.note === 'string' && t.title('選手A').includes('選手A'))
 }
 check('種類が入っていない古いセーブは入札として扱う', expiredNegText(undefined) === EXPIRED_NEG_TEXT.bid)
-check('種類の一覧を増やしたら文言も増やす', Object.keys(EXPIRED_NEG_TEXT).sort().join(',') === [...NEG_KINDS].sort().join(','))
+// 文言が空・使い回しになっていないか（種類を足したのに中身を書き忘れる、を見る）
+check('種類ごとに違う文言が入っている',
+  new Set(NEG_KINDS.map(k => EXPIRED_NEG_TEXT[k].title('X') + EXPIRED_NEG_TEXT[k].note)).size === NEG_KINDS.length,
+  `${NEG_KINDS.length}種類`)
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)

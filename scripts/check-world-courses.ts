@@ -35,7 +35,10 @@ for (let y = 2028; y < 2028 + YEARS; y++) {
         problems.push(`${y}年 ${c.name} 第${i + 1}区: 地形が本編と違う`)
       }
     })
-    const key = worldRaceName(p, 'fallback', isMain)
+    // worldRaceName は (下書き, 大会名, 名前なしのときの代わり, 地域) の4つ。
+    // 地域を渡さないと NAMES[undefined] を引いて落ちる（3つで呼んでいて落ちていた）。
+    // ここで見たいのは「同じコースが同じ名前で貯まるか」なので、地域は国内で固定する
+    const key = worldRaceName(p, isMain ? '世界選手権' : '世界選手権アジア予選', 'fallback', 'domestic')
     nameCount.set(key, (nameCount.get(key) ?? 0) + 1)
   }
   // 同じ年なら何度呼んでも同じ組

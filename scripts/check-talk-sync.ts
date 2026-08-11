@@ -335,7 +335,9 @@ console.log('\n[13] 札の片付けは store の set 1枚だけが呼ぶ（処�
 // 呼ぶ場所を増やすのではなく set を1枚かぶせて、players か currentSeason を
 // 触った更新は必ず片付けを通す形にした。ここではその形が崩れていないかを見る
 {
-  const src = readFileSync(new URL('../src/store/gameStore.ts', import.meta.url), 'utf-8')
+  // 点検は esbuild で CJS に束ねてから走らせるので import.meta.url が残らない（Invalid URL で落ちる）。
+  // 他の点検と同じく、リポジトリ直下からの相対で読む
+  const src = readFileSync('src/store/gameStore.ts', 'utf-8')
   check('set のかぶせが store にある', src.includes('const set: SetGame = (partial) =>'))
   check('片付けを呼ぶ場所は store 全体で1つだけ',
     (src.match(/reconcileTalks\(/g) ?? []).length === 1,

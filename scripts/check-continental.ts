@@ -70,7 +70,11 @@ for (const { region, slots } of REGION_QUOTA) {
   const c = conts.find(x => x.region === region)!
   const rows = Object.keys(c.squads).map(natId => {
     const n = natId.slice(4) as Nationality
-    const squad = autoSelectEkiden(ekidenCandidates(players, n, YEAR), new Set<string>(), 20)
+    // ★候補の絞り方は engine と必ず同じにすること（startContinentalQualifiers は limit 20）。
+    //   既定の100人から選ぶと autoSelectEkiden の「持ちタイム＋適性」の混ぜ方が変わり、
+    //   **並べ替えに使うOVRが、実際に走った代表と別の名簿から出る**。
+    //   そのせいで「最強3か国19% ≦ 最弱3か国20%」のような逆転が出ていた（並びが嘘だった）
+    const squad = autoSelectEkiden(ekidenCandidates(players, n, YEAR, 20), new Set<string>(), 20)
     return { n, avg: squad.reduce((s, p) => s + ovr(p), 0) / Math.max(1, squad.length), rate: (adv.get(n) ?? 0) / TRIES }
   }).sort((a, b) => b.avg - a.avg)
   console.log(`  【${region}】通過${slots}`)

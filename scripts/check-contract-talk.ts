@@ -149,6 +149,9 @@ const dash = read('src', 'components', 'dashboard', 'Dashboard.tsx')
 const results = read('src', 'components', 'race', 'ResultsPhase.tsx')
 const talkSync = read('src', 'utils', 'talkSync.ts')
 const contractTalk = read('src', 'utils', 'contractTalk.ts')
+// 2か所以上に出る文面は utils/chatLines へ寄せてある（承諾・逆提示など）。
+// 画面側だけを見ていると「文面を一本化したのに落ちる」ことになる
+const chatLines = read('src', 'utils', 'chatLines.ts')
 
 // gameStore の関数の中身を切り出す（次の「      名前: 」まで）
 const fnBody = (name: string): string => {
@@ -215,7 +218,8 @@ console.log('\n[11] チャットの用件が二重に出ない')
   check('初回の組み立てが remindMonths を使う', chat.includes('buildMessages(player, contractReq, remindMonths'))
   check('催促の判定に hasContractTalk が入っている', chat.includes('hasContractTalk(contractRequests, player.id)'))
   check('契約更新のメッセージに kind が付いている（同じ用件を増やさない）',
-    ['contract_gm_open', 'contract_offer', 'contract_accept', 'contract_counter', 'contract_reject'].every(k => chat.includes(k)))
+    ['contract_gm_open', 'contract_offer', 'contract_accept', 'contract_counter', 'contract_reject']
+      .every(k => chat.includes(k) || chatLines.includes(k)))
   check('退団予定の選手には用件を出さない分岐がフリー接触より前にある',
     chat.indexOf('if (player.transferListed) return [') < chat.indexOf('if (freeContactOffer) {'))
   check('チャット一覧がケガ人も対象にしている', chat.includes("p.status === 'active' || p.status === 'injured'"))

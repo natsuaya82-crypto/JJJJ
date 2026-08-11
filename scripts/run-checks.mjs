@@ -34,17 +34,22 @@ const CHECKS = [
   // 一本化そのものの見張り
   'single-source',
   // チャット・交渉
-  'chat-dup', 'chat-lines', 'chat-log?', 'contract-talk?', 'demand-gates', 'sale-answer',
+  'chat-dup', 'chat-lines', 'chat-log', 'contract-talk', 'demand-gates', 'sale-answer',
   'consent-single', 'move-reason', 'offer-result', 'gm-offer',
   // 移籍・市場
-  'fa-market', 'transfer-eligibility', 'transfer-bid?', 'trade-value?', 'foreign-suitors?',
+  'fa-market', 'transfer-eligibility', 'transfer-bid?', 'trade-value?',
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'clubs', 'offseason',
   // レース・順位・記録
   'race-points', 'race-record', 'background-race', 'round-robin', 'division-rank',
   'division-sync', 'away-records', 'domestic-records', 'segment-recommend', 'play-rate',
   // 世界大会・コース
-  'national-pool', 'wa-races', 'course-names', 'world-courses?', 'continental?',
+  'national-pool', 'wa-races', 'course-names', 'world-courses',
+  // continental は**まだ本当に落ちる**（テストの不備ではない）。40回まわして2回、
+  // 大陸予選で「上位の通過率 ≦ 下位の通過率」になる。生成された名簿しだいで
+  // 強さの差が潰れる世界が5%ほど出る＝その世界では実質くじ引き。
+  // 判定を緩めると見張りの意味が無くなるので、緩めずに todo で残す。
+  'continental?',
   // セーブ・起動
   { name: 'save-guard', shim: true },
   { name: 'boot-gate', shim: true },
@@ -52,7 +57,7 @@ const CHECKS = [
   { name: 'load-v39', shim: true },
   'boot-repair', 'archive-season', 'migrate-old-save',
   // その他
-  'card-exchange', 'notif-count?', 'talk-sync?',
+  'card-exchange', 'notif-count', 'talk-sync',
 ]
 
 // ── 意図して走らせないもの ──────────────────────────────────
@@ -64,6 +69,7 @@ const SKIP = {
   'move-player':  '同上（rebuildRosters）',
   'roster-sync':  '同上（rebuildRosters）。所属が player.teamId 1本かは check-single-source が見ている',
   'reserve-squad': 'utils/reserveSquad は削除済み（2軍は secondTeamRaces を読むだけになった）',
+  'foreign-suitors': 'foreignMinOvr（クラブごとのOVR下限表）を廃止した。獲るかどうかは needsPlayer と wouldMakeLineup だけ',
 }
 
 // 名前の末尾 "?" は「まだ通っていないので、落ちても全体は止めない」印。
