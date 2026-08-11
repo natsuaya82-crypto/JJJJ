@@ -18,6 +18,7 @@ import { resolveLoanRequests } from '../../engine/loanRequests'
 import { generatePlayerWishes } from '../../engine/playerWishes'
 import { settleSaleAnswers } from '../marketOps'
 import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
+import { applyEventChoice } from '../../engine/eventEffects'
 import { myDivSize } from '../../utils/league'
 import { CARD_UNIT_EXP } from '../../data/cardShop'
 import { generateIndividualEvents } from '../../data/races'
@@ -31,12 +32,12 @@ import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
 import { type CardRarity, type CardStatKey, type ExpiredNegotiation, type GameState, type Player, type Ratings, type TrainingCard, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
 import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
-import { withFatigue, withMorale } from '../../utils/condition'
+import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { divisionOf, domesticThroughRank, segmentPrizeByTeam } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { recordHeadline, segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
-import { getStatPotentials, racesConsumed } from '../../utils/playerUtils'
+import { racesConsumed } from '../../utils/playerUtils'
 
 type Slice = Pick<GameStore,
   'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setRaceTeamTalk' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'resolveEvent' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
@@ -540,179 +541,21 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
   resolveEvent: (eventId, choiceIndex) => {
     set(state => {
       const event = (state.currentSeason.events ?? []).find(e => e.id === eventId)
+      // 二度押しガード：決着済みの札をもう一度押しても何も起きない
       if (!event || event.resolved) return state
-      let players = state.players
-      let teams = state.teams
-      let gmRep = state.gmRep ?? 50
-      let season = state.currentSeason
-      const pid = event.playerId
-      const STATS = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const
-
-      if (event.type === 'player_fatigue' && pid) {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? { ...withFatigue(p, -40), form: Math.min(2, (p.form ?? 0) + 1), missNextRace: true } : p)
-        } else if (choiceIndex === 1) {
-          players = players.map(p => p.id === pid ? withFatigue(p, -15) : p)
-        } else {
-          players = players.map(p => p.id === pid ? withFatigue(p, 15) : p)
-        }
-      } else if (event.type === 'player_morale_low' && pid) {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? withMorale(p, 25) : p)
-        } else if (choiceIndex === 1) {
-          players = players.map(p => p.id === pid ? withMorale(p, 15) : p)
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
-        } else {
-          players = players.map(p => p.id === pid ? withMorale(p, -15) : p)
-        }
-      } else if (event.type === 'player_form_up' && pid) {
-        if (choiceIndex === 0) {
-          const stat = STATS[Math.floor(Math.random() * STATS.length)]
-          players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 1) }, fatigue: withFatigue(p, 8).fatigue } : p)
-        } else {
-          players = players.map(p => p.id === pid ? withMorale(p, 10) : p)
-        }
-      } else if (event.type === 'young_breakout' && pid) {
-        if (choiceIndex === 0) {
-          const stat = STATS[Math.floor(Math.random() * STATS.length)]
-          players = players.map(p => p.id === pid ? { ...p, ratings: { ...p.ratings, [stat]: Math.min((getStatPotentials(p) as Record<string, number>)[stat] ?? 99, p.ratings[stat] + 2) }, fatigue: withFatigue(p, 10).fatigue } : p)
-        }
-      } else if (event.type === 'player_wants_renewal' && pid) {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? withMorale(p, 10) : p)
-        } else {
-          players = players.map(p => p.id === pid ? withMorale(p, -5) : p)
-        }
-      } else if (event.type === 'sponsor_offer') {
-        if (choiceIndex === 0) {
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + 5000000 } } : t)
-          gmRep = Math.min(100, gmRep + 1)
-        } else {
-          gmRep = Math.min(100, gmRep + 3)
-        }
-      } else if (event.type === 'media_interview') {
-        if (choiceIndex === 0) {
-          gmRep = Math.min(100, gmRep + 4)
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 5) : p)
-        } else if (choiceIndex === 1) {
-          gmRep = Math.min(100, gmRep + 2)
-        } else {
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 8) : p)
-        }
-      } else if (event.type === 'press_conference') {
-        if (choiceIndex === 0) {
-          gmRep = Math.min(100, gmRep + 3)
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 6) : p)
-        } else if (choiceIndex === 1) {
-          gmRep = Math.min(100, gmRep + 1)
-        } else {
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 10) : p)
-        }
-      } else if (event.type === 'playing_time_demand' && pid) {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? withMorale(p, 20) : p)
-        } else if (choiceIndex === 1) {
-          players = players.map(p => p.id === pid ? withMorale(p, 5) : p)
-        } else {
-          players = players.map(p => p.id === pid ? withMorale(p, -15) : p)
-        }
-      } else if (event.type === 'transfer_request' && pid) {
-        const reqPlayer = players.find(p => p.id === pid)
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? withMorale(p, 15) : p)
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
-        } else if (choiceIndex === 2 && reqPlayer) {
-          players = players.map(p => p.id === pid ? withMorale(p, -25) : p)
-          const escalation = {
-            id: `evt_${Date.now()}`,
-            raceIndex: season.currentRaceIndex + 1,
-            type: 'transfer_request' as const,
-            playerId: pid,
-            title: `${reqPlayer.name}が移籍を強く要求`,
-            body: '無視されたことで態度が硬化。エージェントが正式に移籍要求書を提出しました。これ以上放置すれば士気は底を打ちます。',
-            choices: [
-              { label: '慰留費を支払う（-500万）', desc: 'モラール+20。今季は残留確定。' },
-              { label: '移籍市場に出す', desc: '選手を売却プロセスへ。' },
-              { label: '無視する', desc: 'モラール-30。パフォーマンス大幅低下。' },
-            ],
-            resolved: false }
-          season = { ...season, events: [...(season.events ?? []), escalation] }
-        }
-      } else if (event.type === 'board_warning') {
-        if (choiceIndex === 0) {
-          gmRep = Math.min(100, gmRep + 5)
-        }
-      } else if (event.type === 'player_milestone' && pid) {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? withMorale(p, 15) : p)
-        } else {
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 8) : p)
-        }
-      } else if (event.type === 'veteran_ambition' && pid) {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? withFatigue(withMorale(p, 30), 5) : p)
-          players = players.map(p => p.teamId === state.playerTeamId && p.id !== pid ? withMorale(p, 8) : p)
-        } else if (choiceIndex === 1) {
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 12) : p)
-        }
-      } else if (event.type === 'rival_provocation') {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 15) : p)
-          gmRep = Math.min(100, gmRep + 3)
-        } else if (choiceIndex === 1) {
-          gmRep = Math.min(100, gmRep + 4)
-        }
-      } else if (event.type === 'ai_poaching' && pid) {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.id === pid ? withMorale(p, 20) : p)
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 3000000 } } : t)
-        } else if (choiceIndex === 1) {
-          players = players.map(p => p.id === pid ? withMorale(p, 5) : p)
-        } else {
-          players = players.map(p => p.id === pid ? withMorale(p, -20) : p)
-        }
-      } else if (event.type === 'team_chemistry') {
-        if (choiceIndex === 0) {
-          players = players.map(p => p.teamId === state.playerTeamId ? withFatigue(withMorale(p, 10), 3) : p)
-        } else if (choiceIndex === 1) {
-          players = players.map(p => p.teamId === state.playerTeamId ? withFatigue(withMorale(p, 20), 8) : p)
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 2000000 } } : t)
-        }
-      } else if (event.type === 'player_retirement' && pid) {
-        if (choiceIndex === 0) {
-          // Stay bonus — pay 20M, player morale up
-          players = players.map(p => p.id === pid ? withMorale(p, 20) : p)
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget - 20000000 } } : t)
-        } else {
-          // Accept retirement — 即引退はせず「今季限りで引退」フラグを立てる。
-          // 実際の引退処理（ロスター除外・レジェンド登録）はendSeasonで行う
-          players = players.map(p => p.id === pid ? { ...p, pendingRetirementYear: state.currentSeason.year } : p)
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, 8) : p)
-        }
-      } else if (event.type === 'budget_boost') {
-        if (choiceIndex === 0) {
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + 10000000 } } : t)
-        } else if (choiceIndex === 1) {
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + 25000000 } } : t)
-          gmRep = Math.max(0, gmRep - 5)
-        }
-      } else if (event.type === 'budget_crisis') {
-        if (choiceIndex === 0) {
-          // Emergency sponsor deal: +30M, gmRep -2
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + 30000000 } } : t)
-          gmRep = Math.max(0, gmRep - 2)
-        } else if (choiceIndex === 1) {
-          // Wage cut: main players morale -10, budget +15M
-          players = players.map(p => p.teamId === state.playerTeamId ? withMorale(p, -10) : p)
-          teams = teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + 15000000 } } : t)
-        }
-      }
-
-      season = { ...season, events: (season.events ?? []).map(e => e.id === eventId ? { ...e, resolved: true, choiceIndex } : e) }
-      return { players, teams, gmRep, currentSeason: season }
+      // 「どの肢を選ぶと何が起きるか」は engine/eventEffects の表1本
+      const w = applyEventChoice(
+        { players: state.players, teams: state.teams, gmRep: state.gmRep ?? GM_REP_DEFAULT, season: state.currentSeason },
+        event, choiceIndex, state.playerTeamId)
+      return {
+        players: w.players,
+        teams: w.teams,
+        gmRep: w.gmRep,
+        currentSeason: {
+          ...w.season,
+          events: (w.season.events ?? []).map(e => e.id === eventId ? { ...e, resolved: true, choiceIndex } : e) } }
     })
   },
-
 
   // ── Individual Events ─────────────────────────────────────────────
   simulateIndividualEvent: (eventId, skipPlayerIds) => {

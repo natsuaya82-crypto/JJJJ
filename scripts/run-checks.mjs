@@ -57,6 +57,9 @@ const CHECKS = [
   // CPU間トレードは実際の世界では1件も成立しないので golden の外にある（BACKLOG A-7）。
   // 成立側は世界を手で組んでここで見る
   'cpu-trade',
+  // イベントの効き目。golden（race-event）は57件を1つの世界に流すので
+  // チーム全体の士気が100に張り付き、個々の違いが見えない。こちらは1件ずつ別の世界で見る
+  'event-effects',
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'clubs', 'offseason',
   // レース・順位・記録

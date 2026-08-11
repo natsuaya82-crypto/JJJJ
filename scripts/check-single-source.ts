@@ -590,6 +590,15 @@ RULES.push({
   allow: [],
   fix: '格で比べる（tierOf）。平均OVRは循環するので使わない',
 })
+// GMの評判の上下限。イベントの決着だけで11か所に手書きされていた。
+// **下限が 0 と 1 の2つある**ことが分かっているので（BACKLOG A-8）、
+// seasonObjectives の `Math.max(1, ...)` はそこだけ残して見えるようにしてある。
+RULES.push({
+  name: '評判の上下限を手書きしている',
+  pattern: /gmRep\s*[+-]|Math\.(min|max)\([^)]*gmRep/,
+  allow: ['src/utils/condition.ts', 'src/engine/eventEffects.ts', 'src/engine/seasonObjectives.ts'],
+  fix: 'utils/condition.ts の withGmRep(cur, delta) を使う',
+})
 // オフシーズンの4つの処理（解雇・CPU間移籍・トレード・レンタル）が
 // 「相手にするクラブ」を数えるところ。beginSeasonDraft の中だけで3回手書きされていた。
 RULES.push({
