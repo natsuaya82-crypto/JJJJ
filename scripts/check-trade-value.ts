@@ -164,7 +164,7 @@ console.log('\n[6] 物差しは2つ。額面（損得）と言い値（相手が
 
 console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
 {
-  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   const store = storeSource()
   const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
 
@@ -232,7 +232,7 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
 console.log('\n[8] 年齢補正の段が1箇所にしかない')
 {
   const pu = readFileSync(join('src', 'utils', 'playerUtils.ts'), 'utf-8')
-  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   const store = storeSource()
   const chatSrc = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
   const gen = readFileSync(join('src', 'engine', 'playerGenerator.ts'), 'utf-8')

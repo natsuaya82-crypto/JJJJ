@@ -148,9 +148,15 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 - `@capacitor/*` の差し替え（`nativeFakes`）は**必要な点検にだけ**当てること。
   全部に当てると偽物に無い export を使う経路がビルドできなくなります
 - ソースを読んで確かめる点検は、**読む範囲を `scripts/storeSource.ts` から取ること**。
-  `storeSource()`＝store本体＋スライス／`engineSource()`＝engine／`logicSource()`＝両方。
+  `storeSource()`＝`src/store` 以下ぜんぶ／`engineSource()`＝`src/engine` 以下ぜんぶ／
+  `logicSource()`＝両方。どれも**ディレクトリを実際に数えます**（除外表は置きません）。
   「ここに手書きしてはいけない」は `storeSource()`、「どこかに1本だけある」は `logicSource()`。
-  混ぜると前者が「engine も書くな」という別の主張に黙って変わります
+  混ぜると前者が「engine も書くな」という別の主張に黙って変わります。
+  **範囲を広げるときは、広げる前と後で全点検の ok/NG を突き合わせること**（否定の判定が
+  黙って強くなるため）。以前 `slices/*.ts` だけを数えていて、直下に増えた `marketOps.ts` の
+  `counterCeiling` / `tradeValueCtxOf` がどの点検からも見えていませんでした
+- **相対パスを含む文字列で点検しないこと。** 上の3つは深さの違うファイルを繋ぐので、
+  `from '../utils/…'` を探す判定は繋いだ瞬間に嘘になります（片方にしか当たらない）
 - 落ちたものだけ中身が出ます。全部見たいときは `npm run check -- --verbose`
 
 ### 画面下から出るものは必ず `BottomSheet` を通すこと
