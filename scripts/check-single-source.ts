@@ -217,6 +217,7 @@ RULES.push({
     'src/store/slices/competitionSlice.ts',   // 書く側（海外リーグ進行の移設先）
     'src/store/slices/raceSlice.ts',   // 書く側（runRaceの移設先）
     'src/store/slices/seasonSlice.ts',   // 書く側（endSeasonの移設先）
+    'src/engine/seasonArchivePrep.ts',   // 書く側（保存用の詰め替え。archiveSeason.ts と同じ立場）
   ],
   fix: 'utils/careerStats.ts の buildCareerCounts を通す（走行記録がある年はそこから数える）',
 })
