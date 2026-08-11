@@ -27,7 +27,7 @@ import { type Appraisal, type Destination, appraiseMove, buildDestination, rankO
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, eligibilityCtx, isLeavingClub, isOwnedBy } from '../../utils/transferEligibility'
 
 type Slice = Pick<GameStore,
-  'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow'>
+  'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow' | 'refuseFreeContactRetention'>
 
 export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -1707,5 +1707,13 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     return true
   },
 
-
+  refuseFreeContactRetention: (playerId) => set(s => {
+    const fc = (s.currentSeason.incomingOffers ?? []).find(o => o.playerId === playerId && o.offeredPrice === 0)
+    if (!fc) return s
+    return {
+      currentSeason: {
+        ...s.currentSeason,
+        incomingOffers: (s.currentSeason.incomingOffers ?? []).map(o => o.id === fc.id ? { ...o, retentionRefused: true } : o),
+        seenFreeContactIds: [...new Set([...(s.currentSeason.seenFreeContactIds ?? []), fc.id])] } }
+  }),
 })
