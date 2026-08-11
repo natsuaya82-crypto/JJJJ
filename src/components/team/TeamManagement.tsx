@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -413,7 +414,7 @@ export default function TeamManagement() {
         const rp = releasePlayerId ? allPlayers.find(p => p.id === releasePlayerId) : undefined
         if (!rp) return null
         const buyout = rp.contract.annualSalary * Math.max(0, rp.contract.yearsLeft - 1)
-        return (
+        return createPortal((
           <>
             <div onClick={() => setReleasePlayerId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 320 }} />
             <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 321, width: 'calc(100% - 48px)', maxWidth: 360, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 16, padding: '20px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
@@ -436,7 +437,7 @@ export default function TeamManagement() {
               </div>
             </div>
           </>
-        )
+        ), document.body)
       })()}
     </div>
   )

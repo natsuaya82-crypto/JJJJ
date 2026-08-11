@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useGameStore } from '../../store/gameStore'
 import { audio, audioDiag, audioStatus } from '../../utils/audio'
 import { onlineAvailable } from '../../data/featureFlags'
@@ -75,7 +76,7 @@ function SettingRow({ icon, label, sub, onClick, danger }: {
 
 // 詳細画面（フルスクリーンのオーバーレイ）
 function DetailScreen({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
+  return createPortal((
     <div style={{
       position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, left: 0, right: 0, bottom: 0,
       zIndex: 1000, backgroundColor: OVERLAY_BG,
@@ -101,7 +102,7 @@ function DetailScreen({ title, onClose, children }: { title: string; onClose: ()
         {children}
       </div>
     </div>
-  )
+  ), document.body)
 }
 
 type Detail = null | 'team' | 'sound' | 'reset' | 'blocked' | 'resign'

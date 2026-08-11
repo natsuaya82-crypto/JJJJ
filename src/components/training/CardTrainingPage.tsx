@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { greatSuccessChance, activeEvents } from '../../data/events'
 import { comparePlayers } from '../../utils/playerSort'
 import BackButton from '../ui/BackButton'
@@ -516,7 +517,7 @@ export default function CardTrainingPage() {
       </div>
 
       {/* Result overlay */}
-      {applied && (
+      {applied && createPortal((
         <div
           onClick={() => setApplied(null)}
           style={{
@@ -621,7 +622,7 @@ export default function CardTrainingPage() {
             >閉じる</button>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   )
 }

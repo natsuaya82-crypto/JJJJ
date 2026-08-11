@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
@@ -234,7 +235,7 @@ export function GmPassCard() {
 
 // 全画面に重ねて出す版。背景タップか「閉じる」で閉じる。
 export function GmPassSheet({ onClose }: { onClose: () => void }) {
-  return (
+  return createPortal((
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 1200,
@@ -258,5 +259,5 @@ export function GmPassSheet({ onClose }: { onClose: () => void }) {
         </button>
       </div>
     </div>
-  )
+  ), document.body)
 }
