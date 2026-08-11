@@ -3,15 +3,15 @@ import { comparePlayers } from '../../../utils/playerSort'
 import BackButton from '../../ui/BackButton'
 import { useGameStore } from '../../../store/gameStore'
 import PlayerFace from '../../player/PlayerFace'
-import { ovr, ratingColor, SPEC_COLOR, playerConsentToMove } from '../../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR } from '../../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
 import { tradeValues, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
 import { canBePoached, canTradeAway, eligibilityCtx } from '../../../utils/transferEligibility'
 import type { Player, Team } from '../../../types'
 import { TeamLogoSVG } from '../../icons/Icons'
-import { pickKeyValue } from '../../../data/economy'
+import { pickKeysValue } from '../../../data/economy'
 import { C, alpha, SAIRA } from '../../../styles/tokens'
-import { tierOfPlayerClub, allTieredClubs } from '../../../utils/clubTier'
+import { tradeConsentBonus, tradeRefuser } from '../../../engine/tradeConsent'
 import { fmtYen } from '../../../utils/money'
 import { SpecChip } from '../../player/PlayerChips'
 
@@ -47,17 +47,14 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const tradeIn = { outPlayers: givePlayers, inPlayers: getPlayers,
-      outExtra: [...givePk].reduce((s, k) => s + pickKeyValue(k), 0),
-      inExtra: [...getPk].reduce((s, k) => s + pickKeyValue(k), 0) }
+      outExtra: pickKeysValue([...givePk]),
+      inExtra: pickKeysValue([...getPk]) }
     const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
     const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
-    const consentBonus = ratio >= 1.2 ? 0.15 : 0
-    let blockMsg = ''
-    for (const rp of getPlayers) {
-      // 行き先は store の destinationOf 1本（トレード成立時に使われるものと同じ）
-      const consent = playerConsentToMove(rp, destinationOf(playerTeamId, rp), tierOfPlayerClub(rp.teamId, allTieredClubs(teams, foreignLeagues)), 0.5, 0, consentBonus)
-      if (!consent.ok) { blockMsg = consent.reason; break }
-    }
+    // 本人が断るかは engine/tradeConsent 1本（成立させる tradePlayer・打診の proposeTrade と同じ）。
+    // 行き先も store の destinationOf 1本（トレード成立時に使われるものと同じ）
+    const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf }, tradeConsentBonus(ratio))
+    const blockMsg = refuser?.reason ?? ''
     const nextRound = (neg?.round ?? 0) + 1
     // 出しすぎ（釣り合いの上限を超えている）はストア側で断られる。ここでも同じ文言で先に出す
     const balMsg = cpuLoss > 0 && cpuGain >= cpuLoss * TRADE_MIN_RATIO

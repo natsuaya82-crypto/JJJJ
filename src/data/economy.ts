@@ -39,6 +39,11 @@ export function pickKeyValue(key: string): number {
   return m ? draftPickValue(Number(m[1]), Number(m[2])) : 8_000_000
 }
 
+/** 指名権のキーの束をまとめて値段にする。トレードの3つの入口が同じ数え方を通るように */
+export function pickKeysValue(keys: readonly string[]): number {
+  return keys.reduce((sum, k) => sum + pickKeyValue(k), 0)
+}
+
 // 移籍金の丸め。**画面に出る移籍金は必ずここを通す**。
 // 出品の言い値・逆提示は50万単位、クラブ間のオファーは100万単位。
 // 以前は Math.max(500000, Math.round(x / 500000) * 500000) が9箇所に手書きされていて、

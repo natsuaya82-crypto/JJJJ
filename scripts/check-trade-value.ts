@@ -228,7 +228,12 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   const pickRe = /match\(\/-R\(\\d\+\)-\(\\d\+\)\$\//g
   const pickDefs = (store.match(pickRe) ?? []).length + (chat.match(pickRe) ?? []).length
   check('指名権キーの読み取りは economy の1本だけ', pickDefs === 0, `${pickDefs}箇所`)
-  check('チャットが指名権の値段を pickKeyValue から取る', chat.includes('pickKeyValue('))
+  // 指名権の**束**の値段も data/economy の1本（pickKeysValue）。トレードの入口3つと
+  // チャットの見積もりが、それぞれ reduce を手書きしていた
+  check('チャットが指名権の値段を economy から取る', /pickKeysValue\(|pickKeyValue\(/.test(chat))
+  for (const [name, src] of [['ストア', store], ['チャット', chat]] as const) {
+    check(`${name}が指名権の束を自分で足していない`, !/reduce\(\([^)]*\)\s*=>\s*\w+\s*\+\s*pickKeyValue\(/.test(src))
+  }
   // 主力割増1.8は入札の受諾ラインの一部。画面と本処理で別々に書くと表示と結果がズレる
   check('主力割増(1.8)のべた書きが無い', !/\? 1\.8 : 1/.test(store) && !/\? 1\.8 : 1/.test(bid))
   check('入札画面が bidThreshold を通る', bid.includes('bidThreshold('))

@@ -42,6 +42,33 @@ const RULES: Rule[] = [
     fix: 'utils/saleAnswer.ts の isSaleAnswered / saleAnswers / withSaleAnswer / keepSaleAnswers を使う',
   },
   {
+    // トレードでもらう選手の同意は engine/tradeConsent 1本。成立させる側(tradePlayer)と
+    // チャットの打診(proposeTrade)の2箇所に手書きされていて、片方のコメント自身が
+    // 「揃っていないと『飲んだのに無反応』になる」と警告していた＝手で揃える前提だった。
+    name: 'トレードの同意判定を手書きしている',
+    pattern: /playerConsentToMove\([^)]*0\.5,\s*0,/,
+    // BidSheet は**入札**の同意（clubBlessed=true・スカウト施設の下駄・年俸で
+    // どこまで説得できるかの段階表示）で、トレードとは別の決まり。混ぜないこと
+    allow: ['src/engine/tradeConsent.ts', 'src/components/transfer/BidSheet.tsx'],
+    fix: 'engine/tradeConsent.ts の tradeRefuser / tradeConsentBonus を使う',
+  },
+  {
+    // 「相手が大きく得をするなら本人を口説ける」の線（1.2倍・+0.15）。
+    // utils/tradeValue が「呼び出し側に 0.92 や 1.5 を直接書かないこと」と決めているのと
+    // 同じ性格の数字なので、同じように呼び出し側へ書かせない。
+    name: 'トレードの説得の下駄を直書きしている',
+    pattern: /ratio\s*>=\s*1\.2|cpuGain\s*\/\s*cpuLoss\s*>=\s*1\.2/,
+    allow: ['src/engine/tradeConsent.ts'],
+    fix: 'engine/tradeConsent.ts の tradeConsentBonus(ratio) を使う',
+  },
+  {
+    // 指名権の束の値段。トレードの入口3つが同じ数え方を通るように data/economy へ。
+    name: '指名権の束の値段を自分で足している',
+    pattern: /reduce\(\([^)]*\)\s*=>\s*\w+\s*\+\s*pickKeyValue\(/,
+    allow: ['src/data/economy.ts'],
+    fix: 'data/economy.ts の pickKeysValue(keys) を使う',
+  },
+  {
     // 「この選手を対象にしていいか」に渡す材料は eligibilityCtx 1本。
     // 手書きしていたので、材料を足すたびに入れ忘れた場所だけが素通りしていた
     // （返事済みの選手がトレードの候補に残っていたのがこれ）。

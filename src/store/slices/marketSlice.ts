@@ -6,8 +6,9 @@ import { buildContractRequests } from '../../engine/contractRequests'
 import { judgeRenewalOffer } from '../../engine/renewalDecision'
 import { judgeSaleOffer, withSaleRefused } from '../../engine/saleOfferGate'
 import { runTradeMoves, swapDraftPicks } from '../../engine/tradeExecution'
+import { tradeConsentBonus, tradeRefuser } from '../../engine/tradeConsent'
 import { reinforcementBanned } from '../../data/economy'
-import { pickKeyValue, roundFee } from '../../data/economy'
+import { pickKeysValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract } from '../../data/rosterRules'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
@@ -32,7 +33,16 @@ import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAw
 type Slice = Pick<GameStore,
   'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow' | 'refuseFreeContactRetention'>
 
-export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => ({
+// トレードの同意判定に渡す材料（engine/tradeConsent）。成立させる側とチャットの打診側で
+// **同じものを渡す**ためにここ1本から作る（手書きすると片方だけ古い state を見る事故が起きる）
+const consentCtxOf = (get: () => GameStore) => () => {
+  const st = get()
+  return { myTeamId: st.playerTeamId, teams: st.teams, foreignLeagues: st.foreignLeagues, destinationOf: st.destinationOf }
+}
+
+export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => {
+  const consentCtx = consentCtxOf(get)
+  return ({
 
   releasePlayer: (playerId) => {
     set(state => {
@@ -173,8 +183,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const outPlayers = offer.requestedPlayerIds.map(pid => state.players.find(pl => pl.id === pid)).filter((p): p is Player => !!p)
       const inPlayers = offer.offeredPlayerIds.map(pid => state.players.find(pl => pl.id === pid)).filter((p): p is Player => !!p)
       const acceptIn = { outPlayers, inPlayers,
-        outExtra: (offer.requestedPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0),
-        inExtra: (offer.offeredPickKeys ?? []).reduce((s2, k) => s2 + pickKeyValue(k), 0) }
+        outExtra: pickKeysValue(offer.requestedPickKeys ?? []),
+        inExtra: pickKeysValue(offer.offeredPickKeys ?? []) }
       if (!tradeNotLopsided(acceptIn, tvCtxA).ok) {
         return callOff(offer.requestedPlayerIds[0] ?? offer.offeredPlayerIds[0] ?? '', 'trade_unfair')
       }
@@ -1342,18 +1352,15 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const tvCtx = tradeValueCtxOf(state)
     const tradeIn = {
       outPlayers: offered, inPlayers: requested,
-      outExtra: offerPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, transferFee),
-      inExtra: requestPickKeys.reduce((s, k) => s + pickKeyValue(k), 0) + Math.max(0, -transferFee) }
+      outExtra: pickKeysValue(offerPickKeys) + Math.max(0, transferFee),
+      inExtra: pickKeysValue(requestPickKeys) + Math.max(0, -transferFee) }
     const bal = tradeBalance(tradeIn, tvCtx)
     if (!bal.ok) return { ok: false, reason: bal.reason }
     const tradeVals = tradeValues(tradeIn, tvCtx)
 
-    // 選手本人の同意ゲート：獲得する選手が自チームへの移籍に納得しなければ成立しない
-    // （相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる。proposeTradeと同じ）
-    const consentBonusT = tradeVals.ratio >= 1.2 ? 0.15 : 0
-    for (const rp of requested) {
-      if (!playerConsentToMove(rp, get().destinationOf(state.playerTeamId, rp), tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
-    }
+    // 選手本人の同意ゲートは engine/tradeConsent 1本（チャットの打診 proposeTrade と同じ）
+    const refuser = tradeRefuser(requested, consentCtx(), tradeConsentBonus(tradeVals.ratio))
+    if (refuser) return { ok: false, reason: `${refuser.player.name}はこの移籍を望んでいない。` }
 
     set(state => {
       // 在籍判定は player.teamId 1本（クラブ側の名簿は廃止）。
@@ -1430,26 +1437,21 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 評価式は utils/tradeValue.ts の1本。主力の割増は出す側・もらう側の両方に同じだけ掛かる
     const tvCtx = tradeValueCtxOf(state)
     const playersOf = (ids: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
-    const picksOf = (picks: string[]) => picks.reduce((s, k) => s + pickKeyValue(k), 0)
     const theirName = findClub(state.teams, state.foreignLeagues, targetTeamId)?.shortName
       ?? '相手クラブ'
     const givePlayers = playersOf(giveIds)
     const getPlayersT = playersOf(getIds)
     const baseIn = { outPlayers: givePlayers, inPlayers: getPlayersT,
-      outExtra: picksOf(givePickKeys), inExtra: picksOf(getPickKeys) }
+      outExtra: pickKeysValue(givePickKeys), inExtra: pickKeysValue(getPickKeys) }
     // 相手が受け取るぶんは額面、相手が手放すぶんは相手の言い値。物差しは tradeValues が持つ
     const { cpuGain, cpuLoss } = tradeValues(baseIn, tvCtx)
 
     const existing = (state.currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === targetTeamId)
     const round = (existing?.round ?? 0) + 1
 
-    // 獲得選手の同意（相手クラブが大きく得をする取引＝1.2倍以上なら本人の説得材料になる）
-    const consentBonus = cpuLoss > 0 && cpuGain / cpuLoss >= 1.2 ? 0.15 : 0
-    let hardNo = ''
-    for (const id of getIds) {
-      const rp = state.players.find(p => p.id === id); if (!rp) continue
-      if (!playerConsentToMove(rp, get().destinationOf(state.playerTeamId, rp), tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonus).ok) { hardNo = `${rp.name}はこの移籍を望んでいない。`; break }
-    }
+    // 獲得選手の同意は engine/tradeConsent 1本（成立させる tradePlayer と同じ）
+    const refuser = tradeRefuser(getPlayersT, consentCtx(), cpuLoss > 0 ? tradeConsentBonus(cpuGain / cpuLoss) : 0)
+    const hardNo = refuser ? `${refuser.player.name}はこの移籍を望んでいない。` : ''
 
     let status: TradeNegotiation['status'] = 'countered'
     let message = ''
@@ -1596,3 +1598,4 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         seenFreeContactIds: [...new Set([...(s.currentSeason.seenFreeContactIds ?? []), fc.id])] } }
   }),
 })
+}
