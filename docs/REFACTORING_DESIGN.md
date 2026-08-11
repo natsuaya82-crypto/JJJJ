@@ -239,7 +239,7 @@ endSeason: () => set(state => runSeasonEnd(state, [
 |---|---|---|
 | **P0 足場** ✅完了(2026-08-11) | セーブfixture＋スナップショットをcheckに追加 / §6の残重複掃除（万表示統一含む）/ 給与定数化 / check-fa-marketのシード固定 | 低 |
 | **P1 成長統合** ✅完了(2026-08-11) | `growPlayer`→engine/growth に純移動。係数の食い違いは無し（ageCurveで統一済みと確認、オーナー判断は不要だった）。bakeAgeGrowthへの古い言及も掃除 | 中→低 |
-| **P2 persist抽出** | L8020–8877 → `store/persistence/`、merge補正のbootRepair集約、migrate失敗時のsaveHealth接続（§4） | 中 |
+| **P2 persist抽出** ✅完了(2026-08-11) | migrate→persistence/migrateSave.ts、merge→mergeSave.ts、SAVE_VERSION分離。merge内の補正7ブロックは bootRepair ではなく **persistence/normalizeSave.ts** に集約（bootRepairは「冪等な導出修復」専用のまま保ち、一回きりパッチと混ぜないため）。migrate失敗時は saveHealth=failed でセーフモード接続（意図した挙動変更・独立コミット） | 中 |
 | **P3 engine抽出** | 末尾~690行・冒頭~290行・実績~150行の純関数を engine/（cpuMarket・individualRace・draft・achievements）へ移動。当面re-exportで互換維持 | 低〜中 |
 | **P4 スライス分割** | `set`ラッパーのmiddleware化（§2.3）→ §2.2の番号順に10分割。**ロジック変更なし・移動のみ**。1スライスごとに独立コミット | 中〜高 |
 | **P5 巨大アクション分解** | runRace / endSeason / beginSeasonDraft をフェーズ関数列に（§2.4）。rng注入・seed固定ダンプで新旧一致を確認。**1アクション=1PR** | **高** |
