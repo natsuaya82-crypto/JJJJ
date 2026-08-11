@@ -18,6 +18,14 @@
  *   「探すパターン」と「居ていい場所（許可リスト）」だけを並べる。
  *   型だけの import（`import type ...`）は実行時には残らないので、
  *   slices 同士・slices→gameStore のルールだけ許可する（型は循環しない）。
+ *
+ * ■ルール2・3の範囲は `src/store` 以下ぜんぶ（storeSource.ts と同じ判断）
+ *   最初は `src/store/slices` だけを見ていた。分解で `src/store` 直下や
+ *   `persistence/` にファイルが増えても、そこが slices/gameStore を値として
+ *   import していないかは誰も見ていなかった——storeSource.ts が最初 gameStore.ts と
+ *   slices/*.ts しか数えていなかったのと**同じ形の穴**。
+ *   唯一の例外は `gameStore.ts` 自身（slices を集めて store を組み立てる本人なので、
+ *   全 slice を値として import するのが仕事）。
  */
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { dirname, join, relative, resolve } from 'path'
@@ -121,10 +129,17 @@ function report(name: string, fix: string, hits: Hit[]) {
   )
 }
 
-// ── ルール2: store/slices/ の中から他の slices/ を import しない（import type だけは許可） ──
+// ── ルール2: store/ の中から store/slices/ を値として import しない（gameStore.ts だけ例外） ──
+//
+// slices 同士が直接呼び合うと循環する、というだけの話ではない。marketOps.ts のような
+// 「slices が呼ぶための土台」が逆に slices を値として import したら、それも同じ循環になる
+// （marketSlice.ts は marketOps.ts の関数を呼んでいるので、向きが決まっている）。
+// なので範囲は slices 同士に絞らず、store 全体から見る。
 {
+  const ALLOW = ['src/store/gameStore.ts']   // 唯一の合成役。全 slice を値として import するのが仕事
   const hits: Hit[] = []
-  for (const { file, lines } of scanFiles(['src/store/slices'])) {
+  for (const { file, lines } of scanFiles(['src/store'])) {
+    if (isAllowed(file, ALLOW)) continue
     lines.forEach((line, i) => {
       const t = line.trim()
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
@@ -137,19 +152,20 @@ function report(name: string, fix: string, hits: Hit[]) {
     })
   }
   report(
-    'slices が他の slices を値として import している',
-    'slice 同士を直接呼ばない。共有したい処理は utils/engine か store/marketOps のような slices の外へ出す。型だけなら import type で',
+    'store が slices を値として import している（gameStore.ts 以外）',
+    'slice を直接呼ばない。共有したい処理は utils/engine か store/marketOps のような slices の外へ出す。型だけなら import type で',
     hits,
   )
 }
 
-// ── ルール3: store/slices/ の中から ../gameStore を値として import しない ──
+// ── ルール3: store/ の中から ../gameStore を値として import しない ──
 //
 // `import type { GameStore, SetGame } from '../gameStore'` は正しい形（許可）。
 // 値の import（useGameStore など）は循環の元になるので禁止。
+// gameStore.ts は自分自身を import しないので除外は要らない。
 {
   const hits: Hit[] = []
-  for (const { file, lines } of scanFiles(['src/store/slices'])) {
+  for (const { file, lines } of scanFiles(['src/store'])) {
     lines.forEach((line, i) => {
       const t = line.trim()
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
@@ -162,7 +178,7 @@ function report(name: string, fix: string, hits: Hit[]) {
     })
   }
   report(
-    'slices が ../gameStore を値として import している',
+    'store が ../gameStore を値として import している',
     'GameStore / SetGame は import type で受ける（値の import は循環する）',
     hits,
   )
