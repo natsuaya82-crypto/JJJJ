@@ -38,7 +38,6 @@ import { needsPlayer } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
 import { hasNoPlayingTime } from '../../utils/transferDecision'
 import { writeSeasonArchive } from '../seasonArchive'
-import { createEconomySlice } from '../slices/economySlice'
 
 type Slice = Pick<GameStore,
   'startRegularSeason' | 'initObjectivesIfEmpty' | 'endSeason' | 'acceptGmOffer' | 'declineGmOffer' | 'resignAsGm'>
@@ -1274,7 +1273,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           ] } }
     })
   },
-  ...createEconomySlice(set, get),
 
 
   acceptGmOffer: (teamId) => {

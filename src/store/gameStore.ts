@@ -10,6 +10,10 @@ import { createMarketSlice } from './slices/marketSlice'
 import { createRaceSlice } from './slices/raceSlice'
 import { createDraftSlice } from './slices/draftSlice'
 import { createCardsSlice } from './slices/cardsSlice'
+import { createMetaSlice } from './slices/metaSlice'
+import { createCompetitionSlice } from './slices/competitionSlice'
+import { createWorldAthleticsSlice } from './slices/worldAthleticsSlice'
+import { createEconomySlice } from './slices/economySlice'
 import { migrateSave } from './persistence/migrateSave'
 import { mergeSave } from './persistence/mergeSave'
 import { saveSlotSuffix } from './saveSlot'
@@ -607,6 +611,10 @@ export const useGameStore = create<GameStore>()(
       openContractInfo: (id) => set({ contractInfoPlayerId: id }),
       closeContractInfo: () => set({ contractInfoPlayerId: null }),
       ...createCardsSlice(set, get),
+      ...createMetaSlice(set, get),
+      ...createCompetitionSlice(set, get),
+      ...createWorldAthleticsSlice(set, get),
+      ...createEconomySlice(set, get),
 
       setRivalTeam: (id) => set({ rivalTeamId: id }),
       ...createSeasonSlice(set, get),

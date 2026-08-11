@@ -25,9 +25,6 @@ import { STALE_TRADE_MSG, openWishIds } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, faceValueOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
 import { type Appraisal, type Destination, appraiseMove, buildDestination, rankOffers, regionOfLeague } from '../../utils/transferDecision'
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, eligibilityCtx, isLeavingClub, isOwnedBy } from '../../utils/transferEligibility'
-import { createCompetitionSlice } from '../slices/competitionSlice'
-import { createMetaSlice } from '../slices/metaSlice'
-import { createWorldAthleticsSlice } from '../slices/worldAthleticsSlice'
 
 type Slice = Pick<GameStore,
   'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow'>
@@ -1392,7 +1389,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       return { starredProspects: next }
     })
   },
-  ...createMetaSlice(set, get),
 
 
   // 移籍ウィンドウは撤廃。いつでも移籍・オファー可能。
@@ -1658,7 +1654,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   // チャット履歴を playerId 単位で保存（currentSeason 内なのでシーズンまたぎで自動リセット）
   // 1人ぶんのログは直近60発言まで。放っておくと会話がセーブの中で伸び続ける
   setChatLog: (playerId, messages) => set(s => ({ currentSeason: { ...s.currentSeason, chatLogs: { ...(s.currentSeason.chatLogs ?? {}), [playerId]: messages.slice(-60) } } })),
-  ...createCompetitionSlice(set, get),
 
 
   // ── Foreign transfer market ───────────────────────────────────────
@@ -1713,6 +1708,4 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   },
 
 
-  // ── National team ─────────────────────────────────────────────────
-  // 世界選手権：日本駅伝代表20人を確定（候補50から監督が選抜）
-  ...createWorldAthleticsSlice(set, get) })
+})
