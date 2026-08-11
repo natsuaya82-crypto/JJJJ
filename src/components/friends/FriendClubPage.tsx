@@ -10,7 +10,7 @@ import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { blockUser, unblockUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
 import { CLUB_LOGOS, CLUB_LOGO_DEFAULT, clubLogoSrc } from '../../data/clubLogos'
-import { formatCode, offlineDetail, listFriends, listSent, sendRequest, SEND_RESULT_TEXT } from '../../lib/friendsApi'
+import { formatCode, offlineDetail, listFriends, listSent, sendRequest, SEND_RESULT_TEXT, relativeTime } from '../../lib/friendsApi'
 import {
   CLUB_MAX, JOIN_TYPE_LABEL, searchClubs, myClub, myClubRequests, createClub, joinClub,
   cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
@@ -420,16 +420,6 @@ function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAd
 // ── 掲示板 ───────────────────────────────────────────
 const REQ_RARITIES: ClubReqRarity[] = ['normal', 'rare', 'epic']
 
-function ago(iso: string): string {
-  const t = new Date(iso).getTime()
-  if (!Number.isFinite(t)) return ''
-  const min = Math.floor((Date.now() - t) / 60000)
-  if (min < 1) return 'たった今'
-  if (min < 60) return `${min}分前`
-  const hour = Math.floor(min / 60)
-  if (hour < 24) return `${hour}時間前`
-  return `${Math.floor(hour / 24)}日前`
-}
 
 /**
  * 空いている枠に、選んだカードを上から当てはめてみる。
@@ -795,7 +785,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
           <TeamLogoSVG primary={p.primary} secondary={p.secondary} shortName={p.shortName} logoId={p.logoId} size={34} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 10, color: C.textGhost, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {p.teamName}<span style={{ marginLeft: 5 }}>GM {p.gmName}</span> ・ {ago(p.createdAt)}
+              {p.teamName}<span style={{ marginLeft: 5 }}>GM {p.gmName}</span> ・ {relativeTime(p.createdAt)}
             </div>
             {p.kind === 'msg' ? (
               <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>

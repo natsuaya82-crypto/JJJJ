@@ -30,16 +30,13 @@ import type { ContractTalkCtx } from '../../utils/contractTalk'
 import type { TeamRole, AcquisitionOffer, Player, Team, IncomingOffer, IncomingLoanOffer, TransferBid, ChatMessage } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
-import { pickKeyValue } from '../../data/economy'
+import { pickKeyValue, SALARY_DIAL_STEP, SALARY_DIAL_MIN, NEGOTIATION_SALARY_MAX } from '../../data/economy'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import { fmtYen } from '../../utils/money'
 import { SpecChip } from '../player/PlayerChips'
 
 
-const SALARY_STEP = 1000000
-const SALARY_MIN = 3000000
-const SALARY_MAX = 80000000
 
 function fmtDuration(months: number): string {
   if (months <= 0) return '期限切れ'
@@ -444,7 +441,7 @@ function ChatView({
   // 記録の側もシーズンに1件しか持てず、2人目に返事をすると1人目の返事が消えていた
   const settledOffer = settledOfferLocal || isSaleAnswered(currentSeason, player.id)
   const [settledLoan, setSettledLoan] = useState(false)
-  const [offerSalary, setOfferSalary] = useState(SALARY_MIN)
+  const [offerSalary, setOfferSalary] = useState(SALARY_DIAL_MIN)
   const [offerYears, setOfferYears] = useState(2)
   const [offerContractType, setOfferContractType] = useState<'standard' | 'development' | 'dual'>('standard')
   const [offerTeamRole, setOfferTeamRole] = useState<TeamRole | null>(null)
@@ -461,9 +458,9 @@ function ChatView({
 
   const openCompose = () => {
     const base = contractReq?.demandSalary
-      ? Math.round(contractReq.demandSalary * 0.88 / SALARY_STEP) * SALARY_STEP
-      : Math.round(player.contract.annualSalary * 1.05 / SALARY_STEP) * SALARY_STEP
-    setOfferSalary(Math.max(SALARY_MIN, Math.min(SALARY_MAX, base)))
+      ? Math.round(contractReq.demandSalary * 0.88 / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+      : Math.round(player.contract.annualSalary * 1.05 / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+    setOfferSalary(Math.max(SALARY_DIAL_MIN, Math.min(NEGOTIATION_SALARY_MAX, base)))
     setOfferYears(contractReq?.demandYears ?? 2)
     setOfferContractType(contractReq?.offerContractType ?? player.contract.contractType ?? 'standard')
     setOfferTeamRole(contractReq?.offerTeamRole ?? player.teamRole ?? null)
@@ -472,8 +469,8 @@ function ChatView({
   }
 
   const openComposeAcq = () => {
-    const base = Math.round(faMarketSalary(player) / SALARY_STEP) * SALARY_STEP
-    setOfferSalary(Math.max(SALARY_MIN, Math.min(SALARY_MAX, base)))
+    const base = Math.round(faMarketSalary(player) / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+    setOfferSalary(Math.max(SALARY_DIAL_MIN, Math.min(NEGOTIATION_SALARY_MAX, base)))
     setOfferYears(2)
     setOfferContractType(acqOffer?.offerContractType ?? 'standard')
     setOfferTeamRole(null)
@@ -482,8 +479,8 @@ function ChatView({
   }
 
   const openComposeTransfer = () => {
-    const base = Math.round(faMarketSalary(player) / SALARY_STEP) * SALARY_STEP
-    setOfferSalary(Math.max(SALARY_MIN, Math.min(SALARY_MAX, base)))
+    const base = Math.round(faMarketSalary(player) / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+    setOfferSalary(Math.max(SALARY_DIAL_MIN, Math.min(NEGOTIATION_SALARY_MAX, base)))
     setOfferYears(2)
     setComposeMode('transfer')
     setComposing(true)
@@ -1150,7 +1147,7 @@ function ChatView({
           <div style={{ padding: '12px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 10, color: C.textDim }}>提示年俸</div>
             <div style={{ padding: '4px 0 8px' }}>
-              <NumberDial value={offerSalary} onChange={v => setOfferSalary(Math.max(SALARY_MIN, Math.min(SALARY_MAX, v)))} min={SALARY_MIN} max={SALARY_MAX} accent={C.blue} />
+              <NumberDial value={offerSalary} onChange={v => setOfferSalary(Math.max(SALARY_DIAL_MIN, Math.min(NEGOTIATION_SALARY_MAX, v)))} min={SALARY_DIAL_MIN} max={NEGOTIATION_SALARY_MAX} accent={C.blue} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 10, color: C.textDim, flexShrink: 0 }}>年数</span>

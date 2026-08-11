@@ -129,6 +129,15 @@ export function counterCeiling(marketValue: number, offeredPrice: number): numbe
   return Math.max(marketValue * COUNTER_VALUE_CAP, offeredPrice * COUNTER_OFFER_CAP)
 }
 
+// 給与ダイヤル（NumberDial）の刻み・下限・上限。
+// 上限は用途で意図的に違う（オーナー確認済み・2026-08-11）:
+// 交渉（契約更改・FA/引き抜きの獲得提示）は8000万、ドラフト新人は6000万。
+// 値を変えるときはオーナー確認の上でここだけを変えること（画面に直書きしない）。
+export const SALARY_DIAL_STEP = 1_000_000
+export const SALARY_DIAL_MIN = 3_000_000
+export const NEGOTIATION_SALARY_MAX = 80_000_000
+export const DRAFT_SALARY_MAX = 60_000_000
+
 // 主力の引き抜き割増。余剰の売買は市場価値どおりだが、使われている選手を
 // 引き剥がすには上乗せが要る。国内CPU間と、海外クラブによるスター強奪の2通り
 export const POACH_PREMIUM = 1.4

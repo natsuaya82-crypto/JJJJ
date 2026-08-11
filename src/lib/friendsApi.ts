@@ -45,8 +45,8 @@ export function formatCode(code: string): string {
   return `${d.slice(0, 5)} ${d.slice(5)}`
 }
 
-/** updated_at から「3時間前」「昨日」などの表示を作る */
-function relativeTime(iso?: string): string {
+/** ISO時刻から「3時間前」「昨日」などの相対表示を作る（時刻の相対表示はこの1本） */
+export function relativeTime(iso?: string): string {
   if (!iso) return '—'
   const t = new Date(iso).getTime()
   if (!Number.isFinite(t)) return '—'

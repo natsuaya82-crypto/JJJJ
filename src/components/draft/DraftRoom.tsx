@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
+import { SALARY_DIAL_STEP, SALARY_DIAL_MIN, DRAFT_SALARY_MAX } from '../../data/economy'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
@@ -33,14 +34,11 @@ const DC_CONTRACT_OPTS = [
   { key: 'dual' as const, label: '2way契約' },
   { key: 'development' as const, label: '育成契約' },
 ]
-const DC_SALARY_STEP = 1000000
-const DC_SALARY_MIN = 3000000
 // ドラフト新人でも年俸は市場相場の半分未満には下げられない（極端に安く囲えないようにする）
 function draftSalaryFloor(p: Player): number {
-  const half = Math.round(faMarketSalary(p) / 2 / DC_SALARY_STEP) * DC_SALARY_STEP
-  return Math.max(DC_SALARY_MIN, half)
+  const half = Math.round(faMarketSalary(p) / 2 / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+  return Math.max(SALARY_DIAL_MIN, half)
 }
-const DC_SALARY_MAX = 60000000
 type DraftContract = { salary: number; years: number; contractType: 'standard' | 'development' | 'dual'; teamRole: TeamRole | null }
 const PERSONALITY_LABEL: Record<string, string> = { salary: '年俸重視', winning: '勝利志向', loyalty: 'チーム愛' }
 const PERSONALITY_ICON: Record<string, string>  = { salary: '¥', winning: '★', loyalty: '♡' }
@@ -906,7 +904,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
     for (const p of myDrafted) {
       const o = ovr(p)
       init[p.id] = {
-        salary: Math.min(DC_SALARY_MAX, Math.max(draftSalaryFloor(p), Math.round(p.contract.annualSalary / DC_SALARY_STEP) * DC_SALARY_STEP)),
+        salary: Math.min(DRAFT_SALARY_MAX, Math.max(draftSalaryFloor(p), Math.round(p.contract.annualSalary / SALARY_DIAL_STEP) * SALARY_DIAL_STEP)),
         years: 3,
         contractType: 'standard',
         teamRole: o >= 82 ? 'ace' : o >= 75 ? 'key_player' : o >= 68 ? 'rotation' : 'development',
@@ -988,7 +986,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 9, color: C.textDim, width: 28, flexShrink: 0 }}>年俸</span>
                 <div style={{ flex: 1 }}>
-                  <NumberDial value={c.salary} onChange={v => upd(p.id, { salary: Math.max(salaryMin, Math.min(DC_SALARY_MAX, v)) })} min={salaryMin} max={DC_SALARY_MAX} accent={C.gold} />
+                  <NumberDial value={c.salary} onChange={v => upd(p.id, { salary: Math.max(salaryMin, Math.min(DRAFT_SALARY_MAX, v)) })} min={salaryMin} max={DRAFT_SALARY_MAX} accent={C.gold} />
                 </div>
               </div>
               {/* 契約年数 */}

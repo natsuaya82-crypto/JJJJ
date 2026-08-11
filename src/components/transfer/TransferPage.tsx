@@ -709,7 +709,7 @@ export default function TransferPage() {
                                   </div>
                                   <button onClick={() => setPickSellPrice(pickSellPrice + 1000000)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
                                 </div>
-                                <input type="range" min={1000000} max={Math.round(fairVal * 1.3)} step={1000000}
+                                <input type="range" min={1000000} max={Math.round(fairVal * COUNTER_OFFER_CAP)} step={1000000}
                                   value={pickSellPrice} onChange={e => setPickSellPrice(Number(e.target.value))}
                                   style={{ width: '100%', accentColor: C.blue, marginBottom: '6px' }}
                                 />
