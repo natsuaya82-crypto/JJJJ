@@ -133,6 +133,10 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
   「壊れている」と「材料が無い」を混ぜないこと。材料が揃えば必ず走ります
 - `@capacitor/*` の差し替え（`nativeFakes`）は**必要な点検にだけ**当てること。
   全部に当てると偽物に無い export を使う経路がビルドできなくなります
+- ソースを読んで確かめる点検は、**読む範囲を `scripts/storeSource.ts` から取ること**。
+  `storeSource()`＝store本体＋スライス／`engineSource()`＝engine／`logicSource()`＝両方。
+  「ここに手書きしてはいけない」は `storeSource()`、「どこかに1本だけある」は `logicSource()`。
+  混ぜると前者が「engine も書くな」という別の主張に黙って変わります
 - 落ちたものだけ中身が出ます。全部見たいときは `npm run check -- --verbose`
 
 ### 画面下から出るものは必ず `BottomSheet` を通すこと

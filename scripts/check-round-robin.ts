@@ -8,8 +8,7 @@
  * 今は utils/roundRobin.ts の roundRobin 1本で、1周につき1人だけ取る。
  */
 import { roundRobin } from '../src/utils/roundRobin'
-import { readFileSync } from 'node:fs'
-import { storeSource } from './storeSource'
+import { logicSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -66,7 +65,7 @@ console.log('\n[4] 早い者勝ちの書き方が復活していない')
 {
   // ★1つのファイルに閉じ込めないこと。FA側は engine/cpuMarket、移籍側は store/slices/draftSlice
   //   と別々の層に分かれている（store だけ見ていたので「1か所」になって落ちた）
-  const src = [storeSource(), readFileSync('src/engine/cpuMarket.ts', 'utf-8')].join('\n')
+  const src = logicSource()
   check('移籍とFAの2か所で roundRobin を使う',
     (src.match(/roundRobin\(/g) ?? []).length >= 2,
     `${(src.match(/roundRobin\(/g) ?? []).length}か所`)

@@ -14,6 +14,7 @@
  * check-offseason.ts が232クラブ・5800人で1シーズン回している）。
  */
 import { readFileSync } from 'fs'
+import { logicSource } from './storeSource'
 import { rivalClubsFor } from '../src/utils/transferRivals'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -43,15 +44,10 @@ Math.random = () => {
 
 // 呼び出し箇所は「store 本体 ＋ スライス ＋ engine」を合わせて数える。
 // **置き場所ではなく「FA獲得が pickCpuFreeAgents 1本を通っているか」を見る点検**なので、
-// 分解でシーズン中のぶんが engine/inSeasonFa.ts へ移っても数え漏らさないようにする
+// 分解でシーズン中のぶんが engine へ移っても数え漏らさないようにする
 // （store だけを見ていたときは、移した瞬間に「2箇所しか無い」と誤検知した）。
-import { readdirSync } from 'fs'
-const srcFiles = [
-  'src/store/gameStore.ts',
-  ...readdirSync('src/store/slices').map(f => `src/store/slices/${f}`),
-  ...readdirSync('src/engine').filter(f => f.endsWith('.ts')).map(f => `src/engine/${f}`),
-]
-const store = srcFiles.map(p => readFileSync(p, 'utf8')).join('\n')
+// 組み立ては scripts/storeSource の logicSource 1本（次にファイルが動いても直す場所は無い）
+const store = logicSource()
 
 console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')
 {

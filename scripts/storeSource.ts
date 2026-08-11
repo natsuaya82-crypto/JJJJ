@@ -36,6 +36,40 @@ export function storeSource(): string {
   return storeFiles().map(f => readFileSync(f, 'utf-8')).join('\n')
 }
 
+/** engine の全ファイル */
+export function engineFiles(): string[] {
+  const dir = join('src', 'engine')
+  if (!existsSync(dir)) return []
+  return readdirSync(dir).sort().filter(f => f.endsWith('.ts')).map(f => join(dir, f))
+}
+
+/** engine を繋いだ本文 */
+export function engineSource(): string {
+  return engineFiles().map(f => readFileSync(f, 'utf-8')).join('\n')
+}
+
+/**
+ * store ＋ engine。**「どこかに1本だけあるか」を数える点検はこちらを使う。**
+ *
+ * ■ storeSource() に engine を混ぜなかった理由
+ *   点検の判定には性格の違う2種類がある。
+ *
+ *     ・**層の話**「store にこれを手書きしてはいけない」
+ *         例: `!store.includes('bidThreshold(')`（判定は utils を通せ、という意味）
+ *     ・**存在の話**「この決まりはどこかに1本だけある」
+ *         例: pickCpuFreeAgents の呼び出しが3箇所あるか
+ *
+ *   storeSource() に engine を足すと、前者が黙って
+ *   「engine も手書きしてはいけない」という**別の主張**に変わる。
+ *   いま数えたところ該当する判定は20件あり、今日はたまたま1件も壊れないが、
+ *   engine が正当に持つべき式を1つ足した瞬間に、誰もレビューしていない条件で落ちる。
+ *
+ *   なので範囲は分けたまま、**点検が自分の意味に合うほうを選ぶ**形にする。
+ */
+export function logicSource(): string {
+  return [storeSource(), engineSource()].join('\n')
+}
+
 /**
  * アクション1つぶんの**実装の本文**を切り出す。
  *
