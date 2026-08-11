@@ -3,6 +3,7 @@
 import type { GameStore, SetGame } from '../gameStore'
 import { tradeValueCtxOf, acquisitionDesiredSalary, faAllowedDespiteBan, willingFeeFor, finalizeSale } from '../marketOps'
 import { buildContractRequests } from '../../engine/contractRequests'
+import { judgeRenewalOffer } from '../../engine/renewalDecision'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeyValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract } from '../../data/rosterRules'
@@ -11,7 +12,7 @@ import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type 
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
-import { MAX_CONTRACT_ROUNDS, canOfferRenewal, canReNegotiate, contractTalkCtx, effectiveDemandSalary, liveContractOf } from '../../utils/contractTalk'
+import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
 import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
@@ -517,28 +518,12 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 「強豪か」は自分の部の中での順位で見る（順位表は部ごとに分かれている）
       const myRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
       const isGoodTeam = myRank > 0 && myRank <= 5
-      const personality = player.personality ?? 'salary'
-      // 要求額は contractTalk の effectiveDemandSalary 1本（チャットで見せている額と同じ）
-      const demand = effectiveDemandSalary(req)
-      const ratio = demand > 0 ? salary / demand : 2
-      // 士気が高い選手は譲歩する（要求を丸呑みしなくても交渉で下げられる余地を作る）
-      const moraleDiscount = (player.morale ?? 60) >= 80 ? 0.05 : (player.morale ?? 60) >= 65 ? 0.02 : 0
-      const acceptThresh = (personality === 'winning' && isGoodTeam ? 0.90 : personality === 'loyalty' ? 0.92 : 0.95) - moraleDiscount
-      const counterThresh = personality === 'salary' ? 0.77 : 0.73
-      const isLastRound = req.round >= MAX_CONTRACT_ROUNDS  // 交渉のラウンド上限は contractTalk の1本
-      let newStatus: ContractRequest['status']
-      let counterSalary: number | undefined
-      let counterYears: number | undefined
-      if (ratio >= acceptThresh) {
-        newStatus = 'accepted'
-      } else if (ratio >= counterThresh && !isLastRound) {
-        newStatus = 'countered'
-        // カウンターは「提示と要求の中間」＝承諾すれば実際に値引きが成立する（従来は要求+3%で交渉するだけ損だった）
-        counterSalary = Math.round((demand + salary) / 2 / 500000) * 500000
-        counterYears = Math.max(1, years, req.demandYears)
-      } else {
-        newStatus = 'rejected'
-      }
+      // その提示を受けるか・逆提示するか・断るかは engine/renewalDecision 1本
+      const judged = judgeRenewalOffer({ request: req, player, salary, years, isGoodTeam })
+      const newStatus = judged.status
+      const counterSalary = judged.counterSalary
+      const counterYears = judged.counterYears
+      const isLastRound = judged.isLastRound
       // roundの加算は reNegotiateContract 側のみ（獲得交渉と同じ規約）。ここでは進めない＝二重加算しない。
       const updatedReq = { ...req, status: newStatus, offerSalary: salary, offerYears: years, counterSalary, counterYears, offerContractType: contractType, offerTeamRole: teamRole }
       let newPlayers = state.players
