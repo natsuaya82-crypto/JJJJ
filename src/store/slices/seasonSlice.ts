@@ -18,6 +18,7 @@ import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues 
 import { type Division, type GameState, type GmOffer, type Nationality, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
+import { processContractExpiry } from '../../engine/contractExpiry'
 import { computePromotion } from '../../engine/promotion'
 import { processRetirements } from '../../engine/retirement'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
@@ -223,57 +224,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         .filter((e): e is NonNullable<typeof e> => e !== null)
         .sort((a, b) => Math.abs(b.ovrAfter - b.ovrBefore) - Math.abs(a.ovrAfter - a.ovrBefore))
 
-      // Expired contracts → FA (yearsLeft=0 after growth)
-      // CPU team players go to FA automatically; player-team players wait for renewal decision
-      // レンタル中の選手は保有元チーム基準で判定する（借り手チーム基準だと、貸し出した自チーム選手が勝手にFA化し、
-      // 借りている他人の選手の更新判断をユーザーがさせられる）
-      // レンタル中の選手は契約満了によるFA化の対象外（レンタル期間を必ず全うさせる）。
-      // これが無いと「元契約残り1年の選手を2年レンタル」した場合に、1年目の終わりでFA化して
-      // 借り手からも保有元からも消える（＝2年契約が1年で消える）バグになる。
-      // 満了は返却後、保有元チーム側で改めて処理される
-      // 契約満了FA化は「国内リーグ所属」だけが対象。海外クラブの選手を含めると
-      // クラブ名簿に残ったまま teamId だけ '' になり「未所属」表示のバグになる（海外の名簿は海外リーグ側の更新で管理）
-      const domesticIdsFA = domesticTeamIdSet_(state.teams)
-      // 契約満了＝自チームもCPUと同じく自動FA。
-      // シーズン中に半年切り通知・チャット催促・終了カードの契約未解決警告で警告済みで、
-      // 退団は繰越時の退団通知（reason:'fa'）に載る＝気づかず消えることはない。
-      // （旧実装は自チームだけ「判断待ちキュー」に積んでいたが、判断UIが存在せず契約切れのまま残り続けるバグだった）
-      const expiredIds = new Set(
-        grownPlayers
-          .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && domesticIdsFA.has(p.teamId) && p.status === 'active')
-          .map(p => p.id)
-      )
-
-      // レンタル期間終了で保有元へ返却される選手（後段でロスター配列にも戻す）
-      let playersAfterFA: Player[] = grownPlayers
+      // 契約満了 → FA、レンタル満了 → 保有元へ返却。engine/contractExpiry 1本
+      const expiry = processContractExpiry({
+        grownPlayers, teams: state.teams, playerTeamId: state.playerTeamId, year: state.currentSeason.year })
+      const expiredIds = expiry.expiredIds
+      const playersAfterFA = expiry.players
       // 行き先が決まらなかった退団予定の選手（新シーズンの stayOrLeave に積む）
-      let undecidedIds: string[] = []
-      {
-        // 契約満了・売れ残りの強制FA・レンタル満了の返却。どれも movePlayer に通して同じ後始末にする。
-        // 名簿は下の teamsWithFA で所属から組み直すので、ここでは選手側だけ動かす
-        const yearNow = state.currentSeason.year
-        // 「移籍を認める」でリスト入りしたのに、どこからもオファーが来なかった選手。
-        // ★以前は問答無用で強制FA（移籍金0で流出）だったが、行き先が無かっただけで
-        //   クラブから追い出すのはおかしい。GMが「FAで出す／残留させる」を選ぶ（stayOrLeave）。
-        //   選ぶまではロスターに残る＝既定は残留。残しても移籍希望は続く（transferListed のまま）
-        undecidedIds = grownPlayers
-          .filter(p => !expiredIds.has(p.id) && p.transferListed && p.teamId === state.playerTeamId && p.status === 'active')
-          .map(p => p.id)
-        const listedOutIds: string[] = []
-        const listedOutSet = new Set(listedOutIds)
-        // レンタル期間終了 → 保有元チームへ自動返却
-        const loanReturns = grownPlayers
-          .filter(p => !expiredIds.has(p.id) && !listedOutSet.has(p.id) && p.loan && p.loan.untilYear <= yearNow + 1)
-        const runFA = (pid: string, to: string, lock?: number) => {
-          const m = movePlayer({ players: playersAfterFA, teams: [] }, pid, to, {
-            year: yearNow,
-            ...(lock != null ? { lockUntilYear: lock } : {}) })
-          if (m.ok) playersAfterFA = m.players
-        }
-        for (const id of expiredIds) runFA(id, '')
-        for (const id of listedOutIds) runFA(id, '', yearNow + 2)
-        for (const p of loanReturns) runFA(p.id, p.loan!.ownerTeamId)
-      }
+      const undecidedIds = expiry.undecidedIds
 
       // ── RETIREMENT SYSTEM ──
       // 引退の年度処理は engine/retirement 1本（引退年齢・引退の反映・引退考慮イベント）
