@@ -41,10 +41,17 @@ Math.random = () => {
   return rngSeed / 4294967296
 }
 
-// gameStore はスライス分割中（store/slices/*.ts）。呼び出し箇所は本体とスライスを合わせて数える
+// 呼び出し箇所は「store 本体 ＋ スライス ＋ engine」を合わせて数える。
+// **置き場所ではなく「FA獲得が pickCpuFreeAgents 1本を通っているか」を見る点検**なので、
+// 分解でシーズン中のぶんが engine/inSeasonFa.ts へ移っても数え漏らさないようにする
+// （store だけを見ていたときは、移した瞬間に「2箇所しか無い」と誤検知した）。
 import { readdirSync } from 'fs'
-const store = ['src/store/gameStore.ts', ...readdirSync('src/store/slices').map(f => `src/store/slices/${f}`)]
-  .map(p => readFileSync(p, 'utf8')).join('\n')
+const srcFiles = [
+  'src/store/gameStore.ts',
+  ...readdirSync('src/store/slices').map(f => `src/store/slices/${f}`),
+  ...readdirSync('src/engine').filter(f => f.endsWith('.ts')).map(f => `src/engine/${f}`),
+]
+const store = srcFiles.map(p => readFileSync(p, 'utf8')).join('\n')
 
 console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')
 {

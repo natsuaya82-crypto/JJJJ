@@ -11,14 +11,14 @@ import { detectSegmentRecords } from '../../engine/raceRecords'
 import { settleCpuTransfers } from '../../engine/cpuTransfers'
 import { resolveExpiredOffers } from '../../engine/offerExpiry'
 import { resolveTransferBids } from '../../engine/bidResolution'
+import { signInSeasonFreeAgents } from '../../engine/inSeasonFa'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
 import { CARD_UNIT_EXP } from '../../data/cardShop'
 import { generateIndividualEvents } from '../../data/races'
-import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
-import { generateForeignAndLoanOffers, generateTransferActivity, pickCpuFreeAgents } from '../../engine/cpuMarket'
+import { generateForeignAndLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
 import { generateRaceEvents } from '../../engine/eventEngine'
 import { simulateIndividualTime } from '../../engine/individualRace'
@@ -33,9 +33,9 @@ import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { DIVISION_SIZE, divisionOf, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
-import { awardHeadline, cpuSignedHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { awardHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
+import { faMarketSalary, getStatPotentials, keyPlayerStatus, ovr, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
 import { openWishIds } from '../../utils/talkSync'
 import { appraiseMove, dreamRegionOf } from '../../utils/transferDecision'
@@ -654,60 +654,17 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         if (m.record) freeMoveRecords.push(m.record)
       }
 
-      // ── シーズン中のFA補強 ─────────────────────────────────
-      // ★クラブがFAを獲るのは「必要か」「そこで走れるか」だけ。オフシーズンと同じ
-      //   pickCpuFreeAgents 1本で、国内クラブも海外クラブも同じ入口を通る。
-      //
-      //   ここが無かったので、**シーズン中のFA市場は自チームの独占**だった。
-      //   17クラブが欲しがっているOVR83のFAが誰にも獲られず市場に残り続け、
-      //   前年俸のまま即加入できていた（「必要な選手ならFAでも取るだろ」）。
-      //   頭数合わせ（③）はオフシーズンだけ・1クラブ1レース1人までなので、
-      //   1レースで市場が空になることはない。
-      const inSeasonForeignIds = new Set(foreignClubs.map(c => c.id))
-      const faSignings = pickCpuFreeAgents({
-        players: playersAfterFreeMoves,
-        clubs: [...teamsAfterFreeMoves, ...foreignClubs],
-        playerTeamId,
-        season: { ...state.currentSeason, races: updatedRaces },
-        capFor: (id) => (inSeasonForeignIds.has(id) ? ROSTER_MAX : rosterCapOf(0)),
-        phase: 'inseason' })
-      const faSignNews: typeof newsItems = []
-      // 自チームが交渉中だったFAを先に獲られたら、黙って消さずに理由を残す
-      // （札の片付けそのものは reconcileTalks の仕事）
-      const faSnipedNegs: ExpiredNegotiation[] = []
-      const negotiatingFaIds = new Set(
-        (state.currentSeason.acquisitionOffers ?? [])
-          .filter(o => o.status === 'pending' || o.status === 'countered')
-          .map(o => o.playerId))
-      for (const sg of faSignings) {
-        const before = playersAfterFreeMoves.find(x => x.id === sg.playerId)
-        if (!before) continue
-        const m = movePlayer({ players: playersAfterFreeMoves, teams: teamsAfterFreeMoves }, sg.playerId, sg.clubId, {
-          year: state.currentSeason.year,
-          date: race.date,
-          kind: 'free',
-          years: 2,
-          myTeamId: playerTeamId,
-          contract: { yearsLeft: 2, annualSalary: faMarketSalary(before, perfOf(state.currentSeason, sg.playerId)), contractType: 'standard' } })
-        if (!m.ok) continue
-        playersAfterFreeMoves = m.players
-        teamsAfterFreeMoves = m.teams
-        if (m.record) freeMoveRecords.push(m.record)
-        const club = findClub(teamsAfterFreeMoves, state.foreignLeagues, sg.clubId)
-        if (ovr(before) >= 65) {
-          faSignNews.push({
-            date: race.date,
-            headline: cpuSignedHeadline({ clubShort: club?.shortName ?? '', playerName: before.name, playerOvr: ovr(before) }),
-            category: 'fa' as const,
-            relatedIds: [before.id] })
-        }
-        if (negotiatingFaIds.has(sg.playerId)) {
-          faSnipedNegs.push({
-            id: `fa_sniped_${sg.playerId}_${nextClock}`,
-            playerId: before.id, playerName: before.name, kind: 'outbid',
-            detail: `${club?.shortName ?? '他クラブ'}が先に契約しました` })
-        }
-      }
+      // シーズン中のFA補強は engine/inSeasonFa 1本（オフと同じ pickCpuFreeAgents を通る）
+      const faResult = signInSeasonFreeAgents({
+        players: playersAfterFreeMoves, teams: teamsAfterFreeMoves,
+        foreignClubs, foreignLeagues: state.foreignLeagues,
+        currentSeason: state.currentSeason, races: updatedRaces,
+        playerTeamId, raceDate: race.date, nextClock })
+      playersAfterFreeMoves = faResult.players
+      teamsAfterFreeMoves = faResult.teams
+      freeMoveRecords.push(...faResult.records)
+      const faSignNews = faResult.news
+      const faSnipedNegs = faResult.snipedNegs
 
       // シーズン最終戦なら、表彰（MVP/新人王）と引退表明を「そのシーズンのニュース」として流す
       // （実際の引退・表彰の確定処理は次シーズン開幕時のまま。発表だけ前倒しして年内に見えるようにする）
