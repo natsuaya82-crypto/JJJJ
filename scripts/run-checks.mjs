@@ -60,6 +60,9 @@ const CHECKS = [
   // イベントの効き目。golden（race-event）は57件を1つの世界に流すので
   // チーム全体の士気が100に張り付き、個々の違いが見えない。こちらは1件ずつ別の世界で見る
   'event-effects',
+  // 記録会の歴代1位。タイムは連続値なので golden の世界では**同着が起きない**＝
+  // タイ記録の枝が1行も通らない。ここでは順位表を手で作って必ず同着を起こす
+  'tt-records',
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'clubs', 'offseason',
   // レース・順位・記録

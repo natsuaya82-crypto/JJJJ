@@ -19,6 +19,7 @@ import { generatePlayerWishes } from '../../engine/playerWishes'
 import { settleSaleAnswers } from '../marketOps'
 import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
 import { applyEventChoice } from '../../engine/eventEffects'
+import { eventDistKey, updateBestRecord, withEventBest } from '../../engine/timeTrialRecords'
 import { myDivSize } from '../../utils/league'
 import { CARD_UNIT_EXP } from '../../data/cardShop'
 import { generateIndividualEvents } from '../../data/races'
@@ -36,7 +37,7 @@ import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { divisionOf, domesticThroughRank, segmentPrizeByTeam } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { recordHeadline, segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { racesConsumed } from '../../utils/playerUtils'
 
 type Slice = Pick<GameStore,
@@ -593,8 +594,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // Form/morale boost for top finishers from player team
       const playerTeamTop = ranked.filter(r => r.teamId === state.playerTeamId && r.rank <= 3)
       // 種目別自己ベスト: 実際に走ったタイムでのみ更新（全選手）
-      const bestKey: 'd5000' | 'd10000' | 'half' | 'marathon' =
-        event.distance === 5000 ? 'd5000' : event.distance === 10000 ? 'd10000' : event.distance === 21097 ? 'half' : 'marathon'
+      const bestKey = eventDistKey(event.distance)
       const timeByPlayer = new Map(ranked.map(r => [r.playerId, r.timeSec]))
       // 疲労: 出走で距離別に増加、休んだ現役選手は回復
       const FAT_GAIN: Record<number, number> = { 5000: 3, 10000: 5, 21097: 8, 42195: 14 }
@@ -603,11 +603,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         const ran = timeByPlayer.get(p.id)
         let next = p
         if (ran != null) {
-          next = withFatigue(next, fatGain)
-          const prev = p.eventBests?.[bestKey]
-          if (!prev || ran < prev.timeSec) {
-            next = { ...next, eventBests: { ...next.eventBests, [bestKey]: { timeSec: ran, year: state.currentSeason.year } } }
-          }
+          next = withEventBest(withFatigue(next, fatGain), bestKey, ran, state.currentSeason.year)
         } else if (p.status === 'active' && p.teamId) {
           next = withFatigue(next, -8)
         }
@@ -621,11 +617,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const updatedProspects = (state.currentSeason.scoutProspects ?? []).map(p => {
         const ran = timeByPlayer.get(p.id)
         if (ran == null) return p
-        const prev = p.eventBests?.[bestKey]
-        if (!prev || ran < prev.timeSec) {
-          return { ...p, eventBests: { ...p.eventBests, [bestKey]: { timeSec: ran, year: state.currentSeason.year } } }
-        }
-        return p
+        return withEventBest(p, bestKey, ran, state.currentSeason.year)
       })
 
       // カード報酬（自チームのみ）: 総合1位=レジェンダリー、2〜10位=エピック、11〜100位=レア 各1枚
@@ -654,53 +646,19 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         relatedIds: [myBestPlayer.id] } : null
 
       // 世界記録・日本記録の更新（種目別の歴代1位。名前焼き込みで永続）。
-      // 世界記録＝全走者の最速、日本記録＝JPN国籍走者の最速。更新時はニュースにも流す
+      // **世界も日本も engine/timeTrialRecords の updateBestRecord 1本**を通る。
+      // 違うのは「誰を見るか（全員／JPNだけ）」と「どこへ書くか」だけ
       const allPById = new Map([...state.players, ...(state.currentSeason.scoutProspects ?? [])].map(p => [p.id, p]))
-      let newWorldRecords = state.worldRecords
-      let newJapanRecords = state.japanRecords
-      const recordNewsItems: typeof state.currentSeason.newsFeed = []
-      {
-        const evYear0 = state.currentSeason.year
-        const fastest = ranked[0]
-        const fastestP = fastest ? allPById.get(fastest.playerId) : undefined
-        // 同タイムは共同保持（タイ記録）。同レース内で並んだ場合も、後日並ばれた場合も全員が保持者になる
-        const coOf = (r: { playerId: string }) => ({ playerId: r.playerId, playerName: allPById.get(r.playerId)?.name ?? '', year: evYear0 })
-        if (fastest && fastestP) {
-          const curWr = state.worldRecords?.[bestKey]
-          if (!curWr || fastest.timeSec < curWr.timeSec) {
-            const ties = ranked.filter(r => r.playerId !== fastest.playerId && r.timeSec === fastest.timeSec).map(coOf)
-            newWorldRecords = { ...newWorldRecords, [bestKey]: { playerId: fastest.playerId, playerName: fastestP.name, timeSec: fastest.timeSec, year: evYear0, ...(ties.length > 0 ? { coHolders: ties } : {}) } }
-            recordNewsItems.push({ date: event.date, headline: recordHeadline({ scope: 'world', tie: false, distance: event.distance, playerName: fastestP.name, timeSec: fastest.timeSec }), category: 'race' as const, relatedIds: [fastest.playerId] })
-            for (const c of ties) recordNewsItems.push({ date: event.date, headline: recordHeadline({ scope: 'world', tie: false, distance: event.distance, playerName: c.playerName, timeSec: fastest.timeSec, coHolder: true }), category: 'race' as const, relatedIds: [c.playerId] })
-          } else if (fastest.timeSec === curWr.timeSec) {
-            const holderIds = new Set([curWr.playerId, ...(curWr.coHolders ?? []).map(c => c.playerId)])
-            const newCo = ranked.filter(r => r.timeSec === curWr.timeSec && !holderIds.has(r.playerId)).map(coOf)
-            if (newCo.length > 0) {
-              newWorldRecords = { ...newWorldRecords, [bestKey]: { ...curWr, coHolders: [...(curWr.coHolders ?? []), ...newCo] } }
-              for (const c of newCo) recordNewsItems.push({ date: event.date, headline: recordHeadline({ scope: 'world', tie: true, distance: event.distance, playerName: c.playerName, timeSec: curWr.timeSec }), category: 'race' as const, relatedIds: [c.playerId] })
-            }
-          }
-        }
-        const isJpn = (r: { playerId: string }) => allPById.get(r.playerId)?.nationality === 'JPN'
-        const fastestJpn = ranked.find(isJpn)
-        const fastestJpnP = fastestJpn ? allPById.get(fastestJpn.playerId) : undefined
-        if (fastestJpn && fastestJpnP) {
-          const curJr = state.japanRecords?.[bestKey]
-          if (!curJr || fastestJpn.timeSec < curJr.timeSec) {
-            const ties = ranked.filter(r => isJpn(r) && r.playerId !== fastestJpn.playerId && r.timeSec === fastestJpn.timeSec).map(coOf)
-            newJapanRecords = { ...newJapanRecords, [bestKey]: { playerId: fastestJpn.playerId, playerName: fastestJpnP.name, timeSec: fastestJpn.timeSec, year: evYear0, ...(ties.length > 0 ? { coHolders: ties } : {}) } }
-            recordNewsItems.push({ date: event.date, headline: recordHeadline({ scope: 'japan', tie: false, distance: event.distance, playerName: fastestJpnP.name, timeSec: fastestJpn.timeSec }), category: 'race' as const, relatedIds: [fastestJpn.playerId] })
-            for (const c of ties) recordNewsItems.push({ date: event.date, headline: recordHeadline({ scope: 'japan', tie: false, distance: event.distance, playerName: c.playerName, timeSec: fastestJpn.timeSec, coHolder: true }), category: 'race' as const, relatedIds: [c.playerId] })
-          } else if (fastestJpn.timeSec === curJr.timeSec) {
-            const holderIds = new Set([curJr.playerId, ...(curJr.coHolders ?? []).map(c => c.playerId)])
-            const newCo = ranked.filter(r => isJpn(r) && r.timeSec === curJr.timeSec && !holderIds.has(r.playerId)).map(coOf)
-            if (newCo.length > 0) {
-              newJapanRecords = { ...newJapanRecords, [bestKey]: { ...curJr, coHolders: [...(curJr.coHolders ?? []), ...newCo] } }
-              for (const c of newCo) recordNewsItems.push({ date: event.date, headline: recordHeadline({ scope: 'japan', tie: true, distance: event.distance, playerName: c.playerName, timeSec: curJr.timeSec }), category: 'race' as const, relatedIds: [c.playerId] })
-            }
-          }
-        }
-      }
+      const recCtx = {
+        eligible: () => true,
+        nameOf: (id: string) => allPById.get(id)?.name,
+        year: state.currentSeason.year, date: event.date, distance: event.distance }
+      const wr = updateBestRecord(state.worldRecords?.[bestKey], ranked, { ...recCtx, scope: 'world' })
+      const jr = updateBestRecord(state.japanRecords?.[bestKey], ranked, {
+        ...recCtx, scope: 'japan', eligible: r => allPById.get(r.playerId)?.nationality === 'JPN' })
+      const newWorldRecords = wr.record ? { ...state.worldRecords, [bestKey]: wr.record } : state.worldRecords
+      const newJapanRecords = jr.record ? { ...state.japanRecords, [bestKey]: jr.record } : state.japanRecords
+      const recordNewsItems = [...wr.news, ...jr.news]
 
       // チーム歴代記録：走った選手のタイムを当時所属チームに永続記録（選手ごと最速・距離別）。
       // 名前・国籍も焼き込む（選手データが長期整理で削除されても記録が名前ごと残る）
