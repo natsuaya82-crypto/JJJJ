@@ -7,6 +7,7 @@ import { generateAiTradeOffers } from '../../engine/aiTradeOffer'
 import { buildRaceNews } from '../../engine/raceNews'
 import { applyRaceFatigue } from '../../engine/raceFatigue'
 import { applyRaceProgress } from '../../engine/raceProgress'
+import { detectSegmentRecords } from '../../engine/raceRecords'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -29,11 +30,10 @@ import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { DIVISION_SIZE, divisionOf, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
-import { awardHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, segmentRecordHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { awardHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, freeContactConsent, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
-import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { openWishIds } from '../../utils/talkSync'
 import { resolveBid } from '../../utils/transferBid'
 import { appraiseMove, dreamRegionOf } from '../../utils/transferDecision'
@@ -489,34 +489,12 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         raceName: race.name,
         existing: state.achievements ?? [] })
 
-      // 区間新記録の判定。
-      // 歴代記録はセーブに貯めず、保存してあるレース結果から数え直す。
-      // このレースの結果はまだ currentSeason に入っていないので、これは「今走ったレースの前の記録」になる。
-      const prevSegRecords = segmentRecordsOf(state.pastSeasons, state.currentSeason)
-      // 区間新記録が出たらニュースにする（過去記録がある区間で更新された場合のみ）
-      const segRecordNewsItems: typeof newsItems = []
-      // 結果画面の「区間新！」バッジ用（このレースで従来記録を破った区間×選手）
-      const newSegRecordMarks: { segmentIndex: number; playerId: string }[] = []
-      for (const sr of results.segmentResults) {
-        const prevBest = (prevSegRecords[`${race.name}-${sr.segmentIndex}`] ?? [])[0]?.timeSec ?? null
-        const fastestRunner = sr.runners.length > 0
-          ? sr.runners.reduce((min, r) => r.timeSec < min.timeSec ? r : min, sr.runners[0])
-          : null
-        if (prevBest != null && fastestRunner && fastestRunner.timeSec < prevBest) {
-          const isMine = fastestRunner.teamId === playerTeamId
-          const plName = state.players.find(x => x.id === fastestRunner.playerId)?.name ?? '不明'
-          const tmShort = state.teams.find(x => x.id === fastestRunner.teamId)?.shortName ?? '?'
-          newSegRecordMarks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
-          segRecordNewsItems.push({
-            date: race.date,
-            headline: segmentRecordHeadline({
-              division: myDivision, raceName: race.name, segmentIndex: sr.segmentIndex,
-              playerName: plName, clubShort: tmShort,
-              timeSec: fastestRunner.timeSec, prevTimeSec: prevBest, mine: isMine }),
-            category: 'race' as const,
-            relatedIds: [fastestRunner.playerId] })
-        }
-      }
+      // 区間新記録の判定は engine/raceRecords 1本（歴代記録は保存済みの結果から数え直す）
+      const segRecords = detectSegmentRecords({
+        race, results, players: state.players, teams: state.teams,
+        playerTeamId, myDivision, pastSeasons: state.pastSeasons, currentSeason: state.currentSeason })
+      const segRecordNewsItems = segRecords.news
+      const newSegRecordMarks = segRecords.marks
 
       const raceJewels =
         (playerRank === 1 ? 20 : playerRank === 2 ? 10 : playerRank === 3 ? 5 : 0)
