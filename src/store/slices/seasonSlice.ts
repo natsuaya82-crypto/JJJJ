@@ -2,7 +2,7 @@
 
 import type { GameStore, SetGame } from '../gameStore'
 import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
-import { computeNextSeasonBudget, draftPickValue, operatingCostOf } from '../../data/economy'
+import { computeNextSeasonBudget, draftPickValue } from '../../data/economy'
 import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { ROSTER_MAX } from '../../data/rosterRules'
@@ -21,6 +21,7 @@ import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
 import { computePromotion } from '../../engine/promotion'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
+import { computeSeasonBudgets } from '../../engine/seasonBudget'
 import { allTieredClubs, tierBudget, tierFromForeignRank, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { findClub, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
@@ -540,81 +541,19 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const prevRaceIncome = state.currentSeason.seasonRaceIncome ?? 0   // 区間賞のみ
       const prevStreakMe = playerTeamObj?.finance.deficitStreak ?? 0
 
-      // ── 来季予算 ────────────────────────────────────────────────
-      // 収入は「来季の格の年間予算」＋スポンサー＋目標ボーナス。支出は年俸＋運営費(年俸の1割)。
-      // 順位グラント・レース賞金・観客収入・CPU補填・連続赤字ペナルティ・育成義務ペナルティは
-      // 全部この1本に畳んだ（data/economy.ts の computeNextSeasonBudget）。
-      const myBaseGrant = tierBudget({ tier: myNextTier })
-      const myOpCost = operatingCostOf(playerSalaryTotal)
-      const newBudget = computeNextSeasonBudget({
-        baseGrant: myBaseGrant,
-        prevBalance: playerBudgetAtSeasonEnd,
-        sponsorAnnual,
-        raceIncome: prevRaceIncome,
-        objBudgetBonus,
-        bonusPayout: bonusTotalPayout,
-        salaryTotal: playerSalaryTotal,
-        facilityUpkeep: facilityUpkeepOf(state.teams.find(t => t.id === state.playerTeamId)) })
-      // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。
-      // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
-      const newBudgetBreakdown = {
-        carryover: playerBudgetAtSeasonEnd - (bonusTotalPayout + playerSalaryTotal + myOpCost),
-        grant: myBaseGrant,
-        raceIncome: prevRaceIncome,
-        sponsor: sponsorAnnual,
-        objBonus: objBudgetBonus,
-        expenses: 0,  // 精算済みのためcarryoverに織り込み（旧セーブの表示互換のためフィールドは残す）
-      }
-      // シーズンを終えた時点の残高がマイナスなら連続赤字+1、プラスなら0にリセット。
-      // 連続赤字でグラントを削る仕掛けは廃止したので、これは補強禁止の判定にだけ使う。
-      const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
+      // 来季予算の精算は engine/seasonBudget 1本（自チームもCPUも同じ式）
+      const budgets = computeSeasonBudgets({
+        players: playersAfterMorale, teams: state.teams, sponsors: state.sponsors ?? [], teamsWithFA,
+        currentSeason: state.currentSeason, playerTeamId: state.playerTeamId,
+        myNextTier, nextTierOf, nextDivisionOf,
+        playerSalaryTotal, playerBudgetAtSeasonEnd, prevRaceIncome, sponsorAnnual,
+        objBudgetBonus, bonusTotalPayout, prevStreakMe })
+      const newBudget = budgets.newBudget
+      const newBudgetBreakdown = budgets.newBudgetBreakdown
+      const newStreakMe = budgets.newStreakMe
+      const cpuNextBudgets = budgets.cpuNextBudgets
+      const teamsWithSeasonRewards = budgets.teamsWithSeasonRewards
 
-      // 全チームの来季予算（自チームと同じ computeNextSeasonBudget）。
-      const teamSalaryTotal = (teamId: string) => playersAfterMorale
-        .filter(p => p.teamId === teamId)
-        .reduce((s, p) => s + p.contract.annualSalary, 0)
-      const teamSponsorAnnual = (t: typeof teamsWithFA[0]) => (t.sponsors ?? [])
-        .map(id => (state.sponsors ?? []).find(s => s.id === id))
-        .filter(Boolean)
-        .reduce((s, sp) => s + sp!.annualPayment, 0)
-      // 監督オファーを受けたときに移籍先の予算へ丸ごと入れ替えるので、
-      // 他チームの来季予算の内訳もここで控えておく（あとからは計算し直せない）
-      const cpuNextBudgets: Record<string, typeof newBudgetBreakdown & { budget: number }> = {}
-      const teamsWithSeasonRewards = teamsWithFA.map(t => {
-        if (t.id === state.playerTeamId) {
-          return { ...t, tier: myNextTier, division: nextDivisionOf(t), finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
-        }
-        const cpuTier = nextTierOf(t)
-        const sal = teamSalaryTotal(t.id)
-        const prevStreak = t.finance.deficitStreak ?? 0
-        const cpuBaseGrant = tierBudget({ tier: cpuTier })
-        const cpuSponsor = teamSponsorAnnual(t)
-        // 区間賞は自チームと同じ数え方で積んである（currentSeason.seasonSegPrize）
-        const cpuSegPrize = (state.currentSeason.seasonSegPrize ?? {})[t.id] ?? 0
-        const b = computeNextSeasonBudget({
-          baseGrant: cpuBaseGrant,
-          prevBalance: t.finance.budget,
-          sponsorAnnual: cpuSponsor,
-          raceIncome: cpuSegPrize,
-          objBudgetBonus: 0,
-          bonusPayout: 0,
-          salaryTotal: sal,
-          // 施設の維持費は全クラブが払う（自チームと同じ1本。レベルは格から出る）
-          facilityUpkeep: facilityUpkeepOf({ ...t, tier: cpuTier }) })
-        // 自チームと同じ判定：精算後の残高がマイナスなら連続赤字+1、プラスなら0
-        const cpuStreak = b < 0 ? prevStreak + 1 : 0
-        cpuNextBudgets[t.id] = {
-          budget: b,
-          carryover: t.finance.budget - (sal + operatingCostOf(sal)),
-          grant: cpuBaseGrant,
-          raceIncome: cpuSegPrize,
-          sponsor: cpuSponsor,
-          objBonus: 0,
-          expenses: 0 }
-        return { ...t, tier: cpuTier, division: nextDivisionOf(t), finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
-      })
-
-      // Generate future draft picks (next 2 seasons) for each team based on final rank
       const numTeams = state.teams.length
       const teamsWithFuturePicks = teamsWithSeasonRewards.map(t => {
         // 部をまたいで並べるので国内通し順位（1〜52）。下位ほど早い番号になる
