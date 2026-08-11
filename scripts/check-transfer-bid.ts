@@ -160,6 +160,12 @@ console.log('\n[7] pending 以外はそのまま返す')
 }
 
 console.log('\n[7.5] 買う側も取り合いになる（rivals）')
+// ★2026-08-11 に**勝敗の起き方が確定しました**（オーナー判断・docs/BACKLOG.md A-3）。
+//   旧：上回るクラブがいれば**即 rejected**。競り負けた瞬間に選手が相手へ移り、
+//       こちらは通知を受け取るだけで何もできなかった。
+//   新：**1回目は countered**（「◯◯が△億で上回っています。いくら出しますか」）で
+//       1レース待ち、上乗せしても届かなければ2回目で決着する。
+//   点検は旧仕様のまま8件落ちていた（pending: 8）。現行仕様に合わせて書き直す。
 {
   const p = P('p1', 80)
   const mv = calcTransferValue(p)
@@ -170,33 +176,54 @@ console.log('\n[7.5] 買う側も取り合いになる（rivals）')
   check('ラインに届かない入札は競りにならない',
     resolveBid(B({ offeredFee: 1 }), ctx([p], { rivals: rival(mv * 10) })).outbidBy === undefined)
 
-  // 届いていても、もっと出すクラブがいれば持っていかれる
-  const lost = resolveBid(B({ offeredFee: thr }), ctx([p], { rivals: rival(mv * 3) }))
-  check('上回るクラブがいれば競り負ける', lost.bid.status === 'rejected')
-  check('競り負けの通知が出る', lost.expired?.kind === 'outbid')
-  check('相手クラブと金額が通知に入る', (lost.expired?.detail ?? '').includes('青森') && (lost.expired?.detail ?? '').includes('億'))
-  check('誰が獲ったかを呼び出し側に返す', lost.outbidBy?.clubId === 'rv')
-  check('勝った額はこちらの提示を必ず上回る', (lost.outbidBy?.fee ?? 0) > thr, `${lost.outbidBy?.fee} vs ${thr}`)
-  check('出せる上限まで積むわけではない', (lost.outbidBy?.fee ?? 0) < mv * 3)
-  check('勝った額は1000万円単位', (lost.outbidBy?.fee ?? 1) % 10_000_000 === 0, String(lost.outbidBy?.fee))
+  // ── 1回目：上乗せの機会が出る。**選手はまだ動かない** ──
+  const first = resolveBid(B({ offeredFee: thr }), ctx([p], { rivals: rival(mv * 3) }))
+  check('1回目は countered（上乗せの機会）', first.bid.status === 'countered', first.bid.status)
+  check('  この時点では選手を持っていかれない', first.outbidBy === undefined && first.expired === null)
+  check('  誰に上回られているかを札に載せる', first.bid.outbidBy === '青森', String(first.bid.outbidBy))
+  check('  いくら出せば勝てるかを提示する', (first.bid.counterFee ?? 0) > thr,
+    `${first.bid.counterFee} vs ${thr}`)
+  check('  提示額は1000万円単位', (first.bid.counterFee ?? 1) % 10_000_000 === 0, String(first.bid.counterFee))
+  check('  1回目を使ったことが残る（2回目は即決着）', first.bid.outbidOnce === true)
 
-  // 相手の上限がこちらの提示以下なら競り負けない
+  // ── 2回目：上乗せしても届かなければ決着 ──
+  const lost = resolveBid({ ...first.bid, status: 'pending' }, ctx([p], { rivals: rival(mv * 3) }))
+  check('2回目は rejected（決着する）', lost.bid.status === 'rejected', lost.bid.status)
+  check('  競り負けの通知が出る', lost.expired?.kind === 'outbid')
+  // 金額の書き方は utils/money 1本（「億」の分岐は P0-1 で廃止して「万」に統一済み）。
+  // ここで '億' を期待していたのが、8件のうち1件が落ち続けていた理由
+  check('  相手クラブと金額が通知に入る',
+    (lost.expired?.detail ?? '').includes('青森') && /[0-9,]+万/.test(lost.expired?.detail ?? ''),
+    lost.expired?.detail ?? '(無し)')
+  check('  誰が獲ったかを呼び出し側に返す', lost.outbidBy?.clubId === 'rv')
+  check('  勝った額はこちらの提示を必ず上回る', (lost.outbidBy?.fee ?? 0) > thr, `${lost.outbidBy?.fee} vs ${thr}`)
+  check('  出せる上限まで積むわけではない', (lost.outbidBy?.fee ?? 0) < mv * 3)
+  check('  勝った額は1000万円単位', (lost.outbidBy?.fee ?? 1) % 10_000_000 === 0, String(lost.outbidBy?.fee))
+
+  // ── 上乗せして勝てば持っていかれない ──
+  const raised = resolveBid({ ...first.bid, status: 'pending', offeredFee: first.bid.counterFee ?? 0 },
+    ctx([p], { rivals: rival(thr) }))
+  check('上乗せして相手の上限を超えれば獲れる',
+    raised.bid.status === 'fee_accepted' && raised.outbidBy === undefined, raised.bid.status)
+
+  // 相手の上限がこちらの提示以下なら、そもそも競りにならない
   const won = resolveBid(B({ offeredFee: thr }), ctx([p], { rivals: rival(thr) }))
   check('同額では持っていかれない', won.bid.status === 'fee_accepted' && won.outbidBy === undefined)
   check('rivals を渡さなければ今までどおり',
     resolveBid(B({ offeredFee: thr }), ctx([p])).bid.status === 'fee_accepted')
 
   // 一番高いクラブが獲る（複数いても1クラブだけ）
-  const many = resolveBid(B({ offeredFee: thr }), ctx([p], {
-    rivals: [{ clubId: 'a', name: 'A', willing: thr + 5_000_000 }, { clubId: 'b', name: 'B', willing: mv * 3 }, { clubId: 'c', name: 'C', willing: thr + 1 }],
-  }))
-  check('一番高いクラブが獲る', many.outbidBy?.clubId === 'b')
+  const manyRivals = [{ clubId: 'a', name: 'A', willing: thr + 5_000_000 }, { clubId: 'b', name: 'B', willing: mv * 3 }, { clubId: 'c', name: 'C', willing: thr + 1 }]
+  const many1 = resolveBid(B({ offeredFee: thr }), ctx([p], { rivals: manyRivals }))
+  const many = resolveBid({ ...many1.bid, status: 'pending' }, ctx([p], { rivals: manyRivals }))
+  check('一番高いクラブが獲る', many.outbidBy?.clubId === 'b', String(many.outbidBy?.clubId))
 
   // 出品中（移籍リスト掲載）でも同じ。売り手のラインとは別に競りがある
-  const listedLost = resolveBid(B({ offeredFee: mv }), ctx([p], {
-    listings: [{ playerId: 'p1', askingPrice: mv }], rivals: rival(mv * 3),
-  }))
-  check('出品中でも競り負ける', listedLost.bid.status === 'rejected' && listedLost.expired?.kind === 'outbid')
+  const listedCtx = { listings: [{ playerId: 'p1', askingPrice: mv }], rivals: rival(mv * 3) }
+  const listed1 = resolveBid(B({ offeredFee: mv }), ctx([p], listedCtx))
+  check('出品中でも1回目は上乗せの機会', listed1.bid.status === 'countered', listed1.bid.status)
+  const listedLost = resolveBid({ ...listed1.bid, status: 'pending' }, ctx([p], listedCtx))
+  check('出品中でも2回目で競り負ける', listedLost.bid.status === 'rejected' && listedLost.expired?.kind === 'outbid')
 }
 
 console.log('\n[8] 期限切れ通知の文言は種類から出す')
