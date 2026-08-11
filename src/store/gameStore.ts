@@ -5,6 +5,7 @@ import { clubLabel, transferHeadline, awardHeadline, retirementHeadline, divisio
 import { comparePlayers } from '../utils/playerSort'
 import { saveStorage, flushSaveNow, deleteSaveForRecovery, setSaveFormatVersion } from './saveStorage'
 import { SAVE_VERSION } from './persistence/saveVersion'
+import { createCardsSlice } from './slices/cardsSlice'
 import { createWorldAthleticsSlice } from './slices/worldAthleticsSlice'
 import { migrateSave } from './persistence/migrateSave'
 import { mergeSave } from './persistence/mergeSave'
@@ -16,7 +17,7 @@ import type { GameState, Division, Player, Team, RaceResults, TransferListing, I
 import type { ISim } from '../engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
-import { CARD_UNIT_PRICE, CARD_UNIT_EXP } from '../data/cardShop'
+import { CARD_UNIT_EXP } from '../data/cardShop'
 
 // リーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
 // 部の切り分けは Team.division が持つ。
@@ -41,7 +42,7 @@ import type { EclParticipant } from '../engine/ecl'
 import { buildEclParticipants, buildEclRaces } from '../engine/eclSeries'
 import { simulateForeignTransferMarket, simulateCrossBorderTransfers } from '../engine/foreignTransfers'
 import { applyGrowth, growPlayer, GROW_STAT_KEYS } from '../engine/growth'
-import { ovr, retirementAgeOf, faMarketSalary, salaryAppealBonus, seasonPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, limitBreakCost, packForeignApps } from '../utils/playerUtils'
+import { ovr, retirementAgeOf, faMarketSalary, salaryAppealBonus, seasonPerfProfile, playerConsentToMove, freeContactConsent, seasonAppearances, keyPlayerStatus, calcTransferValue, racesConsumed, getStatPotentials, packForeignApps } from '../utils/playerUtils'
 import { strHash } from '../utils/hash'
 import { withMorale, withFatigue, setMorale, MORALE_DEFAULT } from '../utils/condition'
 import { roundRobin } from '../utils/roundRobin'
@@ -53,7 +54,7 @@ import { facilityUpkeepOf } from '../utils/facilities'
 import { computeNextSeasonBudget, operatingCostOf, draftPickValue, pickKeyValue, roundFee, counterCeiling, POACH_PREMIUM } from '../data/economy'
 import { canSignContract, canReleaseFromRoster, ROSTER_MAX, ROSTER_MIN, teamRosterSize, rosterCapOf } from '../data/rosterRules'
 import type { OfferOutcome } from '../utils/offerResult'
-import { generateDropCards, detectCombo, MAX_FUSION_CARDS, planExchange, type CardExchange } from '../utils/cardCombo'
+import { generateDropCards, type CardExchange } from '../utils/cardCombo'
 import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
 // 区間の地形→推奨ポジションは utils/terrain の1本
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
@@ -2324,14 +2325,7 @@ export const useGameStore = create<GameStore>()(
 
       openContractInfo: (id) => set({ contractInfoPlayerId: id }),
       closeContractInfo: () => set({ contractInfoPlayerId: null }),
-
-      setFusionPlayer: (id) => set({ fusionPlayerId: id, fusionCardIds: [] }),
-      addFusionCard: (id) => set((state) => {
-        if (state.fusionCardIds.includes(id) || state.fusionCardIds.length >= MAX_FUSION_CARDS) return {}
-        return { fusionCardIds: [...state.fusionCardIds, id] }
-      }),
-      removeFusionCard: (id) => set((state) => ({ fusionCardIds: state.fusionCardIds.filter(x => x !== id) })),
-      clearFusion: () => set({ fusionPlayerId: null, fusionCardIds: [] }),
+      ...createCardsSlice(set, get),
 
       setRaceStrategy: (s) => set({ raceStrategy: s }),
       setRaceTeamTalk: (t) => set({ raceTeamTalk: t }),
@@ -2341,16 +2335,6 @@ export const useGameStore = create<GameStore>()(
       setActiveRaceResults: (results) => set({ activeRaceResults: results }),
       setActiveRaceLocked: (race, index) => set({ activeRaceLockedRace: race, activeRaceLockedRaceIndex: index }),
       clearActiveRace: () => set({ activeRacePhase: null, activeRaceSim: null, activeRaceResults: null, activeRaceLockedRace: null, activeRaceLockedRaceIndex: 0 }),
-
-      setTrainingFocus: (playerId, ratingKey) => {
-        set(state => ({
-          currentSeason: {
-            ...state.currentSeason,
-            trainingAssignments: ratingKey === null
-              ? Object.fromEntries(Object.entries(state.currentSeason.trainingAssignments ?? {}).filter(([k]) => k !== playerId))
-              : { ...(state.currentSeason.trainingAssignments ?? {}), [playerId]: ratingKey } }
-        }))
-      },
 
       sendScoutMission: (prospectId) => {
         set(state => {
@@ -3847,11 +3831,6 @@ export const useGameStore = create<GameStore>()(
           players: state.players.map(p => p.id === playerId ? { ...p, name: trimmed } : p) }))
       },
 
-      setTrainingPlan: (plan) => {
-        set(state => ({
-          currentSeason: { ...state.currentSeason, trainingPlan: plan } }))
-      },
-
       // 移籍ウィンドウは撤廃。いつでも移籍・オファー可能。
       getTransferWindow: () => ({ open: true, label: '移籍受付中', racesUntil: null }),
 
@@ -3887,42 +3866,6 @@ export const useGameStore = create<GameStore>()(
       },
 
       setRivalTeam: (id) => set({ rivalTeamId: id }),
-
-      claimPreseasonCards: () => {
-        set(state => {
-          if (state.currentSeason.campBonus?.applied) return state
-          const lastSeason = state.pastSeasons[state.pastSeasons.length - 1]
-          let rank = 0
-          if (lastSeason) {
-            rank = rankOfTeam(seasonDivisionStandings(lastSeason, state.playerTeamId), state.playerTeamId)
-          }
-          type Dist = { rarity: CardRarity; count: number }
-          const dist: Dist[] =
-            rank === 1 ? [{ rarity: 'legendary', count: 1 }, { rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 2 }] :
-            rank === 2 ? [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 3 }] :
-            rank === 3 ? [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 1 }, { rarity: 'normal', count: 4 }] :
-            rank <= 6  ? [{ rarity: 'rare', count: 2 }, { rarity: 'normal', count: 4 }] :
-            rank <= 10 ? [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }] :
-            rank <= 14 ? [{ rarity: 'normal', count: 6 }] :
-            rank >= 15 ? [{ rarity: 'epic', count: 1 }, { rarity: 'normal', count: 6 }] :
-            [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }]
-          const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-          const cards: TrainingCard[] = []
-          let idx = 0
-          for (const { rarity, count } of dist) {
-            for (let i = 0; i < count; i++) {
-              cards.push({
-                id: `preseason_${state.playerTeamId}_${Date.now()}_${idx++}`,
-                statKey: STAT_KEYS[Math.floor(Math.random() * STAT_KEYS.length)],
-                rarity,
-                value: CARD_UNIT_EXP[rarity] })
-            }
-          }
-          return {
-            trainingCards: [...(state.trainingCards ?? []), ...cards],
-            currentSeason: { ...state.currentSeason, campBonus: { type: 'preseason_cards', applied: true } } }
-        })
-      },
 
       tradePlayer: (offeredIds, requestedIds, targetTeamId, transferFee = 0, offerPickKeys = [], requestPickKeys = []) => {
         const state = get()
@@ -6185,24 +6128,6 @@ export const useGameStore = create<GameStore>()(
         })
       },
 
-      buyTrainingCard: (rarity, qty = 1) => {
-        // 値段とEXPは data/cardShop.ts の1本（画面と同じ数字を見る）
-        const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-        const state = get()
-        const price = CARD_UNIT_PRICE[rarity]
-        if (price === undefined) return false
-        if ((state.jewels ?? 0) < price * qty) return false
-        const cards: TrainingCard[] = Array.from({ length: qty }, (_, i) => ({
-          id: `shop_${rarity}_${Date.now()}_${i}`,
-          statKey: STAT_KEYS[Math.floor(Math.random() * STAT_KEYS.length)],
-          rarity,
-          value: CARD_UNIT_EXP[rarity] }))
-        set(s => ({
-          trainingCards: [...(s.trainingCards ?? []), ...cards],
-          jewels: (s.jewels ?? 0) - price * qty }))
-        return cards
-      },
-
       // ── Sponsors ─────────────────────────────────────────────────────
       signSponsor: (sponsorId, targetId) => {
         const state = get()
@@ -6614,75 +6539,6 @@ export const useGameStore = create<GameStore>()(
         // 記録会の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
         try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
       },
-
-      applyTrainingCards: (playerId, cardIds, multiplier = 1.0) => {
-        set(state => {
-          const player = state.players.find(p => p.id === playerId)
-          if (!player) return state
-          const cards = (state.trainingCards ?? []).filter(c => cardIds.includes(c.id))
-          if (cards.length === 0) return state
-          const combo = detectCombo(cards)
-          if (!combo) return state
-          // statDeltas は EXP量（設計書準拠）。ポテ・年齢倍率なし（固定EXP付与）
-          const result = applyGrowth({
-            player,
-            source: 'card',
-            baseGains: combo.statDeltas as Partial<Record<CardStatKey, number>>,
-            bonusMultiplier: multiplier })
-          // 疲労回復（完全休養／超回復）。大成功倍率(multiplier)も疲労に掛ける。
-          const fatigueRecovered = combo.fatigueDelta ? Math.round(combo.fatigueDelta * multiplier) : 0
-          const newFatigue = Math.max(0, (player.fatigue ?? 0) - fatigueRecovered)
-          const remaining = (state.trainingCards ?? []).filter(c => !cardIds.includes(c.id))
-          return {
-            trainingCards: remaining,
-            players: state.players.map(p =>
-              p.id === playerId ? { ...p, ratings: result.ratings, exp: result.exp, fatigue: newFatigue } : p
-            ) }
-        })
-      },
-
-      // カードの交換。何を何枚消して何をもらうかは utils/cardCombo.ts の表が決める
-      exchangeCards: (ex, statKey) => {
-        const plan = planExchange(get().trainingCards ?? [], ex, statKey)
-        if (!plan) return 0
-        set(s => ({ trainingCards: [...(s.trainingCards ?? []).filter(c => !plan.consumeIds.has(c.id)), ...plan.produced] }))
-        return plan.produced.length
-      },
-
-      breakStatLimit: (playerId, stat) => {
-        set(state => {
-          const player = state.players.find(p => p.id === playerId)
-          if (!player) return state
-          const cap = (getStatPotentials(player) as Record<string, number>)[stat]
-          if (cap >= 99) return state
-          const cost = limitBreakCost(cap + 1)
-          if ((state.jewels ?? 0) < cost) return state
-          // 上限が確実に+1されるまでboostを積む（現在値>基礎上限のエッジケースで空振りしないように）
-          let np: Player = { ...player, potentialBoosts: { ...(player.potentialBoosts ?? {}), [stat]: (player.potentialBoosts?.[stat] ?? 0) + 1 } }
-          let guard = 0
-          while ((getStatPotentials(np) as Record<string, number>)[stat] <= cap && guard++ < 30) {
-            np = { ...np, potentialBoosts: { ...np.potentialBoosts, [stat]: (np.potentialBoosts?.[stat] ?? 0) + 1 } }
-          }
-          return {
-            jewels: state.jewels - cost,
-            players: state.players.map(p => p.id === playerId ? np : p) }
-        })
-      },
-
-      // 走友会でカードを渡したとき（手元から1枚減らす）
-      removeTrainingCard: (cardId) =>
-        set(s => ({ trainingCards: (s.trainingCards ?? []).filter(c => c.id !== cardId) })),
-
-      // 走友会でカードをもらったとき。idがぶつかると練習で消えなくなるので付け直す
-      addTrainingCards: (cards) =>
-        set(s => {
-          const have = new Set((s.trainingCards ?? []).map(c => c.id))
-          const add = cards.map((c, i) =>
-            have.has(c.id) ? { ...c, id: `${c.id}_g${Date.now()}_${i}` } : c)
-          return { trainingCards: [...(s.trainingCards ?? []), ...add] }
-        }),
-
-      dismissDroppedCards: () => set({ raceDroppedCards: [], raceExpGains: {} }),
 
       dismissJewelGains: () => set({ jewelGains: [] }),
 
