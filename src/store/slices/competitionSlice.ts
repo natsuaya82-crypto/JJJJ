@@ -6,18 +6,21 @@ import { type EclParticipant, simulateEclEvent } from '../../engine/ecl'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings, simulateForeignLeagueRound } from '../../engine/foreignLeague'
 import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../../engine/foreignTransfers'
-import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player } from '../../types'
+import { cpuMarketRounds, runCpuMarketTick } from '../../engine/cpuOffseason'
+import { tradeValueCtxOf } from '../marketOps'
+import { rosterCapOf } from '../../data/rosterRules'
+import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
 import { findClub } from '../../utils/clubs'
 import { TOP_DIVISION, divisionStandings, rankedStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { eclRaceHeadline, eclSeasonEndHeadline, segmentRecordHeadline } from '../../utils/newsItems'
+import { eclRaceHeadline, eclSeasonEndHeadline, segmentRecordHeadline, type NewsItem } from '../../utils/newsItems'
 import { keyPlayerStatus } from '../../utils/playerUtils'
 import { belongsToClub } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { resolveBid } from '../../utils/transferBid'
 
 type Slice = Pick<GameStore,
-  'advanceForeignLeagues' | 'runMidSeasonForeignTransfers' | 'advanceMarketOneRace' | 'advanceEclRace' | 'ensureEclSeries'>
+  'advanceForeignLeagues' | 'runMidSeasonForeignTransfers' | 'runCpuMarketRound' | 'advanceMarketOneRace' | 'advanceEclRace' | 'ensureEclSeries'>
 
 export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -99,6 +102,52 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         currentSeason: { ...state.currentSeason, newsFeed: [...res.news, ...state.currentSeason.newsFeed].slice(0, 40) } }
     })
   },
+
+
+  /**
+   * CPU同士の市場（移籍・トレード・レンタル）を1回ぶん進める。
+   *
+   * ★**レースと記録会の両方から呼ぶ。** 何回ぶん回すかは日付で決まる
+   *   （`cpuMarketRounds`＝21日ごと）ので、呼びすぎても回数は増えない。
+   * ★オフの一括処理（`beginSeasonDraft`）とまったく同じ関数を、件数だけ絞って通す。
+   *   別実装を作らないこと。
+   */
+  runCpuMarketRound: (date) => set(state => {
+    const { rounds, nextDate } = cpuMarketRounds(state.currentSeason.lastCpuMarketDate, date)
+    if (rounds <= 0) return {}
+    let players = state.players
+    let teams = state.teams
+    const records: TransferRecord[] = []
+    const news: NewsItem[] = []
+    // 上限で切り捨てたぶんは繰り越さない（cpuMarketRounds 側の決まり）
+    const draftPickCounts = 0
+    for (let i = 0; i < rounds; i++) {
+      const r = runCpuMarketTick({ players, teams }, {
+        playerTeamId: state.playerTeamId,
+        year: state.currentSeason.year,
+        season: state.currentSeason,
+        pastSeasons: state.pastSeasons,
+        allTeams: state.teams,
+        foreignLeagues: state.foreignLeagues ?? [],
+        rosterCapFor: () => rosterCapOf(draftPickCounts),
+        destinationOf: get().destinationOf,
+        tradeValueCtx: tradeValueCtxOf(state),
+        date })
+      players = r.players
+      teams = r.teams
+      records.push(...r.records)
+      news.push(...r.news)
+    }
+    return {
+      players,
+      teams,
+      transferHistory: [...(state.transferHistory ?? []), ...records].slice(-800),
+      currentSeason: {
+        ...state.currentSeason,
+        lastCpuMarketDate: nextDate,
+        newsFeed: [...news, ...state.currentSeason.newsFeed].slice(0, 40) },
+    }
+  }),
 
 
   // 本編以外(リザーブ戦/記録会)のレース完了時にも、出した入札(移籍金オファー)とレンタル要請の応答を進める。

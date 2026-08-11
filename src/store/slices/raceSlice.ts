@@ -516,6 +516,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     try { get().advanceForeignLeagues() } catch (e) { console.error('advanceForeignLeagues failed', e) }
     // 移籍ウィンドウ中は日本↔海外の移籍も裏で少数発生させる（別set・裏進行）。
     try { get().runMidSeasonForeignTransfers() } catch (e) { console.error('runMidSeasonForeignTransfers failed', e) }
+    // CPU同士の移籍・トレード・レンタルも、オフだけでなくシーズン中に回す。
+    // **何回ぶん進むかは日付で決まる**ので、部ごとのレース数の違いに影響されない
+    try { get().runCpuMarketRound(race.date) } catch (e) { console.error('runCpuMarketRound failed', e) }
 
     return results
   },
@@ -650,6 +653,12 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     })
     // 記録会の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
     try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
+    // CPU同士の市場も記録会の日付で進める。**レースだけで数えると部ごとに回数が変わる**
+    // （1部10戦・2部8戦・3部7戦）。記録会は3部とも同じ7回なので、ここも通す
+    try {
+      const ev = get().currentSeason.individualEvents?.find(e => e.id === eventId)
+      if (ev) get().runCpuMarketRound(ev.date)
+    } catch (e) { console.error('runCpuMarketRound failed', e) }
   },
 
 

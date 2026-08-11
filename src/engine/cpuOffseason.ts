@@ -140,6 +140,10 @@ export function runCpuLoans(
     year: number
     /** 同じオフに既に動いた選手。**呼び出し側と共有し、ここで書き足す** */
     excludeIds: Set<string>
+    /** リーグ全体で何件まで貸し出すか。**省略＝無制限** */
+    maxLoans?: number
+    /** その日の日付。**省略＝オフの既定（11/15）** */
+    date?: string
   },
 ): { players: Player[]; teams: Team[]; news: NewsItem[] } {
   let players = world.players
@@ -156,7 +160,9 @@ export function runCpuLoans(
     .filter(p => p.teamId === teamId && p.status === 'active' && !p.loan)
     .sort(comparePlayers('ovr'))
 
+  let lent = 0
   for (const receiver of cpuIds) {
+    if (ctx.maxLoans != null && lent >= ctx.maxLoans) break
     if ((receivedLoan[receiver] ?? 0) >= 1 || mainCount(receiver) >= ROSTER_MAX) continue
     const myRoster = rosterOf(receiver)
     let candidate: Player | undefined
@@ -170,15 +176,16 @@ export function runCpuLoans(
       if (found) { candidate = found; senderId = sid; break }
     }
     if (!candidate || !senderId) continue
+    lent++
     loanedIds.add(candidate.id)
     givenLoan[senderId] = (givenLoan[senderId] ?? 0) + 1
     receivedLoan[receiver] = (receivedLoan[receiver] ?? 0) + 1
-    const m = movePlayer({ players, teams }, candidate.id, receiver, { year: ctx.year, until: loanYear })
+    const m = movePlayer({ players, teams }, candidate.id, receiver, { year: ctx.year, until: loanYear, date: ctx.date })
     if (!m.ok) continue
     players = m.players
     teams = m.teams
     news.push({
-      date: `${ctx.year}-11-15`,
+      date: ctx.date ?? `${ctx.year}-11-15`,
       headline: loanHeadline({
         playerName: candidate.name, age: candidate.age, years: 1,
         ownerLabel: clubLabel(senderId, teams),
@@ -212,6 +219,13 @@ export function runCpuTransfers(
     destinationOf: (clubId: string, player: Player) => Destination
     /** 同じオフに既に動いた選手。**呼び出し側と共有し、ここで書き足す** */
     excludeIds: Set<string>
+    /** リーグ全体で何人まで動かすか。**省略＝無制限**（オフの一括処理はこちら） */
+    maxMoves?: number
+    /**
+     * その日の日付。移籍記録にもニュースにも同じものを使う。
+     * **省略＝オフの既定**（記録は 2/1・ニュースは 11/10）。シーズン中は日程の日付を渡す
+     */
+    date?: string
   },
 ): { players: Player[]; teams: Team[]; records: TransferRecord[]; news: NewsItem[] } {
   let players = world.players
@@ -246,7 +260,9 @@ export function runCpuTransfers(
   const thisRaces = ctx.season.races.filter(r => r.results).length
   const prevRaces = (lastSeason?.races ?? []).filter(r => r.results).length
 
+  let moves = 0
   const buyOnePlayer = ({ team: buyTeam, tier: buyTier }: typeof buyers[number]): boolean => {
+    if (ctx.maxMoves != null && moves >= ctx.maxMoves) return false
     // 1オフに獲れる人数は格から（格1が4人、格20が2人）。強さの物差しは格1本
     const buyCap = 2 + Math.round(2 * tierStrength(buyTier))
     const needs = needsOf.get(buyTeam.id)!
@@ -296,7 +312,7 @@ export function runCpuTransfers(
       // 所属・名簿・移籍金・移籍履歴は movePlayer にまとめて任せる（自チームの獲得と同じ後始末）
       const moved = movePlayer({ players, teams }, target.id, buyTeam.id, {
         year: ctx.year,
-        date: `${ctx.year}-02-01`,
+        date: ctx.date ?? `${ctx.year}-02-01`,
         fee,
         years: 2,
         contract: { annualSalary: newSalary, yearsLeft: 2 } })
@@ -310,8 +326,9 @@ export function runCpuTransfers(
       if (moved.record) records.push(moved.record)
       // 序列から落ちて出番が無くなった選手は、その事情がわかる見出しにする。
       // 「何番手だったか」を出すと、市場が効いているかがニュースだけで追える
+      moves++
       news.push({
-        date: `${ctx.year}-11-10`,
+        date: ctx.date ?? `${ctx.year}-11-10`,
         headline: benched
           ? seekPlayingTimeHeadline({
               playerName: target.name, age: target.age, squadRank: sellRank,
@@ -350,6 +367,10 @@ export function runCpuTrades(
     tradeValueCtx: TradeValueCtx
     /** 同じオフに既に動いた選手。**呼び出し側と共有し、ここで書き足す** */
     excludeIds: Set<string>
+    /** リーグ全体で何件まで成立させるか。**省略＝無制限** */
+    maxTrades?: number
+    /** その日の日付。**省略＝オフの既定（2/1）** */
+    date?: string
   },
 ): { players: Player[]; teams: Team[]; records: TransferRecord[] } {
   let players = world.players
@@ -359,7 +380,9 @@ export function runCpuTrades(
   const tradeCount: Record<string, number> = {}
   const cpuIds = domesticCpuTeamIds(players, world.teams, ctx.playerTeamId)
 
+  let done = 0
   for (const buyerId of cpuIds) {
+    if (ctx.maxTrades != null && done >= ctx.maxTrades) break
     if ((tradeCount[buyerId] ?? 0) >= 1) continue
     const buyRoster = players.filter(p => p.teamId === buyerId && p.status === 'active')
     if (buyRoster.length >= FIRST_SQUAD_MAX) continue
@@ -390,6 +413,7 @@ export function runCpuTrades(
       )
       // 売り手が受け取る側でも使えること（needsPlayer / wouldMakeLineup）
       if (!target || !(needsPlayer(sellRoster, offered) || wouldMakeLineup(sellRoster, offered))) continue
+      done++
       tradedIds.add(offered.id); tradedIds.add(target.id)
       tradeCount[buyerId] = (tradeCount[buyerId] ?? 0) + 1
       tradeCount[sellerId] = (tradeCount[sellerId] ?? 0) + 1
@@ -397,7 +421,7 @@ export function runCpuTrades(
       for (const [pid, toId] of [[offered.id, sellerId], [target.id, buyerId]] as const) {
         const m = movePlayer({ players, teams }, pid, toId, {
           year: ctx.year,
-          date: `${ctx.year}-02-01`,
+          date: ctx.date ?? `${ctx.year}-02-01`,
           kind: 'trade' })
         if (!m.ok) continue
         players = m.players
@@ -408,4 +432,103 @@ export function runCpuTrades(
     }
   }
   return { players, teams, records }
+}
+
+// ── シーズン中も同じことをする ─────────────────────────────────────
+//
+// ■なぜ
+//   移籍ウィンドウは撤廃済みで、プレイヤーが絡む移籍・トレード・レンタルは
+//   **いつでも**起きます。ところが**CPU同士の3つだけ**がオフの1回に固まっていました
+//   （`beginSeasonDraft` の中）。オフとシーズン中で扱いが違う理由は無い、という
+//   オーナー判断で、同じものをシーズン中にも回します（`docs/BACKLOG.md` A-7）。
+//
+// ■**日付で測ります。レースの本数では測りません。**
+//   部ごとにレース数が違うからです（1部10戦・2部8戦・3部7戦）。記録会7回を足しても
+//   コマ数は 17／15／14 と揃わず、**間の空き方も違います**。
+//
+//     部   レース  ＋記録会  間隔の中央値   いちばん空くところ
+//     1部    10      17コマ      21日            28日
+//     2部     8      15コマ      21日            42日
+//     3部     7      14コマ      21日            49日
+//
+//   コマのたびに回すと、1部だけ市場が17回動いて3部は14回になり、しかも3部には
+//   49日も市場が止まる区間ができます。**日程に日付が振ってあるのは、本数が違っても
+//   1年の長さは同じに保つため**なので、こちらもその日付で数えます。
+//
+//   最後に回した日から `CPU_MARKET_INTERVAL_DAYS`（21日＝3週）経つごとに1回。
+//   3/8〜12/27 の295日なので、**どの部でも年14回**で揃います。
+//
+// ■オフの一括処理は残します
+//   解雇の直後は市場に人が溢れるので、そこでまとめて動くのは自然です。それに
+//   `needsPlayer` が門番なので、**シーズン中に埋まった穴はオフでは埋めません**
+//   （オフの件数は自動的に減ります）。
+
+/** CPU市場を回す間隔（日）。「3週に1回くらい」＝21日 */
+export const CPU_MARKET_INTERVAL_DAYS = 21
+/** セーブを跨いだときなどに一気に走らせないための上限 */
+const CPU_MARKET_MAX_CATCHUP = 3
+
+/**
+ * 今日までに何回ぶん市場を回すか。**日付だけで決める**（レースの本数を見ない）。
+ *
+ * ★**基準日は21日ずつ進めます。その日の日付にリセットしません。**
+ *   リセットすると、日程の間隔が21日ちょうどでない部だけ端数が毎回捨てられ、
+ *   1部12回・2部11回・3部12回のように差が残ります。21日ずつ進めれば余りが次へ繰り越され、
+ *   **どの部でも年14回**に揃います（3/8〜12/27 の295日 ÷ 21日）。
+ *
+ * @param lastDate 最後に回した基準日（`YYYY-MM-DD`）。無ければ今日を初回として1回
+ * @param today    その日程の日付
+ * @returns rounds＝回す回数（0なら今回は回さない）／nextDate＝次に控える基準日
+ */
+export function cpuMarketRounds(lastDate: string | undefined, today: string): { rounds: number; nextDate: string } {
+  if (!lastDate) return { rounds: 1, nextDate: today }
+  const days = (Date.parse(today) - Date.parse(lastDate)) / 86_400_000
+  if (!Number.isFinite(days) || days < CPU_MARKET_INTERVAL_DAYS) return { rounds: 0, nextDate: lastDate }
+  const due = Math.floor(days / CPU_MARKET_INTERVAL_DAYS)
+  const rounds = Math.min(CPU_MARKET_MAX_CATCHUP, due)
+  // 進めるのは**実際に回したぶんだけ**。上限で切り捨てたぶんは繰り越さない
+  // （セーブを長く開かなかったときに、あとからまとめて動くのを防ぐ）
+  const next = new Date(Date.parse(lastDate) + rounds * CPU_MARKET_INTERVAL_DAYS * 86_400_000)
+  return { rounds, nextDate: next.toISOString().slice(0, 10) }
+}
+
+/** 1回ぶんでリーグ全体に許す件数。**ここを触ればシーズン中の活発さが変わります** */
+export const CPU_TICK_TRANSFERS = 3
+export const CPU_TICK_TRADES = 1
+export const CPU_TICK_LOANS = 1
+
+/**
+ * シーズン中の1回ぶんのCPU市場。オフの一括処理と**同じ関数**を、件数だけ絞って呼ぶ。
+ * 別実装を作らないこと（オフとシーズン中で判定が食い違う原因になる）。
+ * 何回ぶん回すかは `cpuMarketRounds`（日付で決まる）。
+ */
+export function runCpuMarketTick(
+  world: { players: Player[]; teams: Team[] },
+  ctx: {
+    playerTeamId: string
+    year: number
+    season: Season
+    pastSeasons: ArchivedSeason[]
+    allTeams: Team[]
+    foreignLeagues: ForeignLeague[]
+    rosterCapFor: (teamId: string) => number
+    destinationOf: (clubId: string, player: Player) => Destination
+    tradeValueCtx: TradeValueCtx
+    /** その日の日付（ニュースに出る）。日程の日付をそのまま渡すこと */
+    date: string
+  },
+): { players: Player[]; teams: Team[]; records: TransferRecord[]; news: NewsItem[] } {
+  // 1回の中で同じ選手を2回動かさない（オフの一括処理と同じ決まり）
+  const excludeIds = new Set<string>()
+  const bought = runCpuTransfers(world, { ...ctx, excludeIds, maxMoves: CPU_TICK_TRANSFERS })
+  const traded = runCpuTrades({ players: bought.players, teams: bought.teams },
+    { playerTeamId: ctx.playerTeamId, year: ctx.year, tradeValueCtx: ctx.tradeValueCtx, excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date })
+  const lent = runCpuLoans({ players: traded.players, teams: traded.teams },
+    { playerTeamId: ctx.playerTeamId, year: ctx.year, excludeIds, maxLoans: CPU_TICK_LOANS, date: ctx.date })
+  return {
+    players: lent.players,
+    teams: lent.teams,
+    records: [...bought.records, ...traded.records],
+    news: [...bought.news, ...lent.news],
+  }
 }

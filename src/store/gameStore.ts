@@ -263,6 +263,7 @@ export type GameStore = GameState & {
   // 海外リーグ：本編レースに同期して裏で1戦進める（プレイヤーは干渉せず結果閲覧のみ）
   advanceForeignLeagues: () => void
   runMidSeasonForeignTransfers: () => void   // 移籍ウィンドウ中、レース毎に低確率で日本↔海外の移籍を少数発生
+  runCpuMarketRound: (date: string) => void  // CPU同士の移籍・トレード・レンタル。日付で3週ごと（部のレース数に依らない）
   advanceMarketOneRace: () => void           // 本編以外(リザーブ/記録会)のレースでも入札・レンタル要請の応答を進める
   // ECL：前年の各リーグ上位2（計16チーム）がシーズン中の5戦をポイント制で争う。
   // 次の1戦を開催する（自チーム出場時は lineup で区間配置。未指定はOVR上位を自動配置）。
