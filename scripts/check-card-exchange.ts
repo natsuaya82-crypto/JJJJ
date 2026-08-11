@@ -12,6 +12,7 @@
 import { CARD_EXCHANGES, planExchange, exchangeSource, canPickStat, generateTrainingCard, generateRestCard, RARITY_EXP } from '../src/utils/cardCombo'
 import type { TrainingCard } from '../src/types'
 import { readFileSync } from 'node:fs'
+import { storeSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -84,7 +85,8 @@ console.log('\n[4] まとめ変換は種類を指定しても効かない（ラ�
 
 console.log('\n[5] レートの手書きが復活していない')
 {
-  const store = readFileSync('src/store/gameStore.ts', 'utf-8')
+  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  const store = storeSource()
   const page = readFileSync('src/components/training/CardConvertPage.tsx', 'utf-8')
   check('store は planExchange を呼ぶ', store.includes('planExchange('))
   check('store に古い convertCards が残っていない', !store.includes('convertCards'))

@@ -17,6 +17,7 @@ import {
 import type { Player } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { storeSource, actionBody } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -97,7 +98,8 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap(n => {
   const p = join(dir, n)
   return statSync(p).isDirectory() ? walk(p) : (/\.(ts|tsx)$/.test(n) ? [p] : [])
 })
-const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf-8')
+// store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+const store = storeSource()
 // 生の読み取りが許されるのは「GMが本人と話して札を付け替える」処理だけ。
 // それ以外（オファー生成・入札・自動購入・トレード打診）は必ず transferEligibility を通す
 const rawNoSale = (store.match(/\.noSale\b/g) ?? []).length
@@ -106,7 +108,9 @@ const rawOverseasListed = (store.match(/\.overseasListed\b/g) ?? []).length
 // トレード打診の除外が1、移籍後の札はがしが1、コメント中の言及が1
 check('gameStore の生 noSale 読みが増えていない', rawNoSale <= 5, `いま${rawNoSale}箇所`)
 check('gameStore の生 overseasListed 読みが増えていない', rawOverseasListed <= 4, `いま${rawOverseasListed}箇所`)
-check('gameStore が transferEligibility を使っている', store.includes("from '../utils/transferEligibility'"))
+// store は分割済みなので import のパスは '../utils/…' と '../../utils/…' の両方がありうる。
+// **深さを決め打ちしないこと**（決め打ちしていたせいで、移動しただけで落ちた）
+check('store が transferEligibility を使っている', /from '\.\.\/(\.\.\/)?utils\/transferEligibility'/.test(store))
 
 const srcFiles = walk('src')
 const elig = join('src', 'utils', 'transferEligibility.ts')
@@ -117,17 +121,17 @@ console.log('\n[7] 枝分かれした移籍の入口が全部この判定を通�
 // トレード・レンタル・契約更新・入札は入口がバラバラで、それぞれが自前で
 // 「p.teamId === playerTeamId」しか見ていなかった。借りている選手を売る・貸す・
 // 契約更新する、が全部できてしまっていたので、入口ごとに関数名で確かめる
-const has = (fn: string, needle: string) => {
-  // 冒頭の型宣言にも同じ名前が並ぶので、実装（最後の出現）の方を見る
-  const i = store.lastIndexOf(`\n      ${fn}: (`)
-  return i >= 0 && store.slice(i, i + 4000).includes(needle)
-}
+// 実装の切り出しは scripts/storeSource の actionBody 1本（型の宣言と実装の見分けもそこ）
+const has = (fn: string, needle: string) => actionBody(store, fn).includes(needle)
 check('入札（submitTransferBid）が canBePoached を通る', has('submitTransferBid', 'canBePoached'))
 check('移籍成立（finalizeTransfer）でもう一度確かめている', has('finalizeTransfer', 'canBePoached'))
 check('トレード（tradePlayer）が canTradeAway を通る', has('tradePlayer', 'canTradeAway'))
 check('CPUのトレード提案（acceptTradeOffer）が判定を通る', has('acceptTradeOffer', 'canTradeAway'))
 check('レンタル放出（loanOutPlayer）が canLoanOut を通る', has('loanOutPlayer', 'canLoanOut'))
-check('契約更新（initiateContractRenewal）が isOwnedBy を通る', has('initiateContractRenewal', 'isOwnedBy'))
+// 契約更新は isOwnedBy を直に呼ばず、contractTalk の canOfferRenewal を通る。
+// その中で canStartContractTalk → isTalkFree → isOwnedBy と辿るので**所属の確認は効いている**
+// （借りている選手の更新はここで止まる）。入口の名前で見ること
+check('契約更新（initiateContractRenewal）が canOfferRenewal を通る', has('initiateContractRenewal', 'canOfferRenewal'))
 check('契約要求の生成（generateContractRequests）が isOwnedBy を通る', has('generateContractRequests', 'isOwnedBy'))
 check('スカウト（startAcquisitionOffer）が canBePoached を通る', has('startAcquisitionOffer', 'canBePoached'))
 const market = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')

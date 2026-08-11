@@ -22,6 +22,7 @@ import { calcTransferValue, ovr, peakAgeOf } from '../src/utils/playerUtils'
 import type { Player } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { storeSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -163,7 +164,8 @@ console.log('\n[6] 物差しは2つ。額面（損得）と言い値（相手が
 
 console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
 {
-  const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf-8')
+  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  const store = storeSource()
   const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
 
   check('ストアが tradeValue を通している', store.includes("from '../utils/tradeValue'"))
@@ -230,7 +232,8 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
 console.log('\n[8] 年齢補正の段が1箇所にしかない')
 {
   const pu = readFileSync(join('src', 'utils', 'playerUtils.ts'), 'utf-8')
-  const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf-8')
+  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  const store = storeSource()
   const chatSrc = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
   const gen = readFileSync(join('src', 'engine', 'playerGenerator.ts'), 'utf-8')
   // playerUtils には市場価値ぶんと年俸(faMarketSalary)ぶんの2つ。それ以上に増やさない

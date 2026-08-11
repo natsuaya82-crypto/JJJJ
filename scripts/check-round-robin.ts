@@ -9,6 +9,7 @@
  */
 import { roundRobin } from '../src/utils/roundRobin'
 import { readFileSync } from 'node:fs'
+import { storeSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -63,11 +64,14 @@ console.log('\n[3] 空回りしない・上限で必ず止まる')
 
 console.log('\n[4] 早い者勝ちの書き方が復活していない')
 {
-  const store = readFileSync('src/store/gameStore.ts', 'utf-8')
+  // ★1つのファイルに閉じ込めないこと。FA側は engine/cpuMarket、移籍側は store/slices/draftSlice
+  //   と別々の層に分かれている（store だけ見ていたので「1か所」になって落ちた）
+  const src = [storeSource(), readFileSync('src/engine/cpuMarket.ts', 'utf-8')].join('\n')
   check('移籍とFAの2か所で roundRobin を使う',
-    (store.match(/roundRobin\(/g) ?? []).length >= 2,
-    `${(store.match(/roundRobin\(/g) ?? []).length}か所`)
-  check('roundRobin を読み込んでいる', /import\s*\{\s*roundRobin\s*\}\s*from\s*'\.\.\/utils\/roundRobin'/.test(store))
+    (src.match(/roundRobin\(/g) ?? []).length >= 2,
+    `${(src.match(/roundRobin\(/g) ?? []).length}か所`)
+  // import の深さ（../ か ../../）を決め打ちしないこと。移動しただけで落ちる
+  check('roundRobin を読み込んでいる', /import\s*\{\s*roundRobin\s*\}\s*from\s*'\.\.\/(\.\.\/)?utils\/roundRobin'/.test(src))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)

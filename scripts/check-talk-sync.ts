@@ -10,7 +10,7 @@
 import { reconcileTalks, openWishIds, STALE_TRADE_MSG, SETTLED_TRADE_MSG, settledPath } from '../src/utils/talkSync'
 import type { TalkLists } from '../src/utils/talkSync'
 import type { Player } from '../src/types'
-import { readFileSync } from 'node:fs'
+import { storeSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -337,7 +337,8 @@ console.log('\n[13] 札の片付けは store の set 1枚だけが呼ぶ（処�
 {
   // 点検は esbuild で CJS に束ねてから走らせるので import.meta.url が残らない（Invalid URL で落ちる）。
   // 他の点検と同じく、リポジトリ直下からの相対で読む
-  const src = readFileSync('src/store/gameStore.ts', 'utf-8')
+  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  const src = storeSource()
   check('set のかぶせが store にある', src.includes('const set: SetGame = (partial) =>'))
   check('片付けを呼ぶ場所は store 全体で1つだけ',
     (src.match(/reconcileTalks\(/g) ?? []).length === 1,

@@ -37,7 +37,15 @@ const CHECKS = [
   'chat-dup', 'chat-lines', 'chat-log', 'contract-talk', 'demand-gates', 'sale-answer',
   'consent-single', 'move-reason', 'offer-result', 'gm-offer',
   // 移籍・市場
-  'fa-market', 'transfer-eligibility', 'transfer-bid?', 'trade-value?',
+  'fa-market', 'transfer-eligibility',
+  // transfer-bid の残り8件は**仕様が変わったのにテストが旧仕様のまま**。
+  //   旧「上回るクラブがいれば即 rejected」→ 今「1回目は countered で上乗せの機会を出す」。
+  // trade-value の残り19件も旧仕様。年齢倍率が段（〜22×5／23〜27×4／28〜31×3／32〜×2）に
+  //   なったのに滑らかなカーブを期待している（実測 1.332 = 4/3 で CLAUDE.md どおり）。
+  //   早熟のピーク年齢も 24 → 22 に変わっているが、これは 011ff08「決定事項の実装」
+  //   （2026-08-05・今回のリファクタより前）で**意図して**変えたもの。分解による劣化ではない。
+  // **どちらも数字と方針の話なのでオーナー確認まで書き換えない。**
+  'transfer-bid?', 'trade-value?',
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'clubs', 'offseason',
   // レース・順位・記録
@@ -55,7 +63,14 @@ const CHECKS = [
   { name: 'boot-gate', shim: true },
   { name: 'save-backups', shim: true, nativeFakes: true },
   { name: 'load-v39', shim: true },
-  'boot-repair', 'archive-season', 'migrate-old-save',
+  { name: 'migrate-old-save', shim: true },
+  // 旧セーブ（v29相当）を migrate+merge に通したあとの**形**が変わっていないか。
+  // セーブ互換の唯一の自動確認で、外すと移行事故に気づけない
+  { name: 'migrate-snapshot', shim: true },
+  // runRace / endSeason をシード固定で走らせ、実行後の状態が1バイトも変わらないか。
+  // **いま進んでいる巨大アクション分解の唯一の安全網。** 絶対に外さないこと
+  { name: 'action-golden', shim: true },
+  'boot-repair', 'archive-season',
   // その他
   'card-exchange', 'notif-count', 'talk-sync',
 ]

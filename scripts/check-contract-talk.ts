@@ -22,6 +22,7 @@ import {
 import type { ContractRequest, Player } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { storeSource, actionBody } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -142,7 +143,8 @@ console.log('\n[7] 再交渉はラウンド上限と更新ロックで止まる'
 
 // ---- ここからソースの検査（呼び出し側が自前で数え直していないか） ----
 const read = (...parts: string[]) => readFileSync(join(...parts), 'utf-8')
-const store = read('src', 'store', 'gameStore.ts')
+// store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+const store = storeSource()
 const notif = read('src', 'utils', 'notifItems.ts')
 const chat = read('src', 'components', 'team', 'ChatPage.tsx')
 const dash = read('src', 'components', 'dashboard', 'Dashboard.tsx')
@@ -154,12 +156,8 @@ const contractTalk = read('src', 'utils', 'contractTalk.ts')
 const chatLines = read('src', 'utils', 'chatLines.ts')
 
 // gameStore の関数の中身を切り出す（次の「      名前: 」まで）
-const fnBody = (name: string): string => {
-  const i = store.indexOf(`      ${name}: (`)
-  if (i < 0) return ''
-  const j = store.indexOf('\n      },', i)
-  return store.slice(i, j < 0 ? store.length : j)
-}
+// 実装の切り出しは scripts/storeSource の actionBody 1本（型の宣言と実装の見分けもそこ）
+const fnBody = (name: string): string => actionBody(store, name)
 const has = (name: string, needle: string) => fnBody(name).includes(needle)
 
 console.log('\n[8] 呼び出し側が判定を自前で書き直していない')

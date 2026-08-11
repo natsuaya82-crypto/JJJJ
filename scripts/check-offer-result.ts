@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { offerResultText } from '../src/utils/offerResult'
 import { ROSTER_MIN } from '../src/data/rosterRules'
+import { storeSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -25,7 +26,8 @@ const check = (label: string, ok: boolean, detail = '') => {
   else console.log(`  ok  ${label}`)
 }
 
-const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf8')
+// store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+const store = storeSource()
 const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf8')
 const transfer = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf8')
 // オファー一覧の画面は廃止した（買い取り打診の返事はチャットで行う）。

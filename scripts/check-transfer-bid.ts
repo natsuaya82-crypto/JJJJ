@@ -22,6 +22,7 @@ import { expiredNegText, EXPIRED_NEG_TEXT } from '../src/utils/notifItems'
 import type { Player, TransferBid } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { storeSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -202,7 +203,12 @@ console.log('\n[8] 期限切れ通知の文言は種類から出す')
 {
   // 入札・獲得オファー・契約更新に、トレードが飲めなかったとき用の2つ、
   // それに買う側の競り負けを足して6種類
-  check('6種類ぶんある', Object.keys(EXPIRED_NEG_TEXT).length === 6, Object.keys(EXPIRED_NEG_TEXT).join(','))
+  // ★数を写さないこと。写した瞬間に「増やしたのに片方だけ古い」が起きる
+  //   （sale_refused / sale_roster_min を足したとき、ここだけ6のままだった）。
+  //   数がそろっているかは Record<ExpiredNegKind, …> なので tsc が見る。ここでは中身だけ見る
+  check('どの種類にも文言が入っている',
+    Object.values(EXPIRED_NEG_TEXT).every(t => typeof t.title === 'function' && !!t.note),
+    Object.keys(EXPIRED_NEG_TEXT).join(','))
   // 競り負けは金額の問題なので、来季まで交渉禁止にはしない
   check('競り負けは交渉禁止にしない', expiredNegText('outbid').note !== '来季まで交渉できません')
   check('種類が無い古いセーブは入札として扱う', expiredNegText(undefined) === EXPIRED_NEG_TEXT.bid)
@@ -220,7 +226,8 @@ console.log('\n[8] 期限切れ通知の文言は種類から出す')
 
 console.log('\n[9] ストアが自前で判定を持っていない')
 {
-  const store = readFileSync(join('src', 'store', 'gameStore.ts'), 'utf-8')
+  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  const store = storeSource()
   check('入札の判定は resolveBid を呼ぶだけ', (store.match(/resolveBid\(/g) ?? []).length === 2, `${(store.match(/resolveBid\(/g) ?? []).length}箇所`)
   check('主力ガードの判定を入札処理で自前に書いていない', !store.includes("kStatus === 'locked'"))
   check('受諾ラインを自前で組み立てていない', !store.includes('bidThreshold('))
@@ -237,7 +244,9 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   check('競り負けは1年ロックの対象外', store.includes("r.expired.kind !== 'outbid'"))
   // 「上回られた」と出しておいて選手が残っていたら、次の節に同じ額でもう一度出せてしまう
   check('競り負けた選手は実際に相手クラブへ移る', store.includes('outbidMoves'))
-  check('移すのは movePlayer 1本', /for \(const mv of outbidMoves\)[\s\S]{0,400}movePlayer\(/.test(store))
+  // 窓を狭くしないこと。ループの中に「移す直前に本人へもう一度聞く」処理が入ったぶん
+  // 400文字では届かなくなった（movePlayer は動いていないのに落ちる）
+  check('移すのは movePlayer 1本', /for \(const mv of outbidMoves\)[\s\S]{0,2000}movePlayer\(/.test(store))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
