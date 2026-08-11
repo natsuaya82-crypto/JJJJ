@@ -42,11 +42,15 @@ const CHECKS = [
   'consent-single', 'move-reason', 'offer-result', 'gm-offer',
   // 移籍・市場
   'fa-market', 'transfer-eligibility',
-  // transfer-bid の残りは**仕様が変わったのにテストが旧仕様のまま**。
+  // transfer-bid は trade-value と同じ仕分けで 12件 → 8件（docs/BACKLOG.md B-1）。
+  //   解消した4件は engine への移設で見えなくなっていただけ（resolveBid の呼び出し数・
+  //   獲得オファー失効の種類・競り負けの1年ロック除外・movePlayer への集約）。
+  // 残る8件は**仕様が変わったのにテストが旧仕様のまま**。
   //   旧「上回るクラブがいれば即 rejected」→ 今「1回目は countered で上乗せの機会を出す」。
-  //   数字と方針の話なのでオーナー確認まで書き換えない。
+  //   どちらが正なのかオーナー確認中（docs/BACKLOG.md A-3）。数字と方針の話なので
+  //   確認が付くまで書き換えない。
   // ★件数を必ず書くこと（下の pending の説明）。ここに書いた数を1件でも超えたら落ちる。
-  { name: 'transfer-bid', pending: 12, why: '旧仕様のまま（countered の段が入る前のテスト）' },
+  { name: 'transfer-bid', pending: 8, why: '旧仕様のまま（競り負けの段の数だけ。A-3待ち）' },
   // trade-value は片付いた（20件 → 0件）。内訳は 移設で見えなくなっていたもの7件・
   // CLAUDE.md に現行仕様として書いてあるのにテストが古かったもの13件。
   'trade-value',

@@ -22,7 +22,7 @@ import { expiredNegText, EXPIRED_NEG_TEXT } from '../src/utils/notifItems'
 import type { Player, TransferBid } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { storeSource } from './storeSource'
+import { storeSource, logicSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -227,8 +227,14 @@ console.log('\n[8] 期限切れ通知の文言は種類から出す')
 console.log('\n[9] ストアが自前で判定を持っていない')
 {
   // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
+  // 入札の応答・期限切れ・競り負けの後始末は store/slices/raceSlice.ts の runRace から
+  // engine/bidResolution.ts・engine/offerExpiry.ts・engine/applyTransfers.ts へ切り出された。
+  // 「store に自前で書いていないか」（層の話）は storeSource、「どこかに1本あるか」
+  // （存在の話）は logicSource（store＋engine）で見る。混ぜないこと
   const store = storeSource()
-  check('入札の判定は resolveBid を呼ぶだけ', (store.match(/resolveBid\(/g) ?? []).length === 2, `${(store.match(/resolveBid\(/g) ?? []).length}箇所`)
+  const logic = logicSource()
+  check('入札の応答は resolveBid を呼ぶだけ（本編とサブの2箇所）',
+    (logic.match(/resolveBid\(/g) ?? []).length === 2, `${(logic.match(/resolveBid\(/g) ?? []).length}箇所`)
   check('主力ガードの判定を入札処理で自前に書いていない', !store.includes("kStatus === 'locked'"))
   check('受諾ラインを自前で組み立てていない', !store.includes('bidThreshold('))
   check('出品中の受諾ラインを手書きしていない', !store.includes('0.85 + Math.random() * 0.15'))
@@ -238,15 +244,19 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   const page = readFileSync(join('src', 'components', 'notifications', 'NotificationsPage.tsx'), 'utf-8')
   check('通知ページが文言を決め打ちしていない', !page.includes('選手が移籍を拒否しました') && !page.includes('>来季まで交渉できません<'))
   check('通知ページは expiredNegText から出す', page.includes('expiredNegText(neg.kind)'))
-  check('獲得オファーの失効に種類がついている', store.includes("kind: 'offer'"))
+  // ★獲得オファーの期限切れは engine/offerExpiry.ts へ移設。store だけを見ると空振りする
+  check('獲得オファーの失効に種類がついている', logic.includes("kind: 'offer'"))
+  // 契約更新の期限切れは store/slices/raceSlice.ts のまま
   check('契約更新の失効に種類がついている', store.includes("kind: 'contract'"))
-  // 競り負けは金額の問題なので、来季まで交渉不可のロックには入れない
-  check('競り負けは1年ロックの対象外', store.includes("r.expired.kind !== 'outbid'"))
+  // 競り負けは金額の問題なので、来季まで交渉不可のロックには入れない。
+  // ★engine/bidResolution.ts へ移設
+  check('競り負けは1年ロックの対象外', logic.includes("r.expired.kind !== 'outbid'"))
   // 「上回られた」と出しておいて選手が残っていたら、次の節に同じ額でもう一度出せてしまう
   check('競り負けた選手は実際に相手クラブへ移る', store.includes('outbidMoves'))
-  // 窓を狭くしないこと。ループの中に「移す直前に本人へもう一度聞く」処理が入ったぶん
-  // 400文字では届かなくなった（movePlayer は動いていないのに落ちる）
-  check('移すのは movePlayer 1本', /for \(const mv of outbidMoves\)[\s\S]{0,2000}movePlayer\(/.test(store))
+  // ★競り負けた選手を実際に動かす処理は engine/applyTransfers.ts へ移設。
+  //   窓を狭くしないこと。ループの中に「移す直前に本人へもう一度聞く」処理が入ったぶん
+  //   400文字では届かなくなった（movePlayer は動いていないのに落ちる）
+  check('移すのは movePlayer 1本', /for \(const mv of outbidMoves\)[\s\S]{0,2000}movePlayer\(/.test(logic))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
