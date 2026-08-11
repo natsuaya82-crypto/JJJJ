@@ -12,6 +12,7 @@ import { mergeChatMessages } from '../src/utils/chatLog'
 import type { ChatMessage } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { chatSource } from './uiSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -83,23 +84,28 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap(n => {
 const self = join('src', 'utils', 'chatLog.ts')
 const copies = walk('src').filter(f => f !== self && /initialMessages\.some\(/.test(readFileSync(f, 'utf-8')))
 check('突き合わせているのは chatLog.ts だけ', copies.length === 0, copies.join(', '))
-const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
+// チャット画面も分割中（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る
+const chat = chatSource()
 check('チャット画面が mergeChatMessages を使っている', chat.includes('mergeChatMessages'))
 // 用件の目印を付け忘れると、その用件だけ昔と同じように積み上がる。
 // **2か所以上に出る文面は utils/chatLines へ移した**ので、画面と文面の両方を見る
 // （retire_ok / overseas_ok は chatLines 側にある。片方だけ見ていて落ちていた）
 const lines = readFileSync(join('src', 'utils', 'chatLines.ts'), 'utf-8')
+// 会話の組み立て（buildMessages 等）は utils/chatTalk.ts へ移設済みなので、
+// 発言そのもの（kind 付き）はそこにある。ここも見ないと「画面には無いが chatTalk にはある」を見落とす
+const chatTalk = readFileSync(join('src', 'utils', 'chatTalk.ts'), 'utf-8')
 for (const kind of ['contract_remind', 'contract_demand', 'transfer_wish', 'retire', 'retire_ok', 'overseas_wish', 'overseas_ok', 'free_contact'])
-  check(`用件の目印がある（${kind}）`, chat.includes(`kind: '${kind}'`) || lines.includes(`kind: '${kind}'`))
+  check(`用件の目印がある（${kind}）`, chat.includes(`kind: '${kind}'`) || lines.includes(`kind: '${kind}'`) || chatTalk.includes(`kind: '${kind}'`))
 
 console.log('\n[7] 進路が決まった選手との会話は、そこで閉じている')
 // 引退を承認した選手は、次に開くと来季契約の話に戻っていた（そこから移籍にも進めた）。
 // 会話の中身もボタンも、talkSync の settledPath 1本で閉じること
 check('チャット画面が settledPath を使っている', chat.includes('settledPath'))
-// 会話の中身は chatLines の settledLineOf（中で settledPath を呼ぶ）、ボタンは画面側で直接。
-// 文面を chatLines へ寄せたぶん画面側の呼び出しは減ったので、**両方の入口があること**を見る
+// 会話の中身は chatLines の settledLineOf（中で settledPath を呼ぶ。呼び出し元は chatTalk）、
+// ボタンは画面側で直接。文面を chatLines/chatTalk へ寄せたぶん画面側の呼び出しは減ったので、
+// **両方の入口があること**を見る
 check('会話の中身が settledPath を通っている（settledLineOf 経由）',
-  chat.includes('settledLineOf(player)') && /settledPath\(player\)/.test(lines))
+  (chat.includes('settledLineOf(player)') || chatTalk.includes('settledLineOf(player)')) && /settledPath\(player\)/.test(lines))
 check('ボタン側も settledPath で閉じている', (chat.match(/settledPath\(player\)/g) ?? []).length >= 2)
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)

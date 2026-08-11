@@ -19,6 +19,7 @@ import { join } from 'node:path'
 import { offerResultText } from '../src/utils/offerResult'
 import { ROSTER_MIN } from '../src/data/rosterRules'
 import { storeSource } from './storeSource'
+import { chatSource } from './uiSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -28,7 +29,8 @@ const check = (label: string, ok: boolean, detail = '') => {
 
 // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
 const store = storeSource()
-const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf8')
+// チャット画面も分割中（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る
+const chat = chatSource()
 const transfer = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf8')
 // オファー一覧の画面は廃止した（買い取り打診の返事はチャットで行う）。
 // ここで読んでいたのは「3画面が同じ見せ方を使っているか」の確認で、残る2画面ぶんを見れば足りる

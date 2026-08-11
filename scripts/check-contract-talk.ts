@@ -23,6 +23,7 @@ import type { ContractRequest, Player } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { storeSource, actionBody } from './storeSource'
+import { chatSource } from './uiSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -146,7 +147,8 @@ const read = (...parts: string[]) => readFileSync(join(...parts), 'utf-8')
 // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
 const store = storeSource()
 const notif = read('src', 'utils', 'notifItems.ts')
-const chat = read('src', 'components', 'team', 'ChatPage.tsx')
+// チャット画面も分割中（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る
+const chat = chatSource()
 const dash = read('src', 'components', 'dashboard', 'Dashboard.tsx')
 const results = read('src', 'components', 'race', 'ResultsPhase.tsx')
 const talkSync = read('src', 'utils', 'talkSync.ts')
@@ -154,6 +156,8 @@ const contractTalk = read('src', 'utils', 'contractTalk.ts')
 // 2か所以上に出る文面は utils/chatLines へ寄せてある（承諾・逆提示など）。
 // 画面側だけを見ていると「文面を一本化したのに落ちる」ことになる
 const chatLines = read('src', 'utils', 'chatLines.ts')
+// 会話の組み立て（buildMessages 等）は utils/chatTalk.ts へ移設済み。kind の付いた発言はそこにある
+const chatTalk = read('src', 'utils', 'chatTalk.ts')
 
 // gameStore の関数の中身を切り出す（次の「      名前: 」まで）
 // 実装の切り出しは scripts/storeSource の actionBody 1本（型の宣言と実装の見分けもそこ）
@@ -217,7 +221,7 @@ console.log('\n[11] チャットの用件が二重に出ない')
   check('催促の判定に hasContractTalk が入っている', chat.includes('hasContractTalk(contractRequests, player.id)'))
   check('契約更新のメッセージに kind が付いている（同じ用件を増やさない）',
     ['contract_gm_open', 'contract_offer', 'contract_accept', 'contract_counter', 'contract_reject']
-      .every(k => chat.includes(k) || chatLines.includes(k)))
+      .every(k => chat.includes(k) || chatLines.includes(k) || chatTalk.includes(k)))
   check('退団予定の選手には用件を出さない分岐がフリー接触より前にある',
     chat.indexOf('if (player.transferListed) return [') < chat.indexOf('if (freeContactOffer) {'))
   check('チャット一覧がケガ人も対象にしている', chat.includes("p.status === 'active' || p.status === 'injured'"))
