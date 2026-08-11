@@ -241,7 +241,7 @@ endSeason: () => set(state => runSeasonEnd(state, [
 | **P1 成長統合** ✅完了(2026-08-11) | `growPlayer`→engine/growth に純移動。係数の食い違いは無し（ageCurveで統一済みと確認、オーナー判断は不要だった）。bakeAgeGrowthへの古い言及も掃除 | 中→低 |
 | **P2 persist抽出** ✅完了(2026-08-11) | migrate→persistence/migrateSave.ts、merge→mergeSave.ts、SAVE_VERSION分離。merge内の補正7ブロックは bootRepair ではなく **persistence/normalizeSave.ts** に集約（bootRepairは「冪等な導出修復」専用のまま保ち、一回きりパッチと混ぜないため）。migrate失敗時は saveHealth=failed でセーフモード接続（意図した挙動変更・独立コミット） | 中 |
 | **P3 engine抽出** ✅完了(2026-08-11) | cpuMarket(約580行)・achievements・draftOrder・individualRace・raceBoosts を engine/ へ、perfOf を utils/playerUtils へ移設。re-exportは残さず参照元を直接更新（RacePageのgameStore依存も解消）。gameStoreは7,479行に。**売却フロー系ヘルパー（willingFeeFor/sellMove/finalizeSale/appendChatLog等）は意図的に残置**——チャット・ニュースと絡む「取引の実行」であり、P4のmarketスライスの私有部分として一緒に動かすほうが安全 | 低〜中 |
-| **P4 スライス分割** | `set`ラッパーのmiddleware化（§2.3）→ §2.2の番号順に10分割。**ロジック変更なし・移動のみ**。1スライスごとに独立コミット | 中〜高 |
+| **P4 スライス分割** ✅完了(2026-08-11) | 9スライス（worldAthletics/cards/economy/meta/draft/competition/race/market/season）を store/slices/ へ分割。gameStore.ts は**1,178行**（型定義・emptyState・setラッパー・core系アクション・組み立てのみ）に。setラッパーは独立middleware化せず「ラップ済みsetをスライス生成関数へ渡す」形で同じ保証を実現。取引実行ヘルパーは store/marketOps.ts、reinforcementBanned は data/economy.ts へ。スライスの型は `Pick<GameStore,...>` 戻り値で文脈型を維持 | 中〜高 |
 | **P5 巨大アクション分解** | runRace / endSeason / beginSeasonDraft をフェーズ関数列に（§2.4）。rng注入・seed固定ダンプで新旧一致を確認。**1アクション=1PR** | **高** |
 | **P6 ビュー分解** | §7 の7ファイル | 中 |
 | **P7 ガードレール** | 依存ルール・行数上限を check スクリプト化（§2.1）。CLAUDE.mdに新構成を反映 | 低 |
