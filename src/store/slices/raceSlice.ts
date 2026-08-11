@@ -17,22 +17,20 @@ import { applySettledTransfers } from '../../engine/applyTransfers'
 import { resolveLoanRequests } from '../../engine/loanRequests'
 import { generatePlayerWishes } from '../../engine/playerWishes'
 import { settleSaleAnswers } from '../marketOps'
-import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
 import { applyEventChoice } from '../../engine/eventEffects'
 import { eventDistKey, updateBestRecord, withEventBest } from '../../engine/timeTrialRecords'
+import { TT_REST_RECOVERY, runTimeTrial, timeTrialBoosted, timeTrialFatigueGain, timeTrialRewardCards, timeTrialRunners, updateTeamEventRecords } from '../../engine/timeTrial'
 import { myDivSize } from '../../utils/league'
-import { CARD_UNIT_EXP } from '../../data/cardShop'
 import { generateIndividualEvents } from '../../data/races'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
 import { generateForeignAndLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
 import { generateRaceEvents } from '../../engine/eventEngine'
-import { simulateIndividualTime } from '../../engine/individualRace'
 import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
-import { type CardRarity, type CardStatKey, type ExpiredNegotiation, type GameState, type Player, type Ratings, type TrainingCard, type TransferRecord } from '../../types'
+import { type ExpiredNegotiation, type GameState, type Player, type Ratings, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
-import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
+import { allForeignClubs } from '../../utils/clubs'
 import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { divisionOf, domesticThroughRank, segmentPrizeByTeam } from '../../utils/league'
@@ -564,77 +562,43 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const event = state.currentSeason.individualEvents?.find(e => e.id === eventId)
       if (!event || event.results) return state
       const skip = new Set(skipPlayerIds ?? [])
-      // 出走は国内リーグ所属選手のみ（海外クラブ選手は対象外）。
-      // CPUチームは疲労40以上の選手を自動で休ませる（自チームはプレイヤーの出走/休む選択に従う）
-      const domesticTeamIds = domesticTeamIdSet_(state.teams)
-      // 指定4記録会だけ海外クラブ選手も出走可（春季5000m/夏季10000m/夏季マラソン/冬季ハーフ）
-      const FOREIGN_TT_KEYS = ['tt-5k-1', 'tt-10k-2', 'tt-mara', 'tt-half-2']
-      const foreignAllowed = FOREIGN_TT_KEYS.some(k => event.id.startsWith(k))
-      const foreignClubIds = foreignAllowed
-        ? foreignClubIdSet(state.foreignLeagues)
-        : new Set<string>()
-      // スカウト候補（大学/高校のドラフト候補）も記録会に参加させ、実力タイムを残す（チーム未所属＝teamId空）。
-      const prospects = (state.currentSeason.scoutProspects ?? []).filter(p => (p.status === 'active' || p.status === 'draft_eligible') && !skip.has(p.id) && !state.players.some(pl => pl.id === p.id))
-      const activePlayers = [
-        ...state.players.filter(p =>
-          p.status === 'active' && !skip.has(p.id)
-          && (
-            (domesticTeamIds.has(p.teamId) && (p.teamId === state.playerTeamId || (p.fatigue ?? 0) < 40))
-            || (foreignClubIds.has(p.teamId) && (p.fatigue ?? 0) < 40)
-          )),
-        ...prospects,
-      ]
-      const results = activePlayers.map(p => ({
-        playerId: p.id,
-        teamId: p.teamId,
-        timeSec: simulateIndividualTime(p, event.distance, event.weather) }))
-      results.sort((a, b) => a.timeSec - b.timeSec)
-      const ranked = results.map((r, i) => ({ ...r, rank: i + 1 }))
+      // 誰が走るか・走らせて順位を付けるところは engine/timeTrial 1本
+      const runners = timeTrialRunners(
+        { players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues,
+          playerTeamId: state.playerTeamId, prospects: state.currentSeason.scoutProspects ?? [] },
+        event, skip)
+      const ranked = runTimeTrial(runners, event)
 
-      // Form/morale boost for top finishers from player team
-      const playerTeamTop = ranked.filter(r => r.teamId === state.playerTeamId && r.rank <= 3)
-      // 種目別自己ベスト: 実際に走ったタイムでのみ更新（全選手）
       const bestKey = eventDistKey(event.distance)
       const timeByPlayer = new Map(ranked.map(r => [r.playerId, r.timeSec]))
-      // 疲労: 出走で距離別に増加、休んだ現役選手は回復
-      const FAT_GAIN: Record<number, number> = { 5000: 3, 10000: 5, 21097: 8, 42195: 14 }
-      const fatGain = FAT_GAIN[event.distance] ?? 5
+      // 自チームの上位3人は士気と調子が上がる
+      const boosted = timeTrialBoosted(ranked, state.playerTeamId)
+      // 走れば距離ぶん疲れ、休んだ現役選手は回復する
+      const fatGain = timeTrialFatigueGain(event.distance)
       const updatedPlayers = state.players.map(p => {
         const ran = timeByPlayer.get(p.id)
         let next = p
         if (ran != null) {
           next = withEventBest(withFatigue(next, fatGain), bestKey, ran, state.currentSeason.year)
         } else if (p.status === 'active' && p.teamId) {
-          next = withFatigue(next, -8)
+          next = withFatigue(next, TT_REST_RECOVERY)
         }
-        if (playerTeamTop.some(r => r.playerId === p.id)) {
+        if (boosted.has(p.id)) {
           next = { ...withMorale(next, 8), form: Math.min(2, (next.form ?? 0) + 1) }
         }
         return next
       })
 
-      // スカウト候補の自己ベストも更新（未所属なので疲労・士気・報酬は対象外。記録のみ残す）。
+      // スカウト候補は記録だけ残す（未所属なので疲労・士気・報酬は対象外）
       const updatedProspects = (state.currentSeason.scoutProspects ?? []).map(p => {
         const ran = timeByPlayer.get(p.id)
         if (ran == null) return p
         return withEventBest(p, bestKey, ran, state.currentSeason.year)
       })
 
-      // カード報酬（自チームのみ）: 総合1位=レジェンダリー、2〜10位=エピック、11〜100位=レア 各1枚
-      const CARD_STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-      const rewardCards: TrainingCard[] = []
-      for (const r of ranked) {
-        if (r.teamId !== state.playerTeamId) continue
-        const rarity: CardRarity | null = r.rank === 1 ? 'legendary' : r.rank <= 10 ? 'epic' : r.rank <= 100 ? 'rare' : null
-        if (!rarity) continue
-        rewardCards.push({
-          id: `tt_${event.id}_${r.playerId}`,
-          statKey: CARD_STAT_KEYS[Math.floor(Math.random() * CARD_STAT_KEYS.length)],
-          rarity,
-          value: CARD_UNIT_EXP[rarity] })
-      }
+      const rewardCards = timeTrialRewardCards(ranked, state.playerTeamId, event.id)
 
-      // News for player team finishers
+      // 自チームの最上位をニュースに
       const myBest = ranked.find(r => r.teamId === state.playerTeamId)
       const myBestPlayer = myBest ? state.players.find(p => p.id === myBest.playerId) : null
       const newsItem = myBestPlayer ? {
@@ -660,28 +624,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const newJapanRecords = jr.record ? { ...state.japanRecords, [bestKey]: jr.record } : state.japanRecords
       const recordNewsItems = [...wr.news, ...jr.news]
 
-      // チーム歴代記録：走った選手のタイムを当時所属チームに永続記録（選手ごと最速・距離別）。
-      // 名前・国籍も焼き込む（選手データが長期整理で削除されても記録が名前ごと残る）
-      const playerById = new Map(state.players.map(p => [p.id, p]))
-      const teamEventUpdates = new Map<string, { playerId: string; timeSec: number }[]>()
-      for (const r of ranked) {
-        const arr = teamEventUpdates.get(r.teamId) ?? []
-        arr.push({ playerId: r.playerId, timeSec: r.timeSec })
-        teamEventUpdates.set(r.teamId, arr)
-      }
-      const evYear = state.currentSeason.year
-      const updatedTeams = state.teams.map(t => {
-        const ups = teamEventUpdates.get(t.id)
-        if (!ups || ups.length === 0) return t
-        const byPlayer = new Map((t.eventRecords?.[bestKey] ?? []).map(e => [e.playerId, e]))
-        for (const u of ups) {
-          const prev = byPlayer.get(u.playerId)
-          const pl = playerById.get(u.playerId)
-          if (!prev || u.timeSec < prev.timeSec) byPlayer.set(u.playerId, { playerId: u.playerId, playerName: pl?.name, nationality: pl?.nationality, timeSec: u.timeSec, year: evYear })
-        }
-        const merged = [...byPlayer.values()].sort((a, b) => a.timeSec - b.timeSec).slice(0, 30)
-        return { ...t, eventRecords: { ...t.eventRecords, [bestKey]: merged } }
-      })
+      // チーム歴代記録（選手ごと最速・種目別）。名前と国籍も焼き込む
+      const updatedTeams = updateTeamEventRecords(
+        state.teams, ranked, new Map(state.players.map(p => [p.id, p])), bestKey, state.currentSeason.year)
 
       return {
         players: updatedPlayers,

@@ -521,12 +521,28 @@ SCENARIOS['race-timetrial'] = () => {
   const cpuOne = g().players.find(p => p.teamId === 'osaka' && p.status === 'active')!
   useGameStore.setState({
     players: g().players.map(p => {
-      // 自チームは1位〜上位を取れる強さに（カード報酬 legendary/epic/rare と記録の枝）
-      if (p.teamId === MY) return { ...p, ratings: Object.fromEntries(Object.keys(p.ratings).map(k => [k, 99])) as typeof p.ratings }
+      // 自チームは1位〜上位を取れる強さに（カード報酬 legendary/epic/rare と記録の枝）。
+      // ★**自チームの1人はわざと疲労40以上にする。** 出るか休むかを決めるのは
+      //   プレイヤーなので、自チームだけは疲れていても自動的には外れない——という
+      //   決まりを通すため。疲れた自チームの選手が1人も居なかったころは、
+      //   その除外を消しても golden が緑のままだった（＝壊しても落ちない網）
+      if (p.teamId === MY) return { ...p, fatigue: p.id === mine[1].id ? 55 : (p.fatigue ?? 0),
+        ratings: Object.fromEntries(Object.keys(p.ratings).map(k => [k, 99])) as typeof p.ratings }
       // CPUの1人は疲労40以上で自動的に休む枝へ
       return p.id === cpuOne.id ? { ...p, fatigue: 55 } : p
     }),
-    currentSeason: { ...g().currentSeason, individualEvents: [domesticOnly, withForeign] } } as never)
+    currentSeason: { ...g().currentSeason, individualEvents: [domesticOnly, withForeign],
+      // ★スカウト候補（大学・高校のドラフト候補）も記録会を走る。まだどこにも所属して
+      //   いないので teamId は空で、疲労も士気も報酬も付かず記録だけ残る。
+      //   3人目は**わざと名簿の選手と同じID**にしてある。二重に走らせない除外を通すため
+      //   （候補が1人も居なかったころは、その除外を消しても golden が緑のままだった）
+      scoutProspects: [
+        { ...mine[2], id: 'prospect-1', name: '候補1', teamId: '', status: 'draft_eligible', eventBests: undefined },
+        { ...mine[3], id: 'prospect-2', name: '候補2', teamId: '', status: 'active', eventBests: undefined },
+        { ...mine[4], teamId: '', status: 'draft_eligible' },
+        // 引退した候補は走らない（status の絞り込みを通すため）
+        { ...mine[5], id: 'prospect-retired', name: '候補引退', teamId: '', status: 'retired', eventBests: undefined },
+      ] } } as never)
   compare('race-timetrial', () => {
     // 自チームの1人は「休む」を指定（skipPlayerIds の枝）
     g().simulateIndividualEvent(domesticOnly.id, [mine[0].id])
@@ -539,6 +555,11 @@ SCENARIOS['race-timetrial'] = () => {
     console.log(`      出走 ${r0.length}人（国内だけ） / ${r1.length}人（海外も出る回）`
       + ` / 休ませた=${!r0.some(r => r.playerId === mine[0].id)}`
       + ` 疲労で外れたCPU=${!r0.some(r => r.playerId === cpuOne.id)}`
+      + ` 疲れていても走る自チーム=${r0.some(r => r.playerId === mine[1].id)}`
+      + ` / 候補が走った=${r0.some(x => x.playerId === 'prospect-1')}`
+      + ` 二重登録は1回だけ=${r0.filter(x => x.playerId === mine[4].id).length}`
+      + ` 引退した候補は走らない=${!r0.some(x => x.playerId === 'prospect-retired')}`
+      + ` 候補に自己ベスト=${!!(g().currentSeason.scoutProspects ?? []).find(x => x.id === 'prospect-1')?.eventBests}`
       + ` / 自チームの10位以内 ${myTop}人 カード${(g().trainingCards ?? []).length}枚`
       + ` 世界記録${Object.keys(g().worldRecords ?? {}).length}種目`
       + ` 日本記録${Object.keys(g().japanRecords ?? {}).length}種目`)
