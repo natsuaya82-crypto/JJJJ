@@ -242,7 +242,7 @@ endSeason: () => set(state => runSeasonEnd(state, [
 | **P2 persist抽出** ✅完了(2026-08-11) | migrate→persistence/migrateSave.ts、merge→mergeSave.ts、SAVE_VERSION分離。merge内の補正7ブロックは bootRepair ではなく **persistence/normalizeSave.ts** に集約（bootRepairは「冪等な導出修復」専用のまま保ち、一回きりパッチと混ぜないため）。migrate失敗時は saveHealth=failed でセーフモード接続（意図した挙動変更・独立コミット） | 中 |
 | **P3 engine抽出** ✅完了(2026-08-11) | cpuMarket(約580行)・achievements・draftOrder・individualRace・raceBoosts を engine/ へ、perfOf を utils/playerUtils へ移設。re-exportは残さず参照元を直接更新（RacePageのgameStore依存も解消）。gameStoreは7,479行に。**売却フロー系ヘルパー（willingFeeFor/sellMove/finalizeSale/appendChatLog等）は意図的に残置**——チャット・ニュースと絡む「取引の実行」であり、P4のmarketスライスの私有部分として一緒に動かすほうが安全 | 低〜中 |
 | **P4 スライス分割** ✅完了(2026-08-11) | 9スライス（worldAthletics/cards/economy/meta/draft/competition/race/market/season）を store/slices/ へ分割。gameStore.ts は**1,178行**（型定義・emptyState・setラッパー・core系アクション・組み立てのみ）に。setラッパーは独立middleware化せず「ラップ済みsetをスライス生成関数へ渡す」形で同じ保証を実現。取引実行ヘルパーは store/marketOps.ts、reinforcementBanned は data/economy.ts へ。スライスの型は `Pick<GameStore,...>` 戻り値で文脈型を維持 | 中〜高 |
-| **P5 巨大アクション分解** | runRace / endSeason / beginSeasonDraft をフェーズ関数列に（§2.4）。rng注入・seed固定ダンプで新旧一致を確認。**1アクション=1PR** | **高** |
+| **P5 巨大アクション分解** 🔄進行中 | **P5-0 ✅** ゴールデン検査（`scripts/check-action-golden.ts`・3シナリオ・1シナリオ1プロセス）<br>**P5-1 ✅ runRace 1,150行→470行**（16工程を engine/ と store/marketOps へ）<br>**P5-2 ⬜ endSeason**（約1,230行）<br>**P5-3 ⬜ beginSeasonDraft**（約470行） | **高** |
 | **P6 ビュー分解** | §7 の7ファイル | 中 |
 | **P7 ガードレール** | 依存ルール・行数上限を check スクリプト化（§2.1）。CLAUDE.mdに新構成を反映 | 低 |
 
@@ -258,3 +258,41 @@ endSeason: () => set(state => runSeasonEnd(state, [
 - セーブfixtureに使う実セーブの提供可否（無ければ合成で代用）
 - P5でrunRace/endSeasonの計算順序に依存した挙動差が見つかった場合の扱い
 - バランスに関わる数字は一切変えない。変えたくなったら必ず確認
+
+---
+
+## 10. P5-1（runRace の分解）の記録
+
+1,150行 → **470行**。切り出したのは次の16工程。**すべてゴールデン検査で差分ゼロを確認**しながら
+1工程ずつコミットした。
+
+| 置き場所 | 中身 |
+|---|---|
+| `engine/raceNews.ts` | レース結果のニュース5種類 |
+| `engine/raceFatigue.ts` | 疲労の増減（医療センター・回復力） |
+| `engine/raceProgress.ts` | 調子・通算成績・モラル・成長(EXP)・練習プラン |
+| `engine/raceInjury.ts` | 負傷判定と復帰 |
+| `engine/segmentPB.ts` | 自己ベスト（地形キーの作り方も1本化） |
+| `engine/raceRecords.ts` | 区間新記録の判定 |
+| `engine/aiTradeOffer.ts` | CPUからのトレード打診 |
+| `engine/cpuTransfers.ts` | CPU同士の移籍成立 |
+| `engine/offerExpiry.ts` | 期限切れの打診・フリー移籍の本人決断 |
+| `engine/bidResolution.ts` | 入札の応答（失効・競り負け） |
+| `engine/applyTransfers.ts` | 決まった移籍の反映（movePlayer 1本） |
+| `engine/loanRequests.ts` | レンタル要請への返事 |
+| `engine/inSeasonFa.ts` | シーズン中のFA補強 |
+| `engine/playerWishes.ts` | 移籍希望・海外挑戦の直訴 |
+| `engine/seasonFinaleNews.ts` | 最終戦の表彰・引退表明の発表 |
+| `store/marketOps.ts` の `settleSaleAnswers` | 「譲る」返事の決着（他アクションを呼ぶ進行役なので store 側） |
+
+### 分解で分かったこと（P5-2 以降でも同じように進める）
+
+1. **乱数は引数で受ける**（`rng = Math.random` 既定）。呼ぶ回数と順序を変えないこと。
+   変わったらゴールデンが即座に検出する＝「切り方を間違えた」というサイン
+2. **1周のループで順序が決まっている処理は、分けずに1関数のまま移す**
+   （`raceProgress` の5工程。見やすさのために5周に分けると結果が変わる）
+3. **他のアクションを呼ぶ進行役は engine に置かない**。store 側（`marketOps`）へ
+4. **抽出した枝が検査で実際に通るかを先に確かめる**。
+   最終戦だけを通る枝（`seasonFinaleNews`）は、開幕戦のシナリオでは1行も動いていなかった
+5. 移設で点検が落ちたら、**それは見張りが仕事をしている**。許可リストや読む範囲
+   （`logicSource`）を追随させる。判定の中身は変えない
