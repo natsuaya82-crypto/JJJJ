@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
@@ -9,6 +10,9 @@ const JEWEL = '#6dd5fa'
  * 結果画面ではヘッダーのジュエル表示自体が隠れていて増減が見えないため、
  * ストアの jewelGains にためておき、ホームに戻ったこの画面でまとめて出す。
  * ジュエル自体はレース時点で加算済みなので、ここは表示と既読化（dismissJewelGains）だけを行う。
+ *
+ * ★呼び出し元がどのページの中にいても、必ず document.body 直下（<main> の外）に
+ *   出すこと。理由は ConfirmDialog.tsx / BottomSheet.tsx と同じ。
  */
 export default function JewelGainPopup() {
   const gains = useGameStore(s => s.jewelGains) ?? []
@@ -24,7 +28,7 @@ export default function JewelGainPopup() {
     else merged.push({ ...g })
   }
 
-  return (
+  return createPortal((
     <div onClick={dismiss} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${JEWEL}`, borderRadius: 20, padding: 24, maxWidth: 320, width: '100%', boxShadow: `0 6px 0 ${alpha(JEWEL, 0.35)}, 0 10px 40px ${alpha(JEWEL, 0.25)}` }}>
         <div style={{ textAlign: 'center' }}>
@@ -47,5 +51,5 @@ export default function JewelGainPopup() {
         <button onClick={dismiss} style={{ width: '100%', padding: 13, borderRadius: 12, background: `linear-gradient(135deg, ${JEWEL}, #a8e4ff)`, border: 'none', color: '#062033', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
       </div>
     </div>
-  )
+  ), document.body)
 }
