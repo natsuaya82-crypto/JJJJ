@@ -10,12 +10,14 @@ import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
-import { type Division, type GameState, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
+import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
 import { applySeasonCareerRecords } from '../../engine/careerRecords'
 import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
+import { collectEventSeasonTops } from '../../engine/eventSeasonTops'
+import { settleSeasonObjectives } from '../../engine/seasonObjectives'
 import { collectDepartures } from '../../engine/departureNotices'
 import { processForeignSeason } from '../../engine/foreignSeason'
 import { prepareSeasonArchive } from '../../engine/seasonArchivePrep'
@@ -365,16 +367,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 目標の順位は自分の部の中での順位（「3位以内」は自分の部での3位）
       const finalRank = rankOfTeam(myDivRows, state.playerTeamId)
       const playerBudgetAtSeasonEnd = teamsWithFA.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
-      const completedObjs = (state.currentSeason.objectives ?? []).map(obj => {
-        if (obj.done) return obj
-        if (obj.id === 'topN' && finalRank > 0 && finalRank <= obj.target) return { ...obj, current: finalRank, done: true }
-        if (obj.id === 'noInjury' && obj.current === 0) return { ...obj, done: true }
-        if (obj.id === 'budgetMaintain' && playerBudgetAtSeasonEnd >= obj.target) return { ...obj, current: playerBudgetAtSeasonEnd, done: true }
-        return obj
-      })
-      const newlyCompletedObjs = completedObjs.filter(o => o.done && !state.currentSeason.objectives.find(x => x.id === o.id)?.done)
-      const objBonus = newlyCompletedObjs.reduce((s, o) => s + o.rewardPts, 0)
-      const objBudgetBonus = newlyCompletedObjs.reduce((s, o) => s + (o.rewardBudget ?? 0), 0)
 
       const aiSigningNews: typeof faNews = []  // AI signing happens at draft start now
 
@@ -388,15 +380,15 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           relatedIds: [p.id] } : null
       }).filter(Boolean) as typeof faNews
 
-      // 来季の目標：今季の最終順位を基準にスケール（順位が上がるほど翌年の目標も厳しく）
-      const newObjectives = selectSeasonObjectives(!!state.rivalTeamId, myDivSize(state), finalRank)
-
-      // GM評判＝今季の目標達成率で少しずつ変動（±5以内）
-      const objAchieved = completedObjs.filter(o => o.done).length
-      const objTotalCount = completedObjs.length || 1
-      const objAchieveRate = objAchieved / objTotalCount
-      const repDelta = objAchieveRate >= 1 ? 5 : objAchieveRate >= 0.6 ? 3 : objAchieveRate >= 0.4 ? 1 : objAchieveRate >= 0.2 ? -1 : -3
-      const newGmRep = Math.max(1, Math.min(100, (state.gmRep ?? 50) + repDelta))
+      // 目標の達成判定・来季の目標・GM評判は engine/seasonObjectives 1本
+      const objs = settleSeasonObjectives({
+        currentSeason: state.currentSeason, playerTeamId: state.playerTeamId, finalRank,
+        playerBudgetAtSeasonEnd, hasRival: !!state.rivalTeamId, divSize: myDivSize(state), gmRep: state.gmRep })
+      const newlyCompletedObjs = objs.newlyCompletedObjs
+      const objBonus = objs.objBonus
+      const objBudgetBonus = objs.objBudgetBonus
+      const newObjectives = objs.newObjectives
+      const newGmRep = objs.newGmRep
 
       // ── BONUS CLAUSE PAYOUTS (item 16) ──
       // ここは teamsWithFA の名簿を見る（シーズン開始時の state.players ではなく）。
@@ -409,29 +401,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // League MVP・新人王（選出ルールは utils/awards.ts に一元化。画面表示側と同じ実装を使う）
       const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year, divisionOf(state.teams.find(t => t.id === state.playerTeamId)))
 
-      // 記録会のシーズン別トップ10を軽量アーカイブ（記録会の全結果はこの後破棄されるため、
-      // 歴代優勝ページ用に種目ごとの上位だけ名前焼き込みで残す）
-      const DIST_TO_KEY: Record<number, 'd5000' | 'd10000' | 'half' | 'marathon'> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
-      const newEventTops: NonNullable<GameState['eventSeasonTops']> = []
-      {
-        const byDist = new Map<'d5000' | 'd10000' | 'half' | 'marathon', Map<string, { playerId: string; teamId: string; timeSec: number }>>()
-        for (const ev of state.currentSeason.individualEvents ?? []) {
-          const key = DIST_TO_KEY[ev.distance]
-          if (!key || !ev.results) continue
-          if (!byDist.has(key)) byDist.set(key, new Map())
-          const best = byDist.get(key)!
-          for (const r of ev.results) {
-            const cur = best.get(r.playerId)
-            if (!cur || r.timeSec < cur.timeSec) best.set(r.playerId, { playerId: r.playerId, teamId: r.teamId, timeSec: r.timeSec })
-          }
-        }
-        for (const [dist, best] of byDist) {
-          // 記録会にはドラフト候補も出るため、名前はプレイヤー→候補の順で解決して焼き込む
-          const top = [...best.values()].sort((a, b) => a.timeSec - b.timeSec).slice(0, 10)
-            .map(e => ({ ...e, playerName: (state.players.find(p => p.id === e.playerId) ?? (state.currentSeason.scoutProspects ?? []).find(p => p.id === e.playerId))?.name ?? '' }))
-          if (top.length > 0) newEventTops.push({ year: state.currentSeason.year, dist, top })
-        }
-      }
+      // 記録会のシーズン別トップ10は engine/eventSeasonTops 1本（全結果は保存時に捨てるため）
+      const newEventTops = collectEventSeasonTops({ currentSeason: state.currentSeason, players: state.players })
 
       // 出来高ボーナスの精算は engine/bonusPayout 1本（区間賞の集計も一緒に返る）
       const bonus = settleBonusClauses({
