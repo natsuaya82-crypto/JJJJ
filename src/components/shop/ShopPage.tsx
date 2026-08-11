@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
@@ -53,7 +54,7 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
   const after = jewels - total
   const canAfford = after >= 0
 
-  return (
+  return createPortal((
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       background: 'rgba(0,0,0,0.7)',
@@ -154,7 +155,7 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
 
 function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () => void }) {
