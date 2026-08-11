@@ -195,6 +195,23 @@ export function listedAcceptChance(fee: number, askingPrice: number): number {
   return Math.max(0, Math.min(1, (fee / askingPrice - LISTED_ACCEPT_MIN) / (1 - LISTED_ACCEPT_MIN)))
 }
 
+// 提示された移籍金が相場（市場価値）に対してどのくらいか、の線。
+// 買う側は「高い／安い」、売る側は逆向きに読むが、線は同じ1組。
+// 以前は NotificationsPage.tsx に同じ 0.95 / 0.75 の判定が2箇所（買う側・売る側）に
+// 手書きされていて、片方だけ直すと食い違う状態だった。
+export const FEE_FAIR_RATIO = 0.95   // これ以上なら「適正」
+export const FEE_SOFT_RATIO = 0.75   // これ以上なら「やや高／やや安」、下回れば「高値／安値」
+
+export type FeeRating = 'fair' | 'soft' | 'harsh'
+
+/**
+ * 提示額(ratio = 提示額 / 市場価値)が相場に対してどの区分か。
+ * ラベルの文言・色は立場（買う側／売る側）で変わるので画面側が決める。ここは区分だけ返す。
+ */
+export function feeRatingOf(ratio: number): FeeRating {
+  return ratio >= FEE_FAIR_RATIO ? 'fair' : ratio >= FEE_SOFT_RATIO ? 'soft' : 'harsh'
+}
+
 // 補強禁止判定：前季までの連続赤字ペナルティ中、または現在の残高がマイナスの間は
 // 新規補強（FA・移籍金・引き抜き・レンタル・海外獲得）を止める。ドラフト・契約更新は可。
 export function reinforcementBanned(team: { finance: { budget: number; deficitStreak?: number } } | undefined): boolean {

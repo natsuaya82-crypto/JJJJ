@@ -15,6 +15,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import type { TransferBid, Player } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
+import { feeRatingOf } from '../../data/economy'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import { CARD_NAMES, RARITY_LABELS } from '../../utils/cardCombo'
 import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
@@ -66,7 +67,8 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
   const mv = calcTransferValue(player)
   const counterFee = bid.counterFee ?? 0
   const counterRatio = counterFee ? counterFee / mv : 0
-  const counterRating = counterRatio >= 0.95 ? { label: '適正', color: C.green } : counterRatio >= 0.75 ? { label: 'やや高', color: C.orange } : { label: '高値', color: C.red }
+  const counterFeeRating = feeRatingOf(counterRatio)
+  const counterRating = counterFeeRating === 'fair' ? { label: '適正', color: C.green } : counterFeeRating === 'soft' ? { label: 'やや高', color: C.orange } : { label: '高値', color: C.red }
   const [dialOpen, setDialOpen] = useState(false)
   const [dialFee, setDialFee] = useState(counterFee || bid.offeredFee)
 
@@ -864,7 +866,8 @@ export default function NotificationsPage() {
                   const expiresIn = Math.max(0, offer.expiresAtRace - racesConsumed(currentSeason))
                   const mv = calcTransferValue(target)
                   const ratio = mv > 0 ? offer.offeredPrice / mv : 0
-                  const mvRating = ratio >= 0.95 ? { label: '適正', color: C.green } : ratio >= 0.75 ? { label: 'やや安', color: C.orange } : { label: '安値', color: C.red }
+                  const mvFeeRating = feeRatingOf(ratio)
+                  const mvRating = mvFeeRating === 'fair' ? { label: '適正', color: C.green } : mvFeeRating === 'soft' ? { label: 'やや安', color: C.orange } : { label: '安値', color: C.red }
                   return (
                     <div key={group.playerId} style={cardStyle(alpha(C.red, 0.45), '#660e10')}>
                       <div style={inset}/>
