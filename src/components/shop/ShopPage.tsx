@@ -160,7 +160,7 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
 
 function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () => void }) {
   const col = cards[0] ? RARITY_COLORS[cards[0].rarity] : C.gold
-  return (
+  return createPortal((
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1001,
       background: 'rgba(0,0,0,0.8)',
@@ -221,7 +221,7 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
         </button>
       </div>
     </div>
-  )
+  ), document.body)
 }
 
 export default function ShopPage() {
