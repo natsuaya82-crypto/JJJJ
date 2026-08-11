@@ -2,15 +2,13 @@
 
 import type { GameStore, SetGame } from '../gameStore'
 import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
-import { computeNextSeasonBudget } from '../../data/economy'
 import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { INITIAL_TEAMS } from '../../data/teams'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
-import { applyForeignChampions, initForeignStandings } from '../../engine/foreignLeague'
-import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../../engine/foreignTransfers'
+import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
 import { type Division, type GameState, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
@@ -18,6 +16,8 @@ import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
 import { applySeasonCareerRecords } from '../../engine/careerRecords'
+import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
+import { processForeignSeason } from '../../engine/foreignSeason'
 import { pruneSaveData } from '../../engine/savePruning'
 import { issueDraftPicks } from '../../engine/draftPicks'
 import { computePromotion } from '../../engine/promotion'
@@ -25,15 +25,14 @@ import { processRetirements } from '../../engine/retirement'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
-import { allTieredClubs, tierBudget, tierFromForeignRank, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
+import { allTieredClubs, tierBudget, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { findClub, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
-import { facilityUpkeepOf } from '../../utils/facilities'
 import { makeGmOffer, resignOffers } from '../../utils/gmOffer'
-import { gmCareerTotals, gmSeasonRanks, startTenure } from '../../utils/gmTenure'
-import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
-import { type NewsItem, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
+import { startTenure } from '../../utils/gmTenure'
+import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
 import { squadIdsOf } from '../../utils/rosterSync'
@@ -487,25 +486,15 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         category: 'race' as const,
         relatedIds: [] }
 
-      // ── DYNASTY MILESTONES ──
-      // 通算成績は「今季を足したあと」で見たいので、過去シーズンに今季の順位表を足して数え直す
-      // 称号と連覇は「監督個人の通算」で数える。チームの通算（球団史）で数えると、
-      // 優勝の多いチームへ移った瞬間に前任者の優勝で連覇・王朝の称号が解除されてしまう（utils/gmTenure.ts）
-      const gmRanksAfter = gmSeasonRanks([
-        ...state.pastSeasons,
-        { year: state.currentSeason.year, standings: state.currentSeason.standings },
-      ], state.gmTenures, state.playerTeamId)
-      const gmTotalsAfter = gmCareerTotals(gmRanksAfter)
-      const totalChamps = gmTotalsAfter.championships
-      const totalSeasons = gmTotalsAfter.seasons
-      const curStreak = gmTotalsAfter.currentStreak
-      const segWinsAfter = playersAfterMorale.filter(p => p.teamId === state.playerTeamId).reduce((s, p) => s + p.career.segmentWins, 0)
-      const segWinsBefore = state.players.filter(p => p.teamId === state.playerTeamId).reduce((s, p) => s + p.career.segmentWins, 0)
-      // 節目の条件も文面も utils/newsItems の dynastyHeadlines 1本
-      const dynastyNews: NewsItem[] = dynastyHeadlines({
-        finalRank, championships: totalChamps, seasons: totalSeasons, currentStreak: curStreak,
-        division: divisionOf(state.teams.find(t => t.id === state.playerTeamId)),
-        segWinsAfter, segWinsBefore }).map(headline => ({ date: `${state.currentSeason.year}-10-26`, headline, category: 'race' as const, relatedIds: [] }))
+      // 監督の通算成績と節目のニュースは engine/dynastyMilestones 1本
+      const dynasty = computeDynastyMilestones({
+        pastSeasons: state.pastSeasons, currentSeason: state.currentSeason, gmTenures: state.gmTenures,
+        teams: state.teams, playerTeamId: state.playerTeamId, finalRank,
+        playersAfter: playersAfterMorale, playersBefore: state.players })
+      const totalChamps = dynasty.totalChamps
+      const totalSeasons = dynasty.totalSeasons
+      const curStreak = dynasty.curStreak
+      const dynastyNews = dynasty.news
 
       // MVP・優勝・レンタル在籍履歴を通算成績へ書き込む。engine/careerRecords 1本
       const playersWithLoanHistory = applySeasonCareerRecords({
@@ -538,91 +527,16 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         if (j > 0) seasonJewelGains.push({ label: `実績「${a.name}」`, amount: j })
       }
 
-      // 海外リーグの優勝クラブ所属選手に championships +1（今季の順位表を確定してから）
-      const playersWithForeignChamp = applyForeignChampions(
-        state.foreignLeagues ?? [], playersWithLoanHistory, state.currentSeason.foreignStandings ?? {},
-      )
-
-      // 海外クラブの格も今季のリーグ順位で動かす。国内（Team.tier）とまったく同じ扱いで、
-      // 違うのは「どの順位表で決まるか」だけ。順位表はあるのに格へ返していなかったので、
-      // 海外クラブの格は初期値のまま一生固定だった（最下位を続けても格1のまま）。
-      const foreignStandingsFinal = state.currentSeason.foreignStandings ?? {}
-      const leaguesWithTier = foreignRefresh.updatedLeagues.map(lg => {
-        const rows = rankedStandings(foreignStandingsFinal[lg.id] ?? [])
-        if (rows.length === 0) return lg   // 1戦もしていないリーグは触らない
-        const rankOf = new Map(rows.map((r, i) => [r.teamId, i + 1]))
-        return {
-          ...lg,
-          clubs: lg.clubs.map(c => {
-            const rank = rankOf.get(c.id)
-            return rank == null ? c : { ...c, tier: tierFromForeignRank(lg.id, rank, rows.length) }
-          }) }
-      })
-
-      // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
-      // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。
-      const foreignBasePlayers = [
-        ...(removedForeignPlayerIds.size > 0 ? playersWithForeignChamp.filter(p => !removedForeignPlayerIds.has(p.id)) : playersWithForeignChamp),
-        ...foreignRefresh.newPlayers,
-      ]
-      // 海外クラブの来季予算。**国内CPUとまったく同じ computeNextSeasonBudget 1本**を通す。
-      //   収入 = 格の年間予算   支出 = 総年俸 + 運営費(年俸の1割) + 施設維持費
-      // これまで海外クラブには資金の置き場所（finance）が無く、移籍の処理に入るたびに
-      // tierBudget へ満タンに戻っていた。使っても減らないので、
-      //   ・繰越の上限（CARRYOVER_CAP_SHARE）が効かない
-      //   ・施設維持費も年俸も払わない
-      //   ・格を上げても下げても手元の額が変わらない
-      // という状態で、国内だけが資金のやりくりをしていた。
-      // 総年俸は補充・引退を反映した後の名簿（foreignBasePlayers）から数える。
-      const foreignSalaryTotal = new Map<string, number>()
-      for (const p of foreignBasePlayers) {
-        if (p.status === 'retired') continue
-        foreignSalaryTotal.set(p.teamId, (foreignSalaryTotal.get(p.teamId) ?? 0) + p.contract.annualSalary)
-      }
-      const leaguesWithFinance = leaguesWithTier.map(lg => ({
-        ...lg,
-        clubs: lg.clubs.map(c => {
-          const sal = foreignSalaryTotal.get(c.id) ?? 0
-          return {
-            ...c,
-            finance: {
-              ...c.finance,
-              budget: computeNextSeasonBudget({
-                baseGrant: tierBudget(c),
-                // 古いセーブには finance が無い。その年は「格の年間予算ちょうど」から始める
-                prevBalance: c.finance?.budget ?? tierBudget(c),
-                sponsorAnnual: 0,   // 海外クラブはスポンサー契約を結ばない（国内CPUも同じ）
-                raceIncome: 0,      // 区間賞は国内のレースだけ
-                objBudgetBonus: 0,
-                bonusPayout: 0,
-                salaryTotal: sal,
-                facilityUpkeep: facilityUpkeepOf(c) }) } }
-        }) }))
-
-      let foreignTx: { foreignLeagues: typeof foreignRefresh.updatedLeagues; players: typeof foreignBasePlayers; news: NewsItem[]; records: TransferRecord[] }
-      try {
-        foreignTx = simulateForeignTransferMarket({
-          foreignLeagues: leaguesWithFinance,
-          players: foreignBasePlayers,
-          year: newYear })
-      } catch (e) {
-        console.error('simulateForeignTransferMarket failed', e)
-        foreignTx = { foreignLeagues: leaguesWithFinance, players: foreignBasePlayers, news: [], records: [] }
-      }
-
-      // シーズンオフの日本↔海外クロスボーダー移籍（CPU同士）。プレイヤーのチームは対象外。
-      let crossTx: { teams: typeof teamsWithCleanedPicks; foreignLeagues: typeof foreignTx.foreignLeagues; players: typeof foreignTx.players; news: typeof foreignTx.news; records: TransferRecord[] }
-      try {
-        crossTx = simulateCrossBorderTransfers({
-          teams: teamsWithCleanedPicks,
-          foreignLeagues: foreignTx.foreignLeagues,
-          players: foreignTx.players,
-          playerTeamId: state.playerTeamId,
-          year: newYear })
-      } catch (e) {
-        console.error('simulateCrossBorderTransfers failed', e)
-        crossTx = { teams: teamsWithCleanedPicks, foreignLeagues: foreignTx.foreignLeagues, players: foreignTx.players, news: [], records: [] }
-      }
+      // 海外リーグの年度処理（優勝+1・格の更新・来季予算・海外内の移籍・日本↔海外の移籍）は
+      // engine/foreignSeason 1本。**国内と扱いを分けないこと**という決まりもそちら側
+      const fSeason = processForeignSeason({
+        players: playersWithLoanHistory, foreignLeagues: state.foreignLeagues ?? [],
+        foreignStandings: state.currentSeason.foreignStandings ?? {},
+        refreshedLeagues: foreignRefresh.updatedLeagues, newForeignPlayers: foreignRefresh.newPlayers,
+        removedForeignPlayerIds, teams: teamsWithCleanedPicks,
+        playerTeamId: state.playerTeamId, newYear })
+      const foreignTx = fSeason.foreignTx
+      const crossTx = fSeason.crossTx
 
       // セーブの肥大化対策（在籍上限の整理・引退選手の軽量化・出番の無い選手の削除）は
       // engine/savePruning 1本。**実績のある選手は絶対に消さない**という決まりもそちら側
