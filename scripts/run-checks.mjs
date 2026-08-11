@@ -19,6 +19,7 @@
 //   通ったものは1行。落ちたものだけ中身を全部出す。
 //   全部の中身を見たいときは `npm run check -- --verbose`。
 import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { mkdirSync, existsSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -84,7 +85,34 @@ const CHECKS = [
   'boot-repair', 'archive-season',
   // その他
   'card-exchange', 'notif-count', 'talk-sync',
+  // ★実際にブラウザで開いて最初の画面が出るところまで見る。**既定では走らせない。**
+  //   npm run check は全員がコミットごとに通す前提で回っているので、12秒→30秒にすると
+  //   その前提が壊れる。走らせたいときだけ CHECK_HEAVY=1 を付ける。
+  //   （既定へ入れるかは、起動時クラッシュが直って10回連続で緑になってから再検討する）
+  {
+    name: 'boot', heavy: true,
+    needs: () => bootChrome() ? null : 'playwright かブラウザが見つからない',
+    why: '重い点検。CHECK_HEAVY=1 npm run check で走る',
+    env: () => ({ BOOT_CHROME: bootChrome() }),
+  },
 ]
+
+/**
+ * ブラウザの実行ファイルを探す。**パスを決め打ちしないこと**（版が上がると壊れる）。
+ * playwright 本体が入っていない環境もあるので、その場合も null を返して見送りにする。
+ */
+function bootChrome() {
+  try { createRequire(join(ROOT, 'noop.cjs'))('playwright') } catch { return null }
+  const base = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers'
+  if (!existsSync(base)) return null
+  const dirs = readdirSync(base).filter(d => /^chromium-\d+$/.test(d))
+    .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]))
+  for (const d of dirs) {
+    const exe = join(base, d, 'chrome-linux', 'chrome')
+    if (existsSync(exe)) return exe
+  }
+  return null
+}
 
 // ── 意図して走らせないもの ──────────────────────────────────
 // **「一覧から漏れた」と「わざと外した」を区別できるようにする。**
@@ -165,6 +193,17 @@ const pendingFailed = []
 const skipped = []
 const wobbles = []
 for (const e of built) {
+  // ★見送りより先に「組めたか」を見る。
+  //   見送りの判定を先にすると、**組めない点検が見送りに隠れて誰も気づけない**。
+  //   実際 check-boot が CJS で組めていなかったのに見送り表示のまま素通りし、
+  //   まとめビルドが失敗して1本ずつ組み直す道に落ちて 12秒→71秒になっていた
+  //   （遅くなったことでしか気づけなかった）。壊れている点検は環境に関係なく NG。
+  if (e.buildError) {
+    console.log(`NG   ${e.name}`)
+    console.log(`    ビルドできませんでした（消したAPIを読んでいる可能性があります）\n${e.buildError}`.replace(/^/gm, ''))
+    failed.push(e.name)
+    continue
+  }
   // ── 見送り（環境が足りなくて走らせられないもの）──
   // **落としてはいけないし、`?` でもない。** `?` は「壊れているが直していない」印で、
   // 「この環境では材料が無い」とは別の話。混ぜると `?` の意味が薄まる。
@@ -177,12 +216,25 @@ for (const e of built) {
       continue
     }
   }
+  // 重い点検は明示したときだけ走らせる（既定は見送り）。
+  // 外すのではなく毎回一覧に名前を出すので、黙って抜けることはない
+  if (e.heavy && !process.env.CHECK_HEAVY) {
+    console.log(`--   ${e.name}  (見送り: 重い点検。CHECK_HEAVY=1 で走ります)`)
+    skipped.push(`${e.name}（${e.why}）`)
+    continue
+  }
+  // 環境が足りないとき（例: playwright やブラウザが入っていない）も見送り
+  if (e.needs) {
+    const reason = e.needs()
+    if (reason) {
+      console.log(`--   ${e.name}  (見送り: ${reason})`)
+      skipped.push(`${e.name}（${reason}）`)
+      continue
+    }
+  }
   const st = Date.now()
   let ok, out, tries = 0
-  if (e.buildError) {
-    ok = false
-    out = `ビルドできませんでした（消したAPIを読んでいる可能性があります）\n${e.buildError}`
-  } else {
+  {
     // ── 分布の検査（flaky）──
     // **判定は緩めない。落ちたときに引き直すだけ。**
     // 世界を生成してから統計を見る点検は、生成の引きしだいで本当に逆転する回がある
@@ -193,7 +245,7 @@ for (const e of built) {
     const args = e.shim ? ['-r', join(ROOT, 'scripts/ls-shim.cjs'), e.outfile] : [e.outfile]
     do {
       tries++
-      const r = spawnSync(process.execPath, args, { encoding: 'utf8', cwd: ROOT })
+      const r = spawnSync(process.execPath, args, { encoding: 'utf8', cwd: ROOT, env: { ...process.env, ...(e.env ? e.env() : {}) } })
       ok = r.status === 0
       out = (r.stdout ?? '') + (r.stderr ?? '')
     } while (!ok && tries < maxTries)
