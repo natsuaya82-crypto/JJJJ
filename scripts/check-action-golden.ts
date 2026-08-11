@@ -46,6 +46,8 @@ import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../sr
 import { assignLineupByTerrain } from '../src/engine/raceEngine'
 import { stripEphemeral } from '../src/store/ephemeralState'
 import { calcTransferValue, ovr } from '../src/utils/playerUtils'
+import { draftPickValue } from '../src/data/economy'
+import { teamRosterSize } from '../src/data/rosterRules'
 import type { SeasonStanding, Team, Player, Race } from '../src/types'
 
 const problems: string[] = []
@@ -125,6 +127,21 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
     worldRepresentatives: [],
   } as never)
   return { players, races }
+}
+
+// ── ドラフトのシナリオ用：去年の順位表 ─────────────────────────────────
+// ドラフト順（standingsPickNumbers / draftLotteryOrder）は pastSeasons が無いと
+// 「開幕年」の枝（全チーム横並び・履歴なしの抽選）しか通らない。
+// 「2年目以降」の枝（前年順位に基づく抽選・末尾は逆順）を実際に通すには、
+// year-1 の順位表を持つ pastSeasons が1件要る。
+function pastSeasonStandings(base: Team[]) {
+  const standings = newSeasonStandings<SeasonStanding>(base, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))
+  for (const d of DIVISIONS) {
+    const rows = standings[d]
+    // 今年の buildState とは逆順にする（順位が入れ替わっている、という自然な状態を作る）
+    rows.forEach((row, i) => { row.totalPoints = (i + 1) * DIVISION_RACES[d] })
+  }
+  return standings
 }
 
 // ── 実行後の状態を安定した形で写し取る ────────────────────────────────
@@ -274,6 +291,83 @@ SCENARIOS['market-transfer'] = () => {
     // 残っていれば先頭を承諾する
     const rest = g().currentSeason.incomingOffers ?? []
     if (rest.length > 0) g().acceptIncomingOffer(rest[0].id, true)
+  })
+}
+
+SCENARIOS['draft-flow'] = () => {
+  console.log('[draft-flow] オフのドラフト：CPU整理 → 指名を最後まで進める → 未指名を後始末')
+  // draftSlice の中核（beginSeasonDraft/playerPick/cpuPick/advanceDraft）を一続きで通す。
+  // beginSeasonDraft は CPUの解雇・移籍・レンタル・FA補強もここで一気に走る（911行の大半）。
+  const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
+  const n = generateSeasonRaces(YEAR, divisionOf(base.find(t => t.id === MY))).length
+  buildState('postseason', n)
+  const g = () => useGameStore.getState()
+  // ★2年目以降の枝（前年順位に基づく指名順）を実際に通すため、去年の順位表を入れておく。
+  //   これが無いと「開幕年」の枝（全チーム横並びの抽選）しか通らない
+  useGameStore.setState({ pastSeasons: [{ year: YEAR - 1, races: [], collegeRaces: [], standings: pastSeasonStandings(base) }] } as never)
+  compare('draft-flow', () => {
+    g().beginSeasonDraft()
+    // 指名を最後まで進める。自チームの番は先頭候補を指名、それ以外はCPU任せ。
+    // pool は指名のたびに減るので、上限は pickOrder の長さで十分に足りる（無限ループの保険）
+    const cap = (g().draftState?.pickOrder.length ?? 0) + 5
+    for (let i = 0; i < cap; i++) {
+      const ds = g().draftState
+      if (!ds || ds.isComplete) break
+      if (ds.pickOrder[ds.currentPick] === MY) g().playerPick(ds.pool[0]?.id ?? '')
+      else g().cpuPick()
+    }
+    // 未指名の候補をFAへ落とし、来年ぶんの指名権を配る
+    g().advanceDraft()
+  })
+}
+
+SCENARIOS['draft-dev-prospect'] = () => {
+  console.log('[draft-dev-prospect] 育成候補の獲得：予算内は成立、予算超過は不成立')
+  buildState('regular', 3)
+  const g = () => useGameStore.getState()
+  const mk = (id: string, fee: number): import('../src/types').DevProspect => ({
+    id, name: `育成${id}`, age: 18, origin: '', nationality: 'JPN',
+    specialty: 'allrounder', potential: 75,
+    trueRatings: { speed: 60, stamina: 60, mountainUp: 60, mountainDown: 60, pacing: 60, mental: 60, recovery: 60 },
+    signingFee: fee, scouted: false,
+  })
+  // 1人目は予算内（成立）、2人目はチーム予算(4億)を超える額（不成立）にして両方の枝を通す
+  useGameStore.setState({
+    currentSeason: { ...g().currentSeason, devProspects: [mk('dp-ok', 10_000_000), mk('dp-over', 500_000_000)] },
+  } as never)
+  compare('draft-dev-prospect', () => {
+    const before = teamRosterSize(g().players, MY)
+    g().signDevProspect('dp-ok')
+    g().signDevProspect('dp-over')
+    console.log(`      在籍 ${before} → ${teamRosterSize(g().players, MY)}`)
+  })
+}
+
+SCENARIOS['draft-pick-sale'] = () => {
+  console.log('[draft-pick-sale] 指名権の売却：成立／価格超過で不成立／買い手の予算不足で不成立')
+  buildState('regular', 3)
+  const g = () => useGameStore.getState()
+  const BUYER_OK = 'yokohama'
+  const BUYER_POOR = 'sendai'
+  const picks = [
+    { year: YEAR + 1, round: 1, pickNumber: 3, originallyOwnedBy: MY },
+    { year: YEAR + 1, round: 2, pickNumber: 5, originallyOwnedBy: MY },
+    { year: YEAR + 2, round: 1, pickNumber: 7, originallyOwnedBy: MY },
+  ]
+  const keyOf = (p: typeof picks[number]) => `${p.year}-R${p.round}-${p.pickNumber}`
+  useGameStore.setState({
+    teams: g().teams.map(t => {
+      if (t.id === MY) return { ...t, draftPicks: picks }
+      // 買い手の1人をわざと予算不足にして「払えない」の枝も通す
+      if (t.id === BUYER_POOR) return { ...t, finance: { ...t.finance, budget: 1_000_000 } }
+      return t
+    }),
+  } as never)
+  compare('draft-pick-sale', () => {
+    const okResult = g().sellDraftPick(keyOf(picks[0]), BUYER_OK, draftPickValue(picks[0].round, picks[0].pickNumber))
+    const overpriced = g().sellDraftPick(keyOf(picks[1]), BUYER_OK, Math.round(draftPickValue(picks[1].round, picks[1].pickNumber) * 1.5))
+    const cantAfford = g().sellDraftPick(keyOf(picks[2]), BUYER_POOR, 50_000_000)
+    console.log(`      成立=${okResult} 価格超過で不成立=${!overpriced} 予算不足で不成立=${!cantAfford}`)
   })
 }
 
