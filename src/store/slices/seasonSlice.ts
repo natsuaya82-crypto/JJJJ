@@ -18,6 +18,7 @@ import { type Division, type GameState, type GmOffer, type Nationality, type Pla
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
+import { applySeasonCareerRecords } from '../../engine/careerRecords'
 import { issueDraftPicks } from '../../engine/draftPicks'
 import { computePromotion } from '../../engine/promotion'
 import { processRetirements } from '../../engine/retirement'
@@ -509,23 +510,9 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         division: divisionOf(state.teams.find(t => t.id === state.playerTeamId)),
         segWinsAfter, segWinsBefore }).map(headline => ({ date: `${state.currentSeason.year}-10-26`, headline, category: 'race' as const, relatedIds: [] }))
 
-      // Update MVP player's career.mvpAwards
-      const playersWithMVP = leagueMvpId
-        ? playersAfterMorale.map(p =>
-            p.id === leagueMvpId ? { ...p, career: { ...p.career, mvpAwards: p.career.mvpAwards + 1 } } : p
-          )
-        : playersAfterMorale
-
-      // Update championship team players' career.championships
-      // 優勝は部ごとに1クラブ（1部の優勝も3部の優勝も、その部の優勝として数える）
-      const champTeamIds = new Set(DIVISIONS.map(d => divisionStandings(state.currentSeason, d)[0]?.teamId).filter(Boolean))
-      const playersWithChamp = champTeamIds.size > 0
-        ? playersWithMVP.map(p =>
-            champTeamIds.has(p.teamId)
-              ? { ...p, career: { ...p.career, championships: p.career.championships + 1 } }
-              : p
-          )
-        : playersWithMVP
+      // MVP・優勝・レンタル在籍履歴を通算成績へ書き込む。engine/careerRecords 1本
+      const playersWithLoanHistory = applySeasonCareerRecords({
+        players: playersAfterMorale, leagueMvpId, currentSeason: state.currentSeason })
 
       const seasonTotalSegWins = Object.values(playerSegWinsSeason).reduce((s, v) => s + v, 0)
       const seasonAchievements = checkSeasonAchievements({
@@ -535,20 +522,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         curStreak,
         seasonSegWins: seasonTotalSegWins,
         totalSeasons,
-        players: playersWithChamp,
+        players: playersWithLoanHistory,
         playerTeamId: state.playerTeamId,
         existing: state.achievements ?? [] })
 
       // MVP/新人王ニュースはシーズン最終戦の直後（そのシーズンのニュース）で流すため、ここでは出さない（二重表示防止）
-
-      // 在籍履歴（(L)レンタル）用：現在レンタル中の選手について、この年その所属チームでの出場記録を追記
-      const seasonYear = state.currentSeason.year
-      const playersWithLoanHistory = playersWithChamp.map(p => {
-        if (!p.loan) return p
-        const existing = p.loanTeamYears ?? []
-        if (existing.some(l => l.year === seasonYear && l.teamId === p.teamId)) return p
-        return { ...p, loanTeamYears: [...existing, { year: seasonYear, teamId: p.teamId }] }
-      })
 
       const objJewels = newlyCompletedObjs.reduce((s, o) => s + (o.rewardJewels ?? 30), 0)
       const seasonAchievementJewels = seasonAchievements.reduce((s, a) => s + (ACHIEVEMENT_JEWELS[a.rarity] ?? 0), 0)
