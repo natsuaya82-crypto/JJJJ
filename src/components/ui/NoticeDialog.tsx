@@ -1,8 +1,12 @@
+import { createPortal } from 'react-dom'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 
 
 // アプリ調のお知らせダイアログ（素の window.alert の置き換え用）。
 // ボタンは1つだけ。確認・キャンセルが要る場面は ConfirmDialog を使うこと。
+//
+// ★呼び出し元がどのページの中にいても、必ず document.body 直下（<main> の外）に
+//   出すこと。理由は ConfirmDialog.tsx / BottomSheet.tsx と同じ。
 export default function NoticeDialog({
   title,
   message,
@@ -19,7 +23,7 @@ export default function NoticeDialog({
   /** タイトルの下に差し込む追加表示（相手のチームカードなど） */
   children?: React.ReactNode
 }) {
-  return (
+  return createPortal((
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
@@ -57,5 +61,5 @@ export default function NoticeDialog({
         </button>
       </div>
     </div>
-  )
+  ), document.body)
 }

@@ -1,7 +1,13 @@
+import { createPortal } from 'react-dom'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 
 
 // アプリ調の確認ダイアログ（素の window.confirm の置き換え用）
+//
+// ★呼び出し元がどのページの中にいても、必ず document.body 直下（<main> の外）に
+//   出すこと。<main> は -webkit-overflow-scrolling:touch のスクロール領域で、
+//   iOS の WebView はこれを position:fixed の基準にしてしまうため、ページの中から
+//   そのまま fixed で出すと画面全体を覆えない（詳しくは BottomSheet.tsx を参照）。
 export default function ConfirmDialog({
   title,
   message,
@@ -22,7 +28,7 @@ export default function ConfirmDialog({
   /** タイトルの下に差し込む追加表示（相手のチームカードなど） */
   children?: React.ReactNode
 }) {
-  return (
+  return createPortal((
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
@@ -68,5 +74,5 @@ export default function ConfirmDialog({
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
