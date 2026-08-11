@@ -16,8 +16,8 @@ import { buildSeasonFinaleNews } from '../../engine/seasonFinaleNews'
 import { applySettledTransfers } from '../../engine/applyTransfers'
 import { resolveLoanRequests } from '../../engine/loanRequests'
 import { generatePlayerWishes } from '../../engine/playerWishes'
+import { settleSaleAnswers } from '../marketOps'
 import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
-import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
 import { CARD_UNIT_EXP } from '../../data/cardShop'
 import { generateIndividualEvents } from '../../data/races'
@@ -30,14 +30,13 @@ import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
 import { type CardRarity, type CardStatKey, type ExpiredNegotiation, type GameState, type Player, type Ratings, type TrainingCard, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
-import { allForeignClubs, findClub, foreignClubIdSet } from '../../utils/clubs'
+import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
 import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { divisionOf, domesticThroughRank, segmentPrizeByTeam } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { recordHeadline, segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { getStatPotentials, racesConsumed } from '../../utils/playerUtils'
-import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
 
 type Slice = Pick<GameStore,
   'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setRaceTeamTalk' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'resolveEvent' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
@@ -53,68 +52,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
 
   runRace: (lineup, segmentTactics, preComputedResults) => {
-    // ── 「譲る」と返事をした話の決着 ─────────────────────────────
-    // 買う側の入札が1レース待つのに、売る側だけタップで即成立していたので揃える。
-    //
-    // ★行き先は**GMが選んだクラブで確定**。
-    //   以前はここで全オファーを本人の希望順に並べ直し、一番良いものを勝たせていた。
-    //   そのため「台北に譲る」を押したのにマドリードへ移籍する、という
-    //   GMの意思をまるごと無視する動きになっていた。売る相手を決めるのはGM。
-    //   本人にできるのは「その行き先なら行く／行かない」だけ（下の consentToLeave）。
-    //
-    // ★返事は**選手ごとに1件**。ここで全部決着させる（utils/saleAnswer）。
-    //   置き場所がシーズンに1件しか無かったころは、同じレース間に2人ぶん返事をすると
-    //   前の返事が上書きされ、その選手は決着もせずチャットに承諾ボタンが戻っていた。
-    {
-      const cs0 = get().currentSeason
-      const answers = saleAnswers(cs0)
-      // 先に全部落としてから決着させる（acceptIncomingOffer の中で札を見るため）
-      if (answers.length > 0) set(st => ({ currentSeason: keepSaleAnswers(st.currentSeason, () => false) }))
-      for (const ps of answers) {
-        const winner = ps.offerId
-        const beforeName = get().players.find(x => x.id === ps.playerId)?.name ?? ''
-        const winnerId = (cs0.incomingOffers ?? []).find(o => o.id === winner)?.fromTeamId
-        const winnerName = findClub(get().teams, get().foreignLeagues, winnerId)?.shortName ?? '相手クラブ'
-        const outcome = get().acceptIncomingOffer(winner, true)
-        const p = get().players.find(x => x.id === ps.playerId)
+    // 「譲る」と返事をした話の決着は store/marketOps の settleSaleAnswers 1本
+    settleSaleAnswers(set, get)
 
-        // ★決着は必ず会話に書く。ここが無かったので「譲ります」と返事をしてレースを
-        //   進めても、成立したのか流れたのかが会話にも通知にも出ず、次の打診だけが来ていた。
-        if (outcome === 'sold') {
-          set(st => ({ currentSeason: appendChatLog(st.currentSeason, ps.playerId, {
-            from: 'player',
-            text: `（代理人）${beforeName}の${winnerName}への移籍が成立しました。お世話になりました` }) }))
-        } else if (p) {
-          // 流れたときも黙って消さず、会話と通知の両方に理由を残す
-          const kind = outcome === 'roster_min' ? 'sale_roster_min' as const : 'sale_refused' as const
-          const reason = outcome === 'roster_min'
-            ? `（代理人）在籍人数が下限を下回るため、${p.name}の移籍は成立しませんでした。残留します`
-            : `（代理人）${p.name}は最後まで悩みましたが、移籍しないことに決めました。残留します`
-          // ★本人が「行かない」と決めた以上、**そのとき打診していたクラブは今季もう来ない**。
-          //   ここを入れ忘れていたので、「移籍しないことに決めました。残留します」の直後に
-          //   同じクラブからまた「◯億でお譲りいただけないでしょうか」が並んでいた。
-          //   （断られたクラブだけを止める。全クラブを止めると「格下を蹴って、あとから来る
-          //    格上へ行く」ができなくなる — utils/transferEligibility の canClubApproachAgain）
-          const refusedClubs = outcome === 'refused'
-            ? [...new Set((cs0.incomingOffers ?? []).filter(o => o.playerId === ps.playerId).map(o => o.fromTeamId))]
-            : []
-          if (refusedClubs.length > 0) {
-            const year = get().currentSeason.year
-            set(st => ({ players: st.players.map(pl => pl.id === ps.playerId
-              ? { ...pl, saleRefused: { ...(pl.saleRefused ?? {}), ...Object.fromEntries(refusedClubs.map(c => [c, year])) } }
-              : pl) }))
-          }
-          set(st => ({ currentSeason: {
-            ...appendChatLog(st.currentSeason, ps.playerId, { from: 'player', text: reason }),
-            // 残った札は全部たたむ。残すと次のレースでまた同じ返事を求められる
-            incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.playerId !== ps.playerId),
-            expiredNegotiations: [
-              ...(st.currentSeason.expiredNegotiations ?? []),
-              { id: `sale_${ps.playerId}_${st.currentSeason.currentRaceIndex}`, playerId: p.id, playerName: p.name, kind },
-            ] } }))
-        }
-      }
-    }
     // 期日を過ぎたECL戦を先に自動消化する。
     // ただし自チームが出場するシリーズは自動消化しない（AI配置で勝手に走らせず、プレイヤーに配置させる）。
     // 観戦（非出場）のシリーズだけAIで裏消化する。
