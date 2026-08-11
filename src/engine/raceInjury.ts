@@ -41,3 +41,13 @@ export function rollRaceInjuries(params: {
   })
   return { players: next, news }
 }
+
+/** 復帰時期が来た負傷者を戻す。復帰戦は調子-1（明けの1本は本調子ではない） */
+export function recoverInjuredPlayers(players: Player[], nextClock: number): Player[] {
+  return players.map(p => {
+    if (p.status === 'injured' && p.injuredUntilRace != null && nextClock >= p.injuredUntilRace) {
+      return { ...p, status: 'active' as const, injuredUntilRace: undefined, injuryName: undefined, form: Math.max(-2, (p.form ?? 0) - 1) }
+    }
+    return p
+  })
+}

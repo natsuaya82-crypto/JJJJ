@@ -1,7 +1,8 @@
 // race ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
-import { rollRaceInjuries } from '../../engine/raceInjury'
+import { recoverInjuredPlayers, rollRaceInjuries } from '../../engine/raceInjury'
+import { applySegmentPBs } from '../../engine/segmentPB'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -25,7 +26,7 @@ import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { DIVISION_SIZE, divisionOf, divisionStandings, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
-import { type NewsItem, awardHeadline, boardEvalHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, injuryHeadline, loanReplyHeadline, myFinishHeadline, raceWinnerHeadline, recordHeadline, retirementHeadline, rivalHeadline, segmentPrizeHeadline, segmentRecordHeadline, segmentWinHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { type NewsItem, awardHeadline, boardEvalHeadline, clubLabel, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, myFinishHeadline, raceWinnerHeadline, recordHeadline, retirementHeadline, rivalHeadline, segmentPrizeHeadline, segmentRecordHeadline, segmentWinHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { calcTransferValue, faMarketSalary, freeContactConsent, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
@@ -422,33 +423,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         return obj
       })
 
-      // PB tracking for player team
-      const playersWithPBs = playersWithInjuries.map(p => {
-        if (p.teamId !== playerTeamId) return p
-        let pbs = [...(p.segmentPBs ?? [])]
-        for (const sr of results.segmentResults) {
-          const runner = sr.runners.find(r => r.playerId === p.id)
-          if (!runner) continue
-          const seg = race.segments.find(s => s.index === sr.segmentIndex)
-          if (!seg) continue
-          const pbKey = `${Math.round(seg.distanceKm)}km-up${Math.round(seg.uphillPct / 10) * 10}-dn${Math.round(seg.downhillPct / 10) * 10}`
-          const existing = pbs.find(pb => pb.key === pbKey)
-          if (!existing || runner.timeSec < existing.timeSec) {
-            pbs = [...pbs.filter(pb => pb.key !== pbKey), { key: pbKey, timeSec: runner.timeSec, raceName: race.name, date: race.date }]
-          }
-        }
-        return { ...p, segmentPBs: pbs }
-      })
-
-      // Recover already-injured players whose recovery race has passed
-      const recoveredPlayers = playersWithPBs.map(p => {
-        if (p.status === 'injured' && p.injuredUntilRace != null && nextClock >= p.injuredUntilRace) {
-          // Comeback penalty: form -1 for first race back
-          return { ...p, status: 'active' as const, injuredUntilRace: undefined, injuryName: undefined, form: Math.max(-2, (p.form ?? 0) - 1) }
-        }
-        return p
-      })
-
+      // 自己ベスト（自チームのみ）と、復帰時期が来た負傷者の復帰
+      const playersWithPBs = applySegmentPBs(playersWithInjuries, playerTeamId, race, results)
+      const recoveredPlayers = recoverInjuredPlayers(playersWithPBs, nextClock)
 
       // Scout missions countdown
       const updatedMissions = (state.currentSeason.scoutMissions ?? []).map(m => ({ ...m, racesLeft: m.racesLeft - 1 }))
@@ -1644,5 +1621,4 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     })
     // 所属は player.teamId だけで持つようになったので、クラブ名簿との同期処理は不要になった
     // （旧セーブの救済は persist の migrate v22 で1回だけ行う）
-  },
-})
+  } })
