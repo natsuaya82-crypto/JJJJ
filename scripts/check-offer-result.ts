@@ -18,7 +18,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { offerResultText } from '../src/utils/offerResult'
 import { ROSTER_MIN } from '../src/data/rosterRules'
-import { storeSource } from './storeSource'
+import { judgeSaleOffer } from '../src/engine/saleOfferGate'
+import type { Player } from '../src/types'
+import { storeSource, actionBody } from './storeSource'
 import { chatSource } from './uiSource'
 
 let failed = 0
@@ -55,10 +57,34 @@ console.log('\n[3] 承諾と逆提示が同じ言葉を返す')
 check('承諾の返り値が true/false のままではない', !store.includes('acceptIncomingOffer: (offerId: string) => boolean'))
 check('承諾も逆提示も OfferOutcome を返す', (store.match(/=> OfferOutcome/g) ?? []).length === 2)
 check('逆提示の返り値を手書きの union で持っていない', !store.includes("'sold' | 'refused' | 'invalid'"))
-check('承諾がロスター下限を専用の言葉で返す', store.includes("return 'roster_min'"))
-check('逆提示がロスター下限を専用の言葉で返す', store.includes("outcome = 'roster_min'"))
-// 下限で札を消すと補強しても再交渉できない。逆提示側は state をそのまま返す＝札を残す
-check('逆提示は下限のとき札を消さない', /outcome = 'roster_min'\n\s+return state\n/.test(store))
+// 承諾と逆提示の関門は engine/saleOfferGate の judgeSaleOffer 1本へ移した。
+// **ソースの字面ではなく実際に呼んで見る。** 以前は store に `return 'roster_min'` と
+// 書いてあることを見ていただけで、その言葉がどの条件で返るかは誰も見ていなかった
+{
+  const mkPlayers = (n: number) => Array.from({ length: n }, (_, i) =>
+    ({ id: `p${i}`, name: `p${i}`, teamId: 'me', status: 'active', age: 25, joinedYear: 2028,
+       contract: { annualSalary: 1000, yearsLeft: 2 } }) as unknown as Player)
+  const season = { year: 2030, retirementRequests: [], pendingSales: [] }
+  const st = (n: number) => ({ players: mkPlayers(n), playerTeamId: 'me', currentSeason: season } as never)
+
+  const enough = judgeSaleOffer(st(ROSTER_MIN + 1), { playerId: 'p0' })
+  check('下限を割らないなら関門を通る', enough.ok)
+
+  const atMin = judgeSaleOffer(st(ROSTER_MIN), { playerId: 'p0' })
+  check('承諾も逆提示もロスター下限を専用の言葉で返す', !atMin.ok && atMin.outcome === 'roster_min')
+  // 下限で札を消すと補強しても再交渉できない
+  check('下限のとき札を消さない', !atMin.ok && atMin.dropOffer === false)
+
+  // 対象外（この選手はうちの選手ではない）は逆に札を取り下げる
+  const gone = judgeSaleOffer(st(ROSTER_MIN + 1), { playerId: 'p999' })
+  check('対象外は無効を返して札を取り下げる', !gone.ok && gone.outcome === 'invalid' && gone.dropOffer === true)
+}
+// 入口2つが、その関門を自前で書き直していないこと
+check('承諾が関門を呼ぶだけ', actionBody(store, 'acceptIncomingOffer').includes('judgeSaleOffer'))
+check('逆提示が関門を呼ぶだけ', actionBody(store, 'counterIncomingOffer').includes('judgeSaleOffer'))
+check('入口に下限の判定が手書きで残っていない',
+  !actionBody(store, 'acceptIncomingOffer').includes('canReleaseFromRoster')
+  && !actionBody(store, 'counterIncomingOffer').includes('canReleaseFromRoster'))
 
 console.log('\n[4] 画面が結果の見せ方を自前で持たない')
 // 返事の結果は「状態(useOfferResults)」も「見た目(OfferResultList)」も1本。

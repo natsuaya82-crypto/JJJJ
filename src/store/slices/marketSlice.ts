@@ -4,6 +4,7 @@ import type { GameStore, SetGame } from '../gameStore'
 import { tradeValueCtxOf, acquisitionDesiredSalary, faAllowedDespiteBan, willingFeeFor, finalizeSale } from '../marketOps'
 import { buildContractRequests } from '../../engine/contractRequests'
 import { judgeRenewalOffer } from '../../engine/renewalDecision'
+import { judgeSaleOffer, withSaleRefused } from '../../engine/saleOfferGate'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeyValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract } from '../../data/rosterRules'
@@ -387,13 +388,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // もう成立しようが無いオファーの札は取り下げる（逆提示側と同じ扱い）。
     // 以前は承諾だけ札を残していたので、押しても何も起きない札が居座っていた
     const dropOffer = () => set(st => ({ currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }))
-    const player = state.players.find(p => p.id === offer.playerId)
-    // 「この選手を出していいか」の判定は canAcceptOfferFor 1本に寄せる。
-    // ここには判定が一つも無く、引退の話が決まっている選手でもそのまま移籍が成立していた
-    // （借りている選手の売却も isOwnedBy が弾く）
-    if (!player || !canAcceptOfferFor(player, eligibilityCtx(state.currentSeason, state.playerTeamId), offer.fromForeign)) { dropOffer(); return 'invalid' }
-    // ロスター下限(15人)を割る売却は不可。札は残す＝補強してから改めて返事ができる（逆提示側と同じ）
-    if (!canReleaseFromRoster(state.players, state.playerTeamId)) return 'roster_min'
+    // 「この選手に返事をしていいか」の関門は judgeSaleOffer 1本（逆提示側とまったく同じ順・同じ札の扱い）。
+    // 以前ここには判定が一つも無く、引退の話が決まっている選手でもそのまま移籍が成立していた
+    const gate = judgeSaleOffer(state, offer)
+    if (!gate.ok) { if (gate.dropOffer) dropOffer(); return gate.outcome }
     // ★売る側も1レース待つ。買う側の入札（resolveBid）が次のレースで決着するのと揃える。
     //   その1レースのあいだに他クラブが上乗せしてきて、最後は本人が行き先を選ぶ
     //   （決着は runRace の頭で resolvePendingSale が行う）。
@@ -407,8 +405,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // クラブが合意しても本人が納得しなければ成立しない（買う側と同じゲート）
     if (!get().consentToLeave(offer.playerId, offer.fromTeamId, offer.fromForeign)) {
       set(st => ({
-        players: st.players.map(p => p.id === offer.playerId
-          ? { ...p, saleRefused: { ...(p.saleRefused ?? {}), [offer.fromTeamId]: st.currentSeason.year } } : p),
+        players: withSaleRefused(st.players, offer.playerId, offer.fromTeamId, st.currentSeason.year),
         currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }))
       return 'refused_by_player'
     }
@@ -872,31 +869,29 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     set(state => {
       const offer = (state.currentSeason.incomingOffers ?? []).find(o => o.id === offerId)
       if (!offer) return state
-      const player = state.players.find(p => p.id === offer.playerId)
-      // 判定は acceptIncomingOffer と同じ canAcceptOfferFor 1本。
-      // オファーを出したあとに選手がチームを離れた／引退や海外挑戦の話が決まった、はここで弾く
-      if (!player || !canAcceptOfferFor(player, eligibilityCtx(state.currentSeason, state.playerTeamId), offer.fromForeign)) {
-        return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
-      }
-      // ロスター下限(15人)を割る売却は不可（acceptIncomingOfferと同じガード）。
-      // 相手が金を出せなかった('refused')わけではないので理由を分けて返し、札も消さない。
+      // 関門は acceptIncomingOffer と同じ judgeSaleOffer 1本（順番も、落ちたときに札を
+      // 落とすかどうかも向こうと揃う）。
+      // オファーを出したあとに選手がチームを離れた／引退や海外挑戦の話が決まった、はここで弾く。
+      // ロスター下限は相手が金を出せなかった('refused')わけではないので理由を分けて返す。
       // 以前はここで 'refused' を返して札まで消していたため、画面に「相手が支払えず決裂」と
       // 嘘の理由が出た上に、補強しても再交渉できなくなっていた
-      if (!canReleaseFromRoster(state.players, state.playerTeamId)) {
-        outcome = 'roster_min'
-        return state
+      const gate = judgeSaleOffer(state, offer)
+      if (!gate.ok) {
+        outcome = gate.outcome
+        if (!gate.dropOffer) return state
+        return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
       }
+      const player = gate.player
       // クラブが合意しても本人が納得しなければ成立しない（承諾側・買う側と同じゲート）
       if (!get().consentToLeave(offer.playerId, offer.fromTeamId, offer.fromForeign)) {
         outcome = 'refused_by_player'
         return {
-          players: state.players.map(p => p.id === offer.playerId
-            ? { ...p, saleRefused: { ...(p.saleRefused ?? {}), [offer.fromTeamId]: state.currentSeason.year } } : p),
+          players: withSaleRefused(state.players, offer.playerId, offer.fromTeamId, state.currentSeason.year),
           currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
       }
       // 応じるラインは willingFeeFor 1本（国内も海外も、全クラブ一斉の逆提示と同じ判定）。
       // 以前は海外だけ別の枝で同じ判定と同じ後始末を書いていた
-      if (!player || counterPrice > willingFeeFor(state, offer, player)) {
+      if (counterPrice > willingFeeFor(state, offer, player)) {
         outcome = 'refused'
         return { currentSeason: { ...state.currentSeason, incomingOffers: (state.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }
       }

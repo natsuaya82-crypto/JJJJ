@@ -194,8 +194,17 @@ console.log('\n[11] 引退・海外挑戦を承認したら、その選手の札
 check('片付けのかぶせが store にある', store.includes('const set: SetGame = (partial) =>'))
 check('引退の承認（acceptRetirement）が set を通る', has('acceptRetirement', 'set(state'))
 check('海外挑戦の承認（approveOverseasChallenge）が set を通る', has('approveOverseasChallenge', 'set(state'))
-check('オファー承諾（acceptIncomingOffer）が canAcceptOfferFor を通る', has('acceptIncomingOffer', 'canAcceptOfferFor'))
-check('オファー逆提示（counterIncomingOffer）が canAcceptOfferFor を通る', has('counterIncomingOffer', 'canAcceptOfferFor'))
+// 返事の関門は engine/saleOfferGate の judgeSaleOffer へ移した（marketSlice の分解）。
+// 上の has(...) と同じ「その決まりを通っているか」を見る判定なので、切り出した先の本文で見る。
+// **入口2つがその1本だけを通る**ことも見るので、以前（それぞれが canAcceptOfferFor を
+// 手書きしていればよい）より強い
+const saleGateBody = readFileSync(join('src', 'engine', 'saleOfferGate.ts'), 'utf-8')
+check('返事の関門（judgeSaleOffer）が canAcceptOfferFor を通る', saleGateBody.includes('canAcceptOfferFor'))
+check('オファー承諾（acceptIncomingOffer）がその関門を通る', has('acceptIncomingOffer', 'judgeSaleOffer'))
+check('オファー逆提示（counterIncomingOffer）がその関門を通る', has('counterIncomingOffer', 'judgeSaleOffer'))
+check('  入口2つは関門を手書きし直していない',
+  !actionBody(store, 'acceptIncomingOffer').includes('canAcceptOfferFor')
+  && !actionBody(store, 'counterIncomingOffer').includes('canAcceptOfferFor'))
 // 契約更新の判定は utils/contractTalk.ts に寄せてある（canRequestRenewal の中で canStartContractTalk を通る）
 check('契約要求の生成（buildContractRequests）が canRequestRenewal を通る', contractRequestsBody.includes('canRequestRenewal'))
 check('契約更新の判定の土台が canStartContractTalk のまま', readFileSync(join('src', 'utils', 'contractTalk.ts'), 'utf-8').includes('canStartContractTalk(p, {'))
