@@ -164,17 +164,24 @@ OVRの大小だけで序列が決まる以上、この2つは同時に立ちま�
 
 ### C-1. golden 検査が届いていない範囲
 
-いまの `check-action-golden` が見ているのは **3つだけ**（`runRace` / `runRace-final` / `endSeason`）。
+`済`（2026-08-11）：**穴は塞ぎました。** golden は12本になり、
+`store/slices` の大きなアクションはすべて網の中です。
 
 | ファイル | アクション数 | golden |
 |---|---|---|
-| `store/slices/marketSlice.ts` | 45 | **あり**（契約更新・買い取り・トレード・獲得オファー／2026-08-11） |
-| `store/slices/draftSlice.ts` | 13 | **あり**（2026-08-11） |
-| `store/slices/raceSlice.ts` の `resolveEvent` / `simulateIndividualEvent` | 2 | **無し** |
+| `store/slices/marketSlice.ts` | 45 | あり（契約更新・買い取り・トレード・獲得オファー） |
+| `store/slices/draftSlice.ts` | 13 | あり（`draft-flow` ほか2本） |
+| `store/slices/raceSlice.ts` | 8 | あり（`runRace` / `runRace-final` / `race-event` / `race-timetrial`） |
 
-`済`（2026-08-11）：marketSlice と draftSlice には網を張った（golden 10本）。
-**残っているのは raceSlice の `resolveEvent` / `simulateIndividualEvent` だけ。**
-ここを分解するときは、先に golden を足すこと。
+最後に足した2本のねらい：
+
+- `race-event` … `resolveEvent`（178行）は「イベントの種類 × 選んだ肢」の巨大な
+  if-else。実際に出るイベントは確率で選ばれるので、**通る枝が引き次第**になる。
+  札を自分で並べて **19種 × 3肢＝57件を必ず全部通す**
+- `race-timetrial` … `simulateIndividualEvent`（194行）。国内だけの回と海外も出る回の
+  2本を走らせる（対象の絞り込みが違う）。**自チームの選手を最強にしてある**——
+  そうしないと5,800人中の順位が100位より下になり、カード報酬も世界記録も
+  1行も通らない（最初に書いた版が実際にそうだった）
 
 網を作るときの注意は `docs/REFACTORING_DESIGN.md` 12-3。**枝を通っていない網は、緑でも
 何も守っていない。** トレードの網は最初に書いた版が「相手が手放すものに見合わない」で
