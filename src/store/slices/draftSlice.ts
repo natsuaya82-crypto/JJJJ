@@ -2,7 +2,6 @@
 
 import type { DraftState, GameStore, SetGame } from '../gameStore'
 import { acquisitionDesiredSalary, tradeValueCtxOf } from '../marketOps'
-import { tradeBalance } from '../../utils/tradeValue'
 import { roundRobin } from '../../utils/roundRobin'
 import { hasNoPlayingTime, seeksPlayingTime } from '../../utils/transferDecision'
 import { isOwnedBy } from '../../utils/transferEligibility'
@@ -12,6 +11,7 @@ import { POACH_PREMIUM, draftPickValue } from '../../data/economy'
 import { SEASON_2027_RACES, generateIndividualEvents } from '../../data/races'
 import { ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
 import { cpuSpecialtyNeeds, pickCpuFreeAgents } from '../../engine/cpuMarket'
+import { runCpuTrades } from '../../engine/cpuOffseason'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type Player, type TransferRecord } from '../../types'
@@ -21,7 +21,7 @@ import { DIVISION_SIZE, divisionOf, draftRoundOf, joinsDraft, rankOfTeam, season
 import { movePlayer } from '../../utils/movePlayer'
 import { clubLabel, cpuSignedHeadline, draftPickSoldHeadline, initialNews, loanHeadline, seekPlayingTimeHeadline, transferHeadline, type NewsItem } from '../../utils/newsItems'
 import { calcTransferValue, faMarketSalary, ovr, perfOf, playerConsentToMove } from '../../utils/playerUtils'
-import { SPECIALTIES, needsPlayer, wouldMakeLineup } from '../../utils/squadNeeds'
+import { SPECIALTIES, needsPlayer } from '../../utils/squadNeeds'
 import { teamHistoriesOf } from '../../utils/teamHistory'
 
 /**
@@ -709,58 +709,16 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     }
 
     // ⑤ CPU間トレード（予算不足でも価値が近い選手同士を交換）。
-    // 同じオフに移籍済みの選手（cpuTransferIds）は対象外＝移籍→トレードの連鎖を防ぐ
+    // 同じオフに移籍済みの選手（cpuTransferIds）は対象外＝移籍→トレードの連鎖を防ぐ。
+    // 中身は engine/cpuOffseason.ts の runCpuTrades 1本（cpuTransferIds はその中で書き足される）
     {
-      const tradedIds = cpuTransferIds
-      const tradeCount: Record<string, number> = {}
-      const cpuIdsForTrade = domesticCpuTeamIds(playersAfterCpuTransfer, state.teams, state.playerTeamId)
-      for (const buyerId of cpuIdsForTrade) {
-        if ((tradeCount[buyerId] ?? 0) >= 1) continue
-        const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyerId && p.status === 'active')
-        if (buyRoster.length >= 23) continue
-        // 出すのは「自分のところで出番が無い選手」（transferDecision の hasNoPlayingTime 1本）。
-        // 以前はここに平均OVRから作った下限表（74/67/60）があった＝格とは別の物差し
-        const buyerRanked = [...buyRoster].sort(comparePlayers('ovr'))
-        const buyerSurplus = buyerRanked
-          // レンタルで借りている選手は保有権が無いのでトレードに出せない
-          .filter((p, i) => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && p.joinedYear !== state.currentSeason.year && hasNoPlayingTime(i + 1))
-          .sort((a, b) => calcTransferValue(b) - calcTransferValue(a))
-        if (buyerSurplus.length === 0) continue
-        const offered = buyerSurplus[0]
-        for (const sellerId of cpuIdsForTrade) {
-          if (sellerId === buyerId || (tradeCount[sellerId] ?? 0) >= 1) continue
-          const sellRoster = playersAfterCpuTransfer
-            .filter(p => p.teamId === sellerId && p.status === 'active')
-            .sort(comparePlayers('ovr'))
-          // もらう側で走れて、出す側では走れない選手＝両方が得をする交換（squadNeeds 1本）。
-          // 釣り合いは utils/tradeValue の tradeBalance 1本（以前はここだけ「×1.3」と直書きで、
-          // 自チームのトレードが通る tradeValue.ts とは別の判定になっていた）
-          const target = sellRoster.slice(3).find((p, i) =>
-            isOwnedBy(p, sellerId) &&
-            !tradedIds.has(p.id) &&
-            p.joinedYear !== state.currentSeason.year &&
-            wouldMakeLineup(buyRoster, p) && hasNoPlayingTime(i + 4) &&
-            tradeBalance({ outPlayers: [offered], inPlayers: [p] }, tradeValueCtxOf(state)).ok
-          )
-          // 売り手が受け取る側でも使えること（needsPlayer / wouldMakeLineup）
-          if (!target || !(needsPlayer(sellRoster, offered) || wouldMakeLineup(sellRoster, offered))) continue
-          tradedIds.add(offered.id); tradedIds.add(target.id)
-          tradeCount[buyerId] = (tradeCount[buyerId] ?? 0) + 1
-          tradeCount[sellerId] = (tradeCount[sellerId] ?? 0) + 1
-          // 交換する2人とも movePlayer に通す（自チームのトレードと同じ後始末）
-          for (const [pid, toId] of [[offered.id, sellerId], [target.id, buyerId]] as const) {
-            const m = movePlayer({ players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer }, pid, toId, {
-              year: state.currentSeason.year,
-              date: `${state.currentSeason.year}-02-01`,
-              kind: 'trade' })
-            if (!m.ok) continue
-            playersAfterCpuTransfer = m.players
-            teamsAfterCpuTransfer = m.teams
-            if (m.record) offseasonTxRecords.push(m.record)
-          }
-          break
-        }
-      }
+      const traded = runCpuTrades(
+        { players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer },
+        { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
+          tradeValueCtx: tradeValueCtxOf(state), excludeIds: cpuTransferIds })
+      playersAfterCpuTransfer = traded.players
+      teamsAfterCpuTransfer = traded.teams
+      offseasonTxRecords.push(...traded.records)
     }
 
     // ④ CPU間レンタル（ロスター過多チームから不足チームへ1年貸し出し）。

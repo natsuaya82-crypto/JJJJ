@@ -54,6 +54,9 @@ const CHECKS = [
   // trade-value は片付いた（20件 → 0件）。内訳は 移設で見えなくなっていたもの7件・
   // CLAUDE.md に現行仕様として書いてあるのにテストが古かったもの13件。
   'trade-value',
+  // CPU間トレードは実際の世界では1件も成立しないので golden の外にある（BACKLOG A-7）。
+  // 成立側は世界を手で組んでここで見る
+  'cpu-trade',
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'clubs', 'offseason',
   // レース・順位・記録
