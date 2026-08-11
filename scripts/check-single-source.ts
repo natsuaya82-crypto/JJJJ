@@ -216,6 +216,7 @@ RULES.push({
     'src/utils/retiredTeamBackfill.ts',  // 型が付いていない生データの形を書いているだけ
     'src/store/slices/competitionSlice.ts',   // 書く側（海外リーグ進行の移設先）
     'src/store/slices/raceSlice.ts',   // 書く側（runRaceの移設先）
+    'src/store/slices/seasonSlice.ts',   // 書く側（endSeasonの移設先）
   ],
   fix: 'utils/careerStats.ts の buildCareerCounts を通す（走行記録がある年はそこから数える）',
 })
@@ -295,6 +296,7 @@ RULES.push({
     'src/utils/playRate.ts',        // 「そのクラブが走っている日程」を引く側
     'src/store/slices/competitionSlice.ts',   // 書く側（海外リーグ進行の移設先）
     'src/store/slices/raceSlice.ts',   // 書く側（runRaceの移設先）
+    'src/store/slices/seasonSlice.ts',   // 書く側（endSeasonの移設先）
   ],
   fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
 })
