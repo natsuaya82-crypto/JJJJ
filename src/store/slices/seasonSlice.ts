@@ -2,14 +2,13 @@
 
 import type { GameStore, SetGame } from '../gameStore'
 import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
-import { computeNextSeasonBudget, draftPickValue } from '../../data/economy'
+import { computeNextSeasonBudget } from '../../data/economy'
 import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { INITIAL_TEAMS } from '../../data/teams'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
-import { pickExistsAnywhere } from '../../engine/draftOrder'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { applyForeignChampions, initForeignStandings } from '../../engine/foreignLeague'
 import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../../engine/foreignTransfers'
@@ -19,6 +18,7 @@ import { type Division, type GameState, type GmOffer, type Nationality, type Pla
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
+import { issueDraftPicks } from '../../engine/draftPicks'
 import { computePromotion } from '../../engine/promotion'
 import { processRetirements } from '../../engine/retirement'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
@@ -32,9 +32,9 @@ import { eclHistoryOf } from '../../utils/eclHistory'
 import { facilityUpkeepOf } from '../../utils/facilities'
 import { makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { gmCareerTotals, gmSeasonRanks, startTenure } from '../../utils/gmTenure'
-import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, domesticThroughRankOfTeam, myDivSize, newSeasonStandings, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
+import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { type NewsItem, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
+import { type NewsItem, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
 import { clubMembersByClub, squadIdsOf } from '../../utils/rosterSync'
@@ -476,49 +476,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const cpuNextBudgets = budgets.cpuNextBudgets
       const teamsWithSeasonRewards = budgets.teamsWithSeasonRewards
 
-      const numTeams = state.teams.length
-      const teamsWithFuturePicks = teamsWithSeasonRewards.map(t => {
-        // 部をまたいで並べるので国内通し順位（1〜52）。下位ほど早い番号になる
-        const teamFinalRank = domesticThroughRankOfTeam(state.currentSeason, t.id)
-        const pickNum = Math.max(1, numTeams - teamFinalRank + 1)
-        const newPicks: typeof t.draftPicks = []
-        for (const yr of [newYear, newYear + 1]) {
-          for (const round of [1, 2]) {
-            const alreadyHas = pickExistsAnywhere(teamsWithSeasonRewards, t.id, yr, round)
-            if (!alreadyHas) newPicks.push({ year: yr, round, pickNumber: pickNum, originallyOwnedBy: t.id })
-          }
-        }
-        return { ...t, draftPicks: [...(t.draftPicks ?? []), ...newPicks] }
-      })
-
-      // Remove expired draft picks (older than the upcoming draft year)
-      let teamsWithCleanedPicks = teamsWithFuturePicks.map(t => ({
-        ...t,
-        draftPicks: (t.draftPicks ?? []).filter(pk => pk.year >= newYear) }))
-
-      // ── 赤字ペナルティ：3年以上連続赤字はドラフト制限 ──
-      // 来季ドラフトの自チーム最上位指名権が、資金力のあるチームへ強制売却される（売却額は補填として入金）
-      const pickPenaltyNews: { date: string; headline: string; category: 'finance'; relatedIds: string[] }[] = []
-      if (newStreakMe >= 3) {
-        const meT = teamsWithCleanedPicks.find(t => t.id === state.playerTeamId)
-        const myNextPicks = (meT?.draftPicks ?? []).filter(pk => pk.year === newYear)
-        const soldPick = [...myNextPicks].sort((a, b) => a.round - b.round || a.pickNumber - b.pickNumber)[0]
-        const buyer = [...teamsWithCleanedPicks].filter(t => t.id !== state.playerTeamId).sort((a, b) => b.finance.budget - a.finance.budget)[0]
-        if (soldPick && buyer) {
-          const price = draftPickValue(soldPick.round, soldPick.pickNumber)
-          const samePick = (pk: typeof soldPick) => pk.year === soldPick.year && pk.round === soldPick.round && pk.originallyOwnedBy === soldPick.originallyOwnedBy
-          teamsWithCleanedPicks = teamsWithCleanedPicks.map(t => {
-            if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + price }, draftPicks: (t.draftPicks ?? []).filter(pk => !samePick(pk)) }
-            if (t.id === buyer.id) return { ...t, finance: { ...t.finance, budget: t.finance.budget - price }, draftPicks: [...(t.draftPicks ?? []), soldPick] }
-            return t
-          })
-          pickPenaltyNews.push({
-            date: `${state.currentSeason.year}-10-31`,
-            headline: deficitPickPenaltyHeadline({ streak: newStreakMe, year: newYear, round: soldPick.round, buyerShort: buyer.shortName, price }),
-            category: 'finance' as const,
-            relatedIds: [] })
-        }
-      }
+      // 指名権の発行・期限切れの掃除・赤字ペナルティは engine/draftPicks 1本
+      const picks = issueDraftPicks({
+        teams: teamsWithSeasonRewards, numTeams: state.teams.length, currentSeason: state.currentSeason,
+        playerTeamId: state.playerTeamId, newYear, deficitStreak: newStreakMe })
+      const teamsWithCleanedPicks = picks.teams
+      const pickPenaltyNews = picks.pickPenaltyNews
 
       const seasonPrizeNews = {
         date: `${state.currentSeason.year}-10-30`,
