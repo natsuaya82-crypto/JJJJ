@@ -2,6 +2,7 @@
 
 import type { GameStore, SetGame } from '../gameStore'
 import { tradeValueCtxOf, acquisitionDesiredSalary, faAllowedDespiteBan, willingFeeFor, finalizeSale } from '../marketOps'
+import { buildContractRequests } from '../../engine/contractRequests'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeyValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract } from '../../data/rosterRules'
@@ -10,8 +11,7 @@ import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type 
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
-import { MAX_CONTRACT_ROUNDS, canOfferRenewal, canReNegotiate, canRequestRenewal, contractTalkCtx, effectiveDemandSalary, hasContractTalk, liveContractOf } from '../../utils/contractTalk'
-import { strHash } from '../../utils/hash'
+import { MAX_CONTRACT_ROUNDS, canOfferRenewal, canReNegotiate, contractTalkCtx, effectiveDemandSalary, liveContractOf } from '../../utils/contractTalk'
 import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
@@ -21,10 +21,10 @@ import { playRateOf } from '../../utils/playRate'
 import { calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
 import { belongsToClub, squadIdsOf } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
-import { STALE_TRADE_MSG, openWishIds } from '../../utils/talkSync'
+import { STALE_TRADE_MSG } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, faceValueOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
 import { type Appraisal, type Destination, appraiseMove, buildDestination, rankOffers, regionOfLeague } from '../../utils/transferDecision'
-import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, eligibilityCtx, isLeavingClub, isOwnedBy } from '../../utils/transferEligibility'
+import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
 
 type Slice = Pick<GameStore,
   'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow' | 'refuseFreeContactRetention'>
@@ -477,61 +477,15 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
   generateContractRequests: () => {
     set(state => {
-      const racesPlayed = state.currentSeason.currentRaceIndex ?? 0
-      if (racesPlayed === 0) return state
-      // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
-      const retPlayers = state.players.filter(p => isOwnedBy(p, state.playerTeamId) && p.age >= 35)
-      const existRet = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
-      // 直訴の札は1人1つ（判定は talkSync の openWishIds）。移籍希望・海外挑戦希望を
-      // 出したままの選手は引退の抽選に入れない。入れると同じ選手の札が2枚になる
-      const openWish = openWishIds(state.currentSeason)
-      // 引退の話が湧くかどうかは Math.random ではなく「選手ID＋年＋消化レース数」から決める。
-      // この関数はチャットを開くたびに走るので、乱数だと開き直すだけで何度も抽選が回り、
-      // 35歳以上が次々に引退を言い出していた。同じレース内なら何度開いても結果は同じにする
-      const retRoll = (id: string) => strHash(`${id}|${state.currentSeason.year}|${racesPlayed}`) % 100
-      // 今季すでに引き留めた選手は再抽選しない
-      const newRet = retPlayers.filter(p => !openWish.has(p.id) && p.retirementDeclinedYear !== state.currentSeason.year && p.pendingRetirementYear == null && retRoll(p.id) < 40).map(p => ({ playerId: p.id, age: p.age }))
-      // 引退の話をしている選手には契約更新の話を出さない。この2つは別々に選んでいたので、
-      // 同じ選手から「引退したい」と「契約を更新したい」が同じタイミングで来ていた。
-      // 今この場で引退を言い出した分（newRet）も含めて外す
-      const retiringIds = new Set([...existRet, ...newRet.map(r => r.playerId)])
-      // 判定は contractTalk の1本だけ（借り物・引退の話・海外承認・退団予定・更新ロック・
-      // フリー接触中）。今この場で引退を言い出した分も retiringIds に含めて外す
-      const gcrCtx = { ...contractTalkCtx(state.currentSeason, state.playerTeamId), retiringIds }
-      // 「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）。
-      // 期限切れの札はもう残らないので、ここに引っかかるのは本当に応対した話だけ
-      const myPlayers = state.players.filter(p => canRequestRenewal(p, gcrCtx)
-        && p.contract.yearsLeft === 1
-        && !hasContractTalk(gcrCtx.contractRequests, p.id))
-      const seasonRaces = state.currentSeason.races ?? []
-      const newReqs: ContractRequest[] = myPlayers.map(p => {
-        const personality = p.personality ?? 'salary'
-        // 要求額は「市場価値 × 性格」で決める。
-        // 市場価値(faMarketSalary)＝素体(OVR×年齢)×実績倍率で、実績倍率の中に
-        // 今季の出場割合・平均区間順位・区間賞と、通算の出走/区間賞/優勝/MVPが入っている。
-        // 旧仕様の『現年俸×1.2の自動昇給』は廃止のまま。走っていない選手は減額しか要求できない。
-        const market = faMarketSalary(p, seasonPerfProfile(p.id, seasonRaces, racesPlayed))
-        const persoFactor = personality === 'salary' ? 1.05 : personality === 'winning' ? 1.0 : 0.95
-        const demand = Math.max(3_000_000, market * persoFactor)
-        return {
-          id: `cr_${Date.now()}_${p.id}`,
-          playerId: p.id,
-          initiatedBy: 'player' as const,
-          round: 1,
-          status: 'pending_gm' as const,
-          expiresAtRace: racesPlayed + 6,
-          demandSalary: Math.round(demand / 500000) * 500000,
-          demandYears: personality === 'loyalty' ? 3 : 2,
-          offerSalary: 0,
-          offerYears: 0 }
-      })
-      // 移籍希望はチャットを開くたびではなくレース進行時に生成する（runRace内 generateTransferWishes）。ここでは扱わない。
-      if (newReqs.length === 0 && newRet.length === 0) return state
+      // 要求と引退の直訴づくりは engine/contractRequests 1本
+      const built = buildContractRequests({
+        players: state.players, currentSeason: state.currentSeason, playerTeamId: state.playerTeamId })
+      if (!built) return state
       return {
         currentSeason: {
           ...state.currentSeason,
-          contractRequests: [...(state.currentSeason.contractRequests ?? []), ...newReqs],
-          retirementRequests: [...(state.currentSeason.retirementRequests ?? []), ...newRet] }
+          contractRequests: [...(state.currentSeason.contractRequests ?? []), ...built.newReqs],
+          retirementRequests: [...(state.currentSeason.retirementRequests ?? []), ...built.newRet] }
       }
     })
   },

@@ -133,7 +133,11 @@ check('レンタル放出（loanOutPlayer）が canLoanOut を通る', has('loan
 // その中で canStartContractTalk → isTalkFree → isOwnedBy と辿るので**所属の確認は効いている**
 // （借りている選手の更新はここで止まる）。入口の名前で見ること
 check('契約更新（initiateContractRenewal）が canOfferRenewal を通る', has('initiateContractRenewal', 'canOfferRenewal'))
-check('契約要求の生成（generateContractRequests）が isOwnedBy を通る', has('generateContractRequests', 'isOwnedBy'))
+// 要求づくりの中身は engine/contractRequests へ移した（marketSlice の分解）。
+// **「どこかに1本あるか」を見る判定**なので、切り出した先の本文で見る
+const contractRequestsBody = readFileSync(join('src', 'engine', 'contractRequests.ts'), 'utf-8')
+check('契約要求の生成（buildContractRequests）が isOwnedBy を通る', contractRequestsBody.includes('isOwnedBy'))
+check('  store 側はその1本を呼ぶだけ', has('generateContractRequests', 'buildContractRequests'))
 check('スカウト（startAcquisitionOffer）が canBePoached を通る', has('startAcquisitionOffer', 'canBePoached'))
 const market = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')
 check('移籍市場の一覧も同じ判定で絞っている', market.includes('canBePoached'))
@@ -193,7 +197,7 @@ check('海外挑戦の承認（approveOverseasChallenge）が set を通る', ha
 check('オファー承諾（acceptIncomingOffer）が canAcceptOfferFor を通る', has('acceptIncomingOffer', 'canAcceptOfferFor'))
 check('オファー逆提示（counterIncomingOffer）が canAcceptOfferFor を通る', has('counterIncomingOffer', 'canAcceptOfferFor'))
 // 契約更新の判定は utils/contractTalk.ts に寄せてある（canRequestRenewal の中で canStartContractTalk を通る）
-check('契約要求の生成（generateContractRequests）が canRequestRenewal を通る', has('generateContractRequests', 'canRequestRenewal'))
+check('契約要求の生成（buildContractRequests）が canRequestRenewal を通る', contractRequestsBody.includes('canRequestRenewal'))
 check('契約更新の判定の土台が canStartContractTalk のまま', readFileSync(join('src', 'utils', 'contractTalk.ts'), 'utf-8').includes('canStartContractTalk(p, {'))
 // ここだけ logicSource（store＋engine）で見る。**「どこに書いてあるか」ではなく
 // 「その決まりを通っているか」を見る判定**で、直訴の生成は engine/playerWishes へ移した。
