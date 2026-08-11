@@ -33,6 +33,9 @@ const OUT = join(ROOT, 'node_modules/.cache/checks')
 const CHECKS = [
   // 一本化そのものの見張り
   'single-source',
+  // 層をまたいだ import（下から上）を機械的に落とす。
+  // 型だけの import は実行時に消えるので違反にしない（check-layers 側で除外済み）
+  'layers',
   // チャット・交渉
   'chat-dup', 'chat-lines', 'chat-log', 'contract-talk', 'demand-gates', 'sale-answer',
   'consent-single', 'move-reason', 'offer-result', 'gm-offer',
