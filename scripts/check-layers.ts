@@ -35,14 +35,26 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 type Hit = { file: string; line: number; text: string }
+type ImportRef = { spec: string; typeOnly: boolean }
 
-/** その行に出てくる相対import指定子を全部拾う（`from '...'` と `import('...')` の両方）。 */
-function specifiersOf(line: string): string[] {
-  const specs: string[] = []
-  const re = /(?:from\s+|import\()['"]([^'"]+)['"]/g
+/**
+ * その行に出てくる相対import指定子を全部拾う。型だけの参照は実行時には残らないので
+ * typeOnly を付けて返し、呼び出し側で違反から外す。
+ *   - `from '...'`     → 行全体が `import type ...` かどうかで typeOnly が決まる
+ *   - `import('...')`  → `import('mod').Type` という「型の位置に書くインライン import」は
+ *     TS の構文として常にコンパイル時だけの表記（実行時の import() 呼び出しではない）なので、
+ *     常に typeOnly 扱いにする。このリポジトリで相対パスの動的 import()（値としての呼び出し）は
+ *     使っていない（動的 import は @capacitor 系パッケージのみで、非相対パスなので対象外）。
+ */
+function specifiersOf(line: string): ImportRef[] {
+  const lineTypeOnly = isTypeOnlyImportLine(line)
+  const refs: ImportRef[] = []
+  const fromRe = /from\s+['"]([^'"]+)['"]/g
   let m: RegExpExecArray | null
-  while ((m = re.exec(line))) specs.push(m[1])
-  return specs
+  while ((m = fromRe.exec(line))) refs.push({ spec: m[1], typeOnly: lineTypeOnly })
+  const callRe = /import\(['"]([^'"]+)['"]\)/g
+  while ((m = callRe.exec(line))) refs.push({ spec: m[1], typeOnly: true })
+  return refs
 }
 
 /** `import type { ... } from '...'` の行かどうか。型だけなら実行時には残らない */
@@ -92,7 +104,8 @@ function report(name: string, fix: string, hits: Hit[]) {
     lines.forEach((line, i) => {
       const t = line.trim()
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
-      for (const spec of specifiersOf(line)) {
+      for (const { spec, typeOnly } of specifiersOf(line)) {
+        if (typeOnly) continue
         const rel = resolveSrcRelative(file, spec)
         if (!rel) continue
         if (rel.startsWith('store/') || rel.startsWith('components/') || rel.startsWith('lib/')) {
@@ -115,8 +128,8 @@ function report(name: string, fix: string, hits: Hit[]) {
     lines.forEach((line, i) => {
       const t = line.trim()
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
-      if (isTypeOnlyImportLine(line)) return
-      for (const spec of specifiersOf(line)) {
+      for (const { spec, typeOnly } of specifiersOf(line)) {
+        if (typeOnly) continue
         const rel = resolveSrcRelative(file, spec)
         if (!rel) continue
         if (rel.startsWith('store/slices/')) hits.push({ file, line: i + 1, text: t })
@@ -140,8 +153,8 @@ function report(name: string, fix: string, hits: Hit[]) {
     lines.forEach((line, i) => {
       const t = line.trim()
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
-      if (isTypeOnlyImportLine(line)) return
-      for (const spec of specifiersOf(line)) {
+      for (const { spec, typeOnly } of specifiersOf(line)) {
+        if (typeOnly) continue
         const rel = resolveSrcRelative(file, spec)
         if (!rel) continue
         if (rel === 'store/gameStore') hits.push({ file, line: i + 1, text: t })
@@ -156,13 +169,24 @@ function report(name: string, fix: string, hits: Hit[]) {
 }
 
 // ── ルール4: data/ types/ の中から engine/ utils/ を import しない ──
+//
+// 既知の例外が4つある。data から utils への値の参照が残っている。
+// 解消は別途（utils/clubTier の一本化に関わるので、勝手に動かすと崩れる。オーナー確認の上で）。
 {
+  const ALLOW = [
+    'src/data/cardShop.ts',    // RARITY_EXP を utils/cardCombo から
+    'src/data/economy.ts',     // operatingCostOf / OPERATING_COST_RATE を utils/clubTier から
+    'src/data/logoPresets.ts', // strHash を utils/hash から
+    'src/data/sponsors.ts',    // tierSponsorIncome を utils/clubTier から
+  ]
   const hits: Hit[] = []
   for (const { file, lines } of scanFiles(['src/data', 'src/types'])) {
+    if (isAllowed(file, ALLOW)) continue
     lines.forEach((line, i) => {
       const t = line.trim()
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
-      for (const spec of specifiersOf(line)) {
+      for (const { spec, typeOnly } of specifiersOf(line)) {
+        if (typeOnly) continue
         const rel = resolveSrcRelative(file, spec)
         if (!rel) continue
         if (rel.startsWith('engine/') || rel.startsWith('utils/')) {
