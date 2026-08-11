@@ -35,6 +35,11 @@ git fetch --prune origin && for b in $(git branch -r | grep -v HEAD); do \
 
 Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入っても同じです。
 
+**中身の話は `docs/BACKLOG.md` に貯めます。** 作業中に「これはおかしいのでは」と
+気づいた仕様・バランス・不具合は、その場で直さずここへ書き足すこと
+（直すかどうかを決めるのはオーナー）。年齢と移籍金の段差、入札の勝敗ルール、
+実機でしか確かめられないものなどが入っています。
+
 **大規模リファクタリングが進行中です。** 構造に手を入れる作業（store/engine の分割・移動・
 共通化）は、先に `docs/REFACTORING_DESIGN.md`（作業ブランチ
 `claude/code-refactoring-audit-wajp1i`、main 取り込み後はリポジトリ直下の docs/）を読んで、
