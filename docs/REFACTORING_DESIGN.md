@@ -296,3 +296,53 @@ endSeason: () => set(state => runSeasonEnd(state, [
    最終戦だけを通る枝（`seasonFinaleNews`）は、開幕戦のシナリオでは1行も動いていなかった
 5. 移設で点検が落ちたら、**それは見張りが仕事をしている**。許可リストや読む範囲
    （`logicSource`）を追随させる。判定の中身は変えない
+
+---
+
+## 11. P5-2（endSeason の分解）の記録
+
+**1,199行 → 567行（−53%）。** 切り出したのは14本。すべてゴールデン検査で差分ゼロ。
+
+| モジュール | 中身 |
+|---|---|
+| `engine/catchUpDivisions.ts` | 他の部の残り日程の消化 |
+| `engine/contractExpiry.ts` | 契約満了→FA／レンタル満了→返却 |
+| `engine/retirement.ts` | 引退の年度処理 |
+| `engine/promotion.ts` | 来季の格と昇降格 |
+| `engine/sponsorSeason.ts` | スポンサー契約の年度処理 |
+| `engine/seasonObjectives.ts` | 目標の達成判定・来季の目標・GM評判 |
+| `engine/eventSeasonTops.ts` | 記録会の年間トップ10 |
+| `engine/bonusPayout.ts` | 出来高ボーナスの精算 |
+| `engine/seasonBudget.ts` | 来季予算の精算 |
+| `engine/draftPicks.ts` | 指名権の発行・赤字ペナルティ |
+| `engine/dynastyMilestones.ts` | 監督の通算成績と節目 |
+| `engine/careerRecords.ts` | MVP・優勝・レンタル在籍履歴 |
+| `engine/foreignSeason.ts` | 海外リーグの年度処理 |
+| `engine/savePruning.ts` | セーブの肥大化対策 |
+| `engine/departureNotices.ts` | 退団のお知らせ |
+| `engine/seasonArchivePrep.ts` | 今季の記録を保存する形に整える |
+
+### 11-1. ここで止める理由
+
+残り567行の内訳は
+
+- 来季の状態を組み立てる `return { ... }`（約106行）
+- engine を順に呼ぶだけの本体
+
+**`return` の object literal は切り出さない。** 引数が30個を超える関数になり、
+読みやすさが下がるだけで「唯一の決まり」も増えない。分解の目的は行数ではない。
+
+### 11-2. P5-1 に足す教訓
+
+6. **行番号でコードを切り出すときは、範囲の両端を必ず assert すること。**
+   `zeroAppearances` の最後の1行を落としたまま `tsc` が通った（型が緩い場所だった）。
+   通していたら「今季1度も走らなかった選手の所属が保存されない」＝
+   選手詳細の在籍履歴からその年が丸ごと消えるバグだった
+7. **乱数を引く行は動かさない。** `selectSeasonObjectives` を含む塊を切り出したときは、
+   乱数を引かない前半だけを下へ寄せ、引く行は元の位置に残した
+8. **分解すると死んだコードが表に出る。** `leagueSegWins`（誰も読まない集計）と
+   `listedOutIds`（常に空の配列を回すループ）を落とした。
+   800行の関数の中では見つけようがなかったもの
+9. **`npm run check` はパイプに繋がず単独で走らせ、終了コードを見てからコミットする。**
+   `npm run check | tail && git commit` は tail の終了コードを見るので、
+   赤いまま push できてしまう（実際に2回やった）
