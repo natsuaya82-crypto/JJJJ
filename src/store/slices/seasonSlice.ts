@@ -19,6 +19,7 @@ import { type Division, type GameState, type GmOffer, type Nationality, type Pla
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
 import { computePromotion } from '../../engine/promotion'
+import { processRetirements } from '../../engine/retirement'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
@@ -34,7 +35,7 @@ import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, domesticThrough
 import { movePlayer } from '../../utils/movePlayer'
 import { type NewsItem, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, ovr, packForeignApps, perfOf, retirementAgeOf } from '../../utils/playerUtils'
+import { faMarketSalary, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
 import { clubMembersByClub, squadIdsOf } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { needsPlayer } from '../../utils/squadNeeds'
@@ -275,15 +276,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       }
 
       // ── RETIREMENT SYSTEM ──
-      // 引退年齢は utils/playerUtils の retirementAgeOf 1本（最終戦後の引退表明ニュースと同じ式）
-      const retiringIds = new Set(
-        grownPlayers
-          .filter(p => p.status === 'active' && p.teamId && p.teamId !== '__pool__' && !expiredIds.has(p.id))
-          .filter(p => p.age >= retirementAgeOf(p))
-          .map(p => p.id)
-      )
-      // 引退承認済み（今季限りで引退フラグ）はここで確実に引退させる（承認時は即引退しない仕様）
-      for (const p of grownPlayers) if (p.pendingRetirementYear != null && p.status === 'active') retiringIds.add(p.id)
+      // 引退の年度処理は engine/retirement 1本（引退年齢・引退の反映・引退考慮イベント）
+      const retire = processRetirements({
+        grownPlayers, playersAfterFA, expiredIds, year: state.currentSeason.year, playerTeamId: state.playerTeamId })
+      const retiringIds = retire.retiringIds
+      const retirementEvents = retire.events
+      const playersAfterRetire = retire.players
 
       // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）。
       // ただし旧セーブの大再編が保留中なら、この年度更新で新9リーグへ丸ごと置換し旧海外選手は退場させる。
@@ -295,38 +293,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const foreignRefresh = pendingRestructure
         ? (() => { const g = generateForeignLeaguePlayers(FOREIGN_LEAGUES, state.currentSeason.year + 1); return { newPlayers: g.players, updatedLeagues: g.updatedLeagues } })()
         : refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1, grownPlayers)
-
-      // Pre-retirement consideration events (age 34-36, didn't retire, active on player team)
-      const considerRetirement = grownPlayers.filter(p =>
-        p.teamId === state.playerTeamId &&
-        p.status === 'active' &&
-        !retiringIds.has(p.id) &&
-        !expiredIds.has(p.id) &&
-        p.age >= 34 && p.age <= 37 &&
-        ovr(p) >= 60
-      ).slice(0, 1)
-
-      const retirementEvents = considerRetirement.map(p => ({
-        id: `retire-consid-${p.id}-${state.currentSeason.year + 1}`,
-        type: 'player_retirement' as const,
-        raceIndex: 0,
-        title: `${p.name}が引退を考慮`,
-        body: `${p.age}歳になった${p.name}が今後のキャリアについて考えています。特別ボーナスで続投を要請するか、引退を受け入れますか？`,
-        playerId: p.id,
-        choices: [
-          { label: '続投ボーナス2000万で要請', desc: '来季も戦力になるが予算圧迫' },
-          { label: '引退を受け入れる（感謝の式）', desc: 'GM評判+3、チームの士気UP' },
-        ],
-        resolved: false }))
-
-      // 引退を反映する。引退も「所属が無くなる」だけなので movePlayer の分岐を通す
-      // （引退時の所属の控え・レンタル解除・名簿からの外しがまとめて付いてくる）。
-      // クラブ側に名簿は無い（在籍は player.teamId 1本）ので、ここは選手だけ触る
-      let playersAfterRetire: Player[] = playersAfterFA
-      for (const id of retiringIds) {
-        const m = movePlayer({ players: playersAfterRetire, teams: [] }, id, '', { year: state.currentSeason.year, retire: true })
-        if (m.ok) playersAfterRetire = m.players
-      }
 
       // Auto contract renewal events for player-team players with yearsLeft === 1 after growth
       const renewalCandidates = playersAfterRetire.filter(p =>
