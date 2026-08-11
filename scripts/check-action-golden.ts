@@ -45,6 +45,7 @@ import { generateSeasonRaces } from '../src/data/races'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { assignLineupByTerrain } from '../src/engine/raceEngine'
 import { stripEphemeral } from '../src/store/ephemeralState'
+import { calcTransferValue, ovr } from '../src/utils/playerUtils'
 import type { SeasonStanding, Team, Player, Race } from '../src/types'
 
 const problems: string[] = []
@@ -225,6 +226,55 @@ SCENARIOS['endSeason'] = () => {
   const n = generateSeasonRaces(YEAR, divisionOf(my)).length
   buildState('postseason', n)
   compare('endSeason', () => { useGameStore.getState().endSeason() })
+}
+
+SCENARIOS['market-contract'] = () => {
+  console.log('[market-contract] 契約更新の要求づくり → 提示 → 逆提示を受ける')
+  // marketSlice の契約まわり（generateContractRequests / submitContractRenewalOffer /
+  // acceptContractCounter）を一続きで通す。**分解の前に張る網。**
+  buildState('regular', 3)
+  const g = () => useGameStore.getState()
+  compare('market-contract', () => {
+    g().generateContractRequests()
+    // **3つの返事（承諾・逆提示・拒否）を1回で全部通す**ように、提示額を変えて入れる。
+    // 同じ倍率で3件出しても同じ枝しか動かない（実測：×0.95 承諾／×0.8 逆提示／×0.6 拒否）
+    const RATIOS = [0.95, 0.8, 0.6]
+    ;(g().currentSeason.contractRequests ?? []).slice(0, 3).forEach((r, i) => {
+      g().submitContractRenewalOffer(r.id, Math.round(r.demandSalary * RATIOS[i]), r.demandYears)
+    })
+    for (const r of (g().currentSeason.contractRequests ?? []).slice(0, 3)) {
+      if (r.status === 'countered') g().acceptContractCounter(r.id)
+    }
+  })
+}
+
+SCENARIOS['market-transfer'] = () => {
+  console.log('[market-transfer] 買い取り打診 → 一斉逆提示 → 承諾')
+  // marketSlice の売る側（counterAllIncomingOffers / acceptIncomingOffer）。
+  // 打診は自分で差し込む（CPUの打診はレースを進めないと出ないため）。
+  const { players } = buildState('regular', 3)
+  const g = () => useGameStore.getState()
+  // 自チームで一番強い選手に、2クラブから打診が来ている状態を作る
+  const mine = players.filter(p => p.teamId === MY && p.status === 'active')
+  const target = [...mine].sort((a, b) => ovr(b) - ovr(a))[0]
+  const buyers = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].filter(t => t.id !== MY).slice(0, 2)
+  const price = calcTransferValue(target)
+  useGameStore.setState({
+    currentSeason: {
+      ...g().currentSeason,
+      incomingOffers: buyers.map((t, i) => ({
+        id: `io-${i}`, fromTeamId: t.id, playerId: target.id,
+        offeredPrice: Math.round(price * (0.9 + i * 0.2)), expiresAtRace: 9, round: 1,
+      })),
+    },
+  } as never)
+  compare('market-transfer', () => {
+    // 一斉逆提示 → 払えるクラブだけが残る
+    g().counterAllIncomingOffers(target.id, Math.round(price * 1.3))
+    // 残っていれば先頭を承諾する
+    const rest = g().currentSeason.incomingOffers ?? []
+    if (rest.length > 0) g().acceptIncomingOffer(rest[0].id, true)
+  })
 }
 
 // ── 振り分け ────────────────────────────────────────────────────────

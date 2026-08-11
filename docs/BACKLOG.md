@@ -109,7 +109,7 @@ CLAUDE.md は「海外クラブの資金も本物。買えば減り、売れば�
 
 | ファイル | アクション数 | golden |
 |---|---|---|
-| `store/slices/marketSlice.ts` | 45 | **無し** |
+| `store/slices/marketSlice.ts` | 45 | **一部あり**（契約更新・買い取り／2026-08-11） |
 | `store/slices/draftSlice.ts` | 13 | **無し** |
 | `store/slices/raceSlice.ts` の `resolveEvent` / `simulateIndividualEvent` | 2 | **無し** |
 
