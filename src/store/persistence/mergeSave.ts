@@ -23,11 +23,19 @@ export const mergeSave = (persistedState: unknown, currentState: GameStore): Gam
     // 新しい「読み込んだら直すもの」は migrate ではなく bootRepair へ足すこと。
     {
       const r = repairLoadedSave(p)
-      p.teams = r.teams
-      p.players = r.players
-      p.currentSeason = r.currentSeason
-      p.pastSeasons = r.pastSeasons
-      p.foreignLeagues = r.foreignLeagues
+      // ★ある物だけ書き戻す。**undefined を代入しないこと。**
+      //   セーブが1件も無い新規起動では p が空なので、bootRepair は
+      //   undefined を受けて undefined のまま返す（直す材料が無いので正しい）。
+      //   それをそのまま代入すると、最後の `{ ...currentState, ...p }` で
+      //   **emptyState() が用意した正常な配列を undefined が上書きする**
+      //   （JSの仕様で、明示された key: undefined は後勝ち）。
+      //   その結果 players が undefined のまま走り出し、保存のたびに
+      //   stripCareerForSave が落ち、選手詳細を開くと必ずクラッシュしていた。
+      if (r.teams) p.teams = r.teams
+      if (r.players) p.players = r.players
+      if (r.currentSeason) p.currentSeason = r.currentSeason
+      if (r.pastSeasons) p.pastSeasons = r.pastSeasons
+      if (r.foreignLeagues) p.foreignLeagues = r.foreignLeagues
       if (r.repairs.length > 0) console.warn('[save] 起動時に直したもの:', r.repairs.join(' / '))
     }
     dropLegacyClubRosters(p.foreignLeagues)
