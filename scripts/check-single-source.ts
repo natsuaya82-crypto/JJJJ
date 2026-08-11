@@ -602,8 +602,8 @@ RULES.push({
 RULES.push({
   name: '解雇の優先順位（年齢ペナルティ）を手書きしている',
   pattern: /age\s*>\s*3[03]\s*\?\s*8\s*:\s*0/,
-  allow: ['src/store/slices/draftSlice.ts'],
-  fix: 'draftSlice.ts の byReleasePriority を使う',
+  allow: ['src/engine/cpuOffseason.ts'],
+  fix: 'engine/cpuOffseason.ts の byReleasePriority を使う',
 })
 RULES.push({
   name: 'トレードの釣り合いの直書き',

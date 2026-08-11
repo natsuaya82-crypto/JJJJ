@@ -262,7 +262,9 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // 移籍金の丸め（下限付き）。付け忘れると移籍金0円の打診が出る
   check('移籍金の丸めを自前で書いていない',
     !/Math\.max\(500000, Math\.round\(/.test(store) && !/Math\.max\(1000000, Math\.round\(/.test(store))
-  check('引き抜きの割増が名前付き', store.includes('POACH_PREMIUM') && fx.includes('FOREIGN_STAR_PREMIUM'))
+  // 「どこかに1本だけある」ので logicSource（store＋engine）で見る。
+  // CPU間移籍は engine/cpuOffseason へ移った
+  check('引き抜きの割増が名前付き', logic.includes('POACH_PREMIUM') && fx.includes('FOREIGN_STAR_PREMIUM'))
 }
 
 console.log('\n[8] 年齢補正の段が1箇所にしかない')

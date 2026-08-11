@@ -1,7 +1,7 @@
 // market ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
-import { tradeValueCtxOf, acquisitionDesiredSalary, faAllowedDespiteBan, willingFeeFor, finalizeSale } from '../marketOps'
+import { tradeValueCtxOf, faAllowedDespiteBan, willingFeeFor, finalizeSale } from '../marketOps'
 import { buildContractRequests } from '../../engine/contractRequests'
 import { judgeRenewalOffer } from '../../engine/renewalDecision'
 import { judgeSaleOffer, withSaleRefused } from '../../engine/saleOfferGate'
@@ -22,7 +22,7 @@ import { movePlayer } from '../../utils/movePlayer'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf } from '../../utils/playRate'
-import { calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
+import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
 import { belongsToClub, squadIdsOf } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'

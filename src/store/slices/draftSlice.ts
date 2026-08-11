@@ -1,40 +1,23 @@
 // draft ドメインのアクション（gameStore から分割）。
 
 import type { DraftState, GameStore, SetGame } from '../gameStore'
-import { acquisitionDesiredSalary, tradeValueCtxOf } from '../marketOps'
-import { roundRobin } from '../../utils/roundRobin'
-import { hasNoPlayingTime, seeksPlayingTime } from '../../utils/transferDecision'
-import { isOwnedBy } from '../../utils/transferEligibility'
-import { comparePlayers } from '../../utils/playerSort'
-import { buildCareerCounts } from '../../utils/careerStats'
-import { POACH_PREMIUM, draftPickValue } from '../../data/economy'
+import { tradeValueCtxOf } from '../marketOps'
+import { draftPickValue } from '../../data/economy'
 import { SEASON_2027_RACES, generateIndividualEvents } from '../../data/races'
 import { ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
-import { cpuSpecialtyNeeds, pickCpuFreeAgents } from '../../engine/cpuMarket'
-import { runCpuTrades } from '../../engine/cpuOffseason'
+import { pickCpuFreeAgents } from '../../engine/cpuMarket'
+import { runCpuLoans, runCpuReleases, runCpuTrades, runCpuTransfers } from '../../engine/cpuOffseason'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type Player, type TransferRecord } from '../../types'
-import { MAJOR_NEWS_OVR, tierBudget, tierOf, tierOfPlayerClub, tierStrength } from '../../utils/clubTier'
-import { allForeignClubs, bigClub, domesticCpuTeamIds, findClub } from '../../utils/clubs'
-import { DIVISION_SIZE, divisionOf, draftRoundOf, joinsDraft, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { tierBudget, tierOf } from '../../utils/clubTier'
+import { allForeignClubs, findClub } from '../../utils/clubs'
+import { draftRoundOf, joinsDraft } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { clubLabel, cpuSignedHeadline, draftPickSoldHeadline, initialNews, loanHeadline, seekPlayingTimeHeadline, transferHeadline, type NewsItem } from '../../utils/newsItems'
-import { calcTransferValue, faMarketSalary, ovr, perfOf, playerConsentToMove } from '../../utils/playerUtils'
-import { SPECIALTIES, needsPlayer } from '../../utils/squadNeeds'
+import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } from '../../utils/newsItems'
+import { faMarketSalary, ovr, perfOf } from '../../utils/playerUtils'
+import { SPECIALTIES } from '../../utils/squadNeeds'
 import { teamHistoriesOf } from '../../utils/teamHistory'
-
-/**
- * CPUが人数を減らすときに**先に切る順**（前から切る）。
- * 素のOVRではなく、31歳以上に−8、34歳以上にもう−8。同じOVRなら年上から切れる。
- *
- * 2箇所（1軍23人の超過ぶん・総在籍の上限超過ぶん）で同じ式を手書きしていたのを1本にした。
- * ★安定ソートの前提で、同点は元の並び順のまま残る。渡す配列の順を変えないこと。
- */
-const byReleasePriority = (a: Player, b: Player): number => {
-  const score = (p: Player) => ovr(p) - (p.age > 30 ? 8 : 0) - (p.age > 33 ? 8 : 0)
-  return score(a) - score(b)
-}
 
 type Slice = Pick<GameStore,
   'beginInauguralDraft' | 'playerPick' | 'cpuPick' | 'advanceDraft' | 'setDraftContract' | 'scoutDraftProspect' | 'initScoutPool' | 'generateDevProspects' | 'scoutDevProspect' | 'signDevProspect' | 'ensureFuturePicks' | 'sellDraftPick' | 'beginSeasonDraft'>
@@ -523,61 +506,18 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // 上限の数え方は rosterRules の rosterCapOf 1本（未消化の指名権ぶんを空けておく）
     const rosterCapFor = (teamId: string) => rosterCapOf(draftPickCounts.get(teamId) ?? 0)
 
-    // CPU teams release declining/surplus players
+    // ①CPUの解雇（衰えたベテランと余剰をFAへ）。中身は engine/cpuOffseason の runCpuReleases 1本。
     // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
     // ロスター概念の無い海外側との取引で国内名簿が壊れる）
-    const cpuReleasedIds = new Set<string>()
-    const releasedWorld = (() => {
-      const releaseSet = new Set<string>()
-      // 他チームから借りている選手は解雇できない（保有権が無い）。以前は対象に含まれていて、
-      // 強制解雇でよそのクラブの選手をFAにしてしまっていた。返却はレンタル期間の処理に任せる。
-      const isLoanedIn = (x: Player) => !!x.loan && x.loan.ownerTeamId !== x.teamId
-      const cpuTeamIds = domesticCpuTeamIds(state.players, state.teams, state.playerTeamId)
-      for (const teamId of cpuTeamIds) {
-        const roster = state.players.filter(x => x.teamId === teamId && x.status === 'active' && !isLoanedIn(x))
-        const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + ovr(x), 0) / roster.length : 60
-        // Release aging veterans whose OVR dropped below team average and contract is expiring
-        for (const p of roster) {
-          if (p.age > 30 && ovr(p) < avgOvr - 6 && p.contract.yearsLeft <= 1) releaseSet.add(p.id)
-        }
-        // Release surplus above 23（1軍登録上限）: penalise old players in sort
-        const remaining = roster.filter(p => !releaseSet.has(p.id))
-        if (remaining.length > 23) {
-          [...remaining].sort(byReleasePriority).slice(0, remaining.length - 23).forEach(p => releaseSet.add(p.id))
-        }
-        // 総在籍（1軍+2軍・引退除く）が上限（30−ドラフト加入予定数）を超えるチームは
-        // OVR下位から解雇して収める。既に膨らんだセーブもここを通れば毎年是正される
-        const cpuCap = rosterCapFor(teamId)
-        const totalRoster = state.players.filter(x => x.teamId === teamId && x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
-        if (totalRoster.length > cpuCap) {
-          [...totalRoster].sort(byReleasePriority).slice(0, totalRoster.length - cpuCap).forEach(p => releaseSet.add(p.id))
-        }
-      }
-      // 自チーム：シーズン中に整理しなかった超過分を、OVR下位から強制的にFAへ（警告で猶予を与えた上での最終処理）。
-      // ドラフト加入分も差し引いておかないと、指名後に30を超えてしまう
-      const myCap = rosterCapFor(state.playerTeamId)
-      const myRoster = state.players.filter(x => x.teamId === state.playerTeamId && x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
-      if (myRoster.length > myCap) {
-        [...myRoster].sort((a, b) => ovr(a) - ovr(b)).slice(0, myRoster.length - myCap).forEach(p => releaseSet.add(p.id))
-      }
-      releaseSet.forEach(id => cpuReleasedIds.add(id))
-      // 解雇も movePlayer に通す（所属を外す・名簿から消す・移籍リストの札をはがす）
-      let players: Player[] = state.players
-      let teams = teamsWithPicks
-      for (const id of releaseSet) {
-        const m = movePlayer({ players, teams }, id, '', { year: yr })
-        if (!m.ok) continue
-        players = m.players
-        teams = m.teams
-      }
-      return { players, teams }
-    })()
+    const releasedWorld = runCpuReleases(
+      { players: state.players, teams: teamsWithPicks },
+      { playerTeamId: state.playerTeamId, year: yr, rosterCapFor })
     const playersAfterCpuRelease = releasedWorld.players
     const teamsAfterCpuRelease = releasedWorld.teams
 
-    // CPU間移籍（メイン市場）：予算の多いチームから優先で他チームの余剰選手を引き抜く
-    // オフシーズンの移籍成立記録（チーム詳細の移籍ページ用）。年は新シーズン（現 currentSeason.year）
-    const offseasonTxRecords: TransferRecord[] = []
+    // ②CPU間移籍（メイン市場）：移籍金を払って他チームの余剰・主力を引き抜く。
+    // 中身は engine/cpuOffseason の runCpuTransfers 1本
+    const offseasonTxRecords: TransferRecord[] = []   // チーム詳細の移籍ページ用
     // オフの市場の動きをニュースに出す。「1部の控えが下位クラブへ」「若手がレンタルで
     // 走りに出る」が見えないと、市場が効いているかを確かめられない
     const offseasonTxNews: NewsItem[] = []
@@ -585,127 +525,16 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     let playersAfterCpuTransfer = playersAfterCpuRelease
     let teamsAfterCpuTransfer = teamsAfterCpuRelease
     {
-      // 前年順位（引き抜き時の本人同意＝移籍先の魅力判定に使う）
-      const lastSeasonForTx = state.pastSeasons[state.pastSeasons.length - 1]
-      // そのクラブが前年に走った部の中での順位（順位表は部ごとに分かれている）
-      const rankOfTx = (teamId: string) => {
-        const r = lastSeasonForTx ? rankOfTeam(seasonDivisionStandings(lastSeasonForTx, teamId), teamId) : 0
-        return r > 0 ? r : Math.ceil(DIVISION_SIZE[divisionOf(state.teams.find(t => t.id === teamId))] / 2)
-      }
-
-      // 実際の予算残高（finance.budget）から移籍金を払う。売った側は実際に受け取る（自チームと同じ金の動き）。
-      // 順番は「前年順位が下のチームから」。同順は残高の多い方から
-      const cpuTeamsForTransfer = teamsAfterCpuRelease
-        .filter(t => t.id !== state.playerTeamId)
-        .map(t => ({ team: t, tier: tierOf(t), budget: Math.max(0, t.finance.budget) }))
-        .sort((a, b) => (rankOfTx(b.team.id) - rankOfTx(a.team.id)) || (b.budget - a.budget))
-
-      const transferPurchases: Record<string, number> = {}
-      const sellCounts: Record<string, number> = {}   // 1チームが1オフに失う人数の上限（薄くしすぎない）
-      const txNeeds = new Map(cpuTeamsForTransfer.map(x => [x.team.id, new Set(cpuSpecialtyNeeds(x.team.id, playersAfterCpuTransfer))]))
-
-      // 「出場機会を求めて出ていく人」を決めるための出走数。序列だけで決めると
-      // 30人ロスターの下半分がまるごと市場に出るので、実際に走れたかを見る（utils/transferDecision）。
-      // 数はレース結果から数え直す1本（utils/careerStats）。今季と前季を別々に取る
-      const txThisSeason = buildCareerCounts([state.currentSeason])
-      const txPrevSeason = buildCareerCounts([state.pastSeasons[state.pastSeasons.length - 1]])
-      const txThisRaces = state.currentSeason.races.filter(r => r.results).length
-      const txPrevRaces = (state.pastSeasons[state.pastSeasons.length - 1]?.races ?? []).filter(r => r.results).length
-
-      // 1周につき1人だけ買う。以前は1チームが上限まで買い切ってから次に回していたので、
-      // 市場の良い選手が予算の多い上位チームに固まっていた（utils/roundRobin.ts）
-      const buyOnePlayer = ({ team: buyTeam, tier: buyTier }: typeof cpuTeamsForTransfer[number]): boolean => {
-        // 1オフに獲れる人数は格から（格1が4人、格20が2人）。強さの物差しは格1本
-        const buyCap = 2 + Math.round(2 * tierStrength(buyTier))
-        const needs = txNeeds.get(buyTeam.id)!
-        if ((transferPurchases[buyTeam.id] ?? 0) >= buyCap) return false
-        const remainBudget = Math.max(0, teamsAfterCpuTransfer.find(t => t.id === buyTeam.id)?.finance.budget ?? 0)
-        const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.status === 'active')
-        const buyTotal = playersAfterCpuTransfer.filter(p => p.teamId === buyTeam.id && p.status === 'active').length
-        if (buyRoster.length >= 25 || buyTotal >= rosterCapFor(buyTeam.id)) return false
-
-        const otherCpuIds = cpuTeamsForTransfer.map(x => x.team.id).filter(id => id !== buyTeam.id)
-        const candidates = otherCpuIds.flatMap(sellTeamId => {
-          if ((sellCounts[sellTeamId] ?? 0) >= 2) return []   // 1チームから奪うのは最大2人
-          const sellRoster = playersAfterCpuTransfer
-            .filter(p => p.teamId === sellTeamId && p.status === 'active')
-            .sort(comparePlayers('ovr'))
-          if (sellRoster.length <= 16) return []   // 薄いチームからは引き抜かない（下限保護）
-          // 売り手の絶対的エース(1番手)だけ保護。それ以外は主力でも引き抜き対象にする。
-          return sellRoster.slice(1)
-            // isOwnedBy でレンタル中の選手を外す。ここが抜けていたため、貸し出した選手が
-            // オフシーズンに貸出先の名簿として売られ、保有元に何も残らず消えていた
-            .filter(p => isOwnedBy(p, sellTeamId) && !cpuTransferIds.has(p.id) && p.joinedYear !== state.currentSeason.year)
-            // 余剰＝弱い or 人数過多 に加えて、**出場機会を求めて出ていく選手**も対象にする。
-            // 判定は utils/transferDecision の seeksPlayingTime 1本（海外の序列陥落と同じ入口）。
-            // 序列だけを見ていたころは30人ロスターの下半分が毎年まるごと市場に出ていたので、
-            // 「今季どれだけ走れたか」「去年は走れていたか」「待っていられる年齢か」まで見る
-            .map(p => {
-              const rank = sellRoster.findIndex(x => x.id === p.id) + 1
-              const benched = seeksPlayingTime({
-                squadRank: rank, age: p.age,
-                races: txThisSeason.get(p.id)?.totalRaces ?? 0, teamRaces: txThisRaces,
-                prevRaces: txPrevSeason.get(p.id)?.totalRaces, prevTeamRaces: txPrevRaces })
-              // 「余剰か（通常額）／主力の引き抜きか（割増＋本人同意）」も既にある1本で言う。
-              // 以前はここに売り手の平均OVRから作った下限表（74/67/58）があった。
-              // 出番が無い序列（走れる人数の2倍より下）なら、それがそのまま余剰という意味
-              const surplus = hasNoPlayingTime(rank) || sellRoster.length > 21 || benched
-              return { p, rank, benched, sellTeamId, surplus }
-            })
-        })
-          // ★「必要だから動く」の関門。ここが抜けていて、needs は下の並び替えの
-          //   優先度にしか使われていなかった＝**どのクラブでも誰でも買えた**。
-          //   判定は squadNeeds の needsPlayer 1本（移籍金を払う移籍なので穴のときだけ）
-          .filter(({ p }) => needsPlayer(buyRoster, p))
-          // 欲しいタイプ・OVRの高い選手を優先
-          .sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (ovr(b.p) - ovr(a.p)))
-
-        let bought = false
-        for (const { p: target, surplus, benched, rank: sellRank, sellTeamId } of candidates) {
-          // 余剰は通常額、主力の引き抜きは割増移籍金＋昇給要求＋本人同意
-          const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * POACH_PREMIUM)
-          const tgtPerf = perfOf(state.currentSeason, target.id)
-          const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
-          if (remainBudget < fee + newSalary) continue
-          // 引き抜きは本人が移籍先の魅力で納得するか判定（クラブは割増で合意済み＝clubBlessed）
-          if (!surplus && !playerConsentToMove(target, get().destinationOf(buyTeam.id, target), tierOfPlayerClub(target.teamId, teamsAfterCpuTransfer), 0.5, 0, 0, true).ok) continue
-          const txYear = state.currentSeason.year
-          // 所属・名簿・移籍金・移籍履歴は movePlayer にまとめて任せる（自チームの獲得と同じ後始末）
-          const moved = movePlayer({ players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer }, target.id, buyTeam.id, {
-            year: txYear,
-            date: `${txYear}-02-01`,
-            fee,
-            years: 2,
-            contract: { annualSalary: newSalary, yearsLeft: 2 } })
-          if (!moved.ok) continue
-          cpuTransferIds.add(target.id)
-          transferPurchases[buyTeam.id] = (transferPurchases[buyTeam.id] ?? 0) + 1
-          sellCounts[moved.from] = (sellCounts[moved.from] ?? 0) + 1
-          playersAfterCpuTransfer = moved.players.map(p =>
-            p.id !== target.id ? p : { ...p, contract: { ...p.contract, faEligibleYear: txYear + 2 } })
-          teamsAfterCpuTransfer = moved.teams
-          if (moved.record) offseasonTxRecords.push(moved.record)
-          // 序列から落ちて出番が無くなった選手は、その事情がわかる見出しにする。
-          // 「何番手だったか」を出すと、市場が効いているかがニュースだけで追える
-          offseasonTxNews.push({
-            date: `${state.currentSeason.year}-11-10`,
-            headline: benched
-              ? seekPlayingTimeHeadline({
-                  playerName: target.name, age: target.age, squadRank: sellRank,
-                  fromLabel: clubLabel(sellTeamId, teamsAfterCpuTransfer),
-                  toLabel: clubLabel(buyTeam.id, teamsAfterCpuTransfer) })
-              : transferHeadline({
-                  playerName: target.name, playerOvr: ovr(target), fee,
-                  fromLabel: clubLabel(sellTeamId, teamsAfterCpuTransfer),
-                  toLabel: clubLabel(buyTeam.id, teamsAfterCpuTransfer) }),
-            category: 'trade', relatedIds: [target.id],
-            major: ovr(target) >= MAJOR_NEWS_OVR || bigClub(state, sellTeamId) || bigClub(state, buyTeam.id) })
-          bought = true
-          break
-        }
-        return bought
-      }
-      roundRobin(cpuTeamsForTransfer, buyOnePlayer)
+      const bought = runCpuTransfers(
+        { players: playersAfterCpuRelease, teams: teamsAfterCpuRelease },
+        { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
+          season: state.currentSeason, pastSeasons: state.pastSeasons,
+          allTeams: state.teams, foreignLeagues: state.foreignLeagues,
+          rosterCapFor, destinationOf: get().destinationOf, excludeIds: cpuTransferIds })
+      playersAfterCpuTransfer = bought.players
+      teamsAfterCpuTransfer = bought.teams
+      offseasonTxRecords.push(...bought.records)
+      offseasonTxNews.push(...bought.news)
     }
 
     // ⑤ CPU間トレード（予算不足でも価値が近い選手同士を交換）。
@@ -721,57 +550,16 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       offseasonTxRecords.push(...traded.records)
     }
 
-    // ④ CPU間レンタル（ロスター過多チームから不足チームへ1年貸し出し）。
-    // 同じオフに移籍・トレード済みの選手は貸し出さない（1オフ1移動）
+    // ④ CPU間レンタル（出番の無い若手を、走らせてくれるクラブが借りる）。
+    // 中身は engine/cpuOffseason の runCpuLoans 1本
+    // （cpuTransferIds を渡すので、同じオフに移籍・トレードした選手は貸し出さない）
     {
-      const loanedIds = cpuTransferIds
-      const loanYear = state.currentSeason.year + 1
-      const cpuIdsForLoan = domesticCpuTeamIds(playersAfterCpuTransfer, state.teams, state.playerTeamId)
-      const mainCount = (teamId: string) =>
-        playersAfterCpuTransfer.filter(p => p.teamId === teamId && p.status === 'active' && !p.loan).length
-      const givenLoan: Record<string, number> = {}
-      const receivedLoan: Record<string, number> = {}
-      // ★動かすのは借りたい側。**出番の無い若手を、走らせてくれるクラブが借りに行く**。
-      //   以前は「人数が多いクラブが一番弱い選手を、人数の少ないクラブへ渡す」だけで、
-      //   頭数合わせにしかなっていなかった（借りた側は走らせる気のない選手を受け取る）。
-      //   出番の判定は hasNoPlayingTime、必要かどうかは needsPlayer。どちらも既存の1本。
-      const rosterOf = (teamId: string) => playersAfterCpuTransfer
-        .filter(p => p.teamId === teamId && p.status === 'active' && !p.loan)
-        .sort(comparePlayers('ovr'))
-      for (const receiver of cpuIdsForLoan) {
-        if ((receivedLoan[receiver] ?? 0) >= 1 || mainCount(receiver) >= ROSTER_MAX) continue
-        const myRoster = rosterOf(receiver)
-        let candidate: Player | undefined
-        let senderId = ''
-        for (const sid of cpuIdsForLoan) {
-          if (sid === receiver || (givenLoan[sid] ?? 0) >= 1) continue
-          const sRoster = rosterOf(sid)
-          const found = sRoster.find((p, i) =>
-            hasNoPlayingTime(i + 1) && p.age <= 24
-            && !loanedIds.has(p.id) && p.joinedYear !== state.currentSeason.year
-            && needsPlayer(myRoster, p))
-          if (found) { candidate = found; senderId = sid; break }
-        }
-        if (!candidate || !senderId) continue
-        loanedIds.add(candidate.id)
-        givenLoan[senderId] = (givenLoan[senderId] ?? 0) + 1
-        receivedLoan[receiver] = (receivedLoan[receiver] ?? 0) + 1
-        // レンタルも movePlayer に通す。借りた側の名簿には載せない
-        // （以前はここだけ載せていて、セーブを読み直すと消える食い違いになっていた）
-        const m = movePlayer({ players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer }, candidate.id, receiver, {
-          year: state.currentSeason.year,
-          until: loanYear })
-        if (!m.ok) continue
-        playersAfterCpuTransfer = m.players
-        teamsAfterCpuTransfer = m.teams
-        offseasonTxNews.push({
-          date: `${state.currentSeason.year}-11-15`,
-          headline: loanHeadline({
-            playerName: candidate.name, age: candidate.age, years: 1,
-            ownerLabel: clubLabel(senderId, teamsAfterCpuTransfer),
-            borrowerLabel: clubLabel(receiver, teamsAfterCpuTransfer) }),
-          category: 'trade', relatedIds: [candidate.id] })
-      }
+      const loaned = runCpuLoans(
+        { players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer },
+        { playerTeamId: state.playerTeamId, year: state.currentSeason.year, excludeIds: cpuTransferIds })
+      playersAfterCpuTransfer = loaned.players
+      teamsAfterCpuTransfer = loaned.teams
+      offseasonTxNews.push(...loaned.news)
     }
 
     // FA補強（受け皿）：移籍市場で動けなかった選手・クラブの補完。判断は pickCpuFreeAgents 1本。

@@ -13,7 +13,7 @@ import { MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp } from '../utils/cl
 import { bigClub, findClub, leagueOfClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
-import { type PerfProfile, calcTransferValue, faMarketSalary, ovr } from '../utils/playerUtils'
+import { calcTransferValue, ovr } from '../utils/playerUtils'
 import { type TradeValueCtx } from '../utils/tradeValue'
 
 // 指名権のバックフィル判定。「自分が今持っているか」ではなく「どこかのチームが保有しているか」で見る。
@@ -24,27 +24,6 @@ export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason
     teamRaces: state.currentSeason.currentRaceIndex,
     currentSeason: state.currentSeason,
     pastSeasons: state.pastSeasons }
-}
-
-
-// 今季の活躍データの取得口。海外リーグ在籍中の選手は国内レースに出ないので、
-// foreignAppearances 側から同じ形（PerfProfile）で作る。国内・海外を同じ物差しで見るための1本化。
-export function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout', playFraction = 0.5, teamRaces = 0, perf?: PerfProfile): number {
-  // 市場給与(素体×実績倍率)と現年俸のブレンド。市場中心＋現年俸で急変を防ぐ。
-  // → 衰えれば市場給与が下がって希望も下がる／現在高給でもすぐ暴落しない。
-  const market = faMarketSalary(player, perf)
-  const cur = player.contract.annualSalary
-  const c = player.career
-  const achieve = 1 + Math.min(0.20, c.championships * 0.04 + c.mvpAwards * 0.03)
-  let desired = (market * 0.65 + cur * 0.35) * achieve
-  const personality = player.personality ?? 'salary'
-  if (personality === 'salary') desired *= 1.10   // 金型は高め
-  if (source === 'scout' && teamRaces >= 3) {
-    // 引き抜き：よく出てる主力ほど手放させるのに上乗せ
-    const playMult = playFraction >= 0.8 ? 1.35 : playFraction >= 0.6 ? 1.18 : 1.0
-    desired *= playMult
-  }
-  return Math.round(desired / 500000) * 500000
 }
 
 
