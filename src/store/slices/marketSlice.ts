@@ -5,18 +5,19 @@ import { tradeValueCtxOf, acquisitionDesiredSalary, faAllowedDespiteBan, willing
 import { buildContractRequests } from '../../engine/contractRequests'
 import { judgeRenewalOffer } from '../../engine/renewalDecision'
 import { judgeSaleOffer, withSaleRefused } from '../../engine/saleOfferGate'
+import { runTradeMoves, swapDraftPicks } from '../../engine/tradeExecution'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeyValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract } from '../../data/rosterRules'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
-import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing, type TransferRecord } from '../../types'
+import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
 import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
-import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
+import { movePlayer } from '../../utils/movePlayer'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf } from '../../utils/playRate'
@@ -177,50 +178,19 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!tradeNotLopsided(acceptIn, tvCtxA).ok) {
         return callOff(offer.requestedPlayerIds[0] ?? offer.offeredPlayerIds[0] ?? '', 'trade_unfair')
       }
-      let players = state.players
-      let teams = state.teams
       const tradeDate = state.currentSeason.races[state.currentSeason.currentRaceIndex - 1]?.date
-      const tradeRecords: TransferRecord[] = []
-      // 自チームから出ていく選手の退団のお知らせ（movePlayerが作る通知は自チーム発だけなので、
-      // 受け取り側 offeredPlayerIds では notice が null になる。ここでは特に区別せず全部集める）
-      const tradeNotices: DepartureNotice[] = []
-      // 出入りとも movePlayer 一本。片方だけ加入年が入らない、といった書き分けが起きない
-      const runTrade = (pid: string, toTeamId: string) => {
-        const m = movePlayer({ players, teams }, pid, toTeamId, {
-          year: state.currentSeason.year,
-          date: tradeDate,
-          raceIndex: state.currentSeason.currentRaceIndex,
-          kind: 'trade',
-          years: players.find(pl => pl.id === pid)?.contract.yearsLeft,
-          myTeamId: state.playerTeamId })
-        if (!m.ok) return
-        players = m.players
-        teams = m.teams
-        if (m.record) tradeRecords.push(m.record)
-        if (m.notice) tradeNotices.push(m.notice)
-      }
-      for (const pid of offer.offeredPlayerIds) runTrade(pid, state.playerTeamId)
-      for (const pid of offer.requestedPlayerIds) runTrade(pid, offer.fromTeamId)
-
-      // Transfer draft picks
-      function matchPick(picks: typeof teams[0]['draftPicks'], key: string) {
-        return picks.find(pk => `${pk.year}-R${pk.round}-${pk.pickNumber}` === key)
-      }
-      const theirCurrentPicks = teams.find(t => t.id === offer.fromTeamId)?.draftPicks ?? []
-      const myCurrentPicks = teams.find(t => t.id === state.playerTeamId)?.draftPicks ?? []
-      const offeredPicks = (offer.offeredPickKeys ?? []).map(k => matchPick(theirCurrentPicks, k)).filter(Boolean) as typeof theirCurrentPicks
-      const requestedPicks = (offer.requestedPickKeys ?? []).map(k => matchPick(myCurrentPicks, k)).filter(Boolean) as typeof myCurrentPicks
-      if (offeredPicks.length > 0 || requestedPicks.length > 0) {
-        teams = teams.map(t => {
-          if (t.id === offer.fromTeamId) return {
-            ...t,
-            draftPicks: [...(t.draftPicks ?? []).filter(pk => !offeredPicks.includes(pk)), ...requestedPicks] }
-          if (t.id === state.playerTeamId) return {
-            ...t,
-            draftPicks: [...(t.draftPicks ?? []).filter(pk => !requestedPicks.includes(pk)), ...offeredPicks] }
-          return t
-        })
-      }
+      // 選手の出し入れも指名権の交換も engine/tradeExecution 1本
+      // （こちらから出す tradePlayer とまったく同じ動かし方を通す）
+      const moved = runTradeMoves({ players: state.players, teams: state.teams }, [
+        ...offer.offeredPlayerIds.map(pid => ({ playerId: pid, toTeamId: state.playerTeamId })),
+        ...offer.requestedPlayerIds.map(pid => ({ playerId: pid, toTeamId: offer.fromTeamId })),
+      ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId })
+      const players = moved.players
+      const teams = swapDraftPicks(moved.teams,
+        { teamId: offer.fromTeamId, pickKeys: offer.offeredPickKeys ?? [] },
+        { teamId: state.playerTeamId, pickKeys: offer.requestedPickKeys ?? [] })
+      const tradeRecords = moved.records
+      const tradeNotices = moved.notices
 
       const fromTeamName = teams.find(t => t.id === offer.fromTeamId)?.shortName ?? ''
       const tradeNews = {
@@ -1385,10 +1355,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!playerConsentToMove(rp, get().destinationOf(state.playerTeamId, rp), tierOfPlayerClub(rp.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, consentBonusT).ok) return { ok: false, reason: `${rp.name}はこの移籍を望んでいない。` }
     }
 
-    function matchPick(picks: typeof state.teams[0]['draftPicks'], key: string) {
-      return picks.find(pk => `${pk.year}-R${pk.round}-${pk.pickNumber}` === key)
-    }
-
     set(state => {
       // 在籍判定は player.teamId 1本（クラブ側の名簿は廃止）。
       // 以前はクラブ側の名簿に古いセーブ由来のゴーストIDが残ることがあり、
@@ -1397,45 +1363,24 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const incomingIds = requestedIds.filter(id => !myIdsAfterTrade.includes(id))
       const tradeDate = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
 
-      // 出入りとも movePlayer 一本。出す側だけ加入年が入らない、といった書き分けが起きない
-      let players = state.players
-      let movedTeams = state.teams
-      const tradeRecords: TransferRecord[] = []
-      // 自チームから出ていく選手の退団のお知らせ（movePlayerが作る通知は自チーム発だけ）
-      const tradeNotices: DepartureNotice[] = []
-      const runTrade = (pid: string, toTeamId: string) => {
-        const m = movePlayer({ players, teams: movedTeams }, pid, toTeamId, {
-          year: state.currentSeason.year,
-          date: tradeDate,
-          raceIndex: state.currentSeason.currentRaceIndex,
-          kind: 'trade',
-          years: players.find(p => p.id === pid)?.contract.yearsLeft,
-          myTeamId: state.playerTeamId })
-        if (!m.ok) return
-        players = m.players
-        movedTeams = m.teams
-        if (m.record) tradeRecords.push(m.record)
-        if (m.notice) tradeNotices.push(m.notice)
-      }
-      for (const id of offeredIds) runTrade(id, targetTeamId)
-      for (const id of incomingIds) runTrade(id, state.playerTeamId)
+      // 選手の出し入れも指名権の交換も engine/tradeExecution 1本
+      // （相手からの打診を飲む acceptTradeOffer とまったく同じ動かし方を通す）
+      const moved = runTradeMoves({ players: state.players, teams: state.teams }, [
+        ...offeredIds.map(id => ({ playerId: id, toTeamId: targetTeamId })),
+        ...incomingIds.map(id => ({ playerId: id, toTeamId: state.playerTeamId })),
+      ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId })
+      const players = moved.players
+      const tradeRecords = moved.records
+      const tradeNotices = moved.notices
+      const withPicks = swapDraftPicks(moved.teams,
+        { teamId: state.playerTeamId, pickKeys: offerPickKeys },
+        { teamId: targetTeamId, pickKeys: requestPickKeys })
 
-      const myTeamPicks = state.teams.find(t => t.id === state.playerTeamId)?.draftPicks ?? []
-      const theirPicks = state.teams.find(t => t.id === targetTeamId)?.draftPicks ?? []
-      const offeredPicks = offerPickKeys.map(k => matchPick(myTeamPicks, k)).filter(Boolean) as typeof myTeamPicks
-      const requestedPicks = requestPickKeys.map(k => matchPick(theirPicks, k)).filter(Boolean) as typeof theirPicks
-
-      // 名簿はもう movePlayer が付け替え済み。ここでは指名権と現金だけ動かす
+      // 名簿も指名権も動かし終わったので、ここで動かすのは現金だけ
       // （transferFee はマイナス＝受け取りもあるので movePlayer の移籍金には乗せない）
-      const teams = movedTeams.map(t => {
-        if (t.id === state.playerTeamId) return {
-          ...t,
-          finance: { ...t.finance, budget: (t.finance.budget ?? 0) - transferFee },
-          draftPicks: [...(t.draftPicks ?? []).filter(pk => !offeredPicks.includes(pk)), ...requestedPicks] }
-        if (t.id === targetTeamId) return {
-          ...t,
-          finance: { ...t.finance, budget: (t.finance.budget ?? 0) + transferFee },
-          draftPicks: [...(t.draftPicks ?? []).filter(pk => !requestedPicks.includes(pk)), ...offeredPicks] }
+      const teams = withPicks.map(t => {
+        if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: (t.finance.budget ?? 0) - transferFee } }
+        if (t.id === targetTeamId) return { ...t, finance: { ...t.finance, budget: (t.finance.budget ?? 0) + transferFee } }
         return t
       })
       const parts = [...offered.map(p => p.name), ...offerPickKeys.map(k => k.split('-').slice(0,2).join(' '))]

@@ -405,9 +405,18 @@ SCENARIOS['market-trade'] = () => {
     // 3) 話にならない条件（rejected の枝）：控え1人でエース2人を要求する
     gg().proposeTrade(P2, [mine[19].id], [], [t2[0].id, t2[1].id], [])
     const neg2 = (gg().currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === P2)
+    // 4) 指名権と現金をつけたトレード（engine/tradeExecution の指名権の交換と、現金の受け渡し）
+    const myPick = { year: YEAR + 1, round: 1, pickNumber: 3, originallyOwnedBy: MY }
+    const theirPick = { year: YEAR + 1, round: 2, pickNumber: 5, originallyOwnedBy: P2 }
+    const keyOf = (pk: typeof myPick) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
+    useGameStore.setState({ teams: gg().teams.map(t =>
+      t.id === MY ? { ...t, draftPicks: [myPick] } : t.id === P2 ? { ...t, draftPicks: [theirPick] } : t) } as never)
+    const withPick = gg().tradePlayer([mine[18].id], [t2[6].id], P2, 30_000_000, [keyOf(myPick)], [keyOf(theirPick)])
+    const myPicksAfter = (gg().teams.find(t => t.id === MY)?.draftPicks ?? []).map(keyOf).join(',')
     console.log(`      飲んだ=${at(t2[3].id) === MY} 飲めなかった=${at(t2[15].id) === P2}`
       + ` / 打診の返事=${negStatus}(要求追加${demanded}人) 成立=${at(t1[0].id) === MY}`
-      + ` / 話にならない打診=${neg2?.status ?? '(無し)'}`)
+      + ` / 話にならない打診=${neg2?.status ?? '(無し)'}`
+      + ` / 指名権つき=${withPick.ok}${withPick.reason ? `(${withPick.reason})` : ''} 手持ちの指名権=${myPicksAfter || 'なし'}`)
   })
 }
 
