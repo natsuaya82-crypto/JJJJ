@@ -41,7 +41,10 @@ Math.random = () => {
   return rngSeed / 4294967296
 }
 
-const store = readFileSync('src/store/gameStore.ts', 'utf8')
+// gameStore はスライス分割中（store/slices/*.ts）。呼び出し箇所は本体とスライスを合わせて数える
+import { readdirSync } from 'fs'
+const store = ['src/store/gameStore.ts', ...readdirSync('src/store/slices').map(f => `src/store/slices/${f}`)]
+  .map(p => readFileSync(p, 'utf8')).join('\n')
 
 console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')
 {
