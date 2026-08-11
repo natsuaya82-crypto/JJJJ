@@ -12,6 +12,7 @@ import { settleCpuTransfers } from '../../engine/cpuTransfers'
 import { resolveExpiredOffers } from '../../engine/offerExpiry'
 import { resolveTransferBids } from '../../engine/bidResolution'
 import { signInSeasonFreeAgents } from '../../engine/inSeasonFa'
+import { buildSeasonFinaleNews } from '../../engine/seasonFinaleNews'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -666,27 +667,12 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const faSignNews = faResult.news
       const faSnipedNegs = faResult.snipedNegs
 
-      // シーズン最終戦なら、表彰（MVP/新人王）と引退表明を「そのシーズンのニュース」として流す
-      // （実際の引退・表彰の確定処理は次シーズン開幕時のまま。発表だけ前倒しして年内に見えるようにする）
+      // シーズン最終戦なら、表彰と引退表明を先に流す（engine/seasonFinaleNews 1本）。
+      // 確定処理は次シーズン開幕のままで、ここは発表だけ
       const isFinalRace = raceIndex + 1 >= state.currentSeason.races.length
-      const seasonEndNews: typeof newsItems = []
-      if (isFinalRace) {
-        // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
-        const award = computeSeasonAwards(updatedRaces, finalPlayers, state.currentSeason.year, divisionOf(state.teams.find(t => t.id === state.playerTeamId)))
-        const mvpP = award.mvpId ? finalPlayers.find(p => p.id === award.mvpId) : undefined
-        const rookieP = award.rookieId ? finalPlayers.find(p => p.id === award.rookieId) : undefined
-        if (mvpP) seasonEndNews.push({ date: race.date, headline: awardHeadline({ kind: 'mvp', division: divisionOf(state.teams.find(t => t.id === mvpP.teamId)), clubShort: state.teams.find(t => t.id === mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
-        if (rookieP) seasonEndNews.push({ date: race.date, headline: awardHeadline({ kind: 'rookie', division: divisionOf(state.teams.find(t => t.id === rookieP.teamId)), clubShort: state.teams.find(t => t.id === rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
-        // 引退表明。開幕時の引退判定と同じ式（utils/playerUtils の retirementAgeOf 1本）を1歳先で評価する
-        const domesticIdsRet = new Set(state.teams.map(t => t.id))
-        const retiring = finalPlayers.filter(p => p.status === 'active' && domesticIdsRet.has(p.teamId) && (p.age + 1) >= retirementAgeOf(p))
-        const mineRet = retiring.filter(p => p.teamId === playerTeamId)
-        const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
-        for (const p of [...mineRet, ...othersRet]) {
-          const tn = state.teams.find(t => t.id === p.teamId)?.shortName ?? ''
-          seasonEndNews.push({ date: race.date, headline: retirementHeadline({ division: divisionOf(state.teams.find(t => t.id === p.teamId)), clubShort: tn, playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
-        }
-      }
+      const seasonEndNews = isFinalRace ? buildSeasonFinaleNews({
+        players: finalPlayers, teams: state.teams, currentSeason: state.currentSeason,
+        races: updatedRaces, playerTeamId, raceDate: race.date }) : []
 
       return {
         players: playersAfterFreeMoves,

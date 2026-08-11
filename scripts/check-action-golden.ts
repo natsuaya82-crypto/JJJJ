@@ -25,6 +25,7 @@
  *   UPDATE_GOLDEN=1 を付けて実行し、差分をレビューしてからコミットする。
  */
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 
 // ── 乱数のシード固定（他の import より先に効かせる） ──────────────────
@@ -56,6 +57,26 @@ const YEAR = 2030
 const MY = 'tokyo'
 const DIR = 'scripts/fixtures'
 
+// ── シナリオ同士を隔離する ──────────────────────────────────────────
+// **1シナリオ＝1プロセス**で走らせる（下の「振り分け」）。
+//
+// 同じプロセスで続けて走らせると、シナリオを1つ足しただけで後ろのシナリオの
+// ゴールデンが変わった。zustand の状態を素に戻すだけでは足りず（setState は書いた
+// キーしか置き換えない）、状態を丸ごと戻しても直らなかった＝**ストアの外にある
+// モジュールの値**（カードIDの連番など）が持ち越されていた。
+//
+// 順序に依存する検査は、シナリオを足すたびに全部を引き直すことになり、
+// **その引き直しに本物の差分が紛れる**。それでは安全網の意味が無いので、
+// プロセスごと分ける。下の「素の状態」は同一プロセス内での念のための備え。
+const PRISTINE_JSON: string = (() => {
+  const s = useGameStore.getState() as unknown as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(s)) if (typeof v !== 'function') out[k] = v
+  return JSON.stringify(out)
+})()
+// **毎回作り直す**（同じ実体を配ると、どこかで中身を書き換えられたときに素の状態まで汚れる）
+const pristine = (): Record<string, unknown> => JSON.parse(PRISTINE_JSON)
+
 // ── 同じ初期状態を作る（毎回この関数から作り直す） ─────────────────────
 function buildState(phase: 'regular' | 'postseason', racesDone: number) {
   resetRng()
@@ -86,16 +107,13 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
     : r)
 
   useGameStore.setState({
+    // 前のシナリオの残りを持ち越さないよう、素の状態へ戻してから組む（上の PRISTINE）
+    ...pristine(),
     isInitialized: true,
     playerTeamId: MY,
     teams,
     players,
     foreignLeagues: fgen.updatedLeagues,
-    // カード類は明示的に空へ。setState は書いたキーしか置き換えないので、
-    // 消し忘れると前のシナリオで配られたカードが次のシナリオへ持ち越される
-    trainingCards: [],
-    raceDroppedCards: [],
-    jewels: 0,
     currentSeason: {
       year: YEAR, phase, currentRaceIndex: racesDone,
       races, standings, foreignStandings, newsFeed: [], objectives: [],
@@ -175,11 +193,10 @@ function compare(name: string, produce: () => void) {
   }
 }
 
-console.log('巨大アクションのゴールデン検査（シード固定・状態まるごと比較）')
-console.log('')
+const SCENARIOS: Record<string, () => void> = {}
 
-console.log('[1] runRace（第1戦を走らせる）')
-{
+SCENARIOS['runRace'] = () => {
+  console.log('[runRace] 第1戦を走らせる')
   const { players } = buildState('regular', 0)
   const st = useGameStore.getState()
   const race = st.currentSeason.races[0]
@@ -188,20 +205,56 @@ console.log('[1] runRace（第1戦を走らせる）')
   compare('runRace', () => { useGameStore.getState().runRace(lineup) })
 }
 
-console.log('')
-console.log('[2] endSeason（全戦消化後のオフシーズン）')
-{
+SCENARIOS['runRace-final'] = () => {
+  console.log('[runRace-final] 最終戦。表彰と引退表明の発表が乗る')
+  // 最終戦だけを通る枝がある（engine/seasonFinaleNews の表彰・引退表明）。
+  // 開幕戦のシナリオだけだとそこが1行も動かないので、最終戦ぶんも見る
+  const my = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].find(t => t.id === MY) as Team
+  const n = generateSeasonRaces(YEAR, divisionOf(my)).length
+  const { players } = buildState('regular', n - 1)
+  const st = useGameStore.getState()
+  const race = st.currentSeason.races[n - 1]
+  const roster = players.filter(p => p.teamId === MY && p.status === 'active')
+  const lineup = assignLineupByTerrain(roster, race)
+  compare('runRace-final', () => { useGameStore.getState().runRace(lineup) })
+}
+
+SCENARIOS['endSeason'] = () => {
+  console.log('[endSeason] 全戦消化後のオフシーズン')
   const my = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].find(t => t.id === MY) as Team
   const n = generateSeasonRaces(YEAR, divisionOf(my)).length
   buildState('postseason', n)
   compare('endSeason', () => { useGameStore.getState().endSeason() })
 }
 
+// ── 振り分け ────────────────────────────────────────────────────────
+// GOLDEN_ONLY があればそのシナリオだけを走らせる（子プロセス側）。
+// 無ければ、シナリオごとに自分自身を1回ずつ呼び直す（親プロセス側）。
+const only = process.env.GOLDEN_ONLY
+if (only) {
+  const run = SCENARIOS[only]
+  if (!run) { console.log(`✗ 知らないシナリオ: ${only}`); process.exit(1) }
+  run()
+  console.log('')
+  if (problems.length === 0) process.exit(0)
+  for (const p of problems) console.log(`  ${p}`)
+  process.exit(1)
+}
+
+console.log('巨大アクションのゴールデン検査（シード固定・1シナリオ1プロセス）')
 console.log('')
-if (problems.length === 0) {
+let failed = 0
+for (const name of Object.keys(SCENARIOS)) {
+  const r = spawnSync(process.execPath, ['-r', './scripts/ls-shim.cjs', process.argv[1]], {
+    env: { ...process.env, GOLDEN_ONLY: name },
+    stdio: 'inherit',
+  })
+  if (r.status !== 0) failed++
+}
+console.log('')
+if (failed === 0) {
   console.log('✓ 分解しても、レースもオフシーズンも前とまったく同じ結果になる')
   process.exit(0)
 }
-console.log(`✗ ${problems.length}件`)
-for (const p of problems) console.log(`  ${p}`)
+console.log(`✗ ${failed}シナリオが落ちました`)
 process.exit(1)
