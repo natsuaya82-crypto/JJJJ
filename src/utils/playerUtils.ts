@@ -4,6 +4,7 @@ import { peakAgeOfCurve } from '../engine/ageCurve'
 import { type ClubTier } from './clubTier'
 import { appraiseMove, CONSENT_LINE, type Destination } from './transferDecision'
 import { strHash } from './hash'
+import { type Race } from '../types'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -573,3 +574,10 @@ export function ratingColor(v: number, maxed = false): string {
   return '#4A4658'                // ブラック（40以下）
 }
 
+/** その選手の今季の出場実績。海外にいる選手は海外の出場記録から、国内はレース結果から作る。
+ *  置き場所が違うだけなので読む側は区別しない（playRate と同じ思想）。gameStore から移設 */
+export function perfOf(season: { races: Race[]; currentRaceIndex: number; foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>; foreignRaceIndex?: number }, playerId: string, teamRaces?: number): PerfProfile | undefined {
+  const fa = season.foreignAppearances?.[playerId]
+  if (fa && fa.races > 0) return foreignPerfProfile(fa, season.foreignRaceIndex ?? fa.races)
+  return seasonPerfProfile(playerId, season.races, teamRaces ?? season.currentRaceIndex)
+}
