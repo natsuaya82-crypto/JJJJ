@@ -22,7 +22,7 @@ import { calcTransferValue, ovr, peakAgeOf } from '../src/utils/playerUtils'
 import type { Player } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { storeSource } from './storeSource'
+import { storeSource, logicSource } from './storeSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -47,25 +47,31 @@ const CTX: TradeValueCtx = {
 
 const 億 = (n: number) => (n / 100000000).toFixed(2)
 
-console.log('\n[1] 市場価値の年齢補正が成長処理(growPlayer)と噛み合っている')
-// growPlayer のピークは27前後、実際に数値が落ち始めるのは31歳、はっきり落ちるのは33歳から。
-// 以前はここだけ28歳から下げ始めて30歳0.80・32歳0.60と、実際の衰えよりずっと急だった
+console.log('\n[1] 移籍金の年齢倍率が CLAUDE.md の段どおり')
+// ★ここは 2026-08 に**段**へ変わった（CLAUDE.md「値段も1本」の transferFeeAgeMultiplier）。
+//     〜22歳 ×5 ／ 23〜27歳 ×4 ／ 28〜31歳 ×3 ／ 32歳〜 ×2
+//   点検は「滑らかなカーブ（27→28の差は6%以内・20歳の上乗せは1.25倍）」を期待したままで、
+//   実測 1.332（＝4/3）と 1.664（＝5/3）で落ちていた。**現行仕様に合わせて書き直す。**
+//   倍率は年齢だけの関数で、成長タイプは見ない（衰えは年齢カーブでOVRが下がることで表す）。
 {
   const v = (o: number, a: number) => calcTransferValue(P(o, a))
-  check('28歳と30歳で同じOVRなら値段は変わらない（30歳まで据え置き）', v(90, 28) === v(90, 30),
+  // 値は百万円単位に丸められるので、比はぴったりにはならない。±0.01 で見る
+  const near = (got: number, want: number) => Math.abs(got - want) <= 0.01
+  const ratio = (a: number, b: number) => v(90, a) / v(90, b)
+
+  check('同じ段の中では動かない（28歳と30歳）', v(90, 28) === v(90, 30),
     `${億(v(90, 28))} vs ${億(v(90, 30))}`)
-  check('27歳と28歳の差はごくわずか（段差で価値が跳ねない）', v(90, 27) / v(90, 30) <= 1.06,
-    String((v(90, 27) / v(90, 30)).toFixed(3)))
-  check('31歳から下がり始める', v(90, 32) < v(90, 30))
-  check('33歳からもう一段下がる', v(90, 34) < v(90, 32))
-  check('35歳以降でさらに下がる', v(90, 36) < v(90, 34))
-  // 値は百万円単位に丸められるので、比は 1.25 ぴったりにはならない。
-  // 係数そのものは [8] の「20歳の上乗せが1.25」で原文を見て確かめている
-  // 上限だけを見ていると、上乗せが丸ごと消えて 1.00 になっていても気づけない（実際に一度そうなった）。
-  // 下限も見る
-  check('20歳の上乗せは1.25倍程度（伸びる保証が無いぶん抑える）',
-    v(90, 20) / v(90, 28) <= 1.27 && v(90, 20) / v(90, 28) >= 1.23,
-    String((v(90, 20) / v(90, 28)).toFixed(3)))
+  check('同じ段の中では動かない（23歳と27歳）', v(90, 23) === v(90, 27))
+  check('22→23歳で段が変わる（×5→×4＝1.25倍）', near(ratio(22, 23), 1.25), ratio(22, 23).toFixed(3))
+  check('27→28歳で段が変わる（×4→×3＝1.333倍）', near(ratio(27, 28), 4 / 3), ratio(27, 28).toFixed(3))
+  check('31→32歳で段が変わる（×3→×2＝1.5倍）', near(ratio(31, 32), 1.5), ratio(31, 32).toFixed(3))
+  // ★32歳〜 はひと続きの段。ここで「もう一段下がる」を期待すると現行仕様と食い違う
+  check('32歳以降はひと続きの段（36歳でも下がらない）', v(90, 36) === v(90, 32),
+    `${億(v(90, 36))} vs ${億(v(90, 32))}`)
+  // 上限だけを見ていると、上乗せが丸ごと消えて 1.00 になっていても気づけない
+  // （実際に一度そうなった）。若さの上乗せが生きていることを下限でも見る
+  check('20歳の上乗せは28歳の5/3（若さの上乗せが消えていない）',
+    near(ratio(20, 28), 5 / 3), ratio(20, 28).toFixed(3))
   check('ピーク前(24〜27歳)にも上乗せが乗っている', v(90, 26) > v(90, 29))
   check('OVRの差は年齢では覆らない（30歳の90 > 22歳の80）', v(90, 30) > v(80, 22))
 }
@@ -165,10 +171,16 @@ console.log('\n[6] 物差しは2つ。額面（損得）と言い値（相手が
 console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
 {
   // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
+  // logic は store＋engine。**「どこかに1本だけあるか」を数えるものはこちら**
+  // （判定の実体が engine へ移っても数え漏らさない）
   const store = storeSource()
+  const logic = logicSource()
   const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
 
-  check('ストアが tradeValue を通している', store.includes("from '../utils/tradeValue'"))
+  // ★相対パスで判定しないこと。storeSource() は深さの違うファイルを繋ぐので
+  //   "from '../utils/tradeValue'" は gameStore.ts にしか当たらない（slices は '../../'）。
+  //   深さを問わない形で見る
+  check('ストアが tradeValue を通している', /from '\.[./]*utils\/tradeValue'/.test(store))
   check('チャットが tradeValue を通している', chat.includes("from '../../utils/tradeValue'"))
 
   // 0.92 / 0.95 / 0.55 / 1.3 / 1.5 のべた書きが残っていないか
@@ -189,8 +201,9 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   check('チャット交渉(proposeTrade)が tradeBalance を通る', store.includes('const overBal = tradeBalance(baseIn, tvCtx)'))
   check('逆提示の作り方も tradeBalance で確かめている', store.includes('tradeBalance({ ...baseIn, outPlayers: [...givePlayers, fit] }, tvCtx)'))
   check('相手からの打診(acceptTradeOffer)が tradeNotLopsided を通る', store.includes('tradeNotLopsided(acceptIn, tvCtxA)'))
+  // ★CPUの打診づくりは engine/aiTradeOffer.ts へ移した。store だけを見ると空振りする
   check('CPUの打診づくりは逆向きの定数を使う（同じ数字を使い回さない）',
-    store.includes('if (r < AI_OFFER_GAIN_MIN || r > AI_OFFER_GAIN_MAX) continue'))
+    logic.includes('if (r < AI_OFFER_GAIN_MIN || r > AI_OFFER_GAIN_MAX) continue'))
   check('値付けの ctx が1箇所（tradeValueCtxOf）', store.includes('function tradeValueCtxOf('))
   // 値の合計は tradeValue 側でやる。呼び出し側で足すと額面と言い値がまた混ざる
   check('ストアが値を自前で合計していない', !/reduce\(\(s2?, p\) => s2? \+ (tradeValueOf|askingValueOf|faceValueOf)\(/.test(store))
@@ -218,10 +231,24 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // 入札の判定はストアから出して utils/transferBid.ts の1本にした（詳しくは check-transfer-bid.ts）。
   // ストア側が受諾ラインを組み立て直したら、また画面の表示とズレるので通らせない
   check('ストアが受諾ラインを自前で組み立てない', !store.includes('bidThreshold('))
-  check('ストアの入札判定は resolveBid を呼ぶだけ', (store.match(/resolveBid\(/g) ?? []).length === 2)
+  // ★入札の応答は2つの道（本編の1戦＝engine/bidResolution と ECL等＝competitionSlice）にある。
+  //   engine 側へ移したので store だけでは1箇所しか見えない。**store＋engine で数える**
+  check('入札の応答は resolveBid を呼ぶだけ（本編とサブの2箇所）',
+    (logic.match(/resolveBid\(/g) ?? []).length === 2,
+    `${(logic.match(/resolveBid\(/g) ?? []).length}箇所`)
   // 逆提示の上限（市場価値1.15倍 / 提示額1.3倍）
-  check('逆提示の上限のべた書きが無い', !/\* 1\.15,/.test(store) && !/offeredPrice \* 1\.3/.test(store))
-  check('逆提示の上限が counterCeiling の1本', (store.match(/counterCeiling\(/g) ?? []).length === 2)
+  check('逆提示の上限のべた書きが無い', !/\* 1\.15,/.test(logic) && !/offeredPrice \* 1\.3/.test(logic))
+  // ★上限を出すのは willingFeeFor 1本になった（marketOps）。
+  //   以前は逆提示の2つの道がそれぞれ counterCeiling を呼んでいたので「2箇所」だったが、
+  //   いまは両方が willingFeeFor を通るので**呼び出しは1箇所**。数だけ直すと
+  //   「2つの道が同じラインを使っているか」が見えなくなるので、そこも名指しで見る
+  check('逆提示の上限を出すのは1箇所（counterCeiling）',
+    (logic.match(/counterCeiling\(/g) ?? []).length === 1,
+    `${(logic.match(/counterCeiling\(/g) ?? []).length}箇所`)
+  check('  応じるラインは willingFeeFor 1本（全クラブ一斉）',
+    logic.includes('if (price <= willingFeeFor(state, o, player)) {'))
+  check('  応じるラインは willingFeeFor 1本（1クラブへの逆提示）',
+    logic.includes('willingFeeFor(state, offer, player)'))
   check('移籍画面が逆提示の既定額を自前で書いていない', !/offeredPrice \* 1\.3/.test(tp))
   // 移籍金の丸め（下限付き）。付け忘れると移籍金0円の打診が出る
   check('移籍金の丸めを自前で書いていない',
@@ -234,38 +261,55 @@ console.log('\n[8] 年齢補正の段が1箇所にしかない')
   const pu = readFileSync(join('src', 'utils', 'playerUtils.ts'), 'utf-8')
   // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   const store = storeSource()
+  const logic = logicSource()      // store＋engine。成長処理は engine へ移っている
   const chatSrc = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
   const gen = readFileSync(join('src', 'engine', 'playerGenerator.ts'), 'utf-8')
-  // playerUtils には市場価値ぶんと年俸(faMarketSalary)ぶんの2つ。それ以上に増やさない
-  check('年齢補正の定義は playerUtils の2つだけ（市場価値・年俸）', (pu.match(/const ageFactor =/g) ?? []).length === 2)
+  // ★年齢係数は**移籍金の1本だけ**になった（CLAUDE.md「値段も1本」）。
+  //   年俸には年齢係数を掛けない（衰えは年齢カーブでOVRが下がることだけで表す）ので、
+  //   以前ここが期待していた「playerUtils に2つ（市場価値・年俸）」はもう成り立たない。
+  check('年齢係数の定義は移籍金の1本だけ（transferFeeAgeMultiplier）',
+    (pu.match(/export function transferFeeAgeMultiplier/g) ?? []).length === 1)
+  check('  年俸側に年齢係数の手書きが残っていない', !pu.includes('const ageFactor ='))
   const cvBody = pu.slice(pu.indexOf('export function calcTransferValue'), pu.indexOf('export type CareerStage'))
-  check('市場価値の年齢補正はその中の1つ', (cvBody.match(/const ageFactor =/g) ?? []).length === 1)
+  check('前提：calcTransferValue を取り出せている', cvBody.length > 100, `${cvBody.length}文字`)
+  check('移籍金がその1本を通る', cvBody.includes('transferFeeAgeMultiplier(p.age)'))
   check('ストアが年齢補正を自前で持っていない', !store.includes('const ageFactor ='))
   check('チャットが年齢補正を自前で持っていない', !chatSrc.includes('const ageFactor ='))
 
-  // ★ピーク年齢は peakAgeOf の1本だけ★
-  // 成長処理(growPlayer/ageMultiplier/生成時の焼き込み)は成長タイプで 24/27/30 と分けるのに、
-  // 市場価値だけ「全員27歳ピーク」の年齢表を持っていた。晩成型の30歳が実力はピークなのに
-  // 値段だけ下がり始める、早熟型の28歳が実力は落ちているのに値段は据え置き、が起きていた
-  const peakDef = /=== 'early' \? 24/g
+  // ★ピーク年齢の表は engine/ageCurve.ts の PEAK_AGE 1本★
+  //   以前は playerUtils にも 24/27/30 の表があり、成長カーブ側の 22/27/30 とズレていた。
+  //   いま peakAgeOf は peakAgeOfCurve へ委譲するだけ。**手書きの表を他所に作らないこと。**
+  const peakDef = /=== 'early' \? \d\d/g
   const peakDefs = (pu.match(peakDef) ?? []).length + (store.match(peakDef) ?? []).length + (gen.match(peakDef) ?? []).length
-  check('ピーク年齢の定義は1箇所だけ（peakAgeOf）', peakDefs === 1, `${peakDefs}箇所`)
-  check('市場価値がピークを peakAgeOf から取る', cvBody.includes('peakAgeOf(p)'))
-  check('成長処理もピークを peakAgeOf から取る', (store.match(/peakAgeOf\(/g) ?? []).length === 2)
-  check('生成時の焼き込みも peakAgeOf から取る', gen.includes('peakAgeOf({ growthCurve })'))
+  check('ピーク年齢の表を手書きしていない（PEAK_AGE 1本）', peakDefs === 0, `${peakDefs}箇所`)
+  check('  peakAgeOf は ageCurve へ委譲するだけ', pu.includes('peakAgeOfCurve(p.growthCurve'))
+  // ★移籍金は年齢の段だけを見る（成長タイプは見ない）。
+  //   衰えは年齢カーブでOVRが下がることで表すので、値段の式に成長タイプは入らない
+  check('移籍金の式に成長タイプが入っていない',
+    !cvBody.includes('peakAgeOf') && !cvBody.includes('growthCurve'))
+  // ★成長処理は engine/growth.ts へ移した。store だけを見ると0箇所になる
+  check('成長処理はピークを peakAgeOf から取る', (logic.match(/peakAgeOf\(/g) ?? []).length === 2,
+    `${(logic.match(/peakAgeOf\(/g) ?? []).length}箇所`)
+  // ★生成時の焼き込み（bakeAgeGrowth）は廃止済み。年齢ぶんは年齢カーブ1本から出る。
+  //   CLAUDE.md に「復活させないこと」と書いてあるので、無いことを見る
+  check('生成時の焼き込み(bakeAgeGrowth)が復活していない', !/function bakeAgeGrowth/.test(gen))
+  check('  生成は年齢カーブを通る（curveOvr）', gen.includes("from './ageCurve'") && gen.includes('curveOvr'))
   check('成長タイプが無い古いセーブは標準型(27)扱い', peakAgeOf({} as never) === 27)
-  check('早熟は24・標準は27・晩成は30',
-    peakAgeOf({ growthCurve: 'early' }) === 24 && peakAgeOf({ growthCurve: 'normal' }) === 27
+  // 早熟は 24 → 22（011ff08「決定事項の実装」で意図して変えたもの。分解による劣化ではない）
+  check('早熟は22・標準は27・晩成は30',
+    peakAgeOf({ growthCurve: 'early' }) === 22 && peakAgeOf({ growthCurve: 'normal' }) === 27
     && peakAgeOf({ growthCurve: 'late_bloomer' }) === 30)
 
-  // 成長タイプが値段に効いていること（同じOVR・同じ年齢で比べる）
+  // ★成長タイプは値段の式に**入らない**。同じOVR・同じ年齢なら同じ値段になる。
+  //   成長タイプの差は「同じ年齢でもOVRが違う」という形で既に効いている（年齢カーブ）。
+  //   ここで OVR を固定したまま差を期待すると、係数を二重に掛けろと言っているのと同じになる。
   const G = (o: number, a: number, g: string) => calcTransferValue(P(o, a, { growthCurve: g } as Partial<Player>))
-  check('30歳では 晩成 > 標準 > 早熟', G(85, 30, 'late_bloomer') > G(85, 30, 'normal') && G(85, 30, 'normal') > G(85, 30, 'early'))
-  // 22歳で同じOVRなら、これから8年伸びる晩成のほうが高い（早熟はもう天井が近い）
-  check('22歳では 晩成 > 標準 > 早熟',
-    G(85, 22, 'late_bloomer') > G(85, 22, 'normal') && G(85, 22, 'normal') > G(85, 22, 'early'))
-  check('晩成でも35歳からは絶対年齢で落ちる', G(85, 36, 'late_bloomer') < G(85, 34, 'late_bloomer'))
-  check('晩成でも37歳でさらに落ちる', G(85, 38, 'late_bloomer') < G(85, 36, 'late_bloomer'))
+  for (const age of [22, 30, 36]) {
+    check(`${age}歳・同じOVRなら成長タイプで値段は変わらない`,
+      G(85, age, 'late_bloomer') === G(85, age, 'normal') && G(85, age, 'normal') === G(85, age, 'early'))
+  }
+  check('成長タイプによらず32歳以降はひと続きの段',
+    G(85, 36, 'late_bloomer') === G(85, 34, 'late_bloomer') && G(85, 38, 'late_bloomer') === G(85, 36, 'late_bloomer'))
 }
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
