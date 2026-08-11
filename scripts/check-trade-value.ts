@@ -23,6 +23,7 @@ import type { Player } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { storeSource, logicSource } from './storeSource'
+import { chatSource } from './uiSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -175,13 +176,16 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // （判定の実体が engine へ移っても数え漏らさない）
   const store = storeSource()
   const logic = logicSource()
-  const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
+  // チャット画面は分割済み（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る
+  const chat = chatSource()
 
   // ★相対パスで判定しないこと。storeSource() は深さの違うファイルを繋ぐので
   //   "from '../utils/tradeValue'" は gameStore.ts にしか当たらない（slices は '../../'）。
   //   深さを問わない形で見る
   check('ストアが tradeValue を通している', /from '\.[./]*utils\/tradeValue'/.test(store))
-  check('チャットが tradeValue を通している', chat.includes("from '../../utils/tradeValue'"))
+  // ★相対パスの深さを判定に入れないこと。chat/ 配下は '../../../' になるので、
+  //   '../../' 決め打ちだと部品を1階層下げた瞬間に「通していない」と誤検知する
+  check('チャットが tradeValue を通している', /from '(\.\.\/)+utils\/tradeValue'/.test(chat))
 
   // 0.92 / 0.95 / 0.55 / 1.3 / 1.5 のべた書きが残っていないか
   for (const [label, pat] of [
@@ -262,7 +266,7 @@ console.log('\n[8] 年齢補正の段が1箇所にしかない')
   // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   const store = storeSource()
   const logic = logicSource()      // store＋engine。成長処理は engine へ移っている
-  const chatSrc = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
+  const chatSrc = chatSource()
   const gen = readFileSync(join('src', 'engine', 'playerGenerator.ts'), 'utf-8')
   // ★年齢係数は**移籍金の1本だけ**になった（CLAUDE.md「値段も1本」）。
   //   年俸には年齢係数を掛けない（衰えは年齢カーブでOVRが下がることだけで表す）ので、
