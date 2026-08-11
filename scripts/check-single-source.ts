@@ -590,6 +590,21 @@ RULES.push({
   allow: [],
   fix: '格で比べる（tierOf）。平均OVRは循環するので使わない',
 })
+// オフシーズンの4つの処理（解雇・CPU間移籍・トレード・レンタル）が
+// 「相手にするクラブ」を数えるところ。beginSeasonDraft の中だけで3回手書きされていた。
+RULES.push({
+  name: '国内CPUクラブの集め方を手書きしている',
+  pattern: /!==\s*'__pool__'[^\n]*domesticTeamIdSet|domesticTeamIdSet[^\n]*!==\s*'__pool__'/,
+  allow: ['src/utils/clubs.ts'],
+  fix: "utils/clubs.ts の domesticCpuTeamIds(players, teams, playerTeamId) を使う",
+})
+// 人数を減らすときに先に切る順。1軍23人ぶんと総在籍の上限ぶんで同じ式を書いていた。
+RULES.push({
+  name: '解雇の優先順位（年齢ペナルティ）を手書きしている',
+  pattern: /age\s*>\s*3[03]\s*\?\s*8\s*:\s*0/,
+  allow: ['src/store/slices/draftSlice.ts'],
+  fix: 'draftSlice.ts の byReleasePriority を使う',
+})
 RULES.push({
   name: 'トレードの釣り合いの直書き',
   pattern: /calcTransferValue\([^)]*\)\s*<=?\s*\w+\s*\*\s*1\.3|TRADE_MAX_RATIO\s*=\s*\d/,

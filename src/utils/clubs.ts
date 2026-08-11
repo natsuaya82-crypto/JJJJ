@@ -167,6 +167,30 @@ export function domesticTeamIdSet(teams: Team[] | null | undefined): Set<string>
   return s
 }
 
+/**
+ * **国内CPUクラブのID**（選手が実際に所属しているクラブだけ。自チームは含まない）。
+ *
+ * オフシーズンの処理（解雇・CPU間移籍・トレード・レンタル）が「相手にするクラブ」を
+ * 数えるときの唯一の入口。以前は同じ5条件の filter が `beginSeasonDraft` の中だけで
+ * 3回書かれていた。
+ *
+ * ★**並び順は「players の中で最初に出てきた順」**。呼び出し側はこの順に movePlayer を
+ *   走らせるので、順番が変わると誰が誰を獲るかが変わる。並べ替えないこと。
+ *
+ * `'__pool__'`（ドラフト候補）と `''`（無所属）は国内チームのIDではないので、
+ * `domesticTeamIdSet` を通す時点で自動的に外れる。
+ */
+export function domesticCpuTeamIds(
+  players: { teamId: string }[],
+  teams: Team[] | null | undefined,
+  playerTeamId: string,
+): string[] {
+  const domestic = domesticTeamIdSet(teams)
+  return [...new Set(
+    players.filter(p => p.teamId !== playerTeamId && domestic.has(p.teamId)).map(p => p.teamId)
+  )]
+}
+
 // 索引を作るほどでもない1回きりの検索用。中身は同じルール。
 export function findClub(
   teams: Team[] | null | undefined,

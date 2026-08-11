@@ -16,13 +16,25 @@ import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNu
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type Player, type TransferRecord } from '../../types'
 import { MAJOR_NEWS_OVR, tierBudget, tierOf, tierOfPlayerClub, tierStrength } from '../../utils/clubTier'
-import { allForeignClubs, bigClub, domesticTeamIdSet as domesticTeamIdSet_, findClub } from '../../utils/clubs'
+import { allForeignClubs, bigClub, domesticCpuTeamIds, findClub } from '../../utils/clubs'
 import { DIVISION_SIZE, divisionOf, draftRoundOf, joinsDraft, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { clubLabel, cpuSignedHeadline, draftPickSoldHeadline, initialNews, loanHeadline, seekPlayingTimeHeadline, transferHeadline, type NewsItem } from '../../utils/newsItems'
 import { calcTransferValue, faMarketSalary, ovr, perfOf, playerConsentToMove } from '../../utils/playerUtils'
 import { SPECIALTIES, needsPlayer, wouldMakeLineup } from '../../utils/squadNeeds'
 import { teamHistoriesOf } from '../../utils/teamHistory'
+
+/**
+ * CPUが人数を減らすときに**先に切る順**（前から切る）。
+ * 素のOVRではなく、31歳以上に−8、34歳以上にもう−8。同じOVRなら年上から切れる。
+ *
+ * 2箇所（1軍23人の超過ぶん・総在籍の上限超過ぶん）で同じ式を手書きしていたのを1本にした。
+ * ★安定ソートの前提で、同点は元の並び順のまま残る。渡す配列の順を変えないこと。
+ */
+const byReleasePriority = (a: Player, b: Player): number => {
+  const score = (p: Player) => ovr(p) - (p.age > 30 ? 8 : 0) - (p.age > 33 ? 8 : 0)
+  return score(a) - score(b)
+}
 
 type Slice = Pick<GameStore,
   'beginInauguralDraft' | 'playerPick' | 'cpuPick' | 'advanceDraft' | 'setDraftContract' | 'scoutDraftProspect' | 'initScoutPool' | 'generateDevProspects' | 'scoutDevProspect' | 'signDevProspect' | 'ensureFuturePicks' | 'sellDraftPick' | 'beginSeasonDraft'>
@@ -514,18 +526,13 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // CPU teams release declining/surplus players
     // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
     // ロスター概念の無い海外側との取引で国内名簿が壊れる）
-    const domesticTeamIdSet = domesticTeamIdSet_(state.teams)
     const cpuReleasedIds = new Set<string>()
     const releasedWorld = (() => {
       const releaseSet = new Set<string>()
       // 他チームから借りている選手は解雇できない（保有権が無い）。以前は対象に含まれていて、
       // 強制解雇でよそのクラブの選手をFAにしてしまっていた。返却はレンタル期間の処理に任せる。
       const isLoanedIn = (x: Player) => !!x.loan && x.loan.ownerTeamId !== x.teamId
-      const cpuTeamIds = [...new Set(
-        state.players
-          .filter(p => p.teamId !== state.playerTeamId && p.teamId !== '' && p.teamId !== '__pool__' && domesticTeamIdSet.has(p.teamId))
-          .map(p => p.teamId)
-      )]
+      const cpuTeamIds = domesticCpuTeamIds(state.players, state.teams, state.playerTeamId)
       for (const teamId of cpuTeamIds) {
         const roster = state.players.filter(x => x.teamId === teamId && x.status === 'active' && !isLoanedIn(x))
         const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + ovr(x), 0) / roster.length : 60
@@ -536,24 +543,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
         // Release surplus above 23（1軍登録上限）: penalise old players in sort
         const remaining = roster.filter(p => !releaseSet.has(p.id))
         if (remaining.length > 23) {
-          const sorted = [...remaining].sort((a, b) => {
-            const scoreA = ovr(a) - (a.age > 30 ? 8 : 0) - (a.age > 33 ? 8 : 0)
-            const scoreB = ovr(b) - (b.age > 30 ? 8 : 0) - (b.age > 33 ? 8 : 0)
-            return scoreA - scoreB
-          })
-          sorted.slice(0, remaining.length - 23).forEach(p => releaseSet.add(p.id))
+          [...remaining].sort(byReleasePriority).slice(0, remaining.length - 23).forEach(p => releaseSet.add(p.id))
         }
         // 総在籍（1軍+2軍・引退除く）が上限（30−ドラフト加入予定数）を超えるチームは
         // OVR下位から解雇して収める。既に膨らんだセーブもここを通れば毎年是正される
         const cpuCap = rosterCapFor(teamId)
         const totalRoster = state.players.filter(x => x.teamId === teamId && x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
         if (totalRoster.length > cpuCap) {
-          const sortedAll = [...totalRoster].sort((a, b) => {
-            const scoreA = ovr(a) - (a.age > 30 ? 8 : 0) - (a.age > 33 ? 8 : 0)
-            const scoreB = ovr(b) - (b.age > 30 ? 8 : 0) - (b.age > 33 ? 8 : 0)
-            return scoreA - scoreB
-          })
-          sortedAll.slice(0, totalRoster.length - cpuCap).forEach(p => releaseSet.add(p.id))
+          [...totalRoster].sort(byReleasePriority).slice(0, totalRoster.length - cpuCap).forEach(p => releaseSet.add(p.id))
         }
       }
       // 自チーム：シーズン中に整理しなかった超過分を、OVR下位から強制的にFAへ（警告で猶予を与えた上での最終処理）。
@@ -716,11 +713,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     {
       const tradedIds = cpuTransferIds
       const tradeCount: Record<string, number> = {}
-      const cpuIdsForTrade = [...new Set(
-        playersAfterCpuTransfer
-          .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId && domesticTeamIdSet.has(p.teamId))
-          .map(p => p.teamId)
-      )]
+      const cpuIdsForTrade = domesticCpuTeamIds(playersAfterCpuTransfer, state.teams, state.playerTeamId)
       for (const buyerId of cpuIdsForTrade) {
         if ((tradeCount[buyerId] ?? 0) >= 1) continue
         const buyRoster = playersAfterCpuTransfer.filter(p => p.teamId === buyerId && p.status === 'active')
@@ -775,11 +768,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     {
       const loanedIds = cpuTransferIds
       const loanYear = state.currentSeason.year + 1
-      const cpuIdsForLoan = [...new Set(
-        playersAfterCpuTransfer
-          .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId && domesticTeamIdSet.has(p.teamId))
-          .map(p => p.teamId)
-      )]
+      const cpuIdsForLoan = domesticCpuTeamIds(playersAfterCpuTransfer, state.teams, state.playerTeamId)
       const mainCount = (teamId: string) =>
         playersAfterCpuTransfer.filter(p => p.teamId === teamId && p.status === 'active' && !p.loan).length
       const givenLoan: Record<string, number> = {}
