@@ -1,5 +1,7 @@
-import type { Player, CardStatKey } from '../types'
+import type { Player, CardStatKey, Ratings } from '../types'
 import { peakAgeOf, getStatPotentials } from '../utils/playerUtils'
+import { withMorale } from '../utils/condition'
+import { tierGrowthRate, ANNUAL_BASE_EXP, type ClubTier } from '../utils/clubTier'
 
 // ── EXP システム（設計書準拠） ─────────────────────────────────────────────
 
@@ -170,4 +172,102 @@ export function applyGrowth(input: GrowthInput): GrowthOutcome {
   })
 
   return { ratings: r.ratings, exp: r.exp, gained, breakdown }
+}
+
+// ── 年次成長・自然老化（CPU・海外。gameStore から移設） ─────────────────────
+
+type RatingsKey = keyof Ratings
+
+function rnd(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function getPrimaryKey(specialty: string): RatingsKey {
+  if (specialty === 'sprinter') return 'speed'
+  if (specialty === 'mountain_up') return 'mountainUp'
+  if (specialty === 'mountain_down') return 'mountainDown'
+  if (specialty === 'ace') return 'pacing'
+  return 'stamina'
+}
+
+// growPlayer: 年齢増加・自然老化（ピーク後の衰え）＋加齢によるポテンシャル上限の減衰。
+// 自チームの成長はレース/カードEXPで行うため allowAnnualGrowth=false。
+// CPU/海外は allowAnnualGrowth=true で毎年ポテンシャル上限へ向けて成長させる（高数値ほど鈍化）。
+// 一律EXPを配る能力の一覧。自チーム（毎レース）とCPU（年1回）で同じものを使う。
+// 2つ持つと「片方は7能力に配る・もう片方は各能力へ丸ごと」のようにズレる（実際にズレていた）
+export const GROW_STAT_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
+export function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrowth: ClubTier = 20): Player {
+  const peakAge = peakAgeOf(p)
+  const nextAge = p.age + 1
+  const ageDiff = nextAge - peakAge
+  const ratings = { ...p.ratings }
+  const primary = getPrimaryKey(p.specialty)
+
+  // 加齢でポテンシャル上限自体が下がる。35歳以降は急に（37歳でエースが85のまま等を防ぐ）。
+  let potential = p.potential
+  if (nextAge >= 37) potential = Math.max(45, potential - 3)
+  else if (nextAge >= 35) potential = Math.max(45, potential - 2)
+  else if (ageDiff >= 1) potential = Math.max(50, potential - (ageDiff >= 6 ? 2 : 1))
+  const caps = getStatPotentials({ ...p, potential })  // 減衰後の上限で頭打ち
+
+  // CPU・海外の年次成長。自チームは毎レースの一律EXP＋カードで伸びるので、
+  // ここはCPU・海外だけが通る（allowAnnualGrowth）。
+  //
+  // カードが無いぶんをクラブの格の倍率（utils/clubTier.ts の tierGrowthRate）で埋める。
+  // 格1で3.0倍、格11以下は1.5倍。一律EXPは自チームと同じ ANNUAL_BASE_EXP。
+  // ★係数を2箇所に書かないこと。年齢カーブ（engine/ageCurve.ts）と
+  //   この倍率の2つだけで成長が決まる形にしてある。
+  if (allowAnnualGrowth) {
+    const rate = tierGrowthRate(clubTierForGrowth)
+    for (const stat of GROW_STAT_KEYS) {
+      const cur = ratings[stat]
+      const cap = caps[stat]
+      if (cur >= cap) continue
+      // 1年ぶんのEXPを7能力に配り、その能力の必要EXPで割ったぶんだけ上がる
+      const per = (ANNUAL_BASE_EXP * rate) / GROW_STAT_KEYS.length
+      const need = requiredExpForLevel(cur)
+      const gain = Math.floor(per / Math.max(1, need))
+      if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
+    }
+  }
+
+  // 衰え。35歳以降は絶対年齢で急激に落とす（37歳で85バリバリを防ぐ）。身体系を大きく、経験系はやや。
+  const PHYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'recovery']
+  if (nextAge >= 37) {
+    for (const s of PHYS) ratings[s] = Math.max(20, ratings[s] - rnd(3, 6))
+    ratings.mental = Math.max(20, ratings.mental - rnd(1, 3))
+    ratings.pacing = Math.max(20, ratings.pacing - rnd(1, 3))
+  } else if (nextAge >= 35) {
+    for (const s of PHYS) ratings[s] = Math.max(20, ratings[s] - rnd(2, 4))
+    ratings.mental = Math.max(20, ratings.mental - rnd(0, 2))
+    ratings.pacing = Math.max(20, ratings.pacing - rnd(0, 2))
+  } else if (ageDiff >= 4) {
+    // ピーク超過（35歳未満）：中程度の衰え。ピークから離れるほど加速する
+    // （33〜34歳の高OVRがほぼ落ちず「いつ衰えるねん」となる問題の対策）
+    const sev = ageDiff >= 6 ? 2 : 1
+    ratings[primary] = Math.max(20, ratings[primary] - rnd(1, 2) * sev)
+    if (Math.random() < 0.70) ratings.stamina = Math.max(20, ratings.stamina - rnd(1, 2) * sev)
+    if (Math.random() < 0.50) ratings.recovery = Math.max(20, ratings.recovery - sev)
+    if (Math.random() < 0.40) ratings.speed = Math.max(20, ratings.speed - sev)
+    if (Math.random() < 0.30) ratings.mountainUp = Math.max(20, ratings.mountainUp - sev)
+    if (Math.random() < 0.30) ratings.mountainDown = Math.max(20, ratings.mountainDown - sev)
+  } else if (ageDiff >= 1) {
+    // 初期衰え: 身体系がわずかに落ちるが経験でカバー
+    if (Math.random() < 0.30) ratings[primary] = Math.max(20, ratings[primary] - 1)
+    if (Math.random() < 0.20) ratings.stamina = Math.max(20, ratings.stamina - 1)
+    if (Math.random() < 0.35) ratings.mental = Math.min(caps.mental, ratings.mental + 1)
+    if (Math.random() < 0.30) ratings.pacing = Math.min(caps.pacing, ratings.pacing + 1)
+  }
+  // 成長期・ピーク前後: レース/カードEXPに委ねる（growPlayerでは変化なし）
+
+  return {
+    ...withMorale(p, 5),
+    age: nextAge,
+    yearsPro: p.yearsPro + 1,
+    ratings,
+    potential,
+    fatigue: 5,
+    form: 0,
+    contract: { ...p.contract, yearsLeft: Math.max(0, p.contract.yearsLeft - 1) },
+  }
 }

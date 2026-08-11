@@ -144,16 +144,17 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | 成長の幹 | `src/engine/growth.ts` の `applyGrowth` |
 | 倍率の枝 | 同ファイルの `ageExpMultiplier` / `potentialExpMultiplier` / `facilityExpMultiplier` / `nationalityExpMultiplier` |
 | EXPの計算 | 同ファイルの `processExpGains`（プレイヤー側） |
-| 年1回の成長 | `gameStore.ts` の `growPlayer`（CPU・海外） |
-| 初期生成の焼き込み | `playerGenerator.ts` の `bakeAgeGrowth` |
-| ランクから能力値を作る | `playerGenerator.ts` の `buildRatingsForRank`（生成4経路すべてがここを通る） |
+| 年1回の成長・自然老化 | `src/engine/growth.ts` の `growPlayer`（全選手の加齢・老化。CPU・海外はさらに年次成長） |
+| 年齢→OVRのカーブ | `src/engine/ageCurve.ts`（初期生成も値付けも見る唯一の表） |
+| ランクから能力値を作る | `playerGenerator.ts` の `buildRatingsForRank`（生成4経路すべてがここを通る。年齢ぶんは ageCurve から） |
 
-`ageMultiplier` / `growPlayer` / `bakeAgeGrowth` / `careerStage` は全部 `peakAgeOf` を呼びます。
+`ageMultiplier` / `growPlayer` / `careerStage` は全部 `peakAgeOf` を呼びます。
 **ピークの式を変えるときは `peakAgeOf` だけを触ってください。**
 
-成長速度そのもの（`rnd(1,3)` とピーク後3年の窓）は `growPlayer` と `bakeAgeGrowth` の
-2箇所に同じ係数があります。片方だけ変えると、初期生成と年次成長でカーブがずれます。
-どちらのコメントにも「必ず一緒に変えること」と書いてあります。
+成長速度は `ANNUAL_BASE_EXP × tierGrowthRate`（`utils/clubTier.ts`）の1本です。
+かつて年次成長（growPlayer）と初期生成（旧 bakeAgeGrowth）の2箇所に同じ係数が
+手書きされ「必ず一緒に変えること」と運用していましたが、年齢カーブ（`engine/ageCurve.ts`）
+への一本化で解消済み。**bakeAgeGrowth はもう存在しません**（復活させないこと）。
 
 ---
 

@@ -1295,7 +1295,6 @@ export function refreshForeignLeagues(
   return { newPlayers, updatedLeagues: leagues }
 }
 
-// 生成時に「年齢分の成長」を焼き込む（gameStoreのgrowPlayer年次成長と同じ式・同じレート）。
 /**
  * ランク・成長タイプ・年齢から「初期能力値とポテンシャル」を作る、ただ1つの場所。
  *
