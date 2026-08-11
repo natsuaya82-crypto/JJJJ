@@ -67,6 +67,16 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定 |
 | `src/utils/notifItems.ts` | 通知の中身の収集（ベルの数字と通知ページの内容を揃える） |
+| `src/engine/saleOfferGate.ts` | **買い取り打診を受けられるか**。承諾と逆提示が同じ関門を通る。**札を落とすかどうかも関門の答え**（呼ぶ側で決めない） |
+| `src/engine/tradeExecution.ts` | トレードの**物の動かし方**。`runTradeMoves` / `swapDraftPicks`。指名権は**同一性**で数える（同じ年・巡・順番が2つ並ぶのでキーの文字列で消すと別物が消える） |
+| `src/engine/tradeConsent.ts` | **トレードでもらう選手が首を縦に振るか**。`tradeRefuser` / `tradeConsentBonus`（1.2倍・+0.15）。ストア2箇所と画面1箇所に写しがあった |
+| `src/engine/cpuOffseason.ts` | **オフシーズンのCPUの市場**。`runCpuReleases` / `runCpuTransfers` / `runCpuTrades` / `runCpuLoans`。`beginSeasonDraft` の中に埋まっていた |
+| `src/engine/eventEffects.ts` | **シーズン中のイベントの効き目の表**（19種 × 最大3肢）。`EVENT_EFFECTS` / `applyEventChoice`。**表に無い肢＝何も起きない** |
+| `src/engine/timeTrial.ts` | **記録会の本体**。誰が走るか・順位・疲労・カード報酬・チーム歴代記録 |
+| `src/engine/timeTrialRecords.ts` | **記録会の歴代1位**。`updateBestRecord`（世界記録も日本記録も同じ1本。違うのは「誰を見るか」だけ）／`withEventBest` |
+| `src/utils/condition.ts` の `withGmRep` | **GMの評判の上下限**（0〜100）。**下限が0と1の2つあります**（`docs/BACKLOG.md` A-8・未決） |
+| `src/utils/clubs.ts` の `domesticCpuTeamIds` | **国内CPUクラブのID**。並び順が `movePlayer` を走らせる順になるので変えないこと |
+| `src/data/economy.ts` の `pickKeysValue` | 指名権の束の値段（トレードの入口3つが同じ数え方を通る） |
 | `src/utils/hash.ts` | **文字列→数値のハッシュ**。`strHash`。引退年齢・能力のゆらぎ・GM名・ロゴが全部これ |
 | `src/utils/condition.ts` | **士気と疲労の上げ下げ**。`withMorale` / `withFatigue` / `setMorale`（0〜100に収めるのと既定値はここだけ） |
 | `src/utils/playerUtils.ts` の `retirementAgeOf` | **引退年齢**（選手IDから決まる32〜40）。引退表明のニュースと実際の引退が同じ式 |
@@ -116,6 +126,37 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 
 人が気をつけるだけでは必ず再発するので、`scripts/check-single-source.ts` が機械的に見つけます。
 **新しく「唯一の決まり」を作ったら、その式が他所に現れないルールをここに1行足すこと。**
+
+#### 「緑になった」は「通った」の証拠になりません
+
+分解のたびに、**壊しても落ちない網**が見つかりました。3回とも形が同じです。
+
+| どこ | 緑のままだった理由 |
+|---|---|
+| CPU間トレード | 成立が0件なので、成立したあとの処理を1行も通っていない |
+| イベントの効き目 | 57件を1つの世界に流すとチーム全体の士気が+108積まれて100に張り付き、個々の差が消える |
+| 記録会のタイ記録 | タイムが連続値なので、その世界では同着が起きない |
+| 記録会の走者の絞り込み | 疲れた自チームの選手も、スカウト候補も、1人も居ない世界だった |
+
+**新しく網を張ったら、必ずその枝をわざと壊して落ちることを確かめること。** 落ちなければ、
+その網は何も守っていません。世界を1つ作って流す形（golden）が届かないところは、
+**1件ずつ別の世界を作る点検**を別に足します（`check-cpu-trade` / `check-event-effects` /
+`check-tt-records` がその形）。
+
+**挙動不変を主張するときは、分解前のコードをそのまま関数に写して総当たりで突き合わせること。**
+イベントは114通り、記録会の歴代1位は384通りを新旧比較しました。golden だけでは足りません。
+
+**golden を引き直すのは分解の「前」です。** 網を強くするために入力を変えるときは、
+先に分解前のコードで引き直し、そのあと分解を戻して差分ゼロを見ること。
+分解後に引き直すと、間違いごと焼き付きます。
+
+#### 大きさの歯止め（`check-size`）
+
+**上限は決めていません。「今日より増えたら落ちる」だけ**です（`scripts/fixtures/size-budget.json`）。
+「1ファイル300行まで」のような線は決めた瞬間に93ファイルが違反になり、全部が赤いルールは
+誰も直さずそのうち外されます。意図して増やすときは fixture を引き直してコミットするので、
+**増えたことが差分に残ります**。引き直しはこの点検だけを走らせること
+（`npm run check` ごと `UPDATE_GOLDEN=1` にすると他の golden まで引き直されます）。
 
 #### 点検の一覧は `scripts/run-checks.mjs` 1本
 
