@@ -5,6 +5,7 @@ import { recoverInjuredPlayers, rollRaceInjuries } from '../../engine/raceInjury
 import { applySegmentPBs } from '../../engine/segmentPB'
 import { generateAiTradeOffers } from '../../engine/aiTradeOffer'
 import { buildRaceNews } from '../../engine/raceNews'
+import { applyRaceFatigue } from '../../engine/raceFatigue'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -204,30 +205,10 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const racingIds = new Set(
         Object.values(lineups).flatMap(l => Object.values(l)).filter(Boolean) as string[]
       )
-      const stratMult = state.raceStrategy === 'aggressive' ? 1.4 : state.raceStrategy === 'conservative' ? 0.65 : 1.0
-      // 医療センターは各チームの施設Lvで疲労軽減（CPUも自チームの施設が効く）
-      const medLvByTeam = new Map(state.teams.map(t => [t.id, t.facilities?.medicalCenter ?? 0]))
-      const baseFatigueGain = Math.min(14, 4 + race.segments.length * 1.5) * stratMult
-      const updatedPlayers = state.players.map(p => {
-        // 引退選手は能力値を消してセーブを軽くしてあるので、疲労計算の対象外
-        if (!p.ratings || p.status === 'retired') return p
-        if (racingIds.has(p.id)) {
-          const medMult = 1 - (medLvByTeam.get(p.teamId) ?? 0) * 0.08
-          // recovery stat reduces fatigue gain: recovery=50→normal, recovery=90→-12%
-          const recoveryMult = 1.0 - (p.ratings.recovery - 50) * 0.003
-          const fatigueGain = Math.round(baseFatigueGain * medMult * Math.max(0.7, recoveryMult))
-          // 自然回復: 出場選手は毎レース疲労が6減る
-          return withFatigue(withFatigue(p, fatigueGain), -6)
-        } else if (p.status === 'injured') {
-          // Injured players recover 18 fatigue per race
-          const rested = withFatigue(p, -18)
-          return { ...rested, status: rested.fatigue < 40 ? 'active' as const : p.status }
-        } else {
-          // Resting players recover 12 fatigue per race (+ bonus from recovery rating)
-          const recoveryBonus = Math.round((p.ratings.recovery - 50) * 0.08)
-          return withFatigue(p, -16 - recoveryBonus)
-        }
-      })
+      // 疲労の増減は engine/raceFatigue 1本（医療センターはCPUにも効く）
+      const updatedPlayers = applyRaceFatigue({
+        players: state.players, racingIds, teams: state.teams,
+        raceStrategy: state.raceStrategy, segmentCount: race.segments.length })
 
       // ★順位別のレース賞金と観客収入は廃止した。クラブの収入は「格の年間予算」1本
       //   （data/economy.ts）。順位は翌年の格を通してのみ収入に効く。
