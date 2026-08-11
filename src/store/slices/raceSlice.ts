@@ -9,6 +9,7 @@ import { applyRaceFatigue } from '../../engine/raceFatigue'
 import { applyRaceProgress } from '../../engine/raceProgress'
 import { detectSegmentRecords } from '../../engine/raceRecords'
 import { settleCpuTransfers } from '../../engine/cpuTransfers'
+import { resolveExpiredOffers } from '../../engine/offerExpiry'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -31,9 +32,9 @@ import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { DIVISION_SIZE, divisionOf, domesticThroughRank, rankOfTeam, segmentPrizeByTeam } from '../../utils/league'
 import { type DepartureNotice, movePlayer } from '../../utils/movePlayer'
-import { awardHeadline, cpuSignedHeadline, freeTransferHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
+import { awardHeadline, cpuSignedHeadline, loanReplyHeadline, recordHeadline, retirementHeadline, segmentPrizeHeadline, transferHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, freeContactConsent, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
+import { faMarketSalary, getStatPotentials, keyPlayerStatus, ovr, perfOf, racesConsumed, retirementAgeOf, seasonAppearances, seasonPerfProfile } from '../../utils/playerUtils'
 import { keepSaleAnswers, saleAnswers } from '../../utils/saleAnswer'
 import { openWishIds } from '../../utils/talkSync'
 import { resolveBid } from '../../utils/transferBid'
@@ -329,49 +330,19 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       const existingListingsFiltered = (state.currentSeason.transferListings ?? []).filter(l => !cpuTxListingIds.has(l.id))
 
-      // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
-      // ※フリー移籍の接触（offeredPrice=0）は対象外：下の「本人決断」で処理する
-      const offerExpiredNegs: ExpiredNegotiation[] = []
-      const offerExpiredPlayerIds: string[] = [];
-      (state.currentSeason.incomingOffers ?? []).forEach(o => {
-        if (o.offeredPrice === 0) return
-        if (o.expiresAtRace <= nextClock) {
-          const pl = finalPlayers.find(p => p.id === o.playerId)
-          if (pl) {
-            offerExpiredNegs.push({ id: o.id, playerId: o.playerId, playerName: pl.name, kind: 'offer' })
-            offerExpiredPlayerIds.push(o.playerId)
-          }
-        }
-      })
+      // 期限が来た話の処理は engine/offerExpiry 1本
+      // （有料の打診＝失効通知／フリーの接触＝本人が決断。見る順番に意味がある）
+      const expiry = resolveExpiredOffers({
+        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        currentSeason: state.currentSeason, playerTeamId, nextClock, nextRaceIndex,
+        ranRaces: updatedRaces, raceDate: race.date,
+        destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
+      const offerExpiredNegs = expiry.expiredNegs
+      const offerExpiredPlayerIds = expiry.expiredPlayerIds
+      const freeDecisionNotices = expiry.freeDecisionNotices
+      const freeMoves = expiry.freeMoves
+      const freeMoveNews = expiry.freeMoveNews
 
-      // フリー移籍の接触：期限が来たら選手本人が決断する（GMは関与できない）。
-      // 移籍するかは本人の納得度（やる気・移籍先の順位・出場状況）で決まる
-      const freeDecisionNotices: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[] = []
-      const freeMoves: { playerId: string; toTeamId: string }[] = []
-      ;(state.currentSeason.incomingOffers ?? []).forEach(o => {
-        if (o.offeredPrice !== 0 || o.expiresAtRace > nextClock) return
-        const pl = finalPlayers.find(p => p.id === o.playerId)
-        const suitor = state.teams.find(t => t.id === o.fromTeamId)
-        if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
-        // 決断までに契約を更新できていれば残留確定（引き留め成功）。
-        // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）
-        const flApps = seasonAppearances(pl.id, updatedRaces)
-        const flFrac = flApps / Math.max(1, nextRaceIndex)
-        // 受け手が総在籍上限（30人）なら移籍は成立しない＝残留（31人化の防止）。
-        // 引退希望中の選手は移籍しない（引退か引き留めかの話であって、他クラブへは行かない）
-        const suitorSize = finalPlayers.filter(p => p.teamId === suitor.id && p.status === 'active').length
-        const isRetiringFl = (state.currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
-        const leaves = suitorSize >= 30 || isRetiringFl ? false
-          : pl.contract.yearsLeft > 1 ? false
-          : freeContactConsent(pl, get().destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, allTieredClubs(state.teams, state.foreignLeagues)), flFrac, nextRaceIndex)
-        freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
-        if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
-      })
-      const freeMoveNews = freeDecisionNotices.filter(n => n.left).map(n => ({
-        date: race.date,
-        headline: freeTransferHeadline({ playerName: n.playerName, toLabel: n.toTeamName }),
-        category: 'trade' as const,
-        relatedIds: [n.playerId] }))
       const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length)
 
       // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
