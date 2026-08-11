@@ -7,25 +7,38 @@ Capacitor で iOS アプリとして配信している。
 
 ## ⚠️ 最初に読むこと：作業ブランチ
 
-**開発の本体は `feature/world-athletics` です。`main` は使わないでください。**
+**開発の本体は `main` です。**（2026-08-11 に一本化。build 121 / v2.0.2 以降の本流は常に `main`）
 
-- `main` は `feature/world-athletics` より **200コミット以上遅れています**
-- 新しい作業は必ず `feature/world-athletics` から切ってください
-- `main` を基準にすると、既に解決済みの問題を「バグだ」と誤検出し、
-  既にある共通関数を二重に実装することになります（実際に起きました）
+かつて本流が `feature/world-athletics` → `claude/weekly-limit-issues-4kud0v` とブランチを
+渡り歩き、`main` が525コミット遅れていた時期がありました。その状態で古い `main` を監査して
+「解決済みの問題の再発見」「既にある共通関数の二重実装」が実際に起きています。
+一本化に伴い、取り込み済みの旧ブランチはすべて削除しました。
+
+**この事故を繰り返さないためのルール：**
+
+1. 新しい作業は必ず `origin/main` から切る
+2. 作業が終わったら `main` へ取り込む。**本流を作業ブランチに置いたまま次のブランチを
+   積み重ねないこと**（「どれが最新か誰にも分からない」が再発します）
+3. リモートに残しておくのは `main` と、いま進行中の作業ブランチだけ
 
 ```bash
 git fetch origin
-git checkout -b <作業ブランチ名> origin/feature/world-athletics
+git checkout -b <作業ブランチ名> origin/main
 ```
 
-現状を確認したいときは：
+`main` が最新か怪しいときは、全ブランチの先端日時を並べて確認：
 
 ```bash
-git rev-list --count origin/main..origin/feature/world-athletics   # 0 でなければ main は古い
+git fetch --prune origin && for b in $(git branch -r | grep -v HEAD); do \
+  echo "$(git log -1 --format='%ci' $b) $b"; done | sort -r   # mainが先頭に来ない場合は要確認
 ```
 
 Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入っても同じです。
+
+**大規模リファクタリングが進行中です。** 構造に手を入れる作業（store/engine の分割・移動・
+共通化）は、先に `docs/REFACTORING_DESIGN.md`（作業ブランチ
+`claude/code-refactoring-audit-wajp1i`、main 取り込み後はリポジトリ直下の docs/）を読んで、
+その計画に沿って進めること。
 
 ---
 
