@@ -144,7 +144,7 @@ console.log('\n[7] 再交渉はラウンド上限と更新ロックで止まる'
 
 // ---- ここからソースの検査（呼び出し側が自前で数え直していないか） ----
 const read = (...parts: string[]) => readFileSync(join(...parts), 'utf-8')
-// store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+// store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
 const store = storeSource()
 const notif = read('src', 'utils', 'notifItems.ts')
 // チャット画面も分割中（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る

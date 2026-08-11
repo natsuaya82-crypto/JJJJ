@@ -27,7 +27,7 @@ const check = (label: string, ok: boolean, detail = '') => {
   else console.log(`  ok  ${label}`)
 }
 
-// store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+// store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
 const store = storeSource()
 // チャット画面も分割中（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る
 const chat = chatSource()

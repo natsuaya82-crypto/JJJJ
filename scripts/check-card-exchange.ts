@@ -85,7 +85,7 @@ console.log('\n[4] まとめ変換は種類を指定しても効かない（ラ�
 
 console.log('\n[5] レートの手書きが復活していない')
 {
-  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   const store = storeSource()
   const page = readFileSync('src/components/training/CardConvertPage.tsx', 'utf-8')
   check('store は planExchange を呼ぶ', store.includes('planExchange('))

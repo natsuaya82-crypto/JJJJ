@@ -226,7 +226,7 @@ console.log('\n[8] 期限切れ通知の文言は種類から出す')
 
 console.log('\n[9] ストアが自前で判定を持っていない')
 {
-  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   const store = storeSource()
   check('入札の判定は resolveBid を呼ぶだけ', (store.match(/resolveBid\(/g) ?? []).length === 2, `${(store.match(/resolveBid\(/g) ?? []).length}箇所`)
   check('主力ガードの判定を入札処理で自前に書いていない', !store.includes("kStatus === 'locked'"))

@@ -337,7 +337,7 @@ console.log('\n[13] 札の片付けは store の set 1枚だけが呼ぶ（処�
 {
   // 点検は esbuild で CJS に束ねてから走らせるので import.meta.url が残らない（Invalid URL で落ちる）。
   // 他の点検と同じく、リポジトリ直下からの相対で読む
-  // store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+  // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   const src = storeSource()
   check('set のかぶせが store にある', src.includes('const set: SetGame = (partial) =>'))
   check('片付けを呼ぶ場所は store 全体で1つだけ',

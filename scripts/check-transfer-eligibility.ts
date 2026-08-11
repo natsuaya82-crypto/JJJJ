@@ -99,7 +99,7 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap(n => {
   const p = join(dir, n)
   return statSync(p).isDirectory() ? walk(p) : (/\.(ts|tsx)$/.test(n) ? [p] : [])
 })
-// store は分割済み（gameStore + slices）。本文は scripts/storeSource の1本から取る
+// store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
 const store = storeSource()
 // 生の読み取りが許されるのは「GMが本人と話して札を付け替える」処理だけ。
 // それ以外（オファー生成・入札・自動購入・トレード打診）は必ず transferEligibility を通す

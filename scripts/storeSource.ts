@@ -8,39 +8,71 @@
 //   （contract-talk / offer-result / transfer-eligibility / round-robin / card-exchange / talk-sync）。
 //
 //   ファイルの置き場所が変わるたびに6本を直して回るのは同じ事故の元なので、
-//   「store の本文」はここ1本から取る。**新しくスライスを足しても直す場所は無い**
+//   「store の本文」はここ1本から取る。**新しくファイルを足しても直す場所は無い**
 //   （ディレクトリを実際に数えるため）。
 //
+// ■範囲は `src/store` 以下**すべて**。除外は1件も置かない
+//   最初は `gameStore.ts` ＋ `slices/*.ts` だけを数えていた。**それが穴だった。**
+//   分解で `src/store` 直下にもファイルが増えていて（`marketOps.ts` 214行に
+//   `counterCeiling` と `tradeValueCtxOf` がある）、**どの点検からも見えていなかった。**
+//   「ディレクトリを実際に数えるから直す場所は無い」と書いてあるのに、
+//   数えているディレクトリが1つ足りない、という状態。
+//
+//   除外表（「loadingStore のような画面用の小さな store は外す」など）を置かなかったのは、
+//   **除外表そのものが「直す場所」だから**。ファイルが1本増えるたびに表を見直す運用に
+//   戻ってしまい、いま塞いだ穴と同じものがまた開く。45行の小さなストアを混ぜても
+//   誤検知しないことは下の突き合わせで確かめてある。
+//
+// ■範囲を広げるときは必ず突き合わせること（広げる＝判定が黙って強くなる）
+//   `!store.includes('bidThreshold(')` のような**否定の判定**は、範囲を広げた瞬間に
+//   「ここにも書くな」という**別の主張**へ黙って変わる（engine を混ぜなかったのと同じ危険）。
+//   広げる前と後で全点検の ok/NG を突き合わせた結果は次のとおり:
+//
+//     増えた NG … 0件（49本すべて同じ）
+//     消えた NG … 2件（trade-value の「ストアが tradeValue を通している」
+//                       「値付けの ctx が1箇所（tradeValueCtxOf）」＝どちらも marketOps.ts）
+//
+//   将来、`persistence/migrateSave.ts` のような「当時の形を凍らせておく」コードと
+//   否定の判定がぶつかったら、**範囲ではなく、その点検の側を狭めること。**
+//   範囲を削ると、そこに何が入っているかを誰も数えなくなる。
+//
 // ■注意
-//   返すのは全スライスを繋いだ1本の文字列。行番号は意味を持たない。
+//   返すのは全ファイルを繋いだ1本の文字列。行番号は意味を持たない。
+//   **相対パスを含む文字列で判定しないこと。** 深さの違うファイル（`gameStore.ts` と
+//   `slices/marketSlice.ts`）が混ざるので、`from '../utils/…'` を探す判定は
+//   繋いだ瞬間に嘘になる（どちらか片方にしか当たらない）。import を確かめたいなら
+//   `from '.*utils/tradeValue'` のように深さを問わない形にすること。
 //   「どのファイルに在るか」まで見たいときは storeFiles() を使うこと。
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join('src', 'store')
 
-/** store 本体と、その下のスライスのファイル一覧 */
-export function storeFiles(): string[] {
-  const out = [join(ROOT, 'gameStore.ts')].filter(existsSync)
-  const slices = join(ROOT, 'slices')
-  if (existsSync(slices)) {
-    for (const f of readdirSync(slices).sort()) {
-      if (f.endsWith('.ts')) out.push(join(slices, f))
-    }
+/** そのディレクトリ以下の .ts を全部（並びは固定。**下のディレクトリも数える**） */
+function tsFilesUnder(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  const out: string[] = []
+  for (const f of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const full = join(dir, f.name)
+    if (f.isDirectory()) out.push(...tsFilesUnder(full))
+    else if (f.name.endsWith('.ts')) out.push(full)
   }
   return out
 }
 
-/** store 本体＋全スライスを繋いだ本文 */
+/** `src/store` 以下の .ts すべて */
+export function storeFiles(): string[] {
+  return tsFilesUnder(ROOT)
+}
+
+/** store 以下を繋いだ本文 */
 export function storeSource(): string {
   return storeFiles().map(f => readFileSync(f, 'utf-8')).join('\n')
 }
 
-/** engine の全ファイル */
+/** `src/engine` 以下の .ts すべて（store と同じ数え方。いま下のディレクトリは無い） */
 export function engineFiles(): string[] {
-  const dir = join('src', 'engine')
-  if (!existsSync(dir)) return []
-  return readdirSync(dir).sort().filter(f => f.endsWith('.ts')).map(f => join(dir, f))
+  return tsFilesUnder(join('src', 'engine'))
 }
 
 /** engine を繋いだ本文 */
