@@ -1,6 +1,7 @@
 // race ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
+import { rollRaceInjuries } from '../../engine/raceInjury'
 import { domesticTeamIdSet as domesticTeamIdSet_, bigClub } from '../../utils/clubs'
 import { appendChatLog } from '../../utils/chatLog'
 import { myDivSize } from '../../utils/league'
@@ -407,27 +408,11 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         return { ...p, form: newForm, morale: newMorale, ratings: newRatings, exp: newExp, fatigue: withFatigue(p, planFatigueDelta).fatigue, ...careerUpdate }
       })
 
-      // Injury system: racers with high fatigue may get injured (CPUチームの選手も対象)
-      const INJURY_NAMES = ['ハムストリング肉離れ', 'ふくらはぎの肉離れ', '疲労骨折', 'アキレス腱炎', '足底筋膜炎', '膝の炎症', '腸脛靭帯炎', '股関節の炎症']
-      const injuryNewsItems: typeof state.currentSeason.newsFeed = []
-      const playersWithInjuries = finalPlayers.map(p => {
-        if (!racingIds.has(p.id) || p.status !== 'active') return p
-        const injuryChance = Math.max(0, (p.fatigue - 65) / 35 * 0.10)
-        if (Math.random() < injuryChance) {
-          const recoveryRaces = 2 + Math.floor(Math.random() * 2)
-          const injuryName = INJURY_NAMES[Math.floor(Math.random() * INJURY_NAMES.length)]
-          // ニュースとnoInjury目標のカウントは自チームのみ。CPUの故障はサイレントに発生
-          if (p.teamId === playerTeamId) {
-            injuryNewsItems.push({
-              date: race.date,
-              headline: injuryHeadline({ playerName: p.name, injuryName, races: recoveryRaces }),
-              category: 'injury' as const,
-              relatedIds: [p.id] })
-          }
-          return { ...p, status: 'injured' as const, injuredUntilRace: nextClock + recoveryRaces, injuryName }
-        }
-        return p
-      })
+      // 負傷判定は engine/raceInjury 1本（ニュースになるのは自チームだけ）
+      const injuries = rollRaceInjuries({
+        players: finalPlayers, racingIds, playerTeamId, nextClock, raceDate: race.date })
+      const playersWithInjuries = injuries.players
+      const injuryNewsItems = injuries.news
 
       // noInjury 目標：今レースの負傷者数を反映
       const updatedObjectives = baseObjectives.map(obj => {
