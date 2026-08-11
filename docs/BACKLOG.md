@@ -130,11 +130,17 @@ CLAUDE.md は「海外クラブの資金も本物。買えば減り、売れば�
 
 | ファイル | アクション数 | golden |
 |---|---|---|
-| `store/slices/marketSlice.ts` | 45 | **一部あり**（契約更新・買い取り／2026-08-11） |
-| `store/slices/draftSlice.ts` | 13 | **無し** |
+| `store/slices/marketSlice.ts` | 45 | **あり**（契約更新・買い取り・トレード・獲得オファー／2026-08-11） |
+| `store/slices/draftSlice.ts` | 13 | **あり**（2026-08-11） |
 | `store/slices/raceSlice.ts` の `resolveEvent` / `simulateIndividualEvent` | 2 | **無し** |
 
-**この3つを分解するときは、先に golden を足すこと。** いまの安全性はここまで届いていない。
+`済`（2026-08-11）：marketSlice と draftSlice には網を張った（golden 10本）。
+**残っているのは raceSlice の `resolveEvent` / `simulateIndividualEvent` だけ。**
+ここを分解するときは、先に golden を足すこと。
+
+網を作るときの注意は `docs/REFACTORING_DESIGN.md` 12-3。**枝を通っていない網は、緑でも
+何も守っていない。** トレードの網は最初に書いた版が「相手が手放すものに見合わない」で
+全部はじかれ、成立側を1行も通っていなかった（総当たりで組み合わせを数えて選び直した）。
 
 ### C-2. `load-v39` は実機のセーブが要る
 

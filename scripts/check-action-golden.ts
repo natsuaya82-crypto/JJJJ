@@ -45,7 +45,7 @@ import { generateSeasonRaces } from '../src/data/races'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { assignLineupByTerrain } from '../src/engine/raceEngine'
 import { stripEphemeral } from '../src/store/ephemeralState'
-import { calcTransferValue, ovr } from '../src/utils/playerUtils'
+import { calcTransferValue, faMarketSalary, ovr } from '../src/utils/playerUtils'
 import { draftPickValue } from '../src/data/economy'
 import { teamRosterSize } from '../src/data/rosterRules'
 import type { SeasonStanding, Team, Player, Race } from '../src/types'
@@ -368,6 +368,80 @@ SCENARIOS['draft-pick-sale'] = () => {
     const overpriced = g().sellDraftPick(keyOf(picks[1]), BUYER_OK, Math.round(draftPickValue(picks[1].round, picks[1].pickNumber) * 1.5))
     const cantAfford = g().sellDraftPick(keyOf(picks[2]), BUYER_POOR, 50_000_000)
     console.log(`      成立=${okResult} 価格超過で不成立=${!overpriced} 予算不足で不成立=${!cantAfford}`)
+  })
+}
+
+SCENARIOS['market-trade'] = () => {
+  console.log('[market-trade] トレードの打診→逆提示→承諾／相手からの打診を飲む・飲めない')
+  // marketSlice のトレード（proposeTrade 73 / acceptTradeCounter / tradePlayer 138 /
+  // acceptTradeOffer 103）。分解の前に張る網。
+  //
+  // ★**枝を通していることを出力で確かめること。** 最初に書いた版は
+  //   「相手が手放すものに見合わない」で全部はじかれ、成立側を1行も通っていなかった。
+  //   どの組み合わせがどの枝に落ちるかは総当たりで数えて選んである（釣り合いの判定は
+  //   utils/tradeValue なので、序列が1つ違うだけで枝が変わる）
+  const { players } = buildState('regular', 3)
+  const gg = () => useGameStore.getState()
+  const P1 = 'osaka', P2 = 'nagoya'
+  const byOvr = (teamId: string) => players.filter(p => p.teamId === teamId && p.status === 'active').sort((a, b) => ovr(b) - ovr(a))
+  const mine = byOvr(MY), t1 = byOvr(P1), t2 = byOvr(P2)
+  const at = (id: string) => gg().players.find(p => p.id === id)?.teamId
+  compare('market-trade', () => {
+    // 1) 相手から届いた打診を飲む（成立）と、飲めない打診（釣り合わない＝通知に残す）。
+    //    **先にこれをやる。** あとの proposeTrade で選手が動くと、要求された選手が
+    //    もう自分のところに居なくなり、成立の枝を通れなくなる
+    useGameStore.setState({ currentSeason: { ...gg().currentSeason, pendingTradeOffers: [
+      { id: 'tx-ok', fromTeamId: P2, offeredPlayerIds: [t2[3].id], requestedPlayerIds: [mine[1].id], expiresAtRace: 9, message: 'm' },
+      { id: 'tx-ng', fromTeamId: P2, offeredPlayerIds: [t2[15].id], requestedPlayerIds: [mine[2].id], expiresAtRace: 9, message: 'm' },
+    ] } } as never)
+    gg().acceptTradeOffer('tx-ok')
+    gg().acceptTradeOffer('tx-ng')
+    // 2) 打診 → 逆提示（「これも付けてくれ」）→ 承諾で成立
+    gg().proposeTrade(P1, [mine[0].id], [], [t1[0].id], [])
+    const neg = (gg().currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === P1)
+    const negStatus = neg?.status ?? '(無し)'
+    const demanded = neg?.demandAddIds?.length ?? 0
+    if (neg && neg.status === 'countered') gg().acceptTradeCounter(neg.id)
+    // 3) 話にならない条件（rejected の枝）：控え1人でエース2人を要求する
+    gg().proposeTrade(P2, [mine[19].id], [], [t2[0].id, t2[1].id], [])
+    const neg2 = (gg().currentSeason.tradeNegotiations ?? []).find(n => n.targetTeamId === P2)
+    console.log(`      飲んだ=${at(t2[3].id) === MY} 飲めなかった=${at(t2[15].id) === P2}`
+      + ` / 打診の返事=${negStatus}(要求追加${demanded}人) 成立=${at(t1[0].id) === MY}`
+      + ` / 話にならない打診=${neg2?.status ?? '(無し)'}`)
+  })
+}
+
+SCENARIOS['market-acquisition'] = () => {
+  console.log('[market-acquisition] 獲得オファー（FA・引き抜き／通る額と通らない額）')
+  // marketSlice の submitAcquisitionOffer（111行）。**4枝とも通す**。
+  //   FA で加入する／FAだが本人が納得しない（not_convinced）
+  //   引き抜きで加入する／額が足りない（low_offer）
+  // 「納得しない」は年俸をいくら積んでも変わらない（そのクラブで走れるかを見ているため）。
+  // 額で落とす枝は引き抜き側で作る
+  const { players } = buildState('regular', 3)
+  const gg = () => useGameStore.getState()
+  const byOvr = (teamId: string) => players.filter(p => p.teamId === teamId && p.status === 'active').sort((a, b) => ovr(b) - ovr(a))
+  const fas = byOvr('sapporo'), poach = byOvr('osaka')
+  const faOk = fas[0].id, faNo = fas[6].id           // 走れる／走れない
+  const poachOk = poach[6].id, poachLow = poach[12].id
+  // この世界には無所属が居ないので、2人だけ FA にする
+  useGameStore.setState({ players: gg().players.map(p => (p.id === faOk || p.id === faNo) ? { ...p, teamId: '' } : p) } as never)
+  const ask = (id: string) => Math.round(faMarketSalary(gg().players.find(p => p.id === id)!))
+  const offer = (id: string, src: 'fa' | 'scout', mult: number) => {
+    gg().startAcquisitionOffer(id, src)
+    const o = (gg().currentSeason.acquisitionOffers ?? []).find(x => x.playerId === id)
+    if (o) gg().submitAcquisitionOffer(o.id, Math.round(ask(id) * mult), 3, 'standard')
+  }
+  compare('market-acquisition', () => {
+    offer(faOk, 'fa', 1.0)
+    offer(faNo, 'fa', 2.5)
+    offer(poachOk, 'scout', 1.0)
+    offer(poachLow, 'scout', 0.4)
+    const st = (id: string) => {
+      const o = (gg().currentSeason.acquisitionOffers ?? []).find(x => x.playerId === id)
+      return `${o?.status ?? '(無し)'}${o?.rejectReason ? `/${o.rejectReason}` : ''}`
+    }
+    console.log(`      FA成立=${st(faOk)} FA不成立=${st(faNo)} 引き抜き成立=${st(poachOk)} 額不足=${st(poachLow)}`)
   })
 }
 
