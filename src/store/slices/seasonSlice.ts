@@ -486,7 +486,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const bonusTotalPayout = bonus.totalPayout
       const bonusPayoutNews = bonus.news
       const playerSegWinsSeason = bonus.playerSegWins
-      const leagueSegWinsSeason = bonus.leagueSegWins
       const leagueMvpId = bonus.leagueMvpId
 
       // 在籍選手の年俸を予算から控除。

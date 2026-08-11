@@ -24,20 +24,17 @@ export function settleBonusClauses(params: {
   totalPayout: number
   news: { date: string; headline: string; category: 'race'; relatedIds: string[] }[]
   playerSegWins: Record<string, number>
-  leagueSegWins: Record<string, number>
   leagueMvpId: string | undefined
 } {
   const { rosterIds: playerTeamRosterIds, currentSeason, playerTeamId, finalRank, seasonAward: newSeasonAward } = params
   const players = params.players
   // Count segment wins per player this season from race results
   const playerSegWinsSeason: Record<string, number> = {}
-  const leagueSegWinsSeason: Record<string, number> = {}
   for (const race of currentSeason.races) {
     if (!race.results) continue
     for (const seg of race.results.segmentResults) {
       const winner = seg.runners.find(r => r.rank === 1)
       if (winner) {
-        leagueSegWinsSeason[winner.playerId] = (leagueSegWinsSeason[winner.playerId] ?? 0) + 1
         if (winner.teamId === playerTeamId) {
           playerSegWinsSeason[winner.playerId] = (playerSegWinsSeason[winner.playerId] ?? 0) + 1
         }
@@ -69,5 +66,5 @@ export function settleBonusClauses(params: {
     }
   }
   const leagueMvpId = newSeasonAward.mvpId
-  return { totalPayout: bonusTotalPayout, news: bonusPayoutNews, playerSegWins: playerSegWinsSeason, leagueSegWins: leagueSegWinsSeason, leagueMvpId }
+  return { totalPayout: bonusTotalPayout, news: bonusPayoutNews, playerSegWins: playerSegWinsSeason, leagueMvpId }
 }
