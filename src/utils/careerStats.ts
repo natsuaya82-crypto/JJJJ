@@ -1,6 +1,7 @@
 import type { Race, Player, Nationality } from '../types'
 import { foreignAppsOf } from './playerUtils'
 import { seasonAwardsOf, type SeasonRacesLike } from './awards'
+import type { RanRace } from './raceHistory'
 
 // 選手の通算成績（通算出走数・通算区間賞・MVP回数）を、保存してあるレース結果から組み立てる。
 //
@@ -34,6 +35,8 @@ export type CareerSeasonLike = SeasonRacesLike & {
   foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
   foreignAppsC?: Record<string, Record<string, [number, number, number, number]>>
   awayAppearances?: Record<string, { races: number; wins: number }>
+  /** 出走ゼロだった年の国内所属（シーズン終了時に保存）。在籍履歴の穴埋めに使う */
+  zeroAppearances?: { playerId: string; teamId: string }[]
 }
 
 type Counts = { totalRaces: number; segmentWins: number }
@@ -97,6 +100,89 @@ export function foreignSeasonApps(s: CareerSeasonLike | undefined): Record<strin
     }
   }
   return out
+}
+
+export type HistComp = 'main' | 'second' | 'ecl' | 'foreign'
+export type HistoryRow = { year: number; teamId: string; comp: HistComp; races: number; wins: number; rankSum: number; rankedRaces: number }
+
+/** その選手の在籍履歴（年 × クラブ × 大会）を作る。PlayerSheet から移設 */
+export function buildPlayerHistory(params: {
+  playerId: string
+  playerTeamId: string
+  isRetired: boolean
+  ranRows: RanRace[]
+  pastSeasons: CareerSeasonLike[]
+  currentSeason: CareerSeasonLike
+  isForeignClub: boolean
+}): Map<string, HistoryRow> {
+  const { playerId, playerTeamId, isRetired, ranRows, pastSeasons, currentSeason, isForeignClub } = params
+  // 在籍履歴（移籍情報）集計：年 × teamId × 大会(1軍/リザーブ/ECL/海外) ごとに 出場数・区間賞数・平均区間順位。
+  // 表示は年×チームの親行に集約し、タップで大会別の内訳を開く
+  const historyMap = new Map<string, HistoryRow>()
+  const addHistory = (year: number, comp: HistComp, raceList: typeof currentSeason.races | undefined) => {
+    if (!raceList) return
+    for (const race of raceList) {
+      if (!race.results) continue
+      for (const sr of race.results.segmentResults) {
+        for (const runner of sr.runners) {
+          if (runner.playerId !== playerId) continue
+          const key = `${year}|${runner.teamId}|${comp}`
+          let row = historyMap.get(key)
+          if (!row) { row = { year, teamId: runner.teamId, comp, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 }; historyMap.set(key, row) }
+          row.races += 1
+          row.rankSum += runner.rank
+          row.rankedRaces += 1
+          if (runner.rank === 1) row.wins += 1
+        }
+      }
+    }
+  }
+  // ★在籍履歴も ranRows から積む。以前は currentSeason.races（自分の部の日程）だけを
+  //   数えていたので、**他の部のクラブの選手は出場0・区間賞0・平均「—」**のままだった。
+  //   大学駅伝と世界大会はこれまでどおり在籍履歴には積まない（所属クラブの成績ではない）。
+  for (const { year, league, race } of ranRows) {
+    const comp: HistComp | null = league.startsWith('JPEL') ? 'main'
+      : league === '2軍駅伝' ? 'second'
+      : league === 'ECL' ? 'ecl'
+      : null
+    if (comp) addHistory(year, comp, [race])
+  }
+  // 海外リーグの出場（国内レースには出ないので foreignAppearances から年×クラブで積む）
+  const addForeignHistory = (year: number, appMap: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }> | undefined) => {
+    const a = appMap?.[playerId]
+    if (!a || !a.clubId) return
+    const key = `${year}|${a.clubId}|foreign`
+    let row = historyMap.get(key)
+    if (!row) { row = { year, teamId: a.clubId, comp: 'foreign', races: 0, wins: 0, rankSum: 0, rankedRaces: 0 }; historyMap.set(key, row) }
+    row.races += a.races
+    row.wins += a.wins
+    // 区間順位はrankSum導入後の出場分だけ平均に使う（旧データは「—」のまま）
+    row.rankSum += a.rankSum ?? 0
+    row.rankedRaces += a.rankedRaces ?? 0
+  }
+  for (const ps of pastSeasons) addForeignHistory(ps.year, foreignSeasonApps(ps))
+  addForeignHistory(currentSeason.year, foreignSeasonApps(currentSeason))
+  // 出走ゼロだった年の国内所属（シーズン終了時に保存）からも行を埋める（0戦でも在籍は表示する）
+  for (const ps of pastSeasons) {
+    const z = (ps.zeroAppearances ?? []).find(e => e.playerId === playerId)
+    if (z) {
+      const key = `${ps.year}|${z.teamId}|main`
+      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, comp: 'main', races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
+    }
+  }
+  // 現行シーズンは未出場でも「今年・現チーム」を必ず1行出す（0レースで空にしない）。
+  // 引退選手は現行シーズンの所属が無い（teamId空）ので、引退後の年に空行を生やさない
+  if (!isRetired) {
+    const anyThisYear = [...historyMap.keys()].some(k => k.startsWith(`${currentSeason.year}|${playerTeamId}|`))
+    if (!anyThisYear) {
+      // 海外クラブ所属なら 'foreign'（＝所属リーグ表示）、国内なら 'main'（JPEL）。
+      // 以前ここが 'second'（リザーブ）だったため、1レースも走っていない選手の在籍履歴に
+      // **廃止済みの「JPELリザーブリーグ」** が出ていた（リザーブは migrate v30 で廃止）。
+      const ph: HistComp = isForeignClub ? 'foreign' : 'main'
+      historyMap.set(`${currentSeason.year}|${playerTeamId}|${ph}`, { year: currentSeason.year, teamId: playerTeamId, comp: ph, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
+    }
+  }
+  return historyMap
 }
 
 /** 1シーズンぶん（JPEL・ECL・海外リーグ）を足す */
