@@ -1,7 +1,6 @@
 // season ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
-import { domesticTeamIdSet as domesticTeamIdSet_ } from '../../utils/clubs'
 import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { INITIAL_TEAMS } from '../../data/teams'
@@ -11,13 +10,15 @@ import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
-import { type Division, type GameState, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
+import { type Division, type GameState, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
 import { applySeasonCareerRecords } from '../../engine/careerRecords'
 import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
+import { collectDepartures } from '../../engine/departureNotices'
 import { processForeignSeason } from '../../engine/foreignSeason'
+import { prepareSeasonArchive } from '../../engine/seasonArchivePrep'
 import { pruneSaveData } from '../../engine/savePruning'
 import { issueDraftPicks } from '../../engine/draftPicks'
 import { computePromotion } from '../../engine/promotion'
@@ -26,7 +27,7 @@ import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
 import { allTieredClubs, tierBudget, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
-import { findClub, foreignClubIdSet } from '../../utils/clubs'
+import { foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
 import { makeGmOffer, resignOffers } from '../../utils/gmOffer'
@@ -546,52 +547,20 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const removedPlayers = pruned.removedPlayers
       const cappedForeignLeagues = crossTx.foreignLeagues
 
-      // 自チームから居なくなった選手の退団通知（契約満了のFA流出・他クラブへの移籍）。
-      // ロスターから黙って消えるのを防ぐ。引退は別途セレモニー・ニュースがあるため除外
-      const departureClubName = (teamId: string) =>
-        findClub(state.teams, cappedForeignLeagues, teamId)?.shortName
-        ?? null
-      const departureNotices = state.players
-        .filter(p => p.teamId === state.playerTeamId && p.status !== 'retired')
-        .flatMap((oldP): { id: string; playerId: string; playerName: string; toTeamName: string; reason: 'transfer' | 'fa' }[] => {
-          const now = cleanedPlayers.find(p => p.id === oldP.id)
-          if (!now || now.status === 'retired' || now.teamId === state.playerTeamId) return []
-          const to = now.teamId === '' ? null : departureClubName(now.teamId)
-          return [{ id: `dep-${oldP.id}-${newYear}`, playerId: oldP.id, playerName: oldP.name, toTeamName: to ?? '', reason: to ? 'transfer' : 'fa' }]
-        })
-      // 退団（FA流出・移籍）を移籍履歴にも記録する（移籍ページの「出」に日付付きで出るように）
-      const departureRecords: TransferRecord[] = departureNotices.map(n => {
-        const now = cleanedPlayers.find(p => p.id === n.playerId)
-        return { year: newYear, date: `${state.currentSeason.year}-11-05`, playerId: n.playerId, fromTeamId: state.playerTeamId, toTeamId: now?.teamId ?? '', fee: 0, kind: 'free' as const }
-      })
+      // 退団のお知らせ（黙って消えるのを防ぐ）は engine/departureNotices 1本
+      const dep = collectDepartures({
+        before: state.players, cleanedPlayers, teams: state.teams, foreignLeagues: cappedForeignLeagues,
+        playerTeamId: state.playerTeamId, year: state.currentSeason.year, newYear })
+      const departureNotices = dep.notices
+      const departureRecords = dep.records
 
-      // 海外クラブ在籍で今季出場ゼロの選手にも0戦のエントリを埋めて保存する。
-      // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
-      const archivedForeignApps = { ...(state.currentSeason.foreignAppearances ?? {}) }
-      {
-        const foreignClubIds = foreignClubIdSet(state.foreignLeagues)
-        for (const p of state.players) {
-          if (!foreignClubIds.has(p.teamId)) continue
-          if (!archivedForeignApps[p.id]) archivedForeignApps[p.id] = { clubId: p.teamId, races: 0, wins: 0 }
-        }
-      }
-      // 過去シーズンの海外リーグ順位表は「合計ポイント」しか読まれない（チーム詳細の歴代成績・
-      // リーグ優勝回数）。1戦ごとの結果は今季ぶんだけ（直近フォーム・消化数）なので保存時に落とす。
-      // セーブ容量の節約：1シーズンあたり約120KB
-      const archivedForeignStandings = Object.fromEntries(
-        Object.entries(state.currentSeason.foreignStandings ?? {})
-          .map(([lid, st]) => [lid, st.map(s2 => ({ teamId: s2.teamId, totalPoints: s2.totalPoints, raceResults: [] }))]),
-      )
-      // 国内も同様：今季1度も出走しなかった在籍選手の所属を記録して保存（在籍履歴の空白防止）
-      const appearedIds = new Set<string>()
-      for (const race of [...state.currentSeason.races, ...(state.currentSeason.secondTeamRaces ?? [])]) {
-        if (!race.results) continue
-        for (const sr of race.results.segmentResults) for (const r of sr.runners) appearedIds.add(r.playerId)
-      }
-      const domesticTeamIds = domesticTeamIdSet_(state.teams)
-      const zeroAppearances = state.players
-        .filter(p => p.status === 'active' && domesticTeamIds.has(p.teamId) && !appearedIds.has(p.id))
-        .map(p => ({ playerId: p.id, teamId: p.teamId }))
+      // 今季の記録を保存する形に整える（出場0の選手も埋める）のは engine/seasonArchivePrep 1本
+      const arcPrep = prepareSeasonArchive({
+        currentSeason: state.currentSeason, before: state.players, teams: state.teams,
+        prevForeignLeagues: state.foreignLeagues ?? [] })
+      const archivedForeignApps = arcPrep.archivedForeignApps
+      const archivedForeignStandings = arcPrep.archivedForeignStandings
+      const zeroAppearances = arcPrep.zeroAppearances
 
       // 国内チームの名簿もteamId起点で毎年完全に同期する（海外クラブと同じ自動修復）。
       // 契約満了のFA化（teamId=''）や長期整理での選手削除がroster配列に残存し、
