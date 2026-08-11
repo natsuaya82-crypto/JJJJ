@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
@@ -908,7 +909,7 @@ export default function NotificationsPage() {
       )}
 
       {/* 受け取りました ポップ */}
-      {claimedGift && (
+      {claimedGift && createPortal((
         <div onClick={() => setClaimedGift(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
           <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.gold}`, borderRadius: 20, padding: 28, maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: `0 6px 0 ${alpha(C.gold, 0.35)}, 0 10px 40px ${alpha(C.gold, 0.25)}` }}>
             <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
@@ -918,7 +919,7 @@ export default function NotificationsPage() {
             <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, borderRadius: 12, background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   )
 }
