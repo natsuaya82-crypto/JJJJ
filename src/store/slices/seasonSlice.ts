@@ -5,7 +5,6 @@ import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { INITIAL_TEAMS } from '../../data/teams'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
-import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
@@ -18,6 +17,7 @@ import { applySeasonCareerRecords } from '../../engine/careerRecords'
 import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
 import { collectEventSeasonTops } from '../../engine/eventSeasonTops'
 import { settleSeasonObjectives } from '../../engine/seasonObjectives'
+import { catchUpAwayDivisions } from '../../engine/catchUpDivisions'
 import { collectDepartures } from '../../engine/departureNotices'
 import { processForeignSeason } from '../../engine/foreignSeason'
 import { prepareSeasonArchive } from '../../engine/seasonArchivePrep'
@@ -91,53 +91,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         try { get().advanceEclRace() } catch (e) { console.error('advanceEclRace failed', e); break }
       }
     }
-    // ── 他の部の残り日程を消化してから締める ─────────────────────────
-    // 裏の部（engine/domesticLeague）は「自分の部で何戦目か」で進むので、
-    // 自分の部のほうが戦数が少ないと他の部の日程が残ったままシーズンが終わる。
-    // 3部（7戦）で遊ぶと1部（10戦）は7戦しか走らず、順位表も昇降格も通算成績も
-    // 3戦ぶん足りない状態で確定していた。残りをここで全部走らせる。
-    set(state => {
-      const divRaces = state.currentSeason.divisionRaces
-      if (!divRaces) return state
-      const myDivision = divisionOf(state.teams.find(t => t.id === state.playerTeamId))
-      const doneRounds = state.currentSeason.races.length
-      const maxRounds = Math.max(...Object.values(divRaces).map(rs => rs.length))
-      if (maxRounds <= doneRounds) return state
-      let standings = state.currentSeason.standings
-      let catchUpSchedule = state.currentSeason.divisionRaces
-      const careerAdd: Record<string, { races: number; segWins: number }> = {}
-      const segPrize: Record<string, number> = { ...(state.currentSeason.seasonSegPrize ?? {}) }
-      for (let r = doneRounds; r < maxRounds; r++) {
-        const round = simulateAwayDivisions(
-          state.currentSeason.races[state.currentSeason.races.length - 1],
-          state.teams, state.players, myDivision, 1, divRaces, r,
-        )
-        // 順位表へ足すときの raceId は、その回に実際に走った部のコースを使う
-        const anyRace = DIVISIONS.map(d => (d === myDivision ? undefined : divRaces[d]?.[r])).find(Boolean)
-        if (!anyRace) continue
-        standings = applyAwayDivisionRound(standings, myDivision, round, anyRace)
-        // 走行記録も日程へ書き戻す（レース中の反映と同じ関数を通す）
-        catchUpSchedule = applyRacedToSchedule(catchUpSchedule, round.raced)
-        for (const [pid, v] of Object.entries(round.careerAdd)) {
-          const cur = careerAdd[pid] ?? { races: 0, segWins: 0 }
-          careerAdd[pid] = { races: cur.races + v.races, segWins: cur.segWins + v.segWins }
-        }
-        for (const [tid, v] of Object.entries(round.segPrize)) segPrize[tid] = (segPrize[tid] ?? 0) + v
-      }
-      const awayApps2: Record<string, { races: number; wins: number }> = { ...(state.currentSeason.awayAppearances ?? {}) }
-      for (const [pid, v] of Object.entries(careerAdd)) {
-        const cur = awayApps2[pid] ?? { races: 0, wins: 0 }
-        awayApps2[pid] = { races: cur.races + v.races, wins: cur.wins + v.segWins }
-      }
-      return {
-        currentSeason: { ...state.currentSeason, standings, divisionRaces: catchUpSchedule, seasonSegPrize: segPrize, awayAppearances: awayApps2 },
-        players: state.players.map(p => {
-          const add = careerAdd[p.id]
-          return add
-            ? { ...p, career: { ...p.career, totalRaces: p.career.totalRaces + add.races, segmentWins: p.career.segmentWins + add.segWins } }
-            : p
-        }) }
-    })
+    // 他の部の残り日程の消化は engine/catchUpDivisions 1本
+    // （自分の部の戦数が少ないと、他の部の日程が残ったままシーズンが終わる）
+    set(state => catchUpAwayDivisions({
+      currentSeason: state.currentSeason, teams: state.teams,
+      players: state.players, playerTeamId: state.playerTeamId }) ?? state)
     set(state => {
       const newYear = state.currentSeason.year + 1
 
