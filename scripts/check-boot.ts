@@ -13,9 +13,8 @@
  *   そのときも heavy のままにする）。
  *
  * ■走らせ方
- *   既定の `npm run check` では走りません（重いので）。
- *
- *     CHECK_HEAVY=1 npm run check
+ *   `npm run check` で走ります（1本で20秒ほどかかりますが、既定に入れています。
+ *   理由は run-checks.mjs の boot の項）。ブラウザが無い環境では「見送り」になります。
  *
  *   ブラウザの実行ファイルは run-checks.mjs が探して BOOT_CHROME で渡します。
  *   単体で走らせるときは自分で指定してください:
