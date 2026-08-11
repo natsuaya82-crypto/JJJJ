@@ -18,6 +18,7 @@ import type { Player } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { storeSource, logicSource, actionBody } from './storeSource'
+import { chatSource } from './uiSource'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -136,7 +137,8 @@ check('契約要求の生成（generateContractRequests）が isOwnedBy を通�
 check('スカウト（startAcquisitionOffer）が canBePoached を通る', has('startAcquisitionOffer', 'canBePoached'))
 const market = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')
 check('移籍市場の一覧も同じ判定で絞っている', market.includes('canBePoached'))
-const chat = readFileSync(join('src', 'components', 'team', 'ChatPage.tsx'), 'utf-8')
+// チャット画面も分割中（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る
+const chat = chatSource()
 check('チャットのトレード候補も同じ判定で絞っている', chat.includes('canTradeAway') && chat.includes('canBePoached'))
 
 console.log('\n[8] 引退を「承認したあと」も引退の話をしている扱いのまま')
