@@ -2,6 +2,17 @@
 
 作成日: 2026-08-11 / 対象バージョン: v1.0.8 (build 36)
 
+## 決定事項(2026-08-11 オーナー確認済み)
+
+| 論点 | 決定 |
+|---|---|
+| カウンター価格の係数 | **×1.3 に統一**(TransferPage方式: 50万円単位丸め・下限50万を正とする) |
+| 金額表示 | **「万」表示に統一**(億表示は使わない。例: 1.2億 → 12000万) |
+| 給与上限のズレ(交渉8000万/ドラフト6000万) | コード上に「1億」の上限は存在せず、1億は市場相場テーブルの最大値(OVR99→1億, playerUtils.ts:98)。ダイヤル上限をどうするかは**挙動変更になるためリファクタとは切り離し**、当面は現行値を定数名付きで維持 |
+| フレンド機能の下書き | **削除**(ルート済みの Coming Soon ページのみ残す) |
+| WECシミュレータ | **全削除**(wec-sim.html / wec-sim-entry.tsx / vite第2エントリ / WECSimPage / App.tsx の `/international/sim` ルート。アプリ内から遷移する導線も存在しない)。ゲーム内機能の世界駅伝(WorldEkidenPage)は対象外・存続 |
+| AchievementsPage / ForceUpdateModal / 旧ForeignClubDetailPage | **削除**(いずれも未使用) |
+
 ## 0. この文書の目的
 
 現在のコードは、機能追加を `src/store/gameStore.ts`(7,746行・144アクション)に積み増し続けた結果、
@@ -214,12 +225,12 @@ runRace: (raceId) => set(state => {
 
 | 重複 | 統一先 | 備考 |
 |---|---|---|
-| 金額フォーマット(17ファイル) | `utils/format.ts` の `formatMoney(yen)` | 億/万の閾値は現多数派実装(`>=1e8`で億)に統一 |
+| 金額フォーマット(17ファイル) | `utils/format.ts` の `formatMoney(yen)` | **「万」表示に統一**(決定済み。億表示は廃止) |
 | `formatTime` ×3(raceEngine L165 / gameStore `fmtTime` L7285 / eventTime `formatRaceTime` L24) | `utils/format.ts` の `formatTime(sec)` | 出力は3実装とも同一なので安全 |
 | フォント定数 `SAIRA`(73ファイル) | `styles/tokens.ts` に追加(既存の `C`/`R` の隣) | 機械的置換 |
 | 距離リテラル `5000\|10000\|21097\|42195`(8箇所) | `data/constants.ts`(既存 `utils/eventTime.ts` の `EVENT_DISTANCES` を昇格) | 型 `EventDistKey` と対で管理 |
-| 給与定数: ChatPage `SALARY_MAX` 8000万 vs DraftRoom `DC_SALARY_MAX` 6000万 | `data/constants.ts` に **用途別の名前で両方定義**(交渉上限 / ドラフト上限) | ⚠️ 値が違うのは仕様の可能性あり。**統一前にゲーム仕様として確認し、意図的なら名前で区別、事故なら片方に寄せる** |
-| カウンター価格係数: ChatPage×1.2 / TransferPage×1.3 / NotificationsPage×1.0 | `engine/negotiation.ts` の `counterPrice(context)` | 同上。文脈(FA/入札/引き抜き)ごとに意図された差か要判断 |
+| 給与定数: ChatPage `SALARY_MAX` 8000万 vs DraftRoom `DC_SALARY_MAX` 6000万 | `data/constants.ts` に **用途別の名前で両方定義**(`NEGOTIATION_SALARY_MAX` / `DRAFT_SALARY_MAX`) | 値の変更(例: 1億への引き上げ)はリファクタ完了後に別コミットで |
+| カウンター価格係数: ChatPage×1.2 / NotificationsPage×1.2 / TransferPage×1.3 | `engine/negotiation.ts` の `counterPrice(offeredPrice, player)` | **×1.3・50万円単位丸め・下限50万に統一**(決定済み)。フリー移籍(提示0円)は市場価値ベース |
 | `segmentType`(gameStore L7593)と `terrainLabel`(raceUtils L8) | `engine/race/` に1実装 | 同じ40/40/15閾値 |
 
 ---
@@ -240,13 +251,15 @@ runRace: (raceId) => set(state => {
 
 ---
 
-## 6. デッドコードの削除(最初にやる)
+## 6. デッドコードの削除(最初にやる・すべてオーナー承認済み)
 
 - `src/components/friends/` の未到達6ファイル(FriendListPage/FriendDetailPage/FriendSentPage/FriendReceivedPage/FriendClubPage/GmShareCard)+ `data/mockFriends.ts` + `store/previewStore.ts`
   ※ `FriendsPage.tsx`(Coming Soon 表示)自体はルートされているので残す
+- **WECシミュレータ一式**: `wec-sim.html` + `src/wec-sim-entry.tsx` + `vite.config.ts` の第2エントリ設定
+  + `components/international/WECSimPage.tsx` + `App.tsx` の `/international/sim` 分岐(L146–148)
+  ※ ゲーム内機能の `WorldEkidenPage`(世界駅伝)は**残す**
 - `components/records/AchievementsPage.tsx`(未ルート)
 - `components/teams/ForeignClubDetailPage.tsx`(TeamDetailPage に置換済み)
-- `wec-sim.html` + `src/wec-sim-entry.tsx` + `vite.config.ts` の第2エントリ設定
 - `ui/ForceUpdateModal`・未使用アイコン(`StatIcons` 全7点ほか)・`types/index.ts` の未使用型 約20個
 
 削除は1コミットにまとめ、`git revert` 一発で全部戻せるようにする。
