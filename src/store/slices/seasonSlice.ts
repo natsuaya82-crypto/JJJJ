@@ -20,6 +20,7 @@ import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards, seasonAwardsOf } from '../../utils/awards'
 import { computePromotion } from '../../engine/promotion'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
+import { settleBonusClauses } from '../../engine/bonusPayout'
 import { allTieredClubs, tierBudget, tierFromForeignRank, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { findClub, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
@@ -30,7 +31,7 @@ import { makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { gmCareerTotals, gmSeasonRanks, startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, domesticThroughRankOfTeam, myDivSize, newSeasonStandings, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
-import { type NewsItem, bonusPayoutHeadline, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
+import { type NewsItem, deficitPickPenaltyHeadline, divisionChampionHeadline, divisionsFoundedHeadline, dynastyHeadlines, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, ovr, packForeignApps, perfOf, retirementAgeOf } from '../../utils/playerUtils'
 import { clubMembersByClub, squadIdsOf } from '../../utils/rosterSync'
@@ -483,22 +484,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // teamsWithFA はこの playersAfterRetire から組み直したものなので、直接数えても同じ
       const playerTeamRosterIds = squadIdsOf(playersAfterRetire, state.playerTeamId)
 
-      // Count segment wins per player this season from race results
-      const playerSegWinsSeason: Record<string, number> = {}
-      const leagueSegWinsSeason: Record<string, number> = {}
-      for (const race of state.currentSeason.races) {
-        if (!race.results) continue
-        for (const seg of race.results.segmentResults) {
-          const winner = seg.runners.find(r => r.rank === 1)
-          if (winner) {
-            leagueSegWinsSeason[winner.playerId] = (leagueSegWinsSeason[winner.playerId] ?? 0) + 1
-            if (winner.teamId === state.playerTeamId) {
-              playerSegWinsSeason[winner.playerId] = (playerSegWinsSeason[winner.playerId] ?? 0) + 1
-            }
-          }
-        }
-      }
-
       // League MVP・新人王（選出ルールは utils/awards.ts に一元化。画面表示側と同じ実装を使う）
       const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year, divisionOf(state.teams.find(t => t.id === state.playerTeamId)))
 
@@ -525,31 +510,17 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           if (top.length > 0) newEventTops.push({ year: state.currentSeason.year, dist, top })
         }
       }
-      const leagueMvpId = newSeasonAward.mvpId
 
-      let bonusTotalPayout = 0
-      const bonusPayoutNews: { date: string; headline: string; category: 'race'; relatedIds: string[] }[] = []
-
-      for (const pid of playerTeamRosterIds) {
-        const p = playersAfterRetire.find(x => x.id === pid)
-        if (!p?.contract.bonusClauses?.length) continue
-        for (const clause of p.contract.bonusClauses) {
-          if (clause.type === 'champion' && finalRank === 1) {
-            bonusTotalPayout += clause.amount
-            bonusPayoutNews.push({ date: `${state.currentSeason.year}-10-26`, headline: bonusPayoutHeadline({ playerName: p.name, kind: 'champion', amount: clause.amount }), category: 'race', relatedIds: [p.id] })
-          } else if (clause.type === 'segment_win') {
-            const wins = playerSegWinsSeason[p.id] ?? 0
-            if (wins > 0) {
-              const payout = clause.amount * wins
-              bonusTotalPayout += payout
-              bonusPayoutNews.push({ date: `${state.currentSeason.year}-10-26`, headline: bonusPayoutHeadline({ playerName: p.name, kind: 'segment_win', amount: payout, count: wins }), category: 'race', relatedIds: [p.id] })
-            }
-          } else if (clause.type === 'mvp' && p.career.mvpAwards > 0) {
-            bonusTotalPayout += clause.amount
-            bonusPayoutNews.push({ date: `${state.currentSeason.year}-10-26`, headline: bonusPayoutHeadline({ playerName: p.name, kind: 'mvp', amount: clause.amount }), category: 'race', relatedIds: [p.id] })
-          }
-        }
-      }
+      // 出来高ボーナスの精算は engine/bonusPayout 1本（区間賞の集計も一緒に返る）
+      const bonus = settleBonusClauses({
+        players: playersAfterRetire, rosterIds: playerTeamRosterIds,
+        currentSeason: state.currentSeason, playerTeamId: state.playerTeamId,
+        finalRank, seasonAward: newSeasonAward })
+      const bonusTotalPayout = bonus.totalPayout
+      const bonusPayoutNews = bonus.news
+      const playerSegWinsSeason = bonus.playerSegWins
+      const leagueSegWinsSeason = bonus.leagueSegWins
+      const leagueMvpId = bonus.leagueMvpId
 
       // 在籍選手の年俸を予算から控除。
       // 集計元は state.players（契約満了・引退を処理する前）。playersAfterMorale だと
