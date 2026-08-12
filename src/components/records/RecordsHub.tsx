@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { gmCareerTitles } from '../../utils/teamHistory'
+import { gmCareerTitles, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, DIV_STAR, SAIRA, FONT } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
-import { rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { DIVISION_LABEL, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 
 
 export default function RecordsHub() {
@@ -17,7 +17,9 @@ export default function RecordsHub() {
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   // ★記録室は**監督の記録**。数え方は utils/teamHistory の gmCareerTitles 1本
   //   （ここに条件分岐で2通り書かないこと。RecordsPage と同じ答えを返す）
-  const championships = gmCareerTitles(pastSeasons, gmTenures, playerTeamId).total
+  // ★**部ごと**（オーナー・2026-08-12）。合計だと3部優勝と1部優勝が混ざる
+  const gmTitles = gmCareerTitles(pastSeasons, gmTenures, playerTeamId)
+  const championships = gmTitles.total
   const completedRaces = currentSeason.races.filter(r => r.results).length
   // 自分の部の中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
   const myStanding = rankOfTeam(seasonDivisionStandings(currentSeason, playerTeamId), playerTeamId)
@@ -132,12 +134,14 @@ export default function RecordsHub() {
             <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text }}>記録室</div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            {championships > 0 && (
-              <div style={{ padding: '4px 10px', borderRadius: '20px', background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.28)}`, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold }}>★</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>{championships}</span>
+            {/* ★**部ごとの札**にする。合計の★だけだと3部優勝も1部優勝も同じ見た目になる */}
+            {titleRows(gmTitles.titles).map(r => (
+              <div key={r.division} style={{ padding: '4px 10px', borderRadius: '20px', background: alpha(DIV_STAR[r.division], 0.12), border: `1px solid ${alpha(DIV_STAR[r.division], 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontSize: '9px', color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: DIV_STAR[r.division] }}>★</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', color: DIV_STAR[r.division], textShadow: `0 0 6px ${alpha(DIV_STAR[r.division], 0.5)}` }}>{r.count}</span>
               </div>
-            )}
+            ))}
             <div style={{ padding: '4px 10px', borderRadius: '20px', background: myStanding <= 3 ? alpha(C.green, 0.12) : C.surface2, border: `1px solid ${myStanding <= 3 ? alpha(C.green, 0.28) : C.border}`, display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ fontSize: '9px', color: C.textDim }}>現在</span>
               <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: myStanding <= 3 ? C.green : C.textSub, textShadow: myStanding <= 3 ? `0 0 6px ${alpha(C.green, 0.4)}` : 'none' }}>{myStanding > 0 ? myStanding : '—'}</span>

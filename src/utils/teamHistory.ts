@@ -1,5 +1,5 @@
 import type { SeasonStanding, Division } from '../types'
-import { DIVISIONS, rankedStandings, seasonDivisionStandings, rankOfTeam, standingsByDivision } from './league'
+import { DIVISIONS, divisionInSeason, rankedStandings, seasonDivisionStandings, rankOfTeam, standingsByDivision } from './league'
 import { makeTeamIdAt } from './gmTenure'
 import type { GmTenure } from '../types'
 
@@ -116,20 +116,30 @@ export function gmCareerTitles(
   pastSeasons: readonly SeasonStandingsLike[] | undefined,
   tenures: GmTenure[] | undefined,
   playerTeamId: string,
-): { byClub: { teamId: string; years: number[] }[]; total: number } {
+): {
+  byClub: { teamId: string; wins: { year: number; division: Division }[] }[]
+  /** **部ごとの合計。**画面はこちらを出す（合計だけだと3部優勝と1部優勝が混ざる） */
+  titles: Partial<Record<Division, number>>
+  total: number
+} {
   const at = makeTeamIdAt(tenures, playerTeamId)
-  const map = new Map<string, number[]>()
+  const map = new Map<string, { year: number; division: Division }[]>()
+  const titles: Partial<Record<Division, number>> = {}
   for (const s of pastSeasons ?? []) {
     const tid = at(s.year)
     // その年の**自分の部**の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
+    const div = divisionInSeason(s, tid)
+    if (div == null) continue
     if (rankOfTeam(seasonDivisionStandings(s, tid), tid) !== 1) continue
     const cur = map.get(tid) ?? []
-    cur.push(s.year)
+    cur.push({ year: s.year, division: div })
     map.set(tid, cur)
+    // ★**部ごとに積む**（オーナー・2026-08-12「全部部ごとに決まってるやろ」）
+    titles[div] = (titles[div] ?? 0) + 1
   }
-  const byClub = [...map.entries()].map(([teamId, years]) => ({ teamId, years: years.sort((a, b) => b - a) }))
-  byClub.sort((a, b) => (b.years[0] ?? 0) - (a.years[0] ?? 0))
-  return { byClub, total: byClub.reduce((n, c) => n + c.years.length, 0) }
+  const byClub = [...map.entries()].map(([teamId, wins]) => ({ teamId, wins: wins.sort((a, b) => b.year - a.year) }))
+  byClub.sort((a, b) => (b.wins[0]?.year ?? 0) - (a.wins[0]?.year ?? 0))
+  return { byClub, titles, total: byClub.reduce((n, c) => n + c.wins.length, 0) }
 }
 
 /**

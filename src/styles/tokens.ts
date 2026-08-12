@@ -119,3 +119,13 @@ export const TT_COLOR = '#5EC8B8'
 export const REST_ACCENT = '#5EC8B8'
 /** マイプレイヤー・合成まわりの紫 */
 export const PURPLE = '#A855F7'
+
+/**
+ * **部ごとの★の色。**1部＝金／2部＝銀／3部＝銅。
+ *
+ *   > 全部部ごとに決まってるやろ（オーナー・2026-08-12）
+ *
+ * 優勝の★を部で分けるときは必ずここから引く（画面ごとに色を決めない）。
+ * キーは Division だが、tokens が types に依存しないよう数値で持つ。
+ */
+export const DIV_STAR: Record<number, string> = { 1: C.gold, 2: '#9FB4CC', 3: '#7A6E58' }

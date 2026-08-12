@@ -6,7 +6,7 @@ import { liveName } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { gmCareerTitles, teamHistoryOf } from '../../utils/teamHistory'
+import { gmCareerTitles, teamHistoryOf, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
@@ -15,7 +15,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
+import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
@@ -234,8 +234,19 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, marginBottom: '8px' }}>まだ優勝なし — 頂点を目指せ</div>
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>
-            {championships}回
+          {/* ★合計ではなく**部ごと**（オーナー・2026-08-12「全部部ごと」）。
+              1部優勝と3部優勝を足すと、どちらの記録なのか分からなくなる */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+            {titleRows(gmTitles.titles).map(r => (
+              <div key={r.division} style={{ display: 'flex', gap: 3, alignItems: 'baseline' }}>
+                <span style={{ fontSize: 10, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{r.count}</span>
+                <span style={{ fontSize: 10, color: C.textDim }}>回</span>
+              </div>
+            ))}
+            {championships === 0 && (
+              <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.textDim }}>0回</span>
+            )}
           </div>
           {/* ★**どのクラブで優勝したか**を書く（オーナー・2026-08-12）。
               記録室は監督の記録なので、クラブが変われば優勝もクラブごとに分かれる。 */}
@@ -244,8 +255,12 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
               {gmTitles.byClub.map(c => (
                 <div key={c.teamId}>
                   <span style={{ fontWeight: 800, color: C.text }}>{teams.find(t => t.id === c.teamId)?.shortName ?? '—'}</span>
-                  <span style={{ marginLeft: 6 }}>{c.years.length}回</span>
-                  <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>{c.years.join(' / ')}</span>
+                  {/* ★**部ごとに出す**（オーナー・2026-08-12）。同じクラブでも
+                      1部優勝と3部優勝は別の話なので、年の横に部を付ける */}
+                  <span style={{ marginLeft: 6 }}>{c.wins.length}回</span>
+                  <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>
+                    {c.wins.map(w => `${DIVISION_LABEL[w.division]}${w.year}`).join(' / ')}
+                  </span>
                 </div>
               ))}
             </div>

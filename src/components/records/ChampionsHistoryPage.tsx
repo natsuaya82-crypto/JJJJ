@@ -14,12 +14,9 @@ import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, DIV_STAR, SAIRA } from '../../styles/tokens'
 import { DIVISION_LABEL, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 
-
-// 部ごとの★の色。1部は金、下の部ほど落とす（同じ金にすると部の違いが消える）
-const DIV_STAR: Record<Division, string> = { 1: C.gold, 2: '#9FB4CC', 3: '#7A6E58' }
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
 const OVERALL = '__overall__'   // 総合優勝を表す特別なraceName
