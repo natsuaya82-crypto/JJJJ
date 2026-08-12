@@ -512,7 +512,11 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
 }
 
 // 監督を自分から辞める。押すと行き先の候補が届く（ホームに OFFER として出る）。
-// シーズン途中でも押せて、受けたその日から新しいクラブを指揮する。
+//
+// ★**就任は次のシーズンから**（オーナー判断★13・2026-08-12「次シーズンの開始になるからね」）。
+//   受けた時点では `pendingGmMove` に予約が入るだけで、実際に入れ替わるのは
+//   `endSeason` が来季を組み立てたあと。**受けたら取り消せない**（★13-a）ので、
+//   予約が入っている間はこの画面から退任できない。
 //
 // ★在任が短いうちは押せない（utils/gmOffer の GM_RESIGN_MIN_TENURE）。
 //   **残り年数をここで計算しないこと。**判定も文言の元になる数も canResignAsGm 1本から取る
@@ -522,6 +526,8 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
   const myTeam = useGameStore(s => s.teams.find(t => t.id === s.playerTeamId))
   const gmTenures = useGameStore(s => s.gmTenures)
   const year = useGameStore(s => s.currentSeason.year)
+  const booked = useGameStore(s => s.pendingGmMove)
+  const bookedTeam = useGameStore(s => s.teams.find(t => t.id === s.pendingGmMove?.teamId))
   const gate = canResignAsGm(gmTenures, year)
   const [done, setDone] = useState(false)
   return (
@@ -532,7 +538,12 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
         ・<strong style={{ color: C.text }}>殿堂入りチームだけ</strong>は持っていきます（選手・予算・施設は移籍先のもの）<br />
         ・全部断ると無職のまま。次のシーズンにまた声がかかります
       </div>
-      {done ? (
+      {booked ? (
+        <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center', lineHeight: 1.8 }}>
+          {booked.year}シーズンから<strong style={{ color: C.text }}>{bookedTeam?.name ?? '新クラブ'}</strong>の監督に就任します。<br />
+          今季は{myTeam?.shortName ?? '現在のクラブ'}の監督として最後まで指揮してください。
+        </div>
+      ) : done ? (
         <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
           打診が届きました。ホームで確認してください。
         </div>

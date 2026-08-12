@@ -32,7 +32,7 @@ import { allTieredClubs, tierBudget, tierOf, tierOfClubId, tierOfPlayerClub } fr
 import { foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
-import { canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
+import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
@@ -46,6 +46,82 @@ import { writeSeasonArchive } from '../seasonArchive'
 
 type Slice = Pick<GameStore,
   'startRegularSeason' | 'initObjectivesIfEmpty' | 'endSeason' | 'acceptGmOffer' | 'declineGmOffer' | 'resignAsGm'>
+
+/**
+ * **指揮するクラブを入れ替える。移る処理はこの1本だけ。**
+ *
+ * 通る入口は2つあるが、やることは同じ。
+ *   ① `acceptGmOffer` … シーズン終わりに向こうから届いたオファーを受けたとき（もう来季）
+ *   ② `endSeason`     … 自分から退任して**来季から**と決まっていたのが実行されるとき
+ *
+ * ★呼ぶ側で「どっちの入口か」を書き分けないこと。以前ここが `acceptGmOffer` の中に
+ *   直接書いてあったので、来季からの就任を足すときに2本目を書く形になっていた。
+ *
+ * ★渡す `state` は**入れ替えたあとの世界の土台**。`endSeason` から呼ぶときは、
+ *   来季を組み立て終えた状態（`{ ...state, ...next }`）を渡すこと。
+ *   予算・目標・スカウトP は `offer` が持っているものへ差し替えるので、
+ *   **`offer` は移る直前の数字で作り直す**（`buildOffer` を endSeason 側で呼び直す）。
+ */
+function applyGmMove(state: GameStore, offer: GmOffer): Partial<GameStore> {
+  const oldTeamId = state.playerTeamId
+  // 監督名は人について回る。前のチームには元のGM名を戻す
+  const myGmName = state.teams.find(t => t.id === oldTeamId)?.gmName
+    ?? state.setupData?.gmName ?? '監督'
+  const oldOriginalGm = INITIAL_TEAMS.find(t => t.id === oldTeamId)?.gmName ?? '新監督'
+  const teams = state.teams.map(t => {
+    if (t.id === offer.teamId) return { ...t, isPlayerControlled: true, gmName: myGmName }
+    if (t.id === oldTeamId) return { ...t, isPlayerControlled: false, gmName: oldOriginalGm }
+    return t
+  })
+  // 移籍方針（非売・貸出歓迎）は監督が付けた指示。CPUに戻るチームに残すと
+  // 「絶対に売られない選手」がずっと居座って移籍市場が固まるので外す
+  const players = state.players.map(p => (
+    p.teamId === oldTeamId && (p.noSale || p.loanListed || p.transferListed)
+      ? { ...p, noSale: false, loanListed: false, transferListed: false }
+      : p
+  ))
+  // ECLの「どれが自チームか」の印は前季の終わりに焼き付けてある。
+  // 移籍したらここを付け替えないと、来季のECLで前のチームが自チーム扱いになり
+  // オーダーを組む相手と自動シミュの対象がずれる
+  const ecl = state.currentSeason.eclSeries
+  const eclSeries = ecl
+    ? { ...ecl, participants: ecl.participants.map(pt => ({ ...pt, isPlayerTeam: pt.id === offer.teamId })) }
+    : ecl
+  return {
+    playerTeamId: offer.teamId,
+    teams,
+    players,
+    gmOffers: [],
+    // 予約は使い切る（残すと毎年ここへ来る）
+    pendingGmMove: null,
+    // 前のチームのオーダーは「前回のオーダー」として残さない
+    lastRaceLineup: {},
+    gmTenures: startTenure(state.gmTenures, offer.teamId, offer.year, oldTeamId),
+    // 移籍先が因縁のチームだったらライバル設定は解除する
+    rivalTeamId: state.rivalTeamId === offer.teamId ? null : state.rivalTeamId,
+    seasonBudgetNotice: { year: offer.year, budget: offer.budget },
+    currentSeason: {
+      ...state.currentSeason,
+      eclSeries,
+      initialBudget: offer.budget,
+      seasonGrant: offer.budgetBreakdown.grant,
+      budgetBreakdown: offer.budgetBreakdown,
+      scoutPoints: offer.scoutPoints,
+      // 目標は移籍先の部の人数と、その部での前季順位で引き直す。
+      // 52を渡すと「52チーム中◯位」の目標になり、16チームの部では達成不能になる
+      objectives: selectSeasonObjectives(
+        state.rivalTeamId === offer.teamId ? false : !!state.rivalTeamId,
+        offer.divisionSize ?? myDivSize(state),
+        offer.prevRank,
+      ),
+      // ★日程は移籍先の部のものへ差し替える。3部から1部へ移ったのに3部の日程のままだと
+      //   走る本数（10／8／7）も相手も食い違う。部ごとの日程は divisionRaces に入っている
+      races: state.currentSeason.divisionRaces?.[divisionOf(teams.find(t => t.id === offer.teamId))]
+        ?? state.currentSeason.races,
+      trainingAssignments: {},
+      scoutMissions: [] },
+    raceLineup: {} }
+}
 
 export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -547,7 +623,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 他チームから監督の声がかかるか。来季の予算と評判が決まったあとに判定する。
       // 出るのは1シーズンに最大1件で、答えるまでホームに出続ける（utils/gmOffer.ts）
-      const gmOffer = makeGmOffer({
+      //
+      // ★**来季の行き先が決まっているときは出さない**（★13-b）。受けたら取り消せない以上、
+      //   受けられない話をホームに並べても選べないだけ。
+      const gmOffer = state.pendingGmMove ? null : makeGmOffer({
         season: state.currentSeason,
         playerTeamId: state.playerTeamId,
         finalRank,
@@ -574,7 +653,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           archivedYears: [...new Set([...(st.archivedYears ?? []), archivedThisSeason.year])] }))
       })
 
-      return {
+      const next: Partial<GameStore> = {
         players: playersWithBackfill,
         removedPlayers,
         teams: syncedTeams,
@@ -677,6 +756,24 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
             ...growthNews,
             ...sponsorNews,
           ] } }
+
+      // ★**来季から指揮すると決まっていたクラブへ、ここで移る**（★13）。
+      //   今季ぶんは旧チームの監督として全部処理し終えているので（★13-c）、
+      //   進行中の用件は上で組み立てた「来季の器」がそのまま新チームのものになる。
+      //   **移る処理は applyGmMove 1本**（受けたその場で移る経路と同じものを通す）。
+      const booked = state.pendingGmMove
+      if (!booked || booked.year !== newYear) return next
+      const moved: GameStore = { ...state, ...next } as GameStore
+      const destTeam = syncedTeams.find(t => t.id === booked.teamId)
+      if (!destTeam) return { ...next, pendingGmMove: null }
+      // ★お金と順位は**移る直前の数字で作り直す**。予約したときの額をそのまま使うと、
+      //   1シーズンぶん古い予算で就任してしまう
+      const freshOffer = buildOffer({
+        teamId: booked.teamId, kind: 'promotion',
+        season: { ...state.currentSeason },
+        teams: syncedTeams, nextBudgets: cpuNextBudgets,
+        nextYear: newYear, objBonus: 0, finalRank })
+      return { ...next, ...applyGmMove(moved, freshOffer) }
     })
   },
 
@@ -688,59 +785,18 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!offer) return {}
       const dest = state.teams.find(t => t.id === offer.teamId)
       if (!dest) return { gmOffers: [] }
-      const oldTeamId = state.playerTeamId
-      // 監督名は人について回る。前のチームには元のGM名を戻す
-      const myGmName = state.teams.find(t => t.id === oldTeamId)?.gmName
-        ?? state.setupData?.gmName ?? '監督'
-      const oldOriginalGm = INITIAL_TEAMS.find(t => t.id === oldTeamId)?.gmName ?? '新監督'
-      const teams = state.teams.map(t => {
-        if (t.id === offer.teamId) return { ...t, isPlayerControlled: true, gmName: myGmName }
-        if (t.id === oldTeamId) return { ...t, isPlayerControlled: false, gmName: oldOriginalGm }
-        return t
-      })
-      // 移籍方針（非売・貸出歓迎）は監督が付けた指示。CPUに戻るチームに残すと
-      // 「絶対に売られない選手」がずっと居座って移籍市場が固まるので外す
-      const players = state.players.map(p => (
-        p.teamId === oldTeamId && (p.noSale || p.loanListed || p.transferListed)
-          ? { ...p, noSale: false, loanListed: false, transferListed: false }
-          : p
-      ))
-      // ECLの「どれが自チームか」の印は前季の終わりに焼き付けてある。
-      // 移籍したらここを付け替えないと、来季のECLで前のチームが自チーム扱いになり
-      // オーダーを組む相手と自動シミュの対象がずれる
-      const ecl = state.currentSeason.eclSeries
-      const eclSeries = ecl
-        ? { ...ecl, participants: ecl.participants.map(pt => ({ ...pt, isPlayerTeam: pt.id === offer.teamId })) }
-        : ecl
-      return {
-        playerTeamId: offer.teamId,
-        teams,
-        players,
-        gmOffers: [],
-        // 前のチームのオーダーは「前回のオーダー」として残さない
-        lastRaceLineup: {},
-        gmTenures: startTenure(state.gmTenures, offer.teamId, offer.year, oldTeamId),
-        // 移籍先が因縁のチームだったらライバル設定は解除する
-        rivalTeamId: state.rivalTeamId === offer.teamId ? null : state.rivalTeamId,
-        seasonBudgetNotice: { year: offer.year, budget: offer.budget },
-        currentSeason: {
-          ...state.currentSeason,
-          eclSeries,
-          initialBudget: offer.budget,
-          seasonGrant: offer.budgetBreakdown.grant,
-          budgetBreakdown: offer.budgetBreakdown,
-          scoutPoints: offer.scoutPoints,
-          // 目標は移籍先の前季順位で引き直す
-          // 目標は移籍先の部の人数と、その部での前季順位で引き直す。
-          // 52を渡すと「52チーム中◯位」の目標になり、16チームの部では達成不能になる
-          objectives: selectSeasonObjectives(
-            state.rivalTeamId === offer.teamId ? false : !!state.rivalTeamId,
-            offer.divisionSize ?? myDivSize(state),
-            offer.prevRank,
-          ),
-          trainingAssignments: {},
-          scoutMissions: [] },
-        raceLineup: {} }
+      // ★**就任するのは来季**（オーナー判断★13・2026-08-12「次シーズンの開始になるからね」）。
+      //   分岐の材料は「そのオファーが何年のものか」1つだけ。
+      //     ・自分から退任して届いた打診 … offer.year は来季 → **予約するだけ**。
+      //       入れ替わるのは endSeason が来季を組み立てたあと（applyGmMove）
+      //     ・シーズン終わりに向こうから届くオファー … 答える時点でもう来季に入っている
+      //       （endSeason が year を進めたあとに出る）ので offer.year === 今季 → その場で入れ替える
+      //   **「退任からの話かどうか」で分けないこと。**それだと入口が増えるたびに分岐が増える
+      if (offer.year > state.currentSeason.year) {
+        // ★受けたら取り消せない（★13-a）。gmOffers を空にして予約だけ残す
+        return { gmOffers: [], pendingGmMove: { teamId: offer.teamId, year: offer.year } }
+      }
+      return applyGmMove(state, offer)
     })
   },
 
@@ -749,11 +805,18 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
 
   // 自分から退任する（設定から）。行き先の候補が一度に届く。
-  // シーズン途中でも押せて、受けたその日から新しいクラブを指揮する。
+  //
+  // ★**就任するのは来季**（オーナー判断★13・2026-08-12「次シーズンの開始になるからね」）。
+  //   打診はその場で届くが、受けても動くのは `pendingGmMove` に予約が入るところまで。
+  //   実際に入れ替わるのは `endSeason` が来季を組み立てたあと。
+  //   **ここで渡す年を今季に戻さないこと**（`scripts/check-gm-resign.ts` が見張る）。
+  //
   // 声がかかるかの抽選はしない（辞めると決めた以上、行き先0件では詰むため）。
   resignAsGm: () => {
     set(state => {
       if ((state.gmOffers ?? []).length > 0) return {}   // すでに届いている
+      // ★受けたら取り消せない（★13-a）。来季の行き先が決まっている間は押せない
+      if (state.pendingGmMove) return {}
       // 在任が短いうちは辞められない（utils/gmOffer の GM_RESIGN_MIN_TENURE）。
       // ★止めるのは**入口**。resignOffers 側で0件を返す形にはしないこと——
       //   あちらは「辞めると決めた以上、行き先0件では詰む」ので抽選をしない設計なので、
@@ -772,7 +835,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         season: state.currentSeason,
         playerTeamId: state.playerTeamId,
         finalRank: rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId),
-        nextYear: state.currentSeason.year,
+        // ★来季（＋1）。就任は次のシーズン開始時（★13）
+        nextYear: state.currentSeason.year + 1,
         teams: state.teams,
         nextBudgets,
         rng: Math.random,

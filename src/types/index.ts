@@ -1067,6 +1067,22 @@ export type GameState = {
   gmOffers?: GmOffer[]
   /** 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN） */
   lastGmOfferYear?: number
+  /**
+   * **来季から指揮すると決まっているクラブ**（オーナー判断★13・2026-08-12）。
+   *
+   *   > 次シーズンの開始になるからね（オーナー）
+   *
+   * 自分から退任して届いた打診を受けると、**その場では何も動かず**ここに入る。
+   * 実際に入れ替わるのは `endSeason` が来季を組み立てたあと。
+   * **受けたら取り消せない**（★13-a）ので、これが入っている間は
+   *   ・退任ボタンを押せない
+   *   ・年1回のランダムなオファーも来ない（★13-b。受けられない話を並べない）
+   *
+   * ★シーズン終わりに向こうから届くオファー（`makeGmOffer`）は、答える時点で
+   *   もう来季に入っているので**ここを通らずその場で入れ替わる**。
+   *   分けているのは「就任する年」1つだけ（`acceptGmOffer` の `offer.year` と今季の比較）。
+   */
+  pendingGmMove?: { teamId: string; year: number } | null
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。

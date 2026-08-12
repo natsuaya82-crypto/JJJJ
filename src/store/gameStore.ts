@@ -401,6 +401,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     hofRoster: [],
     // 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN）
     lastGmOfferYear: undefined,
+    // 来季から指揮すると決まっているクラブ（★13）。無いのが普通
+    pendingGmMove: null,
     seenJoinIds: [],
     seenInjuryIds: [],
     playerTeamId: 'fukuoka',
