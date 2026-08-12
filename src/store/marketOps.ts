@@ -12,6 +12,7 @@ import { type GameState, type Player, type Team } from '../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp } from '../utils/clubTier'
 import { bigClub, findClub, leagueOfClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
+import { settleForeignFee } from '../utils/clubMoney'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
 import { calcTransferValue, ovr } from '../utils/playerUtils'
 import { type TradeValueCtx } from '../utils/tradeValue'
@@ -112,6 +113,9 @@ export function finalizeSale(
   return {
     players: moved.players,
     teams: moved.teams,
+    // 買った側が海外クラブなら、そのクラブの資金からも引く（`movePlayer` は teams しか知らない）。
+    // 国内同士なら何も起きないので、ここで分岐しないこと
+    foreignLeagues: settleForeignFee(state.foreignLeagues, state.playerTeamId, offer.fromTeamId, fee),
     transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
     // 世界最高峰（ビッグクラブ）へ送り出したのは初回だけ実績になる
     achievements: toBigClub && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')

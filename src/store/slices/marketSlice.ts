@@ -19,6 +19,7 @@ import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from
 import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { movePlayer } from '../../utils/movePlayer'
+import { settleForeignFee } from '../../utils/clubMoney'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf } from '../../utils/playRate'
@@ -253,6 +254,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       return ({
       players: moved.players,
       teams: moved.teams,
+      // 売り手が海外クラブなら、そのクラブへ入金する（movePlayer は teams しか知らない）
+      foreignLeagues: settleForeignFee(state.foreignLeagues, listing.fromTeamId, state.playerTeamId, price),
       transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
       currentSeason: {
         ...state.currentSeason,
@@ -1223,6 +1226,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         : p
       ),
       teams: moved.teams,
+      // 売り手が海外クラブなら、そのクラブへ入金する
+      foreignLeagues: settleForeignFee(s.foreignLeagues, bid.targetTeamId, s.playerTeamId, bid.offeredFee),
       transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
       currentSeason: {
         ...s.currentSeason,
@@ -1575,6 +1580,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
           : p
         ),
         teams: moved.teams,
+        // 出した海外クラブへ入金する（この経路は必ず海外が相手）
+        foreignLeagues: settleForeignFee(s.foreignLeagues, player.teamId, s.playerTeamId, transferFee),
         transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
         currentSeason: {
           ...s.currentSeason,
