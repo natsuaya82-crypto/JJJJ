@@ -142,7 +142,7 @@ const CHECKS = [
   // クラブの部はクラブのもの（監督が去っても元の部へ引き戻されない）
   'club-division-pin',
   // セーブの書き出し（本体＋走行記録の別ファイル）
-  'export-save',
+  { name: 'export-save', shim: true },
 ]
 
 /**

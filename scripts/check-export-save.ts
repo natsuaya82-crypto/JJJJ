@@ -20,43 +20,45 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failed++
 }
 
-// localStorage の代わり
-const data: Record<string, string> = {
-  'jpel-manager-save': JSON.stringify({ version: 40, state: { players: [1, 2, 3], pastSeasons: [{ year: 2030 }] } }),
-  [archiveKeyOf(2030)]: JSON.stringify({ year: 2030, races: ['a', 'b'] }),
-  [archiveKeyOf(2031)]: JSON.stringify({ year: 2031, races: ['c'] }),
-  'unrelated-key': 'x',
+// ★**localStorage を直接置かない。** persist は store/saveStorage を通しているので、
+//   そこへ書いてから読ませる。最初に書いた版は window.localStorage を直接読んでいて、
+//   実機で `save: null` の空ファイルが出てきた（fixture が localStorage だったので緑だった）
+const YEARS = [2030, 2031]
+// ls-shim が localStorage を用意するので、saveStorage はブラウザ経路（localStorage）を通る
+localStorage.setItem('jpel-manager-save', JSON.stringify({
+  version: 40, state: { players: [1, 2, 3], pastSeasons: [{ year: 2030 }] } }))
+for (const y of YEARS) localStorage.setItem(archiveKeyOf(y), JSON.stringify({ year: y, races: ['a'] }))
+localStorage.setItem('unrelated-key', 'x')
+
+async function main() {
+  const out = await buildExport(YEARS)
+
+  console.log('[1] 本体が入っている')
+  check('セーブ本体を拾えている', !!out.save)
+  check('中身まで入っている（キーだけではない）',
+    JSON.stringify(out.save).includes('pastSeasons'))
+
+  console.log('')
+  console.log('[2] **走行記録の別ファイルも入っている**')
+  {
+    const got = Object.keys(out.archives)
+    check('2年ぶん拾えている', got.length === 2, `${got.length}件：${got.join(',')}`)
+    check(`${archiveKeyOf(2030)} が入っている`, archiveKeyOf(2030) in out.archives)
+    check('関係ないキーは入っていない', !('unrelated-key' in out.archives))
+    // ★母数の確認。save が null なら「拾えている」も全部空振り（実機で出た形がこれ）
+    check('**セーブ本体が null ではない**', out.save !== null, JSON.stringify(out.save)?.slice(0, 40) ?? 'null')
+  }
+
+  console.log('')
+  console.log('[3] 大きさの内訳が出る（開かなくても何が重いか分かる）')
+  {
+    check('state のキーごとに出ている', (out.sizes['state.players'] ?? 0) > 0, `${out.sizes['state.players']}B`)
+    check('走行記録のぶんも出ている', (out.sizes[archiveKeyOf(2030)] ?? 0) > 0)
+  }
+
+  console.log('')
+  console.log(failed === 0 ? '\n✓ 本体と走行記録の両方が書き出される\n' : `\n✗ ${failed}件\n`)
+  process.exit(failed === 0 ? 0 : 1)
+
 }
-const keys = Object.keys(data)
-const fake = {
-  length: keys.length,
-  getItem: (k: string) => data[k] ?? null,
-  key: (i: number) => keys[i] ?? null,
-}
-
-const out = buildExport(fake)
-
-console.log('[1] 本体が入っている')
-check('セーブ本体を拾えている', !!out.save)
-check('中身まで入っている（キーだけではない）',
-  JSON.stringify(out.save).includes('pastSeasons'))
-
-console.log('')
-console.log('[2] **走行記録の別ファイルも入っている**')
-{
-  const got = Object.keys(out.archives)
-  check('2年ぶん拾えている', got.length === 2, `${got.length}件：${got.join(',')}`)
-  check(`${archiveKeyOf(2030)} が入っている`, archiveKeyOf(2030) in out.archives)
-  check('関係ないキーは入っていない', !('unrelated-key' in out.archives))
-}
-
-console.log('')
-console.log('[3] 大きさの内訳が出る（開かなくても何が重いか分かる）')
-{
-  check('state のキーごとに出ている', (out.sizes['state.players'] ?? 0) > 0, `${out.sizes['state.players']}B`)
-  check('走行記録のぶんも出ている', (out.sizes[archiveKeyOf(2030)] ?? 0) > 0)
-}
-
-console.log('')
-console.log(failed === 0 ? '\n✓ 本体と走行記録の両方が書き出される\n' : `\n✗ ${failed}件\n`)
-process.exit(failed === 0 ? 0 : 1)
+void main()

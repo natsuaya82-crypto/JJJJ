@@ -19,12 +19,8 @@ import { Share } from '@capacitor/share'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { saveSlotSuffix } from './saveSlot'
+import { readArchive, saveStorage } from './saveStorage'
 import { archiveKeyOf } from '../utils/raceRecord'
-
-// ★キーは**自分で組み立てない**。`utils/raceRecord` の `archiveKeyOf` が唯一の決まりで、
-//   ここは前方一致で拾うだけ（スロットの接尾辞も年も相手に任せる）。
-//   手で 'jpel-season-' と書いていて1件も拾えていなかった（本物は 'jpel-archive-'）
-const ARCHIVE_PREFIX = archiveKeyOf(0).replace(/0$/, '')
 
 export type ExportedSave = {
   v: 1
@@ -38,10 +34,20 @@ export type ExportedSave = {
   sizes: Record<string, number>
 }
 
-/** 書き出す中身を組み立てる。**画面も通信も触らない**（点検から呼べるように） */
-export function buildExport(store: Pick<Storage, 'getItem' | 'key' | 'length'>): ExportedSave {
+/**
+ * 書き出す中身を組み立てる。
+ *
+ * ★**セーブは `localStorage` に無い。** persist は `store/saveStorage` の
+ *   `saveStorage`（実機ではファイル、ブラウザでは localStorage）を通している。
+ *   最初に書いた版は `window.localStorage` を直接読んでいて、
+ *   **実機で中身が空のファイル（save: null）が出てきた**。
+ *   走行記録も同じで、`readArchive` を通さないと読めない。
+ *
+ * @param years 走行記録を探す年（`archivedYears` を渡す。無い年は静かに飛ばす）
+ */
+export async function buildExport(years: readonly number[]): Promise<ExportedSave> {
   const key = `jpel-manager-save${saveSlotSuffix()}`
-  const raw = store.getItem(key)
+  const raw = await saveStorage.getItem(key)
   const sizes: Record<string, number> = {}
   const parse = (s: string | null) => { try { return s == null ? null : JSON.parse(s) } catch { return s } }
 
@@ -53,12 +59,12 @@ export function buildExport(store: Pick<Storage, 'getItem' | 'key' | 'length'>):
   if (state) for (const [k, v] of Object.entries(state)) sizes[`state.${k}`] = JSON.stringify(v)?.length ?? 0
 
   const archives: Record<string, unknown> = {}
-  for (let i = 0; i < store.length; i++) {
-    const k = store.key(i)
-    if (!k || !k.startsWith(ARCHIVE_PREFIX)) continue
-    const v = store.getItem(k)
+  for (const y of years) {
+    const k = archiveKeyOf(y, saveSlotSuffix())
+    const v = await readArchive(k)
+    if (v == null) continue
     archives[k] = parse(v)
-    sizes[k] = v?.length ?? 0
+    sizes[k] = v.length
   }
   return {
     v: 1,
@@ -73,9 +79,9 @@ export function buildExport(store: Pick<Storage, 'getItem' | 'key' | 'length'>):
  * 書き出して共有シートを出す。返すのは「何が起きたか」だけ（画面がそれを見せる）。
  * ブラウザではダウンロードに落とす（実機が無くても試せるように）。
  */
-export async function exportSaveToShare(): Promise<{ ok: boolean; detail: string }> {
+export async function exportSaveToShare(years: readonly number[]): Promise<{ ok: boolean; detail: string }> {
   try {
-    const data = buildExport(window.localStorage)
+    const data = await buildExport(years)
     const json = JSON.stringify(data)
     const kb = Math.round(json.length / 1024)
     const name = `jpel-save-${data.exportedAt.slice(0, 10)}${data.slot}.json`

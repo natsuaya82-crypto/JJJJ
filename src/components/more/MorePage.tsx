@@ -198,6 +198,8 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   const [slotTaps, setSlotTaps] = useState(0)
   // セーブの書き出しの結果（成功も失敗もそのまま出す）
   const [exportMsg, setExportMsg] = useState('')
+  // 走行記録は年ごとに別ファイル。どの年が出ているかは archivedYears が持っている
+  const archivedYears = useGameStore(s => s.archivedYears)
   const [slotSheet, setSlotSheet] = useState(false)
   const [slotsUsed, setSlotsUsed] = useState<Record<number, boolean>>({})
   useEffect(() => {
@@ -256,7 +258,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         {/* ★セーブの書き出し。実機で起きていることは**本物のセーブが無いと調べられない**。
             これまで取り出す手段が無く、Mac に繋いで Xcode から抜くしか道が無かった */}
         <SettingRow icon={IcShare} label="セーブを書き出す" sub="不具合の調査用。共有からファイルを送れます"
-          onClick={async () => { const r = await exportSaveToShare(); setExportMsg(r.detail) }} />
+          onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }} />
         {exportMsg && (
           <div style={{ padding: '8px 12px', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
         )}
