@@ -218,8 +218,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const infoGm = clubGmName(anyClub)
   // クラブ規模（年間予算と施設）。**国内も海外も同じ出どころ**（格1本・施設1本）。
   // 以前は海外クラブだけ別の式で、しかも施設はクラブIDのハッシュから作った飾りだった
-  const foreignBudget = tierBudget(isForeign ? club! : domesticTeam!)
-  const foreignFac = facilitiesOf(isForeign ? club! : domesticTeam!)
+  // ★**国内クラブにも出す**（オーナー・2026-08-12「なんで海外にはこれがあるのに日本にはないの？」）。
+  //   値はもともと国内も海外も同じ1本（格→年間予算・utils/facilities）で計算していて、
+  //   **表示だけが海外に閉じていた**。名前も clubBudget / clubFac に直す（foreign* は嘘だった）
+  const clubBudget = tierBudget(isForeign ? club! : domesticTeam!)
+  const clubFac = facilitiesOf(isForeign ? club! : domesticTeam!)
   const FAC_LABEL: { key: 'trainingCamp' | 'medicalCenter' | 'scoutOffice' | 'tacticsRoom'; label: string; color: string }[] = [
     { key: 'trainingCamp', label: FACILITY_LABEL.trainingCamp, color: '#4CAF50' },
     { key: 'medicalCenter', label: FACILITY_LABEL.medicalCenter, color: '#4FC3F7' },
@@ -473,21 +476,21 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               </div>
             </div>
 
-            {/* クラブ規模（海外クラブのみ。国内の他チームは同じリーグの相手なので出さない） */}
-            {isForeign && foreignFac && (
+            {/* クラブ規模。**国内も海外も出す**（値はどちらも格1本・施設1本から出ている） */}
+            {clubFac && (
               <div>
                 <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>クラブ規模</div>
                 <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
                     <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>年間予算</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmtYen(foreignBudget)}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmtYen(clubBudget)}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {FAC_LABEL.map((f, i) => (
                       <div key={f.key} style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
                         {i > 0 && <div style={{ width: '1px', alignSelf: 'stretch', background: '#1A1828', marginRight: 8 }} />}
                         <div style={{ flex: 1, textAlign: 'center' }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: f.color }}>Lv{foreignFac[f.key] ?? 0}</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: f.color }}>Lv{clubFac[f.key] ?? 0}</div>
                           <div style={{ fontSize: '8px', color: '#3A3758' }}>{f.label}</div>
                         </div>
                       </div>
