@@ -635,7 +635,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
           : null)).filter((b): b is { at: number; name: string } => b != null)
         return (
           <CardPanel>
-            <SectionLabel>シーズン別順位推移（直近{n}季）</SectionLabel>
+            <SectionLabel>監督キャリアの順位推移（直近{n}季）</SectionLabel>
             <div style={{ position: 'relative', height: '138px', margin: '6px 4px 4px' }}>
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
                 <line x1="0" y1={yFor(1)} x2="100" y2={yFor(1)} stroke={alpha(C.gold, 0.28)} strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />
@@ -653,6 +653,15 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
               {pts.map((p, i) => (
                 <div key={'yr' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, bottom: '-4px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: '8px', color: p.isCurrent ? C.gold : C.textGhost, fontWeight: p.isCurrent ? 700 : 400 }}>'{String(p.year).slice(2)}</div>
               ))}
+              {/* ★**どのクラブの順位か**を必ず出す（オーナー・2026-08-12）。
+                  これは監督のキャリアなので、年によって別のクラブの順位が並ぶ。
+                  クラブ名が無いと「3部11位から1部1位」が同じクラブの昇格に見える。
+                  クラブが変わった最初の年にだけ名前を置く（毎年出すと重なって読めない）。 */}
+              {pts.map((p, i) => (i === 0 || p.teamId !== pts[i - 1].teamId) ? (
+                <div key={'cl' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: '-2px', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: '8px', fontWeight: 800, color: C.textSub }}>
+                  {teams.find(t => t.id === p.teamId)?.shortName ?? '—'}
+                </div>
+              ) : null)}
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
               {([[C.gold, '1位'], [C.green, '2-3位'], [C.blue, '4-5位'], [C.textGhost, '6位以下']] as [string, string][]).map(([col, label]) => (
@@ -795,11 +804,10 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
       </CardPanel>
   ) : null
 
-  // 順位の折れ線とOVRの棒グラフは両方「推移」なので1枚にまとめる。
-  // どちらも出せない（1季目など）ときはタブ自体を出さない。
-  const trendPanel = (rankTrend || ovrTrend) ? (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>{rankTrend}{ovrTrend}</div>
-  ) : null
+  // ★平均OVRの棒グラフは出さない（オーナー・2026-08-12「平均ovrはいらない」）。
+  //   ovrTrend の組み立ては残してあるが、画面には出していない。**戻すときはここだけ**。
+  void ovrTrend
+  const trendPanel = rankTrend
 
   return <SectionSwitcher sections={[
     { label: 'GM評判', node: repPanel },
