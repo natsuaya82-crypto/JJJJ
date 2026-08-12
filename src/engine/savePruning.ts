@@ -118,9 +118,14 @@ export function pruneSaveData(args: {
   // 各国代表に選ばれた20人。代表タブはこの20人をそのまま出すので、
   // ここで守らないと引退した選手が名簿から消えて「20人選ばれたはずが18人」になる。
   // 次の選出で入れ替わるまでは、引退していても20人のまま見せる
+  // ★**大陸予選（欧州・アフリカ・アメリカ）の代表も同じ扱い。** ここが漏れていて、
+  //   代表の記録がそこにしか無い（worldRepresentatives へ二重保存していない）ので、
+  //   他の条件で守られていない選手が消えると「大陸代表だった」という事実と
+  //   駅伝代表バッジ（utils/badges.ts）が静かに消えていた（docs/BACKLOG.md A-5）
   for (const squads of [
     st.worldTournament?.squads,
     ...(st.worldAthleticsResults ?? []).map(r => r.squads),
+    ...(st.worldAthleticsResults ?? []).flatMap(r => ('continentals' in r ? r.continentals ?? [] : []).map(c => c.squads)),
   ]) {
     for (const ids of Object.values(squads ?? {})) for (const id of ids ?? []) protectedIds.add(id)
   }

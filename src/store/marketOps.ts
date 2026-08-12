@@ -173,12 +173,15 @@ export function settleSaleAnswers(set: SetGame, get: () => GameStore): void {
       const reason = outcome === 'roster_min'
         ? `（代理人）在籍人数が下限を下回るため、${p.name}の移籍は成立しませんでした。残留します`
         : `（代理人）${p.name}は最後まで悩みましたが、移籍しないことに決めました。残留します`
-      // ★本人が「行かない」と決めた以上、**そのとき打診していたクラブは今季もう来ない**。
-      //   ここを入れ忘れていたので、「移籍しないことに決めました。残留します」の直後に
-      //   同じクラブからまた「◯億でお譲りいただけないでしょうか」が並んでいた。
-      //   （断られたクラブだけを止める。全クラブを止めると「格下を蹴って、あとから来る
-      //    格上へ行く」ができなくなる — utils/transferEligibility の canClubApproachAgain）
-      const refusedClubs = outcome === 'refused'
+      // ★本人が「行かない」と決めた以上、**そのとき話が乗っていたクラブは今季もう来ない**
+      //   （2026-08-12・オーナー判断）。「移籍しないことに決めました。残留します」の直後に
+      //   同じクラブからまた「◯億でお譲りいただけないでしょうか」が並ぶのを止める。
+      //
+      //   ★以前は条件が `outcome === 'refused'` で、**一度も走っていませんでした**。
+      //     `refused` は逆提示（クラブが額に応じなかった）でしか起きず、本人が断ったときは
+      //     `refused_by_player` が返ります（`utils/offerResult.ts`）。そのため実際に
+      //     止まっていたのは `acceptIncomingOffer` の中で控えるGMが選んだ1クラブだけでした。
+      const refusedClubs = outcome === 'refused_by_player' || outcome === 'refused'
         ? [...new Set((cs0.incomingOffers ?? []).filter(o => o.playerId === ps.playerId).map(o => o.fromTeamId))]
         : []
       if (refusedClubs.length > 0) {

@@ -46,11 +46,10 @@ export function settleSeasonObjectives(args: {
   const objTotalCount = completedObjs.length || 1
   const objAchieveRate = objAchieved / objTotalCount
   const repDelta = objAchieveRate >= 1 ? 5 : objAchieveRate >= 0.6 ? 3 : objAchieveRate >= 0.4 ? 1 : objAchieveRate >= 0.2 ? -1 : -3
-  // 上下限は utils/condition の withGmRep 1本。
-  // ★**ここだけ下限が 1**（0にならない）。イベントの決着（resolveEvent）は 0 まで落ちる。
-  //   どちらが正かはオーナーの判断待ちなので、揃えずに「1で止める」を1行で見せておく
-  //   （docs/BACKLOG.md A-8）
-  const newGmRep = Math.max(1, withGmRep(gmRep, repDelta))
+  // 上下限は utils/condition の withGmRep 1本（0〜100）。
+  // ★以前ここだけ下限が 1 で、イベントの決着（resolveEvent）は 0 まで落ちていた。
+  //   底は 0 に揃えた（2026-08-12・オーナー判断）
+  const newGmRep = withGmRep(gmRep, repDelta)
 
   return { newlyCompletedObjs, objBonus, objBudgetBonus, newObjectives, newGmRep }
 }

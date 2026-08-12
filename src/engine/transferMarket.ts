@@ -104,8 +104,12 @@ export function runTransferMarket(
     excludeIds: Set<string>
     /** 市場全体で何人まで動かすか。**省略＝無制限**（オフの一括処理はこちら） */
     maxMoves?: number
-    /** その日の日付。移籍記録にもニュースにも同じものを使う。省略＝オフの既定 */
-    date?: string
+    /**
+     * その日の日付。**移籍記録にもニュースにも同じものを使う。**
+     * ★以前は既定値が2つに割れていて（記録 2/1・ニュース 11/10）、同じ1件の移籍が
+     *   履歴では2月・ニュースでは11月と**9か月ずれて**記録されていました。
+     */
+    date: string
   },
 ): TransferMarketResult {
   let players = world.players
@@ -215,7 +219,7 @@ export function runTransferMarket(
       // お金だけは上の帳簿で見ているので money: false（国内側だけ二重に動くのを防ぐ）
       const moved = movePlayer({ players, teams }, target.id, buyClub.id, {
         year: ctx.year,
-        date: ctx.date ?? `${ctx.year}-02-01`,
+        date: ctx.date,
         fee, years: 2, money: false,
         toName: buyClub.domestic ? undefined : buyClub.name,
         contract: { annualSalary: newSalary, yearsLeft: 2 },
@@ -266,7 +270,7 @@ export function runTransferMarket(
 
   // ── 見出し。**判断はここまでで終わっていて、ここから先は文面だけ**
   function buildNews(): NewsItem[] {
-    const date = ctx.date ?? `${ctx.year}-11-10`
+    const date = ctx.date
     return [...newsRows]
       .sort((a, b) => ovr(b.player) - ovr(a.player))
       .slice(0, NEWS_MAX)

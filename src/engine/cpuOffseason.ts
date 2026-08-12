@@ -364,8 +364,20 @@ export function cpuMarketRounds(lastDate: string | undefined, today: string): { 
   return { rounds, nextDate: next.toISOString().slice(0, 10) }
 }
 
-/** 1回ぶんでリーグ全体に許す件数。**ここを触ればシーズン中の活発さが変わります** */
-export const CPU_TICK_TRANSFERS = 3
+/**
+ * 1回ぶんで市場全体に許す件数。**ここを触れば移籍の活発さが変わります。**
+ *
+ * ■オフシーズンという考えはありません（オーナー・2026-08-12）
+ *   以前は「ドラフトの直前に上限なしで1回」＋「シーズン中は21日ごとに3人」でした。
+ *   実測すると **413件 対 39件** で、同じ市場を年に一度だけ10倍の勢いで回していたことになります。
+ *   塊があったのは「解雇で枠が空くのがそこだから」で、遊びの決まりではありません。
+ *   いまは**どの回も同じ件数**で、ドラフトの直前の1回もただの1回です。
+ *
+ * ■目安は「1クラブが1年に5人」（オーナー）
+ *   1年に回るのは 15回（レース中14回 ＋ ドラフト直前1回）。
+ *   232クラブ × 5人 ÷ 15回 ≒ 77件／回。
+ */
+export const CPU_TICK_TRANSFERS = 77
 export const CPU_TICK_TRADES = 1
 export const CPU_TICK_LOANS = 1
 

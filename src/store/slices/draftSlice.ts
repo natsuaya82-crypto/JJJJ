@@ -6,7 +6,7 @@ import { draftPickValue } from '../../data/economy'
 import { SEASON_2027_RACES, generateIndividualEvents } from '../../data/races'
 import { ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
 import { pickCpuFreeAgents } from '../../engine/cpuMarket'
-import { runCpuLoans, runCpuReleases, runCpuTrades } from '../../engine/cpuOffseason'
+import { CPU_TICK_TRANSFERS, runCpuLoans, runCpuReleases, runCpuTrades } from '../../engine/cpuOffseason'
 import { runTransferMarket } from '../../engine/transferMarket'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
@@ -538,7 +538,12 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           pastSeasons: state.pastSeasons.slice(0, -1),
           // 海外クラブはドラフトを取らないので、上限は ROSTER_MAX そのまま
           rosterCapFor: (id) => (state.teams.some(t => t.id === id) ? rosterCapFor(id) : ROSTER_MAX),
-          destinationOf: get().destinationOf, excludeIds: cpuTransferIds })
+          destinationOf: get().destinationOf, excludeIds: cpuTransferIds,
+          // ★**ここも「ただの1回」**。オフシーズンという考えは無いので、
+          //   レース中の1回とまったく同じ件数にする（以前はここだけ上限なしで、
+          //   実測 413件 対 39件 ＝ 年に一度だけ10倍の勢いだった）。
+          //   日付は日程の空いている1〜2月（レースは 3/8〜12/27）
+          maxMoves: CPU_TICK_TRANSFERS, date: `${state.currentSeason.year}-02-01` })
       playersAfterCpuTransfer = bought.players
       teamsAfterCpuTransfer = bought.teams
       leaguesAfterCpuTransfer = bought.foreignLeagues

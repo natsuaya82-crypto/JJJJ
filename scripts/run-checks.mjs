@@ -64,7 +64,7 @@ const CHECKS = [
   // 全部が赤いルールは誰も直さずそのうち外される
   'size',
   // クラブ・格・お金
-  'club-tiers', 'club-standing', 'foreign-money', 'club-money', 'clubs', 'offseason',
+  'club-tiers', 'club-standing', 'foreign-money', 'club-money', 'clubs', 'offseason', 'market-rate', 'owner-decisions',
   // レース・順位・記録
   'race-points', 'race-record', 'background-race', 'round-robin', 'division-rank',
   'division-sync', 'away-records', 'domestic-records', 'segment-recommend', 'play-rate',
