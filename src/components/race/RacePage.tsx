@@ -115,7 +115,10 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                 const fat = p.fatigue ?? 0
                 const isResting = resting.has(p.id)
                 return (
-                  <div key={p.id} {...longPress(p.id)}
+                  // カードのどこを押しても出走／休むが切り替わる（右端のボタンだけだと狭い）。
+                  // タップは usePlayerLongPress の第2引数で受ける＝長押し（選手詳細）のあとの
+                  // タップは捨てられるので、ここで打ち消しを書き足さないこと
+                  <div key={p.id} {...longPress(p.id, () => toggleResting(p.id))}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px 7px 12px', borderRadius: 9, cursor: 'pointer', width: '100%', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, opacity: isResting ? 0.45 : 1 }}>
                     <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={32} />
