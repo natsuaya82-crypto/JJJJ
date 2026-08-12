@@ -4,7 +4,7 @@ import { comparePlayers } from '../utils/playerSort'
 import { ovr, transferFeeFor } from '../utils/playerUtils'
 // 「どのタイプが足りていないか」は国内・海外で共通の1本（utils/squadNeeds.ts）
 import { weakestSpecialty, bestOvrInSpecialty, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
-import { ROSTER_MAX, ROSTER_MIN, CPU_SELL_FLOOR } from '../data/rosterRules'
+import { ROSTER_MAX, CPU_SELL_FLOOR } from '../data/rosterRules'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub, squadIdsOf } from '../utils/rosterSync'
 // 海外クラブの引き場所は utils/clubs 1本。「4大リーグ」は廃止（強さは格で言う）
@@ -315,7 +315,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
    */
   const sellPoolOf = (ids: string[]): { p: Player; surplus: boolean }[] => {
     const ps = rosterPlayers(ids).sort(comparePlayers('ovr'))
-    if (ps.length <= ROSTER_MIN) return []
+    if (ps.length <= CPU_SELL_FLOOR) return []
     return ps.slice(1).map((p, i) => ({
       p, surplus: isSurplus({ squadRank: i + 2 }),
     }))
@@ -362,9 +362,9 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   // 日本CPU→海外：海外クラブが、最低人数超のCPUチームの余剰・準主力を引き抜く。売り手は移籍金を得る。
   // 売り手は完全ランダムではなくニーズベース：在籍が多い（余剰を抱える）チームほど売りやすい
   for (let i = 0; i < N_OUT; i++) {
-    const sellers = cpuTeams.filter(t => jpnSize(t.id) > ROSTER_MIN)
+    const sellers = cpuTeams.filter(t => jpnSize(t.id) > CPU_SELL_FLOOR)
     if (sellers.length === 0) break
-    const seller = weightedPick(sellers, t => Math.max(1, jpnSize(t.id) - ROSTER_MIN))
+    const seller = weightedPick(sellers, t => Math.max(1, jpnSize(t.id) - CPU_SELL_FLOOR))
     // ②出せる選手か。エース(1番手)だけ保護し、余剰かどうかは序列と人数から（国内CPU間と同じ1本）
     const pool = sellPoolOf(jpnRoster[seller.id]).filter(x => !moved.has(x.p.id))
     if (pool.length === 0) continue
@@ -398,7 +398,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   {
     const N_STAR = Math.random() < 0.55 ? 1 : 2
     for (let i = 0; i < N_STAR; i++) {
-      const sellers = cpuTeams.filter(t => jpnSize(t.id) > ROSTER_MIN)
+      const sellers = cpuTeams.filter(t => jpnSize(t.id) > CPU_SELL_FLOOR)
       if (sellers.length === 0) break
       const starPool = sellers.flatMap(t => jpnRoster[t.id]
         .map(id => playerById.get(id)).filter(runnable)

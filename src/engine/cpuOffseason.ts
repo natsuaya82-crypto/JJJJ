@@ -28,7 +28,7 @@ import { needsPlayer } from '../utils/squadNeeds'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfPlayerClub, tierStrength } from '../utils/clubTier'
 import { DIVISION_SIZE, divisionOf, rankOfTeam, seasonDivisionStandings } from '../utils/league'
 import { cpuSpecialtyNeeds } from './cpuMarket'
-import { ROSTER_MAX } from '../data/rosterRules'
+import { CPU_SELL_FLOOR, ROSTER_MAX } from '../data/rosterRules'
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
 
 /** 1軍の登録上限。**解雇で超過ぶんを切るときだけ**使う（元は 23 の直書き） */
@@ -39,8 +39,6 @@ const TRADE_SELLER_PROTECTED = 3
 const LOAN_MAX_AGE = 24
 /** これ以上いるクラブは、移籍市場で買う側にならない */
 const CPU_BUY_ROSTER_MAX = 25
-/** これ以下しかいないクラブからは引き抜かない（薄くしすぎない） */
-const SELL_ROSTER_FLOOR = 16
 
 /**
  * 人数を減らすときに**先に切る順**（前から切る）。
@@ -287,7 +285,7 @@ export function runCpuTransfers(
       const sellRoster = players
         .filter(p => p.teamId === sellTeamId && p.status === 'active')
         .sort(comparePlayers('ovr'))
-      if (sellRoster.length <= SELL_ROSTER_FLOOR) return []   // 薄いチームからは引き抜かない（下限保護）
+      if (sellRoster.length <= CPU_SELL_FLOOR) return []   // 薄いクラブからは出さない（下限は data/rosterRules 1本）
       // 売り手の絶対的エース(1番手)だけ保護。それ以外は主力でも引き抜き対象にする
       return sellRoster.slice(1)
         // isOwnedBy でレンタル中の選手を外す。ここが抜けていたため、貸し出した選手が

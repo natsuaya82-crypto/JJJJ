@@ -96,7 +96,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/segmentRecords.ts` | **区間記録**。1部・2部・3部は同じコースを分け合って走るので、**そのコースでいちばん速いタイム1本**。部で分けない（`divisionRaces` も一緒に数える） |
 | `src/utils/awards.ts` | **年度表彰（MVP・新人王）。部ごとに選ぶ**（1部MVP・2部MVP・3部MVP）。走る相手も本数も違うので混ぜない。分け方は `racesByDivision` 1本 |
 | `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
-| `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN` / `CPU_SELL_FLOOR` |
+| `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN`（自チームの操作を止める線＝15人はOK）／ **`CPU_SELL_FLOOR`（裏で動くクラブが「これ以上は出さない」＝16。売って15人以下にはならない）**。以前は16／18／15の3通りに割れていた |
 | `src/components/ui/BottomSheet.tsx` | 画面下から出るシートの入れもの。`ActionSheet` もこれの上に乗っている |
 | `src/styles/tokens.ts` | 色・フォント（`SAIRA` / `FONT` / `JP`）・順位の色（`rankColor`）・`HEADER_H` |
 | `src/utils/league.ts` の得点 | `positionPointsFor`（1位＝出走数…最下位1点）／`segmentAwardPoints`（出走数で3/2/1→2/1→1）。**本編もオンラインも同じ** |

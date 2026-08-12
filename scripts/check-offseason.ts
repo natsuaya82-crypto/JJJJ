@@ -15,7 +15,7 @@ import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { generateSeasonRaces } from '../src/data/races'
-import { ROSTER_MIN, ROSTER_MAX, RUNNING_SLOTS } from '../src/data/rosterRules'
+import { ROSTER_MIN, ROSTER_MAX, RUNNING_SLOTS, CPU_SELL_FLOOR } from '../src/data/rosterRules'
 import { isSurplus } from '../src/utils/transferDecision'
 import { tierOf } from '../src/utils/clubTier'
 import { ovr, retirementAgeOf, calcTransferValue } from '../src/utils/playerUtils'
@@ -98,6 +98,15 @@ console.log('[2] ロスターが溶けていないか（国内52クラブ）')
   for (const t of under.slice(0, 5)) console.log(`    ${t.shortName} ${roster(t.id).length}人`)
   check(`下限(${ROSTER_MIN}人)を割ったクラブが無い`, under.length === 0, `${under.length}クラブ`)
   check(`上限(${ROSTER_MAX}人)を超えたクラブが無い`, over.length === 0, `${over.length}クラブ`)
+  // ★「15人以下にはできない」（2026-08-12・オーナー判断）。
+  //   下の2つはセットで意味を持ちます。**片方だけだと自己言及になって何も守りません**
+  //   （定数を15に下げると、定数を読んでいる側の判定は当然通ってしまう）。
+  //     1つ目 … 決まりそのものを数で留める（16人以上でなければならない）
+  //     2つ目 … 実際にその決まりどおり動いているか
+  check('「15人以下にはできない」＝ 出す側の下限は16人以上', CPU_SELL_FLOOR >= 16, `いま ${CPU_SELL_FLOOR}`)
+  const thin = after.teams.filter(t => roster(t.id).length < CPU_SELL_FLOOR)
+  check(`売って ${CPU_SELL_FLOOR}人を下回ったクラブが無い`, thin.length === 0,
+    thin.map(t => `${t.shortName} ${roster(t.id).length}人`).join(' , '))
 }
 
 console.log('')
