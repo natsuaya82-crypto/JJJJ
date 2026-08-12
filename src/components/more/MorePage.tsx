@@ -13,6 +13,7 @@ import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../.
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 
 import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
+import { canResignAsGm } from '../../utils/gmOffer'
 
 import { APP_VERSION } from '../../data/appMeta'
 import { Chevron } from '../ui'
@@ -512,9 +513,16 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
 
 // 監督を自分から辞める。押すと行き先の候補が届く（ホームに OFFER として出る）。
 // シーズン途中でも押せて、受けたその日から新しいクラブを指揮する。
+//
+// ★在任が短いうちは押せない（utils/gmOffer の GM_RESIGN_MIN_TENURE）。
+//   **残り年数をここで計算しないこと。**判定も文言の元になる数も canResignAsGm 1本から取る
+//   （画面と store で別々に数えると、押せるのにボタンが灰色、が起きる）
 function ResignScreen({ onClose }: { onClose: () => void }) {
   const resign = useGameStore(s => s.resignAsGm)
   const myTeam = useGameStore(s => s.teams.find(t => t.id === s.playerTeamId))
+  const gmTenures = useGameStore(s => s.gmTenures)
+  const year = useGameStore(s => s.currentSeason.year)
+  const gate = canResignAsGm(gmTenures, year)
   const [done, setDone] = useState(false)
   return (
     <DetailScreen title="監督を退任する" onClose={onClose}>
@@ -527,6 +535,11 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
       {done ? (
         <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
           打診が届きました。ホームで確認してください。
+        </div>
+      ) : !gate.ok ? (
+        <div style={{ padding: 14, borderRadius: 10, background: alpha(C.textDim, 0.1), border: `1px solid ${alpha(C.textDim, 0.35)}`, color: C.textDim, fontSize: 12, fontWeight: 700, textAlign: 'center', lineHeight: 1.8 }}>
+          就任してまだ日が浅いため、いまは退任できません。<br />
+          <strong style={{ color: C.text }}>あと{gate.yearsLeft}シーズン</strong>指揮すると退任できます。
         </div>
       ) : (
         <button

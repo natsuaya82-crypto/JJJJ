@@ -32,7 +32,7 @@ import { allTieredClubs, tierBudget, tierOf, tierOfClubId, tierOfPlayerClub } fr
 import { foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
-import { makeGmOffer, resignOffers } from '../../utils/gmOffer'
+import { canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
@@ -722,6 +722,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
   resignAsGm: () => {
     set(state => {
       if ((state.gmOffers ?? []).length > 0) return {}   // すでに届いている
+      // 在任が短いうちは辞められない（utils/gmOffer の GM_RESIGN_MIN_TENURE）。
+      // ★止めるのは**入口**。resignOffers 側で0件を返す形にはしないこと——
+      //   あちらは「辞めると決めた以上、行き先0件では詰む」ので抽選をしない設計なので、
+      //   そこで止めると「押せたのに何も来ない」になる
+      if (!canResignAsGm(state.gmTenures, state.currentSeason.year).ok) return {}
       // 候補クラブの「いま使えるお金」をそのまま持って行く（年度更新を待たない）。
       // 予算は格1本（utils/clubTier）なので、内訳のグラントもそこから出す
       const tiered = allTieredClubs(state.teams, state.foreignLeagues ?? [])
