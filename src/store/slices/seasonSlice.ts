@@ -33,7 +33,7 @@ import { foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
-import { startTenure } from '../../utils/gmTenure'
+import { managedTeamIds, startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
@@ -609,10 +609,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 下部リーグのクラブが入っていない古いセーブに、足りない32クラブを補う。
       // 補うのは来季の器を組んだこの時点＝**次の年から**参加する（今季の順位表は触らない）。
       // そろっているセーブでは何もしない（utils/domesticClubs.ts）
-      // ★自チームのIDを渡すこと。渡さないと自チームの部まで「データどおり」に戻され、
-      //   3部から始めたはずのクラブが選んだクラブの元の部（1部・2部）へ引き戻される
+      // ★**一度でも指揮したクラブ全部**を渡すこと（utils/gmTenure の managedTeamIds）。
+      //   渡さないと自チームの部まで「データどおり」に戻され、3部から始めたはずのクラブが
+      //   選んだクラブの元の部（1部・2部）へ引き戻される。**いまの自チームだけでは足りない**——
+      //   監督が移った瞬間に前のクラブが元の部へ戻り、1年で部を2つ飛ぶ「昇格」になる
       const backfilled = backfillDomesticClubs({
-        teams: syncedTeams0, players: cleanedPlayers, year: newYear, playerTeamId: state.playerTeamId })
+        teams: syncedTeams0, players: cleanedPlayers, year: newYear,
+        pinnedTeamIds: managedTeamIds(state.gmTenures, state.playerTeamId) })
       const syncedTeams = backfilled.teams
       const playersWithBackfill = backfilled.players
       const backfillNews = backfilled.addedTeams.length === 0 ? [] : [{

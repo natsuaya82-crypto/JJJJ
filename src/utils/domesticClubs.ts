@@ -43,10 +43,14 @@ export function backfillDomesticClubs(params: {
   teams: Team[]
   players: Player[]
   year: number
-  /** 自チームのID。**このクラブの部だけはデータどおりに戻さない**（下の理由を参照） */
-  playerTeamId?: string
+  /**
+   * **部をデータどおりに戻さないクラブのID**（`utils/gmTenure` の `managedTeamIds`）。
+   * プレイヤーが一度でも指揮したクラブ全部。**いまの自チームだけにしないこと**——
+   * 監督が去った瞬間に前のクラブが元の部へ引き戻されます（下の理由を参照）
+   */
+  pinnedTeamIds?: Set<string>
 }): { teams: Team[]; players: Player[]; addedTeams: Team[] } {
-  const { teams, players, year, playerTeamId } = params
+  const { teams, players, year, pinnedTeamIds } = params
   const have = new Set(teams.map(t => t.id))
   const missing = ALL_DOMESTIC_TEAMS.filter(t => !have.has(t.id))
   if (missing.length === 0) return { teams, players, addedTeams: [] }
@@ -73,8 +77,12 @@ export function backfillDomesticClubs(params: {
     //   3部で始めたはずが順位表では1部や2部に並び、通し順位も格もそちら側で計算される
     //   （実際に「3部なのに通し順位23位」＝2部3位として出ていた）。
     //   選んだ時点の部が正なので、自チームはいまの値を保つ。
+    //
+    // ★**一度でも指揮したクラブは全部そのまま**にすること（`managedTeamIds`）。
+    //   いまの自チームだけを外していたので、監督が別のクラブへ移った瞬間に
+    //   前のクラブが元の部へ引き戻され、1年で部を2つ飛ぶ「昇格」に見えていた。
     teams: [
-      ...teams.map(t => (t.id === playerTeamId ? t : { ...t, division: originalDivisionOf(t.id) })),
+      ...teams.map(t => (pinnedTeamIds?.has(t.id) ? t : { ...t, division: originalDivisionOf(t.id) })),
       ...addedTeams,
     ],
     players: [...players, ...cpuPlayers],
