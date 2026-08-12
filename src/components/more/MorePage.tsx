@@ -520,9 +520,9 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
     <DetailScreen title="監督を退任する" onClose={onClose}>
       <div style={{ fontSize: 12, color: C.textDim, lineHeight: 1.9, marginBottom: 16 }}>
         {myTeam?.name ?? '現在のクラブ'}の監督を辞め、他クラブからの打診を待ちます。<br /><br />
-        ・打診は<strong style={{ color: C.text }}>すぐに届きます</strong>。受けたその日から新しいクラブを指揮します<br />
-        ・<strong style={{ color: C.text }}>殿堂入りチームだけは持っていきます。</strong>選手・予算・施設は移籍先のものです<br />
-        ・すべて断ったら無職のまま。次のシーズンにまた声がかかります
+        ・打診はすぐ届きますが、<strong style={{ color: C.text }}>就任は次のシーズンから</strong><br />
+        ・<strong style={{ color: C.text }}>殿堂入りチームだけ</strong>は持っていきます（選手・予算・施設は移籍先のもの）<br />
+        ・全部断ると無職のまま。次のシーズンにまた声がかかります
       </div>
       {done ? (
         <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
