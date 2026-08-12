@@ -112,6 +112,8 @@ const CHECKS = [
     why: 'playwright かブラウザが無い環境では走らせられない',
     env: () => ({ BOOT_CHROME: bootChrome() }),
   },
+  // 年をまたぐ表で「その年の事実」がその年のまま出るか（在籍履歴の部・表彰パッチの部）
+  'player-history',
 ]
 
 /**
