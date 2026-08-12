@@ -67,6 +67,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/playerUtils.ts` の `transferFeeFor` | **移籍金**（市場価値 × 余剰でなければ `POACH_PREMIUM`）。割増を掛けるのはここだけ。**今季の出場を必ず渡すこと**（`calcTransferValue` の第2引数。渡さないと出場0の選手もフル出場の選手も同じ額になる）。オフに回すときは**走り終わったシーズン**を見る（`beginSeasonDraft` の `currentSeason` は来季の空っぽの器） |
 | `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties` / `weakestSpecialty`。タイプの一覧 `SPECIALTIES` もここ。**「走れる7人に入るか」の関門を外せるのはドラフトだけ**（`needsPlayer(..., { requireLineup: false })`。移籍金を払う移籍で緩めると、1部のクラブが3部で1戦も走っていない選手を「必要」と言い出す） |
 | `src/engine/draft.ts` | **ドラフト会場のAI**。欲しいタイプ（`draftTeamNeeds`）・注目度（`draftBuzz`）・新人の年俸の下限（`draftSalaryFloor`）。**穴の見方は `squadNeeds` と同じ**で、違うのは「走れる7人」を当てないことだけ |
+| `src/lib/roomMachine.ts` | **オンライン対戦の進行判断**。`allSubmitted`（進めてよいか）／`resolveOrders`（誰を埋めるか・誰が不戦敗か）／`autoOrder` / `isOrderComplete`。**通信も React も import しない**（点検から呼べなくなるため）。**不戦敗は「何も出さなかった人」だけ**——出したが区間が欠けている人は埋めるだけ |
+| `src/lib/matchSim.ts` の `seriesPointsBefore` | **オンライン対戦の通算得点**。配列から毎回数え直す（**持ち回らない**）。以前は「1つ前のレースぶんを足す」形が混ざっていて、再接続で1戦取りこぼすとその回の得点が永久に入らなかった |
 | `src/utils/playerSort.ts` | 選手一覧の並び替え。`comparePlayers` |
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定。**値段は `priceOf` 1本**（中身は `transferFeeFor`＝現金の移籍と同じ）。現金も選手も同じ合計に入るので混合も同じ式。額面と言い値の2本立ては廃止（左右で物差しが違うと等価交換が成立しない） |

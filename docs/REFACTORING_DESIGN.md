@@ -243,8 +243,8 @@ endSeason: () => set(state => runSeasonEnd(state, [
 | **P3 engine抽出** ✅完了(2026-08-11) | cpuMarket(約580行)・achievements・draftOrder・individualRace・raceBoosts を engine/ へ、perfOf を utils/playerUtils へ移設。re-exportは残さず参照元を直接更新（RacePageのgameStore依存も解消）。gameStoreは7,479行に。**売却フロー系ヘルパー（willingFeeFor/sellMove/finalizeSale/appendChatLog等）は意図的に残置**——チャット・ニュースと絡む「取引の実行」であり、P4のmarketスライスの私有部分として一緒に動かすほうが安全 | 低〜中 |
 | **P4 スライス分割** ✅完了(2026-08-11) | 9スライス（worldAthletics/cards/economy/meta/draft/competition/race/market/season）を store/slices/ へ分割。gameStore.ts は**1,178行**（型定義・emptyState・setラッパー・core系アクション・組み立てのみ）に。setラッパーは独立middleware化せず「ラップ済みsetをスライス生成関数へ渡す」形で同じ保証を実現。取引実行ヘルパーは store/marketOps.ts、reinforcementBanned は data/economy.ts へ。スライスの型は `Pick<GameStore,...>` 戻り値で文脈型を維持 | 中〜高 |
 | **P5 巨大アクション分解** ✅完了(2026-08-11) | **P5-0 ✅** ゴールデン検査（`scripts/check-action-golden.ts`。いま12本・1シナリオ1プロセス）<br>**P5-1 ✅ runRace 1,150→470行**（16工程を engine/ と store/marketOps へ・§10）<br>**P5-2 ✅ endSeason 1,199→567行**（14本を engine/ へ・§11）<br>**P5-3 ✅ marketSlice 1,719→1,653行**（切ったのは「唯一の決まりが1つ増える」3本だけ・§12） | **高** |
-| **P6 ビュー分解** 🔄 7件中4件 | ✅ `ChatPage` 1,904→489行（＋`ChatView`/`TradeChatView`・会話生成は `utils/chatTalk`）<br>✅ `RacePage`/`SimPhase` の計算を `engine/interactiveRace.ts`(633行) へ（**画面は837/787行のまま**）<br>✅ `PlayerSheet` の経歴組み立てを `utils/careerStats`(308行) へ（**画面は1,137行のまま**）<br>✅ `NotificationsPage` のしきい値を `feeRatingOf` へ<br>⬜ **`DraftRoom`**(1,029行) … `getTeamNeeds`/`getAIBuzz` が画面の中。`squadNeeds` と二重の「何が足りないか」判定になっている**（残り3件で唯一の実害）**<br>⬜ `RoomLobbyPage`(882行) … 対戦のステートマシンが画面の中<br>⬜ `lib/matchSim.ts`(265行) … 対戦のレース計算が engine の外 | 中 |
-| **P7 ガードレール** ✅ほぼ完了 | ✅ `check-layers`（下から上への import・範囲は `src/store` 以下ぜんぶ）<br>✅ `check-size`（上限は決めず「今日より増えたら落ちる」）<br>✅ CLAUDE.md に新構成を反映<br>**⬜ §2.1 の「1スライス900行以下・1アクション150行以下」は入れていない。** `marketSlice.ts` が1,608行で、線を引いた瞬間に赤くなる。全部が赤いルールは誰も直さずそのうち外れる（§8 の `check-size` を選んだのと同じ理由） | 低 |
+| **P6 ビュー分解** ✅完了(2026-08-12・7件中6件) | ✅ `ChatPage` 1,904→489行（＋`ChatView`/`TradeChatView`・会話生成は `utils/chatTalk`）<br>✅ `RacePage`/`SimPhase` の計算を `engine/interactiveRace.ts`(633行) へ<br>✅ `PlayerSheet` の経歴組み立てを `utils/careerStats`(308行) へ<br>✅ `NotificationsPage` のしきい値を `feeRatingOf` へ<br>✅ **`DraftRoom`** … ドラフトAI3本を `engine/draft.ts` へ。ついでに `squadNeeds` との**二重判定を解消**（§14-1）<br>✅ **`RoomLobbyPage`／`PickPanel`** … 進行判断を `lib/roomMachine.ts` へ（§14-2）<br>⬜ **`lib/matchSim.ts` は移さない**（§14-3。移しても唯一の決まりが1つも増えないため） |
+| **P7 ガードレール** ✅完了(2026-08-12) | ✅ `check-layers`（**ルール5本**。§2.1 のルール1〜4に加え、**ルール3「オンライン層を gameStore に混ぜない」も機械化**した。接点は `resetGame` の1箇所だけ）<br>✅ `check-size`（上限は決めず「今日より増えたら落ちる」）<br>✅ CLAUDE.md に新構成を反映<br>**⬜ §2.1 の「1スライス900行以下・1アクション150行以下」は入れない。** `marketSlice.ts` が1,608行で、線を引いた瞬間に赤くなる。全部が赤いルールは誰も直さずそのうち外れる（§14-4） |
 
 - P0→P1→P2→P3→P4 は直列。P5/P6 は P4 完了後に並行可
 - 各フェーズは「途中で止めてもTestFlightに出せる」状態を保つ（バージョンはv2.0.2固定・
@@ -474,3 +474,96 @@ P5-0 のハーネスを両方に当てて、同じ乱数・同じ入力で走ら
 どれもリポジトリには入れていません（使い捨て）。**同じことをするときは 13-1 と 13-2 の
 手順をなぞれば足ります。** 入れなかったのは、`npm run check` に載らない検査を増やすと
 「走らせるのを忘れる2段目」ができるためです（`run-checks.mjs` の冒頭と同じ理由）。
+
+---
+
+## 14. P6・P7 の記録（2026-08-12）— 「切らない」を選んだところも書く
+
+### 14-1. `DraftRoom` … 移設のついでに二重判定が1つ見つかった
+
+画面の中に純粋関数が3本（`getTeamNeeds` / `getAIBuzz` / `draftSalaryFloor`）あり、
+**ゴールデン検査は store のアクションを叩くので画面の中には届いていませんでした。**
+
+移設は総当たり446件の突き合わせで差分ゼロを確認。**そのあとで**、`getTeamNeeds` が
+`utils/squadNeeds` と**別の答えを出している**ことが分かりました。
+
+    squadNeeds … そのタイプが0人か、チーム平均を下回っているか。**強さを見る**
+    ドラフト   … そのタイプの**人数が少ない順に2つ**。強さを見ない
+
+結果、**OVR90の逸材も OVR57 の候補も、欲しがるクラブが同じ11クラブ**でした。
+揃えるのは仕様変更なので**測ってオーナーに出し**、「揃える。ただし『走れる7人に入るか』の
+関門はドラフトには当てない」を選んでもらいました（当てると候補120人中35人が全52クラブから
+無視される）。`needsPlayer` に `requireLineup` を足し、**判定は1本のまま**にしています。
+
+**教訓12: 移設は「同じ判断が2つある」を見つける機会になる。** 移す前は画面の中にあって
+見えず、engine に並べて初めて `squadNeeds` の隣に立った。
+
+### 14-2. `RoomLobbyPage` … 塊は動かさず、判断だけ出した
+
+25個の state と ref が絡んだステートマシンで、**Supabase の realtime が要るので点検が書けません。**
+「網の無いところには手を付けない」（§12-2）に従い、**塊ごとの分解はしません。**
+
+代わりに、その中の**純粋な判断**だけを `lib/roomMachine.ts` へ出しました。
+
+- `Order` / `autoOrder` / `isOrderComplete` … **画面（`PickPanel.tsx`）の中**にあり、
+  `RoomLobbyPage` がそこから import していた（画面が画面から判断を借りる形）
+- `allSubmitted` / `resolveOrders` … 「出そろったか」と「誰を埋めるか・誰が不戦敗か」が
+  **別々に書かれていた**（前者は中身を見ない／後者は見る）。同じファイルに置いてズレようがなくした
+
+あわせて、`lib/matchSim.ts` の中にあった本物の重複も潰しました。**走行中に出す
+「ここまでの通算得点」の数え方が3か所**あり、**うち1つは受け取った順に依存**していました
+（再接続で1戦取りこぼすとその回の得点が永久に入らない）。配列から数え直す1本にしています。
+
+**教訓13: 分解できない塊でも、中の「判断」だけは出せる。** 残るのはタイマーと通信の配線で、
+そこは判断の取り違えという種類のバグが起きにくい。**全部か無かで考えない。**
+
+### 14-3. `lib/matchSim.ts` は移さない（§7 の見直し）
+
+§7 には「計算部分→engine（`backgroundRace` と同じ入口を通す）」と書いていましたが、
+**その入口を通さないことは既に決まっていました**（`check-single-source` の許可リストに
+「オンライン対戦（相手のロスターが手元に無いので別経路）」と明記済み）。
+得点の表も本編と同じ `utils/league` を通っています。
+
+つまり engine へ移しても**唯一の決まりが1つも増えません**。§12-1 に従い、移設はしません。
+
+**教訓14: 設計書に書いてあることが、あとから入った決定と食い違っていることがある。**
+書いた時点では正しかった。着手前に「その理由はまだ生きているか」を確かめること。
+
+### 14-4. 行数の上限は入れない（§2.1 のルール4）
+
+「1スライス900行以下・1アクション150行以下」は**入れません**。`marketSlice.ts` が1,608行で、
+線を引いた瞬間に赤くなります。**全部が赤いルールは誰も直さず、そのうち外されます**
+（CLAUDE.md の `check-size` の節と同じ理由）。
+
+代わりに `check-size` が「**今日より増えたら落ちる**」を見ています。意図して増やすときは
+fixture を引き直すので、**増えたことが差分に残ります**。
+
+### 14-5. §2.1 のルール3（オンライン層）を機械化した
+
+「オンライン層は gameStore に入れない」は文章だけで、**誰も見張っていませんでした。**
+`check-layers` にルール5として足しました（`src/store` から `lib/` を値で import しない。
+許可は `gameStore.ts` の `resetGame` 1箇所だけ）。**破って落ちることを確認済み。**
+
+ルールの本数も**数える形**にしました。5本目を足したときに、まとめの行が
+「4件のルール」と表示したままだったためです（**手で書いた数字は増やし忘れる**）。
+
+---
+
+## 15. リファクタリングの結果（2026-08-11〜08-12）
+
+| | 前（build 121） | 後 |
+|---|---|---|
+| `gameStore.ts` | **9,566行・157アクション** | **706行**（型・emptyState・setラッパー・組み立て） |
+| 巨大アクション | runRace 1,150 / endSeason 1,199 | **470 / 567** |
+| `npm run check` | 約50本中**19本しか繋がっていない** | **60本**（`run-checks.mjs` がファイルを数えて漏れを落とす） |
+| ゴールデン検査 | 無し | **12本**（store の大きなアクションは全部網の中） |
+| 層の見張り | 無し | `check-layers` **5ルール** ＋ `check-size` |
+| 移籍の経路 | 4つ | **1つ**（`engine/transferMarket`） |
+| 「余剰か」の定義 | 4つ | **1つ** |
+| 移籍金の割増 | 3つ | **1つ**（`POACH_PREMIUM`） |
+| ロスター下限 | 3つ | **1つ**（`CPU_SELL_FLOOR`） |
+
+**挙動が変わっていないことの根拠**は §13。P1〜P4 は build 121 と突き合わせて差分ゼロ、
+「挙動不変」と書いた3件は親のコード＋子のシナリオで再現して差分ゼロを確認しています。
+
+**意図して変えたものは全部オーナー判断を通しています**（`docs/OWNER_DECISIONS.md`）。
