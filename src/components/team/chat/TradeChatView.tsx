@@ -5,7 +5,8 @@ import { useGameStore } from '../../../store/gameStore'
 import PlayerFace from '../../player/PlayerFace'
 import { ovr, ratingColor, SPEC_COLOR } from '../../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
-import { tradeValues, keyFactor, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
+import { tradeValues, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
+import { keyPlayerStatus } from '../../../utils/playerUtils'
 import { canBePoached, canTradeAway, eligibilityCtx } from '../../../utils/transferEligibility'
 import type { Player, Team } from '../../../types'
 import { TeamLogoSVG } from '../../icons/Icons'
@@ -50,7 +51,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
       outExtra: pickKeysValue([...givePk]),
       inExtra: pickKeysValue([...getPk]) }
     const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
-    const hasKey = getPlayers.some(p => keyFactor(p, tvCtx) > 1)
+    const hasKey = getPlayers.some(p => keyPlayerStatus(p, tvCtx.currentSeason, tvCtx.pastSeasons) !== 'open')
     // 本人が断るかは engine/tradeConsent 1本（成立させる tradePlayer・打診の proposeTrade と同じ）。
     // 行き先も store の destinationOf 1本（トレード成立時に使われるものと同じ）
     const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf }, tradeConsentBonus(ratio))

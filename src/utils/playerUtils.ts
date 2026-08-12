@@ -246,7 +246,7 @@ export type PerfProfile = {
   seasonSegWins: number   // 今季の区間賞
 }
 
-type SegRaceLike = { results?: { segmentResults: { runners: { playerId: string; rank: number }[] }[] } }
+export type SegRaceLike = { results?: { segmentResults: { runners: { playerId: string; rank: number }[] }[] } }
 
 // 国内リーグの今季成績から活躍データを作る（MVP選考 utils/awards.ts と同じ集計軸）
 export function seasonPerfProfile(playerId: string, races: readonly SegRaceLike[], teamRaces: number): PerfProfile {
@@ -641,8 +641,8 @@ export function ratingColor(v: number, maxed = false): string {
 
 /** その選手の今季の出場実績。海外にいる選手は海外の出場記録から、国内はレース結果から作る。
  *  置き場所が違うだけなので読む側は区別しない（playRate と同じ思想）。gameStore から移設 */
-export function perfOf(season: { races: Race[]; currentRaceIndex: number; foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>; foreignRaceIndex?: number }, playerId: string, teamRaces?: number): PerfProfile | undefined {
+export function perfOf(season: { races: Race[]; currentRaceIndex?: number; foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>; foreignRaceIndex?: number }, playerId: string, teamRaces?: number): PerfProfile | undefined {
   const fa = season.foreignAppearances?.[playerId]
   if (fa && fa.races > 0) return foreignPerfProfile(fa, season.foreignRaceIndex ?? fa.races)
-  return seasonPerfProfile(playerId, season.races, teamRaces ?? season.currentRaceIndex)
+  return seasonPerfProfile(playerId, season.races, teamRaces ?? season.currentRaceIndex ?? 0)
 }

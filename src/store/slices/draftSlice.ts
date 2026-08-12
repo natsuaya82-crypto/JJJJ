@@ -532,7 +532,10 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       const bought = runTransferMarket(
         { players: playersAfterCpuRelease, teams: teamsAfterCpuRelease, foreignLeagues: leaguesAfterCpuTransfer },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
-          season: state.currentSeason, pastSeasons: state.pastSeasons,
+          // ★**走り終わったシーズン**を渡す。この時点の currentSeason は来季の空っぽの器で、
+          //   それを渡すと全員が「出場0」になり移籍金も年俸も一律に潰れる
+          season: state.pastSeasons[state.pastSeasons.length - 1] ?? state.currentSeason,
+          pastSeasons: state.pastSeasons.slice(0, -1),
           // 海外クラブはドラフトを取らないので、上限は ROSTER_MAX そのまま
           rosterCapFor: (id) => (state.teams.some(t => t.id === id) ? rosterCapFor(id) : ROSTER_MAX),
           destinationOf: get().destinationOf, excludeIds: cpuTransferIds })

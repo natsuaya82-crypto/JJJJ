@@ -27,7 +27,7 @@ import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContac
 import { belongsToClub, squadIdsOf } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'
-import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, faceValueOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
+import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, priceOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
 import { type Appraisal, type Destination, appraiseMove, buildDestination, rankOffers, regionOfLeague } from '../../utils/transferDecision'
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
 
@@ -1479,8 +1479,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 「これも付けてくれ」と要求される選手も、実際に出せる選手だけにする
       const counterCtx = eligibilityCtx(state.currentSeason, state.playerTeamId)
       const cands = state.players.filter(p => canTradeAway(p, counterCtx) && !giveIds.includes(p.id))
-        .sort((a, b) => faceValueOf(a) - faceValueOf(b))
-      const fit = cands.find(p => faceValueOf(p) >= need) ?? cands[cands.length - 1]
+        .sort((a, b) => priceOf(a, tvCtx) - priceOf(b, tvCtx))
+      const fit = cands.find(p => priceOf(p, tvCtx) >= need) ?? cands[cands.length - 1]
       // 成立判定(tradeBalance)を通らない条件でカウンターを出すと「飲んだのに無反応」になるため、
       // 足したあとの形をそのまま成立判定に掛けて確かめる
       if (fit && tradeBalance({ ...baseIn, outPlayers: [...givePlayers, fit] }, tvCtx).ok) {

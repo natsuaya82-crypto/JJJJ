@@ -86,8 +86,16 @@ export function runTransferMarket(
   ctx: {
     playerTeamId: string
     year: number
-    /** 「今季干されているか」を見るための出走数（見出しの選び分けに使う） */
-    season: Season
+    /**
+     * **走り終わったシーズン**。値付け（今季どれだけ走ったか）と、
+     * 見出しの選び分け（干されていたか）の両方がここを読む。
+     *
+     * ★オフに回すときは `pastSeasons` の最後（＝いま終わった年）を渡すこと。
+     *   `beginSeasonDraft` の時点で `currentSeason` は**もう来季の空っぽの器**なので、
+     *   それを渡すと全員が「出場0」になり、移籍金も年俸も一律 ×0.6 に潰れます
+     *   （実測でオフ1回の移籍金が 1189億 → 712億）。
+     */
+    season: Parameters<typeof perfOf>[0] & Pick<Season, 'year'>
     pastSeasons: ArchivedSeason[]
     /** そのクラブの在籍上限。ドラフトで入る人数ぶんを空けてある（海外は ROSTER_MAX） */
     rosterCapFor: (clubId: string) => number
@@ -189,9 +197,13 @@ export function runTransferMarket(
       .sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (ovr(b.p) - ovr(a.p)))
 
     for (const { p: target, sellClub, sellRoster, rank, surplus } of candidates) {
-      // ③余剰は市場価値どおり、主力の引き抜きは割増。年俸も余剰かどうかで変わる
-      const fee = transferFeeFor(target, surplus)
-      const tgtPerf = perfOf(ctx.season, target.id)
+      // ③余剰は市場価値どおり、主力の引き抜きは割増。年俸も余剰かどうかで変わる。
+      //   ★**今季どれだけ走ったかを移籍金にも渡すこと**（`calcTransferValue` の第2引数）。
+      //     以前は同じ関数の中で年俸にだけ渡していて、移籍金は出場0の選手も
+      //     フル出場の選手も同じ額でした（式にはあるのに誰も渡していなかった）。
+      //     実測で OVR85 の移籍金が 1.85億〜3.72億 の幅を持つところ、全部 3.08億に潰れていた
+      const tgtPerf = perfOf(ctx.season, target.id, thisRaces)
+      const fee = transferFeeFor(target, surplus, tgtPerf)
       const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
       if (budget[buyClub.id] < fee + newSalary) continue
       // ④本人が行くか。**余剰でも聞く**（出番が無いから必ず頷く、とは限らない）。

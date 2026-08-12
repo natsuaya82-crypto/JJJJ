@@ -19,12 +19,15 @@ import { type TradeValueCtx } from '../utils/tradeValue'
 
 // 指名権のバックフィル判定。「自分が今持っているか」ではなく「どこかのチームが保有しているか」で見る。
 // 売却・トレード済みの指名権を「欠落」と誤認して再生成（複製）しないため。
-export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason']; pastSeasons: GameState['pastSeasons'] }): TradeValueCtx {
+export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason']; pastSeasons: GameState['pastSeasons']; players?: GameState['players'] }): TradeValueCtx {
   return {
     races: state.currentSeason.races,
     teamRaces: state.currentSeason.currentRaceIndex,
     currentSeason: state.currentSeason,
-    pastSeasons: state.pastSeasons }
+    pastSeasons: state.pastSeasons,
+    // 出す側での序列（＝余剰か）を数えるために要る。渡さないと全員が主力扱いになり、
+    // 現金の移籍と値段が食い違う
+    players: state.players }
 }
 
 

@@ -114,8 +114,10 @@ console.log('[2] 条件を1つずつ外すと成立しなくなる')
   ]
   check('② 売る側の主力（出番がある選手）は出さない', movedOf(starter, run(starter).players).length === 0)
 
-  // ③ 釣り合わない → 成立しない（もらう選手だけ契約を長くして言い値を上げる）
-  const pricey = world().map(p => p.id === 'b-climber' ? { ...p, contract: { ...p.contract, yearsLeft: 3 } } : p)
+  // ③ 釣り合わない → 成立しない（もらう選手だけ契約を長くして値段を上げる）
+  // ★3年だと ratio がちょうど 0.92（TRADE_MIN_RATIO）に乗って通ってしまう。
+  //   境界の値を使わないこと（値付けを1本にしたとき、ここだけ静かに緑になった）
+  const pricey = world().map(p => p.id === 'b-climber' ? { ...p, contract: { ...p.contract, yearsLeft: 4 } } : p)
   check('③ 対価が釣り合わなければ成立しない', movedOf(pricey, run(pricey).players).length === 0)
 
   // ④ 本人が断れば成立しない

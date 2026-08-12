@@ -14,11 +14,12 @@
  */
 import {
   TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO, TRADE_MAX_RATIO,
-  KEY_PLAYER_PREMIUM, TRADE_OVR_SLACK, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX,
-  activityFactor, keyFactor, faceValueOf, askingValueOf, tradeValues, tradeBalance, tradeNotLopsided,
+  TRADE_OVR_SLACK, AI_OFFER_GAIN_MIN, AI_OFFER_GAIN_MAX,
+  priceOf, tradeValues, tradeBalance, tradeNotLopsided,
 } from '../src/utils/tradeValue'
 import type { TradeValueCtx } from '../src/utils/tradeValue'
-import { calcTransferValue, ovr, peakAgeOf } from '../src/utils/playerUtils'
+import { calcTransferValue, ovr, peakAgeOf, seasonPerfProfile, transferFeeFor } from '../src/utils/playerUtils'
+import { POACH_PREMIUM } from '../src/data/economy'
 import type { Player } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -123,15 +124,15 @@ console.log('\n[4] 数を足して値段だけ合わせた交換を止める（O
   const far = P(88 - TRADE_OVR_SLACK - 1, 24)
   // 額面差で先に弾かれないよう、足りない分は指名権で埋めて比を1.0に寄せる
   const NL = (out: Player[], inn: Player[]) => {
-    const of = out.reduce((s2, p) => s2 + faceValueOf(p), 0)
-    const inf = inn.reduce((s2, p) => s2 + faceValueOf(p), 0)
+    const of = out.reduce((s2, p) => s2 + priceOf(p, CTX), 0)
+    const inf = inn.reduce((s2, p) => s2 + priceOf(p, CTX), 0)
     return tradeNotLopsided({ outPlayers: out, inPlayers: inn, inExtra: Math.max(0, of - inf) }, CTX)
   }
   check('OVR差ちょうどは通る', NL([star], [near]).ok)
   check('OVR差が開きすぎたら額面で見合わない', !NL([star], [far]).ok)
   check('もらう中に1人でも近いOVRがいれば通る', NL([star], [far, near]).ok)
   check('選手が片側にしかいない（指名権だけ）ならOVRは見ない',
-    tradeNotLopsided({ outPlayers: [star], inExtra: faceValueOf(star) }, CTX).ok)
+    tradeNotLopsided({ outPlayers: [star], inExtra: priceOf(star, CTX) }, CTX).ok)
   check('断る理由が「額面で見合わない」になっている', (NL([star], [far]).reason ?? '').includes('額面'))
   check('OVRの見方が最上位どうし', ovr(star) - ovr(far) === TRADE_OVR_SLACK + 1)
 }
@@ -154,7 +155,7 @@ console.log('\n[5] 相手から来た打診は、こちらが損をする側だ�
   {
     // 生成側の一番渋い形をそのまま飲めるか、実物で確かめる
     const mine = P(80, 26), theirs = P(80, 26)
-    const inExtra = Math.max(0, Math.ceil(faceValueOf(mine) * AI_OFFER_GAIN_MIN) - faceValueOf(theirs))
+    const inExtra = Math.max(0, Math.ceil(priceOf(mine, CTX) * AI_OFFER_GAIN_MIN) - priceOf(theirs, CTX))
     check('生成の下限ちょうどの打診をそのまま飲める',
       tradeNotLopsided({ outPlayers: [mine], inPlayers: [theirs], inExtra }, CTX).ok)
   }
@@ -162,12 +163,25 @@ console.log('\n[5] 相手から来た打診は、こちらが損をする側だ�
 
 console.log('\n[6] 物差しは2つ。額面（損得）と言い値（相手が承知するか）を混ぜない')
 {
-  check('主力の割増は1.5倍', KEY_PLAYER_PREMIUM === 1.5)
+  // ★値付けは現金の移籍と同じ1本（playerUtils.transferFeeFor）。
+  //   以前ここには「主力1.5倍」「出場率×1.4」というトレード専用の式があり、
+  //   同じ「引き剥がすのに要る額」がトレードだけ 1.07〜1.50倍 高かった
   const p = P(80, 26)
-  check('出場データが無ければ割増は掛からない', keyFactor(p, CTX) === 1)
-  check('出場していなければ上乗せも無い', activityFactor(p, CTX) === 1)
-  check('額面＝そのままの市場価値（上乗せを掛けない）', faceValueOf(p) === calcTransferValue(p))
-  check('言い値＝市場価値×出場×主力割増', askingValueOf(p, CTX) === calcTransferValue(p) * activityFactor(p, CTX) * keyFactor(p, CTX))
+  const perf = seasonPerfProfile(p.id, CTX.races, CTX.teamRaces)
+  check('値段は現金の移籍とまったく同じ関数', priceOf(p, CTX) === transferFeeFor(p, false, perf),
+    '出す側の名簿(players)を渡していないので主力扱い＝割増が掛かる')
+  const surplusCtx = { ...CTX, players: [p, ...Array.from({ length: 20 }, (_, i) => P(90, 26)).map((x, i) => ({ ...x, id: `s${i}` }))] }
+  check('  余剰（15番手以降）なら割増が掛からない',
+    priceOf(p, surplusCtx) === transferFeeFor(p, true, perf), `${億(priceOf(p, surplusCtx))}`)
+  check('  主力と余剰の差は割増1段だけ',
+    Math.abs(priceOf(p, CTX) / priceOf(p, surplusCtx) - POACH_PREMIUM) < 0.02,
+    `${(priceOf(p, CTX) / priceOf(p, surplusCtx)).toFixed(3)}倍`)
+  // ★「使われている量」で値段が変わること。**現金側でも効く**（以前は式にあるのに
+  //   第2引数を誰も渡しておらず、出場0の選手もフル出場の選手も同じ額だった）
+  const busy = { playFraction: 1.0, avgSegRank: 3, seasonSegWins: 2 }
+  const idle = { playFraction: 0, avgSegRank: undefined, seasonSegWins: 0 }
+  check('よく走っている選手のほうが高い', transferFeeFor(p, false, busy) > transferFeeFor(p, false, idle) * 1.5,
+    `${億(transferFeeFor(p, false, busy))} vs ${億(transferFeeFor(p, false, idle))}`)
 
   // ★同じOVR・同じ年齢の1対1が通ること★
   // 上限の判定にまで言い値（最大2.1倍まで開く）を使うと、この当たり前の交換が成立しなくなる
@@ -179,8 +193,8 @@ console.log('\n[6] 物差しは2つ。額面（損得）と言い値（相手が
   // 上限は額面だけを見るので、相手の言い値がいくら高くても上限判定は動かない
   const keyish = P(80, 28)
   const vk = tradeValues({ outPlayers: [a], inPlayers: [keyish] }, CTX)
-  check('上限の判定に使うのは額面（cpuGain は額面と同じ）', vk.cpuGain === vk.outFace)
-  check('相手が承知するかの判定に使うのは言い値', vk.cpuLoss === askingValueOf(keyish, CTX))
+  check('左右とも同じ物差しで数える', vk.cpuGain === vk.outFace && vk.cpuLoss === vk.inFace)
+  check('  同じOVR・同じ年齢なら釣り合う（割増は両側で打ち消える）', vk.cpuGain === vk.cpuLoss)
 }
 
 console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
@@ -224,8 +238,8 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
     logic.includes('if (r < AI_OFFER_GAIN_MIN || r > AI_OFFER_GAIN_MAX) continue'))
   check('値付けの ctx が1箇所（tradeValueCtxOf）', store.includes('function tradeValueCtxOf('))
   // 値の合計は tradeValue 側でやる。呼び出し側で足すと額面と言い値がまた混ざる
-  check('ストアが値を自前で合計していない', !/reduce\(\(s2?, p\) => s2? \+ (tradeValueOf|askingValueOf|faceValueOf)\(/.test(store))
-  check('チャットが値を自前で合計していない', !/reduce\(\(s, p\) => s \+ (tradeValueOf|askingValueOf|faceValueOf)\(/.test(chat))
+  check('ストアが値を自前で合計していない', !/reduce\(\(s2?, p\) => s2? \+ (tradeValueOf|priceOf)\(/.test(store))
+  check('チャットが値を自前で合計していない', !/reduce\(\(s, p\) => s \+ (tradeValueOf|priceOf)\(/.test(chat))
   check('チャットも tradeValues で数える', chat.includes('const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)'))
   // 断る理由の文末に句点を付けない（画面側で助言を足すため。以前は句点が二重になっていた）
   check('チャットが断り文句に助言を足す形が1本', chat.includes('const blockNote = blockMsg ?'))
