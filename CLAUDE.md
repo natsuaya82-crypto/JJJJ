@@ -72,7 +72,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/engine/saleOfferGate.ts` | **買い取り打診を受けられるか**。承諾と逆提示が同じ関門を通る。**札を落とすかどうかも関門の答え**（呼ぶ側で決めない） |
 | `src/engine/tradeExecution.ts` | トレードの**物の動かし方**。`runTradeMoves` / `swapDraftPicks`。指名権は**同一性**で数える（同じ年・巡・順番が2つ並ぶのでキーの文字列で消すと別物が消える） |
 | `src/engine/tradeConsent.ts` | **トレードでもらう選手が首を縦に振るか**。`tradeRefuser` / `tradeConsentBonus`（1.2倍・+0.15）。ストア2箇所と画面1箇所に写しがあった |
-| `src/engine/cpuOffseason.ts` | **オフシーズンのCPUの市場**。`runCpuReleases` / `runCpuTransfers` / `runCpuTrades` / `runCpuLoans`。`beginSeasonDraft` の中に埋まっていた |
+| `src/engine/transferMarket.ts` | **移籍の唯一の経路**。`runTransferMarket`。国内52＋海外180を**同じ1つの市場**に入れて回す（国内CPU間・海外↔海外・日本↔海外という区別は無い。違うのはリーグだけ）。**候補に「上位10人まで」のような蓋を付けないこと**——格1の15番手が格下でスタメンになる移籍が丸ごと消える。**買う側の上限も `rosterCapFor` 1本**（2つ目の蓋を置くと、解雇をしない海外クラブが買う側から消える） |
+| `src/engine/cpuOffseason.ts` | **オフシーズンのCPUの市場（移籍以外）**。`runCpuReleases` / `runCpuTrades` / `runCpuLoans` と、シーズン中の1回ぶん `runCpuMarketTick`。`beginSeasonDraft` の中に埋まっていた |
 | `src/engine/eventEffects.ts` | **シーズン中のイベントの効き目の表**（19種 × 最大3肢）。`EVENT_EFFECTS` / `applyEventChoice`。**表に無い肢＝何も起きない** |
 | `src/engine/timeTrial.ts` | **記録会の本体**。誰が走るか・順位・疲労・カード報酬・チーム歴代記録 |
 | `src/engine/timeTrialRecords.ts` | **記録会の歴代1位**。`updateBestRecord`（世界記録も日本記録も同じ1本。違うのは「誰を見るか」だけ）／`withEventBest` |
@@ -682,6 +683,12 @@ OVR84 なら格1〜20の153クラブになります。
 0ptのまま動かず、昇降格も通算成績も決まりませんでした。
 `src/engine/domesticLeague.ts` が、海外8リーグ（`engine/foreignLeague.ts`）と
 同じ形で自分の部以外も裏で走らせます。順位表も通算成績も本編と同じだけ動きます。
+
+**移籍は `engine/transferMarket.ts` の `runTransferMarket` 1本を通します。**
+回すのは `beginSeasonDraft`（CPUの解雇が終わって枠が空いたあと）とシーズン中の
+`runCpuMarketRound` だけ。**`endSeason` では1件も動きません**（在籍25人のままでは買う枠が無い）。
+点検も同じ道を通すこと——`check-offseason` は長いあいだ `endSeason` しか呼んでおらず、
+経路を寄せた瞬間に市場を1件も通らなくなりました。
 
 **裏で走らせるレースは `engine/backgroundRace.ts` の `runBackgroundRace` 1本を通します。**
 裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここです。`simulateRace` を直接呼ぶと

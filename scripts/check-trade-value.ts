@@ -237,7 +237,7 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // ── 値段の出どころ（data/economy.ts）を素通りしていないか ──
   const bid = readFileSync(join('src', 'components', 'transfer', 'BidSheet.tsx'), 'utf-8')
   const tp = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')
-  const fx = readFileSync(join('src', 'engine', 'foreignTransfers.ts'), 'utf-8')
+  const fx = readFileSync(join('src', 'engine', 'transferMarket.ts'), 'utf-8')
   // 指名権キーの読み取り（正規表現＋既定値8,000,000）が2箇所に手書きされていた
   const pickRe = /match\(\/-R\(\\d\+\)-\(\\d\+\)\$\//g
   const pickDefs = (store.match(pickRe) ?? []).length + (chat.match(pickRe) ?? []).length
@@ -279,9 +279,9 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // 「どこかに1本だけある」ので logicSource（store＋engine）で見る。
   // CPU間移籍は engine/cpuOffseason へ移った
   // 引き抜きの割増は1本（POACH_PREMIUM）。掛けるのは transferFeeFor だけで、
-  // engine/store の側は「余剰か」を渡すだけ。**海外だけ別の割増**（旧 FOREIGN_STAR_PREMIUM）は廃止
+  // engine/store の側は「余剰か」を渡すだけ。**海外だけ別の割増**（旧・海外専用の1.25倍）は廃止
   check('引き抜きの割増を engine/store で掛け直していない',
-    !/POACH_PREMIUM/.test(logic) && !/FOREIGN_STAR_PREMIUM/.test(logic + fx),
+    !/POACH_PREMIUM/.test(logic) && !/STAR_PREMIUM/.test(logic + fx),
     'POACH_PREMIUM を掛けるのは utils/playerUtils の transferFeeFor 1本')
   check('  移籍金は transferFeeFor から出す', fx.includes('transferFeeFor'))
 }

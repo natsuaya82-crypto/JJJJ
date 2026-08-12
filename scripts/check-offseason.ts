@@ -82,7 +82,18 @@ try {
 } catch (e) {
   threw = (e as Error).message
 }
-check('例外なく走り切る', threw === null, threw ?? '')
+check('endSeason が例外なく走り切る', threw === null, threw ?? '')
+if (threw) { console.log(`✗ ${threw}`); process.exit(1) }
+
+// ★**移籍市場はここで動きます**（`engine/transferMarket.ts` の1本を beginSeasonDraft が回す）。
+//   endSeason だけを回して「オフシーズンを通した」と言うと、市場を1件も通りません。
+//   実際、経路を1本にしたときに [7] が 0件 になって初めて気づきました。
+try {
+  useGameStore.getState().beginSeasonDraft()
+} catch (e) {
+  threw = (e as Error).message
+}
+check('beginSeasonDraft が例外なく走り切る', threw === null, threw ?? '')
 if (threw) { console.log(`✗ ${threw}`); process.exit(1) }
 
 const after = useGameStore.getState()

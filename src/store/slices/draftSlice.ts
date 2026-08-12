@@ -6,7 +6,8 @@ import { draftPickValue } from '../../data/economy'
 import { SEASON_2027_RACES, generateIndividualEvents } from '../../data/races'
 import { ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
 import { pickCpuFreeAgents } from '../../engine/cpuMarket'
-import { runCpuLoans, runCpuReleases, runCpuTrades, runCpuTransfers } from '../../engine/cpuOffseason'
+import { runCpuLoans, runCpuReleases, runCpuTrades } from '../../engine/cpuOffseason'
+import { runTransferMarket } from '../../engine/transferMarket'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type Player, type TransferRecord } from '../../types'
@@ -515,8 +516,10 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const playersAfterCpuRelease = releasedWorld.players
     const teamsAfterCpuRelease = releasedWorld.teams
 
-    // ②CPU間移籍（メイン市場）：移籍金を払って他チームの余剰・主力を引き抜く。
-    // 中身は engine/cpuOffseason の runCpuTransfers 1本
+    // ②移籍市場（メイン）：**経路は engine/transferMarket.ts の1本だけ**。
+    // 国内52クラブと海外180クラブが同じ1つの市場に並ぶ（国内CPU間・海外↔海外・
+    // 日本↔海外という区別は無い。違うのはリーグだけ）。
+    // ★解雇のあとに回すこと。在籍25人のままでは買う枠が無い
     const offseasonTxRecords: TransferRecord[] = []   // チーム詳細の移籍ページ用
     // オフの市場の動きをニュースに出す。「1部の控えが下位クラブへ」「若手がレンタルで
     // 走りに出る」が見えないと、市場が効いているかを確かめられない
@@ -524,15 +527,18 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const cpuTransferIds = new Set<string>()
     let playersAfterCpuTransfer = playersAfterCpuRelease
     let teamsAfterCpuTransfer = teamsAfterCpuRelease
+    let leaguesAfterCpuTransfer = state.foreignLeagues ?? []
     {
-      const bought = runCpuTransfers(
-        { players: playersAfterCpuRelease, teams: teamsAfterCpuRelease },
+      const bought = runTransferMarket(
+        { players: playersAfterCpuRelease, teams: teamsAfterCpuRelease, foreignLeagues: leaguesAfterCpuTransfer },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
           season: state.currentSeason, pastSeasons: state.pastSeasons,
-          allTeams: state.teams, foreignLeagues: state.foreignLeagues,
-          rosterCapFor, destinationOf: get().destinationOf, excludeIds: cpuTransferIds })
+          // 海外クラブはドラフトを取らないので、上限は ROSTER_MAX そのまま
+          rosterCapFor: (id) => (state.teams.some(t => t.id === id) ? rosterCapFor(id) : ROSTER_MAX),
+          destinationOf: get().destinationOf, excludeIds: cpuTransferIds })
       playersAfterCpuTransfer = bought.players
       teamsAfterCpuTransfer = bought.teams
+      leaguesAfterCpuTransfer = bought.foreignLeagues
       offseasonTxRecords.push(...bought.records)
       offseasonTxNews.push(...bought.news)
     }
@@ -643,6 +649,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       draftState: { pool, pickOrder, currentPick: 0, picks: [], isComplete: false },
       players: [...playersWithForeignSigns, ...pool],
       teams: teamsWithAllCpuSigns,
+      // 市場で海外クラブの資金も動く（買えば減り、売れば増える）ので必ず書き戻す
+      foreignLeagues: leaguesAfterCpuTransfer,
       // 直近10シーズン分だけ残して古い移籍記録は捨てる
       transferHistory: [
         ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),

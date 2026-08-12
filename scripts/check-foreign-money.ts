@@ -16,7 +16,11 @@
  *   2. 手元に無い額は出せない（残高より高い選手は買われない）
  *   3. 毎年の精算が国内CPUと同じ式（computeNextSeasonBudget）で、破産しない・貯め込まない
  */
-import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../src/engine/foreignTransfers'
+import { runTransferMarket } from '../src/engine/transferMarket'
+import { ROSTER_MAX } from '../src/data/rosterRules'
+import { buildDestination, regionOfLeague } from '../src/utils/transferDecision'
+import { allTieredClubs, tierOf, tierOfPlayerClub, tierOfClubId } from '../src/utils/clubTier'
+import { leagueOfClub } from '../src/utils/clubs'
 import { generateForeignLeaguePlayers, generateCpuRosters } from '../src/engine/playerGenerator'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { INITIAL_TEAMS } from '../src/data/teams'
@@ -51,23 +55,33 @@ const seeded: ForeignLeague[] = gen.updatedLeagues.map(l => ({
 const budgetOf = (ls: ForeignLeague[]) =>
   new Map(allForeignClubs(ls).map(c => [c.id, c.finance?.budget ?? tierBudget(c)]))
 
+// 移籍の経路は engine/transferMarket の1本だけ。国内も海外も同じ入口を通る
+const season = { year: YEAR + 1, races: [] } as never
+const market = (leagues: ForeignLeague[], ts: Team[] = teams) => {
+  const clubs = allTieredClubs(ts, leagues)
+  const destinationOf = (clubId: string, player: Player) => {
+    const team = ts.find(t => t.id === clubId)
+    const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, clubs) ?? tierOfClubId(clubId))
+    const lg = team ? undefined : leagueOfClub(leagues, clubId)
+    return buildDestination(clubId, tier, allPlayers, { isForeign: !team, region: regionOfLeague(lg?.id), player })
+  }
+  return runTransferMarket({ players: allPlayers, teams: ts, foreignLeagues: leagues }, {
+    playerTeamId: ts[0].id, year: YEAR + 1, season, pastSeasons: [],
+    rosterCapFor: () => ROSTER_MAX, destinationOf, excludeIds: new Set<string>() })
+}
+
 console.log('[1] 買えば減り、売れば増える')
 {
-  // 買う側にも売る側にも回るまで何度か試す（1回のオフでは片方しか起きない年がある）
+  // ★1回で足ります。市場は1本になったので、1回の中で買う側にも売る側にも回ります
+  //  （以前は経路が別だったので、片方しか起きない年があり40回まで試していた）
   const before = budgetOf(seeded)
-  let moved = 0
   const down: [string, number][] = []
   const up: [string, number][] = []
-  for (let i = 0; i < 40 && (down.length === 0 || up.length === 0); i++) {
-    const r = simulateCrossBorderTransfers({
-      teams, foreignLeagues: seeded, players: allPlayers, playerTeamId: teams[0].id, year: YEAR + 1,
-    })
-    if (r.records.length === 0) continue
-    moved += r.records.length
-    for (const [id, v] of budgetOf(r.foreignLeagues)) {
-      if (v < before.get(id)! && down.length < 3) down.push([id, v])
-      if (v > before.get(id)! && up.length < 3) up.push([id, v])
-    }
+  const r0 = market(seeded)
+  const moved = r0.records.length
+  for (const [id, v] of budgetOf(r0.foreignLeagues)) {
+    if (v < before.get(id)! && down.length < 3) down.push([id, v])
+    if (v > before.get(id)! && up.length < 3) up.push([id, v])
   }
   console.log(`  移籍 ${moved}件`)
   check('移籍が起きている', moved > 0, `${moved}件`)
@@ -93,10 +107,8 @@ console.log('[2] 手元に無い額は出せない（残高を1000万まで削�
   let overspent = 0
   let negative = 0
   let bought = 0
-  for (let i = 0; i < 20; i++) {
-    const r = simulateCrossBorderTransfers({
-      teams, foreignLeagues: broke, players: allPlayers, playerTeamId: teams[0].id, year: YEAR + 1,
-    })
+  for (let i = 0; i < 2; i++) {
+    const r = market(broke)
     const cash = new Map<string, number>(allForeignClubs(broke).map(c => [c.id, START]))
     for (const rec of r.records) {
       if (fSet.has(rec.fromTeamId)) cash.set(rec.fromTeamId, cash.get(rec.fromTeamId)! + (rec.fee ?? 0))   // 売った
@@ -108,7 +120,7 @@ console.log('[2] 手元に無い額は出せない（残高を1000万まで削�
     overspent += [...cash.values()].filter(v => v < 0).length
     negative += allForeignClubs(r.foreignLeagues).filter(c => (c.finance?.budget ?? 0) < 0).length
   }
-  console.log(`  20回で海外クラブが買ったのは ${bought}件`)
+  console.log(`  2回で海外クラブが買ったのは ${bought}件`)
   check('売って得たぶんを超えて買うクラブが無い', overspent === 0, `${overspent}件が持ち出し超過`)
   check('残高がマイナスになるクラブが無い', negative === 0, `${negative}件`)
 }
@@ -141,14 +153,15 @@ console.log('[3] 毎年の精算が国内CPUと同じ式で、破産も貯め込
 }
 
 console.log('')
-console.log('[4] 海外↔海外の移籍も、同じようにお金が動く')
+console.log('[4] 移籍市場（国内52＋海外180が同じ1本）でお金が動く')
 {
-  // ★この点検は長いあいだ `simulateCrossBorderTransfers`（日本がらみ）しか見ておらず、
-  //   **海外クラブ同士の移籍が1件も通っていなかった**。そちらには資金の変数自体が無く、
-  //   移籍金 0円で他クラブの1番手を引き抜けた（実測20件すべてが出す側の1〜4番手）。
+  // ★この点検は長いあいだ日本がらみの経路しか見ておらず、**海外クラブ同士の移籍を
+  //   1件も通していませんでした**。そちらには資金の変数自体が無く、移籍金0円で
+  //   他クラブの1番手を引き抜けた（実測20件すべてが出す側の1〜4番手）。
   //   「緑になった」は「通った」の証拠にならない、の4例目。
+  //   いまは経路が1本（engine/transferMarket）なので、この節がその1本を丸ごと通ります。
   const before = budgetOf(seeded)
-  const r = simulateForeignTransferMarket({ foreignLeagues: seeded, players: allPlayers, year: YEAR + 1 })
+  const r = market(seeded)
   const after = budgetOf(r.foreignLeagues)
   const fees = r.records.reduce((s, x) => s + (x.fee ?? 0), 0)
   const down = allForeignClubs(seeded).filter(c => after.get(c.id)! < before.get(c.id)!)
@@ -160,18 +173,25 @@ console.log('[4] 海外↔海外の移籍も、同じようにお金が動く')
     r.records.every(x => (x.fee ?? 0) > 0), `${r.records.filter(x => !(x.fee ?? 0)).length}件が0円`)
   check('買ったクラブは資金が減っている', down.length > 0)
   check('売ったクラブは資金が増えている', up.length > 0)
-  // 海外クラブ同士の移籍なので、世界全体のお金は増えも減りもしない。
-  // ★クラブごとの増減で数えないこと。同じオフに売って買うクラブがあると差引で相殺され、
-  //   「払った額の合計」が移籍金の合計と一致しない（それは正しい状態）
-  const net = allForeignClubs(seeded).reduce((s, c) => s + (after.get(c.id)! - before.get(c.id)!), 0)
-  check('お金が湧きも消えもしない（世界全体の増減がゼロ）', net === 0, `${oku(net)}億ずれている`)
+  // 移籍でお金は移るだけ。**国内52＋海外180の合計は増えも減りもしない。**
+  // ★海外だけで数えないこと。市場は1本なので日本↔海外の移籍が同じ回に混ざり、
+  //   海外の合計だけ見ると国内へ出ていったぶんが「消えた」ように見えます（実測5.05億）。
+  // ★クラブごとの増減でも数えないこと。同じ回に売って買うクラブがあると差引で相殺され、
+  //   「払った額の合計」は移籍金の合計と一致しません（それは正しい状態）
+  const teamNet = r.teams.reduce((s, t) => s + (t.finance.budget - (teams.find(x => x.id === t.id)?.finance.budget ?? 0)), 0)
+  const foreignNet = allForeignClubs(seeded).reduce((s, c) => s + (after.get(c.id)! - before.get(c.id)!), 0)
+  check('お金が湧きも消えもしない（国内＋海外の合計がゼロ）', teamNet + foreignNet === 0,
+    `国内 ${oku(teamNet)}億 / 海外 ${oku(foreignNet)}億`)
 
-  // 全クラブの残高を1円にすると、誰も買えない＝1件も成立しない
+  // **国内も海外も**残高を1円にすると、誰も買えない＝1件も成立しない。
+  // ★海外だけ空にしても止まりません（国内クラブが買いに来るし、売った海外クラブは
+  //   その場で資金を得てまた買えるようになる）。実測で200件動きました
   const broke: ForeignLeague[] = gen.updatedLeagues.map(l => ({
     ...l, clubs: l.clubs.map(c => ({ ...c, finance: { budget: 1 } })),
   }))
-  const poor = simulateForeignTransferMarket({ foreignLeagues: broke, players: allPlayers, year: YEAR + 1 })
-  check('手元に無ければ引き抜けない（全クラブ残高1円なら0件）',
+  const brokeTeams = teams.map(t => ({ ...t, finance: { ...t.finance, budget: 1 } }))
+  const poor = market(broke, brokeTeams)
+  check('手元に無ければ引き抜けない（全232クラブ残高1円なら0件）',
     poor.records.length === 0, `${poor.records.length}件も動いた`)
 }
 

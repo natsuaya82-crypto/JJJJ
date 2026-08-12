@@ -520,7 +520,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 万一エラーが出てもコアのレース進行を壊さないようガードする。
     try { get().advanceForeignLeagues() } catch (e) { console.error('advanceForeignLeagues failed', e) }
     // 移籍ウィンドウ中は日本↔海外の移籍も裏で少数発生させる（別set・裏進行）。
-    try { get().runMidSeasonForeignTransfers() } catch (e) { console.error('runMidSeasonForeignTransfers failed', e) }
     // CPU同士の移籍・トレード・レンタルも、オフだけでなくシーズン中に回す。
     // **何回ぶん進むかは日付で決まる**ので、部ごとのレース数の違いに影響されない
     try { get().runCpuMarketRound(race.date) } catch (e) { console.error('runCpuMarketRound failed', e) }

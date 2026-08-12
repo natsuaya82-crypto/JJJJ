@@ -1,7 +1,11 @@
 // 海外リーグの年度処理。endSeason から切り出した（挙動不変）。
 //
 //   優勝クラブの選手に優勝+1 → リーグ順位から格を動かす → 来季予算の精算
-//   → 海外クラブ間の移籍 → 日本↔海外の移籍
+//
+// **移籍はここでは起きません。** 経路は `engine/transferMarket.ts` の1本だけで、
+// 回すのは `beginSeasonDraft`（CPUの解雇が終わって枠が空いたあと）。
+// 以前はここに「海外↔海外」と「日本↔海外」の2本があり、国内CPU間の1本と合わせて
+// 同じ問いに3つの実装が並んでいました。
 //
 // ■触るときの注意
 //   - **海外クラブの格も毎年動く。国内と扱いを分けないこと。** 違うのは「どの順位表で
@@ -11,25 +15,19 @@
 //     来季予算も国内CPUと同じ `computeNextSeasonBudget` を通す。
 //     **`tierBudget` から作り直さないこと**（使っても減らない別のお金になり、
 //     国内が節約している場面でも海外だけは必ず買えるので日本の主力が一方的に抜ける）
-//   - 移籍の処理が転んでもシーズンの更新自体は壊さない。失敗したら「移籍なし」で先へ進める
 //   - **乱数を引く。** 中の順番を入れ替えると世界が丸ごと変わる
 import { computeNextSeasonBudget } from '../data/economy'
 import { applyForeignChampions } from './foreignLeague'
-import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from './foreignTransfers'
 import { tierBudget, tierFromForeignRank } from '../utils/clubTier'
 import { facilityUpkeepOf } from '../utils/facilities'
 import { rankedStandings } from '../utils/league'
-import type { NewsItem } from '../utils/newsItems'
-import type { ForeignLeague, GameState, Player, Team, TransferRecord } from '../types'
+import type { ForeignLeague, GameState, Player, Team } from '../types'
 
-type ForeignTx = { foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TransferRecord[] }
-type CrossTx = { teams: Team[]; foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TransferRecord[] }
-
+/** 格と予算を来季ぶんに更新し終えた世界。移籍はまだ1件も起きていない */
 export type ForeignSeasonResult = {
-  /** 海外クラブ同士の移籍まで済ませた段階 */
-  foreignTx: ForeignTx
-  /** 日本↔海外の移籍まで済ませた段階 */
-  crossTx: CrossTx
+  players: Player[]
+  teams: Team[]
+  foreignLeagues: ForeignLeague[]
 }
 
 export function processForeignSeason(args: {
@@ -37,11 +35,6 @@ export function processForeignSeason(args: {
   players: Player[]
   /** 今季の海外リーグ（優勝クラブを見るため、更新前のもの） */
   foreignLeagues: ForeignLeague[]
-  /**
-   * ④本人が行くか。**海外を特別扱いしない**（国内とまったく同じ関門）。
-   * 呼び出し側（store）が `destinationOf` を持っているので渡してもらう
-   */
-  consents?: (player: Player, toClubId: string, fromClubId: string) => boolean
   /** 今季の海外リーグ順位表 */
   foreignStandings: NonNullable<GameState['currentSeason']['foreignStandings']>
   /** 年次入れ替え後の海外リーグ */
@@ -57,7 +50,7 @@ export function processForeignSeason(args: {
   newYear: number
 }): ForeignSeasonResult {
   const { players, foreignLeagues, foreignStandings, refreshedLeagues, newForeignPlayers,
-    removedForeignPlayerIds, teams, playerTeamId, newYear } = args
+    removedForeignPlayerIds, teams } = args
 
   // 海外リーグの優勝クラブ所属選手に championships +1（今季の順位表を確定してから）
   const playersWithForeignChamp = applyForeignChampions(
@@ -120,31 +113,10 @@ export function processForeignSeason(args: {
             facilityUpkeep: facilityUpkeepOf(c) }) } }
     }) }))
 
-  let foreignTx: { foreignLeagues: typeof refreshedLeagues; players: typeof foreignBasePlayers; news: NewsItem[]; records: TransferRecord[] }
-  try {
-    foreignTx = simulateForeignTransferMarket({
-      foreignLeagues: leaguesWithFinance,
-      players: foreignBasePlayers,
-      year: newYear,
-      consents: args.consents })
-  } catch (e) {
-    console.error('simulateForeignTransferMarket failed', e)
-    foreignTx = { foreignLeagues: leaguesWithFinance, players: foreignBasePlayers, news: [], records: [] }
-  }
-
-  // シーズンオフの日本↔海外クロスボーダー移籍（CPU同士）。プレイヤーのチームは対象外。
-  let crossTx: { teams: typeof teams; foreignLeagues: typeof foreignTx.foreignLeagues; players: typeof foreignTx.players; news: typeof foreignTx.news; records: TransferRecord[] }
-  try {
-    crossTx = simulateCrossBorderTransfers({
-      teams: teams,
-      foreignLeagues: foreignTx.foreignLeagues,
-      players: foreignTx.players,
-      playerTeamId: playerTeamId,
-      year: newYear,
-      consents: args.consents })
-  } catch (e) {
-    console.error('simulateCrossBorderTransfers failed', e)
-    crossTx = { teams: teams, foreignLeagues: foreignTx.foreignLeagues, players: foreignTx.players, news: [], records: [] }
-  }
-  return { foreignTx, crossTx }
+  // ★移籍市場はここでは回しません。**経路は `engine/transferMarket.ts` の1本だけ**で、
+  //   回すのは `beginSeasonDraft`（＝CPUの解雇が終わって枠が空いたあと）です。
+  //   ここには「海外↔海外」と「日本↔海外」の2本があり、国内CPU間の1本と合わせて
+  //   同じ問いに3つの実装が並んでいました（`docs/AUDIT_TRANSFERS.md`）。
+  //   在籍25人のまま市場を回すと買う枠が無いので、順番も解雇のあとで正しい。
+  return { players: foreignBasePlayers, teams, foreignLeagues: leaguesWithFinance }
 }

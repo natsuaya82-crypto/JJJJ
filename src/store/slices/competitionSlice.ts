@@ -5,12 +5,9 @@ import { ACHIEVEMENT_JEWELS, podiumJewels } from '../../engine/achievements'
 import { type EclParticipant, simulateEclEvent } from '../../engine/ecl'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings, simulateForeignLeagueRound } from '../../engine/foreignLeague'
-import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../../engine/foreignTransfers'
 import { cpuMarketRounds, runCpuMarketTick } from '../../engine/cpuOffseason'
-import { allTieredClubs, tierOfPlayerClub } from '../../utils/clubTier'
-import { playerConsentToMove } from '../../utils/playerUtils'
 import { tradeValueCtxOf } from '../marketOps'
-import { rosterCapOf } from '../../data/rosterRules'
+import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
 import { findClub } from '../../utils/clubs'
 import { TOP_DIVISION, divisionStandings, rankedStandings } from '../../utils/league'
@@ -23,17 +20,7 @@ import { resolveBid } from '../../utils/transferBid'
 
 
 type Slice = Pick<GameStore,
-  'advanceForeignLeagues' | 'runMidSeasonForeignTransfers' | 'runCpuMarketRound' | 'advanceMarketOneRace' | 'advanceEclRace' | 'ensureEclSeries'>
-
-/**
- * ④本人が行くか。**海外を特別扱いしない**（CLAUDE.md）。国内とまったく同じ関門で、
- * 違うのは `destinationOf` が**どの順位表から序列を引くか**だけ。
- */
-const consentsOf = (get: () => GameStore) => (p: Player, toClubId: string, fromClubId: string) => {
-  const st = get()
-  return playerConsentToMove(p, st.destinationOf(toClubId, p),
-    tierOfPlayerClub(fromClubId, allTieredClubs(st.teams, st.foreignLeagues ?? [])), 0.5, 0, 0, true).ok
-}
+  'advanceForeignLeagues' | 'runCpuMarketRound' | 'advanceMarketOneRace' | 'advanceEclRace' | 'ensureEclSeries'>
 
 export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -68,57 +55,6 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
   }),
 
 
-  // 移籍ウィンドウ中、レース毎に低確率で日本↔海外のクロスボーダー移籍を少数だけ発生させる（リーグが年中生きてる感じ）。
-  // オフシーズンの一括処理と同じ財務＋補強ポイント連動ロジックを、件数を絞って呼ぶ。
-  runMidSeasonForeignTransfers: () => {
-    const st = get()
-    if ((st.foreignLeagues ?? []).length === 0) return
-    // 海外クラブ同士の引き抜きも低確率で1件（オフの一括と同じロジック。OVR下限もそのまま効く）
-    if (Math.random() < 0.20) {
-      set(state => {
-        const raceDate = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
-        const res = simulateForeignTransferMarket({
-          foreignLeagues: state.foreignLeagues ?? [],
-          players: state.players,
-          year: state.currentSeason.year,
-          maxMoves: 1,
-          includeDecline: false,
-          date: raceDate,
-          consents: consentsOf(get) })
-        if (res.records.length === 0) return {}
-        return {
-          players: res.players,
-          foreignLeagues: res.foreignLeagues,
-          transferHistory: [...(state.transferHistory ?? []), ...res.records].slice(-800),
-          currentSeason: { ...state.currentSeason, newsFeed: [...res.news, ...state.currentSeason.newsFeed].slice(0, 40) } }
-      })
-    }
-    if (Math.random() > 0.30) return   // 発生率 約30%/レース
-    const nIn = Math.random() < 0.55 ? 1 : 0
-    const nOut = Math.random() < 0.55 ? 1 : 0
-    if (nIn === 0 && nOut === 0) return
-    set(state => {
-      const res = simulateCrossBorderTransfers({
-        teams: state.teams,
-        foreignLeagues: state.foreignLeagues ?? [],
-        players: state.players,
-        playerTeamId: state.playerTeamId,
-        year: state.currentSeason.year,
-        maxIn: nIn,
-        maxOut: nOut,
-        consents: consentsOf(get) })
-      if (res.news.length === 0) return {}
-      return {
-        teams: res.teams,
-        players: res.players,
-        foreignLeagues: res.foreignLeagues,
-        // シーズン中の日本↔海外移籍も履歴に記録（移籍ページで日付・移籍金が出るように）
-        transferHistory: [...(state.transferHistory ?? []), ...res.records].slice(-800),
-        currentSeason: { ...state.currentSeason, newsFeed: [...res.news, ...state.currentSeason.newsFeed].slice(0, 40) } }
-    })
-  },
-
-
   /**
    * CPU同士の市場（移籍・トレード・レンタル）を1回ぶん進める。
    *
@@ -132,30 +68,34 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     if (rounds <= 0) return {}
     let players = state.players
     let teams = state.teams
+    let foreignLeagues = state.foreignLeagues ?? []
     const records: TransferRecord[] = []
     const news: NewsItem[] = []
     // 上限で切り捨てたぶんは繰り越さない（cpuMarketRounds 側の決まり）
     const draftPickCounts = 0
     for (let i = 0; i < rounds; i++) {
-      const r = runCpuMarketTick({ players, teams }, {
+      const r = runCpuMarketTick({ players, teams, foreignLeagues }, {
         playerTeamId: state.playerTeamId,
         year: state.currentSeason.year,
         season: state.currentSeason,
         pastSeasons: state.pastSeasons,
         allTeams: state.teams,
-        foreignLeagues: state.foreignLeagues ?? [],
-        rosterCapFor: () => rosterCapOf(draftPickCounts),
+        foreignLeagues,
+        // 海外クラブはドラフトを取らないので、上限は ROSTER_MAX そのまま
+        rosterCapFor: (id) => (state.teams.some(t => t.id === id) ? rosterCapOf(draftPickCounts) : ROSTER_MAX),
         destinationOf: get().destinationOf,
         tradeValueCtx: tradeValueCtxOf(state),
         date })
       players = r.players
       teams = r.teams
+      foreignLeagues = r.foreignLeagues
       records.push(...r.records)
       news.push(...r.news)
     }
     return {
       players,
       teams,
+      foreignLeagues,
       transferHistory: [...(state.transferHistory ?? []), ...records].slice(-800),
       currentSeason: {
         ...state.currentSeason,

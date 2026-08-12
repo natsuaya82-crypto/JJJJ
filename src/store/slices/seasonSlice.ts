@@ -37,7 +37,7 @@ import { startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, ovr, packForeignApps, perfOf, playerConsentToMove } from '../../utils/playerUtils'
+import { faMarketSalary, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
 import { squadIdsOf } from '../../utils/rosterSync'
 import { needsPlayer } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
@@ -464,22 +464,18 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         foreignStandings: state.currentSeason.foreignStandings ?? {},
         refreshedLeagues: foreignRefresh.updatedLeagues, newForeignPlayers: foreignRefresh.newPlayers,
         removedForeignPlayerIds, teams: teamsWithCleanedPicks,
-        playerTeamId: state.playerTeamId, newYear,
-        // ④本人が行くか。**海外を特別扱いしない**（国内とまったく同じ関門で、
-        // 違うのは destinationOf がどの順位表から序列を引くかだけ）
-        consents: (p, toClubId, fromClubId) => playerConsentToMove(
-          p, get().destinationOf(toClubId, p),
-          tierOfPlayerClub(fromClubId, allTieredClubs(state.teams, state.foreignLeagues ?? [])), 0.5, 0, 0, true).ok })
-      const foreignTx = fSeason.foreignTx
-      const crossTx = fSeason.crossTx
+        playerTeamId: state.playerTeamId, newYear })
+      // ★移籍はここでは起きません（`engine/transferMarket.ts` の1本を `beginSeasonDraft` で回す）。
+      //   ここは格と来季予算を更新し終えた世界を受け取るだけ
+      const market = fSeason
 
       // セーブの肥大化対策（在籍上限の整理・引退選手の軽量化・出番の無い選手の削除）は
       // engine/savePruning 1本。**実績のある選手は絶対に消さない**という決まりもそちら側
       const pruned = pruneSaveData({
-        players: crossTx.players, foreignLeagues: crossTx.foreignLeagues, state, newYear })
+        players: market.players, foreignLeagues: market.foreignLeagues, state, newYear })
       const cleanedPlayers = pruned.players
       const removedPlayers = pruned.removedPlayers
-      const cappedForeignLeagues = crossTx.foreignLeagues
+      const cappedForeignLeagues = market.foreignLeagues
 
       // 退団のお知らせ（黙って消えるのを防ぐ）は engine/departureNotices 1本
       const dep = collectDepartures({
@@ -500,7 +496,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 契約満了のFA化（teamId=''）や長期整理での選手削除がroster配列に残存し、
       // 「名簿に居るのにteamIdが違う/存在しない」不整合になるのを根治する
       // レンタル中（loanあり）の選手は名簿外が正規仕様（teamId=借り手だが借り手の名簿には載せない）
-      const syncedTeams0 = crossTx.teams
+      const syncedTeams0 = market.teams
 
       // 下部リーグのクラブが入っていない古いセーブに、足りない32クラブを補う。
       // 補うのは来季の器を組んだこの時点＝**次の年から**参加する（今季の順位表は触らない）。
@@ -558,7 +554,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         worldTournament: undefined,  // 世界選手権トーナメントは年度で完結（翌年は新規に開催）
         worldRacePlans: undefined,   // コースも毎年引き直し
         // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
-        transferHistory: [...(state.transferHistory ?? []), ...departureRecords, ...foreignTx.records, ...crossTx.records].slice(-800),
+        transferHistory: [...(state.transferHistory ?? []), ...departureRecords].slice(-800),
         jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
         // 最終戦ぶんがまだ未表示なので上書きせず足す
         jewelGains: [...(state.jewelGains ?? []), ...seasonJewelGains].slice(-20),
@@ -621,7 +617,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
               playerTeamId: state.playerTeamId,
               leagues: foreignRefresh.updatedLeagues,
               foreignStandings: state.currentSeason.foreignStandings ?? {},
-              players: foreignTx.players })
+              players: market.players })
             if (parts.length < 4) return undefined
             return {
               participants: parts,
@@ -636,8 +632,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           newsFeed: [
             ...backfillNews,
             { date: `${newYear}-03-01`, headline: seasonOpenHeadline(newYear, newRaces.length), category: 'race' as const, relatedIds: [] },
-            ...crossTx.news,
-            ...foreignTx.news,
             ...divisionChampionNews,
             ...divisionMoveNews,
             seasonPrizeNews,
