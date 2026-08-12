@@ -114,6 +114,8 @@ const CHECKS = [
   },
   // 年をまたぐ表で「その年の事実」がその年のまま出るか（在籍履歴の部・表彰パッチの部）
   'player-history',
+  // 代表の「自動選出」が engine の autoSelectEkiden 1本を通っているか（自前で並べ直していないか）
+  'wa-autoselect',
 ]
 
 /**
