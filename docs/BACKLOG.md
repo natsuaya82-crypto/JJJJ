@@ -535,3 +535,41 @@ CLAUDE.md は「移籍金の有無・国内か海外か・FAかどうかは、�
   仕様確認が1件だけ出た → A-5
 - **F-3. `check-layers` の範囲** … `済`（2026-08-11）。ルール2・3を `src/store` 以下
   ぜんぶへ。違反0件、広げる前後で全49本の ok/NG も差分なし
+- **F-4. 死んでいるコードの棚卸し** … `済`（2026-08-12・調査のみ）。
+  `src/engine` `src/store` `src/utils` `src/data` の export を全部数え、
+  **どこからも呼ばれず自ファイル内でも使われていないもの19件**を特定した。
+
+  **うち17件は build 121 の時点で既に死んでいます**（リファクタリングの残骸ではない）。
+  リファクタで死んだのは2件だけで、どちらも `engine/foreignTransfers.ts` の削除に伴うもの:
+  `utils/squadNeeds` の `weakestSpecialty` / `bestOvrInSpecialty`。
+
+  消すかどうかは**まだ判断していません**。`weakestSpecialty` は CLAUDE.md の
+  一本化モジュール表に載っているので、消すなら表からも消すことになります
+  （「弱いタイプ」を見る判定が将来また要るなら残す）。オーナー判断。
+
+  ついでに見つかった小さいもの（どれも直していない）:
+  - `data/cardShop.ts:31` … `RARITY_EXP` を `CARD_UNIT_EXP` という**別名で再export**している。
+    値は1つだが名前が2つ。呼ぶ側は全部 `CARD_UNIT_EXP` なので、いま食い違いは無い
+  - `engine/draftOrder.ts` … `latestRank`（直近シーズンの順位）が
+    `standingsPickNumbers`(L14) と `draftLotteryOrder`(L29) に**同じ中身で2回手書き**されている。
+    片方だけ直すとドラフト順の基準がズレる形
+
+- **F-5. 一度も通らない枝が2つある**（**どちらも build 121 から同じ。仕様の判断が要る**）
+
+  1. **チームトーク（士気の上げ下げ）が効いていない**
+     `engine/raceProgress.ts:41`
+     ```
+     const talkBonus = teamTalk === 'enjoy' ? 5 : teamTalk === 'win' && teamRank <= 5 ? 10 : 0
+     ```
+     `raceTeamTalk` の初期値は `'best'` で、**`setRaceTeamTalk` を呼ぶ画面がどこにもありません**
+     （`LineupPhase.tsx:117` が `setTeamTalk` を受け取っているが、押す場所が無い）。
+     つまり `'enjoy'` も `'win'` も一度も入らず、**+5 も +10 も一度も付いていません。**
+     → 選ばせるUIを作るのか、この枝ごと落とすのか。**オーナー判断**
+
+  2. **区間イベント `final_push` が存在しない**
+     `engine/interactiveRace.ts:266` が `e.id === 'final_push'` のとき発火地点を
+     終盤（74〜88%）にしているが、**そのIDのイベントは定義されていません**
+     （あるのは `start_dash` / `mountain_ascent` / `mountain_descent` / `pack_race` /
+     `catching_up` / `front_pressure` / `water_station` の7つ）。
+     いまは「ラスト勝負」に当たるイベントが無く、既定の35〜60%へ落ちます。
+     → ラスト勝負のイベントを足すのか、この行を落とすのか。**オーナー判断**
