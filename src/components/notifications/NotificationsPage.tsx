@@ -168,7 +168,7 @@ export default function NotificationsPage() {
   // ※セレクタで `?? []` すると毎回新しい配列になり無限レンダリングするので、フィールドをそのまま取る
   const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
   const {
-    incomingOfferPlayers, stayOrLeave, freeContacts, freeTransferNotices, departureNotices,
+    stayOrLeave, freeContacts, freeTransferNotices, departureNotices,
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
     sponsorOffers, tradeOffers, chatReplies, joinNotices,
     renewalPlayers, rosterOver, signingBanned, injuredPlayers,
@@ -854,60 +854,11 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {incomingOfferPlayers.length > 0 && (
-            <section style={{ marginTop: (retirementRequests.length + transferReqs.length + overseasReqs.length + counteredBids.length) > 0 ? '20px' : 0 }}>
-              {/* カードは選手ごとに1枚。取り合いになっていても返事は1回で、会話も1本 */}
-              <SectionHead label="移籍オファー" color={C.red} count={incomingOfferPlayers.length}/>
-              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {incomingOfferPlayers.map(group => {
-                  const offer = [...group.offers].sort((a, b) => b.offeredPrice - a.offeredPrice)[0]
-                  const rivals = group.offers.length
-                  // 海外クラブからのオファーもあるため、国内チーム→海外クラブの順で名前を解決する
-                  const fromClubName = clubIndex.byId(offer.fromTeamId)?.shortName ?? '他クラブ'
-                  const target = players.find(p => p.id === offer.playerId)
-                  if (!target) return null
-                  const pOvr = ovr(target)
-                  const isFreeOffer = offer.offeredPrice === 0
-                  const expiresIn = Math.max(0, offer.expiresAtRace - racesConsumed(currentSeason))
-                  const mv = calcTransferValue(target)
-                  const ratio = mv > 0 ? offer.offeredPrice / mv : 0
-                  const mvFeeRating = feeRatingOf(ratio)
-                  const mvRating = mvFeeRating === 'fair' ? { label: '適正', color: C.green } : mvFeeRating === 'soft' ? { label: 'やや安', color: C.orange } : { label: '安値', color: C.red }
-                  return (
-                    <div key={group.playerId} style={cardStyle(alpha(C.red, 0.45), '#660e10')}>
-                      <div style={inset}/>
-                      <div style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                          <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={pOvr} accentColor={C.red} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{target.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{rivals > 1 ? `${rivals}クラブが買取を希望（最高 ${fromClubName}）` : `${fromClubName} が${isFreeOffer ? 'フリー移籍での獲得' : '買取'}を希望`}</div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: isFreeOffer ? '13px' : '20px', fontWeight: '900', color: isFreeOffer ? C.textSub : C.green, textShadow: isFreeOffer ? 'none' : `0 0 8px ${alpha(C.green, 0.4)}` }}>{isFreeOffer ? '移籍金なし' : fmtYen(offer.offeredPrice)}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '1px' }}>期限 {expiresIn}戦</div>
-                          </div>
-                        </div>
-                        {!isFreeOffer && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '7px 10px', borderRadius: '10px', background: alpha(mvRating.color, 0.08), border: `1px solid ${alpha(mvRating.color, 0.2)}` }}>
-                          <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '700', color: mvRating.color, padding: '2px 6px', borderRadius: '6px', background: alpha(mvRating.color, 0.15) }}>{mvRating.label}</span>
-                          <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub }}>市場価値 <span style={{ color: C.text, fontWeight: '700' }}>{fmtYen(mv)}</span></span>
-                          <span style={{ fontFamily: SAIRA, fontSize: '11px', color: mvRating.color, marginLeft: 'auto', fontWeight: '700' }}>{Math.round(ratio * 100)}%</span>
-                        </div>
-                        )}
-                        {isFreeOffer && (
-                        <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '12px', lineHeight: 1.6 }}>
-                          契約満了が近いため、移籍金なしでの獲得打診です。断っても契約が切れればFAで流出する可能性があります。
-                        </div>
-                        )}
-                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate(`/team/chat?player=${target.id}`)}>チャットで対応する</Btn>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
+          {/* ★買い取りの打診は通知に出さない（2026-08-12・オーナー判断「受信箱はいいけど通知に来なければいい」）。
+              1レースに1〜2件しか来ないのに打診は5レース残るので、通知に出すと常時8〜11件が並び続けていた。
+              返事は**移籍ページ**（「他クラブからのオファー N件 — 要確認」）と**チャット**でできるので、
+              ここから外しても詰まらない。utils/notifItems の total からも外してある
+              （ベルの数字と通知ページの枚数は必ず一致させる、という決まり） */}
 
         </div>
       )}
