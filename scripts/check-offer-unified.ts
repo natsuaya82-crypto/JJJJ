@@ -1,0 +1,156 @@
+/**
+ * 【自チームへの買い取り打診は1本】国内52クラブと海外180クラブが**同じ関門・同じ上限**を通ること。
+ *
+ *   npx esbuild --bundle --platform=node --format=cjs scripts/check-offer-unified.ts \
+ *     --outfile=node_modules/.cache/check-ou.cjs --log-level=error && node node_modules/.cache/check-ou.cjs
+ *
+ * ■何が起きていたか（2026-08-12・オーナー「一本化して国内に合わせて」）
+ *   `engine/transferMarket` はCPU同士の移籍を1本にまとめてあったのに、
+ *   **自チームへ来る打診だけ**が `generateTransferActivity`（国内）と
+ *   `generateForeignAndLoanOffers`（海外）の2本のままでした。
+ *
+ *     |              | 国内         | 海外          |
+ *     |--------------|--------------|---------------|
+ *     | 1レースの上限  | 2件          | **無し**       |
+ *     | 来はじめ      | 3戦目から     | **1戦目から**  |
+ *     | 提示額        | 相場の80〜105% | 相場の95〜140% |
+ *
+ *   実測（同じ世界を60年ぶん）：
+ *
+ *     一本化する前   19.98件/年   1レース最多 5件   受信箱 平均7.55件（最多19件）
+ *     一本化した後   14.00件/年   1レース最多 2件   受信箱 平均5.00件（最多10件）
+ *
+ * ■この点検が守るもの
+ *   ① 上限は**1つだけ**（国内＋海外を合わせて1レース2件）
+ *   ② 開幕から2戦目までは1件も来ない（国内の線）
+ *   ③ 海外クラブにも順番が回る（国内を先に並べて打ち切ると海外は永遠に0件）
+ *   ④ 提示額の式は1本（海外だけ高く出す枝を戻していない）
+ *   ⑤ 貸出の関数に買い取りの枝を戻していない
+ */
+import { readFileSync } from 'node:fs'
+import { generateTransferActivity } from '../src/engine/cpuMarket'
+import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
+import { INITIAL_TEAMS } from '../src/data/teams'
+import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
+import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { generateSeasonRaces } from '../src/data/races'
+import { divisionOf } from '../src/utils/league'
+import { tierBudget } from '../src/utils/clubTier'
+import { calcTransferValue } from '../src/utils/playerUtils'
+import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
+
+let failed = 0
+const check = (name: string, ok: boolean, detail = '') => {
+  console.log(`  ${ok ? 'ok' : 'NG'}  ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  if (!ok) failed++
+}
+
+const MY = 'tokyo'
+const YEAR = 2030
+const RUNS = 25
+
+// ★国内チームにも `leagueId` を入れる。`Team` にも `leagueId?` があるので、
+//   `'leagueId' in club` で国内／海外を分けると**国内の打診に fromForeign が付く**。
+//   fixture がこれを持っていないと、その間違いは緑のまま通る（最初に書いた版がそうだった）
+const teams: Team[] = ([...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[])
+  .map(t => ({ ...t, leagueId: 'jpel', country: 'JPN', finance: { ...t.finance, budget: tierBudget(t) } }))
+// ★海外クラブは**名簿ごと**用意する。名簿が空のクラブは穴も序列も出せないので
+//   1件も打診してこない＝「海外の枝を測っていない世界」で緑になる
+const fg = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const foreignClubs: ForeignClub[] = fg.updatedLeagues.flatMap(l =>
+  l.clubs.map(c => ({ ...c, leagueId: l.id, finance: { budget: tierBudget(c as never) } }))) as ForeignClub[]
+const foreignPlayers: Player[] = fg.players
+const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)))
+const foreignIds = new Set(foreignClubs.map(c => c.id))
+
+type Run = { fresh: IncomingOffer[]; raceIndex: number; run: number }
+const rounds: Run[] = []
+// ★選手IDは世界ごとに使い回されるので、値段を突き合わせるときは**同じ世界の名簿**だけを見る
+//   （run 0 の名簿で run 5 の打診を割ると、別人の相場で割って6倍などになる）
+const players0 = [...generateCpuRosters(teams, YEAR).cpuPlayers, ...foreignPlayers]
+for (let run = 0; run < RUNS; run++) {
+  const players = run === 0 ? players0 : [...generateCpuRosters(teams, YEAR - run).cpuPlayers, ...foreignPlayers]
+  let live: IncomingOffer[] = []
+  for (let i = 0; i < races.length; i++) {
+    const r = generateTransferActivity(
+      players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs)
+    rounds.push({ fresh: r.incomingOffers.filter(o => !live.some(l => l.id === o.id)), raceIndex: i, run })
+    live = r.incomingOffers
+  }
+}
+
+// 打診（移籍金つき）だけを見る。フリー接触（offeredPrice 0）と出品への入札（inc-lst-）は別の枝
+const buyOffers = (rs: Run[]) => rs.map(r => ({
+  ...r, fresh: r.fresh.filter(o => o.offeredPrice > 0 && !o.id.startsWith('inc-lst-')) }))
+const buys = buyOffers(rounds)
+const allBuys = buys.flatMap(r => r.fresh)
+
+console.log('[1] 上限は1つ（国内＋海外を合わせて1レース2件）')
+{
+  const maxPerRace = Math.max(...buys.map(r => r.fresh.length))
+  check('1レースに増える打診は2件まで', maxPerRace <= 2, `最多 ${maxPerRace}件`)
+  // ★母数の確認。1件も来ない世界なら上限を守っているのは当たり前
+  check('そもそも打診は来ている（空振りの緑ではない）', allBuys.length > 0, `${allBuys.length}件`)
+  check('上限にぶつかる回がある（緩い上限ではない）',
+    buys.some(r => r.fresh.length === 2), `2件の回 ${buys.filter(r => r.fresh.length === 2).length}回`)
+}
+
+console.log('')
+console.log('[2] 開幕直後は来ない（OFFER_START_RACE=3）')
+{
+  const early = buys.filter(r => r.raceIndex < 3).flatMap(r => r.fresh)
+  check('開幕3戦は0件', early.length === 0, `${early.length}件`)
+  check('4戦目からは来る', buys.filter(r => r.raceIndex === 3).flatMap(r => r.fresh).length > 0)
+}
+
+console.log('')
+console.log('[3] 海外クラブにも順番が回る（同じ1つの市場）')
+{
+  const fgn = allBuys.filter(o => foreignIds.has(o.fromTeamId)).length
+  const dom = allBuys.length - fgn
+  check('国内クラブから来ている', dom > 0, `${dom}件`)
+  check('**海外クラブからも来ている**', fgn > 0, `${fgn}件`)
+  // クラブ数は国内51（自分を除く）・海外180。並びをシャッフルしていないと海外は0件になる
+  const share = fgn / Math.max(1, allBuys.length)
+  check('海外の割合がクラブ数に見合っている（4割以上）', share >= 0.40, `${(share * 100).toFixed(0)}%`)
+  check('海外の打診に fromForeign が付いている',
+    allBuys.filter(o => foreignIds.has(o.fromTeamId)).every(o => o.fromForeign === true))
+  check('国内の打診に fromForeign が付いていない',
+    allBuys.filter(o => !foreignIds.has(o.fromTeamId)).every(o => !o.fromForeign))
+}
+
+console.log('')
+console.log('[4] 提示額の式は1本（海外だけ高く出す枝を戻していない）')
+{
+  // 相場の80〜105%。1000万円刻みなので、丸めのぶん少しだけ広げて見る
+  const byId = new Map(players0.map(p => [p.id, p]))
+  // ★run 0 の打診だけを見る（上の注記のとおり、別の世界の選手は同じIDで別人）
+  const ratios = buys.filter(r => r.run === 0).flatMap(r => r.fresh)
+    .map(o => ({ o, p: byId.get(o.playerId) }))
+    .filter((x): x is { o: IncomingOffer; p: Player } => !!x.p)
+    // 1000万円刻みに丸めるので、丸めのぶん（+1000万）だけ広げて見る
+    .map(x => (x.o.offeredPrice - 1_000_000) / Math.max(1, calcTransferValue(x.p)))
+  check('比べられる打診がある', ratios.length > 0, `${ratios.length}件`)
+  const hi = Math.max(...ratios)
+  check('相場の1.05倍を超える打診が無い（夢・スターの割増を戻していない）', hi <= 1.05, `最高 ${hi.toFixed(2)}倍`)
+  const lo = Math.min(...ratios)
+  check('相場の0.7倍を下回る打診も無い（式が1本）', lo >= 0.7, `最低 ${lo.toFixed(2)}倍`)
+}
+
+console.log('')
+console.log('[5] 生成する場所は1か所（貸出の関数に買い取りを戻していない）')
+{
+  const src = readFileSync('src/engine/cpuMarket.ts', 'utf-8')
+  const loanFn = src.slice(src.indexOf('export function generateLoanOffers'),
+    src.indexOf('export function generateTransferActivity'))
+  check('貸出の関数を見つけられた', loanFn.length > 200)
+  check('**貸出の関数が IncomingOffer を作っていない**', !/incomingOffers|foreignIncoming|expiresAtRace: raceIndex \+ 5/.test(loanFn))
+  check('打診を作る push は1か所だけ',
+    (src.match(/newIncoming\.push\(/g) ?? []).length === 3, // 打診・出品への入札・フリー接触の3枝
+    `${(src.match(/newIncoming\.push\(/g) ?? []).length}か所`)
+  check('海外だけの上限（foreignCapOf）が残っていない', !/foreignCapOf/.test(src))
+}
+
+console.log('')
+console.log(failed === 0 ? '\n✓ 自チームへの打診は国内も海外も1本（上限も1つ）\n' : `\n✗ ${failed}件\n`)
+process.exit(failed === 0 ? 0 : 1)

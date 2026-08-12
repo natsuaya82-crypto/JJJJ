@@ -20,7 +20,7 @@
  *
  * ■係数（L343 の 0.70 / L345 の 0.25）は、この数字を見るまで触らない。
  */
-import { generateForeignAndLoanOffers } from '../src/engine/cpuMarket'
+import { generateLoanOffers } from '../src/engine/cpuMarket'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -51,9 +51,9 @@ function runOneYear(players: Player[]): IncomingLoanOffer[] {
   const got: IncomingLoanOffer[] = []
   let live: IncomingLoanOffer[] = []
   for (let i = 0; i < races.length; i++) {
-    const r = generateForeignAndLoanOffers({
+    const r = generateLoanOffers({
       players, teams, foreignClubs, playerTeamId: MY, raceIndex: i,
-      existingIncoming: [], existingLoans: live,
+      existingLoans: live,
       races, season: { year: YEAR, races }, currentYear: YEAR,
     })
     const lendOut = r.loanOffers.filter(o => o.direction === 'lend_out')
