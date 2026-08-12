@@ -8,14 +8,46 @@ import { supabase, ensureAuth } from './supabase'
 import { profilesByIds, toFriend, type Friend } from './friendsApi'
 import type { MatchDetail } from './matchSim'
 
-/** 通信エラーをUIで扱いやすい日本語にする（friendsApi と同じ考え方） */
+/**
+ * 通信エラーをUIで扱いやすい日本語にする（friendsApi と同じ考え方）。
+ *
+ * ★**元の失敗を捨てないこと。** 以前は `new RoomsOffline()` が引数を1つも取らず、
+ *   Supabase が返した PostgrestError（`code` / `message` / `details`）を丸ごと
+ *   握りつぶしていた。console にも1行も出していなかった。
+ *
+ *   その結果「対戦履歴が『通信できませんでした』になる」とき、原因が
+ *     ・認証が取れていない          （uid が null）
+ *     ・関数が無い                  （42883）
+ *     ・列が無い                    （42703。alter table のあと PostgREST の
+ *                                     スキーマキャッシュが古いときもこれ）
+ *     ・権限が無い                  （42501）
+ *     ・単に電波が無い
+ *   のどれなのか、**画面からもログからも一切分からなかった**。
+ *   実際にこれで、SQLを流し直す→直らない、を何往復もしている。
+ *
+ *   画面に出す文言は今までどおり「通信できませんでした」のまま。
+ *   変えたのは、原因を `detail` に残して console に1行出すことだけ。
+ */
 export class RoomsOffline extends Error {
-  constructor() { super('通信できませんでした') }
+  /** どの呼び出しで落ちたか（`list_my_matches` など） */
+  readonly where: string
+  /** 元の失敗。Supabase の PostgrestError か、認証が取れなかったことを示す文字列 */
+  readonly detail?: unknown
+  constructor(where = '', detail?: unknown) {
+    super('通信できませんでした')
+    this.name = 'RoomsOffline'
+    this.where = where
+    this.detail = detail
+    // 握りつぶさない。実機は Safari のWebインスペクタ／Xcode のコンソールで読める
+    console.warn('[rooms] 通信できませんでした:', where, detail ?? '(詳細なし)')
+  }
 }
 
 async function uid(): Promise<string> {
   const id = await ensureAuth()
-  if (!id) throw new RoomsOffline()
+  // ここで落ちるのは「まだサインインできていない」であって、サーバー側の問題ではない。
+  // RPC を1回も呼ばずに戻るので、SQL を流し直しても直らない側の失敗
+  if (!id) throw new RoomsOffline('auth', 'ensureAuth() が null を返した（サインインできていない）')
   return id
 }
 
@@ -86,11 +118,11 @@ export async function createRoom(rules: MatchRules, maxPlayers: number): Promise
     p_rules: rules as unknown as object,
     p_max: Math.min(20, Math.max(3, maxPlayers)),
   })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('createRoom / create_room', error)
   const row = (Array.isArray(data) ? data[0] : data) as { room_id: string; code: string } | undefined
-  if (!row?.room_id) throw new RoomsOffline()
+  if (!row?.room_id) throw new RoomsOffline('createRoom / create_room', 'create_room が room_id を返さなかった')
   const room = await getRoom(row.room_id)
-  if (!room) throw new RoomsOffline()
+  if (!room) throw new RoomsOffline('createRoom / getRoom', '作った部屋を読み直せなかった')
   return room
 }
 
@@ -102,7 +134,7 @@ export type JoinResult =
 export async function joinRoom(code: string): Promise<JoinResult> {
   await uid()
   const { data, error } = await supabase.rpc('join_room', { p_code: code.replace(/\D/g, '') })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('joinRoom / join_room', error)
   const row = (Array.isArray(data) ? data[0] : data) as
     { status: string; room_id: string | null; seat: number | null } | undefined
   if (row?.status === 'joined' && row.room_id) {
@@ -117,7 +149,7 @@ export async function joinRoom(code: string): Promise<JoinResult> {
 export async function leaveRoom(roomId: string): Promise<'left' | 'closed' | 'not_found'> {
   await uid()
   const { data, error } = await supabase.rpc('leave_room', { p_room: roomId })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('leaveRoom / leave_room', error)
   return (data as 'left' | 'closed' | 'not_found') ?? 'not_found'
 }
 
@@ -125,7 +157,7 @@ export async function leaveRoom(roomId: string): Promise<'left' | 'closed' | 'no
 export async function kickMember(roomId: string, userId: string): Promise<'kicked' | 'not_host' | 'self' | 'not_found'> {
   await uid()
   const { data, error } = await supabase.rpc('kick_member', { p_room: roomId, p_user: userId })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('kickMember / kick_member', error)
   return (data as 'kicked' | 'not_host' | 'self' | 'not_found') ?? 'not_found'
 }
 
@@ -135,7 +167,7 @@ export async function startRoom(roomId: string, rules: MatchRules): Promise<'sta
   const { data, error } = await supabase.rpc('start_room', {
     p_room: roomId, p_rules: rules as unknown as object,
   })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('startRoom / start_room', error)
   return (data as 'started' | 'not_host' | 'empty' | 'not_found') ?? 'not_found'
 }
 
@@ -143,7 +175,7 @@ export async function startRoom(roomId: string, rules: MatchRules): Promise<'sta
 export async function getRoom(roomId: string): Promise<Room | undefined> {
   await uid()
   const { data, error } = await supabase.from('rooms').select(ROOM_COLS).eq('id', roomId).maybeSingle()
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('getRoom / rooms', error)
   return data ? toRoom(data as RoomRow) : undefined
 }
 
@@ -152,7 +184,7 @@ export async function listMembers(roomId: string): Promise<RoomMember[]> {
   await uid()
   const { data, error } = await supabase
     .from('room_members').select('user_id, seat, ready, left_at').eq('room_id', roomId)
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('listMembers / room_members', error)
   const rows = (data ?? []) as { user_id: string; seat: number; ready: boolean; left_at: string | null }[]
 
   const profiles = await profilesByIds(rows.map(r => r.user_id))
@@ -171,7 +203,7 @@ export async function setReady(roomId: string, ready: boolean): Promise<void> {
   const me = await uid()
   const { error } = await supabase
     .from('room_members').update({ ready }).eq('room_id', roomId).eq('user_id', me)
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('setReady / room_members', error)
 }
 
 // ── 結果を確定する（ホストのみ） ────────────────────────
@@ -196,7 +228,7 @@ export async function finishMatch(
     p_summary: (summary ?? {}) as object,
     p_results: results as unknown as object,
   })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('finishMatch / finish_match', error)
   return data as string
 }
 
@@ -207,7 +239,7 @@ export async function myMatchStats(): Promise<MatchStats> {
   const me = await uid()
   const { data, error } = await supabase
     .from('profiles').select('mp_played, mp_wins, mp_forfeits').eq('user_id', me).maybeSingle()
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('myMatchStats / profiles', error)
   const r = data as { mp_played?: number; mp_wins?: number; mp_forfeits?: number } | null
   return { played: r?.mp_played ?? 0, wins: r?.mp_wins ?? 0, forfeits: r?.mp_forfeits ?? 0 }
 }
@@ -221,7 +253,7 @@ export async function saveMatchDetail(matchId: string, detail: MatchDetail): Pro
   const { error } = await supabase.rpc('save_match_detail', {
     p_match: matchId, p_detail: detail as unknown as object,
   })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('saveMatchDetail / save_match_detail', error)
 }
 
 /** 対戦の詳細を読む。保存されていない試合（古い記録・保存に失敗した試合）は undefined。 */
@@ -229,7 +261,7 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail | und
   await uid()
   const { data, error } = await supabase
     .from('match_details').select('detail').eq('match_id', matchId).maybeSingle()
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('getMatchDetail / match_details', error)
   const d = (data?.detail ?? undefined) as MatchDetail | undefined
   return d && Array.isArray(d.races) ? d : undefined
 }
@@ -282,7 +314,7 @@ export async function myMatchHistory(limit = 20): Promise<MatchHistoryItem[]> {
   // list_my_matches は「自分が出た試合と、その全参加者」を1回で返す。
   // 呼ばれたついでにサーバー側で60日より古い記録を消す（supabase/matches_prune.sql）。
   const { data, error } = await supabase.rpc('list_my_matches', { p_limit: limit })
-  if (error) throw new RoomsOffline()
+  if (error) throw new RoomsOffline('myMatchHistory / list_my_matches', error)
   const rows = (data ?? []) as {
     match_id: string; finished_at: string; summary: unknown; host: string
     user_id: string; rank: number; points: number; forfeit: boolean
