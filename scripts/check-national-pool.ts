@@ -42,8 +42,33 @@ const hasAnyTime = players.some(p => p.eventBests && Object.keys(p.eventBests).l
 check('前提：記録会の持ちタイムを誰も持っていない状態で試す', !hasAnyTime)
 
 // ── 候補 ──
+//
+// ★この節は「定数をそのまま読んで緑になる」形にしないこと。
+//   以前は  check(`候補が ${NATIONAL_POOL} 人埋まる`, cands.length === NATIONAL_POOL)
+//   と書いてあり、**NATIONAL_POOL を 100 から何に変えても緑のまま**だった。
+//   `CPU_SELL_FLOOR` の点検が 16→15 に下げても緑だったのとまったく同じ形
+//   （CLAUDE.md「点検が実装の定数をそのまま読んで緑になっていないか」）。
+//   分けて釘を打つ:
+//     ①仕様の釘   … 下限をリテラルで打つ（下げたら落ちる）
+//     ②ふるまい   … limit を外から振って、実際にその人数だけ返ることを見る
+//                    （定数を上げても候補が増えない、を捕まえる）
+const jpAll = players.filter(p => p.nationality === HOME_NATION && p.status !== 'retired')
+
+// ①仕様の釘。**リテラルで書くこと。**NATIONAL_POOL と比較しないこと
+check('代表候補の枠は100人以上（仕様）', NATIONAL_POOL >= 100, `いま ${NATIONAL_POOL}`)
+
+// ②ふるまい：候補の人数 = min(日本人の有効人数, limit)。limit を外から振って確かめる。
+//   ここで定数を使わないので、NATIONAL_POOL を変えてもこの3件の期待値は動かない
+const overCount = jpAll.length + 50
+for (const [limit, want] of [[100, 100], [300, 300], [overCount, jpAll.length]] as const) {
+  const n = ekidenCandidates(players, HOME_NATION, YEAR, limit).length
+  check(`limit=${limit} を渡すと候補は ${want} 人（日本人の有効人数 ${jpAll.length}）`, n === want, `${n}人`)
+}
+
+// 既定（＝NATIONAL_POOL）で呼んだときも同じ決まりに乗っていること
 const cands = ekidenCandidates(players, HOME_NATION, YEAR)
-check(`持ちタイムが無くても候補が ${NATIONAL_POOL} 人埋まる`, cands.length === NATIONAL_POOL, `${cands.length}人`)
+check('既定で呼ぶと min(日本人の有効人数, NATIONAL_POOL) 人',
+  cands.length === Math.min(jpAll.length, NATIONAL_POOL), `${cands.length}人`)
 check('候補はOVRの高い順', cands.every((c, i) => i === 0 || cands[i - 1].score >= c.score))
 
 // 海外クラブに居る日本人が候補に入るか（旧仕様で落ちていたのがここ）
