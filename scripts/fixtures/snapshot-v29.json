@@ -403,6 +403,7 @@
  "pendingGifts": {
   "$len": 0
  },
+ "pendingGmMove": "null",
  "playerTeamId": "string",
  "players": {
   "$len": 1300,

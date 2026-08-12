@@ -26,6 +26,7 @@
  "myPlayerCreated": "fcbcf165908dd18a (5B)",
  "pastSeasons": "4f53cda18c2baa0c (2B)",
  "pendingGifts": "4f53cda18c2baa0c (2B)",
+ "pendingGmMove": "74234e98afe7498f (4B)",
  "playerTeamId": "6e7823b6e67138d4 (7B)",
  "players": "f332ba2d5d01206b (3666138B)",
  "raceDroppedCards": "120283b81f42e1f1 (575B)",
@@ -50,5 +51,5 @@
  "worldAthleticsResults": "4f53cda18c2baa0c (2B)",
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "4f53cda18c2baa0c (2B)",
- "$all": "31f1b39ee5982e45 (4179503B)"
+ "$all": "87ad39816f509e08 (4179522B)"
 }
