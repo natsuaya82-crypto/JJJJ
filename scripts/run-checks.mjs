@@ -121,6 +121,8 @@ const CHECKS = [
   'player-history',
   // 代表の「自動選出」が engine の autoSelectEkiden 1本を通っているか（自前で並べ直していないか）
   'wa-autoselect',
+  // 年度表彰の線（新人王3戦・MVP6戦）と、部ごとに選んでいること
+  'awards',
 ]
 
 /**
