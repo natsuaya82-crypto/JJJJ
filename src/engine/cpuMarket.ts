@@ -6,7 +6,7 @@ import { roundFee, transferCapOf } from '../data/economy'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Race, type Specialty, type Team, type TransferListing } from '../types'
 import { clubSeasonRank } from '../utils/clubStanding'
-import { MAJOR_NEWS_OVR, isBigClub, tierBudget, tierOf, tierStrength } from '../utils/clubTier'
+import { tierBudget, tierOf, tierStrength } from '../utils/clubTier'
 import { RENEWAL_ATTENTION_MONTHS, contractMonthsLeft } from '../utils/contractTalk'
 import { effectiveOvr } from '../utils/foreignClubProfile'
 import { DIVISION_SIZE } from '../utils/league'
@@ -16,7 +16,7 @@ import { calcTransferValue, faMarketSalary, ovr, perfOf } from '../utils/playerU
 import { roundRobin } from '../utils/roundRobin'
 import { saleAnsweredIds } from '../utils/saleAnswer'
 import { needsPlayer, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
-import { MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, leaguesOfRegion } from '../utils/transferDecision'
+import { MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, isOwnedBy } from '../utils/transferEligibility'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
@@ -189,151 +189,49 @@ export function cpuSpecialtyNeeds(teamId: string, players: Player[]): Specialty[
   return thinSpecialties(players.filter(p => p.teamId === teamId && p.status === 'active'))
 }
 
-// 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（双方向）を生成。チャットで対応する。
-export function generateForeignAndLoanOffers(params: {
+/**
+ * 相手クラブからのレンタル打診（双方向）を生成。チャットで対応する。
+ *
+ * ■買い取りの打診はここには無い（2026-08-12・オーナー判断「一本化して国内に合わせて」）
+ *   以前はここに**海外クラブからの買い取り打診**が3枝（憧れの地域・スター・ふつう）あり、
+ *   国内の `generateTransferActivity` とは別の関門・別の上限・別の提示額で動いていました。
+ *
+ *     |            | 国内         | 海外（旧）      |
+ *     |------------|--------------|-----------------|
+ *     | 1レースの上限 | 2件（合計）   | **無し**（最大5件） |
+ *     | 来はじめ    | 3戦目から     | 1戦目から        |
+ *     | 提示額      | 相場の80〜105% | 相場の95〜140%   |
+ *
+ *   「海外とか日本とか関係ない。全てが同一で、違うのがただリーグだけ」（オーナー）という
+ *   `engine/transferMarket` の決まりが、**自チームへ来る打診にだけ適用されていません**でした。
+ *   いまは国内52＋海外180を `generateTransferActivity` の1つのループで回します。
+ *   **ここに買い取りの枝を戻さないこと**（`scripts/check-offer-unified.ts` が見張ります）。
+ */
+export function generateLoanOffers(params: {
   players: Player[]
   teams: Team[]
   foreignClubs: ForeignClub[]
   playerTeamId: string
   raceIndex: number
-  existingIncoming: IncomingOffer[]
   existingLoans: IncomingLoanOffer[]
   races?: Race[]   // 出場機会の判定用（borrow_in打診は出番のない選手から選ぶ）
   /** 今シーズン。出場率は「そのクラブが走っている日程」で数える（utils/playRate） */
   season?: import('../utils/playRate').PlayRateSeason & import('../utils/saleAnswer').SaleAnswerSeason
-  retiringIds?: Set<string>   // 引退希望中の選手（オファー・打診の対象外）
-  currentYear?: number        // 今のシーズン年。加入1年目の選手を引き抜き対象から外す
-}): { foreignIncoming: IncomingOffer[]; loanOffers: IncomingLoanOffer[] } {
-  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingIncoming, existingLoans, races, season, retiringIds, currentYear } = params
+  retiringIds?: Set<string>   // 引退希望中の選手（打診の対象外）
+  currentYear?: number        // 今のシーズン年
+}): { loanOffers: IncomingLoanOffer[] } {
+  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingLoans, races, season, retiringIds, currentYear } = params
   // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約。
   // 「譲ります」と返事をして決着待ちの選手には、貸出の話も持ちかけない（utils/saleAnswer）
   const eligCtx = { teamId: playerTeamId, currentYear, retiringIds, saleAnsweredIds: saleAnsweredIds(season) }
-  const foreignIncoming: IncomingOffer[] = []
   const loanOffers: IncomingLoanOffer[] = []
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
-  const myMain = myPlayers.filter(p => !p.loan)
   // 貸出歓迎（移籍方針）に設定した選手。年齢・立場の制限なしで打診対象になる。引退希望中は対象外
   const myLoanListed = myPlayers.filter(p => p.loanListed && !p.transferListed && canLoanOut(p, eligCtx))
   const myYoung = myPlayers.filter(p => p.age <= 23 && canLoanOut(p, eligCtx))
-  // 1人の選手に何クラブまで同時に話が来るか。取り合いになるのが普通なので複数を許す。
-  // 以前は Set で1件目があると2件目を作らせず、構造的に取り合いが起きなかった
-  const offerCountOf = (pid: string) => existingIncoming.filter(o => o.playerId === pid && o.offeredPrice > 0).length
-  const clubsAlreadyOffering = (pid: string) => new Set(existingIncoming.filter(o => o.playerId === pid).map(o => o.fromTeamId))
-  const offeredIds = new Set(existingIncoming.filter(o => offerCountOf(o.playerId) >= MAX_OFFERS_PER_PLAYER).map(o => o.playerId))
-  /**
-   * 海外クラブが1人に出せる上限。格→年間予算→20% と手元資金の小さい方（economy の transferCapOf）。
-   * **国内クラブとまったく同じ引き方**（gameStore の入札側と同じ2引数）。
-   *
-   * ここが無かったころは、格20のクラブでも世界最高の選手に上限なしで打診できていた。
-   * そのあと格は見るようになったが、見ていたのは tierOfClubId ＝ **初期値の格**で、
-   * しかも手元資金を渡していなかった。海外の格は毎年動くので、
-   *   ・最下位を続けて格が落ちたクラブが、初期値の格のまま大金を出す
-   *   ・使い切っていても毎回「年間予算の20%」を出せる
-   * という状態だった。クラブをそのまま受け取るようにしたので、両方とも引ける。
-   */
-  const foreignCapOf = (c: ForeignClub) =>
-    // finance が無い古いセーブは、次の endSeason で入るまで格の年間予算ちょうどとみなす
-    transferCapOf(tierBudget(c), c.finance?.budget ?? tierBudget(c))
-  /** そのクラブがその選手に打診していいか（枠・重複・今季すでに断られた相手） */
-  const clubMayOffer = (p: Player, clubId: string, pending: IncomingOffer[]) =>
-    offerCountOf(p.id) + pending.filter(o => o.playerId === p.id).length < MAX_OFFERS_PER_PLAYER
-    && !clubsAlreadyOffering(p.id).has(clubId)
-    && !pending.some(o => o.playerId === p.id && o.fromTeamId === clubId)
-    && canClubApproachAgain(p, clubId, currentYear)
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
-
-  /**
-   * そのクラブがその選手に声をかけるか。**海外から自チームへの打診はこの1本だけを見る。**
-   *
-   * 「必要か（穴が空いている）」と「そこで走れるか（7人に入る）」だけ（utils/squadNeeds）。
-   * 国・地域・リーグごとのOVR下限表は持たない。格1のクラブは名簿が強いので、
-   * 弱い選手はそこでは序列の下に沈み、自動的に声が掛からなくなる。
-   */
-  const rosterOfClub = (clubId: string) => players.filter(p => p.teamId === clubId && p.status === 'active')
-  const clubWants = (c: ForeignClub, target: Player) => {
-    const r = rosterOfClub(c.id)
-    if (r.length === 0) return false
-    return needsPlayer(r, target) || wouldMakeLineup(r, target)
-  }
-
-  // 1a) 海外挑戦リストの選手：希望した地域のリーグから高確率で指名オファー。
-  //     ★発生源は transferDecision の `leaguesOfRegion` 1本。移籍の同意で「憧れの地域か」を
-  //       見ている表とまったく同じものを裏返して使う。以前は clubs.ts に別の表があり、
-  //       欧州北東へ移れば「憧れのヨーロッパへ行けた」と加点されるのに、海外挑戦に
-  //       登録しても欧州北東からは一生オファーが来なかった。
-  //     以前はここに地域ごとのOVR下限表（アフリカ84／欧州80／北米80）があったが、
-  //     それは「必要か・走れるか」を通していないただの後付けだった。clubWants 1本にする。
-  for (const target of myMain.filter(p => !offeredIds.has(p.id) && canGoOverseasDream(p, eligCtx))) {
-    if (foreignIncoming.length >= 2) break
-    const region = target.overseasListed!
-    if (Math.random() > 0.75) continue
-    const dreamLeagues = new Set(leaguesOfRegion(region))
-    const clubs = foreignClubs
-      .filter(c => dreamLeagues.has(c.leagueId ?? ''))
-      .filter(c => clubWants(c, target))
-    if (clubs.length === 0) continue
-    const club = clubs[(ovr(target) + raceIndex) % clubs.length]
-    if (!clubMayOffer(target, club.id, foreignIncoming)) continue
-    const tv = calcTransferValue(target)
-    // 夢の移籍は向こうも本気＝市場価値の1.1〜1.4倍を提示。ただし出せる上限まで
-    const dreamPrice = roundFee(tv * (1.1 + Math.random() * 0.3), 1_000_000)
-    if (dreamPrice > foreignCapOf(club)) continue
-    foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: dreamPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
-  }
-
-  // 1b) 世界レベル（OVR85+・34歳以下）はリスト設定なしでもビッグクラブが放っておかない。
-  //     ★「ビッグクラブか」は格（isBigClub）。4大リーグのIDでは言えない
-  if (foreignClubs.length > 0 && Math.random() < 0.6) {
-    const star = [...myMain]
-      .filter(p => !offeredIds.has(p.id) && ovr(p) >= MAJOR_NEWS_OVR && p.age <= 34 && !foreignIncoming.some(o => o.playerId === p.id) && canBePoached(p, eligCtx))
-      .sort(comparePlayers('ovr'))[0]
-    const eliteAll = star ? foreignClubs.filter(c => isBigClub(c) && clubWants(c, star)) : []
-    const eliteClub = star && eliteAll.length > 0 ? eliteAll[(ovr(star) + raceIndex) % eliteAll.length] : undefined
-    if (star && eliteClub && clubMayOffer(star, eliteClub.id, foreignIncoming)) {
-      const club = eliteClub
-      const tv = calcTransferValue(star)
-      const starPrice = roundFee(tv * (1.1 + Math.random() * 0.25), 1_000_000)
-      if (starPrice <= foreignCapOf(club)) foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${star.id}`, fromTeamId: club.id, playerId: star.id, offeredPrice: starPrice, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
-    }
-  }
-
-  // 1) 海外クラブからの移籍オファー（自チームの選手を狙う）。
-  //
-  // ★行き先は「その選手を欲しがるクラブ」から選ぶこと。
-  //   以前は foreignClubs[(ovr + raceIndex) % 全180クラブ] と、**適当な1クラブ**を
-  //   機械的に選んでいた。そのため3部（格20）のOVR70の選手に、世界最高峰のマドリード
-  //   （格1）から打診が来ていた。「クラブは必要だから動く」という決まりを通っていない。
-  //
-  //   2つの物差しで絞る。どちらも既にある1本を使う（ここで新しい条件を書かない）。
-  //     ・そのクラブが必要としていて、そこで走れるか … utils/squadNeeds
-  //       （海外クラブ同士の移籍が元から使っていたのと同じ物差し）
-  //     ・そのクラブが必要としているか … squadNeeds の needsPlayer／wouldMakeLineup
-  //       （穴が空いている、またはそのクラブで走れる7人に入る）
-  if (foreignClubs.length > 0 && myMain.length > 0 && Math.random() < 0.55) {
-    // 高齢選手（34歳以上）・引退希望中は狙わない（移籍金を払ってまで獲得しない）
-    // OVRの下限は置かない。欲しがるクラブが1つも無ければ、そのあとの clubWants で自然に外れる
-    const targets = [...myMain]
-      .filter(p => !offeredIds.has(p.id) && p.age <= 33 && canBePoached(p, eligCtx))
-      .sort(comparePlayers('ovr'))
-      .slice(0, 4)
-    const suitorsFor = (target: Player) => foreignClubs.filter(c => clubWants(c, target))
-    const nOffers = targets.length > 0 ? (Math.random() < 0.35 ? 2 : 1) : 0
-    for (let oi = 0; oi < Math.min(nOffers, targets.length); oi++) {
-      // 1件目は最上位、2件目はそれ以外からランダム（同じ選手に集中させない）
-      const target = oi === 0 ? targets[0] : targets[1 + Math.floor(Math.random() * (targets.length - 1))]
-      if (!target) continue
-      const suitors = suitorsFor(target)
-      if (suitors.length === 0) continue
-      const club = suitors[(ovr(target) + raceIndex + oi * 7) % suitors.length]
-      if (!clubMayOffer(target, club.id, foreignIncoming)) continue
-      const tv = calcTransferValue(target)
-      const price = roundFee(tv * (0.95 + Math.random() * 0.25), 1_000_000)
-      if (price > foreignCapOf(club)) continue
-      foreignIncoming.push({ id: `finc-${raceIndex}-${club.id}-${target.id}`, fromTeamId: club.id, playerId: target.id, offeredPrice: price, expiresAtRace: raceIndex + 5, round: 1, fromForeign: true })
-    }
-  }
 
   // 2) レンタル打診：相手（国内/海外）が自チームの選手を借りたい（lend_out）。
   // 貸出歓迎に設定した選手がいれば優先的・高確率（70%）でその中から。いなければ従来どおり低確率で若手に
@@ -373,7 +271,7 @@ export function generateForeignAndLoanOffers(params: {
     }
   }
 
-  return { foreignIncoming, loanOffers }
+  return { loanOffers }
 }
 
 export function generateTransferActivity(
@@ -387,6 +285,7 @@ export function generateTransferActivity(
   retiringIds: Set<string> = new Set(),  // 引退希望中の選手（オファー・接触の対象外にする）
   currentYear = 0,                       // 今のシーズン年。加入1年目の選手をオファー対象から外すのに使う
   totalRaces = 0,                        // 今季のレース数。契約残りの月数を出すのに使う（フリー接触の解禁時期）
+  foreignClubs: ForeignClub[] = [],      // 海外180クラブ。**打診の関門は国内52と同じ1本**（下の「自チームへの打診」）
 ): { listings: TransferListing[]; incomingOffers: IncomingOffer[] } {
   const validListings = existingListings.filter(l => l.expiresAtRace > raceIndex)
   const validIncoming = existingIncoming.filter(o => o.expiresAtRace > raceIndex)
@@ -458,65 +357,143 @@ export function generateTransferActivity(
     }
   }
 
-  // 自チームへのオファー対象。「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約
+  // ───────────────────────────────────────────────────────────────────────────
+  // 自チームの選手への買い取り打診。**国内52＋海外180を同じ1つのループで回します。**
+  //
+  //   > 海外とか日本とか関係ないのよ。全てが同一で、違うのがただリーグだけ
+  //   >                                        （オーナー・2026-08-12）
+  //
+  // ■以前は2本に割れていました（`engine/cpuMarket` の中で、隣り合った関数どうしで）
+  //
+  //     |              | 国内（ここ）  | 海外（generateForeignAndLoanOffers） |
+  //     |--------------|--------------|--------------------------------------|
+  //     | 1レースの上限  | 2件（合計）   | **無し**（3つの枝が別々に生成）        |
+  //     | 来はじめ      | 3戦目から     | **1戦目から**                        |
+  //     | 提示額        | 相場の80〜105% | 相場の95〜120%（夢・スターは110〜140%） |
+  //     | 誰を狙うか     | needsPlayer  | needsPlayer（同じ）                   |
+  //
+  //   `engine/transferMarket` は CPU 同士の移籍を1本にまとめてありましたが、
+  //   **自チームへ来る打診だけ**が国内と海外の2本のままで、上限も2つありました。
+  //   その結果 1レースに最大7件（国内2＋夢2＋スター1＋ふつう2）届くことがあり、
+  //   受信箱が常時8〜11件で埋まっていました。
+  //
+  // ■海外だけの枝は「理由」として残し、関門は共通にしました
+  //   ・**憧れの地域**（海外挑戦に登録した選手）… 国内の「移籍を直訴した選手」と同じ扱い。
+  //     その地域のリーグのクラブだけが、その選手を優先して狙う
+  //   ・**スター（OVR85+をビッグクラブが放っておかない）** … 別枝をやめました。
+  //     needsPlayer／wouldMakeLineup と effectiveOvr の並びで、格上のクラブは
+  //     自然にいちばん強い選手を選びます（下限表と同じで、後付けの枝は要らない）
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約
   const eligCtx = { teamId: playerTeamId, currentYear, retiringIds }
   const playerTeamPlayers = players.filter(p => canBePoached(p, eligCtx))
+  // 海外挑戦に登録した選手。isTalkFree では止まるので専用の入口を通る（canGoOverseasDream）
+  const dreamers = players.filter(p => canGoOverseasDream(p, eligCtx))
   const offerTargets = new Set(validIncoming.map(o => o.playerId))
   const offeringTeams = new Set(validIncoming.map(o => o.fromTeamId))
   const wantToLeaveIds = new Set(transferRequests.map(r => r.playerId))
 
-  // ★開幕直後は打診が来ない。51クラブが毎レース抽選するので、何もしないと
-  //   1戦目でいきなり5件並ぶ（期待値で13クラブが動く）。
+  // ★開幕直後は打診が来ない。231クラブが毎レース抽選するので、何もしないと
+  //   1戦目でいきなり上限まで並ぶ。
   //   シーズンが少し進んで、その選手の出来が見えてから動き出す形にする。
   const OFFER_START_RACE = 3
-  // ★1レースに増える新規の打診はここまで。まとめて来るのではなく少しずつ増える
-  const MAX_NEW_OFFERS_PER_RACE = 2
+  // ★1レースに増える新規の打診はここまで。**国内・海外を合わせてこの数**。
+  //
+  //   > 1レース2件も来たら一年に20件くらいくるだろそれ（オーナー・2026-08-12）
+  //
+  //   目安は**1シーズン5件くらい**（オーナー）。231クラブが毎レース抽選するので上限は必ず
+  //   埋まる＝「1レースの上限 × 打診が来るレース数」がそのまま1年の件数になる。
+  //
+  //     1部（10戦）… 3戦目まで0件＋7戦 × 1件 = 7件／年
+  //     2部（8戦） … 5戦 × 1件 = 5件／年
+  //     3部（7戦） … 4戦 × 1件 = 4件／年
+  //
+  //   **2にすると倍になる**（1部で14件／年・受信箱が常時5件）。ここを触るときは
+  //   必ず `scripts/measure-incoming-offers.ts` で1年の件数を数えてから決めること。
+  const MAX_NEW_OFFERS_PER_RACE = 1
 
-  for (const team of raceIndex < OFFER_START_RACE ? [] : aiTeams) {
+  // ★並びをシャッフルする。国内52を先に、海外180をあとに並べると、上限2件で打ち切るので
+  //   海外クラブには順番が一度も回ってきません（「同じ1つの市場」にならない）
+  // ★どちらのクラブかは**IDの集合で判定する**。`'leagueId' in club` では見分けられない
+  //   （`Team` にも `leagueId?` があり、国内は 'jpel' が入りうる。型だけ見て分けると、
+  //     セーブによって国内の打診に fromForeign が付く）
+  const foreignClubIds = new Set(foreignClubs.map(c => c.id))
+  const offerClubs: (Team | ForeignClub)[] = raceIndex < OFFER_START_RACE ? []
+    : [...aiTeams, ...foreignClubs].sort(() => Math.random() - 0.5)
+
+  for (const club of offerClubs) {
     if (newIncoming.length >= MAX_NEW_OFFERS_PER_RACE) break
-    if (offeringTeams.has(team.id)) continue
-    const teamPlayers = players.filter(p => p.teamId === team.id)
-    const teamRoster = teamPlayers.filter(p => p.status === 'active')
-    const tier = tierOf(team)
-    const needsSlot = teamPlayers.length < 20
-    // どれだけ動くかは**そのクラブの格**で決まる（格1が45%、格20が15%）。
-    // 海外の引き抜きの積極さ（engine/foreignTransfers の aggression）と同じ形。
-    // 以前はロスターの平均OVRから作った elite/mid/weak の3段階だった
-    const wantsUpgrade = Math.random() < 0.15 + 0.30 * tierStrength(tier)
+    if (offeringTeams.has(club.id)) continue
+    const clubPlayers = players.filter(p => p.teamId === club.id)
+    const clubRoster = clubPlayers.filter(p => p.status === 'active')
+    // 名簿を1人も持っていないクラブは判断材料が無い（穴も序列も出せない）
+    if (clubRoster.length === 0) continue
+    const tier = tierOf(club)
+    const fromForeign = foreignClubIds.has(club.id)
+    /** そのクラブが欲しがるか。**国内も海外もこの1本**（utils/squadNeeds） */
+    const wants = (p: Player, needsSlot: boolean) =>
+      needsPlayer(clubRoster, p) || (needsSlot && wouldMakeLineup(clubRoster, p))
 
-    // Teams are also attracted by players who have requested transfers
-    const transferWantedPlayers = playerTeamPlayers.filter(p => wantToLeaveIds.has(p.id) && !offerTargets.has(p.id))
-    const hasTransferTarget = transferWantedPlayers.length > 0 && Math.random() < 0.60
+    // 憧れの地域に登録した選手には、その地域のクラブから優先して声が掛かる。
+    // ★地域とリーグの対応は transferDecision の REGION_BY_LEAGUE 1本（regionOfLeague）
+    const dreamTargets = fromForeign
+      ? dreamers.filter(p => !offerTargets.has(p.id)
+        && regionOfLeague((club as ForeignClub).leagueId) === p.overseasListed
+        && wants(p, false))
+      : []
 
-    if (!needsSlot && !wantsUpgrade && !hasTransferTarget) continue
+    let targets: Player[]
+    if (dreamTargets.length > 0 && Math.random() < 0.75) {
+      targets = dreamTargets
+    } else {
+      const needsSlot = clubPlayers.length < 20
+      // どれだけ動くかは**そのクラブの格**で決まる（格1が45%、格20が15%）。
+      // 以前はロスターの平均OVRから作った elite/mid/weak の3段階だった
+      const wantsUpgrade = Math.random() < 0.15 + 0.30 * tierStrength(tier)
 
-    // 高齢選手（34歳超）は移籍金オファーの対象外。並びも年齢調整OVR（33歳以上は減点）で若い実力者を優先。
-    // ★そのクラブが本当に必要としているタイプだけを狙う（utils/squadNeeds.ts の needsPlayer）。
-    //   買う側の取り合い（rivalsFor）と同じ判定で、ここに新しい条件を書かないこと。
-    //   以前は cpuSpecialtyNeeds（人数が2人未満のタイプ）を並び替えの優先にしか使っておらず、
-    //   足りているタイプのエースにも打診が飛んでいた（買う側と非対称だった）。
-    //   OVRの下限表（72/65・78/73）もここにあったが、needsPlayer の直前に置かれた
-    //   ただの重複だった。人数が足りないときは走れるかどうかも見る
-    let targets = playerTeamPlayers.filter(p =>
-      !offerTargets.has(p.id) && p.age <= 34
-      && (needsPlayer(teamRoster, p) || (needsSlot && wouldMakeLineup(teamRoster, p))))
-    // Prioritize players who want to leave
-    const wantLeaveTargets = targets.filter(p => wantToLeaveIds.has(p.id))
-    if (wantLeaveTargets.length > 0) targets = wantLeaveTargets
+      // 移籍を直訴した選手にはクラブが寄ってくる
+      const transferWantedPlayers = playerTeamPlayers.filter(p => wantToLeaveIds.has(p.id) && !offerTargets.has(p.id))
+      const hasTransferTarget = transferWantedPlayers.length > 0 && Math.random() < 0.60
+
+      if (!needsSlot && !wantsUpgrade && !hasTransferTarget) continue
+
+      // 高齢選手（34歳超）は移籍金オファーの対象外。並びも年齢調整OVR（33歳以上は減点）で若い実力者を優先。
+      // ★そのクラブが本当に必要としているタイプだけを狙う（utils/squadNeeds.ts の needsPlayer）。
+      //   買う側の取り合い（rivalsFor）と同じ判定で、ここに新しい条件を書かないこと。
+      //   以前は cpuSpecialtyNeeds（人数が2人未満のタイプ）を並び替えの優先にしか使っておらず、
+      //   足りているタイプのエースにも打診が飛んでいた（買う側と非対称だった）。
+      //   OVRの下限表（72/65・78/73）もここにあったが、needsPlayer の直前に置かれた
+      //   ただの重複だった。人数が足りないときは走れるかどうかも見る
+      targets = playerTeamPlayers.filter(p =>
+        !offerTargets.has(p.id) && p.age <= 34 && wants(p, needsSlot))
+      // Prioritize players who want to leave
+      const wantLeaveTargets = targets.filter(p => wantToLeaveIds.has(p.id))
+      if (wantLeaveTargets.length > 0) targets = wantLeaveTargets
+    }
+    // 本人が今季そのクラブを断っていたら、もう来ない（canClubApproachAgain）
+    targets = targets.filter(p => canClubApproachAgain(p, club.id, currentYear))
     if (targets.length === 0) continue
-    targets.sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
+    targets = [...targets].sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
     const target = targets[0]
     const tv = calcTransferValue(target)
-    // 相場まで払えないチームはオファーを出さない。
+    // 相場まで払えないクラブはオファーを出さない。
     // 上限は「格の年間予算の20%まで、手元の資金がそれより少なければそちら」の1本
-    // （economy の transferCapOf）。以前はここだけ手元の資金しか見ておらず、
-    // 格の意味が消えていた（貯金さえあれば格20のクラブが上限なしに出せた）
-    if (transferCapOf(tierBudget(team), team.finance?.budget ?? 0) < tv) continue
+    // （economy の transferCapOf）。**国内も海外もまったく同じ2引数。**
+    // ★finance が無い古いセーブ（海外クラブ）は、次の endSeason で入るまで格の年間予算ちょうどとみなす
+    const budget = club.finance?.budget ?? (fromForeign ? tierBudget(club) : 0)
+    if (transferCapOf(tierBudget(club), budget) < tv) continue
     // 提示額は相場の80〜105%。格が高いクラブほど強気に出す（格1で85〜105%、格20で80〜97%）
     const ratio = 0.80 + 0.05 * tierStrength(tier) + Math.random() * (0.17 + 0.03 * tierStrength(tier))
-    newIncoming.push({ id: `inc-${raceIndex}-${team.id}-${target.id}`, fromTeamId: team.id, playerId: target.id, offeredPrice: roundFee(tv * ratio, 1_000_000), expiresAtRace: raceIndex + 5, round: 1 })
+    newIncoming.push({
+      id: `inc-${raceIndex}-${club.id}-${target.id}`,
+      fromTeamId: club.id, playerId: target.id,
+      offeredPrice: roundFee(tv * ratio, 1_000_000),
+      expiresAtRace: raceIndex + 5, round: 1,
+      ...(fromForeign ? { fromForeign: true } : {}),
+    })
     offerTargets.add(target.id)
-    offeringTeams.add(team.id)
+    offeringTeams.add(club.id)
   }
 
   // Competing bids for player-listed players (more likely for high-OVR players)

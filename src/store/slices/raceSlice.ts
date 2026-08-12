@@ -23,7 +23,7 @@ import { TT_REST_RECOVERY, runTimeTrial, timeTrialBoosted, timeTrialFatigueGain,
 import { myDivSize } from '../../utils/league'
 import { generateIndividualEvents } from '../../data/races'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
-import { generateForeignAndLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
+import { generateLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
 import { generateRaceEvents } from '../../engine/eventEngine'
 import { applyRaceBoosts } from '../../engine/raceBoosts'
@@ -281,15 +281,15 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const freeMoves = expiry.freeMoves
       const freeMoveNews = expiry.freeMoveNews
 
-      const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length)
-
-      // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
+      // 買い取りの打診は**国内52＋海外180を1本のループ**で回す（engine/cpuMarket）。
       // クラブはそのまま渡す。**ここで id/name/leagueId/country だけに削っていた**ので、
       // 受け取る側は格も手元資金も見られず、いくらまで出せるかを初期値の格から作り直していた。
       const foreignClubs = allForeignClubs(state.foreignLeagues)
+      const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length, foreignClubs)
+
+      // 相手からのレンタル打診（チャットで対応）
       const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))
-      const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, season: { ...state.currentSeason, races: updatedRaces }, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
-      const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
+      const flOffers = generateLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingLoans: keptLoanOffers, races: updatedRaces, season: { ...state.currentSeason, races: updatedRaces }, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
       const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
       // 入札の応答は engine/bidResolution 1本（判定は utils/transferBid の resolveBid）
@@ -490,7 +490,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
           events: [...(state.currentSeason.events ?? []), ...newEvents],
           pendingTradeOffers: [...existingTrades, ...newTradeOffers],
           transferListings: transferData.listings,
-          incomingOffers: mergedIncomingOffers,
+          incomingOffers: transferData.incomingOffers,
           incomingLoanOffers: mergedLoanOffers,
           loanRequests: [],
           loanResponses: [...(state.currentSeason.loanResponses ?? []), ...newLoanResponses],
