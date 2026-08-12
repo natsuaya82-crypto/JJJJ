@@ -318,7 +318,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
       const k = `${row.playerId}-${row.year}-${row.dir}`
       if (!seen.has(k)) { seen.add(k); out.push({ year: row.year, playerId: row.playerId, otherTeamId: row.otherTeamId, dir: row.dir, hasRec: false }) }
     }
-    out.sort((a, b) => b.year - a.year)
+    // ★**新しいものが上**。年だけで並べると、同じ年の中は積んだ順（＝古い順）のまま残る。
+    //   実機で「6月28日 → 7月19日」と古い方が上に出ていたのがこれ。
+    //   日付（YYYY-MM-DD）まで見て降順にする。日付が無い行（記録の無い推定ぶん）は
+    //   その年のいちばん後ろへ回す（'' は文字列比較でどの日付より小さい）
+    out.sort((a, b) => b.year - a.year || (b.date ?? '').localeCompare(a.date ?? ''))
     return out
   })()
   const movesIn = moveEntries.filter(r => r.dir === 'in')

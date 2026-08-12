@@ -6,7 +6,7 @@ import { liveName } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { teamHistoryOf } from '../../utils/teamHistory'
+import { gmCareerTitles, teamHistoryOf } from '../../utils/teamHistory'
 import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
@@ -183,8 +183,14 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   const myTeam = teams.find(t => t.id === playerTeamId)
   const longPress = usePlayerLongPress()
   // 優勝回数・連続上位はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  // ★ここは**記録室＝監督の記録**。優勝は「その年に指揮していたクラブ」で数える
+  //   （`gmCareerTitles` 1本）。`teamHistoryOf(pastSeasons, playerTeamId)` で数えると、
+  //   移籍した瞬間に前のクラブの優勝が消え、指揮していない年のいまのクラブの優勝が
+  //   自分のものになる。**クラブ詳細ページのほうはクラブで数える**（あちらが正しい）
+  const gmTenuresForTitles = useGameStore(s => s.gmTenures)
+  const gmTitles = gmCareerTitles(pastSeasons, gmTenuresForTitles, playerTeamId)
   const myHistory = teamHistoryOf(pastSeasons, playerTeamId)
-  const championships = myHistory.championships
+  const championships = gmTitles.total
   const bestStreak = myHistory.bestStreak
   const currentStreak = myHistory.currentStreak
   const allSeasons = [
@@ -231,6 +237,19 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>
             {championships}回
           </div>
+          {/* ★**どのクラブで優勝したか**を書く（オーナー・2026-08-12）。
+              記録室は監督の記録なので、クラブが変われば優勝もクラブごとに分かれる。 */}
+          {gmTitles.byClub.length > 0 && (
+            <div style={{ fontSize: '10px', color: C.textSub, lineHeight: 1.7 }}>
+              {gmTitles.byClub.map(c => (
+                <div key={c.teamId}>
+                  <span style={{ fontWeight: 800, color: C.text }}>{teams.find(t => t.id === c.teamId)?.shortName ?? '—'}</span>
+                  <span style={{ marginLeft: 6 }}>{c.years.length}回</span>
+                  <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>{c.years.join(' / ')}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {bestStreak > 0 && (
             <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.green }}>
               最長連続TOP3: {bestStreak}季

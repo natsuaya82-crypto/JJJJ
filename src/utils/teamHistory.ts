@@ -1,5 +1,7 @@
 import type { SeasonStanding, Division } from '../types'
-import { standingsByDivision } from './league'
+import { rankedStandings, seasonDivisionStandings, rankOfTeam, standingsByDivision } from './league'
+import { makeTeamIdAt } from './gmTenure'
+import type { GmTenure } from '../types'
 
 // チームの成績（過去シーズンの順位・優勝回数・連続上位）を、保存してある順位表から毎回組み立てる。
 //
@@ -81,4 +83,41 @@ export function teamHistoriesOf(pastSeasons: SeasonStandingsLike[]): TeamHistory
 export function teamHistoryOf(pastSeasons: SeasonStandingsLike[], teamId?: string): TeamHistory {
   if (!teamId) return EMPTY_TEAM_HISTORY
   return teamHistoriesOf(pastSeasons)[teamId] ?? EMPTY_TEAM_HISTORY
+}
+
+/**
+ * **監督のキャリアとしての優勝**（どのクラブで何年に優勝したか）。
+ *
+ *   > クラブの詳細ならクラブ。記録室のGMのページならどのチームで優勝したかを書く
+ *   >                                             （オーナー・2026-08-12）
+ *
+ * ■なぜ要るのか
+ *   記録室は**監督の記録**なので、`teamHistoryOf(pastSeasons, playerTeamId)` で
+ *   数えてはいけない。いまのクラブのIDで全過去年を数えることになるので、
+ *   別のクラブへ移った瞬間に
+ *     ・前のクラブで挙げた優勝が消える
+ *     ・**自分が指揮していない年の、いまのクラブの優勝が自分のものになる**
+ *   という入れ替わりが起きる。その年に指揮していたクラブ（`makeTeamIdAt`）で数える。
+ *
+ * ★クラブの詳細ページは今までどおり `teamHistoryOf(pastSeasons, そのクラブのid)`。
+ *   あちらは**クラブの記録**なので監督は関係ない。**この2つを混ぜないこと。**
+ */
+export function gmCareerTitles(
+  pastSeasons: readonly SeasonStandingsLike[] | undefined,
+  tenures: GmTenure[] | undefined,
+  playerTeamId: string,
+): { byClub: { teamId: string; years: number[] }[]; total: number } {
+  const at = makeTeamIdAt(tenures, playerTeamId)
+  const map = new Map<string, number[]>()
+  for (const s of pastSeasons ?? []) {
+    const tid = at(s.year)
+    // その年の**自分の部**の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
+    if (rankOfTeam(seasonDivisionStandings(s, tid), tid) !== 1) continue
+    const cur = map.get(tid) ?? []
+    cur.push(s.year)
+    map.set(tid, cur)
+  }
+  const byClub = [...map.entries()].map(([teamId, years]) => ({ teamId, years: years.sort((a, b) => b - a) }))
+  byClub.sort((a, b) => (b.years[0] ?? 0) - (a.years[0] ?? 0))
+  return { byClub, total: byClub.reduce((n, c) => n + c.years.length, 0) }
 }

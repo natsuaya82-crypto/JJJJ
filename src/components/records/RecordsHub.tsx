@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { teamHistoryOf } from '../../utils/teamHistory'
+import { gmCareerTitles } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
@@ -15,10 +15,9 @@ export default function RecordsHub() {
   // 今のチームで引くと、移った瞬間に自分の優勝が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
   const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  const championships = (gmTenures?.length ?? 0) > 1
-    // その年の自分の部の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
-    ? pastSeasons.filter(s2 => seasonDivisionStandings(s2, teamIdAt(s2.year))[0]?.teamId === teamIdAt(s2.year)).length
-    : teamHistoryOf(pastSeasons, playerTeamId).championships
+  // ★記録室は**監督の記録**。数え方は utils/teamHistory の gmCareerTitles 1本
+  //   （ここに条件分岐で2通り書かないこと。RecordsPage と同じ答えを返す）
+  const championships = gmCareerTitles(pastSeasons, gmTenures, playerTeamId).total
   const completedRaces = currentSeason.races.filter(r => r.results).length
   // 自分の部の中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
   const myStanding = rankOfTeam(seasonDivisionStandings(currentSeason, playerTeamId), playerTeamId)
