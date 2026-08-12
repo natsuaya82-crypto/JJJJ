@@ -16,7 +16,8 @@ import { deadlineIn, serverNow } from '../../lib/serverTime'
 import { showInterstitialAd } from '../../utils/ads'
 import { randomCourseIds, courseById } from '../../data/matchCourses'
 import RulesPanel from './RulesPanel'
-import PickPanel, { autoOrder, isOrderComplete, type Order } from './PickPanel'
+import PickPanel from './PickPanel'
+import { allSubmitted, autoOrder, resolveOrders, type Order } from '../../lib/roomMachine'
 import RacePanel from './RacePanel'
 import CoursePanel from './CoursePanel'
 import FinishPanel from './FinishPanel'
@@ -237,7 +238,9 @@ export default function RoomLobbyPage() {
         if (!p || !isHostRef.current) return
         if (p.race !== raceNoRef.current) return
         entriesRef.current[from] = p.order
-        if (activeIdsRef.current.every(id => entriesRef.current[id])) advanceRef.current?.()
+        // ★「出そろったか」と「誰を埋めるか・誰が不戦敗か」は lib/roomMachine 1本。
+        //   ここで条件を書き直すと、下の resolveOrders と食い違う
+        if (allSubmitted(activeIdsRef.current, entriesRef.current)) advanceRef.current?.()
       })
       // 全員のオーダーが出そろった → ホストが計算した結果が届く。全員これを再生する。
       ch.on<MatchRacePayload>(RoomEvent.RACE, p => {
@@ -549,18 +552,12 @@ export default function RoomLobbyPage() {
     const c = courseById(ids[raceNoRef.current] ?? '')
     if (!c) return
     advancedRef.current = true
-    // 出さなかった人・中身が足りない人はおまかせで埋める（回線落ちでも試合が止まらないように）
-    const orders: Record<string, Record<number, string>> = {}
-    const forfeits: string[] = []
-    for (const id of activeIdsRef.current) {
-      const got = entriesRef.current[id]
-      if (isOrderComplete(got, c)) {
-        orders[id] = got!.lineup
-      } else {
-        orders[id] = autoOrder(rostersRef.current[id] ?? [], c, raceNoRef.current + 1).lineup
-        if (!got) forfeits.push(id)
-      }
-    }
+    // 出さなかった人・中身が足りない人はおまかせで埋める（回線落ちでも試合が止まらないように）。
+    // 判断は lib/roomMachine の resolveOrders 1本（不戦敗の線もそこ）
+    const { orders, forfeits } = resolveOrders({
+      activeIds: activeIdsRef.current, entries: entriesRef.current,
+      course: c, rosters: rostersRef.current, raceNo: raceNoRef.current + 1,
+    })
     // CPUのオーダーは毎回おまかせで組む
     for (const t of cpuTeamsRef.current) {
       orders[t.id] = autoOrder(cpuRostersRef.current[t.id] ?? [], c, raceNoRef.current + 1).lineup

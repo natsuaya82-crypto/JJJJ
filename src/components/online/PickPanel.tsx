@@ -4,37 +4,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { LineupPhase } from '../race/LineupPhase'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
-import { assignLineupByTerrain } from '../../engine/raceEngine'
+import { autoOrder, usableRoster, type Order } from '../../lib/roomMachine'
 import { serverNow } from '../../lib/serverTime'
 import type { Player } from '../../types'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 
-
-/** 1レースぶんの提出内容（区間番号 → 選手ID） */
-export type Order = { lineup: Record<number, string> }
-
-/**
- * 出走できる選手だけに絞る。本編のレース準備と同じ考え方。
- * 引退だけ除外し、所属選手は全員出走できる。
- */
-export function usableRoster(roster: Player[]): Player[] {
-  return roster.filter(p => p.status !== 'retired')
-}
-
-/** おまかせ編成。未提出・回線落ちの人はこれで埋める。 */
-export function autoOrder(roster: Player[], course: MatchCourse, raceNo = 1): Order {
-  const segCount = course.segments.length
-  const list = usableRoster(roster)
-  const healthy = list.filter(p => p.status !== 'injured')
-  const pool = healthy.length >= segCount ? healthy : list
-  return { lineup: assignLineupByTerrain(pool, courseToRace(course, raceNo)) }
-}
-
-/** 全区間そろっているか */
-export function isOrderComplete(o: Order | undefined, course: MatchCourse): boolean {
-  if (!o?.lineup) return false
-  return course.segments.every(s => !!o.lineup[s.index])
-}
 
 export default function PickPanel({
   course, raceNo, totalRaces, deadline, roster, submitted, onSubmit,
