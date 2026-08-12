@@ -31,7 +31,7 @@ import { ovr } from './playerUtils'
 import { belongsToClub } from './rosterSync'
 import { isDeclining } from '../engine/ageCurve'
 import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
-import { RUNNING_SLOTS, SELL_ROSTER_CROWDED } from '../data/rosterRules'
+import { RUNNING_SLOTS } from '../data/rosterRules'
 // 「そのクラブで何番手か」は squadNeeds の1本
 import { squadRankOf } from './squadNeeds'
 
@@ -113,18 +113,21 @@ export const SEEK_PATIENCE_AGE = 27
  * | 日本→海外 | 「層が厚いタイプの中位以下」という別の数え方 |
  *
  * その結果、海外がらみの移籍27件は**全部が出す側の1〜4番手**（＝主力）でした。
+ *
+ * ■**序列だけで言う**（2026-08-12・オーナー判断「序列15番手以降だけでいいよ」）
+ *   以前はここに「名簿が21人より多ければ、下の序列はまとめて余剰」という条件が
+ *   同居していました。ところが全232クラブが23〜25人なので**常に当たり**、
+ *   `isSurplus` が恒真になっていた——つまり割増も本人同意も一度も発火していませんでした。
+ *   「今季干されているか」も外しました（`seeksPlayingTime` の中で
+ *   `hasNoPlayingTime` を先に見るので、そもそも序列に含まれる）。
  */
 export function isSurplus(a: {
   /** 出す側のクラブでの序列（1が最上位） */
   squadRank: number
-  /** 出す側のクラブの在籍人数 */
-  rosterSize: number
-  /** 今季干されているか（レース数が引ける経路だけ。省略時は見ない） */
-  benched?: boolean
   /** 走れる区間数（コースによって6〜10） */
   slots?: number
 }): boolean {
-  return hasNoPlayingTime(a.squadRank, a.slots) || a.rosterSize > SELL_ROSTER_CROWDED || !!a.benched
+  return hasNoPlayingTime(a.squadRank, a.slots)
 }
 
 export function seeksPlayingTime(a: {

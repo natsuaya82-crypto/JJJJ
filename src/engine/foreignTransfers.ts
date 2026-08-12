@@ -118,7 +118,7 @@ export function simulateForeignTransferMarket(params: {
     if (!needsPlayer(buyerRoster, target) && !wouldMakeLineup(buyerRoster, target)) continue
     // ②出す側にとって余剰か（国内CPU間とまったく同じ1本）→ ③対価も同じ1本。
     //   余剰は市場価値どおり、主力の引き抜きは割増。**払えないクラブは引き抜けない**
-    const surplus = isSurplus({ squadRank: sellRoster.findIndex(x => x.id === target.id) + 1, rosterSize: sellRoster.length })
+    const surplus = isSurplus({ squadRank: sellRoster.findIndex(x => x.id === target.id) + 1 })
     const fee = transferFeeFor(target, surplus)
     if (fBudget[buyer.id] < fee) continue
     // ④本人が行くか（国内とまったく同じ関門）
@@ -153,8 +153,7 @@ export function simulateForeignTransferMarket(params: {
     const target = fallen[Math.floor(Math.random() * fallen.length)]
     // ②③ここへ来る選手は序列が「走れる人数の2倍」より下＝余剰なので、対価は市場価値どおり。
     //   それでも**タダではない**（払えないクラブは受け取れない）
-    const fee = transferFeeFor(target, isSurplus({
-      squadRank: sorted.findIndex(x => x.id === target.id) + 1, rosterSize: sorted.length }))
+    const fee = transferFeeFor(target, isSurplus({ squadRank: sorted.findIndex(x => x.id === target.id) + 1 }))
     // 行き先は自クラブより格下の（＝出番を得やすい）空きのあるクラブ。
     // 「そこで走れるか」が条件（出場機会を求めて動くのだから、走れない先へは行かない）
     const dests = allClubs.filter(c => {
@@ -306,7 +305,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     bestOvrInSpecialty(rosterPlayers(ids), spec)
   /**
    * 出す側の名簿を序列順に並べて、**エース(1番手)だけ保護**した放出候補を返す。
-   * 序列と人数から「余剰か」を言うのは `transferDecision.isSurplus` 1本
+   * 序列から「余剰か」を言うのは `transferDecision.isSurplus` 1本
    * （＝国内CPU間の移籍とまったく同じ）。
    *
    * ★以前ここには `surplusTarget` という**4つ目の「余剰」の数え方**があった
@@ -318,7 +317,7 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const ps = rosterPlayers(ids).sort(comparePlayers('ovr'))
     if (ps.length <= ROSTER_MIN) return []
     return ps.slice(1).map((p, i) => ({
-      p, surplus: isSurplus({ squadRank: i + 2, rosterSize: ps.length }),
+      p, surplus: isSurplus({ squadRank: i + 2 }),
     }))
   }
 

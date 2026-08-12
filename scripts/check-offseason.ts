@@ -15,9 +15,11 @@ import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { generateSeasonRaces } from '../src/data/races'
-import { ROSTER_MIN, ROSTER_MAX } from '../src/data/rosterRules'
+import { ROSTER_MIN, ROSTER_MAX, RUNNING_SLOTS } from '../src/data/rosterRules'
+import { isSurplus } from '../src/utils/transferDecision'
 import { tierOf } from '../src/utils/clubTier'
-import { ovr, retirementAgeOf } from '../src/utils/playerUtils'
+import { ovr, retirementAgeOf, calcTransferValue } from '../src/utils/playerUtils'
+import { POACH_PREMIUM } from '../src/data/economy'
 import type { SeasonStanding, Team, Player } from '../src/types'
 
 const problems: string[] = []
@@ -151,6 +153,41 @@ console.log('[6] 在籍の増減（国内・上位10クラブ）')
   for (const r of [...rows.slice(0, 3), ...rows.slice(-3)]) {
     console.log(`  ${r.t.shortName.padEnd(8)} 格${String(tierOf(r.t)).padStart(2)}  ${r.b} → ${r.a}`)
   }
+}
+
+console.log('')
+console.log('[7] 「余剰か」の枝が両方とも生きているか')
+{
+  // ★ここが死んでいても、ロスターも格も golden も何も言いません。
+  //   実際、`isSurplus` に「名簿が21人より多ければ余剰」が同居していたころは、
+  //   全232クラブが23〜25人なので**恒真**——主力の引き抜き割増（POACH_PREMIUM）も
+  //   そのときだけ聞く本人同意も、どの経路でも一度も発火していませんでした
+  //   （`docs/BACKLOG.md` A-10）。「緑になった」は「通った」の証拠になりません。
+  // まず線そのもの。走れる人数(7)の2倍が境目
+  check('14番手は余剰でない', !isSurplus({ squadRank: RUNNING_SLOTS * 2 }))
+  check('15番手からが余剰', isSurplus({ squadRank: RUNNING_SLOTS * 2 + 1 }))
+
+  const recs = after.transferHistory.filter(r => (r.fee ?? 0) > 0 && r.year === YEAR + 1)
+  const byId = new Map(after.players.map(p => [p.id, p]))
+  let plain = 0, premium = 0, other = 0
+  for (const r of recs) {
+    const p = byId.get(r.playerId); if (!p) continue
+    const v = calcTransferValue(p)
+    if (v <= 0) continue
+    const ratio = (r.fee ?? 0) / v
+    // 移籍後は年齢も契約年数も動くので、素の額とぴったりは一致しない。帯で見る
+    if (ratio >= POACH_PREMIUM * 0.8) premium++
+    else if (ratio >= 0.4) plain++
+    else other++
+  }
+  console.log(`  移籍金つき ${recs.length}件 … 素の額あたり ${plain}件 / 割増(${POACH_PREMIUM}倍)あたり ${premium}件 / それ以外 ${other}件`)
+  check(`主力の引き抜き（割増 ${POACH_PREMIUM}倍）が起きている`, premium > 0,
+    '1件も無い＝isSurplus が恒真になっている（割増も本人同意も発火しない）')
+  // ★「素の額」が0件なのは壊れではありません。**15番手以降の選手に移籍金を払う買い手は
+  //   まず現れない**（要るのは「穴が埋まって、そこで走れる」選手だけ）ので、余剰の選手は
+  //   解雇→FA（0円）かレンタルで動きます。実測でも国内97件・海外30件すべてが割増でした。
+  //   ここは数を見張らず、出た数をそのまま書き出すだけにします（`docs/BACKLOG.md` A-10）。
+  if (plain === 0) console.log('  （余剰の売買は0件。15番手以降に移籍金を払う買い手は現れない＝解雇かレンタルで動く）')
 }
 
 console.log('')

@@ -302,7 +302,7 @@ export function runCpuTransfers(
           // 「余剰か（通常額）／主力の引き抜きか（割増＋本人同意）」も既にある1本で言う。
           // 以前はここに売り手の平均OVRから作った下限表（74/67/58）があった。
           // 出番が無い序列（走れる人数の2倍より下）なら、それがそのまま余剰という意味
-          const surplus = isSurplus({ squadRank: rank, rosterSize: sellRoster.length, benched })
+          const surplus = isSurplus({ squadRank: rank })
           return { p, rank, benched, sellTeamId, surplus }
         })
     })

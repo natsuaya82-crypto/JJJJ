@@ -21,15 +21,6 @@ export const ROSTER_MIN = 15          // ロスター人数下限（15人はOK�
 export const CPU_SELL_FLOOR = 18
 
 /**
- * 「名簿が余っている」と言える人数。これを超えていれば、序列が上のほうの選手でも
- * 出す側にとっては余剰（通常の対価で手放す）。
- *
- * ★以前は engine/cpuOffseason.ts の中だけにあり、国内CPU間の移籍しか見ていなかった。
- *   人数の決まりはここ1本（CPU_SELL_FLOOR と同じ理由）。
- */
-export const SELL_ROSTER_CROWDED = 21
-
-/**
  * 駅伝で実際に走れる人数。ここに入れるかどうかが「出られるか」の境目。
  * 移籍の判断（transferDecision）と、クラブの必要（squadNeeds）の両方が使うので、
  * どちらにも依存しないここに置く。
