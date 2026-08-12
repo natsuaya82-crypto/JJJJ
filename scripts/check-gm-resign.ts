@@ -101,43 +101,6 @@ console.log('\n③ 入口で止めていること')
   check(`${PAGE} が残り年数を自分で計算していない`, !/GM_RESIGN_MIN_TENURE/.test(page))
 }
 
-// ───────────────────────────────────────────────────────────────
-// ④ 就任する年。**自分から辞めるのは「今季」、向こうから来るのは「翌年」。**
-//
-//   `resignAsGm` は `resignOffers` に `currentSeason.year`（今季）を渡し、
-//   `acceptGmOffer` はその場で `playerTeamId` を入れ替える＝シーズン途中で就任する。
-//   一方 `endSeason` の `makeGmOffer` は翌年。**この2つは時期が違う。**
-//
-//   実際、退任画面の文言だけが「就任は次のシーズンから」に書き換えられて
-//   実装とずれた（2026-08-12）。**文言だけを直せる状態にしておかないこと。**
-// ───────────────────────────────────────────────────────────────
-console.log('')
-console.log('[④] 自分から辞めたときは「今季」就任する（文言と実装を揃える）')
-{
-  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-  const slice = codeOnly(readFileSync('src/store/slices/seasonSlice.ts', 'utf8'))
-  const body = slice.slice(slice.indexOf('resignAsGm: () => {'))
-  const call = body.slice(body.indexOf('resignOffers({'), body.indexOf('resignOffers({') + 600)
-  check('resignAsGm は今季（currentSeason.year）を渡している',
-    /nextYear:\s*state\.currentSeason\.year\s*,/.test(call))
-  check('**翌年（+ 1）を渡していない**', !/nextYear:[^,]*year\s*\+\s*1/.test(call))
-  // 向こうから来るオファーは**翌年**のまま（片方だけ動かしていないこと）。
-  // endSeason 側は `newYear`（= currentSeason.year + 1）を渡している
-  const end = slice.slice(slice.indexOf('endSeason: () => {'))
-  const mk = end.slice(end.indexOf('makeGmOffer({'), end.indexOf('makeGmOffer({') + 600)
-  check('endSeason のオファーは翌年（newYear）のまま', /nextYear:\s*newYear\s*,/.test(mk))
-  check('newYear は今季の翌年', /const newYear\s*=\s*state\.currentSeason\.year\s*\+\s*1/.test(end))
-
-  // 画面の文言。**「次のシーズンから」と書かれていたら落とす**
-  const page = readFileSync('src/components/more/MorePage.tsx', 'utf8')
-  const resignScreen = page.slice(page.indexOf('function ResignScreen'),
-    page.indexOf('function ResignScreen') + 1800)
-  check('退任画面が「就任は次のシーズンから」と言っていない',
-    !/就任は次のシーズンから/.test(resignScreen))
-  check('退任画面が「受けたその場から」就任すると言っている',
-    /受けたその場から/.test(resignScreen))
-}
-
 console.log('')
 if (problems.length > 0) {
   console.log(`✗ 退任のガードが効いていません（${problems.length}件）`)

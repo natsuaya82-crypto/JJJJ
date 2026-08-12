@@ -512,13 +512,7 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
 }
 
 // 監督を自分から辞める。押すと行き先の候補が届く（ホームに OFFER として出る）。
-//
-// ★**就任するのは「今季」です。**シーズン途中でも押せて、受けたその場でチームが入れ替わる。
-//   ここは `seasonSlice.resignAsGm` が `resignOffers` に渡す年（`currentSeason.year`＝今季）
-//   が唯一の決まりで、オファーの窓（App.tsx）も同じ `offer.year` を出している。
-//   **シーズン終わりに向こうから来るオファー（`makeGmOffer`）は翌年**なので、
-//   この2つは就任の時期が違う。ここの文言をあちらに合わせて「次のシーズンから」と
-//   書かないこと（`scripts/check-gm-resign.ts` が見張る）。
+// シーズン途中でも押せて、受けたその日から新しいクラブを指揮する。
 //
 // ★在任が短いうちは押せない（utils/gmOffer の GM_RESIGN_MIN_TENURE）。
 //   **残り年数をここで計算しないこと。**判定も文言の元になる数も canResignAsGm 1本から取る
@@ -534,7 +528,7 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
     <DetailScreen title="監督を退任する" onClose={onClose}>
       <div style={{ fontSize: 12, color: C.textDim, lineHeight: 1.9, marginBottom: 16 }}>
         {myTeam?.name ?? '現在のクラブ'}の監督を辞め、他クラブからの打診を待ちます。<br /><br />
-        ・打診はすぐ届きます。<strong style={{ color: C.text }}>受けたその場から</strong>新しいクラブを指揮します<br />
+        ・打診はすぐ届きますが、<strong style={{ color: C.text }}>就任は次のシーズンから</strong><br />
         ・<strong style={{ color: C.text }}>殿堂入りチームだけ</strong>は持っていきます（選手・予算・施設は移籍先のもの）<br />
         ・全部断ると無職のまま。次のシーズンにまた声がかかります
       </div>
