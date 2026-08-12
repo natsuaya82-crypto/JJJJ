@@ -7,7 +7,7 @@ import PlayerFace from '../player/PlayerFace'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, racesConsumed } from '../../utils/playerUtils'
 import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
-import { offersByPlayer, offersAwaitingReply } from '../../utils/notifItems'
+import { offersByPlayer, offersAwaitingReply, asCardCount } from '../../utils/notifItems'
 import { settledPath } from '../../utils/talkSync'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, needsRenewalAttention } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
@@ -201,10 +201,15 @@ export default function ChatPage() {
   const freeContactOffers = (currentSeason.incomingOffers ?? []).filter(o =>
     o.offeredPrice === 0 && mineHere(o.playerId) && !o.retentionRefused)
   const incomingLoanOffers = currentSeason.incomingLoanOffers ?? []
-  // 数えるのは用件の数＝選手の数。5クラブが1人を取り合っても返事は1回（ベルと同じ数え方）
+  // 数えるのは用件の数＝選手の数。5クラブが1人を取り合っても返事は1回（ベルと同じ数え方）。
+  // ★レンタルの申し込みは**まとめて1枚のカード**で出しているので、何件来ていても1。
+  //   数え方は utils/notifItems の asCardCount 1本（ここで `> 0 ? 1 : 0` と書かないこと）。
+  //   以前ここだけ incomingLoanOffers.length と件数ぶん足していたので、2件目からは
+  //   ベルが増えないのにチャットの数字だけ増える＝「通知に来ていないのにチャットが増える」
+  //   状態になっていた
   const inboundCount = offersByPlayer(buyOffers).length
     + offersByPlayer(freeContactOffers).length
-    + incomingLoanOffers.length
+    + asCardCount(incomingLoanOffers)
 
   const closeConversation = (clear: () => void) => {
     if (cameFromParamRef.current) { cameFromParamRef.current = false; navigate(-1) }
