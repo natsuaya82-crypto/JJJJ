@@ -65,7 +65,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferDecision.ts` の `isSurplus` | **出す側にとって余剰か＝序列15番手以降**（走れる人数の2倍より下）。余剰＝通常の対価、主力＝割増＋本人同意。**形（現金・トレード・レンタル・FA）でも国内／海外でも変わらない**。以前は4通りに割れていて、海外がらみは見てすらいなかった。**人数や「干され」を足さないこと**（名簿が21人超なら余剰、を入れていたら全232クラブが23〜25人で恒真になり、割増が一度も発火しなかった） |
 | `src/utils/clubMoney.ts` の `settleForeignFee` | **移籍金の海外側の精算**。`movePlayer` は `teams`（国内52クラブ）しか知らないので、相手が海外クラブだと片側しかお金が動かない。**`movePlayer` のすぐ外で必ず呼ぶこと**（国内同士なら何も起きないので、呼ぶ側で分岐しない） |
 | `src/utils/playerUtils.ts` の `transferFeeFor` | **移籍金**（市場価値 × 余剰でなければ `POACH_PREMIUM`）。割増を掛けるのはここだけ。**今季の出場を必ず渡すこと**（`calcTransferValue` の第2引数。渡さないと出場0の選手もフル出場の選手も同じ額になる）。オフに回すときは**走り終わったシーズン**を見る（`beginSeasonDraft` の `currentSeason` は来季の空っぽの器） |
-| `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties` / `weakestSpecialty`。タイプの一覧 `SPECIALTIES` もここ |
+| `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties` / `weakestSpecialty`。タイプの一覧 `SPECIALTIES` もここ。**「走れる7人に入るか」の関門を外せるのはドラフトだけ**（`needsPlayer(..., { requireLineup: false })`。移籍金を払う移籍で緩めると、1部のクラブが3部で1戦も走っていない選手を「必要」と言い出す） |
+| `src/engine/draft.ts` | **ドラフト会場のAI**。欲しいタイプ（`draftTeamNeeds`）・注目度（`draftBuzz`）・新人の年俸の下限（`draftSalaryFloor`）。**穴の見方は `squadNeeds` と同じ**で、違うのは「走れる7人」を当てないことだけ |
 | `src/utils/playerSort.ts` | 選手一覧の並び替え。`comparePlayers` |
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |
 | `src/utils/tradeValue.ts` | トレードの釣り合いの判定。**値段は `priceOf` 1本**（中身は `transferFeeFor`＝現金の移籍と同じ）。現金も選手も同じ合計に入るので混合も同じ式。額面と言い値の2本立ては廃止（左右で物差しが違うと等価交換が成立しない） |
