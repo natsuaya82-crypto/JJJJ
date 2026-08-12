@@ -15,13 +15,20 @@
  *     | 来はじめ      | 3戦目から     | **1戦目から**  |
  *     | 提示額        | 相場の80〜105% | 相場の95〜140% |
  *
- *   実測（同じ世界を60年ぶん）：
+ *   実測（同じ世界を60年ぶん・1部）：
  *
- *     一本化する前   19.98件/年   1レース最多 5件   受信箱 平均7.55件（最多19件）
- *     一本化した後   14.00件/年   1レース最多 2件   受信箱 平均5.00件（最多10件）
+ *     一本化する前         19.98件/年   1レース最多 5件   受信箱 平均7.55件（最多19件）
+ *     一本化した直後(上限2)  14.00件/年   1レース最多 2件   受信箱 平均5.00件（最多10件）
+ *     いま(上限1)           7.00件/年   1レース最多 1件   受信箱 平均2.50件（最多5件）
+ *
+ *   > 1レース2件も来たら一年に20件くらいくるだろそれ（オーナー・2026-08-12）
+ *
+ *   **231クラブが毎レース抽選するので上限は必ず埋まります。**
+ *   つまり「1レースの上限 × 打診が来るレース数」がそのまま1年の件数です。
+ *   目安は1シーズン5件くらい（オーナー）で、いまは 1部7件／2部5件／3部4件。
  *
  * ■この点検が守るもの
- *   ① 上限は**1つだけ**（国内＋海外を合わせて1レース2件）
+ *   ① 上限は**1つだけ**（国内＋海外を合わせて1レース1件）／**1年の件数もリテラルで留める**
  *   ② 開幕から2戦目までは1件も来ない（国内の線）
  *   ③ 海外クラブにも順番が回る（国内を先に並べて打ち切ると海外は永遠に0件）
  *   ④ 提示額の式は1本（海外だけ高く出す枝を戻していない）
@@ -33,8 +40,7 @@ import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
-import { generateSeasonRaces } from '../src/data/races'
-import { divisionOf } from '../src/utils/league'
+import { drawSeasonSchedules } from '../src/data/races'
 import { tierBudget } from '../src/utils/clubTier'
 import { calcTransferValue } from '../src/utils/playerUtils'
 import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
@@ -60,7 +66,10 @@ const fg = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
 const foreignClubs: ForeignClub[] = fg.updatedLeagues.flatMap(l =>
   l.clubs.map(c => ({ ...c, leagueId: l.id, finance: { budget: tierBudget(c as never) } }))) as ForeignClub[]
 const foreignPlayers: Player[] = fg.players
-const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)))
+// ★部ごとにレース数が違う（1部10戦・2部8戦・3部7戦）。**プレイヤーは3部から始まる**ので、
+//   1部だけ測ると自分の部の答えしか出ない
+const schedules = drawSeasonSchedules(YEAR)
+const races = schedules[1]
 const foreignIds = new Set(foreignClubs.map(c => c.id))
 
 type Run = { fresh: IncomingOffer[]; raceIndex: number; run: number }
@@ -85,14 +94,39 @@ const buyOffers = (rs: Run[]) => rs.map(r => ({
 const buys = buyOffers(rounds)
 const allBuys = buys.flatMap(r => r.fresh)
 
-console.log('[1] 上限は1つ（国内＋海外を合わせて1レース2件）')
+console.log('[1] 上限は1つ（国内＋海外を合わせて1レース1件）')
 {
   const maxPerRace = Math.max(...buys.map(r => r.fresh.length))
-  check('1レースに増える打診は2件まで', maxPerRace <= 2, `最多 ${maxPerRace}件`)
+  check('1レースに増える打診は1件まで', maxPerRace <= 1, `最多 ${maxPerRace}件`)
   // ★母数の確認。1件も来ない世界なら上限を守っているのは当たり前
   check('そもそも打診は来ている（空振りの緑ではない）', allBuys.length > 0, `${allBuys.length}件`)
   check('上限にぶつかる回がある（緩い上限ではない）',
-    buys.some(r => r.fresh.length === 2), `2件の回 ${buys.filter(r => r.fresh.length === 2).length}回`)
+    buys.some(r => r.fresh.length === 1), `1件の回 ${buys.filter(r => r.fresh.length === 1).length}回`)
+}
+
+console.log('')
+console.log('[1.5] **1年に来る件数**（上限だけ見ても「多すぎ」は防げない）')
+{
+  // ★上限を見るだけでは足りない。231クラブが毎レース抽選するので上限は必ず埋まり、
+  //   1年の件数は「上限 × 打診が来るレース数」で決まる。**その積をリテラルで留める。**
+  //   （上限2のとき1部で14件になっていて、上限の点検はそれでも緑だった）
+  const perSeason = (div: number) => {
+    const sch = schedules[div]
+    let live: IncomingOffer[] = []
+    let got = 0
+    for (let i = 0; i < sch.length; i++) {
+      const r = generateTransferActivity(
+        players0, teams, MY, i, [], live, [], new Set(), YEAR, sch.length, foreignClubs)
+      got += r.incomingOffers
+        .filter(o => !live.some(l => l.id === o.id) && o.offeredPrice > 0 && !o.id.startsWith('inc-lst-')).length
+      live = r.incomingOffers
+    }
+    return got
+  }
+  const got = [1, 2, 3].map(perSeason)
+  check('1部（10戦）は1年に7件', got[0] === 7, `${got[0]}件`)
+  check('2部（8戦）は1年に5件', got[1] === 5, `${got[1]}件`)
+  check('3部（7戦）は1年に4件', got[2] === 4, `${got[2]}件`)
 }
 
 console.log('')

@@ -16,7 +16,7 @@ import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
-import { generateSeasonRaces } from '../src/data/races'
+import { drawSeasonSchedules } from '../src/data/races'
 import { divisionOf } from '../src/utils/league'
 import { tierBudget } from '../src/utils/clubTier'
 import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
@@ -33,7 +33,12 @@ const fg = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
 const foreignClubs: ForeignClub[] = fg.updatedLeagues.flatMap(l =>
   l.clubs.map(c => ({ ...c, leagueId: l.id, finance: { budget: tierBudget(c as never) } }))) as ForeignClub[]
 const foreignPlayers: Player[] = fg.players
-const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)))
+// ★部によってレース数が違う（1部10戦・2部8戦・3部7戦・`DIVISION_RACE_DATES`）。
+//   **上限は必ず埋まる**ので「打診が来るレース数 × 1レースの上限」がそのまま1年の件数になる。
+//   1つの部だけ測ると自分の部の答えしか出ない（**プレイヤーは3部から始まる**）。
+//   `generateSeasonRaces` は部を受け取らない10戦の予備なので、ここで使わないこと
+const DIV = Number(process.env.DIV ?? divisionOf(teams.find(t => t.id === MY)))
+const races = drawSeasonSchedules(YEAR)[DIV]
 
 const foreignIds = new Set(foreignClubs.map(c => c.id))
 
@@ -71,7 +76,7 @@ for (let run = 0; run < RUNS; run++) {
 }
 
 const f = (n: number) => n.toFixed(2)
-console.log(`レース数/年 ${races.length}   ${RUNS}年ぶん`)
+console.log(`${DIV}部  レース数/年 ${races.length}   ${RUNS}年ぶん`)
 console.log('')
 console.log(`1年に来る打診       ${f(total / RUNS)}件   （最少 ${Math.min(...perYear)} / 最多 ${Math.max(...perYear)}）`)
 console.log(`1レースあたり       ${f(total / RUNS / races.length)}件   （1レースの最多 ${maxNew}件）`)
