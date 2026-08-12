@@ -50,10 +50,21 @@ function RankHistoryChart({ history, color }: { history: { year: number; rank: n
   const x = (i: number) => n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW
   const y = (rank: number) => padT + ((rank - 1) / (maxRank - 1)) * plotH
   const pts = history.map((h, i) => `${x(i)},${y(h.rank)}`).join(' ')
+  // 部が変わった年の手前に縦の点線を入れる。
+  // 縦軸は「その集団の中での順位」なので、1部の5位と3部の5位は同じ高さに描かれる。
+  // 区切りが無いと、昇降格した年をまたいで線が繋がって**同じ土俵の推移に見える**。
+  // 年号の下の部表記だけでは足りない（実際に「見づらい」と指摘があった）。
+  const breaks = history
+    .map((h, i) => ({ i, changed: i > 0 && h.division != null && history[i - 1].division != null && h.division !== history[i - 1].division }))
+    .filter(b => b.changed)
+    .map(b => (x(b.i - 1) + x(b.i)) / 2)
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
       <line x1={padL} x2={W - padR} y1={y(1)} y2={y(1)} stroke="#C9A84C" strokeWidth="0.5" opacity="0.35" strokeDasharray="3 3"/>
       <line x1={padL} x2={W - padR} y1={y(maxRank)} y2={y(maxRank)} stroke="#2E2B42" strokeWidth="0.5"/>
+      {breaks.map(bx => (
+        <line key={bx} x1={bx} x2={bx} y1={padT - 6} y2={H - padB + 10} stroke="#5C5870" strokeWidth="0.8" opacity="0.7" strokeDasharray="2 3"/>
+      ))}
       {n > 1 &&<polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.85"/>}
       {history.map((h, i) => {
         const col = h.rank === 1 ? '#C9A84C' : h.rank <= 3 ? '#4CAF50' : '#9B97A8'
