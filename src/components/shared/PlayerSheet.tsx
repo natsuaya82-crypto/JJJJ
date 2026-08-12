@@ -7,7 +7,7 @@ import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { useEclHistory } from '../../lib/useEclHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
-import { divisionOf, DIVISION_LABEL } from '../../utils/league'
+import { divisionOf, divisionInYear, DIVISION_LABEL } from '../../utils/league'
 import { usePreviewStore } from '../../store/previewStore'
 import { useAdHeight } from '../layout/Layout'
 import { SPECIALTY_LABELS } from '../../types'
@@ -365,14 +365,18 @@ export default function PlayerSheet() {
   // 海外の内訳行だけリーグ名/リーグロゴを出す。国内チームのIDが来たら今までどおり無し扱い
   const foreignClubOf = (tid: string) => { const cl = clubIndex.byId(tid); return cl && !cl.isDomestic ? cl : undefined }
   // JPELは部まで出す。2部・3部は「格落ち」なので、ただの JPEL と同じ表記だと区別がつかない。
-  // 部が記録に残るのはチームの現在値だけ（SeasonStanding は部を持たない）ので、
-  // 過去の年の行にも今の部が出る。1部は今までどおり「JPEL」のまま
-  const jpelLabel = (tid: string) => {
-    const d = divisionOf(resolveTeam(tid)?.team)
+  //
+  // ★部は「その行の年」から引くこと。**チームの現在値（divisionOf）で引かないこと。**
+  //   以前は divisionOf(resolveTeam(tid)?.team) ＝ 今の部だったので、降格した瞬間に
+  //   2部で走った過去の年まで「JPEL 3部」に書き換わっていた。
+  //   その年どの部にいたかは順位表に残っている（部ごとに分けて持っている）ので、
+  //   utils/league の divisionInYear 1本で引ける。ここで新しい判定を書かないこと。
+  const jpelLabel = (year: number, tid: string) => {
+    const d = divisionInYear([...pastSeasons, currentSeason], year, tid, divisionOf(resolveTeam(tid)?.team))
     return d === 1 ? 'JPEL' : `JPEL ${DIVISION_LABEL[d]}`
   }
   const histCompLabel = (c: HistoryRow) =>
-    c.comp === 'main' ? jpelLabel(c.teamId)
+    c.comp === 'main' ? jpelLabel(c.year, c.teamId)
     : c.comp === 'second' ? 'JPELリザーブリーグ'
     : c.comp === 'ecl' ? 'ECL'
     : (foreignClubOf(c.teamId)?.leagueName ?? '海外リーグ')

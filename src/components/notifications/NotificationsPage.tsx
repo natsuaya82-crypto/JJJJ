@@ -7,7 +7,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { C, alpha, SAIRA } from '../../styles/tokens'
-import { collectNotifications, expiredNegText } from '../../utils/notifItems'
+import { collectNotifications, expiredNegText, chatReplyLine } from '../../utils/notifItems'
 import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
 import PlayerFace from '../player/PlayerFace'
@@ -567,7 +567,11 @@ export default function NotificationsPage() {
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{chatReplies.length}件があなたの返事待ち</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.cyan, marginBottom: '14px' }}>チャットで対応してください</div>
+                    {/* カードは1枚にまとめて出すので、何が待っているかは**文で**伝える。
+                        文面は utils/notifItems の chatReplyLine 1本（画面に直書きしないこと）。
+                        「3件があなたの返事待ち」だけだと、それがレンタルの話なのか
+                        獲得の話なのか分からなかった */}
+                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.cyan, marginBottom: '14px' }}>{chatReplyLine(chatReplies)}</div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.cyan}, #9ae4ff)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
                   </div>
                 </div>

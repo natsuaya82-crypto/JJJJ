@@ -1,5 +1,5 @@
 import { rankOfTeam } from '../utils/league'
-import type { GmOffer, Team } from '../types'
+import type { GmOffer, GmTenure, Team } from '../types'
 import { divisionOf, seasonDivisionStandings, type SeasonStandingsLike } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
 
@@ -39,6 +39,42 @@ export const GM_OFFER_ENABLED = true
 
 /** 一度オファーが出たら、次はこの年数だけ空ける */
 export const GM_OFFER_COOLDOWN = 2
+
+/**
+ * 自分から退任できるようになるまでの在任年数（オーナー判断・2026-08-12）。
+ * 就任年を1年目と数えて「就任年 + これ > 今年」のあいだは押せない ＝ **4年目から**。
+ *
+ * ★上の GM_OFFER_COOLDOWN とは別物。**混ぜないこと。**
+ *     GM_OFFER_COOLDOWN    … 年1回ランダムで**声が掛かる**間隔（相手から来る話）
+ *     GM_RESIGN_MIN_TENURE … 自分から**辞められる**ようになるまで（こちらから出る話）
+ *   同じ「監督の去就の年数」でも意味が違うので、片方を動かしてももう片方は動かない。
+ *
+ * これが無かったころは、退任ボタンにガードが1つも無く（`gmOffers` が空かどうかだけ）、
+ * しかも resignOffers は抽選をしないので**押せば必ず3件届いた**。
+ * 押し続ければ格上へ無限に登れる状態だった。
+ */
+export const GM_RESIGN_MIN_TENURE = 3
+
+/**
+ * いま自分から退任できるか。**残り年数の計算を画面に書かないための1本。**
+ *
+ * 数え方は `gmTenures` の**いま指揮しているチームの fromYear** から。
+ * 新しいカウンタは足さない（在任の記録は utils/gmTenure に1本ある）。
+ * 履歴が無い・壊れているセーブは normalizeTenures と同じ扱いで「今年から就任」とみなす
+ * ＝すぐには辞められない。
+ */
+export function canResignAsGm(
+  tenures: GmTenure[] | undefined,
+  year: number,
+): { ok: true } | { ok: false; yearsLeft: number } {
+  const list = (tenures ?? []).filter(t => t && typeof t.fromYear === 'number')
+  // いま指揮しているのは toYear が無いもの。無ければ一番新しい fromYear に倒す
+  const cur = list.find(t => t.toYear == null)
+    ?? (list.length > 0 ? list.reduce((a, b) => (b.fromYear > a.fromYear ? b : a)) : undefined)
+  const from = cur?.fromYear ?? year
+  const yearsLeft = from + GM_RESIGN_MIN_TENURE - year
+  return yearsLeft > 0 ? { ok: false, yearsLeft } : { ok: true }
+}
 
 /**
  * 声がかかる確率。成績（部内順位）と評判から決める。

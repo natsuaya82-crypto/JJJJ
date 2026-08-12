@@ -2,6 +2,7 @@
 // 選手詳細の1ページ目（最大5個）とロスター名前横（選択した1個）で使う。
 // 記録はすべて「現在の保持者」基準：他選手に抜かれたらパッチも自然に外れる。
 import type { Player, GameState, SegmentRecord, SeasonAward, EclHistoryEntry, EventDistKey, Nationality } from '../types'
+import { DIVISION_LABEL } from './league'
 
 export type PlayerBadge = {
   key: string      // 一意キー（Player.displayBadge に保存する値）
@@ -11,6 +12,18 @@ export type PlayerBadge = {
   labelSuffix?: string  // 国旗の後ろに続くテキスト（例: 「代表」）
   medal?: 1 | 2 | 3     // 世界選手権メダル（金銀銅SVG）。描画は BadgeContent
   color?: string        // kind色の上書き（銀メダル・銅メダルなど）
+}
+
+// 年度表彰（MVP・新人王）に添える部の字。**部は SeasonAward が持っているものを使う**
+// （utils/awards.ts が部ごとに選んでいる。画面やここで部を引き直さないこと）。
+// 部を持たない旧データの年だけ、これまでどおり部なしの字になる。
+//
+// ★key（`mvp-2030` など）には部を足さないこと。**key は Player.displayBadge に
+//   保存されている値**なので、形を変えると選んであったパッチが黙って消える。
+//   1人の選手が同じ年に2つの部でMVPになることは無い（在籍は1つ）ので、
+//   選手ごとに見れば年だけで一意のまま。
+function awardDivLabel(a: SeasonAward): string {
+  return a.division != null ? ` ${DIVISION_LABEL[a.division]}` : ''
 }
 
 const DIST_LABEL: Record<EventDistKey, string> = {
@@ -76,7 +89,7 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     if (e.mvpPlayerId === p.id) out.push({ key: `eclmvp-${e.year}`, label: `${e.year}年ECL MVP`, kind: 'cl' })
   }
   for (const a of src.seasonAwards ?? []) {
-    if (a.mvpId === p.id) out.push({ key: `mvp-${a.year}`, label: `${a.year}年度MVP`, kind: 'mvp' })
+    if (a.mvpId === p.id) out.push({ key: `mvp-${a.year}`, label: `${a.year}年度${awardDivLabel(a)}MVP`, kind: 'mvp' })
   }
   // 記録会の種目別年間最速（そのシーズンの各種目トップタイム。種目ごとに別のスペシャリストが取れる）
   for (const t of src.eventSeasonTops ?? []) {
@@ -135,7 +148,7 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
   }
   // 新人王（最下位）
   for (const a of src.seasonAwards ?? []) {
-    if (a.rookieId === p.id) out.push({ key: `rookie-${a.year}`, label: `${a.year}年度新人王`, kind: 'rookie' })
+    if (a.rookieId === p.id) out.push({ key: `rookie-${a.year}`, label: `${a.year}年度${awardDivLabel(a)}新人王`, kind: 'rookie' })
   }
 
   return out.slice(0, maxCount)

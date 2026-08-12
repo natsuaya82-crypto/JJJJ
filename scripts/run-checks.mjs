@@ -123,6 +123,14 @@ const CHECKS = [
     why: 'playwright かブラウザが無い環境では走らせられない',
     env: () => ({ BOOT_CHROME: bootChrome() }),
   },
+  // 年をまたぐ表で「その年の事実」がその年のまま出るか（在籍履歴の部・表彰パッチの部）
+  'player-history',
+  // 代表の「自動選出」が engine の autoSelectEkiden 1本を通っているか（自前で並べ直していないか）
+  'wa-autoselect',
+  // 年度表彰の線（新人王3戦・MVP6戦）と、部ごとに選んでいること
+  'awards',
+  // 自分から退任できるまでの在任年数（就任から3シーズン）と、判定が1本かどうか
+  'gm-resign',
 ]
 
 /**

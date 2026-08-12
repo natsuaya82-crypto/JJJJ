@@ -10,7 +10,7 @@ import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
 import { ovr, ratingColor, isStatMaxed } from '../../utils/playerUtils'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
-import { ekidenCandidates, type Candidate } from '../../engine/worldAthletics'
+import { ekidenCandidates, autoSelectEkiden, individualStarIds, type Candidate } from '../../engine/worldAthletics'
 import { HOME_NATION } from '../../data/nationalities'
 import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
 import { useAdHeight } from '../layout/Layout'
@@ -43,8 +43,12 @@ export default function NationalSquadSelectPage() {
   useEffect(() => { ensureWorldRacePlans() }, [ensureWorldRacePlans])
   const plans = worldRacePlans?.year === year ? worldRacePlans.plans : []
 
-  // 候補50人＝持ちタイム上位40＋大会適性上位10（山型の年は登り屋・下り屋が混ざる）
+  // 候補＝OVR上位 NATIONAL_POOL 人（engine/worldAthletics の ekidenCandidates 1本）。
+  // 持ちタイム順ではない：記録会に出られる回数が所属で違うので、タイム順だと
+  // 海外に出した主力が候補から丸ごと落ちる（engine 側のコメントに経緯あり）
   const candidates = useMemo(() => ekidenCandidates(players, HOME_NATION, year), [players, year])
+  // 個人種目（5000m・10000m・マラソン）の代表。おまかせでは駅伝に入れない
+  const stars = useMemo(() => individualStarIds(players, HOME_NATION, year), [players, year])
 
   // 初期状態は「自分で確定した代表」だけを枠に配置（前年代表ベース）。勝手には埋めない。
   // 初めての選考は全枠空きで、自動選出ボタン or 枠タップで埋める
@@ -145,19 +149,24 @@ export default function NationalSquadSelectPage() {
 
   const save = () => { setWorldSquad(Object.values(slots).filter(Boolean)); navigate(-1) }
 
-  // 自動選出：空き枠を持ちタイム上位から埋める（区間配置の「自動配置」と同じ立ち位置）
+  // 自動選出：空き枠を埋める（区間配置の「自動配置」と同じ立ち位置）。
+  //
+  // ★選び方は engine/worldAthletics の autoSelectEkiden 1本。**ここで自前に並べないこと。**
+  //   以前はこの場で candidates を上から詰めていて、engine 側（CPU・海外国の20人選抜）が
+  //   やっている「個人種目の代表は基本駅伝に入れない」を1つも通っていなかった。
+  //   その結果、おまかせを押すと 5000m・10000m・マラソンのエースが駅伝に入り、
+  //   そのぶん selectIndividualFields(excludeIds) で個人種目から外れる、という
+  //   自分で自分の首を絞める編成になっていた。
+  //   （CLAUDE.md「候補の出どころが2本あるとズレる」— 選考画面50人・CPU20人・国力上位7人と
+  //     3通りに割れていたのを1本化した経緯が engine 側のコメントに残っている）
   const autoSelect = () => {
     setSlots(prev => {
       const n = { ...prev }
-      const used = new Set(Object.values(n))
-      let slot = 1
-      for (const c of candidates) {
-        if (used.has(c.player.id)) continue
-        while (slot <= SQUAD && n[slot]) slot++
-        if (slot > SQUAD) break
-        n[slot] = c.player.id
-        used.add(c.player.id)
-      }
+      const used = new Set(Object.values(n).filter(Boolean))
+      const empty = Array.from({ length: SQUAD }, (_, i) => i + 1).filter(s => !n[s])
+      // 既に手で入れた枠は動かさないので、そのぶんを候補から除いて空き枠の数だけ選ぶ
+      const picks = autoSelectEkiden(candidates.filter(c => !used.has(c.player.id)), stars, empty.length)
+      empty.forEach((slot, i) => { if (picks[i]) n[slot] = picks[i].id })
       return n
     })
   }

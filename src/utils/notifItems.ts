@@ -41,6 +41,35 @@ export const EXPIRED_NEG_TEXT: Record<ExpiredNegKind, { title: (name: string) =>
 export function expiredNegText(kind: ExpiredNegKind | undefined) {
   return EXPIRED_NEG_TEXT[kind ?? 'bid']
 }
+
+/**
+ * **まとめて1枚のカードで出す用件の数え方。** 中身が何件でもカードは1枚なので 1。
+ *
+ * ★ここが「唯一の決まり」。呼ぶ側で `x.length > 0 ? 1 : 0` と書かないこと。
+ *   ベルの数字は「通知ページに出るカードの枚数と必ず同じにする」という決まりなのに、
+ *   チャット一覧（ChatPage）だけがレンタルの申し込みを**件数ぶん**足していた。
+ *   その結果、2件目以降はベルが増えないのにチャットの数字だけ増える、という
+ *   「通知に来ていないのにチャットが増える」状態になっていた。
+ */
+export function asCardCount(items: readonly unknown[]): number {
+  return items.length > 0 ? 1 : 0
+}
+
+/**
+ * 「返事待ち」カードの本文。**中身は1枚にまとめて出す**ので、
+ * 何を待っているのかは枚数ではなく文で伝える。
+ *
+ * カードが1枚しか出ない以上、「3件があなたの返事待ち」だけでは
+ * それがレンタルの話なのか獲得の話なのか分からない（実際に分からなかった）。
+ * 画面に直書きしないこと。
+ */
+export function chatReplyLine(replies: readonly { kind: 'acquisition' | 'loan' }[]): string {
+  const n = (k: 'acquisition' | 'loan') => replies.filter(r => r.kind === k).length
+  const parts: string[] = []
+  if (n('loan') > 0) parts.push(`レンタルの申し込み ${n('loan')}件`)
+  if (n('acquisition') > 0) parts.push(`獲得オファーの返答 ${n('acquisition')}件`)
+  return parts.length > 0 ? parts.join('・') : 'チャットで対応してください'
+}
 import { contractTalkCtx, contractMonthsLeft, isLiveContract, needsRenewalAttention } from './contractTalk'
 
 // 契約更新まわりの数え方は utils/contractTalk.ts の1本だけを使う。
@@ -239,17 +268,17 @@ export function collectNotifications(input: NotifInput) {
     + tradeOffers.length
     // 「返事待ち」「移籍要望」「海外挑戦希望」は中身が何人でもカード1枚にまとめて出しているので1。
     // 人数分足すと、ベルは3なのに通知ページにはカードが1枚、という数のズレになる
-    + (chatReplies.length > 0 ? 1 : 0)
+    + asCardCount(chatReplies)
     + retirementRequests.length
-    + (transferReqs.length > 0 ? 1 : 0)
-    + (overseasReqs.length > 0 ? 1 : 0)
+    + asCardCount(transferReqs)
+    + asCardCount(overseasReqs)
     + counteredBids.length + feeAcceptedBids.length
     + renewalPlayers.length
     + (signingBanned ? 1 : 0)
     + (rosterOver > 0 ? 1 : 0)
     + injuredPlayers.length
     + (loginUnclaimed ? 1 : 0)
-    + (sponsorOffers.length > 0 ? 1 : 0)
+    + asCardCount(sponsorOffers)
     + pendingGiftsCount
     + clubGiftsCount
     + joinNotices.length

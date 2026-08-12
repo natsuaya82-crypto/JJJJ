@@ -184,6 +184,30 @@ export function divisionInSeason(
   return undefined
 }
 
+/**
+ * ★**過去の年の部を出すときは、必ずここを通すこと。**★
+ *
+ * 年をまたいで並ぶ表（選手の在籍履歴・チームの歴代成績）で「その年は何部だったか」を
+ * 出すための1本。`divisionOf(team)`（＝`Team.division`）は**チームの現在値**なので、
+ * 昇降格した瞬間に過去の年の行まで今の部に書き換わる。
+ * 実際、選手詳細の在籍履歴が「2部で走った年が、降格した途端に3部と表示される」状態だった。
+ *
+ * 順位表は部ごとに分けて持っている（`Season.standings` が `Record<部, 順位表>`）ので、
+ * その年の順位表に載っている場所がそのまま「その年の部」になる。
+ *
+ * @param fallback 順位表を持たない古いセーブの年に使う部（呼ぶ側で `divisionOf(いまのチーム)`）。
+ *                 情報が無い年はこれ以上のことは言えないので、これまでどおりの見え方に倒す。
+ */
+export function divisionInYear(
+  seasons: readonly (SeasonStandingsLike<RankableRow & { teamId: string }> & { year: number })[],
+  year: number,
+  teamId: string,
+  fallback: Division,
+): Division {
+  const s = seasons.find(x => x.year === year)
+  return (s && divisionInSeason(s, teamId)) ?? fallback
+}
+
 /** そのチームが走った部の順位表（得点順）。載っていなければ空 */
 export function seasonDivisionStandings<T extends RankableRow & { teamId: string }>(
   season: SeasonStandingsLike<T>,

@@ -522,6 +522,29 @@ CLAUDE.md は「移籍金の有無・国内か海外か・FAかどうかは、�
   `V39_SAVE=<path> npm run check` から流せます
 - 分かること … その年の `worldAthleticsResults` / `worldTournament` / `worldRacePlans` の中身
 
+### E-2. 去年の代表が、枠から落ちると黙って消える
+
+代表選考画面を開くと、前年に確定した代表のうち**候補100人から落ちた選手だけが
+何も言わずに枠から消えます**。「去年20人選んだのに、開いたら18人になっている」形。
+
+```ts
+// src/components/international/NationalSquadSelectPage.tsx:53-58
+const initialSlots = useMemo(() => {
+  const candIds = new Set(candidates.map(c => c.player.id))
+  const ids = (worldSquad?.playerIds ?? []).filter(id => candIds.has(id))   // ← 黙って落ちる
+```
+
+`candidates` は `ekidenCandidates`（OVR上位 `NATIONAL_POOL`＝100人）なので、
+1年ぶん歳を取って101位以下になっただけで枠から外れます。
+外れたこと自体は仕様として妥当かもしれませんが、**何も出ない**のが問題です。
+
+- どこ … `src/components/international/NationalSquadSelectPage.tsx:53-58`
+- 見つけ方 … 2026-08-12、★15（代表候補POOL）の下調べ中。コードを読んで発見
+- **枠の数字（`NATIONAL_POOL`）とは無関係**です。枠をいくつにしても、
+  境目をまたいだ選手は同じように黙って消えます
+- 直すなら … 落ちた選手を出して「枠から外れました」と伝えるか、
+  前年の代表は枠の外でも候補に残すか。どちらもオーナー判断
+
 ---
 
 ## F. 構造の宿題（リファクタリングの範囲内）
