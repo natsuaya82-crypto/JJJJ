@@ -86,7 +86,27 @@ export function bestOvrInSpecialty(roster: readonly Player[], spec: Specialty): 
  * 上回るので、全クラブが欲しがる＝需要を見ていないのと同じになる。
  * 埋めたいのは自分の穴であって、上積みできる場所すべてではない。
  */
-export function needsPlayer(roster: readonly Player[], player: Player): boolean {
+export function needsPlayer(
+  roster: readonly Player[],
+  player: Player,
+  opts: {
+    /**
+     * **そこで走れる選手でなければ獲らない**（既定 true）。
+     *
+     * **`false` にしてよいのはドラフトだけです**（`engine/draft.ts`）。
+     * ドラフトは「いま走る人」ではなく「数年後の戦力」を採る場なので、
+     * 即戦力の線を当てると成長を待つという考え方が消えます。実測（候補120人 × 52クラブ）：
+     *
+     *     入団したときの序列は中央値14番手。走れる7人に入るのは32%だけ（1部では9.8%）
+     *     関門を当てる … 120人中35人が**全52クラブから無視される**（下位30人は全員ゼロ）
+     *     当てない     … 誰も欲しがらない候補は0人。目玉23.4クラブ／下位5.7クラブと差が付く
+     *
+     * 移籍金を払う移籍では**必ず既定のまま**にしてください。ここを緩めると、
+     * 1部のクラブが3部で1戦も走っていない選手を「必要」と言い出します。
+     */
+    requireLineup?: boolean
+  } = {},
+): boolean {
   const depth = squadDepth(roster)
   const d = depth[player.specialty]
   if (!d) return false
@@ -94,7 +114,7 @@ export function needsPlayer(roster: readonly Player[], player: Player): boolean 
   //   「16番手になる選手をわざわざ獲るクラブはいない」（CLAUDE.md）を、
   //   言葉だけでなく判定に入れる。以前は①が無条件、②も序列を見ていなかったので、
   //   1部のクラブが3部で1戦も走っていないOVR64を「必要」と言っていた。
-  if (!wouldMakeLineup(roster, player)) return false
+  if (opts.requireLineup !== false && !wouldMakeLineup(roster, player)) return false
   // ① 不在のポジションは埋めたい
   //
   //   ★以前はここが無条件（`return true`）だった。強さを一切見ないので、
@@ -119,6 +139,11 @@ export function needsPlayer(roster: readonly Player[], player: Player): boolean 
 /**
  * 穴の深さ（チーム平均 − そのポジションの平均）。大きいほど優先度が高い。
  * 「どこに金をかけるか」を決めるときに使う。穴でなければ0。
+ *
+ * **不在のタイプはチーム平均をそのまま返す**（＝どの穴より深い）ので、
+ * これで並べると「0人のタイプが最優先、次に平均を下回っているタイプが深い順」になります。
+ * `needsPlayer` の②の穴と**同じ物差し**なので、「欲しいタイプの一覧」を出すときは
+ * ここを使ってください（ドラフト会場の表示が `engine/draft.ts` 経由でこれを使っています）。
  */
 export function needDepth(roster: readonly Player[], spec: Specialty): number {
   const active = roster.filter(p => p.status === 'active')

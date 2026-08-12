@@ -93,12 +93,16 @@ function scanFiles(dirs: string[]): { file: string; lines: string[] }[] {
 
 let violations = 0
 function report(name: string, fix: string, hits: Hit[]) {
+  RULE_COUNT++
   if (hits.length === 0) return
   violations += hits.length
   console.log(`\n✗ ${name}（${hits.length}件）`)
   console.log(`  → ${fix}`)
   for (const h of hits) console.log(`  ${h.file}:${h.line}  ${h.text.slice(0, 100)}`)
 }
+
+// ★ルールの本数は数える（手で書いた数字は増やし忘れる。実際 5本目を足したときに 4 のままだった）
+let RULE_COUNT = 0
 
 // ── ルール1: engine/ utils/ data/ から store/ components/ lib/ を import しない ──
 //
@@ -184,6 +188,39 @@ function report(name: string, fix: string, hits: Hit[]) {
   )
 }
 
+// ── ルール5: store/ の中からオンライン層（lib/）を値として import しない ──
+//
+// 設計書 §2.1 のルール3。**オンライン層は本編の状態に混ぜない。**
+// Supabase クライアントと `lib/*Api.ts` は gameStore とほぼ独立していて、その形を保つ。
+// 混ざると「セーブを読むだけのつもりが通信を待つ」「通信が落ちるとゲームが止まる」に
+// つながる（オンラインは遊びの本体ではないので、落ちても本編は動くべき）。
+//
+// 接点は `gameStore.ts` の `resetGame` だけ（アカウントを作り直すときに
+// durableId と supabase を動的に読む）。**そこ以外に増やさないこと。**
+// 増やしたくなったら、狭いインターフェースを1ファイル作ってそこに集めること。
+{
+  const ALLOW = ['src/store/gameStore.ts']   // resetGame の1箇所だけ
+  const hits: Hit[] = []
+  for (const { file, lines } of scanFiles(['src/store'])) {
+    if (isAllowed(file, ALLOW)) continue
+    lines.forEach((line, i) => {
+      const t = line.trim()
+      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
+      for (const { spec, typeOnly } of specifiersOf(line)) {
+        if (typeOnly) continue
+        const rel = resolveSrcRelative(file, spec)
+        if (!rel) continue
+        if (rel.startsWith('lib/')) hits.push({ file, line: i + 1, text: t })
+      }
+    })
+  }
+  report(
+    'store がオンライン層（lib/）を値として import している',
+    'オンライン層は gameStore に混ぜない。接点は resetGame の1箇所だけ',
+    hits,
+  )
+}
+
 // ── ルール4: data/ types/ の中から engine/ utils/ を import しない ──
 //
 // 既知の例外が4つある。data から utils への値の参照が残っている。
@@ -219,7 +256,7 @@ function report(name: string, fix: string, hits: Hit[]) {
 }
 
 if (violations === 0) {
-  console.log('レイヤーの点検：4件のルール、違反なし')
+  console.log(`レイヤーの点検：${RULE_COUNT}件のルール、違反なし`)
   process.exit(0)
 }
 console.log(`\nレイヤーの点検：合計 ${violations} 件の下から上への import が見つかりました`)

@@ -82,6 +82,38 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
 
   endSeason: () => {
+    // ★**その年の世界選手権／アジア予選が終わっていなければ、シーズンを終わらせない。**
+    //   （2026-08-12・オーナー「誰でも確実に参加できるようにしてくれ」）
+    //
+    //   記録を積むのは大会が終わった1か所（worldAthleticsSlice の advanceWorldRace）だけなので、
+    //   「勝手に開催済みになる」ことは起きない。**穴は「開催しないまま年が進む」ほう**で、
+    //   一度その年を跨ぐと**二度と開催されない**（過去の年の大会は開けない）。
+    //   画面の分岐だけに頼っていると、経路が1つ増えただけで静かに飛ばせてしまうので、
+    //   ここで構造的に止める。ECLの残り戦と同じ「先に消化してから締める」形。
+    {
+      const st = get()
+      const y = st.currentSeason.year
+      const held = (st.worldAthleticsResults ?? []).some(r => r.year === y)
+      if (!held) {
+        // まだなら、その場で開催して締める（代表が未選考ならおまかせで組まれる）
+        try {
+          get().startWorldTournament()
+          let guard = 0
+          while (guard++ < 12) {
+            const t = get().worldTournament
+            if (!t || t.year !== y || t.finished) break
+            get().advanceWorldRace()
+          }
+        } catch (e) {
+          console.error('world athletics auto-run failed', e)
+        }
+        // それでも積まれなかったら、**シーズンを終わらせない**（黙って年を飛ばさない）
+        if (!(get().worldAthleticsResults ?? []).some(r => r.year === y)) {
+          console.error(`[wa] ${y}年の世界選手権が開催できなかったのでシーズンを締めません`)
+          return
+        }
+      }
+    }
     // ECLの残り戦が未消化ならAI配置で自動開催してからシーズンを締める
     {
       let guard = 0

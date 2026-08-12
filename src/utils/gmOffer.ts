@@ -158,8 +158,10 @@ export function makeGmOffer(params: {
   if (!GM_OFFER_ENABLED) return null
   const { season, playerTeamId, finalRank, gmRep, teamCount, nextYear, teams, nextBudgets, objBonus, rng } = params
   const { lastOfferYear, tenureStartYear } = params
-  // 就任1年目には来ない。前のオファーからも GM_OFFER_COOLDOWN 年空ける
-  if (tenureStartYear != null && nextYear - tenureStartYear < 2) return null
+  // ★**移籍したら3シーズンは、退任もオファーも無い**（2026-08-12・オーナー判断）。
+  //   退任ボタン側は canResignAsGm が同じ GM_RESIGN_MIN_TENURE で止める。**線は1本**。
+  //   以前ここだけ「就任1年目には来ない」の2年で、**押せないのにオファーだけ来る**年があった。
+  if (tenureStartYear != null && nextYear - tenureStartYear < GM_RESIGN_MIN_TENURE) return null
   if (lastOfferYear != null && nextYear - lastOfferYear < GM_OFFER_COOLDOWN) return null
   if (rng() >= offerChance(finalRank, gmRep, teamCount)) return null
 

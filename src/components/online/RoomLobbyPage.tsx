@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -16,14 +16,15 @@ import { deadlineIn, serverNow } from '../../lib/serverTime'
 import { showInterstitialAd } from '../../utils/ads'
 import { randomCourseIds, courseById } from '../../data/matchCourses'
 import RulesPanel from './RulesPanel'
-import PickPanel, { autoOrder, isOrderComplete, type Order } from './PickPanel'
+import PickPanel from './PickPanel'
+import { allSubmitted, autoOrder, resolveOrders, type Order } from '../../lib/roomMachine'
 import RacePanel from './RacePanel'
 import CoursePanel from './CoursePanel'
 import FinishPanel from './FinishPanel'
 import StampLayer from './StampLayer'
 import StampBar from './StampBar'
 import type { StampPayload } from './stampKinds'
-import { buildRacePayload, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
+import { buildRacePayload, seriesPointsBefore, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { defaultLogoIdFor } from '../../data/logoPresets'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 
@@ -100,7 +101,6 @@ export default function RoomLobbyPage() {
   // ── レース ──
   const [result, setResult] = useState<MatchRacePayload | null>(null)
   const [results, setResults] = useState<MatchRacePayload[]>([])   // 全レースぶん（最終結果で使う）
-  const [seriesPts, setSeriesPts] = useState<Record<string, number>>({})
   const [waitingNext, setWaitingNext] = useState(false)
   const [segGo, setSegGo] = useState(-1)                            // ホストが「次の区間へ」と言った区間
 
@@ -124,7 +124,6 @@ export default function RoomLobbyPage() {
   const raceNoRef = useRef(0)
   const teamInfosRef = useRef<MatchTeamInfo[]>([])
   const teamCountRef = useRef(2)                       // 得点表は開始時の参加数で固定する
-  const lastResultRef = useRef<MatchRacePayload | null>(null)
   const watchedRef = useRef<Record<string, boolean>>({})
   const nextStartedRef = useRef(false)
   const startNextRef = useRef<(() => void) | null>(null)
@@ -239,21 +238,13 @@ export default function RoomLobbyPage() {
         if (!p || !isHostRef.current) return
         if (p.race !== raceNoRef.current) return
         entriesRef.current[from] = p.order
-        if (activeIdsRef.current.every(id => entriesRef.current[id])) advanceRef.current?.()
+        // ★「出そろったか」と「誰を埋めるか・誰が不戦敗か」は lib/roomMachine 1本。
+        //   ここで条件を書き直すと、下の resolveOrders と食い違う
+        if (allSubmitted(activeIdsRef.current, entriesRef.current)) advanceRef.current?.()
       })
       // 全員のオーダーが出そろった → ホストが計算した結果が届く。全員これを再生する。
       ch.on<MatchRacePayload>(RoomEvent.RACE, p => {
         if (!p?.segments) return
-        // 前のレースぶんの得点をここで通算に足す
-        const last = lastResultRef.current
-        if (last && last.race !== p.race) {
-          setSeriesPts(prev => {
-            const out = { ...prev }
-            for (const s of last.standings) out[s.teamId] = (out[s.teamId] ?? 0) + s.points
-            return out
-          })
-        }
-        lastResultRef.current = p
         setResult(p)
         // 全レースぶんを取っておく。最終結果はこれを各自が集計する（配り直さない）。
         setResults(prev => {
@@ -330,17 +321,7 @@ export default function RoomLobbyPage() {
         if (races.length > 0) {
           resultsRef.current = races
           setResults(races)
-          const last = races[races.length - 1]
-          lastResultRef.current = last
-          setResult(last)
-          // 通算得点は「今のレースより前」の合計。RACE を受け取ったときと同じ数え方にする
-          setSeriesPts(() => {
-            const out: Record<string, number> = {}
-            for (const r of races.slice(0, -1)) {
-              for (const s of r.standings) out[s.teamId] = (out[s.teamId] ?? 0) + s.points
-            }
-            return out
-          })
+          setResult(races[races.length - 1])
         }
         setPhase(p.phase ?? 'lobby')
       })
@@ -367,6 +348,12 @@ export default function RoomLobbyPage() {
   const notifyLobby = () => { chRef.current?.send(RoomEvent.LOBBY).catch(() => {}) }
 
   const isHost = !!room && !!me && room.host === me
+
+  // ★通算得点は**持たずに数え直す**（lib/matchSim の seriesPointsBefore 1本）。
+  //   以前は「結果が届くたびに1つ前のぶんを足す」形で ref に前回を覚えさせていたが、
+  //   それだと受け取った順に依存し、再接続で1戦取りこぼすとその回の得点が
+  //   永久に入らないまま進む（最終結果の seriesStandings とだけ食い違う）。
+  const seriesPts = useMemo(() => seriesPointsBefore(results, raceNo), [results, raceNo])
   const mine = members.find(m => m.userId === me)
   const active = members.filter(m => !m.left)
 
@@ -565,18 +552,12 @@ export default function RoomLobbyPage() {
     const c = courseById(ids[raceNoRef.current] ?? '')
     if (!c) return
     advancedRef.current = true
-    // 出さなかった人・中身が足りない人はおまかせで埋める（回線落ちでも試合が止まらないように）
-    const orders: Record<string, Record<number, string>> = {}
-    const forfeits: string[] = []
-    for (const id of activeIdsRef.current) {
-      const got = entriesRef.current[id]
-      if (isOrderComplete(got, c)) {
-        orders[id] = got!.lineup
-      } else {
-        orders[id] = autoOrder(rostersRef.current[id] ?? [], c, raceNoRef.current + 1).lineup
-        if (!got) forfeits.push(id)
-      }
-    }
+    // 出さなかった人・中身が足りない人はおまかせで埋める（回線落ちでも試合が止まらないように）。
+    // 判断は lib/roomMachine の resolveOrders 1本（不戦敗の線もそこ）
+    const { orders, forfeits } = resolveOrders({
+      activeIds: activeIdsRef.current, entries: entriesRef.current,
+      course: c, rosters: rostersRef.current, raceNo: raceNoRef.current + 1,
+    })
     // CPUのオーダーは毎回おまかせで組む
     for (const t of cpuTeamsRef.current) {
       orders[t.id] = autoOrder(cpuRostersRef.current[t.id] ?? [], c, raceNoRef.current + 1).lineup

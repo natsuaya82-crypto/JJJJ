@@ -83,7 +83,7 @@ export const DEFICIT_RESCUE_BUDGET = 50_000_000
  *   上限を付けると3年目で頭打ちになり、そこから増えない。
  *   貯めて大型補強、はできる（1年ぶんの繰越は残る）が、無限には貯まらない。
  */
-export const CARRYOVER_CAP_SHARE = 0.50
+export const CARRYOVER_CAP_SHARE = 0.30
 
 export function computeNextSeasonBudget(args: {
   baseGrant: number        // そのクラブの格の年間予算（utils/clubTier.ts の tierBudget(team)）
