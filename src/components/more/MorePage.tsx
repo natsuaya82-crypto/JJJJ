@@ -11,6 +11,7 @@ import BottomSheet from '../ui/BottomSheet'
 import { flushSaveNow, slotHasSave } from '../../store/saveStorage'
 import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../../store/saveSlot'
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
+import { exportSaveToShare } from '../../store/exportSave'
 
 import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
 import { canResignAsGm } from '../../utils/gmOffer'
@@ -35,6 +36,7 @@ const IcRace = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path
 const IcX = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
 const IcHome = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcTrash = <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+const IcShare = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4L8 8M12 4l4 4M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcBlock = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/><path d="M5.6 5.6l12.8 12.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 
 // ── 課金カードの特典アイコン ──
@@ -194,6 +196,8 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   // 入口は隠してある。フッターのバージョン表記を7回続けて叩くと出る。
   // 一般のプレイヤーに見せる機能ではないので設定の一覧には並べない。
   const [slotTaps, setSlotTaps] = useState(0)
+  // セーブの書き出しの結果（成功も失敗もそのまま出す）
+  const [exportMsg, setExportMsg] = useState('')
   const [slotSheet, setSlotSheet] = useState(false)
   const [slotsUsed, setSlotsUsed] = useState<Record<number, boolean>>({})
   useEffect(() => {
@@ -249,6 +253,13 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           onClick={() => setDetail('resign')}
         />
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
+        {/* ★セーブの書き出し。実機で起きていることは**本物のセーブが無いと調べられない**。
+            これまで取り出す手段が無く、Mac に繋いで Xcode から抜くしか道が無かった */}
+        <SettingRow icon={IcShare} label="セーブを書き出す" sub="不具合の調査用。共有からファイルを送れます"
+          onClick={async () => { const r = await exportSaveToShare(); setExportMsg(r.detail) }} />
+        {exportMsg && (
+          <div style={{ padding: '8px 12px', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
+        )}
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />
       </div>
 
