@@ -221,7 +221,17 @@ export function canWishTransfer(p: Player, ctx: EligibilityCtx): boolean {
   return isTalkFree(p, ctx) && !p.transferListed
 }
 
-/** GMがこの選手をレンタルに出していいか（売出と貸出は排他） */
+/**
+ * GMがこの選手をレンタルに出していいか（売出と貸出は排他）。
+ *
+ * ★**非売（noSale）はレンタルも止めます**（2026-08-12・オーナー判断）。
+ *   「レンタル歓迎（loanListed）」という別のボタンがあるので、**そちらが opt-in**。
+ *   非売＝「この選手の話は持ってくるな」であって、買い取りだけを断る印ではない。
+ *
+ *   一時期「noSale は買い取りだけを止める」で運用していたが、実測で
+ *   **全員を非売にしても打診は 2.56件／年 → 2.50件／年 でほとんど減らなかった**。
+ *   オーナーの「非売にしてるのにレンタルが来る」はこれ。
+ */
 export function canLoanOut(p: Player, ctx: EligibilityCtx): boolean {
-  return isTalkFree(p, ctx) && !p.transferListed && !saleAnswered(p, ctx)
+  return isTalkFree(p, ctx) && !p.transferListed && !saleAnswered(p, ctx) && !p.noSale
 }

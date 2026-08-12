@@ -30,9 +30,9 @@
  "src/store/slices/raceSlice.ts::ensureIndividualEvents": 91,
  "src/store/slices/raceSlice.ts::runRace": 474,
  "src/store/slices/raceSlice.ts::simulateIndividualEvent": 100,
- "src/store/slices/seasonSlice.ts": 752,
+ "src/store/slices/seasonSlice.ts": 784,
  "src/store/slices/seasonSlice.ts::acceptGmOffer": 62,
- "src/store/slices/seasonSlice.ts::endSeason": 566,
+ "src/store/slices/seasonSlice.ts::endSeason": 598,
  "src/store/slices/worldAthleticsSlice.ts": 292,
  "src/store/slices/worldAthleticsSlice.ts::advanceWorldRace": 152,
  "src/store/slices/worldAthleticsSlice.ts::startWorldTournament": 90

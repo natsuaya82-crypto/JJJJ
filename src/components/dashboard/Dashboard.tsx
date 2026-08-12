@@ -474,6 +474,14 @@ export default function Dashboard() {
               <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.textDim }}>{waSquadReady ? 'ECL消化後に大会へ ›' : `${waTitle} ›`}</span>
             </button>
           )}
+          {/* ★ECLの残り戦があるあいだも大会へ進めるようにする。
+              以前はこの分岐に選考ボタンしか無く、**大会へ入る導線がここだけ無かった**。
+              シーズンを終わらせると二度と開催できないので、入口はどの分岐にも置く */}
+          {!waDone && waJapanIn && waSquadReady && (
+            <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%', marginTop: 8 }}>
+              <span className="btn-game__inner" style={{ fontSize: 13, padding: '10px 14px', borderRadius: 12 }}>{waTitle}へ進む →</span>
+            </button>
+          )}
         </div>
       ) : seasonDone && !waDone ? (
         /* 世界選手権／予選：シーズン終了の前に必ずここを通る */
