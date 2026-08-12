@@ -608,22 +608,41 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         // 直近10季の順位を折れ線で表示（1位が上）
         const chartSeasons = allSeasons.slice(-10)
         const pts = chartSeasons.map(s => {
-          const sorted = seasonDivisionStandings(s, teamIdAt(s.year))
-          return { year: s.year, rank: rankIn(s, teamIdAt(s.year)), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
+          const tid = teamIdAt(s.year)
+          const sorted = seasonDivisionStandings(s, tid)
+          return { year: s.year, teamId: tid, rank: rankIn(s, tid), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
         })
         const maxTeams = Math.max(8, ...pts.map(p => p.totalTeams))
         const n = pts.length
         const xFor = (i: number) => n <= 1 ? 50 : (i / (n - 1)) * 100
         const yFor = (rank: number) => 12 + ((rank - 1) / Math.max(1, maxTeams - 1)) * 74
         const rankCol = (rank: number) => rank === 1 ? C.gold : rank <= 3 ? C.green : rank <= 5 ? C.blue : C.textGhost
-        const linePts = pts.map((p, i) => p.rank != null ? `${xFor(i)},${yFor(p.rank)}` : null).filter((x): x is string => x != null).join(' ')
+        // ★**クラブが変わったところで線を切る**（オーナー・2026-08-12）。
+        //   この折れ線は「監督のキャリア」なので、`teamIdAt` が年ごとに別のクラブを返す。
+        //   1本に繋ぐと、3部のクラブを辞めて1部のクラブへ移った年が
+        //   **そのクラブが3部から1部へ昇格したように見える**（部を2つ飛ぶ昇格は起きない）。
+        //   切れ目には縦の区切りを入れて、別のクラブの話だと分かるようにする。
+        const segments: string[] = []
+        let cur: string[] = []
+        pts.forEach((p, i) => {
+          if (i > 0 && p.teamId !== pts[i - 1].teamId) { if (cur.length > 1) segments.push(cur.join(' ')); cur = [] }
+          if (p.rank != null) cur.push(`${xFor(i)},${yFor(p.rank)}`)
+        })
+        if (cur.length > 1) segments.push(cur.join(' '))
+        // クラブが変わった年の手前（前の年との中間）に区切りを置く
+        const clubBreaks = pts.map((p, i) => (i > 0 && p.teamId !== pts[i - 1].teamId
+          ? { at: (xFor(i - 1) + xFor(i)) / 2, name: teams.find(t => t.id === p.teamId)?.shortName ?? '' }
+          : null)).filter((b): b is { at: number; name: string } => b != null)
         return (
           <CardPanel>
             <SectionLabel>シーズン別順位推移（直近{n}季）</SectionLabel>
             <div style={{ position: 'relative', height: '138px', margin: '6px 4px 4px' }}>
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
                 <line x1="0" y1={yFor(1)} x2="100" y2={yFor(1)} stroke={alpha(C.gold, 0.28)} strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />
-                {linePts && <polyline points={linePts} fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+                {clubBreaks.map(b => (
+                  <line key={b.at} x1={b.at} x2={b.at} y1="0" y2="100" stroke={C.textGhost} strokeWidth="1" opacity="0.8" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                ))}
+                {segments.map(sg => <polyline key={sg} points={sg} fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
               </svg>
               {pts.map((p, i) => p.rank != null ? (
                 <div key={p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: `${yFor(p.rank)}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none' }}>
