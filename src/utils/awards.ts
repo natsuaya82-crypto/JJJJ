@@ -50,7 +50,15 @@ function awardsFromStats(
   }
   const mvpPick = pickBest([...stats.keys()], 6)
   const rookieIds = players.filter(p => p.draftYear === year && p.draftRound != null).map(p => p.id)
-  const rookiePick = pickBest(rookieIds, 6) ?? pickBest(rookieIds, 3)
+  // 新人王は**3戦以上**（MVPの6戦とは別の線。上の 6 は触らないこと）。
+  //
+  // ★以前は `pickBest(rookieIds, 6) ?? pickBest(rookieIds, 3)` と、6戦の網を先に当てて
+  //   ゼロなら3戦へ緩める形だった。だが新人が6戦に届くかは**部で決まってしまう**。
+  //   CPUの区間配置（engine/raceEngine の bgLineup）は能力だけで7人を選ぶので、
+  //   名簿の強い1部では新人が7人枠に入れず、6戦どころか3戦にも届かない年が続く。
+  //   結果、1部だけ新人王が空欄のまま、という状態になっていた。
+  //   最初から3戦で選ぶ（該当ゼロの年は新人王なしのまま通す）。
+  const rookiePick = pickBest(rookieIds, 3)
   const mvpName = mvpPick ? nameOf(mvpPick.id) : undefined
   const rookieName = rookiePick ? nameOf(rookiePick.id) : undefined
   return {
