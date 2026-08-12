@@ -15,7 +15,7 @@
 //   `scripts/check-cpu-trade.ts` で成立側に網を張った。
 //   残り（解雇・レンタル）は golden が効いているので、切り出して差分ゼロを見れば足りる。
 import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
-import { hasNoPlayingTime, seeksPlayingTime, type Destination } from '../utils/transferDecision'
+import { appraiseMove, hasNoPlayingTime, seeksPlayingTime, type Destination } from '../utils/transferDecision'
 import { isOwnedBy } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
 import { buildCareerCounts } from '../utils/careerStats'
@@ -141,6 +141,14 @@ export function runCpuLoans(
     maxLoans?: number
     /** その日の日付。**省略＝オフの既定（11/15）** */
     date?: string
+    /**
+     * ④本人が行くか。**省略すると聞かない**（呼び出し側の移行用）。
+     * ★`loan: true` で渡すこと。レンタルは保有元が変わらないので、
+     *   「格下のクラブへ行くのは嫌だ」が効かない（`transferDecision` の `loan`）
+     */
+    destinationOf?: (clubId: string, player: Player) => Destination
+    allTeams?: Team[]
+    foreignLeagues?: ForeignLeague[]
   },
 ): { players: Player[]; teams: Team[]; news: NewsItem[] } {
   let players = world.players
@@ -173,6 +181,14 @@ export function runCpuLoans(
       if (found) { candidate = found; senderId = sid; break }
     }
     if (!candidate || !senderId) continue
+    // ④本人が行くか。**このまま控えでいるか、1年よそで走るか**の選択なので、
+    //   格下への減点は効かせない（loan: true）
+    if (ctx.destinationOf) {
+      const clubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
+      const a = appraiseMove(candidate, ctx.destinationOf(receiver, candidate),
+        { srcTier: tierOfPlayerClub(senderId, clubs), loan: true })
+      if (!a.ok) continue
+    }
     lent++
     loanedIds.add(candidate.id)
     givenLoan[senderId] = (givenLoan[senderId] ?? 0) + 1
@@ -545,7 +561,8 @@ export function runCpuMarketTick(
     { playerTeamId: ctx.playerTeamId, year: ctx.year, tradeValueCtx: ctx.tradeValueCtx, excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date,
       destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues })
   const lent = runCpuLoans({ players: traded.players, teams: traded.teams },
-    { playerTeamId: ctx.playerTeamId, year: ctx.year, excludeIds, maxLoans: CPU_TICK_LOANS, date: ctx.date })
+    { playerTeamId: ctx.playerTeamId, year: ctx.year, excludeIds, maxLoans: CPU_TICK_LOANS, date: ctx.date,
+      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues })
   return {
     players: lent.players,
     teams: lent.teams,

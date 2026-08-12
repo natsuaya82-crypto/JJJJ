@@ -558,7 +558,9 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     {
       const loaned = runCpuLoans(
         { players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer },
-        { playerTeamId: state.playerTeamId, year: state.currentSeason.year, excludeIds: cpuTransferIds })
+        { playerTeamId: state.playerTeamId, year: state.currentSeason.year, excludeIds: cpuTransferIds,
+          // ④本人が行くか（レンタルの基準で）
+          destinationOf: get().destinationOf, allTeams: state.teams, foreignLeagues: state.foreignLeagues })
       playersAfterCpuTransfer = loaned.players
       teamsAfterCpuTransfer = loaned.teams
       offseasonTxNews.push(...loaned.news)
