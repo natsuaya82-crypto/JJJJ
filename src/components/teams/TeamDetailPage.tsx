@@ -3,7 +3,7 @@ import { comparePlayers } from '../../utils/playerSort'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import { teamHistoryOf } from '../../utils/teamHistory'
+import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 // 海外クラブの本拠地・創設年・監督名（クラブIDから毎回同じ値を出す）
 
 // 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
@@ -191,14 +191,17 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: '#C9A84C' })
   } else {
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-    const jpelTitles = teamHistoryOf(pastSeasons, id).championships
+    // ★**部ごとに出す**（オーナー・2026-08-12）。合計にすると3部優勝と1部優勝が混ざる
+    for (const r of titleRows(teamHistoryOf(pastSeasons, id).titles)) {
+      titles.push({ label: `${DIVISION_LABEL[r.division]}優勝`, count: r.count,
+        color: r.division === 1 ? '#C9A84C' : r.division === 2 ? '#9FB4CC' : '#7A6E58' })
+    }
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
       if (!st || st.length === 0) return false
       const top = rankedStandings(st)[0]
       return top.teamId === id
     }).length
-    if (jpelTitles > 0) titles.push({ label: 'JPEL優勝', count: jpelTitles, color: '#C9A84C' })
     if (reserveTitles > 0) titles.push({ label: 'リザーブリーグ優勝', count: reserveTitles, color: '#9B97A8' })
   }
   // ECL優勝（歴代優勝から集計。国内チーム・海外クラブ共通）
