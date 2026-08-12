@@ -270,8 +270,6 @@ export default function WorldTournamentPage() {
         weatherLabel={{ sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }}
         raceStrategy={raceStrategy}
         setRaceStrategy={setRaceStrategy}
-        teamTalk=""
-        setTeamTalk={() => {}}
         unavailable={unavailableMap}
         competition="world"
       />

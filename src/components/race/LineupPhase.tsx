@@ -113,8 +113,6 @@ export function LineupPhase({
   weatherLabel?: Record<string, string>
   raceStrategy?: 'aggressive' | 'balanced' | 'conservative'
   setRaceStrategy?: (s: 'aggressive' | 'balanced' | 'conservative') => void
-  teamTalk?: string
-  setTeamTalk?: (t: string) => void
   onBack?: () => void
   unavailable?: Record<string, string>  // playerId → 出走不可の理由ラベル。選択不可・グレー表示になる
   competition: Competition   // スタートボタンの色（大会ごとに1色。COMPETITION_BTNから引く）

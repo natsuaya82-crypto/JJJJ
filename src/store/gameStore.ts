@@ -115,9 +115,7 @@ export type GameStore = GameState & {
 
   // Race
   raceStrategy: 'aggressive' | 'balanced' | 'conservative'
-  raceTeamTalk: string
   setRaceStrategy: (s: 'aggressive' | 'balanced' | 'conservative') => void
-  setRaceTeamTalk: (t: string) => void
   setRaceLineup: (segmentIndex: number, playerId: string) => void
   clearRaceLineup: () => void
   runRace: (lineup: Record<number, string>, segmentTactics?: Record<number, string>, preComputedResults?: RaceResults) => RaceResults | null
@@ -388,7 +386,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     fusionPlayerId: null,
     fusionCardIds: [],
     raceStrategy: 'balanced',
-    raceTeamTalk: 'best',
     activeRacePhase: null,
     activeRaceSim: null,
     activeRaceResults: null,

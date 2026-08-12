@@ -181,8 +181,6 @@ export default function EclPage() {
         weatherLabel={weatherLabel}
         raceStrategy={raceStrategy}
         setRaceStrategy={setRaceStrategy}
-        teamTalk=""
-        setTeamTalk={() => {}}
         unavailable={unavailableMap}
         competition="ecl"
       />

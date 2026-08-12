@@ -292,7 +292,6 @@ export default function RacePage() {
     currentSeason, teams, players, playerTeamId,
     raceLineup, setRaceLineup, clearRaceLineup, runRace,
     raceStrategy, setRaceStrategy,
-    raceTeamTalk, setRaceTeamTalk,
     setActiveRacePhase, setActiveRaceLocked,
     simulateIndividualEvent,
   } = useGameStore()
@@ -772,8 +771,6 @@ export default function RacePage() {
       weatherLabel={weatherLabel}
       raceStrategy={raceStrategy}
       setRaceStrategy={setRaceStrategy}
-      teamTalk={raceTeamTalk}
-      setTeamTalk={setRaceTeamTalk}
       unavailable={unavailableMap}
       competition="jpel"
     />

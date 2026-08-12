@@ -40,7 +40,7 @@ import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
 import { allTieredClubs, tierOfPlayerClub } from '../../utils/clubTier'
 
 type Slice = Pick<GameStore,
-  'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setRaceTeamTalk' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'resolveEvent' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
+  'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'resolveEvent' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
 
 export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -193,7 +193,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const progress = applyRaceProgress({
         players: updatedPlayers, results, racingIds, teams: state.teams,
         playerTeamId, myDivision, currentSeason: state.currentSeason,
-        raceTeamTalk: state.raceTeamTalk, awayCareerAdd: awayRound.careerAdd })
+        awayCareerAdd: awayRound.careerAdd })
       const finalPlayers = progress.players
       const raceExpGainsMap = progress.raceExpGains
 
@@ -530,7 +530,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   setRaceStrategy: (s) => set({ raceStrategy: s }),
 
-  setRaceTeamTalk: (t) => set({ raceTeamTalk: t }),
 
 
   setActiveRaceSim: (sim) => set({ activeRaceSim: sim }),

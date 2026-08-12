@@ -27,19 +27,19 @@ export function applyRaceProgress(params: {
   playerTeamId: string
   myDivision: Division
   currentSeason: Season
-  raceTeamTalk: string | undefined
   /** 裏で走った部の通算成績の増分（engine/domesticLeague の結果） */
   awayCareerAdd: Record<string, { races: number; segWins: number }>
   rng?: () => number
 }): { players: Player[]; raceExpGains: Record<string, Partial<Record<CardStatKey, number>>> } {
-  const { players, results, racingIds, teams, playerTeamId, myDivision, currentSeason, raceTeamTalk, awayCareerAdd, rng = Math.random } = params
-  // Team talk morale modifier
-  const teamTalk = raceTeamTalk ?? 'best'
+  const { players, results, racingIds, teams, playerTeamId, myDivision, currentSeason, awayCareerAdd, rng = Math.random } = params
   const teamRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? 0
   // teamRank はそのレースの着順＝自分の部の中での順位。比べる相手も部のチーム数
   const baseMoraleDelta = teamRank === 1 ? 8 : teamRank <= 3 ? 3 : teamRank >= DIVISION_SIZE[myDivision] - 2 ? -5 : 0
-  const talkBonus = teamTalk === 'enjoy' ? 5 : teamTalk === 'win' && teamRank <= 5 ? 10 : 0
-  const moraleDelta = baseMoraleDelta + talkBonus
+  // ★チームトーク（レース前に「楽しくいこう／勝ちにいく」で士気 +5／+10）は**廃止**
+  //   （オーナー・2026-08-12「チームトークは無くした」）。
+  //   選ぶ画面がどこにも無く、build 121 から一度も効いていなかった枝。
+  //   既定が 'best'（どの枝にも当たらない）だったので、外しても士気は1も変わらない。
+  const moraleDelta = baseMoraleDelta
   const raceExpGainsMap: Record<string, Partial<Record<CardStatKey, number>>> = {}
   // 強化合宿: 自チームのレース獲得EXP ×(1 + Lv×6%)
   const campLv = teams.find(t => t.id === playerTeamId)?.facilities?.trainingCamp ?? 0
