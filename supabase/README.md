@@ -195,7 +195,7 @@ ERROR:  42883: function public.list_my_matches(integer) does not exist
 Supabase が返した `code` / `message` を捨てている（console にも出していない）。
 そのため 42883 がアプリ側からは一切見えず、上の往復が起きた。
 原因を `detail` に残して console に1行出す変更を用意してあるが、
-担当外のファイルなので**オーナーの判断待ちで保留中**。
+**入れた**（2026-08-12）。次からは 42883 のような原因がそのまま console に出る。
 
 ---
 
