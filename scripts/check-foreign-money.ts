@@ -148,8 +148,16 @@ console.log('[3] 毎年の精算が国内CPUと同じ式で、破産も貯め込
   const max = Math.max(...ratios)
   console.log(`  20年後の残高／年間予算：最小 ${Math.min(...ratios).toFixed(2)}倍  最大 ${max.toFixed(2)}倍  赤字 ${red}件`)
   check('20年回しても赤字にならない', red === 0, `${red}件`)
-  // 繰越の上限（予算の50%）が効いていれば、残高は「年間予算 + 上限」を超えられない
-  check(`繰越の上限が効いている（${1 + CARRYOVER_CAP_SHARE}倍を超えない）`, max <= 1 + CARRYOVER_CAP_SHARE + 1e-9, `最大 ${max.toFixed(3)}倍`)
+  // ★**仕様はリテラルで釘を打つ。** ここは長いあいだ
+  //     check(`…${1 + CARRYOVER_CAP_SHARE}倍を超えない`, max <= 1 + CARRYOVER_CAP_SHARE)
+  //   と書いてあり、**実装の定数をそのまま期待値にしていました**。
+  //   2026-08-12 の監査で `CARRYOVER_CAP_SHARE` を 0.50 → 99 にしても緑のままでした
+  //   （上限が100倍になるので、どんな残高でも通ってしまう）。
+  //   `CPU_SELL_FLOOR` を 16 → 15 にしても緑だったのとまったく同じ形です。
+  //   仕様の側（クラブ予算の50%まで）を先に打ってから、ふるまいを見ます。
+  check('繰越の上限はクラブ予算の50%まで', CARRYOVER_CAP_SHARE > 0 && CARRYOVER_CAP_SHARE <= 0.5,
+    `いま ${CARRYOVER_CAP_SHARE}`)
+  check('20年回しても、使えるお金は年間予算の1.5倍を超えない', max <= 1.5 + 1e-9, `最大 ${max.toFixed(3)}倍`)
 }
 
 console.log('')

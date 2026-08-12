@@ -44,7 +44,11 @@ const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
 const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
-let teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
+// ★自チームと、赤字のCPUを1クラブ仕込む（下の「赤字は消えない」で見る）
+const RED_CPU = base.find(t => t.id !== MY)!.id
+const MY_DEBT = -120_000_000
+let teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}),
+  budget: t.id === MY ? MY_DEBT : t.id === RED_CPU ? -80_000_000 : 400_000_000 } })) as Team[]
 let leagues = fgen.updatedLeagues
 const CLUBS = allTieredClubs(teams, leagues)
 const destinationOf = (clubId: string, player: Player) => {
@@ -102,6 +106,23 @@ const sizes = teams.filter(t => t.id !== MY)
 console.log(`  1年後の国内の在籍 最少${Math.min(...sizes)} 中央${[...sizes].sort((a, b) => a - b)[25]} 最多${Math.max(...sizes)}`)
 check(`下限(${ROSTER_MIN}人)を割ったクラブが無い`, Math.min(...sizes) >= ROSTER_MIN, `最少 ${Math.min(...sizes)}人`)
 check(`上限(${ROSTER_MAX}人)を超えたクラブが無い`, Math.max(...sizes) <= ROSTER_MAX, `最多 ${Math.max(...sizes)}人`)
+
+// ── 赤字は消えない ────────────────────────────────────────────────
+// ★市場は自前の帳簿（`budget[]`）を持ち、**最後に全クラブへ書き戻します**。
+//   その帳簿を `Math.max(0, …)` で作っていたため、**市場に一度も参加していない
+//   自チームのマイナス残高まで 0 に**なっていました（2026-08-12 の監査で発見）。
+//   `finance.budget < 0` は補強禁止の条件（`data/economy.ts` の `reinforcementBanned`）で、
+//   `computeNextSeasonBudget` には「赤字側は DEFICIT_LIMIT まで持ち越す（借金は消えない）」
+//   と書いてあります。レースを1つ進めるだけで、その決まりが破れていました。
+//
+//   自チームは市場に並ばない（買いも売りもしない）ので、**1円も動かないのが正しい**。
+//   赤字のCPUは売れば増えるので「そのまま」ではなく「勝手に0にならない」を見ます。
+const myAfter = teams.find(t => t.id === MY)!.finance.budget
+const redAfter = teams.find(t => t.id === RED_CPU)!.finance.budget
+console.log(`  1年後の残高 自チーム ${(myAfter / 1e8).toFixed(2)}億 / 赤字CPU ${(redAfter / 1e8).toFixed(2)}億`)
+check('自チームの残高は市場を回しても1円も動かない（赤字が消えない）',
+  myAfter === MY_DEBT, `${MY_DEBT.toLocaleString()} → ${myAfter.toLocaleString()}`)
+check('赤字のCPUの残高が勝手に0へ丸められていない', redAfter !== 0, `${redAfter.toLocaleString()}`)
 
 console.log(failed === 0 ? '\n✓ 1年の移籍の量は狙いどおり\n' : `\n✗ ${failed}件\n`)
 if (failed > 0) process.exit(1)

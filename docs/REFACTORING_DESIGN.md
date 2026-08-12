@@ -242,9 +242,9 @@ endSeason: () => set(state => runSeasonEnd(state, [
 | **P2 persist抽出** ✅完了(2026-08-11) | migrate→persistence/migrateSave.ts、merge→mergeSave.ts、SAVE_VERSION分離。merge内の補正7ブロックは bootRepair ではなく **persistence/normalizeSave.ts** に集約（bootRepairは「冪等な導出修復」専用のまま保ち、一回きりパッチと混ぜないため）。migrate失敗時は saveHealth=failed でセーフモード接続（意図した挙動変更・独立コミット） | 中 |
 | **P3 engine抽出** ✅完了(2026-08-11) | cpuMarket(約580行)・achievements・draftOrder・individualRace・raceBoosts を engine/ へ、perfOf を utils/playerUtils へ移設。re-exportは残さず参照元を直接更新（RacePageのgameStore依存も解消）。gameStoreは7,479行に。**売却フロー系ヘルパー（willingFeeFor/sellMove/finalizeSale/appendChatLog等）は意図的に残置**——チャット・ニュースと絡む「取引の実行」であり、P4のmarketスライスの私有部分として一緒に動かすほうが安全 | 低〜中 |
 | **P4 スライス分割** ✅完了(2026-08-11) | 9スライス（worldAthletics/cards/economy/meta/draft/competition/race/market/season）を store/slices/ へ分割。gameStore.ts は**1,178行**（型定義・emptyState・setラッパー・core系アクション・組み立てのみ）に。setラッパーは独立middleware化せず「ラップ済みsetをスライス生成関数へ渡す」形で同じ保証を実現。取引実行ヘルパーは store/marketOps.ts、reinforcementBanned は data/economy.ts へ。スライスの型は `Pick<GameStore,...>` 戻り値で文脈型を維持 | 中〜高 |
-| **P5 巨大アクション分解** 🔄進行中 | **P5-0 ✅** ゴールデン検査（`scripts/check-action-golden.ts`・3シナリオ・1シナリオ1プロセス）<br>**P5-1 ✅ runRace 1,150行→470行**（16工程を engine/ と store/marketOps へ）<br>**P5-2 ⬜ endSeason**（約1,230行）<br>**P5-3 ⬜ beginSeasonDraft**（約470行） | **高** |
-| **P6 ビュー分解** | §7 の7ファイル | 中 |
-| **P7 ガードレール** | 依存ルール・行数上限を check スクリプト化（§2.1）。CLAUDE.mdに新構成を反映 | 低 |
+| **P5 巨大アクション分解** ✅完了(2026-08-11) | **P5-0 ✅** ゴールデン検査（`scripts/check-action-golden.ts`。いま12本・1シナリオ1プロセス）<br>**P5-1 ✅ runRace 1,150→470行**（16工程を engine/ と store/marketOps へ・§10）<br>**P5-2 ✅ endSeason 1,199→567行**（14本を engine/ へ・§11）<br>**P5-3 ✅ marketSlice 1,719→1,653行**（切ったのは「唯一の決まりが1つ増える」3本だけ・§12） | **高** |
+| **P6 ビュー分解** 🔄 7件中4件 | ✅ `ChatPage` 1,904→489行（＋`ChatView`/`TradeChatView`・会話生成は `utils/chatTalk`）<br>✅ `RacePage`/`SimPhase` の計算を `engine/interactiveRace.ts`(633行) へ（**画面は837/787行のまま**）<br>✅ `PlayerSheet` の経歴組み立てを `utils/careerStats`(308行) へ（**画面は1,137行のまま**）<br>✅ `NotificationsPage` のしきい値を `feeRatingOf` へ<br>⬜ **`DraftRoom`**(1,029行) … `getTeamNeeds`/`getAIBuzz` が画面の中。`squadNeeds` と二重の「何が足りないか」判定になっている**（残り3件で唯一の実害）**<br>⬜ `RoomLobbyPage`(882行) … 対戦のステートマシンが画面の中<br>⬜ `lib/matchSim.ts`(265行) … 対戦のレース計算が engine の外 | 中 |
+| **P7 ガードレール** ✅ほぼ完了 | ✅ `check-layers`（下から上への import・範囲は `src/store` 以下ぜんぶ）<br>✅ `check-size`（上限は決めず「今日より増えたら落ちる」）<br>✅ CLAUDE.md に新構成を反映<br>**⬜ §2.1 の「1スライス900行以下・1アクション150行以下」は入れていない。** `marketSlice.ts` が1,608行で、線を引いた瞬間に赤くなる。全部が赤いルールは誰も直さずそのうち外れる（§8 の `check-size` を選んだのと同じ理由） | 低 |
 
 - P0→P1→P2→P3→P4 は直列。P5/P6 は P4 完了後に並行可
 - 各フェーズは「途中で止めてもTestFlightに出せる」状態を保つ（バージョンはv2.0.2固定・
@@ -405,3 +405,72 @@ endSeason: () => set(state => runSeasonEnd(state, [
 11. **同じ事実を書いている場所を数えると、到達しないコードが出てくる。**
     `saleRefused` を書く3箇所を数えたら、1つは**一度も走らない条件**だった
     （`docs/BACKLOG.md` A-6）。仕様の話なので直さず記録に回した
+
+---
+
+## 13. 完了の監査（2026-08-12）— 「本当に終わっているか」を機械で確かめた
+
+構造の作業がひととおり終わったあと、**主張を1つずつ検証**した記録。
+「緑だった」「挙動不変と書いた」を証拠として扱わないための手順です。
+
+### 13-1. P1〜P4 は網が無い状態で行われていた（埋めた）
+
+ゴールデン検査ができたのは **P5-0（8/11 11:07）**で、P1(07:25)・P2(07:36)・P3(09:25)・
+P4(09:38〜10:55) は**すべてその前**です。つまり成長統合・persist抽出・engine抽出・
+10スライス分割という**いちばん大きな移動が、網の無いまま行われていました**。
+
+埋め方：**build 121（`25a0687`）と P4完了時点（`71aabb1`）を `git archive` で取り出し、
+P5-0 のハーネスを両方に当てて、同じ乱数・同じ入力で走らせて突き合わせました。**
+
+| | 差分 |
+|---|---|
+| `runRace` | `currentSeason` のみ 9バイト |
+| `endSeason` | `currentSeason` のみ 25バイト |
+| players / teams / standings / transferHistory / 財務 ほか全部 | **完全一致** |
+
+中身を開くと、**違いは万表示（P0-1）の9行だけ**でした。
+
+    旧 「…鹿児島へ移籍（移籍金2.3億）」
+    新 「…鹿児島へ移籍（移籍金22,800万）」
+
+**P1〜P4 は挙動を変えていません。** 4.5MBの状態が1バイトも動いていない、が根拠です。
+
+### 13-2. 「挙動不変」と書いてゴールデンを引き直した3件を再現した
+
+同じコミットで**シナリオも変えている**と、履歴だけでは主張を検証できません
+（`38e8812` トレードの分解 / `fcbd332` 記録会の分解 / `a12ade7` 隔離の修正＋最終戦の切り出し）。
+
+やり方：**親のコード＋子のシナリオ**で走らせ、子がコミットしたゴールデンと比べる。
+
+| コミット | 結果 |
+|---|---|
+| `38e8812`（`golden-market-trade`） | **差分ゼロ** |
+| `fcbd332`（`golden-race-timetrial`） | **差分ゼロ** |
+| `a12ade7`（`golden-endSeason` / `runRace` / `runRace-final`） | **3本とも差分ゼロ** |
+
+3件とも主張どおりでした。**この手順は今後も使えます**（親を `git archive` で取り出し、
+子のハーネスを置いて `UPDATE_GOLDEN=1` で引き、突き合わせるだけ）。
+
+### 13-3. 網を16箇所で逆方向に壊した → 5つが緑のまま
+
+`docs/BACKLOG.md` C-0 に一覧。**穴の形は2種類しかありませんでした。**
+
+1. **その枝を通す世界が1つも無い**（4件）。判定は正しく、コメントにも書いてあるのに、
+   その条件が起きる世界を誰も作っていない
+2. **点検が実装の定数をそのまま期待値にしている**（1件）。定数を変えても一緒に動くので永遠に緑
+
+5つとも塞いで、**塞いだ網が実際に落ちることを確認**しました（55本 → 57本）。
+
+### 13-4. 死んでいるコード
+
+`engine` / `store` / `utils` / `data` の export を全部数えて、到達不能なものが19件。
+**うち17件は build 121 の時点で既に死んでいます。** リファクタで死んだのは2件だけ
+（`utils/squadNeeds` の `weakestSpecialty` / `bestOvrInSpecialty`。`foreignTransfers.ts`
+削除に伴うもの）。旧import・旧関数の残骸・別名の同一ロジックはありません。
+詳細と、一度も通らない枝2つは `docs/BACKLOG.md` F-4 / F-5。
+
+### 13-5. 13-1〜13-3 で足した道具
+
+どれもリポジトリには入れていません（使い捨て）。**同じことをするときは 13-1 と 13-2 の
+手順をなぞれば足ります。** 入れなかったのは、`npm run check` に載らない検査を増やすと
+「走らせるのを忘れる2段目」ができるためです（`run-checks.mjs` の冒頭と同じ理由）。

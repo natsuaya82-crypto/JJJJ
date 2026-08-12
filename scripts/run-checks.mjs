@@ -65,6 +65,11 @@ const CHECKS = [
   'size',
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'club-money', 'clubs', 'offseason', 'market-rate', 'owner-decisions',
+  // 2026-08-12 の監査（55本を1件ずつ逆方向に壊す）で「壊しても緑」だったところ。
+  // どちらも**その枝を通す世界が1つも無かった**のが原因で、判定は前から正しかった。
+  //   save-pruning     … 消してはいけない選手の守り（出どころ11件を1件ずつ別の世界で）
+  //   trade-execution  … 指名権を同一性で数えること・トレードの下駄（1.2倍で+0.15）
+  'save-pruning', 'trade-execution',
   // レース・順位・記録
   'race-points', 'race-record', 'background-race', 'round-robin', 'division-rank',
   'division-sync', 'away-records', 'domestic-records', 'segment-recommend', 'play-rate',

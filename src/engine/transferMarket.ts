@@ -132,8 +132,18 @@ export function runTransferMarket(
 
   // ── お金は1つの帳簿。国内も海外も finance.budget が唯一の置き場所
   //    （海外は finance の無い古いセーブだけ、その年に限り格の年間予算から始める）
+  //
+  // ★**残高をここで0に丸めないこと。** この帳簿は最後に全クラブへ書き戻すので、
+  //   `Math.max(0, …)` を挟むと**マイナスの残高が0になって借金が消えます**。
+  //   市場に一度も参加していない自チームまで書き戻しの対象なので、
+  //   レースを1つ進めるだけで赤字が帳消しになっていました（2026-08-12 の監査で発見）。
+  //   `finance.budget < 0` は補強禁止の条件（`data/economy.ts` の `reinforcementBanned`）で、
+  //   `computeNextSeasonBudget` にも「赤字側は DEFICIT_LIMIT まで持ち越す（借金は消えない）」
+  //   と書いてあります。丸めるとその決まりが破れます。
+  //   赤字のクラブが買えないことは下の `budget[buyClub.id] <= 0` が見ているので、
+  //   ここで丸めなくても買う側のふるまいは変わりません。
   const budget: Record<string, number> = {}
-  for (const t of world.teams) budget[t.id] = Math.max(0, t.finance.budget)
+  for (const t of world.teams) budget[t.id] = t.finance.budget
   for (const c of foreignClubs) budget[c.id] = c.finance?.budget ?? tierBudget(c)
 
   // ── 買う順番は「格が下のクラブから」。同格なら手元の資金が多い方から。
