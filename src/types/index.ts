@@ -28,41 +28,6 @@ export type ForeignCategory = 'domestic' | 'asian' | 'foreign'
 export type PlayerStatus = 'active' | 'injured' | 'retired' | 'draft_eligible'
 export type SeasonPhase = 'preseason' | 'regular' | 'postseason' | 'draft' | 'free_agency'
 
-export type GameEventType =
-  | 'player_fatigue'
-  | 'player_morale_low'
-  | 'player_form_up'
-  | 'player_wants_renewal'
-  | 'young_breakout'
-  | 'sponsor_offer'
-  | 'media_interview'
-  | 'press_conference'
-  | 'playing_time_demand'
-  | 'transfer_request'
-  | 'board_warning'
-  | 'player_milestone'
-  | 'budget_boost'
-  | 'player_retirement'
-  | 'veteran_ambition'
-  | 'rival_provocation'
-  | 'ai_poaching'
-  | 'team_chemistry'
-  | 'budget_crisis'
-
-export type EventChoice = { label: string; desc: string }
-
-export type GameEvent = {
-  id: string
-  raceIndex: number
-  type: GameEventType
-  playerId?: string
-  title: string
-  body: string
-  choices: EventChoice[]
-  resolved: boolean
-  choiceIndex?: number
-}
-
 export type AITradeOffer = {
   id: string
   fromTeamId: string
@@ -744,7 +709,6 @@ export type Season = {
   scoutMissions: { id: string; prospectId: string; racesLeft: number }[]
   faVisits?: { playerId: string; raceScouted: number }[]
   campBonus?: { type: string; applied: boolean }
-  events?: GameEvent[]
   pendingTradeOffers?: AITradeOffer[]
   scoutedOpponents?: { playerId: string; reqAt: number; year: number }[]
   trainingPlan?: string | null

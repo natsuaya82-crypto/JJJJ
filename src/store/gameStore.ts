@@ -183,7 +183,6 @@ export type GameStore = GameState & {
   renewContractOffer: (playerId: string, salary: number, years: number) => boolean
 
   // Events
-  resolveEvent: (eventId: string, choiceIndex: number) => void
 
   // AI trade offers
   acceptTradeOffer: (offerId: string) => void

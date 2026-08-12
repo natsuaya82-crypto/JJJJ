@@ -171,7 +171,7 @@ export async function myClub(): Promise<MyClub | null> {
       ? toFriend(p)
       : {
           id: r.user_id, code: '', teamName: '（読み込めません）', shortName: '—', gmName: '—',
-          logoId: 'logo_01', primary: '#122440', secondary: '#f5c842', champs: 0, lastLogin: '—',
+          logoId: 'logo_01', primary: '#122440', secondary: '#f5c842', champs: 0, titles: {}, lastLogin: '—',
         }
     return { ...base, role: r.role, joinedAt: r.joined_at, blocked: blocked.has(r.user_id) }
   })

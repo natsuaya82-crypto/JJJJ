@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { ovr } from '../utils/playerUtils'
 import { ensureMyProfile, pushMyProfile, pushMyRoster } from './friendsApi'
-import { gmSeasonRanks, gmCareerTotals } from '../utils/gmTenure'
+import { gmCareerTitles } from '../utils/teamHistory'
 import { ONLINE_ENABLED } from '../data/featureFlags'
 import { saveSlotSuffix } from '../store/saveSlot'
 
@@ -46,11 +46,15 @@ export async function syncNow(): Promise<void> {
     const avgOvr = Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length)
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）。
     // 監督は別のチームへ移れるので、年ごとに「その年に指揮していたチーム」で数える。
-    // 今のチームで数えると、移籍した瞬間に移籍先の過去の優勝が自分の記録として友達に出る
-    const champs = gmCareerTotals(gmSeasonRanks(st.pastSeasons, st.gmTenures, st.playerTeamId)).championships
+    // 今のチームで数えると、移籍した瞬間に移籍先の過去の優勝が自分の記録として友達に出る。
+    // ★**部ごとと合計の両方を送る**（オーナー・2026-08-12「もちろん部ごと」）。
+    //   合計しか送らないと 3部で3回 と 1部で3回 が友達の画面で同じ数字になる。
+    //   合計を止めないのは、古いアプリを入れたままの人が champs を読んでいるため
+    const career = gmCareerTitles(st.pastSeasons, st.gmTenures, st.playerTeamId)
+    const champs = career.total
     const stamp = fingerprint(JSON.stringify({
       y: st.currentSeason?.year, n: team.name, s: team.shortName, g: team.gmName, l: team.logoId,
-      c: [team.colors.primary, team.colors.secondary], ch: champs,
+      c: [team.colors.primary, team.colors.secondary], ch: champs, ct: career.titles,
       // 名前も指紋に入れる。入れないと、改名しただけのときに「前と同じ」と判断されて
       // 一生送られず、友達側にいつまでも古い名前が出たままになる。
       a: avgOvr, r: roster.map(p => `${p.id}:${p.name}:${ovr(p)}`).join(','),
@@ -60,7 +64,7 @@ export async function syncNow(): Promise<void> {
     }))
     if (localStorage.getItem(STAMP_KEY) === stamp) return
 
-    await pushMyProfile(team, avgOvr, champs)
+    await pushMyProfile(team, avgOvr, champs, career.titles)
     await pushMyRoster(roster, hof)
     localStorage.setItem(STAMP_KEY, stamp)
   } catch {

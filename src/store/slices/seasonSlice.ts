@@ -299,11 +299,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const undecidedIds = expiry.undecidedIds
 
       // ── RETIREMENT SYSTEM ──
-      // 引退の年度処理は engine/retirement 1本（引退年齢・引退の反映・引退考慮イベント）
+      // 引退の年度処理は engine/retirement 1本（引退年齢・引退の反映）
       const retire = processRetirements({
         grownPlayers, playersAfterFA, expiredIds, year: state.currentSeason.year, playerTeamId: state.playerTeamId })
       const retiringIds = retire.retiringIds
-      const retirementEvents = retire.events
       const playersAfterRetire = retire.players
 
       // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）。
@@ -316,27 +315,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const foreignRefresh = pendingRestructure
         ? (() => { const g = generateForeignLeaguePlayers(FOREIGN_LEAGUES, state.currentSeason.year + 1); return { newPlayers: g.players, updatedLeagues: g.updatedLeagues } })()
         : refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1, grownPlayers)
-
-      // Auto contract renewal events for player-team players with yearsLeft === 1 after growth
-      const renewalCandidates = playersAfterRetire.filter(p =>
-        p.teamId === state.playerTeamId &&
-        p.status === 'active' &&
-        p.contract.yearsLeft === 1 &&
-        !retiringIds.has(p.id) &&
-        !expiredIds.has(p.id)
-      )
-      const renewalEvents: typeof state.currentSeason.events = renewalCandidates.slice(0, 4).map(p => ({
-        id: `renewal-${p.id}-${state.currentSeason.year + 1}`,
-        type: 'player_wants_renewal' as const,
-        raceIndex: 1,
-        title: `${p.name}が契約更新を希望`,
-        body: `${p.name}（${p.age}歳・OVR${ovr(p)}）の契約が今季終了予定です。シーズン中に延長交渉を進めてください。`,
-        playerId: p.id,
-        choices: [
-          { label: '交渉を開始する', desc: '延長交渉ページで条件を確認' },
-          { label: '後で対応する', desc: '通知を閉じる。後でも交渉可能。' },
-        ],
-        resolved: false }))
 
       // Morale streak system: apply morale bonus/penalty to player team based on season finish
       const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
@@ -704,7 +682,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           trainingAssignments: {},
           scoutMissions: [],
           faVisits: [],
-          events: [...retirementEvents, ...renewalEvents],
           pendingRenewalDecisions: [],  // 廃止：満了は自動FA（旧セーブの残キューもここで消える）
           pendingTradeOffers: [],
           scoutedOpponents: (state.currentSeason.scoutedOpponents ?? []).filter(s => s.year >= state.currentSeason.year),

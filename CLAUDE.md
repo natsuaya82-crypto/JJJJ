@@ -79,7 +79,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/engine/transferMarket.ts` | **移籍の唯一の経路**。`runTransferMarket`。国内52＋海外180を**同じ1つの市場**に入れて回す（国内CPU間・海外↔海外・日本↔海外という区別は無い。違うのはリーグだけ）。**候補に「上位10人まで」のような蓋を付けないこと**——格1の15番手が格下でスタメンになる移籍が丸ごと消える。**買う側の上限も `rosterCapFor` 1本**（2つ目の蓋を置くと、解雇をしない海外クラブが買う側から消える） |
 | `src/engine/cpuMarket.ts` の `generateTransferActivity` | **自チームの選手への買い取り打診**。国内51＋海外180を**同じ1つのループ**で回す（クラブの並びはシャッフル。国内を先に並べると上限で打ち切って海外に順番が回らない）。**上限は1つだけ**（`MAX_NEW_OFFERS_PER_RACE`＝1レース1件・`OFFER_START_RACE`＝開幕3戦は0件）。**上限は必ず埋まるので、1年の件数は「上限 × 打診が来るレース数」**（1部7件／2部5件／3部4件）。ここを2にすると倍になる。提示額の式も1本。**海外用の枝を別に作らないこと**——以前は隣の `generateForeignAndLoanOffers` に3枝あり、上限なし・1戦目から・相場の95〜140%で、1レース最多5件・受信箱が常時7.5件（最多19件）だった |
 | `src/engine/cpuOffseason.ts` | **オフシーズンのCPUの市場（移籍以外）**。`runCpuReleases` / `runCpuTrades` / `runCpuLoans` と、シーズン中の1回ぶん `runCpuMarketTick`。`beginSeasonDraft` の中に埋まっていた |
-| `src/engine/eventEffects.ts` | **シーズン中のイベントの効き目の表**（19種 × 最大3肢）。`EVENT_EFFECTS` / `applyEventChoice`。**表に無い肢＝何も起きない** |
+| `src/engine/interactiveRace.ts` の `CHOICE_EFFECTS` | **駅伝中の選択肢の効き目**（攻め／標準／温存）。7種のイベントが全部この1つの表を使う。**効き目はタイムの割合だけ**——区間スタミナは区間ごとに引き直されるので、そこを削っても「後半に響く」にはならず、距離で2倍ぶれる隠れた減点になる。以前はスタミナも動かしていて、**gapがいくつでも「温存」（＝何も起きない肢）が最良**だった＝正解が全場面で「押さないこと」。**得と損の比を肢ごとに変えること**（揃えると分かれ目が全肢で同じ成功率になり、攻めが標準の倍率違いになる）。相手の強さ（`opponentOvr`）は**必ず自然消耗を引いたあと**で渡す（自分の区間スタミナと目盛りを揃える。生のOVRを渡していたころは攻めの成功率がどの場面でも下限10%だった） |
 | `src/engine/timeTrial.ts` | **記録会の本体**。誰が走るか・順位・疲労・カード報酬・チーム歴代記録 |
 | `src/engine/timeTrialRecords.ts` | **記録会の歴代1位**。`updateBestRecord`（世界記録も日本記録も同じ1本。違うのは「誰を見るか」だけ）／`withEventBest` |
 | `src/utils/condition.ts` の `withGmRep` | **GMの評判の上下限**（0〜100）。**下限が0と1の2つあります**（`docs/BACKLOG.md` A-8・未決） |
@@ -148,7 +148,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 
 **新しく網を張ったら、必ずその枝をわざと壊して落ちることを確かめること。** 落ちなければ、
 その網は何も守っていません。世界を1つ作って流す形（golden）が届かないところは、
-**1件ずつ別の世界を作る点検**を別に足します（`check-cpu-trade` / `check-event-effects` /
+**1件ずつ別の世界を作る点検**を別に足します（`check-cpu-trade` / `check-race-choice` /
 `check-tt-records` がその形）。
 
 **挙動不変を主張するときは、分解前のコードをそのまま関数に写して総当たりで突き合わせること。**
