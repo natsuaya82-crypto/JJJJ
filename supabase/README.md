@@ -102,9 +102,9 @@ RPC は `authenticated` にしか実行権を与えていません。アプリ�
 | `clubs_roles.sql` | | |
 | `clubs_cards.sql` | | |
 | `hof_share.sql` | | |
-| `matches_detail.sql` | | |
-| `matches_prune.sql` | | |
-| `bundle/build88_all.sql` | | |
+| `matches_detail.sql` | 2026-08-12 | 下の「実際に起きたこと」参照 |
+| `matches_prune.sql` | 2026-08-12 | **これが入っていなくて対戦履歴が落ちていた** |
+| `bundle/build88_all.sql` | | 束では流していない（上の2つを個別に流した） |
 | `bundle/build102_all.sql` | | |
 | `bundle/build103_all.sql` | | |
 | `club_feed.sql` | | |
@@ -172,7 +172,34 @@ SQL を全部流してあるのにここが落ちるなら、**落とし穴②�
 
 ---
 
-## 6. 直すときの決まり
+## 6. 実際に起きたこと（2026-08-12）
+
+対戦履歴が「通信できませんでした」になり、**「SQLは全部流してある」という前提で
+原因を何往復も探した**。答えは単純で、`list_my_matches` がDBに存在しなかった。
+
+```
+select * from public.list_my_matches(20);
+ERROR:  42883: function public.list_my_matches(integer) does not exist
+```
+
+`matches_prune.sql`（と、同じ束に入っている `matches_detail.sql`）だけが未適用だった。
+**§4 の確認SQLを最初に流していれば1分で終わっていた。** 次から先にそれをやること。
+
+なぜ「全部流した」のに抜けていたかは断定できないが、§2 の落とし穴①
+（`rooms.sql` を流し直すと `list_my_matches` が道連れで消える）が有力。
+土台を後から流すと、その上に載っているものが黙って消える。
+
+**この件で分かった、直したほうがいいこと**
+
+`src/lib/roomsApi.ts` は失敗を全部 `RoomsOffline` に畳んでいて、
+Supabase が返した `code` / `message` を捨てている（console にも出していない）。
+そのため 42883 がアプリ側からは一切見えず、上の往復が起きた。
+原因を `detail` に残して console に1行出す変更を用意してあるが、
+担当外のファイルなので**オーナーの判断待ちで保留中**。
+
+---
+
+## 7. 直すときの決まり
 
 - **テーブルを消す SQL は書かない。** ここの SQL はどれも `create or replace` /
   `if not exists` / `add column if not exists` で、何回流しても data は消えません
