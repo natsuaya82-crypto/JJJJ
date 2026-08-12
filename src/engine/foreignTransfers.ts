@@ -1,11 +1,10 @@
-import { hasNoPlayingTime } from '../utils/transferDecision'
+import { hasNoPlayingTime, isSurplus } from '../utils/transferDecision'
 import type { ForeignClub, ForeignLeague, Player, Team, TransferRecord } from '../types'
 import { comparePlayers } from '../utils/playerSort'
-import { ovr, calcTransferValue } from '../utils/playerUtils'
+import { ovr, transferFeeFor } from '../utils/playerUtils'
 // 「どのタイプが足りていないか」は国内・海外で共通の1本（utils/squadNeeds.ts）
 import { weakestSpecialty, bestOvrInSpecialty, needsPlayer, wouldMakeLineup } from '../utils/squadNeeds'
 import { ROSTER_MAX, ROSTER_MIN, CPU_SELL_FLOOR } from '../data/rosterRules'
-import { FOREIGN_STAR_PREMIUM } from '../data/economy'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は無いのでここから引く
 import { clubMembersByClub, squadIdsOf } from '../utils/rosterSync'
 // 海外クラブの引き場所は utils/clubs 1本。「4大リーグ」は廃止（強さは格で言う）
@@ -60,11 +59,21 @@ export function simulateForeignTransferMarket(params: {
   const membersByClub = clubMembersByClub(players)
   for (const club of allClubs) roster[club.id] = [...(membersByClub.get(club.id) ?? [])]
 
+  // 海外クラブの手元資金。**国内チームと同じで finance.budget が唯一の置き場所**
+  //（`simulateCrossBorderTransfers` とまったく同じ引き方。格から作り直さない）。
+  //
+  // ★以前ここには**お金が1円も無かった**。海外↔海外の移籍は `fee: 0` で記録され、
+  //   他クラブの1番手を無条件・無料で引き抜けた。実測20件すべてが出す側の1〜4番手。
+  //   国内CPU間には「余剰は市場価値どおり／主力は割増＋本人同意」があるのに、
+  //   海外だけ払わずに主力を取れるので、強いクラブに一方的に集まっていた。
+  const fBudget: Record<string, number> = {}
+  for (const c of allClubs) fBudget[c.id] = c.finance?.budget ?? tierBudget(c)
+
   // 「どちらが格上か」はクラブの格1本（tierOf）。以前はロスターの平均OVRで比べていたが、
   // それだと強い名簿だから引き抜ける→だから強い名簿のまま、と循環する。
   // 格は前年の順位で外から決まるので循環しない。
 
-  const moves: { playerId: string; fromClubId: string; toClubId: string }[] = []
+  const moves: { playerId: string; fromClubId: string; toClubId: string; fee: number }[] = []
   const movedPlayers = new Set<string>()
   // 件数はクラブ数に比例（移籍を活発化：180クラブなら約72〜108件/年）。
   const MOVE_BASE = Math.max(12, Math.round(allClubs.length * 0.4))
@@ -95,11 +104,11 @@ export function simulateForeignTransferMarket(params: {
     const seller = (weaker.length > 0 ? weaker : sellers)[Math.floor(Math.random() * (weaker.length > 0 ? weaker.length : sellers.length))]
 
     // 引き抜く選手：seller の中位〜上位（未移動）から1人
-    const candidates = roster[seller.id]
+    const sellRoster = roster[seller.id]
       .map(id => playerById.get(id))
-      .filter((p): p is Player => !!p && !movedPlayers.has(p.id) && p.status === 'active')
+      .filter((p): p is Player => !!p && p.status === 'active')
       .sort(comparePlayers('ovr'))
-      .slice(0, 10)   // 上位10人が引き抜き対象
+    const candidates = sellRoster.filter(p => !movedPlayers.has(p.id)).slice(0, 10)   // 上位10人が引き抜き対象
     if (candidates.length === 0) continue
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     // ★関門は「必要か」と「そのクラブで走れるか」だけ（utils/squadNeeds 1本）。
@@ -107,14 +116,21 @@ export function simulateForeignTransferMarket(params: {
     //   OVRの下限表は要らない（16番手になる選手をわざわざ獲るクラブはいない）。
     const buyerRoster = roster[buyer.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
     if (!needsPlayer(buyerRoster, target) && !wouldMakeLineup(buyerRoster, target)) continue
+    // ②出す側にとって余剰か（国内CPU間とまったく同じ1本）→ ③対価も同じ1本。
+    //   余剰は市場価値どおり、主力の引き抜きは割増。**払えないクラブは引き抜けない**
+    const surplus = isSurplus({ squadRank: sellRoster.findIndex(x => x.id === target.id) + 1, rosterSize: sellRoster.length })
+    const fee = transferFeeFor(target, surplus)
+    if (fBudget[buyer.id] < fee) continue
     // ④本人が行くか（国内とまったく同じ関門）
     if (params.consents && !params.consents(target, buyer.id, seller.id)) continue
 
     // 実行
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
     roster[buyer.id] = [...roster[buyer.id], target.id]
+    fBudget[buyer.id] -= fee
+    fBudget[seller.id] += fee
     movedPlayers.add(target.id)
-    moves.push({ playerId: target.id, fromClubId: seller.id, toClubId: buyer.id })
+    moves.push({ playerId: target.id, fromClubId: seller.id, toClubId: buyer.id, fee })
   }
 
   // 都落ち移籍：30歳以上でクラブ内序列が上位10から陥落した元スター/中堅が、
@@ -135,10 +151,15 @@ export function simulateForeignTransferMarket(params: {
     const fallen = sorted.filter((p, i) => hasNoPlayingTime(i + 1) && p.age >= 30)
     if (fallen.length === 0) continue
     const target = fallen[Math.floor(Math.random() * fallen.length)]
+    // ②③ここへ来る選手は序列が「走れる人数の2倍」より下＝余剰なので、対価は市場価値どおり。
+    //   それでも**タダではない**（払えないクラブは受け取れない）
+    const fee = transferFeeFor(target, isSurplus({
+      squadRank: sorted.findIndex(x => x.id === target.id) + 1, rosterSize: sorted.length }))
     // 行き先は自クラブより格下の（＝出番を得やすい）空きのあるクラブ。
     // 「そこで走れるか」が条件（出場機会を求めて動くのだから、走れない先へは行かない）
     const dests = allClubs.filter(c => {
       if (c.id === seller.id || roster[c.id].length >= ROSTER_MAX || tierOf(c) <= tierOf(seller)) return false
+      if (fBudget[c.id] < fee) return false
       if (!wouldMakeLineup(roster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x), target)) return false
       // ④本人が行くか（国内とまったく同じ関門）
       return !params.consents || params.consents(target, c.id, seller.id)
@@ -147,20 +168,22 @@ export function simulateForeignTransferMarket(params: {
     const dest = dests[Math.floor(Math.random() * dests.length)]
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
     roster[dest.id] = [...roster[dest.id], target.id]
+    fBudget[dest.id] -= fee
+    fBudget[seller.id] += fee
     movedPlayers.add(target.id)
     declineMoved.add(target.id)
-    moves.push({ playerId: target.id, fromClubId: seller.id, toClubId: dest.id })
+    moves.push({ playerId: target.id, fromClubId: seller.id, toClubId: dest.id, fee })
   }
 
   if (moves.length === 0) return { foreignLeagues, players, news: [], records: [] }
 
-  // 海外クラブ同士なので国内の名簿・お金は動かない。それでも同じ movePlayer を通すことで、
-  // 所属・加入年・移籍リストの札はがしが国内の移籍とまったく同じ後始末になる
+  // 国内の名簿・お金は動かない。それでも同じ movePlayer を通すことで、
+  // 所属・加入年・移籍金・移籍リストの札はがしが国内の移籍とまったく同じ後始末になる
   let updatedPlayers: Player[] = players
   const records: TxRecord[] = []
   for (const m of moves) {
     const r = movePlayer({ players: updatedPlayers, teams: [] }, m.playerId, m.toClubId, {
-      year, date: txDate, kind: 'free',
+      year, date: txDate, fee: m.fee,
       years: playerById.get(m.playerId)?.contract.yearsLeft,
       toName: nameById.get(m.toClubId) ?? '',
     })
@@ -169,8 +192,16 @@ export function simulateForeignTransferMarket(params: {
     if (r.record) records.push(r.record)
   }
 
-  // クラブ側の名簿は持たない（所属は上で更新した players の teamId が唯一の記録）
-  const updatedLeagues = foreignLeagues
+  // クラブ側の名簿は持たない（所属は上で更新した players の teamId が唯一の記録）。
+  // 動くのはお金だけ：買えば減り、売れば増える。**書き戻さないと使っても減らない**
+  const updatedLeagues = foreignLeagues.map(l => ({
+    ...l,
+    clubs: l.clubs.map(c => (
+      fBudget[c.id] === undefined || fBudget[c.id] === (c.finance?.budget ?? tierBudget(c))
+        ? c
+        : { ...c, finance: { ...c.finance, budget: fBudget[c.id] } }
+    )),
+  }))
 
   // 目立つ移籍（OVR高め）をニュース化（最大6件）
   const news: NewsItem[] = moves
@@ -186,7 +217,7 @@ export function simulateForeignTransferMarket(params: {
             fromLabel: nameById.get(m.fromClubId) ?? '', toLabel: nameById.get(m.toClubId) ?? '',
           })
         : transferHeadline({
-            playerName: p.name, playerOvr: ovr(p), fee: 0,
+            playerName: p.name, playerOvr: ovr(p), fee: m.fee,
             fromLabel: nameById.get(m.fromClubId) ?? '', toLabel: nameById.get(m.toClubId) ?? '',
           }),
       category: 'trade' as const,
@@ -273,18 +304,22 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   const weakestSpec = (ids: string[]) => weakestSpecialty(rosterPlayers(ids))
   const bestOvrInSpec = (ids: string[], spec: ReturnType<typeof weakestSpec>) =>
     bestOvrInSpecialty(rosterPlayers(ids), spec)
-  // 余剰＝人数の多いタイプの中位選手（エース級は保護）を1人放出候補に
-  const surplusTarget = (ids: string[]): Player | null => {
+  /**
+   * 出す側の名簿を序列順に並べて、**エース(1番手)だけ保護**した放出候補を返す。
+   * 序列と人数から「余剰か」を言うのは `transferDecision.isSurplus` 1本
+   * （＝国内CPU間の移籍とまったく同じ）。
+   *
+   * ★以前ここには `surplusTarget` という**4つ目の「余剰」の数え方**があった
+   *   （トップ2を保護し、層が厚いタイプの中位以下からランダム）。名前は同じ「余剰」でも
+   *   国内CPU間の定義（序列・名簿の厚さ・干され）とは別物で、しかも
+   *   **その選手が主力かどうかに関係なく移籍金が素の市場価値**だった。
+   */
+  const sellPoolOf = (ids: string[]): { p: Player; surplus: boolean }[] => {
     const ps = rosterPlayers(ids).sort(comparePlayers('ovr'))
-    if (ps.length <= ROSTER_MIN) return null
-    const protectedIds = new Set(ps.slice(0, 2).map(p => p.id))   // 全体トップ2＝エース級は保護
-    const cnt: Record<string, number> = {}
-    for (const p of ps) cnt[p.specialty] = (cnt[p.specialty] ?? 0) + 1
-    const deep = ps.filter(p => !protectedIds.has(p.id) && (cnt[p.specialty] ?? 0) >= 3)   // 層が厚いタイプ
-    const pool = deep.length > 0 ? deep : ps.filter(p => !protectedIds.has(p.id))
-    if (pool.length === 0) return null
-    const mid = pool.slice(Math.floor(pool.length * 0.25))   // 上澄みは避け中位〜下位から
-    return pick(mid.length > 0 ? mid : pool)
+    if (ps.length <= ROSTER_MIN) return []
+    return ps.slice(1).map((p, i) => ({
+      p, surplus: isSurplus({ squadRank: i + 2, rosterSize: ps.length }),
+    }))
   }
 
   const moves: { playerId: string; fromId: string; toId: string; dir: 'in' | 'out'; fee: number }[] = []
@@ -302,17 +337,20 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const buyer = weightedPick(buyers, t => budget[t.id])   // 予算が多いほど動く
     const spec = weakestSpec(jpnRoster[buyer.id])
     const threshold = bestOvrInSpec(jpnRoster[buyer.id], spec)
-    // 全海外クラブから、その穴タイプ・現有戦力超・予算内の候補
-    const cands = sellers.flatMap(c => fRoster[c.id].map(id => playerById.get(id)).filter(runnable)
-        .filter(p => !moved.has(p.id) && p.specialty === spec && ovr(p) > threshold && calcTransferValue(p) <= budget[buyer.id])
+    // 全海外クラブから、その穴タイプ・現有戦力超・予算内の候補。
+    // ②③出す側での序列から「余剰か」を出し、対価もそこから出す（国内CPU間と同じ1本）。
+    // ★以前は序列を見ず、移籍金も一律 `calcTransferValue`（割増なし）だった。
+    //   海外の主力を素の市場価値で買えるので、国内CPU同士より安く強い選手が手に入っていた
+    const cands = sellers.flatMap(c => sellPoolOf(fRoster[c.id])
+        .filter(({ p }) => !moved.has(p.id) && p.specialty === spec && ovr(p) > threshold)
+        .map(({ p, surplus }) => ({ p, clubId: c.id, surplus, fee: transferFeeFor(p, surplus) }))
+        .filter(x => x.fee <= budget[buyer.id])
         // ④本人が行くか。**候補を絞るところで通す**ので、納得する選手が別にいればそちらが選ばれる
-        .filter(p => !params.consents || params.consents(p, buyer.id, c.id))
-        .map(p => ({ p, clubId: c.id })))
+        .filter(x => !params.consents || params.consents(x.p, buyer.id, x.clubId)))
       .sort((a, b) => ovr(b.p) - ovr(a.p))
       .slice(0, 8)
     if (cands.length === 0) continue
-    const { p: target, clubId } = pick(cands)
-    const fee = calcTransferValue(target)
+    const { p: target, clubId, fee } = pick(cands)
     fRoster[clubId] = fRoster[clubId].filter(id => id !== target.id)
     jpnRoster[buyer.id] = [...jpnRoster[buyer.id], target.id]
     sizeCount[buyer.id] = (sizeCount[buyer.id] ?? 0) + 1
@@ -328,11 +366,12 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const sellers = cpuTeams.filter(t => jpnSize(t.id) > ROSTER_MIN)
     if (sellers.length === 0) break
     const seller = weightedPick(sellers, t => Math.max(1, jpnSize(t.id) - ROSTER_MIN))
-    // 候補はmain/second合わせた全在籍から（除去漏れ防止のため両方から外す）
-    const target = surplusTarget(jpnRoster[seller.id])
-    if (!target || moved.has(target.id)) continue
-    // 買う側（海外クラブ）は上限(30)未満＋リーグの格にOVRが届くクラブのみ（弱い選手は格上リーグに行かない）
-    const fee = calcTransferValue(target)
+    // ②出せる選手か。エース(1番手)だけ保護し、余剰かどうかは序列と人数から（国内CPU間と同じ1本）
+    const pool = sellPoolOf(jpnRoster[seller.id]).filter(x => !moved.has(x.p.id))
+    if (pool.length === 0) continue
+    const { p: target, surplus } = pick(pool)
+    // ③対価も同じ1本。余剰は市場価値どおり、主力の引き抜きは割増
+    const fee = transferFeeFor(target, surplus)
     // 買うのは「必要か、そのクラブで走れるか」で決まる（国やリーグの下限表は持たない）
     const buyerPool = foreignClubs.filter(c => {
       if (fRoster[c.id].length >= ROSTER_MAX || fBudget[c.id] < fee) return false
@@ -368,7 +407,10 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
         .map(p => ({ p, sellerId: t.id })))
       if (starPool.length === 0) break
       const { p: target, sellerId } = weightedPick(starPool, x => ovr(x.p) - (MAJOR_NEWS_OVR - 5))
-      const fee = Math.round(calcTransferValue(target) * FOREIGN_STAR_PREMIUM)
+      // ③対価は同じ1本。世界レベルの選手はどのクラブでも主力＝余剰ではないので割増。
+      // ★以前ここだけ**2つ目の割増**（海外専用の1.25倍）を使っていて、
+      //   国内CPU間の引き抜き(1.4倍)より**安く**日本のエースを買えた
+      const fee = transferFeeFor(target, false)
       // スターの行き先も「必要か・走れるか」と払えるかだけ。リーグでは絞らない
       // （名簿が強いクラブほどスターしか序列に入れないので、結果的に上位クラブへ集まる）
       const buyerPool = foreignClubs.filter(c => {

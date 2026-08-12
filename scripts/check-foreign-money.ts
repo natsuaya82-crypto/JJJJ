@@ -16,7 +16,7 @@
  *   2. 手元に無い額は出せない（残高より高い選手は買われない）
  *   3. 毎年の精算が国内CPUと同じ式（computeNextSeasonBudget）で、破産しない・貯め込まない
  */
-import { simulateCrossBorderTransfers } from '../src/engine/foreignTransfers'
+import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../src/engine/foreignTransfers'
 import { generateForeignLeaguePlayers, generateCpuRosters } from '../src/engine/playerGenerator'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { INITIAL_TEAMS } from '../src/data/teams'
@@ -138,6 +138,41 @@ console.log('[3] 毎年の精算が国内CPUと同じ式で、破産も貯め込
   check('20年回しても赤字にならない', red === 0, `${red}件`)
   // 繰越の上限（予算の50%）が効いていれば、残高は「年間予算 + 上限」を超えられない
   check(`繰越の上限が効いている（${1 + CARRYOVER_CAP_SHARE}倍を超えない）`, max <= 1 + CARRYOVER_CAP_SHARE + 1e-9, `最大 ${max.toFixed(3)}倍`)
+}
+
+console.log('')
+console.log('[4] 海外↔海外の移籍も、同じようにお金が動く')
+{
+  // ★この点検は長いあいだ `simulateCrossBorderTransfers`（日本がらみ）しか見ておらず、
+  //   **海外クラブ同士の移籍が1件も通っていなかった**。そちらには資金の変数自体が無く、
+  //   移籍金 0円で他クラブの1番手を引き抜けた（実測20件すべてが出す側の1〜4番手）。
+  //   「緑になった」は「通った」の証拠にならない、の4例目。
+  const before = budgetOf(seeded)
+  const r = simulateForeignTransferMarket({ foreignLeagues: seeded, players: allPlayers, year: YEAR + 1 })
+  const after = budgetOf(r.foreignLeagues)
+  const fees = r.records.reduce((s, x) => s + (x.fee ?? 0), 0)
+  const down = allForeignClubs(seeded).filter(c => after.get(c.id)! < before.get(c.id)!)
+  const up = allForeignClubs(seeded).filter(c => after.get(c.id)! > before.get(c.id)!)
+  console.log(`  移籍 ${r.records.length}件 ／ 移籍金の合計 ${oku(fees)}億 ／ 資金が動いたクラブ ${down.length + up.length}件`)
+  check('移籍が起きている', r.records.length > 0, `${r.records.length}件`)
+  check('移籍金を取っている（0円で引き抜けない）', fees > 0, `合計 ${oku(fees)}億`)
+  check('  すべての記録に移籍金が付いている',
+    r.records.every(x => (x.fee ?? 0) > 0), `${r.records.filter(x => !(x.fee ?? 0)).length}件が0円`)
+  check('買ったクラブは資金が減っている', down.length > 0)
+  check('売ったクラブは資金が増えている', up.length > 0)
+  // 海外クラブ同士の移籍なので、世界全体のお金は増えも減りもしない。
+  // ★クラブごとの増減で数えないこと。同じオフに売って買うクラブがあると差引で相殺され、
+  //   「払った額の合計」が移籍金の合計と一致しない（それは正しい状態）
+  const net = allForeignClubs(seeded).reduce((s, c) => s + (after.get(c.id)! - before.get(c.id)!), 0)
+  check('お金が湧きも消えもしない（世界全体の増減がゼロ）', net === 0, `${oku(net)}億ずれている`)
+
+  // 全クラブの残高を1円にすると、誰も買えない＝1件も成立しない
+  const broke: ForeignLeague[] = gen.updatedLeagues.map(l => ({
+    ...l, clubs: l.clubs.map(c => ({ ...c, finance: { budget: 1 } })),
+  }))
+  const poor = simulateForeignTransferMarket({ foreignLeagues: broke, players: allPlayers, year: YEAR + 1 })
+  check('手元に無ければ引き抜けない（全クラブ残高1円なら0件）',
+    poor.records.length === 0, `${poor.records.length}件も動いた`)
 }
 
 console.log('')

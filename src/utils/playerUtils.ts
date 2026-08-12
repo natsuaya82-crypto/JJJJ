@@ -4,6 +4,7 @@ import { peakAgeOfCurve } from '../engine/ageCurve'
 import { type ClubTier } from './clubTier'
 import { appraiseMove, CONSENT_LINE, type Destination } from './transferDecision'
 import { strHash } from './hash'
+import { POACH_PREMIUM } from '../data/economy'
 import { type Race } from '../types'
 
 /**
@@ -548,6 +549,22 @@ export function calcTransferValue(p: Player, perf?: PerfProfile): number {
   const ctFactor = 1.0 + Math.min((p.contract.yearsLeft - 1) * 0.06, 0.18)
   const raw = faMarketSalary(p, perf) * transferFeeAgeMultiplier(p.age) * ctFactor
   return Math.round(raw / 1_000_000) * 1_000_000
+}
+
+/**
+ * **移籍金の唯一の決まり。**（移籍の③「対価は足りるか」のうち、現金で払うぶん）
+ *
+ * 余剰（`transferDecision.isSurplus`）は市場価値どおり。使われている選手を引き剥がすには
+ * 割増が要る。**国内も海外も同じ割増**（`POACH_PREMIUM`）。
+ *
+ * ★以前は割増が2つに割れていました。国内CPU間が `POACH_PREMIUM`(1.4)、
+ *   海外クラブによる日本のスター強奪だけ海外専用の 1.25 倍。
+ *   「海外へ出ていくときのほうが安い」という逆の関係になっていたうえ、
+ *   海外↔海外に至っては**移籍金そのものが0円**でした。
+ */
+export function transferFeeFor(p: Player, surplus: boolean, perf?: PerfProfile): number {
+  const v = calcTransferValue(p, perf)
+  return surplus ? v : Math.round(v * POACH_PREMIUM)
 }
 
 export type CareerStage = 'developing' | 'growing' | 'peak' | 'declining'

@@ -15,20 +15,19 @@
 //   `scripts/check-cpu-trade.ts` で成立側に網を張った。
 //   残り（解雇・レンタル）は golden が効いているので、切り出して差分ゼロを見れば足りる。
 import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
-import { appraiseMove, hasNoPlayingTime, seeksPlayingTime, type Destination } from '../utils/transferDecision'
+import { appraiseMove, hasNoPlayingTime, isSurplus, seeksPlayingTime, type Destination } from '../utils/transferDecision'
 import { isOwnedBy } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
 import { buildCareerCounts } from '../utils/careerStats'
 import { bigClub, domesticCpuTeamIds } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
-import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, ovr, perfOf, playerConsentToMove } from '../utils/playerUtils'
+import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, ovr, perfOf, playerConsentToMove, transferFeeFor } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, seekPlayingTimeHeadline, transferHeadline, type NewsItem } from '../utils/newsItems'
 import { needsPlayer } from '../utils/squadNeeds'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfPlayerClub, tierStrength } from '../utils/clubTier'
 import { DIVISION_SIZE, divisionOf, rankOfTeam, seasonDivisionStandings } from '../utils/league'
 import { cpuSpecialtyNeeds } from './cpuMarket'
-import { POACH_PREMIUM } from '../data/economy'
 import { ROSTER_MAX } from '../data/rosterRules'
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
 
@@ -42,8 +41,6 @@ const LOAN_MAX_AGE = 24
 const CPU_BUY_ROSTER_MAX = 25
 /** これ以下しかいないクラブからは引き抜かない（薄くしすぎない） */
 const SELL_ROSTER_FLOOR = 16
-/** これより多いクラブは、下の序列がまとめて余剰になる */
-const SELL_ROSTER_CROWDED = 21
 
 /**
  * 人数を減らすときに**先に切る順**（前から切る）。
@@ -305,7 +302,7 @@ export function runCpuTransfers(
           // 「余剰か（通常額）／主力の引き抜きか（割増＋本人同意）」も既にある1本で言う。
           // 以前はここに売り手の平均OVRから作った下限表（74/67/58）があった。
           // 出番が無い序列（走れる人数の2倍より下）なら、それがそのまま余剰という意味
-          const surplus = hasNoPlayingTime(rank) || sellRoster.length > SELL_ROSTER_CROWDED || benched
+          const surplus = isSurplus({ squadRank: rank, rosterSize: sellRoster.length, benched })
           return { p, rank, benched, sellTeamId, surplus }
         })
     })
@@ -316,12 +313,13 @@ export function runCpuTransfers(
 
     for (const { p: target, surplus, benched, rank: sellRank, sellTeamId } of candidates) {
       // 余剰は通常額、主力の引き抜きは割増移籍金＋昇給要求＋本人同意
-      const fee = surplus ? calcTransferValue(target) : Math.round(calcTransferValue(target) * POACH_PREMIUM)
+      const fee = transferFeeFor(target, surplus)
       const tgtPerf = perfOf(ctx.season, target.id)
       const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
       if (remainBudget < fee + newSalary) continue
-      // 引き抜きは本人が移籍先の魅力で納得するか判定（クラブは割増で合意済み＝clubBlessed）
-      if (!surplus && !playerConsentToMove(target, ctx.destinationOf(buyTeam.id, target), tierOfPlayerClub(target.teamId, teams), 0.5, 0, 0, true).ok) continue
+      // ④本人が行くか。**余剰でも聞く**（出番が無いから必ず頷く、とは限らない）。
+      //   主力の引き抜きだけクラブが割増で合意済み＝clubBlessed で「主力だから残りたい」を外す
+      if (!playerConsentToMove(target, ctx.destinationOf(buyTeam.id, target), tierOfPlayerClub(target.teamId, teams), 0.5, 0, 0, !surplus).ok) continue
       // 所属・名簿・移籍金・移籍履歴は movePlayer にまとめて任せる（自チームの獲得と同じ後始末）
       const moved = movePlayer({ players, teams }, target.id, buyTeam.id, {
         year: ctx.year,

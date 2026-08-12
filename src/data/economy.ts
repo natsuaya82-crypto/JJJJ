@@ -143,10 +143,15 @@ export const SALARY_DIAL_MIN = 3_000_000
 export const NEGOTIATION_SALARY_MAX = 80_000_000
 export const DRAFT_SALARY_MAX = 60_000_000
 
-// 主力の引き抜き割増。余剰の売買は市場価値どおりだが、使われている選手を
-// 引き剥がすには上乗せが要る。国内CPU間と、海外クラブによるスター強奪の2通り
+/**
+ * **主力の引き抜き割増（1本）。** 余剰の売買は市場価値どおりだが、使われている選手を
+ * 引き剥がすには上乗せが要る。**国内も海外も同じ。**
+ * 掛けるのは `utils/playerUtils` の `transferFeeFor` 1本。
+ *
+ * ★以前は `FOREIGN_STAR_PREMIUM`(1.25) という2つ目があり、海外クラブが日本のスターを
+ *   強奪するときだけ国内CPU間(1.4)より**安く**買えた。
+ */
 export const POACH_PREMIUM = 1.4
-export const FOREIGN_STAR_PREMIUM = 1.25
 
 // 取り合い（競売）で1人の選手に出せる上限＝そのクラブの年間予算のこの割合。
 // 上限は「格」から降りてくる（年間予算は clubTier.TIER_BUDGET の1本）ので、

@@ -62,6 +62,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/contractTalk.ts` | 契約更新の可否と「要対応」。`canRequestRenewal` / `needsRenewalAttention` |
 | `src/utils/transferDecision.ts` | **移籍の意思決定**。その選手がそのクラブへ行くか。`appraiseMove` / `rankOffers` |
 | `src/utils/transferEligibility.ts` | 退団予定・引退予定・海外承認などの「もう出ていく人」判定 |
+| `src/utils/transferDecision.ts` の `isSurplus` | **出す側にとって余剰か**（序列・名簿の厚さ・干され）。余剰＝通常の対価、主力＝割増＋本人同意。**形（現金・トレード・レンタル・FA）でも国内／海外でも変わらない**。以前は4通りに割れていて、海外がらみは見てすらいなかった |
+| `src/utils/playerUtils.ts` の `transferFeeFor` | **移籍金**（市場価値 × 余剰でなければ `POACH_PREMIUM`）。割増を掛けるのはここだけ。以前は海外専用の1.25倍という2つ目があり、日本のエースを国内CPU間より安く抜けた |
 | `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties` / `weakestSpecialty`。タイプの一覧 `SPECIALTIES` もここ |
 | `src/utils/playerSort.ts` | 選手一覧の並び替え。`comparePlayers` |
 | `src/utils/transferBid.ts` | 移籍金の入札判定 |

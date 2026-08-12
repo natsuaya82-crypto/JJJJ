@@ -31,7 +31,7 @@ import { ovr } from './playerUtils'
 import { belongsToClub } from './rosterSync'
 import { isDeclining } from '../engine/ageCurve'
 import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
-import { RUNNING_SLOTS } from '../data/rosterRules'
+import { RUNNING_SLOTS, SELL_ROSTER_CROWDED } from '../data/rosterRules'
 // 「そのクラブで何番手か」は squadNeeds の1本
 import { squadRankOf } from './squadNeeds'
 
@@ -96,6 +96,36 @@ export const APPEARANCE_FLOOR = 0.34
 export const SEEK_MIN_AGE = 24
 /** もともと控えの選手が「もう待てない」と判断する年齢 */
 export const SEEK_PATIENCE_AGE = 27
+
+/**
+ * **出す側にとって、その選手は余剰か。**（移籍の②「その選手は出せるか」の唯一の決まり）
+ *
+ * 余剰なら通常の対価だけで手放す。主力なら**割増の対価**（`playerUtils.transferFeeFor`）と
+ * **本人の同意**が要る。**形（現金・トレード・レンタル・FA）でも、国内か海外かでも変わらない。**
+ *
+ * 以前はこの線が4通りに割れていました。
+ *
+ * | どこ | 何を「余剰」と呼んでいたか |
+ * |---|---|
+ * | 国内CPU間の移籍 | 序列・名簿の厚さ・干され（これが正） |
+ * | 海外↔海外 | **見ていない**（上位10人から無条件に引き抜く） |
+ * | 海外→日本 | **見ていない**（現有超のOVRなら誰でも） |
+ * | 日本→海外 | 「層が厚いタイプの中位以下」という別の数え方 |
+ *
+ * その結果、海外がらみの移籍27件は**全部が出す側の1〜4番手**（＝主力）でした。
+ */
+export function isSurplus(a: {
+  /** 出す側のクラブでの序列（1が最上位） */
+  squadRank: number
+  /** 出す側のクラブの在籍人数 */
+  rosterSize: number
+  /** 今季干されているか（レース数が引ける経路だけ。省略時は見ない） */
+  benched?: boolean
+  /** 走れる区間数（コースによって6〜10） */
+  slots?: number
+}): boolean {
+  return hasNoPlayingTime(a.squadRank, a.slots) || a.rosterSize > SELL_ROSTER_CROWDED || !!a.benched
+}
 
 export function seeksPlayingTime(a: {
   /** そのクラブでの序列（1が最上位） */

@@ -278,7 +278,12 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
     !/Math\.max\(500000, Math\.round\(/.test(store) && !/Math\.max\(1000000, Math\.round\(/.test(store))
   // 「どこかに1本だけある」ので logicSource（store＋engine）で見る。
   // CPU間移籍は engine/cpuOffseason へ移った
-  check('引き抜きの割増が名前付き', logic.includes('POACH_PREMIUM') && fx.includes('FOREIGN_STAR_PREMIUM'))
+  // 引き抜きの割増は1本（POACH_PREMIUM）。掛けるのは transferFeeFor だけで、
+  // engine/store の側は「余剰か」を渡すだけ。**海外だけ別の割増**（旧 FOREIGN_STAR_PREMIUM）は廃止
+  check('引き抜きの割増を engine/store で掛け直していない',
+    !/POACH_PREMIUM/.test(logic) && !/FOREIGN_STAR_PREMIUM/.test(logic + fx),
+    'POACH_PREMIUM を掛けるのは utils/playerUtils の transferFeeFor 1本')
+  check('  移籍金は transferFeeFor から出す', fx.includes('transferFeeFor'))
 }
 
 console.log('\n[8] 年齢補正の段が1箇所にしかない')
