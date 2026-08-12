@@ -8,7 +8,7 @@
  * 注意書きが残っていて、実際にベルに「3」と出ているのに開くと1件、ということが起きていた。
  * 今は utils/notifItems.ts の collectNotifications 1本だけが数える。
  */
-import { collectNotifications, contractMonthsLeft, expiredNegText, EXPIRED_NEG_TEXT } from '../src/utils/notifItems'
+import { collectNotifications, contractMonthsLeft, expiredNegText, EXPIRED_NEG_TEXT, asCardCount, chatReplyLine } from '../src/utils/notifItems'
 import { ROSTER_MAX } from '../src/data/rosterRules'
 import { loginTodayKey } from '../src/utils/loginDate'
 import type { Player, Team, Season } from '../src/types'
@@ -292,6 +292,52 @@ check('種類が入っていない古いセーブは入札として扱う', expi
 check('種類ごとに違う文言が入っている',
   new Set(NEG_KINDS.map(k => EXPIRED_NEG_TEXT[k].title('X') + EXPIRED_NEG_TEXT[k].note)).size === NEG_KINDS.length,
   `${NEG_KINDS.length}種類`)
+
+console.log('\n[X] まとめて1枚のカードで出すものは、中身が何件でも1（asCardCount）')
+{
+  // ★ここが「レンタルが通知に来ないのにチャットだけ増える」の正体。
+  //   ベルは chatReplies をまとめて1と数えているのに、ChatPage だけが
+  //   incomingLoanOffers.length と**件数ぶん**足していた。
+  const loanSeason = (n: number) => S({
+    incomingLoanOffers: Array.from({ length: n }, (_, i) => ({ id: `l${i}`, fromTeamId: 'b', playerId: 'p1', direction: 'lend_out', years: 1, expiresAtRace: 5 })),
+  })
+  const one = collectNotifications(base(loanSeason(1), [P('p1', 'a')]))
+  const three = collectNotifications(base(loanSeason(3), [P('p1', 'a')]))
+  check('レンタルの申し込み1件でベルは1', one.total === 1, `${one.total}件`)
+  check('レンタルの申し込み3件でもベルは1（カードは1枚だから）', three.total === 1, `${three.total}件`)
+  check('中身は3件そのまま持っている（数え方だけが1）', three.chatReplies.length === 3, `${three.chatReplies.length}件`)
+
+  // 数え方そのもの
+  check('asCardCount は空なら0', asCardCount([]) === 0)
+  check('asCardCount は1件でも5件でも1', asCardCount([1]) === 1 && asCardCount([1, 2, 3, 4, 5]) === 1)
+
+  // カードが1枚しか出ない以上、何が待っているかは**文**で伝える
+  const line3 = chatReplyLine(three.chatReplies)
+  check('カードの文面にレンタルと件数が出る', line3.includes('レンタル') && line3.includes('3件'), line3)
+  const mixed = chatReplyLine([{ kind: 'loan' }, { kind: 'acquisition' }, { kind: 'acquisition' }])
+  check('レンタルと獲得が混ざったら両方出る',
+    mixed.includes('レンタルの申し込み 1件') && mixed.includes('獲得オファーの返答 2件'), mixed)
+  check('空でも文面が空にならない', chatReplyLine([]).length > 0)
+}
+
+console.log('\n[Y] 画面が自分で数え直していないこと')
+{
+  // ベル・通知ページ・チャットの三者一致は「数え方が1本しか無いこと」で保つ。
+  // ChatPage が incomingLoanOffers.length と件数ぶん足す形に戻ったら落とす。
+  // **ファイルを名指しで読む**（相対パスの字面では判定しない）
+  // ★コメントを落としてから見る。**コメントの字に当てないこと。**
+  //   最初はそのまま検索していて、「以前は incomingLoanOffers.length と足していた」という
+  //   経緯のコメント自体に当たって落ちた。見張りたいのは動くコードのほう
+  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const CHAT = 'src/components/team/ChatPage.tsx'
+  const chat = codeOnly(readFileSync(CHAT, 'utf8'))
+  check(`${CHAT} がレンタルを件数ぶん足していない`, !/incomingLoanOffers\.length/.test(chat))
+  check(`${CHAT} が asCardCount を通している`, /asCardCount\s*\(/.test(chat))
+  // 「まとめて1枚」の数え方を画面で書き直していないか
+  const NOTIF = 'src/components/notifications/NotificationsPage.tsx'
+  const notif = codeOnly(readFileSync(NOTIF, 'utf8'))
+  check(`${NOTIF} がカードの文面を直書きしていない`, /chatReplyLine\s*\(/.test(notif))
+}
 
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)
