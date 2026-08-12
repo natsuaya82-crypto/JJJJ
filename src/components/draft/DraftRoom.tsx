@@ -1,11 +1,12 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import type { Player, Specialty, Team, GrowthCurve, TeamRole } from '../../types'
-import { SALARY_DIAL_STEP, SALARY_DIAL_MIN, DRAFT_SALARY_MAX } from '../../data/economy'
+import type { Player, Specialty, GrowthCurve, TeamRole } from '../../types'
+import { SALARY_DIAL_STEP, DRAFT_SALARY_MAX } from '../../data/economy'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, SPEC_COLOR, ratingColor, faMarketSalary } from '../../utils/playerUtils'
+import { ovr, SPEC_COLOR, ratingColor } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
+import { draftBuzz, draftSalaryFloor, draftTeamNeeds } from '../../engine/draft'
 import { C, alpha, SAIRA, bottomStack } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
@@ -34,31 +35,10 @@ const DC_CONTRACT_OPTS = [
   { key: 'dual' as const, label: '2way契約' },
   { key: 'development' as const, label: '育成契約' },
 ]
-// ドラフト新人でも年俸は市場相場の半分未満には下げられない（極端に安く囲えないようにする）
-function draftSalaryFloor(p: Player): number {
-  const half = Math.round(faMarketSalary(p) / 2 / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
-  return Math.max(SALARY_DIAL_MIN, half)
-}
 type DraftContract = { salary: number; years: number; contractType: 'standard' | 'development' | 'dual'; teamRole: TeamRole | null }
 const PERSONALITY_LABEL: Record<string, string> = { salary: '年俸重視', winning: '勝利志向', loyalty: 'チーム愛' }
 const PERSONALITY_ICON: Record<string, string>  = { salary: '¥', winning: '★', loyalty: '♡' }
 const PERSONALITY_COLOR: Record<string, string> = { salary: C.orange, winning: C.gold, loyalty: C.pink }
-
-function getTeamNeeds(teamId: string, picks: PickLog[], allPlayers: Player[]): Specialty[] {
-  const drafted = picks.filter(p => p.teamId === teamId).map(p => allPlayers.find(pl => pl.id === p.playerId)).filter(Boolean) as Player[]
-  const existing = allPlayers.filter(p => p.teamId === teamId)
-  const all = [...existing, ...drafted]
-  const specs: readonly Specialty[] = SPECIALTIES
-  const counts = specs.reduce((acc, s) => { acc[s] = all.filter(p => p.specialty === s).length; return acc }, {} as Record<Specialty, number>)
-  return [...specs].sort((a, b) => counts[a] - counts[b]).slice(0, 2)
-}
-
-function getAIBuzz(player: Player, teams: Team[], playerTeamId: string, pickLog: PickLog[], allPlayers: Player[]): number {
-  return teams
-    .filter(t => t.id !== playerTeamId)
-    .filter(t => getTeamNeeds(t.id, pickLog, allPlayers).includes(player.specialty))
-    .length
-}
 
 const SELECT_STYLE: React.CSSProperties = {
   padding: '6px 24px 6px 10px',
@@ -570,7 +550,7 @@ export default function DraftRoom() {
                   onPick={handlePlayerPick}
                   isScouted={scoutedIds.has(p.id)}
                   isRecommend={!isComplete && p.id === recommendId}
-                  buzz={getAIBuzz(p, teams, playerTeamId, pickLog, players)}
+                  buzz={draftBuzz(p, teams, playerTeamId, pickLog, players)}
                 />
               ))}
               {sorted.length === 0 && (
@@ -648,7 +628,7 @@ export default function DraftRoom() {
             {teams.map(t => {
               const isMe          = t.id === playerTeamId
               const teamPicks     = pickLog.filter(pk => pk.teamId === t.id)
-              const needs         = getTeamNeeds(t.id, pickLog, players)
+              const needs         = draftTeamNeeds(t.id, pickLog, players)
               const remaining     = pickOrder.slice(currentPick).filter(id => id === t.id).length
               const accentColor   = isMe ? C.gold : t.colors.primary
               const isRival       = !isMe && needs.includes(needSpec)

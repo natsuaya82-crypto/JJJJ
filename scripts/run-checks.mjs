@@ -101,6 +101,8 @@ const CHECKS = [
   // **いま進んでいる巨大アクション分解の唯一の安全網。** 絶対に外さないこと
   { name: 'action-golden', shim: true },
   'boot-repair', 'archive-season',
+  // ドラフト会場のAI（engine/draft）。画面の中にあってどの点検からも見えていなかった
+  'draft-ai',
   // その他
   'card-exchange', 'notif-count', 'talk-sync',
   // ★実際にブラウザで開いて最初の画面が出るところまで見る。**既定で走る。**
