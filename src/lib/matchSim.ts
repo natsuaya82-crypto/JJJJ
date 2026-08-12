@@ -120,6 +120,31 @@ export function seriesStandings(races: MatchRacePayload[]): SeriesStanding[] {
   return out
 }
 
+/**
+ * **そのレースより前までの通算得点**（teamId → 点）。走行中の画面に出す「ここまでの合計」。
+ *
+ * ■なぜ1本にしたか
+ *   同じ事実の数え方が3か所にありました。
+ *
+ *     ① 結果が届くたびに「1つ前のレースぶん」を足す（RoomLobbyPage・refで前回を覚える）
+ *     ② 再入室したときに `races.slice(0, -1)` を合計する（同じ画面の別の場所）
+ *     ③ 最終結果は `seriesStandings` が全レースを合計する
+ *
+ *   ①だけ**受け取った順に依存**します。再接続で1戦ぶん取りこぼすと、その回の得点が
+ *   永久に加算されないまま進みます（②③とは静かに食い違う）。
+ *   配列を受け取って毎回数え直せば順番に依存しません。**refで前回を覚える必要もありません。**
+ *
+ * ★`race` は0始まりの通し番号。**同着の判定はしない**（得点は各レースの standings が持っている）。
+ */
+export function seriesPointsBefore(races: MatchRacePayload[], raceNo: number): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const r of races) {
+    if (r.race >= raceNo) continue
+    for (const s of r.standings) out[s.teamId] = (out[s.teamId] ?? 0) + s.points
+  }
+  return out
+}
+
 const NS = '#'
 const nsId = (userId: string, playerId: string) => `${userId}${NS}${playerId}`
 const srcOf = (id: string) => { const i = id.indexOf(NS); return i < 0 ? id : id.slice(i + 1) }
