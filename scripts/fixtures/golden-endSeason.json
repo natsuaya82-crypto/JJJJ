@@ -33,7 +33,6 @@
  "raceDroppedCards": "4f53cda18c2baa0c (2B)",
  "raceLineup": "44136fa355b3678a (2B)",
  "raceStrategy": "61eb5aa337d3a2d3 (10B)",
- "raceTeamTalk": "fb1fe9f2bab683a1 (6B)",
  "removedPlayers": "f5defec8b1b10509 (335B)",
  "rivalTeamId": "74234e98afe7498f (4B)",
  "seasonBudgetNotice": "bbfe5ef0ee661e13 (32B)",
@@ -53,5 +52,5 @@
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "90352e46dd7c1153 (48223B)",
  "worldTournament": "eb045d78d2731073 (9B)",
- "$all": "1a614ea12add0107 (4620424B)"
+ "$all": "5f2a25bc589a34eb (4620404B)"
 }

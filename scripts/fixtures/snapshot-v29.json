@@ -458,7 +458,6 @@
  },
  "raceLineup": {},
  "raceStrategy": "string",
- "raceTeamTalk": "string",
  "rivalTeamId": "null",
  "saveTimestamp": "string",
  "seasonBudgetNotice": "null",
