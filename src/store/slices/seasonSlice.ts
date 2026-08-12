@@ -37,7 +37,7 @@ import { startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
+import { faMarketSalary, ovr, packForeignApps, perfOf, playerConsentToMove } from '../../utils/playerUtils'
 import { squadIdsOf } from '../../utils/rosterSync'
 import { needsPlayer } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
@@ -464,7 +464,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         foreignStandings: state.currentSeason.foreignStandings ?? {},
         refreshedLeagues: foreignRefresh.updatedLeagues, newForeignPlayers: foreignRefresh.newPlayers,
         removedForeignPlayerIds, teams: teamsWithCleanedPicks,
-        playerTeamId: state.playerTeamId, newYear })
+        playerTeamId: state.playerTeamId, newYear,
+        // ④本人が行くか。**海外を特別扱いしない**（国内とまったく同じ関門で、
+        // 違うのは destinationOf がどの順位表から序列を引くかだけ）
+        consents: (p, toClubId, fromClubId) => playerConsentToMove(
+          p, get().destinationOf(toClubId, p),
+          tierOfPlayerClub(fromClubId, allTieredClubs(state.teams, state.foreignLeagues ?? [])), 0.5, 0, 0, true).ok })
       const foreignTx = fSeason.foreignTx
       const crossTx = fSeason.crossTx
 

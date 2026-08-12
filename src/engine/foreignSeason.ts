@@ -37,6 +37,11 @@ export function processForeignSeason(args: {
   players: Player[]
   /** 今季の海外リーグ（優勝クラブを見るため、更新前のもの） */
   foreignLeagues: ForeignLeague[]
+  /**
+   * ④本人が行くか。**海外を特別扱いしない**（国内とまったく同じ関門）。
+   * 呼び出し側（store）が `destinationOf` を持っているので渡してもらう
+   */
+  consents?: (player: Player, toClubId: string, fromClubId: string) => boolean
   /** 今季の海外リーグ順位表 */
   foreignStandings: NonNullable<GameState['currentSeason']['foreignStandings']>
   /** 年次入れ替え後の海外リーグ */
@@ -120,7 +125,8 @@ export function processForeignSeason(args: {
     foreignTx = simulateForeignTransferMarket({
       foreignLeagues: leaguesWithFinance,
       players: foreignBasePlayers,
-      year: newYear })
+      year: newYear,
+      consents: args.consents })
   } catch (e) {
     console.error('simulateForeignTransferMarket failed', e)
     foreignTx = { foreignLeagues: leaguesWithFinance, players: foreignBasePlayers, news: [], records: [] }
@@ -134,7 +140,8 @@ export function processForeignSeason(args: {
       foreignLeagues: foreignTx.foreignLeagues,
       players: foreignTx.players,
       playerTeamId: playerTeamId,
-      year: newYear })
+      year: newYear,
+      consents: args.consents })
   } catch (e) {
     console.error('simulateCrossBorderTransfers failed', e)
     crossTx = { teams: teams, foreignLeagues: foreignTx.foreignLeagues, players: foreignTx.players, news: [], records: [] }

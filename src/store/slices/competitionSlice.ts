@@ -7,6 +7,8 @@ import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings, simulateForeignLeagueRound } from '../../engine/foreignLeague'
 import { simulateCrossBorderTransfers, simulateForeignTransferMarket } from '../../engine/foreignTransfers'
 import { cpuMarketRounds, runCpuMarketTick } from '../../engine/cpuOffseason'
+import { allTieredClubs, tierOfPlayerClub } from '../../utils/clubTier'
+import { playerConsentToMove } from '../../utils/playerUtils'
 import { tradeValueCtxOf } from '../marketOps'
 import { rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
@@ -19,8 +21,19 @@ import { belongsToClub } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { resolveBid } from '../../utils/transferBid'
 
+
 type Slice = Pick<GameStore,
   'advanceForeignLeagues' | 'runMidSeasonForeignTransfers' | 'runCpuMarketRound' | 'advanceMarketOneRace' | 'advanceEclRace' | 'ensureEclSeries'>
+
+/**
+ * ④本人が行くか。**海外を特別扱いしない**（CLAUDE.md）。国内とまったく同じ関門で、
+ * 違うのは `destinationOf` が**どの順位表から序列を引くか**だけ。
+ */
+const consentsOf = (get: () => GameStore) => (p: Player, toClubId: string, fromClubId: string) => {
+  const st = get()
+  return playerConsentToMove(p, st.destinationOf(toClubId, p),
+    tierOfPlayerClub(fromClubId, allTieredClubs(st.teams, st.foreignLeagues ?? [])), 0.5, 0, 0, true).ok
+}
 
 export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -70,7 +83,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
           year: state.currentSeason.year,
           maxMoves: 1,
           includeDecline: false,
-          date: raceDate })
+          date: raceDate,
+          consents: consentsOf(get) })
         if (res.records.length === 0) return {}
         return {
           players: res.players,
@@ -91,7 +105,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         playerTeamId: state.playerTeamId,
         year: state.currentSeason.year,
         maxIn: nIn,
-        maxOut: nOut })
+        maxOut: nOut,
+        consents: consentsOf(get) })
       if (res.news.length === 0) return {}
       return {
         teams: res.teams,

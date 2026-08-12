@@ -37,6 +37,15 @@ export function simulateForeignTransferMarket(params: {
   maxMoves?: number        // 引き抜き件数の上書き（省略時はクラブ数比例）
   includeDecline?: boolean // 都落ち移籍も回すか（省略時true。シーズン中はfalse）
   date?: string            // ニュース・履歴の日付（省略時は1/20）
+  /**
+   * ④本人が行くか（`appraiseMove`）。**省略すると聞かない**（呼び出し側の移行用）。
+   *
+   * ★**海外を特別扱いしない**（CLAUDE.md）。国内とまったく同じ関門で、
+   *   違うのは「どの順位表で序列を引くか」だけ——それは `destinationOf` の中の話。
+   *   候補を絞るところで通すこと。あとから弾くと「動かない」だけになり、
+   *   本人が納得する別の相手が選ばれない。
+   */
+  consents?: (player: Player, toClubId: string, fromClubId: string) => boolean
 }): { foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
   const { foreignLeagues, players, year } = params
   const txDate = params.date ?? `${year}-01-20`
@@ -98,6 +107,8 @@ export function simulateForeignTransferMarket(params: {
     //   OVRの下限表は要らない（16番手になる選手をわざわざ獲るクラブはいない）。
     const buyerRoster = roster[buyer.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
     if (!needsPlayer(buyerRoster, target) && !wouldMakeLineup(buyerRoster, target)) continue
+    // ④本人が行くか（国内とまったく同じ関門）
+    if (params.consents && !params.consents(target, buyer.id, seller.id)) continue
 
     // 実行
     roster[seller.id] = roster[seller.id].filter(id => id !== target.id)
@@ -128,7 +139,9 @@ export function simulateForeignTransferMarket(params: {
     // 「そこで走れるか」が条件（出場機会を求めて動くのだから、走れない先へは行かない）
     const dests = allClubs.filter(c => {
       if (c.id === seller.id || roster[c.id].length >= ROSTER_MAX || tierOf(c) <= tierOf(seller)) return false
-      return wouldMakeLineup(roster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x), target)
+      if (!wouldMakeLineup(roster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x), target)) return false
+      // ④本人が行くか（国内とまったく同じ関門）
+      return !params.consents || params.consents(target, c.id, seller.id)
     })
     if (dests.length === 0) continue
     const dest = dests[Math.floor(Math.random() * dests.length)]
@@ -195,6 +208,15 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
   maxIn?: number   // 海外→日本の件数（省略時はオフシーズン想定で2〜4）
   maxOut?: number  // 日本→海外の件数（省略時はオフシーズン想定で2〜4）
   excludeIds?: Set<string>   // このオフに既に移籍済みの選手（1オフ1移動を守るため対象外にする）
+  /**
+   * ④本人が行くか（`appraiseMove`）。**省略すると聞かない**（呼び出し側の移行用）。
+   *
+   * ★**海外を特別扱いしない**（CLAUDE.md）。国内とまったく同じ関門で、
+   *   違うのは「どの順位表で序列を引くか」だけ——それは `destinationOf` の中の話。
+   *   候補を絞るところで通すこと。あとから弾くと「動かない」だけになり、
+   *   本人が納得する別の相手が選ばれない。
+   */
+  consents?: (player: Player, toClubId: string, fromClubId: string) => boolean
 }): { teams: T[]; foreignLeagues: ForeignLeague[]; players: Player[]; news: NewsItem[]; records: TxRecord[] } {
   const { teams, foreignLeagues, players, playerTeamId, year, excludeIds } = params
   const foreignClubs = allForeignClubs(foreignLeagues)
@@ -283,6 +305,8 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     // 全海外クラブから、その穴タイプ・現有戦力超・予算内の候補
     const cands = sellers.flatMap(c => fRoster[c.id].map(id => playerById.get(id)).filter(runnable)
         .filter(p => !moved.has(p.id) && p.specialty === spec && ovr(p) > threshold && calcTransferValue(p) <= budget[buyer.id])
+        // ④本人が行くか。**候補を絞るところで通す**ので、納得する選手が別にいればそちらが選ばれる
+        .filter(p => !params.consents || params.consents(p, buyer.id, c.id))
         .map(p => ({ p, clubId: c.id })))
       .sort((a, b) => ovr(b.p) - ovr(a.p))
       .slice(0, 8)
@@ -313,7 +337,9 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
     const buyerPool = foreignClubs.filter(c => {
       if (fRoster[c.id].length >= ROSTER_MAX || fBudget[c.id] < fee) return false
       const r = fRoster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
-      return needsPlayer(r, target) || wouldMakeLineup(r, target)
+      if (!needsPlayer(r, target) && !wouldMakeLineup(r, target)) return false
+      // ④本人が行くか（国内とまったく同じ関門）
+      return !params.consents || params.consents(target, c.id, seller.id)
     })
     if (buyerPool.length === 0) continue
     const buyer = weightedPick(buyerPool, c => fBudget[c.id])   // 予算が多いクラブほど動く
@@ -348,7 +374,9 @@ export function simulateCrossBorderTransfers<T extends Team>(params: {
       const buyerPool = foreignClubs.filter(c => {
         if (fRoster[c.id].length >= ROSTER_MAX || fBudget[c.id] < fee) return false
         const r = fRoster[c.id].map(id => playerById.get(id)).filter((x): x is Player => !!x)
-        return needsPlayer(r, target) || wouldMakeLineup(r, target)
+        if (!needsPlayer(r, target) && !wouldMakeLineup(r, target)) return false
+        // ④本人が行くか（国内とまったく同じ関門）。スターだけ素通りさせない
+        return !params.consents || params.consents(target, c.id, sellerId)
       })
       if (buyerPool.length === 0) break
       const buyer = weightedPick(buyerPool, c => fBudget[c.id])
