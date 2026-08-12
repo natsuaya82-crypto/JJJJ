@@ -33,7 +33,7 @@
  "src/store/slices/seasonSlice.ts": 784,
  "src/store/slices/seasonSlice.ts::acceptGmOffer": 62,
  "src/store/slices/seasonSlice.ts::endSeason": 598,
- "src/store/slices/worldAthleticsSlice.ts": 292,
+ "src/store/slices/worldAthleticsSlice.ts": 304,
  "src/store/slices/worldAthleticsSlice.ts::advanceWorldRace": 152,
- "src/store/slices/worldAthleticsSlice.ts::startWorldTournament": 90
+ "src/store/slices/worldAthleticsSlice.ts::startWorldTournament": 102
 }

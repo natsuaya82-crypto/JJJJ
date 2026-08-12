@@ -50,6 +50,13 @@ export default function WorldTournamentPage() {
     return () => setActiveRacePhase(null)
   }, [phase, setActiveRacePhase])
 
+  // このページに来たのに大会が無いなら、ここで開く。
+  // 「大会は開催されていません」と出して終わりにすると、その年の大会は二度と開けない
+  // （ホームの大会カードは1年に1度しか通らないため）。
+  useEffect(() => {
+    if (!t) useGameStore.getState().startWorldTournament()
+  }, [t])
+
   const pseudoTeams = useMemo(
     () => (t?.participants ?? []).map(pt => ({ id: pt.id, name: pt.name, shortName: pt.shortName, colors: pt.colors } as unknown as Team)),
     [t]

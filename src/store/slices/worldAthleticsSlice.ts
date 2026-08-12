@@ -25,7 +25,19 @@ export const createWorldAthleticsSlice = (set: SetGame, get: () => GameStore): S
     set(state => {
       const year = state.currentSeason.year
       if ((state.worldAthleticsResults ?? []).some(r => r.year === year)) return state
-      if (state.worldTournament && state.worldTournament.year === year && !state.worldTournament.finished) return state
+      // 開催中の大会があればそれを続ける。
+      // **ただし壊れているものは作り直す。** 古い版が作った大会がその年ぶんとしてセーブに
+      // 残っていると、「日本が出場国に入らない」時代の顔ぶれのまま凍結され、
+      // 何度入り直しても観戦のままになる（＝アジア予選が開催されない、の一因）。
+      // 予選に自国が居ない／出場国が空、はいまの決まりでは起こらないので壊れている印。
+      // 走り出したもの（結果のあるレースが1つでもあるもの）は作り直さない
+      {
+        const t = state.worldTournament
+        const started = !!t && t.races.some(r => r.results)
+        const broken = !!t && !started
+          && (t.participants.length === 0 || (t.kind === 'qualifier' && !t.participants.some(p => p.nat === HOME_NATION)))
+        if (t && t.year === year && !t.finished && !broken) return state
+      }
       const isMain = (year - 2028) % 2 === 0
       // 予選も開催国ローテーション（アジア＋オセアニアの国で持ち回り。コースも開催国の地形）
       const host = isMain ? hostForYear(year) : qualHostForYear(year)
