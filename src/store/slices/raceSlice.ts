@@ -36,7 +36,8 @@ import { isLiveContract } from '../../utils/contractTalk'
 import { divisionOf, domesticThroughRank, segmentPrizeByTeam } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
-import { racesConsumed } from '../../utils/playerUtils'
+import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
+import { allTieredClubs, tierOfPlayerClub } from '../../utils/clubTier'
 
 type Slice = Pick<GameStore,
   'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setRaceTeamTalk' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'resolveEvent' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
@@ -436,7 +437,11 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         players: playersAfterFreeMoves, teams: teamsAfterFreeMoves,
         foreignClubs, foreignLeagues: state.foreignLeagues,
         currentSeason: state.currentSeason, races: updatedRaces,
-        playerTeamId, raceDate: race.date, nextClock })
+        playerTeamId, raceDate: race.date, nextClock,
+        // ④本人が行くか（オフの一括処理・現金の移籍・トレードと同じ入口）
+        consents: (fa, clubId) => playerConsentToMove(
+          fa, get().destinationOf(clubId, fa),
+          tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, 0, true).ok })
       playersAfterFreeMoves = faResult.players
       teamsAfterFreeMoves = faResult.teams
       freeMoveRecords.push(...faResult.records)

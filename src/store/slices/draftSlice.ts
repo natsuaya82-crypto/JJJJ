@@ -10,12 +10,12 @@ import { runCpuLoans, runCpuReleases, runCpuTrades, runCpuTransfers } from '../.
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type Player, type TransferRecord } from '../../types'
-import { tierBudget, tierOf } from '../../utils/clubTier'
+import { allTieredClubs, tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
 import { allForeignClubs, findClub } from '../../utils/clubs'
 import { draftRoundOf, joinsDraft } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } from '../../utils/newsItems'
-import { faMarketSalary, ovr, perfOf } from '../../utils/playerUtils'
+import { faMarketSalary, ovr, perfOf, playerConsentToMove } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { teamHistoriesOf } from '../../utils/teamHistory'
 
@@ -575,7 +575,13 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       clubs: [...teamsAfterCpuTransfer, ...foreignClubsForFa],
       playerTeamId: state.playerTeamId, season: state.currentSeason,
       capFor: (id) => (foreignIdSet.has(id) ? ROSTER_MAX : rosterCapFor(id)),
-      phase: 'offseason' })
+      phase: 'offseason',
+      // ④本人が行くか（現金の移籍・トレードと同じ入口）。
+      // 無所属は「クラブが無い」状態と較べるので基本は断らないが、
+      // 憧れの地域と出番の良し悪しはここで効く
+      consents: (fa, clubId) => playerConsentToMove(
+        fa, get().destinationOf(clubId, fa),
+        tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, 0, true).ok })
     const newYear = state.currentSeason.year
     // CPUのFA契約も movePlayer に通す（所属・名簿・加入年をまとめて。名簿に入れるので契約種別も本契約に揃える）
     let playersWithCpuSigns: Player[] = playersAfterCpuTransfer

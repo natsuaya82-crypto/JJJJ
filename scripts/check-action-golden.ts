@@ -423,18 +423,23 @@ SCENARIOS['market-trade'] = () => {
 SCENARIOS['market-acquisition'] = () => {
   console.log('[market-acquisition] 獲得オファー（FA・引き抜き／通る額と通らない額）')
   // marketSlice の submitAcquisitionOffer（111行）。**4枝とも通す**。
-  //   FA で加入する／FAだが本人が納得しない（not_convinced）
+  //   FA で加入する／**在籍中の選手が納得しない**（not_convinced）
   //   引き抜きで加入する／額が足りない（low_offer）
   // 「納得しない」は年俸をいくら積んでも変わらない（そのクラブで走れるかを見ているため）。
-  // 額で落とす枝は引き抜き側で作る
+  // 額で落とす枝は引き抜き側で作る。
+  //
+  // ★「納得しない」役を**在籍中の選手**にしてある。2026-08-11 に
+  //   「無所属は比べる相手がクラブ無しなので断らない」を入れた（`FREE_AGENT_TIER`）ので、
+  //   **FAに断り役をさせるとその枝を1行も通らなくなる**（実際そうなって accepted に変わった）。
   const { players } = buildState('regular', 3)
   const gg = () => useGameStore.getState()
   const byOvr = (teamId: string) => players.filter(p => p.teamId === teamId && p.status === 'active').sort((a, b) => ovr(b) - ovr(a))
   const fas = byOvr('sapporo'), poach = byOvr('osaka')
-  const faOk = fas[0].id, faNo = fas[6].id           // 走れる／走れない
+  const faOk = fas[0].id                    // 無所属＝断らない
+  const noNo = poach[18].id                 // **在籍中**で、うちでは走れない＝納得しない
   const poachOk = poach[6].id, poachLow = poach[12].id
-  // この世界には無所属が居ないので、2人だけ FA にする
-  useGameStore.setState({ players: gg().players.map(p => (p.id === faOk || p.id === faNo) ? { ...p, teamId: '' } : p) } as never)
+  // この世界には無所属が居ないので、1人だけ FA にする
+  useGameStore.setState({ players: gg().players.map(p => p.id === faOk ? { ...p, teamId: '' } : p) } as never)
   const ask = (id: string) => Math.round(faMarketSalary(gg().players.find(p => p.id === id)!))
   const offer = (id: string, src: 'fa' | 'scout', mult: number) => {
     gg().startAcquisitionOffer(id, src)
@@ -443,14 +448,14 @@ SCENARIOS['market-acquisition'] = () => {
   }
   compare('market-acquisition', () => {
     offer(faOk, 'fa', 1.0)
-    offer(faNo, 'fa', 2.5)
+    offer(noNo, 'scout', 2.5)
     offer(poachOk, 'scout', 1.0)
     offer(poachLow, 'scout', 0.4)
     const st = (id: string) => {
       const o = (gg().currentSeason.acquisitionOffers ?? []).find(x => x.playerId === id)
       return `${o?.status ?? '(無し)'}${o?.rejectReason ? `/${o.rejectReason}` : ''}`
     }
-    console.log(`      FA成立=${st(faOk)} FA不成立=${st(faNo)} 引き抜き成立=${st(poachOk)} 額不足=${st(poachLow)}`)
+    console.log(`      FA成立=${st(faOk)} 本人が納得しない=${st(noNo)} 引き抜き成立=${st(poachOk)} 額不足=${st(poachLow)}`)
   })
 }
 

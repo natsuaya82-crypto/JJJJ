@@ -26,6 +26,8 @@ export function signInSeasonFreeAgents(params: {
   /** 今季の日程（結果入り）。実績の参照に使う */
   races: Race[]
   playerTeamId: string
+  /** ④本人が行くか。呼び出し側（store）が destinationOf を持っているので渡してもらう */
+  consents?: (player: Player, clubId: string) => boolean
   raceDate: string
   /** レース通算数（先を越された通知のIDに使う） */
   nextClock: number
@@ -50,7 +52,9 @@ export function signInSeasonFreeAgents(params: {
     playerTeamId,
     season: { ...currentSeason, races: races },
     capFor: (id) => (inSeasonForeignIds.has(id) ? ROSTER_MAX : rosterCapOf(0)),
-    phase: 'inseason' })
+    phase: 'inseason',
+    // ④本人が行くか（オフの一括処理とまったく同じ関門）
+    consents: params.consents })
   const faSignNews: NewsItem[] = []
   // 自チームが交渉中だったFAを先に獲られたら、黙って消さずに理由を残す
   // （札の片付けそのものは reconcileTalks の仕事）

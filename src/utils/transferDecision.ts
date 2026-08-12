@@ -132,6 +132,12 @@ export function seeksPlayingTime(a: {
 export const CONSENT_LINE = 0.5
 
 /**
+ * 無所属を「格いくつ」として数えるか。**格は1〜20なので、その外側**。
+ * クラブが無い状態はどのクラブよりも下、という意味しか持たせていない。
+ */
+const FREE_AGENT_TIER = 21
+
+/**
  * 1人の選手に同時に来る買い取り打診の上限。
  * 良い選手は複数クラブで取り合いになるのが普通なので、1件ずつ来る形はやめた。
  * 5件並べて本人に「どこへ行きたいか」を聞く（rankOffers）
@@ -277,16 +283,30 @@ function playingTimeScore(d: Destination): number {
 export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): Appraisal {
   const declining = isDeclining(p.growthCurve ?? 'normal', p.age)
 
+  // ★**無所属（FA）は、比べる相手が「クラブが無い」状態**。
+  //   この関数は「いまの居場所」と「行き先」を較べるものなので、居場所が無い選手に
+  //   そのまま当てると基準がずれる。無所属の「いま」は出番ゼロ・収入ゼロなので、
+  //   **どのクラブもそれより上**。だから
+  //     ・格差 … 無所属は格外（どのクラブよりも下）として数える＝どこへ行っても格上
+  //     ・出番 … 少なくても**減点にしない**（0が下限）。ゼロと較べているので下がりようがない
+  //   良し悪しの差は加点の側に残るので、複数の話があるときに rankOffers が
+  //   一番良いところを選ぶ、という形はそのまま働く。
+  //
+  //   これを入れる前は、FAの成立52件のうち43件が「20番手では出番がない」で断られていた。
+  //   その44件は「頭数の確保」の枠（在籍23人→24人）で、**無職より控えの方がまし**という
+  //   当たり前が判定に入っていなかった（`docs/AUDIT_TRANSFERS.md` 2-1）。
+  const freeAgent = !p.teamId
+
   // 1. 格差。行き先が格上なら基本は行く（0.65〜0.90）。同格0.50。格下は落ちる
-  const gap = (ctx.srcTier ?? d.tier) - d.tier
+  const gap = (freeAgent ? FREE_AGENT_TIER : ctx.srcTier ?? d.tier) - d.tier
   let tier = gap > 0
     ? 0.65 + Math.min(0.25, gap * 0.03)
     : gap === 0 ? 0.50 : 0.50 + gap * 0.04
   // ピークを過ぎた選手は格へのこだわりが薄れる（残りのキャリアで走れる場所を選ぶ）
   if (declining) tier = 0.5 + (tier - 0.5) * 0.6
 
-  // 2. 行き先で出られるか
-  const playingTime = playingTimeScore(d)
+  // 2. 行き先で出られるか（無所属は減点しない。上の★）
+  const playingTime = freeAgent ? Math.max(0, playingTimeScore(d)) : playingTimeScore(d)
 
   // 3. 今のクラブで干されているか。
   //    ★行き先でも出られないなら効かない。「出たいから動く」のであって、
@@ -337,7 +357,9 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   //   ・格上へ行くときだけ（同格・格下へ落ちて出番を取りに行くのは現実にある）
   //   ・そのクラブが3戦以上こなしているときだけ（開幕直後の「まだ分からない」を
   //     「走っていない」と読まない。出場率は utils/playRate の1本で出す）
-  const unproven = gap > 0 && races >= 3 && frac <= 0
+  // ★無所属には当てない。「今のクラブで1戦も走っていない」という話なので、
+  //   そもそも今のクラブが無い選手には当てはまらない
+  const unproven = !freeAgent && gap > 0 && races >= 3 && frac <= 0
 
   const score = tier + playingTime + benched + title + ecl + dreamFit + capped + personality + morale + bonus
   const ok = score >= CONSENT_LINE && !unproven

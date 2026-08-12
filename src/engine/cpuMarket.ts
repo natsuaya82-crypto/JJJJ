@@ -65,6 +65,14 @@ export function pickCpuFreeAgents(a: {
    *                 1クラブ1人まで＝1レースのあいだに市場を空にしない
    */
   phase: 'offseason' | 'inseason'
+  /**
+   * ④本人が行くか（`appraiseMove`）。**省略すると聞かない**（呼び出し側の移行用）。
+   *
+   * ★無所属は「クラブが無い」状態と較べるので基本は断らない
+   *   （`transferDecision` の `FREE_AGENT_TIER`）。ここを通す意味は、
+   *   **憧れの地域と出番の良し悪しが行き先の選び方に効く**こと。
+   */
+  consents?: (player: Player, clubId: string) => boolean
 }): { playerId: string; clubId: string }[] {
   const players = a.players
   const clubs = a.clubs
@@ -134,7 +142,9 @@ export function pickCpuFreeAgents(a: {
   const signOneFA = (c: FaCtx): boolean => {
     if (c.signed >= c.slotsNeeded) return false
     // 外国人枠は廃止したので国籍による人数制限は無い
-    const canSign = (fa: Player) => !signedFAIds.has(fa.id) && fa.age < c.ageCap
+    // ④本人が行くか。3つの枝すべてが同じ関門を通る（枝ごとに違う判定を書かない）
+    const canSign = (fa: Player) =>
+      !signedFAIds.has(fa.id) && fa.age < c.ageCap && (!a.consents || a.consents(fa, c.team.id))
     // 戦力崩壊を防ぐ最低ラインまでは予算に関係なく補強する。それ以上は年俸が払える範囲でのみ。
     // 移籍金はかからないので、止めるのは年俸だけ
     const budgetOk = (fa: Player) => (c.totalNow + c.signed) < FA_FREE_FILL || (c.spent + estCost(fa) <= c.spendable)
