@@ -103,6 +103,10 @@ const CHECKS = [
   'boot-repair', 'archive-season',
   // ドラフト会場のAI（engine/draft）。画面の中にあってどの点検からも見えていなかった
   'draft-ai',
+  // オンライン対戦の通算得点。同じ数え方が3か所にあった（うち1つは受け取った順に依存）
+  'online-series',
+  // オンライン対戦の進行判断（出そろったか・誰を埋めるか・誰が不戦敗か）。画面の中にあった
+  'room-machine',
   // その他
   'card-exchange', 'notif-count', 'talk-sync',
   // ★実際にブラウザで開いて最初の画面が出るところまで見る。**既定で走る。**
