@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import { belongsToClub } from '../../utils/rosterSync'
@@ -40,19 +40,14 @@ export default function ForeignLeagueDetailPage() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: '80px', minHeight: '100dvh' }}>
-      <div style={{ padding: '10px 12px 10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <BackButton />
-          <LeagueLogoSVG leagueId={league.id} size={36} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>{league.countryName.toUpperCase()}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{league.name}</div>
-          </div>
-          <div style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: '20px', background: C.surface2, border: `1px solid ${C.border2}`, display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-            <span style={{ fontSize: '9px', color: C.textDim }}>{hasResults ? '勝点順' : 'OVR順'}</span>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={<LeagueLogoSVG leagueId={league.id} size={36} />}
+        eyebrow={league.countryName.toUpperCase()}
+        title={league.name}
+        right={<div style={{ padding: '4px 10px', background: C.surface2, border: `1px solid ${C.border2}`, flexShrink: 0 }}>
+          <span style={{ fontSize: '9px', color: C.textDim }}>{hasResults ? '勝点順' : 'OVR順'}</span>
+        </div>}
+      />
 
       <StandingsTable rows={rows} onRowClick={(id) => navigate(`/teams/foreign/${league.id}/${id}`)} />
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { compareTitles, teamHistoriesOf, titleRows } from '../../utils/teamHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
@@ -205,13 +205,7 @@ export default function ChampionsHistoryPage() {
     }}>
       {/* ヘッダー（戻る＋タイトル）は上部固定でスクロールに追従しない。区間配置ビューでは補足行を省く */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.bg }}>
-        <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <BackButton onClick={goBack} />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>RECORDS</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900' }}>歴代優勝</div>
-          </div>
-        </div>
+        <PageHeader eyebrow="RECORDS" title="歴代優勝" onBack={goBack} />
         {!lockScreen && (
           <div style={{ fontSize: '11px', color: C.textDim, padding: '4px 16px 10px' }}>
             {cat === 'waqual' ? (waRace ? `${year}年 順位表` : year != null ? `${year}年 アジア予選 — レースを選択` : 'アジア予選 — 年度を選択')

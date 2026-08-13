@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { Race, RaceResults, Team, Player } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
@@ -132,10 +133,7 @@ export default function WorldTournamentPage() {
     })
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
-        <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
-          <BackButton onClick={() => navigate('/')} />
-          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title} 代表発表</span>
-        </div>
+        <PageHeader title={`${title} 代表発表`} onBack={() => navigate('/')} />
         <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>個人種目 {indStep + 1}/{inds.length} ・ 長押しで選手詳細</div>
         <div style={{ margin: '4px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -181,10 +179,7 @@ export default function WorldTournamentPage() {
     const nextLabel = isFinal ? '総合成績へ →' : `駅伝 第${t.raceIndex + 1}戦へ →`
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
-        <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
-          <BackButton onClick={() => navigate('/')} />
-          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{WA_EVENT_LABEL[ir.event]} 決勝</span>
-        </div>
+        <PageHeader title={`${WA_EVENT_LABEL[ir.event]} 決勝`} onBack={() => navigate('/')} />
         <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>{title} ・ 長押しで選手詳細</div>
         <div style={{ margin: '4px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 結果</div>
@@ -225,10 +220,7 @@ export default function WorldTournamentPage() {
     const done = t.finished || !nextRace
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
-        <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
-          <BackButton onClick={() => navigate('/')} />
-          <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title}</span>
-        </div>
+        <PageHeader title={title} onBack={() => navigate('/')} />
         <div style={{ padding: '4px 16px 8px', fontSize: 11, color: C.textDim }}>
           {done
             ? '全3戦終了'

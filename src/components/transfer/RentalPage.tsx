@@ -1,4 +1,4 @@
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Player } from '../../types'
@@ -44,19 +44,16 @@ export default function RentalPage() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100%' }}>
-      <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BackButton/>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.blue, letterSpacing: '3px', fontWeight: 700 }}>LOAN</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>レンタル選手</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
+      <PageHeader
+        eyebrow="LOAN"
+        title="レンタル選手"
+        right={<div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: '0.1em' }}>レンタル枠</div>
           <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: borrowedIn.length >= MAX_SLOTS ? C.red : C.blue, lineHeight: 1 }}>
             {borrowedIn.length}<span style={{ fontSize: 12, color: C.textDim }}>/{MAX_SLOTS}</span>
           </div>
-        </div>
-      </div>
+        </div>}
+      />
 
       <div style={{ padding: '6px 16px 12px', fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
         レンタルの要請は<b>移籍市場</b>から。相手からの打診は<b>チャット</b>に通知が来ます。

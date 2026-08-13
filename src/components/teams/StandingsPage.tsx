@@ -4,10 +4,10 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { LeagueLogoSVG } from '../icons/Icons'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, FONT } from '../../styles/tokens'
 import { rankedStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
 import type { Division } from '../../types'
 
@@ -101,16 +101,12 @@ export default function StandingsPage() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: '80px', minHeight: '100dvh' }}>
-      <div style={{ padding: '10px 12px 10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <BackButton />
-          <LeagueLogoSVG leagueId={view.logoId} size={36} />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>{view.eyebrow}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text, lineHeight: 1 }}>{view.title}</div>
-          </div>
-        </div>
-
+      <PageHeader
+        icon={<LeagueLogoSVG leagueId={view.logoId} size={36} />}
+        eyebrow={view.eyebrow}
+        title={view.title}
+      />
+      <div style={{ padding: '0 12px 10px' }}>
         {/* JPELの中の部の切り替え（1部・2部・3部）。ECLは別リーグなので混ぜない */}
         {!isEcl && (
           <PillTabs

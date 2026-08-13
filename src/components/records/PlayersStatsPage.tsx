@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { playerLabel } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
@@ -72,13 +72,7 @@ export default function PlayersStatsPage() {
     <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
       {/* ヘッダー（戻る＋タイトルを横並び・上部固定） */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.bg }}>
-        <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <BackButton onClick={goBack} />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.blue, letterSpacing: '3px', fontWeight: '900' }}>RECORDS</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>区間記録</div>
-          </div>
-        </div>
+        <PageHeader eyebrow="RECORDS" title="区間記録" onBack={goBack} />
         <div style={{ fontSize: '11px', color: C.textDim, padding: '4px 16px 10px' }}>
           {selectedRace ?? (cat != null ? `${CAT_LABEL[cat]} — 大会を選択` : 'カテゴリを選択')}
         </div>

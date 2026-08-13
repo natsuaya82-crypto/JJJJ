@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import HofList from './HofList'
 import { useGameStore } from '../../store/gameStore'
@@ -33,16 +33,13 @@ export default function HofTeamPage() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>
-      <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BackButton />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900 }}>HALL OF FAME</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>殿堂入りチーム</div>
-        </div>
-        <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: hof.length >= HOF_MAX ? C.gold : C.textSub }}>
+      <PageHeader
+        eyebrow="HALL OF FAME"
+        title="殿堂入りチーム"
+        right={<div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: hof.length >= HOF_MAX ? C.gold : C.textSub }}>
           {hof.length}<span style={{ fontSize: 11, color: C.textDim }}>/{HOF_MAX}</span>
-        </div>
-      </div>
+        </div>}
+      />
 
       <HofList
         hof={hof}

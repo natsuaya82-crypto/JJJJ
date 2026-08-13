@@ -1,4 +1,4 @@
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from '../../utils/playerUtils'
@@ -46,19 +46,15 @@ export default function StarredPlayersPage() {
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100%' }}>
-      <div style={{ padding: '10px 16px 4px' }}>
-        <BackButton/>
-      </div>
+      <PageHeader
+        eyebrow="TRANSFER"
+        title="WATCHLIST"
+        right={starredPlayers.length > 0
+          ? <span style={{ fontSize: 14, color: C.textDim }}>{starredPlayers.length}名</span>
+          : undefined}
+      />
 
-      <div style={{ padding: '8px 16px 16px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', marginBottom: '4px' }}>TRANSFER</div>
-        <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text, marginBottom: '16px' }}>
-          WATCHLIST
-          {starredPlayers.length > 0 && (
-            <span style={{ marginLeft: 10, fontSize: 14, color: C.textDim }}>{starredPlayers.length}名</span>
-          )}
-        </div>
-
+      <div style={{ padding: '4px 16px 16px' }}>
         {starredPlayers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textGhost, fontSize: 12, backgroundColor: C.surface, borderRadius: 14, border: `1px solid ${C.border}` }}>
             選手ページで ☆ を押すとここに表示されます

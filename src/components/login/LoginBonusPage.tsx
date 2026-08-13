@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { loginTodayKey } from '../../utils/loginDate'
@@ -82,14 +82,8 @@ export default function LoginBonusPage() {
 
   return (
     <div style={{ fontFamily: FONT, background: C.bg, minHeight: pageMinHeight, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '10px 16px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '12px' }}>
-          <BackButton />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: '#6dd5fa', letterSpacing: '3px', fontWeight: '900' }}>LOGIN BONUS</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>ログインボーナス</div>
-          </div>
-        </div>
+      <div style={{ flexShrink: 0 }}>
+        <PageHeader eyebrow="LOGIN BONUS" title="ログインボーナス" />
       </div>
 
       <div style={{ padding: '0 16px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>

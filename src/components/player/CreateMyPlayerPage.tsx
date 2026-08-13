@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import PlayerFace from './PlayerFace'
 import BottomSheet from '../ui/BottomSheet'
 import { useAdHeight } from '../layout/Layout'
@@ -122,11 +123,8 @@ export default function CreateMyPlayerPage() {
 
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 84 }) }}>
-      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
-        <BackButton onClick={() => navigate('/')} />
-        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>マイプレイヤー作成</span>
-      </div>
-      <div style={{ padding: '2px 16px 10px', fontSize: 11, color: C.textDim }}>初年度はドラフトに参加しない代わりに、選手を1人つくれます。</div>
+      <PageHeader title="マイプレイヤー作成" onBack={() => navigate('/')} />
+      <div style={{ padding: '0 16px 10px', fontSize: 11, color: C.textDim }}>初年度はドラフトに参加しない代わりに、選手を1人つくれます。</div>
 
       {/* プレビュー */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 12px 12px', padding: 12, borderRadius: 14, background: `linear-gradient(135deg, ${alpha(C.gold, 0.14)}, ${C.surface2})`, border: `2px solid ${C.goldDark}` }}>

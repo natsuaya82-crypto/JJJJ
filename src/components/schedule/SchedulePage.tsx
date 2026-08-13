@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear, qualHostForYear, WA_HOST_CITY, waRaceDate } from '../../engine/worldAthletics'
@@ -105,24 +105,21 @@ export default function SchedulePage() {
     <div style={{ minHeight: '100%', backgroundColor: C.bg }}>
 
       <div style={{
-        display: 'flex', alignItems: 'center', gap: '12px',
-        padding: '16px 20px 12px',
         borderBottom: `1px solid ${C.border}`,
         position: 'sticky', top: 0,
         backgroundColor: C.bg,
         zIndex: 10,
       }}>
-        <BackButton/>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '18px', fontWeight: '900', color: C.text }}>年間予定表</div>
-          <div style={{ fontSize: '11px', color: C.textDim, marginTop: '1px' }}>{currentSeason.year}シーズン</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '13px', fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: '0 0 10px rgba(245,200,66,0.5)' }}>
-            {totalDone}<span style={{ color: C.textDim, fontWeight: '400' }}>/{totalRaces}</span>
-          </div>
-          <div style={{ fontSize: '10px', color: C.textDim }}>試合消化</div>
-        </div>
+        <PageHeader
+          eyebrow={`${currentSeason.year} SEASON`}
+          title="年間予定表"
+          right={<div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '13px', fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: '0 0 10px rgba(245,200,66,0.5)' }}>
+              {totalDone}<span style={{ color: C.textDim, fontWeight: '400' }}>/{totalRaces}</span>
+            </div>
+            <div style={{ fontSize: '10px', color: C.textDim }}>試合消化</div>
+          </div>}
+        />
       </div>
 
       {isSeasonStart && (

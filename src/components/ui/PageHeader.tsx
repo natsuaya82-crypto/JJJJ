@@ -7,12 +7,17 @@ import { C, SAIRA } from '../../styles/tokens'
 //
 // ★戻る矢印を別の行に置かないこと（画面ごとに位置がバラけていた）。
 // ★英字の小見出し（eyebrow）は**1画面に1つまで**。無ければ出さない。
+// ★**画面で見出しを手書きしないこと。** 「戻る＋（英字）＋タイトル」の塊が
+//   **44画面に51か所**あり、大きさが 16／18／19／20／21／22px の6通りに割れていました
+//   （同じ「戻る＋タイトル」なのに画面ごとに別物）。足りない口はここに足すこと。
 // ============================================================================
 
-export default function PageHeader({ title, eyebrow, right, onBack }: {
+export default function PageHeader({ title, eyebrow, icon, right, onBack }: {
   title: string
   /** タイトルの上に出す英字。要らなければ渡さない */
   eyebrow?: string
+  /** 戻る矢印とタイトルのあいだに置くもの（リーグのロゴなど） */
+  icon?: React.ReactNode
   /** 右端に出すもの（件数・切り替えなど） */
   right?: React.ReactNode
   /** 既定は1つ戻る */
@@ -34,6 +39,7 @@ export default function PageHeader({ title, eyebrow, right, onBack }: {
           <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
+      {icon && <span style={{ display: 'flex', flexShrink: 0, marginRight: 8 }}>{icon}</span>}
       <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
           <div style={{ fontFamily: SAIRA, fontSize: 9.5, fontWeight: 800, color: C.textDim, letterSpacing: '3px' }}>

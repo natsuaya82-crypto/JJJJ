@@ -214,5 +214,35 @@ console.log('\n⑥ 押すボタンを画面で手書きしていない（今日�
   }
 }
 
+console.log('\n⑦ 見出し（戻る＋タイトル）を画面で手書きしていない（今日より増えていない）')
+{
+  // 「戻る矢印 ＋（英字）＋ タイトル」の塊が**44画面に51か所**あり、
+  // 同じ見出しなのに大きさが 16／18／19／20／21／22px の6通りに割れていた。
+  // 見出しは `src/components/ui/PageHeader.tsx` 1本。
+  // 残る `<BackButton>` は、見出しではないもの（シートの上端・チャットの相手・
+  // 区間ピッカー・空っぽの画面で戻るだけ）。⑤⑥と同じで、いまの数を焼いて増えたら落ちる。
+  const counts: Record<string, number> = {}
+  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+    if (f.endsWith('ui/BackButton.tsx')) continue
+    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    const n = [...code.matchAll(/<BackButton\b/g)].length
+    if (n > 0) counts[f] = n
+  }
+  const FIX = 'scripts/fixtures/ui-header-budget.json'
+  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  if (process.env.UPDATE_GOLDEN === '1' || !existsSync(FIX)) {
+    writeFileSync(FIX, JSON.stringify(counts, null, 1) + '\n')
+    console.log(`  -- 引き直しました（${Object.keys(counts).length}ファイル / 合計 ${total}件）`)
+  } else {
+    const old: Record<string, number> = JSON.parse(readFileSync(FIX, 'utf8'))
+    const grew = Object.entries(counts).filter(([f, n]) => n > (old[f] ?? 0))
+    check(`手書きの見出しが増えていない（${total}件）`, grew.length === 0,
+      grew.map(([f, n]) => `${f} ${old[f] ?? 0} → ${n}`).join('\n      ') +
+      '\n      → 見出しは components/ui/PageHeader.tsx を使うこと')
+    const shrank = Object.entries(old).filter(([f, n]) => (counts[f] ?? 0) < n)
+    if (shrank.length) console.log(`  -- ${shrank.length}ファイルで減りました。引き直すと見張りが強くなります`)
+  }
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

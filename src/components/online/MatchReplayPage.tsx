@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import FinishPanel from './FinishPanel'
 import { getMatchDetail } from '../../lib/roomsApi'
 import { racesFromDetail } from '../../lib/matchSim'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from '../friends/friendsUi'
 import { ensureAuth } from '../../lib/supabase'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { FONT } from '../../styles/tokens'
 
 
 // 対戦履歴から1試合を開く画面。
@@ -31,15 +31,7 @@ export default function MatchReplayPage() {
       fontFamily: FONT,
       paddingBottom: 80, minHeight: '100dvh',
     }}>
-      <div style={{ padding: '10px 12px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <BackButton />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: '3px', fontWeight: 900 }}>MATCH HISTORY</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>この対戦の記録</div>
-          </div>
-        </div>
-      </div>
+      <PageHeader eyebrow="MATCH HISTORY" title="この対戦の記録" />
 
       {q.loading && <div style={{ padding: '0 12px' }}><LoadingBox /></div>}
       {q.error && <div style={{ padding: '0 12px' }}><ErrorBox onRetry={q.reload} /></div>}

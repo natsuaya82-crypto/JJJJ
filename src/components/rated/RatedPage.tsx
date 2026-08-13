@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import PressButton from '../ui/PressButton'
 import { courseDistanceKm } from '../../engine/ratedCourse'
 import { rankProgressOf } from '../../engine/rating'
@@ -99,17 +99,14 @@ export default function RatedPage() {
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: 96 }}>
       {/* ── 見出し ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '12px 12px 14px' }}>
-        <BackButton />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9.5, fontWeight: 800, color: C.textDim, letterSpacing: '3px' }}>RANKED SERIES</div>
-          <div style={{ fontSize: 21, fontWeight: 900, color: C.text, lineHeight: 1.15, letterSpacing: '1px' }}>レート戦</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
+      <PageHeader
+        eyebrow="RANKED SERIES"
+        title="レート戦"
+        right={<div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>SEASON</div>
           <div style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.textSub, lineHeight: 1 }}>{year ?? ''}</div>
-        </div>
-      </div>
+        </div>}
+      />
 
       {/* ── レート ── */}
       <div style={{ padding: '4px 18px 18px', borderTop: `1px solid ${alpha(C.border3, 0.55)}` }}>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Club } from '../../utils/clubs'
@@ -280,11 +281,8 @@ export default function NationalSquadSelectPage() {
   // ── メイン画面（20枠一覧・区間配置の区リストと同じ構造）──
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
-      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
-        <BackButton />
-        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本代表 選考</span>
-      </div>
-      <div style={{ padding: '4px 16px 10px' }}>
+      <PageHeader title="日本代表 選考" />
+      <div style={{ padding: '0 16px 10px' }}>
         <div style={{ fontSize: 11, color: C.textDim }}>空き枠タップ＝選出／埋まった枠タップ＝外す（ピッカー内は長押しで選手詳細）</div>
       </div>
 

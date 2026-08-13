@@ -289,6 +289,7 @@ Supabase と同じ `auth.users` / `auth.uid()` を作り、データを入れた
 | メニューの行 | `src/components/ui/MenuButton.tsx`（`premium-menu-button` を書いていいのはここだけ）|
 | 押すボタン | `src/components/ui/GlassButton.tsx`（色は `color` で渡す。**画面で枠と影を書かないこと**）|
 | 枠つきのカード | `src/components/ui/Panel.tsx`（`<Panel accent={色}>` か `style={{ ...panelStyle(色) }}`）|
+| 画面の見出し | `src/components/ui/PageHeader.tsx`（`title` / `eyebrow` / `icon` / `right` / `onBack`）|
 
 **ボタンを画面に手書きしないこと。** 「金枠2px ＋ 下に影（`0 4px 0 #5a3500`）」の塊が
 **32画面に64か所**コピーされていました。ボタンの形を変えても、その64か所は追随しません
@@ -300,6 +301,19 @@ Supabase と同じ `auth.users` / `auth.uid()` を作り、データを入れた
 
 カードも同じで、「金枠2px ＋ 下に影 ＋ 内側にもう1本の枠」が19画面に32か所ありました。
 形（右下だけ斜めに切る）は選手カード・メニュー行と共通で、変えるのは `Panel.tsx` 1本です。
+
+**見出しも同じです。** 「戻る矢印 ＋（英字）＋ タイトル」が**44画面に51か所**手書きされ、
+同じ見出しなのに大きさが **16／18／19／20／21／22px の6通り**に割れていました。
+`PageHeader` 1本に寄せて 51 → 0 件（`check-ui-tokens` の⑦・
+`scripts/fixtures/ui-header-budget.json`）。残っている `BackButton` の16か所は
+見出しではないもの（シートの上端・チャットの相手・区間ピッカー・空の画面で戻るだけ）です。
+**足りない口は `PageHeader` に足すこと**（先頭のロゴが要ったので `icon` を足しました）。
+
+寄せたことで、**全画面の上16pxがヘッダーの裏に隠れていた**のが見えるようになりました。
+`HEADER_H` が 49 のままヘッダーだけ背が伸びていたためで（実測 64.6px）、
+見出しの英字が上半分だけ欠けていたのがこれです。**ヘッダーの中身を変えたら、
+実際の高さを測って `HEADER_H` を直すこと**（この数はヘッダーに合わせるもので、
+先に決める数ではありません）。
 
 `npm run check` の `ui-tokens` が見張ります。**新しく共通の見た目を作ったら、
 そのクラスを書いていいファイルを1つ決めて `check-ui-tokens.ts` の `OWNER` に登録すること。**

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
@@ -125,10 +126,7 @@ export default function EclPage() {
   if (!series) {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text }}>
-        <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <BackButton/>
-          <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900 }}>ECL</div>
-        </div>
+        <PageHeader title="ECL" />
         <div style={{ padding: '50px 24px', textAlign: 'center', fontSize: 13, color: C.textDim, lineHeight: 1.8 }}>
           今シーズンのECLは開催されません。<br/>前年の各リーグ上位2チームに出場権が与えられます。
         </div>
@@ -141,14 +139,11 @@ export default function EclPage() {
   if (phase === 'entry' && nextRace && eclDue && !playerQualified) {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
-        <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <BackButton/>
-          <LeagueLogoSVG leagueId="ecl" size={36} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.red, letterSpacing: 2, fontWeight: 900 }}>第{series.raceIndex + 1}戦／全{series.races.length}戦 — {nextRace.date.replace(/-/g, '/')}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nextRace.name}</div>
-          </div>
-        </div>
+        <PageHeader
+          icon={<LeagueLogoSVG leagueId="ecl" size={36} />}
+          eyebrow={`第${series.raceIndex + 1}戦／全${series.races.length}戦 — ${nextRace.date.replace(/-/g, '/')}`}
+          title={nextRace.name}
+        />
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
         <StandingsTable rows={standRows} onRowClick={goTeam} />
         {/* 下タブ(58px)＋広告の上に固定 */}
@@ -287,13 +282,11 @@ export default function EclPage() {
     }
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
-        <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <BackButton onClick={() => { setPhase('entry'); setViewTeamId(null) }}/>
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.red, letterSpacing: 3, fontWeight: 900 }}>ECL</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900 }}>{lockedRace.name}（{lockedRace.location}）</div>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="ECL"
+          title={`${lockedRace.name}（${lockedRace.location}）`}
+          onBack={() => { setPhase('entry'); setViewTeamId(null) }}
+        />
         <div style={{ padding: '8px 12px 0' }}>
           <div style={panelStyle(C.gold)}>
             <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 40px 74px', gap: '4px', padding: '7px 12px', background: C.surface3, borderBottom: `1px solid ${C.border}` }}>
@@ -351,14 +344,11 @@ export default function EclPage() {
   // ── シリーズ概要（順位表・スケジュール）──
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
-      <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BackButton/>
-        <LeagueLogoSVG leagueId="ecl" size={36} />
-        <div>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>EKIDEN CHAMPIONS LEAGUE</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900 }}>ECL {currentSeason.year}</div>
-        </div>
-      </div>
+      <PageHeader
+        icon={<LeagueLogoSVG leagueId="ecl" size={36} />}
+        eyebrow="EKIDEN CHAMPIONS LEAGUE"
+        title={`ECL ${currentSeason.year}`}
+      />
 
       {/* 年間王者（確定後） */}
       {eclResult && (

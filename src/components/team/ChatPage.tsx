@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
@@ -332,13 +332,8 @@ export default function ChatPage() {
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100%' }}>
-      <div style={{ padding: '12px 16px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-          <BackButton />
-          <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>チャット</div>
-        </div>
-        <div style={{ fontSize: 11, color: C.textDim }}>契約更新・獲得交渉・相手からのオファー・トレードをここで対応</div>
-      </div>
+      <PageHeader title="チャット" />
+      <div style={{ padding: '0 16px 16px', fontSize: 11, color: C.textDim }}>契約更新・獲得交渉・相手からのオファー・トレードをここで対応</div>
 
       {/* タブ切り替え：自チーム ⇄ 移籍・獲得 */}
       <div style={{ padding: '0 12px 10px', display: 'flex', gap: 8 }}>

@@ -1,6 +1,6 @@
 import { rankOf } from '../../engine/rating'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
-import BackButton from '../ui/BackButton'
+import { C, alpha, FONT } from '../../styles/tokens'
+import PageHeader from '../ui/PageHeader'
 
 import { RANK_ART } from './rankArt'
 
@@ -38,13 +38,7 @@ export function Card({ children, accent = C.cyan, onClick }: {
 export function RatedShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>
-      <div style={{ padding: '18px 12px 0', display: 'flex', alignItems: 'center', gap: 4 }}>
-        <BackButton />
-        <div>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: '3px', fontWeight: 900, lineHeight: 1.4 }}>RATED SERIES</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.2 }}>{title}</div>
-        </div>
-      </div>
+      <PageHeader eyebrow="RATED SERIES" title={title} />
       <div style={{ padding: '12px 12px 0' }}>{children}</div>
     </div>
   )

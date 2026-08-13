@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { C, rankColor, SAIRA, FONT } from '../../styles/tokens'
 import Flag from '../ui/Flag'
@@ -39,10 +40,7 @@ export default function NationalResultPage() {
 
   const wrap = (title: string, children: React.ReactNode) => (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: 96 }}>
-      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
-        <BackButton onClick={() => navigate('/')} />
-        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{title}</span>
-      </div>
+      <PageHeader title={title} onBack={() => navigate('/')} />
       {children}
     </div>
   )

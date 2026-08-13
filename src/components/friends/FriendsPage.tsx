@@ -1,9 +1,9 @@
 import MenuButton from '../ui/MenuButton'
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { listFriends, listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from './friendsUi'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, FONT } from '../../styles/tokens'
 
 
 // 記録室（RecordsHub）と同じカード意匠でフレンド各画面への入口をまとめる。
@@ -44,16 +44,12 @@ export default function FriendsPage() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
-      <div style={{ padding: '8px 12px 0' }}><BackButton /></div>
-      <div style={{ padding: '8px 16px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>FRIENDS</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>フレンド</div>
-        {offline && (
-          <div style={{ marginTop: 8, fontSize: 11, color: C.textDim }}>
-            オフラインです。通信できる場所で開くとフレンド情報が読み込まれます。
-          </div>
-        )}
-      </div>
+      <PageHeader eyebrow="FRIENDS" title="フレンド" />
+      {offline && (
+        <div style={{ padding: '0 16px 14px', fontSize: 11, color: C.textDim }}>
+          オフラインです。通信できる場所で開くとフレンド情報が読み込まれます。
+        </div>
+      )}
 
       <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {SECTIONS.map(s => (

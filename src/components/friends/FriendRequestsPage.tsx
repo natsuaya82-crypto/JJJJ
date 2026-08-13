@@ -2,7 +2,7 @@
 // 分けていた頃は申請を送るたびに承認ページへ戻る必要があって面倒だったため、
 // 自分のコード・コード入力・届いた申請・送った申請を縦に並べて1画面で完結させる。
 import { useState, useRef } from 'react'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -144,10 +144,7 @@ export default function FriendRequestsPage() {
 
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100%', background: C.bg }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 4px' }}>
-        <BackButton />
-        <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>申請・承認</div>
-      </div>
+      <PageHeader title="申請・承認" />
 
       {/* 自分のフレンドコード（相手に渡して申請してもらう用） */}
       <div style={{ padding: '10px 16px 0' }}>

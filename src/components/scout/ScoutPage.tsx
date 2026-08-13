@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { Specialty } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
@@ -48,12 +48,8 @@ export default function ScoutPage() {
       background: C.bg,
       minHeight: '100dvh',
     }}>
-      <div style={{ padding: '8px 16px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px' }}>
-          <BackButton/>
-          <div style={{ fontSize: '22px', fontWeight: '900', color: C.text }}>スカウト</div>
-        </div>
-
+      <PageHeader title="スカウト" />
+      <div style={{ padding: '0 16px 8px' }}>
         <div style={{ padding: '8px 12px', borderRadius: '10px', background: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.2)}`, marginBottom: '10px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>ドラフトの仕組み</div>
           <div style={{ fontSize: '10px', color: C.textDim, lineHeight: 1.5 }}>

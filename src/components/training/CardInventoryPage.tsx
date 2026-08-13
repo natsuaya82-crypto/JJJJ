@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
@@ -56,20 +56,19 @@ export default function CardInventoryPage() {
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: `linear-gradient(180deg, ${C.bg} 70%, transparent)`,
-        padding: '14px 16px 10px',
-        display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        <BackButton/>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900 }}>カード一覧</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 1 }}>{trainingCards.length}枚所持</div>
-        </div>
-        <GlassButton color={C.blue} size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12, marginBottom: 4 }} onClick={() => navigate('/cards')}>
-          合成する
-        </GlassButton>
-        <GlassButton color="#A855F7" size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12, marginBottom: 4 }} onClick={() => navigate('/cards/convert')}>
-          変換
-        </GlassButton>
+        <PageHeader
+          eyebrow={`${trainingCards.length}枚所持`}
+          title="カード一覧"
+          right={<span style={{ display: 'flex', gap: 8 }}>
+            <GlassButton color={C.blue} size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12 }} onClick={() => navigate('/cards')}>
+              合成する
+            </GlassButton>
+            <GlassButton color="#A855F7" size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12 }} onClick={() => navigate('/cards/convert')}>
+              変換
+            </GlassButton>
+          </span>}
+        />
       </div>
 
       {/* 絞り込み・並べ替え（プルダウン） */}

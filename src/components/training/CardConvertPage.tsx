@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, CardStatKey } from '../../types'
 import {
@@ -37,13 +37,7 @@ export default function CardConvertPage() {
 
   return (
     <div style={{ minHeight: '100dvh', fontFamily: SAIRA, color: C.text, paddingBottom: 80 }}>
-      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <BackButton/>
-        <div>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: '#A855F7', letterSpacing: 3, fontWeight: 900 }}>CARD CONVERT</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900 }}>カード変換</div>
-        </div>
-      </div>
+      <PageHeader eyebrow="CARD CONVERT" title="カード変換" />
       <div style={{ padding: '0 16px 14px', fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
         余ったカードをEXP等価で上位レアにまとめて変換します（変換後の種類はランダム・完全休養は対象外）。
       </div>

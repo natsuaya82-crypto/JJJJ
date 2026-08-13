@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import NoticeDialog from '../ui/NoticeDialog'
 import { useFriendsQuery, LoadingBox, ErrorBox } from '../friends/friendsUi'
 import { createRoom, joinRoom, myMatchStats, DEFAULT_RULES } from '../../lib/roomsApi'
@@ -56,11 +56,7 @@ export default function MatchEntryPage() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
-      <div style={{ padding: '8px 12px 0' }}><BackButton /></div>
-      <div style={{ padding: '8px 16px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE MATCH</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>オンライン対戦</div>
-      </div>
+      <PageHeader eyebrow="ONLINE MATCH" title="オンライン対戦" />
 
       {/* 通算成績 */}
       <div style={{ padding: '0 12px' }}>

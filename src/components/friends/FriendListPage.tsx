@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { TeamLogoSVG } from '../icons/Icons'
 import { listFriends } from '../../lib/friendsApi'
 import { clubsOfUsers } from '../../lib/clubsApi'
@@ -24,10 +24,7 @@ export default function FriendListPage() {
 
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100%', background: C.bg }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 4px' }}>
-        <BackButton />
-        <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>フレンド一覧</div>
-      </div>
+      <PageHeader title="フレンド一覧" />
 
       <div style={{ padding: '10px 12px 0' }}>
         <div style={{ fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {loading || error ? '' : friends.length}</div>

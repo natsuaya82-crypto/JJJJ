@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { myMatchHistory, myMatchStats, type MatchHistoryItem } from '../../lib/roomsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from '../friends/friendsUi'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -99,15 +99,7 @@ export default function MatchHistoryPage() {
       fontFamily: FONT,
       paddingBottom: 80, minHeight: '100dvh',
     }}>
-      <div style={{ padding: '10px 12px 6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-          <BackButton />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: '3px', fontWeight: 900 }}>MATCH HISTORY</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>対戦履歴</div>
-          </div>
-        </div>
-      </div>
+      <PageHeader eyebrow="MATCH HISTORY" title="対戦履歴" />
 
       {/* 通算成績。履歴が空でもここは出す（対戦したことがあるかが分かる） */}
       {s && (

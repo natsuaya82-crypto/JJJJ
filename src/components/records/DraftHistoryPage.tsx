@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor } from '../../utils/playerUtils'
@@ -46,13 +46,7 @@ export default function DraftHistoryPage() {
 
     return (
       <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
-        <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <BackButton />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.orange, letterSpacing: '3px', fontWeight: '900' }}>DRAFT</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>{selectedYear}年度 ドラフト</div>
-          </div>
-        </div>
+        <PageHeader eyebrow="DRAFT" title={`${selectedYear}年度 ドラフト`} />
 
         <div style={{ padding: '12px 16px 0' }}>
           <CardPanel>
@@ -92,12 +86,8 @@ export default function DraftHistoryPage() {
   // ── 年度一覧（年度ボタン） ──
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
-      <div style={{ padding: '8px 16px 4px' }}>
-        <BackButton />
-      </div>
-      <div style={{ padding: '12px 16px 0' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.orange, letterSpacing: '3px', fontWeight: '900', marginBottom: '2px' }}>RECORDS</div>
-        <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text, marginBottom: '4px' }}>歴代ドラフト</div>
+      <PageHeader eyebrow="RECORDS" title="歴代ドラフト" />
+      <div style={{ padding: '0 16px' }}>
         <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '14px' }}>年度を選ぶとその年のドラフト（1〜40位）を表示</div>
       </div>
 

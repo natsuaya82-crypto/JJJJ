@@ -6,8 +6,8 @@ import { isLeavingClub } from '../../utils/transferEligibility'
 import PlayerRow from '../player/PlayerRow'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
-import BackButton from '../ui/BackButton'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import PageHeader from '../ui/PageHeader'
+import { C, alpha } from '../../styles/tokens'
 
 
 // 移籍方針：選手ごとに 非売 / 貸出歓迎 / 売出 を設定する。
@@ -38,11 +38,8 @@ export default function NoSalePage() {
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100%' }}>
-      <div style={{ padding: '12px 16px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-          <BackButton />
-          <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>移籍方針</div>
-        </div>
+      <PageHeader title="移籍方針" />
+      <div style={{ padding: '0 16px 14px' }}>
         <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
           タップで方針を設定（長押しで詳細）。
           非売＝買い取りオファーを止める／貸出＝レンタル打診が来やすくなる／売出＝市場価値で売りに出し、成立すると入金と退団通知だけが届きます。

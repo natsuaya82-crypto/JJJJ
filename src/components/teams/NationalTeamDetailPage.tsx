@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { C, SAIRA } from '../../styles/tokens'
@@ -58,10 +58,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px' }}>
-      <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
-        <BackButton onClick={onBack} />
-        <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{label} 代表</span>
-      </div>
+      <PageHeader title={`${label} 代表`} onBack={onBack} />
 
       <div style={{
         margin: '8px 12px 12px', borderRadius: '16px',

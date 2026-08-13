@@ -1,4 +1,4 @@
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from '../ui/TipText'
@@ -203,15 +203,8 @@ export default function HelpPage() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
-      <div style={{ padding: '12px 16px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <BackButton />
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900 }}>HOW TO PLAY</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>操作方法・遊び方</div>
-          </div>
-        </div>
-
+      <PageHeader eyebrow="HOW TO PLAY" title="操作方法・遊び方" />
+      <div style={{ padding: '2px 16px 16px' }}>
         <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.7, marginBottom: 16 }}>
           駅伝チームのGMとして、選手を育て、契約を結び、シーズン優勝を目指します。基本の流れは以下の通りです。
         </div>

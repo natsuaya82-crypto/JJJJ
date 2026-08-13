@@ -6,7 +6,7 @@ import { C, SAIRA, FONT } from '../../styles/tokens'
 import { ovr } from '../../utils/playerUtils'
 import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
 import Flag from '../ui/Flag'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import MenuButton from '../ui/MenuButton'
 import { NationalTeamRoster } from './NationalTeamDetailPage'
 import type { Nationality } from '../../types'
@@ -36,12 +36,7 @@ function Header({ eyebrow, title, onBack }: { eyebrow: string; title: string; on
       </div>
     )
   }
-  return (
-    <div style={{ padding: '8px 8px 10px', display: 'flex', alignItems: 'center', gap: 2 }}>
-      <BackButton onClick={onBack} />
-      <div style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{title}</div>
-    </div>
-  )
+  return <PageHeader title={title} onBack={onBack} />
 }
 
 export default function TeamsHub() {

@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { GameStore } from '../../store/gameStore'
 import { liveName } from '../../utils/playerUtils'
@@ -23,13 +23,7 @@ import Panel from '../ui/Panel'
 function PageShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ padding: '0 0 16px', fontFamily: SAIRA, minHeight: '100dvh' }}>
-      <div style={{ padding: '12px 16px 0' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>RECORDS</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: '10px' }}>
-          <BackButton/>
-          <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: C.text }}>{title}</div>
-        </div>
-      </div>
+      <PageHeader eyebrow="RECORDS" title={title} />
       <div style={{ padding: '2px 16px 0' }}>
         {children}
       </div>

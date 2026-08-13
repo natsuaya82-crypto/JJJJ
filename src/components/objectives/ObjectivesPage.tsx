@@ -1,6 +1,6 @@
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA } from '../../styles/tokens'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 
 
 const PROGRESS_IDS = new Set(['segWins', 'winRace', 'rivalBeat'])
@@ -16,17 +16,14 @@ export default function ObjectivesPage() {
   return (
     <div style={{ minHeight: '100%', background: C.bg }}>
       {/* ヘッダー */}
-      <div style={{ padding: '16px 20px 12px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <BackButton />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: '3px', fontWeight: 900 }}>{currentSeason.year} SEASON</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>シーズン目標</div>
-          </div>
-          <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: allDone ? C.green : C.gold }}>
+      <div style={{ padding: '0 20px 12px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
+        <PageHeader
+          eyebrow={`${currentSeason.year} SEASON`}
+          title="シーズン目標"
+          right={<div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: allDone ? C.green : C.gold }}>
             {done}/{objectives.length}
-          </div>
-        </div>
+          </div>}
+        />
 
         {objectives.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', background: alpha('#a78bfa', 0.07), border: `1px solid ${alpha('#a78bfa', 0.2)}`, borderRadius: 10 }}>

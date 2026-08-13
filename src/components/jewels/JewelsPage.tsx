@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { showRewardAd, getAdDay, ADS_PER_DAY } from '../../utils/ads'
 import { C, alpha, SAIRA } from '../../styles/tokens'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { JewelIcon } from '../icons/Icons'
 
@@ -92,12 +92,8 @@ export default function JewelsPage() {
           onCancel={() => setConfirmOpen(false)}
         />
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px 12px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
-        <BackButton />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: '#6dd5fa', letterSpacing: '3px', fontWeight: 900 }}>CURRENCY</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>ジュエル</div>
-        </div>
+      <div style={{ borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
+        <PageHeader eyebrow="CURRENCY" title="ジュエル" />
       </div>
 
       {/* 残高 */}

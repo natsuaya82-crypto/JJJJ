@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME, detectCombo } from '../../utils/cardCombo'
@@ -80,15 +80,12 @@ export default function CardSelectPage() {
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: SAIRA, color: C.text }}>
       {/* 上部固定：ヘッダ＋選択中＋絞り込み（カード一覧だけスクロールし、選択中は常に見える） */}
       <div style={{ flexShrink: 0, background: C.bg, borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <BackButton/>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900 }}>カードを選ぶ</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 1 }}>
-              合成中 <span style={{ color: PURPLE, fontWeight: 800 }}>{fusionCardIds.length}</span>/{MAX_FUSION_CARDS}
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title="カードを選ぶ"
+          right={<div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>
+            合成中 <span style={{ color: PURPLE, fontWeight: 800 }}>{fusionCardIds.length}</span>/{MAX_FUSION_CARDS}
+          </div>}
+        />
 
         {/* 選択中（タップで外す）。常時表示：後から出現するとリストが押し下がり、連打時に違うカードを誤選択するため */}
         <div style={{ padding: '0 14px 10px' }}>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
 import ActionSheet from '../ui/ActionSheet'
@@ -1442,10 +1442,7 @@ export default function FriendClubPage() {
 
   return (
     <div style={{ fontFamily: SAIRA, minHeight: '100%', background: C.bg, paddingBottom: 80 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 4px' }}>
-        <BackButton />
-        <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>走友会</div>
-      </div>
+      <PageHeader title="走友会" />
 
       {/* 走友会の説明は、まだ入っていない人にだけ出す。
           入ったあとも出し続けると、掲示板に着くまでの行数が増えるだけになる */}

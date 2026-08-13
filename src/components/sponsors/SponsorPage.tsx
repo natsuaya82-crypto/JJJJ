@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
@@ -54,19 +54,16 @@ export default function SponsorPage() {
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, minHeight: '100dvh' }}>
-      <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, padding: '12px 16px 10px', borderBottom: `1px solid ${C.border2}` }}>
-        <BackButton/>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>SPONSORS</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text }}>スポンサー管理</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
+      <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, borderBottom: `1px solid ${C.border2}` }}>
+        <PageHeader
+          eyebrow="SPONSORS"
+          title="スポンサー管理"
+          right={<div style={{ textAlign: 'right' }}>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginBottom: 2 }}>年間収入</div>
             <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green }}>{fmtYen(totalAnnualIncome)}/年</div>
             <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginTop: 2 }}>{activeSponsors.length}/{MAX_SPONSORS}社</div>
-          </div>
-        </div>
+          </div>}
+        />
       </div>
 
       <div style={{ display: 'flex', padding: '10px 12px 0', gap: 6 }}>

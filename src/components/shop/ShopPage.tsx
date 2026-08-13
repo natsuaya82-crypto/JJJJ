@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
 import { useState } from 'react'
@@ -238,22 +238,17 @@ export default function ShopPage() {
       )}
 
       {/* Header */}
-      <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, padding: '12px 16px 10px', borderBottom: `1px solid ${C.border2}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <BackButton/>
-            <div>
-              <div style={{ fontSize: 9, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 2 }}>SHOP</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>ショップ</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 10, background: alpha('#6dd5fa', 0.08), border: `1px solid ${alpha('#6dd5fa', 0.25)}` }}>
+      <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, borderBottom: `1px solid ${C.border2}` }}>
+        <PageHeader
+          eyebrow="SHOP"
+          title="ショップ"
+          right={<div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: alpha('#6dd5fa', 0.08), border: `1px solid ${alpha('#6dd5fa', 0.25)}` }}>
             <JewelIcon size={16}/>
             <span style={{ fontSize: 20, fontWeight: 900, color: jewelsColor, textShadow: `0 0 10px ${alpha(jewelsColor, 0.5)}` }}>
               {jewels.toLocaleString()}
             </span>
-          </div>
-        </div>
+          </div>}
+        />
       </div>
 
       {/* Training cards */}

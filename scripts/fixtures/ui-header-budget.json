@@ -1,0 +1,13 @@
+{
+ "src/components/ecl/EclPage.tsx": 1,
+ "src/components/friends/FriendDetailPage.tsx": 4,
+ "src/components/international/NationalResultPage.tsx": 1,
+ "src/components/international/NationalSquadSelectPage.tsx": 1,
+ "src/components/international/WorldTournamentPage.tsx": 1,
+ "src/components/player/CreateMyPlayerPage.tsx": 1,
+ "src/components/race/LineupPhase.tsx": 2,
+ "src/components/shared/PlayerSheet.tsx": 2,
+ "src/components/team/chat/ChatView.tsx": 1,
+ "src/components/team/chat/TradeChatView.tsx": 1,
+ "src/components/teams/TeamDetailPage.tsx": 1
+}

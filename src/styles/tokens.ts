@@ -92,8 +92,12 @@ export const SELECT_STYLE = {
   appearance: 'none' as const, WebkitAppearance: 'none' as const,
 }
 
-/** ヘッダーの高さ。Layout のヘッダーと、その下から始める画面が同じ値を使う */
-export const HEADER_H = 49
+/** ヘッダーの高さ。Layout のヘッダーと、その下から始める画面が同じ値を使う。
+ *  ★ヘッダーは中身なりの高さで、この数はそれに**合わせる**もの（先に決める数ではない）。
+ *    49 のままヘッダーだけ背が伸びていたので、**全画面の上から16pxがヘッダーの裏**に
+ *    入っていた（実測 64.6px）。見出しの英字が上半分だけ欠けて見えていたのがこれ。
+ *    ヘッダーの中身を変えたら、実際の高さを測ってここを直すこと。 */
+export const HEADER_H = 65
 
 /** 下タブの高さ。Layout の下タブと、その上に何かを置く画面が同じ値を使う */
 export const NAV_H = 58

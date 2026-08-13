@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor, racesConsumed } from '../../utils/playerUtils'
@@ -210,14 +210,10 @@ export default function NotificationsPage() {
   return (
     <div style={{ minHeight: '100%', background: C.bg, fontFamily: SAIRA }}>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px 12px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
-        <BackButton/>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.text }}>通知</div>
-        </div>
-        {total > 0 && (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', padding: '3px 10px', borderRadius: '12px', background: C.red, color: '#fff' }}>{total}件</div>
-        )}
+      <div style={{ borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
+        <PageHeader title="通知" right={total > 0 ? (
+          <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', padding: '3px 10px', background: C.red, color: '#fff' }}>{total}件</div>
+        ) : undefined} />
       </div>
 
       {total === 0 ? (

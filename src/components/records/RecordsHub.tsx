@@ -4,7 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { gmCareerTitles, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha, DIV_STAR, SAIRA, FONT } from '../../styles/tokens'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { DIVISION_LABEL, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 
@@ -126,32 +126,26 @@ export default function RecordsHub() {
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: '80px', minHeight: '100dvh' }}>
-      <div style={{ padding: '12px 16px 16px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>
-          {currentSeason.year} RECORDS
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <BackButton />
-            <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text }}>記録室</div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {/* ★**部ごとの札**にする。合計の★だけだと3部優勝も1部優勝も同じ見た目になる */}
-            {titleRows(gmTitles.titles).map(r => (
-              <div key={r.division} style={{ padding: '4px 10px', borderRadius: '20px', background: alpha(DIV_STAR[r.division], 0.12), border: `1px solid ${alpha(DIV_STAR[r.division], 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '9px', color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: DIV_STAR[r.division] }}>★</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', color: DIV_STAR[r.division], textShadow: `0 0 6px ${alpha(DIV_STAR[r.division], 0.5)}` }}>{r.count}</span>
-              </div>
-            ))}
-            <div style={{ padding: '4px 10px', borderRadius: '20px', background: myStanding <= 3 ? alpha(C.green, 0.12) : C.surface2, border: `1px solid ${myStanding <= 3 ? alpha(C.green, 0.28) : C.border}`, display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontSize: '9px', color: C.textDim }}>現在</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: myStanding <= 3 ? C.green : C.textSub, textShadow: myStanding <= 3 ? `0 0 6px ${alpha(C.green, 0.4)}` : 'none' }}>{myStanding > 0 ? myStanding : '—'}</span>
-              <span style={{ fontSize: '9px', color: C.textDim }}>位</span>
+      <PageHeader
+        eyebrow={`${currentSeason.year} RECORDS`}
+        title="記録室"
+        right={<div style={{ display: 'flex', gap: '8px' }}>
+          {/* ★**部ごとの札**にする。合計の★だけだと3部優勝も1部優勝も同じ見た目になる */}
+          {titleRows(gmTitles.titles).map(r => (
+            <div key={r.division} style={{ padding: '4px 10px', background: alpha(DIV_STAR[r.division], 0.12), border: `1px solid ${alpha(DIV_STAR[r.division], 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '9px', color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: '12px', color: DIV_STAR[r.division] }}>★</span>
+              <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', color: DIV_STAR[r.division], textShadow: `0 0 6px ${alpha(DIV_STAR[r.division], 0.5)}` }}>{r.count}</span>
             </div>
+          ))}
+          <div style={{ padding: '4px 10px', background: myStanding <= 3 ? alpha(C.green, 0.12) : C.surface2, border: `1px solid ${myStanding <= 3 ? alpha(C.green, 0.28) : C.border}`, display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ fontSize: '9px', color: C.textDim }}>現在</span>
+            <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: myStanding <= 3 ? C.green : C.textSub, textShadow: myStanding <= 3 ? `0 0 6px ${alpha(C.green, 0.4)}` : 'none' }}>{myStanding > 0 ? myStanding : '—'}</span>
+            <span style={{ fontSize: '9px', color: C.textDim }}>位</span>
           </div>
-        </div>
-
+        </div>}
+      />
+      <div style={{ padding: '0 16px 16px' }}>
         {pastSeasons.length > 0 && (
           <div style={{ ...panelStyle(C.gold), padding: '10px 12px', marginBottom: 4 }}>
             <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px' }}>過去の成績</div>

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { reinforcementBanned } from '../../data/economy'
 import { useTeamHistory } from '../../lib/useTeamHistory'
@@ -87,16 +87,8 @@ export default function BudgetPage() {
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: `linear-gradient(180deg, ${C.bg} 60%, transparent)`,
-        padding: '14px 16px 10px',
-        display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        <BackButton/>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.5 }}>財務・予算管理</div>
-          <div style={{ fontSize: 11, color: C.textDim, marginTop: 1 }}>
-            {currentSeason.year}シーズン
-          </div>
-        </div>
+        <PageHeader eyebrow={`${currentSeason.year} SEASON`} title="財務・予算管理" />
       </div>
 
       <div style={{ margin: '4px 14px 14px' }}>

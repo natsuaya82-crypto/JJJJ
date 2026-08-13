@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { greatSuccessChance, activeEvents } from '../../data/events'
 import { comparePlayers } from '../../utils/playerSort'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey } from '../../types'
@@ -173,29 +173,23 @@ export default function CardTrainingPage() {
           <span style={{ fontSize: 9, color: C.textDim }}>{ev.to.slice(5).replace('-', '/')}まで</span>
         </div>
       ))}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <BackButton onClick={onBack}/>
-        {backLabel && <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: C.textSub }}>{backLabel}</div>}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: PURPLE, letterSpacing: '3px', fontWeight: 900, marginBottom: 1 }}>CARD TRAINING</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>カード練習</div>
-          </div>
-          <CardTrainingHeaderSVG width={60} height={43} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <PageHeader
+        eyebrow={backLabel ? `CARD TRAINING — ${backLabel}` : 'CARD TRAINING'}
+        title="カード練習"
+        icon={<CardTrainingHeaderSVG width={60} height={43} />}
+        onBack={onBack}
+        right={<div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{
-            padding: '4px 10px', borderRadius: 20,
+            padding: '4px 10px',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${alpha(PURPLE, 0.5)}`,
-            boxShadow: `0 2px 0 ${alpha(PURPLE, 0.3)}`,
+            border: `1px solid ${alpha(PURPLE, 0.5)}`,
           }}>
             <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: PURPLE }}>{trainingCards.length}</span>
             <span style={{ fontFamily: SAIRA, fontSize: 9, color: C.textSub }}> 枚</span>
           </div>
           <GlassButton size="sm" style={{ padding: '6px 12px' }} onClick={() => navigate('/cards/list')}>一覧</GlassButton>
-        </div>
-      </div>
+        </div>}
+      />
     </div>
   )
 
