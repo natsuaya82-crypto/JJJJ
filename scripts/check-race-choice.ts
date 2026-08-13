@@ -20,9 +20,11 @@
  *   ⑥ **ラスト勝負が実際に出る。** 発火地点（74〜88%）だけ書いてあって
  *      そのIDのイベントが無く、**終盤に出る札が1枚も無かった**
  *
- * ■壊して確かめたこと（この網が本当に守っているか。7通り全部が落ちた）
- *   ・`CHOICE_EFFECTS` の温存を `-0.0010 → 0` に戻す           → [2] が落ちる
- *   ・攻めの失敗を `+0.0090 → +0.0068`（比を標準と揃える）      → [3] が落ちる
+ * ■壊して確かめたこと（この網が本当に守っているか。全部が落ちた）
+ *   ・攻めの成功率の上限を `0.65 → 0.55`                        → [2][3] が落ちる
+ *   ・温存の成功率を 100% でなくす                              → [1] が落ちる
+ *   ・温存に中身を戻す（`0 → -0.0010`）                         → [1][2] が落ちる
+ *   ・失敗の減点を得と同じにする（攻め `+0.0039 → +0.0077`）    → [1][2] が落ちる
  *   ・`getCpuOvr` / `fieldOvr` から消耗を引くのをやめる          → [4] が落ちる
  *   ・`EVENT_SCALE` の給水を 0.5 → 1.0                          → [5] が落ちる
  *   ・`resolveChoice` で `scale` を掛けるのをやめる             → [5] が落ちる
@@ -75,10 +77,22 @@ console.log('[1] 効き目の表は1本（7つのイベントが同じ数字を�
       return w.timeBonusSuccess === c.timeBonusSuccess && w.timeBonusFail === c.timeBonusFail
     }))
   // ★数字はリテラルで留める（表を読んで表と比べても何も守れない）
-  const want = [[-0.0090, 0.0090], [-0.0035, 0.0020], [-0.0010, 0]]
-  check('数字が仕様どおり（攻め ∓0.90% / 標準 -0.35%+0.20% / 温存 -0.10%）',
+  const want = [[-0.0077, 0.0039], [-0.0035, 0.0018], [0, 0]]
+  check('数字が仕様どおり（攻め -0.77%/+0.39% ・ 標準 -0.35%/+0.18% ・ 温存 0）',
     CHOICE_EFFECTS.every((e, i) => e.timeBonusSuccess === want[i][0] && e.timeBonusFail === want[i][1]),
     CHOICE_EFFECTS.map(e => `${e.timeBonusSuccess}/${e.timeBonusFail}`).join(' '))
+  // 温存は「押しても何も起きない＝スキップと同じ」（オーナー決定）。
+  // 100%でないと「何も起きないことに失敗する」という意味の無い判定になる
+  check('温存は100%', choiceSuccessProb('conservative', 50, 50) === 1
+    && choiceSuccessProb('conservative', 10, 90) === 1 && choiceSuccessProb('conservative', 90, 10) === 1)
+  check('温存は成功しても失敗しても0秒（スキップと同じ）',
+    effectOf('conservative').timeBonusSuccess === 0 && effectOf('conservative').timeBonusFail === 0)
+  // 失敗は「そこそこ遅くなる」＝得の半分（オーナー決定）。
+  // ここを得と同じにすると、低確率の攻めはどの場面でも損＝押した人が必ず損する罠になる
+  const halfRatio = (h: Hand) => effectOf(h).timeBonusFail / -effectOf(h).timeBonusSuccess
+  check('失敗の減点は得の半分（攻め・標準とも）',
+    Math.abs(halfRatio('aggressive') - 0.5) < 0.02 && Math.abs(halfRatio('balanced') - 0.5) < 0.02,
+    `攻め ${halfRatio('aggressive').toFixed(3)} / 標準 ${halfRatio('balanced').toFixed(3)}`)
   // 効き目は**タイムだけ**。スタミナを戻すと、区間ごとに引き直される値を削るだけの
   // 隠れた2本目のタイム減点になり、②が再発する
   check('効き目にスタミナが無い',
@@ -107,25 +121,39 @@ console.log('\n[2] 「温存」が全場面で最良にならない（＝正解�
   check('不利（gap-20）なら温存', bestAt(-20) === 'conservative', LABEL[bestAt(-20)])
   check('互角（gap 0）なら標準', bestAt(0) === 'balanced', LABEL[bestAt(0)])
   check('有利（gap+15）なら攻め', bestAt(15) === 'aggressive', LABEL[bestAt(15)])
-  check('温存は失敗しても損しない', effectOf('conservative').timeBonusFail === 0)
-  check('温存にも中身がある（押して何も起きない肢にしない）',
-    effectOf('conservative').timeBonusSuccess < 0)
+  check('温存は押しても何も起きない（スキップと同じ）', ev('conservative', 0) === 0 && ev('conservative', 30) === 0)
 }
 
-console.log('\n[3] 肢ごとに「得になる分かれ目」が違う（攻めが標準の倍率違いになっていない）')
+console.log('\n[3] 攻めの成功率の幅（低確率・高リターンが成立しているか）')
 {
-  // 得と損の比が同じだと、EVが0になる成功率が全部同じ値になる＝攻めは標準の2倍でしかない。
-  // 分かれ目 = 損 / (得 + 損)
-  const breakeven = (h: Hand) => {
-    const e = effectOf(h)
-    return e.timeBonusFail / (e.timeBonusFail - e.timeBonusSuccess)
+  // ★ここは実際に踏んだ穴。攻めの上限が 55% だと、実力差がいくつでも標準のほうが得で、
+  //   **攻めが一度も最良にならない**（低確率なぶんの高リターンが上限で頭打ちになるため）。
+  //   65% にして解消。数字を下げるならここが落ちる。
+  const pAgg = (g: number) => choiceSuccessProb('aggressive', 50 + g, 50)
+  const pBal = (g: number) => choiceSuccessProb('balanced', 50 + g, 50)
+  console.log(`      攻め ${(pAgg(-40) * 100).toFixed(0)}〜${(pAgg(40) * 100).toFixed(0)}%（互角 ${(pAgg(0) * 100).toFixed(0)}%）`
+    + ` / 標準 ${(pBal(-40) * 100).toFixed(0)}〜${(pBal(40) * 100).toFixed(0)}%（互角 ${(pBal(0) * 100).toFixed(0)}%）`)
+  check('攻めは 8〜65%（互角で20%）', pAgg(-40) === 0.08 && pAgg(40) === 0.65 && Math.abs(pAgg(0) - 0.20) < 1e-9)
+  check('標準は 30〜92%（互角で62%）', pBal(-40) === 0.30 && pBal(40) === 0.92 && Math.abs(pBal(0) - 0.62) < 1e-9)
+  check('攻めは標準より低確率（どの実力差でも）',
+    [-40, -20, -10, 0, 10, 20, 40].every(g => pAgg(g) < pBal(g)))
+
+  // 上限を下げるとどうなるかを、この場で計算して確かめる（「65でよかった」の根拠を残す）
+  const bestWithCap = (cap: number, gap: number): Hand => {
+    const evc = (h: Hand) => {
+      const e = effectOf(h)
+      const p = h === 'aggressive'
+        ? Math.min(cap, choiceSuccessProb(h, 50 + gap, 50))
+        : choiceSuccessProb(h, 50 + gap, 50)
+      return p * e.timeBonusSuccess + (1 - p) * e.timeBonusFail
+    }
+    return HANDS.reduce((a, b) => (evc(b) < evc(a) ? b : a))
   }
-  for (const h of HANDS) console.log(`      ${LABEL[h]} の分かれ目 = 成功率 ${(breakeven(h) * 100).toFixed(1)}%`)
-  check('攻めの分かれ目は50%', Math.abs(breakeven('aggressive') - 0.5) < 1e-9)
-  check('標準の分かれ目は50%より低い（攻めよりリスクが小さい）',
-    breakeven('balanced') < breakeven('aggressive') - 0.05,
-    `${(breakeven('balanced') * 100).toFixed(1)}%`)
-  check('温存に分かれ目は無い（常に損しない）', breakeven('conservative') === 0)
+  const GAPS = Array.from({ length: 51 }, (_, i) => i - 25)
+  check('上限55%だと攻めが一度も最良にならない（＝65%が要る理由）',
+    GAPS.every(g => bestWithCap(0.55, g) !== 'aggressive'))
+  check('いまの上限なら攻めが最良になる実力差がある',
+    GAPS.some(g => bestWithCap(1, g) === 'aggressive'))
 }
 
 const R = (n: number): Ratings => ({
@@ -186,7 +214,8 @@ console.log('\n[5] 場面ごとに効き幅が違う（給水と山岳が同じ�
   const T4722 = 4722
   const ROWS = Object.entries(EVENT_SCALE).sort((a, b) => a[1] - b[1])
   for (const [id, k] of ROWS) {
-    console.log(`      ${id.padEnd(17)} ×${k}  攻めの振れ幅 ±${(0.0090 * k * T4722).toFixed(0)}秒`)
+    const win = Math.abs(CHOICE_EFFECTS[0].timeBonusSuccess) * k * T4722
+    console.log(`      ${id.padEnd(17)} ×${k}  攻め 成功-${win.toFixed(0)}秒 / 失敗+${(win / 2).toFixed(0)}秒`)
   }
   check('7種＋ラスト勝負の8つ全部に効き幅がある', ROWS.length === 8, `${ROWS.length}件`)
   // ★リテラルで留める。表を読んで表と比べても何も守れない

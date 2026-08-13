@@ -68,20 +68,26 @@ export type RaceSegmentEvent = {
  *   温存は成功しても失敗しても何も起きない肢なので、
  *   **駅伝中の正解が全場面で「何もしない」を押すこと**になっていた。
  *
- * ■いまの形
- *   得と損の比を肢ごとに変えてある。ここが揃っていると、有利／不利の分かれ目が
- *   全部の肢で同じ成功率になり、攻めが「標準の2倍」でしかなくなる（以前がこれ）。
+ * ■いまの形（オーナー決定・2026-08-13）
+ *   **温存は「押しても何も起きない」肢**。スキップしたのとまったく同じ。
+ *   大事なのは残り2つで、**低確率・高リターン（攻め）と、普通の確率・小さいリターン（標準）**。
  *
- *     攻め   -0.90% / +0.90%   比1:1  → 成功率50%より上で得
- *     標準   -0.35% / +0.20%   比7:4  → 36%より上で得
- *     温存   -0.10% /  0       損しない。確実に少しだけ稼ぐ
+ *     攻め   -0.77% / +0.39%   成功率  8〜65%（互角で20%）
+ *     標準   -0.35% / +0.18%   成功率 30〜92%（互角で62%）
+ *     温存    0     /  0       100%。何も起きない
  *
- *   → gap -7以下なら温存 / -7〜+8なら標準 / +8以上なら攻め、の三すくみになる。
+ *   → gap -18以下なら温存 / -18〜+15なら標準 / +15以上なら攻め。
+ *
+ * ★**肢ごとの「得と損の比」だけで三すくみを作らないこと。**
+ *   比が同じでも、成功率の伸び方（`choiceSuccessProb`）が肢ごとに違うので分かれる。
+ *   逆に、比を変えても**攻めの成功率の上限が低すぎると攻めが一度も最良にならない**。
+ *   実際、上限55%で組んだときは実力差がいくつでも標準のほうが得だった（上限65%で解消）。
+ *   数字を触ったら `scripts/check-race-choice.ts` の [2] で3つとも最良になるか必ず見ること。
  */
 export const CHOICE_EFFECTS: RaceSegmentEvent['_effects'] = [
-  { effortType: 'aggressive',   timeBonusSuccess: -0.0090, timeBonusFail: +0.0090 },
-  { effortType: 'balanced',     timeBonusSuccess: -0.0035, timeBonusFail: +0.0020 },
-  { effortType: 'conservative', timeBonusSuccess: -0.0010, timeBonusFail: 0 },
+  { effortType: 'aggressive',   timeBonusSuccess: -0.0077, timeBonusFail: +0.0039 },
+  { effortType: 'balanced',     timeBonusSuccess: -0.0035, timeBonusFail: +0.0018 },
+  { effortType: 'conservative', timeBonusSuccess: 0,       timeBonusFail: 0 },
 ]
 
 /** 給水だけは肢の並びが「温存 → 標準 → 攻め」（しっかり給水／素早く／パス） */
@@ -94,7 +100,10 @@ export const WATER_EFFECTS: RaceSegmentEvent['_effects'] = [...CHOICE_EFFECTS].r
  * 7つが同じ数字を7回手書きしていた状態に戻り、1つ直したときに必ず食い違う。
  *
  * 給水で山岳と同じだけ動くのはおかしい、という「場面の重み」だけをここで表す。
- * 区間タイム4722秒での「攻めの成功／失敗」の振れ幅は、給水±21秒〜ラスト±59秒。
+ *
+ * 「攻め」が成功したときに縮む秒数は、実測（`scripts/measure-choice-swing.ts`）で
+ * 中央の区間（27分19秒）なら給水-6秒〜ラスト-18秒、長い区間（62分11秒）なら-14〜-40秒。
+ * 失敗したときはその半分だけ遅くなる。
  */
 export const EVENT_SCALE: Record<string, number> = {
   water_station: 0.5,
@@ -739,17 +748,22 @@ function makeWaterStationEvent(player: Player, seg: Segment, ctx: RaceContext): 
 
 // ─── Resolve Choice ──────────────────────────────────────────────────────────
 
-// 選択肢の成功確率。攻め＝低確率・高リターン / 標準＝中間 / 温存＝高確率。
-// どれも実力差(gap)で上下するので、同じイベントでも選択肢ごとに違う%が並ぶ。
+// 選択肢の成功確率。攻め＝低確率・高リターン / 標準＝普通の確率・小さいリターン /
+// 温存＝100%（何も起きない）。攻めと標準は実力差(gap)で上下する。
 // 表示(SimPhase)と判定(resolveChoice)で同じ値を使うためにexportして共用する。
+//
+// ★温存が 100% なのは「押しても何も起きない＝スキップと同じ」だから（`CHOICE_EFFECTS` 参照）。
+//   ここを 1 未満にすると「何も起きないことに失敗する」という意味の無い判定になる。
+// ★攻めの上限 0.65 を下げないこと。0.55 だと実力差がいくつでも標準のほうが得になり、
+//   **攻めが一度も最良にならない肢**になる（`check-race-choice` の [2] が落ちる）。
 export function choiceSuccessProb(
   effortType: 'aggressive' | 'balanced' | 'conservative',
   segStamina: number,
   opponentOvr: number,
 ): number {
   const gap = segStamina - opponentOvr
-  if (effortType === 'conservative') return Math.max(0.85, Math.min(0.99, 0.93 + gap * 0.004))
-  if (effortType === 'aggressive') return Math.max(0.10, Math.min(0.80, 0.42 + gap * 0.025))
+  if (effortType === 'conservative') return 1
+  if (effortType === 'aggressive') return Math.max(0.08, Math.min(0.65, 0.20 + gap * 0.025))
   return Math.max(0.30, Math.min(0.92, 0.62 + gap * 0.015))
 }
 
@@ -768,7 +782,7 @@ export function resolveChoice(
   if (!effect) return { timeDelta: 0, success: true }
 
   // timeBonus は区間タイムに対する割合。区間の基準タイムに掛けて秒に変換する。
-  // 温存も含めて全選択肢が表示された%どおりに判定される（温存は高確率だが確実ではない）
+  // 表示された%どおりに判定される（温存は100%だが、成功しても失敗しても0秒）
   const successProb = choiceSuccessProb(effect.effortType, segStamina, event.opponentOvr ?? segStamina)
   const success = Math.random() < successProb
 

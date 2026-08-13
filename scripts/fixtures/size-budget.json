@@ -2,7 +2,7 @@
  "src/engine/cpuMarket.ts": 567,
  "src/engine/cpuOffseason.ts": 423,
  "src/engine/growth.ts": 274,
- "src/engine/interactiveRace.ts": 803,
+ "src/engine/interactiveRace.ts": 817,
  "src/engine/playerGenerator.ts": 1477,
  "src/engine/raceEngine.ts": 472,
  "src/engine/transferMarket.ts": 318,
