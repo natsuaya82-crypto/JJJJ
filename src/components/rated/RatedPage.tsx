@@ -5,6 +5,7 @@ import BackButton from '../ui/BackButton'
 import PressButton from '../ui/PressButton'
 import { courseDistanceKm } from '../../engine/ratedCourse'
 import { rankProgressOf } from '../../engine/rating'
+import { RANK_ART } from './rankArt'
 import {
   canJoin, fetchMe, fetchResult, fetchToday, SUBMIT_DEADLINE_HHMM,
   type RatedMe, type RatedResult, type RatedToday,
@@ -26,27 +27,7 @@ import type { Segment } from '../../types'
 //   `rankProgressOf` 1本。画面で計算しないこと。
 // ============================================================================
 
-/** 段位の色。**名前は rating.ts が持ち、色だけここ** */
-const RANK_COLOR: Record<string, string> = {
-  ブロンズ: '#c98a5b', シルバー: '#c3ced9', ゴールド: '#d4af37',
-  プラチナ: '#8fd9cb', ダイヤモンド: '#8fc4ef', マスター: '#b98fe0',
-  レジェンド: '#e88b5c',
-}
-
 const WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const
-
-/** 段位の紋章。線だけの落ち着いた形（塗りは薄く1枚）。**中に文字は入れない** */
-function RankCrest({ color, size = 78 }: { color: string; size?: number }) {
-  return (
-    <svg width={size} height={size * 1.08} viewBox="0 0 60 65" fill="none">
-      <path d="M30 3l24 8v24c0 14-10 24-24 30C16 59 6 49 6 35V11l24-8z" fill={alpha(color, 0.07)} />
-      <path d="M30 3l24 8v24c0 14-10 24-24 30C16 59 6 49 6 35V11l24-8z" stroke={color} strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M30 9l18 6v20c0 11-7.5 18.5-18 23.5C19.5 53.5 12 46 12 35V15l18-6z" stroke={alpha(color, 0.45)} strokeWidth="0.8" strokeLinejoin="round" />
-      <path d="M30 20l2.6 5.7 6.2.8-4.6 4.3 1.2 6.1L30 34l-5.4 2.9 1.2-6.1-4.6-4.3 6.2-.8L30 20z"
-        fill={alpha(color, 0.55)} />
-    </svg>
-  )
-}
 
 /** 区間の起伏。同じ区間なら必ず同じ形 */
 function ElevationLine({ seg, width = 116, height = 20 }: { seg: Segment; width?: number; height?: number }) {
@@ -107,7 +88,7 @@ export default function RatedPage() {
   const segs = today?.course.segments ?? []
   const submitted = Object.keys(me?.lineup ?? {}).length >= segs.length && segs.length > 0
   const prog = rankProgressOf(me?.rating ?? 0)
-  const rankCol = RANK_COLOR[prog.name] ?? C.cyan
+  const art = RANK_ART[prog.name]
   const d = today ? new Date(`${today.dateISO}T00:00:00Z`) : null
   const hh = String(Math.floor(left / 3600)).padStart(2, '0')
   const mm = String(Math.floor((left % 3600) / 60)).padStart(2, '0')
@@ -133,10 +114,10 @@ export default function RatedPage() {
       {/* ── レート ── */}
       <div style={{ padding: '4px 18px 18px', borderTop: `1px solid ${alpha(C.border3, 0.55)}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 16 }}>
-          <RankCrest color={rankCol} />
+          <img src={art.img} alt="" width={86} height={86} style={{ flexShrink: 0, display: 'block' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
-              fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: rankCol,
+              fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: art.color,
               letterSpacing: '3px', lineHeight: 1,
             }}>{prog.en}</div>
             <div style={{

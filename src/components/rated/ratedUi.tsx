@@ -2,17 +2,14 @@ import { rankOf } from '../../engine/rating'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 
+import { RANK_ART } from './rankArt'
+
 // レート戦の3ページ（トップ・結果・順位表）で共通の見た目。
 // ★段位の名前は `engine/rating` の rankOf 1本。ここが持つのは色だけ。
 
-const RANK_COLOR: Record<string, string> = {
-  ブロンズ: '#b87333', シルバー: '#b8c4d0', ゴールド: '#f5c842',
-  プラチナ: '#7fe3d4', ダイヤモンド: '#7fc4ff', マスター: '#c78bff', レジェンド: '#ff8a5c',
-}
-
 export function RankChip({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' }) {
   const name = rankOf(rating)
-  const col = RANK_COLOR[name] ?? C.textSub
+  const col = RANK_ART[name].color
   return (
     <span style={{
       fontSize: size === 'sm' ? 9 : 11, fontWeight: 900, color: col,
