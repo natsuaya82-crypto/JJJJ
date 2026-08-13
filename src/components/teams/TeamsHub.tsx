@@ -25,33 +25,15 @@ function RowCard({ onClick, icon, title, right }: {
   return (
     <button
       onClick={onClick}
-      className="btn-press"
-      style={{
-        width: '100%', padding: '12px 14px', borderRadius: 14,
-        background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-        border: `2px solid ${C.goldDark}`,
-        boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
-        display: 'flex', alignItems: 'center', gap: 12,
-        fontFamily: 'inherit', cursor: 'pointer', position: 'relative', overflow: 'hidden',
-      } as React.CSSProperties}
+      className="premium-menu-button"
+      style={{ height: 72 }}
     >
-      <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.2)', borderRadius: 10, pointerEvents: 'none' }} />
-      {icon && (
-        <div style={{
-          width: 40, height: 40, borderRadius: 10, flexShrink: 0, position: 'relative', zIndex: 1,
-          background: 'linear-gradient(180deg, #2a4060 0%, #122440 100%)', border: `2px solid ${C.bg}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3)',
-        }}>{icon}</div>
-      )}
-      {/* アイコン無しカードも同じ高さに揃える（minHeight=アイコンと同じ40px） */}
-      <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1, minHeight: 40, display: 'flex', alignItems: 'center' }}>
-        <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{title}</span>
-      </div>
-      {right && <div style={{ position: 'relative', zIndex: 1 }}>{right}</div>}
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>
-        <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
+      {icon && <span className="premium-menu-button__icon">{icon}</span>}
+      <span className="premium-menu-button__content">
+        <span className="premium-menu-button__japanese">{title}</span>
+      </span>
+      {right && <span style={{ position: 'relative', zIndex: 1, marginLeft: 'auto' }}>{right}</span>}
+      <span className="premium-menu-button__arrow" style={right ? { marginLeft: 10 } : undefined}>›</span>
     </button>
   )
 }
