@@ -117,7 +117,7 @@ export default function OnlinePage() {
             badge={s.badge}
             badgeColor={s.color}
             note={s.soon ? '準備中' : undefined}
-            tone={s.color === C.cyan ? 'cyan' : 'gold'}
+            color={s.color}
             disabled={s.soon}
             onClick={() => navigate(s.key)}
           />

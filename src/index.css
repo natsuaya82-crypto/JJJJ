@@ -567,13 +567,16 @@ button { font-family: inherit; }
   height: 68px;
   padding: 0 18px;
   /* スモークガラス。**後ろの背景が透けること**が大事なので、塗りを濃くしない */
-  background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%);
+  /* --tint は行ごとの色（元の色を尊重する）。既定は無色 */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%),
+    linear-gradient(180deg, var(--tint-fill, transparent) 0%, transparent 70%);
   backdrop-filter: blur(10px) saturate(118%);
   -webkit-backdrop-filter: blur(10px) saturate(118%);
   border: none;
   border-radius: 18px;
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.16),     /* 細い縁（金枠は使わない） */
+    inset 0 0 0 1px var(--tint-edge, rgba(255,255,255,0.16)),   /* 細い縁＝その行の色 */
     inset 0 1px 0 rgba(255,255,255,0.26),       /* 上のふちの光 */
     inset 0 -1px 0 rgba(0,0,0,0.35),
     0 10px 26px -12px rgba(0,0,0,0.95);
@@ -649,19 +652,6 @@ button { font-family: inherit; }
   font-weight: 300;
   color: rgba(255,255,255,0.45);
 }
-
-/* 大事な項目（オンライン対戦など） */
-.premium-menu-button--cyan {
-  box-shadow:
-    inset 0 0 0 1px rgba(67,211,255,0.65),
-    inset 0 1px 0 rgba(255,255,255,0.30),
-    inset 0 -1px 0 rgba(0,0,0,0.35),
-    0 10px 26px -12px rgba(0,0,0,0.95),
-    0 0 16px -6px rgba(67,211,255,0.35);
-}
-.premium-menu-button--cyan .premium-menu-button__icon,
-.premium-menu-button--cyan .premium-menu-button__english,
-.premium-menu-button--cyan .premium-menu-button__arrow { color: #55d9ff; }
 
 /* 押せないもの */
 .premium-menu-button.is-off {

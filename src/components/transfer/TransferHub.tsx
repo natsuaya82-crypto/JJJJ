@@ -167,6 +167,7 @@ export default function TransferHub() {
                 label={s.label}
                 badge={s.badge}
                 badgeColor={s.color}
+                color={s.color}
                 onClick={() => navigate((s as { path?: string }).path ?? `/transfer/${s.key}`)}
               />
             ))}

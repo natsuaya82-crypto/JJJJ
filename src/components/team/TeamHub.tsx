@@ -274,6 +274,7 @@ export default function TeamHub() {
             label={s.label}
             badge={s.badge}
             badgeColor={s.color}
+            color={s.color}
             onClick={() => navigate(s.key)}
           />
         ))}

@@ -1,4 +1,4 @@
-import { C } from '../../styles/tokens'
+import { C, alpha } from '../../styles/tokens'
 
 // ============================================================================
 // **画面から画面へ渡る一覧の行（ガラスのボタン）。**
@@ -9,7 +9,7 @@ import { C } from '../../styles/tokens'
 // ★見た目は `index.css` の `.premium-menu-button`（ガラス・丸角・細い金枠）1本。
 // ============================================================================
 
-export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.gold, note, tone = 'gold', disabled, onClick }: {
+export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.gold, note, color = C.gold, disabled, onClick }: {
   icon: React.ReactNode
   label: string
   /** 上に出る英字。無ければ出さない */
@@ -18,22 +18,24 @@ export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.
   badgeColor?: string
   /** 「準備中」のような状態。説明文は置かないこと */
   note?: string
-  tone?: 'gold' | 'cyan'
+  /** その行の色。**もとの画面で使っていた色をそのまま渡すこと**（金は金、シアンはシアン） */
+  color?: string
   disabled?: boolean
   onClick: () => void
 }) {
   return (
     <button
       onClick={() => { if (!disabled) onClick() }}
-      className={[
-        'premium-menu-button',
-        tone === 'cyan' ? 'premium-menu-button--cyan' : '',
-        disabled ? 'is-off' : '',
-      ].filter(Boolean).join(' ')}
+      className={['premium-menu-button', disabled ? 'is-off' : ''].filter(Boolean).join(' ')}
+      style={disabled ? undefined : {
+        // ガラスをその行の色に染める
+        ['--tint-edge' as string]: alpha(color, 0.55),
+        ['--tint-fill' as string]: alpha(color, 0.07),
+      }}
     >
-      <span className="premium-menu-button__icon">{icon}</span>
+      <span className="premium-menu-button__icon" style={disabled ? undefined : { color }}>{icon}</span>
       <span className="premium-menu-button__content">
-        {en && <span className="premium-menu-button__english">{en}</span>}
+        {en && <span className="premium-menu-button__english" style={disabled ? undefined : { color: alpha(color, 0.85) }}>{en}</span>}
         <span className="premium-menu-button__japanese">
           {label}
           {badge > 0 && (
@@ -48,7 +50,7 @@ export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.
           )}
         </span>
       </span>
-      {!disabled && <span className="premium-menu-button__arrow">›</span>}
+      {!disabled && <span className="premium-menu-button__arrow" style={{ color: alpha(color, 0.8) }}>›</span>}
     </button>
   )
 }
