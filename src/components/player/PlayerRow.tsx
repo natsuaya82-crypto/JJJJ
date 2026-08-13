@@ -82,7 +82,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
         <button
           {...handlers}
           style={{
-            flex: 1, display: 'flex', alignItems: 'center', gap: 10,
+            flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 12px 6px 12px',
             background: 'none', border: 'none', cursor: 'pointer',
             fontFamily: 'inherit', textAlign: 'left',
