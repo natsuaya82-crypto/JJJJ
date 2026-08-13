@@ -38,40 +38,27 @@ export function Card({ children, accent = C.cyan, onClick }: {
 }
 
 /**
- * 丸ボタン。**単色で塗らない**——本編の立体ボタン（`btn-game`）と同じ
- * 上下グラデーション＋下の影＋押すと沈む、を丸で。
+ * 四角い立体ボタン。**色は本編の `btn-game--*` をそのまま使う**
+ * （自分でグラデーションを書かない＝単色になったり本編と違う見た目になる）。
  */
-export function RoundButton({ label, color, icon, disabled, onClick }: {
+export function TileButton({ label, tone, icon, disabled, onClick }: {
   label: string
-  /** [明るい面, 中間, 暗い面, 下の影] */
-  color: readonly [string, string, string, string]
-  /** 丸の中に出す絵。**数字は入れない**（何の数字か分からない） */
+  tone: 'gold' | 'blue' | 'green' | 'red' | 'purple'
   icon: React.ReactNode
   disabled?: boolean
   onClick: () => void
 }) {
-  const [hi, mid, dark, drop] = disabled
-    ? ['#4a4f5e', '#3a3f4c', '#2a2e38', '#1a1d24'] as const
-    : color
   return (
     <button
       onClick={() => { if (!disabled) onClick() }}
-      className="btn-game"
-      style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', padding: 0, cursor: disabled ? 'default' : 'pointer' }}
+      className={`btn-game btn-game--${tone}`}
+      style={{ flex: 1, minWidth: 0, opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer' }}
     >
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-        <span className="btn-game__inner" style={{
-          width: 68, height: 68, borderRadius: '50%', padding: 0, position: 'relative',
-          background: `linear-gradient(180deg, ${hi} 0%, ${mid} 52%, ${dark} 100%)`,
-          border: `2px solid ${dark}`,
-          boxShadow: `0 6px 0 ${drop}, 0 8px 18px ${alpha(mid, 0.3)}, inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -3px 0 rgba(0,0,0,0.2)`,
-        }}>
-          <span style={{ color: '#fff', display: 'flex' }}>{icon}</span>
-        </span>
-        <span style={{
-          fontSize: 11, fontWeight: 900, color: disabled ? C.textDim : C.textSub,
-          whiteSpace: 'nowrap',
-        }}>{label}</span>
+      <span className="btn-game__inner" style={{
+        flexDirection: 'column', gap: 5, padding: '12px 4px', borderRadius: 14,
+      }}>
+        <span style={{ display: 'flex' }}>{icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 900, whiteSpace: 'nowrap' }}>{label}</span>
       </span>
     </button>
   )

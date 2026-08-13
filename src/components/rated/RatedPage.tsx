@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { IconFlag, IconRace, IconTrophy } from '../icons/Icons'
 import { courseDistanceKm } from '../../engine/ratedCourse'
-import { Card, RankChip, RatedShell, RoundButton } from './ratedUi'
+import { Card, RankChip, RatedShell, TileButton } from './ratedUi'
 import {
   canJoin, fetchMe, fetchResult, fetchToday,
   RESULT_HHMM, SUBMIT_DEADLINE_HHMM,
@@ -123,24 +123,19 @@ export default function RatedPage() {
         </div>
       )}
 
-      {/* 丸ボタン3つ */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '0 6px' }}>
-        <RoundButton
-          label="順位表" icon={<IconTrophy size={30} />}
-          color={['#7fd8ff', '#5ed4ff', '#1a6b8f', '#0e3f5a']}
+      {/* 四角い立体ボタン3つ */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <TileButton
+          label="順位表" tone="blue" icon={<IconTrophy size={26} />}
           onClick={() => navigate('/online/rated/standings')}
         />
-        <RoundButton
-          label={submitted ? '組み直す' : '参加する'} icon={<IconRace size={32} />}
-          color={['#ffe089', '#f5c842', '#8a5b00', '#5a3500']}
+        <TileButton
+          label={submitted ? '組み直す' : '参加する'} tone="gold" icon={<IconRace size={28} />}
           disabled={!eligible}
           onClick={() => navigate('/online/rated/lineup')}
         />
-        <RoundButton
-          label="昨日の結果" icon={<IconFlag size={30} />}
-          color={myDelta >= 0
-            ? ['#52e27a', '#2ecc71', '#166038', '#0d3d22']
-            : ['#ff7080', '#ff4757', '#992018', '#660e10']}
+        <TileButton
+          label="昨日の結果" tone={myDelta >= 0 ? 'green' : 'red'} icon={<IconFlag size={26} />}
           disabled={!result}
           onClick={() => navigate('/online/rated/result')}
         />
