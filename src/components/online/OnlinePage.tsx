@@ -69,8 +69,10 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/events', label: 'イベント',
-      badge: 0, color: C.green, soon: true,
+      // イベント → レート戦（docs/ONLINE_RATED_DESIGN.md）。
+      // いまはレート戦だけなので、そのままレート戦の画面へ入る
+      key: '/online/rated', label: 'イベント',
+      badge: 0, color: C.green,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="M12 3l2.3 4.7 5.2.8-3.8 3.6.9 5.1-4.6-2.4-4.6 2.4.9-5.1L4.5 8.5l5.2-.8L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>

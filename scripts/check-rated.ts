@@ -130,6 +130,11 @@ console.log('\n[5] その日のコース')
   check('連続する5日で同じ本数が続かない', new Set(first5).size >= 3, first5.join(','))
   check('上限は15（オーナー判断・8〜15区間）', SEG_MAX === 15, `${SEG_MAX}`)
 
+  // ★区間の番号は1始まり（本編の data/races.ts と同じ）。
+  //   0始まりにしていたときは画面に「0区」と出ていた
+  check('区間の番号は1始まり',
+    courses.every(c => c.segments[0].index === 1
+      && c.segments[c.segments.length - 1].index === c.segments.length))
   check('登りと下りの合計が100%を超えない',
     courses.every(c => c.segments.every(s => s.uphillPct + s.downhillPct <= 100)))
   check('距離が0の区間が無い', courses.every(c => c.segments.every(s => s.distanceKm > 0)))

@@ -50,7 +50,9 @@ export function ratedCourse(dateISO: string): Race {
   const r = rng(strHash(`rated:${dateISO}`))
   const segCount = SEG_MIN + Math.floor(r() * (SEG_MAX - SEG_MIN + 1))
   const segments: Segment[] = []
-  for (let i = 0; i < segCount; i++) {
+  // ★区間の番号は**1始まり**（`data/races.ts` の seg() と同じ）。
+  //   0始まりにすると画面に「0区」と出る（LineupPhase は index をそのまま出す）
+  for (let i = 1; i <= segCount; i++) {
     const distanceKm = Math.round((KM_MIN + r() * (KM_MAX - KM_MIN)) * 10) / 10
     // 起伏は「登り寄り／下り寄り／平坦」を引いてから幅を決める。
     // 一様に振ると全区間が中くらいの起伏になって、コースの表情が出ない

@@ -27,6 +27,8 @@ import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
 import HofTeamPage from './components/online/HofTeamPage'
 import AnnouncementsPage, { AnnouncementDetailPage } from './components/more/AnnouncementsPage'
+import RatedPage from './components/rated/RatedPage'
+import RatedLineupPage from './components/rated/RatedLineupPage'
 import Dashboard from './components/dashboard/Dashboard'
 import TeamManagement from './components/team/TeamManagement'
 import Onboarding from './components/onboarding/Onboarding'
@@ -380,6 +382,9 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
           {onlineAvailable() && <Route path="/online/history" element={<MatchHistoryPage />} />}
           {/* 殿堂入りチームはオフラインでも使う（登録・固定は端末内で完結する） */}
           <Route path="/online/hof" element={<HofTeamPage />} />
+          {/* イベント → レート戦。1か月のレート戦（docs/ONLINE_RATED_DESIGN.md） */}
+          <Route path="/online/rated" element={<RatedPage />} />
+          <Route path="/online/rated/lineup" element={<RatedLineupPage />} />
           {onlineAvailable() && <Route path="/online/history/:matchId" element={<MatchReplayPage />} />}
           {onlineAvailable() && <Route path="/friends" element={<FriendsPage />} />}
           {onlineAvailable() && <Route path="/friends/list" element={<FriendListPage />} />}

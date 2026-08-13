@@ -14,11 +14,17 @@ import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
 
 
 export default function FinishPanel({
-  races, meId, onLeave, history = false, leaveLabel,
+  races, meId, onLeave, history = false, leaveLabel, courseOf = courseById,
 }: {
   races: MatchRacePayload[]
   meId: string
   onLeave: () => void
+  /**
+   * コースの引き方。既定は決まった一覧から引く（`courseById`）。
+   * **レート戦だけは日付から作るコース**なので一覧に無く、そこから渡してもらう。
+   * ★この画面を2つに増やさないための差し替え口。**中身は何も変えないこと**
+   */
+  courseOf?: (id: string) => import('../../data/matchCourses').MatchCourse | undefined
   /** 対戦履歴から開いたときは true。順位の発表演出を飛ばし、区間記録から見せる。
    *  履歴のためだけに似た画面を作らず、この画面をそのまま使い回すための切り替え */
   history?: boolean
@@ -56,7 +62,7 @@ export default function FinishPanel({
   const rec = useMemo(() => {
     const payload = races[Math.min(recRace, races.length - 1)]
     if (!payload) return null
-    const course = courseById(payload.courseId)
+    const course = courseOf(payload.courseId)
     if (!course) return null
     const race = courseToRace(course, recRace + 1)
     const teamList: Team[] = payload.teams.map(asTeam)
@@ -88,7 +94,7 @@ export default function FinishPanel({
         {/* レース切り替え（R1 / R2 / R3） */}
         {races.length > 1 && (
           <SegmentTabs
-            labels={races.map((r, i) => `R${i + 1} ${courseById(r.courseId)?.name ?? ''}`)}
+            labels={races.map((r, i) => `R${i + 1} ${courseOf(r.courseId)?.name ?? ''}`)}
             value={Math.min(recRace, races.length - 1)}
             onChange={i => { setRecRace(i); setRecSeg(0) }}
           />
