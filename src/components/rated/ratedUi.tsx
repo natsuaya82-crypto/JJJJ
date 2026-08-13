@@ -41,11 +41,12 @@ export function Card({ children, accent = C.cyan, onClick }: {
  * 丸ボタン。**単色で塗らない**——本編の立体ボタン（`btn-game`）と同じ
  * 上下グラデーション＋下の影＋押すと沈む、を丸で。
  */
-export function RoundButton({ label, color, badge, disabled, onClick }: {
+export function RoundButton({ label, color, icon, disabled, onClick }: {
   label: string
   /** [明るい面, 中間, 暗い面, 下の影] */
   color: readonly [string, string, string, string]
-  badge?: string
+  /** 丸の中に出す絵。**数字は入れない**（何の数字か分からない） */
+  icon: React.ReactNode
   disabled?: boolean
   onClick: () => void
 }) {
@@ -65,11 +66,7 @@ export function RoundButton({ label, color, badge, disabled, onClick }: {
           border: `2px solid ${dark}`,
           boxShadow: `0 6px 0 ${drop}, 0 8px 18px ${alpha(mid, 0.3)}, inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -3px 0 rgba(0,0,0,0.2)`,
         }}>
-          {badge && (
-            <span style={{
-              fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: '#fff', lineHeight: 1,
-            }}>{badge}</span>
-          )}
+          <span style={{ color: '#fff', display: 'flex' }}>{icon}</span>
         </span>
         <span style={{
           fontSize: 11, fontWeight: 900, color: disabled ? C.textDim : C.textSub,

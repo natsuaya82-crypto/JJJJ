@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
+import { IconFlag, IconRace, IconTrophy } from '../icons/Icons'
 import { courseDistanceKm } from '../../engine/ratedCourse'
 import { Card, RankChip, RatedShell, RoundButton } from './ratedUi'
 import {
@@ -34,7 +35,6 @@ export default function RatedPage() {
   const segCount = today?.course.segments.length ?? 0
   const submitted = Object.keys(me?.lineup ?? {}).length >= segCount && segCount > 0
   const myDelta = result ? (result.delta[result.meUserId] ?? 0) : 0
-  const myPlace = result?.race.standings.find(s => s.teamId === result.meUserId)?.rank ?? 0
 
   return (
     <RatedShell title="レート戦">
@@ -126,18 +126,18 @@ export default function RatedPage() {
       {/* 丸ボタン3つ */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '0 6px' }}>
         <RoundButton
-          label="順位表" badge={me ? `${me.overall}位` : '—'}
+          label="順位表" icon={<IconTrophy size={30} />}
           color={['#7fd8ff', '#5ed4ff', '#1a6b8f', '#0e3f5a']}
           onClick={() => navigate('/online/rated/standings')}
         />
         <RoundButton
-          label={submitted ? '組み直す' : '参加する'} badge={`${segCount}人`}
+          label={submitted ? '組み直す' : '参加する'} icon={<IconRace size={32} />}
           color={['#ffe089', '#f5c842', '#8a5b00', '#5a3500']}
           disabled={!eligible}
           onClick={() => navigate('/online/rated/lineup')}
         />
         <RoundButton
-          label="昨日の結果" badge={myPlace ? `${myPlace}位` : '—'}
+          label="昨日の結果" icon={<IconFlag size={30} />}
           color={myDelta >= 0
             ? ['#52e27a', '#2ecc71', '#166038', '#0d3d22']
             : ['#ff7080', '#ff4757', '#992018', '#660e10']}
