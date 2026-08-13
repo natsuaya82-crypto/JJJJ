@@ -255,13 +255,6 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           onClick={() => setDetail('resign')}
         />
         {onBackToTitle && <SettingRow icon={IcHome} label="タイトルに戻る" onClick={onBackToTitle} />}
-        {/* ★セーブの書き出し。実機で起きていることは**本物のセーブが無いと調べられない**。
-            これまで取り出す手段が無く、Mac に繋いで Xcode から抜くしか道が無かった */}
-        <SettingRow icon={IcShare} label="セーブを書き出す" sub="不具合の調査用。共有からファイルを送れます"
-          onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }} />
-        {exportMsg && (
-          <div style={{ padding: '8px 12px', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
-        )}
         <SettingRow icon={IcTrash} label="データリセット" sub="セーブを削除して最初から" danger onClick={() => setDetail('reset')} />
       </div>
 
@@ -333,6 +326,31 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
               </button>
             )
           })}
+        </div>
+
+        {/* ★セーブの書き出し。実機で起きていることは**本物のセーブが無いと調べられない**。
+            これまで取り出す手段が無く、Mac に繋いで Xcode から抜くしか道が無かった。
+            ★設定の一覧から**ここへ移した**（オーナー判断）。取り込む口がまだ無いので
+            遊ぶ側には何の得も無いボタンで、用途は不具合の調査だけ。消さないこと——
+            消すと実機のセーブを取り出す手段がまた無くなる（`scripts/check-load-v39.ts` 参照） */}
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+          <button
+            onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+              background: C.surface3, border: `1px solid ${C.border}`,
+            }}
+          >
+            <span style={{ color: C.textDim, display: "flex" }}>{IcShare}</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: C.text }}>セーブを書き出す</span>
+              <span style={{ display: 'block', fontSize: 11, color: C.textDim }}>不具合の調査用。共有からファイルを送れます</span>
+            </span>
+          </button>
+          {exportMsg && (
+            <div style={{ padding: '8px 2px 0', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
+          )}
         </div>
       </BottomSheet>
     </div>
