@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { squadPlayersOf } from '../../utils/rosterSync'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
+import GlassButton from '../ui/GlassButton'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Specialty, Nationality } from '../../types'
@@ -137,22 +138,18 @@ export default function TransferPage() {
 
   return (
     <div style={{ paddingTop: '4px', paddingBottom: '80px', fontFamily: SAIRA }}>
-      <div style={{ padding: '10px 16px 12px' }}>
-        <BackButton />
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <div style={{ fontSize: '20px', fontWeight: '900', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 16px ${alpha(C.gold, 0.25)}` }}>
-            {tabTitle}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: C.green }}/>
-            <span style={{ fontSize: '10px', fontWeight: '700', color: C.green, fontFamily: SAIRA }}>
+      <PageHeader
+        title={tabTitle}
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexShrink: 0 }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: C.green }}/>
+            <span style={{ fontSize: '10px', fontWeight: '800', color: C.green, fontFamily: SAIRA, letterSpacing: '1px' }}>
               OPEN
             </span>
             <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{fmtYen(salaryUsed)}</span>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {tab === 'market' && (() => {
         const allLeagues = foreignLeagues ?? []
@@ -171,30 +168,31 @@ export default function TransferPage() {
             ? teams.filter(t => t.id !== playerTeamId).map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
             : (allLeagues.find(l => l.id === mktLeague)?.clubs ?? []).map(c => ({ id: c.id, name: c.name }))
 
+        // 枠で囲まない。下の細い線と文字だけで組む（レート戦・ロスターと同じ）
         const cell: React.CSSProperties = {
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `1px solid ${C.border2}`, borderRadius: 12, padding: '10px 12px',
+          padding: '4px 2px 7px', minWidth: 0,
+          borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
         }
         const lbl: React.CSSProperties = {
           display: 'block', fontFamily: SAIRA, fontSize: 9, color: C.textDim,
-          letterSpacing: '2px', marginBottom: 6,
+          letterSpacing: '2px', marginBottom: 5,
         }
         const sel: React.CSSProperties = {
-          width: '100%', background: C.surface2, border: 'none',
-          color: C.text, fontSize: 15, fontWeight: 700, fontFamily: SAIRA,
-          outline: 'none', cursor: 'pointer',
+          width: '100%', background: 'transparent', border: 'none',
+          color: C.text, fontSize: 14, fontWeight: 700, fontFamily: SAIRA,
+          outline: 'none', cursor: 'pointer', padding: 0,
         }
 
         return (
-          <div style={{ padding: '0 12px' }}>
+          <div style={{ padding: '0 18px' }}>
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ ...cell, marginBottom: 8 }}>
+              <div style={{ ...cell, marginBottom: 14 }}>
                 <span style={lbl}>選手名</span>
                 <input type="text" value={mktSearch} onChange={e => setMktSearch(e.target.value)}
-                  placeholder="—" style={{ ...sel, background: 'transparent', fontSize: 14 }}
+                  placeholder="—" style={{ ...sel, fontWeight: 700 }}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 16px', marginBottom: 20 }}>
                 <div style={cell}>
                   <span style={lbl}>移籍状況</span>
                   <select value={mktAvail} onChange={e => setMktAvail(e.target.value as typeof mktAvail)} style={sel}>
@@ -247,13 +245,10 @@ export default function TransferPage() {
                   </select>
                 </div>
               </div>
-              <button
-                className="btn-game btn-game--gold"
+              <GlassButton
+                full size="lg"
                 onClick={() => navigate('/transfer/market-results', { state: { search: mktSearch, spec: mktSpec, nat: mktNat, avail: mktAvail, team: mktTeam, age: mktAge, league: mktLeague } })}
-                style={{ width: '100%' }}
-              >
-                <span className="btn-game__inner" style={{ fontFamily: SAIRA, fontSize: 15 }}>検索</span>
-              </button>
+              >検索</GlassButton>
             </div>
           </div>
         )
@@ -315,16 +310,20 @@ export default function TransferPage() {
 
 
         return (
-          <div style={{ padding: '0 12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '9px', color: C.textGhost, fontFamily: SAIRA }}>{marketPlayers.length}名</span>
+          <div style={{ padding: '0 18px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 0 9px', marginBottom: '12px',
+              borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
+            }}>
+              <span style={{ fontSize: '11px', color: C.textSub, fontFamily: SAIRA, fontWeight: 800 }}>{marketPlayers.length}名</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <SortSelect options={MARKET_SORT_OPTIONS} value={mktSortKey} onChange={setMktSortKey} />
                 <button
                   onClick={() => setMktSortDir(d => d === 'desc' ? 'asc' : 'desc')}
                   style={{
-                    background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8,
-                    color: C.textSub, fontSize: 13, fontFamily: SAIRA, padding: '3px 8px',
+                    background: 'transparent', border: 'none',
+                    color: C.textSub, fontSize: 14, fontFamily: SAIRA, padding: '3px 4px',
                     cursor: 'pointer', lineHeight: 1,
                   }}
                 >
@@ -335,14 +334,14 @@ export default function TransferPage() {
             {marketPlayers.length === 0 && (
               <div style={{ padding: '40px', textAlign: 'center', color: C.textGhost, fontSize: '13px', fontFamily: SAIRA }}>条件に合う選手なし</div>
             )}
-            {/* ロスターと同じカード：タップ＝メニュー / 長押し＝詳細 */}
-            <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            {/* ロスターと同じカード：タップ＝メニュー / 長押し＝詳細。箱に入れず縦に並べる */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {marketPlayers.map(p => {
               const isListed = listedIds.has(p.id)
               const hasBid = activeBids.some(b => b.playerId === p.id)
               const bidLocked = p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
               const ownerTeam = clubIndex.byId(p.teamId)
-              const badge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px', borderRadius: 3, fontWeight: 700, flexShrink: 0 }
+              const badge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px', borderRadius: 0, fontWeight: 700, flexShrink: 0 }
               return (
                 <div key={p.id} style={{ opacity: bidLocked ? 0.5 : 1 }}>
                   <PlayerRow
@@ -435,12 +434,12 @@ export default function TransferPage() {
         const listedIds = new Set(listings.map(l => l.playerId))
 
         return (
-          <div style={{ padding: '0 12px' }}>
+          <div style={{ padding: '0 18px' }}>
             {(incomingOffers.length > 0 || offerResults.length > 0) && (
-              <div style={{ marginBottom: '14px' }}>
+              <div style={{ marginBottom: '18px' }}>
                 {/* 返事の結果だけが残っている状態では見出しを出さない（「0件 — 要確認」と出ていた） */}
                 {incomingOffers.length > 0 && (
-                  <div style={{ fontSize: '9px', color: C.pink, letterSpacing: '2px', marginBottom: '8px', fontWeight: '700', fontFamily: SAIRA }}>
+                  <div style={{ fontSize: '9.5px', color: C.pink, letterSpacing: '2px', marginBottom: '10px', fontWeight: '800', fontFamily: SAIRA }}>
                     他クラブからのオファー {incomingOffers.length}件 — 要確認
                   </div>
                 )}
@@ -457,78 +456,49 @@ export default function TransferPage() {
                   const counterPrice = roundFee(isFreeOffer ? calcTransferValue(p) : offer.offeredPrice * COUNTER_OFFER_CAP)
                   return (
                     <div key={offer.id} style={{
-                      position: 'relative', overflow: 'hidden',
-                      borderRadius: '14px', marginBottom: '8px',
-                      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                      border: `2px solid ${alpha(C.pink, 0.37)}`,
-                      boxShadow: '0 4px 0 #5a0028, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+                      marginBottom: '16px', paddingBottom: '16px',
+                      borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
                     }}>
-                      <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.pink, 0.12)}`, borderRadius: 10, pointerEvents: 'none' }} />
-                      <div style={{ position: 'relative', zIndex: 1, padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                          <div style={{
-                            width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
-                            backgroundColor: alpha(ratingColor(rating), 0.08), border: `1px solid ${alpha(ratingColor(rating), 0.25)}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '14px', fontWeight: '900', color: ratingColor(rating), fontFamily: SAIRA,
-                          }}>
-                            {rating}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{p.name}</div>
-                            <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '2px' }}>
-                              <SpecChip specialty={p.specialty} />
-                              <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '2px', fontFamily: SAIRA }}>{offerFrom} からのオファー</div>
-                            <div style={{ fontSize: isFreeOffer ? '12px' : '16px', fontWeight: '900', color: isFreeOffer ? C.textSub : C.pink, fontFamily: SAIRA, textShadow: isFreeOffer ? 'none' : `0 0 12px ${alpha(C.pink, 0.25)}` }}>
-                              {isFreeOffer ? 'フリー移籍' : fmtYen(offer.offeredPrice)}
-                            </div>
-                            <div style={{ fontSize: '8px', color: C.textDim, fontFamily: SAIRA }}>{isFreeOffer ? '移籍金なし' : '移籍金'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '11px' }}>
+                        <div style={{
+                          fontSize: '26px', fontWeight: '900', color: ratingColor(rating),
+                          fontFamily: SAIRA, lineHeight: 1, flexShrink: 0,
+                        }}>
+                          {rating}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: '800', color: C.text, fontFamily: SAIRA }}>{p.name}</div>
+                          <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '3px' }}>
+                            <SpecChip specialty={p.specialty} />
+                            <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => {
-                              // 結果の文章は OfferResultList の1本。チャット画面と同じ言葉が出る
-                              pushOfferResult(offer.id, acceptIncomingOffer(offer.id), { playerName: p.name, teamName: offerFrom, price: offer.offeredPrice })
-                            }}
-                            style={{
-                              flex: 2, padding: '9px', borderRadius: '11px', border: `2px solid ${C.green}`, marginBottom: 8,
-                              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                              color: C.green, fontSize: '12px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
-                              boxShadow: '0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                            }}
-                          >
-                            {isFreeOffer ? '承諾 — フリー移籍' : `承諾 — ${fmtYen(offer.offeredPrice)}`}
-                          </button>
-                          <button
-                            onClick={() => {
-                              pushOfferResult(offer.id, counterIncomingOffer(offer.id, counterPrice), { playerName: p.name, teamName: offerFrom, price: counterPrice })
-                            }}
-                            style={{
-                              flex: 2, padding: '9px', borderRadius: '11px', border: `2px solid ${C.goldDark}`, marginBottom: 8,
-                              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                              color: C.gold, fontSize: '11px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
-                              boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                            }}
-                          >
-                            カウンター — {fmtYen(counterPrice)}
-                          </button>
-                          <button
-                            onClick={() => declineIncomingOffer(offer.id)}
-                            style={{
-                              flex: 1, padding: '9px', borderRadius: '11px', border: `2px solid ${C.red}`, marginBottom: 8,
-                              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                              color: C.red, fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
-                              boxShadow: '0 4px 0 #660e10, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                            }}
-                          >
-                            拒否
-                          </button>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: '9px', color: C.textDim, marginBottom: '2px', fontFamily: SAIRA }}>{offerFrom} からのオファー</div>
+                          <div style={{ fontSize: isFreeOffer ? '13px' : '20px', fontWeight: '900', color: isFreeOffer ? C.textSub : C.pink, fontFamily: SAIRA, lineHeight: 1.1 }}>
+                            {isFreeOffer ? 'フリー移籍' : fmtYen(offer.offeredPrice)}
+                          </div>
+                          <div style={{ fontSize: '8.5px', color: C.textDim, fontFamily: SAIRA, marginTop: 2 }}>{isFreeOffer ? '移籍金なし' : '移籍金'}</div>
                         </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <GlassButton
+                          color={C.green} size="sm" style={{ flex: 2 }}
+                          onClick={() => {
+                            // 結果の文章は OfferResultList の1本。チャット画面と同じ言葉が出る
+                            pushOfferResult(offer.id, acceptIncomingOffer(offer.id), { playerName: p.name, teamName: offerFrom, price: offer.offeredPrice })
+                          }}
+                        >{isFreeOffer ? '承諾 — フリー移籍' : `承諾 — ${fmtYen(offer.offeredPrice)}`}</GlassButton>
+                        <GlassButton
+                          color={C.gold} size="sm" style={{ flex: 2 }}
+                          onClick={() => {
+                            pushOfferResult(offer.id, counterIncomingOffer(offer.id, counterPrice), { playerName: p.name, teamName: offerFrom, price: counterPrice })
+                          }}
+                        >カウンター — {fmtYen(counterPrice)}</GlassButton>
+                        <GlassButton
+                          color={C.red} size="sm" style={{ flex: 1 }}
+                          onClick={() => declineIncomingOffer(offer.id)}
+                        >拒否</GlassButton>
                       </div>
                     </div>
                   )
@@ -537,12 +507,12 @@ export default function TransferPage() {
             )}
 
             {incomingOffers.length === 0 && (
-              <div style={{ padding: '10px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${C.border}`, marginBottom: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: C.textGhost, padding: '8px 0', fontFamily: SAIRA }}>現在オファーなし</div>
+              <div style={{ padding: '14px 0 18px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.border3, 0.6)}`, marginBottom: '18px' }}>
+                <div style={{ fontSize: '11px', color: C.textGhost, fontFamily: SAIRA }}>現在オファーなし</div>
               </div>
             )}
 
-            <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px', fontFamily: SAIRA }}>
+            <div style={{ fontSize: '9.5px', color: C.cyan, letterSpacing: '2px', marginBottom: '10px', fontWeight: '800', fontFamily: SAIRA }}>
               1軍選手 — 出品管理
             </div>
             {myPlayers.map(p => {
@@ -555,31 +525,30 @@ export default function TransferPage() {
               const isSettingPrice = listingPlayerId === p.id
               const isPeakSell = stage === 'peak' && val >= 200_000_000
               return (
-                <div key={p.id} style={{ marginBottom: '8px' }}>
+                <div key={p.id}>
                   <div style={{
-                    position: 'relative', overflow: 'hidden',
-                    padding: '10px 12px',
-                    borderRadius: isSettingPrice ? '12px 12px 0 0' : '12px',
-                    background: isListed
-                      ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`
-                      : `linear-gradient(180deg, ${C.surface2}, ${C.surface})`,
-                    border: `2px solid ${competingOffers.length > 0 ? C.green : isListed ? C.goldDark : isPeakSell ? alpha(C.gold, 0.4) : C.border}`,
-                    boxShadow: isListed || competingOffers.length > 0 ? '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+                    position: 'relative',
+                    padding: '11px 2px 11px 12px',
+                    borderBottom: isSettingPrice ? 'none' : `1px solid ${alpha(C.border3, 0.6)}`,
                   }}>
-                    {(isListed || competingOffers.length > 0) && <div style={{ position: 'absolute', inset: 4, border: `1px solid ${competingOffers.length > 0 ? alpha(C.green, 0.15) : 'rgba(245,200,66,0.15)'}`, borderRadius: 10, pointerEvents: 'none' }} />}
-                    <div style={{ position: 'relative', zIndex: 1 }}>
+                    {/* 状態は左の縦線1本で出す（枠で囲まない） */}
+                    <div style={{
+                      position: 'absolute', left: 0, top: 8, bottom: 8, width: 2,
+                      background: competingOffers.length > 0 ? C.green : isListed ? C.gold : isPeakSell ? alpha(C.gold, 0.45) : 'transparent',
+                    }}/>
+                    <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '1px' }}>
                             <div style={{ fontSize: '13px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: SAIRA }}>
                               {p.name}
                             </div>
-                            {isPeakSell && !isListed && <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold, fontWeight: '800', fontFamily: SAIRA, flexShrink: 0 }}>売り時</span>}
+                            {isPeakSell && !isListed && <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: 0, backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold, fontWeight: '800', fontFamily: SAIRA, flexShrink: 0 }}>売り時</span>}
                           </div>
                           <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '2px', flexWrap: 'wrap' }}>
                             <SpecChip specialty={p.specialty} size="sm" />
                             <span style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
-                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '4px', backgroundColor: alpha(stageCol, 0.08), color: stageCol, fontWeight: '700', fontFamily: SAIRA }}>{CAREER_STAGE_LABEL[stage]}</span>
+                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: 0, backgroundColor: alpha(stageCol, 0.08), color: stageCol, fontWeight: '700', fontFamily: SAIRA }}>{CAREER_STAGE_LABEL[stage]}</span>
                             <span style={{ fontSize: '9px', color: C.textSub, fontFamily: SAIRA }}>{fmtYen(val)}</span>
                           </div>
                         </div>
@@ -595,56 +564,42 @@ export default function TransferPage() {
                                 )}
                               </div>
                               <button onClick={() => delistMyPlayer(p.id)} style={{
-                                padding: '5px 9px', borderRadius: '7px',
+                                padding: '5px 9px', borderRadius: 0,
                                 border: `1px solid ${alpha(C.textDim, 0.25)}`, background: 'transparent',
                                 color: C.textDim, fontSize: '10px', cursor: 'pointer', fontFamily: SAIRA,
                               }}>取下</button>
                             </>
                           ) : (
-                            <button
+                            <GlassButton
+                              size="sm"
                               onClick={() => { setListingPlayerId(isSettingPrice ? null : p.id); setListingPrice(Math.round(val * 1.1 / 1000000) * 1000000) }}
-                              style={{
-                                padding: '6px 10px', borderRadius: '8px',
-                                border: `2px solid ${C.goldDark}`,
-                                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                                color: C.gold,
-                                fontSize: '11px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
-                                boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
-                              }}
-                            >
-                              出品する
-                            </button>
+                            >出品する</GlassButton>
                           )}
                         </div>
                       </div>
                     </div>
                   </div>
                   {isSettingPrice && !myListing && (
-                    <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '12px 14px' }}>
-                      <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
+                    <div style={{ padding: '4px 12px 16px', borderBottom: `1px solid ${alpha(C.border3, 0.6)}`, marginBottom: 0 }}>
+                      <div style={{ fontSize: '10px', color: C.textSub, marginBottom: '10px', fontFamily: SAIRA }}>
                         希望移籍金 — 市場価値: <span style={{ color: C.gold }}>{fmtYen(val)}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <button onClick={() => setListingPrice(Math.max(1000000, listingPrice - 5000000))} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
-                        <div style={{ flex: 1, textAlign: 'center', padding: '6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px' }}>
-                          <span style={{ fontSize: '17px', fontWeight: '900', color: C.gold, fontFamily: SAIRA }}>{fmtYen(listingPrice)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <button onClick={() => setListingPrice(Math.max(1000000, listingPrice - 5000000))} style={{ padding: '4px 12px', border: 'none', background: 'transparent', color: C.textSub, fontSize: 20, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
+                        <div style={{ flex: 1, textAlign: 'center' }}>
+                          <span style={{ fontSize: '24px', fontWeight: '900', color: C.gold, fontFamily: SAIRA }}>{fmtYen(listingPrice)}</span>
                         </div>
-                        <button onClick={() => setListingPrice(listingPrice + 5000000)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
+                        <button onClick={() => setListingPrice(listingPrice + 5000000)} style={{ padding: '4px 12px', border: 'none', background: 'transparent', color: C.textSub, fontSize: 20, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
                       </div>
                       <input type="range" min={Math.round(val * 0.5 / 1000000) * 1000000} max={Math.round(val * 2.0 / 1000000) * 1000000} step={1000000}
                         value={listingPrice} onChange={e => setListingPrice(Number(e.target.value))}
-                        style={{ width: '100%', accentColor: C.gold, marginBottom: '10px' }}
+                        style={{ width: '100%', accentColor: C.gold, marginBottom: '12px' }}
                       />
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => { listMyPlayerForSale(p.id, listingPrice); setListingPlayerId(null) }} style={{
-                          flex: 1, padding: '10px', borderRadius: '10px', border: `2px solid ${C.goldDark}`, marginBottom: 8,
-                          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                          color: C.gold, fontSize: '12px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
-                          boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                        }}>
+                        <GlassButton full style={{ flex: 1 }} onClick={() => { listMyPlayerForSale(p.id, listingPrice); setListingPlayerId(null) }}>
                           出品を確定
-                        </button>
-                        <button onClick={() => setListingPlayerId(null)} style={{ padding: '10px 12px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
+                        </GlassButton>
+                        <button onClick={() => setListingPlayerId(null)} style={{ padding: '10px 14px', borderRadius: 0, border: `1px solid ${alpha(C.border3, 0.7)}`, background: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0 }}>取消</button>
                       </div>
                     </div>
                   )}
@@ -658,37 +613,31 @@ export default function TransferPage() {
               const cpuTeamsList = teams.filter(t => t.id !== playerTeamId)
               if (myPicks.length === 0) return null
               return (
-                <div style={{ marginTop: '14px' }}>
-                  <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px', fontFamily: SAIRA }}>指名権の売却</div>
+                <div style={{ marginTop: '22px' }}>
+                  <div style={{ fontSize: '9.5px', color: C.cyan, letterSpacing: '2px', marginBottom: '10px', fontWeight: '800', fontFamily: SAIRA }}>指名権の売却</div>
                   {myPicks.map(pk => {
                     const k = `${pk.year}-R${pk.round}-${pk.pickNumber}`
                     const fairVal = draftPickValue(pk.round, pk.pickNumber)
                     const isSelling = pickSellTarget === k
                     return (
-                      <div key={k} style={{ marginBottom: '6px' }}>
+                      <div key={k}>
                         <div style={{
-                          display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px',
-                          borderRadius: isSelling ? '12px 12px 0 0' : '12px',
-                          background: `linear-gradient(180deg, ${C.surface2}, ${C.surface})`,
-                          border: `1px solid ${isSelling ? alpha(C.blue, 0.35) : C.border2}`,
+                          display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 2px',
+                          borderBottom: isSelling ? 'none' : `1px solid ${alpha(C.border3, 0.6)}`,
                         }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '12px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権</div>
-                            <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>指名順位は{pk.year}年の成績で確定 · 参考価値 ≈ {fmtYen(fairVal)}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '12.5px', fontWeight: '800', color: C.text, fontFamily: SAIRA }}>{pk.year}年 第{pk.round}巡指名権</div>
+                            <div style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA, marginTop: 2 }}>指名順位は{pk.year}年の成績で確定 · 参考価値 ≈ {fmtYen(fairVal)}</div>
                           </div>
-                          <button onClick={() => {
+                          <GlassButton color={C.blue} size="sm" onClick={() => {
                             if (isSelling) { setPickSellTarget(null); setPickSellResult('idle') }
                             else { setPickSellTarget(k); setPickSellPrice(Math.round(fairVal * 0.85 / 1000000) * 1000000); setPickSellTeam(''); setPickSellResult('idle') }
-                          }} style={{
-                            padding: '6px 10px', borderRadius: '8px',
-                            border: `1px solid ${alpha(C.blue, 0.35)}`, background: alpha(C.blue, 0.07),
-                            color: C.blue, fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0,
                           }}>
                             {isSelling ? '閉じる' : '売却する'}
-                          </button>
+                          </GlassButton>
                         </div>
                         {isSelling && (
-                          <div style={{ background: C.surface2, border: `1px solid ${alpha(C.blue, 0.18)}`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '12px 14px' }}>
+                          <div style={{ padding: '4px 2px 16px', borderBottom: `1px solid ${alpha(C.border3, 0.6)}` }}>
                             {pickSellResult === 'success' ? (
                               <div style={{ textAlign: 'center', padding: '10px', color: C.green, fontSize: '12px', fontWeight: '700', fontFamily: SAIRA }}>売却完了！</div>
                             ) : pickSellResult === 'failed' ? (
@@ -696,18 +645,19 @@ export default function TransferPage() {
                             ) : (
                               <>
                                 <select value={pickSellTeam} onChange={e => setPickSellTeam(e.target.value)} style={{
-                                  width: '100%', padding: '8px', borderRadius: '8px', marginBottom: '10px',
-                                  background: C.surface, border: `1px solid ${C.border2}`, color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none',
+                                  width: '100%', padding: '8px 0', marginBottom: '12px',
+                                  background: 'transparent', border: 'none', borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
+                                  color: C.textSub, fontSize: '12px', fontFamily: SAIRA, outline: 'none',
                                 }}>
                                   <option value="">売却先チームを選択</option>
                                   {cpuTeamsList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                 </select>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                  <button onClick={() => setPickSellPrice(Math.max(1000000, pickSellPrice - 1000000))} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
-                                  <div style={{ flex: 1, textAlign: 'center', padding: '6px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px' }}>
-                                    <span style={{ fontSize: '16px', fontWeight: '900', color: C.blue, fontFamily: SAIRA }}>{fmtYen(pickSellPrice)}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                  <button onClick={() => setPickSellPrice(Math.max(1000000, pickSellPrice - 1000000))} style={{ padding: '4px 12px', border: 'none', background: 'transparent', color: C.textSub, fontSize: 20, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>−</button>
+                                  <div style={{ flex: 1, textAlign: 'center' }}>
+                                    <span style={{ fontSize: '22px', fontWeight: '900', color: C.blue, fontFamily: SAIRA }}>{fmtYen(pickSellPrice)}</span>
                                   </div>
-                                  <button onClick={() => setPickSellPrice(pickSellPrice + 1000000)} style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub, fontSize: 16, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
+                                  <button onClick={() => setPickSellPrice(pickSellPrice + 1000000)} style={{ padding: '4px 12px', border: 'none', background: 'transparent', color: C.textSub, fontSize: 20, fontFamily: SAIRA, cursor: 'pointer', flexShrink: 0 }}>＋</button>
                                 </div>
                                 <input type="range" min={1000000} max={Math.round(fairVal * COUNTER_OFFER_CAP)} step={1000000}
                                   value={pickSellPrice} onChange={e => setPickSellPrice(Number(e.target.value))}
@@ -716,21 +666,14 @@ export default function TransferPage() {
                                 <div style={{ fontSize: '9px', color: pickSellPrice > fairVal * 1.2 ? C.red : pickSellPrice >= fairVal * 0.7 ? C.gold : C.green, textAlign: 'center', marginBottom: '10px', fontFamily: SAIRA }}>
                                   {pickSellPrice > fairVal * 1.2 ? '高すぎる — 合意困難' : pickSellPrice >= fairVal * 0.85 ? '合意圏内' : '安値 — 合意しやすい'}
                                 </div>
-                                <button disabled={!pickSellTeam} onClick={() => {
+                                <GlassButton full color={C.blue} disabled={!pickSellTeam} onClick={() => {
                                   if (!pickSellTeam) return
                                   const ok = sellDraftPick(k, pickSellTeam, pickSellPrice)
                                   setPickSellResult(ok ? 'success' : 'failed')
                                   if (ok) setPickSellTarget(null)
-                                }} style={{
-                                  width: '100%', padding: '11px', borderRadius: '10px', marginBottom: 8,
-                                  border: !pickSellTeam ? `1px solid ${C.border2}` : `2px solid ${alpha(C.blue, 0.5)}`,
-                                  background: !pickSellTeam ? C.surface2 : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                                  color: !pickSellTeam ? C.textGhost : C.blue,
-                                  fontSize: '12px', fontWeight: '800', cursor: pickSellTeam ? 'pointer' : 'default', fontFamily: SAIRA,
-                                  boxShadow: pickSellTeam ? '0 4px 0 #2a3580, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)' : 'none',
                                 }}>
                                   売却する（即時実行）
-                                </button>
+                                </GlassButton>
                               </>
                             )}
                           </div>
@@ -746,19 +689,23 @@ export default function TransferPage() {
       })()}
 
       {tab === 'trade' && (
-        <div style={{ padding: '8px 12px' }}>
-              <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '10px', padding: '0 2px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択（国内のみ）</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+        <div style={{ padding: '4px 18px' }}>
+              <div style={{ fontSize: '9.5px', color: C.cyan, letterSpacing: '2px', fontWeight: '800', marginBottom: '12px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択（国内のみ）</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   {teams.filter(t => t.id !== playerTeamId).map(t => {
                       // 所属は player.teamId が正（rosterSync）。roster配列だとズレたチームの平均OVRが狂う
                       const theirMain = squadPlayersOf(players, t.id)
                       const avgOvr = theirMain.length > 0 ? Math.round(theirMain.reduce((s, p) => s + ovr(p), 0) / theirMain.length) : 0
                       return (
-                        <button key={t.id} onClick={() => navigate(`/team/chat?trade=${t.id}`)} style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-                          padding: '12px 8px', borderRadius: '12px',
-                          background: `linear-gradient(160deg, ${alpha(t.colors.primary, 0.18)}, ${alpha(t.colors.primary, 0.06)})`,
-                          border: `1px solid ${alpha(t.colors.primary, 0.3)}`,
+                        <button key={t.id} onClick={() => navigate(`/team/chat?trade=${t.id}`)} className="btn-press" style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '7px',
+                          padding: '14px 8px', borderRadius: 0,
+                          // スモークガラス（クラブの色で染める）
+                          background: `linear-gradient(180deg, ${alpha(t.colors.primary, 0.16)}, ${alpha(t.colors.primary, 0.03)})`,
+                          backdropFilter: 'blur(10px) saturate(118%)',
+                          WebkitBackdropFilter: 'blur(10px) saturate(118%)',
+                          border: `1px solid ${alpha(t.colors.primary, 0.42)}`,
+                          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.20), 0 10px 26px -14px rgba(0,0,0,0.9)',
                           cursor: 'pointer', fontFamily: SAIRA,
                         }}>
                           <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={48} />
