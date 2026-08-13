@@ -92,13 +92,7 @@ export default function BudgetPage() {
       </div>
 
       <div style={{ margin: '4px 14px 14px' }}>
-        <div style={{
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `3px solid ${C.gold}`,
-          borderRadius: 16, padding: '20px 18px', position: 'relative', overflow: 'hidden',
-          boxShadow: `0 8px 0 #8b6914, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15)`,
-        }}>
-          <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 12, pointerEvents: 'none', zIndex: 0 }}/>
+        <div style={{ ...panelStyle(C.gold), padding: '20px 18px' }}>
           <div style={{
             position: 'absolute', top: -30, right: -30, width: 120, height: 120,
             background: `linear-gradient(135deg, ${alpha(budgetColor, 0.08)}, transparent)`,

@@ -4,6 +4,7 @@ import type { FacilityKey } from '../../types'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
 import { panelStyle } from '../ui/Panel'
+import GlassButton from '../ui/GlassButton'
 
 
 function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: FacilityKey; color: string; size?: number }) {
@@ -46,7 +47,6 @@ const FACILITY_META: {
   name: string
   desc: string
   color: string
-  shadow: string
   effects: string[]
 }[] = [
   {
@@ -54,7 +54,6 @@ const FACILITY_META: {
     name: '合宿施設',
     desc: '選手のレース獲得経験値を底上げする育成環境',
     color: C.green,
-    shadow: '#0d3d22',
     effects: ['Lv1: レースEXP+6%', 'Lv2: +12%', 'Lv3: +18%', 'Lv4: +24%', 'Lv5: +30%'],
   },
   {
@@ -62,7 +61,6 @@ const FACILITY_META: {
     name: '医療センター',
     desc: 'ハイレベルなスポーツ医学でコンディション管理を強化',
     color: C.cyan,
-    shadow: '#0e3f5a',
     effects: ['Lv1: 疲労-8%', 'Lv2: -16%', 'Lv3: -24%', 'Lv4: -32%', 'Lv5: -40%'],
   },
   {
@@ -70,7 +68,6 @@ const FACILITY_META: {
     name: 'スカウト拠点',
     desc: '有望選手を早期発掘し、獲得・移籍交渉を有利に運ぶ',
     color: C.orange,
-    shadow: '#5a2800',
     effects: ['Lv1: PT+1・成立+2%', 'Lv2: +2・+4%', 'Lv3: +3・+6%', 'Lv4: +4・+8%', 'Lv5: +5・+10%'],
   },
   {
@@ -78,7 +75,6 @@ const FACILITY_META: {
     name: '戦術分析室',
     desc: 'データ分析でレース中のペース配分とメンタルを最適化する',
     color: C.blue,
-    shadow: '#2a3580',
     effects: ['Lv1: レース時ペース+1・メンタル+1', 'Lv2: +2', 'Lv3: +3', 'Lv4: +4', 'Lv5: +5'],
   },
 ]
@@ -119,7 +115,7 @@ export default function FacilitiesPage() {
 
               <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <div style={{
-                  width: '48px', height: '48px', borderRadius: '13px', flexShrink: 0,
+                  width: '48px', height: '48px', flexShrink: 0,
                   background: alpha(f.color, 0.12), border: `1px solid ${alpha(f.color, 0.28)}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -130,12 +126,12 @@ export default function FacilitiesPage() {
                     <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '800', color: C.text }}>{f.name}</span>
                     {currentLv > 0 && (
                       <span style={{
-                        fontFamily: SAIRA, padding: '2px 8px', borderRadius: '8px', fontSize: '10px', fontWeight: '800',
+                        fontFamily: SAIRA, padding: '2px 8px', fontSize: '10px', fontWeight: '800',
                         background: alpha(f.color, 0.2), color: f.color, border: `1px solid ${alpha(f.color, 0.35)}`,
                       }}>Lv{currentLv}</span>
                     )}
                     {currentLv === 0 && (
-                      <span style={{ fontFamily: SAIRA, padding: '2px 8px', borderRadius: '8px', fontSize: '9px', color: C.textGhost, background: C.surface, border: `1px solid ${C.border}` }}>未建設</span>
+                      <span style={{ fontFamily: SAIRA, padding: '2px 8px', fontSize: '9px', color: C.textGhost, background: C.surface, border: `1px solid ${C.border}` }}>未建設</span>
                     )}
                   </div>
                   <div style={{ fontSize: '11px', color: C.textDim, lineHeight: 1.4 }}>{f.desc}</div>
@@ -145,7 +141,7 @@ export default function FacilitiesPage() {
               <div style={{ padding: '0 16px 10px', display: 'flex', gap: '5px' }}>
                 {[1, 2, 3, 4, 5].map(lv => (
                   <div key={lv} style={{
-                    height: '4px', flex: 1, borderRadius: '2px',
+                    height: '4px', flex: 1,
                     background: currentLv >= lv ? f.color : C.surface,
                     transition: 'background-color 0.2s',
                   }}/>
@@ -155,7 +151,7 @@ export default function FacilitiesPage() {
               <div style={{ padding: '8px 16px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: '5px' }}>
                 {f.effects.map((eff, i) => (
                   <div key={i} style={{
-                    flex: 1, padding: '6px 3px', borderRadius: '7px', textAlign: 'center',
+                    flex: 1, padding: '6px 3px', textAlign: 'center',
                     background: currentLv > i ? alpha(f.color, 0.12) : C.surface,
                     border: `1px solid ${currentLv > i ? alpha(f.color, 0.28) : C.border}`,
                   }}>
@@ -166,37 +162,23 @@ export default function FacilitiesPage() {
 
               <div style={{ padding: '10px 14px 14px' }}>
                 {currentLv >= MAX_LV ? (
-                  <div style={{ textAlign: 'center', padding: '10px', fontFamily: SAIRA, fontSize: '11px', color: C.gold, fontWeight: '700', background: alpha(C.gold, 0.08), borderRadius: '10px', border: `1px solid ${alpha(C.gold, 0.22)}` }}>
+                  <div style={{ textAlign: 'center', padding: '10px', fontFamily: SAIRA, fontSize: '11px', color: C.gold, fontWeight: '700', background: alpha(C.gold, 0.08), border: `1px solid ${alpha(C.gold, 0.22)}` }}>
                     MAX レベル達成
                   </div>
                 ) : (
-                  <button
-                    onClick={() => upgradeFacility(f.key)}
+                  <GlassButton
+                    full
+                    color={f.color}
                     disabled={!canUpgrade}
-                    style={{
-                      width: '100%', padding: '11px 18px', borderRadius: '11px',
-                      border: `2px solid ${canUpgrade ? alpha(f.color, 0.55) : C.border}`,
-                      background: canUpgrade
-                        ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`
-                        : C.surface,
-                      boxShadow: canUpgrade
-                        ? `0 4px 0 ${f.shadow}, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`
-                        : 'none',
-                      color: canUpgrade ? f.color : C.textGhost,
-                      fontSize: '13px', fontWeight: '800', fontFamily: SAIRA,
-                      cursor: canUpgrade ? 'pointer' : 'not-allowed',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      position: 'relative', overflow: 'hidden' as const,
-                      marginBottom: '4px',
-                    }}
+                    style={{ gap: 8, fontFamily: SAIRA }}
+                    onClick={() => upgradeFacility(f.key)}
                   >
-                    {canUpgrade && <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }}/>}
                     <span>Lv{currentLv + 1}に強化</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: SAIRA, fontWeight: '900', color: canUpgrade ? '#6dd5fa' : C.textGhost, textShadow: canUpgrade ? `0 0 6px rgba(74,184,234,0.5)` : 'none' }}>— <JewelIcon size={12}/>{nextCost!}</span>
                     {!canUpgrade && nextCost && jewels < nextCost && (
                       <span style={{ fontSize: '10px', opacity: 0.6 }}>（ジュエル不足）</span>
                     )}
-                  </button>
+                  </GlassButton>
                 )}
               </div>
             </div>
