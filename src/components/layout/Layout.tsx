@@ -319,9 +319,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         height: `${NAV_H}px`,
         borderRadius: 22,
         // スモークガラス。**後ろが透けること**が大事なので塗りを濃くしない
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.075) 0%, rgba(255,255,255,0.022) 100%)',
-        backdropFilter: 'blur(20px) saturate(125%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(125%)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
+        backdropFilter: 'blur(14px) saturate(118%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(118%)',
         border: 'none',
         display: 'flex', alignItems: 'center', justifyContent: 'space-around',
         zIndex: 50,

@@ -567,9 +567,9 @@ button { font-family: inherit; }
   height: 68px;
   padding: 0 18px;
   /* スモークガラス。**後ろの背景が透けること**が大事なので、塗りを濃くしない */
-  background: linear-gradient(180deg, rgba(255,255,255,0.075) 0%, rgba(255,255,255,0.022) 100%);
-  backdrop-filter: blur(16px) saturate(125%);
-  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%);
+  backdrop-filter: blur(10px) saturate(118%);
+  -webkit-backdrop-filter: blur(10px) saturate(118%);
   border: none;
   border-radius: 18px;
   box-shadow:
@@ -676,5 +676,5 @@ button { font-family: inherit; }
 
 .premium-menu-button:active {
   transform: scale(0.985);
-  background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%);
 }
