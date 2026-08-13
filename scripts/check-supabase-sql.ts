@@ -104,7 +104,21 @@ console.log('\n③ 定義は1か所')
 }
 
 // ── ④ アプリと噛み合っていること ──────────────────────
-console.log('\n④ アプリが呼ぶものが全部ある')
+console.log('\n④ 数字の直書きが無い')
+{
+  // 走友会の人数の上限。以前は join_club / search_clubs が 30、
+  // approve_club_request だけ 50 で、承認制の走友会だけ50人まで入れていた。
+  // 線は club_member_cap() 1本。人数を条件に書くところで数字を直に書かないこと。
+  const hits = sql.split('\n')
+    .map((l, i) => [l, i] as [string, number])
+    .filter(([l]) => /\bmembers\s*[<>]=?\s*\d/.test(l) && !l.trimStart().startsWith('--'))
+  check('人数の上限を数字で直書きしていない', hits.length === 0,
+    hits.map(([l, i]) => `${ONLY}:${i + 1} — ${l.trim()}`).join('\n      ') +
+    '\n      → public.club_member_cap() を呼ぶこと')
+  check('club_member_cap() が1本ある', /create function public\.club_member_cap\(\)/.test(sql))
+}
+
+console.log('\n⑤ アプリが呼ぶものが全部ある')
 {
   const walk = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap(e =>

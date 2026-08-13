@@ -385,6 +385,7 @@ drop function if exists public.my_club_id()                                  cas
 drop function if exists public.my_club_role()                                cascade;
 drop function if exists public.can_edit_club()                               cascade;
 drop function if exists public.club_members_count()                          cascade;
+drop function if exists public.club_member_cap()                             cascade;
 drop function if exists public.club_req_cap(text)                            cascade;
 drop function if exists public.club_open_stats(uuid, text, text[], text)     cascade;  -- 旧い形
 drop function if exists public.club_open_stats(text, text[], text, integer[]) cascade;
@@ -599,6 +600,13 @@ begin
   return null;
 end $$;
 
+-- 走友会の人数の上限。**線はここ1本だけ**。
+-- 以前は join_club と search_clubs が 30、approve_club_request だけ 50 で、
+-- 「自分からは30人で止まるのに、承認制なら50人まで入れる」状態だった。
+create function public.club_member_cap() returns integer
+language sql immutable
+as $$ select 30 $$;
+
 -- 要求1件で集められる枚数
 create function public.club_req_cap(p_rarity text) returns integer
 language sql immutable
@@ -648,7 +656,7 @@ as $$
       else c.name ilike '%' || trim(p_q) || '%'
     end
   -- 入れるものが先（true が先に来る）。そのあとは人数の多い順・新しい順
-  order by (c.join_type <> 'closed' and c.members < 30) desc,
+  order by (c.join_type <> 'closed' and c.members < public.club_member_cap()) desc,
            c.members desc, c.created_at desc
   limit least(greatest(coalesce(p_limit, 30), 1), 50)
 $$;
@@ -703,7 +711,7 @@ begin
   if exists (select 1 from public.club_members where user_id = me) then return 'already'; end if;
   select * into c from public.clubs where id = p_club;
   if not found then return 'not_found'; end if;
-  if c.members >= 30 then return 'full'; end if;
+  if c.members >= public.club_member_cap() then return 'full'; end if;
 
   select coalesce(avg_ovr, 0) into my_ovr from public.profiles where user_id = me;
   if coalesce(my_ovr, 0) < c.min_ovr then return 'low_ovr'; end if;
@@ -755,9 +763,6 @@ as $$
   order by r.created_at
 $$;
 
--- ※ ここの満員の線が 50 で、join_club / search_clubs は 30。
---   食い違っているが、いま動いているのがこの形なので直さずそのまま写した。
---   どちらに揃えるかは docs/BACKLOG.md（S-1）でオーナー判断待ち。
 create function public.approve_club_request(p_user uuid) returns text
 language plpgsql
 security definer
@@ -772,7 +777,7 @@ begin
     return 'not_found';
   end if;
   delete from public.club_requests where club_id = c.id and user_id = p_user;
-  if c.members >= 50 then return 'full'; end if;
+  if c.members >= public.club_member_cap() then return 'full'; end if;
   if exists (select 1 from public.club_members where user_id = p_user) then return 'already'; end if;
   insert into public.club_members (user_id, club_id, role) values (p_user, c.id, 'member');
   delete from public.club_requests where user_id = p_user;   -- 他所への申請も消す
