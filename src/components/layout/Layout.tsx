@@ -4,6 +4,7 @@ import { audio } from '../../utils/audio'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
+import appBg from '../../assets/bg.png'
 import { C, alpha, HEADER_H, NAV_H, bottomStack } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -163,7 +164,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       minHeight: '100dvh',
-      backgroundColor: C.bg, maxWidth: '480px', margin: '0 auto', position: 'relative',
+      maxWidth: '480px', margin: '0 auto', position: 'relative',
+      // 背景の写真。**ここ1枚だけ**（各ページで貼らないこと）。
+      // 上に暗い幕を重ねて、文字が乗っても読めるようにする
+      backgroundImage: `linear-gradient(180deg, rgba(6,13,24,0.62) 0%, rgba(6,13,24,0.86) 100%), url(${appBg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
     }}>
 
       {/* ── Header（実機で固定：viewport上端＋safe-area） ── */}

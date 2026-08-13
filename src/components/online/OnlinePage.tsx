@@ -100,7 +100,7 @@ export default function OnlinePage() {
     : SECTIONS.map(s => (s.alwaysOn ? s : { ...s, soon: true, badge: 0 }))
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE</div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>オンライン</div>
