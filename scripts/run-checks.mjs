@@ -144,6 +144,7 @@ const CHECKS = [
   'club-division-pin',
   // セーブの書き出し（本体＋走行記録の別ファイル）
   { name: 'export-save', shim: true },
+  { name: 'word-filter' },
 ]
 
 /**

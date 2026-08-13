@@ -21,6 +21,11 @@
 -- 下に同梱してある（すでにあれば何も起きない）。
 -- テーブルは作らない・消さない。何回流しても大丈夫。
 
+-- ── この関数が要るもの（club_text.sql と同じ。すでにあれば何も起きない）──
+-- 掲示板の本文と、対戦の募集の部屋番号。club_text.sql を先に流していれば何も起きない
+alter table public.club_posts add column if not exists body text not null default '';
+alter table public.club_posts add column if not exists room_code text not null default '';
+
 -- ── この関数が要るもの（clubs_cards.sql と同じ。すでにあれば何も起きない）──
 -- お願い1件のなかの「1枚ずつの希望」。長さは枚数ぶん。'' は「その枠はおまかせ」
 alter table public.club_posts add column if not exists stats text[] not null default '{}';
@@ -58,6 +63,7 @@ create function public.club_feed()
 returns table (
   id uuid, user_id uuid, kind text, phrase integer, rarity text, stat text,
   stats text[], open_stats text[],
+  body text, room_code text,
   filled integer, cap integer, mine boolean, donated boolean, created_at timestamptz,
   team_name text, short_name text, gm_name text,
   logo_id text, color_primary text, color_secondary text
@@ -104,6 +110,7 @@ begin
   return query
     select t.id, t.user_id, t.kind, t.phrase, t.rarity, t.stat,
            t.stats, public.club_open_stats(t.rarity, t.stats, t.stat, t.taken),
+           t.body, t.room_code,
            t.filled, public.club_req_cap(t.rarity), t.user_id = me,
            exists (select 1 from public.club_gifts g where g.post_id = t.id and g.from_user = me),
            t.created_at,

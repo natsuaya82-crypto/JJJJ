@@ -94,6 +94,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/engine/backgroundRace.ts` | **裏で走るレースの唯一の入口**。`runBackgroundRace`（裏の部・海外リーグ・ECL・世界選手権・大陸予選が全部ここを通る）。区間への並べ方は `raceEngine` の `bgLineup` 1本 |
 | `src/data/courseNames.ts` | **コースの呼び名**。中身は25本のまま、名前だけ地域ごと（国内／アジア／アフリカ／ヨーロッパ／アメリカ）。`courseNameFor` / `localizeRace` |
 | `src/utils/facilities.ts` | **施設**。レベル（自分で建てたぶん or 格から）と維持費。`facilitiesOf` / `facilityUpkeepOf` / `FACILITY_UPKEEP_PER_LEVEL` |
+| `src/utils/wordFilter.ts` | **書き込みの伏せ字（※）**。`maskText` / `hasMaskedWord`。掲示板の本文と自由入力の名前が通る唯一の判定。**伏せるのは表示のときだけ**——保存は書かれたそのまま（通報が来たときに中身が分からないと処理できない）。**書いた本人の画面でも伏せる**（自分だけ素で見えると通っていると誤解する）。バカ・アホ・うざいの類は入れない（オーナー判断）。**「※が含まれるか」で点検しないこと**——語の表に `http` があるので、URLの網を消しても `※※※※※://foo.xyz` で通ってしまう（URLと電話番号は「全部が※か」を見る） |
 | `src/utils/chatLines.ts` | チャットで**2か所以上に出る文面**。承諾の返事・契約の提示・引き留めなど。**発言には必ず `kind` を付ける**（付いていないと重複が潰せない）。`npm run check` が文面の重複と `kind` の有無を見張る |
 | `src/utils/raceHistory.ts` | **走ったレースの取り出し**。`ranRaces`（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会をリーグ名つきで返す）。同じ駅伝名でも部が違えば別の記録 |
 | `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。順位表の**行の型は1つ**（`SeasonStanding`・キーは `teamId`）。置き場所は国内(`standings`)と海外(`foreignStandings`)で分かれているが、読む側は区別しない。旧セーブ（キーが `clubId`）を均すのも `normalizeForeignStandings` 1本 |
