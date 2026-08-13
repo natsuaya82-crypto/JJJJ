@@ -16,6 +16,7 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { useAdHeight } from '../layout/Layout'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha, rankColor, SAIRA, FONT, bottomStack } from '../../styles/tokens'
+import { panelStyle } from '../ui/Panel'
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 
@@ -294,8 +295,7 @@ export default function EclPage() {
           </div>
         </div>
         <div style={{ padding: '8px 12px 0' }}>
-          <div style={{ borderRadius: '14px', overflow: 'hidden', border: `2px solid ${C.goldDark}`, boxShadow: '0 6px 0 #5a3500, 0 10px 28px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.08)', position: 'relative' }}>
-            <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.25)', borderRadius: 10, pointerEvents: 'none', zIndex: 1 }}/>
+          <div style={panelStyle(C.gold)}>
             <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 40px 74px', gap: '4px', padding: '7px 12px', background: C.surface3, borderBottom: `1px solid ${C.border}` }}>
               <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700' }}>#</span>
               <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>
@@ -362,11 +362,7 @@ export default function EclPage() {
 
       {/* 年間王者（確定後） */}
       {eclResult && (
-        <div style={{
-          margin: '8px 14px 14px', padding: '16px', borderRadius: 16, textAlign: 'center',
-          background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})`,
-          border: `3px solid ${C.gold}`, boxShadow: '0 6px 0 #8b6914',
-        }}>
+        <div style={{ ...panelStyle(C.gold), margin: '8px 14px 14px', padding: '16px', textAlign: 'center' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 4, fontWeight: 900 }}>WORLD CHAMPION</div>
           <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 6px' }}>
             {standings[0] && <TeamLogoSVG primary={standings[0].colors.primary} secondary={standings[0].colors.secondary} shortName={standings[0].shortName} teamId={standings[0].id} size={54} />}
@@ -383,7 +379,7 @@ export default function EclPage() {
 
       {/* 次戦（出場権なしの観戦・開催ボタン） */}
       {nextRace && (
-        <div style={{ margin: '8px 14px 14px', padding: '14px 16px', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.goldDark}`, boxShadow: '0 4px 0 #5a3500' }}>
+        <div style={{ ...panelStyle(C.gold), margin: '8px 14px 14px', padding: '14px 16px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>NEXT 第{series.raceIndex + 1}戦／全{series.races.length}戦 — {nextRace.date.replace(/-/g, '/')}</div>
           <div style={{ fontSize: 15, fontWeight: 900 }}>{nextRace.name}</div>
           <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>

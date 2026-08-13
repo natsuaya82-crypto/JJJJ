@@ -18,6 +18,7 @@ import { contractTalkCtx, contractMonthsLeft, isUrgentRenewal } from '../../util
 import { rankedStandings, seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 
 const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties => {
@@ -205,12 +206,7 @@ export function ResultsPhase({
           </div>
         </div>
         <div style={{ padding: '14px 12px' }}>
-          <div style={{
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${alpha('#7986CB', 0.6)}`,
-            borderRadius: 16, padding: '14px 16px',
-            boxShadow: `0 4px 0 #0d1133, 0 6px 16px rgba(0,0,0,0.4)`,
-          }}>
+          <div style={{ ...panelStyle(C.blue), padding: '14px 16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {expRacers.map(p => {
                 const gains = raceExpGains[p.id] ?? {}
@@ -279,14 +275,8 @@ export function ResultsPhase({
     <div style={{ fontFamily: SAIRA, paddingBottom: bottomStack(adH, { extra: 88 }) }}>
 
       <div style={{
-        padding: '12px 16px 11px', textAlign: 'center',
-        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-        border: `2px solid ${C.goldDark}`,
-        borderRadius: 12,
-        position: 'relative',
-        overflow: 'hidden',
-        margin: '12px 12px 0',
-        boxShadow: `0 3px 0 #5a3500, 0 5px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        ...panelStyle(C.gold),
+        padding: '12px 16px 11px', textAlign: 'center', margin: '12px 12px 0',
       }}>
         <div style={{ fontSize: '9px', color: C.gold, letterSpacing: '3px', marginBottom: '3px', textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
           RACE COMPLETE
@@ -334,15 +324,7 @@ export function ResultsPhase({
 
         return (
           <>
-            <div style={{
-              margin: '12px 12px 0',
-              padding: '11px 14px',
-              borderRadius: 12,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.goldDark}`,
-              position: 'relative', overflow: 'hidden',
-              boxShadow: `0 3px 0 #5a3500, 0 5px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-            }}>
+            <div style={{ ...panelStyle(C.gold), margin: '12px 12px 0', padding: '11px 14px' }}>
               <div style={{ fontSize: '9px', color: C.gold, letterSpacing: '2px', marginBottom: '6px', textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
                 YOUR RESULT
               </div>
@@ -529,14 +511,7 @@ export function ResultsPhase({
 
       {!hideCards && raceDroppedCards.length > 0 && (
         <div style={{ margin: '14px 12px 0' }}>
-          <div style={{
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${C.green}`,
-            borderRadius: 16, padding: '14px 16px',
-            position: 'relative', overflow: 'hidden',
-            boxShadow: `0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-          }}>
-            <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.green, 0.15)}`, borderRadius: 12, pointerEvents: 'none' }} />
+          <div style={{ ...panelStyle(C.green), padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 10, color: C.green, letterSpacing: 2, fontWeight: 700, textShadow: `0 0 10px ${alpha(C.green, 0.5)}` }}>CARD DROP</div>

@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { FacilityKey } from '../../types'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
+import { panelStyle } from '../ui/Panel'
 
 
 function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: FacilityKey; color: string; size?: number }) {
@@ -120,13 +121,7 @@ export default function FacilitiesPage() {
           const canUpgrade = nextCost !== null && jewels >= nextCost
 
           return (
-            <div key={f.key} style={{
-              borderRadius: '14px', position: 'relative', overflow: 'hidden',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${alpha(f.color, currentLv > 0 ? 0.45 : 0.18)}`,
-              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-            }}>
-              <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>
+            <div key={f.key} style={panelStyle(currentLv > 0 ? f.color : alpha(f.color, 0.4))}>
 
               <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <div style={{

@@ -22,6 +22,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
+import { panelStyle } from '../ui/Panel'
 
 
 
@@ -606,7 +607,7 @@ export default function Dashboard() {
                     <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224` }}>{dueTT.name}</div>
                     <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, marginTop: 3, letterSpacing: '0.06em' }}>{dueTT.date.replace(/-/g, '/')}</div>
                   </div>
-                  <div style={{ padding: '5px 12px', borderRadius: 20, flexShrink: 0, background: `linear-gradient(180deg, #66BB6A 0%, ${C.green} 60%, #0d5a30 100%)`, border: `2px solid #0d3d22`, fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.bg, boxShadow: `0 3px 0 #0a2e1a, inset 0 1px 0 rgba(255,255,255,0.4)` }}>TIME TRIAL</div>
+                  <div style={{ ...panelStyle(C.green), padding: '5px 12px', flexShrink: 0, fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.green }}>TIME TRIAL</div>
                 </div>
               </div>
               {/* Info tiles */}

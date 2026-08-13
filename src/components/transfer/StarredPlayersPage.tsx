@@ -8,6 +8,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useOpponentMenu } from '../teams/opponentMenu'
+import { panelStyle } from '../ui/Panel'
 
 
 export default function StarredPlayersPage() {
@@ -76,14 +77,7 @@ export default function StarredPlayersPage() {
 
           return (
             <div key={p.id} style={{ marginBottom: '7px' }}>
-              <div style={{
-                position: 'relative', overflow: 'hidden',
-                borderRadius: '14px',
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${alpha(specCol, 0.25)}`,
-                boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-              }}>
-                <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
+              <div style={panelStyle(specCol)}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
                   <div {...rowProps} style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                     <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}>

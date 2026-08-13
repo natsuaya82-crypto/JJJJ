@@ -6,6 +6,7 @@ import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha, DIV_STAR, SAIRA, FONT } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
 import { DIVISION_LABEL, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { panelStyle } from '../ui/Panel'
 
 
 export default function RecordsHub() {
@@ -152,14 +153,7 @@ export default function RecordsHub() {
         </div>
 
         {pastSeasons.length > 0 && (
-          <div style={{
-            padding: '10px 12px', borderRadius: '14px', position: 'relative', overflow: 'hidden',
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${C.border2}`,
-            boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-            marginBottom: '4px',
-          }}>
-            <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>
+          <div style={{ ...panelStyle(C.gold), padding: '10px 12px', marginBottom: 4 }}>
             <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '8px' }}>過去の成績</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {pastSeasons.slice(-4).reverse().map(season => {

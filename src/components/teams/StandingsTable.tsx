@@ -2,6 +2,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import Flag from '../ui/Flag'
 import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
 import type { Nationality } from '../../types'
+import { panelStyle } from '../ui/Panel'
 
 
 export type StandRow = {
@@ -37,8 +38,7 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress, promo
     onPointerMove: () => { if (pressTimer) clearTimeout(pressTimer) },
   } : {}
   return (
-    <div style={{ margin: '0 12px', borderRadius: '14px', overflow: 'hidden', border: `2px solid ${C.goldDark}`, boxShadow: `0 6px 0 #5a3500, 0 10px 28px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.08)`, position: 'relative' }}>
-      <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.25)', borderRadius: 10, pointerEvents: 'none', zIndex: 1 }}/>
+    <div style={{ ...panelStyle(C.gold), margin: '0 12px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 44px 60px', gap: '4px', padding: '7px 12px', background: C.surface3, borderBottom: `1px solid ${C.border}` }}>
         <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700' }}>#</span>
         <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>

@@ -22,6 +22,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
@@ -270,16 +271,7 @@ export default function CardTrainingPage() {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
 
       {/* Selected player banner */}
-      <div style={{
-        margin: '12px 14px 0',
-        padding: '10px 14px', borderRadius: 12,
-        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-        border: `2px solid ${C.goldDark}`,
-        boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)`,
-        position: 'relative', overflow: 'hidden', flexShrink: 0,
-      }}>
-        <div style={{ position: 'absolute', inset: 3, border: `1px solid rgba(245,200,66,0.18)`, borderRadius: 9, pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(C.gold, 0.4)}, transparent)`, pointerEvents: 'none' }}/>
+      <div style={{ ...panelStyle(C.gold), margin: '12px 14px 0', padding: '10px 14px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <div style={{ flexShrink: 0, borderRadius: 10, overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
             <PlayerFace playerId={targetPlayer.id} nationality={targetPlayer.nationality} size={60} />

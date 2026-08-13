@@ -9,6 +9,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { operatingCostOf, CARRYOVER_CAP_SHARE } from '../../data/economy'
 import { facilityUpkeepOf } from '../../utils/facilities'
+import { panelStyle } from '../ui/Panel'
 
 
 
@@ -129,13 +130,7 @@ export default function BudgetPage() {
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           今シーズンの収支
         </div>
-        <div style={{
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark}`,
-          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-        }}>
-          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+        <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>
           <div style={{ position: 'relative', zIndex: 1 }}>
             <Row label="初期予算" value={`+${fmtYen(initialBudget)}`} color={C.gold} />
             {bd && (
@@ -209,13 +204,7 @@ export default function BudgetPage() {
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           スポンサー契約 ({sponsorList.length}件)
         </div>
-        <div style={{
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark}`,
-          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-        }}>
-          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+        <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>
           <div style={{ position: 'relative', zIndex: 1 }}>
             {sponsorList.length === 0 ? (
               <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 12, color: C.textDim }}>
@@ -253,13 +242,7 @@ export default function BudgetPage() {
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           高額給与 TOP5
         </div>
-        <div style={{
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark}`,
-          borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-        }}>
-          <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+        <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>
           <div style={{ position: 'relative', zIndex: 1 }}>
             {topSalaries.map((p, i) => (
               <div
@@ -306,13 +289,7 @@ export default function BudgetPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
               過去シーズン成績
             </div>
-            <div style={{
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.goldDark}`,
-              borderRadius: 14, padding: '4px 16px', position: 'relative', overflow: 'hidden',
-              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-            }}>
-              <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none', zIndex: 0 }}/>
+            <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>
               <div style={{ position: 'relative', zIndex: 1 }}>
                 {pastBudgets.slice(-5).reverse().map((r, i) => (
                   <Row

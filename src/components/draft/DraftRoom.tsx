@@ -18,6 +18,7 @@ import { audio } from '../../utils/audio'
 import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
 import { SpecChip, ForeignChip } from '../player/PlayerChips'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 
 type SortKey = 'ovr' | 'potential' | 'age'
@@ -627,13 +628,9 @@ export default function DraftRoom() {
               const isRival       = !isMe && needs.includes(needSpec)
               return (
                 <div key={t.id} style={{
-                  marginBottom: '8px', padding: '12px 14px', borderRadius: '14px',
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `2px solid ${isRival ? C.red : isMe ? C.goldDark ?? '#b8860b' : C.border2}`,
-                  boxShadow: isMe ? `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)` : 'none',
-                  position: 'relative', overflow: 'hidden',
+                  ...panelStyle(isRival ? C.red : isMe ? C.gold : C.border3),
+                  marginBottom: '8px', padding: '12px 14px',
                 }}>
-                  {isMe && <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: teamPicks.length > 0 ? '8px' : 0 }}>
                     <div style={{ width: '4px', height: '30px', borderRadius: '2px', flexShrink: 0, background: `linear-gradient(180deg, ${accentColor}, ${alpha(accentColor, 0.6)})` }}/>
                     <div style={{ flex: 1 }}>
@@ -940,10 +937,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
           })
           return (
             <div key={p.id} style={{
-              padding: '9px 11px', borderRadius: '12px', marginBottom: '8px',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.goldDark ?? '#b8860b'}`,
-              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4)`,
+              ...panelStyle(C.gold), padding: '9px 11px', marginBottom: '8px',
               display: 'flex', flexDirection: 'column', gap: 6,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

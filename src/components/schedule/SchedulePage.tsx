@@ -8,6 +8,7 @@ import Flag from '../ui/Flag'
 import { C, alpha, SAIRA, TT_COLOR } from '../../styles/tokens'
 import { courseTypeOf } from '../../data/races'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 const TT_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
@@ -126,16 +127,9 @@ export default function SchedulePage() {
 
       {isSeasonStart && (
         <div style={{
-          margin: '12px 16px',
-          borderRadius: 14,
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark ?? '#b8860b'}`,
-          padding: '14px 16px',
-          position: 'relative', overflow: 'hidden',
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+          ...panelStyle(C.gold), margin: '12px 16px', padding: '14px 16px',
           display: 'flex', alignItems: 'center', gap: '12px',
         }}>
-          <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '11px', color: C.gold, fontWeight: '800', letterSpacing: '2px', marginBottom: '2px' }}>
               {currentSeason.year} シーズン開幕
@@ -185,10 +179,8 @@ export default function SchedulePage() {
                 </div>
                 <TTCard
                   style={{
-                    flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px', borderRadius: '14px',
-                    border: isNextTT ? `2px solid ${alpha(TT_COLOR, 0.55)}` : `1px dashed ${alpha(TT_COLOR, 0.5)}`,
-                    background: isNextTT ? `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)` : it.isDone ? 'transparent' : alpha(TT_COLOR, 0.06),
-                    boxShadow: isNextTT ? `0 4px 0 #123f39, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)` : 'none',
+                    ...panelStyle(isNextTT ? TT_COLOR : alpha(TT_COLOR, 0.4)),
+                    flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px',
                     cursor: 'default',
                     textAlign: 'left', fontFamily: 'inherit', width: '100%',
                   } as React.CSSProperties}

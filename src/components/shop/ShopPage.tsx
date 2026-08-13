@@ -8,6 +8,7 @@ import { cardPackPrice } from '../../data/cardShop'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import { JewelIcon } from '../icons/Icons'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 
 
@@ -264,12 +265,7 @@ export default function ShopPage() {
           const col = RARITY_COLORS[item.rarity]
           const canAfford = (jewels ?? 0) >= item.price
           return (
-            <div key={item.rarity} style={{
-              borderRadius: 14, overflow: 'hidden',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${alpha(col, 0.35)}`,
-              boxShadow: `0 4px 0 #1a1a2e, 0 6px 16px rgba(0,0,0,0.4)`,
-            }}>
+            <div key={item.rarity} style={panelStyle(col)}>
               <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ flexShrink: 0, filter: `drop-shadow(0 0 8px ${alpha(col, 0.5)})` }}>
                   <CardIcon size={40} color={col} />

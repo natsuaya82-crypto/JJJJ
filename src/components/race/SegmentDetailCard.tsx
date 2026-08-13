@@ -11,6 +11,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import PillTabs from '../ui/PillTabs'
 import { TeamLogoSVG } from '../icons/Icons'
+import { panelStyle } from '../ui/Panel'
 
 
 export type SegRunner = { playerId: string; teamId: string; timeSec: number; rank: number }
@@ -67,15 +68,7 @@ export function SegmentDetailCard({
   const displayed = sr.runners
 
   return (
-    <div style={{
-      borderRadius: 14,
-      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-      border: `2px solid ${C.goldDark}`,
-      position: 'relative', overflow: 'hidden',
-      boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-      marginBottom,
-    }}>
-      <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.15)}`, borderRadius: 10, pointerEvents: 'none' }} />
+    <div style={{ ...panelStyle(C.gold), marginBottom }}>
 
       {/* Segment header */}
       <div style={{

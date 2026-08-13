@@ -5,6 +5,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import type { SponsorTarget } from '../../types'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 const MAX_SPONSORS = 3
 
@@ -88,12 +89,7 @@ export default function SponsorPage() {
           {activeSponsors.map(sp => {
             const col = TIER_COLOR[sp.tier]
             return (
-              <div key={sp.id} style={{
-                padding: '12px 14px', borderRadius: 14, position: 'relative', overflow: 'hidden',
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${alpha(col, 0.45)}`,
-                boxShadow: `0 4px 0 #1a1a2e, 0 6px 16px rgba(0,0,0,0.4)`,
-              }}>
+              <div key={sp.id} style={{ ...panelStyle(col), padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <LogoBox color={sp.logoColor} />
                   <div style={{ flex: 1 }}>
@@ -158,12 +154,7 @@ export default function SponsorPage() {
             const col = TIER_COLOR[offer.tier]
             const canAccept = slotsLeft > 0
             return (
-              <div key={offer.id} style={{
-                padding: '12px 14px', borderRadius: 14, position: 'relative', overflow: 'hidden',
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${alpha(col, 0.4)}`,
-                boxShadow: `0 4px 0 #1a1a2e, 0 6px 16px rgba(0,0,0,0.4)`,
-              }}>
+              <div key={offer.id} style={{ ...panelStyle(col), padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <LogoBox color={offer.logoColor} size={40} />
                   <div style={{ flex: 1 }}>

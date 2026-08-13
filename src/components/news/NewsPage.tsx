@@ -8,6 +8,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { ForeignChip } from '../player/PlayerChips'
+import { panelStyle } from '../ui/Panel'
 
 
 const CAT_COLOR: Record<string, string> = {
@@ -180,10 +181,8 @@ export default function NewsPage() {
 
           return (
             <div key={i} style={{
-              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-              border: `2px solid ${C.goldDark}`, borderRadius: 12, padding: 10,
+              ...panelStyle(col), padding: 10,
               display: 'flex', alignItems: 'center', gap: 10,
-              boxShadow: `0 3px 0 #5a3500, 0 5px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
             }}>
               <div style={{ width: 36, height: 36, flexShrink: 0, background: `linear-gradient(180deg, ${C.surface3} 0%, #0f2440 100%)`, border: `1px solid ${alpha(col, 0.4)}`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: col }}>
                 {CAT_ICON[news.category] ?? DEFAULT_ICON}

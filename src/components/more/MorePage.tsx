@@ -19,6 +19,7 @@ import { canResignAsGm } from '../../utils/gmOffer'
 import { APP_VERSION } from '../../data/appMeta'
 import { Chevron } from '../ui'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 
 
@@ -619,15 +620,7 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
 
   return (
     <DetailScreen title="データリセット" onClose={onClose}>
-      <div style={{
-        position: 'relative', overflow: 'hidden',
-        background: '#1A0D0D',
-        border: `2px solid ${alpha(C.red, 0.45)}`,
-        borderRadius: 14,
-        boxShadow: `0 4px 0 #660e10, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`,
-        padding: '16px',
-      }}>
-        <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.red, 0.12)}`, borderRadius: 10, pointerEvents: 'none' }} />
+      <div style={{ ...panelStyle(C.red), padding: '16px' }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: '10px', color: C.red, letterSpacing: '2px', opacity: 0.7, marginBottom: '10px', fontFamily: SAIRA }}>危険な操作</div>
           <div style={{ fontSize: '13px', color: '#8a5a5a', marginBottom: '16px', lineHeight: 1.7, fontFamily: SAIRA }}>

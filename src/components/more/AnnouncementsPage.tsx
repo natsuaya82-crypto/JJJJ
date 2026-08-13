@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CHANGELOG } from '../../data/appMeta'
 import { C, SAIRA, alpha } from '../../styles/tokens'
+import { panelStyle } from '../ui/Panel'
 
 
 type NewsItem = { date: string; title: string; body: string }
@@ -96,15 +97,7 @@ function PageHeader({ title, onBack }: { title: string; onBack: () => void }) {
   )
 }
 
-const cardStyle: React.CSSProperties = {
-  position: 'relative',
-  overflow: 'hidden',
-  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-  border: `2px solid ${C.goldDark}`,
-  borderRadius: 14,
-  boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-  padding: '14px',
-}
+const cardStyle: React.CSSProperties = { ...panelStyle(C.gold), padding: '14px' }
 
 /**
  * お知らせの一覧。**タイトルだけを並べて、本文は別ページで開く。**

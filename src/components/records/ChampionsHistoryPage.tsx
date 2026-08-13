@@ -17,6 +17,7 @@ import PlayerFace from '../player/PlayerFace'
 import { C, alpha, DIV_STAR, SAIRA } from '../../styles/tokens'
 import { DIVISION_LABEL, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
@@ -243,12 +244,7 @@ export default function ChampionsHistoryPage() {
         return (
           <div style={{ padding: '0 16px 12px' }}>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>JPEL 歴代優勝回数</div>
-            <div style={{
-              borderRadius: 12, overflow: 'hidden',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.border2}`,
-              boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
-            }}>
+            <div style={panelStyle(C.gold)}>
               {champRanking.map(({ team, titles }, i, arr) => {
                 const isMe = team.id === playerTeamId
                 return (

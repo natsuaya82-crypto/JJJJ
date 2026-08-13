@@ -16,6 +16,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
+import Panel from '../ui/Panel'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
@@ -69,16 +70,7 @@ export function GmCareerPage() {
 
 function CardPanel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{
-      padding: '14px 16px', borderRadius: '14px', position: 'relative', overflow: 'hidden',
-      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-      border: `2px solid ${C.border2}`,
-      boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-      ...style,
-    }}>
-      <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>
-      {children}
-    </div>
+    <Panel accent={C.gold} style={style}>{children}</Panel>
   )
 }
 

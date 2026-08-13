@@ -6,6 +6,7 @@ import { fmtYen } from '../../utils/money'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
+import { panelStyle } from '../ui/Panel'
 
 
 export default function TeamHub() {
@@ -23,11 +24,6 @@ export default function TeamHub() {
 
   const teamPrimary = myTeam?.colors.primary ?? C.blue
 
-  const rankBg = myRank === 1
-    ? `linear-gradient(135deg, ${C.gold}, ${C.goldHi})`
-    : myRank <= 3
-    ? `linear-gradient(135deg, ${alpha(C.green, 0.2)}, ${alpha(C.green, 0.1)})`
-    : `linear-gradient(135deg, ${alpha('#fff', 0.06)}, ${alpha('#fff', 0.02)})`
   const rankText = myRank === 1 ? C.bg : myRank <= 3 ? C.green : C.textSub
 
   const SECTIONS = [
@@ -213,12 +209,9 @@ export default function TeamHub() {
           {/* Rank badge */}
           {myRank > 0 && (
             <div style={{
-              flexShrink: 0, width: 52, height: 52, borderRadius: 14,
-              background: rankBg,
-              border: myRank === 1 ? 'none' : `1px solid ${alpha('#fff', 0.15)}`,
+              ...panelStyle(myRank === 1 ? C.gold : myRank <= 3 ? C.green : C.border3),
+              flexShrink: 0, width: 52, height: 52,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              backdropFilter: 'blur(8px)',
-              boxShadow: myRank === 1 ? `0 4px 0 #5a3500, 0 0 16px ${alpha(C.gold, 0.4)}` : '0 3px 0 rgba(0,0,0,0.4)',
             }}>
               <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, lineHeight: 1, color: rankText }}>{myRank}</div>
               <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 700, color: rankText, opacity: 0.8 }}>位</div>

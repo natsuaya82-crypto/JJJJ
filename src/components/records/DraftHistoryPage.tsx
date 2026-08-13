@@ -9,19 +9,12 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import GlassButton from '../ui/GlassButton'
+import Panel from '../ui/Panel'
 
 
 function CardPanel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      padding: '14px 16px', borderRadius: '14px', position: 'relative', overflow: 'hidden',
-      background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-      border: `2px solid ${C.border2}`,
-      boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-    }}>
-      <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>
-      {children}
-    </div>
+    <Panel accent={C.gold}>{children}</Panel>
   )
 }
 
