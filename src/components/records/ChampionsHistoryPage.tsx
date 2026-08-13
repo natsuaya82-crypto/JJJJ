@@ -16,6 +16,7 @@ import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha, DIV_STAR, SAIRA } from '../../styles/tokens'
 import { DIVISION_LABEL, rankedStandings, seasonDivisionStandings } from '../../utils/league'
+import GlassButton from '../ui/GlassButton'
 
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
@@ -282,17 +283,13 @@ export default function ChampionsHistoryPage() {
       {cat == null && (
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(['jpel', 'ecl', 'waqual', 'wamain', 'reserve', 'tt'] as Category[]).map(c => (
-            <button key={c} onClick={() => setCat(c)} style={{
-              display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '14px 16px', borderRadius: 12,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.border2}`, color: C.text,
-              boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
-              fontFamily: SAIRA,
-            }}>
+            <GlassButton key={c} full style={{
+              justifyContent: 'flex-start', gap: 12, textAlign: 'left',
+              padding: '14px 16px', color: C.text, fontFamily: SAIRA,
+            }} onClick={() => setCat(c)}>
               <span style={{ fontSize: 16, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{CAT_LABEL[c]}</span>
               <span style={{ color: C.textGhost, fontSize: 18 }}>›</span>
-            </button>
+            </GlassButton>
           ))}
         </div>
       )}

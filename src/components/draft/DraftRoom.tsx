@@ -17,6 +17,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { audio } from '../../utils/audio'
 import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
 import { SpecChip, ForeignChip } from '../player/PlayerChips'
+import GlassButton from '../ui/GlassButton'
 
 
 type SortKey = 'ovr' | 'potential' | 'age'
@@ -402,17 +403,9 @@ export default function DraftRoom() {
               <div style={{ fontSize: '8px', color: C.textDim, marginTop: '1px' }}>{myPicksTotal === 0 ? 'WATCHING' : 'MY PICKS'}</div>
             </div>
             {!isMyPick && !isComplete && (
-              <button onClick={skipToMyPick} style={{
-                padding: '6px 11px', borderRadius: '10px',
-                border: `2px solid ${C.blue}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                color: C.blue, fontSize: '10px', fontWeight: '700',
-                cursor: 'pointer', fontFamily: 'inherit',
-                boxShadow: `0 4px 0 #2a3580, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`,
-                position: 'relative', overflow: 'hidden',
-              }}>
-                <div style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }}/>
+              <GlassButton color={C.blue} size="sm" onClick={skipToMyPick}>
                 {myPicksDone < myPicksTotal ? '自番へ →' : '最後までスキップ →'}
-              </button>
+              </GlassButton>
             )}
           </div>
         </div>

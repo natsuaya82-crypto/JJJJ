@@ -17,6 +17,7 @@ import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
 import { contractTalkCtx, contractMonthsLeft, isUrgentRenewal } from '../../utils/contractTalk'
 import { rankedStandings, seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { requiredExpForLevel } from '../../engine/growth'
+import GlassButton from '../ui/GlassButton'
 
 
 const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties => {
@@ -543,22 +544,9 @@ export function ResultsPhase({
                   {raceDroppedCards.length}枚のカードを獲得
                 </div>
               </div>
-              <button
-                onClick={() => navigate('/cards')}
-                style={{
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `2px solid ${C.green}`,
-                  borderRadius: 11, color: C.green,
-                  fontSize: 11, fontWeight: 700,
-                  padding: '11px 18px', cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: '0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-                  position: 'relative', overflow: 'hidden',
-                  marginBottom: 8,
-                }}
-              >
-                <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }} />
+              <GlassButton color={C.green} size="sm" style={{ padding: '11px 18px', marginBottom: 8 }} onClick={() => navigate('/cards')}>
                 練習する
-              </button>
+              </GlassButton>
             </div>
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
               {raceDroppedCards.map(card => (

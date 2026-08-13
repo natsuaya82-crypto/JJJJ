@@ -18,6 +18,7 @@ import { canResignAsGm } from '../../utils/gmOffer'
 
 import { APP_VERSION } from '../../data/appMeta'
 import { Chevron } from '../ui'
+import GlassButton from '../ui/GlassButton'
 
 
 
@@ -653,39 +654,17 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
               >
                 キャンセル
               </button>
-              <button
-                onClick={resetGame}
-                style={{
-                  flex: 1, padding: '12px', borderRadius: 11,
-                  border: `2px solid ${C.red}`,
-                  background: `linear-gradient(180deg, #3d0a0a, #2a0606)`,
-                  color: C.red, fontSize: '13px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
-                  boxShadow: `0 4px 0 #660e10`,
-                }}
-              >
+              <GlassButton color={C.red} style={{ flex: 1, fontFamily: SAIRA }} onClick={resetGame}>
                 本当に削除する
-              </button>
+              </GlassButton>
             </div>
           ) : (
-            <button
-              onClick={() => setConfirming(true)}
-              style={{
-                position: 'relative', overflow: 'hidden',
-                width: '100%', padding: '13px 18px', borderRadius: 11,
-                border: `2px solid ${alpha(C.red, 0.45)}`,
-                background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                color: C.red,
-                fontSize: '13px', fontWeight: '800', cursor: 'pointer', fontFamily: SAIRA,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                boxShadow: `0 4px 0 #660e10, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`,
-              }}
-            >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(C.red, 0.3)}, transparent)`, pointerEvents: 'none' }} />
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ position: 'relative', zIndex: 1 }}>
+            <GlassButton full color={C.red} style={{ gap: 8, fontFamily: SAIRA }} onClick={() => setConfirming(true)}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                 <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <span style={{ position: 'relative', zIndex: 1 }}>ゲームをリセット</span>
-            </button>
+              <span>ゲームをリセット</span>
+            </GlassButton>
           )}
         </div>
       </div>

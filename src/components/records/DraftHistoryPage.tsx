@@ -8,6 +8,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
+import GlassButton from '../ui/GlassButton'
 
 
 function CardPanel({ children }: { children: React.ReactNode }) {
@@ -115,17 +116,13 @@ export default function DraftHistoryPage() {
         ) : years.map(y => {
           const count = drafted.filter(p => p.draftYear === y).length
           return (
-            <button key={y} onClick={() => navigate(`/records/draft/${y}`)} style={{
-              display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '14px 16px', borderRadius: 12,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.border2}`,
-              boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)`,
-            }}>
+            <GlassButton key={y} full style={{
+              justifyContent: 'flex-start', gap: 12, textAlign: 'left', padding: '14px 16px', color: C.text,
+            }} onClick={() => navigate(`/records/draft/${y}`)}>
               <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{y}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 700, marginLeft: 2 }}>年度</span></span>
               <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(C.gold, 0.12) }}>{count}名</span>
               <span style={{ marginLeft: 'auto', color: C.textGhost, fontSize: 18 }}>›</span>
-            </button>
+            </GlassButton>
           )
         })}
       </div>

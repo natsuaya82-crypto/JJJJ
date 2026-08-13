@@ -4,8 +4,9 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha, SAIRA, SELECT_STYLE } from '../../styles/tokens'
+import { C, SAIRA, SELECT_STYLE } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
+import GlassButton from '../ui/GlassButton'
 
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
@@ -63,38 +64,12 @@ export default function CardInventoryPage() {
           <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900 }}>カード一覧</div>
           <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 1 }}>{trainingCards.length}枚所持</div>
         </div>
-        <button
-          onClick={() => navigate('/cards')}
-          style={{
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${alpha(C.blue, 0.55)}`,
-            boxShadow: `0 4px 0 #2a3580, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`,
-            borderRadius: 11,
-            color: C.blue, fontSize: 12, fontWeight: 700,
-            padding: '8px 14px', cursor: 'pointer', fontFamily: SAIRA,
-            position: 'relative', overflow: 'hidden' as const,
-            marginBottom: '4px',
-          }}
-        >
-          <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }}/>
+        <GlassButton color={C.blue} size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12, marginBottom: 4 }} onClick={() => navigate('/cards')}>
           合成する
-        </button>
-        <button
-          onClick={() => navigate('/cards/convert')}
-          style={{
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${alpha('#A855F7', 0.55)}`,
-            boxShadow: `0 4px 0 #4c1d95, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`,
-            borderRadius: 11,
-            color: '#A855F7', fontSize: 12, fontWeight: 700,
-            padding: '8px 14px', cursor: 'pointer', fontFamily: SAIRA,
-            position: 'relative', overflow: 'hidden' as const,
-            marginBottom: '4px',
-          }}
-        >
-          <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '35%', background: 'linear-gradient(180deg,rgba(255,255,255,0.1),transparent)', borderRadius: '5px 5px 50% 50%', pointerEvents: 'none' }}/>
+        </GlassButton>
+        <GlassButton color="#A855F7" size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12, marginBottom: 4 }} onClick={() => navigate('/cards/convert')}>
           変換
-        </button>
+        </GlassButton>
       </div>
 
       {/* 絞り込み・並べ替え（プルダウン） */}

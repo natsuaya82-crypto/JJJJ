@@ -7,6 +7,7 @@ import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME, detectCombo } from '../..
 import { isStatMaxed } from '../../utils/playerUtils'
 import { C, alpha, SAIRA, SELECT_STYLE, PURPLE } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
+import GlassButton from '../ui/GlassButton'
 
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
@@ -188,20 +189,9 @@ export default function CardSelectPage() {
         padding: '10px 14px calc(10px + env(safe-area-inset-bottom))',
         background: C.bg, borderTop: `1px solid ${C.border}`,
       }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            width: '100%', padding: '15px', borderRadius: 12,
-            background: `linear-gradient(180deg, #9333ea, #7e22ce)`,
-            border: `2px solid #c084fc`, color: '#fff',
-            boxShadow: `0 5px 0 #4c1d95, 0 7px 20px rgba(168,85,247,0.35), inset 0 1px 0 rgba(255,255,255,0.15)`,
-            fontFamily: SAIRA, fontSize: 14, fontWeight: 800, letterSpacing: '1px', cursor: 'pointer',
-            position: 'relative', overflow: 'hidden',
-          }}
-        >
-          <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '40%', background: 'linear-gradient(180deg,rgba(255,255,255,0.18),transparent)', borderRadius: '6px 6px 50% 50%', pointerEvents: 'none' }} />
+        <GlassButton full color="#c084fc" style={{ padding: '15px', fontFamily: SAIRA, fontSize: 14, letterSpacing: '1px' }} onClick={() => navigate(-1)}>
           決定（{fusionCardIds.length}枚）
-        </button>
+        </GlassButton>
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ import { useFriendsQuery, LoadingBox, ErrorBox } from '../friends/friendsUi'
 import { createRoom, joinRoom, myMatchStats, DEFAULT_RULES } from '../../lib/roomsApi'
 import { syncServerTime } from '../../lib/serverTime'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import GlassButton from '../ui/GlassButton'
 
 
 // オンライン対戦の入口。部屋を立てるか、6桁の番号で入るかだけの画面。
@@ -77,15 +78,9 @@ export default function MatchEntryPage() {
 
       {/* 部屋を作る */}
       <div style={{ padding: '18px 12px 0' }}>
-        <button onClick={onCreate} disabled={!!busy} className="btn-press" style={{
-          width: '100%', padding: '16px 14px', borderRadius: 14, border: `2px solid ${C.goldDark}`,
-          background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-          boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5)`,
-          color: C.gold, fontFamily: SAIRA, fontSize: 17, fontWeight: 900,
-          cursor: 'pointer', opacity: busy ? 0.5 : 1,
-        }}>
+        <GlassButton full size="lg" disabled={!!busy} style={{ fontFamily: SAIRA }} onClick={onCreate}>
           {busy === 'create' ? '作成中…' : '部屋を作る'}
-        </button>
+        </GlassButton>
       </div>
 
       {/* 番号で入る */}

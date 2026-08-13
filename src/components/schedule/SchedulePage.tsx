@@ -7,6 +7,7 @@ import { NAT_LABEL } from '../../data/nationalities'
 import Flag from '../ui/Flag'
 import { C, alpha, SAIRA, TT_COLOR } from '../../styles/tokens'
 import { courseTypeOf } from '../../data/races'
+import GlassButton from '../ui/GlassButton'
 
 const TT_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
@@ -354,25 +355,12 @@ export default function SchedulePage() {
                       </>
                     ) : canEnter ? (
                       <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 11, marginBottom: 8 }}>
-                        <button
-                          onClick={() => navigate('/race')}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '4px',
-                            padding: '11px 18px', borderRadius: 11,
-                            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                            border: `2px solid ${C.goldDark}`,
-                            color: C.gold,
-                            boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)`,
-                            cursor: 'pointer', fontFamily: 'inherit',
-                            position: 'relative', overflow: 'hidden',
-                          }}
-                        >
-                          <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.2)', borderRadius: 8, pointerEvents: 'none' }}/>
-                          <span style={{ fontSize: '11px', fontWeight: '800', position: 'relative', zIndex: 1 }}>出走準備</span>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ position: 'relative', zIndex: 1 }}>
+                        <GlassButton size="sm" style={{ gap: 4, padding: '11px 18px' }} onClick={() => navigate('/race')}>
+                          <span style={{ fontSize: '11px', fontWeight: '800' }}>出走準備</span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                             <path d="M9 18l6-6-6-6" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round"/>
                           </svg>
-                        </button>
+                        </GlassButton>
                       </div>
                     ) : null}
                   </div>

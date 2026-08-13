@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import type { SponsorTarget } from '../../types'
+import GlassButton from '../ui/GlassButton'
 
 const MAX_SPONSORS = 3
 
@@ -69,17 +70,11 @@ export default function SponsorPage() {
 
       <div style={{ display: 'flex', padding: '10px 12px 0', gap: 6 }}>
         {(['active', 'offers'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            flex: 1, padding: '9px', borderRadius: 10, fontFamily: SAIRA,
-            background: tab === t ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
-            color: tab === t ? C.gold : C.textDim,
-            fontSize: 12, fontWeight: tab === t ? 800 : 400,
-            border: tab === t ? `2px solid ${C.goldDark}` : `1px solid ${C.border}`,
-            boxShadow: tab === t ? `0 3px 0 #5a3500, 0 4px 10px rgba(0,0,0,0.4)` : 'none',
-            cursor: 'pointer',
-          }}>
+          <GlassButton key={t} color={tab === t ? C.gold : C.textDim} style={{
+            flex: 1, padding: '9px', fontFamily: SAIRA, fontSize: 12, fontWeight: tab === t ? 800 : 400,
+          }} onClick={() => setTab(t)}>
             {t === 'active' ? `契約中 (${activeSponsors.length})` : `オファー (${offers.length})`}
-          </button>
+          </GlassButton>
         ))}
       </div>
 
@@ -204,22 +199,13 @@ export default function SponsorPage() {
                   </div>
                 </div>
 
-                <button
+                <GlassButton
+                  full color={C.green} disabled={!canAccept}
+                  style={{ padding: '10px', fontFamily: SAIRA, fontSize: 12 }}
                   onClick={() => canAccept && acceptSponsorOffer(offer.id)}
-                  disabled={!canAccept}
-                  style={{
-                    width: '100%', padding: '10px', borderRadius: 10, fontFamily: SAIRA,
-                    border: canAccept ? `2px solid ${alpha(C.green, 0.55)}` : `1px solid ${C.border}`,
-                    background: canAccept
-                      ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`
-                      : C.surface,
-                    boxShadow: canAccept ? `0 4px 0 #0d3d22, 0 6px 16px rgba(0,0,0,0.45)` : 'none',
-                    color: canAccept ? C.green : C.textGhost,
-                    fontSize: 12, fontWeight: 800, cursor: canAccept ? 'pointer' : 'not-allowed',
-                  }}
                 >
                   {canAccept ? '契約する' : '上限到達（3社）'}
-                </button>
+                </GlassButton>
               </div>
             )
           })}

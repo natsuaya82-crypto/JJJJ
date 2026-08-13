@@ -183,5 +183,36 @@ console.log('\n⑤ 画面に直書きした色の数が、今日より増えて�
   }
 }
 
+console.log('\n⑥ 押すボタンを画面で手書きしていない（今日より増えていない）')
+{
+  // 「金枠2px ＋ 下に影（0 4px 0 #5a3500）」の塊が32画面に64か所コピーされていた。
+  // ボタンの形を変えても、その64か所は追随しない（実際に角丸をやめたとき、
+  // 部品を使っている移籍市場だけが変わって、残りは丸いままだった）。
+  // 押すボタンは `src/components/ui/GlassButton.tsx` 1本。
+  // ここも線は決めず、いまの数を焼いて増えたら落ちるだけ（⑤と同じ）。
+  const SLAB = /box-?[Ss]hadow[^\n]*?\b0 [2-6]px 0 #[0-9a-fA-F]{3,6}/g
+  const counts: Record<string, number> = {}
+  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+    // コメントで形を説明するのは構わない。落とすのは実際に書いているときだけ
+    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    const n = [...code.matchAll(SLAB)].length
+    if (n > 0) counts[f] = n
+  }
+  const FIX = 'scripts/fixtures/ui-button-budget.json'
+  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  if (process.env.UPDATE_GOLDEN === '1' || !existsSync(FIX)) {
+    writeFileSync(FIX, JSON.stringify(counts, null, 1) + '\n')
+    console.log(`  -- 引き直しました（${Object.keys(counts).length}ファイル / 合計 ${total}件）`)
+  } else {
+    const old: Record<string, number> = JSON.parse(readFileSync(FIX, 'utf8'))
+    const grew = Object.entries(counts).filter(([f, n]) => n > (old[f] ?? 0))
+    check(`手書きのボタンが増えていない（${total}件）`, grew.length === 0,
+      grew.map(([f, n]) => `${f} ${old[f] ?? 0} → ${n}`).join('\n      ') +
+      '\n      → 押すボタンは components/ui/GlassButton.tsx を使うこと')
+    const shrank = Object.entries(old).filter(([f, n]) => (counts[f] ?? 0) < n)
+    if (shrank.length) console.log(`  -- ${shrank.length}ファイルで減りました。引き直すと見張りが強くなります`)
+  }
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

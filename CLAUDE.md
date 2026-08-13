@@ -287,6 +287,14 @@ Supabase と同じ `auth.users` / `auth.uid()` を作り、データを入れた
 | 中身が使える高さ | `contentHeight`（**`HEADER_H + NAV_H + …` を画面で足さないこと**）|
 | 下タブが占める高さ | `NAV_STACK`（＝`NAV_H + NAV_FLOAT * 2`）|
 | メニューの行 | `src/components/ui/MenuButton.tsx`（`premium-menu-button` を書いていいのはここだけ）|
+| 押すボタン | `src/components/ui/GlassButton.tsx`（色は `color` で渡す。**画面で枠と影を書かないこと**）|
+
+**ボタンを画面に手書きしないこと。** 「金枠2px ＋ 下に影（`0 4px 0 #5a3500`）」の塊が
+**32画面に64か所**コピーされていました。ボタンの形を変えても、その64か所は追随しません
+（実際に角丸をやめたとき、部品を使っている移籍市場だけが変わって残りは丸いままでした）。
+`check-ui-tokens` の⑥が `check-size` と同じ形（**今日より増えたら落ちる**・
+`scripts/fixtures/ui-button-budget.json`）で見張ります。**画面を1つ直すたびに
+引き直すと、見張りがそのぶん強くなります。**
 
 `npm run check` の `ui-tokens` が見張ります。**新しく共通の見た目を作ったら、
 そのクラスを書いていいファイルを1つ決めて `check-ui-tokens.ts` の `OWNER` に登録すること。**

@@ -21,6 +21,7 @@ import { showRewardAd, getAdDay } from '../../utils/ads'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { requiredExpForLevel } from '../../engine/growth'
+import GlassButton from '../ui/GlassButton'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
@@ -191,16 +192,7 @@ export default function CardTrainingPage() {
             <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: PURPLE }}>{trainingCards.length}</span>
             <span style={{ fontFamily: SAIRA, fontSize: 9, color: C.textSub }}> 枚</span>
           </div>
-          <button
-            onClick={() => navigate('/cards/list')}
-            style={{
-              padding: '6px 12px', borderRadius: 8,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.goldDark}`,
-              boxShadow: `0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.08)`,
-              color: C.gold, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >一覧</button>
+          <GlassButton size="sm" style={{ padding: '6px 12px' }} onClick={() => navigate('/cards/list')}>一覧</GlassButton>
         </div>
       </div>
     </div>
@@ -424,23 +416,12 @@ export default function CardTrainingPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               {freeGreatReady && (
-                <button
-                  onClick={() => { setUseFreeGreat(true); audio.playSe('tap') }}
-                  className="btn-press"
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer',
-                    padding: '8px 16px', borderRadius: 999, marginBottom: 2,
-                    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                    border: `1.5px solid ${alpha(C.gold, 0.6)}`,
-                    boxShadow: `0 3px 0 #5a3500, 0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07)`,
-                    fontFamily: 'inherit',
-                  }}
-                >
+                <GlassButton style={{ gap: 7, padding: '8px 16px', marginBottom: 2 }} onClick={() => { setUseFreeGreat(true); audio.playSe('tap') }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                     <path d="M12 3l2.4 5.6 6 .5-4.6 3.9 1.4 5.9L12 15.8 6.8 18.9l1.4-5.9L3.6 9.1l6-.5z" fill={C.gold} />
                   </svg>
                   <span style={{ fontSize: 12, fontWeight: 900, color: C.gold }}>無料で大成功にする（本日1回）</span>
-                </button>
+                </GlassButton>
               )}
               {!adsRemoved && IAP_ENABLED && (
                 <button

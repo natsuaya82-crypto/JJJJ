@@ -7,6 +7,7 @@ import { C, alpha, SAIRA, FONT, contentHeight } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { JewelIcon } from '../icons/Icons'
+import GlassButton from '../ui/GlassButton'
 
 
 // ヘルプ・設定など他ページと同じカードの型（グラデ地＋下影＋アクセント帯の見出し）。
@@ -129,20 +130,10 @@ export default function LoginBonusPage() {
 
         {/* Claim button (when unclaimed) */}
         {!claimedToday && !claimResult && (
-          <button
-            onClick={handleClaim}
-            style={{
-              width: '100%', padding: '13px', borderRadius: 14, cursor: 'pointer',
-              background: `linear-gradient(180deg, #1a4a7a 0%, #0f2a4a 100%)`,
-              border: `2px solid ${alpha('#6dd5fa', 0.6)}`,
-              boxShadow: `0 4px 0 #061525, 0 6px 16px ${alpha('#6dd5fa', 0.2)}`,
-              fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: '#6dd5fa',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            }}
-          >
+          <GlassButton full size="lg" color={C.cyan} style={{ gap: 10, fontFamily: SAIRA }} onClick={handleClaim}>
             <JewelIcon size={20} />
             受け取る
-          </button>
+          </GlassButton>
         )}
 
         {/* Weekly calendar */}

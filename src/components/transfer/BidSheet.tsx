@@ -9,6 +9,7 @@ import { C, SAIRA } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
+import GlassButton from '../ui/GlassButton'
 
 
 // 移籍金オファーの下部シート（成立確率つき）。移籍市場・他チームタブ共通。
@@ -84,10 +85,9 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
           <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: overallPct >= 70 ? C.green : overallPct >= 35 ? C.gold : C.red }}>{overallPct}%</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => onSubmit(fee)} disabled={over}
-            style={{ flex: 1, padding: '13px', borderRadius: '11px', border: 'none', background: over ? C.surface2 : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: over ? C.textGhost : C.gold, fontSize: '14px', fontWeight: '900', cursor: over ? 'default' : 'pointer', fontFamily: SAIRA, boxShadow: over ? 'none' : '0 4px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.08)' } as React.CSSProperties}>
+          <GlassButton disabled={over} style={{ flex: 1, padding: '13px', fontSize: 14, fontFamily: SAIRA }} onClick={() => onSubmit(fee)}>
             {over ? '予算不足' : '入札する'}
-          </button>
+          </GlassButton>
           <button onClick={onClose} style={{ padding: '13px 16px', borderRadius: '10px', border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: '13px', cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
         </div>
       </div>

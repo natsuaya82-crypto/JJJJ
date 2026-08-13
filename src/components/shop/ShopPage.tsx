@@ -7,6 +7,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import { cardPackPrice } from '../../data/cardShop'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import { JewelIcon } from '../icons/Icons'
+import GlassButton from '../ui/GlassButton'
 
 
 
@@ -87,17 +88,11 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
             const affordable = (jewels ?? 0) >= item.price * q
             const selected = qty === q
             return (
-              <button key={q} onClick={() => affordable && setQty(q)} style={{
-                flex: 1, padding: '7px 0', borderRadius: 8, fontFamily: SAIRA,
-                fontSize: 13, fontWeight: selected ? 900 : 600,
-                cursor: affordable ? 'pointer' : 'not-allowed',
-                background: selected ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : C.surface,
-                border: selected ? `2px solid ${alpha(col, 0.7)}` : `1px solid ${C.border}`,
-                color: selected ? col : affordable ? C.textDim : alpha(C.textGhost, 0.4),
-                boxShadow: selected ? `0 3px 0 #1a1a2e` : 'none',
-              }}>
+              <GlassButton key={q} color={selected ? col : C.textDim} disabled={!affordable} style={{
+                flex: 1, padding: '7px 0', fontFamily: SAIRA, fontSize: 13, fontWeight: selected ? 900 : 600,
+              }} onClick={() => affordable && setQty(q)}>
                 {q}×
-              </button>
+              </GlassButton>
             )
           })}
         </div>
@@ -141,17 +136,11 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
           }}>
             キャンセル
           </button>
-          <button onClick={() => canAfford && onConfirm(qty)} disabled={!canAfford} style={{
-            flex: 2, padding: '11px', borderRadius: 10,
-            background: canAfford ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : C.surface,
-            border: canAfford ? `2px solid ${alpha(col, 0.6)}` : `1px solid ${C.border}`,
-            boxShadow: canAfford ? `0 4px 0 #1a1a2e, 0 6px 16px rgba(0,0,0,0.45)` : 'none',
-            color: canAfford ? col : C.textGhost,
-            fontSize: 13, fontWeight: 900,
-            cursor: canAfford ? 'pointer' : 'not-allowed', fontFamily: SAIRA,
-          }}>
+          <GlassButton color={col} disabled={!canAfford} style={{
+            flex: 2, padding: '11px', fontSize: 13, fontFamily: SAIRA,
+          }} onClick={() => canAfford && onConfirm(qty)}>
             購入する
-          </button>
+          </GlassButton>
         </div>
       </div>
     </div>
@@ -209,16 +198,9 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
           })}
         </div>
 
-        <button onClick={onClose} style={{
-          width: '100%', padding: '11px', borderRadius: 10,
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${alpha(col, 0.5)}`,
-          boxShadow: `0 4px 0 #1a1a2e`,
-          color: col, fontSize: 13, fontWeight: 900,
-          cursor: 'pointer', fontFamily: SAIRA,
-        }}>
+        <GlassButton full color={col} style={{ padding: '11px', fontSize: 13, fontFamily: SAIRA }} onClick={onClose}>
           閉じる
-        </button>
+        </GlassButton>
       </div>
     </div>
   ), document.body)
@@ -312,20 +294,13 @@ export default function ShopPage() {
                 </div>
               </div>
               <div style={{ padding: '0 10px 10px' }}>
-                <button
+                <GlassButton
+                  full color={col} disabled={!canAfford}
+                  style={{ padding: '10px', fontSize: 13, fontFamily: SAIRA }}
                   onClick={() => canAfford && setPendingItem(item)}
-                  disabled={!canAfford}
-                  style={{
-                    width: '100%', padding: '10px', borderRadius: 10,
-                    border: canAfford ? `2px solid ${alpha(col, 0.55)}` : `1px solid ${C.border}`,
-                    background: canAfford ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : C.surface,
-                    boxShadow: canAfford ? `0 4px 0 #1a1a2e, 0 6px 16px rgba(0,0,0,0.45)` : 'none',
-                    color: canAfford ? col : C.textGhost,
-                    fontSize: 13, fontWeight: 800, cursor: canAfford ? 'pointer' : 'not-allowed', fontFamily: SAIRA,
-                  }}
                 >
                   {canAfford ? '購入する' : 'ジュエル不足'}
-                </button>
+                </GlassButton>
               </div>
             </div>
           )

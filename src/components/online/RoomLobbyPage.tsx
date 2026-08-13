@@ -27,6 +27,7 @@ import type { StampPayload } from './stampKinds'
 import { buildRacePayload, seriesPointsBefore, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { defaultLogoIdFor } from '../../data/logoPresets'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import GlassButton from '../ui/GlassButton'
 
 
 /** 開始に必要な最少チーム数（CPUを足さない場合） */
@@ -733,15 +734,9 @@ export default function RoomLobbyPage() {
       {/* はじめる（ホストのみ） */}
       {isHost && (
         <div style={{ padding: '20px 12px 0' }}>
-          <button onClick={onStart} disabled={busy || active.length < MIN_TEAMS} className="btn-press" style={{
-            width: '100%', padding: '16px 14px', borderRadius: 14, border: `2px solid ${C.goldDark}`,
-            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-            boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5)',
-            color: C.gold, fontFamily: SAIRA, fontSize: 17, fontWeight: 900,
-            cursor: 'pointer', opacity: busy || active.length < MIN_TEAMS ? 0.4 : 1,
-          }}>
+          <GlassButton full size="lg" disabled={busy || active.length < MIN_TEAMS} style={{ fontFamily: SAIRA }} onClick={onStart}>
             はじめる
-          </button>
+          </GlassButton>
         </div>
       )}
       </>)}

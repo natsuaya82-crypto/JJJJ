@@ -5,6 +5,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 // （降格させる処理は gameStore の startSetup。utils/domesticClubs.ts に名簿がある）
 import { ALL_DOMESTIC_TEAMS } from '../../utils/domesticClubs'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
+import GlassButton from '../ui/GlassButton'
 
 type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 
@@ -376,21 +377,9 @@ export default function Onboarding() {
             指名に参加できるのは2年目からです。
           </div>
 
-          <button onClick={handleConfirm} style={{
-            position: 'relative', overflow: 'hidden',
-            width: '100%', padding: '16px', borderRadius: '14px', border: 'none',
-            background: 'linear-gradient(180deg, #E8C86A 0%, #C9A84C 60%, #A8873A 100%)',
-            color: '#0A0912', fontSize: '15px', fontWeight: '900',
-            cursor: 'pointer', fontFamily: 'inherit',
-            boxShadow: '0 4px 0 #6B5020, 0 8px 20px rgba(201,168,76,0.35), inset 0 1px 0 rgba(255,255,255,0.4)',
-          }}>
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
-              borderRadius: '13px 13px 50% 50%', pointerEvents: 'none',
-            }}/>
+          <GlassButton full size="lg" onClick={handleConfirm}>
             ドラフトへ進む
-          </button>
+          </GlassButton>
 
         </div>
       )}

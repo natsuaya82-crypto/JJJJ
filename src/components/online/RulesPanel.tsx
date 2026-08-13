@@ -4,6 +4,7 @@ import { secondsLeft } from '../../lib/serverTime'
 import type { MatchRules } from '../../lib/roomsApi'
 import { MATCH_COURSES, CATEGORY_LABEL, courseById, randomCourseIds, type CourseCategory } from '../../data/matchCourses'
 import { C, alpha, SAIRA } from '../../styles/tokens'
+import GlassButton from '../ui/GlassButton'
 
 
 const RACE_COUNTS = [1, 3, 5, 10] as const
@@ -119,14 +120,9 @@ export default function RulesPanel({ rules, isHost, deadline, teams, maxTeams, o
       {/* 決定 */}
       {isHost && (
         <div style={{ padding: '20px 12px 0' }}>
-          <button onClick={onConfirm} disabled={busy} className="btn-press" style={{
-            width: '100%', padding: '16px 14px', borderRadius: 14, border: `2px solid ${C.goldDark}`,
-            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-            boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5)',
-            color: C.gold, fontFamily: SAIRA, fontSize: 17, fontWeight: 900, cursor: 'pointer', opacity: busy ? 0.5 : 1,
-          }}>
+          <GlassButton full size="lg" disabled={busy} style={{ fontFamily: SAIRA }} onClick={onConfirm}>
             決定して選手を選ぶ
-          </button>
+          </GlassButton>
         </div>
       )}
 

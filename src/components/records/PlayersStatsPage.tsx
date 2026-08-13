@@ -9,6 +9,7 @@ import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { useClubIndex } from '../../lib/useClubIndex'
+import GlassButton from '../ui/GlassButton'
 
 
 type Category = 'jpel' | 'ecl' | 'reserve'
@@ -87,17 +88,13 @@ export default function PlayersStatsPage() {
       {cat == null && (
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(['jpel', 'ecl', 'reserve'] as Category[]).map(c => (
-            <button key={c} onClick={() => setCat(c)} style={{
-              display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '14px 16px', borderRadius: 12,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.border2}`, color: C.text,
-              boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
-              fontFamily: SAIRA,
-            }}>
+            <GlassButton key={c} full style={{
+              justifyContent: 'flex-start', gap: 12, textAlign: 'left',
+              padding: '14px 16px', color: C.text, fontFamily: SAIRA,
+            }} onClick={() => setCat(c)}>
               <span style={{ fontSize: 16, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{CAT_LABEL[c]}</span>
               <span style={{ color: C.textGhost, fontSize: 18 }}>›</span>
-            </button>
+            </GlassButton>
           ))}
         </div>
       )}
@@ -110,18 +107,14 @@ export default function PlayersStatsPage() {
           ) : raceNames.map(name => {
             const segCount = Object.keys(records).filter(key => nameOfKey(key) === name).length
             return (
-              <button key={name} onClick={() => { setSelectedRace(name); setSegIdx(null) }} style={{
-                display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '14px 16px', borderRadius: 12,
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
-                fontFamily: SAIRA,
-              }}>
+              <GlassButton key={name} full style={{
+                justifyContent: 'flex-start', gap: 12, textAlign: 'left',
+                padding: '14px 16px', color: C.text, fontFamily: SAIRA,
+              }} onClick={() => { setSelectedRace(name); setSegIdx(null) }}>
                 <span style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>{name}</span>
                 <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(accent, 0.12) }}>{segCount}区間</span>
                 <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
-              </button>
+              </GlassButton>
             )
           })}
         </div>

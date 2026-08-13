@@ -5,6 +5,7 @@ import { audio } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import NoticeDialog from '../ui/NoticeDialog'
 import { C, alpha, SAIRA } from '../../styles/tokens'
+import GlassButton from '../ui/GlassButton'
 
 
 // ============================================================================
@@ -182,24 +183,9 @@ export function GmPassCard() {
           </div>
         ) : (
           <>
-            <button
-              onClick={handlePurchase}
-              disabled={busy || !buyable}
-              className="btn-press"
-              style={{
-                position: 'relative', overflow: 'hidden',
-                width: '100%', padding: '15px', borderRadius: 13, cursor: busy || !buyable ? 'default' : 'pointer',
-                background: `linear-gradient(180deg, ${C.goldHi} 0%, ${G} 46%, ${C.goldDark} 100%)`,
-                border: `1.5px solid ${alpha('#fff5d0', 0.85)}`,
-                boxShadow: `0 5px 0 #5a3500, 0 9px 24px ${alpha(G, 0.28)}, inset 0 1px 0 rgba(255,255,255,0.55)`,
-                fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: '#3a2400', opacity: busy || !buyable ? 0.6 : 1,
-                letterSpacing: '0.5px',
-              }}
-            >
-              {/* 上半分の艶 */}
-              <span style={{ position: 'absolute', top: 1, left: 5, right: 5, height: '44%', background: 'linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0))', borderRadius: '9px 9px 40% 40%', pointerEvents: 'none' }} />
-              <span style={{ position: 'relative' }}>{busy ? '処理中…' : !buyable ? 'いま購入できません' : '購入する　' + price}</span>
-            </button>
+            <GlassButton full size="lg" disabled={busy || !buyable} style={{ fontFamily: SAIRA }} onClick={handlePurchase}>
+              <span>{busy ? '処理中…' : !buyable ? 'いま購入できません' : '購入する　' + price}</span>
+            </GlassButton>
             {!buyable && (
               <div style={{ fontSize: 10, color: C.textDim, textAlign: 'center', marginTop: 7, lineHeight: 1.6 }}>
                 App Storeから商品情報を取得できませんでした。通信環境をご確認のうえ、しばらくしてからアプリを開き直してください。
