@@ -190,7 +190,13 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           players: updatedPlayers, clubs: [...state.teams, ...postForeign],
           playerTeamId: state.playerTeamId, season: state.currentSeason,
           capFor: (id) => (postForeignIds.has(id) ? ROSTER_MAX : capForPost()),
-          phase: 'offseason' })
+          phase: 'offseason',
+          // ④本人が行くか。**ここだけ聞いていなかった**（ドラフト後の拾い直し）。
+          // 同じFAでも、ドラフト前の一括処理では聞いていて、ここでは聞いていない
+          // ＝経路で判断が割れている状態だった（A-9）
+          consents: (fa, clubId) => playerConsentToMove(
+            fa, get().destinationOf(clubId, fa),
+            tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, 0, true).ok })
         for (const sg of postSignings) {
           const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.clubId, {
             year: state.currentSeason.year, kind: 'free', years: 2, history: false })

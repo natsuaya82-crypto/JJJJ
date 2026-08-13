@@ -15,11 +15,15 @@ import {
   CLUB_MAX, JOIN_TYPE_LABEL, searchClubs, myClub, myClubRequests, createClub, joinClub,
   cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
   leaveClub, kickClubMember, updateClub, setClubRole, CLUB_ADMIN_MAX,
-  CLUB_PHRASES, CLUB_REACTIONS, clubReactions, reactClubPost, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubMessage, postClubRequest,
+  CLUB_PHRASES, CLUB_REACTIONS, clubReactions, reactClubPost, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubRequest,
+  CLUB_TEXT_MAX, postClubText, postClubRoom,
   donateClubCards, clubGiftCount, claimClubGifts,
   type ClubBrief, type ClubForm, type ClubMember, type ClubPost, type ClubReqRarity,
   type ClubReqStat, type JoinType, type MyClub,
 } from '../../lib/clubsApi'
+import { createRoom, joinRoom, DEFAULT_RULES } from '../../lib/roomsApi'
+import { syncServerTime } from '../../lib/serverTime'
+import { maskText } from '../../utils/wordFilter'
 import { useGameStore } from '../../store/gameStore'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import TrainingCardSVG from '../training/TrainingCardSVG'
@@ -619,6 +623,7 @@ function AskPicker({ rarity, busy, onPick, onCancel }: {
 const BOARD_INPUT_H = 66
 
 function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
+  const navigate = useNavigate()
   // 入力バーを画面の下に置くために、スクロール領域（Layout の main）の高さを取る。
   // 出しかたは LoginBonusPage と同じ。ここで自前の数字を書くとタブバーの高さを変えたときにズレる
   const adH = useAdHeight()
@@ -664,7 +669,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
 
   // カードのお願いだけを抜いたもの（カードタブで使う）
   const reqPosts = posts.filter(p => p.kind === 'req')
-  const [phraseOpen, setPhraseOpen] = useState(false)
+  const [draft, setDraft] = useState('')
   const [reactFor, setReactFor] = useState<ClubPost | null>(null)
 
   const refresh = () => {
@@ -689,12 +694,56 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   const failed = (e: unknown) =>
     setNotice({ title: '通信できませんでした', message: offlineDetail(e) || undefined })
 
-  const onPhrase = async (i: number) => {
+  /**
+   * 掲示板に書く。**伏せ字にしないで送る。**
+   * 保存するのは書かれたそのままで、伏せるのは表示のときだけ（`utils/wordFilter`）。
+   * 通報が来たときに何が書かれたのか分からないと処理のしようがないため。
+   */
+  const onSend = async () => {
+    const body = draft.trim()
+    if (!body || busy === 'msg') return
     setBusy('msg')
     try {
-      const r = await postClubMessage(i)
+      const r = await postClubText(body)
       if (r === 'too_fast') setNotice({ title: '少し待ってください', message: '書き込みは1分に1回までです' })
-      else refresh()
+      else { setDraft(''); refresh() }
+    } catch (e) { failed(e) } finally { setBusy('') }
+  }
+
+  /**
+   * 対戦の募集を出す。部屋を立ててから、その番号を掲示板に貼る。
+   * 部屋そのものは既存の入口（roomsApi）と同じものなので、走友会の外の相手も
+   * 番号を知っていれば入れる。**掲示板が「入る手段」になるだけ。**
+   */
+  const onInvite = async () => {
+    if (busy === 'room') return
+    setBusy('room')
+    try {
+      await syncServerTime()   // 締め切りを全員で揃えるため、先に時計を合わせておく
+      const room = await createRoom(DEFAULT_RULES, 20)
+      const r = await postClubRoom(room.code)
+      if (r === 'too_fast') setNotice({ title: '少し待ってください', message: '対戦の募集は5分に1回までです' })
+      navigate(`/online/room/${room.id}`)
+    } catch (e) { failed(e) } finally { setBusy('') }
+  }
+
+  /** 掲示板に貼られた番号で部屋に入る。断られる理由はオンライン対戦の入口と同じ */
+  const onJoinRoom = async (code: string) => {
+    if (busy === 'join') return
+    setBusy('join')
+    try {
+      await syncServerTime()
+      const res = await joinRoom(code)
+      if (res.status === 'joined') { navigate(`/online/room/${res.roomId}`); return }
+      setNotice({
+        title: res.status === 'full' ? '満員です'
+             : res.status === 'started' ? 'もう始まっています'
+             : '部屋が見つかりません',
+        message: res.status === 'started'
+          ? 'この対戦はすでに始まっているため、途中から入れません。'
+          : res.status === 'full' ? 'この部屋は上限まで埋まっています。'
+          : '募集が閉じられたようです。',
+      })
     } catch (e) { failed(e) } finally { setBusy('') }
   }
 
@@ -788,8 +837,26 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               {p.teamName}<span style={{ marginLeft: 5 }}>GM {p.gmName}</span> ・ {relativeTime(p.createdAt)}
             </div>
             {p.kind === 'msg' ? (
-              <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
-                {CLUB_PHRASES[p.phrase] ?? ''}
+              /* ★本文は必ず maskText を通す。保存は書かれたまま、伏せるのは表示のときだけ。
+                 書いた本人の画面でも伏せる（自分だけ素で見えると通っていると誤解する）。
+                 定型文しか無い古い投稿は body が空なので、そのときだけ番号から引く */
+              <div style={{ fontSize: 13, color: C.text, marginTop: 1, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                {p.body ? maskText(p.body) : (CLUB_PHRASES[p.phrase] ?? '')}
+              </div>
+            ) : p.kind === 'room' ? (
+              /* 対戦の募集。部屋が閉じていたら入るときに分かるので、ここでは確かめない */
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: C.text }}>
+                  対戦を募集しています
+                  <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.cyan, marginLeft: 6, letterSpacing: '1px' }}>
+                    {p.roomCode}
+                  </span>
+                </div>
+                <button onClick={() => { void onJoinRoom(p.roomCode) }} disabled={busy === 'join'} className="btn-press" style={{
+                  flexShrink: 0, padding: '6px 14px', borderRadius: 14, cursor: 'pointer',
+                  border: `1px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.14),
+                  color: C.cyan, fontSize: 12, fontWeight: 900, fontFamily: 'inherit',
+                }}>参加する</button>
               </div>
             ) : (
               <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
@@ -882,17 +949,41 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
           position: 'sticky', bottom: 0, padding: '8px 12px 10px',
           background: `linear-gradient(to top, ${C.bg} 70%, ${alpha(C.bg, 0)})`,
         }}>
-          <button onClick={() => setPhraseOpen(true)} disabled={busy === 'msg'} className="btn-press" style={{
-            width: '100%', padding: '12px 14px', borderRadius: 22, cursor: 'pointer',
-            border: `1px solid ${C.border3}`, background: C.surface2,
-            display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit',
-          }}>
-            <span style={{ flex: 1, textAlign: 'left', fontSize: 13, color: C.textGhost }}>ひとこと書く…</span>
-            <span style={{
-              fontSize: 12, fontWeight: 900, color: C.bg, background: C.gold,
-              borderRadius: 14, padding: '4px 12px',
-            }}>送る</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* 対戦の募集。部屋を立てて、その番号を掲示板に貼る */}
+            <button onClick={() => { void onInvite() }} disabled={busy === 'room'} className="btn-press" style={{
+              flexShrink: 0, width: 40, height: 40, borderRadius: 20, cursor: 'pointer',
+              border: `1px solid ${alpha(C.cyan, 0.5)}`, background: alpha(C.cyan, 0.12),
+              color: C.cyan, fontSize: 17, fontFamily: 'inherit', padding: 0,
+            }} title="対戦を募集する">🏁</button>
+            <div style={{
+              flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 6px 6px 14px', borderRadius: 22,
+              border: `1px solid ${C.border3}`, background: C.surface2,
+            }}>
+              <input
+                value={draft}
+                onChange={e => setDraft(e.target.value.slice(0, CLUB_TEXT_MAX))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void onSend() } }}
+                placeholder="ひとこと書く…"
+                maxLength={CLUB_TEXT_MAX}
+                style={{
+                  flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none',
+                  color: C.text, fontSize: 13, fontFamily: 'inherit', padding: 0,
+                }}
+              />
+              {draft.length > 0 && (
+                <span style={{ flexShrink: 0, fontSize: 10, color: draft.length >= CLUB_TEXT_MAX ? C.red : C.textDim, fontFamily: SAIRA }}>
+                  {draft.length}/{CLUB_TEXT_MAX}
+                </span>
+              )}
+              <button onClick={() => { void onSend() }} disabled={!draft.trim() || busy === 'msg'} style={{
+                flexShrink: 0, fontSize: 12, fontWeight: 900, cursor: draft.trim() ? 'pointer' : 'default',
+                color: C.bg, background: draft.trim() ? C.gold : C.border3, border: 'none',
+                borderRadius: 14, padding: '6px 14px', fontFamily: 'inherit',
+              }}>送る</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -948,19 +1039,6 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               flex: 1, padding: '12px 0', borderRadius: 12, cursor: 'pointer', fontSize: 22,
               border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), fontFamily: 'inherit',
             }}>{e}</button>
-          ))}
-        </div>
-      </BottomSheet>
-
-      {/* 定型文を選ぶシート */}
-      <BottomSheet open={phraseOpen} onClose={() => setPhraseOpen(false)} title="ひとこと書く">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {CLUB_PHRASES.map((ph, i) => (
-            <button key={ph} onClick={() => { setPhraseOpen(false); void onPhrase(i) }}
-              disabled={busy === 'msg'} className="btn-press" style={{
-                padding: '11px 2px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 700,
-                border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), color: C.textSub,
-              }}>{ph}</button>
           ))}
         </div>
       </BottomSheet>

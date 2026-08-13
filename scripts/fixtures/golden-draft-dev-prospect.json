@@ -24,12 +24,12 @@
  "myPlayerCreated": "fcbcf165908dd18a (5B)",
  "pastSeasons": "4f53cda18c2baa0c (2B)",
  "pendingGifts": "4f53cda18c2baa0c (2B)",
+ "pendingGmMove": "74234e98afe7498f (4B)",
  "playerTeamId": "6e7823b6e67138d4 (7B)",
  "players": "4caa9a68f9ed435c (3659071B)",
  "raceDroppedCards": "4f53cda18c2baa0c (2B)",
  "raceLineup": "44136fa355b3678a (2B)",
  "raceStrategy": "61eb5aa337d3a2d3 (10B)",
- "raceTeamTalk": "fb1fe9f2bab683a1 (6B)",
  "rivalTeamId": "74234e98afe7498f (4B)",
  "seasonBudgetNotice": "74234e98afe7498f (4B)",
  "seenInjuryIds": "4f53cda18c2baa0c (2B)",
@@ -46,5 +46,5 @@
  "worldAthleticsResults": "4f53cda18c2baa0c (2B)",
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "4f53cda18c2baa0c (2B)",
- "$all": "fec35d520bf3aff7 (3747385B)"
+ "$all": "4476c04e813773c0 (3747384B)"
 }

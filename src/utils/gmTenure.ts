@@ -108,3 +108,28 @@ export function gmCareerTotals(ranks: GmSeasonRank[]): {
   }
   return { championships, seasons: ranks.length, currentStreak }
 }
+
+/**
+ * **プレイヤーが一度でも指揮したクラブのID全部**（今のクラブを含む）。
+ *
+ * ■何のためにあるか
+ *   プレイヤーのクラブは、どのクラブを選んでも列の最後尾（3部）から始まります。
+ *   そのため「データどおりの部へ戻す」修復（`backfillDomesticClubs` /
+ *   `rebalanceDivisions`）から**外して固定**する必要があります。
+ *
+ *   その固定が長いあいだ `playerTeamId` **1つだけ**に付いていました。
+ *   監督が別のクラブへ移った瞬間に前のクラブの固定が外れ、
+ *   **元の部へ引き戻されます**。実機で「2031年3部11位 → 2032年1部1位」という、
+ *   起こりえない昇格（部を2つ飛ぶ）が出ていたのはこれです。昇格ではなく引き戻し。
+ *
+ *   > クラブの成績なのに監督の成績がひっついてくるの意味わからん（オーナー・2026-08-12）
+ *
+ *   **クラブが積み上げた部はクラブのもの**なので、固定はクラブ側に付けます。
+ *   一度プレイヤーが指揮したクラブは、監督が去ったあとも自分の部から普通に昇降格します。
+ */
+export function managedTeamIds(tenures: GmTenure[] | undefined, playerTeamId: string): Set<string> {
+  const out = new Set<string>()
+  if (playerTeamId) out.add(playerTeamId)
+  for (const t of tenures ?? []) if (t?.teamId) out.add(t.teamId)
+  return out
+}

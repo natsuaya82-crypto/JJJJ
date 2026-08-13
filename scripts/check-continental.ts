@@ -9,6 +9,17 @@
  *   ・毎年まったく同じ顔ぶれにはならない（レースなので番狂わせは起きる）
  * の2つを見る。あわせてセーブに増えるぶんの重さも測る。
  */
+// ── 乱数のシード固定（他の import より先に効かせる） ──────────────────
+//
+// ★**ここを外さないこと。** 以前は種を固定しておらず、走らせるたびに別の世界を
+//   作っていた。ごくたまに「どの国も強さが横並び」の世界ができて落ちるので
+//   `flaky: 3`（落ちたら引き直す印）を付けていたが、
+//   **落ちた世界を二度と再現できない**という一番まずい形だった。
+//   種を8つ試して**8つとも通る**ことを確かめたうえで（2026-08-13）、
+//   下の SEEDS に3つ固定してある。たまたま通る1つを選んだわけではない。
+let __seed = 0
+Math.random = () => { __seed = (__seed * 1664525 + 1013904223) >>> 0; return __seed / 4294967296 }
+
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -23,15 +34,21 @@ import { NATIONALITY_META } from '../src/data/nationalities'
 import type { Nationality, Player, Team } from '../src/types'
 
 const YEAR = 2028
+/** 見る世界。**1つにしないこと**（たまたま通る世界を選んだだけになる） */
+const SEEDS = [10001, 20001, 30001]
 const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
-const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
-const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
-const players: Player[] = [...domestic, ...foreign]
 const plans = worldRacePlans(YEAR)
 const label = (n: Nationality) => NATIONALITY_META[n as keyof typeof NATIONALITY_META]?.label ?? n
 const pad = (s: string) => s.padEnd(10, '　')
 
 const problems: string[] = []
+
+for (const seed of SEEDS) {
+console.log(`===== 世界 seed=${seed} =====`)
+__seed = seed
+const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
+const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const players: Player[] = [...domestic, ...foreign]
 
 // ── 1回ぶんを開幕→3戦→決着まで回す（本編と同じ順番）──
 let conts = startContinentalQualifiers(players, YEAR, plans)
@@ -90,11 +107,12 @@ for (const { region, slots } of REGION_QUOTA) {
   if (rows.every(r => r.rate === 1 || r.rate === 0)) problems.push(`${region}: 毎回まったく同じ顔ぶれ（番狂わせが起きない）`)
 }
 
-// ── セーブに増えるぶん ──
+// ── セーブに増えるぶん（世界ごとに出す）──
 const bytes = (v: unknown) => new TextEncoder().encode(JSON.stringify(v)).length
 console.log('')
-console.log('予選年1回ぶんの重さ（大陸予選の走行記録）')
-console.log(`  ${(bytes(conts.map(c => c.races)) / 1024).toFixed(0)} KB`)
+console.log(`予選年1回ぶんの重さ（大陸予選の走行記録）  ${(bytes(conts.map(c => c.races)) / 1024).toFixed(0)} KB`)
+
+} // ← 世界ごとのループ、ここまで
 
 console.log('')
 if (problems.length === 0) {

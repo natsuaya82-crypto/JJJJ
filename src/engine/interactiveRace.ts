@@ -1,4 +1,4 @@
-import type { Player, Segment, Race, Team } from '../types'
+import type { Player, Segment, Race, Specialty, Team } from '../types'
 import {
   calcBaseAbility, calcAffinity, calcConditionModifier,
   calcTraitModifier, calcWeatherModifier, calcClubModifier, scoreToTime,
@@ -27,14 +27,128 @@ export type RaceSegmentEvent = {
   situation: string
   battleContext: string
   choices: RaceSegmentEventChoice[]
+  /**
+   * **その場面の手強さ。**成功率は「自分の区間スタミナ − これ」で決まる。
+   *
+   * ★**自分の区間スタミナと同じ目盛り（自然消耗を引いたあと）で入れること。**
+   * ★得意な適性のぶんは**ここに焼き込んである**（`EVENT_SPECIALTIES` / `SPEC_BONUS`）。
+   *   画面（`SimPhase`）も判定（`resolveChoice`）もこの1つの値から%を出すので、
+   *   ここに入れておけば表示と結果が必ず揃う。**適性の加点を呼ぶ側で足さないこと。**
+   */
   opponentOvr?: number
+  /**
+   * **この場面の効き幅**（`EVENT_SCALE`）。`CHOICE_EFFECTS` の割合に掛ける。
+   * 給水は小さく、山岳やラスト勝負は大きい。**イベントごとに別の表を持たせないこと**
+   * （7つが同じ数字を7回手書きしていた状態に戻る）。
+   */
+  scale?: number
   _effects: Array<{
     effortType: 'aggressive' | 'balanced' | 'conservative'
-    staminaSuccess: number
-    timeBonusSuccess: number  // 区間タイムに対する割合、負=速い（例 -0.0048 = 区間タイム-0.48%）
-    staminaFail: number
+    timeBonusSuccess: number  // 区間タイムに対する割合、負=速い（例 -0.0090 = 区間タイム-0.90%）
     timeBonusFail: number     // 区間タイムに対する割合、正=遅い
   }>
+}
+
+/**
+ * **区間イベントの効き目。7種すべてがこの1つの表を使う。**
+ *
+ * ■なぜ表が1つなのか
+ *   以前は7つのイベントが**同じ数字を7回**手書きしていた（1文字も違わない）。
+ *   イベントごとに変えたくなったときに7か所直す形なので、必ず食い違う。
+ *
+ * ■なぜスタミナが無いのか
+ *   以前は `staminaSuccess: -2` のようにスタミナも動かしていたが、
+ *   **区間スタミナは区間ごとに作り直される**（`RacePage` の `prepareSegment` が
+ *   毎区間 `segOvr − 自然消耗` で引き直す）ので、「後半に響く」は実装されていなかった。
+ *   実際にはその区間のタイムに効くだけ＝**隠れた2本目のタイム減点**で、しかも
+ *   スタミナは固定値・タイムボーナスは割合なので、同じ選択が10kmと20kmで2倍ぶれていた。
+ *
+ *   そしてスタミナ側のほうが常に大きかった（1点 ≒ 26秒 / 20km、タイムボーナスは23秒）。
+ *   その結果 **gapがいくつでも「温存」が最良**で、攻めと標準は常に損。
+ *   温存は成功しても失敗しても何も起きない肢なので、
+ *   **駅伝中の正解が全場面で「何もしない」を押すこと**になっていた。
+ *
+ * ■いまの形（オーナー決定・2026-08-13）
+ *   **温存は「押しても何も起きない」肢**。スキップしたのとまったく同じ。
+ *   大事なのは残り2つで、**低確率・高リターン（攻め）と、普通の確率・小さいリターン（標準）**。
+ *
+ *     攻め   -0.77% / +0.39%   成功率  8〜65%（互角で20%）
+ *     標準   -0.35% / +0.18%   成功率 30〜92%（互角で62%）
+ *     温存    0     /  0       100%。何も起きない
+ *
+ *   → gap -18以下なら温存 / -18〜+15なら標準 / +15以上なら攻め。
+ *
+ * ★**肢ごとの「得と損の比」だけで三すくみを作らないこと。**
+ *   比が同じでも、成功率の伸び方（`choiceSuccessProb`）が肢ごとに違うので分かれる。
+ *   逆に、比を変えても**攻めの成功率の上限が低すぎると攻めが一度も最良にならない**。
+ *   実際、上限55%で組んだときは実力差がいくつでも標準のほうが得だった（上限65%で解消）。
+ *   数字を触ったら `scripts/check-race-choice.ts` の [2] で3つとも最良になるか必ず見ること。
+ */
+export const CHOICE_EFFECTS: RaceSegmentEvent['_effects'] = [
+  { effortType: 'aggressive',   timeBonusSuccess: -0.0077, timeBonusFail: +0.0039 },
+  { effortType: 'balanced',     timeBonusSuccess: -0.0035, timeBonusFail: +0.0018 },
+  { effortType: 'conservative', timeBonusSuccess: 0,       timeBonusFail: 0 },
+]
+
+/** 給水だけは肢の並びが「温存 → 標準 → 攻め」（しっかり給水／素早く／パス） */
+export const WATER_EFFECTS: RaceSegmentEvent['_effects'] = [...CHOICE_EFFECTS].reverse()
+
+/**
+ * **場面ごとの効き幅。**`CHOICE_EFFECTS` の割合にこれを掛ける。
+ *
+ * 表は1本のまま、掛け算だけを場面ごとに変える。イベントごとに数字の表を持たせると
+ * 7つが同じ数字を7回手書きしていた状態に戻り、1つ直したときに必ず食い違う。
+ *
+ * 給水で山岳と同じだけ動くのはおかしい、という「場面の重み」だけをここで表す。
+ *
+ * 「攻め」が成功したときに縮む秒数は、実測（`scripts/measure-choice-swing.ts`）で
+ * 中央の区間（27分19秒）なら給水-6秒〜ラスト-18秒、長い区間（62分11秒）なら-14〜-40秒。
+ * 失敗したときはその半分だけ遅くなる。
+ */
+export const EVENT_SCALE: Record<string, number> = {
+  water_station: 0.5,
+  start_dash: 0.8,
+  front_pressure: 0.9,
+  pack_race: 1.0,
+  catching_up: 1.1,
+  mountain_descent: 1.2,
+  mountain_ascent: 1.3,
+  final_push: 1.4,
+}
+
+/**
+ * **その場面で活きる適性。**当たっていれば相手が `SPEC_BONUS` ぶん弱く見える。
+ *
+ * ■なぜ要るのか
+ *   以前は `isMountain` / `isDownSpec` / `isKicker` が**肢の文章を差し替えるためだけ**に
+ *   使われていた。「山のスペシャリストとして序盤から攻める」と表示されるのに、
+ *   平地型が攻めるのと成功率もリターンも1ミリも変わらなかった。
+ *   山型を山区間に置く意味が、駅伝中の選択には無かった。
+ *
+ * ■9タイプ全部に出番がある
+ *   起伏型（`undulating`）だけは登りと下りの両方。名前のとおり「どちらの坂でも」。
+ *   給水にはどの適性も効かない（誰が給水しても同じ）。
+ */
+export const SPEC_BONUS = 8
+export const EVENT_SPECIALTIES: Record<string, Specialty[]> = {
+  start_dash: ['sprinter'],
+  mountain_ascent: ['mountain_up', 'undulating'],
+  mountain_descent: ['mountain_down', 'undulating'],
+  pack_race: ['grinder', 'allrounder'],
+  catching_up: ['long'],
+  front_pressure: ['ace'],
+  final_push: ['kick'],
+  water_station: [],
+}
+
+/**
+ * 得意な適性ぶんを相手の強さへ焼き込む。**画面も判定も `opponentOvr` 1つしか見ない**ので、
+ * ここで引いておけば表示された%と実際の判定が必ず一致する。
+ */
+function withSpecBonus(eventId: string, player: Player, opponentOvr: number): number {
+  return (EVENT_SPECIALTIES[eventId] ?? []).includes(player.specialty)
+    ? opponentOvr - SPEC_BONUS
+    : opponentOvr
 }
 
 export type InteractiveSegResult = {
@@ -161,13 +275,15 @@ export function generateSegmentEvents(params: {
   cpuTimesForSeg: Record<string, number>
   cumulativeTimes: Record<string, number>
   isFirstSeg: boolean
+  /** 最終区か。**区間のindexは0始まりとは限らない**ので、呼ぶ側が区間一覧から判断して渡す */
+  isLastSeg: boolean
   player: Player
   totalSegs: number
   players: Player[]
   cpuLineups: Record<string, Record<number, string>>
   teams: Team[]
 }): RaceSegmentEvent[] {
-  const { seg, playerBaseTime, cpuTimesForSeg, cumulativeTimes, isFirstSeg, player, totalSegs, players, cpuLineups, teams } = params
+  const { seg, playerBaseTime, cpuTimesForSeg, cumulativeTimes, isFirstSeg, isLastSeg, player, totalSegs, players, cpuLineups, teams } = params
 
   // 各区間ちょうど1回だけイベントを出す（くどさ回避のため2回目は出さない）。
   const events: RaceSegmentEvent[] = []
@@ -175,11 +291,21 @@ export function generateSegmentEvents(params: {
   const playerMap = new Map(players.map(p => [p.id, p]))
   const segIdx = seg.index
 
+  /**
+   * 相手の強さ。**必ず「自然消耗を引いたあと」で返す。**
+   *
+   * ★成功率は `choiceSuccessProb(自分の区間スタミナ − opponentOvr)` で決まるが、
+   *   自分側は `segOvr − 自然消耗`（消耗後）なのに、ここは長いあいだ
+   *   `calcBaseAbility` の生の値（消耗前）を返していた。**左右で単位が違う。**
+   *   消耗は OVR×0.02×km ＝ 20kmで26点にもなるので、gap は常に -10〜-41 に沈み、
+   *   「攻める」の成功率が**どの場面でも下限の10%**に張り付いていた（山岳は両端とも10%）。
+   */
   function getCpuOvr(teamId: string): number | undefined {
     const pid = cpuLineups[teamId]?.[segIdx]
     const p = pid ? playerMap.get(pid) : undefined
     if (!p) return undefined
-    return calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
+    const ovr = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
+    return Math.max(1, ovr - calcNaturalDrain(ovr, seg.distanceKm))
   }
 
   const cpuSegTimes = Object.values(cpuTimesForSeg)
@@ -239,11 +365,11 @@ export function generateSegmentEvents(params: {
   }
 
   if (isFirstSeg) {
-    events.push(makeStartDashEvent(player, ctx))
+    events.push(makeStartDashEvent(player, seg, ctx))
   } else if (seg.uphillPct >= 28) {
     events.push(makeMountainAscentEvent(player, seg, ctx))
   } else if (seg.downhillPct >= 28) {
-    events.push(makeMountainDescentEvent(player, ctx))
+    events.push(makeMountainDescentEvent(player, seg, ctx))
   } else if (nearCpuCum.length >= 2) {
     events.push(makePackRaceEvent(player, nearCpuCum.length, avgNearbyOvr, ctx))
   } else if (overallRank > 1 && closeFasterCpus.length > 0 && closeFasterCpus.length <= 2) {
@@ -252,8 +378,12 @@ export function generateSegmentEvents(params: {
   } else if (overallRank === 1 && ctx.gapBehindSec != null && ctx.gapBehindSec <= 30) {
     // 首位でも、後続が30秒以内に迫っている時だけ「先頭プレッシャー」。独走中は誤った“追いつかれる”演出を出さない
     events.push(makeFrontPressureEvent(player, nearestChaserOvr, ctx))
+  } else if (isLastSeg || (ctx.gapAheadSec != null && ctx.gapAheadSec <= 20) || (ctx.gapBehindSec != null && ctx.gapBehindSec <= 20)) {
+    // ★ラスト勝負。**最終区なら必ず出す**（駅伝の見せ場が1レースに1回は来るように）。
+    //   途中の区間でも、前後20秒以内の競り合いなら出す
+    events.push(makeFinalPushEvent(player, seg, ctx))
   } else {
-    events.push(makeWaterStationEvent(player, ctx))
+    events.push(makeWaterStationEvent(player, seg, ctx))
   }
 
   // 発火地点はイベントの内容に応じた適切なゾーンで出す（毎回同じにならないよう、ゾーン内で少しだけランダム）。
@@ -274,7 +404,19 @@ export function generateSegmentEvents(params: {
 
 // ─── Event Makers ────────────────────────────────────────────────────────────
 
-function makeStartDashEvent(player: Player, ctx: RaceContext): RaceSegmentEvent {
+/**
+ * 相手が居ないイベント（スタート・下り・給水・山岳）の「相手の強さ」。
+ *
+ * ★**自分の区間スタミナと同じ目盛りで返すこと。** 生のOVRを返すと、
+ *   自分だけ自然消耗を引かれた状態で比べられて、成功率が下限に張り付く。
+ * @param rawLo/rawHi 消耗を引く前の目安（この区間を走る選手のOVRとして妥当な幅）
+ */
+function fieldOvr(seg: Segment, rawLo: number, rawHi: number): number {
+  const raw = rawLo + Math.random() * (rawHi - rawLo)
+  return Math.max(1, Math.round(raw - calcNaturalDrain(raw, seg.distanceKm)))
+}
+
+function makeStartDashEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
   const isKicker = player.specialty === 'kick'
   const isLong = player.specialty === 'long' || player.specialty === 'grinder'
   const situation = pick([
@@ -296,8 +438,9 @@ function makeStartDashEvent(player: Player, ctx: RaceContext): RaceSegmentEvent 
     id: 'start_dash',
     type: 'スタートダッシュ',
     trigger: { type: 'ratio', min: 0.1 },
+    scale: EVENT_SCALE.start_dash,
     // 相手がいないイベントも難易度を持たせて、毎回同じ%にならないようにする
-    opponentOvr: 52 + Math.floor(Math.random() * 23),
+    opponentOvr: withSpecBonus('start_dash', player, fieldOvr(seg, 52, 75)),
     situation,
     battleContext,
     choices: [
@@ -305,11 +448,7 @@ function makeStartDashEvent(player: Player, ctx: RaceContext): RaceSegmentEvent 
       { id: 'b', text: '自分のペースで入る' },
       { id: 'c', text: isKicker ? 'スパートに備えて後半型で入る' : isLong ? '長距離型のリズムで刻む' : '後半勝負で体力を温存する' },
     ],
-    _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-    ],
+    _effects: CHOICE_EFFECTS,
   }
 }
 
@@ -343,8 +482,9 @@ function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext)
     id: 'mountain_ascent',
     type: '山岳判断',
     trigger: { type: 'ratio', min: 0.15 },
+    scale: EVENT_SCALE.mountain_ascent,
     // 難易度＝坂のきつさ＋ぶれ（急坂ほど成功率が下がる）
-    opponentOvr: Math.round(46 + seg.uphillPct * 0.5 + Math.random() * 8),
+    opponentOvr: withSpecBonus('mountain_ascent', player, fieldOvr(seg, 46 + seg.uphillPct * 0.5, 54 + seg.uphillPct * 0.5)),
     situation,
     battleContext,
     choices: [
@@ -352,15 +492,11 @@ function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext)
       { id: 'b', text: '前半抑えて後半に勝負をかける' },
       { id: 'c', text: 'リズムを刻んで体力を温存する' },
     ],
-    _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-    ],
+    _effects: CHOICE_EFFECTS,
   }
 }
 
-function makeMountainDescentEvent(player: Player, ctx: RaceContext): RaceSegmentEvent {
+function makeMountainDescentEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
   const isDownSpec = player.specialty === 'mountain_down'
   const situation = pick([
     '下り区間に入った。攻め方次第でタイムが大きく変わる局面。',
@@ -389,7 +525,8 @@ function makeMountainDescentEvent(player: Player, ctx: RaceContext): RaceSegment
     id: 'mountain_descent',
     type: '下り判断',
     trigger: { type: 'ratio', min: 0.15 },
-    opponentOvr: 52 + Math.floor(Math.random() * 23),
+    scale: EVENT_SCALE.mountain_descent,
+    opponentOvr: withSpecBonus('mountain_descent', player, fieldOvr(seg, 52, 75)),
     situation,
     battleContext,
     choices: [
@@ -397,11 +534,7 @@ function makeMountainDescentEvent(player: Player, ctx: RaceContext): RaceSegment
       { id: 'b', text: '安全に確実なペースで走る' },
       { id: 'c', text: '下りを使って体力を回復させながら走る' },
     ],
-    _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-    ],
+    _effects: CHOICE_EFFECTS,
   }
 }
 
@@ -428,6 +561,7 @@ function makePackRaceEvent(player: Player, nearbyCount: number, opponentOvr: num
     id: 'pack_race',
     type: '並走',
     trigger: { type: 'packSize', minCount: 2, withinSec: 12 },
+    scale: EVENT_SCALE.pack_race,
     situation,
     battleContext,
     choices: [
@@ -435,17 +569,12 @@ function makePackRaceEvent(player: Player, nearbyCount: number, opponentOvr: num
       { id: 'b', text: isTeamPlayer ? '集団のペースをコントロールしながら走る' : '集団につきながら体力を温存する' },
       { id: 'c', text: '集団の中で温存してラストに賭ける' },
     ],
-    opponentOvr,
-    _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-    ],
+    opponentOvr: opponentOvr == null ? undefined : withSpecBonus('pack_race', player, opponentOvr),
+    _effects: CHOICE_EFFECTS,
   }
 }
 
 function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: number | undefined, ctx: RaceContext): RaceSegmentEvent {
-  void player
   const situation = pick([
     ctx.gapAheadSec != null && ctx.aheadName
       ? `現在総合${ctx.overallRank}位。前の${ctx.aheadName}まで${Math.round(ctx.gapAheadSec)}秒。ここで仕掛けるか。`
@@ -473,6 +602,7 @@ function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: nu
     id: 'catching_up',
     type: '追い上げ',
     trigger: { type: 'gapAheadBelow', sec: 15 },
+    scale: EVENT_SCALE.catching_up,
     situation,
     battleContext,
     choices: [
@@ -480,12 +610,8 @@ function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: nu
       { id: 'b', text: 'じわじわと距離を縮めていく' },
       { id: 'c', text: '無理をせず自分のレースに集中する' },
     ],
-    opponentOvr,
-    _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-    ],
+    opponentOvr: opponentOvr == null ? undefined : withSpecBonus('catching_up', player, opponentOvr),
+    _effects: CHOICE_EFFECTS,
   }
 }
 
@@ -515,6 +641,7 @@ function makeFrontPressureEvent(player: Player, opponentOvr: number | undefined,
     id: 'front_pressure',
     type: '先頭プレッシャー',
     trigger: { type: 'gapBehindBelow', sec: 20 },
+    scale: EVENT_SCALE.front_pressure,
     situation,
     battleContext,
     choices: [
@@ -522,16 +649,66 @@ function makeFrontPressureEvent(player: Player, opponentOvr: number | undefined,
       { id: 'b', text: '後続を意識しつつ現ペースを維持する' },
       { id: 'c', text: '計算した走りで無駄なエネルギーを使わない' },
     ],
-    opponentOvr,
-    _effects: [
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-    ],
+    opponentOvr: opponentOvr == null ? undefined : withSpecBonus('front_pressure', player, opponentOvr),
+    _effects: CHOICE_EFFECTS,
   }
 }
 
-function makeWaterStationEvent(player: Player, ctx: RaceContext): RaceSegmentEvent {
+/**
+ * **ラスト勝負。**終盤（74〜88%）に出る唯一のイベント。
+ *
+ * ★以前は `generateSegmentEvents` の発火地点の表に `final_push` の行だけがあって、
+ *   **そのIDのイベントが定義されていなかった**（作られないIDに発火地点を書いていた）。
+ *   結果、7種すべてが8〜60%の間で終わり、**終盤に出る札が1枚も無かった**。
+ *   駅伝でいちばん見せ場になるはずの場面が丸ごと抜けていた。
+ *
+ * 効き幅はいちばん大きい（`EVENT_SCALE.final_push` = 1.4）。得意なのはスパート型。
+ */
+function makeFinalPushEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
+  const isKicker = player.specialty === 'kick'
+  const last = ctx.segIdx === ctx.totalSegs - 1
+  const situation = pick([
+    last
+      ? `アンカーの${player.name}が最終局面へ。ここで決まる。`
+      : `${player.name}が区間の終盤へ。タスキを渡すまであとわずか。`,
+    ctx.gapAheadSec != null && ctx.aheadName
+      ? `残りわずか。前の${ctx.aheadName}まで${Math.round(ctx.gapAheadSec)}秒。ここで刺せるか。`
+      : `残りわずか。総合${ctx.overallRank}位、最後の力をどう使う。`,
+    ctx.gapBehindSec != null && ctx.behindName
+      ? `${ctx.behindName}が${Math.round(ctx.gapBehindSec)}秒後ろから迫る。振り切れるか。`
+      : `終盤に入った。総合${ctx.overallRank}位、ここからが本当の勝負だ。`,
+    '沿道の声援が一段と大きくなる。ラストスパートの合図だ。',
+    `${player.name}の表情が変わった。最後の直線が見えてきた。`,
+  ])
+  const battleContext = pick([
+    'ここまで温存してきたものを、すべて出すかどうか。',
+    ctx.gapAheadSec != null
+      ? `前との差は${Math.round(ctx.gapAheadSec)}秒。刺すなら今しかない。`
+      : '最後の一押しがタイムを決める。ただし残っていなければ失速する。',
+    `総合${ctx.overallRank}位 / ${ctx.totalTeams}チーム。1つの順位が大きなポイント差になる。`,
+    isKicker
+      ? `${player.name}はスパート型。この場面のために脚を残してきた。`
+      : '残り距離は短い。使い切っても、届かなければ意味がない。',
+  ])
+  return {
+    id: 'final_push',
+    type: 'ラスト勝負',
+    // 発火地点は generateSegmentEvents 側で 74〜88% に置き換わる
+    trigger: { type: 'ratio', min: 0.74 },
+    scale: EVENT_SCALE.final_push,
+    opponentOvr: withSpecBonus('final_push', player, fieldOvr(seg, 50, 72)),
+    situation,
+    battleContext,
+    choices: [
+      { id: 'a', text: isKicker ? 'スパート型の真骨頂、すべてを出し切る' : '残った力を全部使ってスパートする', lowStaminaText: 'スパートする（脚は残っていない）' },
+      { id: 'b', text: 'ペースを上げて最後まで押し切る' },
+      { id: 'c', text: '崩れないように最後までまとめる' },
+    ],
+    _effects: CHOICE_EFFECTS,
+  }
+}
+
+function makeWaterStationEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
   const situation = pick([
     '給水ポイントが近づいた。ここでどう補給するか。',
     `総合${ctx.overallRank}位で給水所へ。わずかな所作の差がタイムに響く。`,
@@ -555,7 +732,8 @@ function makeWaterStationEvent(player: Player, ctx: RaceContext): RaceSegmentEve
     id: 'water_station',
     type: '給水',
     trigger: { type: 'stamina' },
-    opponentOvr: 46 + Math.floor(Math.random() * 20),
+    scale: EVENT_SCALE.water_station,
+    opponentOvr: withSpecBonus('water_station', player, fieldOvr(seg, 46, 66)),
     situation,
     battleContext,
     choices: [
@@ -563,50 +741,55 @@ function makeWaterStationEvent(player: Player, ctx: RaceContext): RaceSegmentEve
       { id: 'b', text: '素早く受け取ってペースを落とさない' },
       { id: 'c', text: '給水をパスしてタイムを削る' },
     ],
-    _effects: [
-      { effortType: 'conservative', staminaSuccess: 0,  timeBonusSuccess: 0,       staminaFail: 0,  timeBonusFail: 0 },
-      { effortType: 'balanced',     staminaSuccess: -1, timeBonusSuccess: -0.0024, staminaFail: -2, timeBonusFail: 0.0018 },
-      { effortType: 'aggressive',   staminaSuccess: -2, timeBonusSuccess: -0.0048, staminaFail: -3, timeBonusFail: 0.0036 },
-    ],
+    _effects: WATER_EFFECTS,
   }
 }
 
 
 // ─── Resolve Choice ──────────────────────────────────────────────────────────
 
-// 選択肢の成功確率。攻め＝低確率・高リターン / 標準＝中間 / 温存＝高確率。
-// どれも実力差(gap)で上下するので、同じイベントでも選択肢ごとに違う%が並ぶ。
+// 選択肢の成功確率。攻め＝低確率・高リターン / 標準＝普通の確率・小さいリターン /
+// 温存＝100%（何も起きない）。攻めと標準は実力差(gap)で上下する。
 // 表示(SimPhase)と判定(resolveChoice)で同じ値を使うためにexportして共用する。
+//
+// ★温存が 100% なのは「押しても何も起きない＝スキップと同じ」だから（`CHOICE_EFFECTS` 参照）。
+//   ここを 1 未満にすると「何も起きないことに失敗する」という意味の無い判定になる。
+// ★攻めの上限 0.65 を下げないこと。0.55 だと実力差がいくつでも標準のほうが得になり、
+//   **攻めが一度も最良にならない肢**になる（`check-race-choice` の [2] が落ちる）。
 export function choiceSuccessProb(
   effortType: 'aggressive' | 'balanced' | 'conservative',
   segStamina: number,
   opponentOvr: number,
 ): number {
   const gap = segStamina - opponentOvr
-  if (effortType === 'conservative') return Math.max(0.85, Math.min(0.99, 0.93 + gap * 0.004))
-  if (effortType === 'aggressive') return Math.max(0.10, Math.min(0.80, 0.42 + gap * 0.025))
+  if (effortType === 'conservative') return 1
+  if (effortType === 'aggressive') return Math.max(0.08, Math.min(0.65, 0.20 + gap * 0.025))
   return Math.max(0.30, Math.min(0.92, 0.62 + gap * 0.015))
 }
 
+/**
+ * 選んだ肢を判定する。返すのは**タイムの増減だけ**（`CHOICE_EFFECTS` の注記を参照）。
+ * 区間スタミナは動かさない＝区間ごとに引き直される値なので、ここで削っても
+ * 「後半に響く」にはならず、隠れた2本目のタイム減点になるだけだった。
+ */
 export function resolveChoice(
   event: RaceSegmentEvent,
   choiceIdx: number,
   segStamina: number,
   segBaseTime: number,
-): { staminaDelta: number; timeDelta: number; newStamina: number; success: boolean } {
+): { timeDelta: number; success: boolean } {
   const effect = event._effects[choiceIdx]
-  if (!effect) return { staminaDelta: 0, timeDelta: 0, newStamina: segStamina, success: true }
+  if (!effect) return { timeDelta: 0, success: true }
 
   // timeBonus は区間タイムに対する割合。区間の基準タイムに掛けて秒に変換する。
-  // 温存も含めて全選択肢が表示された%どおりに判定される（温存は高確率だが確実ではない）
+  // 表示された%どおりに判定される（温存は100%だが、成功しても失敗しても0秒）
   const successProb = choiceSuccessProb(effect.effortType, segStamina, event.opponentOvr ?? segStamina)
   const success = Math.random() < successProb
 
-  const staminaDelta = success ? effect.staminaSuccess : effect.staminaFail
-  const timeFrac = success ? effect.timeBonusSuccess : effect.timeBonusFail
-  const timeDelta = Math.round(segBaseTime * timeFrac)
-
-  return { staminaDelta, timeDelta, newStamina: segStamina + staminaDelta, success }
+  // 場面ごとの効き幅（EVENT_SCALE）はここで1回だけ掛ける。
+  // イベント側に別の割合の表を持たせないこと
+  const timeFrac = (success ? effect.timeBonusSuccess : effect.timeBonusFail) * (event.scale ?? 1)
+  return { timeDelta: Math.round(segBaseTime * timeFrac), success }
 }
 
 // ─── Finalize Segment ────────────────────────────────────────────────────────

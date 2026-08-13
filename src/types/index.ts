@@ -28,41 +28,6 @@ export type ForeignCategory = 'domestic' | 'asian' | 'foreign'
 export type PlayerStatus = 'active' | 'injured' | 'retired' | 'draft_eligible'
 export type SeasonPhase = 'preseason' | 'regular' | 'postseason' | 'draft' | 'free_agency'
 
-export type GameEventType =
-  | 'player_fatigue'
-  | 'player_morale_low'
-  | 'player_form_up'
-  | 'player_wants_renewal'
-  | 'young_breakout'
-  | 'sponsor_offer'
-  | 'media_interview'
-  | 'press_conference'
-  | 'playing_time_demand'
-  | 'transfer_request'
-  | 'board_warning'
-  | 'player_milestone'
-  | 'budget_boost'
-  | 'player_retirement'
-  | 'veteran_ambition'
-  | 'rival_provocation'
-  | 'ai_poaching'
-  | 'team_chemistry'
-  | 'budget_crisis'
-
-export type EventChoice = { label: string; desc: string }
-
-export type GameEvent = {
-  id: string
-  raceIndex: number
-  type: GameEventType
-  playerId?: string
-  title: string
-  body: string
-  choices: EventChoice[]
-  resolved: boolean
-  choiceIndex?: number
-}
-
 export type AITradeOffer = {
   id: string
   fromTeamId: string
@@ -744,7 +709,6 @@ export type Season = {
   scoutMissions: { id: string; prospectId: string; racesLeft: number }[]
   faVisits?: { playerId: string; raceScouted: number }[]
   campBonus?: { type: string; applied: boolean }
-  events?: GameEvent[]
   pendingTradeOffers?: AITradeOffer[]
   scoutedOpponents?: { playerId: string; reqAt: number; year: number }[]
   trainingPlan?: string | null
@@ -993,6 +957,9 @@ export type GmTenure = {
 // 予算・内訳・スカウトポイント・前季順位を持たせてあるのは、受けたときに
 // 移籍先の数字へ丸ごと入れ替えるため。オファーを出す時点でしか分からない値なので
 // ここに焼き付けておく（移籍先が持っているものを受け継ぐ、という決めごと）。
+/** 退任について行くか、の返事。ok=false なら reason に断り文句が入る */
+export type GmInviteResult = { name: string; ok: boolean; reason: string } | null
+
 export type GmOffer = {
   teamId: string
   // 就任するシーズン（＝オファーが出た翌シーズン）
@@ -1067,6 +1034,27 @@ export type GameState = {
   gmOffers?: GmOffer[]
   /** 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN） */
   lastGmOfferYear?: number
+  /**
+   * **来季から指揮すると決まっているクラブ**（オーナー判断★13・2026-08-12）。
+   *
+   *   > 次シーズンの開始になるからね（オーナー）
+   *
+   * 自分から退任して届いた打診を受けると、**その場では何も動かず**ここに入る。
+   * 実際に入れ替わるのは `endSeason` が来季を組み立てたあと。
+   * **受けたら取り消せない**（★13-a）ので、これが入っている間は
+   *   ・退任ボタンを押せない
+   *   ・年1回のランダムなオファーも来ない（★13-b。受けられない話を並べない）
+   *
+   * ★シーズン終わりに向こうから届くオファー（`makeGmOffer`）は、答える時点で
+   *   もう来季に入っているので**ここを通らずその場で入れ替わる**。
+   *   分けているのは「就任する年」1つだけ（`acceptGmOffer` の `offer.year` と今季の比較）。
+   */
+  pendingGmMove?: { teamId: string; year: number; inviteId?: string } | null
+  /**
+   * 退任のときに声をかけた選手の返事（1人だけ）。画面に出したら消す。
+   * **判定は移籍と同じ appraiseMove 1本**（愛着の向き先が監督に変わるだけ）
+   */
+  gmInviteResult?: GmInviteResult
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。

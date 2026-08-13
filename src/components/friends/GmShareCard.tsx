@@ -1,6 +1,8 @@
 import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
+import { titleRows } from '../../utils/teamHistory'
+import { DIVISION_LABEL } from '../../utils/league'
 import { SAIRA } from '../../styles/tokens'
 
 const GOLD = '#C9A84C'
@@ -12,7 +14,8 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
   const secondary = team?.colors.secondary ?? GOLD
   // 通算成績はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   const history = useTeamHistory(team?.id)
-  const champs = history.championships
+  // ★**部ごと**に出す（合計だと3部優勝と1部優勝が混ざる）
+  const champs = titleRows(history.titles).map(r => `${DIVISION_LABEL[r.division]}${r.count}`).join(' / ') || '0'
   const seasons = history.seasonResults.length
 
   return (

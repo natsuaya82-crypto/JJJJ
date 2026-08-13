@@ -1,6 +1,8 @@
 import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
+import { titleRows } from '../../utils/teamHistory'
+import { DIVISION_LABEL } from '../../utils/league'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { ProgressBar } from '../ui'
 
@@ -18,7 +20,11 @@ interface Props {
 
 export default function HeroCard({ team, seasonYear, rank, totalRaces, completedRaces, gmRep, avgMorale, seasonDone }: Props) {
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  const championships = useTeamHistory(team.id).championships
+  // ★**部ごと**に出す（オーナー・2026-08-12「全部部ごと」）。
+  //   合計にすると3部優勝と1部優勝が同じ「優勝1回」になる。
+  //   ここは狭いので「1部2 / 3部1」の形（`titleRows` の順＝上の部から）
+  const titles = useTeamHistory(team.id).titles
+  const titleText = titleRows(titles).map(r => `${DIVISION_LABEL[r.division]}${r.count}`).join(' / ')
   const moraleColor = avgMorale >= 75 ? C.green : avgMorale >= 50 ? C.gold : C.red
   const rankBg = rank === 1
     ? `linear-gradient(135deg, ${C.gold}, ${C.goldHi})`
@@ -120,7 +126,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
         boxShadow: `inset 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
       }}>
         {[
-          { label: '優勝', value: `${championships}回`, color: C.gold, glow: C.gold },
+          { label: '優勝', value: titleText || '0回', color: C.gold, glow: C.gold },
           null,
           { label: 'GM評判', value: `${gmRep}`, color: gmRep >= 70 ? C.green : gmRep >= 40 ? C.gold : C.red, glow: gmRep >= 70 ? C.green : null },
           null,

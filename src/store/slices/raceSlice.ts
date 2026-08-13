@@ -17,15 +17,13 @@ import { applySettledTransfers } from '../../engine/applyTransfers'
 import { resolveLoanRequests } from '../../engine/loanRequests'
 import { generatePlayerWishes } from '../../engine/playerWishes'
 import { settleSaleAnswers } from '../marketOps'
-import { applyEventChoice } from '../../engine/eventEffects'
 import { eventDistKey, updateBestRecord, withEventBest } from '../../engine/timeTrialRecords'
 import { TT_REST_RECOVERY, runTimeTrial, timeTrialBoosted, timeTrialFatigueGain, timeTrialRewardCards, timeTrialRunners, updateTeamEventRecords } from '../../engine/timeTrial'
 import { myDivSize } from '../../utils/league'
 import { generateIndividualEvents } from '../../data/races'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
-import { generateForeignAndLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
+import { generateLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
-import { generateRaceEvents } from '../../engine/eventEngine'
 import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
 import { type ExpiredNegotiation, type GameState, type Player, type Ratings, type TransferRecord } from '../../types'
@@ -40,7 +38,7 @@ import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
 import { allTieredClubs, tierOfPlayerClub } from '../../utils/clubTier'
 
 type Slice = Pick<GameStore,
-  'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setRaceTeamTalk' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'resolveEvent' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
+  'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
 
 export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -193,7 +191,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const progress = applyRaceProgress({
         players: updatedPlayers, results, racingIds, teams: state.teams,
         playerTeamId, myDivision, currentSeason: state.currentSeason,
-        raceTeamTalk: state.raceTeamTalk, awayCareerAdd: awayRound.careerAdd })
+        awayCareerAdd: awayRound.careerAdd })
       const finalPlayers = progress.players
       const raceExpGainsMap = progress.raceExpGains
 
@@ -227,14 +225,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
           })
         : state.currentSeason.scoutProspects
 
-      // Generate inter-race events and AI trade offers
-      const newEvents = generateRaceEvents({
-        players: recoveredPlayers,
-        playerTeamId,
-        raceIndex: raceIndex + 1,
-        season: { ...state.currentSeason, events: state.currentSeason.events ?? [] },
-        gmRep: state.gmRep ?? 50,
-        teams: state.teams })
+      // CPUからのトレード打診
       const existingTrades = (state.currentSeason.pendingTradeOffers ?? []).filter(o => o.expiresAtRace > nextClock)
 
       // CPUからのトレード打診（低頻度・1件まで）。engine/aiTradeOffer 1本
@@ -281,15 +272,15 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const freeMoves = expiry.freeMoves
       const freeMoveNews = expiry.freeMoveNews
 
-      const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length)
-
-      // 海外クラブからの移籍オファー ＋ 相手からのレンタル打診（チャットで対応）
+      // 買い取りの打診は**国内52＋海外180を1本のループ**で回す（engine/cpuMarket）。
       // クラブはそのまま渡す。**ここで id/name/leagueId/country だけに削っていた**ので、
       // 受け取る側は格も手元資金も見られず、いくらまで出せるかを初期値の格から作り直していた。
       const foreignClubs = allForeignClubs(state.foreignLeagues)
+      const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length, foreignClubs)
+
+      // 相手からのレンタル打診（チャットで対応）
       const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))
-      const flOffers = generateForeignAndLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingIncoming: transferData.incomingOffers, existingLoans: keptLoanOffers, races: updatedRaces, season: { ...state.currentSeason, races: updatedRaces }, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
-      const mergedIncomingOffers = [...transferData.incomingOffers, ...flOffers.foreignIncoming]
+      const flOffers = generateLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingLoans: keptLoanOffers, races: updatedRaces, season: { ...state.currentSeason, races: updatedRaces }, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
       const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
       // 入札の応答は engine/bidResolution 1本（判定は utils/transferBid の resolveBid）
@@ -487,10 +478,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
           scoutMissions: activeMissions,
           scoutProspects: updatedScoutProspects,
           newsFeed: [...seasonEndNews, ...freeMoveNews, ...faSignNews, ...loanRespNews, ...segRecordNewsItems, ...cpuTxNewsItems, ...outbidNewsItems, ...injuryNewsItems, ...(prizeNewsItem ? [prizeNewsItem] : []), ...newsItems, ...state.currentSeason.newsFeed].slice(0, 40),
-          events: [...(state.currentSeason.events ?? []), ...newEvents],
           pendingTradeOffers: [...existingTrades, ...newTradeOffers],
           transferListings: transferData.listings,
-          incomingOffers: mergedIncomingOffers,
+          incomingOffers: transferData.incomingOffers,
           incomingLoanOffers: mergedLoanOffers,
           loanRequests: [],
           loanResponses: [...(state.currentSeason.loanResponses ?? []), ...newLoanResponses],
@@ -530,7 +520,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   setRaceStrategy: (s) => set({ raceStrategy: s }),
 
-  setRaceTeamTalk: (t) => set({ raceTeamTalk: t }),
 
 
   setActiveRaceSim: (sim) => set({ activeRaceSim: sim }),
@@ -543,25 +532,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   clearActiveRace: () => set({ activeRacePhase: null, activeRaceSim: null, activeRaceResults: null, activeRaceLockedRace: null, activeRaceLockedRaceIndex: 0 }),
 
-
-  resolveEvent: (eventId, choiceIndex) => {
-    set(state => {
-      const event = (state.currentSeason.events ?? []).find(e => e.id === eventId)
-      // 二度押しガード：決着済みの札をもう一度押しても何も起きない
-      if (!event || event.resolved) return state
-      // 「どの肢を選ぶと何が起きるか」は engine/eventEffects の表1本
-      const w = applyEventChoice(
-        { players: state.players, teams: state.teams, gmRep: state.gmRep ?? GM_REP_DEFAULT, season: state.currentSeason },
-        event, choiceIndex, state.playerTeamId)
-      return {
-        players: w.players,
-        teams: w.teams,
-        gmRep: w.gmRep,
-        currentSeason: {
-          ...w.season,
-          events: (w.season.events ?? []).map(e => e.id === eventId ? { ...e, resolved: true, choiceIndex } : e) } }
-    })
-  },
 
   // ── Individual Events ─────────────────────────────────────────────
   simulateIndividualEvent: (eventId, skipPlayerIds) => {

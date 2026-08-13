@@ -13,6 +13,8 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { getFriend, getFriendShare, removeFriend, listFriends, listSent, sendRequest, SEND_RESULT_TEXT, type SharedRoster } from '../../lib/friendsApi'
 import { clubsOfUsers, type UserClub } from '../../lib/clubsApi'
 import { clubLogoSrc } from '../../data/clubLogos'
+import { titleRows } from '../../utils/teamHistory'
+import { DIVISION_LABEL } from '../../utils/league'
 import type { Specialty } from '../../types'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
@@ -121,6 +123,12 @@ export default function FriendDetailPage() {
   }
 
   const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length) : 0
+  // 通算優勝は**部ごと**に出す（3部で3回と1部で3回を同じ「3回」にしない）。
+  // 内訳を送っていない古い版の相手だけ、今までどおり合計を出す
+  const rows = friend ? titleRows(friend.titles) : []
+  const champsText = rows.length > 0
+    ? rows.map(r => `${DIVISION_LABEL[r.division]}${r.count}`).join(' / ')
+    : `${friend?.champs ?? 0}回`
 
   const sorted = [...roster].sort((a, b) => {
     if (sortKey === 'age') return a.age - b.age || ovr(b) - ovr(a)
@@ -187,7 +195,7 @@ export default function FriendDetailPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          {[['平均OVR', `${avgOvr}`], ['最終ログイン', friend.lastLogin], ['通算優勝', `${friend.champs}回`]].map(([k, v]) => (
+          {[['平均OVR', `${avgOvr}`], ['最終ログイン', friend.lastLogin], ['通算優勝', champsText]].map(([k, v]) => (
             <div key={k} style={{ flex: 1, padding: '9px 8px', borderRadius: 10, background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, textAlign: 'center' }}>
               <div style={{ fontSize: 8, color: C.textDim, marginBottom: 2 }}>{k}</div>
               <div style={{ fontSize: 15, fontWeight: 900, color: C.text, fontFamily: SAIRA }}>{v}</div>

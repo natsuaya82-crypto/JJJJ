@@ -171,7 +171,7 @@ export async function myClub(): Promise<MyClub | null> {
       ? toFriend(p)
       : {
           id: r.user_id, code: '', teamName: '（読み込めません）', shortName: '—', gmName: '—',
-          logoId: 'logo_01', primary: '#122440', secondary: '#f5c842', champs: 0, lastLogin: '—',
+          logoId: 'logo_01', primary: '#122440', secondary: '#f5c842', champs: 0, titles: {}, lastLogin: '—',
         }
     return { ...base, role: r.role, joinedAt: r.joined_at, blocked: blocked.has(r.user_id) }
   })
@@ -346,8 +346,13 @@ export const CLUB_REQ_STATS: CardStatKey[] =
 export type ClubPost = {
   id: string
   userId: string
-  kind: 'msg' | 'req'
+  kind: 'msg' | 'req' | 'room'
+  /** 定型文の番号。**もう書けない**（build 126 までの古い投稿だけが持つ） */
   phrase: number
+  /** 本文（kind='msg'）。**画面に出すときは必ず utils/wordFilter の maskText を通すこと** */
+  body: string
+  /** 対戦の募集の部屋番号6桁（kind='room'） */
+  roomCode: string
   rarity: ClubReqRarity | ''
   /** 欲しいカードの種類。'' なら何でもよい（古い投稿だけが使う） */
   stat: ClubReqStat
@@ -369,8 +374,9 @@ export type ClubPost = {
 }
 
 type FeedRow = {
-  id: string; user_id: string; kind: 'msg' | 'req'; phrase: number; rarity: string; stat: string | null
+  id: string; user_id: string; kind: 'msg' | 'req' | 'room'; phrase: number; rarity: string; stat: string | null
   stats: string[] | null; open_stats: string[] | null
+  body: string | null; room_code: string | null
   filled: number; cap: number; mine: boolean; donated: boolean; created_at: string
   team_name: string | null; short_name: string | null; gm_name: string | null
   logo_id: string | null; color_primary: string | null; color_secondary: string | null
@@ -387,6 +393,9 @@ export async function clubFeed(): Promise<ClubPost[]> {
     userId: r.user_id,
     kind: r.kind,
     phrase: r.phrase ?? 0,
+    // 古いサーバー（club_text.sql 未適用）だと列が無い。そのときは定型文へ落とす
+    body: r.body ?? '',
+    roomCode: r.room_code ?? '',
     rarity: (r.rarity || '') as ClubReqRarity | '',
     stat: (r.stat || '') as ClubReqStat,
     stats: ((r.stats ?? []) as string[]) as ClubReqStat[],
@@ -407,12 +416,38 @@ export async function clubFeed(): Promise<ClubPost[]> {
 
 export type PostMsgResult = 'ok' | 'not_in_club' | 'too_fast'
 
-/** 定型文を書く。連投は1分に1回まで */
+/**
+ * 定型文を書く。**もう画面からは呼ばない**（build 126 までのアプリが使っている関数を
+ * サーバーに残してあるだけ）。消すとそのアプリの掲示板が動かなくなる。
+ */
 export async function postClubMessage(phrase: number): Promise<PostMsgResult> {
   await uid()
   const { data, error } = await supabase.rpc('post_club_message', { p_phrase: phrase })
   if (error) throw new FriendsOffline()
   return (data as PostMsgResult) ?? 'not_in_club'
+}
+
+/** 掲示板に書ける文字数 */
+export const CLUB_TEXT_MAX = 100
+
+/**
+ * 自由入力で書く。連投は1分に1回まで。
+ * ★**伏せ字にしないで送ること。** 保存するのは書かれたそのままで、
+ *   伏せるのは表示のときだけ（通報が来たときに中身が分からないと処理できない）。
+ */
+export async function postClubText(body: string): Promise<PostMsgResult | 'empty'> {
+  await uid()
+  const { data, error } = await supabase.rpc('post_club_text', { p_body: body.slice(0, CLUB_TEXT_MAX) })
+  if (error) throw new FriendsOffline()
+  return (data as PostMsgResult) ?? 'not_in_club'
+}
+
+/** 対戦の募集を掲示板に貼る。部屋は先に roomsApi の createRoom で作る。5分に1回まで */
+export async function postClubRoom(code: string): Promise<PostMsgResult | 'bad_code'> {
+  await uid()
+  const { data, error } = await supabase.rpc('post_club_room', { p_code: code })
+  if (error) throw new FriendsOffline()
+  return (data as PostMsgResult | 'bad_code') ?? 'not_in_club'
 }
 
 export type PostReqResult = 'ok' | 'not_in_club' | 'today_done' | 'bad_rarity'

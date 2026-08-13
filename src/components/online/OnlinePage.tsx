@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from '../friends/friendsUi'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
+import MenuButton from '../ui/MenuButton'
 import { onlineAvailable } from '../../data/featureFlags'
 
 
@@ -16,13 +17,13 @@ export default function OnlinePage() {
   )
 
   const SECTIONS: {
-    key: string; label: string; badge: number; color: string
+    key: string; label: string; en: string; badge: number; color: string
     icon: React.ReactNode; soon?: boolean
     /** オンラインが使えない状態でも押せる（端末内で完結する機能） */
     alwaysOn?: boolean
   }[] = [
     {
-      key: '/friends', label: 'フレンド',
+      key: '/friends', label: 'フレンド', en: 'FRIENDS',
       badge: received.data?.length ?? 0, color: C.gold,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -34,7 +35,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/friends/club', label: '走友会',
+      key: '/friends/club', label: '走友会', en: 'CLUB',
       badge: 0, color: C.orange,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -46,7 +47,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/match', label: 'オンライン対戦',
+      key: '/online/match', label: 'オンライン対戦', en: 'VERSUS',
       badge: 0, color: C.cyan,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -58,7 +59,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/history', label: '対戦履歴',
+      key: '/online/history', label: '対戦履歴', en: 'HISTORY',
       badge: 0, color: C.blue,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -69,8 +70,10 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/events', label: 'イベント',
-      badge: 0, color: C.green, soon: true,
+      // イベント → レート戦（docs/ONLINE_RATED_DESIGN.md）。
+      // いまはレート戦だけなので、そのままレート戦の画面へ入る
+      key: '/online/rated', label: 'イベント', en: 'EVENTS',
+      badge: 0, color: C.green,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="M12 3l2.3 4.7 5.2.8-3.8 3.6.9 5.1-4.6-2.4-4.6 2.4.9-5.1L4.5 8.5l5.2-.8L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
@@ -79,7 +82,7 @@ export default function OnlinePage() {
     },
     {
       // 殿堂入りは端末内で完結するので、オンラインが使えない状態でも押せる（下の soon を付けない）
-      key: '/online/hof', label: '殿堂入りチーム',
+      key: '/online/hof', label: '殿堂入りチーム', en: 'HALL OF FAME',
       badge: 0, color: C.gold, alwaysOn: true,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -98,7 +101,7 @@ export default function OnlinePage() {
     : SECTIONS.map(s => (s.alwaysOn ? s : { ...s, soon: true, badge: 0 }))
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE</div>
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>オンライン</div>
@@ -106,44 +109,18 @@ export default function OnlinePage() {
 
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {sections.map(s => (
-          <button
+          <MenuButton
             key={s.key}
-            onClick={() => { if (!s.soon) navigate(s.key) }}
-            className={s.soon ? undefined : 'btn-press'}
-            style={{
-              width: '100%', padding: '12px 14px', borderRadius: 14,
-              border: `2px solid ${s.soon ? C.border2 : C.goldDark}`,
-              cursor: s.soon ? 'default' : 'pointer', opacity: s.soon ? 0.5 : 1,
-              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-              boxShadow: s.soon ? 'none' : `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)`,
-              display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.2)', borderRadius: 10, pointerEvents: 'none' }}/>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10, flexShrink: 0, position: 'relative', zIndex: 1,
-              background: 'linear-gradient(180deg, #2a4060 0%, #122440 100%)', border: `2px solid ${C.bg}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color,
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3)',
-            }}>
-              {s.icon}
-            </div>
-            <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1 }}>
-              <div>
-                <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{s.label}</span>
-                {s.badge > 0 && (
-                  <span style={{ marginLeft: 7, padding: '1px 7px', borderRadius: 6, background: s.color, color: C.bg, fontSize: 10, fontWeight: 900 }}>{s.badge}</span>
-                )}
-              </div>
-              {/* 説明は置かない（名前で分かるものに注釈を足さない）。「準備中」だけは状態なので出す */}
-              {s.soon && <div style={{ fontSize: 10, color: alpha(C.text, 0.45), marginTop: 2 }}>準備中</div>}
-            </div>
-            {!s.soon && (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>
-                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            )}
-          </button>
+            icon={s.icon}
+            label={s.label}
+            en={s.en}
+            badge={s.badge}
+            badgeColor={s.color}
+            note={s.soon ? '準備中' : undefined}
+            tone={s.color === C.cyan ? 'cyan' : 'gold'}
+            disabled={s.soon}
+            onClick={() => navigate(s.key)}
+          />
         ))}
       </div>
     </div>

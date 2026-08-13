@@ -239,7 +239,7 @@ export default function ShopPage() {
   const jewelsColor = jewels > 500 ? '#6dd5fa' : jewels > 0 ? C.gold : C.red
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100dvh' }}>
 
       {pendingItem && (
         <ConfirmModal

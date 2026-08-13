@@ -55,6 +55,10 @@ create table if not exists public.profiles (
   constraint profiles_code_format check (code ~ '^[0-9]{10}$')
 );
 
+-- 部ごとの通算優勝。{"1部":2,"3部":1} の形（0の部は入れない）。
+-- champs（合計）は古いアプリが読んでいるので、作り変えず**両方入れ続ける**。
+alter table public.profiles add column if not exists titles jsonb not null default '{}'::jsonb;
+
 -- オンライン対戦の通算戦績（表示用のカウンタ。集計元は match_results）
 alter table public.profiles add column if not exists mp_played   integer not null default 0;
 alter table public.profiles add column if not exists mp_wins     integer not null default 0;
@@ -142,16 +146,26 @@ create table if not exists public.club_posts (
   id         uuid        primary key default gen_random_uuid(),
   club_id    uuid        not null references public.clubs(id) on delete cascade,
   user_id    uuid        not null references auth.users(id)   on delete cascade,
-  kind       text        not null,                       -- 'msg' 定型文 / 'req' カードください
+  kind       text        not null,                       -- 'msg' 書き込み / 'req' カードください / 'room' 対戦の募集
   phrase     integer     not null default 0,             -- 定型文の番号（kind='msg'）
   rarity     text        not null default '',            -- 欲しいレアリティ（kind='req'）
   filled     integer     not null default 0,             -- 集まった枚数
   created_at timestamptz not null default now(),
-  constraint club_posts_kind   check (kind in ('msg', 'req')),
   constraint club_posts_phrase check (phrase between 0 and 11),
   constraint club_posts_rarity check (rarity in ('', 'normal', 'rare', 'epic'))
 );
 create index if not exists club_posts_club_idx on public.club_posts (club_id, created_at desc);
+
+-- 書き込みの本文（kind='msg'）。100字までで切る。**伏せ字はここではやらない**
+-- （保存するのは書かれたそのまま。画面に出す直前にアプリ側で伏せる＝src/utils/wordFilter.ts。
+--   通報が来たときに何が書かれたのか分からないと処理のしようがないため）
+alter table public.club_posts add column if not exists body      text not null default '';
+-- 対戦の募集（kind='room'）。6桁の部屋番号
+alter table public.club_posts add column if not exists room_code text not null default '';
+
+alter table public.club_posts drop constraint if exists club_posts_kind;
+alter table public.club_posts add  constraint club_posts_kind
+  check (kind in ('msg', 'req', 'room'));
 
 -- お願い1件まるごとの種類指定（旧）。いまは stats を見るが、古いアプリ向けに残す
 alter table public.club_posts add column if not exists stat  text     not null default '';
@@ -407,6 +421,8 @@ drop function if exists public.kick_club_member(uuid)                        cas
 drop function if exists public.update_club(text, text, text, text, integer)  cascade;
 drop function if exists public.clubs_of_users(uuid[])                        cascade;
 drop function if exists public.post_club_message(integer)                    cascade;
+drop function if exists public.post_club_text(text)                          cascade;
+drop function if exists public.post_club_room(text)                          cascade;
 drop function if exists public.post_club_request(text)                       cascade;  -- 旧い形
 drop function if exists public.post_club_request(text, text)                 cascade;  -- 旧い形
 drop function if exists public.post_club_request(text, text, text[])         cascade;
@@ -934,6 +950,63 @@ begin
   return 'ok';
 end $$;
 
+-- ── 自由入力で書く ─────────────────────────────────────
+-- 'ok' / 'not_in_club' / 'too_fast'（連投防止：1分に1回まで）/ 'empty'
+-- ★`post_club_message`（定型文の番号）は残す。build 126 までのアプリは番号しか
+--   送れないので、消すとその人の掲示板が丸ごと動かなくなる。
+create function public.post_club_text(p_body text) returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare me uuid := auth.uid(); my_club uuid; b text;
+begin
+  if me is null then return 'not_in_club'; end if;
+  my_club := public.my_club_id();
+  if my_club is null then return 'not_in_club'; end if;
+
+  -- 前後の空白と改行を落としてから空かどうかを見る。
+  -- 改行だけの投稿で掲示板が縦に伸びるのを防ぐ（1行にまとめる）
+  b := btrim(regexp_replace(coalesce(p_body, ''), '[\r\n\t]+', ' ', 'g'));
+  if b = '' then return 'empty'; end if;
+  b := left(b, 100);
+
+  if exists (
+    select 1 from public.club_posts
+    where user_id = me and kind = 'msg' and created_at > now() - interval '1 minute'
+  ) then return 'too_fast'; end if;
+
+  insert into public.club_posts (club_id, user_id, kind, phrase, body)
+    values (my_club, me, 'msg', 0, b);
+  return 'ok';
+end $$;
+
+-- ── 対戦の募集を出す ───────────────────────────────────
+-- 'ok' / 'not_in_club' / 'too_fast'（募集は5分に1回）/ 'bad_code'
+-- 部屋そのものは create_room で作る。ここは「その番号を掲示板に貼る」だけで、
+-- 部屋の生き死にはアプリが入るときに確かめる。
+create function public.post_club_room(p_code text) returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare me uuid := auth.uid(); my_club uuid;
+begin
+  if me is null then return 'not_in_club'; end if;
+  my_club := public.my_club_id();
+  if my_club is null then return 'not_in_club'; end if;
+  if coalesce(p_code, '') !~ '^[0-9]{6}$' then return 'bad_code'; end if;
+
+  if exists (
+    select 1 from public.club_posts
+    where user_id = me and kind = 'room' and created_at > now() - interval '5 minutes'
+  ) then return 'too_fast'; end if;
+
+  insert into public.club_posts (club_id, user_id, kind, room_code)
+    values (my_club, me, 'room', p_code);
+  return 'ok';
+end $$;
+
 -- ── カードをお願いする（1枚ずつ種類を指定できる） ────────
 -- 'ok' / 'not_in_club' / 'today_done'（今日はもう出した） / 'bad_rarity'
 create function public.post_club_request(
@@ -1068,6 +1141,7 @@ create function public.club_feed()
 returns table (
   id uuid, user_id uuid, kind text, phrase integer, rarity text, stat text,
   stats text[], open_stats text[],
+  body text, room_code text,
   filled integer, cap integer, mine boolean, donated boolean, created_at timestamptz,
   team_name text, short_name text, gm_name text,
   logo_id text, color_primary text, color_secondary text
@@ -1113,6 +1187,7 @@ begin
   return query
     select t.id, t.user_id, t.kind, t.phrase, t.rarity, t.stat,
            t.stats, public.club_open_stats(t.rarity, t.stats, t.stat, t.taken),
+           t.body, t.room_code,
            t.filled, public.club_req_cap(t.rarity), t.user_id = me,
            exists (select 1 from public.club_gifts g where g.post_id = t.id and g.from_user = me),
            t.created_at,
@@ -1846,6 +1921,8 @@ begin
     'clubs_of_users(uuid[])',
     'club_open_stats(text, text[], text, integer[])',
     'post_club_message(integer)',
+    'post_club_text(text)',
+    'post_club_room(text)',
     'post_club_request(text, text, text[])',
     'donate_club_card(uuid, jsonb)',
     'donate_club_cards(uuid, jsonb)',

@@ -1,7 +1,7 @@
 // フレンド機能のサーバー窓口。mockFriends.ts の置き換え。
 // UI側の型（Friend / FriendRequest）はモック時代と同じ形のまま維持して、
 // 画面側の書き換えを最小限にしている。
-import type { HofPlayer, Player, Team } from '../types'
+import type { Division, HofPlayer, Player, Team } from '../types'
 import { supabase, ensureAuth } from './supabase'
 import { withoutBlocked } from './moderationApi'
 import { defaultLogoIdFor, hashedLogoIdFor } from '../data/logoPresets'
@@ -15,7 +15,10 @@ export type Friend = {
   logoId: string
   primary: string
   secondary: string
+  /** 通算優勝の**合計**。★画面に「◯回」とだけ出さないこと（3部優勝と1部優勝が混ざる）。`titles` を使う */
   champs: number
+  /** **部ごとの通算優勝。**画面はこちらを出す。古いセーブ／古い版から来た相手は空 */
+  titles: Partial<Record<Division, number>>
   lastLogin: string       // updated_at から算出した表示用の文字列
 }
 
@@ -34,6 +37,8 @@ export type ProfileRow = {
   color_primary: string
   color_secondary: string
   champs: number
+  /** 部ごとの通算優勝。列を足す前に作られた行は null で返る */
+  titles?: Partial<Record<Division, number>> | null
   avg_ovr: number
   updated_at?: string
 }
@@ -77,6 +82,8 @@ export function toFriend(r: ProfileRow): Friend {
     primary: r.color_primary || '#122440',
     secondary: r.color_secondary || '#f5c842',
     champs: r.champs ?? 0,
+    // 内訳が無い相手（古い版）は空。画面が合計へ落とす
+    titles: r.titles ?? {},
     lastLogin: relativeTime(r.updated_at),
   }
 }
@@ -98,7 +105,7 @@ function toRequest(r: ProfileRow): FriendRequest {
 }
 
 const PROFILE_COLS =
-  'user_id, code, team_name, short_name, gm_name, logo_id, color_primary, color_secondary, champs, avg_ovr, updated_at'
+  'user_id, code, team_name, short_name, gm_name, logo_id, color_primary, color_secondary, champs, titles, avg_ovr, updated_at'
 
 /** 通信エラーをUIで扱いやすい日本語にする */
 export class FriendsOffline extends Error {
@@ -144,7 +151,17 @@ export async function myCode(): Promise<string> {
 }
 
 /** 自チーム情報をサーバーへ反映（フレンド一覧・詳細のヘッダーに出る） */
-export async function pushMyProfile(team: Team | undefined, avgOvr: number, champs: number): Promise<void> {
+/**
+ * 自分のチーム情報をサーバーへ反映。
+ *
+ * ★**優勝は合計と部ごとの両方を送る。** `champs`（合計）は古いアプリが読んでいるので
+ *   止めない。`titles`（部ごと）が新しい版の見るほう。片方だけにすると、
+ *   古い版の画面から数字が消えるか、新しい版で部が混ざるかのどちらかになる。
+ */
+export async function pushMyProfile(
+  team: Team | undefined, avgOvr: number, champs: number,
+  titles: Partial<Record<Division, number>> = {},
+): Promise<void> {
   if (!team) return
   const me = await uid()
   await ensureMyProfile()
@@ -158,6 +175,7 @@ export async function pushMyProfile(team: Team | undefined, avgOvr: number, cham
     color_primary: team.colors.primary,
     color_secondary: team.colors.secondary,
     champs,
+    titles,
     avg_ovr: avgOvr,
   }).eq('user_id', me)
   if (error) throw new FriendsOffline()

@@ -24,7 +24,7 @@ const RACE_WAIT_SEC = 30
 
 export default function RacePanel({
   payload, course, raceNo, totalRaces, meId, myPlayers, seriesPts, waiting, onNext,
-  segGo = -1, onSegDone,
+  segGo = -1, onSegDone, solo = false,
 }: {
   payload: MatchRacePayload
   course: MatchCourse
@@ -42,6 +42,11 @@ export default function RacePanel({
   segGo?: number
   /** 区間結果を見終わったことをホストへ伝える */
   onSegDone?: (segmentIndex: number) => void
+  /**
+   * 待ち合わせる相手がいない再生（レート戦の結果・履歴）。
+   * 結果はもう決まっているので、区間の待ち合わせをしない。
+   */
+  solo?: boolean
 }) {
   const race = useMemo(() => courseToRace(course, raceNo), [course, raceNo])
   const segIdxList = useMemo(() => payload.segments.map(s => s.segmentIndex), [payload])
@@ -329,6 +334,7 @@ export default function RacePanel({
           advanceDisabled={!!segWait}
           onAdvance={() => {
             if (isLast) { setStage('final'); return }
+            if (solo) { goNextSeg(); return }
             if (segWait) return
             onSegDone?.(segData.segmentIndex)
             setSegLeft(SEG_WAIT_SEC)

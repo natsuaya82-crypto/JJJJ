@@ -6,7 +6,7 @@ import { liveName } from '../../utils/playerUtils'
 import { formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { teamHistoryOf } from '../../utils/teamHistory'
+import { gmCareerTitles, teamHistoryOf, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
@@ -15,13 +15,13 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
+import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
 function PageShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ padding: '0 0 16px', fontFamily: SAIRA, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ padding: '0 0 16px', fontFamily: SAIRA, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>RECORDS</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: '10px' }}>
@@ -183,8 +183,14 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   const myTeam = teams.find(t => t.id === playerTeamId)
   const longPress = usePlayerLongPress()
   // 優勝回数・連続上位はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
+  // ★ここは**記録室＝監督の記録**。優勝は「その年に指揮していたクラブ」で数える
+  //   （`gmCareerTitles` 1本）。`teamHistoryOf(pastSeasons, playerTeamId)` で数えると、
+  //   移籍した瞬間に前のクラブの優勝が消え、指揮していない年のいまのクラブの優勝が
+  //   自分のものになる。**クラブ詳細ページのほうはクラブで数える**（あちらが正しい）
+  const gmTenuresForTitles = useGameStore(s => s.gmTenures)
+  const gmTitles = gmCareerTitles(pastSeasons, gmTenuresForTitles, playerTeamId)
   const myHistory = teamHistoryOf(pastSeasons, playerTeamId)
-  const championships = myHistory.championships
+  const championships = gmTitles.total
   const bestStreak = myHistory.bestStreak
   const currentStreak = myHistory.currentStreak
   const allSeasons = [
@@ -228,9 +234,37 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, marginBottom: '8px' }}>まだ優勝なし — 頂点を目指せ</div>
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>
-            {championships}回
+          {/* ★合計ではなく**部ごと**（オーナー・2026-08-12「全部部ごと」）。
+              1部優勝と3部優勝を足すと、どちらの記録なのか分からなくなる */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+            {titleRows(gmTitles.titles).map(r => (
+              <div key={r.division} style={{ display: 'flex', gap: 3, alignItems: 'baseline' }}>
+                <span style={{ fontSize: 10, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{r.count}</span>
+                <span style={{ fontSize: 10, color: C.textDim }}>回</span>
+              </div>
+            ))}
+            {championships === 0 && (
+              <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.textDim }}>0回</span>
+            )}
           </div>
+          {/* ★**どのクラブで優勝したか**を書く（オーナー・2026-08-12）。
+              記録室は監督の記録なので、クラブが変われば優勝もクラブごとに分かれる。 */}
+          {gmTitles.byClub.length > 0 && (
+            <div style={{ fontSize: '10px', color: C.textSub, lineHeight: 1.7 }}>
+              {gmTitles.byClub.map(c => (
+                <div key={c.teamId}>
+                  <span style={{ fontWeight: 800, color: C.text }}>{teams.find(t => t.id === c.teamId)?.shortName ?? '—'}</span>
+                  {/* ★**部ごとに出す**（オーナー・2026-08-12）。同じクラブでも
+                      1部優勝と3部優勝は別の話なので、年の横に部を付ける */}
+                  <span style={{ marginLeft: 6 }}>{c.wins.length}回</span>
+                  <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>
+                    {c.wins.map(w => `${DIVISION_LABEL[w.division]}${w.year}`).join(' / ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           {bestStreak > 0 && (
             <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.green }}>
               最長連続TOP3: {bestStreak}季
@@ -608,22 +642,41 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         // 直近10季の順位を折れ線で表示（1位が上）
         const chartSeasons = allSeasons.slice(-10)
         const pts = chartSeasons.map(s => {
-          const sorted = seasonDivisionStandings(s, teamIdAt(s.year))
-          return { year: s.year, rank: rankIn(s, teamIdAt(s.year)), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
+          const tid = teamIdAt(s.year)
+          const sorted = seasonDivisionStandings(s, tid)
+          return { year: s.year, teamId: tid, rank: rankIn(s, tid), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
         })
         const maxTeams = Math.max(8, ...pts.map(p => p.totalTeams))
         const n = pts.length
         const xFor = (i: number) => n <= 1 ? 50 : (i / (n - 1)) * 100
         const yFor = (rank: number) => 12 + ((rank - 1) / Math.max(1, maxTeams - 1)) * 74
         const rankCol = (rank: number) => rank === 1 ? C.gold : rank <= 3 ? C.green : rank <= 5 ? C.blue : C.textGhost
-        const linePts = pts.map((p, i) => p.rank != null ? `${xFor(i)},${yFor(p.rank)}` : null).filter((x): x is string => x != null).join(' ')
+        // ★**クラブが変わったところで線を切る**（オーナー・2026-08-12）。
+        //   この折れ線は「監督のキャリア」なので、`teamIdAt` が年ごとに別のクラブを返す。
+        //   1本に繋ぐと、3部のクラブを辞めて1部のクラブへ移った年が
+        //   **そのクラブが3部から1部へ昇格したように見える**（部を2つ飛ぶ昇格は起きない）。
+        //   切れ目には縦の区切りを入れて、別のクラブの話だと分かるようにする。
+        const segments: string[] = []
+        let cur: string[] = []
+        pts.forEach((p, i) => {
+          if (i > 0 && p.teamId !== pts[i - 1].teamId) { if (cur.length > 1) segments.push(cur.join(' ')); cur = [] }
+          if (p.rank != null) cur.push(`${xFor(i)},${yFor(p.rank)}`)
+        })
+        if (cur.length > 1) segments.push(cur.join(' '))
+        // クラブが変わった年の手前（前の年との中間）に区切りを置く
+        const clubBreaks = pts.map((p, i) => (i > 0 && p.teamId !== pts[i - 1].teamId
+          ? { at: (xFor(i - 1) + xFor(i)) / 2, name: teams.find(t => t.id === p.teamId)?.shortName ?? '' }
+          : null)).filter((b): b is { at: number; name: string } => b != null)
         return (
           <CardPanel>
-            <SectionLabel>シーズン別順位推移（直近{n}季）</SectionLabel>
+            <SectionLabel>監督キャリアの順位推移（直近{n}季）</SectionLabel>
             <div style={{ position: 'relative', height: '138px', margin: '6px 4px 4px' }}>
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
                 <line x1="0" y1={yFor(1)} x2="100" y2={yFor(1)} stroke={alpha(C.gold, 0.28)} strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />
-                {linePts && <polyline points={linePts} fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+                {clubBreaks.map(b => (
+                  <line key={b.at} x1={b.at} x2={b.at} y1="0" y2="100" stroke={C.textGhost} strokeWidth="1" opacity="0.8" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                ))}
+                {segments.map(sg => <polyline key={sg} points={sg} fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
               </svg>
               {pts.map((p, i) => p.rank != null ? (
                 <div key={p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: `${yFor(p.rank)}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none' }}>
@@ -634,6 +687,15 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
               {pts.map((p, i) => (
                 <div key={'yr' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, bottom: '-4px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: '8px', color: p.isCurrent ? C.gold : C.textGhost, fontWeight: p.isCurrent ? 700 : 400 }}>'{String(p.year).slice(2)}</div>
               ))}
+              {/* ★**どのクラブの順位か**を必ず出す（オーナー・2026-08-12）。
+                  これは監督のキャリアなので、年によって別のクラブの順位が並ぶ。
+                  クラブ名が無いと「3部11位から1部1位」が同じクラブの昇格に見える。
+                  クラブが変わった最初の年にだけ名前を置く（毎年出すと重なって読めない）。 */}
+              {pts.map((p, i) => (i === 0 || p.teamId !== pts[i - 1].teamId) ? (
+                <div key={'cl' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: '-2px', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: '8px', fontWeight: 800, color: C.textSub }}>
+                  {teams.find(t => t.id === p.teamId)?.shortName ?? '—'}
+                </div>
+              ) : null)}
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
               {([[C.gold, '1位'], [C.green, '2-3位'], [C.blue, '4-5位'], [C.textGhost, '6位以下']] as [string, string][]).map(([col, label]) => (
@@ -776,11 +838,10 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
       </CardPanel>
   ) : null
 
-  // 順位の折れ線とOVRの棒グラフは両方「推移」なので1枚にまとめる。
-  // どちらも出せない（1季目など）ときはタブ自体を出さない。
-  const trendPanel = (rankTrend || ovrTrend) ? (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>{rankTrend}{ovrTrend}</div>
-  ) : null
+  // ★平均OVRの棒グラフは出さない（オーナー・2026-08-12「平均ovrはいらない」）。
+  //   ovrTrend の組み立ては残してあるが、画面には出していない。**戻すときはここだけ**。
+  void ovrTrend
+  const trendPanel = rankTrend
 
   return <SectionSwitcher sections={[
     { label: 'GM評判', node: repPanel },

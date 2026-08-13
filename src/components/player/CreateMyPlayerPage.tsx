@@ -91,7 +91,7 @@ export default function CreateMyPlayerPage() {
 
   if (alreadyCreated && !done) {
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, padding: 16 }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, padding: 16 }}>
         <BackButton onClick={() => navigate('/')} />
         <div style={{ textAlign: 'center', padding: 40, color: C.textDim }}>マイプレイヤーは作成済みです（1回きり）。</div>
       </div>
@@ -100,7 +100,7 @@ export default function CreateMyPlayerPage() {
 
   if (done) {
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
         <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>MY PLAYER CREATED</div>
         <div style={{ borderRadius: 16, overflow: 'hidden', border: `3px solid ${C.gold}`, boxShadow: `0 0 24px ${alpha(C.gold, 0.5)}` }}>
           <PlayerFace playerId="preview" nationality={nationality} size={120} customFace={face} />
@@ -121,7 +121,7 @@ export default function CreateMyPlayerPage() {
   )
 
   return (
-    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 84 }) }}>
+    <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 84 }) }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton onClick={() => navigate('/')} />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>マイプレイヤー作成</span>

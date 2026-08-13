@@ -98,7 +98,7 @@ export const migrateSave = (persistedState: unknown, version: number) => {
           ...ps,
           individualEvents: [], newsFeed: [], chatLogs: {}, scoutProspects: [], draftPool: [],
           transferListings: [], incomingOffers: [], transferBids: [], contractRequests: [],
-          acquisitionOffers: [], retirementRequests: [], transferRequests: [], events: [],
+          acquisitionOffers: [], retirementRequests: [], transferRequests: [],
           scoutMissions: [], faVisits: [], pendingTradeOffers: [], scoutedOpponents: [] }))
       }
       if (Array.isArray(s.teams) && Array.isArray(s.players)) {

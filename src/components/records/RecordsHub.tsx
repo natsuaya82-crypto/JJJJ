@@ -1,10 +1,11 @@
+import MenuButton from '../ui/MenuButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { teamHistoryOf } from '../../utils/teamHistory'
+import { gmCareerTitles, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, DIV_STAR, SAIRA, FONT } from '../../styles/tokens'
 import BackButton from '../ui/BackButton'
-import { rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { DIVISION_LABEL, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 
 
 export default function RecordsHub() {
@@ -15,10 +16,11 @@ export default function RecordsHub() {
   // 今のチームで引くと、移った瞬間に自分の優勝が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
   const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  const championships = (gmTenures?.length ?? 0) > 1
-    // その年の自分の部の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
-    ? pastSeasons.filter(s2 => seasonDivisionStandings(s2, teamIdAt(s2.year))[0]?.teamId === teamIdAt(s2.year)).length
-    : teamHistoryOf(pastSeasons, playerTeamId).championships
+  // ★記録室は**監督の記録**。数え方は utils/teamHistory の gmCareerTitles 1本
+  //   （ここに条件分岐で2通り書かないこと。RecordsPage と同じ答えを返す）
+  // ★**部ごと**（オーナー・2026-08-12）。合計だと3部優勝と1部優勝が混ざる
+  const gmTitles = gmCareerTitles(pastSeasons, gmTenures, playerTeamId)
+  const championships = gmTitles.total
   const completedRaces = currentSeason.races.filter(r => r.results).length
   // 自分の部の中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
   const myStanding = rankOfTeam(seasonDivisionStandings(currentSeason, playerTeamId), playerTeamId)
@@ -122,7 +124,7 @@ export default function RecordsHub() {
   ]
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: '80px', minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 16px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>
           {currentSeason.year} RECORDS
@@ -133,12 +135,14 @@ export default function RecordsHub() {
             <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text }}>記録室</div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            {championships > 0 && (
-              <div style={{ padding: '4px 10px', borderRadius: '20px', background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.28)}`, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold }}>★</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>{championships}</span>
+            {/* ★**部ごとの札**にする。合計の★だけだと3部優勝も1部優勝も同じ見た目になる */}
+            {titleRows(gmTitles.titles).map(r => (
+              <div key={r.division} style={{ padding: '4px 10px', borderRadius: '20px', background: alpha(DIV_STAR[r.division], 0.12), border: `1px solid ${alpha(DIV_STAR[r.division], 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontSize: '9px', color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: DIV_STAR[r.division] }}>★</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', color: DIV_STAR[r.division], textShadow: `0 0 6px ${alpha(DIV_STAR[r.division], 0.5)}` }}>{r.count}</span>
               </div>
-            )}
+            ))}
             <div style={{ padding: '4px 10px', borderRadius: '20px', background: myStanding <= 3 ? alpha(C.green, 0.12) : C.surface2, border: `1px solid ${myStanding <= 3 ? alpha(C.green, 0.28) : C.border}`, display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ fontSize: '9px', color: C.textDim }}>現在</span>
               <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: myStanding <= 3 ? C.green : C.textSub, textShadow: myStanding <= 3 ? `0 0 6px ${alpha(C.green, 0.4)}` : 'none' }}>{myStanding > 0 ? myStanding : '—'}</span>
@@ -176,40 +180,14 @@ export default function RecordsHub() {
 
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {SECTIONS.map(s => (
-          <button
+          <MenuButton
             key={s.key}
+            icon={s.icon}
+            label={s.label}
+            badge={s.badge}
+            badgeColor={s.color}
             onClick={() => navigate(s.key)}
-            className="btn-press"
-            style={{
-              width: '100%', padding: '12px 14px', borderRadius: 14,
-              border: `2px solid ${C.goldDark}`,
-              cursor: 'pointer',
-              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)`,
-              display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
-              position: 'relative', overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.2)', borderRadius: 10, pointerEvents: 'none' }}/>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10, flexShrink: 0, position: 'relative', zIndex: 1,
-              background: 'linear-gradient(180deg, #2a4060 0%, #122440 100%)',
-              border: `2px solid ${C.bg}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color,
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3)',
-            }}>
-              {s.icon}
-            </div>
-            <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1 }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{s.label}</span>
-              {s.badge > 0 && (
-                <span style={{ marginLeft: 7, padding: '1px 7px', borderRadius: 6, background: s.color, color: C.bg, fontSize: 10, fontWeight: 900 }}>{s.badge}</span>
-              )}
-            </div>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>
-              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          </button>
+          />
         ))}
       </div>
     </div>

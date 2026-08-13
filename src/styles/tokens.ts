@@ -98,6 +98,9 @@ export const HEADER_H = 49
 /** 下タブの高さ。Layout の下タブと、その上に何かを置く画面が同じ値を使う */
 export const NAV_H = 58
 
+/** 下タブを画面の下端から浮かせる量。**浮かせたぶんも bottomStack が足す** */
+export const NAV_FLOAT = 10
+
 /**
  * 画面の一番下に貼り付けるものの `bottom`。**この足し算はここ1本。**
  *
@@ -109,7 +112,7 @@ export const NAV_H = 58
  *   ここは「その場に居座る固定バー」用。
  */
 export function bottomStack(adH: number, opts?: { aboveNav?: boolean; extra?: number }): string {
-  const px = adH + (opts?.aboveNav ? NAV_H : 0) + (opts?.extra ?? 0)
+  const px = adH + (opts?.aboveNav ? NAV_H + NAV_FLOAT * 2 : 0) + (opts?.extra ?? 0)
   return `calc(${px}px + env(safe-area-inset-bottom))`
 }
 
@@ -119,3 +122,13 @@ export const TT_COLOR = '#5EC8B8'
 export const REST_ACCENT = '#5EC8B8'
 /** マイプレイヤー・合成まわりの紫 */
 export const PURPLE = '#A855F7'
+
+/**
+ * **部ごとの★の色。**1部＝金／2部＝銀／3部＝銅。
+ *
+ *   > 全部部ごとに決まってるやろ（オーナー・2026-08-12）
+ *
+ * 優勝の★を部で分けるときは必ずここから引く（画面ごとに色を決めない）。
+ * キーは Division だが、tokens が types に依存しないよう数値で持つ。
+ */
+export const DIV_STAR: Record<number, string> = { 1: C.gold, 2: '#9FB4CC', 3: '#7A6E58' }

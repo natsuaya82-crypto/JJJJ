@@ -82,7 +82,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
         <button
           {...handlers}
           style={{
-            flex: 1, display: 'flex', alignItems: 'center', gap: 10,
+            flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 12px 6px 12px',
             background: 'none', border: 'none', cursor: 'pointer',
             fontFamily: 'inherit', textAlign: 'left',
@@ -92,8 +92,10 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
             <PlayerFace playerId={player.id} nationality={player.nationality} size={50} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* 1行目: 名前 タイプ 矢印 疲労（+差し込みextra） */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, minWidth: 0, overflow: 'hidden' }}>
+            {/* 1行目: 名前 年齢（+差し込みextra）。
+                ★札の類は2行目へ。名前は長いと詰めるが、幅の決まった札を1行目に置くと
+                  行そのものが広がって右端のOVRが画面の外へ出る（実機で実際に起きた） */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 3, minWidth: 0, overflow: 'hidden' }}>
               <span style={{
                 fontSize: 14, fontWeight: 700,
                 color: player.status === 'injured' ? C.red : C.text,
@@ -101,14 +103,14 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
               }}>
                 {player.name}
               </span>
-              <SpecChip specialty={player.specialty} />
-              {pForm !== 0 && <span style={{ fontSize: 10, color: fColor, fontWeight: 800, flexShrink: 0 }}>{pForm > 0 ? '↑' : '↓'}</span>}
-              {!hideStatusBadges && fatigue > 0 && <span style={{ fontSize: 9, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>疲{fatigue}</span>}
+              <span style={{ fontSize: 10, color: C.textDim, flexShrink: 0 }}>{player.age}歳</span>
               {extra}
             </div>
-            {/* 2行目: 年齢 その他情報（FA/FA間近/負傷/レンタル等） パッチ */}
+            {/* 2行目: タイプ 調子 疲労 外 その他情報（FA/FA間近/負傷/レンタル等） パッチ */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
-              <span style={{ fontSize: 10, color: C.textDim, flexShrink: 0 }}>{player.age}歳</span>
+              <SpecChip specialty={player.specialty} size="sm" />
+              {pForm !== 0 && <span style={{ fontSize: 10, color: fColor, fontWeight: 800, flexShrink: 0 }}>{pForm > 0 ? '↑' : '↓'}</span>}
+              {!hideStatusBadges && fatigue > 0 && <span style={{ fontSize: 9, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>疲{fatigue}</span>}
               <ForeignChip nationality={player.nationality} />
               {!hideStatusBadges && isFreeAgent && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.25)}`, color: C.orange, fontWeight: 700, flexShrink: 0 }}>FA</span>}
               {!hideStatusBadges && isLastYear && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>FA間近</span>}

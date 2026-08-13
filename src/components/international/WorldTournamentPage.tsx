@@ -107,7 +107,7 @@ export default function WorldTournamentPage() {
 
   if (!t) {
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, padding: 16 }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, padding: 16 }}>
         <BackButton />
         <div style={{ textAlign: 'center', color: C.textDim, padding: 40 }}>大会は開催されていません</div>
       </div>
@@ -131,7 +131,7 @@ export default function WorldTournamentPage() {
       return a.nat.localeCompare(b.nat) || shownName(a).localeCompare(shownName(b), 'ja')
     })
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton onClick={() => navigate('/')} />
           <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title} 代表発表</span>
@@ -180,7 +180,7 @@ export default function WorldTournamentPage() {
     const isFinal = t.raceIndex >= t.races.length && revealIdx >= (t.individuals!.length - 1)
     const nextLabel = isFinal ? '総合成績へ →' : `駅伝 第${t.raceIndex + 1}戦へ →`
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton onClick={() => navigate('/')} />
           <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{WA_EVENT_LABEL[ir.event]} 決勝</span>
@@ -224,7 +224,7 @@ export default function WorldTournamentPage() {
   if (phase === 'entry') {
     const done = t.finished || !nextRace
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
         <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton onClick={() => navigate('/')} />
           <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900 }}>{title}</span>
@@ -277,8 +277,6 @@ export default function WorldTournamentPage() {
         weatherLabel={{ sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }}
         raceStrategy={raceStrategy}
         setRaceStrategy={setRaceStrategy}
-        teamTalk=""
-        setTeamTalk={() => {}}
         unavailable={unavailableMap}
         competition="world"
       />

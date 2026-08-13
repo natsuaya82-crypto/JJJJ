@@ -1,7 +1,7 @@
 import type { Division, ForeignStanding, SeasonStanding } from '../types'
 import {
   DIVISIONS, DIVISION_SIZE, divisionInSeason, divisionStandings,
-  rankedStandings, rankOfTeam,
+  domesticThroughRank, rankedStandings, rankOfTeam,
 } from './league'
 
 // ============================================================================
@@ -121,4 +121,42 @@ export function clubRacesDone(season: StandingSeasonLike, clubId: string): numbe
 /** そのクラブがそのリーグ（部）で優勝した年か。国内も海外も「その集団の1位」1本 */
 export function clubWonLeague(season: StandingSeasonLike, clubId: string): boolean {
   return clubSeasonRank(season, clubId).rank === 1
+}
+
+// ============================================================================
+// 歴代成績のグラフの縦軸（国内）
+// ============================================================================
+//
+// **1本の物差しに全部載せる。上が1部1位、下が3部最下位。**
+//
+//   > 1番下が3部の最下位で1番上が1部の上になるようにして欲しいの（オーナー・2026-08-12）
+//
+// ■なぜ要るのか
+//   以前は「その部の中での順位」をそのまま高さにしていたので、**1部5位と3部5位が
+//   同じ高さ**に描かれていました。昇降格した年に線が繋がると、上がったのか下がったのか
+//   まったく分かりません（部の変わり目に縦の点線を入れて誤魔化していた）。
+//   1本の物差しに載せれば、昇格した年は線がそのまま上へ伸びます。
+//
+// ■画面に出すのは「部内順位」のままです
+//   通し順位（1〜52）は格を決めるための内部の数なので**表示はしません**（CLAUDE.md）。
+//   ここが返すのは**高さ（0〜1）だけ**で、数字ではありません。
+//   `npm run check` が `src/components/` での `domesticThroughRank` を見張っているので、
+//   高さの計算はこの1本を通してください（画面で通し順位を組み立てないこと）。
+
+/** その部・その順位が縦軸のどこに来るか。**0 = 1部1位（上）／1 = 3部最下位（下）** */
+export function divisionAxisPos(division: Division, rankInDivision: number): number {
+  const total = DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0)
+  return (domesticThroughRank(division, rankInDivision) - 1) / (total - 1)
+}
+
+/**
+ * 部の切れ目（横の点線を引く高さ）と、その帯がどの部か。
+ * **帯の広さは部のクラブ数に比例**します（1部20／2部16／3部16）。
+ */
+export function divisionAxisBands(): { division: Division; top: number; bottom: number }[] {
+  return DIVISIONS.map(d => ({
+    division: d,
+    top: divisionAxisPos(d, 1),
+    bottom: divisionAxisPos(d, DIVISION_SIZE[d]),
+  }))
 }

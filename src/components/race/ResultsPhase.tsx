@@ -156,7 +156,7 @@ export function ResultsPhase({
   // 区間タイム詳細：別ビュー（結果画面が長いので分離）
   if (view === 'segments') {
     return (
-      <div ref={segTopRef} style={{ fontFamily: SAIRA, paddingBottom: '40px', background: C.bg, minHeight: '100dvh' }}>
+      <div ref={segTopRef} style={{ fontFamily: SAIRA, paddingBottom: '40px', minHeight: '100dvh' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.surface2, borderBottom: `1px solid ${C.border}`, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => setView('main')} style={{
             background: 'none', border: 'none', cursor: 'pointer', color: C.textSub,
@@ -188,7 +188,7 @@ export function ResultsPhase({
   // 経験値獲得：最終結果のあとに表示する専用画面
   if (view === 'exp') {
     return (
-      <div style={{ fontFamily: SAIRA, paddingBottom: bottomStack(adH, { extra: 88 }), background: C.bg, minHeight: '100dvh' }}>
+      <div style={{ fontFamily: SAIRA, paddingBottom: bottomStack(adH, { extra: 88 }), minHeight: '100dvh' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.surface2, borderBottom: `1px solid ${C.border}`, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => setView('main')} style={{
             background: 'none', border: 'none', cursor: 'pointer', color: C.textSub,

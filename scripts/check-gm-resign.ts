@@ -101,6 +101,55 @@ console.log('\n③ 入口で止めていること')
   check(`${PAGE} が残り年数を自分で計算していない`, !/GM_RESIGN_MIN_TENURE/.test(page))
 }
 
+// ───────────────────────────────────────────────────────────────
+// ④ **就任は次のシーズンから**（オーナー判断★13・2026-08-12）
+//
+//   > 次シーズンの開始になるからね（オーナー）
+//   > ★13 新チームへの就任は次シーズン開始時。旧チームの途中状態は持ち込まない
+//   > ★13-a 受けたら取り消せない（決めたら次シーズンから、で確定）
+//
+//   実装が長いあいだ「受けたその場で入れ替わる」ままだったので、**画面の文言だけ**を
+//   実装に合わせて書き換えかけた（2026-08-12）。決定の側が正なので、
+//   **実装・画面の文言・予約の入れ物の3つをまとめて留める。**
+// ───────────────────────────────────────────────────────────────
+console.log('')
+console.log('[④] 就任は次のシーズンから（★13）')
+{
+  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const slice = codeOnly(readFileSync('src/store/slices/seasonSlice.ts', 'utf8'))
+
+  // 自分から退任したときの打診は**来季**のもの
+  const resign = slice.slice(slice.indexOf('resignAsGm: () => {'))
+  const call = resign.slice(resign.indexOf('resignOffers({'), resign.indexOf('resignOffers({') + 700)
+  check('resignAsGm は**来季**（year + 1）を渡している',
+    /nextYear:\s*state\.currentSeason\.year\s*\+\s*1\s*,/.test(call))
+
+  // 受けてもその場では移らない（予約に入る）
+  const accept = slice.slice(slice.indexOf('acceptGmOffer:'), slice.indexOf('declineGmOffer:'))
+  check('acceptGmOffer は来季のオファーを予約にする（その場で移らない）',
+    /offer\.year\s*>\s*state\.currentSeason\.year/.test(accept)
+    && /pendingGmMove:\s*\{\s*teamId:\s*offer\.teamId/.test(accept))
+
+  // 移る処理は1本だけ（入口ごとに書き分けていない）
+  const moves = (slice.match(/playerTeamId:\s*offer\.teamId/g) ?? []).length
+  check('**指揮するクラブを入れ替える処理は1か所だけ**', moves === 1, `${moves}か所`)
+  check('endSeason が予約を実行している',
+    /booked\.year\s*!==\s*newYear/.test(slice) && /applyGmMove\(moved/.test(slice))
+  // ★13-b 予約中は年1回のランダムなオファーを出さない
+  check('予約中は向こうからのオファーが来ない（★13-b）',
+    /state\.pendingGmMove\s*\?\s*null\s*:\s*makeGmOffer\(/.test(slice))
+  // ★13-a 予約中は退任し直せない
+  check('予約中は退任ボタンが押せない（★13-a）',
+    /if\s*\(state\.pendingGmMove\)\s*return\s*\{\}/.test(resign))
+
+  // 画面の文言。**実装に合わせて「その場から」に戻したら落とす**
+  const page = readFileSync('src/components/more/MorePage.tsx', 'utf8')
+  const screen = page.slice(page.indexOf('function ResignScreen'), page.indexOf('function ResignScreen') + 2600)
+  check('退任画面が「就任は次のシーズンから」と言っている', /就任は次のシーズンから/.test(screen))
+  check('退任画面が「受けたその場から」と言っていない', !/受けたその場から/.test(screen))
+  check('退任画面が予約中の行き先を出している', /pendingGmMove/.test(screen))
+}
+
 console.log('')
 if (problems.length > 0) {
   console.log(`✗ 退任のガードが効いていません（${problems.length}件）`)

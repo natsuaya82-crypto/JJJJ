@@ -459,53 +459,6 @@ SCENARIOS['market-acquisition'] = () => {
   })
 }
 
-SCENARIOS['race-event'] = () => {
-  console.log('[race-event] シーズン中のイベント：全19種 × 全選択肢を順に決着させる')
-  // resolveEvent（178行）は「イベントの種類 × 選んだ肢」の巨大な if-else。
-  // 実際に出るイベントは runRace の中で確率で選ばれるので、golden 任せにすると
-  // **通る枝が引き次第**になる。ここでは札を自分で並べて**全部の枝を必ず通す**。
-  //
-  // ★選択肢の数は種類ごとに違うが、3つ渡しても存在しない肢は else に落ちるだけ。
-  //   「肢2は何も起きない」という枝も、起きないことを含めて記録に残る。
-  const { players } = buildState('regular', 3)
-  const g = () => useGameStore.getState()
-  const TYPES = [
-    'player_fatigue', 'player_morale_low', 'player_form_up', 'player_wants_renewal',
-    'young_breakout', 'sponsor_offer', 'media_interview', 'press_conference',
-    'playing_time_demand', 'transfer_request', 'board_warning', 'player_milestone',
-    'budget_boost', 'player_retirement', 'veteran_ambition', 'rival_provocation',
-    'ai_poaching', 'team_chemistry', 'budget_crisis',
-  ] as const
-  // 対象の選手は毎回変える（同じ人に19種を当てると士気が上下限に張り付いて、
-  // 上げ下げの差が消えてしまう＝壊しても差分が出なくなる）
-  const mine = players.filter(p => p.teamId === MY && p.status === 'active')
-  const events: unknown[] = []
-  TYPES.forEach((type, ti) => {
-    for (let c = 0; c < 3; c++) {
-      events.push({
-        id: `ev-${type}-${c}`, raceIndex: 3, type,
-        playerId: mine[(ti * 3 + c) % mine.length].id,
-        title: type, body: '', resolved: false,
-        choices: [{ label: 'a', desc: '' }, { label: 'b', desc: '' }, { label: 'c', desc: '' }] })
-    }
-  })
-  useGameStore.setState({ currentSeason: { ...g().currentSeason, events } } as never)
-  compare('race-event', () => {
-    for (const e of events as { id: string }[]) {
-      const c = Number(e.id.slice(-1))
-      g().resolveEvent(e.id, c)
-    }
-    // 決着済みの札をもう一度押しても何も起きない（二度押しガード）
-    g().resolveEvent('ev-sponsor_offer-0', 1)
-    // 知らないIDは無視
-    g().resolveEvent('ev-nothing', 0)
-    const resolved = (g().currentSeason.events ?? []).filter(e => e.resolved).length
-    const escalated = (g().currentSeason.events ?? []).length - events.length
-    console.log(`      決着 ${resolved}/${events.length}件 / 追加で湧いた札（移籍要求の硬化）${escalated}件`
-      + ` / 評判=${g().gmRep} 資金=${g().teams.find(t => t.id === MY)?.finance.budget}`)
-  })
-}
-
 SCENARIOS['race-timetrial'] = () => {
   console.log('[race-timetrial] 記録会：国内だけの回と、海外も出る回')
   // simulateIndividualEvent（194行）。走る人の絞り込み・自己ベスト・疲労・カード報酬・

@@ -1,5 +1,6 @@
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team } from '../types'
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs } from '../utils/domesticClubs'
+import { managedTeamIds } from '../utils/gmTenure'
 import {
   syncSeasonStandings, reconcileStandingsDivisions, rebalanceDivisions, divisionOfRaces,
   divisionOf, divisionInSeason, rankOfTeam, DIVISIONS, DIVISION_SIZE,
@@ -53,6 +54,9 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   const repairs: string[] = []
   let { teams, players, currentSeason, pastSeasons } = input
   const { foreignLeagues, playerTeamId, isInitialized } = input
+  // ★部を固定するのは「一度でも指揮したクラブ」全部（utils/gmTenure の managedTeamIds）。
+  //   いまの自チームだけにすると、監督が移った瞬間に前のクラブが元の部へ戻る
+  const pinned = managedTeamIds((input as { gmTenures?: import('../types').GmTenure[] }).gmTenures, playerTeamId ?? '')
 
   // ── 1. 国内52クラブがそろっているか ───────────────────────────
   // 部を足す前に始めたセーブは20クラブしか持っていない。2部の順位表に降格組だけ、
@@ -61,7 +65,7 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   if (isInitialized && Array.isArray(teams) && Array.isArray(players) && !domesticClubsComplete(teams)) {
     const before = teams.length
     const out = backfillDomesticClubs({
-      teams, players, playerTeamId, year: currentSeason?.year ?? new Date().getFullYear(),
+      teams, players, pinnedTeamIds: pinned, year: currentSeason?.year ?? new Date().getFullYear(),
     })
     teams = out.teams
     players = out.players
@@ -81,7 +85,7 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
         const at = rankOfTeam(currentSeason?.standings?.[divisionOf(t)], t.id)
         return at > 0 ? at : (t.initialRank ?? 999)
       }
-      teams = rebalanceDivisions(teams, rankOf, t => t.id === playerTeamId)
+      teams = rebalanceDivisions(teams, rankOf, t => pinned.has(t.id))
       const after = DIVISIONS.map(d => teams!.filter(t => divisionOf(t) === d).length)
       repairs.push(
         after.join('/') === DIVISIONS.map(d => DIVISION_SIZE[d]).join('/')

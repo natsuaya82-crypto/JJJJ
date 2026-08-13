@@ -545,3 +545,136 @@ button { font-family: inherit; }
   border-radius: 50%;
   box-shadow: 0 0 8px var(--green);
 }
+
+/* ── Premium Menu Button（ガラスのメニュー行） ────────────────────────
+   背景の写真をほんのり透かすガラス。丸角＋細い半透明の金枠。
+
+   使い方：
+     <button class="premium-menu-button">
+       <span class="premium-menu-button__icon">…</span>
+       <span class="premium-menu-button__content">
+         <span class="premium-menu-button__english">FRIENDS</span>
+         <span class="premium-menu-button__japanese">フレンド</span>
+       </span>
+       <span class="premium-menu-button__arrow">›</span>
+     </button>
+   大事な項目は `--cyan`、押せないものは `is-off` を足す。 */
+.premium-menu-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 82px;
+  padding: 0 20px;
+  /* スモークガラス。**後ろの背景が透けること**が大事なので、塗りを濃くしない */
+  background: linear-gradient(180deg, rgba(255,255,255,0.075) 0%, rgba(255,255,255,0.022) 100%);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  border: none;
+  border-radius: 20px;
+  box-shadow:
+    inset 0 0 0 1px rgba(218,181,67,0.55),      /* 細い金の縁 */
+    inset 0 1px 0 rgba(255,255,255,0.28),       /* 上のふちの光 */
+    inset 0 -1px 0 rgba(0,0,0,0.35),
+    0 10px 26px -12px rgba(0,0,0,0.95);
+  overflow: hidden;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+/* ガラス表面の柔らかい反射 */
+.premium-menu-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg,
+    rgba(255,255,255,0.14) 0%,
+    rgba(255,255,255,0.035) 38%,
+    transparent 66%);
+  pointer-events: none;
+}
+/* 下側のガラスの厚み */
+.premium-menu-button::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
+  pointer-events: none;
+}
+
+.premium-menu-button__icon {
+  position: relative;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  color: #d9b63f;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+}
+
+.premium-menu-button__content {
+  position: relative;
+  z-index: 1;
+  margin-left: 16px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.premium-menu-button__english {
+  font-family: var(--font-saira, inherit);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(218,181,67,0.9);
+}
+.premium-menu-button__japanese {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.96);
+}
+
+.premium-menu-button__arrow {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  font-size: 24px;
+  font-weight: 300;
+  color: rgba(218,181,67,0.9);
+}
+
+/* 大事な項目（オンライン対戦など） */
+.premium-menu-button--cyan {
+  box-shadow:
+    inset 0 0 0 1px rgba(67,211,255,0.65),
+    inset 0 1px 0 rgba(255,255,255,0.30),
+    inset 0 -1px 0 rgba(0,0,0,0.35),
+    0 10px 26px -12px rgba(0,0,0,0.95),
+    0 0 16px -6px rgba(67,211,255,0.35);
+}
+.premium-menu-button--cyan .premium-menu-button__icon,
+.premium-menu-button--cyan .premium-menu-button__english,
+.premium-menu-button--cyan .premium-menu-button__arrow { color: #55d9ff; }
+
+/* 押せないもの */
+.premium-menu-button.is-off {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.14),
+    0 8px 20px -12px rgba(0,0,0,0.9);
+  opacity: 0.5;
+  cursor: default;
+}
+.premium-menu-button.is-off:active { transform: none; }
+
+.premium-menu-button:active {
+  transform: scale(0.985);
+  background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%);
+}

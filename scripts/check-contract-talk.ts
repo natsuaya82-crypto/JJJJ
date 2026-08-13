@@ -205,7 +205,7 @@ console.log('\n[10] 状況が変わったら札の片付けを1箇所（set の�
     (store.match(/reconcileTalks\(/g) ?? []).length === 1,
     `${(store.match(/reconcileTalks\(/g) ?? []).length}箇所`)
   // どれも set 経由の更新であること（set を通さず setState を直接叩くとかぶせを外れる）
-  for (const fn of ['allowPlayerTransfer', 'cancelSellListing', 'toggleNoSale', 'toggleLoanListed', 'submitContractRenewalOffer', 'resolveEvent']) {
+  for (const fn of ['allowPlayerTransfer', 'cancelSellListing', 'toggleNoSale', 'toggleLoanListed', 'submitContractRenewalOffer']) {
     check(`${fn} が set を通る`, has(fn, 'set(state'))
   }
   check('片付け側が「退団予定」も見ている', talkSync.includes('isLeavingClub'))

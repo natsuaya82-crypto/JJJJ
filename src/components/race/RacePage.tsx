@@ -292,7 +292,6 @@ export default function RacePage() {
     currentSeason, teams, players, playerTeamId,
     raceLineup, setRaceLineup, clearRaceLineup, runRace,
     raceStrategy, setRaceStrategy,
-    raceTeamTalk, setRaceTeamTalk,
     setActiveRacePhase, setActiveRaceLocked,
     simulateIndividualEvent,
   } = useGameStore()
@@ -432,6 +431,7 @@ export default function RacePage() {
           cpuTimesForSeg,
           cumulativeTimes,
           isFirstSeg: segIdx === activeRace.segments[0]?.index,
+          isLastSeg: segIdx === activeRace.segments[activeRace.segments.length - 1]?.index,
           player: playerObj,
           totalSegs,
           players: racePlayers,
@@ -496,20 +496,19 @@ export default function RacePage() {
     const playerObj = racePlayers.find(p => p.id === playerPlayerId)
     if (!playerObj) return
 
-    const { staminaDelta: _sd, timeDelta, newStamina } = resolveChoice(event, choiceIdx, iSim.segStamina, iSim.playerBaseTime)
-    void _sd
+    // 効き目はタイムだけ（区間スタミナは動かさない。engine/interactiveRace の CHOICE_EFFECTS 参照）
+    const { timeDelta } = resolveChoice(event, choiceIdx, iSim.segStamina, iSim.playerBaseTime)
 
     const remainingEvents = iSim.pendingEvents.slice(1)
     const newPlayerTimeMod = iSim.playerTimeMod + timeDelta
 
     if (remainingEvents.length === 0) {
-      finalizeCurrentSeg({ ...iSim, pendingEvents: [], playerTimeMod: newPlayerTimeMod, segStamina: newStamina })
+      finalizeCurrentSeg({ ...iSim, pendingEvents: [], playerTimeMod: newPlayerTimeMod })
     } else {
       setISim(prev => prev ? {
         ...prev,
         pendingEvents: remainingEvents,
         playerTimeMod: newPlayerTimeMod,
-        segStamina: newStamina,
       } : null)
     }
   }
@@ -772,8 +771,6 @@ export default function RacePage() {
       weatherLabel={weatherLabel}
       raceStrategy={raceStrategy}
       setRaceStrategy={setRaceStrategy}
-      teamTalk={raceTeamTalk}
-      setTeamTalk={setRaceTeamTalk}
       unavailable={unavailableMap}
       competition="jpel"
     />

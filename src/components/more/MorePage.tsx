@@ -11,6 +11,7 @@ import BottomSheet from '../ui/BottomSheet'
 import { flushSaveNow, slotHasSave } from '../../store/saveStorage'
 import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../../store/saveSlot'
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
+import { exportSaveToShare } from '../../store/exportSave'
 
 import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
 import { canResignAsGm } from '../../utils/gmOffer'
@@ -35,6 +36,7 @@ const IcRace = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path
 const IcX = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
 const IcHome = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcTrash = <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+const IcShare = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4L8 8M12 4l4 4M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
 const IcBlock = <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/><path d="M5.6 5.6l12.8 12.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 
 // ── 課金カードの特典アイコン ──
@@ -194,6 +196,14 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   // 入口は隠してある。フッターのバージョン表記を7回続けて叩くと出る。
   // 一般のプレイヤーに見せる機能ではないので設定の一覧には並べない。
   const [slotTaps, setSlotTaps] = useState(0)
+  // セーブの書き出しも隠し入口。**スロットとは別の場所**（ページ上部の「設定」の見出しを7回）。
+  // 同じ入口にすると、書き出しを見つけた人にスロットの切り替えまで見えてしまう。
+  const [exportTaps, setExportTaps] = useState(0)
+  const [exportSheet, setExportSheet] = useState(false)
+  // セーブの書き出しの結果（成功も失敗もそのまま出す）
+  const [exportMsg, setExportMsg] = useState('')
+  // 走行記録は年ごとに別ファイル。どの年が出ているかは archivedYears が持っている
+  const archivedYears = useGameStore(s => s.archivedYears)
   const [slotSheet, setSlotSheet] = useState(false)
   const [slotsUsed, setSlotsUsed] = useState<Record<number, boolean>>({})
   useEffect(() => {
@@ -218,10 +228,18 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   return (
     <div className="page-enter" style={{ padding: '20px 16px 32px', fontFamily: SAIRA }}>
 
-      {/* ページヘッダー */}
+      {/* ページヘッダー。★見出しを7回叩くとセーブの書き出しが出る（運営用の隠し入口）。
+          スロットの入口（下部のバージョン表記）とは別にしてあること。同じにすると
+          書き出しを見つけた人にスロットの切り替えまで見えてしまう */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
         <div style={{ width: 4, height: 34, borderRadius: 2, background: `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.25)})`, flexShrink: 0 }} />
-        <div>
+        <div
+          onClick={() => {
+            const n = exportTaps + 1
+            if (n >= 7) { setExportTaps(0); setExportSheet(true) } else setExportTaps(n)
+          }}
+          style={{ cursor: 'default', userSelect: 'none' }}
+        >
           <div style={{ fontSize: 9, color: alpha(C.gold, 0.5), letterSpacing: '4px', marginBottom: 3 }}>SETTINGS</div>
           <div style={{ fontSize: 26, fontWeight: 900, color: C.text, lineHeight: 1 }}>設定</div>
         </div>
@@ -321,6 +339,36 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
             )
           })}
         </div>
+
+      </BottomSheet>
+
+      {/* ★セーブの書き出し（隠し入口）。実機で起きていることは**本物のセーブが無いと調べられない**。
+          これまで取り出す手段が無く、Mac に繋いで Xcode から抜くしか道が無かった。
+
+          ★**セーブスロットとは必ず別の入口にすること**（オーナー指示）。
+            同じシートに入れると、書き出しを見つけた人にスロットの切り替えまで見えてしまう。
+            入口＝ページ上部の「設定」の見出しを7回。スロットは下部のバージョン表記を7回。
+
+          ★消さないこと。消すと実機のセーブを取り出す手段がまた無くなる
+            （`scripts/check-load-v39.ts` の注記を参照） */}
+      <BottomSheet open={exportSheet} onClose={() => setExportSheet(false)} title="セーブの書き出し（運営用）">
+        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>
+          不具合の調査用です。いまのセーブと走行記録をまとめて1つのファイルにして、共有から送れます。
+        </div>
+        <button
+          onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+            background: C.surface3, border: `1px solid ${C.border}`,
+          }}
+        >
+          <span style={{ color: C.textDim, display: 'flex' }}>{IcShare}</span>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: C.text }}>セーブを書き出す</span>
+        </button>
+        {exportMsg && (
+          <div style={{ padding: '10px 2px 0', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
+        )}
       </BottomSheet>
     </div>
   )
@@ -512,7 +560,11 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
 }
 
 // 監督を自分から辞める。押すと行き先の候補が届く（ホームに OFFER として出る）。
-// シーズン途中でも押せて、受けたその日から新しいクラブを指揮する。
+//
+// ★**就任は次のシーズンから**（オーナー判断★13・2026-08-12「次シーズンの開始になるからね」）。
+//   受けた時点では `pendingGmMove` に予約が入るだけで、実際に入れ替わるのは
+//   `endSeason` が来季を組み立てたあと。**受けたら取り消せない**（★13-a）ので、
+//   予約が入っている間はこの画面から退任できない。
 //
 // ★在任が短いうちは押せない（utils/gmOffer の GM_RESIGN_MIN_TENURE）。
 //   **残り年数をここで計算しないこと。**判定も文言の元になる数も canResignAsGm 1本から取る
@@ -522,17 +574,24 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
   const myTeam = useGameStore(s => s.teams.find(t => t.id === s.playerTeamId))
   const gmTenures = useGameStore(s => s.gmTenures)
   const year = useGameStore(s => s.currentSeason.year)
+  const booked = useGameStore(s => s.pendingGmMove)
+  const bookedTeam = useGameStore(s => s.teams.find(t => t.id === s.pendingGmMove?.teamId))
   const gate = canResignAsGm(gmTenures, year)
   const [done, setDone] = useState(false)
   return (
     <DetailScreen title="監督を退任する" onClose={onClose}>
       <div style={{ fontSize: 12, color: C.textDim, lineHeight: 1.9, marginBottom: 16 }}>
         {myTeam?.name ?? '現在のクラブ'}の監督を辞め、他クラブからの打診を待ちます。<br /><br />
-        ・打診は<strong style={{ color: C.text }}>すぐに届きます</strong>。受けたその日から新しいクラブを指揮します<br />
-        ・<strong style={{ color: C.text }}>殿堂入りチームだけは持っていきます。</strong>選手・予算・施設は移籍先のものです<br />
-        ・すべて断ったら無職のまま。次のシーズンにまた声がかかります
+        ・打診はすぐ届きますが、<strong style={{ color: C.text }}>就任は次のシーズンから</strong><br />
+        ・<strong style={{ color: C.text }}>殿堂入りチームだけ</strong>は持っていきます（選手・予算・施設は移籍先のもの）<br />
+        ・全部断ると無職のまま。次のシーズンにまた声がかかります
       </div>
-      {done ? (
+      {booked ? (
+        <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center', lineHeight: 1.8 }}>
+          {booked.year}シーズンから<strong style={{ color: C.text }}>{bookedTeam?.name ?? '新クラブ'}</strong>の監督に就任します。<br />
+          今季は{myTeam?.shortName ?? '現在のクラブ'}の監督として最後まで指揮してください。
+        </div>
+      ) : done ? (
         <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
           打診が届きました。ホームで確認してください。
         </div>

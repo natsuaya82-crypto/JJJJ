@@ -649,7 +649,7 @@ export default function RoomLobbyPage() {
   }
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>
       {/* ヘッダー：戻るではなく「退出」。黙って抜けると相手側に残ってしまうため。 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px 6px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.cyan, 0.7), letterSpacing: '3px', fontWeight: 900 }}>ROOM</div>

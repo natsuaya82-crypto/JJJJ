@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import { teamHistoriesOf } from '../../utils/teamHistory'
+import { compareTitles, teamHistoriesOf, titleRows } from '../../utils/teamHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { makeTeamIdAt } from '../../utils/gmTenure'
-import type { Race } from '../../types'
+import type { Division, Race } from '../../types'
 import { formatRaceTime } from '../../utils/eventTime'
 import { playerLabel } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -14,8 +14,8 @@ import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
-import { C, alpha, SAIRA } from '../../styles/tokens'
-import { rankedStandings, seasonDivisionStandings } from '../../utils/league'
+import { C, alpha, DIV_STAR, SAIRA } from '../../styles/tokens'
+import { DIVISION_LABEL, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
@@ -232,10 +232,12 @@ export default function ChampionsHistoryPage() {
       {cat == null && (() => {
         // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
         const histories = teamHistoriesOf(pastSeasons)
+        // ★**部ごとに分ける**（オーナー・2026-08-12「部ごとです」）。合計で並べると
+        //   「3部で4回優勝」が「1部で1回優勝」より上に来る。並べ方は compareTitles 1本
         const champRanking = [...teams]
-          .map(t => ({ team: t, championships: histories[t.id]?.championships ?? 0 }))
-          .filter(c => c.championships > 0)
-          .sort((a, b) => b.championships - a.championships)
+          .map(t => ({ team: t, titles: histories[t.id]?.titles ?? {} }))
+          .filter(c => titleRows(c.titles).length > 0)
+          .sort((a, b) => compareTitles(a.titles, b.titles))
         if (champRanking.length === 0) return null
         return (
           <div style={{ padding: '0 16px 12px' }}>
@@ -246,7 +248,7 @@ export default function ChampionsHistoryPage() {
               border: `2px solid ${C.border2}`,
               boxShadow: '0 3px 0 #5a3500, inset 0 1px 0 rgba(255,255,255,0.06)',
             }}>
-              {champRanking.map(({ team, championships }, i, arr) => {
+              {champRanking.map(({ team, titles }, i, arr) => {
                 const isMe = team.id === playerTeamId
                 return (
                   <div key={team.id} style={{
@@ -257,9 +259,15 @@ export default function ChampionsHistoryPage() {
                     <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, width: 20, textAlign: 'center', color: i === 0 ? C.gold : i <= 2 ? C.textSub : C.textGhost, textShadow: i === 0 ? `0 0 6px ${alpha(C.gold, 0.5)}` : 'none' }}>{i + 1}</span>
                     <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={22} />
                     <span style={{ flex: 1, fontFamily: SAIRA, fontSize: 13, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</span>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <span style={{ fontFamily: SAIRA, fontSize: 15, color: C.gold, textShadow: `0 0 5px ${alpha(C.gold, 0.4)}` }}>★</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.gold }}>×{championships}</span>
+                    {/* ★**部ごとに出す**。1部★2 2部★1 のように、どの部での優勝かが分かる形 */}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      {titleRows(titles).map(r => (
+                        <div key={r.division} style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                          <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: 13, color: DIV_STAR[r.division], textShadow: `0 0 5px ${alpha(DIV_STAR[r.division], 0.4)}` }}>★</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: DIV_STAR[r.division] }}>{r.count}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )

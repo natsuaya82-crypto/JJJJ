@@ -115,9 +115,7 @@ export type GameStore = GameState & {
 
   // Race
   raceStrategy: 'aggressive' | 'balanced' | 'conservative'
-  raceTeamTalk: string
   setRaceStrategy: (s: 'aggressive' | 'balanced' | 'conservative') => void
-  setRaceTeamTalk: (t: string) => void
   setRaceLineup: (segmentIndex: number, playerId: string) => void
   clearRaceLineup: () => void
   runRace: (lineup: Record<number, string>, segmentTactics?: Record<number, string>, preComputedResults?: RaceResults) => RaceResults | null
@@ -185,7 +183,6 @@ export type GameStore = GameState & {
   renewContractOffer: (playerId: string, salary: number, years: number) => boolean
 
   // Events
-  resolveEvent: (eventId: string, choiceIndex: number) => void
 
   // AI trade offers
   acceptTradeOffer: (offerId: string) => void
@@ -316,12 +313,15 @@ export type GameStore = GameState & {
   addTrainingCards: (cards: TrainingCard[]) => void
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
+  /** 退任について行くか、の返事を閉じる */
+  dismissGmInviteResult: () => void
   // 監督オファーを受ける／断る（utils/gmOffer.ts）
   /** 殿堂入りチームに登録（既にいればそのときの数値で上書き）。入れたら true */
   registerHofPlayer: (playerId: string) => boolean
   /** 殿堂入りチームから外す */
   removeHofPlayer: (playerId: string) => void
-  acceptGmOffer: (teamId?: string) => void
+  /** inviteId … 一緒に連れて行きたい選手（1人だけ）。行くかどうかは選手が決める */
+  acceptGmOffer: (teamId?: string, inviteId?: string) => void
   declineGmOffer: () => void
   /** 自分から退任する。行き先の候補が一度に届く（設定から） */
   resignAsGm: () => void
@@ -388,7 +388,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     fusionPlayerId: null,
     fusionCardIds: [],
     raceStrategy: 'balanced',
-    raceTeamTalk: 'best',
     activeRacePhase: null,
     activeRaceSim: null,
     activeRaceResults: null,
@@ -401,6 +400,8 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     hofRoster: [],
     // 前に監督オファーが出た年。毎年は来ないようにするため（utils/gmOffer.ts の GM_OFFER_COOLDOWN）
     lastGmOfferYear: undefined,
+    // 来季から指揮すると決まっているクラブ（★13）。無いのが普通
+    pendingGmMove: null,
     seenJoinIds: [],
     seenInjuryIds: [],
     playerTeamId: 'fukuoka',

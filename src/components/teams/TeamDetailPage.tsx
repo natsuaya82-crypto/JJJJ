@@ -3,7 +3,7 @@ import { comparePlayers } from '../../utils/playerSort'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
-import { teamHistoryOf } from '../../utils/teamHistory'
+import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 // 海外クラブの本拠地・創設年・監督名（クラブIDから毎回同じ値を出す）
 
 // 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
@@ -25,7 +25,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 import { rankedStandings, DIVISION_LABEL } from '../../utils/league'
-import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague } from '../../utils/clubStanding'
+import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague, divisionAxisPos, divisionAxisBands } from '../../utils/clubStanding'
 
 
 
@@ -38,44 +38,59 @@ function fmtDate(d: string | undefined, year: number): string {
   return `${year}年`
 }
 
-// 歴代成績の折れ線グラフ（順位なので上が1位になるようY軸反転）。
-// ★国内も海外も「その集団の中での順位」1本（国内は部内順位、海外はリーグ内順位）。
-//   通し順位（1〜52）は格を決めるための内部の数なので画面には出さない。
-//   部が変わった年は下の年号の横に部を出して、どの中での順位かが分かるようにする。
+// 歴代成績の折れ線グラフ。
+//
+// ★**縦軸は1本の物差し。上が1部1位、下が3部最下位**（オーナー・2026-08-12）。
+//   高さの計算は `utils/clubStanding` の `divisionAxisPos` 1本を通す
+//   （画面で通し順位を組み立てないこと。`npm run check` が見張っている）。
+//
+//   以前は「その部の中での順位」をそのまま高さにしていたので、**1部5位と3部5位が
+//   同じ高さ**に描かれ、昇降格した年に線が繋がると上がったのか下がったのか分からなかった。
+//   部の変わり目に**縦**の点線を入れて誤魔化していたが、1本の物差しに載せれば要らない。
+//   いま引く点線は**横**で、部の切れ目（1部と2部の境／2部と3部の境）を示す。
+//
+// ★海外クラブには部が無いので、今までどおり「リーグ内順位」をそのまま高さにする。
+//   `division` が無い行がそれ。
 function RankHistoryChart({ history, color }: { history: { year: number; rank: number; total: number; division?: Division }[]; color: string }) {
+  const domestic = history.some(h => h.division != null)
   const maxRank = Math.max(2, ...history.map(h => h.total), ...history.map(h => h.rank))
-  const W = 320, H = 150, padL = 20, padR = 20, padT = 18, padB = 26
+  const W = 320, H = 150, padL = 24, padR = 24, padT = 18, padB = 26
   const plotW = W - padL - padR, plotH = H - padT - padB
   const n = history.length
   const x = (i: number) => n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW
-  const y = (rank: number) => padT + ((rank - 1) / (maxRank - 1)) * plotH
-  const pts = history.map((h, i) => `${x(i)},${y(h.rank)}`).join(' ')
-  // 部が変わった年の手前に縦の点線を入れる。
-  // 縦軸は「その集団の中での順位」なので、1部の5位と3部の5位は同じ高さに描かれる。
-  // 区切りが無いと、昇降格した年をまたいで線が繋がって**同じ土俵の推移に見える**。
-  // 年号の下の部表記だけでは足りない（実際に「見づらい」と指摘があった）。
-  const breaks = history
-    .map((h, i) => ({ i, changed: i > 0 && h.division != null && history[i - 1].division != null && h.division !== history[i - 1].division }))
-    .filter(b => b.changed)
-    .map(b => (x(b.i - 1) + x(b.i)) / 2)
+  /** 0（上）〜1（下）を実際のy座標へ */
+  const yAt = (pos: number) => padT + pos * plotH
+  const y = (h: { rank: number; division?: Division }) => yAt(
+    h.division != null ? divisionAxisPos(h.division, h.rank) : (h.rank - 1) / (maxRank - 1))
+  const pts = history.map((h, i) => `${x(i)},${y(h)}`).join(' ')
+  const bands = domestic ? divisionAxisBands() : []
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
-      <line x1={padL} x2={W - padR} y1={y(1)} y2={y(1)} stroke="#C9A84C" strokeWidth="0.5" opacity="0.35" strokeDasharray="3 3"/>
-      <line x1={padL} x2={W - padR} y1={y(maxRank)} y2={y(maxRank)} stroke="#2E2B42" strokeWidth="0.5"/>
-      {breaks.map(bx => (
-        <line key={bx} x1={bx} x2={bx} y1={padT - 6} y2={H - padB + 10} stroke="#5C5870" strokeWidth="0.8" opacity="0.7" strokeDasharray="2 3"/>
+      {/* 部の帯。**横**の点線で切れ目を出し、左端に部の名前を置く */}
+      {bands.map(b => (
+        <g key={b.division}>
+          {b.division !== 1 && (
+            <line x1={padL - 4} x2={W - padR} y1={yAt(b.top)} y2={yAt(b.top)}
+              stroke="#5C5870" strokeWidth="0.8" opacity="0.7" strokeDasharray="2 3"/>
+          )}
+          <text x={2} y={yAt((b.top + b.bottom) / 2) + 3} fontSize="7" fill="#3A3758" fontFamily={SAIRA}>
+            {DIVISION_LABEL[b.division]}
+          </text>
+        </g>
       ))}
+      {/* 一番上（1部1位）と一番下（3部最下位）の目印 */}
+      <line x1={padL - 4} x2={W - padR} y1={yAt(0)} y2={yAt(0)} stroke="#C9A84C" strokeWidth="0.5" opacity="0.35" strokeDasharray="3 3"/>
+      <line x1={padL - 4} x2={W - padR} y1={yAt(1)} y2={yAt(1)} stroke="#2E2B42" strokeWidth="0.5"/>
       {n > 1 &&<polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.85"/>}
       {history.map((h, i) => {
         const col = h.rank === 1 ? '#C9A84C' : h.rank <= 3 ? '#4CAF50' : '#9B97A8'
+        // ★出す数字は**部内順位**のまま（「3部15位」）。通し順位は画面に出さない
+        const label = h.division != null ? `${DIVISION_LABEL[h.division]}${h.rank}位` : `${h.rank}位`
         return (
           <g key={h.year}>
-            <circle cx={x(i)} cy={y(h.rank)} r="3.5" fill={col}/>
-            <text x={x(i)} y={y(h.rank) - 8} textAnchor="middle" fontSize="9" fontWeight="900" fill={col} fontFamily={SAIRA}>{h.rank}</text>
+            <circle cx={x(i)} cy={y(h)} r="3.5" fill={col}/>
+            <text x={x(i)} y={y(h) - 8} textAnchor="middle" fontSize="8" fontWeight="900" fill={col} fontFamily={SAIRA}>{label}</text>
             <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="#5C5870" fontFamily={SAIRA}>{h.year}</text>
-            {h.division != null && (
-              <text x={x(i)} y={H - 1} textAnchor="middle" fontSize="7" fill="#3A3758">{DIVISION_LABEL[h.division]}</text>
-            )}
           </g>
         )
       })}
@@ -176,14 +191,17 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: '#C9A84C' })
   } else {
     // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-    const jpelTitles = teamHistoryOf(pastSeasons, id).championships
+    // ★**部ごとに出す**（オーナー・2026-08-12）。合計にすると3部優勝と1部優勝が混ざる
+    for (const r of titleRows(teamHistoryOf(pastSeasons, id).titles)) {
+      titles.push({ label: `${DIVISION_LABEL[r.division]}優勝`, count: r.count,
+        color: r.division === 1 ? '#C9A84C' : r.division === 2 ? '#9FB4CC' : '#7A6E58' })
+    }
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
       if (!st || st.length === 0) return false
       const top = rankedStandings(st)[0]
       return top.teamId === id
     }).length
-    if (jpelTitles > 0) titles.push({ label: 'JPEL優勝', count: jpelTitles, color: '#C9A84C' })
     if (reserveTitles > 0) titles.push({ label: 'リザーブリーグ優勝', count: reserveTitles, color: '#9B97A8' })
   }
   // ECL優勝（歴代優勝から集計。国内チーム・海外クラブ共通）
@@ -203,8 +221,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const infoGm = clubGmName(anyClub)
   // クラブ規模（年間予算と施設）。**国内も海外も同じ出どころ**（格1本・施設1本）。
   // 以前は海外クラブだけ別の式で、しかも施設はクラブIDのハッシュから作った飾りだった
-  const foreignBudget = tierBudget(isForeign ? club! : domesticTeam!)
-  const foreignFac = facilitiesOf(isForeign ? club! : domesticTeam!)
+  // ★**国内クラブにも出す**（オーナー・2026-08-12「なんで海外にはこれがあるのに日本にはないの？」）。
+  //   値はもともと国内も海外も同じ1本（格→年間予算・utils/facilities）で計算していて、
+  //   **表示だけが海外に閉じていた**。名前も clubBudget / clubFac に直す（foreign* は嘘だった）
+  const clubBudget = tierBudget(isForeign ? club! : domesticTeam!)
+  const clubFac = facilitiesOf(isForeign ? club! : domesticTeam!)
   const FAC_LABEL: { key: 'trainingCamp' | 'medicalCenter' | 'scoutOffice' | 'tacticsRoom'; label: string; color: string }[] = [
     { key: 'trainingCamp', label: FACILITY_LABEL.trainingCamp, color: '#4CAF50' },
     { key: 'medicalCenter', label: FACILITY_LABEL.medicalCenter, color: '#4FC3F7' },
@@ -300,7 +321,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
       const k = `${row.playerId}-${row.year}-${row.dir}`
       if (!seen.has(k)) { seen.add(k); out.push({ year: row.year, playerId: row.playerId, otherTeamId: row.otherTeamId, dir: row.dir, hasRec: false }) }
     }
-    out.sort((a, b) => b.year - a.year)
+    // ★**新しいものが上**。年だけで並べると、同じ年の中は積んだ順（＝古い順）のまま残る。
+    //   実機で「6月28日 → 7月19日」と古い方が上に出ていたのがこれ。
+    //   日付（YYYY-MM-DD）まで見て降順にする。日付が無い行（記録の無い推定ぶん）は
+    //   その年のいちばん後ろへ回す（'' は文字列比較でどの日付より小さい）
+    out.sort((a, b) => b.year - a.year || (b.date ?? '').localeCompare(a.date ?? ''))
     return out
   })()
   const movesIn = moveEntries.filter(r => r.dir === 'in')
@@ -458,21 +483,21 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               </div>
             </div>
 
-            {/* クラブ規模（海外クラブのみ。国内の他チームは同じリーグの相手なので出さない） */}
-            {isForeign && foreignFac && (
+            {/* クラブ規模。**国内も海外も出す**（値はどちらも格1本・施設1本から出ている） */}
+            {clubFac && (
               <div>
                 <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>クラブ規模</div>
                 <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
                     <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>年間予算</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmtYen(foreignBudget)}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmtYen(clubBudget)}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {FAC_LABEL.map((f, i) => (
                       <div key={f.key} style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
                         {i > 0 && <div style={{ width: '1px', alignSelf: 'stretch', background: '#1A1828', marginRight: 8 }} />}
                         <div style={{ flex: 1, textAlign: 'center' }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: f.color }}>Lv{foreignFac[f.key] ?? 0}</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: f.color }}>Lv{clubFac[f.key] ?? 0}</div>
                           <div style={{ fontSize: '8px', color: '#3A3758' }}>{f.label}</div>
                         </div>
                       </div>
