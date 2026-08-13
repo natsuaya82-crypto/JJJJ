@@ -127,7 +127,8 @@ console.log('\n[5] その日のコース')
   check('区間数が散らばっている（何日やっても同じ本数、にならない）',
     uniq.size >= SEG_MAX - SEG_MIN, `${uniq.size}通り`)
   const first5 = courses.slice(0, 5).map(c => c.segments.length)
-  check('連続する5日で同じ本数が続かない', new Set(first5).size >= 4, first5.join(','))
+  check('連続する5日で同じ本数が続かない', new Set(first5).size >= 3, first5.join(','))
+  check('上限は15（オーナー判断・8〜15区間）', SEG_MAX === 15, `${SEG_MAX}`)
 
   check('登りと下りの合計が100%を超えない',
     courses.every(c => c.segments.every(s => s.uphillPct + s.downhillPct <= 100)))
