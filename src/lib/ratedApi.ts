@@ -185,9 +185,30 @@ export async function fetchResult(): Promise<RatedResult | null> {
   }
 }
 
-/** 大会全体の順位表（レート順） */
-export async function fetchStandings(): Promise<RatedRow[]> {
-  return mockRows(11, 168).sort((a, b) => b.rating - a.rating)
+/**
+ * 大会全体の順位表。**トップ10と自分だけ**（オーナー判断）。
+ * 参加者が増えても全員ぶんを配らない。
+ */
+export const STANDINGS_TOP = 10
+
+export type RatedStandings = {
+  top: RatedRow[]
+  /** 自分（トップ10に入っていれば top にも同じ人がいる） */
+  me: RatedRow | null
+  /** 自分の順位（1始まり）。未参加なら0 */
+  meRank: number
+  entrants: number
+}
+
+export async function fetchStandings(): Promise<RatedStandings> {
+  const all = mockRows(11, 168).sort((a, b) => b.rating - a.rating)
+  const i = all.findIndex(r => r.mine)
+  return {
+    top: all.slice(0, STANDINGS_TOP),
+    me: i < 0 ? null : all[i],
+    meRank: i + 1,
+    entrants: 43,
+  }
 }
 
 /** 提出する。**タイムにも順位にも触れない。渡すのは区間ごとの選手IDだけ** */
