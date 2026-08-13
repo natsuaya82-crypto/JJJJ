@@ -431,6 +431,7 @@ export default function RacePage() {
           cpuTimesForSeg,
           cumulativeTimes,
           isFirstSeg: segIdx === activeRace.segments[0]?.index,
+          isLastSeg: segIdx === activeRace.segments[activeRace.segments.length - 1]?.index,
           player: playerObj,
           totalSegs,
           players: racePlayers,

@@ -6,7 +6,7 @@
  *   `resolveChoice`）。store のアクションを叩く golden からは1行も通らない。
  *   ここでは肢を自分で当てて、**どの場面でどれが最良になるか**を数字で見る。
  *
- * ■何を守るか（3つとも、実際に壊れていたもの）
+ * ■何を守るか（全部、実際に壊れていたもの）
  *   ① **効き目の表は1本。** 以前は7つのイベントが同じ数字を7回手書きしていた
  *   ② **「温存」が全場面で最良にならない。** 以前は肢がスタミナも削っていて、
  *      スタミナ1点 ≒ 26秒（20km）に対してタイムボーナスが23秒だったので、
@@ -14,17 +14,33 @@
  *   ③ **自分と相手が同じ目盛り。** 成功率は「自分の区間スタミナ − 相手の強さ」で決まるが、
  *      自分だけ自然消耗を引いた値だったので gap が常に -10〜-41 に沈み、
  *      「攻める」の成功率が**どの場面でも下限の10%**に張り付いていた
+ *   ④ **場面ごとに効き幅が違う。** 給水と山岳が同じだけ動くのはおかしい
+ *   ⑤ **得意な適性が成功率に効く。** 以前は `isMountain` などが**文言を差し替えるためだけ**に
+ *      使われていて、山型が山で攻めても数字は1ミリも変わらなかった
+ *   ⑥ **ラスト勝負が実際に出る。** 発火地点（74〜88%）だけ書いてあって
+ *      そのIDのイベントが無く、**終盤に出る札が1枚も無かった**
  *
- * ■壊して確かめたこと（この網が本当に守っているか）
+ * ■壊して確かめたこと（この網が本当に守っているか。7通り全部が落ちた）
  *   ・`CHOICE_EFFECTS` の温存を `-0.0010 → 0` に戻す           → [2] が落ちる
  *   ・攻めの失敗を `+0.0090 → +0.0068`（比を標準と揃える）      → [3] が落ちる
  *   ・`getCpuOvr` / `fieldOvr` から消耗を引くのをやめる          → [4] が落ちる
+ *   ・`EVENT_SCALE` の給水を 0.5 → 1.0                          → [5] が落ちる
+ *   ・`resolveChoice` で `scale` を掛けるのをやめる             → [5] が落ちる
+ *   ・`SPEC_BONUS` を 0 にする／山岳の適性表を空にする          → [6] が落ちる
+ *   ・**表はあるが `withSpecBonus` を呼び忘れる**               → [6] が落ちる
+ *   ・ラスト勝負の発火の枝を消す／発火地点を終盤から外す        → [7] が落ちる
+ *
+ * ■世界の作り方に落とし穴がある（[7] の注記も参照）
+ *   並走・追い上げ・先頭プレッシャーは**ラスト勝負より先に判定される**ので、
+ *   雑に世界を作ると final_push の枝へ一度も到達しない（最初に書いた版が
+ *   300回まわして `pack_race×300` だった）。到達したことを必ず件数で確かめること。
  */
 import {
-  CHOICE_EFFECTS, WATER_EFFECTS, calcNaturalDrain, calcSegOvr,
-  choiceSuccessProb, generateSegmentEvents, resolveChoice,
+  CHOICE_EFFECTS, EVENT_SCALE, EVENT_SPECIALTIES, SPEC_BONUS, WATER_EFFECTS,
+  calcNaturalDrain, calcSegOvr, choiceSuccessProb, generateSegmentEvents, resolveChoice,
 } from '../src/engine/interactiveRace'
-import type { Player, Ratings, Segment, Team } from '../src/types'
+import { SPECIALTY_LABELS } from '../src/types'
+import type { Player, Ratings, Segment, Specialty, Team } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -112,18 +128,18 @@ console.log('\n[3] 肢ごとに「得になる分かれ目」が違う（攻め�
   check('温存に分かれ目は無い（常に損しない）', breakeven('conservative') === 0)
 }
 
+const R = (n: number): Ratings => ({
+  speed: n, stamina: n, mountainUp: n, mountainDown: n, pacing: n, mental: n, recovery: n })
+const P = (id: string, teamId: string, n: number, specialty: Specialty = 'allrounder'): Player => ({
+  id, name: id, age: 25, teamId, status: 'active', specialty,
+  ratings: R(n), potential: n, morale: 70, fatigue: 0, form: 0,
+  contract: { salary: 1000, yearsLeft: 2 },
+  career: { races: 0, wins: 0, championships: 0, segmentAwards: 0 },
+} as unknown as Player)
+const T = (id: string): Team => ({ id, name: id, shortName: id } as unknown as Team)
+
 console.log('\n[4] 自分と相手が同じ目盛り（相手も自然消耗を引いたあと）')
 {
-  const R = (n: number): Ratings => ({
-    speed: n, stamina: n, mountainUp: n, mountainDown: n, pacing: n, mental: n, recovery: n })
-  const P = (id: string, teamId: string, n: number): Player => ({
-    id, name: id, age: 25, teamId, status: 'active', specialty: 'allrounder',
-    ratings: R(n), potential: n, morale: 70, fatigue: 0, form: 0,
-    contract: { salary: 1000, yearsLeft: 2 },
-    career: { races: 0, wins: 0, championships: 0, segmentAwards: 0 },
-  } as unknown as Player)
-  const T = (id: string): Team => ({ id, name: id, shortName: id } as unknown as Team)
-
   const me = P('me', 'my', 65)
   const cpus = Array.from({ length: 12 }, (_, i) => P(`c${i}`, `t${i}`, 60 + i))
   const teams = [T('my'), ...cpus.map(c => T(c.teamId))]
@@ -149,7 +165,7 @@ console.log('\n[4] 自分と相手が同じ目盛り（相手も自然消耗を�
       cpus.forEach((c, k) => { cum[c.teamId] = 9000 + (k - 6) * (i % 3 === 0 ? 4 : 50) })
       const evs = generateSegmentEvents({
         seg, playerBaseTime: base, cpuTimesForSeg: cpuTimes, cumulativeTimes: cum,
-        isFirstSeg: i % 7 === 0, player: me, totalSegs: 7,
+        isFirstSeg: i % 7 === 0, isLastSeg: false, player: me, totalSegs: 7,
         players: [me, ...cpus], cpuLineups, teams })
       for (const e of evs) if (e.opponentOvr != null) gaps.push(myStamina - e.opponentOvr)
     }
@@ -163,6 +179,153 @@ console.log('\n[4] 自分と相手が同じ目盛り（相手も自然消耗を�
     check(`${label}：gapが沈んでいない（-20より上）`, lo > -20, `最小 ${lo}`)
     check(`${label}：攻めが下限10%に張り付いていない`, aggLo > 12, `${aggLo.toFixed(0)}%`)
   }
+}
+
+console.log('\n[5] 場面ごとに効き幅が違う（給水と山岳が同じ数字ではない）')
+{
+  const T4722 = 4722
+  const ROWS = Object.entries(EVENT_SCALE).sort((a, b) => a[1] - b[1])
+  for (const [id, k] of ROWS) {
+    console.log(`      ${id.padEnd(17)} ×${k}  攻めの振れ幅 ±${(0.0090 * k * T4722).toFixed(0)}秒`)
+  }
+  check('7種＋ラスト勝負の8つ全部に効き幅がある', ROWS.length === 8, `${ROWS.length}件`)
+  // ★リテラルで留める。表を読んで表と比べても何も守れない
+  const want: Record<string, number> = {
+    water_station: 0.5, start_dash: 0.8, front_pressure: 0.9, pack_race: 1.0,
+    catching_up: 1.1, mountain_descent: 1.2, mountain_ascent: 1.3, final_push: 1.4 }
+  check('効き幅が仕様どおり', ROWS.every(([id, k]) => want[id] === k),
+    ROWS.map(([id, k]) => `${id}=${k}`).join(' '))
+  check('給水がいちばん小さい', ROWS[0][0] === 'water_station')
+  check('ラスト勝負がいちばん大きい', ROWS[ROWS.length - 1][0] === 'final_push')
+  check('全部が同じ値ではない', new Set(ROWS.map(r => r[1])).size > 1)
+  // 効き幅は resolveChoice で1回だけ掛かる（イベント側に別の割合の表を持たせない）
+  const ev0 = { id: 'x', type: 'x', trigger: { type: 'stamina' } as const, situation: '', battleContext: '',
+    choices: [], opponentOvr: 1, _effects: CHOICE_EFFECTS }
+  const small = resolveChoice({ ...ev0, scale: 0.5 }, 0, 99, 10000)
+  const big = resolveChoice({ ...ev0, scale: 1.4 }, 0, 99, 10000)
+  // opponentOvr=1・segStamina=99 なら攻めも上限80%…なので成否で揺れる。成功どうしで比べる
+  const winAt = (k: number) => {
+    for (let i = 0; i < 200; i++) {
+      const r = resolveChoice({ ...ev0, scale: k }, 0, 99, 10000)
+      if (r.success) return r.timeDelta
+    }
+    return NaN
+  }
+  void small; void big
+  check('効き幅が大きいほど動く（0.5倍 < 1.4倍）', Math.abs(winAt(1.4)) > Math.abs(winAt(0.5)) * 2,
+    `${winAt(0.5)}秒 vs ${winAt(1.4)}秒`)
+}
+
+console.log('\n[6] 得意な適性が成功率に効く（文言を変えるだけになっていない）')
+{
+  const SPECS = Object.keys(SPECIALTY_LABELS) as Specialty[]
+  const used = new Set(Object.values(EVENT_SPECIALTIES).flat())
+  check('9タイプ全部に出番がある', SPECS.every(sp => used.has(sp)),
+    `出番の無いタイプ=${SPECS.filter(sp => !used.has(sp)).map(sp => SPECIALTY_LABELS[sp]).join(',') || 'なし'}`)
+  check('給水はどの適性も効かない', (EVENT_SPECIALTIES.water_station ?? []).length === 0)
+  check('起伏型は登りと下りの両方',
+    EVENT_SPECIALTIES.mountain_ascent.includes('undulating') && EVENT_SPECIALTIES.mountain_descent.includes('undulating'))
+  check('加点は8', SPEC_BONUS === 8, `${SPEC_BONUS}`)
+
+  // ★実際にイベントを作らせて、得意な選手のほうが成功率が高いことを見る。
+  //   `EVENT_SPECIALTIES` を読んで比べるだけだと、表を無視して作っていても通ってしまう
+  const seg: Segment = { index: 0, distanceKm: 20, uphillPct: 45, downhillPct: 0 }
+  const cpus = Array.from({ length: 12 }, (_, i) => P(`c${i}`, `t${i}`, 66))
+  const teams = [T('my'), ...cpus.map(c => T(c.teamId))]
+  const cpuLineups: Record<string, Record<number, string>> = {}
+  for (const c of cpus) cpuLineups[c.teamId] = { 0: c.id }
+  const avgOpponent = (spec: Specialty) => {
+    const me = P('me', 'my', 65, spec)
+    const segOvr = calcSegOvr(me, seg)
+    const myStam = Math.max(1, segOvr - calcNaturalDrain(segOvr, seg.distanceKm))
+    let sum = 0, n = 0
+    for (let i = 0; i < 400; i++) {
+      const cpuTimes: Record<string, number> = {}
+      cpus.forEach((c, k) => { cpuTimes[c.teamId] = 3000 + (k - 6) * 40 })
+      const cum: Record<string, number> = { __player__: 9000 }
+      cpus.forEach((c, k) => { cum[c.teamId] = 9000 + (k - 6) * 50 })
+      for (const e of generateSegmentEvents({
+        seg, playerBaseTime: 3000, cpuTimesForSeg: cpuTimes, cumulativeTimes: cum,
+        isFirstSeg: false, isLastSeg: false, player: me, totalSegs: 7,
+        players: [me, ...cpus], cpuLineups, teams })) {
+        if (e.id.startsWith('mountain_ascent') && e.opponentOvr != null) {
+          sum += choiceSuccessProb('aggressive', myStam, e.opponentOvr); n++
+        }
+      }
+    }
+    return n > 0 ? (sum / n) * 100 : NaN
+  }
+  const up = avgOpponent('mountain_up')
+  const flat = avgOpponent('sprinter')
+  // ★母数の確認。1件も拾えていないと NaN 同士の比較になって静かに通る
+  check('山岳イベントを実際に拾えている', Number.isFinite(up) && Number.isFinite(flat))
+  console.log(`      山岳で「攻める」の成功率： 山登り ${up.toFixed(0)}%  /  スプリンター ${flat.toFixed(0)}%`)
+  check('山岳では山登り型のほうが成功率が高い', up > flat + 10, `${up.toFixed(0)}% vs ${flat.toFixed(0)}%`)
+}
+
+console.log('\n[7] ラスト勝負が実際に出る（発火地点だけあってイベントが無い、を防ぐ）')
+{
+  // ★世界の作り方に注意。並走（総合8秒以内に2つ）・追い上げ（区間タイムが10秒以内に前）・
+  //   先頭プレッシャー（自分が1位）はどれも**ラスト勝負より先に判定される**ので、
+  //   そこへ落ちない世界を作らないと final_push の枝に一度も到達しない
+  //   （最初に書いた版がこれで、300回まわして pack_race×300 だった）
+  const seg: Segment = { index: 6, distanceKm: 20, uphillPct: 0, downhillPct: 0 }
+  const me = P('me', 'my', 65)
+  const cpus = Array.from({ length: 12 }, (_, i) => P(`c${i}`, `t${i}`, 60 + i))
+  const teams = [T('my'), ...cpus.map(c => T(c.teamId))]
+  const cpuLineups: Record<string, Record<number, string>> = {}
+  for (const c of cpus) cpuLineups[c.teamId] = { 6: c.id }
+  /** 区間タイムは全員10秒より遅く、総合は300秒以上離す（自分は7位） */
+  const world = () => {
+    const cpuTimes: Record<string, number> = {}
+    cpus.forEach((c, k) => { cpuTimes[c.teamId] = 3000 + (k + 1) * 100 })
+    const cum: Record<string, number> = { __player__: 9000 }
+    cpus.forEach((c, k) => { cum[c.teamId] = 9000 + Math.round((k - 5.5) * 600) })
+    return { cpuTimes, cum }
+  }
+  const gen = (isLastSeg: boolean) => {
+    const { cpuTimes, cum } = world()
+    return generateSegmentEvents({
+      seg, playerBaseTime: 3000, cpuTimesForSeg: cpuTimes, cumulativeTimes: cum,
+      isFirstSeg: false, isLastSeg, player: me, totalSegs: 7,
+      players: [me, ...cpus], cpuLineups, teams })
+  }
+  const seen = new Map<string, number>()
+  const ratios: number[] = []
+  let lastHits = 0
+  const N = 200
+  for (let i = 0; i < N; i++) {
+    for (const e of gen(true)) {
+      const base = e.id.split('_seg')[0]
+      seen.set(base, (seen.get(base) ?? 0) + 1)
+      if (base === 'final_push') {
+        lastHits++
+        if (e.trigger.type === 'ratio') ratios.push(e.trigger.min)
+      }
+    }
+  }
+  console.log('      最終区で出たイベント： ' + [...seen].map(([k, v]) => `${k}×${v}`).join(' '))
+  check('ラスト勝負が出る', (seen.get('final_push') ?? 0) > 0)
+  check('最終区では必ずラスト勝負', lastHits === N, `${lastHits}/${N}`)
+
+  // 発火地点は終盤（74〜88%）。中盤で出ては「ラスト勝負」にならない
+  check('発火地点を拾えている', ratios.length > 0, `${ratios.length}件`)   // ★母数の確認
+  if (ratios.length > 0) {
+    const rlo = Math.min(...ratios), rhi = Math.max(...ratios)
+    console.log(`      発火地点 ${(rlo * 100).toFixed(0)}〜${(rhi * 100).toFixed(0)}%`)
+    check('発火地点が終盤（74〜88%）', rlo >= 0.74 && rhi < 0.89,
+      `${(rlo * 100).toFixed(0)}〜${(rhi * 100).toFixed(0)}%`)
+  }
+
+  // 最終区でなくても、前後20秒以内の競り合いなら出る。離れていれば出ない
+  const mid = new Map<string, number>()
+  for (let i = 0; i < N; i++) for (const e of gen(false)) {
+    const base = e.id.split('_seg')[0]
+    mid.set(base, (mid.get(base) ?? 0) + 1)
+  }
+  console.log('      途中の区間（前後300秒差）： ' + [...mid].map(([k, v]) => `${k}×${v}`).join(' '))
+  check('離れていればラスト勝負は出ない', (mid.get('final_push') ?? 0) === 0, `${mid.get('final_push') ?? 0}件`)
+  check('その場合は給水になる', (mid.get('water_station') ?? 0) === N, `${mid.get('water_station') ?? 0}/${N}`)
 }
 
 console.log(failed === 0 ? '\nOK' : `\nNG ${failed}件`)
