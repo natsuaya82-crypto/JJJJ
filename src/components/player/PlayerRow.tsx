@@ -74,32 +74,33 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
 
   return (
     <div style={{
-      // ★カード。**背景は透かさない**（写真が透けると文字が読めない）。
-      //   その上にOVRの色（`ratingColor` 1本）を左から薄く重ねて、強さを色で分かるようにする
-      borderRadius: 14,
+      // ★カード。**背景は透かさない**（写真が透けると文字が読めない）
       overflow: 'hidden',
-      background: `
-        linear-gradient(90deg, ${alpha(ratingColor(rating), 0.30)} 0%, ${alpha(ratingColor(rating), 0.07)} 55%, transparent 90%),
-        linear-gradient(180deg, #16253c 0%, #0d1727 100%)`,
+      background: selected
+        ? `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${C.surface2})`
+        : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
       boxShadow: selected
         ? `inset 0 0 0 1.5px ${C.gold}, 0 6px 16px -8px rgba(0,0,0,0.9)`
         : `inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.10), 0 6px 16px -10px rgba(0,0,0,0.9)`,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div style={{ width: 2, alignSelf: 'stretch', background: alpha(specColor, 0.8), flexShrink: 0 }}/>
-        <button
-          {...handlers}
-          style={{
-            flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
-            padding: '9px 14px 5px 12px',
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: 'inherit', textAlign: 'left',
-          }}
-        >
-          <div style={{ flexShrink: 0, borderRadius: '50%', overflow: 'hidden' }}>
-            <PlayerFace playerId={player.id} nationality={player.nationality} size={40} />
+      {/* 色帯はカードの高さいっぱい。顔は縦の真ん中 */}
+      <button
+        {...handlers}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'stretch', gap: 0,
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', textAlign: 'left', padding: 0,
+        }}
+      >
+        <div style={{ width: 3, alignSelf: 'stretch', background: alpha(specColor, 0.85), flexShrink: 0 }}/>
+        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, padding: '0 12px' }}>
+          <div style={{ borderRadius: '50%', overflow: 'hidden' }}>
+            <PlayerFace playerId={player.id} nationality={player.nationality} size={52} />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        </div>
+        <div style={{ flex: 1, minWidth: 0, padding: '10px 16px 10px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
             {/* 1行目: 名前 年齢（+差し込みextra）。
                 ★札の類は2行目へ。名前は長いと詰めるが、幅の決まった札を1行目に置くと
                   行そのものが広がって右端のOVRが画面の外へ出る（実機で実際に起きた） */}
@@ -133,24 +134,25 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
               {(player.morale ?? 70) < 50 && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, backgroundColor: alpha(C.red, 0.08), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>士気{player.morale ?? 0}</span>}
               {displayBadge && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: `linear-gradient(180deg, ${badgeColor(displayBadge)}2E, ${badgeColor(displayBadge)}14)`, border: `1px solid ${alpha(badgeColor(displayBadge), 0.5)}`, color: badgeColor(displayBadge), fontWeight: 900, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}><BadgeContent badge={displayBadge} iconSize={10} /></span>}
             </div>
+            </div>
+            <div style={{
+              fontSize: 26, fontWeight: 900, fontFamily: SAIRA, lineHeight: 1, flexShrink: 0,
+              background: isElite ? 'linear-gradient(180deg, #FFD700, #C9A84C)' : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>
+              {rating}
+            </div>
           </div>
-          <div style={{
-            fontSize: 24, fontWeight: 900, fontFamily: SAIRA, lineHeight: 1, flexShrink: 0,
-            background: isElite ? 'linear-gradient(180deg, #FFD700, #C9A84C)' : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>
-            {rating}
+          <div style={{ display: 'flex', marginTop: 8 }}>
+            {([
+              ['速力', 'speed'], ['持久', 'stamina'], ['登り', 'mountainUp'], ['下り', 'mountainDown'],
+              ['ペース', 'pacing'], ['精神', 'mental'], ['回復', 'recovery'],
+            ] as [string, CardStatKey][]).map(([label, key]) => (
+              <StatNum key={label} label={label} value={r[key]} maxed={isStatMaxed(player, key)}/>
+            ))}
           </div>
-        </button>
-      </div>
-      <div style={{ display: 'flex', padding: '0 14px 9px 66px' }}>
-        {([
-          ['速力', 'speed'], ['持久', 'stamina'], ['登り', 'mountainUp'], ['下り', 'mountainDown'],
-          ['ペース', 'pacing'], ['精神', 'mental'], ['回復', 'recovery'],
-        ] as [string, CardStatKey][]).map(([label, key]) => (
-          <StatNum key={label} label={label} value={r[key]} maxed={isStatMaxed(player, key)}/>
-        ))}
-      </div>
+        </div>
+      </button>
     </div>
   )
 }
