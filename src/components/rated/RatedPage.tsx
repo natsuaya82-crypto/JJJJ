@@ -22,7 +22,7 @@ import type { Segment } from '../../types'
 //   ・光らせない・グラデーションを重ねない・立体にしない
 //   ・色は 濃紺 / 白 / 灰青 / シアン、金は段位のときだけ
 //
-// ★段位の名前・段（I/II/III）・次の段位までは `engine/rating` の
+// ★段位の名前と次の段位までは `engine/rating` の
 //   `rankProgressOf` 1本。画面で計算しないこと。
 // ============================================================================
 
@@ -35,15 +35,15 @@ const RANK_COLOR: Record<string, string> = {
 
 const WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const
 
-/** 段位の紋章。線だけの落ち着いた形（塗りは薄く1枚） */
-function RankCrest({ tier, color, size = 78 }: { tier: string; color: string; size?: number }) {
+/** 段位の紋章。線だけの落ち着いた形（塗りは薄く1枚）。**中に文字は入れない** */
+function RankCrest({ color, size = 78 }: { color: string; size?: number }) {
   return (
     <svg width={size} height={size * 1.08} viewBox="0 0 60 65" fill="none">
       <path d="M30 3l24 8v24c0 14-10 24-24 30C16 59 6 49 6 35V11l24-8z" fill={alpha(color, 0.07)} />
       <path d="M30 3l24 8v24c0 14-10 24-24 30C16 59 6 49 6 35V11l24-8z" stroke={color} strokeWidth="1.2" strokeLinejoin="round" />
       <path d="M30 9l18 6v20c0 11-7.5 18.5-18 23.5C19.5 53.5 12 46 12 35V15l18-6z" stroke={alpha(color, 0.45)} strokeWidth="0.8" strokeLinejoin="round" />
-      <text x="30" y="40" textAnchor="middle" fontFamily="Saira, sans-serif"
-        fontSize="21" fontWeight="900" letterSpacing="1" fill={color}>{tier}</text>
+      <path d="M30 20l2.6 5.7 6.2.8-4.6 4.3 1.2 6.1L30 34l-5.4 2.9 1.2-6.1-4.6-4.3 6.2-.8L30 20z"
+        fill={alpha(color, 0.55)} />
     </svg>
   )
 }
@@ -133,12 +133,12 @@ export default function RatedPage() {
       {/* ── レート ── */}
       <div style={{ padding: '4px 18px 18px', borderTop: `1px solid ${alpha(C.border3, 0.55)}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 16 }}>
-          <RankCrest tier={prog.tier} color={rankCol} />
+          <RankCrest color={rankCol} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: rankCol,
               letterSpacing: '3px', lineHeight: 1,
-            }}>{prog.en} {prog.tier}</div>
+            }}>{prog.en}</div>
             <div style={{
               fontFamily: SAIRA, fontSize: 76, fontWeight: 900, color: '#fdfdfb',
               lineHeight: 0.92, letterSpacing: '-3px', marginTop: 2,
@@ -220,8 +220,8 @@ export default function RatedPage() {
               </div>
             ))}
             <div style={{ display: 'flex', gap: 26, padding: '11px 0 0', fontSize: 11, color: C.textDim }}>
-              <span>天候　<span style={{ color: C.textSub }}>{weatherJa}</span></span>
-              <span>気温　<span style={{ color: C.textSub }}>{today.course.conditions.temperature}°C</span></span>
+              <span>天候{'\u3000'}<span style={{ color: C.textSub }}>{weatherJa}</span></span>
+              <span>気温{'\u3000'}<span style={{ color: C.textSub }}>{today.course.conditions.temperature}°C</span></span>
             </div>
           </div>
 

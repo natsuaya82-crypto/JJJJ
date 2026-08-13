@@ -100,12 +100,13 @@ const BOTTOM_FLOOR = 0
  * **段位の中のどこにいるか。** 画面がこれを自分で計算しないこと。
  *
  *   name/en … 段位
- *   tier    … 段位の中の3段（下から III → II → I）。いちばん上の段位は I だけ
  *   from/to … その段位の下限と、次の段位の下限（いちばん上は to = null）
  *   ratio   … from→to のどこまで来たか（0〜1）。いちばん上は常に1
+ *
+ * ★段位の中をさらに I / II / III に割らない（オーナー判断・2026-08-13「123はいらん」）。
  */
 export function rankProgressOf(rating: number): {
-  name: RankName; en: string; tier: 'I' | 'II' | 'III'
+  name: RankName; en: string
   from: number; to: number | null; ratio: number
 } {
   const i = RANK_BANDS.findIndex(b => rating >= b.min)
@@ -114,8 +115,7 @@ export function rankProgressOf(rating: number): {
   const from = band.min === -Infinity ? BOTTOM_FLOOR : band.min
   const to = at === 0 ? null : RANK_BANDS[at - 1].min
   const ratio = to == null ? 1 : Math.max(0, Math.min(1, (rating - from) / (to - from)))
-  const tier = at === 0 ? 'I' : ratio >= 2 / 3 ? 'I' : ratio >= 1 / 3 ? 'II' : 'III'
-  return { name: band.name, en: band.en, tier, from, to, ratio }
+  return { name: band.name, en: band.en, from, to, ratio }
 }
 
 /**
