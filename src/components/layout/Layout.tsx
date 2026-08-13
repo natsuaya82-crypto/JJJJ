@@ -292,11 +292,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </>
       )}
 
-      {/* ── Content（ヘッダーと下タブ/広告の間だけをスクロール。viewport基準で固定） ── */}
+      {/* ── Content（ヘッダーの下から、広告/セーフエリアの上までをスクロール） ──
+          ★下タブは**ガラスなので、中身はその裏まで続ける**（下で切ると
+            透ける物が無くなって、ただの暗い板になる）。下タブに隠れないよう
+            スクロールの終わりに下タブぶんの余白を足す。 */}
       <main ref={mainRef} style={{
         position: 'fixed', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px',
         top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
-        bottom: bottomStack(adH, { aboveNav: !raceInProgress, extra: raceInProgress ? 0 : MAIN_GAP }),
+        bottom: bottomStack(adH),
+        paddingBottom: raceInProgress ? 0 : NAV_H + NAV_FLOAT * 2 + MAIN_GAP,
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}>
         <PageWrapper locationKey={location.pathname}>
