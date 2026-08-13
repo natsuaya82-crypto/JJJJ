@@ -4,15 +4,9 @@ import { RankChip, RatedShell } from './ratedUi'
 import { fetchStandings, STANDINGS_TOP, type RatedRow, type RatedStandings } from '../../lib/ratedApi'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 
-// 大会全体の順位表。**トップ10と自分だけ**（オーナー判断）。
-export default function RatedStandingsPage() {
-  const [st, setSt] = useState<RatedStandings | null>(null)
-  useEffect(() => { void fetchStandings().then(setSt) }, [])
-  if (!st) return null
-
-  const inTop = st.meRank > 0 && st.meRank <= STANDINGS_TOP
-
-  const Row = ({ r, rank }: { r: RatedRow; rank: number }) => (
+// 大会全体の順位表。**トップ100と自分だけ**（オーナー判断）。
+function Row({ r, rank }: { r: RatedRow; rank: number }) {
+  return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px',
       background: r.mine ? alpha(C.gold, 0.14) : C.surface2,
@@ -28,6 +22,14 @@ export default function RatedStandingsPage() {
       <span style={{ width: 38, textAlign: 'right', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text, flexShrink: 0 }}>{r.rating}</span>
     </div>
   )
+}
+
+export default function RatedStandingsPage() {
+  const [st, setSt] = useState<RatedStandings | null>(null)
+  useEffect(() => { void fetchStandings().then(setSt) }, [])
+  if (!st) return null
+
+  const inTop = st.meRank > 0 && st.meRank <= STANDINGS_TOP
 
   return (
     <RatedShell title="順位表">
@@ -35,7 +37,7 @@ export default function RatedStandingsPage() {
         {st.top.map((r, i) => <Row key={r.userId} r={r} rank={i + 1} />)}
       </div>
 
-      {/* トップ10に入っていないときだけ、自分の行を下に足す */}
+      {/* トップ100に入っていないときだけ、自分の行を下に足す */}
       {st.me && !inTop && (
         <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
           <Row r={st.me} rank={st.meRank} />

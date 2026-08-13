@@ -80,16 +80,14 @@ export default function RatedResultPage() {
               ))}
             </div>
           </Card>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setView('watch')} className="btn-press" style={{
-              flex: 1, padding: '15px 0', borderRadius: 12, cursor: 'pointer', border: 'none',
-              background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA,
-            }}>レースを見る</button>
-            <button onClick={() => setView('result')} className="btn-press" style={{
-              flex: 1, padding: '15px 0', borderRadius: 12, cursor: 'pointer',
-              border: `1px solid ${C.border3}`, background: 'transparent',
-              color: C.textSub, fontSize: 15, fontWeight: 900, fontFamily: SAIRA,
-            }}>結果だけ見る</button>
+          {/* ★単色で塗らない。本編と同じ立体ボタン（btn-game） */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setView('watch')} className="btn-game btn-game--gold" style={{ flex: 1 }}>
+              <span className="btn-game__inner">レースを見る</span>
+            </button>
+            <button onClick={() => setView('result')} className="btn-game btn-game--blue" style={{ flex: 1 }}>
+              <span className="btn-game__inner">結果だけ見る</span>
+            </button>
           </div>
         </>
       )}

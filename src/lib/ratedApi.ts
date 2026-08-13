@@ -105,8 +105,7 @@ const MOCK_GM = ['佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '�
   '吉田', '山田', '佐々木', '山口', '松本', '井上', '木村', '林', '斎藤', '清水']
 const MOCK_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e']
 
-/** 大会の初日。仮 */
-const MOCK_START = '2026-09-01'
+/** 大会の何日目か。仮 */
 const MOCK_DAY = 12
 
 function mockDate(day: number): string {
@@ -186,14 +185,14 @@ export async function fetchResult(): Promise<RatedResult | null> {
 }
 
 /**
- * 大会全体の順位表。**トップ10と自分だけ**（オーナー判断）。
+ * 大会全体の順位表。**トップ100と自分だけ**（オーナー判断）。
  * 参加者が増えても全員ぶんを配らない。
  */
-export const STANDINGS_TOP = 10
+export const STANDINGS_TOP = 100
 
 export type RatedStandings = {
   top: RatedRow[]
-  /** 自分（トップ10に入っていれば top にも同じ人がいる） */
+  /** 自分（トップ100に入っていれば top にも同じ人がいる） */
   me: RatedRow | null
   /** 自分の順位（1始まり）。未参加なら0 */
   meRank: number

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { courseDistanceKm } from '../../engine/ratedCourse'
-import { Card, RankChip, RatedShell } from './ratedUi'
+import { Card, RankChip, RatedShell, RoundButton } from './ratedUi'
 import {
   canJoin, fetchMe, fetchResult, fetchToday,
   RESULT_HHMM, SUBMIT_DEADLINE_HHMM,
@@ -72,30 +72,6 @@ export default function RatedPage() {
         </Card>
       )}
 
-      {/* 前日の結果（タップで別ページ） */}
-      {result && (
-        <Card accent={myDelta >= 0 ? C.green : C.red} onClick={() => navigate('/online/rated/result')}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>前日の結果</div>
-              <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
-                {result.dateISO}　グループ{result.group}/{result.groups}
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text, lineHeight: 1 }}>
-                {myPlace || '—'}<span style={{ fontSize: 11, color: C.textDim }}>位</span>
-              </div>
-              <div style={{
-                fontFamily: SAIRA, fontSize: 13, fontWeight: 900, marginTop: 2,
-                color: myDelta > 0 ? C.green : myDelta < 0 ? C.red : C.textDim,
-              }}>{myDelta > 0 ? '+' : ''}{myDelta}</div>
-            </div>
-            <span style={{ color: C.textDim, fontSize: 16 }}>›</span>
-          </div>
-        </Card>
-      )}
-
       {/* 今日のコース */}
       {today && (
         <Card>
@@ -125,45 +101,50 @@ export default function RatedPage() {
           </div>
           <div style={{ marginTop: 8, fontSize: 10, color: C.textDim }}>
             天候 {today.course.conditions.weather === 'sunny' ? '晴れ' : today.course.conditions.weather === 'rainy' ? '雨' : today.course.conditions.weather === 'windy' ? '強風' : 'くもり'}
-            　気温 {today.course.conditions.temperature}度
+            {'  '}気温 {today.course.conditions.temperature}度
           </div>
         </Card>
       )}
 
-      {/* 提出 */}
+      {/* 締め切りと提出の状態（丸ボタンのすぐ上に1行だけ） */}
       {today && (
-        <Card accent={submitted ? C.green : C.gold}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: submitted ? C.green : C.gold }}>
-              {submitted ? '提出ずみ' : 'まだ提出していません'}
-            </span>
-            <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 11, color: C.textSub }}>
-              締め切りまで {Math.floor(today.minutesLeft / 60)}時間{today.minutesLeft % 60}分
-            </span>
-          </div>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 10 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px', marginBottom: 10,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: submitted ? C.green : C.gold }}>
+            {submitted ? '提出ずみ' : '未提出'}
+          </span>
+          <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>
             {segCount}人 ／ 締め切り {SUBMIT_DEADLINE_HHMM} ／ 結果 翌{RESULT_HHMM}
-          </div>
-          <button
-            onClick={() => navigate('/online/rated/lineup')}
-            disabled={!eligible}
-            className="btn-press"
-            style={{
-              width: '100%', padding: '13px 0', borderRadius: 12, cursor: eligible ? 'pointer' : 'default',
-              border: 'none', background: eligible ? C.gold : C.border3, color: eligible ? '#1a0d00' : C.textDim,
-              fontSize: 15, fontWeight: 900, fontFamily: SAIRA,
-            }}>{submitted ? 'メンバーを組み直す' : 'メンバーを組む'}</button>
-        </Card>
+          </span>
+          <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 11, color: C.textSub }}>
+            あと {Math.floor(today.minutesLeft / 60)}:{String(today.minutesLeft % 60).padStart(2, '0')}
+          </span>
+        </div>
       )}
 
-      <button
-        onClick={() => navigate('/online/rated/standings')}
-        className="btn-press"
-        style={{
-          width: '100%', padding: '12px 0', borderRadius: 12, cursor: 'pointer',
-          border: `1px solid ${C.border3}`, background: 'transparent', color: C.textSub,
-          fontSize: 13, fontWeight: 900, fontFamily: SAIRA,
-        }}>順位表</button>
+      {/* 丸ボタン3つ */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '0 6px' }}>
+        <RoundButton
+          label="順位表" badge={me ? `${me.overall}位` : '—'}
+          color={['#7fd8ff', '#5ed4ff', '#1a6b8f', '#0e3f5a']}
+          onClick={() => navigate('/online/rated/standings')}
+        />
+        <RoundButton
+          label={submitted ? '組み直す' : '参加する'} badge={`${segCount}人`}
+          color={['#ffe089', '#f5c842', '#8a5b00', '#5a3500']}
+          disabled={!eligible}
+          onClick={() => navigate('/online/rated/lineup')}
+        />
+        <RoundButton
+          label="昨日の結果" badge={myPlace ? `${myPlace}位` : '—'}
+          color={myDelta >= 0
+            ? ['#52e27a', '#2ecc71', '#166038', '#0d3d22']
+            : ['#ff7080', '#ff4757', '#992018', '#660e10']}
+          disabled={!result}
+          onClick={() => navigate('/online/rated/result')}
+        />
+      </div>
     </RatedShell>
   )
 }
