@@ -275,6 +275,40 @@ drop table if exists public.profiles  cascade;
 Supabase と同じ `auth.users` / `auth.uid()` を作り、データを入れたDBに `all.sql` を
 2回流して行数が変わらないことを見ること（`supabase/README.md` に記録）。
 
+### 画面の見た目を変えるとき
+
+**色・下タブまわりの数字・共通の見た目を、画面に直接書かないこと。**
+
+| 何 | どこ |
+|---|---|
+| 色・フォント | `src/styles/tokens.ts` の `C` と `src/index.css` の `:root`（**両方に同じ色がある。値をずらさないこと**）|
+| 透明度つきのブランド色 | `rgba(var(--gold-rgb), …)` / `rgba(var(--accent-cyan-rgb), …)` |
+| 画面の下端に貼る位置 | `bottomStack` |
+| 中身が使える高さ | `contentHeight`（**`HEADER_H + NAV_H + …` を画面で足さないこと**）|
+| 下タブが占める高さ | `NAV_STACK`（＝`NAV_H + NAV_FLOAT * 2`）|
+| メニューの行 | `src/components/ui/MenuButton.tsx`（`premium-menu-button` を書いていいのはここだけ）|
+
+`npm run check` の `ui-tokens` が見張ります。**新しく共通の見た目を作ったら、
+そのクラスを書いていいファイルを1つ決めて `check-ui-tokens.ts` の `OWNER` に登録すること。**
+
+以前は点検が76本あるのに**どれも `src/components` の見た目を見ていませんでした**
+（`check-size` の対象も `src/store` と `src/engine` だけ）。ロジックは守られているのに
+画面は無防備で、2026-08-13 の UI 作業で実際に3件割れています。
+
+- 下タブを浮かせた（`NAV_FLOAT`）とき、`NAV_H + …` を手書きしていた2画面が追随せず
+  **20px ずれた**（`FriendClubPage` / `LoginBonusPage`。どちらも「自前の数字を書くと
+  ズレる」とコメントに書いたうえで自前の数字を書いていた）
+- メニュー行だけ金が `#dab543`・`#d9b63f`、水色が `#55d9ff` になり、
+  **金が3種類・水色が2種類**になった（トークンは `#f5c842` / `#5ed4ff`）
+- `premium-menu-button` のクラスを `TeamsHub` が手書きしていた（`MenuButton` の冒頭に
+  「手書きしないこと」と書いてあるのに）。足りない口（`right` / `compact`）が
+  無かったのが理由なので、**口は `MenuButton` に足す**
+
+画面ごとの装飾の色（グラデーションなど）は禁止していません。`check-size` と同じで
+**今日より増えたら落ちる**だけです（`scripts/fixtures/ui-color-budget.json`）。
+ただし**トークンとほぼ同じ色を土台（`index.css` / `styles/`）に置くのは1件でもNG**——
+まったく違う色より、ほぼ同じだが違う色が2つあるほうがたちが悪いためです。
+
 ### 画面下から出るものは必ず `BottomSheet` を通すこと
 
 ページの中に `position: fixed` で自前のシートを書くと、**実機でだけ**下タブに食われて操作できなくなります。

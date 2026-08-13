@@ -24,11 +24,18 @@
 
   /* Brand */
   --gold:         #f5c842;
+  /* rgba() で濃さを変えて使うためのRGB。**--gold / --accent-cyan と必ず同じ色にすること**
+     （ここがずれると「ほぼ同じだが違う金」が2つできる。実際に #dab543 が混ざっていた） */
+  --gold-rgb:       245,200,66;
+  --accent-cyan-rgb: 94,212,255;
   --gold-hi:      #ffe082;
   --gold-lo:      rgba(245,200,66,0.15);
   --gold-dark:    #b8860b;
   --gold-darker:  #8b6914;
   --accent-cyan:  #5ed4ff;
+  /* 金が --gold-hi / --gold / --gold-dark の3段なので、水色も同じ3段にする。
+     以前は明るい側だけ名前が無く、ボタンに #7fd8ff と直書きされていた */
+  --accent-cyan-hi: #7fd8ff;
   --accent-cyan-dk: #2596be;
 
   /* Status */
@@ -377,7 +384,7 @@ button { font-family: inherit; }
      0      1px    2px rgba(0,0,0,0.5);
 }
 .btn-game--blue .btn-game__inner {
-  background: linear-gradient(180deg, #7fd8ff 0%, var(--accent-cyan) 50%, var(--accent-cyan-dk) 100%);
+  background: linear-gradient(180deg, var(--accent-cyan-hi) 0%, var(--accent-cyan) 50%, var(--accent-cyan-dk) 100%);
   border: 2px solid #1a6b8f;
   box-shadow:
     0 6px 0 #0e3f5a,
@@ -573,7 +580,7 @@ button { font-family: inherit; }
   border: none;
   border-radius: 20px;
   box-shadow:
-    inset 0 0 0 1px rgba(218,181,67,0.55),      /* 細い金の縁 */
+    inset 0 0 0 1px rgba(var(--gold-rgb), 0.55),  /* 細い金の縁 */
     inset 0 1px 0 rgba(255,255,255,0.28),       /* 上のふちの光 */
     inset 0 -1px 0 rgba(0,0,0,0.35),
     0 10px 26px -12px rgba(0,0,0,0.95);
@@ -613,7 +620,7 @@ button { font-family: inherit; }
   height: 42px;
   display: grid;
   place-items: center;
-  color: #d9b63f;
+  color: var(--gold);
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
 }
 
@@ -632,7 +639,7 @@ button { font-family: inherit; }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(218,181,67,0.9);
+  color: rgba(var(--gold-rgb), 0.9);
 }
 .premium-menu-button__japanese {
   font-size: 21px;
@@ -647,21 +654,21 @@ button { font-family: inherit; }
   margin-left: auto;
   font-size: 24px;
   font-weight: 300;
-  color: rgba(218,181,67,0.9);
+  color: rgba(var(--gold-rgb), 0.9);
 }
 
 /* 大事な項目（オンライン対戦など） */
 .premium-menu-button--cyan {
   box-shadow:
-    inset 0 0 0 1px rgba(67,211,255,0.65),
+    inset 0 0 0 1px rgba(var(--accent-cyan-rgb), 0.65),
     inset 0 1px 0 rgba(255,255,255,0.30),
     inset 0 -1px 0 rgba(0,0,0,0.35),
     0 10px 26px -12px rgba(0,0,0,0.95),
-    0 0 16px -6px rgba(67,211,255,0.35);
+    0 0 16px -6px rgba(var(--accent-cyan-rgb), 0.35);
 }
 .premium-menu-button--cyan .premium-menu-button__icon,
 .premium-menu-button--cyan .premium-menu-button__english,
-.premium-menu-button--cyan .premium-menu-button__arrow { color: #55d9ff; }
+.premium-menu-button--cyan .premium-menu-button__arrow { color: var(--accent-cyan); }
 
 /* 押せないもの */
 .premium-menu-button.is-off {
@@ -673,6 +680,9 @@ button { font-family: inherit; }
   cursor: default;
 }
 .premium-menu-button.is-off:active { transform: none; }
+
+ /* 一覧の中で使う低い行。**高さを画面から style で渡さないこと**（2つ目の物差しになる） */
+.premium-menu-button--compact { height: 72px; }
 
 .premium-menu-button:active {
   transform: scale(0.985);
