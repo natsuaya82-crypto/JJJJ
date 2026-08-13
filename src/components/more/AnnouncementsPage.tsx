@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { CHANGELOG } from '../../data/appMeta'
-import { C, SAIRA } from '../../styles/tokens'
+import { C, SAIRA, alpha } from '../../styles/tokens'
 
 
 type NewsItem = { date: string; title: string; body: string }
@@ -11,14 +11,14 @@ type NewsItem = { date: string; title: string; body: string }
 function NewsBody({ body }: { body: string }) {
   const lines = body.split('\n').filter(l => l.trim() !== '')
   return (
-    <div style={{ padding: '0 0 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {lines.map((line, i) => {
         const t = line.trim()
         if (t.startsWith('【')) {
           return (
             <div
               key={i}
-              style={{ fontSize: '11px', fontWeight: 700, color: C.gold, fontFamily: SAIRA, letterSpacing: '0.5px', marginTop: i === 0 ? 0 : 8, marginBottom: 2 }}
+              style={{ fontSize: '12px', fontWeight: 700, color: C.gold, fontFamily: SAIRA, letterSpacing: '0.5px', marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}
             >
               {t.replace(/[【】]/g, '')}
             </div>
@@ -26,14 +26,14 @@ function NewsBody({ body }: { body: string }) {
         }
         if (t.startsWith('・')) {
           return (
-            <div key={i} style={{ display: 'flex', gap: 5, fontSize: '11px', color: C.textSub, lineHeight: 1.6, fontFamily: SAIRA }}>
+            <div key={i} style={{ display: 'flex', gap: 5, fontSize: '12px', color: C.textSub, lineHeight: 1.7, fontFamily: SAIRA }}>
               <span style={{ flexShrink: 0, color: C.textDim }}>・</span>
               <span style={{ flex: 1, minWidth: 0 }}>{t.slice(1)}</span>
             </div>
           )
         }
         return (
-          <div key={i} style={{ fontSize: '11px', color: C.textSub, lineHeight: 1.6, fontFamily: SAIRA, marginTop: i === 0 ? 0 : 4 }}>
+          <div key={i} style={{ fontSize: '12px', color: C.textSub, lineHeight: 1.7, fontFamily: SAIRA, marginTop: i === 0 ? 0 : 4 }}>
             {t}
           </div>
         )
@@ -70,65 +70,112 @@ function mergeNews(builtin: NewsItem[], remote: unknown): NewsItem[] {
   return [...builtin, ...extra].sort((a, b) => b.date.localeCompare(a.date))
 }
 
-export default function AnnouncementsPage() {
-  const navigate = useNavigate()
+/** 一覧と本文の両方が同じ並びを見るための1本。サーバー側の追加ぶんも同じように入る */
+function useNews(): NewsItem[] {
   const [news, setNews] = useState<NewsItem[]>(NEWS_BUILTIN)
-  const [openIdx, setOpenIdx] = useState<number | null>(0)
-
   useEffect(() => {
     fetch(NEWS_URL)
       .then(r => r.json())
       .then((data: unknown) => setNews(mergeNews(NEWS_BUILTIN, data)))
       .catch(() => {})
   }, [])
+  return news
+}
 
-  const cardStyle: React.CSSProperties = {
-    position: 'relative',
-    overflow: 'hidden',
-    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-    border: `2px solid ${C.goldDark}`,
-    borderRadius: 14,
-    boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-    padding: '14px',
-  }
+function PageHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <button
+        onClick={onBack}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textSub, fontSize: 20, padding: 0, fontFamily: SAIRA, lineHeight: 1 }}
+      >
+        &larr;
+      </button>
+      <div style={{ fontSize: '10px', color: C.gold, letterSpacing: '3px', fontFamily: SAIRA }}>{title}</div>
+    </div>
+  )
+}
+
+const cardStyle: React.CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
+  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+  border: `2px solid ${C.goldDark}`,
+  borderRadius: 14,
+  boxShadow: '0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+  padding: '14px',
+}
+
+/**
+ * お知らせの一覧。**タイトルだけを並べて、本文は別ページで開く。**
+ *
+ * 以前はその場で下へ開く蛇腹だった。v2.0.2 の本文は7000字を超えていて、
+ * 開くと一覧が下へ吹き飛び、他のお知らせへ移るのに延々とスクロールが要る状態だった。
+ */
+export default function AnnouncementsPage() {
+  const navigate = useNavigate()
+  const news = useNews()
 
   return (
     <div style={{ padding: '20px 16px 24px', fontFamily: SAIRA }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textSub, fontSize: 20, padding: 0, fontFamily: SAIRA, lineHeight: 1 }}
-        >
-          &larr;
-        </button>
-        <div style={{ fontSize: '10px', color: C.gold, letterSpacing: '3px', fontFamily: SAIRA }}>お知らせ</div>
-      </div>
+      <PageHeader title="お知らせ" onBack={() => navigate(-1)} />
 
       <div style={cardStyle}>
         <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {news.map((item, i) => {
-              const open = openIdx === i
-              return (
-                <div key={i} style={{ borderBottom: i < news.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                  <button
-                    onClick={() => setOpenIdx(open ? null : i)}
-                    style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '1px', marginBottom: '4px', fontFamily: SAIRA }}>{item.date}</div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{item.title}</div>
-                    </div>
-                    <span style={{ color: C.textDim, fontSize: 12, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>›</span>
-                  </button>
-                  {open && <NewsBody body={item.body} />}
-                </div>
-              )
-            })}
+            {news.map((item, i) => (
+              <div key={newsKey(item)} style={{ borderBottom: i < news.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                <button
+                  onClick={() => navigate(`/announcements/${encodeURIComponent(newsKey(item))}`)}
+                  style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '1px', marginBottom: '4px', fontFamily: SAIRA }}>{item.date}</div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, lineHeight: 1.5 }}>{item.title}</div>
+                  </div>
+                  <span style={{ color: C.textDim, fontSize: 14, flexShrink: 0 }}>›</span>
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * お知らせ1件の本文。**「日付|タイトル」を鍵にする**（一覧と同じ `newsKey`）。
+ * 並びの番号を鍵にすると、サーバー側のお知らせが増えた瞬間に別の記事が開く。
+ */
+export function AnnouncementDetailPage() {
+  const navigate = useNavigate()
+  const news = useNews()
+  const { key = '' } = useParams<{ key: string }>()
+  const item = news.find(n => newsKey(n) === decodeURIComponent(key))
+
+  return (
+    <div style={{ padding: '20px 16px 32px', fontFamily: SAIRA }}>
+      <PageHeader title="お知らせ" onBack={() => navigate('/announcements')} />
+
+      {!item ? (
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '48px 0' }}>
+          このお知らせは見つかりませんでした
+        </div>
+      ) : (
+        <div style={cardStyle}>
+          <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '1px', marginBottom: 6, fontFamily: SAIRA }}>{item.date}</div>
+            <div style={{ fontSize: '15px', fontWeight: 800, color: C.text, fontFamily: SAIRA, lineHeight: 1.5, marginBottom: 12 }}>
+              {item.title}
+            </div>
+            <div style={{ height: 1, background: alpha(C.gold, 0.2), marginBottom: 12 }} />
+            <NewsBody body={item.body} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

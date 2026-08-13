@@ -25,7 +25,7 @@ import { hasAgreedTerms, agreeTerms } from './utils/termsConsent'
 import Layout from './components/layout/Layout'
 import MorePage from './components/more/MorePage'
 import HofTeamPage from './components/online/HofTeamPage'
-import AnnouncementsPage from './components/more/AnnouncementsPage'
+import AnnouncementsPage, { AnnouncementDetailPage } from './components/more/AnnouncementsPage'
 import Dashboard from './components/dashboard/Dashboard'
 import TeamManagement from './components/team/TeamManagement'
 import Onboarding from './components/onboarding/Onboarding'
@@ -350,6 +350,8 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
           <Route path="/news" element={<NewsPage />} />
           <Route path="/more" element={<MorePage onBackToTitle={onBackToTitle} />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
+          {/* お知らせ1件。蛇腹をやめて別ページにした（本文が長いので一覧が吹き飛ぶ） */}
+          <Route path="/announcements/:key" element={<AnnouncementDetailPage />} />
         </Routes>
       </Layout>
     </>
