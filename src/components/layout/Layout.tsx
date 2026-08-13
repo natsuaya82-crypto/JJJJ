@@ -318,17 +318,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         width: `calc(100% - ${NAV_FLOAT * 2}px)`, maxWidth: 480 - NAV_FLOAT * 2,
         height: `${NAV_H}px`,
         borderRadius: 22,
-        // 透けるダークネイビーのガラス。単色の板にしない
-        background: 'linear-gradient(180deg, rgba(30,52,84,0.52) 0%, rgba(10,23,41,0.62) 100%)',
-        backdropFilter: 'blur(22px) saturate(135%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(135%)',
-        border: '1px solid rgba(255,255,255,0.10)',
+        // スモークガラス。**後ろが透けること**が大事なので塗りを濃くしない
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.075) 0%, rgba(255,255,255,0.022) 100%)',
+        backdropFilter: 'blur(20px) saturate(125%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(125%)',
+        border: 'none',
         display: 'flex', alignItems: 'center', justifyContent: 'space-around',
         zIndex: 50,
         boxShadow: [
-          'inset 0 1px 0 rgba(255,255,255,0.16)',   // 上のふち
+          'inset 0 0 0 1px rgba(255,255,255,0.16)', // 細い縁
+          'inset 0 1px 0 rgba(255,255,255,0.26)',   // 上のふちの光
           'inset 0 -1px 0 rgba(0,0,0,0.35)',        // 下の屈折
-          '0 10px 26px rgba(0,0,0,0.45)',           // 浮いている影
+          '0 12px 28px -14px rgba(0,0,0,0.95)',     // 浮いている影
         ].join(', '),
         overflow: 'hidden',
       }}>
