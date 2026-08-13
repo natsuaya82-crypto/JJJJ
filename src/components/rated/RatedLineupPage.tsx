@@ -62,15 +62,10 @@ export default function RatedLineupPage() {
       startDisabled={sent}
       startLabel={sent ? '提出しました' : 'このオーダーで提出'}
       headerNote={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{
-            fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.gold,
-            padding: '2px 8px', borderRadius: 6, background: 'rgba(245,200,66,0.12)',
-          }}>締め切り {SUBMIT_DEADLINE_HHMM}</span>
-          <span style={{ fontSize: 11, color: C.textSub }}>
-            殿堂入り{hof.length}人から {segs.length}人。何度でも組み直せます
-          </span>
-        </div>
+        <span style={{
+          fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold,
+          padding: '2px 8px', borderRadius: 6, background: 'rgba(245,200,66,0.12)',
+        }}>締め切り {SUBMIT_DEADLINE_HHMM}</span>
       }
     />
   )

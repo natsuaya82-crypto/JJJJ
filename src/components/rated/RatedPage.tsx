@@ -128,10 +128,8 @@ export default function RatedPage() {
           <>
             {!eligible && (
               <Card accent={C.orange}>
-                <div style={{ fontSize: 12, color: C.orange, fontWeight: 800, marginBottom: 4 }}>参加できません</div>
-                <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>
-                  レート戦は<b style={{ color: C.text }}>殿堂入りが30人埋まっている人</b>だけが参加できます。
-                  いまは {hof?.length ?? 0} / 30 人です。
+                <div style={{ fontSize: 12, color: C.orange, fontWeight: 800 }}>
+                  殿堂入り {hof?.length ?? 0} / 30
                 </div>
               </Card>
             )}
@@ -176,10 +174,8 @@ export default function RatedPage() {
                   締め切りまで {Math.floor(today.minutesLeft / 60)}時間{today.minutesLeft % 60}分
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>
-                殿堂入りの30人から、<b style={{ color: C.text }}>{segCount}区間ぶんちょうど</b>選んで並べます。
-                <b style={{ color: C.text }}>{SUBMIT_DEADLINE_HHMM}</b> まで何度でも組み直せます。
-                結果は翌日の {RESULT_HHMM} に出ます。
+              <div style={{ fontSize: 10, color: C.textDim, marginBottom: 10 }}>
+                {segCount}人 ／ 締め切り {SUBMIT_DEADLINE_HHMM} ／ 結果 翌{RESULT_HHMM}
               </div>
               <button
                 onClick={() => navigate('/online/rated/lineup')}
