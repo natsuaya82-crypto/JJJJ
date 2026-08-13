@@ -109,6 +109,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/components/player/PlayerChips.tsx` | **選手の名前の横に出る小さな札**。`SpecChip`（タイプ）／`ForeignChip`（外国籍）。大きさ（sm/md）だけ選べて、色・濃さ・枠線・丸みは1つに固定 |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
+| `supabase/all.sql` | **サーバー側（Supabase）の全部**。表・関数・ポリシー・権限。**流すのはこの1本だけ**（下の節） |
+| `supabase/all.sql` の `club_member_cap` | **走友会の人数の上限（30）**。以前は入るとき30・承認だけ50で、承認制の走友会だけ50人まで入れた |
 
 | `src/utils/newsItems.ts` | ニュースの見出しの文面。**画面や store に見出しを直書きしないこと** |
 | `src/utils/foreignClubProfile.ts` | `effectiveOvr`（年齢を加味した実効OVR）。**クラブが選手を獲るかどうかは「必要か」と「そこで走れるか」だけ**（`utils/squadNeeds`）。国やリーグごとのOVR下限表は持たない |
@@ -217,6 +219,58 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 - **相対パスを含む文字列で点検しないこと。** 上の3つは深さの違うファイルを繋ぐので、
   `from '../utils/…'` を探す判定は繋いだ瞬間に嘘になります（片方にしか当たらない）
 - 落ちたものだけ中身が出ます。全部見たいときは `npm run check -- --verbose`
+
+### Supabase の SQL は `supabase/all.sql` 1本。流すのは毎回1回だけ
+
+**新しい `.sql` を作らないこと。機能を足すときも `all.sql` に書き足します。**
+オーナーがやるのは「SQL Editor に `all.sql` を貼って Run」だけで、順番も、前に何を
+流したかも覚える必要がありません。`npm run check` の `supabase-sql` が、
+`supabase/` に `.sql` が2本以上あったら落とします。
+
+**`all.sql` はデータを消してはいけません。** 表は `create table if not exists`、
+列は `alter table ... add column if not exists`。落としていいのは関数・ポリシー・
+トリガー・制約・既定値（＝決まりごと）だけで、**`drop table` / `drop column` /
+`truncate` を書いたら落ちます。**
+
+以前は `.sql` が14本あり、README に「画面がエラーになったら流し直す」と
+書いてありました。ところが土台の3本が先頭で表ごと落としていました。
+
+```sql
+-- supabase/schema.sql（旧・削除済み）
+drop table if exists public.rosters   cascade;
+drop table if exists public.profiles  cascade;
+```
+
+`profiles` にフレンドコードが入っているので、**流すたびにオーナーだけでなく
+全ユーザーの**プロフィール・ロスター・フレンド関係が消えていました。しかも `cascade`
+なので、他のファイルが `profiles` / `rosters` に足した閲覧ポリシー
+（`profiles_select_clubmate` / `rosters_select_clubmate` / `profiles_select_room` /
+`rosters_select_room`）も道連れになります。**片方を直すともう片方が壊れる**ので、
+「毎回SQLを流さないとエラーになる」から抜け出せませんでした。
+
+同じ関数が複数のファイルにあったのも同じ根です（`club_feed` は4か所、
+`post_club_request` は3か所）。どれが有効かは**流した順**で決まるのに、順番はどこにも
+書いていませんでした。build 88 のまとめを流した走友会で `open_stats` が返らなくなり、
+カードの差し入れが「あと0枚まで入ります」で押せなくなったのがこれです。
+
+`all.sql` の中の並びは決まっています。書き足す場所を間違えると2回目に流せません。
+
+```
+1. 表・列・制約・索引       … 作るだけ。消さない
+2. ポリシーとトリガーを外す … 3で関数を作り直すため
+3. 関数（最終版を1回だけ）  … 冒頭に drop function を並べる
+4. 既定値・トリガー・ポリシーを付け直す
+5. 権限（authenticated にだけ grant）
+6. notify pgrst, 'reload schema'
+```
+
+関数の**返す列を変えた**ときと**引数を増やした**ときは、3 の冒頭の
+`drop function if exists` に古い形も残すこと。`create or replace` だけでは差し替わらず
+（`42P13`）、同じ名前で形の違う関数が並ぶと PostgREST は「関数が無い」のと同じ扱いで返します。
+
+**挙動を変えていないことは、実際に流して確かめます。** ローカルの PostgreSQL に
+Supabase と同じ `auth.users` / `auth.uid()` を作り、データを入れたDBに `all.sql` を
+2回流して行数が変わらないことを見ること（`supabase/README.md` に記録）。
 
 ### 画面下から出るものは必ず `BottomSheet` を通すこと
 
