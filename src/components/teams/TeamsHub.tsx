@@ -115,7 +115,7 @@ export default function TeamsHub() {
     [...arr].sort((a, b) => a.label.localeCompare(b.label, 'ja'))
 
   const wrap = (children: React.ReactNode) => (
-    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>{children}</div>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>{children}</div>
   )
   const listBox = (children: React.ReactNode) => (
     <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>

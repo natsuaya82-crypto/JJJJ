@@ -51,7 +51,7 @@ export default function CardInventoryPage() {
   }, [filtered])
 
   return (
-    <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: SAIRA, color: C.text, paddingBottom: 80 }}>
+    <div style={{ minHeight: '100dvh', fontFamily: SAIRA, color: C.text, paddingBottom: 80 }}>
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: `linear-gradient(180deg, ${C.bg} 70%, transparent)`,

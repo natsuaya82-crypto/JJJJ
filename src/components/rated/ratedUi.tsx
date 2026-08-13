@@ -37,7 +37,7 @@ export function Card({ children, accent = C.cyan, onClick }: {
 /** 3ページ共通の外枠。見出しは1つだけ */
 export function RatedShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>
       <div style={{ padding: '18px 12px 0', display: 'flex', alignItems: 'center', gap: 4 }}>
         <BackButton />
         <div>

@@ -80,7 +80,7 @@ export default function BudgetPage() {
 
   return (
     <div style={{
-      minHeight: '100dvh', background: C.bg,
+      minHeight: '100dvh' ,
       fontFamily: FONT, color: C.text, paddingBottom: 80,
     }}>
       <div style={{

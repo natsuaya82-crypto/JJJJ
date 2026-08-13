@@ -21,7 +21,7 @@ import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, div
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
 function PageShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ padding: '0 0 16px', fontFamily: SAIRA, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ padding: '0 0 16px', fontFamily: SAIRA, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>RECORDS</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: '10px' }}>

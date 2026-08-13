@@ -68,7 +68,7 @@ export default function PlayersStatsPage() {
   const accent = cat ? CAT_COLOR[cat] : C.blue
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
       {/* ヘッダー（戻る＋タイトルを横並び・上部固定） */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.bg }}>
         <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>

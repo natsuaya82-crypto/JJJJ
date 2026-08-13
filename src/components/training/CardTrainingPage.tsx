@@ -209,7 +209,7 @@ export default function CardTrainingPage() {
   // ── STEP 1: Player selection ──────────────────────────────────
   if (!targetPlayer) {
     return (
-      <div style={{ minHeight: '100dvh', background: C.bg, fontFamily: FONT, color: C.text, paddingBottom: 80 }}>
+      <div style={{ minHeight: '100dvh', fontFamily: FONT, color: C.text, paddingBottom: 80 }}>
         {sharedHeader(() => navigate(-1))}
 
         <div style={{ padding: '14px 14px 6px' }}>

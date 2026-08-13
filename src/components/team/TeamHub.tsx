@@ -1,10 +1,10 @@
+import MenuButton from '../ui/MenuButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
-import PressButton from '../ui/PressButton'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 
 
@@ -268,45 +268,14 @@ export default function TeamHub() {
       {/* Section cards */}
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {SECTIONS.map(s => (
-          <PressButton
+          <MenuButton
             key={s.key}
+            icon={s.icon}
+            label={s.label}
+            badge={s.badge}
+            badgeColor={s.color}
             onClick={() => navigate(s.key)}
-            style={{
-              width: '100%', padding: '12px 14px',
-              borderRadius: 14,
-              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-              border: `2px solid ${C.goldDark}`,
-              boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)`,
-              display: 'flex', alignItems: 'center', gap: 12,
-              fontFamily: 'inherit', cursor: 'pointer',
-              position: 'relative', overflow: 'hidden',
-            } as React.CSSProperties}
-          >
-            <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.2)', borderRadius: 10, pointerEvents: 'none' }}/>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10, flexShrink: 0, position: 'relative', zIndex: 1,
-              background: `linear-gradient(180deg, #2a4060 0%, #122440 100%)`,
-              border: `2px solid ${C.bg}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: s.color,
-              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3)`,
-            }}>
-              {s.icon}
-            </div>
-            <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1 }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{s.label}</span>
-              {s.badge > 0 && (
-                <span style={{
-                  marginLeft: 7, padding: '1px 7px', borderRadius: 6,
-                  background: s.color, color: C.bg,
-                  fontSize: 10, fontWeight: 900,
-                }}>{s.badge}</span>
-              )}
-            </div>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>
-              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          </PressButton>
+          />
         ))}
       </div>
 

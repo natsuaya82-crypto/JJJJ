@@ -96,7 +96,7 @@ export default function FacilitiesPage() {
   if (!myTeam) return null
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
       <div style={{ padding: '10px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton/>
         <div>

@@ -51,7 +51,7 @@ export default function DraftHistoryPage() {
       .sort((a, b) => (a.draftRound! - b.draftRound!) || ((a.draftPick ?? 0) - (b.draftPick ?? 0)))
 
     return (
-      <div style={{ fontFamily: SAIRA, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+      <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
         <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
           <BackButton />
           <div>
@@ -97,7 +97,7 @@ export default function DraftHistoryPage() {
 
   // ── 年度一覧（年度ボタン） ──
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
       <div style={{ padding: '8px 16px 4px' }}>
         <BackButton />
       </div>

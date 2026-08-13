@@ -185,7 +185,7 @@ export default function NationalSquadSelectPage() {
   // ── 候補ピッカー（区間配置のピッカーと同じ構造・ロスターと同じ全数値行・一括選択制）──
   if (pickerSlot !== null) {
     return (
-      <div style={{ fontFamily: SAIRA, background: C.bg, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
+      <div style={{ fontFamily: SAIRA, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
         {/* ピッカーヘッダー */}
         <div style={{
           background: `linear-gradient(135deg, ${C.surface2}, ${C.bg})`,
@@ -279,7 +279,7 @@ export default function NationalSquadSelectPage() {
 
   // ── メイン画面（20枠一覧・区間配置の区リストと同じ構造）──
   return (
-    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
+    <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>日本代表 選考</span>

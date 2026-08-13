@@ -97,7 +97,7 @@ export default function MatchHistoryPage() {
   return (
     <div style={{
       fontFamily: FONT,
-      paddingBottom: 80, background: C.bg, minHeight: '100dvh',
+      paddingBottom: 80, minHeight: '100dvh',
     }}>
       <div style={{ padding: '10px 12px 6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>

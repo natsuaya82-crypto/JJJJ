@@ -45,7 +45,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
     ].join('\n')
     return (
       <div style={{
-        minHeight: '100dvh', background: C.bg, color: C.text,
+        minHeight: '100dvh', color: C.text,
         fontFamily: "'Noto Sans JP', system-ui, sans-serif",
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: 'calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom))',

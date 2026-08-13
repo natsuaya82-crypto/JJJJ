@@ -30,7 +30,7 @@ export default function NationalResultPage() {
 
   if (!r) {
     return (
-      <div style={{ background: C.bg, minHeight: '100dvh', padding: 16 }}>
+      <div style={{ minHeight: '100dvh', padding: 16 }}>
         <BackButton />
         <div style={{ textAlign: 'center', color: C.textDim, padding: 40 }}>まだ結果がありません</div>
       </div>
@@ -38,7 +38,7 @@ export default function NationalResultPage() {
   }
 
   const wrap = (title: string, children: React.ReactNode) => (
-    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', paddingBottom: 96 }}>
+    <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: 96 }}>
       <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'center', gap: 2 }}>
         <BackButton onClick={() => navigate('/')} />
         <span style={{ fontFamily: SAIRA, fontSize: 19, fontWeight: 900, color: C.text }}>{title}</span>

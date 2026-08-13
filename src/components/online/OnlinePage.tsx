@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from '../friends/friendsUi'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT } from '../../styles/tokens'
+import MenuButton from '../ui/MenuButton'
 import { onlineAvailable } from '../../data/featureFlags'
 
 
@@ -108,31 +109,18 @@ export default function OnlinePage() {
 
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {sections.map(s => (
-          <button
+          <MenuButton
             key={s.key}
-            onClick={() => { if (!s.soon) navigate(s.key) }}
-            className={[
-              'premium-menu-button',
-              s.color === C.cyan ? 'premium-menu-button--cyan' : '',
-              s.soon ? 'is-off' : '',
-            ].filter(Boolean).join(' ')}
-          >
-            <span className="premium-menu-button__icon-area">
-              <span className="premium-menu-button__icon">{s.icon}</span>
-            </span>
-            <span className="premium-menu-button__content">
-              <span className="premium-menu-button__english">{s.en}</span>
-              <span className="premium-menu-button__japanese">
-                {s.label}
-                {s.badge > 0 && (
-                  <span style={{ marginLeft: 7, padding: '1px 7px', borderRadius: 6, background: s.color, color: C.bg, fontSize: 10, fontWeight: 900 }}>{s.badge}</span>
-                )}
-                {/* 説明は置かない（名前で分かるものに注釈を足さない）。「準備中」だけは状態なので出す */}
-                {s.soon && <span style={{ fontSize: 10, color: alpha(C.text, 0.45), marginLeft: 8 }}>準備中</span>}
-              </span>
-            </span>
-            {!s.soon && <span className="premium-menu-button__arrow">›</span>}
-          </button>
+            icon={s.icon}
+            label={s.label}
+            en={s.en}
+            badge={s.badge}
+            badgeColor={s.color}
+            note={s.soon ? '準備中' : undefined}
+            tone={s.color === C.cyan ? 'cyan' : 'gold'}
+            disabled={s.soon}
+            onClick={() => navigate(s.key)}
+          />
         ))}
       </div>
     </div>

@@ -202,7 +202,7 @@ const SECTIONS: Section[] = [
 export default function HelpPage() {
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <BackButton />

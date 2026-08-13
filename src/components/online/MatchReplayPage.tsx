@@ -29,7 +29,7 @@ export default function MatchReplayPage() {
   return (
     <div style={{
       fontFamily: FONT,
-      paddingBottom: 80, background: C.bg, minHeight: '100dvh',
+      paddingBottom: 80, minHeight: '100dvh',
     }}>
       <div style={{ padding: '10px 12px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

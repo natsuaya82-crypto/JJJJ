@@ -97,7 +97,7 @@ export default function RatedPage() {
   const weatherJa = weather === 'sunny' ? '晴れ' : weather === 'rainy' ? '雨' : weather === 'windy' ? '強風' : 'くもり'
 
   return (
-    <div style={{ fontFamily: FONT, background: '#060d18', minHeight: '100dvh', paddingBottom: 96 }}>
+    <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: 96 }}>
       {/* ── 見出し ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '12px 12px 14px' }}>
         <BackButton />

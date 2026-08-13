@@ -32,7 +32,7 @@ export default function HofTeamPage() {
   }, [hof, setPreview])
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton />
         <div style={{ flex: 1 }}>

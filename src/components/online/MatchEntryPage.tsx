@@ -54,7 +54,7 @@ export default function MatchEntryPage() {
   const s = stats.data
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 80, background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
       <div style={{ padding: '8px 12px 0' }}><BackButton /></div>
       <div style={{ padding: '8px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE MATCH</div>

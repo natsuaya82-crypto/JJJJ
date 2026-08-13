@@ -123,7 +123,7 @@ export default function EclPage() {
 
   if (!series) {
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text }}>
         <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <BackButton/>
           <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900 }}>ECL</div>
@@ -139,7 +139,7 @@ export default function EclPage() {
   //    下固定の赤ボタン「観戦する」でレーススタート。自チーム出場年は普通の駅伝と同じ（開いたら区間配置）──
   if (phase === 'entry' && nextRace && eclDue && !playerQualified) {
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
         <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <BackButton/>
           <LeagueLogoSVG leagueId="ecl" size={36} />
@@ -231,7 +231,7 @@ export default function EclPage() {
       const myRanking = results.teamRankings.find(tr => tr.teamId === viewTeamId)
       const segs = [...lockedRace.segments].sort((a, b) => a.index - b.index)
       return (
-        <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
+        <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
           <div style={{ padding: '12px 16px 8px' }}>
             <BackButton onClick={() => setViewTeamId(null)}/>
           </div>
@@ -285,7 +285,7 @@ export default function EclPage() {
       )
     }
     return (
-      <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
+      <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
         <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <BackButton onClick={() => { setPhase('entry'); setViewTeamId(null) }}/>
           <div>
@@ -350,7 +350,7 @@ export default function EclPage() {
 
   // ── シリーズ概要（順位表・スケジュール）──
   return (
-    <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
+    <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 90 }}>
       <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <BackButton/>
         <LeagueLogoSVG leagueId="ecl" size={36} />

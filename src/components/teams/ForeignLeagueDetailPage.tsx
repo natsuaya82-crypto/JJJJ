@@ -39,7 +39,7 @@ export default function ForeignLeagueDetailPage() {
   }))
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: '80px', background: C.bg, minHeight: '100dvh' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: '80px', minHeight: '100dvh' }}>
       <div style={{ padding: '10px 12px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <BackButton />
