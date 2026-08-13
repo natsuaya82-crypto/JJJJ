@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { panelStyle } from '../ui/Panel'
 import PageHeader from '../ui/PageHeader'
 import { TeamLogoSVG } from '../icons/Icons'
 import { listFriends } from '../../lib/friendsApi'
@@ -35,8 +36,7 @@ export default function FriendListPage() {
           {friends.map(f => (
             <button key={f.id} onClick={() => navigate(`/friends/team/${f.id}`)} className="btn-press" style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', cursor: 'pointer',
-              padding: '12px', borderRadius: 14, fontFamily: SAIRA,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}`, boxShadow: `0 4px 0 ${alpha('#000', 0.45)}, inset 0 1px 0 rgba(255,255,255,0.06)`,
+              padding: '12px', fontFamily: SAIRA, ...panelStyle(C.border3),
             }}>
               <TeamLogoSVG primary={f.primary} secondary={f.secondary} shortName={f.shortName} logoId={f.logoId} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>

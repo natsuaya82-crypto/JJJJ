@@ -41,6 +41,11 @@
   /* Status */
   --red:       #ff4757;
   --green:     #2ecc71;
+  --purple:    #a855f7;
+  /* rgba() で濃さを変えて使うためのRGB。**上の色と必ず同じにすること**（①が見張る） */
+  --red-rgb:    255,71,87;
+  --green-rgb:  46,204,113;
+  --purple-rgb: 168,85,247;
   --blue:      #7986CB;
   --orange:    #FF9800;
   --pink:      #EC407A;
@@ -321,11 +326,15 @@ button { font-family: inherit; }
      1px  1px 0 var(--stroke-dark);
 }
 
-/* ── Game Button (ソシャゲ風 立体ボタン) ────── */
+/* ── Game Button（大きい行動ボタン。ガラス）────── */
 /*
   Usage:
-  <button class="btn-game btn-game--gold">ラベル</button>
-  <button class="btn-game btn-game--blue">ラベル</button>
+  <button class="btn-game btn-game--gold"><span class="btn-game__inner">ラベル</span></button>
+
+  ★見た目は `ui/GlassButton.tsx` と同じ（暗い面＋色のうすい塗り＋1pxの色枠＋上のふちの光）。
+    角は丸めない。**ここを直すと94か所ぜんぶが変わる**ので、画面側で書き足さないこと。
+    以前は「明るい色でベタ塗り＋白文字に黒の縁取り＋下に6pxの影」の飴玉で、
+    ガラスに寄せた他の部品と並ぶと1つだけ別のゲームに見えていた。
 */
 .btn-game {
   position: relative;
@@ -337,7 +346,6 @@ button { font-family: inherit; }
   letter-spacing: 0.06em;
   padding: 0;
   background: none;
-  color: #fff;
   -webkit-tap-highlight-color: transparent;
 }
 .btn-game__inner {
@@ -346,100 +354,45 @@ button { font-family: inherit; }
   justify-content: center;
   gap: 8px;
   padding: 13px 20px;
-  border-radius: 14px;
+  border-radius: 0;
   position: relative;
   transition: transform 0.08s ease;
-  text-shadow:
-    -1.5px -1.5px 0 var(--stroke-dark),
-     1.5px -1.5px 0 var(--stroke-dark),
-    -1.5px  1.5px 0 var(--stroke-dark),
-     1.5px  1.5px 0 var(--stroke-dark),
-     0       3px 4px rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px) saturate(118%);
+  -webkit-backdrop-filter: blur(10px) saturate(118%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    0 8px 20px rgba(0,0,0,0.4);
+  text-shadow: none;
 }
-.btn-game__inner::after {
-  content: '';
-  position: absolute;
-  top: 4px; left: 8px; right: 8px;
-  height: 36%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 100%);
-  border-radius: 8px 8px 50% 50%;
-  pointer-events: none;
-}
-.btn-game:active .btn-game__inner { transform: translateY(4px); }
+/* 飴玉のツヤは出さない（ガラスは上のふちの光だけ） */
+.btn-game__inner::after { content: none; }
+.btn-game:active .btn-game__inner { transform: scale(0.97); }
 
 .btn-game--gold .btn-game__inner {
-  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 50%, var(--gold-dark) 100%);
-  border: 2px solid var(--gold-darker);
-  box-shadow:
-    0 6px 0 #5a3500,
-    0 8px 20px rgba(245,200,66,0.3),
-    inset 0 2px 0 rgba(255,255,255,0.4),
-    inset 0 -3px 0 rgba(0,0,0,0.2);
-  /* 明るい金背景では白文字の縁取りが潰れやすいので、8方向1.25pxの均一な縁取りにする */
-  text-shadow:
-    -1.25px 0     0 var(--stroke-dark),  1.25px 0     0 var(--stroke-dark),
-     0     -1.25px 0 var(--stroke-dark),  0      1.25px 0 var(--stroke-dark),
-    -1.25px -1.25px 0 var(--stroke-dark),  1.25px -1.25px 0 var(--stroke-dark),
-    -1.25px  1.25px 0 var(--stroke-dark),  1.25px  1.25px 0 var(--stroke-dark),
-     0      1px    2px rgba(0,0,0,0.5);
+  color: var(--gold);
+  background: linear-gradient(180deg, rgba(var(--gold-rgb), 0.16), rgba(var(--gold-rgb), 0.04));
+  border: 1px solid rgba(var(--gold-rgb), 0.65);
 }
 .btn-game--blue .btn-game__inner {
-  background: linear-gradient(180deg, var(--accent-cyan-hi) 0%, var(--accent-cyan) 50%, var(--accent-cyan-dk) 100%);
-  border: 2px solid #1a6b8f;
-  box-shadow:
-    0 6px 0 #0e3f5a,
-    0 8px 20px rgba(94,212,255,0.25),
-    inset 0 2px 0 rgba(255,255,255,0.35),
-    inset 0 -3px 0 rgba(0,0,0,0.2);
-  /* 金と同じ8方向1.25pxの均一な縁取り（明るい背景で白文字が潰れないように） */
-  text-shadow:
-    -1.25px 0     0 var(--stroke-dark),  1.25px 0     0 var(--stroke-dark),
-     0     -1.25px 0 var(--stroke-dark),  0      1.25px 0 var(--stroke-dark),
-    -1.25px -1.25px 0 var(--stroke-dark),  1.25px -1.25px 0 var(--stroke-dark),
-    -1.25px  1.25px 0 var(--stroke-dark),  1.25px  1.25px 0 var(--stroke-dark),
-     0      1px    2px rgba(0,0,0,0.5);
+  color: var(--accent-cyan);
+  background: linear-gradient(180deg, rgba(var(--accent-cyan-rgb), 0.16), rgba(var(--accent-cyan-rgb), 0.04));
+  border: 1px solid rgba(var(--accent-cyan-rgb), 0.65);
 }
 .btn-game--green .btn-game__inner {
-  background: linear-gradient(180deg, #52e27a 0%, #2ecc71 50%, #1da056 100%);
-  border: 2px solid #166038;
-  box-shadow:
-    0 6px 0 #0d3d22,
-    0 8px 20px rgba(46,204,113,0.25),
-    inset 0 2px 0 rgba(255,255,255,0.3),
-    inset 0 -3px 0 rgba(0,0,0,0.2);
-  /* 金と同じ8方向1.25pxの均一な縁取り */
-  text-shadow:
-    -1.25px 0     0 var(--stroke-dark),  1.25px 0     0 var(--stroke-dark),
-     0     -1.25px 0 var(--stroke-dark),  0      1.25px 0 var(--stroke-dark),
-    -1.25px -1.25px 0 var(--stroke-dark),  1.25px -1.25px 0 var(--stroke-dark),
-    -1.25px  1.25px 0 var(--stroke-dark),  1.25px  1.25px 0 var(--stroke-dark),
-     0      1px    2px rgba(0,0,0,0.5);
+  color: var(--green);
+  background: linear-gradient(180deg, rgba(var(--green-rgb), 0.16), rgba(var(--green-rgb), 0.04));
+  border: 1px solid rgba(var(--green-rgb), 0.65);
 }
 .btn-game--red .btn-game__inner {
-  background: linear-gradient(180deg, #ff7080 0%, #ff4757 50%, #cc2030 100%);
-  border: 2px solid #992018;
-  box-shadow:
-    0 6px 0 #660e10,
-    0 8px 20px rgba(255,71,87,0.25),
-    inset 0 2px 0 rgba(255,255,255,0.3),
-    inset 0 -3px 0 rgba(0,0,0,0.2);
+  color: var(--red);
+  background: linear-gradient(180deg, rgba(var(--red-rgb), 0.16), rgba(var(--red-rgb), 0.04));
+  border: 1px solid rgba(var(--red-rgb), 0.65);
 }
 /* 世界選手権（プレステージ紫） */
 .btn-game--purple .btn-game__inner {
-  background: linear-gradient(180deg, #C583FA 0%, #A855F7 50%, #7E22CE 100%);
-  border: 2px solid #581C87;
-  box-shadow:
-    0 6px 0 #3B1265,
-    0 8px 20px rgba(168,85,247,0.28),
-    inset 0 2px 0 rgba(255,255,255,0.32),
-    inset 0 -3px 0 rgba(0,0,0,0.2);
-  /* 金と同じ8方向1.25pxの均一な縁取り */
-  text-shadow:
-    -1.25px 0     0 var(--stroke-dark),  1.25px 0     0 var(--stroke-dark),
-     0     -1.25px 0 var(--stroke-dark),  0      1.25px 0 var(--stroke-dark),
-    -1.25px -1.25px 0 var(--stroke-dark),  1.25px -1.25px 0 var(--stroke-dark),
-    -1.25px  1.25px 0 var(--stroke-dark),  1.25px  1.25px 0 var(--stroke-dark),
-     0      1px    2px rgba(0,0,0,0.5);
+  color: var(--purple);
+  background: linear-gradient(180deg, rgba(var(--purple-rgb), 0.16), rgba(var(--purple-rgb), 0.04));
+  border: 1px solid rgba(var(--purple-rgb), 0.65);
 }
 
 /* ── Progress Bar ─────────────────────────── */
@@ -582,11 +535,13 @@ button { font-family: inherit; }
   backdrop-filter: blur(10px) saturate(118%);
   -webkit-backdrop-filter: blur(10px) saturate(118%);
   border: none;
-  border-radius: 18px;
+  /* 角は丸めない。形はカード（ui/Panel）・選手カードと同じ「右下だけ斜めに切る」。
+     ★clip-path は**縁の線を斜めの辺で切り落とす**ので、縁は描かない。
+       行の色は左の帯（::after）で出す（Panel と同じ作り） */
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
   box-shadow:
-    inset 0 0 0 1px var(--tint-edge, rgba(255,255,255,0.16)),   /* 細い縁＝その行の色 */
     inset 0 1px 0 rgba(255,255,255,0.26),       /* 上のふちの光 */
-    inset 0 -1px 0 rgba(0,0,0,0.35),
     0 10px 26px -12px rgba(0,0,0,0.95);
   overflow: hidden;
   cursor: pointer;
@@ -605,15 +560,15 @@ button { font-family: inherit; }
     transparent 66%);
   pointer-events: none;
 }
-/* 下側のガラスの厚み */
+/* 左の色帯＝その行の色（カードと同じ出し方） */
 .premium-menu-button::after {
   content: "";
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 0;
+  top: 0;
   bottom: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
+  width: 3px;
+  background: var(--tint-edge, rgba(255,255,255,0.16));
   pointer-events: none;
 }
 
@@ -664,7 +619,6 @@ button { font-family: inherit; }
 /* 押せないもの */
 .premium-menu-button.is-off {
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.12),
     inset 0 1px 0 rgba(255,255,255,0.14),
     0 8px 20px -12px rgba(0,0,0,0.9);
   opacity: 0.5;

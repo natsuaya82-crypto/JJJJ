@@ -2,6 +2,8 @@ import type { Race } from '../../types'
 import { C, alpha, COMPETITION_BTN, SAIRA } from '../../styles/tokens'
 import { InfoTile } from '../ui'
 import { courseTypeOf } from '../../data/races'
+import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 const WEATHER_LABEL: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
 const WEATHER_COLOR: Record<string, string> = { sunny: C.gold, cloudy: '#9B97A8', rainy: C.blue, windy: C.cyan }
@@ -58,15 +60,8 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
       className="pressable"
       onClick={onClick}
       onKeyDown={e => e.key === 'Enter' && onClick()}
-      style={{
-        borderRadius: 20, overflow: 'hidden', position: 'relative',
-        background: `linear-gradient(135deg, ${alpha(C.cyan, 0.08)} 0%, transparent 50%), linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-        border: `3px solid ${AC.border}`,
-        boxShadow: `0 8px 0 ${AC.shadowDeep}, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
-      }}
+      style={panelStyle(AC.border)}
     >
-      {/* Inner frame */}
-      <div style={{ position: 'absolute', inset: 5, border: `1px solid ${AC.frame}`, borderRadius: 14, pointerEvents: 'none', zIndex: 1 }}/>
 
       {/* Tasuki accent */}
       <div style={{
@@ -102,11 +97,11 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
             </div>
           </div>
           <div style={{
-            padding: '5px 12px', borderRadius: 20, flexShrink: 0,
+            padding: '5px 12px', flexShrink: 0,
             background: AC.badgeGrad,
-            border: `2px solid ${AC.badgeBorder}`,
+            border: `1px solid ${AC.badgeBorder}`,
             fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.bg,
-            boxShadow: `0 3px 0 ${AC.badgeShadow}, inset 0 1px 0 rgba(255,255,255,0.4)`,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
             textShadow: 'none',
           }}>
             {AC.typeLabel}
@@ -158,22 +153,16 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
           </span>
         </button>
         {secondaryCtaLabel && onSecondaryClick && (
-          <button
-            onClick={e => { e.stopPropagation(); onSecondaryClick() }}
-            style={{
-              flexShrink: 0, padding: '0 14px', borderRadius: 12,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${AC.border}`, color: C.text,
-              boxShadow: `0 3px 0 ${AC.shadowDeep}, inset 0 1px 0 rgba(255,255,255,0.12)`,
-              fontFamily: SAIRA, fontSize: 13, fontWeight: 900, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}
+          <GlassButton
+            color={AC.border}
+            style={{ flexShrink: 0, padding: '0 14px', gap: 4, fontFamily: SAIRA, fontSize: 13 }}
+            onClick={() => onSecondaryClick()}
           >
             {secondaryCtaLabel}
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
               <path d="M5 18l6-6-6-6M13 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          </button>
+          </GlassButton>
         )}
       </div>
     </div>

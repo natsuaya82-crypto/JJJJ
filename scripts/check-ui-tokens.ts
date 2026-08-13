@@ -80,14 +80,18 @@ console.log(`① トークン（tokens.ts の ${tokenColors.size}色 と :root �
     bad.map(([t, v]) => `C.${t} と --${v} が違う`).join(' / '))
 
   // rgba() 用に置いてあるRGBが、元の色とずれていないか（②の再発防止の要）
-  const rgbVars: [string, string][] = [['gold-rgb', 'gold'], ['accent-cyan-rgb', 'accent-cyan']]
+  const rgbVars: [string, string][] = [
+    ['gold-rgb', 'gold'], ['accent-cyan-rgb', 'accent-cyan'],
+    // 大きい行動ボタン（.btn-game）が5色ぶんの rgba を使うので、その元も見る
+    ['red-rgb', 'red'], ['green-rgb', 'green'], ['purple-rgb', 'purple'],
+  ]
   const badRgb = rgbVars.filter(([r, base]) => {
     const m = rootBlock.match(new RegExp(`--${r}:\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)`))
     const b = rootVars.get(base)
     if (!m || !b) return true
     return dist([+m[1], +m[2], +m[3]], b) > 0
   })
-  check('--gold-rgb / --accent-cyan-rgb が元の色と同じ', badRgb.length === 0,
+  check('rgba() 用のRGB（金・水色・赤・緑・紫）が元の色と同じ', badRgb.length === 0,
     badRgb.map(([r]) => `--${r}`).join(' / '))
 }
 

@@ -449,13 +449,7 @@ export default function Dashboard() {
       ) : seasonDone && !waDone ? (
         /* 世界選手権／予選：シーズン終了の前に必ずここを通る */
         <div style={{ margin: '0 12px 16px' }}>
-          <div style={{
-            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-            border: `3px solid ${C.purple}`, borderRadius: 20,
-            boxShadow: `0 8px 0 ${C.purpleDark}, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15)`,
-            overflow: 'hidden', position: 'relative',
-          }}>
-            <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.purple, 0.35)}`, borderRadius: 13, pointerEvents: 'none' }}/>
+          <div style={panelStyle(C.purple)}>
             <div style={{ padding: '18px 18px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.purple, 0.18)}`, position: 'relative' }}>
               <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD LONG DISTANCE</div>
               <div style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{waTitle}</div>
@@ -497,13 +491,7 @@ export default function Dashboard() {
       ) : seasonDone ? (
         /* シーズン終了 */
         <div style={{ margin: '0 12px 16px' }}>
-          <div style={{
-            background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-            border: `3px solid ${C.gold}`, borderRadius: 20,
-            boxShadow: `0 8px 0 #8b6914, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
-            overflow: 'hidden', position: 'relative',
-          }}>
-            <div style={{ position: 'absolute', inset: 5, border: `1px solid rgba(245,200,66,0.35)`, borderRadius: 13, pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={panelStyle(C.gold)}>
             <div style={{ padding: '18px 18px 14px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.gold, 0.15)}`, position: 'relative', zIndex: 1 }}>
               {isChampion && <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: '3px', marginBottom: 4, fontWeight: 900, textShadow: `0 0 10px ${alpha(C.gold, 0.7)}` }}>★ CHAMPION ★</div>}
               <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', marginBottom: 4 }}>SEASON FINAL</div>
@@ -589,13 +577,7 @@ export default function Dashboard() {
             const distLabel = dueTT.distance === 5000 ? '5000m' : dueTT.distance === 10000 ? '10000m' : dueTT.distance === 21097 ? 'ハーフ' : 'マラソン'
             const distKm = (dueTT.distance / 1000).toFixed(dueTT.distance >= 10000 ? 0 : 1)
             return (
-            <div role="button" tabIndex={0} className="pressable" onClick={() => navigate('/race')} style={{
-              borderRadius: 20, overflow: 'hidden', position: 'relative',
-              background: `linear-gradient(135deg, ${alpha(C.green, 0.08)} 0%, transparent 50%), linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-              border: `3px solid ${C.green}`,
-              boxShadow: `0 8px 0 #0d3d22, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
-            }}>
-              <div style={{ position: 'absolute', inset: 5, border: `1px solid ${alpha(C.green, 0.28)}`, borderRadius: 14, pointerEvents: 'none', zIndex: 1 }}/>
+            <div role="button" tabIndex={0} className="pressable" onClick={() => navigate('/race')} style={panelStyle(C.green)}>
               {/* Header */}
               <div style={{ background: `linear-gradient(90deg, ${alpha(C.green, 0.18)}, ${alpha(C.green, 0.04)})`, padding: '14px 16px 12px', borderBottom: `1px solid ${alpha(C.green, 0.18)}`, position: 'relative', zIndex: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>

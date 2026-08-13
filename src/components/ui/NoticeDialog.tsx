@@ -1,5 +1,7 @@
 import { createPortal } from 'react-dom'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, SAIRA } from '../../styles/tokens'
+import GlassButton from './GlassButton'
+import { panelStyle } from './Panel'
 
 
 // アプリ調のお知らせダイアログ（素の window.alert の置き換え用）。
@@ -35,10 +37,8 @@ export default function NoticeDialog({
       <div
         style={{
           width: '100%', maxWidth: 340,
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${alpha(accent, 0.5)}`,
-          borderRadius: 18,
-          boxShadow: `0 0 40px ${alpha(accent, 0.2)}, 0 8px 32px rgba(0,0,0,0.6)`,
+          ...panelStyle(accent),
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 8px 32px rgba(0,0,0,0.6)`,
           padding: '22px 20px 18px',
         }}
         onClick={e => e.stopPropagation()}
@@ -47,18 +47,9 @@ export default function NoticeDialog({
         <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
         {children}
         {message && <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6, marginTop: children ? 10 : 0, marginBottom: 18 }}>{message}</div>}
-        <button
-          onClick={onClose}
-          style={{
-            width: '100%', padding: '12px', borderRadius: 12, marginTop: message ? 0 : 8,
-            border: `2px solid ${accent}`,
-            background: `linear-gradient(180deg, ${alpha(accent, 0.25)}, ${alpha(accent, 0.1)})`,
-            color: accent, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer',
-            boxShadow: `0 4px 0 ${alpha(accent, 0.25)}, inset 0 1px 0 rgba(255,255,255,0.1)`,
-          }}
-        >
+        <GlassButton full color={accent} onClick={onClose} style={{ padding: '12px', marginTop: message ? 0 : 8, fontFamily: SAIRA, fontSize: 15 }}>
           {okLabel}
-        </button>
+        </GlassButton>
       </div>
     </div>
   ), document.body)

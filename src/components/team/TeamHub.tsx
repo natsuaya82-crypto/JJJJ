@@ -156,16 +156,11 @@ export default function TeamHub() {
 
       {/* Team hero card */}
       <div style={{
-        position: 'relative', overflow: 'hidden',
+        ...panelStyle(C.gold),
         margin: '12px 12px 16px',
-        borderRadius: 20,
         background: `linear-gradient(135deg, ${teamPrimary} 0%, ${C.surface} 55%, ${C.bg} 100%)`,
-        border: `3px solid ${C.gold}`,
         padding: '16px 16px 14px',
-        boxShadow: `0 8px 0 #8b6914, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3)`,
       }}>
-        {/* Inner frame */}
-        <div style={{ position: 'absolute', inset: 5, border: '1px solid rgba(245,200,66,0.28)', borderRadius: 14, pointerEvents: 'none', zIndex: 0 }}/>
 
         {/* Tasuki diagonal */}
         <div style={{
@@ -224,7 +219,7 @@ export default function TeamHub() {
           display: 'grid', gridTemplateColumns: '1fr 1px 1fr 1px 1fr',
           gap: 0, position: 'relative', zIndex: 2,
           background: `linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.3) 100%)`,
-          borderRadius: 12, overflow: 'hidden',
+          overflow: 'hidden',
           border: `1px solid rgba(245,200,66,0.22)`,
           boxShadow: `inset 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
         }}>

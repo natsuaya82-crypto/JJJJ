@@ -311,15 +311,7 @@ export default function CardTrainingPage() {
       </div>
 
       {/* Fusion slots */}
-      <div style={{
-        margin: '12px 14px 0', padding: '12px', borderRadius: 12,
-        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-        border: isMenu ? `2px solid ${combo!.color}` : `2px solid ${C.border2}`,
-        boxShadow: isMenu
-          ? `0 4px 0 ${alpha(combo!.color, 0.4)}, 0 6px 16px ${alpha(combo!.color, 0.15)}`
-          : `0 4px 0 rgba(0,0,0,0.5)`,
-        position: 'relative',
-      }}>
+      <div style={{ ...panelStyle(isMenu ? combo!.color : C.border3), margin: '12px 14px 0', padding: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>
             合成スロット <span style={{ color: C.textSub }}>{selectedCards.length}/{MAX_FUSION_CARDS}</span>
@@ -458,29 +450,15 @@ export default function CardTrainingPage() {
         background: `linear-gradient(180deg, ${alpha(C.bg, 0)}, ${C.bg} 24%)`,
         borderTop: `1px solid ${C.border}`,
       }}>
-        <button
-          onClick={handleApply}
+        <GlassButton
+          full
+          color={isMenu ? combo!.color : PURPLE}
           disabled={!canApply}
-          style={{
-            width: '100%', position: 'relative', overflow: 'hidden',
-            background: !canApply
-              ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`
-              : isMenu
-              ? `linear-gradient(180deg, ${alpha(combo!.color, 0.9)}, #7e22ce)`
-              : `linear-gradient(180deg, #9333ea, #7e22ce)`,
-            color: !canApply ? C.textGhost : '#fff',
-            border: canApply ? `2px solid #c084fc` : `2px solid ${C.border2}`,
-            borderRadius: 12, padding: '15px',
-            boxShadow: canApply
-              ? `0 5px 0 #4c1d95, 0 7px 20px rgba(168,85,247,0.35), inset 0 1px 0 rgba(255,255,255,0.15)`
-              : `0 3px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)`,
-            fontSize: 14, fontWeight: 800, cursor: canApply ? 'pointer' : 'not-allowed',
-            fontFamily: SAIRA, letterSpacing: '1px',
-          }}
+          onClick={handleApply}
+          style={{ padding: '15px', fontSize: 14, fontFamily: SAIRA, letterSpacing: '1px' }}
         >
-          {canApply && <span style={{ position: 'absolute', top: 2, left: 6, right: 6, height: '40%', background: 'linear-gradient(180deg,rgba(255,255,255,0.18),transparent)', borderRadius: '6px 6px 50% 50%', pointerEvents: 'none' }} />}
           {selectedCards.length === 0 ? 'カードを選んでください' : '練習実行'}
-        </button>
+        </GlassButton>
       </div>
 
       {/* Result overlay */}
@@ -495,17 +473,10 @@ export default function CardTrainingPage() {
           }}
         >
           <div style={{
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `2px solid ${applied.combo.color}`,
-            borderRadius: 20, padding: 28,
-            maxWidth: 340, width: '100%',
-            textAlign: 'center',
-            boxShadow: `0 6px 0 ${alpha(applied.combo.color, 0.35)}, 0 10px 40px ${alpha(applied.combo.color, 0.25)}, inset 0 1px 0 rgba(255,255,255,0.1)`,
-            position: 'relative', overflow: 'hidden',
+            ...panelStyle(applied.combo.color),
+            padding: 28, maxWidth: 340, width: '100%', textAlign: 'center',
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 40px ${alpha(applied.combo.color, 0.25)}`,
           }}>
-            <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(applied.combo.color, 0.2)}`, borderRadius: 16, pointerEvents: 'none' }}/>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(applied.combo.color, 0.6)}, transparent)`, pointerEvents: 'none' }}/>
-            <div style={{ position: 'absolute', top: 2, left: 8, right: 8, height: '25%', background: `linear-gradient(180deg, rgba(255,255,255,0.07), transparent)`, borderRadius: '12px 12px 50% 50%', pointerEvents: 'none' }}/>
             <div style={{ fontFamily: SAIRA, fontSize: 10, color: applied.combo.color, letterSpacing: 3, marginBottom: 4, fontWeight: 900 }}>
               {applied.combo.isSpecial ? 'COMBO CLEAR' : '合成完了'}
             </div>
@@ -513,12 +484,12 @@ export default function CardTrainingPage() {
               <div style={{
                 marginBottom: 14,
                 background: `linear-gradient(180deg, ${alpha('#F59E0B', 0.2)}, ${alpha('#F59E0B', 0.08)})`,
-                border: `2px solid #F59E0B`,
-                borderRadius: 12, padding: '8px 16px',
+                border: `1px solid #F59E0B`,
+                padding: '8px 16px',
                 fontFamily: SAIRA, fontSize: 22, fontWeight: 900,
                 color: '#F59E0B', letterSpacing: 3,
                 textShadow: `0 0 20px ${alpha('#F59E0B', 0.6)}`,
-                boxShadow: `0 4px 0 ${alpha('#F59E0B', 0.3)}, 0 6px 20px ${alpha('#F59E0B', 0.15)}`,
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 6px 20px ${alpha('#F59E0B', 0.15)}`,
               }}>
                 大成功！
               </div>

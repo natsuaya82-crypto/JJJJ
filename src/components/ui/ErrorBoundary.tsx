@@ -3,6 +3,7 @@ import type { ErrorInfo, ReactNode } from 'react'
 import { flushSaveNow } from '../../store/saveStorage'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { APP_VERSION } from '../../data/appMeta'
+import GlassButton from './GlassButton'
 
 
 // アプリ全体のエラーバウンダリ。
@@ -52,7 +53,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
         textAlign: 'center', gap: 14,
       }}>
         <div style={{
-          width: 56, height: 56, borderRadius: 16, flexShrink: 0,
+          width: 56, height: 56, flexShrink: 0,
           background: alpha(C.gold, 0.12), border: `1.5px solid ${alpha(C.gold, 0.45)}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 28, fontWeight: 900, color: C.gold, fontFamily: SAIRA,
@@ -66,7 +67,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
         </div>
 
         <div style={{
-          maxWidth: 320, width: '100%', padding: '8px 10px', borderRadius: 8,
+          maxWidth: 320, width: '100%', padding: '8px 10px',
           background: C.surface2, border: `1px solid ${C.border2}`,
           fontFamily: SAIRA, fontSize: 10, color: C.textDim,
           wordBreak: 'break-all', textAlign: 'left', maxHeight: 96, overflow: 'hidden',
@@ -74,30 +75,22 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
           {detail}
         </div>
 
-        <button
+        <GlassButton
+          color={C.gold}
+          style={{ marginTop: 4, padding: '13px 30px', fontSize: 15 }}
           onClick={() => { void flushSaveNow().finally(() => window.location.reload()) }}
-          style={{
-            marginTop: 4, padding: '13px 30px', borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: `linear-gradient(180deg, ${C.goldHi}, ${C.gold})`, color: '#2b1d00',
-            fontSize: 15, fontWeight: 900, fontFamily: 'inherit',
-            boxShadow: `0 4px 0 ${C.goldDark}`,
-          }}
         >
           アプリを再読み込み
-        </button>
+        </GlassButton>
 
-        <button
-          onClick={() => {
-            void navigator.clipboard?.writeText(report).catch(() => {})
-          }}
-          style={{
-            padding: '9px 18px', borderRadius: 10, cursor: 'pointer',
-            background: 'transparent', border: `1px solid ${C.border3}`, color: C.textDim,
-            fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
-          }}
+        <GlassButton
+          color={C.textDim}
+          size="sm"
+          style={{ padding: '9px 18px' }}
+          onClick={() => { void navigator.clipboard?.writeText(report).catch(() => {}) }}
         >
           エラー内容をコピー
-        </button>
+        </GlassButton>
 
         <div style={{ fontSize: 10, color: C.textGhost, marginTop: 2 }}>
           何度も発生する場合は公式X（@JPEL_MANAGER）までご連絡ください

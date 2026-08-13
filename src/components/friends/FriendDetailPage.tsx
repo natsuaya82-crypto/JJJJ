@@ -22,6 +22,7 @@ import { ovr } from '../../utils/playerUtils'
 import { HOF_MAX } from '../../utils/hofRoster'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha, SAIRA } from '../../styles/tokens'
+import { panelStyle } from '../ui/Panel'
 
 
 /** ロスターの並び替え。種目は「同じ種目でまとめて、中はOVR順」 */
@@ -186,7 +187,7 @@ export default function FriendDetailPage() {
       </div>
 
       {/* チーム情報 */}
-      <div style={{ margin: '4px 12px 0', padding: '14px 16px', borderRadius: 16, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.gold, 0.4)}`, boxShadow: `0 4px 0 ${C.goldDark}` }}>
+      <div style={{ ...panelStyle(C.gold), margin: '4px 12px 0', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <TeamLogoSVG primary={friend.primary} secondary={friend.secondary} shortName={friend.shortName} logoId={friend.logoId} size={56} />
           <div style={{ flex: 1, minWidth: 0 }}>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import PageHeader from '../ui/PageHeader'
+import { panelStyle } from '../ui/Panel'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, CardStatKey } from '../../types'
 import {
@@ -55,13 +56,7 @@ export default function CardConvertPage() {
           const fromCol = RARITY_COLORS[ex.fromRarity]
           const toCol = RARITY_COLORS[ex.toRarity]
           return (
-            <div key={ex.fromRarity} style={{
-              borderRadius: 16, padding: '14px 16px', position: 'relative', overflow: 'hidden',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${alpha(toCol, 0.5)}`,
-              boxShadow: `0 4px 0 ${alpha(toCol, 0.25)}, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-            }}>
-              <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(toCol, 0.15)}`, borderRadius: 12, pointerEvents: 'none' }}/>
+            <div key={ex.fromRarity} style={{ ...panelStyle(toCol), padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, position: 'relative' }}>
                 <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900 }}>
                   <span style={{ color: fromCol }}>{RARITY_LABELS[ex.fromRarity]}</span>

@@ -3,6 +3,7 @@ import { getSaveHealthReason } from '../../store/saveHealth'
 import { deleteSaveForRecovery, listRecoverables, restoreFrom, type Recoverable } from '../../store/saveStorage'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { APP_VERSION } from '../../data/appMeta'
+import GlassButton from './GlassButton'
 
 
 // セーブの読み込み（hydration）が正常に完了しなかったときに出す画面。
@@ -65,7 +66,7 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
 
       {detail && (
         <div style={{
-          maxWidth: 330, width: '100%', padding: '8px 10px', borderRadius: 8,
+          maxWidth: 330, width: '100%', padding: '8px 10px',
           background: C.surface2, border: `1px solid ${C.border2}`,
           fontFamily: SAIRA, fontSize: 10, color: C.textDim,
           wordBreak: 'break-all', textAlign: 'left', maxHeight: 96, overflow: 'hidden',
@@ -74,19 +75,9 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
         </div>
       )}
 
-      <button
-        disabled={busy}
-        onClick={reload}
-        style={{
-          marginTop: 4, padding: '13px 30px', borderRadius: 12, border: 'none',
-          cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
-          background: `linear-gradient(180deg, ${C.goldHi}, ${C.gold})`, color: '#2b1d00',
-          fontSize: 15, fontWeight: 900, fontFamily: 'inherit',
-          boxShadow: `0 4px 0 ${C.goldDark}`,
-        }}
-      >
+      <GlassButton color={C.gold} disabled={busy} style={{ marginTop: 4, padding: '13px 30px', fontSize: 15 }} onClick={reload}>
         もう一度読み込む
-      </button>
+      </GlassButton>
 
       {/* 端末に残っている復旧の候補。選んで戻せる。
           戻す前に、いまの本体も世代バックアップへ逃がすので、選び直しがきく */}
@@ -103,7 +94,7 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
                 onClick={() => restore(s2.path)}
                 style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
-                  padding: '9px 11px', borderRadius: 9, cursor: busy ? 'default' : 'pointer',
+                  padding: '9px 11px', cursor: busy ? 'default' : 'pointer',
                   background: C.surface2, border: `1px solid ${C.border2}`, color: C.text,
                   fontSize: 11, fontWeight: 700, fontFamily: 'inherit', textAlign: 'left',
                 }}
@@ -118,19 +109,17 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
         </div>
       )}
 
-      <button
+      <GlassButton
+        color={C.textDim}
+        size="sm"
+        style={{ padding: '9px 18px' }}
         onClick={() => {
           const body = `JPEL Manager ${APP_VERSION}\nsave load failed\n${detail}`
           void navigator.clipboard?.writeText(body).catch(() => {})
         }}
-        style={{
-          padding: '9px 18px', borderRadius: 10, cursor: 'pointer',
-          background: 'transparent', border: `1px solid ${C.border3}`, color: C.textDim,
-          fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
-        }}
       >
         エラー内容をコピー
-      </button>
+      </GlassButton>
 
       <div style={{ fontSize: 10, color: C.textGhost, marginTop: 2, lineHeight: 1.7, maxWidth: 330 }}>
         アプリを完全に終了してから開き直しても直らない場合は、
@@ -140,16 +129,9 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
       {/* 最後の手段。データを捨てるので必ず2段階の確認を挟む */}
       <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${C.border2}`, width: '100%', maxWidth: 330 }}>
         {!confirmDelete ? (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            style={{
-              padding: '8px 14px', borderRadius: 8, cursor: 'pointer',
-              background: 'transparent', border: `1px solid ${C.border2}`, color: C.textGhost,
-              fontSize: 10, fontWeight: 700, fontFamily: 'inherit',
-            }}
-          >
+          <GlassButton color={C.textGhost} size="sm" style={{ padding: '8px 14px', fontSize: 10 }} onClick={() => setConfirmDelete(true)}>
             どうしても直らない場合（データを削除して最初から）
-          </button>
+          </GlassButton>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
             <div style={{ fontSize: 11, color: C.red, fontWeight: 700, lineHeight: 1.7 }}>
@@ -157,28 +139,12 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
               削除したデータは元に戻せません。
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                style={{
-                  padding: '9px 16px', borderRadius: 8, cursor: 'pointer',
-                  background: C.surface2, border: `1px solid ${C.border3}`, color: C.textSub,
-                  fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
-                }}
-              >
+              <GlassButton color={C.textSub} size="sm" style={{ padding: '9px 16px' }} onClick={() => setConfirmDelete(false)}>
                 やめる
-              </button>
-              <button
-                disabled={busy}
-                onClick={wipe}
-                style={{
-                  padding: '9px 16px', borderRadius: 8, cursor: busy ? 'default' : 'pointer',
-                  opacity: busy ? 0.6 : 1,
-                  background: alpha(C.red, 0.16), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red,
-                  fontSize: 11, fontWeight: 900, fontFamily: 'inherit',
-                }}
-              >
+              </GlassButton>
+              <GlassButton color={C.red} size="sm" disabled={busy} style={{ padding: '9px 16px' }} onClick={wipe}>
                 削除して最初から
-              </button>
+              </GlassButton>
             </div>
           </div>
         )}

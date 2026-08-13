@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Race, Team, Player } from '../../types'
+import { panelStyle } from '../ui/Panel'
 import type { RaceSegmentEvent, InteractiveSegResult, EventTriggerCondition } from '../../engine/interactiveRace'
 import { choiceSuccessProb } from '../../engine/interactiveRace'
 import { formatDiff } from '../../engine/raceEngine'
@@ -707,12 +708,7 @@ export function SegmentResultCard({
 
   return (
     <div style={{ margin: '0 12px' }}>
-      <div style={{
-        borderRadius: 14, overflow: 'hidden',
-        border: `2px solid ${isMyWin ? alpha(C.gold, 0.6) : alpha(segCol, 0.35)}`,
-        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-        boxShadow: `0 4px 0 ${alpha(isMyWin ? C.gold : segCol, 0.15)}, 0 6px 16px rgba(0,0,0,0.35)`,
-      }}>
+      <div style={panelStyle(isMyWin ? C.gold : segCol)}>
         <div style={{
           padding: '10px 14px 8px', display: 'flex', alignItems: 'center', gap: 10,
           borderBottom: `1px solid ${alpha(segCol, 0.2)}`,

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
+import GlassButton from '../ui/GlassButton'
 import { useGameStore } from '../../store/gameStore'
 import type { Player } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
@@ -148,19 +149,13 @@ export default function TeamManagement() {
           ] as { key: 'aggressive' | 'balanced' | 'conservative'; label: string; desc: string; stat: string; color: string; shadow: string }[]).map(opt => {
             const active = raceStrategy === opt.key
             return (
-              <button key={opt.key} onClick={() => setRaceStrategy(opt.key)} style={{
+              <GlassButton key={opt.key} color={opt.color} onClick={() => setRaceStrategy(opt.key)} style={{
                 width: '100%', padding: '16px 18px', marginBottom: '8px',
-                borderRadius: 11, cursor: 'pointer',
-                background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                border: `2px solid ${active ? opt.color : alpha(opt.color, 0.45)}`,
-                color: opt.color,
-                display: 'flex', alignItems: 'center', gap: '14px',
-                fontFamily: 'inherit',
-                boxShadow: `0 4px 0 ${opt.shadow}, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`,
-                position: 'relative', overflow: 'hidden',
+                justifyContent: 'flex-start', gap: '14px', textAlign: 'left',
+                fontFamily: 'inherit', whiteSpace: 'normal',
+                opacity: active ? 1 : 0.72,
               }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(opt.color, 0.3)}, transparent)`, pointerEvents: 'none' }}/>
-                <div style={{ width: '48px', height: '48px', borderRadius: '13px', flexShrink: 0, backgroundColor: alpha(opt.color, active ? 0.25 : 0.08), border: `1px solid ${alpha(opt.color, active ? 0.6 : 0.25)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '48px', height: '48px', flexShrink: 0, backgroundColor: alpha(opt.color, active ? 0.25 : 0.08), border: `1px solid ${alpha(opt.color, active ? 0.6 : 0.25)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {active ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke={opt.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg> : <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: `2px solid ${alpha(opt.color, 0.4)}` }} />}
                 </div>
                 <div style={{ flex: 1, textAlign: 'left' }}>
@@ -171,7 +166,7 @@ export default function TeamManagement() {
                   <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{opt.desc}</div>
                   <div style={{ fontSize: '10px', color: active ? opt.color : C.textGhost, fontWeight: '600' }}>{opt.stat}</div>
                 </div>
-              </button>
+              </GlassButton>
             )
           })}
         </div>
@@ -211,18 +206,13 @@ export default function TeamManagement() {
             {PLANS.map(plan => {
               const active = currentPlan === plan.key
               return (
-                <button key={plan.key ?? 'none'} onClick={() => setTrainingPlan(plan.key)} style={{
+                <GlassButton key={plan.key ?? 'none'} color={plan.color} onClick={() => setTrainingPlan(plan.key)} style={{
                   width: '100%', padding: '14px 18px', marginBottom: '8px',
-                  borderRadius: 11, cursor: 'pointer',
-                  background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                  border: `2px solid ${active ? plan.color : alpha(plan.color, 0.45)}`,
-                  color: plan.color,
-                  display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'inherit',
-                  boxShadow: `0 4px 0 ${plan.shadow}, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`,
-                  position: 'relative', overflow: 'hidden',
+                  justifyContent: 'flex-start', gap: '12px', textAlign: 'left',
+                  fontFamily: 'inherit', whiteSpace: 'normal',
+                  opacity: active ? 1 : 0.72,
                 }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(plan.color, 0.3)}, transparent)`, pointerEvents: 'none' }}/>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0, backgroundColor: alpha(plan.color, active ? 0.25 : 0.08), border: `1px solid ${alpha(plan.color, active ? 0.5 : 0.2)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '44px', height: '44px', flexShrink: 0, backgroundColor: alpha(plan.color, active ? 0.25 : 0.08), border: `1px solid ${alpha(plan.color, active ? 0.5 : 0.2)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {active ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke={plan.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg> : <div style={{ width: '10px', height: '10px', borderRadius: '50%', border: `2px solid ${alpha(plan.color, 0.4)}` }} />}
                   </div>
                   <div style={{ flex: 1, textAlign: 'left' }}>
@@ -233,7 +223,7 @@ export default function TeamManagement() {
                     <div style={{ fontSize: '10px', color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{plan.desc}</div>
                     <div style={{ fontSize: '10px', color: active ? plan.color : C.textGhost, fontWeight: '600' }}>効果: {plan.effect}</div>
                   </div>
-                </button>
+                </GlassButton>
               )
             })}
 

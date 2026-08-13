@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
+import { panelStyle } from '../ui/Panel'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor, racesConsumed } from '../../utils/playerUtils'
@@ -195,11 +196,8 @@ export default function NotificationsPage() {
   const dismissExpiredNegotiation = useGameStore(s => s.dismissExpiredNegotiation)
   const dismissLoanResponse = useGameStore(s => s.dismissLoanResponse)
 
-  const cardStyle = (borderColor: string, shadowColor: string): React.CSSProperties => ({
-    borderRadius: '16px', overflow: 'hidden', position: 'relative',
-    background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-    border: `2px solid ${borderColor}`,
-    boxShadow: `0 4px 0 ${shadowColor}, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
+  const cardStyle = (borderColor: string, _shadowColor: string): React.CSSProperties => ({
+    ...panelStyle(borderColor),
     marginBottom: '8px',
   })
 
@@ -862,7 +860,7 @@ export default function NotificationsPage() {
       {/* 受け取りました ポップ */}
       {claimedGift && createPortal((
         <div onClick={() => setClaimedGift(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
-          <div style={{ background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.gold}`, borderRadius: 20, padding: 28, maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: `0 6px 0 ${alpha(C.gold, 0.35)}, 0 10px 40px ${alpha(C.gold, 0.25)}` }}>
+          <div style={{ ...panelStyle(C.gold), padding: 28, maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 40px ${alpha(C.gold, 0.25)}` }}>
             <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
             <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
             <div style={{ fontSize: 13, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>

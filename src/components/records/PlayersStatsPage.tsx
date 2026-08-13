@@ -121,15 +121,10 @@ export default function PlayersStatsPage() {
             {segmentIndices.map(idx => {
               const active = idx === activeSeg
               return (
-                <button key={idx} onClick={() => setSegIdx(idx)} style={{
-                  flexShrink: 0, padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: SAIRA, fontSize: 13, fontWeight: 900,
-                  background: active ? `linear-gradient(180deg, ${alpha(accent, 0.3)}, ${alpha(accent, 0.12)})` : C.surface2,
-                  border: `2px solid ${active ? accent : C.border2}`,
-                  color: active ? accent : C.textDim,
-                  boxShadow: active ? `0 3px 0 ${alpha(accent, 0.35)}` : '0 2px 0 rgba(0,0,0,0.4)',
-                }}>
+                <GlassButton key={idx} color={active ? accent : C.textDim} onClick={() => setSegIdx(idx)}
+                  style={{ flexShrink: 0, padding: '8px 16px', fontFamily: SAIRA, fontSize: 13 }}>
                   {idx}区
-                </button>
+                </GlassButton>
               )
             })}
           </div>
