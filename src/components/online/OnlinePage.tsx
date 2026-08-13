@@ -16,13 +16,13 @@ export default function OnlinePage() {
   )
 
   const SECTIONS: {
-    key: string; label: string; badge: number; color: string
+    key: string; label: string; en: string; badge: number; color: string
     icon: React.ReactNode; soon?: boolean
     /** オンラインが使えない状態でも押せる（端末内で完結する機能） */
     alwaysOn?: boolean
   }[] = [
     {
-      key: '/friends', label: 'フレンド',
+      key: '/friends', label: 'フレンド', en: 'FRIENDS',
       badge: received.data?.length ?? 0, color: C.gold,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -34,7 +34,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/friends/club', label: '走友会',
+      key: '/friends/club', label: '走友会', en: 'CLUB',
       badge: 0, color: C.orange,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -46,7 +46,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/match', label: 'オンライン対戦',
+      key: '/online/match', label: 'オンライン対戦', en: 'VERSUS',
       badge: 0, color: C.cyan,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -58,7 +58,7 @@ export default function OnlinePage() {
       ),
     },
     {
-      key: '/online/history', label: '対戦履歴',
+      key: '/online/history', label: '対戦履歴', en: 'HISTORY',
       badge: 0, color: C.blue,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -71,7 +71,7 @@ export default function OnlinePage() {
     {
       // イベント → レート戦（docs/ONLINE_RATED_DESIGN.md）。
       // いまはレート戦だけなので、そのままレート戦の画面へ入る
-      key: '/online/rated', label: 'イベント',
+      key: '/online/rated', label: 'イベント', en: 'EVENTS',
       badge: 0, color: C.green,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -81,7 +81,7 @@ export default function OnlinePage() {
     },
     {
       // 殿堂入りは端末内で完結するので、オンラインが使えない状態でも押せる（下の soon を付けない）
-      key: '/online/hof', label: '殿堂入りチーム',
+      key: '/online/hof', label: '殿堂入りチーム', en: 'HALL OF FAME',
       badge: 0, color: C.gold, alwaysOn: true,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -111,29 +111,27 @@ export default function OnlinePage() {
           <button
             key={s.key}
             onClick={() => { if (!s.soon) navigate(s.key) }}
-            className={`premium-menu-button${s.soon ? ' is-off' : ''}`}
+            className={[
+              'premium-menu-button',
+              s.color === C.cyan ? 'premium-menu-button--cyan' : '',
+              s.soon ? 'is-off' : '',
+            ].filter(Boolean).join(' ')}
           >
-            <div style={{
-              width: 42, height: 42, flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color,
-            }}>
-              {s.icon}
-            </div>
-            <div style={{ flex: 1, textAlign: 'left' }}>
-              <div>
-                <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 800, color: C.text }}>{s.label}</span>
+            <span className="premium-menu-button__icon-area">
+              <span className="premium-menu-button__icon">{s.icon}</span>
+            </span>
+            <span className="premium-menu-button__content">
+              <span className="premium-menu-button__english">{s.en}</span>
+              <span className="premium-menu-button__japanese">
+                {s.label}
                 {s.badge > 0 && (
                   <span style={{ marginLeft: 7, padding: '1px 7px', borderRadius: 6, background: s.color, color: C.bg, fontSize: 10, fontWeight: 900 }}>{s.badge}</span>
                 )}
-              </div>
-              {/* 説明は置かない（名前で分かるものに注釈を足さない）。「準備中」だけは状態なので出す */}
-              {s.soon && <div style={{ fontSize: 10, color: alpha(C.text, 0.45), marginTop: 3 }}>準備中</div>}
-            </div>
-            {!s.soon && (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#c9a83a' }}>
-                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            )}
+                {/* 説明は置かない（名前で分かるものに注釈を足さない）。「準備中」だけは状態なので出す */}
+                {s.soon && <span style={{ fontSize: 10, color: alpha(C.text, 0.45), marginLeft: 8 }}>準備中</span>}
+              </span>
+            </span>
+            {!s.soon && <span className="premium-menu-button__arrow">›</span>}
           </button>
         ))}
       </div>

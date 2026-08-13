@@ -546,64 +546,138 @@ button { font-family: inherit; }
   box-shadow: 0 0 8px var(--green);
 }
 
-/* ── Premium Menu Button（四隅を斜めにカットしたメニュー行） ──────────
-   丸角のカードを積むのをやめて、面取りした枠で並べる。
-   使い方：<button class="premium-menu-button">…</button>
-   押せないもの（準備中）は `.is-off` を足す。
+/* ── Premium Menu Button（面取りしたメニュー行） ──────────────────────
+   丸角のカードを積むのをやめて、面取りした細い金枠で並べる。
 
    ★**枠線は border では描けない。** clip-path は border ごと切り落とすので、
      斜めの辺だけ線が消える（上下だけ金線が残る形になった）。
-     外＝線の色 / 内（::before）＝面の色 の2枚重ねで描くこと。 */
+     外＝線の色 / 内（::before）＝面の色 の2枚重ねで描くこと。
+
+   使い方：
+     <button class="premium-menu-button">
+       <span class="premium-menu-button__icon-area">
+         <span class="premium-menu-button__icon">…</span>
+       </span>
+       <span class="premium-menu-button__content">
+         <span class="premium-menu-button__english">FRIENDS</span>
+         <span class="premium-menu-button__japanese">フレンド</span>
+       </span>
+       <span class="premium-menu-button__arrow">›</span>
+     </button>
+   大事な項目は `--cyan`、押せないものは `is-off` を足す。 */
 .premium-menu-button {
   position: relative;
-  width: 100%;
-  min-height: 88px;
-  background: linear-gradient(180deg, #d8b943 0%, #9c7f28 100%);
-  border: none;
-  padding: 0 22px;
-  /* 丸角ではなく、四隅を斜めにカット */
-  clip-path: polygon(
-    14px 0,
-    calc(100% - 14px) 0,
-    100% 14px,
-    100% calc(100% - 14px),
-    calc(100% - 14px) 100%,
-    14px 100%,
-    0 calc(100% - 14px),
-    0 14px
-  );
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
   display: flex;
   align-items: center;
-  gap: 14px;
+  width: 100%;
+  height: 78px;
+  padding: 0 20px 0 10px;
+  border: none;
+  background: #a88932;                 /* 外＝線の色 */
+  clip-path: polygon(
+    20px 0,
+    calc(100% - 20px) 0,
+    100% 20px,
+    100% calc(100% - 20px),
+    calc(100% - 20px) 100%,
+    20px 100%,
+    0 calc(100% - 20px),
+    0 20px
+  );
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.25));
   cursor: pointer;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.08s ease, filter 0.08s ease;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 .premium-menu-button::before {
   content: '';
   position: absolute;
-  inset: 1.5px;
-  background: linear-gradient(180deg, #172d4a 0%, #10233d 100%);
+  inset: 1px;
+  background: linear-gradient(180deg, #1a3150 0%, #142944 100%);
   clip-path: polygon(
-    13px 0,
-    calc(100% - 13px) 0,
-    100% 13px,
-    100% calc(100% - 13px),
-    calc(100% - 13px) 100%,
-    13px 100%,
-    0 calc(100% - 13px),
-    0 13px
+    19px 0,
+    calc(100% - 19px) 0,
+    100% 19px,
+    100% calc(100% - 19px),
+    calc(100% - 19px) 100%,
+    19px 100%,
+    0 calc(100% - 19px),
+    0 19px
   );
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.10),
+    inset 0 1px 0 rgba(255,255,255,0.08),
     inset 0 -1px 0 rgba(0,0,0,0.45);
   pointer-events: none;
 }
-/* 中身は面の上に乗せる */
 .premium-menu-button > * { position: relative; z-index: 1; }
-.premium-menu-button:active { transform: translateY(1px); filter: brightness(1.12); }
+.premium-menu-button:active { transform: translateY(1px); filter: brightness(1.08); }
+
+/* 左のアイコン置き場。カードと一体の多角形プレート */
+.premium-menu-button__icon-area {
+  position: relative;
+  width: 62px;
+  height: 58px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #10233d 0%, #0b1b30 100%);
+  border-right: 1px solid rgba(180,150,60,0.35);
+  clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%, 0 12px);
+  box-shadow: inset 1px 0 rgba(255,255,255,0.04), inset 0 0 12px rgba(0,0,0,0.3);
+}
+.premium-menu-button__icon {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d6ad3d;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+}
+
+.premium-menu-button__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  margin-left: 18px;
+  min-width: 0;
+}
+.premium-menu-button__english {
+  margin-bottom: 3px;
+  font-family: var(--font-saira, inherit);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #c7a33a;
+  line-height: 1;
+}
+.premium-menu-button__japanese {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f2f5f8;
+  line-height: 1.2;
+}
+
+.premium-menu-button__arrow {
+  margin-left: auto;
+  font-size: 24px;
+  font-weight: 300;
+  color: #c7a33a;
+  line-height: 1;
+}
+
+/* 大事な項目（オンライン対戦など） */
+.premium-menu-button--cyan { background: #48d7ff; }
+.premium-menu-button--cyan .premium-menu-button__english,
+.premium-menu-button--cyan .premium-menu-button__arrow,
+.premium-menu-button--cyan .premium-menu-button__icon { color: #55d9ff; }
+.premium-menu-button--cyan .premium-menu-button__icon-area { border-right-color: rgba(80,200,255,0.35); }
+
+/* 押せないもの */
 .premium-menu-button.is-off {
   background: #2e3f56;
   filter: grayscale(0.5);
