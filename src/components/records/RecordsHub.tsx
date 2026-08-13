@@ -178,7 +178,7 @@ export default function RecordsHub() {
         )}
       </div>
 
-      <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {SECTIONS.map(s => (
           <MenuButton
             key={s.key}

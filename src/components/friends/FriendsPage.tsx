@@ -55,7 +55,7 @@ export default function FriendsPage() {
         )}
       </div>
 
-      <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {SECTIONS.map(s => (
           <MenuButton
             key={s.key}

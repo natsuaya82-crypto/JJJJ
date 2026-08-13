@@ -107,7 +107,7 @@ export default function OnlinePage() {
         <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>オンライン</div>
       </div>
 
-      <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {sections.map(s => (
           <MenuButton
             key={s.key}

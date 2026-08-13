@@ -564,17 +564,17 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   width: 100%;
-  height: 82px;
-  padding: 0 20px;
+  height: 68px;
+  padding: 0 18px;
   /* スモークガラス。**後ろの背景が透けること**が大事なので、塗りを濃くしない */
   background: linear-gradient(180deg, rgba(255,255,255,0.075) 0%, rgba(255,255,255,0.022) 100%);
   backdrop-filter: blur(16px) saturate(125%);
   -webkit-backdrop-filter: blur(16px) saturate(125%);
   border: none;
-  border-radius: 20px;
+  border-radius: 18px;
   box-shadow:
-    inset 0 0 0 1px rgba(218,181,67,0.55),      /* 細い金の縁 */
-    inset 0 1px 0 rgba(255,255,255,0.28),       /* 上のふちの光 */
+    inset 0 0 0 1px rgba(255,255,255,0.16),     /* 細い縁（金枠は使わない） */
+    inset 0 1px 0 rgba(255,255,255,0.26),       /* 上のふちの光 */
     inset 0 -1px 0 rgba(0,0,0,0.35),
     0 10px 26px -12px rgba(0,0,0,0.95);
   overflow: hidden;
@@ -609,11 +609,11 @@ button { font-family: inherit; }
 .premium-menu-button__icon {
   position: relative;
   z-index: 1;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-  color: #d9b63f;
+  color: rgba(255,255,255,0.7);
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
 }
 
@@ -632,12 +632,12 @@ button { font-family: inherit; }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(218,181,67,0.9);
+  color: rgba(255,255,255,0.42);
 }
 .premium-menu-button__japanese {
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: rgba(255,255,255,0.96);
 }
 
@@ -647,7 +647,7 @@ button { font-family: inherit; }
   margin-left: auto;
   font-size: 24px;
   font-weight: 300;
-  color: rgba(218,181,67,0.9);
+  color: rgba(255,255,255,0.45);
 }
 
 /* 大事な項目（オンライン対戦など） */

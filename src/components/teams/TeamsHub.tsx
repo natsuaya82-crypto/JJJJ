@@ -100,7 +100,7 @@ export default function TeamsHub() {
     <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>{children}</div>
   )
   const listBox = (children: React.ReactNode) => (
-    <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>
+    <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</div>
   )
 
   // 代表：国ロスター（インライン）→ 戻ると国一覧へ（履歴で戻る）

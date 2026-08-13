@@ -158,8 +158,8 @@ export default function TransferHub() {
         <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text }}>移籍</div>
       </div>
 
-      <div style={{ padding: '0 16px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ padding: '0 20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {SECTIONS.map(s => (
               <MenuButton
                 key={s.key}

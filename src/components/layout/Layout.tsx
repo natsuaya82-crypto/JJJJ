@@ -167,7 +167,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       maxWidth: '480px', margin: '0 auto', position: 'relative',
       // 背景の写真。**ここ1枚だけ**（各ページで貼らないこと）。
       // 上に暗い幕を重ねて、文字が乗っても読めるようにする
-      backgroundImage: `linear-gradient(180deg, rgba(6,13,24,0.62) 0%, rgba(6,13,24,0.86) 100%), url(${appBg})`,
+      backgroundImage: `linear-gradient(180deg, rgba(6,13,24,0.34) 0%, rgba(6,13,24,0.62) 60%, rgba(6,13,24,0.74) 100%), url(${appBg})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
