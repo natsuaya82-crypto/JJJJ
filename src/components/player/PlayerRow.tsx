@@ -23,12 +23,13 @@ export type RowHandlers = {
   onClick: () => void
 }
 
+// 能力の1つ。**ラベルは頭1文字だけ**（7個並ぶので、名前を全部出すと行が縦に伸びる）
 function StatNum({ label, value, maxed }: { label: string; value: number; maxed: boolean }) {
   const col = ratingColor(value, maxed)
   return (
-    <div style={{ textAlign: 'center', flex: 1 }}>
-      <div style={{ fontSize: '8px', color: C.textDim, marginBottom: '1px' }}>{label}</div>
-      <div style={{ fontSize: '14px', fontWeight: '800', color: col, fontFamily: SAIRA, lineHeight: 1 }}>{value}</div>
+    <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 3 }}>
+      <span style={{ fontSize: 9, color: C.textGhost }}>{label.slice(0, 1)}</span>
+      <span style={{ fontSize: 13, fontWeight: 800, color: col, fontFamily: SAIRA, lineHeight: 1 }}>{value}</span>
     </div>
   )
 }
@@ -73,23 +74,30 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
 
   return (
     <div style={{
-      background: selected ? `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
-      borderBottom: `1px solid ${C.border}`,
-      boxShadow: selected ? `inset 0 0 0 2px ${C.gold}` : 'none',
+      // ★カード。**背景は透かさない**（写真が透けると文字が読めない）。
+      //   その上にOVRの色（`ratingColor` 1本）を左から薄く重ねて、強さを色で分かるようにする
+      borderRadius: 14,
+      overflow: 'hidden',
+      background: `
+        linear-gradient(90deg, ${alpha(ratingColor(rating), 0.30)} 0%, ${alpha(ratingColor(rating), 0.07)} 55%, transparent 90%),
+        linear-gradient(180deg, #16253c 0%, #0d1727 100%)`,
+      boxShadow: selected
+        ? `inset 0 0 0 1.5px ${C.gold}, 0 6px 16px -8px rgba(0,0,0,0.9)`
+        : `inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.10), 0 6px 16px -10px rgba(0,0,0,0.9)`,
     }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div style={{ width: 3, alignSelf: 'stretch', background: `linear-gradient(180deg, ${specColor}, ${alpha(specColor, 0.6)})`, flexShrink: 0 }}/>
+        <div style={{ width: 2, alignSelf: 'stretch', background: alpha(specColor, 0.8), flexShrink: 0 }}/>
         <button
           {...handlers}
           style={{
             flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
-            padding: '10px 12px 6px 12px',
+            padding: '9px 14px 5px 12px',
             background: 'none', border: 'none', cursor: 'pointer',
             fontFamily: 'inherit', textAlign: 'left',
           }}
         >
-          <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specColor, 0.35)}` }}>
-            <PlayerFace playerId={player.id} nationality={player.nationality} size={50} />
+          <div style={{ flexShrink: 0, borderRadius: '50%', overflow: 'hidden' }}>
+            <PlayerFace playerId={player.id} nationality={player.nationality} size={40} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* 1行目: 名前 年齢（+差し込みextra）。
@@ -97,7 +105,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
                   行そのものが広がって右端のOVRが画面の外へ出る（実機で実際に起きた） */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 3, minWidth: 0, overflow: 'hidden' }}>
               <span style={{
-                fontSize: 14, fontWeight: 700,
+                fontSize: 15, fontWeight: 700,
                 color: player.status === 'injured' ? C.red : C.text,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
@@ -127,7 +135,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
             </div>
           </div>
           <div style={{
-            fontSize: 22, fontWeight: 900, fontFamily: SAIRA, lineHeight: 1, flexShrink: 0,
+            fontSize: 24, fontWeight: 900, fontFamily: SAIRA, lineHeight: 1, flexShrink: 0,
             background: isElite ? 'linear-gradient(180deg, #FFD700, #C9A84C)' : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>
@@ -135,7 +143,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
           </div>
         </button>
       </div>
-      <div style={{ display: 'flex', padding: '0 12px 8px 72px' }}>
+      <div style={{ display: 'flex', padding: '0 14px 9px 66px' }}>
         {([
           ['速力', 'speed'], ['持久', 'stamina'], ['登り', 'mountainUp'], ['下り', 'mountainDown'],
           ['ペース', 'pacing'], ['精神', 'mental'], ['回復', 'recovery'],

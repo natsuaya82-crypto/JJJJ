@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
-import BackButton from '../ui/BackButton'
+import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { Player } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
@@ -44,24 +44,20 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
   const injuredCount = players.filter(p => p.status === 'injured').length
 
   return (
-    <div style={{ marginBottom: '12px', position: 'relative' }}>
+    <div style={{ marginBottom: 12, position: 'relative' }}>
       <div onClick={() => setOpen(v => !v)} style={{
-        borderRadius: open ? '12px 12px 0 0' : '12px',
-        background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-        border: `2px solid ${C.goldDark ?? '#b8860b'}`,
-        padding: '10px 14px', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', gap: '10px',
-        boxShadow: `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)`,
-        position: 'relative', overflow: 'hidden',
+        padding: '11px 0', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 10,
+        borderTop: `1px solid ${alpha(C.border3, 0.6)}`,
+        borderBottom: `1px solid ${alpha(C.border3, open ? 0.35 : 0.6)}`,
       }}>
-        <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }}/>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px', marginBottom: '2px' }}>チーム分析</div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <span style={{ fontSize: '22px', fontWeight: '900', color: ratingColor(avgOvr), fontFamily: SAIRA, lineHeight: 1 }}>{avgOvr}</span>
-            <span style={{ fontSize: '9px', color: C.textDim }}>平均OVR</span>
-            {injuredCount > 0 && <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '6px', backgroundColor: alpha(C.red, 0.09), color: C.red, fontWeight: '700', border: `1px solid ${alpha(C.red, 0.3)}` }}>{injuredCount}名負傷中</span>}
-            {weakSpec && <span style={{ fontSize: '9px', color: C.textGhost }}>弱点: {weakSpec.label}</span>}
+          <div style={{ fontSize: 9.5, color: C.textDim, letterSpacing: 2, marginBottom: 3 }}>チーム分析</div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <span style={{ fontSize: 22, fontWeight: 900, color: ratingColor(avgOvr), fontFamily: SAIRA, lineHeight: 1 }}>{avgOvr}</span>
+            <span style={{ fontSize: 9.5, color: C.textDim }}>平均OVR</span>
+            {injuredCount > 0 && <span style={{ fontSize: 9.5, color: C.red, fontWeight: 700 }}>{injuredCount}名負傷中</span>}
+            {weakSpec && <span style={{ fontSize: 9.5, color: C.textGhost }}>弱点: {weakSpec.label}</span>}
           </div>
         </div>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', color: C.textGhost, flexShrink: 0 }}>
@@ -69,7 +65,7 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
         </svg>
       </div>
       {open && (
-        <div style={{ background: C.surface2, border: `2px solid ${C.goldDark ?? '#b8860b'}`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '12px 14px' }}>
+        <div style={{ padding: '12px 0', borderBottom: `1px solid ${alpha(C.border3, 0.6)}` }}>
           {specData.map(({ spec, label, count, avg }) => {
             const col = specColors[spec]
             return (
@@ -129,28 +125,15 @@ export default function TeamManagement() {
 
   return (
     <div style={{ paddingTop: '4px', fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif" }}>
-      <div style={{ padding: '8px 16px 4px' }}>
-        <BackButton/>
-      </div>
+      <PageHeader title="ロスター" eyebrow={`${currentSeason.year} ROSTER`} />
 
-      <div style={{
-        position: 'relative', overflow: 'hidden',
-        margin: '0 12px 16px', borderRadius: '20px',
-        background: `linear-gradient(135deg, ${team.colors.primary} 0%, ${C.bg} 65%)`,
-        border: `3px solid ${C.gold}`,
-        padding: '16px',
-        boxShadow: `0 8px 0 #8b6914, 0 12px 30px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.15)`,
-      }}>
-        <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 16, pointerEvents: 'none' }}/>
-        <svg style={{ position: 'absolute', right: 0, top: 0, opacity: 0.06 }} width="120" height="120" viewBox="0 0 100 100">
-          <line x1="0" y1="0" x2="100" y2="100" stroke={team.colors.secondary} strokeWidth="6"/>
-          <line x1="100" y1="0" x2="0" y2="100" stroke={team.colors.secondary} strokeWidth="6"/>
-        </svg>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={56}/>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: '900', color: C.text, letterSpacing: '-0.5px' }}>{team.name}</div>
-            <div style={{ fontSize: '11px', color: C.textSub, marginTop: '2px' }}>{team.city} • 設立{team.founded}年 • GM: {team.gmName}</div>
+      {/* クラブ（枠なし。細い線と文字だけ） */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '0 18px 14px' }}>
+        <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={40}/>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{team.name}</div>
+          <div style={{ fontSize: 10.5, color: C.textDim, marginTop: 2 }}>
+            {team.city} ・ 設立{team.founded}年 ・ GM: {team.gmName}
           </div>
         </div>
       </div>
@@ -322,10 +305,10 @@ export default function TeamManagement() {
 
       {(section === 'roster' || !section) && <>
       {/* ロスター見出し：人数・総年俸・（あれば）レンタルトグルを1行に集約 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px 8px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px 8px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.text }}>ロスター</span>
         {/* 20人未満は赤字で警告（下限15に近づいている） */}
-        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: rosterCount < 20 ? C.red : C.gold }}>
+        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: rosterCount < 20 ? C.red : C.text }}>
           {rosterCount}<span style={{ fontSize: 11, color: C.textDim }}>/{ROSTER_MAX}</span>
           {rosterCount < 20 && <span style={{ fontSize: 9, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
         </span>
@@ -344,8 +327,8 @@ export default function TeamManagement() {
       </div>
 
       {(
-        <div style={{ padding: '10px 12px 8px', display: 'flex', gap: '6px' }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', padding: '0 10px', borderRadius: '10px', backgroundColor: C.border, border: `1px solid ${C.border2}`, minWidth: 0 }}>
+        <div style={{ padding: '10px 18px 10px', display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '0 2px', borderBottom: `1px solid ${alpha(C.border3, 0.6)}`, minWidth: 0 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
               <circle cx="11" cy="11" r="7" stroke={C.textGhost} strokeWidth="2"/>
               <path d="M21 21l-4-4" stroke={C.textGhost} strokeWidth="2" strokeLinecap="round"/>
@@ -371,7 +354,8 @@ export default function TeamManagement() {
         </div>
       )}
 
-      <div style={{ margin: '0 12px', borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
+      {/* 一覧は箱に入れない。カードを縦に並べる */}
+      <div style={{ margin: '0 18px 80px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {players.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: '14px' }}>登録選手なし</div>
           ) : (
