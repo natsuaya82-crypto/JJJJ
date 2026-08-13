@@ -5,7 +5,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
 import ActionSheet from '../ui/ActionSheet'
 import BottomSheet from '../ui/BottomSheet'
-import { useAdHeight, NAV_H, MAIN_GAP } from '../layout/Layout'
+import { useAdHeight } from '../layout/Layout'
 import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { blockUser, unblockUser } from '../../lib/moderationApi'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -33,7 +33,7 @@ import { loadClubGifts, clearClubGifts } from '../../lib/useClubGifts'
 import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { useLongPress } from '../../lib/useLongPress'
-import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
+import { C, alpha, SAIRA, contentHeight } from '../../styles/tokens'
 
 
 const JOIN_COLOR: Record<JoinType, string> = {
@@ -627,7 +627,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   // 入力バーを画面の下に置くために、スクロール領域（Layout の main）の高さを取る。
   // 出しかたは LoginBonusPage と同じ。ここで自前の数字を書くとタブバーの高さを変えたときにズレる
   const adH = useAdHeight()
-  const mainHeight = `calc(100dvh - ${HEADER_H + NAV_H + MAIN_GAP + adH}px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))`
+  const mainHeight = contentHeight(adH)
 
   const feed = useFriendsQuery(clubFeed, [], 'clubFeed')
   const reacts = useFriendsQuery(clubReactions, [], 'clubReacts')

@@ -727,6 +727,58 @@ const initialSlots = useMemo(() => {
      いまは「ラスト勝負」に当たるイベントが無く、既定の35〜60%へ落ちます。
      → ラスト勝負のイベントを足すのか、この行を落とすのか。**オーナー判断**
 
+---
+
+## S. サーバー（Supabase）
+
+### S-0. SQL を流すたびに全ユーザーのデータが消えていた … `済`（2026-08-13）
+
+`supabase/` の SQL は14本あり、「画面がエラーになったら流し直す」運用だった。
+ところが土台の3本が先頭で**表ごと落として**いた。
+
+```sql
+-- supabase/schema.sql（旧）
+drop table if exists public.rosters   cascade;
+drop table if exists public.profiles  cascade;
+```
+
+`profiles` にフレンドコードが入っているので、**流すたびに全ユーザーのプロフィール・
+ロスター・フレンド関係が消えていた**（「IDもフレンドコードも出ない」の正体）。
+`clubs.sql` も同じで、走友会・所属・掲示板を落としていた。
+
+さらに cascade なので、他のファイルが `profiles` / `rosters` に足した閲覧ポリシー
+（`profiles_select_clubmate` / `rosters_select_clubmate` / `profiles_select_room` /
+`rosters_select_room`）も道連れで消える。**片方を直すともう片方が壊れる**形で、
+だから永遠に流し続けることになっていた。
+
+同じ関数が複数のファイルにあり（`club_feed` ×4、`post_club_request` ×3、
+`donate_club_card` / `update_club` / `search_clubs` ×2）、どれが有効かは**流した順**で
+決まるのに順番はどこにも書いていなかった。
+
+**いまは `supabase/all.sql` 1本だけ。** `drop table` を1行も書かず、表は
+`create table if not exists`、列は `add column if not exists`、関数とポリシーだけを
+作り直す。何回流してもデータは残る。ローカルの PostgreSQL 16 に Supabase と同じ
+`auth.users` / `auth.uid()` を用意して、旧14本で組んだDBに `all.sql` を流し、
+行数が1件も変わらないことを確認済み（旧 `schema.sql` を流すと profiles / rosters /
+friendships が 0 になる）。
+
+`scripts/check-supabase-sql.ts` が `npm run check` で見張る：
+.sql が2本になっていないか／`drop table` が混ざっていないか／同じ関数が2回定義されて
+いないか／アプリが呼ぶ rpc と表が全部あるか。
+
+### S-1. 走友会の満員の線が 30 と 50 で食い違っていた … `済`（2026-08-13・オーナー判断「30だけど」）
+
+| どこ | 旧 | 効き方 |
+|---|---|---|
+| `join_club` | 30 | 自分から入るときに「満員」で弾かれる |
+| `search_clubs` | 30 | 一覧で「満員」と出て、入れる走友会より後ろに並ぶ |
+| `approve_club_request` | **50** | 会長が承認するときに弾かれる線 |
+
+**承認制の走友会だけ50人まで入れる**状態だった（自分からは30人で止まるが、承認なら50人まで通る）。
+`clubs.sql` では3か所とも 30 だったが、`clubs_roles.sql` が承認だけを 50 に書き換えていた。
+
+**30 に統一。** 数字は3か所から `public.club_member_cap()` 1本にまとめた。
+`npm run check` の `supabase-sql` が、`members >= 30` のような直書きが戻っていないかを見張る。
 - **F-6. シーズン中のイベント（19種）を廃止した**（`済`・2026-08-12）
 
   `engine/eventEffects.ts`（19種 × 最大3肢の効き目）と `engine/eventEngine.ts`（生成）を

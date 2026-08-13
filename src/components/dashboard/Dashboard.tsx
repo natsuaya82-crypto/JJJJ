@@ -436,8 +436,10 @@ export default function Dashboard() {
           )}
           {/* ★ECLの残り戦があるあいだも大会へ進めるようにする。
               以前はこの分岐に選考ボタンしか無く、**大会へ入る導線がここだけ無かった**。
-              シーズンを終わらせると二度と開催できないので、入口はどの分岐にも置く */}
-          {!waDone && waJapanIn && waSquadReady && (
+              シーズンを終わらせると二度と開催できないので、入口はどの分岐にも置く。
+              **選考が済んでいるかどうかで隠さないこと**（選考は大会に入ってからでもできる。
+              入口を隠すと、選考をしていない人からはその年の大会が消える） */}
+          {!waDone && (
             <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%', marginTop: 8 }}>
               <span className="btn-game__inner" style={{ fontSize: 13, padding: '10px 14px', borderRadius: 12 }}>{waTitle}へ進む →</span>
             </button>

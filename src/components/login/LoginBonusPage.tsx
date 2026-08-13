@@ -3,8 +3,8 @@ import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { loginTodayKey } from '../../utils/loginDate'
-import { C, alpha, SAIRA, FONT, HEADER_H } from '../../styles/tokens'
-import { useAdHeight, NAV_H, MAIN_GAP } from '../layout/Layout'
+import { C, alpha, SAIRA, FONT, contentHeight } from '../../styles/tokens'
+import { useAdHeight } from '../layout/Layout'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { JewelIcon } from '../icons/Icons'
 
@@ -59,7 +59,7 @@ export default function LoginBonusPage() {
   // ヘッダー・下タブ・広告バナーを引いた「実際に見えている高さ」。
   // main が position:fixed で上下を固定しているので、ここで 100dvh を使うとその分だけ縦に溢れる。
   const adH = useAdHeight()
-  const pageMinHeight = `calc(100dvh - ${HEADER_H + NAV_H + MAIN_GAP + adH}px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))`
+  const pageMinHeight = contentHeight(adH)
 
   const handleClaim = () => {
     const result = claimLoginBonus()

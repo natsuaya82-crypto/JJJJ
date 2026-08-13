@@ -113,7 +113,12 @@ console.log('[④] 世界選手権が終わっていなければシーズンを�
   const eclBranch = eclBranchStart >= 0 && eclBranchEnd > eclBranchStart ? dash.slice(eclBranchStart, eclBranchEnd) : ''
   check('ECLの残り戦がある分岐を見つけられた', eclBranch.length > 0)
   check('**その分岐の中に大会へ進むボタンがある**', /onClick=\{goWorldAthletics\}/.test(eclBranch))
-  check('その分岐のボタンが条件付きで消されていない', /!waDone && waJapanIn && waSquadReady/.test(eclBranch))
+  // ★条件式そのものを書くと「実装をそのまま写した検査」になり、条件を強めても緑のままになる。
+  //   見るのは**消えうる条件が付いていないこと**（大会が済んでいるとき以外は必ず出す）。
+  //   `waSquadReady`（代表選考が済んでいるか）で隠すと、選考していない人には入口が
+  //   1つも無くなり、その年の大会が丸ごと消える
+  check('その分岐のボタンが「選考済み」で消されていない',
+    !/waSquadReady\s*&&[\s\S]{0,200}onClick=\{goWorldAthletics\}/.test(eclBranch))
 }
 
 console.log('')

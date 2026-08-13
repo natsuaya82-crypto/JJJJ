@@ -24,11 +24,18 @@
 
   /* Brand */
   --gold:         #f5c842;
+  /* rgba() で濃さを変えて使うためのRGB。**--gold / --accent-cyan と必ず同じ色にすること**
+     （ここがずれると「ほぼ同じだが違う金」が2つできる。実際に #dab543 が混ざっていた） */
+  --gold-rgb:       245,200,66;
+  --accent-cyan-rgb: 94,212,255;
   --gold-hi:      #ffe082;
   --gold-lo:      rgba(245,200,66,0.15);
   --gold-dark:    #b8860b;
   --gold-darker:  #8b6914;
   --accent-cyan:  #5ed4ff;
+  /* 金が --gold-hi / --gold / --gold-dark の3段なので、水色も同じ3段にする。
+     以前は明るい側だけ名前が無く、ボタンに #7fd8ff と直書きされていた */
+  --accent-cyan-hi: #7fd8ff;
   --accent-cyan-dk: #2596be;
 
   /* Status */
@@ -377,7 +384,7 @@ button { font-family: inherit; }
      0      1px    2px rgba(0,0,0,0.5);
 }
 .btn-game--blue .btn-game__inner {
-  background: linear-gradient(180deg, #7fd8ff 0%, var(--accent-cyan) 50%, var(--accent-cyan-dk) 100%);
+  background: linear-gradient(180deg, var(--accent-cyan-hi) 0%, var(--accent-cyan) 50%, var(--accent-cyan-dk) 100%);
   border: 2px solid #1a6b8f;
   box-shadow:
     0 6px 0 #0e3f5a,
@@ -558,7 +565,8 @@ button { font-family: inherit; }
        </span>
        <span class="premium-menu-button__arrow">›</span>
      </button>
-   大事な項目は `--cyan`、押せないものは `is-off` を足す。 */
+   行の色は MenuButton が `--tint-edge` / `--tint-fill` で渡す（元の画面の色を
+   そのまま尊重する）。低い行は `--compact`、押せないものは `is-off` を足す。 */
 .premium-menu-button {
   position: relative;
   display: flex;
@@ -663,6 +671,9 @@ button { font-family: inherit; }
   cursor: default;
 }
 .premium-menu-button.is-off:active { transform: none; }
+
+ /* 一覧の中で使う低い行。**高さを画面から style で渡さないこと**（2つ目の物差しになる） */
+.premium-menu-button--compact { height: 72px; }
 
 .premium-menu-button:active {
   transform: scale(0.985);

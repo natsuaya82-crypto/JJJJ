@@ -148,6 +148,13 @@ const CHECKS = [
   // セーブの書き出し（本体＋走行記録の別ファイル）
   { name: 'export-save', shim: true },
   { name: 'word-filter' },
+  // 世界選手権・アジア予選に「その年のうちに入れるか」（古い大会の残骸と、画面の入口）
+  'wa-entry',
+  // Supabase の SQL が1本か・データを消さないか・アプリの rpc と噛み合っているか
+  'supabase-sql',
+  // 画面の一本化（色・下タブまわりの数字・共通クラスの手書き）。
+  // 他の点検はどれも src/components の見た目を見ていないので、ここだけが画面の見張り
+  'ui-tokens',
 ]
 
 /**

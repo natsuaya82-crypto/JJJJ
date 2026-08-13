@@ -98,8 +98,20 @@ export const HEADER_H = 49
 /** 下タブの高さ。Layout の下タブと、その上に何かを置く画面が同じ値を使う */
 export const NAV_H = 58
 
-/** 下タブを画面の下端から浮かせる量。**浮かせたぶんも bottomStack が足す** */
+/** 下タブを画面の下端から浮かせる量（上下に1つずつ空く） */
 export const NAV_FLOAT = 10
+
+/** main の下端に足している余白（下タブとの隙間） */
+export const MAIN_GAP = 6
+
+/**
+ * **下タブが画面の下から占める高さ。この足し算はここ1本。**
+ *
+ * 下タブは「浮かせたガラス」なので、高さ（NAV_H）だけでは足りず、上下の浮き
+ * （NAV_FLOAT × 2）も要る。以前は `NAV_H + NAV_FLOAT * 2` が3か所に手書きされていて、
+ * **浮かせる変更に2か所が追随せず20pxずれていた**（FriendClubPage / LoginBonusPage）。
+ */
+export const NAV_STACK = NAV_H + NAV_FLOAT * 2
 
 /**
  * 画面の一番下に貼り付けるものの `bottom`。**この足し算はここ1本。**
@@ -112,8 +124,22 @@ export const NAV_FLOAT = 10
  *   ここは「その場に居座る固定バー」用。
  */
 export function bottomStack(adH: number, opts?: { aboveNav?: boolean; extra?: number }): string {
-  const px = adH + (opts?.aboveNav ? NAV_H + NAV_FLOAT * 2 : 0) + (opts?.extra ?? 0)
+  const px = adH + (opts?.aboveNav ? NAV_STACK : 0) + (opts?.extra ?? 0)
   return `calc(${px}px + env(safe-area-inset-bottom))`
+}
+
+/**
+ * ヘッダーと下タブと広告を除いた、**中身が実際に使える高さ**。
+ *
+ * main は `position: fixed` で上下を留めているので、ページで `100dvh` を使うと
+ * その3つのぶんだけ縦に溢れて無駄なスクロールが生まれる。
+ *
+ * ★`HEADER_H + NAV_H + ...` を画面で手書きしないこと。下タブの見た目を変えたときに
+ *   書いた場所だけ取り残される（実際に20pxずれた）。
+ */
+export function contentHeight(adH: number, extra = 0): string {
+  const px = HEADER_H + NAV_STACK + MAIN_GAP + adH + extra
+  return `calc(100dvh - ${px}px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))`
 }
 
 /** 記録会（タイムトライアル）の色 */

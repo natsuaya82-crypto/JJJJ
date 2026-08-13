@@ -7,6 +7,7 @@ import { ovr } from '../../utils/playerUtils'
 import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
 import Flag from '../ui/Flag'
 import BackButton from '../ui/BackButton'
+import MenuButton from '../ui/MenuButton'
 import { NationalTeamRoster } from './NationalTeamDetailPage'
 import type { Nationality } from '../../types'
 
@@ -15,27 +16,14 @@ type NatEntry = { code: Nationality; label: string; top: number }
 
 
 
-// 移籍市場と同じ金枠カード。説明文は出さない（タイトルのみ）。
+// 一覧の行。見た目は MenuButton 1本（`premium-menu-button` を手書きしないこと）。
 function RowCard({ onClick, icon, title, right }: {
   onClick: () => void
   icon?: React.ReactNode
   title: string
   right?: React.ReactNode
 }) {
-  return (
-    <button
-      onClick={onClick}
-      className="premium-menu-button"
-      style={{ height: 72 }}
-    >
-      {icon && <span className="premium-menu-button__icon">{icon}</span>}
-      <span className="premium-menu-button__content">
-        <span className="premium-menu-button__japanese">{title}</span>
-      </span>
-      {right && <span style={{ position: 'relative', zIndex: 1, marginLeft: 'auto' }}>{right}</span>}
-      <span className="premium-menu-button__arrow" style={right ? { marginLeft: 10 } : undefined}>›</span>
-    </button>
-  )
+  return <MenuButton icon={icon} label={title} right={right} compact onClick={onClick} />
 }
 
 // 戻るは「‹ タイトル」の横並び（記録室と同じ流儀）。タイトルは矢印のすぐ横に置く

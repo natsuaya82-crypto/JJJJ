@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
 import appBg from '../../assets/bg.png'
-import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, bottomStack } from '../../styles/tokens'
+import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
@@ -70,9 +70,10 @@ const AD_H = 50
 // ページ側が「ヘッダーと下タブの間にちょうど収まる高さ」を計算できるように公開する。
 // main は position:fixed で top/bottom を固定しているため、ページで 100dvh を使うと
 // ヘッダー＋タブ＋広告のぶんだけ縦に溢れて無駄なスクロールが生まれる。
-// 下タブの高さは styles/tokens.ts の1本（HEADER_H と同じ場所）。ここは再輸出だけ
-export { NAV_H }
-export const MAIN_GAP = 6   // main の bottom に足している余白（下タブとの隙間）
+// 下タブの高さは styles/tokens.ts の1本（HEADER_H と同じ場所）。ここは再輸出だけ。
+// ★高さを使った**足し算はここでしないこと**。ページで要るのは
+//   `contentHeight(adH)`（tokens）で、そちらが NAV_FLOAT ぶんも見ている
+export { NAV_H, MAIN_GAP }
 
 // 画面下部の広告バナーの高さ。買い切り版（adsRemoved）なら0。
 // 固定配置の要素（ボトムバー・シート類）はこれを使って広告の上で止める
@@ -300,7 +301,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         position: 'fixed', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px',
         top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
         bottom: bottomStack(adH),
-        paddingBottom: raceInProgress ? 0 : NAV_H + NAV_FLOAT * 2 + MAIN_GAP,
+        paddingBottom: raceInProgress ? 0 : NAV_STACK + MAIN_GAP,
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       }}>
         <PageWrapper locationKey={location.pathname}>
