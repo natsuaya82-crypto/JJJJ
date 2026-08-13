@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { runWithLoading } from '../../store/loadingStore'
 import { showInterstitialAd } from '../../utils/ads'
-import PressButton from '../ui/PressButton'
+import QuickTile from '../ui/QuickTile'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
@@ -424,24 +424,8 @@ export default function Dashboard() {
             label: 'チャット', path: '/team/chat', color: C.green, shadow: '#0d3d22',
           },
         ] as const).map(({ icon, label, path, color, shadow }) => (
-          <PressButton
-            key={path}
-            onClick={() => navigate(path)}
-            style={{
-              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-              border: `2px solid ${color}`,
-              borderRadius: 14, padding: '14px 4px 11px',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
-              cursor: 'pointer', fontFamily: 'inherit',
-              color,
-              position: 'relative', overflow: 'hidden',
-              boxShadow: `0 5px 0 ${shadow}, 0 8px 18px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 0 rgba(0,0,0,0.25)`,
-            }}
-          >
-            <div style={{ position: 'absolute', top: 3, left: 6, right: 6, height: '36%', background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 100%)', borderRadius: '6px 6px 50% 50%', pointerEvents: 'none' }}/>
-            <div style={{ position: 'relative', zIndex: 1 }}>{icon}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 700, color, lineHeight: 1.3, textAlign: 'center', letterSpacing: '0.04em', position: 'relative', zIndex: 1 }}>{label}</div>
-          </PressButton>
+          <QuickTile key={path} icon={icon} label={label} color={color} shadow={shadow}
+            onClick={() => navigate(path)} />
         ))}
       </div>
 

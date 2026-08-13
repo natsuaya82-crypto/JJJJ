@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { IconFlag, IconRace, IconTrophy } from '../icons/Icons'
+import QuickTile from '../ui/QuickTile'
 import { courseDistanceKm } from '../../engine/ratedCourse'
-import { Card, RankChip, RatedShell, TileButton } from './ratedUi'
+import { Card, RankChip, RatedShell } from './ratedUi'
 import {
   canJoin, fetchMe, fetchResult, fetchToday,
   RESULT_HHMM, SUBMIT_DEADLINE_HHMM,
@@ -123,19 +124,20 @@ export default function RatedPage() {
         </div>
       )}
 
-      {/* 四角い立体ボタン3つ */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <TileButton
-          label="順位表" tone="blue" icon={<IconTrophy size={26} />}
+      {/* ★ホームのクイックボタンと同じ QuickTile。新しく作らない */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <QuickTile
+          icon={<IconTrophy size={18} />} label="順位表" color={C.cyan} shadow="#0e3f5a"
           onClick={() => navigate('/online/rated/standings')}
         />
-        <TileButton
-          label={submitted ? '組み直す' : '参加する'} tone="gold" icon={<IconRace size={28} />}
-          disabled={!eligible}
+        <QuickTile
+          icon={<IconRace size={18} />} label={submitted ? '組み直す' : '参加する'}
+          color={C.gold} shadow="#5a3500" disabled={!eligible}
           onClick={() => navigate('/online/rated/lineup')}
         />
-        <TileButton
-          label="昨日の結果" tone={myDelta >= 0 ? 'green' : 'red'} icon={<IconFlag size={26} />}
+        <QuickTile
+          icon={<IconFlag size={18} />} label="昨日の結果"
+          color={myDelta >= 0 ? C.green : C.red} shadow={myDelta >= 0 ? '#0d3d22' : '#660e10'}
           disabled={!result}
           onClick={() => navigate('/online/rated/result')}
         />

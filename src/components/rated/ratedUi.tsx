@@ -37,33 +37,6 @@ export function Card({ children, accent = C.cyan, onClick }: {
   )
 }
 
-/**
- * 四角い立体ボタン。**色は本編の `btn-game--*` をそのまま使う**
- * （自分でグラデーションを書かない＝単色になったり本編と違う見た目になる）。
- */
-export function TileButton({ label, tone, icon, disabled, onClick }: {
-  label: string
-  tone: 'gold' | 'blue' | 'green' | 'red' | 'purple'
-  icon: React.ReactNode
-  disabled?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={() => { if (!disabled) onClick() }}
-      className={`btn-game btn-game--${tone}`}
-      style={{ flex: 1, minWidth: 0, opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer' }}
-    >
-      <span className="btn-game__inner" style={{
-        flexDirection: 'column', gap: 5, padding: '12px 4px', borderRadius: 14,
-      }}>
-        <span style={{ display: 'flex' }}>{icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 900, whiteSpace: 'nowrap' }}>{label}</span>
-      </span>
-    </button>
-  )
-}
-
 /** 3ページ共通の外枠。見出しは1つだけ */
 export function RatedShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
