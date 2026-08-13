@@ -4,8 +4,10 @@ import { useGameStore } from '../../store/gameStore'
 import FinishPanel from '../online/FinishPanel'
 import RacePanel from '../online/RacePanel'
 import { Card, RatedShell } from './ratedUi'
-import { fetchResult, ratedCourseOf, ratedMatchCourse, type RatedResult } from '../../lib/ratedApi'
+import { fetchMe, fetchResult, ratedCourseOf, ratedMatchCourse, type RatedMe, type RatedResult } from '../../lib/ratedApi'
 import { courseDistanceKm } from '../../engine/ratedCourse'
+import RankUpOverlay from './RankUpOverlay'
+import { rankChangeOf } from './rankArt'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import type { Player } from '../../types'
 
@@ -20,9 +22,15 @@ export default function RatedResultPage() {
   const navigate = useNavigate()
   const hof = useGameStore(s => s.hofRoster)
   const [result, setResult] = useState<RatedResult | null>(null)
+  const [me, setMe] = useState<RatedMe | null>(null)
   const [view, setView] = useState<'choose' | 'watch' | 'result'>('choose')
+  // 段位が変わった知らせは**結果を見終わってから1回だけ**
+  const [rankSeen, setRankSeen] = useState(false)
 
-  useEffect(() => { void fetchResult().then(setResult) }, [])
+  useEffect(() => {
+    void fetchResult().then(setResult)
+    void fetchMe().then(setMe)
+  }, [])
 
   // 再生で自分のチームだけ手元の選手を使う（殿堂入りは凍らせた姿のまま）
   const myPlayers: Player[] = useMemo(
@@ -51,9 +59,13 @@ export default function RatedResultPage() {
 
   const delta = result.delta[result.meUserId] ?? 0
   const course = result.course
+  const after = me?.rating ?? 0
+  const before = after - delta
+  const showRank = view === 'result' && !rankSeen && !!rankChangeOf(before, after)
 
   return (
     <RatedShell title="前日の結果">
+      {showRank && <RankUpOverlay before={before} after={after} onClose={() => setRankSeen(true)} />}
       {view === 'choose' && (
         <>
           <Card>

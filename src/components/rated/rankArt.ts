@@ -5,7 +5,7 @@ import platinum from '../../assets/ranks/platinum.png'
 import diamond from '../../assets/ranks/diamond.png'
 import master from '../../assets/ranks/master.png'
 import legend from '../../assets/ranks/legend.png'
-import type { RankName } from '../../engine/rating'
+import { rankOf, type RankName } from '../../engine/rating'
 
 /**
  * **段位の紋章と色。** 段位の名前は `engine/rating` が持ち、見た目だけここ。
@@ -20,3 +20,15 @@ export const RANK_ART: Record<RankName, { img: string; color: string }> = {
   マスター: { img: master, color: '#b98fe0' },
   レジェンド: { img: legend, color: '#e88b5c' },
 }
+
+/**
+ * **段位が変わったか。** 変わっていなければ null。
+ * 全画面の知らせを出すかどうかはこの1本で決める（呼ぶ側で比べないこと）。
+ */
+export function rankChangeOf(before: number, after: number): 'up' | 'down' | null {
+  const a = rankOf(before)
+  const b = rankOf(after)
+  if (a === b) return null
+  return after > before ? 'up' : 'down'
+}
+
