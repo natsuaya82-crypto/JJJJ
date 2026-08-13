@@ -9,7 +9,7 @@ import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
-import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
+import { type Division, type GmInviteResult, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
@@ -37,11 +37,13 @@ import { managedTeamIds, startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
+import { faMarketSalary, ovr, packForeignApps, perfOf, transferFeeFor } from '../../utils/playerUtils'
+import { playRateOf } from '../../utils/playRate'
+import { movePlayer } from '../../utils/movePlayer'
 import { squadIdsOf } from '../../utils/rosterSync'
 import { needsPlayer } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
-import { hasNoPlayingTime } from '../../utils/transferDecision'
+import { appraiseMove, hasNoPlayingTime, isSurplus } from '../../utils/transferDecision'
 import { writeSeasonArchive } from '../seasonArchive'
 
 type Slice = Pick<GameStore,
@@ -62,7 +64,7 @@ type Slice = Pick<GameStore,
  *   予算・目標・スカウトP は `offer` が持っているものへ差し替えるので、
  *   **`offer` は移る直前の数字で作り直す**（`buildOffer` を endSeason 側で呼び直す）。
  */
-function applyGmMove(state: GameStore, offer: GmOffer): Partial<GameStore> {
+function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Partial<GameStore> {
   const oldTeamId = state.playerTeamId
   // 監督名は人について回る。前のチームには元のGM名を戻す
   const myGmName = state.teams.find(t => t.id === oldTeamId)?.gmName
@@ -75,11 +77,52 @@ function applyGmMove(state: GameStore, offer: GmOffer): Partial<GameStore> {
   })
   // 移籍方針（非売・貸出歓迎）は監督が付けた指示。CPUに戻るチームに残すと
   // 「絶対に売られない選手」がずっと居座って移籍市場が固まるので外す
-  const players = state.players.map(p => (
+  let players = state.players.map(p => (
     p.teamId === oldTeamId && (p.noSale || p.loanListed || p.transferListed)
       ? { ...p, noSale: false, loanListed: false, transferListed: false }
       : p
   ))
+
+  // ── 1人だけ連れて行く（オーナー判断・2026-08-13）────────────────────
+  //
+  // 声はかけられるが、**行くかどうかは選手が決める**。
+  // 判定は移籍とまったく同じ `appraiseMove` 1本で、違うのは愛着の向き先だけ
+  // （`followGm`：クラブへの愛着 → 監督への愛着。`utils/transferDecision`）。
+  //
+  // ★ここに専用の物差し（監督への信頼など）を作らないこと。
+  //   同じ問いに2本目の式ができると、必ず片方だけが更新されてズレる。
+  //
+  // ★移籍金は**ふつうの移籍と同じ**（`transferFeeFor` 1本。余剰かどうかと今季の出場を渡す）。
+  //   移った先が払い、元のクラブが受け取る。払えなければ連れて行けない。
+  const invited = inviteId ? players.find(p => p.id === inviteId) : undefined
+  let inviteResult: GmInviteResult = null
+  if (invited && invited.teamId === oldTeamId && invited.status === 'active') {
+    const tieredClubs = allTieredClubs(state.teams, state.foreignLeagues ?? [])
+    // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）
+    const { fraction, teamRaces: ranRaces } = playRateOf(
+      invited.id, oldTeamId, state.currentSeason, state.teams, state.foreignLeagues)
+    const a = appraiseMove(invited, state.destinationOf(offer.teamId, invited), {
+      srcTier: tierOfPlayerClub(oldTeamId, tieredClubs),
+      playFraction: fraction, teamRaces: ranRaces,
+      followGm: true })
+    // 余剰か（出す側での序列）と、今季の出場。どちらも移籍と同じ引き方
+    const oldRoster = players
+      .filter(p => p.teamId === oldTeamId && p.status === 'active')
+      .sort(comparePlayers('ovr'))
+    const surplus = isSurplus({ squadRank: oldRoster.findIndex(p => p.id === invited.id) + 1 })
+    const fee = transferFeeFor(invited, surplus, perfOf(state.currentSeason, invited.id, ranRaces))
+    const destTeam = state.teams.find(t => t.id === offer.teamId)
+    if (!a.ok) {
+      inviteResult = { name: invited.name, ok: false, reason: a.reason }
+    } else if ((destTeam?.finance.budget ?? 0) < fee) {
+      inviteResult = { name: invited.name, ok: false, reason: `${invited.name}の移籍金を用意できませんでした` }
+    } else {
+      const m = movePlayer({ players, teams }, invited.id, offer.teamId, {
+        year: offer.year, date: `${offer.year}-02-01`, fee })
+      if (m.ok) { players = m.players; inviteResult = { name: invited.name, ok: true, reason: '' } }
+    }
+  }
+
   // ECLの「どれが自チームか」の印は前季の終わりに焼き付けてある。
   // 移籍したらここを付け替えないと、来季のECLで前のチームが自チーム扱いになり
   // オーダーを組む相手と自動シミュの対象がずれる
@@ -92,6 +135,7 @@ function applyGmMove(state: GameStore, offer: GmOffer): Partial<GameStore> {
     teams,
     players,
     gmOffers: [],
+    gmInviteResult: inviteResult,
     // 予約は使い切る（残すと毎年ここへ来る）
     pendingGmMove: null,
     // 前のチームのオーダーは「前回のオーダー」として残さない
@@ -753,12 +797,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         season: { ...state.currentSeason },
         teams: syncedTeams, nextBudgets: cpuNextBudgets,
         nextYear: newYear, objBonus: 0, finalRank })
-      return { ...next, ...applyGmMove(moved, freshOffer) }
+      return { ...next, ...applyGmMove(moved, freshOffer, booked.inviteId) }
     })
   },
 
 
-  acceptGmOffer: (teamId) => {
+  acceptGmOffer: (teamId, inviteId) => {
     set(state => {
       // 届いている中から選ぶ。1件しか無いときは指定なしでもよい
       const offer = teamId ? (state.gmOffers ?? []).find(o => o.teamId === teamId) : (state.gmOffers ?? [])[0]
@@ -773,10 +817,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       //       （endSeason が year を進めたあとに出る）ので offer.year === 今季 → その場で入れ替える
       //   **「退任からの話かどうか」で分けないこと。**それだと入口が増えるたびに分岐が増える
       if (offer.year > state.currentSeason.year) {
-        // ★受けたら取り消せない（★13-a）。gmOffers を空にして予約だけ残す
-        return { gmOffers: [], pendingGmMove: { teamId: offer.teamId, year: offer.year } }
+        // ★受けたら取り消せない（★13-a）。gmOffers を空にして予約だけ残す。
+        //   連れて行きたい選手も予約に入れる（実際に聞くのは来季の入れ替わりのとき）
+        return { gmOffers: [], pendingGmMove: { teamId: offer.teamId, year: offer.year, inviteId } }
       }
-      return applyGmMove(state, offer)
+      return applyGmMove(state, offer, inviteId)
     })
   },
 

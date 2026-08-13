@@ -11,6 +11,7 @@ import { initAds, removeBanner, showBanner, setAdsDisabled } from './utils/ads'
 import { initLocalNotifications } from './utils/notifications'
 import { hasAdFree } from './utils/iap'
 import { clearMarketFilters } from './utils/marketFilters'
+import { ovr } from './utils/playerUtils'
 import { fmtYen } from './utils/money'
 import LoadingOverlay from './components/ui/LoadingOverlay'
 import { TeamLogoSVG } from './components/icons/Icons'
@@ -147,9 +148,19 @@ const OFFER_KIND_TEXT: Record<string, string> = {
 function GmOfferNotice() {
   const offers = useGameStore(s => s.gmOffers) ?? []
   const teams = useGameStore(s => s.teams)
+  const players = useGameStore(s => s.players)
+  const myTeamId = useGameStore(s => s.playerTeamId)
   const accept = useGameStore(s => s.acceptGmOffer)
   const decline = useGameStore(s => s.declineGmOffer)
   const [pick, setPick] = useState(0)
+  // 一緒に連れて行きたい選手（1人だけ）。**行くかどうかは選手が決める**ので、
+  // ここで選べるのは「声をかける相手」まで
+  const [invite, setInvite] = useState('')
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const myRoster = players
+    .filter(p => p.teamId === myTeamId && p.status === 'active')
+    .sort((a, b) => ovr(b) - ovr(a))
+  const invited = myRoster.find(p => p.id === invite)
   if (offers.length === 0) return null
   const offer = offers[Math.min(pick, offers.length - 1)]
   const dest = teams.find(t => t.id === offer.teamId)
@@ -192,14 +203,67 @@ function GmOfferNotice() {
             <span>来季予算</span><span style={{ fontWeight: 800, color: '#fff' }}>{fmtYen(offer.budget)}</span>
           </div>
         </div>
-        <div style={{ fontSize: 11, color: '#8fa0bb', lineHeight: 1.7, marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: '#8fa0bb', lineHeight: 1.7, marginBottom: 12 }}>
           受けると選手・予算・施設はすべて{dest.shortName}のものを引き継ぎます。<br />
-          今のチームの選手や予算は持って行けません。
+          今のチームの予算は持って行けません。
+        </div>
+
+        {/* 1人だけ声をかけられる。返事をするのは選手（移籍と同じ判断） */}
+        <div style={{ background: '#122034', borderRadius: 12, padding: '10px 12px', marginBottom: 16, textAlign: 'left' }}>
+          <div style={{ fontSize: 11, color: '#8fa0bb', marginBottom: 8, lineHeight: 1.6 }}>
+            1人だけ声をかけられます。<b style={{ color: '#cfd8e8' }}>行くかどうかは選手が決めます。</b><br />
+            移籍金は{dest.shortName}が払います。
+          </div>
+          <button onClick={() => setInviteOpen(v => !v)} style={{
+            width: '100%', padding: '9px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+            border: `1px solid ${invited ? '#f5c842' : '#3c4d68'}`,
+            background: invited ? 'rgba(245,200,66,0.12)' : 'transparent',
+            color: invited ? '#f5c842' : '#8fa0bb', fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
+          }}>{invited ? `${invited.name}（OVR${ovr(invited)}）に声をかける` : '声をかけない'}</button>
+          {inviteOpen && (
+            <div style={{ maxHeight: 168, overflowY: 'auto', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button onClick={() => { setInvite(''); setInviteOpen(false) }} style={{
+                padding: '7px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                border: '1px solid #3c4d68', background: 'transparent', color: '#8fa0bb',
+                fontSize: 11, fontFamily: 'inherit' }}>声をかけない</button>
+              {myRoster.map(p => (
+                <button key={p.id} onClick={() => { setInvite(p.id); setInviteOpen(false) }} style={{
+                  padding: '7px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                  border: `1px solid ${p.id === invite ? '#f5c842' : '#3c4d68'}`,
+                  background: p.id === invite ? 'rgba(245,200,66,0.12)' : 'transparent',
+                  color: '#cfd8e8', fontSize: 11, fontFamily: 'inherit',
+                  display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  <span style={{ flexShrink: 0, fontFamily: SAIRA, color: '#8fa0bb' }}>{p.age}歳 OVR{ovr(p)}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => decline()} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid #6b7a94', background: 'transparent', color: '#cfd8e8', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>{offers.length > 1 ? 'すべて断る' : '断る'}</button>
-          <button onClick={() => accept(offer.teamId)} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>受ける</button>
+          <button onClick={() => accept(offer.teamId, invite || undefined)} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>受ける</button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// 退任について行くか、の返事。**行くかどうかは選手が決める**ので、
+// 断られたときはその理由をそのまま出す（移籍の断り文句と同じ1本・utils/transferDecision）。
+function GmInviteResultNotice() {
+  const res = useGameStore(s => s.gmInviteResult)
+  const dismiss = useGameStore(s => s.dismissGmInviteResult)
+  const offers = useGameStore(s => s.gmOffers) ?? []
+  if (offers.length > 0 || !res) return null
+  return (
+    <div onClick={dismiss} style={{ position: 'fixed', inset: 0, zIndex: 1002, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 'min(340px, 90vw)', background: '#1a2c47', borderRadius: 18, border: `2px solid ${res.ok ? '#2ecc71' : '#6b7a94'}`, padding: '22px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 11, color: res.ok ? '#2ecc71' : '#8fa0bb', letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>{res.ok ? 'JOINED' : 'DECLINED'}</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', lineHeight: 1.7, marginBottom: 18 }}>
+          {res.ok ? `${res.name}が一緒に来てくれました` : res.reason}
+        </div>
+        <button onClick={dismiss} style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>OK</button>
       </div>
     </div>
   )
@@ -275,6 +339,7 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
     <>
       <ContractInfoModal />
       <GmOfferNotice />
+      <GmInviteResultNotice />
       <SeasonBudgetNotice />
       <Layout>
         <Routes>

@@ -957,6 +957,9 @@ export type GmTenure = {
 // 予算・内訳・スカウトポイント・前季順位を持たせてあるのは、受けたときに
 // 移籍先の数字へ丸ごと入れ替えるため。オファーを出す時点でしか分からない値なので
 // ここに焼き付けておく（移籍先が持っているものを受け継ぐ、という決めごと）。
+/** 退任について行くか、の返事。ok=false なら reason に断り文句が入る */
+export type GmInviteResult = { name: string; ok: boolean; reason: string } | null
+
 export type GmOffer = {
   teamId: string
   // 就任するシーズン（＝オファーが出た翌シーズン）
@@ -1046,7 +1049,12 @@ export type GameState = {
    *   もう来季に入っているので**ここを通らずその場で入れ替わる**。
    *   分けているのは「就任する年」1つだけ（`acceptGmOffer` の `offer.year` と今季の比較）。
    */
-  pendingGmMove?: { teamId: string; year: number } | null
+  pendingGmMove?: { teamId: string; year: number; inviteId?: string } | null
+  /**
+   * 退任のときに声をかけた選手の返事（1人だけ）。画面に出したら消す。
+   * **判定は移籍と同じ appraiseMove 1本**（愛着の向き先が監督に変わるだけ）
+   */
+  gmInviteResult?: GmInviteResult
   sponsors: Sponsor[]
   foreignLeagues: ForeignLeague[]
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。

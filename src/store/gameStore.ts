@@ -313,12 +313,15 @@ export type GameStore = GameState & {
   addTrainingCards: (cards: TrainingCard[]) => void
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
+  /** 退任について行くか、の返事を閉じる */
+  dismissGmInviteResult: () => void
   // 監督オファーを受ける／断る（utils/gmOffer.ts）
   /** 殿堂入りチームに登録（既にいればそのときの数値で上書き）。入れたら true */
   registerHofPlayer: (playerId: string) => boolean
   /** 殿堂入りチームから外す */
   removeHofPlayer: (playerId: string) => void
-  acceptGmOffer: (teamId?: string) => void
+  /** inviteId … 一緒に連れて行きたい選手（1人だけ）。行くかどうかは選手が決める */
+  acceptGmOffer: (teamId?: string, inviteId?: string) => void
   declineGmOffer: () => void
   /** 自分から退任する。行き先の候補が一度に届く（設定から） */
   resignAsGm: () => void

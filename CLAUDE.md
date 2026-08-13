@@ -62,6 +62,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/contractTalk.ts` | 契約更新の可否と「要対応」。`canRequestRenewal` / `needsRenewalAttention` |
 | `src/utils/transferDecision.ts` | **移籍の意思決定**。その選手がそのクラブへ行くか。`appraiseMove` / `rankOffers` |
 | `src/utils/transferEligibility.ts` | 退団予定・引退予定・海外承認などの「もう出ていく人」判定 |
+| `src/utils/transferDecision.ts` の `followGm` | **退任するとき1人だけ連れて行く**。判定は移籍とまったく同じ `appraiseMove` で、変わるのは**愛着の向き先だけ**（クラブへの愛着 -0.15 → 監督への愛着 +0.15）。**「監督への信頼」のような2本目の物差しを作らないこと。** 声はかけられるが行くかは選手が決め、移籍金はふつうの移籍と同じ（`transferFeeFor`）で新しいクラブが払う |
 | `src/utils/transferDecision.ts` の `isSurplus` | **出す側にとって余剰か＝序列15番手以降**（走れる人数の2倍より下）。余剰＝通常の対価、主力＝割増＋本人同意。**形（現金・トレード・レンタル・FA）でも国内／海外でも変わらない**。以前は4通りに割れていて、海外がらみは見てすらいなかった。**人数や「干され」を足さないこと**（名簿が21人超なら余剰、を入れていたら全232クラブが23〜25人で恒真になり、割増が一度も発火しなかった） |
 | `src/utils/clubMoney.ts` の `settleForeignFee` | **移籍金の海外側の精算**。`movePlayer` は `teams`（国内52クラブ）しか知らないので、相手が海外クラブだと片側しかお金が動かない。**`movePlayer` のすぐ外で必ず呼ぶこと**（国内同士なら何も起きないので、呼ぶ側で分岐しない） |
 | `src/utils/playerUtils.ts` の `transferFeeFor` | **移籍金**（市場価値 × 余剰でなければ `POACH_PREMIUM`）。割増を掛けるのはここだけ。**今季の出場を必ず渡すこと**（`calcTransferValue` の第2引数。渡さないと出場0の選手もフル出場の選手も同じ額になる）。オフに回すときは**走り終わったシーズン**を見る（`beginSeasonDraft` の `currentSeason` は来季の空っぽの器） |

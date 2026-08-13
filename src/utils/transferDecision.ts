@@ -252,6 +252,18 @@ export type MoveContext = {
    */
   clubBlessed?: boolean
   /**
+   * **監督について行く話**（退任するときに1人だけ声をかける）。
+   *
+   * オーナー判断（2026-08-13）「移籍と同じでいいよ。愛着がチームから監督に移るだけで」。
+   * 見るものは移籍とまったく同じで、**愛着の向き先だけが変わる**。
+   *   ふつうの移籍 … 愛着はいまのクラブへ向く → 出て行きにくい（-0.15）
+   *   監督について行く … 愛着は監督へ向く   → ついて行きやすい（+0.15）
+   *
+   * ★格上・格下で効き方を変えないこと。ふつうの移籍で愛着を「同格・格下のときだけ」に
+   *   しているのは「格上の話を愛着で蹴らせない」ためで、こちらは逆に働くので蹴らない。
+   */
+  followGm?: boolean
+  /**
    * **1年のレンタル**。移籍ではないので、較べる相手が違う。
    *
    * 保有元は変わらず、期限が来れば戻る。だから「格下のクラブへ行くのは嫌だ」は
@@ -390,7 +402,11 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   // ★無所属（srcTier が無い）には効かない。愛着は「今のクラブへの」愛着で、
   //   FAには対象になるクラブが無い。ここを効かせていたので、無所属の選手が
   //   愛着を理由に加入を断るという意味の通らない判定になっていた
-  const personality = gap > 0 || ctx.srcTier == null ? 0
+  const personality = ctx.followGm
+    // 監督について行く話。愛着の向き先が監督なので、そのまま加点になる
+    ? ((p.personality ?? 'salary') === 'loyalty' ? 0.15
+      : (p.personality ?? 'salary') === 'winning' ? 0.05 : 0)
+    : gap > 0 || ctx.srcTier == null ? 0
     : (p.personality ?? 'salary') === 'loyalty' ? -0.15
     : (p.personality ?? 'salary') === 'winning' ? 0.05
     : 0
