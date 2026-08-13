@@ -68,6 +68,8 @@ export type RatedResult = {
    * そのまま使える。**似た画面を2つ作らないため。**
    */
   race: MatchRacePayload
+  /** 自分のID。**名前で探さないこと**（同じチーム名の人がいる） */
+  meUserId: string
   /** レートの増減（userId → 増減）。レート戦だけの追加ぶん */
   delta: Record<string, number>
 }
@@ -178,6 +180,7 @@ export async function fetchResult(): Promise<RatedResult | null> {
   return {
     dateISO, course, group: 1, groups: 3,
     race,
+    meUserId: rows.find(r => r.mine)?.userId ?? '',
     delta: Object.fromEntries(rows.map(r => [r.userId, r.delta])),
   }
 }

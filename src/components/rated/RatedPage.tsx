@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import { useGameStore } from '../../store/gameStore'
@@ -6,11 +6,13 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { courseDistanceKm } from '../../engine/ratedCourse'
 import { rankOf } from '../../engine/rating'
 import FinishPanel from '../online/FinishPanel'
+import RacePanel from '../online/RacePanel'
 import {
-  canJoin, fetchMe, fetchResult, fetchStandings, fetchToday, ratedCourseOf,
+  canJoin, fetchMe, fetchResult, fetchStandings, fetchToday, ratedCourseOf, ratedMatchCourse,
   RESULT_HHMM, SUBMIT_DEADLINE_HHMM,
   type RatedMe, type RatedResult, type RatedRow, type RatedToday,
 } from '../../lib/ratedApi'
+import type { Player } from '../../types'
 import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
 
 // ============================================================================
@@ -58,6 +60,8 @@ export default function RatedPage() {
   const navigate = useNavigate()
   const hof = useGameStore(s => s.hofRoster)
   const [tab, setTab] = useState<'today' | 'result' | 'standings'>('today')
+  // 結果は「レースを見る」か「結果だけ見る」を選ぶ
+  const [view, setView] = useState<'choose' | 'watch' | 'result'>('choose')
   const [me, setMe] = useState<RatedMe | null>(null)
   const [today, setToday] = useState<RatedToday | null>(null)
   const [result, setResult] = useState<RatedResult | null>(null)
@@ -69,6 +73,11 @@ export default function RatedPage() {
     void fetchResult().then(setResult)
     void fetchStandings().then(setStandings)
   }, [])
+
+  // 再生で自分のチームだけ手元の選手を使う（殿堂入りは凍らせた姿のまま）
+  const myPlayers: Player[] = useMemo(
+    () => (hof ?? []).map(h => ({ ...h.player, fatigue: 0, form: 0, status: 'active' as const })),
+    [hof])
 
   const eligible = canJoin(hof)
   const segCount = today?.course.segments.length ?? 0
@@ -190,7 +199,41 @@ export default function RatedPage() {
           </>
         )}
 
-        {tab === 'result' && result && (
+        {tab === 'result' && result && view === 'choose' && (
+          <Card accent={C.gold}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 10 }}>
+              {result.dateISO} の結果
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setView('watch')} className="btn-press" style={{
+                flex: 1, padding: '13px 0', borderRadius: 12, cursor: 'pointer', border: 'none',
+                background: C.gold, color: '#1a0d00', fontSize: 14, fontWeight: 900, fontFamily: SAIRA,
+              }}>レースを見る</button>
+              <button onClick={() => setView('result')} className="btn-press" style={{
+                flex: 1, padding: '13px 0', borderRadius: 12, cursor: 'pointer',
+                border: `1px solid ${C.border3}`, background: 'transparent',
+                color: C.textSub, fontSize: 14, fontWeight: 900, fontFamily: SAIRA,
+              }}>結果だけ見る</button>
+            </div>
+          </Card>
+        )}
+
+        {tab === 'result' && result && view === 'watch' && (
+          <RacePanel
+            payload={result.race}
+            course={ratedMatchCourse(result.dateISO)}
+            raceNo={1}
+            totalRaces={1}
+            meId={result.meUserId}
+            myPlayers={myPlayers}
+            seriesPts={{}}
+            waiting={false}
+            onNext={() => setView('result')}
+            solo
+          />
+        )}
+
+        {tab === 'result' && result && view === 'result' && (
           <>
             <Card>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -205,8 +248,7 @@ export default function RatedPage() {
                 <span style={{ fontSize: 11, color: C.textSub }}>自分のレート</span>
                 <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>{me?.rating ?? 0}</span>
                 {(() => {
-                  const d = result.race.teams.find(t => t.name === '千葉タイガー')
-                  const delta = d ? (result.delta[d.id] ?? 0) : 0
+                  const delta = result.delta[result.meUserId] ?? 0
                   return (
                     <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: delta > 0 ? C.green : delta < 0 ? C.red : C.textDim }}>
                       {delta > 0 ? '+' : ''}{delta}
@@ -220,10 +262,10 @@ export default function RatedPage() {
                 似た画面を2つ作らない（course だけは日付から作るので courseOf で渡す） */}
             <FinishPanel
               races={[result.race]}
-              meId={result.race.teams.find(t => t.name === '千葉タイガー')?.id ?? ''}
+              meId={result.meUserId}
               history
               leaveLabel="閉じる"
-              onLeave={() => setTab('today')}
+              onLeave={() => { setView('choose'); setTab('today') }}
               courseOf={ratedCourseOf}
             />
           </>
