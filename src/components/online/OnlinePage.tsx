@@ -111,37 +111,26 @@ export default function OnlinePage() {
           <button
             key={s.key}
             onClick={() => { if (!s.soon) navigate(s.key) }}
-            className={s.soon ? undefined : 'btn-press'}
-            style={{
-              width: '100%', padding: '12px 14px', borderRadius: 14,
-              border: `2px solid ${s.soon ? C.border2 : C.goldDark}`,
-              cursor: s.soon ? 'default' : 'pointer', opacity: s.soon ? 0.5 : 1,
-              background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-              boxShadow: s.soon ? 'none' : `0 4px 0 #5a3500, 0 6px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)`,
-              display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit', position: 'relative', overflow: 'hidden',
-            }}
+            className={`premium-menu-button${s.soon ? ' is-off' : ''}`}
           >
-            <div style={{ position: 'absolute', inset: 3, border: '1px solid rgba(245,200,66,0.2)', borderRadius: 10, pointerEvents: 'none' }}/>
             <div style={{
-              width: 40, height: 40, borderRadius: 10, flexShrink: 0, position: 'relative', zIndex: 1,
-              background: 'linear-gradient(180deg, #2a4060 0%, #122440 100%)', border: `2px solid ${C.bg}`,
+              width: 42, height: 42, flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color,
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3)',
             }}>
               {s.icon}
             </div>
-            <div style={{ flex: 1, textAlign: 'left', position: 'relative', zIndex: 1 }}>
+            <div style={{ flex: 1, textAlign: 'left' }}>
               <div>
-                <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>{s.label}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 800, color: C.text }}>{s.label}</span>
                 {s.badge > 0 && (
                   <span style={{ marginLeft: 7, padding: '1px 7px', borderRadius: 6, background: s.color, color: C.bg, fontSize: 10, fontWeight: 900 }}>{s.badge}</span>
                 )}
               </div>
               {/* 説明は置かない（名前で分かるものに注釈を足さない）。「準備中」だけは状態なので出す */}
-              {s.soon && <div style={{ fontSize: 10, color: alpha(C.text, 0.45), marginTop: 2 }}>準備中</div>}
+              {s.soon && <div style={{ fontSize: 10, color: alpha(C.text, 0.45), marginTop: 3 }}>準備中</div>}
             </div>
             {!s.soon && (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: C.goldDark, position: 'relative', zIndex: 1 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#c9a83a' }}>
                 <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
             )}
