@@ -196,6 +196,10 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   // 入口は隠してある。フッターのバージョン表記を7回続けて叩くと出る。
   // 一般のプレイヤーに見せる機能ではないので設定の一覧には並べない。
   const [slotTaps, setSlotTaps] = useState(0)
+  // セーブの書き出しも隠し入口。**スロットとは別の場所**（ページ上部の「設定」の見出しを7回）。
+  // 同じ入口にすると、書き出しを見つけた人にスロットの切り替えまで見えてしまう。
+  const [exportTaps, setExportTaps] = useState(0)
+  const [exportSheet, setExportSheet] = useState(false)
   // セーブの書き出しの結果（成功も失敗もそのまま出す）
   const [exportMsg, setExportMsg] = useState('')
   // 走行記録は年ごとに別ファイル。どの年が出ているかは archivedYears が持っている
@@ -224,10 +228,18 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   return (
     <div className="page-enter" style={{ padding: '20px 16px 32px', fontFamily: SAIRA }}>
 
-      {/* ページヘッダー */}
+      {/* ページヘッダー。★見出しを7回叩くとセーブの書き出しが出る（運営用の隠し入口）。
+          スロットの入口（下部のバージョン表記）とは別にしてあること。同じにすると
+          書き出しを見つけた人にスロットの切り替えまで見えてしまう */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
         <div style={{ width: 4, height: 34, borderRadius: 2, background: `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.25)})`, flexShrink: 0 }} />
-        <div>
+        <div
+          onClick={() => {
+            const n = exportTaps + 1
+            if (n >= 7) { setExportTaps(0); setExportSheet(true) } else setExportTaps(n)
+          }}
+          style={{ cursor: 'default', userSelect: 'none' }}
+        >
           <div style={{ fontSize: 9, color: alpha(C.gold, 0.5), letterSpacing: '4px', marginBottom: 3 }}>SETTINGS</div>
           <div style={{ fontSize: 26, fontWeight: 900, color: C.text, lineHeight: 1 }}>設定</div>
         </div>
@@ -328,30 +340,35 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           })}
         </div>
 
-        {/* ★セーブの書き出し。実機で起きていることは**本物のセーブが無いと調べられない**。
-            これまで取り出す手段が無く、Mac に繋いで Xcode から抜くしか道が無かった。
-            ★設定の一覧から**ここへ移した**（オーナー判断）。取り込む口がまだ無いので
-            遊ぶ側には何の得も無いボタンで、用途は不具合の調査だけ。消さないこと——
-            消すと実機のセーブを取り出す手段がまた無くなる（`scripts/check-load-v39.ts` 参照） */}
-        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
-          <button
-            onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-              padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
-              background: C.surface3, border: `1px solid ${C.border}`,
-            }}
-          >
-            <span style={{ color: C.textDim, display: "flex" }}>{IcShare}</span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: C.text }}>セーブを書き出す</span>
-              <span style={{ display: 'block', fontSize: 11, color: C.textDim }}>不具合の調査用。共有からファイルを送れます</span>
-            </span>
-          </button>
-          {exportMsg && (
-            <div style={{ padding: '8px 2px 0', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
-          )}
+      </BottomSheet>
+
+      {/* ★セーブの書き出し（隠し入口）。実機で起きていることは**本物のセーブが無いと調べられない**。
+          これまで取り出す手段が無く、Mac に繋いで Xcode から抜くしか道が無かった。
+
+          ★**セーブスロットとは必ず別の入口にすること**（オーナー指示）。
+            同じシートに入れると、書き出しを見つけた人にスロットの切り替えまで見えてしまう。
+            入口＝ページ上部の「設定」の見出しを7回。スロットは下部のバージョン表記を7回。
+
+          ★消さないこと。消すと実機のセーブを取り出す手段がまた無くなる
+            （`scripts/check-load-v39.ts` の注記を参照） */}
+      <BottomSheet open={exportSheet} onClose={() => setExportSheet(false)} title="セーブの書き出し（運営用）">
+        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>
+          不具合の調査用です。いまのセーブと走行記録をまとめて1つのファイルにして、共有から送れます。
         </div>
+        <button
+          onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+            background: C.surface3, border: `1px solid ${C.border}`,
+          }}
+        >
+          <span style={{ color: C.textDim, display: 'flex' }}>{IcShare}</span>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: C.text }}>セーブを書き出す</span>
+        </button>
+        {exportMsg && (
+          <div style={{ padding: '10px 2px 0', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
+        )}
       </BottomSheet>
     </div>
   )
