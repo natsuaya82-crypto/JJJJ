@@ -74,14 +74,18 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
 
   return (
     <div style={{
-      // ★カード。**背景は透かさない**（写真が透けると文字が読めない）
+      // ★カード。**背景は透かさない**（写真が透けると文字が読めない）。
+      //   形は「右下だけ斜めに切る」（オーナー選定・2026-08-13）。
+      //   ★clip-path は枠線を切り落とすので、**縁を線で描かないこと**
+      //     （斜めの辺だけ線が消える。index.css の premium-menu-button と同じ罠）
       overflow: 'hidden',
+      clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%)',
       background: selected
         ? `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${C.surface2})`
         : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
       boxShadow: selected
-        ? `inset 0 0 0 1.5px ${C.gold}, 0 6px 16px -8px rgba(0,0,0,0.9)`
-        : `inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.10), 0 6px 16px -10px rgba(0,0,0,0.9)`,
+        ? `inset 0 0 0 1.5px ${C.gold}`
+        : 'inset 0 1px 0 rgba(255,255,255,0.10)',
     }}>
       {/* 色帯はカードの高さいっぱい。顔は縦の真ん中 */}
       <button
