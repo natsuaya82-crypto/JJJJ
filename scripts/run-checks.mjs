@@ -137,6 +137,8 @@ const CHECKS = [
   'gm-resign',
   // 世界選手権・アジア予選に「その年のうちに入れるか」（古い大会の残骸と、画面の入口）
   'wa-entry',
+  // Supabase の SQL が1本か・データを消さないか・アプリの rpc と噛み合っているか
+  'supabase-sql',
 ]
 
 /**
