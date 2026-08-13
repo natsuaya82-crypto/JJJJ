@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
 import appBg from '../../assets/bg.png'
-import { C, alpha, HEADER_H, NAV_H, bottomStack } from '../../styles/tokens'
+import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, bottomStack } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
@@ -305,16 +305,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* ── Bottom Nav ── */}
+      {/* ── Bottom Nav ──
+          下端に貼り付けず**浮かせたガラス**。浮かせたぶん（NAV_FLOAT）は
+          `bottomStack` が足すので、上に置く画面がずれない。 */}
       {raceInProgress ? null : <nav style={{
-        position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px',
+        position: 'fixed', bottom: bottomStack(adH, { extra: NAV_FLOAT }),
+        left: NAV_FLOAT, right: NAV_FLOAT, margin: '0 auto',
+        width: `calc(100% - ${NAV_FLOAT * 2}px)`, maxWidth: 480 - NAV_FLOAT * 2,
         height: `${NAV_H}px`,
-        background: `linear-gradient(180deg, #1a2c47 0%, #0a1729 100%)`,
-        backdropFilter: 'blur(20px)',
-        borderTop: `1px solid ${alpha(C.gold, 0.12)}`,
+        borderRadius: 22,
+        // 透けるダークネイビーのガラス。単色の板にしない
+        background: 'linear-gradient(180deg, rgba(30,52,84,0.52) 0%, rgba(10,23,41,0.62) 100%)',
+        backdropFilter: 'blur(22px) saturate(135%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(135%)',
+        border: '1px solid rgba(255,255,255,0.10)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-around',
         zIndex: 50,
-        boxShadow: `0 -8px 24px rgba(0,0,0,0.8), 0 -1px 0 rgba(245,200,66,0.08)`,
+        boxShadow: [
+          'inset 0 1px 0 rgba(255,255,255,0.16)',   // 上のふち
+          'inset 0 -1px 0 rgba(0,0,0,0.35)',        // 下の屈折
+          '0 10px 26px rgba(0,0,0,0.45)',           // 浮いている影
+        ].join(', '),
+        overflow: 'hidden',
       }}>
         {NAV.map(({ to, label, icon: Icon }) => {
           const active = isActive(to)
@@ -328,36 +340,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               style={{
                 flex: 1, height: '100%', border: 'none', background: 'none',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: '3px', cursor: 'pointer',
-                transition: 'color 0.15s ease',
-                position: 'relative',
-                minHeight: '44px',
+                gap: 2, cursor: 'pointer', position: 'relative', minHeight: '44px',
                 color: active ? '#fff' : C.textDim,
               }}
             >
+              {/* 選んでいるものだけ、光が閉じ込められた小さなガラス */}
               <div style={{
-                width: 50, height: 42, borderRadius: 12,
-                background: active
-                  ? `linear-gradient(180deg, ${C.cyan}30 0%, ${C.cyan}18 100%)`
-                  : `linear-gradient(180deg, #1e3a5c 0%, #0f2440 100%)`,
-                border: active ? `2px solid ${C.cyan}` : `2px solid #1e3a5c`,
+                width: 46, height: 28, borderRadius: 14,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: active
+                  ? `linear-gradient(180deg, ${alpha(C.cyan, 0.24)} 0%, ${alpha(C.cyan, 0.09)} 100%)`
+                  : 'none',
+                border: active ? `1px solid ${alpha(C.cyan, 0.55)}` : '1px solid transparent',
                 boxShadow: active
-                  ? `0 0 14px ${alpha(C.cyan, 0.5)}, inset 0 1px 0 rgba(255,255,255,0.2)`
-                  : `inset 0 1px 0 rgba(255,255,255,0.07), 0 2px 4px rgba(0,0,0,0.4)`,
-                transform: active ? 'translateY(-2px)' : 'none',
+                  ? `inset 0 1px 0 rgba(255,255,255,0.25), 0 0 10px ${alpha(C.cyan, 0.18)}`
+                  : 'none',
+                transform: active ? 'translateY(-1px)' : 'none',
                 transition: 'all 0.18s ease',
                 flexShrink: 0,
-                color: active ? C.cyan : C.textDim,
+                color: active ? C.cyan : 'rgba(160,178,200,0.75)',
               }}>
                 <Icon/>
               </div>
               <span style={{
-                fontSize: '11px',
-                fontWeight: active ? '700' : '400',
+                fontSize: '10px',
+                fontWeight: active ? 700 : 400,
                 letterSpacing: '0.3px',
-                color: active ? C.cyan : C.textDim,
-                textShadow: active ? `0 0 8px ${alpha(C.cyan, 0.6)}` : 'none',
+                color: active ? C.cyan : 'rgba(150,168,190,0.75)',
                 transition: 'color 0.18s ease',
               }}>
                 {label}

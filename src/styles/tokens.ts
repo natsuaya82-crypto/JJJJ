@@ -98,6 +98,9 @@ export const HEADER_H = 49
 /** 下タブの高さ。Layout の下タブと、その上に何かを置く画面が同じ値を使う */
 export const NAV_H = 58
 
+/** 下タブを画面の下端から浮かせる量。**浮かせたぶんも bottomStack が足す** */
+export const NAV_FLOAT = 10
+
 /**
  * 画面の一番下に貼り付けるものの `bottom`。**この足し算はここ1本。**
  *
@@ -109,7 +112,7 @@ export const NAV_H = 58
  *   ここは「その場に居座る固定バー」用。
  */
 export function bottomStack(adH: number, opts?: { aboveNav?: boolean; extra?: number }): string {
-  const px = adH + (opts?.aboveNav ? NAV_H : 0) + (opts?.extra ?? 0)
+  const px = adH + (opts?.aboveNav ? NAV_H + NAV_FLOAT * 2 : 0) + (opts?.extra ?? 0)
   return `calc(${px}px + env(safe-area-inset-bottom))`
 }
 
