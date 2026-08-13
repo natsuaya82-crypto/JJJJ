@@ -24,7 +24,7 @@ export default function FriendListPage() {
   )
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100%', background: C.bg }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100%' }}>
       <PageHeader title="フレンド一覧" />
 
       <div style={{ padding: '10px 12px 0' }}>

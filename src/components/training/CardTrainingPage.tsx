@@ -222,7 +222,7 @@ export default function CardTrainingPage() {
 
   // ── STEP 2: Fusion (パズドラ風) ────────────────────────────────
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: FONT, color: C.text }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: FONT, color: C.text }}>
       {adConfirmOpen && (
         <ConfirmDialog
           title="動画を見ますか？"

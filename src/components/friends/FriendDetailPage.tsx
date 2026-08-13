@@ -100,7 +100,7 @@ export default function FriendDetailPage() {
 
   if (head.loading) {
     return (
-      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%', background: C.bg }}>
+      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%' }}>
         <BackButton />
         <div style={{ marginTop: 40 }}><LoadingBox /></div>
       </div>
@@ -108,7 +108,7 @@ export default function FriendDetailPage() {
   }
   if (head.error) {
     return (
-      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%', background: C.bg }}>
+      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%' }}>
         <BackButton />
         <div style={{ marginTop: 40 }}><ErrorBox onRetry={head.reload} /></div>
       </div>
@@ -168,7 +168,7 @@ export default function FriendDetailPage() {
   }
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: 32, minHeight: '100%', background: C.bg }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: 32, minHeight: '100%' }}>
       {/* ヘッダー */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px 6px' }}>
         <BackButton />

@@ -167,7 +167,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       minHeight: '100dvh',
       maxWidth: '480px', margin: '0 auto', position: 'relative',
       // 背景の写真。**ここ1枚だけ**（各ページで貼らないこと）。
-      // 上に暗い幕を重ねて、文字が乗っても読めるようにする
+      // 上に暗い幕を重ねて、文字が乗っても読めるようにする。
+      // ★**ページの一番外側に `background: C.bg` を敷かないこと。** 敷いた画面だけ
+      //   写真が消えて、下タブの向こうだけ写真が見える不揃いになる（21か所あった）。
+      //   塗っていいのは「上に重ねて下を隠すもの」だけ——スクロールで潜る見出しの帯と、
+      //   画面全体を覆う別画面（ドラフト会場・オンラインの説明）。
       backgroundImage: `linear-gradient(180deg, rgba(6,13,24,0.34) 0%, rgba(6,13,24,0.62) 60%, rgba(6,13,24,0.74) 100%), url(${appBg})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',

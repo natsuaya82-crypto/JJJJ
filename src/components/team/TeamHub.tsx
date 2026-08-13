@@ -150,7 +150,7 @@ export default function TeamHub() {
     <div style={{
       fontFamily: FONT,
       paddingBottom: 80,
-      background: C.bg, minHeight: '100%',
+      minHeight: '100%',
     }}>
 
 

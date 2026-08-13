@@ -43,7 +43,7 @@ export default function RentalPage() {
   }
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: 90, background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100%' }}>
       <PageHeader
         eyebrow="LOAN"
         title="レンタル選手"

@@ -533,7 +533,7 @@ export function SimPhase({
   }
 
   return (
-    <div style={{ fontFamily: SAIRA, minHeight: '100svh', backgroundColor: C.bg, paddingBottom: 80 }}>
+    <div style={{ fontFamily: SAIRA, minHeight: '100svh', paddingBottom: 80 }}>
 
       {/* レース状況の覗き見中：イベントに戻る（広告枠の上に配置。買い切り版は0） */}
       {atEvent && peekRace && (

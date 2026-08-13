@@ -206,7 +206,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: C.bg, fontFamily: SAIRA }}>
+    <div style={{ minHeight: '100%', fontFamily: SAIRA }}>
 
       <div style={{ borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
         <PageHeader title="通知" right={total > 0 ? (

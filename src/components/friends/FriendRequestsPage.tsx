@@ -143,7 +143,7 @@ export default function FriendRequestsPage() {
   }
 
   return (
-    <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100%', background: C.bg }}>
+    <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100%' }}>
       <PageHeader title="申請・承認" />
 
       {/* 自分のフレンドコード（相手に渡して申請してもらう用） */}

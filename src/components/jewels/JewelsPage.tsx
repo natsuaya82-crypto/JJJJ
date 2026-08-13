@@ -81,7 +81,7 @@ export default function JewelsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: C.bg }}>
+    <div style={{ minHeight: '100%' }}>
       {confirmOpen && (
         <ConfirmDialog
           title="動画を見ますか？"

@@ -77,7 +77,7 @@ export default function CardSelectPage() {
   }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: SAIRA, color: C.text }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: SAIRA, color: C.text }}>
       {/* 上部固定：ヘッダ＋選択中＋絞り込み（カード一覧だけスクロールし、選択中は常に見える） */}
       <div style={{ flexShrink: 0, background: C.bg, borderBottom: `1px solid ${C.border}` }}>
         <PageHeader

@@ -643,7 +643,7 @@ export default function RoomLobbyPage() {
 
   if (loading) {
     return (
-      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%', background: C.bg }}>
+      <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%' }}>
         <div style={{ marginTop: 40 }}><LoadingBox /></div>
       </div>
     )

@@ -45,7 +45,7 @@ export default function StarredPlayersPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px', background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif", paddingBottom: '80px', minHeight: '100%' }}>
       <PageHeader
         eyebrow="TRANSFER"
         title="WATCHLIST"

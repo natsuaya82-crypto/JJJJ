@@ -37,7 +37,7 @@ export default function NoSalePage() {
   const sheetPlayer = sheetPlayerId ? myPlayers.find(p => p.id === sheetPlayerId) ?? null : null
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, minHeight: '100%' }}>
       <PageHeader title="移籍方針" />
       <div style={{ padding: '0 16px 14px' }}>
         <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>

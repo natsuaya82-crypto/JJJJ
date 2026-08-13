@@ -14,7 +14,7 @@ export default function ObjectivesPage() {
   const allDone = objectives.length > 0 && done === objectives.length
 
   return (
-    <div style={{ minHeight: '100%', background: C.bg }}>
+    <div style={{ minHeight: '100%' }}>
       {/* ヘッダー */}
       <div style={{ padding: '0 20px 12px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
         <PageHeader

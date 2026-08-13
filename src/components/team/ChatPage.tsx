@@ -331,7 +331,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, minHeight: '100%' }}>
       <PageHeader title="チャット" />
       <div style={{ padding: '0 16px 16px', fontSize: 11, color: C.textDim }}>契約更新・獲得交渉・相手からのオファー・トレードをここで対応</div>
 

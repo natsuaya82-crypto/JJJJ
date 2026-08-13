@@ -150,7 +150,7 @@ export default function TransferHub() {
   }
 
   return (
-    <div style={{ fontFamily: FONT, paddingBottom: '80px', background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: FONT, paddingBottom: '80px', minHeight: '100%' }}>
       <div style={{ padding: '12px 16px 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>
           {currentSeason.year} TRANSFER

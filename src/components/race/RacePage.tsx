@@ -69,7 +69,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
   const myResults = (event.results ?? []).filter(r => r.teamId === playerTeamId)
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 100, background: C.bg, minHeight: '100%' }}>
+    <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 100, minHeight: '100%' }}>
       <div style={{ borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
         <PageHeader
           eyebrow={`記録会 — ${event.date.replace(/-/g, '/')} · ${TT_DIST_LABEL[event.distance]}${event.weather ? ` · ${({ sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '風' } as const)[event.weather]}` : ''}`}

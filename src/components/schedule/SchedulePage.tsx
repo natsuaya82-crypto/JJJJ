@@ -102,7 +102,7 @@ export default function SchedulePage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', backgroundColor: C.bg }}>
+    <div style={{ minHeight: '100%' }}>
 
       <div style={{
         borderBottom: `1px solid ${C.border}`,

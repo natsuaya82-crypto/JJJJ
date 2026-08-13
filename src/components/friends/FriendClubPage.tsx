@@ -1441,7 +1441,7 @@ export default function FriendClubPage() {
   const fromFriend = (params.get('code') ?? '').replace(/\D/g, '')
 
   return (
-    <div style={{ fontFamily: SAIRA, minHeight: '100%', background: C.bg, paddingBottom: 80 }}>
+    <div style={{ fontFamily: SAIRA, minHeight: '100%', paddingBottom: 80 }}>
       <PageHeader title="走友会" />
 
       {/* 走友会の説明は、まだ入っていない人にだけ出す。
