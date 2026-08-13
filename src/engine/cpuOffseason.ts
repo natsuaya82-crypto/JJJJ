@@ -18,7 +18,7 @@ import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
 import { isOwnedBy } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
-import { domesticCpuTeamIds } from '../utils/clubs'
+import { allForeignClubs, domesticCpuTeamIds } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { calcTransferValue, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
@@ -27,6 +27,35 @@ import { allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
 import { runTransferMarket } from './transferMarket'
 import { ROSTER_MAX } from '../data/rosterRules'
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
+
+/**
+ * **トレードとレンタルに参加するクラブ。国内52＋海外180を同じ1つの列に入れる。**
+ *
+ * ★「国内だけ」に戻さないこと（オーナー判断・2026-08-13
+ *   「移籍は揃えて。国内国外という考えは消す」）。
+ *   `runCpuTrades` / `runCpuLoans` は長いあいだ `domesticCpuTeamIds` だけを回していて、
+ *   実測で**トレード14件すべてが国内同士**・海外クラブは1件も絡んでいなかった。
+ *   現金の移籍（`runTransferMarket`）は1001件中941件が海外がらみなので、
+ *   同じ問いのはずの3つが経路ごとに別の世界を見ていたことになる。
+ *
+ * ★**並びはシャッフルする。** 上限（`maxTrades` / `maxLoans`）で打ち切るので、
+ *   国内を先に並べると海外まで順番が回らない
+ *   （`cpuMarket.generateTransferActivity` で同じ穴を踏んでいる）。
+ */
+function marketClubIds(
+  players: Player[], teams: Team[], playerTeamId: string, foreignLeagues?: ForeignLeague[],
+): string[] {
+  const ids = [
+    ...domesticCpuTeamIds(players, teams, playerTeamId),
+    ...allForeignClubs(foreignLeagues ?? []).map(c => c.id),
+  ]
+  // Fisher-Yates。特定のクラブだけが毎年先に選べる状態にしない
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+  }
+  return ids
+}
 
 /** 1軍の登録上限。**解雇で超過ぶんを切るときだけ**使う（元は 23 の直書き） */
 const FIRST_SQUAD_MAX = 23
@@ -146,7 +175,7 @@ export function runCpuLoans(
   const news: NewsItem[] = []
   const loanedIds = ctx.excludeIds
   const loanYear = ctx.year + 1
-  const cpuIds = domesticCpuTeamIds(players, world.teams, ctx.playerTeamId)
+  const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
   const mainCount = (teamId: string) =>
     players.filter(p => p.teamId === teamId && p.status === 'active' && !p.loan).length
   const givenLoan: Record<string, number> = {}
@@ -231,7 +260,7 @@ export function runCpuTrades(
   const records: TransferRecord[] = []
   const tradedIds = ctx.excludeIds
   const tradeCount: Record<string, number> = {}
-  const cpuIds = domesticCpuTeamIds(players, world.teams, ctx.playerTeamId)
+  const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
 
   let done = 0
   for (const buyerId of cpuIds) {

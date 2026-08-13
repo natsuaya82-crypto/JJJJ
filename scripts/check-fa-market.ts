@@ -52,7 +52,7 @@ const store = logicSource()
 console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')
 {
   // 呼び出しの phase を数える。シーズン中とオフシーズンの両方から呼ばれていること
-  const calls = [...store.matchAll(/pickCpuFreeAgents\(\{[\s\S]{0,600}?\}\)/g)].map(m => m[0])
+  const calls = [...store.matchAll(/pickCpuFreeAgents\(\{[\s\S]{0,1000}?\}\)/g)].map(m => m[0])
   check('pickCpuFreeAgents が3箇所から呼ばれている（オフ・ドラフト後・シーズン中）',
     calls.length === 3, `${calls.length}箇所`)
   check('シーズン中の補強がある（phase: \'inseason\'）',

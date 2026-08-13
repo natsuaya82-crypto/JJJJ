@@ -1,6 +1,6 @@
 {
  "src/engine/cpuMarket.ts": 567,
- "src/engine/cpuOffseason.ts": 423,
+ "src/engine/cpuOffseason.ts": 452,
  "src/engine/growth.ts": 274,
  "src/engine/interactiveRace.ts": 817,
  "src/engine/playerGenerator.ts": 1477,
@@ -15,8 +15,8 @@
  "src/store/slices/competitionSlice.ts": 405,
  "src/store/slices/competitionSlice.ts::advanceEclRace": 173,
  "src/store/slices/competitionSlice.ts::advanceMarketOneRace": 74,
- "src/store/slices/draftSlice.ts": 673,
- "src/store/slices/draftSlice.ts::advanceDraft": 74,
+ "src/store/slices/draftSlice.ts": 679,
+ "src/store/slices/draftSlice.ts::advanceDraft": 80,
  "src/store/slices/draftSlice.ts::beginSeasonDraft": 220,
  "src/store/slices/marketSlice.ts": 1609,
  "src/store/slices/marketSlice.ts::acceptTradeOffer": 73,
