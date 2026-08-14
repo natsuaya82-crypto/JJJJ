@@ -22,6 +22,7 @@ import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
+import { usePlayerLongPress } from '../player/usePlayerLongPress'
 
 
 
@@ -213,6 +214,8 @@ export default function Dashboard() {
     startRegularSeason, initObjectivesIfEmpty, getTeamPlayers,
   } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
+  // 選手詳細への入り口は長押し1本（player/usePlayerLongPress）
+  const longPress = usePlayerLongPress()
   // 世界選手権関連のstate。early return（!team）より後ろで useGameStore を呼ぶとフック数が変わり、
   // 「Rendered fewer hooks than expected」で白画面になるため必ずここで取る。
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
@@ -501,11 +504,13 @@ export default function Dashboard() {
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
                 {/* 選出基準（平均区間順位）は内部ロジック。表示は誰が選ばれたかだけ */}
                 {mvp && (
-                  <div style={{ flex: 1, padding: 10,background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.gold, 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  // ★`minWidth: 0` が要る。flex の子は既定で中身より小さくならないので、
+                  //   長い名前（「リャン・チェンヤン」など）でカードごと枠を突き破る
+                  <div {...longPress(mvp.id)} style={{ flex: 1, minWidth: 0, padding: 10, cursor: 'pointer', background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.gold, 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 36, height: 36,overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha(C.gold, 0.4)}` }}>
                       <PlayerFace playerId={mvp.id} nationality={mvp.nationality} size={36}/>
                     </div>
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
                       <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mvp.name}</div>
                       <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === mvp.teamId)?.shortName ?? ''}</div>
@@ -513,11 +518,11 @@ export default function Dashboard() {
                   </div>
                 )}
                 {rookie && (
-                  <div style={{ flex: 1, padding: 10,background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha('#4FC3F7', 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div {...longPress(rookie.id)} style={{ flex: 1, minWidth: 0, padding: 10, cursor: 'pointer', background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha('#4FC3F7', 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 36, height: 36,overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha('#4FC3F7', 0.4)}` }}>
                       <PlayerFace playerId={rookie.id} nationality={rookie.nationality} size={36}/>
                     </div>
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
                       <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rookie.name}</div>
                       <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === rookie.teamId)?.shortName ?? ''}</div>
