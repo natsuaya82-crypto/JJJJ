@@ -52,7 +52,6 @@ export function signInSeasonFreeAgents(params: {
     playerTeamId,
     season: { ...currentSeason, races: races },
     capFor: (id) => (inSeasonForeignIds.has(id) ? ROSTER_MAX : rosterCapOf(0)),
-    phase: 'inseason',
     // ④本人が行くか（オフの一括処理とまったく同じ関門）
     consents: params.consents })
   const faSignNews: NewsItem[] = []

@@ -59,13 +59,12 @@ export function pickCpuFreeAgents(a: {
   season: import('../types').Season
   /** そのクラブのロスター上限（指名権ぶんを空けた数） */
   capFor: (clubId: string) => number
-  /**
-   * いつの補強か。
-   *   'offseason' … ロスターを組み直す時期。人数の足りないクラブは頭数も埋める
-   *   'inseason'  … シーズン中。**必要な選手だけ**を獲る（頭数合わせはしない）。
-   *                 1クラブ1人まで＝1レースのあいだに市場を空にしない
-   */
-  phase: 'offseason' | 'inseason'
+  // ★**「オフシーズン」という区別は持ちません**（オーナー・2026-08-14「ないって消せよ存在」）。
+  //   以前は phase: 'offseason' | 'inseason' があり、オフだけ
+  //     ・ロスターの空きを**一度に全部**埋める（シーズン中は1クラブ1人）
+  //     ・頭数合わせの枝（③）が動く
+  //   という二段構えだった。これは移籍市場で潰したのと同じ形（年に一度だけ10倍の勢いで
+  //   回す）なので、FAだけ残す理由が無い。**どの回も同じ**にする。
   /**
    * ④本人が行くか（`appraiseMove`）。**省略すると聞かない**（呼び出し側の移行用）。
    *
@@ -77,7 +76,6 @@ export function pickCpuFreeAgents(a: {
 }): { playerId: string; clubId: string }[] {
   const players = a.players
   const clubs = a.clubs
-  const inSeason = a.phase === 'inseason'
   // 人数がここまでは年俸を気にせず埋める。これを超えると年俸が払える範囲だけ
   const FA_FREE_FILL = ROSTER_MIN + 9
   const availableFAs = players
@@ -118,7 +116,8 @@ export function pickCpuFreeAgents(a: {
     return {
       team, totalNow,
       // シーズン中は1レースにつき1人まで。1回で市場を空にしない
-      slotsNeeded: inSeason ? Math.min(1, Math.max(0, a.capFor(team.id) - totalNow)) : Math.max(0, a.capFor(team.id) - totalNow),
+      // どの回も1クラブ1人まで。1回で市場を空にしない（オフだけ一度に埋める、をやめた）
+      slotsNeeded: Math.min(1, Math.max(0, a.capFor(team.id) - totalNow)),
       spendable: budget < 0 ? 0 : (grantRoom + budgetRoom) * spendFactor,
       spent: 0, signed: 0,
       needs: cpuSpecialtyNeeds(team.id, players),
@@ -180,9 +179,9 @@ export function pickCpuFreeAgents(a: {
       if (need) { doSignFA(c, need); return true }
     }
     // ③ 頭数の確保 — 年俸/OVRに関係なく、人数が足りていないクラブは埋める。
-    //    ★シーズン中はやらない。頭数合わせはロスターを組み直す時期の話で、
-    //      シーズン中に走らせると「必要でもない選手」でFA市場が毎レース空になる
-    if (inSeason) return false
+    //    ★1クラブ1人までの上限（slotsNeeded）が効いているので、これを毎回動かしても
+    //      「必要でもない選手」で市場が空になることは無い。以前は「オフだけ」に
+    //      していたが、オフという区別そのものをやめた
     if (c.totalNow + c.signed >= FA_FREE_FILL) return false
     const fa = availableFAs.find(canSign)
     if (!fa) return false

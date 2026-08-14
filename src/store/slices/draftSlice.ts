@@ -190,7 +190,6 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           players: updatedPlayers, clubs: [...state.teams, ...postForeign],
           playerTeamId: state.playerTeamId, season: state.currentSeason,
           capFor: (id) => (postForeignIds.has(id) ? ROSTER_MAX : capForPost()),
-          phase: 'offseason',
           // ④本人が行くか。**ここだけ聞いていなかった**（ドラフト後の拾い直し）。
           // 同じFAでも、ドラフト前の一括処理では聞いていて、ここでは聞いていない
           // ＝経路で判断が割れている状態だった（A-9）
@@ -597,7 +596,6 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       clubs: [...teamsAfterCpuTransfer, ...foreignClubsForFa],
       playerTeamId: state.playerTeamId, season: state.currentSeason,
       capFor: (id) => (foreignIdSet.has(id) ? ROSTER_MAX : rosterCapFor(id)),
-      phase: 'offseason',
       // ④本人が行くか（現金の移籍・トレードと同じ入口）。
       // 無所属は「クラブが無い」状態と較べるので基本は断らないが、
       // 憧れの地域と出番の良し悪しはここで効く

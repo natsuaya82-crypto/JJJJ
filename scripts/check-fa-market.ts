@@ -51,14 +51,17 @@ const store = logicSource()
 
 console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')
 {
-  // 呼び出しの phase を数える。シーズン中とオフシーズンの両方から呼ばれていること
   const calls = [...store.matchAll(/pickCpuFreeAgents\(\{[\s\S]{0,1000}?\}\)/g)].map(m => m[0])
-  check('pickCpuFreeAgents が3箇所から呼ばれている（オフ・ドラフト後・シーズン中）',
-    calls.length === 3, `${calls.length}箇所`)
-  check('シーズン中の補強がある（phase: \'inseason\'）',
-    calls.some(c => c.includes("phase: 'inseason'")))
-  check('  シーズン中の呼び出しは1つだけ（毎レース1本）',
-    calls.filter(c => c.includes("phase: 'inseason'")).length === 1)
+  check('pickCpuFreeAgents が3箇所から呼ばれている', calls.length === 3, `${calls.length}箇所`)
+  // ★**「オフシーズン」という区別は持たない**（オーナー・2026-08-14「ないって消せよ存在」）。
+  //   以前は phase: 'offseason' | 'inseason' で、オフだけロスターの空きを一度に全部
+  //   埋めていた。移籍市場で潰したのと同じ形（年に一度だけ10倍の勢いで回す）なので、
+  //   FAだけ残す理由が無い。**どの回も1クラブ1人まで**にした。
+  // ★経緯をコメントに残しているので、**コメントを外してから**見ること
+  //   （説明の文にも `phase: 'offseason'` の字が出るので、そのままだと必ず落ちる）
+  const code = store.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  check('phase（オフ／シーズン中の区別）を持っていない',
+    !/phase:\s*'(offseason|inseason)'/.test(code), 'phase が残っている')
   check('どの呼び出しも国内クラブと海外クラブをまとめて渡している',
     calls.every(c => /clubs: \[\.\.\./.test(c) && /Foreign|foreign/.test(c)),
     calls.filter(c => !/clubs: \[\.\.\./.test(c)).length + '件が国内だけ')
