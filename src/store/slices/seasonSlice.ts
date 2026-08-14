@@ -9,7 +9,7 @@ import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
-import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
+import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
@@ -96,6 +96,13 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
   //   そのあいだに年を取り名簿も変わる。聞き直すと「ついて行きます」と言った選手が
   //   来なくなる（実測で12人中4人）。引き直すのは移籍金だけ。
   const invited = inviteId ? players.find(p => p.id === inviteId) : undefined
+  // ★**ふつうの移籍とまったく同じ扱いにする**。移籍金が動くだけでなく、
+  //   移籍の記録（`transferHistory`＝チーム詳細の移籍ページ）と、
+  //   新しいクラブの今季の移籍金支出（`transferSpend`＝予算ページ）にも残す。
+  //   以前は `movePlayer` の戻り値の record を捨てていて、**お金は動くのに
+  //   どこにも移籍として出てこない**状態だった
+  let inviteRecord: TransferRecord | null = null
+  let inviteSpend = 0
   if (invited) {
     const fee = gmInviteFeeFor({
       players, teams: state.teams, foreignLeagues: state.foreignLeagues,
@@ -104,8 +111,8 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
     }, invited.id)
     if (fee != null) {
       const m = movePlayer({ players, teams }, invited.id, offer.teamId, {
-        year: offer.year, date: `${offer.year}-02-01`, fee })
-      if (m.ok) players = m.players
+        year: offer.year, date: `${offer.year}-02-01`, fee, myTeamId: offer.teamId })
+      if (m.ok) { players = m.players; inviteRecord = m.record; inviteSpend = m.spend }
     }
   }
 
@@ -128,6 +135,7 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
     gmTenures: startTenure(state.gmTenures, offer.teamId, offer.year, oldTeamId),
     // 移籍先が因縁のチームだったらライバル設定は解除する
     rivalTeamId: state.rivalTeamId === offer.teamId ? null : state.rivalTeamId,
+    transferHistory: [...(state.transferHistory ?? []), ...(inviteRecord ? [inviteRecord] : [])].slice(-400),
     seasonBudgetNotice: { year: offer.year, budget: offer.budget },
     currentSeason: {
       ...state.currentSeason,
@@ -148,6 +156,7 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
       races: state.currentSeason.divisionRaces?.[divisionOf(teams.find(t => t.id === offer.teamId))]
         ?? state.currentSeason.races,
       trainingAssignments: {},
+      transferSpend: inviteSpend,
       scoutMissions: [] },
     raceLineup: {} }
 }

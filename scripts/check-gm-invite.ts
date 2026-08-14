@@ -109,7 +109,9 @@ function runInvite(pickPlayer: (roster: Player[]) => Player | undefined) {
   S().acceptGmOffer(destId, target?.id)
   S().endSeason()
   const after = S().players.find(p => p.id === target?.id)
-  return { destId, target, after, verdict, moved: !!target && after?.teamId === destId }
+  const rec = (S().transferHistory ?? []).find(r => r.playerId === target?.id && r.toTeamId === destId)
+  return { destId, target, after, verdict, rec, spend: S().currentSeason.transferSpend ?? 0,
+    moved: !!target && after?.teamId === destId }
 }
 
 console.log('[①] 声をかけなければ誰も動かない')
@@ -141,6 +143,11 @@ console.log('\n[②③] 声をかけると、選手が自分で決める')
       if (joined <= 3) console.log(`      行く例： ${r.target.name}（OVR${ovr(r.target)}）`)
       // ★チャットで「ついて行きます」と言われたら**必ず移る**（オーナー・2026-08-14）
       if (!r.moved) check('頷いたのに移っていない', false, r.target.name)
+      // ★ふつうの移籍と同じ扱い：記録が残り、移籍金が新しいクラブの支出に乗る
+      if (r.moved && !r.rec) check('移籍の記録が残っていない', false, r.target.name)
+      if (r.moved && r.rec && r.rec.fee !== r.spend) {
+        check('移籍金が支出に乗っていない', false, `${r.target.name} 記録${r.rec.fee} / 支出${r.spend}`)
+      }
     }
     else if (r.verdict) {
       declined++; declineReason = r.verdict.reason
