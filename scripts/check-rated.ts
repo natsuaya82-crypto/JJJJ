@@ -17,7 +17,7 @@
  *   ・`ratedCourse` の乱数の空回しをやめる（3日とも同じ区間数になる）       → [5]
  */
 import {
-  applyElo, splitGroups, rankOf, RANK_BANDS, RATED_K, GROUP_MAX, GROUP_MIN,
+  applyElo, splitGroups, rankOf, RANK_BANDS, RATED_K, ELO_SCALE, GROUP_MAX, GROUP_MIN,
 } from '../src/engine/rating'
 import { ratedCourse, courseDistanceKm, SEG_MIN, SEG_MAX } from '../src/engine/ratedCourse'
 
@@ -63,21 +63,25 @@ console.log('\n[2][3] レートの動き')
   const d0 = applyElo(flat, flat.map(e => e.id))
   console.log(`      全員同じレートの20人： 1位 ${d0.u0} / 10位 ${d0.u9} / 20位 ${d0.u19}`)
   check('1位は上がり、最下位は下がる', d0.u0 > 0 && d0.u19 < 0)
-  check('真ん中はほとんど動かない', Math.abs(d0.u9) <= 3, `${d0.u9}`)
+  // ★数字は K と目盛りに連動する。2026-08-14 に3つまとめて10倍にしたので、
+  //   ここも10倍（3 → 30）。**比を変えないこと**（緩めるのではなく目盛りを合わせる）
+  check('真ん中はほとんど動かない', Math.abs(d0.u9) <= 30, `${d0.u9}`)
 
   // ★格上に勝つほど大きい（オーナー指摘「10000と0が同じ量上がるのはおかしい」）
+  // ★レートの差も10倍（800 → 8000、2000 → 20000）。目盛りが4000になったので、
+  //   同じ「格上／格下」を表すには差も同じだけ開かないといけない
   const weakWins = applyElo(
-    [{ id: 'me', rating: 0 }, ...Array.from({ length: 19 }, (_, i) => ({ id: `s${i}`, rating: 800 }))],
+    [{ id: 'me', rating: 0 }, ...Array.from({ length: 19 }, (_, i) => ({ id: `s${i}`, rating: 8000 }))],
     ['me', ...Array.from({ length: 19 }, (_, i) => `s${i}`)])
   const strongWins = applyElo(
-    [{ id: 'me', rating: 2000 }, ...Array.from({ length: 19 }, (_, i) => ({ id: `s${i}`, rating: 0 }))],
+    [{ id: 'me', rating: 20000 }, ...Array.from({ length: 19 }, (_, i) => ({ id: `s${i}`, rating: 0 }))],
     ['me', ...Array.from({ length: 19 }, (_, i) => `s${i}`)])
   console.log(`      格上19人に全勝： +${weakWins.me} ／ 格下19人に全勝： +${strongWins.me}`)
-  check('格上に勝つと大きく上がる', weakWins.me > 60, `${weakWins.me}`)
-  check('格下に勝ってもほとんど増えない', strongWins.me <= 2, `${strongWins.me}`)
+  check('格上に勝つと大きく上がる', weakWins.me > 600, `${weakWins.me}`)
+  check('格下に勝ってもほとんど増えない', strongWins.me <= 20, `${strongWins.me}`)
 
   const strongLoses = applyElo(
-    [{ id: 'me', rating: 2000 }, ...Array.from({ length: 19 }, (_, i) => ({ id: `s${i}`, rating: 0 }))],
+    [{ id: 'me', rating: 20000 }, ...Array.from({ length: 19 }, (_, i) => ({ id: `s${i}`, rating: 0 }))],
     [...Array.from({ length: 19 }, (_, i) => `s${i}`), 'me'])
   console.log(`      格下19人に全敗： ${strongLoses.me}`)
   check('格下に負けると大きく減る', strongLoses.me < -60, `${strongLoses.me}`)
@@ -89,7 +93,23 @@ console.log('\n[2][3] レートの動き')
   }
   console.log(`      全勝したときの上がり幅： 20人 +${win(20)} / 14人 +${win(14)} / 10人 +${win(10)}`)
   check('人数が多い組ほど大きく動く', win(20) > win(14) && win(14) > win(10))
-  check('K は 4（動かせる数字はこれだけ）', RATED_K === 4, `${RATED_K}`)
+  // ★**K・目盛り・段位の帯は必ず3つ一緒に動かす。** 桁は見た目でしかなく、
+  //   中身は3つの「比」。比を留めておけば、次に桁を変えるときも1つだけ直す事故が防げる。
+  check('K は 40', RATED_K === 40, `${RATED_K}`)
+  check('目盛り ÷ K が 100', ELO_SCALE / RATED_K === 100, `${ELO_SCALE} / ${RATED_K}`)
+  check('いちばん上の段位 ÷ K が 112.5',
+    RANK_BANDS[0].min / RATED_K === 112.5, `${RANK_BANDS[0].min} / ${RATED_K}`)
+
+  // ★**目盛りだけ戻す（K=40・目盛り400）を捕まえる網。**
+  //   上の全勝／全敗は「格上」「格下」が極端すぎて、目盛りが10倍でも1倍でも同じ答えになる。
+  //   効くのは**中くらいの差**で、目盛りの1/4だけ上の人が全勝したときの上がり幅が
+  //   274（正しい）と 2（目盛りだけ400のとき）に分かれる＝上のほうが詰まる形。
+  const midLead = ELO_SCALE / 4
+  const midWins = applyElo(
+    [{ id: 'me', rating: midLead }, ...Array.from({ length: 19 }, (_, i) => ({ id: `m${i}`, rating: 0 }))],
+    ['me', ...Array.from({ length: 19 }, (_, i) => `m${i}`)])
+  console.log(`      目盛りの1/4（${midLead}）だけ上の人が全勝： +${midWins.me}`)
+  check('少し上なだけの人は、全勝すればまだしっかり上がる', midWins.me > 150, `${midWins.me}`)
 }
 
 console.log('\n[4] 段位')
@@ -99,10 +119,14 @@ console.log('\n[4] 段位')
     RANK_BANDS.map(b => b.name).join('/') === 'レジェンド/マスター/ダイヤモンド/プラチナ/ゴールド/シルバー/ブロンズ')
   check('0からはブロンズ', rankOf(0) === 'ブロンズ')
   check('下がる（マイナスでも落ちるだけ）', rankOf(-500) === 'ブロンズ')
-  // ★実測の幅（1か月で -400〜+460）に区切りが入っていること。
-  //   最初の版は 700/1000/1400 で、上の3段位に誰も届かなかった
+  // ★実測の幅に区切りが入っていること。最初の版は 700/1000/1400（当時の目盛り）で、
+  //   上の3段位に**誰も届かなかった**。
+  //   いまは1大会14日で −2682〜2984、**大会をまたいでレートが続く**ので、
+  //   いちばん上（4500）は数回の大会で届く。**1回で届いてはいけない**
+  //   （オーナー・2026-08-14「一回でマスターとかいかれると逆に困る」）。
   const top = RANK_BANDS[0].min
-  check('いちばん上の段位が1か月で届く幅にある（460以内）', top <= 460, `${top}`)
+  check('いちばん上は1大会（14日・実測2984）では届かない', top > 2984, `${top}`)
+  check('いちばん上は数回の大会で届く幅（4600以内）', top <= 4600, `${top}`)
   check('区切りが上から下へ並んでいる',
     RANK_BANDS.every((b, i) => i === 0 || RANK_BANDS[i - 1].min > b.min))
   const seen = new Set(RANK_BANDS.map(b => rankOf(b.min)))

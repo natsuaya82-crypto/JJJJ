@@ -79,8 +79,8 @@ function ratedDateOf(startsOn, day) {
 // src/engine/rating.ts
 var GROUP_MAX = 20;
 var GROUP_MIN = 10;
-var RATED_K = 4;
-var ELO_SCALE = 400;
+var RATED_K = 40;
+var ELO_SCALE = 4e3;
 function applyElo(entries, order) {
   const rating = new Map(entries.map((e) => [e.id, e.rating]));
   const place = new Map(order.map((id, i) => [id, i]));
