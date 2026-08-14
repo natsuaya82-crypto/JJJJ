@@ -41,7 +41,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
       <div style={{
         width: '100%', maxWidth: '380px', maxHeight: 'min(100%, 600px)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        background: '#050d1c',        border: `1px solid ${alpha(C.gold, 0.3)}`,
+        background: C.bg,        border: `1px solid ${alpha(C.gold, 0.3)}`,
         boxShadow: '0 24px 64px rgba(0, 0, 0, 0.65)',
       }}>
 
@@ -114,7 +114,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
         {/* 下：チェックと同意 */}
         <div style={{
           flexShrink: 0, padding: '13px 20px 16px',
-          borderTop: `1px solid ${alpha(C.gold, 0.18)}`, background: '#081327',
+          borderTop: `1px solid ${alpha(C.gold, 0.18)}`, background: C.surface,
         }}>
           <div
             onClick={() => { if (reachedEnd) setChecked(v => !v) }}
@@ -150,7 +150,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
               background: canAgree
                 ? `linear-gradient(135deg, ${C.goldDark}, ${C.gold} 55%, ${C.goldHi})`
                 : alpha(C.text, 0.08),
-              color: canAgree ? '#1a1200' : C.textGhost,
+              color: canAgree ? C.bg : C.textGhost,
               fontSize: F.subLg, fontWeight: 900, letterSpacing: '1px',
               fontFamily: JP, cursor: canAgree ? 'pointer' : 'default',
             }}>

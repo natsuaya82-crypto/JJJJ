@@ -364,6 +364,7 @@ console.log('\n⑩ 金でベタ塗りして黒い字、を書いていない')
   check('金でベタ塗りして黒い字にしていない', hits.length === 0,
     hits.slice(0, 8).join('\n      ') +
     '\n      → 透かした面＋金の字＋細い枠にすること（配合は ui/GlassButton）')
+}
 
 console.log('\n⑪ 本文の文字サイズを数字で書いていない')
 {
