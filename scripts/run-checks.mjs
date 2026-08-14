@@ -41,7 +41,7 @@ const CHECKS = [
   'chat-dup', 'chat-lines', 'chat-log', 'contract-talk', 'demand-gates', 'sale-answer',
   'consent-single', 'move-reason', 'tier-drop', 'release-gate', 'offer-result', 'gm-offer',
   // 移籍・市場
-  'fa-market', 'transfer-eligibility',
+  'fa-market', 'transfer-eligibility', 'market-sorting',
   // transfer-bid は片付いた（12件 → 8件 → 0件）。最後の8件は**仕様が変わったのに
   // テストが旧仕様のまま**だったもので、2026-08-11 にオーナーが現仕様（1回目は
   // countered で上乗せの機会）を選んだので書き直した（docs/BACKLOG.md A-3）。

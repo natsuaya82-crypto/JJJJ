@@ -32,7 +32,7 @@ import { clubIndexOf } from './rosterSync'
 import { strHash } from './hash'
 import { isDeclining } from '../engine/ageCurve'
 import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
-import { RUNNING_SLOTS } from '../data/rosterRules'
+import { RUNNING_SLOTS, SQUAD_DEPTH_SLOTS } from '../data/rosterRules'
 // 「そのクラブで何番手か」は squadNeeds の1本
 import { squadRankOf } from './squadNeeds'
 
@@ -67,12 +67,12 @@ export { RUNNING_SLOTS } from '../data/rosterRules'
 /**
  * 「そのクラブでは出番が無い」と言える序列。**国内も海外もこの1本で判定する。**
  *
- * 走れるのは区間数ぶん（コースは6〜10区間）。故障者が出れば少し下まで回ってくるので、
- * 「ほぼ出ない」と言えるのは**走れる人数の2倍**より下。7区間なら15番手以降。
- * 11番手のような直書きを各所に置かないこと。
+ * 線は `data/rosterRules` の `SQUAD_DEPTH_SLOTS`（＝走れる人数の2倍。7区間なら14番手まで）。
+ * **買う側（`squadNeeds.needsPlayer`）と同じ線です。** ここで ×2 を手書きしないこと
+ * （出す側と買う側で線が食い違うと、8〜14番手が「誰もが売るが誰も買わない」層になります）。
  */
-export function hasNoPlayingTime(squadRank: number, slots: number = RUNNING_SLOTS): boolean {
-  return squadRank > slots * 2
+export function hasNoPlayingTime(squadRank: number, slots: number = SQUAD_DEPTH_SLOTS): boolean {
+  return squadRank > slots
 }
 
 // ── 誰が市場に出るか（供給の唯一の決まり）─────────────────────
@@ -125,7 +125,7 @@ export const SEEK_PATIENCE_AGE = 27
 export function isSurplus(a: {
   /** 出す側のクラブでの序列（1が最上位） */
   squadRank: number
-  /** 走れる区間数（コースによって6〜10） */
+  /** 戦力に入る序列（既定 `SQUAD_DEPTH_SLOTS`＝14）。**区間数ではありません** */
   slots?: number
 }): boolean {
   return hasNoPlayingTime(a.squadRank, a.slots)
@@ -220,7 +220,7 @@ export function seeksPlayingTime(a: {
   /** 前季の出走数とチームのレース数。分からなければ省略 */
   prevRaces?: number
   prevTeamRaces?: number
-  /** 走れる区間数（コースによって6〜10） */
+  /** 戦力に入る序列（既定 `SQUAD_DEPTH_SLOTS`＝14）。**区間数ではありません** */
   slots?: number
 }): boolean {
   if (!hasNoPlayingTime(a.squadRank, a.slots)) return false

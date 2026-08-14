@@ -1,7 +1,7 @@
 import type { Player, Specialty } from '../types'
 import { SPECIALTY_LABELS } from '../types'
 import { ovr } from './playerUtils'
-import { RUNNING_SLOTS } from '../data/rosterRules'
+import { RUNNING_SLOTS, SQUAD_DEPTH_SLOTS } from '../data/rosterRules'
 
 // 「そのクラブは今どのタイプが足りていないか」「その選手は欲しい選手か」を決める1本。
 //
@@ -147,11 +147,15 @@ export function needsPlayer(
   const facts = rosterFacts(roster)
   const d = facts.depth[player.specialty]
   if (!d) return false
-  // ★どの穴でも、**そこで走れる選手でなければ獲らない**（走れるのは7区間）。
-  //   「16番手になる選手をわざわざ獲るクラブはいない」（CLAUDE.md）を、
-  //   言葉だけでなく判定に入れる。以前は①が無条件、②も序列を見ていなかったので、
-  //   1部のクラブが3部で1戦も走っていないOVR64を「必要」と言っていた。
-  if (opts.requireLineup !== false && !wouldMakeLineup(roster, player)) return false
+  // ★どの穴でも、**そのクラブの戦力に入る選手でなければ獲らない**。
+  //   線は `SQUAD_DEPTH_SLOTS`（14番手まで）で、**出す側が「余剰」と言う線と同じ**。
+  //   以前ここだけ「走れる7人」に締めていて、8〜14番手の選手は
+  //   **誰もが売るが誰も買わない**層になっていました（OVR70以下の1,208人＝全体の21%が
+  //   232クラブ全部から「要らない」＝3年で移籍1件）。詳しくは data/rosterRules。
+  //   ★**線は買う側の名簿に対する相対なので、緩めすぎにはなりません。**
+  //     14番手のOVRは格1で83.2・格20で65.8。OVR64を「必要」と言うクラブは0件のままで、
+  //     OVR70でも格15〜20の14クラブだけです（CLAUDE.md が警告している形にはならない）。
+  if (opts.requireLineup !== false && !wouldMakeLineup(roster, player, SQUAD_DEPTH_SLOTS)) return false
   // ① 不在のポジションは埋めたい
   //
   //   ★以前はここが無条件（`return true`）だった。強さを一切見ないので、

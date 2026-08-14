@@ -675,6 +675,16 @@ RULES.push({
   fix: 'utils/playerUtils.ts の newContractYears(player, year) を使う',
 })
 
+// 「そのクラブの戦力に入る序列」＝走れる人数の2倍。出す側（余剰か）と買う側（要るか）が
+// **同じ線**を使うためのもの。以前は買う側だけ「走れる7人」に締めていて、
+// 8〜14番手が「誰もが売るが誰も買わない」層になっていた（OVR70以下の21%が市場から消えた）。
+RULES.push({
+  name: '戦力の線（走れる人数の2倍）を手書きしている',
+  pattern: /RUNNING_SLOTS\s*\*\s*2|slots\s*\*\s*2/,
+  allow: ['src/data/rosterRules.ts'],
+  fix: 'data/rosterRules.ts の SQUAD_DEPTH_SLOTS を使う',
+})
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     if (SKIP_DIRS.has(e)) continue
