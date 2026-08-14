@@ -147,36 +147,36 @@ curl -X POST "$SUPABASE_URL/functions/v1/rated-tick" \
 置いてあります。**古いまま気づかない**のが唯一の危険なので、`npm run check` の
 `edge-bundle` が毎回「いま作り直したものと同じか」を突き合わせます。
 
-大会の日程は `all.sql` の `rated_events` への insert 1行です（いまは 2026-09-01 から30日）。
-`on conflict do nothing` なので、2回流しても始まっている大会は動きません。
+大会の日程は `all.sql` の `rated_events` への insert 1行です（いまは 2026-09-01 から14日）。
+**名前で見て無いときだけ作る**ので、2回流しても始まっている大会は動きません（日付で見ると、日程をずらしたときに同じ大会がもう1つできます）。
 
 ---
 
 ## 何かおかしいときに、まず流すSQL
 
-土台と関数の有無が一覧で出ます。`null` / `false` / `0` が出たところが足りていません。
+**`all.sql` を流してください。それだけです。**
 
-```sql
-select
-  to_regclass('public.profiles')                     as t_profiles,
-  (select count(*) from public.profiles)             as n_profiles,
-  (select count(*) from pg_policies
-    where schemaname='public' and tablename='profiles') as n_policies_profiles,
-  to_regclass('public.clubs')                        as t_clubs,
-  to_regclass('public.rooms')                        as t_rooms,
-  to_regclass('public.match_details')                as t_match_details,
-  to_regproc('public.club_feed()')                   as fn_club_feed,
-  to_regproc('public.list_my_matches(integer)')      as fn_list_my_matches,
-  to_regproc('public.finish_match(uuid,jsonb,jsonb)') as fn_finish_match,
-  exists (select 1 from information_schema.columns
-           where table_schema='public' and table_name='profiles'
-             and column_name='mp_played')            as col_mp_played,
-  exists (select 1 from information_schema.columns
-           where table_schema='public' and table_name='rosters'
-             and column_name='hof')                  as col_hof;
-```
+`all.sql` は最後に確認の一覧を出すので、流し終わると下にこう出ます
+（ローカルの PostgreSQL に流した実測。2回流しても同じ）。
 
-足りないものがあれば `all.sql` を流してください。それで全部そろいます。
+| 表の数 | ポリシーの数 | 関数の数 | RLSが無い表 | ランクマッチ |
+|---|---|---|---|---|
+| 24 | 40 | 105 | **0** | 第一回ベータ版ランクマッチ｜2026-09-01｜14日 |
+
+**見るのは3つだけです。**
+
+- **表の数 24**。足りなければ表が作られていない
+- **RLSが無い表 0**。**0 以外なら危険**（誰でも読み書きできる表がある）
+- **ランクマッチ**。`(大会なし)` と出たら大会の行が入っていない
+
+★**関数の数は環境で変わります。** 上の105はローカルの数で、ローカルは `pgcrypto` を
+`public` に入れるぶんだけ多く数えます（Supabase は `extensions` に置くので少なくなる）。
+**この数を期待値として使わないこと。**
+
+★ここに確認用のSQLを別で置かないこと。以前は README に手書きの一覧
+（`to_regclass('public.profiles')` …）があり、**表を足しても直されないので
+「全部そろっています」と嘘をつく**状態でした。いまは数え上げなので、
+表を足せば「表の数」が勝手に増えます。
 
 ### それでも画面がオフラインのままなら
 

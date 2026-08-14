@@ -2401,3 +2401,25 @@ commit;
 --   トランザクションの外で送る。
 -- ============================================================
 notify pgrst, 'reload schema';
+
+-- ============================================================
+-- 7. 確認（流し終わると、この結果が下に出ます）
+--
+--   ★**表の名前を手で並べないこと。** 一覧を書くと、表を足したときに here を
+--     直し忘れて「全部そろっています」と嘘をつく。数え上げにしてあるので、
+--     表を足せば「表の数」が勝手に増える。
+--
+--   見かた
+--     RLSが無い表   … **0 以外なら危険**（誰でも読み書きできる表がある）
+--     ランクマッチ  … 大会が入っていれば名前・開始日・日数が出る
+-- ============================================================
+select
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r')                        as "表の数",
+  (select count(*) from pg_policies where schemaname = 'public')           as "ポリシーの数",
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public')                                            as "関数の数",
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity) as "RLSが無い表",
+  coalesce((select name || '｜' || starts_on || '｜' || total_days || '日'
+    from public.rated_events order by starts_on limit 1), '(大会なし)')     as "ランクマッチ";
