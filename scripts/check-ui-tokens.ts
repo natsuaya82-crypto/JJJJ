@@ -418,5 +418,25 @@ console.log('\n⑫ 下端まわりの数字を画面で作っていない')
     'index.css の --ad-h / --nav-h は誰も読んでいなかった。実体は tokens.ts の AD_H / NAV_H')
 }
 
+console.log('\n⑬ 下から出るシートが画面の外へ突き抜けない')
+{
+  // ★中身が長いシートは**画面の上へ突き抜ける**。`position: fixed; bottom: adH` で
+  //   下から生えるので、背が伸びたぶんは全部上へ出ていき、見出しがステータスバーに
+  //   潜り込んで指でも出せなくなる（ランクマッチの遊びかたで実際に起きた）。
+  //   シートは今後も増えるので、**入れもの側で止まっていること**を見る。
+  const sheet = read('src/components/ui/BottomSheet.tsx')
+  check('高さに上限がある', /maxHeight:/.test(sheet),
+    'BottomSheet に maxHeight が無い。中身が長いと画面の上へ突き抜ける')
+  check('上限に広告の高さ(adH)が入っている', /maxHeight:[^\n]*\$\{adH\}/.test(sheet),
+    'シートは bottom:adH から生えるので、上限に adH を入れないとそのぶんはみ出す')
+  check('上限にセーフエリア（ステータスバー）が入っている',
+    /maxHeight:[^\n]*safe-area-inset-top/.test(sheet),
+    '入れないと見出しがステータスバーの下に潜る')
+  check('中身がスクロールする', /overflowY:\s*'auto'/.test(sheet),
+    '上限だけ付けて中身がスクロールしないと、はみ出したぶんが読めなくなる')
+  // つまみと見出しは動かさない（縮められると、長い中身のときに潰れる）
+  check('つまみと見出しは縮まない', (sheet.match(/flexShrink:\s*0/g) ?? []).length >= 2)
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

@@ -54,13 +54,28 @@ export default function BottomSheet({ open, onClose, title, children }: {
           // 中身が画面の右へ28pxはみ出す（2列に並べたボタンの右列が切れる）
           boxSizing: 'border-box',
           padding: '8px 14px calc(18px + env(safe-area-inset-bottom))',
+          // ★**高さの上限と、中身のスクロール。**
+          //   これが無いと、中身が長いシートは**画面の上へ突き抜ける**。実機では
+          //   見出しがステータスバーに潜り込み、上のほうは指で出すこともできなかった
+          //   （ランクマッチの遊びかたで実際に起きた）。fixed で下から生えているので、
+          //   背が伸びるぶんは全部上へ出ていく。**シートを増やすたびに起きる**ので、
+          //   画面側ではなくここで止める。
+          //   ★**広告の高さ(adH)を引くのを忘れないこと。** シートは bottom:adH から
+          //     生えるので、上限に adH を入れないとそのぶん上へはみ出す。
+          //   上に残す余白はステータスバー（safe-area）＋24px。
+          maxHeight: `calc(100dvh - ${adH}px - env(safe-area-inset-top) - 24px)`,
+          display: 'flex', flexDirection: 'column',
         }}
       >
-        <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 10px' }} />
+        <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 10px', flexShrink: 0 }} />
         {title && (
-          <div style={{ fontSize: F.body, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>{title}</div>
+          <div style={{ fontSize: F.body, fontWeight: 800, color: C.textSub, marginBottom: 10, flexShrink: 0 }}>{title}</div>
         )}
-        {children}
+        {/* つまみと見出しは動かさず、中身だけスクロールさせる */}
+        <div style={{
+          minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+        }}>{children}</div>
       </div>
     </>
   ), document.body)
