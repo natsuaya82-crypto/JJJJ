@@ -2,7 +2,7 @@ import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { titleRows } from '../../utils/teamHistory'
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { C, alpha, SAIRA, F, PAGE_X } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 
 
@@ -31,7 +31,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
     //   ホームだけ枠なしにしていたので、同じクラブなのに画面で見え方が違っていた。
     <div style={{
       ...panelStyle(C.gold),
-      margin: '12px 12px 0',
+      margin: `12px ${PAGE_X}px 0`,
       background: `linear-gradient(135deg, ${team.colors.primary} 0%, ${C.surface} 55%, ${C.bg} 100%)`,
       padding: '16px 16px 14px',
     }}>

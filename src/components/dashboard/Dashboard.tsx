@@ -7,7 +7,7 @@ import PlayerFace from '../player/PlayerFace'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { C, alpha, SAIRA, F, PAGE_X } from '../../styles/tokens'
 import JewelGainPopup from '../ui/JewelGainPopup'
 import HeroCard from './HeroCard'
 import NextRaceCard from './NextRaceCard'
@@ -86,7 +86,7 @@ function PreseasonHub({
   }
 
   return (
-    <div style={{ padding: '0 18px' }}>
+    <div style={{ padding: `0 ${PAGE_X}px` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '22px 0 8px' }}>
         <div style={{ width: 2, height: 12, background: C.cyan }}/>
         <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>
@@ -368,7 +368,7 @@ export default function Dashboard() {
 
       {/* ── QUICK ACTIONS（枠なし・ヘアラインで区切る） ── */}
       <div style={{
-        display: 'flex', margin: '18px 18px 0',
+        display: 'flex', margin: `18px ${PAGE_X}px 0`,
         borderTop: `1px solid ${alpha(C.border3, 0.6)}`, borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
       }}>
         {([
@@ -422,7 +422,7 @@ export default function Dashboard() {
         />
       ) : seasonDone && nextEclRace ? (
         /* ECLの残り戦。JPELファイナル後なので代表選考にはいつでも入れる */
-        <div style={{ margin: '0 12px 16px' }}>
+        <div style={{ margin: `0 ${PAGE_X}px 16px` }}>
           {eclNextCard}
           {!waDone && waJapanIn && (
             <button onClick={() => navigate('/national/select')} className="btn-press" style={{
@@ -447,7 +447,7 @@ export default function Dashboard() {
         </div>
       ) : seasonDone && !waDone ? (
         /* 世界選手権／予選：シーズン終了の前に必ずここを通る */
-        <div style={{ margin: '0 12px 16px' }}>
+        <div style={{ margin: `0 ${PAGE_X}px 16px` }}>
           <div style={panelStyle(C.purple)}>
             <div style={{ padding: '18px 18px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.purple, 0.18)}`, position: 'relative' }}>
               <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD LONG DISTANCE</div>
@@ -489,7 +489,7 @@ export default function Dashboard() {
         </div>
       ) : seasonDone ? (
         /* シーズン終了 */
-        <div style={{ margin: '0 12px 16px' }}>
+        <div style={{ margin: `0 ${PAGE_X}px 16px` }}>
           <div style={panelStyle(C.gold)}>
             <div style={{ padding: '18px 18px 14px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.gold, 0.15)}`, position: 'relative', zIndex: 1 }}>
               {isChampion && <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: '3px', marginBottom: 4, fontWeight: 900, textShadow: `0 0 10px ${alpha(C.gold, 0.7)}` }}>★ CHAMPION ★</div>}
@@ -634,7 +634,7 @@ export default function Dashboard() {
       )}
 
       {/* ── 順位 / 選手（横並びの四角） ── */}
-      <div style={{ margin: '0 18px 16px' }}>
+      <div style={{ margin: `0 ${PAGE_X}px 16px` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '22px 0 8px' }}>
           <div style={{ width: 2, height: 12, background: C.cyan }}/>
           <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>CLUB</span>
@@ -727,7 +727,7 @@ export default function Dashboard() {
         }
         const filtered = currentSeason.newsFeed.slice(0, 5)
         return (
-          <div style={{ margin: '0 18px 16px' }}>
+          <div style={{ margin: `0 ${PAGE_X}px 16px` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '22px 0 8px' }}>
               <div style={{ width: 2, height: 12, background: C.cyan }}/>
               <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>NEWS</span>

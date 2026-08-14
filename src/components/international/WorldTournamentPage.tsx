@@ -6,6 +6,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { Race, RaceResults, Team, Player } from '../../types'
 import { LineupPhase } from '../race/LineupPhase'
 import { SkipRaceButton } from '../race/SkipRaceButton'
+import GlassButton from '../ui/GlassButton'
 import { ResultsPhase } from '../race/ResultsPhase'
 import { RaceSimPanel } from '../shared/RaceSimPanel'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
@@ -89,6 +90,31 @@ export default function WorldTournamentPage() {
         isMe: pt.isPlayerTeam,
       }))
   }, [t])
+
+  /**
+   * **残り全部を一気に終わらせる。**
+   *
+   *   > eclのスキップみたいに世界選手権にアジア予選敗退した時も
+   *   > 全部見ないといけないのだるいからスキップボタン欲しい（オーナー・2026-08-14）
+   *
+   * 「結果だけ見る」は1戦ぶんなので、日本が出ていない年は3戦とも押すことになる。
+   * ★走らせるのは `advanceWorldRace` 1本（観戦するときとまったく同じ処理）。
+   *   ここで結果を作らないこと。個人種目の発表も同時に消化して最終結果へ飛ぶ。
+   */
+  function runAll() {
+    const S = () => useGameStore.getState()
+    // 上限は保険（実際は3戦）。無限ループにしない
+    for (let i = 0; i < 20; i++) {
+      const cur = S().worldTournament
+      if (!cur || cur.finished || cur.raceIndex >= cur.races.length) break
+      S().advanceWorldRace()
+    }
+    // 駅伝の合間に1つずつ出す個人種目も、まとめて消化する（最終結果に全部載る）
+    S().markWorldIndividualsSeen()
+    const inds = S().worldTournament?.individuals?.length ?? 0
+    for (let i = S().worldTournament?.individualsRevealed ?? 0; i < inds; i++) S().markWorldIndividualRevealed()
+    navigate('/national/result')
+  }
 
   function run(withLineup?: Record<number, string>, skipPlayback = false) {
     if (!t || !nextRace) return
@@ -238,9 +264,15 @@ export default function WorldTournamentPage() {
             <button onClick={() => setPhase('lineup')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">第{t.raceIndex + 1}戦 区間配置へ →</span></button>
           ) : (
             // 日本が出ていない年。再生を見せられ続けないよう、区間配置と同じスキップを並べる
-            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-              <SkipRaceButton onClick={() => runWithLoading('結果を計算中…', () => run(undefined, true), 500)} label="結果だけ見る" />
-              <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--purple" style={{ flex: 1 }}><span className="btn-game__inner">第{t.raceIndex + 1}戦を観戦する</span></button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                <SkipRaceButton onClick={() => runWithLoading('結果を計算中…', () => run(undefined, true), 500)} label="結果だけ見る" />
+                <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--purple" style={{ flex: 1 }}><span className="btn-game__inner">第{t.raceIndex + 1}戦を観戦する</span></button>
+              </div>
+              {/* 日本が出ていない年は3戦とも同じ操作の繰り返しになる。まとめて終わらせる口 */}
+              <GlassButton full color={C.textSub} onClick={() => runWithLoading('残りを消化中…', runAll, 600)}>
+                最後までスキップ →
+              </GlassButton>
             </div>
           )}
         </div>
