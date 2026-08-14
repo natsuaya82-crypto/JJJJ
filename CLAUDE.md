@@ -112,6 +112,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/components/player/PlayerChips.tsx` | **選手の名前の横に出る小さな札**。`SpecChip`（タイプ）／`ForeignChip`（外国籍）。大きさ（sm/md）だけ選べて、色・濃さ・枠線・丸みは1つに固定 |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
+| `src/store/saveStorage.ts` の `stageWrite` | **セーブを書いてよいかの関門**。セーフモード・新規状態での上書き・中身が消し飛んだ判定。入口は2つ（文字列を渡す `saveStorage` と、状態を渡す `jsonSaveStorage`）だが判定は1本 |
+| `src/store/saveStorage.ts` の `jsonSaveStorage` | **セーブのJSON化のタイミング**。persist は set() のたびに数MBをJSON化するので、`createJSONStorage` を使わず状態のまま受け取り、**書き込みと同じデバウンスの中で1回だけ**JSON化する（10MBのセーブで set() 1回 73ms → 4ms）。待ち時間は `WRITE_DELAY_MS` 1本。**`flushSaveNow` は溜めたぶんのJSON化を必ず先に済ませること**（飛ばすと直前の操作が書かれない） |
 | `supabase/all.sql` | **サーバー側（Supabase）の全部**。表・関数・ポリシー・権限。**流すのはこの1本だけ**（下の節） |
 | `supabase/all.sql` の `club_member_cap` | **走友会の人数の上限（30）**。以前は入るとき30・承認だけ50で、承認制の走友会だけ50人まで入れた |
 

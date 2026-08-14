@@ -87,6 +87,7 @@ const CHECKS = [
   { name: 'continental' },
   // セーブ・起動
   { name: 'save-guard', shim: true },
+  { name: 'save-write', shim: true },
   { name: 'boot-gate', shim: true },
   { name: 'save-backups', shim: true, nativeFakes: true },
   // ★実機から取り出した本物のセーブを読む点検。リポジトリには入っていないので、
