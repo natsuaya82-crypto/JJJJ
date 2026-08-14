@@ -16,6 +16,7 @@ import { HOME_NATION } from '../../data/nationalities'
 import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
 import { useAdHeight } from '../layout/Layout'
 import { SpecChip } from '../player/PlayerChips'
+import PlayerList from '../player/PlayerList'
 
 const SQUAD = 20
 
@@ -236,7 +237,7 @@ export default function NationalSquadSelectPage() {
         </div>
 
         {/* 候補リスト（ロスターと同じ全数値付きの行）。選出済みの選手は出さない */}
-        <div style={{ background: C.bg }}>
+        <PlayerList style={{ background: C.bg }}>
           {pickerPlayers.filter(c => slotOf(c.player.id) === null).map(c => {
             const p = c.player
             return (
@@ -253,7 +254,7 @@ export default function NationalSquadSelectPage() {
           {pickerPlayers.length === 0 && (
             <div style={{ textAlign: 'center', padding: 40, color: C.textGhost, fontSize: 12 }}>条件に合う候補なし</div>
           )}
-        </div>
+        </PlayerList>
 
         {/* 選出バー（固定・タブバーと広告の上） */}
         <div style={{

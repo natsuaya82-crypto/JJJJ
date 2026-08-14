@@ -7,6 +7,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
+import PlayerList from '../player/PlayerList'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -78,11 +79,11 @@ export default function ScoutPage() {
         </div>
       </div>
 
-      <div style={{ margin: '0 12px',overflow: 'hidden', border: `1px solid ${C.border}` }}>
+      <PlayerList style={{ margin: '0 12px' }}>
         {sorted.map(p => (
           <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={starredProspects.includes(p.id) ? <span style={{ color: '#F5C842', fontSize: 13, flexShrink: 0 }}>★</span> : undefined} />
         ))}
-      </div>
+      </PlayerList>
     </div>
   )
 }

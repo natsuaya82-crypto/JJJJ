@@ -19,6 +19,7 @@ import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
+import PlayerList from '../player/PlayerList'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -345,13 +346,13 @@ export default function TeamManagement() {
       )}
 
       {/* 一覧は箱に入れない。カードを縦に並べる */}
-      <div style={{ margin: '0 18px 80px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <PlayerList style={{ margin: '0 18px 80px' }}>
           {players.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: '14px' }}>登録選手なし</div>
           ) : (
             players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? teams.find(t => t.id === p.loan!.ownerTeamId) : undefined}/>)
           )}
-        </div>
+        </PlayerList>
       </>}
 
       {(() => {

@@ -28,6 +28,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import { offersAwaitingReply } from '../../utils/notifItems'
 import { SpecChip } from '../player/PlayerChips'
+import PlayerList from '../player/PlayerList'
 
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -335,7 +336,7 @@ export default function TransferPage() {
               <div style={{ padding: '40px', textAlign: 'center', color: C.textGhost, fontSize: '13px', fontFamily: SAIRA }}>条件に合う選手なし</div>
             )}
             {/* ロスターと同じカード：タップ＝メニュー / 長押し＝詳細。箱に入れず縦に並べる */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <PlayerList>
             {marketPlayers.map(p => {
               const isListed = listedIds.has(p.id)
               const hasBid = activeBids.some(b => b.playerId === p.id)
@@ -362,7 +363,7 @@ export default function TransferPage() {
                 </div>
               )
             })}
-            </div>
+            </PlayerList>
 
             {/* タップメニュー（ロスターと同じ操作系） */}
             {(() => {

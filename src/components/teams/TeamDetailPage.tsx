@@ -26,6 +26,7 @@ import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 import { rankedStandings, DIVISION_LABEL } from '../../utils/league'
 import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague, divisionAxisPos, divisionAxisBands } from '../../utils/clubStanding'
+import PlayerList from '../player/PlayerList'
 
 
 
@@ -585,9 +586,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             {mainPlayers.length === 0
               ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17',marginBottom: '12px' }}>登録なし</div>
               : (
-                <div style={{overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
+                <PlayerList style={{ marginBottom: 80 }}>
                   {mainPlayers.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} />)}
-                </div>
+                </PlayerList>
               )
             }
           </div>

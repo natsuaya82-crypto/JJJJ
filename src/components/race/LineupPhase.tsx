@@ -16,6 +16,7 @@ import type { Competition } from '../../styles/tokens'
 import { natLabel } from '../../data/nationalities'
 import { SpecChip } from '../player/PlayerChips'
 import { courseProfile } from '../../data/races'
+import PlayerList from '../player/PlayerList'
 
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
@@ -304,7 +305,7 @@ export function LineupPhase({
         </div>
 
         {/* 選手リスト */}
-        <div style={{ background: C.bg }}>
+        <PlayerList style={{ background: C.bg }}>
           {pickerPlayers.map(({ p, assignedSeg }) => {
             const isSelected = raceLineup[pickerSeg] === p.id
             const isAssignedElsewhere = assignedSeg !== null && assignedSeg !== pickerSeg
@@ -325,7 +326,7 @@ export function LineupPhase({
               </div>
             )
           })}
-        </div>
+        </PlayerList>
       </div>
     )
   }

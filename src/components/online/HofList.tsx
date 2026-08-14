@@ -5,6 +5,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import type { HofPlayer } from '../../types'
 import { C } from '../../styles/tokens'
+import PlayerList from '../player/PlayerList'
 
 // 殿堂入りチームの一覧の見た目と並び替えはここ1本。
 //
@@ -55,7 +56,7 @@ export default function HofList({
         <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
       </div>
 
-      <div style={{ margin: '0 12px',overflow: 'hidden', border: `1px solid ${C.border}` }}>
+      <PlayerList style={{ margin: '0 12px' }}>
         {sorted.map(h => (
           <PlayerRow
             key={h.player.id}
@@ -70,7 +71,7 @@ export default function HofList({
             {emptySub && <><br /><span style={{ fontSize: 11 }}>{emptySub}</span></>}
           </div>
         )}
-      </div>
+      </PlayerList>
     </>
   )
 }

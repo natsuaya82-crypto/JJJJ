@@ -23,6 +23,7 @@ import { HOF_MAX } from '../../utils/hofRoster'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
+import PlayerList from '../player/PlayerList'
 
 
 /** ロスターの並び替え。種目は「同じ種目でまとめて、中はOVR順」 */
@@ -266,9 +267,11 @@ export default function FriendDetailPage() {
               {roster.length === 0 ? (
                 <div style={{ padding: '0 16px' }}><EmptyBox label="相手がまだロスターを共有していません" /></div>
               ) : (
-                sorted.map(p => (
-                  <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
-                ))
+                <PlayerList>
+                  {sorted.map(p => (
+                    <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
+                  ))}
+                </PlayerList>
               )}
             </div>
 

@@ -273,5 +273,25 @@ console.log('\n⑧ 角を丸めていない（丸いのは顔・ロゴ・点だ�
     '\n      → 角丸はやめました。形は ui/Panel（右下だけ斜めに切る）で出すこと')
 }
 
+console.log('\n⑨ 選手カードの一覧は PlayerList を通している（カード同士のあきは1本）')
+{
+  // 同じ「選手カードの一覧」が11画面にあり、並べ方が3通りに割れていた
+  //   （箱に入れず gap:8／枠の箱に詰める／ただ並べるだけ）。
+  // オーナー判断（2026-08-14「ある方に統一して」）であきのある形へ寄せた。
+  // **画面で並べ方を書き直せるようにしないこと**——また割れる。
+  const OWNER = 'src/components/player/PlayerList.tsx'
+  const users = files.filter(f =>
+    f.startsWith('src/components') && f.endsWith('.tsx') && f !== OWNER &&
+    /<PlayerRow[\s\n]/.test(read(f)))
+  const bare = users.filter(f => !/from '.*player\/PlayerList'/.test(read(f)))
+  check('選手カードを並べる画面は PlayerList を使っている', bare.length === 0,
+    bare.join('\n      ') + '\n      → 一覧は components/player/PlayerList.tsx で包むこと')
+
+  // あきの数字はトークン1本。画面にも PlayerList 以外にも現れない
+  const gapUsers = files.filter(f => /PLAYER_CARD_GAP/.test(read(f)))
+    .filter(f => f !== OWNER && f !== 'src/styles/tokens.ts')
+  check('あきの数字は PlayerList だけが読む', gapUsers.length === 0, gapUsers.join(' '))
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)
