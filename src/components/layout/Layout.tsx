@@ -317,7 +317,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Bottom Nav ──
           下端に貼り付けず**浮かせたガラス**。浮かせたぶん（NAV_FLOAT）は
           `bottomStack` が足すので、上に置く画面がずれない。 */}
-      {raceInProgress ? null : <nav style={{
+      {raceInProgress ? null : <nav className="bottom-nav" style={{
         position: 'fixed', bottom: bottomStack(adH, { extra: NAV_FLOAT }),
         left: NAV_FLOAT, right: NAV_FLOAT, margin: '0 auto',
         width: `calc(100% - ${NAV_FLOAT * 2}px)`, maxWidth: 480 - NAV_FLOAT * 2,
@@ -354,7 +354,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               }}
             >
               {/* 選んでいるものだけ、光が閉じ込められた小さなガラス */}
-              <div style={{
+              <div className="bottom-nav__pill" style={{
                 width: 46, height: 28,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: active
@@ -367,7 +367,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 transform: active ? 'translateY(-1px)' : 'none',
                 transition: 'all 0.18s ease',
                 flexShrink: 0,
-                color: active ? C.cyan : 'rgba(160,178,200,0.75)',
+                color: active ? C.cyan : C.textDim,
               }}>
                 <Icon/>
               </div>
@@ -375,7 +375,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 fontSize: '10px',
                 fontWeight: active ? 700 : 400,
                 letterSpacing: '0.3px',
-                color: active ? C.cyan : 'rgba(150,168,190,0.75)',
+                color: active ? C.cyan : C.textDim,
                 transition: 'color 0.18s ease',
               }}>
                 {label}

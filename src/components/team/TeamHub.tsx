@@ -29,7 +29,7 @@ export default function TeamHub() {
   const SECTIONS = [
     {
       key: '/team/roster',
-      label: 'ロスター',
+      label: 'ロスター', en: 'ROSTER',
       desc: '1軍・リザーブ・ユースの選手管理、放出',
       countLabel: expiringCount > 0 ? `FA間近 ${expiringCount}名` : `${myPlayers.length}名在籍`,
       badge: expiringCount,
@@ -45,7 +45,7 @@ export default function TeamHub() {
     },
     {
       key: '/cards',
-      label: 'カード練習',
+      label: 'カード練習', en: 'TRAINING',
       desc: 'カード合成で選手を育成',
       countLabel: trainingCards.length > 0
         ? `手持ち${trainingCards.length}枚${raceDroppedCards.length > 0 ? ` / NEW+${raceDroppedCards.length}` : ''}`
@@ -64,7 +64,7 @@ export default function TeamHub() {
     },
     {
       key: '/team/nosale',
-      label: '移籍方針',
+      label: '移籍方針', en: 'POLICY',
       desc: '選手ごとに非売・貸出歓迎・売出を設定する',
       countLabel: (() => {
         const n = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && (p.noSale || p.loanListed || p.transferListed)).length
@@ -83,7 +83,7 @@ export default function TeamHub() {
     },
     {
       key: '/sponsors',
-      label: 'スポンサー',
+      label: 'スポンサー', en: 'SPONSORS',
       desc: 'チーム・個人スポンサー契約管理',
       countLabel: (() => {
         const team = teams.find(t => t.id === playerTeamId)
@@ -105,7 +105,7 @@ export default function TeamHub() {
     },
     {
       key: '/team/facilities',
-      label: '施設強化',
+      label: '施設強化', en: 'FACILITIES',
       desc: '合宿・医療・スカウト・戦術分析施設のアップグレード',
       countLabel: (() => {
         const team = teams.find(t => t.id === playerTeamId)
@@ -113,7 +113,7 @@ export default function TeamHub() {
         return total > 0 ? `施設合計Lv${total}` : '未建設'
       })(),
       badge: 0,
-      color: C.textSub,
+      color: C.cyan,
       shadow: '#1a2030',
       urgent: false,
       icon: (
@@ -126,7 +126,7 @@ export default function TeamHub() {
     },
     {
       key: '/budget',
-      label: '財務・予算',
+      label: '財務・予算', en: 'FINANCE',
       desc: '予算・収支・年俸・スポンサー収入の管理',
       countLabel: (() => {
         const team = teams.find(t => t.id === playerTeamId)
@@ -260,6 +260,7 @@ export default function TeamHub() {
             key={s.key}
             icon={s.icon}
             label={s.label}
+            en={s.en}
             badge={s.badge}
             badgeColor={s.color}
             color={s.color}

@@ -11,9 +11,12 @@ import { C, alpha } from '../../styles/tokens'
 //   見た目を変えたときにその画面だけ取り残される（TeamsHub が実際にそうなっていた）。
 // ★色は `color` で渡す（金／シアンの2択にしないこと。オーナー・2026-08-13
 //   「元の色を尊重して欲しい」＝橙も青もその画面の色のまま出す）。
+// ★**高さは1つだけ**（68px）。以前は `compact`（72px）があり、チーム画面だけ
+//   行が高かった。名前と値も食い違っていた（compact なのに既定より高い）。
+//   下タブのどのページでも同じ行に見えることが大事なので、増やさないこと。
 // ============================================================================
 
-export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.gold, note, right, color = C.gold, compact, disabled, onClick }: {
+export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.gold, note, right, color = C.gold, disabled, onClick }: {
   icon?: React.ReactNode
   label: string
   /** 上に出る英字。無ければ出さない */
@@ -26,19 +29,13 @@ export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.
   right?: React.ReactNode
   /** その行の色。**もとの画面で使っていた色をそのまま渡すこと**（金は金、シアンはシアン） */
   color?: string
-  /** 一覧の中で並べる低い行（72px）。高さは CSS 側に持たせてある */
-  compact?: boolean
   disabled?: boolean
   onClick: () => void
 }) {
   return (
     <button
       onClick={() => { if (!disabled) onClick() }}
-      className={[
-        'premium-menu-button',
-        compact ? 'premium-menu-button--compact' : '',
-        disabled ? 'is-off' : '',
-      ].filter(Boolean).join(' ')}
+      className={['premium-menu-button', disabled ? 'is-off' : ''].filter(Boolean).join(' ')}
       style={disabled ? undefined : {
         // ガラスをその行の色に染める
         ['--tint-edge' as string]: alpha(color, 0.55),

@@ -29,7 +29,7 @@ export default function RecordsHub() {
   const SECTIONS = [
     {
       key: '/records/franchise',
-      label: '自チーム記録',
+      label: '自チーム記録', en: 'FRANCHISE',
       desc: '優勝記録・歴代種目別記録・シーズン成績',
       countLabel: `${completedRaces}戦 / ${currentSeason.races.length}戦`,
       badge: 0,
@@ -44,7 +44,7 @@ export default function RecordsHub() {
     },
     {
       key: '/records/individual',
-      label: '個人ランキング',
+      label: '個人ランキング', en: 'RANKING',
       desc: '今季・通算JPEL区間賞・MVP',
       countLabel: '選手ランキング',
       badge: 0,
@@ -60,7 +60,7 @@ export default function RecordsHub() {
     },
     {
       key: '/records/players',
-      label: '区間記録',
+      label: '区間記録', en: 'SEGMENTS',
       desc: '歴代全駅伝の区間タイムランキング',
       countLabel: `全区間記録`,
       badge: 0,
@@ -76,7 +76,7 @@ export default function RecordsHub() {
     },
     {
       key: '/records/champions',
-      label: '歴代優勝',
+      label: '歴代優勝', en: 'CHAMPIONS',
       desc: '大会別の歴代優勝・優勝回数ランキング・ECLの記録',
       countLabel: '大会別に一覧',
       badge: 0,
@@ -92,7 +92,7 @@ export default function RecordsHub() {
     },
     {
       key: '/records/gm',
-      label: 'GMキャリア',
+      label: 'GMキャリア', en: 'GM CAREER',
       desc: 'GM評判・キャリア統計・順位推移・育成実績',
       countLabel: 'あなたの実績',
       badge: 0,
@@ -108,7 +108,7 @@ export default function RecordsHub() {
     },
     {
       key: '/records/draft',
-      label: '歴代ドラフト',
+      label: '歴代ドラフト', en: 'DRAFT',
       desc: '2027年度からの歴代ドラフト指名選手',
       countLabel: '年度別に一覧',
       badge: 0,
@@ -172,6 +172,7 @@ export default function RecordsHub() {
             key={s.key}
             icon={s.icon}
             label={s.label}
+            en={s.en}
             badge={s.badge}
             badgeColor={s.color}
             color={s.color}

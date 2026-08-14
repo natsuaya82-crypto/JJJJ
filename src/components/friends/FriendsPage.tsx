@@ -14,7 +14,7 @@ export default function FriendsPage() {
 
   const SECTIONS = [
     {
-      key: '/friends/list', label: 'フレンド一覧',
+      key: '/friends/list', label: 'フレンド一覧', en: 'FRIENDS',
       count: friends.data?.length ?? 0, badge: 0, color: C.gold,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -27,7 +27,7 @@ export default function FriendsPage() {
     },
     {
       // 申請と承認は同じ画面。分けていると申請のたびに行き来が要って面倒なため
-      key: '/friends/requests', label: '申請・承認',
+      key: '/friends/requests', label: '申請・承認', en: 'REQUESTS',
       count: 0, badge: received.data?.length ?? 0, color: C.cyan,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -57,6 +57,7 @@ export default function FriendsPage() {
             key={s.key}
             icon={s.icon}
             label={s.label}
+            en={s.en}
             badge={s.count}
             badgeColor={s.color}
             color={s.color}

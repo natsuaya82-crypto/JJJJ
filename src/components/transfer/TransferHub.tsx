@@ -31,7 +31,7 @@ export default function TransferHub() {
   const SECTIONS = [
     {
       key: 'market',
-      label: '移籍市場',
+      label: '移籍市場', en: 'MARKET',
       desc: '他クラブが出品中の選手を獲得',
       countLabel: allListings.length > 0 ? `${allListings.length}件出品中` : '市場確認',
       badge: allListings.length,
@@ -42,7 +42,7 @@ export default function TransferHub() {
     {
       key: 'trade',
       path: '/transfer/trade',
-      label: 'トレード',
+      label: 'トレード', en: 'TRADE',
       desc: '他クラブと選手・指名権を交換',
       countLabel: tradeNegs.length > 0 ? `交渉中 ${tradeNegs.length}件` : '選手を交換',
       badge: tradeNegs.length,
@@ -53,7 +53,7 @@ export default function TransferHub() {
     {
       key: 'rental',
       path: '/transfer/rental',
-      label: 'レンタル',
+      label: 'レンタル', en: 'LOAN',
       desc: '選手を借りる・若手を貸し出す',
       countLabel: `レンタル枠 ${loanSlots}/3`,
       badge: 0,
@@ -64,7 +64,7 @@ export default function TransferHub() {
     {
       key: 'scout',
       path: '/scout',
-      label: 'スカウト',
+      label: 'スカウト', en: 'SCOUT',
       desc: '大学・高校選手のスカウティング',
       countLabel: '候補を見る',
       badge: 0,
@@ -88,7 +88,7 @@ export default function TransferHub() {
     {
       key: 'watchlist',
       path: '/transfer/starred',
-      label: 'WATCHLIST',
+      label: 'WATCHLIST', en: 'STARRED',
       desc: '注目している他チームの選手一覧',
       countLabel: starredCount > 0 ? `${starredCount}名` : '選手なし',
       badge: starredCount,
@@ -165,6 +165,7 @@ export default function TransferHub() {
                 key={s.key}
                 icon={ICONS[s.key]}
                 label={s.label}
+                en={s.en}
                 badge={s.badge}
                 badgeColor={s.color}
                 color={s.color}

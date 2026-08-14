@@ -17,14 +17,33 @@ type NatEntry = { code: Nationality; label: string; top: number }
 
 
 // 一覧の行。見た目は MenuButton 1本（`premium-menu-button` を手書きしないこと）。
-function RowCard({ onClick, icon, title, right }: {
+// ★他のハブ（オンライン・移籍・記録室…）と同じく**英字・絵・色**を付ける。
+//   ここだけ字だけの行で、下タブを行き来すると1画面だけ別物に見えていた。
+function RowCard({ onClick, icon, title, en, color, right }: {
   onClick: () => void
   icon?: React.ReactNode
   title: string
+  en?: string
+  color?: string
   right?: React.ReactNode
 }) {
-  return <MenuButton icon={icon} label={title} right={right} compact onClick={onClick} />
+  return <MenuButton icon={icon} label={title} en={en} color={color} right={right} onClick={onClick} />
 }
+
+// 地域の絵（代表の一覧）。国旗が使えない段は、地球の絵で揃える
+const GLOBE = (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/>
+    <path d="M3 12h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+  </svg>
+)
+const TABLE = (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+    <path d="M3 9h18M9 9v11" stroke="currentColor" strokeWidth="1.8"/>
+  </svg>
+)
 
 // 戻るは「‹ タイトル」の横並び（記録室と同じ流儀）。タイトルは矢印のすぐ横に置く
 function Header({ eyebrow, title, onBack }: { eyebrow: string; title: string; onBack?: () => void }) {
@@ -102,6 +121,8 @@ export default function TeamsHub() {
           onClick={() => goCode(n.code)}
           icon={<Flag code={n.code} width={30} />}
           title={n.label}
+          en="NATIONAL TEAM"
+          color={C.purple}
           right={<div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 8, color: C.textDim }}>最高</div>
             <div style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{n.top}</div>
@@ -116,7 +137,7 @@ export default function TeamsHub() {
     return wrap(<>
       <Header eyebrow="NATIONAL TEAMS" title="代表" onBack={() => navigate(-1)} />
       {listBox(GEO_REGION_ORDER.filter(r => natByRegion.has(r)).map(r => (
-        <RowCard key={r} onClick={() => goRegion(r)} title={r} />
+        <RowCard key={r} onClick={() => goRegion(r)} title={r} en="REGION" icon={GLOBE} color={C.purple} />
       )))}
     </>)
   }
@@ -128,10 +149,10 @@ export default function TeamsHub() {
       {listBox(<>
         {/* JPELは1枚。1部・2部・3部の切り替えは順位表のページの中でやる（同じリーグの中なので）。
             ECLは別のリーグなのでここで分ける */}
-        <RowCard onClick={() => navigate('/standings')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" />
-        <RowCard onClick={() => navigate('/standings/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" />
+        <RowCard onClick={() => navigate('/standings')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" en="JAPAN" color={C.gold} />
+        <RowCard onClick={() => navigate('/standings/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" en="CHAMPIONS LEAGUE" color={C.red} />
         {leagues.map(l => (
-          <RowCard key={l.id} onClick={() => navigate(`/teams/foreign/${l.id}`)} icon={<LeagueLogoSVG leagueId={l.id} size={34} />} title={l.countryName} />
+          <RowCard key={l.id} onClick={() => navigate(`/teams/foreign/${l.id}`)} icon={<LeagueLogoSVG leagueId={l.id} size={34} />} title={l.countryName} en="OVERSEAS" color={C.cyan} />
         ))}
       </>)}
     </>)
@@ -141,8 +162,8 @@ export default function TeamsHub() {
   return wrap(<>
     <Header eyebrow={`${currentSeason.year} TEAMS`} title="チーム" />
     {listBox(<>
-      <RowCard onClick={() => goSection('leagues')} title="リーグ" />
-      <RowCard onClick={() => goSection('national')} title="代表" />
+      <RowCard onClick={() => goSection('leagues')} title="リーグ" en="LEAGUES" icon={TABLE} color={C.gold} />
+      <RowCard onClick={() => goSection('national')} title="代表" en="NATIONAL TEAMS" icon={GLOBE} color={C.purple} />
     </>)}
   </>)
 }

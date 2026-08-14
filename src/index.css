@@ -19,8 +19,8 @@
   /* Text */
   --text:       #ffffff;
   --text-sub:   #c8d4e3;
-  --text-dim:   #8c9aaf;
-  --text-ghost: #4a6080;
+  --text-dim:   #a7b6c9;
+  --text-ghost: #7387a3;
 
   /* Brand */
   --gold:         #f5c842;
@@ -500,6 +500,19 @@ button { font-family: inherit; }
   box-shadow: 0 0 8px var(--green);
 }
 
+
+/* ── 下タブ（浮いているガラスの島）────────────────────────
+   ★ここだけ**丸い**（オーナー・2026-08-14「したタブのリキッドグラスはまるめがいい」）。
+     アプリの他は角丸をやめているが、下タブは画面に貼り付いた面ではなく
+     **浮いている島**なので、端が丸いほうがガラスの厚みが出る。
+     形は Layout.tsx が使う。中の選んでいる印も同じ考えで丸い。 */
+.bottom-nav {
+  border-radius: 999px;
+}
+.bottom-nav__pill {
+  border-radius: 999px;
+}
+
 /* ── Premium Menu Button（ガラスのメニュー行） ────────────────────────
    背景の写真をほんのり透かすガラス。丸角＋細い半透明の金枠。
 
@@ -592,7 +605,7 @@ button { font-family: inherit; }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(255,255,255,0.42);
+  color: rgba(255,255,255,0.62);
 }
 .premium-menu-button__japanese {
   font-size: 18px;
@@ -607,7 +620,7 @@ button { font-family: inherit; }
   margin-left: auto;
   font-size: 24px;
   font-weight: 300;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.62);
 }
 
 /* 押せないもの */
@@ -619,9 +632,6 @@ button { font-family: inherit; }
   cursor: default;
 }
 .premium-menu-button.is-off:active { transform: none; }
-
- /* 一覧の中で使う低い行。**高さを画面から style で渡さないこと**（2つ目の物差しになる） */
-.premium-menu-button--compact { height: 72px; }
 
 .premium-menu-button:active {
   transform: scale(0.985);
