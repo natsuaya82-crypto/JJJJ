@@ -11,7 +11,7 @@ import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
-import { C, alpha, SAIRA, FONT, PURPLE, F } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, PURPLE, F, insideMainBottom } from '../../styles/tokens'
 import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
@@ -447,7 +447,9 @@ border: `2px dashed ${C.border2}`,
 
       {/* 下部固定の実行バー（スクロール領域の外・下タブ＋広告の上に常に表示） */}
       <div style={{
-        padding: '12px 14px calc(14px + env(safe-area-inset-bottom, 0px))',
+        // ★下端に貼るものの位置は `bottomStack` 1本（下タブ＋広告＋セーフエリア）
+        padding: '12px 14px',
+        paddingBottom: insideMainBottom(14),
         background: `linear-gradient(180deg, ${alpha(C.bg, 0)}, ${C.bg} 24%)`,
         borderTop: `1px solid ${C.border}`,
       }}>

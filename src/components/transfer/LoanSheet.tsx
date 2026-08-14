@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { C, alpha, SAIRA, F, bottomStack } from '../../styles/tokens'
 import type { Player } from '../../types'
 
 
@@ -19,7 +19,7 @@ export default function LoanSheet({ player, slots, pending, onSubmit, onClose }:
   // iOS の実機では main の内側しか覆えず、下タブ(z-index:50)より上に来られない（CLAUDE.md）
   return createPortal((
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-      <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface,border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
+      <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface,border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 16 }) }}>
         <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 12px' }} />
         <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, marginBottom: 4 }}>{player.name} をレンタル</div>
         <div style={{ fontSize: F.caption, color: C.textDim, marginBottom: 14, fontFamily: SAIRA }}>買わずに借りる（レンタル枠 {slots}/3・移籍金なし・給与は自チーム負担）。期間を選んで要請（次レースで回答）。</div>

@@ -143,6 +143,17 @@ export const PAGE_X = 12
  *    測り直したものが正。ヘッダーの中身を変えたら、また実際に測ってここを直すこと。 */
 export const HEADER_H = 48
 
+/**
+ * **画面下の広告バナーの高さ。買い切り版（`adsRemoved`）なら0。**
+ *
+ * ★数字はここ1つ。**画面で `adsRemoved ? 0 : 50` と書かないこと**——
+ *   実測で `Layout` の `AD_H`・`index.css` の `--ad-h`・`Onboarding` の直書きと
+ *   3か所にあり、さらに `LoanSheet` / `BidSheet` が「広告＋下タブ」のつもりで
+ *   `adH + 50` と書いていた（下タブは 58＋浮き20＝78 なので **28px 足りない**）。
+ * ★出し分けは `components/layout/Layout` の `useAdHeight()` 1本を呼ぶこと。
+ */
+export const AD_H = 50
+
 /** 下タブの高さ。Layout の下タブと、その上に何かを置く画面が同じ値を使う */
 export const NAV_H = 58
 
@@ -180,6 +191,23 @@ export const NAV_STACK = NAV_H + NAV_FLOAT * 2
 export function bottomStack(adH: number, opts?: { aboveNav?: boolean; extra?: number }): string {
   const px = adH + (opts?.aboveNav ? NAV_STACK : 0) + (opts?.extra ?? 0)
   return `calc(${px}px + env(safe-area-inset-bottom))`
+}
+
+/**
+ * **`<main>` の中で下端に貼り付けるものの下余白。**
+ *
+ * `<main>` は `bottom: bottomStack(adH)` なので、**広告帯とセーフエリアの上まで**しか
+ * ありません。ところが下タブは「浮かせたガラス」で main の上に重なるので、
+ * `position: absolute; inset: 0` で main いっぱいに広げた画面は下タブの裏まで伸びます。
+ * その画面の下端に置くバーは、このぶんだけ持ち上げること。
+ *
+ * ★**`bottomStack` を main の中で使わないこと。** あちらは「画面（viewport）の下端から」の
+ *   位置なので、main の中で使うと広告とセーフエリアを**二重に数えます**（実測で128px浮いた）。
+ *   カード合成と「カードを選ぶ」の決定ボタンは、逆に何も足していなくて
+ *   **下タブの裏に潜っていました**（オーナー・2026-08-14「決定ボタンの位置おかしくなってる」）。
+ */
+export function insideMainBottom(extra = 0): number {
+  return NAV_STACK + MAIN_GAP + extra
 }
 
 /**

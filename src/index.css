@@ -57,9 +57,7 @@
   --r-lg:  0;
   --r-xl:  0;
 
-  /* Nav */
-  --nav-h:     64px;
-  --ad-h:      50px;
+  /* Nav。★高さの実体は `styles/tokens.ts`（NAV_H / AD_H）。ここに2本目を置かないこと */
 
   /* Fonts */
   --font-saira:   'Saira Condensed', system-ui, sans-serif;

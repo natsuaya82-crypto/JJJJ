@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME, detectCombo } from '../../utils/cardCombo'
 import { isStatMaxed } from '../../utils/playerUtils'
-import { C, alpha, SAIRA, SELECT_STYLE, PURPLE, F } from '../../styles/tokens'
+import { C, alpha, SAIRA, SELECT_STYLE, PURPLE, F, insideMainBottom } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 import GlassButton from '../ui/GlassButton'
 
@@ -183,7 +183,11 @@ export default function CardSelectPage() {
       {/* 下端固定：決定して合成画面へ戻る */}
       <div style={{
         flexShrink: 0,
-        padding: '10px 14px calc(10px + env(safe-area-inset-bottom))',
+        // ★下端に貼るものの位置は `bottomStack` 1本。**自分で safe-area だけ足さないこと**——
+        //   下タブは浮いたガラス（NAV_STACK）で、その上に広告帯も来る。
+        //   足していなかったので「決定」ボタンが下タブの裏に潜っていた
+        padding: '10px 14px',
+        paddingBottom: insideMainBottom(10),
         background: C.bg, borderTop: `1px solid ${C.border}`,
       }}>
         <GlassButton full color="#c084fc" style={{ padding: '15px', fontFamily: SAIRA, fontSize: F.sub, letterSpacing: '1px' }} onClick={() => navigate(-1)}>

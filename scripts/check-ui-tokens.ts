@@ -391,5 +391,32 @@ console.log('\n⑪ 本文の文字サイズを数字で書いていない')
     '\n      → tokens の F（micro/tiny/caption/label/body/bodyLg/sub/subLg/title/titleLg/head/headLg/hero）を使うこと')
 }
 
+console.log('\n⑫ 下端まわりの数字を画面で作っていない')
+{
+  // 広告バナーの高さが **4か所**にあった（オーナー・2026-08-14
+  // 「広告用と広告外したようで直書きしてない？」）。
+  //   Layout の `const AD_H = 50` ／ index.css の `--ad-h: 50px`（誰も読んでいない）
+  //   ／ Onboarding の `adsRemoved ? 0 : 50` ／ LoanSheet・BidSheet の `adH + 50`
+  // 最後のは「広告＋下タブ」のつもりだが、下タブは 58＋浮き20＝78 なので **28px 足りない**。
+  // 高さは tokens の AD_H / NAV_H 1本、出し分けは useAdHeight()、
+  // 位置は bottomStack / insideMainBottom。
+  const hits: string[] = []
+  for (const f of screens) {
+    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    code.split('\n').forEach((l, i) => {
+      // 広告の出し分けを自分で書いている
+      if (/adsRemoved[^\n]*\?\s*0\s*:\s*\d+/.test(l)) hits.push(`${f}:${i + 1} 広告の高さを自分で出している → useAdHeight()`)
+      // 下タブの高さを数字で足している
+      if (/\badH\s*\+\s*\d+/.test(l)) hits.push(`${f}:${i + 1} 下タブの高さを数字で足している → bottomStack / insideMainBottom`)
+    })
+  }
+  check('広告と下タブの高さを画面で作っていない', hits.length === 0, hits.join('\n      '))
+
+  // CSS 側に2本目を置いていないか（誰も読まない --ad-h / --nav-h が残っていた）
+  const css = read('src/index.css')
+  check('CSS に高さの2本目が無い', !/--(ad|nav)-h\s*:/.test(css),
+    'index.css の --ad-h / --nav-h は誰も読んでいなかった。実体は tokens.ts の AD_H / NAV_H')
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

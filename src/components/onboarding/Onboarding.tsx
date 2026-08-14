@@ -7,6 +7,7 @@ import { ALL_DOMESTIC_TEAMS } from '../../utils/domesticClubs'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import { useAdHeight } from '../layout/Layout'
 import { F, C, alpha } from '../../styles/tokens'
 
 type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
@@ -14,7 +15,8 @@ type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 export default function Onboarding() {
   const { startSetup, beginInauguralDraft } = useGameStore()
   // 広告帯の高さ。買い切り版なら0（Layout.tsx / DraftRoom.tsx と同じ考え方）
-  const adH = useGameStore(s => s.adsRemoved ?? false) ? 0 : 50
+  // ★広告の高さは `useAdHeight()` 1本（`adsRemoved ? 0 : 50` と書かないこと）
+  const adH = useAdHeight()
   const [step, setStep] = useState<Step>('welcome')
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [teamName, setTeamName] = useState('')

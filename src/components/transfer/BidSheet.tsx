@@ -5,7 +5,7 @@ import NumberDial from '../ui/NumberDial'
 import { calcTransferValue, playerConsentToMove, keyPlayerStatus } from '../../utils/playerUtils'
 import { bidThreshold, transferAcceptChance, listedAcceptChance, roundFee } from '../../data/economy'
 import { useGameStore } from '../../store/gameStore'
-import { C, SAIRA, F } from '../../styles/tokens'
+import { C, SAIRA, F, bottomStack } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
@@ -62,7 +62,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   // iOS の実機では main の内側しか覆えず、下タブ(z-index:50)より上に来られない（CLAUDE.md）
   return createPortal((
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-      <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface,border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: `calc(16px + env(safe-area-inset-bottom) + ${adH + 50}px)` }}>
+      <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface,border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 16 }) }}>
         <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 12px' }} />
         <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, marginBottom: 8 }}>{player.name} へ入札</div>
         <div style={{ fontSize: F.caption, color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>

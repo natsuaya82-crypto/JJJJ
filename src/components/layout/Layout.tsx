@@ -4,7 +4,7 @@ import { audio } from '../../utils/audio'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
-import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack, F } from '../../styles/tokens'
+import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack, F, AD_H } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
@@ -65,7 +65,6 @@ const NAV: NavItem[] = [
   },
 ]
 
-const AD_H = 50
 // ページ側が「ヘッダーと下タブの間にちょうど収まる高さ」を計算できるように公開する。
 // main は position:fixed で top/bottom を固定しているため、ページで 100dvh を使うと
 // ヘッダー＋タブ＋広告のぶんだけ縦に溢れて無駄なスクロールが生まれる。
