@@ -24,6 +24,7 @@ import TitleScreen from './components/title/TitleScreen'
 import TermsGate from './components/title/TermsGate'
 import { hasAgreedTerms, agreeTerms } from './utils/termsConsent'
 import Layout from './components/layout/Layout'
+import GmInvitePicker from './components/team/GmInvitePicker'
 import MorePage from './components/more/MorePage'
 import HofTeamPage from './components/online/HofTeamPage'
 import AnnouncementsPage, { AnnouncementDetailPage } from './components/more/AnnouncementsPage'
@@ -87,7 +88,9 @@ import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
 import JewelsPage from './components/jewels/JewelsPage'
 import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
-import { SAIRA } from './styles/tokens'
+import { C, alpha, SAIRA } from './styles/tokens'
+import GlassButton from './components/ui/GlassButton'
+import Panel, { panelStyle } from './components/ui/Panel'
 
 const BUNDLE_ID = 'com.tokinets.jpelmanager'
 // 強制アップデート判定用の現在バージョン。過去に App.tsx 内の手書き定数の上げ忘れで
@@ -121,18 +124,41 @@ function compareVersions(a: string, b: string): number {
 function Placeholder({ title }: { title: string }) {
   return (
     <div style={{ padding: '28px 20px' }}>
-      <div style={{ fontSize: '11px', color: '#5C5870', letterSpacing: '3px', marginBottom: '12px' }}>
+      <div style={{ fontSize: '11px', color: C.textGhost, letterSpacing: '3px', marginBottom: '12px' }}>
         {title.toUpperCase()}
       </div>
-      <div style={{
-        padding: '60px 20px', textAlign: 'center',
-        backgroundColor: '#1E1B2E', borderRadius: '14px', border: '1px solid #2E2B42',
-        color: '#3A3758', fontSize: '14px',
-      }}>
+      <Panel style={{ padding: '60px 20px', textAlign: 'center', color: C.textGhost, fontSize: '14px' }}>
         Coming soon...
-      </div>
+      </Panel>
     </div>
   )
+}
+
+// ── ホームの上に出る3つのモーダル（監督オファー・同行の返事・来季予算）────────
+//
+// **見た目は `ui/NoticeDialog` / `ui/ConfirmDialog` とまったく同じ作り**
+// （幕 ＋ `panelStyle`（右下だけ斜めに切る）＋ `GlassButton`）。
+//
+// ★ここは長いあいだ **`check-ui-tokens` の範囲外**だった（点検は `src/components` しか
+//   見ていない）。そのため「角丸を全部やめる」も「ボタンを GlassButton へ寄せる」も
+//   このファイルには届かず、**アプリで唯一この3つだけが丸いまま**残っていた。
+//   範囲は⑤⑥⑧に広げてある。**自前の幕・自前のカード・自前のボタンを書かないこと。**
+
+/** 幕。3つとも同じで、重なり順だけ違う */
+const MODAL_VEIL = (z: number): React.CSSProperties => ({
+  position: 'fixed', inset: 0, zIndex: z,
+  background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
+})
+/** カードの面。ダイアログ2つと同じ（角は丸めない・右下だけ斜め） */
+const MODAL_CARD: React.CSSProperties = {
+  width: '100%', ...panelStyle(C.gold),
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 8px 32px rgba(0,0,0,0.6)',
+  padding: '22px 20px 18px', textAlign: 'center',
+}
+/** カードの中に置く囲み（順位・予算など）。枠も角丸も持たせない */
+const MODAL_BOX: React.CSSProperties = {
+  background: 'rgba(0,0,0,0.26)', padding: '12px 14px', textAlign: 'left',
 }
 
 // オファーの種類ごとの見出しと本文（判定は utils/gmOffer.ts）
@@ -170,86 +196,79 @@ function GmOfferNotice() {
   const dest = teams.find(t => t.id === offer.teamId)
   if (!dest) return null
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1001, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: '#f5c842', letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>OFFER</div>
-        {/* 退任したときは複数届く。タブで見比べてから選ぶ（1件のときは出さない） */}
+    <>
+    <div style={MODAL_VEIL(1001)}>
+      <div style={{ ...MODAL_CARD, maxWidth: 360 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>OFFER</div>
+        {/* 退任したときは複数届く。並べて見比べてから選ぶ（1件のときは出さない） */}
         {offers.length > 1 && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {offers.map((o, i) => {
               const t = teams.find(x => x.id === o.teamId)
               const on = i === Math.min(pick, offers.length - 1)
               return (
-                <button key={o.teamId} onClick={() => setPick(i)} style={{
-                  flex: 1, padding: '7px 4px', borderRadius: 9, cursor: 'pointer',
-                  border: `1px solid ${on ? '#f5c842' : '#3c4d68'}`,
-                  background: on ? 'rgba(245,200,66,0.16)' : 'transparent',
-                  color: on ? '#f5c842' : '#8fa0bb', fontSize: 11, fontWeight: 800, fontFamily: 'inherit',
-                }}>{t?.shortName ?? '—'}</button>
+                <GlassButton key={o.teamId} size="sm" color={on ? C.gold : C.textDim}
+                  onClick={() => setPick(i)} style={{ flex: 1 }}>{t?.shortName ?? '—'}</GlassButton>
               )
             })}
           </div>
         )}
-        <div style={{ fontSize: 11, color: '#f5c842', fontWeight: 800, marginBottom: 8 }}>{OFFER_KIND_LABEL[offer.kind ?? 'promotion']}</div>
+        <div style={{ fontSize: 11, color: C.gold, fontWeight: 800, marginBottom: 8 }}>{OFFER_KIND_LABEL[offer.kind ?? 'promotion']}</div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <TeamLogoSVG primary={dest.colors.primary} secondary={dest.colors.secondary} shortName={dest.shortName} teamId={dest.id} logoId={dest.logoId} size={56} />
         </div>
-        <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', marginBottom: 6 }}>{dest.name}</div>
-        <div style={{ fontSize: 13, color: '#cfd8e8', lineHeight: 1.7, marginBottom: 16 }}>
+        <div style={{ fontSize: 17, fontWeight: 900, color: C.text, marginBottom: 6 }}>{dest.name}</div>
+        <div style={{ fontSize: 13, color: C.textSub, lineHeight: 1.7, marginBottom: 16 }}>
           {OFFER_KIND_TEXT[offer.kind ?? 'promotion']}<br />
           {offer.year}シーズンから指揮を執りますか？
         </div>
-        <div style={{ background: '#122034', borderRadius: 12, padding: '12px 14px', marginBottom: 18, textAlign: 'left' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#cfd8e8', marginBottom: 6 }}>
-            <span>前季順位</span><span style={{ fontWeight: 800, color: '#fff' }}>{offer.prevRank}位</span>
+        <div style={{ ...MODAL_BOX, marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.textSub, marginBottom: 6 }}>
+            <span>前季順位</span><span style={{ fontWeight: 800, color: C.text }}>{offer.prevRank}位</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#cfd8e8' }}>
-            <span>来季予算</span><span style={{ fontWeight: 800, color: '#fff' }}>{fmtYen(offer.budget)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.textSub }}>
+            <span>来季予算</span><span style={{ fontWeight: 800, color: C.text }}>{fmtYen(offer.budget)}</span>
           </div>
         </div>
-        <div style={{ fontSize: 11, color: '#8fa0bb', lineHeight: 1.7, marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.7, marginBottom: 12 }}>
           受けると選手・予算・施設はすべて{dest.shortName}のものを引き継ぎます。<br />
           今のチームの予算は持って行けません。
         </div>
 
-        {/* 1人だけ声をかけられる。返事をするのは選手（移籍と同じ判断） */}
-        <div style={{ background: '#122034', borderRadius: 12, padding: '10px 12px', marginBottom: 16, textAlign: 'left' }}>
-          <div style={{ fontSize: 11, color: '#8fa0bb', marginBottom: 8, lineHeight: 1.6 }}>
-            1人だけ声をかけられます。<b style={{ color: '#cfd8e8' }}>行くかどうかは選手が決めます。</b><br />
+        {/* 1人だけ声をかけられる。返事をするのは選手（移籍と同じ判断）。
+            **相手はロスターと同じ行で別画面から選ぶ**（ここに一覧を畳んで入れないこと） */}
+        <div style={{ ...MODAL_BOX, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: C.textDim, marginBottom: 8, lineHeight: 1.6 }}>
+            1人だけ声をかけられます。<b style={{ color: C.textSub }}>行くかどうかは選手が決めます。</b><br />
             移籍金は{dest.shortName}が払います。
           </div>
-          <button onClick={() => setInviteOpen(v => !v)} style={{
-            width: '100%', padding: '9px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-            border: `1px solid ${invited ? '#f5c842' : '#3c4d68'}`,
-            background: invited ? 'rgba(245,200,66,0.12)' : 'transparent',
-            color: invited ? '#f5c842' : '#8fa0bb', fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
-          }}>{invited ? `${invited.name}（OVR${ovr(invited)}）に声をかける` : '声をかけない'}</button>
-          {inviteOpen && (
-            <div style={{ maxHeight: 168, overflowY: 'auto', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <button onClick={() => { setInvite(''); setInviteOpen(false) }} style={{
-                padding: '7px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                border: '1px solid #3c4d68', background: 'transparent', color: '#8fa0bb',
-                fontSize: 11, fontFamily: 'inherit' }}>声をかけない</button>
-              {myRoster.map(p => (
-                <button key={p.id} onClick={() => { setInvite(p.id); setInviteOpen(false) }} style={{
-                  padding: '7px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                  border: `1px solid ${p.id === invite ? '#f5c842' : '#3c4d68'}`,
-                  background: p.id === invite ? 'rgba(245,200,66,0.12)' : 'transparent',
-                  color: '#cfd8e8', fontSize: 11, fontFamily: 'inherit',
-                  display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                  <span style={{ flexShrink: 0, fontFamily: SAIRA, color: '#8fa0bb' }}>{p.age}歳 OVR{ovr(p)}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <button onClick={() => setInviteOpen(true)} style={{
+            width: '100%', padding: '10px 12px', cursor: 'pointer', textAlign: 'left',
+            display: 'flex', alignItems: 'center', gap: 8,
+            border: `1px solid ${alpha(invited ? C.gold : C.border3, 0.75)}`,
+            background: invited ? alpha(C.gold, 0.12) : 'transparent',
+            color: invited ? C.gold : C.textDim, fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
+          }}>
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {invited ? `${invited.name}（OVR${ovr(invited)}）に声をかける` : '声をかける選手を選ぶ'}
+            </span>
+            <span style={{ flexShrink: 0, opacity: 0.7 }}>›</span>
+          </button>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => decline()} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid #6b7a94', background: 'transparent', color: '#cfd8e8', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>{offers.length > 1 ? 'すべて断る' : '断る'}</button>
-          <button onClick={() => accept(offer.teamId, invite || undefined)} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>受ける</button>
+          <GlassButton size="lg" color={C.textSub} onClick={() => decline()} style={{ flex: 1, fontFamily: SAIRA }}>
+            {offers.length > 1 ? 'すべて断る' : '断る'}
+          </GlassButton>
+          <GlassButton size="lg" color={C.gold} onClick={() => accept(offer.teamId, invite || undefined)} style={{ flex: 1, fontFamily: SAIRA }}>
+            受ける
+          </GlassButton>
         </div>
       </div>
     </div>
+    {inviteOpen && (
+      <GmInvitePicker roster={myRoster} invite={invite} onPick={setInvite} onClose={() => setInviteOpen(false)} />
+    )}
+    </>
   )
 }
 
@@ -261,13 +280,16 @@ function GmInviteResultNotice() {
   const offers = useGameStore(s => s.gmOffers) ?? []
   if (offers.length > 0 || !res) return null
   return (
-    <div onClick={dismiss} style={{ position: 'fixed', inset: 0, zIndex: 1002, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 'min(340px, 90vw)', background: '#1a2c47', borderRadius: 18, border: `2px solid ${res.ok ? '#2ecc71' : '#6b7a94'}`, padding: '22px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: res.ok ? '#2ecc71' : '#8fa0bb', letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>{res.ok ? 'JOINED' : 'DECLINED'}</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', lineHeight: 1.7, marginBottom: 18 }}>
+    <div onClick={dismiss} style={MODAL_VEIL(1002)}>
+      <div onClick={e => e.stopPropagation()} style={{
+        ...MODAL_CARD, maxWidth: 340, ...panelStyle(res.ok ? C.green : C.textGhost),
+        boxShadow: MODAL_CARD.boxShadow, padding: MODAL_CARD.padding, textAlign: 'center',
+      }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 11, color: res.ok ? C.green : C.textDim, letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>{res.ok ? 'JOINED' : 'DECLINED'}</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.text, lineHeight: 1.7, marginBottom: 18 }}>
           {res.ok ? `${res.name}が一緒に来てくれました` : res.reason}
         </div>
-        <button onClick={dismiss} style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>OK</button>
+        <GlassButton full size="lg" color={C.gold} onClick={dismiss} style={{ fontFamily: SAIRA }}>OK</GlassButton>
       </div>
     </div>
   )
@@ -283,14 +305,14 @@ function SeasonBudgetNotice() {
   if (offers.length > 0) return null
   if (!notice) return null
   return (
-    <div onClick={dismiss} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 'min(360px, 90vw)', background: '#1a2c47', borderRadius: 18, border: '2px solid #f5c842', padding: '24px 20px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: '#f5c842', letterSpacing: '3px', fontWeight: 900, marginBottom: 8 }}>SEASON BUDGET</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 16 }}>{notice.year}シーズンの予算が確定しました</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: notice.budget >= 0 ? '#2ecc71' : '#ff4757', lineHeight: 1, marginBottom: 20 }}>{fmtYen(notice.budget)}</div>
+    <div onClick={dismiss} style={MODAL_VEIL(1000)}>
+      <div onClick={e => e.stopPropagation()} style={{ ...MODAL_CARD, maxWidth: 360 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8 }}>SEASON BUDGET</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 16 }}>{notice.year}シーズンの予算が確定しました</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: notice.budget >= 0 ? C.green : C.red, lineHeight: 1, marginBottom: 20 }}>{fmtYen(notice.budget)}</div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => { dismiss(); navigate('/') }} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#f5c842', color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>OK</button>
-          <button onClick={() => { dismiss(); navigate('/budget') }} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid #f5c842', background: 'transparent', color: '#f5c842', fontSize: 15, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>確認</button>
+          <GlassButton size="lg" color={C.gold} onClick={() => { dismiss(); navigate('/') }} style={{ flex: 1, fontFamily: SAIRA }}>OK</GlassButton>
+          <GlassButton size="lg" color={C.cyan} onClick={() => { dismiss(); navigate('/budget') }} style={{ flex: 1, fontFamily: SAIRA }}>確認</GlassButton>
         </div>
       </div>
     </div>

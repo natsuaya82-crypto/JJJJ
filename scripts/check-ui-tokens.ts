@@ -45,6 +45,20 @@ const walk = (dir: string): string[] =>
 const files = walk('src').filter(f => /\.(tsx?|css)$/.test(f))
 const read = (f: string) => readFileSync(f, 'utf8')
 
+/**
+ * **画面を描いているファイル。`src` 直下の App.tsx も必ず入れること。**
+ *
+ * ここを `src/components` だけにしていたせいで、**App.tsx が丸ごと見えていなかった**。
+ * 監督オファー・来季予算・同行の返事という3つのモーダルは App.tsx にあり、
+ * 「角丸を全部やめる（675→0件）」も「ボタンを GlassButton へ寄せる」も届いていない。
+ * それでも点検はずっと緑で、**実機を見たオーナーが気づくまで分からなかった**
+ * （「角丸無くしてんのになんでオファーのところは変えてないの？」）。
+ *
+ * ★`.tsx` だけを見る。`src/data/*.ts` のクラブカラーや `src/utils/badges.ts` の
+ *   称号の色は**識別のためのデータ**で、見た目の段の話ではない。
+ */
+const screens = files.filter(f => f.endsWith('.tsx'))
+
 // ── 色を数える道具 ────────────────────────────────────
 type RGB = [number, number, number]
 const hexRgb = (h: string): RGB => {
@@ -135,7 +149,7 @@ console.log('\n③ 下タブまわりの数字を画面で足し算していな�
   // NAV_H / NAV_FLOAT / HEADER_H を使った**足し算**は tokens.ts の
   // bottomStack / contentHeight / NAV_STACK だけ。画面で書くと追随しない。
   const hits: string[] = []
-  for (const f of files.filter(f => f.startsWith('src/components'))) {
+  for (const f of screens) {
     read(f).split('\n').forEach((l, i) => {
       if (/(NAV_H|NAV_FLOAT|HEADER_H)\s*\+|\+\s*(NAV_H|NAV_FLOAT|HEADER_H)/.test(l)) {
         hits.push(`${f}:${i + 1} ${l.trim().slice(0, 110)}`)
@@ -168,7 +182,7 @@ console.log('\n⑤ 画面に直書きした色の数が、今日より増えて�
 {
   // ここは線を決めない。いまの数を焼いて、増えたら落ちるだけ。
   const counts: Record<string, number> = {}
-  for (const f of files.filter(f => f.startsWith('src/components'))) {
+  for (const f of screens) {
     const n = [...read(f).matchAll(/#[0-9a-fA-F]{3,6}\b/g)].length
     if (n > 0) counts[f] = n
   }
@@ -199,7 +213,7 @@ console.log('\n⑥ 押すボタンを画面で手書きしていない（今日�
   //   （財務の「今シーズンの予算」が `0 8px 0 #8b6914` で、px も色も外れていた）。
   const SLAB = /box-?[Ss]hadow[^\n]*?\b0 \d+px 0 (?:#[0-9a-fA-F]{3,6}|\$\{)/g
   const counts: Record<string, number> = {}
-  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+  for (const f of screens) {
     // コメントで形を説明するのは構わない。落とすのは実際に書いているときだけ
     const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     const n = [...code.matchAll(SLAB)].length
@@ -229,7 +243,7 @@ console.log('\n⑦ 見出し（戻る＋タイトル）を画面で手書きし�
   // 残る `<BackButton>` は、見出しではないもの（シートの上端・チャットの相手・
   // 区間ピッカー・空っぽの画面で戻るだけ）。⑤⑥と同じで、いまの数を焼いて増えたら落ちる。
   const counts: Record<string, number> = {}
-  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+  for (const f of screens) {
     if (f.endsWith('ui/BackButton.tsx')) continue
     const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     const n = [...code.matchAll(/<BackButton\b/g)].length
@@ -259,7 +273,7 @@ console.log('\n⑧ 角を丸めていない（丸いのは顔・ロゴ・点だ�
   //   細い棒の端（CSS の 2px）。それ以外は1件でも落とす。
   //   2026-08-13 に 675 → 0 件（`R` トークンごと廃止）。
   const hits: string[] = []
-  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+  for (const f of screens) {
     const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     code.split('\n').forEach((l, i) => {
       for (const m of l.matchAll(/borderRadius:\s*([^,}\n]+)/g)) {
