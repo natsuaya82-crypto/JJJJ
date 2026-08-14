@@ -6,6 +6,8 @@ import { listFriends } from '../../lib/friendsApi'
 import { clubsOfUsers } from '../../lib/clubsApi'
 import { clubLogoSrc } from '../../data/clubLogos'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
+import { useRatedRanks } from '../../lib/useRatedRanks'
+import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
@@ -17,6 +19,8 @@ export default function FriendListPage() {
   // 全員ぶんの所属走友会を1回のリクエストでまとめて取る。
   // 取れなくても一覧はそのまま出す（走友会の行が出ないだけ）。
   const ids = friends.map(f => f.id).join(',')
+  // 名前の横に出す段位。**まとめて1回**で引く（1人ずつ引かない）
+  const ranks = useRatedRanks(friends.map(f => f.id))
   const clubs = useFriendsQuery(
     () => clubsOfUsers(ids ? ids.split(',') : []),
     [ids],
@@ -40,7 +44,11 @@ export default function FriendListPage() {
             }}>
               <TeamLogoSVG primary={f.primary} secondary={f.secondary} shortName={f.shortName} logoId={f.logoId} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: F.sub, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.teamName}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: F.sub, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.teamName}</div>
+                  {/* ランクマッチ未参加なら何も出ない（RankBadge が null を返す） */}
+                  <RankBadge rating={ranks.get(f.id)} size={18} />
+                </div>
                 <div style={{ fontSize: F.sub, fontWeight: 800, color: C.gold, marginTop: 3 }}>GM {f.gmName}</div>
                 <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>最終ログイン {f.lastLogin}</div>
                 {clubs.data?.get(f.id) && (

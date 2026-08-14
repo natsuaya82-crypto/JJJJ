@@ -101,6 +101,10 @@ function applyElo(entries, order) {
   }
   return out;
 }
+var RATING_FLOOR = 0;
+function clampRating(rating) {
+  return Math.max(RATING_FLOOR, rating);
+}
 function splitGroups(entries) {
   if (entries.length < GROUP_MIN) return [];
   const sorted = [...entries].sort((a, b) => b.rating - a.rating);
@@ -1282,14 +1286,15 @@ function runRatedRound(args) {
     const place = new Map(race.standings.map((s) => [s.teamId, s]));
     for (const m of members) {
       const st = place.get(m.userId);
-      const d = delta[m.userId] ?? 0;
+      const after2 = clampRating(m.rating + (delta[m.userId] ?? 0));
+      const d = after2 - m.rating;
       rows.push({
         userId: m.userId,
         group: groupNo,
         place: st?.rank ?? 0,
         timeSec: st?.totalTimeSec ?? 0,
         delta: d,
-        ratingAfter: m.rating + d,
+        ratingAfter: after2,
         forfeit: forfeits.includes(m.userId),
         overall: 0,
         move: 0

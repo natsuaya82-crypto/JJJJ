@@ -19,7 +19,7 @@
 // ============================================================================
 import type { HofPlayer, Player } from '../types'
 import { ratedMatchCourse } from '../engine/ratedCourse'
-import { applyElo, splitGroups, type RatedEntry } from '../engine/rating'
+import { applyElo, clampRating, splitGroups, type RatedEntry } from '../engine/rating'
 import { resolveOrders, type Order } from './roomMachine'
 import { buildRacePayload, type MatchRacePayload, type MatchTeamInfo } from './matchSim'
 
@@ -134,14 +134,18 @@ export function runRatedRound(args: {
 
     for (const m of members) {
       const st = place.get(m.userId)
-      const d = delta[m.userId] ?? 0
+      // ★**0より下がらない**（`clampRating` 1本）。そのうえで画面に出す増減は
+      //   「実際に動いたぶん」にする。生の増減をそのまま出すと、レート0の人の行に
+      //   「−380」と出ているのに数字が動かない＝矢印と数字が嘘をつく
+      const after = clampRating(m.rating + (delta[m.userId] ?? 0))
+      const d = after - m.rating
       rows.push({
         userId: m.userId,
         group: groupNo,
         place: st?.rank ?? 0,
         timeSec: st?.totalTimeSec ?? 0,
         delta: d,
-        ratingAfter: m.rating + d,
+        ratingAfter: after,
         forfeit: forfeits.includes(m.userId),
         overall: 0, move: 0,   // ↓ 全グループが出そろってから入れる
       })

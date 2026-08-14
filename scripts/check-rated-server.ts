@@ -14,7 +14,9 @@
  *   ① 提出したぶんはそのとおり走る（区間に置いた選手が、その区間を走っている）
  *   ② **出さなかった人も走る**（おまかせ＋不戦敗）。出さないほうが得、にしない
  *   ③ 全グループの合計 = 参加者数。誰も落ちない・二重に数えない
- *   ④ **レートの合計は動かない**（総当たりEloなので、増えたぶんと減ったぶんが釣り合う）
+ *   ④ **レートは0を下回らない**（オーナー・2026-08-14「レートはマイナスいかないからね？」）。
+ *      下限があるぶん減りが目減りするので、増減の合計は**0以上**になる（下限に当たった人が
+ *      居なければ0。総当たりEloなので、本来は増えたぶんと減ったぶんが釣り合う）
  *   ⑤ 1か月回して、レートの散らばりが `RANK_BANDS` の帯に収まっている
  *      （上の段位に誰も届かない、が起きない）
  *   ⑥ 10人未満は流会。**レートが1も動かない**
@@ -25,6 +27,7 @@
  *   ・`applyElo` に渡す order を「速い順」ではなく参加順にする              → ①④
  *   ・`splitGroups` の結果の最後のグループを捨てる                          → ③
  *   ・流会（skipped）でもレートを書く                                       → ⑥
+ *   ・`clampRating` の下限を外す／−1000 にする（マイナスに行く）             → ④（8件）
  */
 import { readFileSync } from 'node:fs'
 import { runRatedRound, type RatedEntrant } from '../src/lib/ratedTick'
@@ -151,12 +154,22 @@ console.log('[1] 提出したとおりに走る／出さなかった人も走る
   //   これが無いと、`applyElo` に**速い順ではなく参加順**を渡しても全部の網が緑のままだった
   //   （合計は0のままだし、レートも散らばる。散らばり方が着順と無関係なだけ）。
   const byPlace = [...out.rows].sort((a, b) => a.place - b.place)
-  const monotone = byPlace.every((x, i) => i === 0 || byPlace[i - 1].delta > x.delta)
-  check('全員レート0なら、増減は着順どおりに並ぶ', monotone,
+  //   ★**下限（0）に当たった人は0で止まる**ので「厳密に減っていく」にはならない。
+  //     全員0から始めた日は、負けた側が全員0のまま並ぶ（オーナー・2026-08-14
+  //     「レートはマイナスいかないからね？」）。見るのは
+  //       ・着順が下の人が上の人より増えることは無い（順序が逆転しない）
+  //       ・止まっていない人どうしは厳密に減っていく
+  //       ・**誰もマイナスにならない**
+  check('着順が下の人のほうが増える、が起きない',
+    byPlace.every((x, i) => i === 0 || byPlace[i - 1].delta >= x.delta),
     byPlace.map(x => `${x.place}位${x.delta > 0 ? '+' : ''}${x.delta}`).join(' '))
-  check('1位が最大・最下位が最小',
-    byPlace[0].delta === Math.max(...out.rows.map(x => x.delta)) &&
-    byPlace[byPlace.length - 1].delta === Math.min(...out.rows.map(x => x.delta)))
+  const moving = byPlace.filter(x => x.ratingAfter > 0)
+  check('下限で止まっていない人どうしは着順どおりに並ぶ',
+    moving.every((x, i) => i === 0 || moving[i - 1].delta > x.delta),
+    moving.map(x => `${x.place}位${x.delta}`).join(' '))
+  check('1位が最大', byPlace[0].delta === Math.max(...out.rows.map(x => x.delta)))
+  check('誰もマイナスにならない', out.rows.every(x => x.ratingAfter >= 0),
+    out.rows.filter(x => x.ratingAfter < 0).map(x => `${x.userId}:${x.ratingAfter}`).join(' '))
 }
 
 console.log('\n[1-b] 大会全体の順位と、前日からの上下（順位表の矢印）')
@@ -220,9 +233,15 @@ console.log('\n[2] 誰も落ちない・レートの合計は動かない')
       sizes.every(s => s >= GROUP_MIN && s <= GROUP_MAX), sizes.join(','))
     check(`${n}人：1人1グループ（重複なし）`,
       new Set(out.rows.map(r => r.userId)).size === n)
-    // ④ 総当たりElo なので増減の合計は0（四捨五入のぶんだけ許す）
+    // ④ 総当たりElo なので**下限が無ければ**増減の合計は0。
+    //    下限（0）があるぶんだけ減りが目減りするので、合計は必ず0以上になる。
+    //    ★「0以上」だけだと緩いので、**下限に当たった人が居ないときは0**も見る
     const sum = out.rows.reduce((a, b) => a + b.delta, 0)
-    check(`${n}人：レートの増減の合計がほぼ0（${sum}）`, Math.abs(sum) <= n)
+    const floored = out.rows.filter(x => x.ratingAfter === 0).length
+    check(`${n}人：レートの増減の合計は0以上（${sum}・下限で止まった人 ${floored}）`, sum >= 0)
+    check(`${n}人：下限に当たった人が居なければ合計は0`,
+      floored > 0 || Math.abs(sum) <= n, `${sum}`)
+    check(`${n}人：誰もマイナスにならない`, out.rows.every(x => x.ratingAfter >= 0))
   }
 }
 
@@ -261,16 +280,20 @@ console.log('\n[4] 1か月まるごと回す（30回戦）')
   const lo = vals[0], hi = vals[vals.length - 1]
   check(`日付と何日目かが往復する（${DAYS}日ぶん）`, badDays.length === 0, badDays.join(' '))
   check('30日とも成立した', forfeitDays === 0)
-  check(`レートが散らばった（${lo} 〜 ${hi}）`, hi - lo > 100, `${lo}〜${hi}`)
+  check(`レートが散らばった（${lo} 〜 ${hi}）`, hi - lo > 1000, `${lo}〜${hi}`)
 
   // ⑤ 7段位のうち、実際に人が居る段位の数。**上の段位に誰も届かない、が起きない**
   const used = new Set(vals.map(rankOf))
   check(`段位が3段以上使われた（${[...used].join(' / ')}）`, used.size >= 3, [...used].join(','))
   check('いちばん上のレートは最上位の帯の下限に届いている、か少なくとも2段目に居る',
     hi >= RANK_BANDS[RANK_BANDS.length - 2].min, `最高 ${hi}`)
-  // レートの合計は30日通しても0のまま（誰かが増えれば誰かが減る）
+  // ★下限（0）があるので、通算のレートは**増えていく**（減るぶんが目減りする）。仕様。
+  //   見るのは「誰もマイナスにならない」ことと、下限がちゃんと効いている
+  //   （＝いちばん下が0で止まっている）こと。
   const total = vals.reduce((a, b) => a + b, 0)
-  check(`通算のレートの合計がほぼ0（${total}）`, Math.abs(total) <= 60 * DAYS / 10, String(total))
+  check(`誰もマイナスにならない（最小 ${lo}）`, lo >= 0, `${lo}`)
+  check('下限が効いている（いちばん下は0で止まる）', lo === 0, `${lo}`)
+  check(`通算の合計は0以上（${total}）`, total >= 0)
 }
 
 console.log('\n[5] 同じ入力なら「誰がどこで何を走るか」は同じ（変わるのは当日のブレだけ）')

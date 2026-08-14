@@ -115,8 +115,24 @@ export function rankOf(rating: number): RankName {
   return (RANK_BANDS.find(b => rating >= b.min) ?? RANK_BANDS[RANK_BANDS.length - 1]).name
 }
 
+/**
+ * **レートの下限。0より下がらない。**（オーナー判断・2026-08-14
+ * 「レートはマイナスいかないからね？」）
+ *
+ * ★**負けたぶんを削るのはここ1本**（`clampRating`）。画面やサーバーで
+ *   `Math.max(0, ...)` を書き足さないこと。
+ * ★下限があるので**レートの合計は増えていく**（負けが0で止まる＝減るぶんが目減りする）。
+ *   これは仕様。「増減の合計は0」という数え方はもう成り立たない。
+ */
+export const RATING_FLOOR = 0
+
+/** レートを下限で止める。**増減を足すところは必ずここを通すこと** */
+export function clampRating(rating: number): number {
+  return Math.max(RATING_FLOOR, rating)
+}
+
 /** いちばん下の段位の下限。表示のためだけの数（判定には使わない） */
-const BOTTOM_FLOOR = 0
+const BOTTOM_FLOOR = RATING_FLOOR
 
 /**
  * **段位の中のどこにいるか。** 画面がこれを自分で計算しないこと。

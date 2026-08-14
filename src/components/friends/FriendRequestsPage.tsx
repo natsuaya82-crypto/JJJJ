@@ -15,6 +15,8 @@ import {
 } from '../../lib/friendsApi'
 import type { FriendRequest } from '../../lib/friendsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
+import { useRatedRank } from '../../lib/useRatedRanks'
+import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
@@ -28,11 +30,15 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 /** ダイアログの中に出す相手のチームカード（誰に申請するのかを目で確認する用） */
 function TargetCard({ r }: { r: FriendRequest }) {
+  const rank = useRatedRank(r.id)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px',background: alpha(C.bg, 0.5), border: `1px solid ${C.border2}` }}>
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} logoId={r.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
+          <RankBadge rating={rank} size={17} />
+        </div>
         <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
       </div>
     </div>
@@ -41,11 +47,15 @@ function TargetCard({ r }: { r: FriendRequest }) {
 
 /** 申請の一覧に出す1行 */
 function RequestRow({ r, dim, right }: { r: FriendRequest; dim?: boolean; right: React.ReactNode }) {
+  const rank = useRatedRank(r.id)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, opacity: dim ? 0.5 : 1 }}>
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} logoId={r.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
+          <RankBadge rating={rank} size={17} />
+        </div>
         <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
       </div>
       <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'center' }}>{right}</div>
