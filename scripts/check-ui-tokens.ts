@@ -282,9 +282,46 @@ console.log('\n⑧ 角を丸めていない（丸いのは顔・ロゴ・点だ�
       }
     })
   }
+  // ★CSS 側も見る。**ここが抜けていたので `index.css` は無防備だった**
+  //   （⑧は `src/components` の `.tsx` しか数えていなかった）。
+  //   丸くていいのは `50%`（顔・ロゴ・点）と、細い棒の端（2px 以下）と、ピル（999px 以上）。
+  for (const f of files.filter(f => f.endsWith('.css'))) {
+    const src = read(f).replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
+    src.split('\n').forEach((l, i) => {
+      const m = l.match(/border-radius:\s*([^;]+);/)
+      if (!m) return
+      const v = m[1].trim()
+      if (/%/.test(v) || v === '0') return
+      const px = parseFloat(v)
+      if (Number.isFinite(px) && (px <= 2 || px >= 999)) return
+      hits.push(`${f}:${i + 1} ${m[0]}`)
+    })
+  }
   check('画面で角を丸めていない', hits.length === 0,
     hits.slice(0, 10).join('\n      ') + (hits.length > 10 ? `\n      …ほか${hits.length - 10}件` : '') +
     '\n      → 角丸はやめました。形は ui/Panel（右下だけ斜めに切る）で出すこと')
+}
+
+console.log('\n⑨ 選手カードの一覧は PlayerList を通している')
+{
+  // カードとカードの間隔が画面によって「あったりなかったり」だった
+  // （空いている方＝gap 8 と、詰まっている方＝overflow:hidden の枠に隙間なく、の2通り）。
+  //   > ある方に統一して（オーナー・2026-08-14）
+  // 間隔を持つのは `player/PlayerList` 1本。**画面側で gap や枠を書かないこと。**
+  const OWNER = 'src/components/player/PlayerList.tsx'
+  const hits: string[] = []
+  for (const f of screens) {
+    if (f === OWNER) continue
+    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    // `.map(...)` で並べているものだけが対象（1枚だけ出す画面は一覧ではない）
+    if (!/<PlayerRow/.test(code)) continue
+    if (!/map\(/.test(code)) continue
+    // ★import があるだけでは通していない。**JSX で囲っているか**を見る
+    //   （最初の版は `/PlayerList/` で見ていて、枠に戻しても import が残っていて落ちなかった）
+    if (!/<PlayerList\b/.test(code)) hits.push(`${f} が PlayerList で囲っていない`)
+  }
+  check('選手カードの並べ方が1本', hits.length === 0,
+    hits.join('\n      ') + '\n      → 一覧は player/PlayerList で囲むこと（間隔はそこが持つ）')
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

@@ -295,7 +295,8 @@ export default function DraftRoom() {
 
   return (
     <div style={{
-      height: '100svh', backgroundColor: C.bg,
+      // ★土台を塗らないこと（背景の写真が消える）。塗っていいのは上に重ねる帯だけ
+      height: '100svh',
       maxWidth: '480px', margin: '0 auto',
       // 上端はダイナミックアイランドの下（セーフエリア）から、下は広告＋ホームバーの上で止める
       paddingTop: 'env(safe-area-inset-top)',
@@ -688,7 +689,7 @@ export default function DraftRoom() {
         <div style={{
           position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px', height: '50px',
-          backgroundColor: '#070610', borderTop: `1px solid ${C.border}`,
+          background: 'rgba(0,0,0,0.55)', borderTop: `1px solid ${C.border}`,
           zIndex: 60,
         }}/>
       )}
@@ -892,7 +893,8 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, backgroundColor: C.bg,
+      // ★土台を塗らないこと（背景の写真が消える）
+      position: 'fixed', inset: 0,
       maxWidth: '480px', margin: '0 auto',
       display: 'flex', flexDirection: 'column',
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
@@ -902,7 +904,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
         <div style={{
           position: 'fixed', bottom: 'env(safe-area-inset-bottom)', left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px', height: '50px',
-          backgroundColor: '#070610', borderTop: `1px solid ${C.border}`,
+          background: 'rgba(0,0,0,0.55)', borderTop: `1px solid ${C.border}`,
           zIndex: 60,
         }}/>
       )}

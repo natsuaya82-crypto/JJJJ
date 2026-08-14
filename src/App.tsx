@@ -25,6 +25,7 @@ import TermsGate from './components/title/TermsGate'
 import { hasAgreedTerms, agreeTerms } from './utils/termsConsent'
 import Layout from './components/layout/Layout'
 import GmInvitePicker from './components/team/GmInvitePicker'
+import AppBackground from './components/layout/AppBackground'
 import MorePage from './components/more/MorePage'
 import HofTeamPage from './components/online/HofTeamPage'
 import AnnouncementsPage, { AnnouncementDetailPage } from './components/more/AnnouncementsPage'
@@ -642,7 +643,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <LoadingOverlay />
-      {content}
+      {/* 背景の写真はここ1枚。タイトルもオンボーディングもドラフトも同じ上に乗る */}
+      <AppBackground>{content}</AppBackground>
       {/* 選手詳細シートは最上位に常時マウント（ドラフト画面など Layout 外でも openPlayerSheet で開ける） */}
       <PlayerSheet />
       {/* 利用規約の同意。タイトルをタップしたときだけ、その上に四角い枠で出す。 */}

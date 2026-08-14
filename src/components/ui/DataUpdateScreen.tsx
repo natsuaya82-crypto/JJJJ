@@ -106,7 +106,8 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9998, overflow: 'hidden',
-      background: 'radial-gradient(120% 80% at 50% 32%, #12101c 0%, #09070f 46%, #050409 100%)',
+      // ★塗りつぶさない（背景の写真が消える）。暗くしたいだけなので黒を薄く重ねる
+      background: 'radial-gradient(120% 80% at 50% 32%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.78) 46%, rgba(0,0,0,0.9) 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       fontFamily: FONT,
       padding: '0 28px',

@@ -8,6 +8,7 @@ import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
 import PageHeader from '../ui/PageHeader'
 import { C, alpha } from '../../styles/tokens'
+import PlayerList from '../player/PlayerList'
 
 
 // 移籍方針：選手ごとに 非売 / 貸出歓迎 / 売出 を設定する。
@@ -50,7 +51,7 @@ export default function NoSalePage() {
         </div>
       </div>
 
-      <div style={{ margin: '0 12px',overflow: 'hidden', border: `1px solid ${C.border}` }}>
+      <PlayerList>
         {myPlayers.map(p => (
           <PlayerRow
             key={p.id}
@@ -67,7 +68,7 @@ export default function NoSalePage() {
         {myPlayers.length === 0 && (
           <div style={{ padding: '40px 0', textAlign: 'center', color: C.textGhost, fontSize: 13 }}>対象の選手がいません</div>
         )}
-      </div>
+      </PlayerList>
 
       {sheetPlayer && (
         <ActionSheet

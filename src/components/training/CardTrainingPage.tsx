@@ -23,6 +23,7 @@ import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import PlayerList from '../player/PlayerList'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
@@ -204,7 +205,7 @@ export default function CardTrainingPage() {
           <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>練習する選手を選ぶ</div>
         </div>
 
-        <div style={{ padding: '6px 12px' }}>
+        <PlayerList margin="6px 12px">
           {mainPlayers.length === 0 && (
             <div style={{ padding: 30, textAlign: 'center', fontSize: 13, color: C.textDim }}>選手がいません</div>
           )}
@@ -215,7 +216,7 @@ export default function CardTrainingPage() {
               handlers={selectHandlers(p.id)}
             />
           ))}
-        </div>
+        </PlayerList>
       </div>
     )
   }

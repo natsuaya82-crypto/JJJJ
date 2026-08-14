@@ -5,6 +5,7 @@ import PageHeader from '../ui/PageHeader'
 import GmInviteChat from './GmInviteChat'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha, bottomStack } from '../../styles/tokens'
+import PlayerList from '../player/PlayerList'
 
 // ============================================================================
 // **退任について来てもらう1人を選ぶ画面。**
@@ -54,7 +55,7 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
       </div>
 
       {/* ★並べ方はロスターと同じ（`margin: 0 18px`・箱に入れず gap 8） */}
-      <div style={{ margin: '0 18px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <PlayerList margin="0 18px 32px">
         {roster.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: 14 }}>登録選手なし</div>
         ) : roster.map(p => (
@@ -65,7 +66,7 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
             handlers={{ onClick: () => setTalking(p) }}
           />
         ))}
-      </div>
+      </PlayerList>
 
       {talking && (
         <GmInviteChat

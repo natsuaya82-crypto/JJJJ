@@ -9,6 +9,7 @@ import { ekidenCandidates } from '../../engine/worldAthletics'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality, Player } from '../../types'
+import PlayerList from '../player/PlayerList'
 
 // 代表候補として表示する上位人数（全選手ではなく代表クラスだけ）
 const SQUAD_SIZE = 30
@@ -87,9 +88,9 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
             選手データなし
           </div>
         ) : (
-          <div style={{overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
+          <PlayerList margin="0 12px 80px">
             {roster.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={rowExtra(p)} />)}
-          </div>
+          </PlayerList>
         )}
       </div>
       {overlay}

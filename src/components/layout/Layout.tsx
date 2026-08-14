@@ -4,7 +4,6 @@ import { audio } from '../../utils/audio'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
-import appBg from '../../assets/bg.png'
 import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -166,16 +165,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div style={{
       minHeight: '100dvh',
       maxWidth: '480px', margin: '0 auto', position: 'relative',
-      // 背景の写真。**ここ1枚だけ**（各ページで貼らないこと）。
-      // 上に暗い幕を重ねて、文字が乗っても読めるようにする。
-      // ★**ページの一番外側に `background: C.bg` を敷かないこと。** 敷いた画面だけ
-      //   写真が消えて、下タブの向こうだけ写真が見える不揃いになる（21か所あった）。
-      //   塗っていいのは「上に重ねて下を隠すもの」だけ——スクロールで潜る見出しの帯と、
-      //   画面全体を覆う別画面（ドラフト会場・オンラインの説明）。
-      backgroundImage: `linear-gradient(180deg, rgba(6,13,24,0.34) 0%, rgba(6,13,24,0.62) 60%, rgba(6,13,24,0.74) 100%), url(${appBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundAttachment: 'fixed',
+      // ★背景の写真は `layout/AppBackground` へ移した（`App.tsx` が content を包む）。
+      //   Layout はゲームが始まってからしかマウントされないので、ここに置くと
+      //   タイトル・オンボーディング・ドラフト・復旧に写真が出ない。
+      //   **ページの一番外側に `background: C.bg` を敷かないこと**（写真が消える）。
     }}>
 
       {/* ── Header（実機で固定：viewport上端＋safe-area） ── */}
