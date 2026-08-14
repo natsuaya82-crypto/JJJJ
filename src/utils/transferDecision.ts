@@ -165,6 +165,13 @@ export function seeksPlayingTime(a: {
 export const CONSENT_LINE = 0.5
 
 /**
+ * **いま走れている選手が、いくつ格の下のクラブまでなら行くか。**
+ * これ以上下は関門で止める（点数では止まらない。上の appraiseMove のコメント）。
+ * 2＝1段下までは有り、2段下からは行かない（オーナー判断・2026-08-14）。
+ */
+export const MAX_TIER_DROP_FOR_STARTER = 2
+
+/**
  * 無所属を「格いくつ」として数えるか。**格は1〜20なので、その外側**。
  * クラブが無い状態はどのクラブよりも下、という意味しか持たせていない。
  */
@@ -427,8 +434,24 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   //   そもそも今のクラブが無い選手には当てはまらない
   const unproven = !freeAgent && gap > 0 && races >= 3 && frac <= 0
 
+  // ★**いま走れている選手は、格が大きく下のクラブへは行かない**（上の unproven と対の関門）。
+  //   オーナー判断（2026-08-14）「格下げてまでエースになりたいやついないだろ。
+  //   海外でやってる久保がいきなりJ3に移籍するか？」
+  //
+  //   点数の綱引きにしないのは、行き先でエースになれる加点(+0.22)に対して
+  //   格差の減点が1段 -0.04 しかなく、**5段下でも押し切れて**しまうため
+  //   （実測：1部の主力が2部の話を受ける割合48%、格差は4〜5段下が最多）。
+  //   格上側で同じ理由（+0.65〜0.90が大きすぎる）から関門にしてあるのと揃えた形。
+  //
+  //   ★**ピークを過ぎた選手には当てない。** 衰えて上で出られなくなった選手が
+  //     下のクラブへ移れないと、行き場が無くて引退するだけになる
+  //     （オーナー「85の36歳とかは全然2部でも欲しいでしょ」）。
+  //   ★止めるのは**いま走れている選手だけ**。控えが出番を求めて格下へ落ちるのは止めない。
+  const starterNow = races >= 3 && frac >= 0.5
+  const tooFarDown = !freeAgent && !declining && starterNow && -gap >= MAX_TIER_DROP_FOR_STARTER
+
   const score = tier + playingTime + benched + title + ecl + dreamFit + capped + personality + morale + bonus
-  const ok = score >= CONSENT_LINE && !unproven
+  const ok = score >= CONSENT_LINE && !unproven && !tooFarDown
   const parts = { tier, playingTime, benched, title, ecl, dreamFit, capped, personality, morale, bonus }
   // 見出しにする理由は「一番効いた要素」。行くときは一番の後押し、断るときは一番の足かせ。
   //

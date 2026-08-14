@@ -18,7 +18,7 @@
  "src/store/slices/draftSlice.ts": 679,
  "src/store/slices/draftSlice.ts::advanceDraft": 80,
  "src/store/slices/draftSlice.ts::beginSeasonDraft": 220,
- "src/store/slices/marketSlice.ts": 1610,
+ "src/store/slices/marketSlice.ts": 1612,
  "src/store/slices/marketSlice.ts::acceptTradeOffer": 73,
  "src/store/slices/marketSlice.ts::proposeTrade": 69,
  "src/store/slices/marketSlice.ts::submitAcquisitionOffer": 112,

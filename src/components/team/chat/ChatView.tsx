@@ -8,7 +8,7 @@ import PlayerFace from '../../player/PlayerFace'
 import { clubRoutePath, type Club } from '../../../utils/clubs'
 import { usePlayerLongPress } from '../../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, freeContactConsent } from '../../../utils/playerUtils'
-import { playRateOf } from '../../../utils/playRate'
+import { playRateOf, prevSeasonOf } from '../../../utils/playRate'
 import { canSignPlayer, ROSTER_MAX } from '../../../data/rosterRules'
 import { mergeChatMessages } from '../../../utils/chatLog'
 import { overseasApprovedLine, retireApprovedLine, offerTermsLine, joinAcceptedLine, rosterFullLine, reconsiderLine, stillWantsRenewalLine, stayPleaLine, thanksLine, contractAcceptLine, contractCounterLine, agreeTermsLine, clubDeclinedAckLine } from '../../../utils/chatLines'
@@ -44,7 +44,7 @@ export function ChatView({
 }) {
   const clubIndex = useClubIndex()
   const {
-    currentSeason, teams, players, playerTeamId,
+    currentSeason, teams, players, playerTeamId, pastSeasons,
     initiateContractRenewal, submitContractRenewalOffer,
     acceptContractCounter, reNegotiateContract,
     acceptRetirement, dismissRetirementRequest,
@@ -673,7 +673,7 @@ export function ChatView({
       if (!freeContact) return false
       // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
       // 決断のときと同じ数字でないと、画面の予告と結果が食い違う
-      const { teamRaces: fcRaces, fraction: fcFrac } = playRateOf(player.id, player.teamId, currentSeason, teams, foreignLeagues)
+      const { teamRaces: fcRaces, fraction: fcFrac } = playRateOf(player.id, player.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
       // 行き先は store の destinationOf 1本（決断のときに使われるものと同じ）
       return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), fcFrac, fcRaces)
     })()

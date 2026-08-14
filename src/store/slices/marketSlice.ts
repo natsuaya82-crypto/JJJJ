@@ -22,7 +22,7 @@ import { movePlayer } from '../../utils/movePlayer'
 import { settleForeignFee } from '../../utils/clubMoney'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
-import { playRateOf } from '../../utils/playRate'
+import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
 import { belongsToClub, squadIdsOf } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
@@ -334,7 +334,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     //   currentSeason.races は自分の部だけなので、1部・2部の選手は必ず0になり、
     //   appraiseMove の「干されている」(+0.2)が全員に付いていた
     const { fraction: frac, teamRaces: races } = playRateOf(
-      playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
+      playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues,
+      prevSeasonOf(state.pastSeasons, state.currentSeason.year))
     const ctx = {
       srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
       playFraction: frac, teamRaces: races, clubBlessed: true }
@@ -356,7 +357,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     if (player.overseasListed && fromForeign) return true
     // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）
     const { fraction: frac, teamRaces: races } = playRateOf(
-      playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
+      playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues,
+      prevSeasonOf(state.pastSeasons, state.currentSeason.year))
     // clubBlessed=true：移籍金はクラブ間で合意済み。「主力だから残りたい」の減点は掛けず、
     // 本人は行き先の姿だけで決める（買う側の finalizeTransfer と同じ渡し方）
     return appraiseMove(player, get().destinationOf(toTeamId, player), {
@@ -484,7 +486,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // （判定は決断時と同じ freeContactConsent＝出場実績込み）
       const freeContact = (state.currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
       if (freeContact) {
-        const fc = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
+        const fc = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
         const fcRaces = fc.teamRaces, fcFrac = fc.fraction
         if (freeContactConsent(player, get().destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces)) {
           // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
@@ -638,7 +640,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const player = state.players.find(p => p.id === offer.playerId)
       if (!player) return state
       // 出場データ（年俸ではなくデータで主力度を判定）
-      const pr = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues)
+      const pr = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
       const teamRaces = pr.teamRaces, playFraction = pr.fraction
       const rejectWith = (reason: AcquisitionOffer['rejectReason']) => ({
         currentSeason: {

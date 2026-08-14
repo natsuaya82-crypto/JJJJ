@@ -39,7 +39,7 @@ const CHECKS = [
   'layers',
   // チャット・交渉
   'chat-dup', 'chat-lines', 'chat-log', 'contract-talk', 'demand-gates', 'sale-answer',
-  'consent-single', 'move-reason', 'offer-result', 'gm-offer',
+  'consent-single', 'move-reason', 'tier-drop', 'offer-result', 'gm-offer',
   // 移籍・市場
   'fa-market', 'transfer-eligibility',
   // transfer-bid は片付いた（12件 → 8件 → 0件）。最後の8件は**仕様が変わったのに

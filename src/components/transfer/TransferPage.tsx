@@ -8,7 +8,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import type { Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr, ratingColor, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, isDataKeyPlayer } from '../../utils/playerUtils'
-import { playRateOf } from '../../utils/playRate'
+import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerFace from '../player/PlayerFace'
@@ -42,7 +42,7 @@ type Tab = 'market' | 'market-results' | 'trade' | 'listings'
 
 export default function TransferPage() {
   const {
-    teams, players, playerTeamId, currentSeason, foreignLeagues,
+    teams, players, playerTeamId, currentSeason, foreignLeagues, pastSeasons,
     ensureFuturePicks, startAcquisitionOffer,
     submitTransferBid, submitLoanRequest,
     acceptIncomingOffer, declineIncomingOffer,
@@ -289,7 +289,7 @@ export default function TransferPage() {
               // 主力（データ上よく出場）は自チームが更新するので「契約切れ」候補から除外（移籍リスト入りは対象）
               // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
               // 自分の部の日程で数えると、1部・2部の選手は全員0＝全員が主力でない扱いになる
-              const { fraction: frac, teamRaces: tr } = playRateOf(p.id, p.teamId, currentSeason, teams, foreignLeagues)
+              const { fraction: frac, teamRaces: tr } = playRateOf(p.id, p.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
               return !!p.transferListed || !isDataKeyPlayer(p, frac, tr)
             }
             return true

@@ -59,6 +59,25 @@ export function clubSeasonRaces(
   return []
 }
 
+/**
+ * **今季の出場率を「その選手の姿」として信用しはじめるレース数。**
+ * これ未満のあいだは前シーズンを見る（前年フル出場の選手が開幕直後に
+ * 「1戦も走っていない」扱いになるのを防ぐ）。部ごとのレース数は10/8/7なので、
+ * 4戦は1部で4割・3部で6割にあたる。
+ */
+export const SETTLED_RACES = 4
+
+/**
+ * 前シーズンを取り出す。**`playRateOf` に渡す前シーズンの引き方はここ1本**
+ * （呼ぶ側で `pastSeasons.find(...)` と書かないこと）。
+ */
+export function prevSeasonOf(
+  pastSeasons: readonly ({ year: number } & PlayRateSeason)[] | undefined,
+  year: number,
+): PlayRateSeason | undefined {
+  return pastSeasons?.find(s => s.year === year - 1)
+}
+
 /** 走り終わったレースの数（結果が入っているぶんだけ） */
 export function racesDone(races: readonly Race[]): number {
   return races.filter(r => r.results).length
@@ -74,10 +93,28 @@ export function playRateOf(
   season: PlayRateSeason,
   teams: readonly Team[],
   foreignLeagues?: readonly ForeignLeague[],
+  /**
+   * 前シーズン。**今季がまだ浅いときはこちらを見る**（下の★）。
+   * 渡さなければ今までどおり今季だけで数える。
+   */
+  prevSeason?: PlayRateSeason,
 ): { fraction: number; teamRaces: number; races: number } {
   if (!clubId) return { fraction: 0.5, teamRaces: 0, races: 0 }
   const list = clubSeasonRaces(season, clubId, teams, foreignLeagues)
   const teamRaces = racesDone(list)
+  // ★**今季が浅いうちは前シーズンの出場率を使う。**
+  //   今季だけで数えると、前年フル出場だった選手も開幕から数戦のあいだ「出場率0」になり、
+  //   移籍の関門（`appraiseMove` の unproven）で「1戦も走っていない＝実績なし」扱いになる。
+  //   オーナー指摘（2026-08-14）「その前のシーズンは走ってるのにその表示」。
+  //   `SETTLED_RACES` を超えたら今季の数字に切り替わる（今季の姿のほうが新しいので）。
+  if (teamRaces < SETTLED_RACES && prevSeason) {
+    const prevList = clubSeasonRaces(prevSeason, clubId, teams, foreignLeagues)
+    const prevTeamRaces = racesDone(prevList)
+    if (prevTeamRaces > 0) {
+      const prevRaces = seasonAppearances(playerId, prevList)
+      return { fraction: prevRaces / prevTeamRaces, teamRaces: prevTeamRaces, races: prevRaces }
+    }
+  }
   if (teamRaces === 0) return { fraction: 0.5, teamRaces: 0, races: 0 }
   const races = seasonAppearances(playerId, list)
   return { fraction: races / teamRaces, teamRaces, races }
