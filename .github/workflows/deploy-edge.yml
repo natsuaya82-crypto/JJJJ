@@ -1,0 +1,113 @@
+name: Deploy Edge Function (rated-tick)
+
+# ============================================================================
+# **ランクマッチの Edge Function を上げる。**
+#
+# ■なぜ Actions でやるのか
+#   デプロイには Supabase CLI とログインが要る。オーナーの手元に CLI を入れて
+#   ログインして…という手順を毎回踏むより、**GitHub の画面でボタンを1つ押す**ほうが
+#   間違いようがない。`engine.js` を直したときの上げ直しも同じボタンで済む。
+#
+# ■使い方
+#   GitHub → Actions → この workflow → Run workflow
+#
+# ■先に1回だけ要る設定（オーナー）
+#   Settings → Secrets and variables → Actions → New repository secret
+#     名前  SUPABASE_ACCESS_TOKEN
+#     中身  Supabase ダッシュボード → 右上のアカウント → Access Tokens で発行したもの
+#   ★**service_role キーではありません。** あれはDBを直接触るキーなので登録しないこと。
+#
+# ■デプロイのあと
+#   ダッシュボード → Edge Functions → rated-tick → Schedules に
+#     0 1 * * *      （UTC 01:00 ＝ 日本時間 10:00）
+#   を入れる。**ここだけは画面での操作が要る**（スケジュールは関数ごとの設定で、
+#   デプロイして初めて作れるため）。
+# ============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      verify:
+        description: '上げたあと1回叩いて動作を確かめる（service_role キーが要ります）'
+        type: boolean
+        default: false
+
+# ★このプロジェクトのID。URL の yqwjmpbxkyunqjrjqtug.supabase.co から来ている。
+#   別のプロジェクトへ上げたくなったらここを変える（1か所だけ）
+env:
+  PROJECT_REF: yqwjmpbxkyunqjrjqtug
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ★**上げる前に engine.js を作り直して、commit されているものと同じか見る。**
+      #   これが違うということは「src を直したのに build:edge を流さずに commit した」
+      #   状態で、アプリだけ新しくサーバーは古い計算のまま、という一番見つけにくい
+      #   壊れ方になる。npm run check の edge-bundle と同じ判定をここでもやる。
+      - name: engine.js が最新か確かめる
+        run: |
+          npm run build:edge
+          if ! git diff --quiet -- supabase/functions/rated-tick/engine.js; then
+            echo "::error::engine.js が古いままコミットされています。手元で 'npm run build:edge' を流してコミットし直してください"
+            git --no-pager diff --stat -- supabase/functions/rated-tick/engine.js
+            exit 1
+          fi
+          echo "engine.js は最新です"
+
+      - name: Supabase CLI を入れる
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: デプロイ
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN が登録されていません。Settings → Secrets and variables → Actions で登録してください"
+            exit 1
+          fi
+          supabase functions deploy rated-tick --project-ref "$PROJECT_REF"
+
+      # 上げただけでは動いたか分からないので、頼まれたら1回叩いて中身を出す。
+      # 何度叩いても同じ結果になる（締め済みの日は素通り・その日の回は作り直さない）
+      - name: 1回叩いて確かめる
+        if: ${{ inputs.verify }}
+        env:
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SERVICE_KEY" ]; then
+            echo "::error::SUPABASE_SERVICE_ROLE_KEY が登録されていません（確かめるときだけ要ります）"
+            exit 1
+          fi
+          echo "--- rated-tick を叩きます"
+          curl -sS -X POST "https://${PROJECT_REF}.supabase.co/functions/v1/rated-tick" \
+            -H "Authorization: Bearer $SERVICE_KEY" | tee /tmp/tick.json
+          echo
+          if ! grep -q '"ok":true' /tmp/tick.json; then
+            echo "::error::rated-tick が ok を返しませんでした"
+            exit 1
+          fi
+
+      - name: 次にやること
+        run: |
+          echo "## デプロイしました" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ダッシュボード → Edge Functions → **rated-tick** → Schedules に" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "0 1 * * *" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "を入れてください（UTC 01:00 ＝ 日本時間 10:00）。**1回だけの操作です。**" >> $GITHUB_STEP_SUMMARY
