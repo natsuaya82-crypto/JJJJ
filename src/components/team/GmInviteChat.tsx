@@ -42,8 +42,8 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
 
   const answer = !verdict ? null
     : verdict.ok ? gmInviteYesLine()
-    : verdict.shortReason === '移籍金が用意できない' ? gmInviteFeeLine(dest.shortName)
-    : gmInviteNoLine(verdict.shortReason)
+    : verdict.lead === 'fee' ? gmInviteFeeLine(dest.shortName)
+    : gmInviteNoLine(verdict.lead, player)
   const agreed = !!verdict?.ok
   const rating = ovr(player)
 

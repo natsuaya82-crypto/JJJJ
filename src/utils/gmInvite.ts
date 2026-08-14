@@ -1,5 +1,5 @@
 import type { ForeignLeague, Player, Season, Team } from '../types'
-import { appraiseMove, isSurplus, type Destination } from './transferDecision'
+import { appraiseMove, isSurplus, type Appraisal, type Destination } from './transferDecision'
 import { allTieredClubs, tierOfPlayerClub } from './clubTier'
 import { comparePlayers } from './playerSort'
 import { perfOf, transferFeeFor } from './playerUtils'
@@ -22,8 +22,15 @@ import { playRateOf } from './playRate'
 
 export type GmInviteVerdict =
   | { ok: true; fee: number }
-  /** 断られた。`reason` は移籍の断り文句と同じ1本（transferDecision） */
-  | { ok: false; fee: number; reason: string; shortReason: string }
+  /**
+   * 断られた。
+   * ★`lead`（一番効いた要素）を返すのが要点。**文面ではなく判断を渡す**ので、
+   *   チャットの言い回しは `utils/chatLines` 側で組み立てられる。
+   *   `reason` / `shortReason` は移籍と同じ第三者の説明（一覧・ニュース向け）。
+   */
+  | { ok: false; fee: number; lead: Appraisal['lead']; reason: string; shortReason: string }
+  /** 移籍金が足りない。本人は断っていない */
+  | { ok: false; fee: number; lead: 'fee'; reason: string; shortReason: string }
 
 export type GmInviteCtx = {
   players: Player[]
@@ -77,12 +84,12 @@ export function appraiseGmInvite(ctx: GmInviteCtx, playerId: string, destTeamId:
 
   const fee = gmInviteFeeFor(ctx, playerId) ?? 0
 
-  if (!a.ok) return { ok: false, fee, reason: a.reason, shortReason: a.shortReason }
+  if (!a.ok) return { ok: false, fee, lead: a.lead, reason: a.reason, shortReason: a.shortReason }
   // 払えなければ連れて行けない。**聞く前にここまで見る**ので、
   // 「ついて行きます」と言われたのに移らない、が起きない
   const destBudget = ctx.teams.find(t => t.id === destTeamId)?.finance.budget ?? 0
   if (destBudget < fee) {
-    return { ok: false, fee, reason: `${p.name}の移籍金を用意できませんでした`, shortReason: '移籍金が用意できない' }
+    return { ok: false, fee, lead: 'fee', reason: `${p.name}の移籍金を用意できませんでした`, shortReason: '移籍金が用意できない' }
   }
   return { ok: true, fee }
 }

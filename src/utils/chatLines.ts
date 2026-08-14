@@ -1,7 +1,8 @@
 import type { ChatMessage, Player } from '../types'
+import type { Appraisal } from './transferDecision'
 import { settledPath } from './talkSync'
 // 憧れの地域の呼び名は transferDecision の DREAM_LABEL 1本（ここに表を持たない）
-import { dreamLabelOf } from './transferDecision'
+import { dreamLabelOf, dreamRegionOf } from './transferDecision'
 
 // 進路が決まった選手の「本人の返事」を書く唯一の場所。
 //
@@ -144,17 +145,41 @@ export function gmInviteYesLine(): ChatMessage {
 }
 
 /**
- * 断りの返事。理由は `appraiseGmInvite` が返す短い形（名前が入っていない）を使う。
- * 例：「今のチームへの愛着が強い」→「今のチームへの愛着が強いので、このチームに残らせてください。」
+ * **断りの返事。**
+ *
+ * ★引くのは**判断そのもの**（`lead`＝一番効いた要素）で、一覧に出す第三者の説明文
+ *   （`shortReason`）を流用しない。あちらは「19番手で出番がない」のように
+ *   **本人には分からない数字**が入っていて、本人のセリフにすると嘘になる
+ *   （オーナー・2026-08-14「19番手かどうかってわからんくね？」）。
+ *   判断は `transferDecision` の1本のままなので、物差しは増えていない。
+ *
+ * ★`Record<Appraisal['lead'], …>` にしてあるので、**新しい理由を足したら
+ *   ここが埋まっていないと型で落ちる**（片方だけ増える事故が起きない）。
  */
-export function gmInviteNoLine(shortReason: string): ChatMessage {
-  return { from: 'player', kind: 'gm_invite_no', text: `${shortReason}ので、このチームに残らせてください。` }
+export function gmInviteNoLine(lead: Appraisal['lead'], player: Player): ChatMessage {
+  const stay = 'ので、このチームに残らせてください。'
+  const LINE: Record<Appraisal['lead'], string> = {
+    // 憧れの地域が違う。ここだけ言い切り（「〜ので」を付けない）
+    wrong_region: `行きたいのは${dreamLabelOf(dreamRegionOf(player.specialty))}です。`,
+    no_playing_time: `出場機会が見込めない${stay}`,
+    tier_down: `格下への移籍に前向きでない${stay}`,
+    loyalty: `今のチームへの愛着が強い${stay}`,
+    // ★`unproven`（今のクラブで1戦も走っていない）に専用の文は置かない。
+    //   「1戦も走っていないので残らせてください」は筋が通らないうえ、
+    //   移籍した選手は1年動けないので、この理由で断る場面がまず出ない
+    //   （オーナー・2026-08-14「1戦もなら残らないからいらんやろ」）
+    unproven: `乗り気ではない${stay}`,
+    dream: `乗り気ではない${stay}`,
+    playing_time: `乗り気ではない${stay}`,
+    capped: `乗り気ではない${stay}`,
+    ecl: `乗り気ではない${stay}`,
+    title: `乗り気ではない${stay}`,
+    tier_up: `乗り気ではない${stay}`,
+    even: `乗り気ではない${stay}`,
+  }
+  return { from: 'player', kind: 'gm_invite_no', text: LINE[lead] }
 }
 
-/**
- * 移籍金が足りなくて流れたとき。**本人は断っていない**ので選手には言わせない
- * （話し手の区別は「本人＝括弧なし／相手クラブGM＝（◯◯GM）／代理人＝（代理人）」）。
- */
 export function gmInviteFeeLine(clubName: string): ChatMessage {
   return { from: 'player', kind: 'gm_invite_fee', text: `（代理人）${clubName}が移籍金を用意できませんでした。今回は見送りになります。` }
 }

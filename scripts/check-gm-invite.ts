@@ -153,9 +153,13 @@ console.log('\n[②③] 声をかけると、選手が自分で決める')
       declined++; declineReason = r.verdict.reason
       if (declined <= 3) console.log(`      断った例： ${r.target.name} — ${r.verdict.shortReason}`)
       if (r.moved) check('断ったのに移っている', false, r.target.name)
-      // 断り文句はそのままチャットの吹き出しになる。文章として読めること
-      const line = gmInviteNoLine(r.verdict.shortReason).text
-      if (!line.endsWith('ので、このチームに残らせてください。')) check('断りの文が組み立てられていない', false, line)
+      // 断り文句はそのままチャットの吹き出しになる。
+      // ★引くのは判断（lead）で、一覧向けの説明文を流用しないこと
+      //   （「19番手で出番がない」は本人には分からない数字）
+      if (r.verdict.lead !== 'fee') {
+        const line = gmInviteNoLine(r.verdict.lead, r.target).text
+        if (!line.endsWith('。') || /\d+番手/.test(line)) check('断りの文がおかしい', false, line)
+      }
     }
   }
   console.log(`      12人に声をかけた結果： 行く ${joined}人 / 断る ${declined}人`)
