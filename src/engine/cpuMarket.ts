@@ -7,6 +7,7 @@ import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Race, type Specialty, type Team, type TransferListing } from '../types'
 import { clubSeasonRank } from '../utils/clubStanding'
 import { tierBudget, tierOf, tierStrength } from '../utils/clubTier'
+import { clubIndexOf } from '../utils/rosterSync'
 import { RENEWAL_ATTENTION_MONTHS, contractMonthsLeft } from '../utils/contractTalk'
 import { effectiveOvr } from '../utils/foreignClubProfile'
 import { DIVISION_SIZE } from '../utils/league'
@@ -100,14 +101,14 @@ export function pickCpuFreeAgents(a: {
   // クラブごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
   const faCtxList = cpuTeamsSorted.map(team => {
     // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
-    const currentRoster = players.filter(p => p.teamId === team.id && p.status === 'active')
+    const currentRoster = (clubIndexOf(players).get(team.id) ?? []).filter(p => p.status === 'active')
     const tier = tierOf(team)
     const totalNow = currentRoster.length
     // 運用方針と予算
     const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
     const st = standingOf(team.id)
     const strat = cpuStrategy(st.rank, st.total, avgAge)
-    const committedSalary = players.filter(p => p.teamId === team.id).reduce((s, p) => s + p.contract.annualSalary, 0)
+    const committedSalary = (clubIndexOf(players).get(team.id) ?? []).reduce((s, p) => s + p.contract.annualSalary, 0)
     const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
     // 補強原資 ＝ 年俸原資の余り（クラブ予算−既存年俸）＋ 実残高の一部。
     // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く。
@@ -151,9 +152,9 @@ export function pickCpuFreeAgents(a: {
     // ① 専門の穴埋め（1つの専門につき2人まで）。
     //    要るかどうかは squadNeeds 1本。以前はここに平均OVRから作った下限（minOvr - 10）が
     //    あったが、「薄い専門は頭数が要るので強さは問わない」という決まりと矛盾していた
-    const faRoster = players.filter(p => p.teamId === c.team.id && p.status === 'active')
+    const faRoster = (clubIndexOf(players).get(c.team.id) ?? []).filter(p => p.status === 'active')
     for (const spec of c.needs) {
-      const have = players.filter(p => p.teamId === c.team.id && p.specialty === spec && p.status === 'active').length
+      const have = faRoster.filter(p => p.specialty === spec).length
       if (have + (c.specCounts[spec] ?? 0) >= 2) continue
       const fa = c.pool.find(f => f.specialty === spec && canSign(f) && budgetOk(f) && (needsPlayer(faRoster, f) || wouldMakeLineup(faRoster, f)))
       if (!fa) continue
@@ -186,7 +187,7 @@ export function pickCpuFreeAgents(a: {
 }
 
 export function cpuSpecialtyNeeds(teamId: string, players: Player[]): Specialty[] {
-  return thinSpecialties(players.filter(p => p.teamId === teamId && p.status === 'active'))
+  return thinSpecialties((clubIndexOf(players).get(teamId) ?? []).filter(p => p.status === 'active'))
 }
 
 /**
@@ -298,7 +299,7 @@ export function generateTransferActivity(
   for (const team of aiTeams) {
     // 出品できるのは保有権のある選手だけ。ここが抜けていたため、他クラブから借りている選手が
     // 「出品中」として移籍市場に並び、そこから入札で奪われていた
-    const teamPlayers = players.filter(p => isOwnedBy(p, team.id))
+    const teamPlayers = (clubIndexOf(players).get(team.id) ?? []).filter(p => isOwnedBy(p, team.id))
     if (validListings.filter(l => l.fromTeamId === team.id).length >= 3) continue
 
     // 「余っている選手」＝そのクラブで出番が無い序列の選手（transferDecision の hasNoPlayingTime 1本、
@@ -425,7 +426,7 @@ export function generateTransferActivity(
   for (const club of offerClubs) {
     if (newIncoming.length >= MAX_NEW_OFFERS_PER_RACE) break
     if (offeringTeams.has(club.id)) continue
-    const clubPlayers = players.filter(p => p.teamId === club.id)
+    const clubPlayers = clubIndexOf(players).get(club.id) ?? []
     const clubRoster = clubPlayers.filter(p => p.status === 'active')
     // 名簿を1人も持っていないクラブは判断材料が無い（穴も序列も出せない）
     if (clubRoster.length === 0) continue

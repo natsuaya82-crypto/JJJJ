@@ -18,6 +18,7 @@ import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
 import { isOwnedBy } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
+import { clubIndexOf } from '../utils/rosterSync'
 import { allForeignClubs, domesticCpuTeamIds } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { calcTransferValue, ovr, playerConsentToMove } from '../utils/playerUtils'
@@ -98,7 +99,7 @@ export function runCpuReleases(
   const cpuTeamIds = domesticCpuTeamIds(world.players, world.teams, ctx.playerTeamId)
 
   for (const teamId of cpuTeamIds) {
-    const roster = world.players.filter(x => x.teamId === teamId && x.status === 'active' && !isLoanedIn(x))
+    const roster = (clubIndexOf(world.players).get(teamId) ?? []).filter(x => x.status === 'active' && !isLoanedIn(x))
     const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + ovr(x), 0) / roster.length : 60
     // 衰えたベテラン（チーム平均より6以上低く、契約も切れる）
     for (const p of roster) {
@@ -111,7 +112,7 @@ export function runCpuReleases(
     }
     // 総在籍（1軍+2軍・引退除く）の上限の超過ぶん。既に膨らんだセーブもここを通れば毎年是正される
     const cpuCap = ctx.rosterCapFor(teamId)
-    const totalRoster = world.players.filter(x => x.teamId === teamId && x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
+    const totalRoster = (clubIndexOf(world.players).get(teamId) ?? []).filter(x => x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
     if (totalRoster.length > cpuCap) {
       [...totalRoster].sort(byReleasePriority).slice(0, totalRoster.length - cpuCap).forEach(p => releaseSet.add(p.id))
     }
@@ -121,7 +122,7 @@ export function runCpuReleases(
   // ★ここだけ年齢ペナルティを掛けず、素のOVRの下位から切る。CPUと違って
   //   「誰を残すか」はプレイヤーが決める話なので、こちらで年齢の重みを付けない
   const myCap = ctx.rosterCapFor(ctx.playerTeamId)
-  const myRoster = world.players.filter(x => x.teamId === ctx.playerTeamId && x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
+  const myRoster = (clubIndexOf(world.players).get(ctx.playerTeamId) ?? []).filter(x => x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
   if (myRoster.length > myCap) {
     [...myRoster].sort((a, b) => ovr(a) - ovr(b)).slice(0, myRoster.length - myCap).forEach(p => releaseSet.add(p.id))
   }
@@ -177,11 +178,14 @@ export function runCpuLoans(
   const loanYear = ctx.year + 1
   const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
   const mainCount = (teamId: string) =>
-    players.filter(p => p.teamId === teamId && p.status === 'active' && !p.loan).length
+    (clubIndexOf(players).get(teamId) ?? []).filter(p => p.status === 'active' && !p.loan).length
   const givenLoan: Record<string, number> = {}
   const receivedLoan: Record<string, number> = {}
-  const rosterOf = (teamId: string) => players
-    .filter(p => p.teamId === teamId && p.status === 'active' && !p.loan)
+  // クラブの名簿は索引から引く（クラブの数だけ全選手を走査しない・utils/rosterSync）
+  // 格を引く材料は1回だけ組む（232クラブの配列を1人ごとに作り直さない）
+  const tieredClubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
+  const rosterOf = (teamId: string) => (clubIndexOf(players).get(teamId) ?? [])
+    .filter(p => p.status === 'active' && !p.loan)
     .sort(comparePlayers('ovr'))
 
   let lent = 0
@@ -203,9 +207,8 @@ export function runCpuLoans(
     // ④本人が行くか。**このまま控えでいるか、1年よそで走るか**の選択なので、
     //   格下への減点は効かせない（loan: true）
     if (ctx.destinationOf) {
-      const clubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
       const a = appraiseMove(candidate, ctx.destinationOf(receiver, candidate),
-        { srcTier: tierOfPlayerClub(senderId, clubs), loan: true })
+        { srcTier: tierOfPlayerClub(senderId, tieredClubs), loan: true })
       if (!a.ok) continue
     }
     lent++
@@ -261,12 +264,14 @@ export function runCpuTrades(
   const tradedIds = ctx.excludeIds
   const tradeCount: Record<string, number> = {}
   const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
+  // 格を引く材料は1回だけ組む（232クラブの配列を1組ごとに作り直さない）
+  const tradeTieredClubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
 
   let done = 0
   for (const buyerId of cpuIds) {
     if (ctx.maxTrades != null && done >= ctx.maxTrades) break
     if ((tradeCount[buyerId] ?? 0) >= 1) continue
-    const buyRoster = players.filter(p => p.teamId === buyerId && p.status === 'active')
+    const buyRoster = (clubIndexOf(players).get(buyerId) ?? []).filter(p => p.status === 'active')
     // ★人数の門は**置かない**。1対1の交換なので在籍数は増えも減りもしない。
     //   以前は「23人以上は買い手にならない」と書いてあったが、その直前の解雇が
     //   1軍上限23人に揃えるので**51クラブ全部がちょうど23人**になり、買い手が
@@ -284,8 +289,8 @@ export function runCpuTrades(
 
     for (const sellerId of cpuIds) {
       if (sellerId === buyerId || (tradeCount[sellerId] ?? 0) >= 1) continue
-      const sellRoster = players
-        .filter(p => p.teamId === sellerId && p.status === 'active')
+      const sellRoster = (clubIndexOf(players).get(sellerId) ?? [])
+        .filter(p => p.status === 'active')
         .sort(comparePlayers('ovr'))
       // ★**問いは現金の移籍とまったく同じ**（`docs/AUDIT_TRANSFERS.md` §3）。
       //   ① 買う側が要るか      … needsPlayer（穴があって、そこで走れる）
@@ -309,10 +314,9 @@ export function runCpuTrades(
       // ④ 本人が行くか。**2人とも動くので2人に聞く**（現金の移籍と同じ入口）。
       //   クラブ同士は釣り合いで合意済みなので clubBlessed = true
       if (ctx.destinationOf) {
-        const clubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
         const asks: [Player, string][] = [[target, buyerId], [offered, sellerId]]
         if (asks.some(([pl, to]) =>
-          !playerConsentToMove(pl, ctx.destinationOf!(to, pl), tierOfPlayerClub(pl.teamId, clubs), 0.5, 0, 0, true).ok)) continue
+          !playerConsentToMove(pl, ctx.destinationOf!(to, pl), tierOfPlayerClub(pl.teamId, tradeTieredClubs), 0.5, 0, 0, true).ok)) continue
       }
       done++
       tradedIds.add(offered.id); tradedIds.add(target.id)

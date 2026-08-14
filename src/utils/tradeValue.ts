@@ -36,6 +36,7 @@
 // 呼び出し側に 0.92 や 1.5 を直接書かないこと（scripts/check-trade-value.ts が検出する）。
 import type { Player } from '../types'
 import { keyPlayerStatus, ovr, seasonPerfProfile, transferFeeFor } from './playerUtils'
+import { clubIndexOf } from './rosterSync'
 import { isSurplus } from './transferDecision'
 import { squadRankOf } from './squadNeeds'
 import type { SegRaceLike } from './playerUtils'
@@ -86,7 +87,8 @@ function perfIn(p: Player, ctx: TradeValueCtx) {
 /** その選手は、いまのクラブで余剰か（序列15番手以降か） */
 function surplusIn(p: Player, ctx: TradeValueCtx): boolean {
   if (!ctx.players) return false   // 分からなければ主力扱い（安く見積もらない）
-  const roster = ctx.players.filter(x => x.teamId === p.teamId && x.status === 'active')
+  // クラブの名簿は索引から引く（1人値段を出すたびに全選手を走査しない・utils/rosterSync）
+  const roster = (clubIndexOf(ctx.players).get(p.teamId) ?? []).filter(x => x.status === 'active')
   return isSurplus({ squadRank: squadRankOf(roster, p) })
 }
 
