@@ -179,7 +179,9 @@ export function runTransferMarket(
   // ── 出せる選手の一覧は**出す側だけで決まる**（買う側が誰かに関係しない）。
   //    232クラブぶんを買うたびに組み直していたので、1回の市場で数百万個の
   //    オブジェクトを作っては捨てていた。動いたクラブのぶんだけ作り直す。
-  type SellCandidate = { p: Player; sellClub: MarketClub; sellRoster: Player[]; rank: number; surplus: boolean }
+  //    ★OVRは並べるたびに数え直さない。名簿が動かないかぎり値は変わらないので、
+  //      一覧を作るときに1回だけ数えて持たせる（並べ替えは O(n log n) 回引く）
+  type SellCandidate = { p: Player; sellClub: MarketClub; sellRoster: Player[]; rank: number; surplus: boolean; ovr: number }
   const sellCandidatesOf = (sellClub: MarketClub): SellCandidate[] => {
     if ((sellCounts[sellClub.id] ?? 0) >= SELL_PER_CLUB) return []
     const sellRoster = rosters.get(sellClub.id)!
@@ -191,12 +193,26 @@ export function runTransferMarket(
     //   ★序列は**絞り込む前**に付けること。あとから index を取ると、
     //     借りている選手が1人混ざっただけで以降の序列が全部1つずつズレます
     return sellRoster
-      .map((p, i) => ({ p, sellClub, sellRoster, rank: i + 1, surplus: isSurplus({ squadRank: i + 1 }) }))
+      .map((p, i) => ({ p, sellClub, sellRoster, rank: i + 1, surplus: isSurplus({ squadRank: i + 1 }), ovr: ovr(p) }))
       .slice(1)
       // 借りている選手は出せない（保有権が無い）
       .filter(({ p }) => isOwnedBy(p, sellClub.id) && !ctx.excludeIds.has(p.id) && p.joinedYear !== ctx.year)
   }
   const sellCandidateCache = new Map<string, SellCandidate[]>(clubs.map(c => [c.id, sellCandidatesOf(c)]))
+
+  // ── 市場に出ている選手を1本に並べたもの。**買う側が誰かに関係しない**ので、
+  //    232クラブぶんを買うたびに繋ぎ直さない（クラブ232件の配列と、数千件の
+  //    連結を毎回作っていた）。名簿が動いた（＝移籍が成立した）ときだけ繋ぎ直す。
+  //    並びは clubs の順（＝今までと同じ）。並べ替えは安定なので結果も変わらない。
+  let pool: SellCandidate[] = []
+  const rebuildPool = () => {
+    pool = []
+    for (const c of clubs) {
+      const arr = sellCandidateCache.get(c.id)
+      if (arr) for (const cand of arr) pool.push(cand)
+    }
+  }
+  rebuildPool()
 
   let moves = 0
   const buyOnePlayer = (buyClub: MarketClub): boolean => {
@@ -211,13 +227,15 @@ export function runTransferMarket(
     if (buyRoster.length >= ctx.rosterCapFor(buyClub.id)) return false
     const needs = needsOf.get(buyClub.id)!
 
-    const candidates = clubs
-      .filter(c => c.id !== buyClub.id)
-      .flatMap(sellClub => sellCandidateCache.get(sellClub.id) ?? [])
-      // ①「必要だから動く」の関門（移籍金を払う移籍なので穴のときだけ）
-      .filter(({ p }) => needsPlayer(buyRoster, p))
-      // 欲しいタイプ・OVRの高い選手を優先
-      .sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (ovr(b.p) - ovr(a.p)))
+    // ①「必要だから動く」の関門（移籍金を払う移籍なので穴のときだけ）。
+    //   自分のクラブは飛ばす（前は 232件の配列を作り直して除いていた）
+    const candidates: SellCandidate[] = []
+    for (const cand of pool) {
+      if (cand.sellClub.id === buyClub.id) continue
+      if (needsPlayer(buyRoster, cand.p)) candidates.push(cand)
+    }
+    // 欲しいタイプ・OVRの高い選手を優先
+    candidates.sort((a, b) => (Number(needs.has(b.p.specialty)) - Number(needs.has(a.p.specialty))) || (b.ovr - a.ovr))
 
     for (const { p: target, sellClub, sellRoster, rank, surplus } of candidates) {
       // ③余剰は市場価値どおり、主力の引き抜きは割増。年俸も余剰かどうかで変わる。
@@ -260,6 +278,7 @@ export function runTransferMarket(
       // 名簿が動いた2クラブだけ、出せる選手の一覧を作り直す
       sellCandidateCache.set(sellClub.id, sellCandidatesOf(sellClub))
       sellCandidateCache.set(buyClub.id, sellCandidatesOf(buyClub))
+      rebuildPool()
       if (moved.record) records.push(moved.record)
       moves++
       newsRows.push({
