@@ -74,12 +74,11 @@ function PreseasonHub({
   //   null にしたあとなので**その年のドラフトが二度と開けなくなる**
   //   （オーナー・2026-08-14「予定表見て戻ったらドラフト自体がスキップされた」
   //   「スキップを可能にしたことは今までで一度もないが？」）
-  const preSeason   = { draftDone, rosterCount }
+  const preSeason   = { campDone, draftDone, rosterCount }
   const rosterShort = rosterShortFor(rosterCount)
   const blockers    = seasonStartBlockers(preSeason)
-  const canStart    = canStartSeason(preSeason)
-  // カードの受け取りは開幕を止めない（止めるかはオーナー判断）。金のボタンにはしない
-  const allReady    = canStart && campDone
+  // **並べた用件が全部そろうまで開幕できない。** 押せる＝すべて済み、の1つだけ
+  const allReady    = canStartSeason(preSeason)
 
   // 準備の行。中身は今までと同じで、見た目だけ細い線に寄せる
   const rowStyle: React.CSSProperties = {
@@ -184,15 +183,15 @@ function PreseasonHub({
         </div>
       )}
       <button
-        onClick={() => { if (canStart) { onStart(); navigate('/schedule') } }}
-        disabled={!canStart}
+        onClick={() => { if (allReady) { onStart(); navigate('/schedule') } }}
+        disabled={!allReady}
         className="btn-press"
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
           width: '100%', margin: '14px 0 0', padding: '15px 0',overflow: 'hidden',
-          fontFamily: 'inherit', cursor: canStart ? 'pointer' : 'default',
+          fontFamily: 'inherit', cursor: allReady ? 'pointer' : 'default',
           // ★もとが金のボタンなので、金のガラスにする（色は元のまま）
-          color: allReady ? C.goldHi : canStart ? C.textDim : C.textGhost,
+          color: allReady ? C.goldHi : C.textGhost,
           background: allReady
             ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`
             : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
@@ -205,17 +204,10 @@ function PreseasonHub({
         }}
       >
         <span style={{ fontSize: F.title, fontWeight: 900, letterSpacing: '3px' }}>
-          {year}シーズン {allReady ? '開幕！' : canStart ? '開幕' : rosterShort ? '開幕（補強が必要）' : '開幕（ドラフトが残っています）'}
+          {year}シーズン {allReady ? '開幕！' : rosterShort ? '開幕（補強が必要）' : '開幕（準備が残っています）'}
         </span>
       </button>
-      {/* ★開幕を飛ばせる案内文は消しました。ドラフトは飛ばせません（オーナー・2026-08-14
-          「スキップを可能にしたことは今までで一度もないが？」）。
-          残っているのはカードの受け取りだけなので、そう書く */}
-      {canStart && !campDone && (
-        <div style={{ fontSize: F.caption, color: C.textGhost, margin: '9px 0 0' }}>
-          プレシーズンのカードがまだ残っています。受け取ってから開幕できます。
-        </div>
-      )}
+
     </div>
   )
 }

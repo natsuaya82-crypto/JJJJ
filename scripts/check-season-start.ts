@@ -1,5 +1,5 @@
 /**
- * 【ドラフトを終えるまで開幕できない】
+ * 【プレシーズンの用件が全部そろうまで開幕できない】
  *
  * ■なぜ要るのか（オーナー・2026-08-14）
  *   「シーズン開始した後に予定表見て戻ったらドラフト自体がスキップされたんだけどなんで？」
@@ -32,14 +32,16 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failed++
 }
 
-console.log('[1] 開幕を止める条件')
+console.log('[1] プレシーズンに並べた用件が全部そろうまで開幕できない')
 {
-  const ok = { draftDone: true, rosterCount: 25 }
-  check('ドラフトを終えて人数も足りていれば開幕できる', canStartSeason(ok))
+  const ok = { campDone: true, draftDone: true, rosterCount: 25 }
+  check('全部そろっていれば開幕できる', canStartSeason(ok))
   check('ドラフトが残っていたら開幕できない', !canStartSeason({ ...ok, draftDone: false }))
+  check('カードを受け取っていなければ開幕できない', !canStartSeason({ ...ok, campDone: false }))
   check(`人数が下限（${ROSTER_MIN}人）未満なら開幕できない`, !canStartSeason({ ...ok, rosterCount: ROSTER_MIN - 1 }))
   check(`下限ちょうどは開幕できる`, canStartSeason({ ...ok, rosterCount: ROSTER_MIN }))
-  check('両方だめなら理由も2つ出る', seasonStartBlockers({ draftDone: false, rosterCount: 3 }).length === 2)
+  check('全部だめなら理由も3つ出る',
+    seasonStartBlockers({ campDone: false, draftDone: false, rosterCount: 3 }).length === 3)
   check('開幕できるときは理由が0件', seasonStartBlockers(ok).length === 0)
   // 理由は必ず文章で出す（押せないのに何も出ないのが一番まずい）
   check('止めるときは必ず理由の文がある',
@@ -50,20 +52,23 @@ console.log('[1] 開幕を止める条件')
 console.log('\n[2] 画面が実際にその判定を通している')
 {
   const dash = readFileSync('src/components/dashboard/Dashboard.tsx', 'utf8')
-  check('開幕ボタンの onClick が canStart を見る', /onClick=\{\(\) => \{ if \(canStart\)/.test(dash))
-  check('開幕ボタンの disabled が canStart を見る', /disabled=\{!canStart\}/.test(dash))
+  check('開幕ボタンの onClick が allReady を見る', /onClick=\{\(\) => \{ if \(allReady\)/.test(dash))
+  check('開幕ボタンの disabled が allReady を見る', /disabled=\{!allReady\}/.test(dash))
   // ★ここが本体。`rosterShort` だけを見る形に戻ったら落とす
   check('onClick が rosterShort だけを見る形に戻っていない',
     !/onClick=\{\(\) => \{ if \(!rosterShort\)/.test(dash))
   check('disabled が rosterShort だけを見る形に戻っていない', !/disabled=\{rosterShort\}/.test(dash))
   check('判定は utils/seasonStart から取っている', /from '\.\.\/\.\.\/utils\/seasonStart'/.test(dash))
   check('画面で条件を組み直していない（campDone && draftDone のような手書き）',
-    !/const\s+canStart\s*=\s*[^\n]*&&/.test(dash))
+    !/const\s+allReady\s*=\s*[^\n]*&&/.test(dash))
+  // ★用件を1つでも判定から外したら落とす（カードだけ通す形に一度戻してしまった）
+  check('画面が渡す用件は3つそろっている（カード・ドラフト・人数）',
+    /\{ campDone, draftDone, rosterCount \}/.test(dash))
   // 「スキップも可能です」は消した。文言ごと戻ってきたら落とす
   check('「スキップも可能です」が復活していない', !dash.includes('スキップも可能です'))
   check('押せない理由を画面に出している', /blockers\.map/.test(dash))
 }
 
 console.log('')
-if (failed > 0) { console.log(`✗ ドラフトを飛ばして開幕できてしまいます（${failed}件）`); process.exit(1) }
-console.log('✓ ドラフトを終えるまで開幕できない。理由も画面に出る')
+if (failed > 0) { console.log(`✗ 準備が残っていても開幕できてしまいます（${failed}件）`); process.exit(1) }
+console.log('✓ カード・ドラフト・人数が全部そろうまで開幕できない。理由も画面に出る')
