@@ -46,6 +46,7 @@ import { needsPlayer } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
 import { appraiseMove, hasNoPlayingTime, isSurplus } from '../../utils/transferDecision'
 import { writeSeasonArchive } from '../seasonArchive'
+import { facilitiesOf } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
   'startRegularSeason' | 'initObjectivesIfEmpty' | 'endSeason' | 'acceptGmOffer' | 'declineGmOffer' | 'resignAsGm'>
@@ -73,7 +74,10 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
   const oldOriginalGm = INITIAL_TEAMS.find(t => t.id === oldTeamId)?.gmName ?? '新監督'
   const teams = state.teams.map(t => {
     if (t.id === offer.teamId) return { ...t, isPlayerControlled: true, gmName: myGmName }
-    if (t.id === oldTeamId) return { ...t, isPlayerControlled: false, gmName: oldOriginalGm }
+    // ★施設は**置いていく**。オファー画面のとおり移籍先のものを引き継ぐので
+    //   （施設のレベルは `utils/facilities` の `facilitiesOf`＝格の土台＋建てたぶん）、
+    //   前のクラブに自分が建てたぶんを残すと、CPUに戻ったあとも格に合わない施設を持ち続ける
+    if (t.id === oldTeamId) return { ...t, isPlayerControlled: false, gmName: oldOriginalGm, facilities: {} }
     return t
   })
   // 移籍方針（非売・貸出歓迎）は監督が付けた指示。CPUに戻るチームに残すと
@@ -709,7 +713,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           divisionRaces: nextSchedules,
           collegeRaces: [],
           draftPool: [],
-          scoutPoints: 5 + objBonus + (state.teams.find(t => t.id === state.playerTeamId)?.facilities?.scoutOffice ?? 0),
+          scoutPoints: 5 + objBonus + facilitiesOf(state.teams.find(t => t.id === state.playerTeamId)).scoutOffice,
           initialBudget: newBudget,   // 来期の開始予算（＝繰越+クラブ予算+スポンサー）。収支表示の基準。
           seasonGrant: newBudgetBreakdown.grant,   // 来期のクラブ予算（＝来季の格の年間予算）。内訳表示と一致させる。
           budgetBreakdown: newBudgetBreakdown,       // 初期予算の内訳（財務ページで表示）

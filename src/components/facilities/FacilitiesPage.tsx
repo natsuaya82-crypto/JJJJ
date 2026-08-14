@@ -5,6 +5,7 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
 import { panelStyle } from '../ui/Panel'
 import GlassButton from '../ui/GlassButton'
+import { facilitiesOf } from '../../utils/facilities'
 
 
 function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: FacilityKey; color: string; size?: number }) {
@@ -91,6 +92,8 @@ export default function FacilitiesPage() {
   const myTeam = teams.find(t => t.id === playerTeamId)
 
   if (!myTeam) return null
+  // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）
+  const myFac = facilitiesOf(myTeam)
 
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: '80px', minHeight: '100dvh' }}>
@@ -106,7 +109,7 @@ export default function FacilitiesPage() {
 
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {FACILITY_META.map(f => {
-          const currentLv = myTeam.facilities?.[f.key] ?? 0
+          const currentLv = myFac[f.key]
           const nextCost = currentLv < MAX_LV ? UPGRADE_COSTS[currentLv] : null
           const canUpgrade = nextCost !== null && jewels >= nextCost
 

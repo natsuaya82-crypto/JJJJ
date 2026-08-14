@@ -42,13 +42,23 @@ export function tierFacilityLevel(tier: ClubTier): number {
 
 /**
  * そのクラブの施設。**読むときはここを通す。**
- * 自分で建てたものがあればそれを、無ければ格から出す（国内CPU・海外クラブ）。
+ *
+ * **格から出るレベルが土台で、自分で建てたぶんはその上に積む**（施設ごとに大きい方）。
+ *
+ * ■なぜ「大きい方」なのか（2026-08-14・オーナー「そりゃあ引き継ぐでしょ」）
+ *   前は「自分で建てたものが1つでもあればそちらを丸ごと採用」だった。すると
+ *     ・合宿だけ Lv2 に上げた瞬間、**残り3施設が 0 に落ちる**（格の土台が消える）
+ *     ・監督が移った先の施設を引き継げない。オファー画面には
+ *       「受けると選手・予算・**施設**はすべて◯◯のものを引き継ぎます」と書いてあるのに、
+ *       自チームになった瞬間に 0＝未建設になっていた
+ *   しかも**維持費だけは格から計算していた**（`facilityUpkeepOf` はここを通る）ので、
+ *   新規ゲームの時点から**払っているのに効いていない**状態だった（格20で1億/年）。
  */
-export function facilitiesOf(club: (TieredTeam & { facilities?: Facilities }) | undefined): Facilities {
-  const own = club?.facilities
-  if (own && FACILITY_KEYS.some(k => (own[k] ?? 0) > 0)) return own
+export function facilitiesOf(club: (TieredTeam & { facilities?: Facilities }) | undefined): Record<FacilityKey, number> {
   const lv = tierFacilityLevel(tierOf(club))
-  return { trainingCamp: lv, medicalCenter: lv, scoutOffice: lv, tacticsRoom: lv }
+  const own = club?.facilities
+  const at = (k: FacilityKey) => Math.min(FACILITY_MAX_LEVEL, Math.max(own?.[k] ?? 0, lv))
+  return { trainingCamp: at('trainingCamp'), medicalCenter: at('medicalCenter'), scoutOffice: at('scoutOffice'), tacticsRoom: at('tacticsRoom') }
 }
 
 /**

@@ -7,6 +7,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
+import { facilitiesOf } from '../../utils/facilities'
 
 
 export default function TeamHub() {
@@ -109,7 +110,7 @@ export default function TeamHub() {
       desc: '合宿・医療・スカウト・戦術分析施設のアップグレード',
       countLabel: (() => {
         const team = teams.find(t => t.id === playerTeamId)
-        const total = Object.values(team?.facilities ?? {}).reduce((s, v) => s + (v ?? 0), 0)
+        const total = Object.values(facilitiesOf(team)).reduce((s, v) => s + v, 0)
         return total > 0 ? `施設合計Lv${total}` : '未建設'
       })(),
       badge: 0,

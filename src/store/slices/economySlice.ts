@@ -1,6 +1,7 @@
 // economy ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
+import { facilitiesOf } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
   'signSponsor' | 'terminateSponsor' | 'acceptSponsorOffer' | 'collectSponsorIncome' | 'upgradeFacility' | 'dismissBudgetNotice'>
@@ -119,7 +120,8 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
     const state = get()
     const myTeam = state.teams.find(t => t.id === state.playerTeamId)
     if (!myTeam) return false
-    const currentLv = myTeam.facilities?.[key] ?? 0
+    // ★いまのレベルは `facilitiesOf`（格の土台＋建てたぶん）。0 から数え直さないこと
+    const currentLv = facilitiesOf(myTeam)[key]
     if (currentLv >= 5) return false
     const UPGRADE_COSTS = [100, 300, 500, 1000, 3000]
     const cost = UPGRADE_COSTS[currentLv]

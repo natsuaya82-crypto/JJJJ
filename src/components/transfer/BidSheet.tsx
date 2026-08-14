@@ -10,6 +10,7 @@ import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import GlassButton from '../ui/GlassButton'
+import { facilitiesOf } from '../../utils/facilities'
 
 
 // 移籍金オファーの下部シート（成立確率つき）。移籍市場・他チームタブ共通。
@@ -35,7 +36,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   // 本人の実際の答えと 40.4% 食い違っていた（「前向き」と出るのに断られる）
   const myDest = destinationOf(playerTeamId, player)
   const srcTier = tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues))
-  const scoutLv = teams.find(t => t.id === playerTeamId)?.facilities?.scoutOffice ?? 0
+  const scoutLv = facilitiesOf(teams.find(t => t.id === playerTeamId)).scoutOffice
   const consentBase = scoutLv * 0.02
   // 年俸ボーナス（相場1.2倍=+0.1 / 1.5倍=+0.2）でどこまで説得できるかを段階表示
   const mind = playerConsentToMove(player, myDest, srcTier, 0.5, 0, consentBase, true).ok ? 'willing'

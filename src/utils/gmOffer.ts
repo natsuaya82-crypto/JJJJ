@@ -2,6 +2,7 @@ import { rankOfTeam } from '../utils/league'
 import type { GmOffer, GmTenure, Team } from '../types'
 import { divisionOf, seasonDivisionStandings, type SeasonStandingsLike } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
+import { facilitiesOf } from './facilities'
 
 // ============================================================================
 // 監督（GM）オファー。「シーズンが終わったあと、別のチームから声がかかる」仕組み。
@@ -219,7 +220,7 @@ export function buildOffer(a: {
     },
     // 目標達成ボーナスのスカウトポイントは監督個人の成果なので持って行く。
     // 施設ぶんは移籍先のスカウト部門を使う
-    scoutPoints: 5 + a.objBonus + (dest?.facilities?.scoutOffice ?? 0),
+    scoutPoints: 5 + a.objBonus + facilitiesOf(dest).scoutOffice,
     prevRank: prevRank > 0 ? prevRank : a.finalRank,
     // 目標を引き直すときに使う。52ではなく移籍先の部の人数
     divisionSize: destDivisionSize,

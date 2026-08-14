@@ -17,6 +17,7 @@ import { ANNUAL_BASE_EXP } from '../utils/clubTier'
 import { GROW_STAT_KEYS, applyGrowth } from './growth'
 import { DIVISION_SIZE } from '../utils/league'
 import type { Division } from '../types'
+import { facilitiesOf } from '../utils/facilities'
 
 export function applyRaceProgress(params: {
   players: Player[]
@@ -42,7 +43,9 @@ export function applyRaceProgress(params: {
   const moraleDelta = baseMoraleDelta
   const raceExpGainsMap: Record<string, Partial<Record<CardStatKey, number>>> = {}
   // 強化合宿: 自チームのレース獲得EXP ×(1 + Lv×6%)
-  const campLv = teams.find(t => t.id === playerTeamId)?.facilities?.trainingCamp ?? 0
+  // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）。
+  //   `facilities` を直接読むと、建てていない施設が0になって**維持費だけ払う**形になる
+  const campLv = facilitiesOf(teams.find(t => t.id === playerTeamId)).trainingCamp
   const finalPlayers = players.map(p => {
     // Form: 設計書準拠 レース後再抽選（絶好調10%/好調25%/普通40%/不調20%/最悪5%）
     const fr = rng()
