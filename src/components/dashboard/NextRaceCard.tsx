@@ -2,7 +2,6 @@ import type { Race } from '../../types'
 import { C, alpha, COMPETITION_BTN, SAIRA } from '../../styles/tokens'
 import { InfoTile } from '../ui'
 import { courseTypeOf } from '../../data/races'
-import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 
 const WEATHER_LABEL: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
@@ -152,17 +151,21 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
             </svg>
           </span>
         </button>
+        {/* ★横に並ぶボタンは**同じ部品・同じ色**で出すこと。片方だけ別部品にすると
+             透け方がわずかに違って「別のボタン」に見える（オーナー・2026-08-14） */}
         {secondaryCtaLabel && onSecondaryClick && (
-          <GlassButton
-            color={AC.border}
-            style={{ flexShrink: 0, padding: '0 14px', gap: 4, fontFamily: SAIRA, fontSize: 13 }}
-            onClick={() => onSecondaryClick()}
+          <button
+            className={`btn-game ${AC.btnClass}`}
+            style={{ flexShrink: 0, border: 'none', cursor: 'pointer' }}
+            onClick={e => { e.stopPropagation(); onSecondaryClick() }}
           >
-            {secondaryCtaLabel}
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-              <path d="M5 18l6-6-6-6M13 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </GlassButton>
+            <span className="btn-game__inner" style={{ fontSize: 13, padding: '11px 14px', fontWeight: 900, gap: 4 }}>
+              {secondaryCtaLabel}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                <path d="M5 18l6-6-6-6M13 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          </button>
         )}
       </div>
     </div>

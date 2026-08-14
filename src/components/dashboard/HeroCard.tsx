@@ -4,6 +4,7 @@ import { useTeamHistory } from '../../lib/useTeamHistory'
 import { titleRows } from '../../utils/teamHistory'
 import { DIVISION_LABEL } from '../../utils/league'
 import { C, alpha, SAIRA } from '../../styles/tokens'
+import { panelStyle } from '../ui/Panel'
 
 
 interface Props {
@@ -27,7 +28,20 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
   const moraleColor = avgMorale >= 75 ? C.green : avgMorale >= 50 ? C.gold : C.red
 
   return (
-    <div style={{ padding: '14px 18px 0' }}>
+    // ★チーム画面の看板と**同じ面**（チームカラー → 面 → 背景のグラデーション＋左の金帯）。
+    //   ホームだけ枠なしにしていたので、同じクラブなのに画面で見え方が違っていた。
+    <div style={{
+      ...panelStyle(C.gold),
+      margin: '12px 12px 0',
+      background: `linear-gradient(135deg, ${team.colors.primary} 0%, ${C.surface} 55%, ${C.bg} 100%)`,
+      padding: '16px 16px 14px',
+    }}>
+      {/* たすき（チーム画面と同じ） */}
+      <div style={{
+        position: 'absolute', top: '-40%', right: '-20%', width: 200, height: 200,
+        background: `linear-gradient(135deg, transparent 45%, ${alpha(team.colors.secondary, 0.15)} 50%, transparent 55%)`,
+        transform: 'rotate(15deg)', pointerEvents: 'none', zIndex: 0,
+      }}/>
       {/* クラブ（枠なし。細い線と大きい数字だけで組む） */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <TeamLogoSVG

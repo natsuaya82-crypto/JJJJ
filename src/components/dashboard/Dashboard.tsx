@@ -10,7 +10,6 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import JewelGainPopup from '../ui/JewelGainPopup'
 import HeroCard from './HeroCard'
-import KeyPlayersSection from './KeyPlayersSection'
 import NextRaceCard from './NextRaceCard'
 import { computeSeasonAwards } from '../../utils/awards'
 import { clubSeasonRank } from '../../utils/clubStanding'
@@ -571,7 +570,9 @@ export default function Dashboard() {
         </div>
       ) : (
         /* 通常シーズン：NEXTカードは日付が最も早いイベント1枚だけ */
-        <div style={{ padding: '0 12px 16px' }}>
+        /* ★上のクイックの並び（年間予定・ショップ…）と**離す**こと。
+             詰めると「同じボタンの続き」に見える（オーナー・2026-08-14） */
+        <div style={{ padding: '20px 12px 16px' }}>
           {eclDue && eclNextCard && (!showTTNext || !dueTT || nextEclRace!.date <= dueTT.date) ? eclNextCard
           : showTTNext && dueTT ? (() => {
             const distLabel = dueTT.distance === 5000 ? '5000m' : dueTT.distance === 10000 ? '10000m' : dueTT.distance === 21097 ? 'ハーフ' : 'マラソン'
@@ -710,11 +711,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* ── KEY PLAYERS ── */}
-      {currentSeason.phase !== 'preseason' && mainPlayers.length > 0 && (
-        <KeyPlayersSection players={mainPlayers} team={team} />
-      )}
 
       {/* ── NEWS ── */}
       {(() => {
