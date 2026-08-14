@@ -11,6 +11,7 @@
 //   紐づいている。こちらは毎日変わるので**記録には残さない**。
 // ============================================================================
 import { strHash } from '../utils/hash'
+import type { MatchCourse } from '../data/matchCourses'
 import type { Race, Segment } from '../types'
 
 /**
@@ -80,4 +81,43 @@ export function ratedCourse(dateISO: string): Race {
 /** そのコースの総距離（画面に出す） */
 export function courseDistanceKm(race: Race): number {
   return Math.round(race.segments.reduce((s, x) => s + x.distanceKm, 0) * 10) / 10
+}
+
+/**
+ * その日のコースを、**オンライン対戦の画面と計算が読める形**（`MatchCourse`）にする。
+ *
+ * ★`data/matchCourses` の一覧（`courseById`）では引けない。あれは固定の25本＋ECLで、
+ *   レート戦のコースは日付から作るので載っていない。**画面もサーバーもここを呼ぶこと。**
+ *   以前は `lib/ratedApi` の中にあったが、Edge Function（サーバー）からも要るので engine に置く
+ *   （lib は Supabase を import するので、サーバー側から読ませたくない）。
+ */
+export function ratedMatchCourse(dateISO: string): MatchCourse {
+  const r = ratedCourse(dateISO)
+  return {
+    id: r.id, name: `レート戦 ${dateISO}`, category: 'main', location: r.location,
+    segments: r.segments, conditions: r.conditions, distanceKm: courseDistanceKm(r),
+  }
+}
+
+/** レート戦のコースIDから日付を取り出す。`rated-YYYY-MM-DD` 以外なら undefined */
+export function ratedCourseOf(id: string): MatchCourse | undefined {
+  const m = /^rated-(\d{4}-\d{2}-\d{2})$/.exec(id)
+  return m ? ratedMatchCourse(m[1]) : undefined
+}
+
+/**
+ * **大会の何日目か**（1始まり）。開始日より前・終了後なら0。
+ * ★日付の足し算をあちこちに書かないこと（`rated_rounds` の day とサーバーの判定が食い違う）。
+ */
+export function ratedDayOf(startsOn: string, dateISO: string, totalDays: number): number {
+  const d = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10))
+  const day = Math.round((d(dateISO) - d(startsOn)) / 86400000) + 1
+  return day >= 1 && day <= totalDays ? day : 0
+}
+
+/** 大会の N 日目の日付（`YYYY-MM-DD`） */
+export function ratedDateOf(startsOn: string, day: number): string {
+  const d = new Date(Date.UTC(+startsOn.slice(0, 4), +startsOn.slice(5, 7) - 1, +startsOn.slice(8, 10)))
+  d.setUTCDate(d.getUTCDate() + day - 1)
+  return d.toISOString().slice(0, 10)
 }

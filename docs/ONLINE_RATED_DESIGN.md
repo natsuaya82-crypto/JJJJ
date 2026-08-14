@@ -132,10 +132,35 @@ rated_results    結果（round_id, group, 順位・タイム・レートの増�
 
 ## 8. 作る順番
 
-1. `engine/ratedCourse.ts` と `engine/rating.ts`（点検つき）。**画面もサーバーも無しで確かめられる**
-2. 表（SQL）と Edge Function。100人ぶんを流して実測
-3. 端末側の画面（参加・提出・結果）
-4. 通しで1か月ぶんを回す点検
+1. ~~`engine/ratedCourse.ts` と `engine/rating.ts`（点検つき）~~ **済**（`check-rated`）
+2. ~~表（SQL）と Edge Function~~ **済**（下の「出来上がり」）
+3. ~~端末側の画面（参加・提出・結果）~~ **済**
+4. ~~通しで1か月ぶんを回す点検~~ **済**（`check-rated-server` が60人×30回戦を実際に回す）
+
+### 出来上がり（2026-08-14）
+
+| 何 | どこ |
+|---|---|
+| 1日ぶんを締める処理（締める→走らせる→レートを出す） | `src/lib/ratedTick.ts` の `runRatedRound`。**アプリとサーバーで同じ1本** |
+| 表・RPC・ポリシー・権限 | `supabase/all.sql`（新しい `.sql` は作っていない） |
+| 10:00 に動くもの | `supabase/functions/rated-tick/index.ts`。**判断は1つも書かない殻** |
+| サーバーに載せる計算 | `supabase/functions/rated-tick/engine.js`（`npm run build:edge` の出来上がり） |
+| 端末側 | `src/lib/ratedApi.ts`（rpc を呼ぶだけ。**仮のデータは全部消した**） |
+
+`ratedTick` を `engine/` ではなく `lib/` に置いたのは、`roomMachine`（埋める・不戦敗）と
+`matchSim`（レース結果の組み立て）が `lib/` にあるからです（`check-layers` が
+`engine → lib` の import を落とします）。通信も React も import しない点は同じ。
+
+**端末が送れるのは提出だけ**（`rated_submit`）。順位もタイムもレートもサーバーが書きます。
+選手の能力値も端末からは受け取らず、`rosters.hof`（登録した時点で凍っている）を
+サーバーが読みます。実際に `authenticated` として触って、レートも順位も
+`permission denied` になることを確かめました（`supabase/README.md` に表で記録）。
+
+### 残っていること
+
+- **9/1 より前の画面**。いまは大会が始まるまで `rated_today` が `open:false` を返すだけで、
+  「9月1日から」の案内は出していません（頼まれていないUIは足さない）
+- **次のシーズンへの持ち越し**。下の 9 のとおり、本物の変動を見てから決める
 
 ---
 

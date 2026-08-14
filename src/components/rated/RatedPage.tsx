@@ -7,9 +7,10 @@ import { courseDistanceKm } from '../../engine/ratedCourse'
 import { rankProgressOf } from '../../engine/rating'
 import { RANK_ART } from './rankArt'
 import {
-  canJoin, fetchMe, fetchResult, fetchToday, SUBMIT_DEADLINE_HHMM,
+  canJoin, fetchMe, fetchResult, fetchToday, joinRated, SUBMIT_DEADLINE_HHMM,
   type RatedMe, type RatedResult, type RatedToday,
 } from '../../lib/ratedApi'
+import { HOF_MAX } from '../../utils/hofRoster'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import type { Segment } from '../../types'
 
@@ -71,10 +72,14 @@ export default function RatedPage() {
   const [today, setToday] = useState<RatedToday | null>(null)
   const [result, setResult] = useState<RatedResult | null>(null)
   const [left, setLeft] = useState(0)
+  // 参加の申し込みが通らなかったときの一言。**黙って何も起きない、にしない**
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
     void fetchMe().then(setMe)
-    void fetchToday().then(t => { setToday(t); setLeft(t.minutesLeft * 60) })
+    // ★まだ 10:00 前・大会をやっていない・通信できない、のどれでも null が返る。
+    //   仮のデータで埋めないこと（動いているように見えてしまう）
+    void fetchToday().then(t => { setToday(t); setLeft((t?.minutesLeft ?? 0) * 60) })
     void fetchResult().then(setResult)
   }, [])
 
@@ -227,7 +232,18 @@ export default function RatedPage() {
           {/* ── 参加する ── */}
           <div style={{ padding: '18px 14px 0' }}>
             <PressButton
-              onClick={() => { if (eligible) navigate('/online/rated/lineup') }}
+              onClick={() => {
+                if (!eligible) return
+                // ★編成の前に**参加の申し込みを通す**。通っていないと提出が 'join' で弾かれる
+                //   （参加済みなら `on conflict do nothing` で何も起きない）
+                void joinRated().then(r => {
+                  if (r === 'ok') { navigate('/online/rated/lineup'); return }
+                  setNotice(
+                    r === 'hof' ? `殿堂入りが${HOF_MAX}人そろっていません`
+                    : r === 'closed' ? 'いまは大会をやっていません'
+                    : 'サーバーにつながりませんでした')
+                })
+              }}
               pressScale={0.985}
               style={{
                 width: '100%', padding: '18px 0 16px', cursor: eligible ? 'pointer' : 'default',
@@ -246,8 +262,11 @@ export default function RatedPage() {
             </PressButton>
             {!eligible && (
               <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>
-                殿堂入り {hof?.length ?? 0} / 30
+                殿堂入り {hof?.length ?? 0} / {HOF_MAX}
               </div>
+            )}
+            {!!notice && (
+              <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>{notice}</div>
             )}
           </div>
         </>

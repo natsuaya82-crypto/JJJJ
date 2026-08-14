@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LineupPhase } from '../race/LineupPhase'
 import { useGameStore } from '../../store/gameStore'
-import { fetchToday, submitLineup, SUBMIT_DEADLINE_HHMM, type RatedToday } from '../../lib/ratedApi'
+import { fetchMe, fetchToday, submitLineup, SUBMIT_DEADLINE_HHMM, type RatedToday } from '../../lib/ratedApi'
 import { C, SAIRA, F } from '../../styles/tokens'
 import type { Player } from '../../types'
 
@@ -25,7 +25,17 @@ export default function RatedLineupPage() {
   const [pickerSeg, setPickerSeg] = useState<number | null>(null)
   const [sent, setSent] = useState(false)
 
-  useEffect(() => { void fetchToday().then(setToday) }, [])
+  // 提出できなかった理由。**黙って何も起きない、にしない**
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    void fetchToday().then(setToday)
+    // ★もう出してあるなら**その編成を出しておく**（「組み直す」で入り直したとき、
+    //   空から組み直させない）。1人ずつ替えられる
+    void fetchMe().then(m => {
+      if (Object.keys(m.lineup).length > 0) setLineup(m.lineup)
+    })
+  }, [])
 
   // 殿堂入りは登録した時点で凍らせてあるので、そのまま走れる選手として渡す。
   // 疲労と調子は持ち込まない（凍らせた姿で走る）
@@ -40,7 +50,12 @@ export default function RatedLineupPage() {
   const onSubmit = () => {
     if (!allSegsFilled || sent) return
     void submitLineup(lineup).then(r => {
-      if (r === 'ok') { setSent(true); setTimeout(() => navigate(-1), 800) }
+      if (r === 'ok') { setSent(true); setTimeout(() => navigate(-1), 800); return }
+      setNotice(
+        r === 'closed' ? `締め切り（${SUBMIT_DEADLINE_HHMM}）を過ぎています`
+        : r === 'join' ? '参加の申し込みが通っていません'
+        : r === 'bad' ? '区間の数が合っていません'
+        : 'サーバーにつながりませんでした')
     })
   }
 
@@ -60,7 +75,7 @@ export default function RatedLineupPage() {
       competition="friend"
       bottomInset={64}
       startDisabled={sent}
-      startLabel={sent ? '提出しました' : 'このオーダーで提出'}
+      startLabel={sent ? '提出しました' : notice || 'このオーダーで提出'}
       headerNote={
         <span style={{
           fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.gold,

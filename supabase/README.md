@@ -89,6 +89,67 @@ build 88 のまとめを流した走友会で `open_stats` が返らなくなり
 | `all.sql` を流した後 | 2 | 2 | 2 | 1 | 1 |
 | （参考）旧 `schema.sql` を流した後 | **0** | **0** | **0** | 1 | 1 |
 
+レート戦の表を足したとき（2026-08-14）も同じやり方で確かめました。
+参加者・提出・結果を入れたDBに `all.sql` を2回流して、エラー0・行数の変化0です。
+
+| | rated_events | rated_entries | rated_rounds | rated_lineups | rated_results | rated_races |
+|---|---|---|---|---|---|---|
+| 流す前 | 2 | 3 | 1 | 2 | 2 | 1 |
+| 2回流した後 | 2 | 3 | 1 | 2 | 2 | 1 |
+
+このとき見つけて直したものが3つあります（**流さなければ気づけないもの**でした）。
+
+- `rated_standings` が一時表を作っていて、`stable` な関数では
+  `CREATE TABLE is not allowed in a non-volatile function` で落ちた → CTE に書き換え
+- `rated_hof_count` が、まだ一度もロスターを上げていない人に **null** を返していた。
+  `null < 30` は真でも偽でもないので、`rated_join` の
+  **殿堂入り30人の関門を素通り**していた → 必ず数を返すようにした
+- レート戦の表に grant が無かった（Supabase の既定の権限に頼る形になっていた）
+  → `select` だけを `authenticated` に明示して、`insert` / `update` は取り上げた
+
+`authenticated` として実際に触って、次のとおりになることも確かめています。
+
+| やったこと | 結果 |
+|---|---|
+| 順位表・結果・回・大会を読む | 読める |
+| **他人の提出**を読む | 見えない（自分の1件だけ） |
+| **自分のレート**を直に書き換える | `permission denied` |
+| **順位**を直に書き換える | `permission denied` |
+| **提出**を表へ直に insert する | `permission denied` |
+| `rated_me` / `rated_standings` を呼ぶ | 通る |
+| `rated_submit` に区間数の違うものを渡す | `bad`（1件・0始まり・11区混じり、全部） |
+| 締め切り後（回が昨日）に `rated_submit` | `closed` |
+| 殿堂入り 0人 / 29人 / 30人 で `rated_join` | `hof` / `hof` / `ok` |
+
+---
+
+## レート戦の Edge Function（`rated-tick`）
+
+毎日 **日本時間 10:00** に、前日ぶんを締めて・走らせて・レートを書き、その日のコースを出します。
+
+```bash
+npm run build:edge                    # engine.js を作り直す（src を変えたら必ず）
+supabase functions deploy rated-tick  # 上げる
+```
+
+毎日の起動は **ダッシュボード → Edge Functions → `rated-tick` → Schedules** で
+`0 1 * * *`（UTC 01:00 ＝ 日本時間 10:00）。
+
+手で流すこともできます（締め忘れの取り戻しにも使えます。何度流しても同じ結果です）。
+
+```bash
+curl -X POST "$SUPABASE_URL/functions/v1/rated-tick" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY"
+```
+
+**計算はアプリとまったく同じ1本**（`src/lib/ratedTick.ts`）です。Deno は拡張子なしの
+相対 import を解決できないので、`npm run build:edge` で1枚にまとめた `engine.js` を
+置いてあります。**古いまま気づかない**のが唯一の危険なので、`npm run check` の
+`edge-bundle` が毎回「いま作り直したものと同じか」を突き合わせます。
+
+大会の日程は `all.sql` の `rated_events` への insert 1行です（いまは 2026-09-01 から30日）。
+`on conflict do nothing` なので、2回流しても始まっている大会は動きません。
+
 ---
 
 ## 何かおかしいときに、まず流すSQL

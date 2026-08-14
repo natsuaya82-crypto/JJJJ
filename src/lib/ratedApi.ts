@@ -1,17 +1,22 @@
 // ============================================================================
 // レート戦のサーバーとのやりとり。
 //
-// ★★ いまは**仮のデータを返しています**。Supabase の表と Edge Function は
-//    まだ作っていません（`docs/ONLINE_RATED_DESIGN.md` の作る順番の2段目）。
-//    画面を先に作って見てもらうための足場です。
+// ★**判断はここに書きません。** 段位もグループ分けもレートも `engine/rating`、
+//   コースは `engine/ratedCourse`。ここがやるのは「呼ぶ」「形をそろえる」だけです。
 //
-//    **差し替えるのはこのファイルだけ**になるように、画面からは
-//    ここで定義した型と関数しか触らせないこと。
+// ★**端末が送れるのは提出だけ**（`rated_submit`）。順位もタイムもレートも
+//   サーバー（Edge Function `rated-tick`）が書きます。端末がタイムを申告する形だと、
+//   書き換えれば1位になれるためです。
+//
+// ★通信できないときは**黙って落ちる**（`null` / joined:false）ようにしてあります。
+//   画面はオフラインとして出せばよく、仮のデータで埋めないこと
+//   （前は丸ごと作り話を返していて、動いているように見えてしまいました）。
 // ============================================================================
-import { ratedCourse, courseDistanceKm } from '../engine/ratedCourse'
-import type { MatchCourse } from '../data/matchCourses'
+import { supabase, ensureAuth } from './supabase'
+import { ratedCourse, ratedMatchCourse, ratedCourseOf } from '../engine/ratedCourse'
 import type { MatchRacePayload } from './matchSim'
 import { rankOf, type RankName } from '../engine/rating'
+import { HOF_MAX } from '../utils/hofRoster'
 import type { HofPlayer, Race } from '../types'
 
 /** 提出の締め切り（日本時間）。**端末の時計で判定しないこと**——本判定はサーバー側 */
@@ -29,6 +34,11 @@ export type RatedMe = {
   entrants: number
   /** その日の提出（区間 → 殿堂入りの選手ID）。空なら未提出 */
   lineup: Record<number, string>
+  /** サーバーが数えた殿堂入りの人数（参加資格の判定に使う） */
+  hof: number
+  /** 走った日数・グループ1位の回数 */
+  played: number
+  wins: number
 }
 
 export type RatedRow = {
@@ -74,113 +84,89 @@ export type RatedResult = {
   delta: Record<string, number>
 }
 
-/**
- * レート戦のコースを、オンライン対戦の画面が読める形にする。
- * `courseById` の一覧には無い（日付から作るので）ので、`FinishPanel` などへ渡す。
- */
-export function ratedMatchCourse(dateISO: string): MatchCourse {
-  const r = ratedCourse(dateISO)
-  return {
-    id: r.id, name: `レート戦 ${dateISO}`, category: 'main', location: r.location,
-    segments: r.segments, conditions: r.conditions, distanceKm: courseDistanceKm(r),
+// コースの引き方は engine（アプリもサーバーも同じ1本）。ここは通り道として残す
+export { ratedMatchCourse, ratedCourseOf }
+
+/** rpc を1回呼ぶ。ログインできない・通信できないときは null（例外は投げない） */
+async function call<T>(fn: string, args?: Record<string, unknown>): Promise<T | null> {
+  try {
+    if (!(await ensureAuth())) return null
+    const { data, error } = await supabase.rpc(fn, args ?? {})
+    if (error) { console.warn(`[rated] ${fn}`, error.message); return null }
+    return (data ?? null) as T | null
+  } catch (e) {
+    console.warn(`[rated] ${fn}`, e)
+    return null
   }
 }
 
-/** `FinishPanel` / 再生に渡す引き方。日付から作るので一覧では引けない */
-export function ratedCourseOf(id: string): MatchCourse | undefined {
-  const m = /^rated-(\d{4}-\d{2}-\d{2})$/.exec(id)
-  return m ? ratedMatchCourse(m[1]) : undefined
+/** 区間番号のキーを数値に戻す（jsonb は文字列キーで返ってくる） */
+function toLineup(o: unknown): Record<number, string> {
+  const out: Record<number, string> = {}
+  if (o && typeof o === 'object') {
+    for (const [k, v] of Object.entries(o as Record<string, unknown>)) out[Number(k)] = String(v)
+  }
+  return out
 }
 
-// ── ここから下は仮のデータ ──────────────────────────────────────────
-// ★本物に差し替えるときは、この節をまるごと Supabase の呼び出しに置き換える。
-
-const MOCK_NAMES = [
-  '陽和ランナーズ', '北嶺アスリート', '海風エキデン', '碧空クラブ', '流星ハリアーズ',
-  '暁光レーシング', '銀嶺スピリッツ', '疾風アスレチック', '朝霧ストライダーズ', '天翔クラブ',
-  '紅蓮ランナーズ', '白鷺エキデン', '雷鳴アスリート', '常磐ハリアーズ', '黎明クラブ',
-  '烈風スピリッツ', '蒼穹レーシング', '静流エキデン', '飛鳥アスレチック', '極光クラブ',
-]
-const MOCK_GM = ['佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '山本', '中村', '小林', '加藤',
-  '吉田', '山田', '佐々木', '山口', '松本', '井上', '木村', '林', '斎藤', '清水']
-const MOCK_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e']
-
-/** 大会の何日目か。仮 */
-const MOCK_DAY = 12
-
-function mockDate(day: number): string {
-  return new Date(Date.UTC(2026, 8, day)).toISOString().slice(0, 10)
-}
-
-export async function fetchToday(): Promise<RatedToday> {
-  const dateISO = mockDate(MOCK_DAY)
+/**
+ * その日のコースと締め切り。**まだ 10:00 前**（か大会をやっていない）なら null。
+ * コースそのものは日付から端末で作る——サーバーと同じ `ratedCourse` なので必ず一致する。
+ */
+export async function fetchToday(): Promise<RatedToday | null> {
+  const d = await call<{
+    open: boolean; day?: number; totalDays?: number; dateISO?: string; minutesLeft?: number
+  }>('rated_today')
+  if (!d?.open || !d.dateISO) return null
   return {
-    day: MOCK_DAY, totalDays: 30, dateISO,
-    course: ratedCourse(dateISO),
-    minutesLeft: 6 * 60 + 42,
+    day: d.day ?? 0,
+    totalDays: d.totalDays ?? 0,
+    dateISO: d.dateISO,
+    course: ratedCourse(d.dateISO),
+    minutesLeft: d.minutesLeft ?? 0,
   }
 }
 
 export async function fetchMe(): Promise<RatedMe> {
-  return { joined: true, rating: 168, rank: rankOf(168), overall: 7, entrants: 43, lineup: {} }
-}
-
-function mockRows(seedBase: number, myRating: number): RatedRow[] {
-  const rows: RatedRow[] = []
-  for (let i = 0; i < 14; i++) {
-    const mine = i === 4
-    const rating = mine ? myRating : 260 - i * 14 + ((seedBase + i * 7) % 11)
-    rows.push({
-      userId: `u${i}`,
-      teamName: mine ? '千葉タイガー' : MOCK_NAMES[i % MOCK_NAMES.length],
-      gmName: mine ? '運営' : MOCK_GM[(i + seedBase) % MOCK_GM.length],
-      primary: MOCK_COLORS[i % MOCK_COLORS.length],
-      secondary: MOCK_COLORS[(i + 3) % MOCK_COLORS.length],
-      logoId: '',
-      rating,
-      place: i + 1,
-      timeSec: 8400 + i * 37 + ((seedBase + i * 13) % 25),
-      delta: Math.round((7 - i) * 5.5),
-      mine,
-    })
-  }
-  return rows
-}
-
-export async function fetchResult(): Promise<RatedResult | null> {
-  const dateISO = mockDate(MOCK_DAY - 1)
-  const course = ratedCourse(dateISO)
-  const rows = mockRows(3, 168)
-  const race: MatchRacePayload = {
-    race: 0,
-    courseId: course.id,
-    startAt: 0,
-    teams: rows.map(r => ({
-      id: r.userId, name: r.teamName, shortName: r.teamName.slice(0, 4), gmName: r.gmName,
-      primary: r.primary, secondary: r.secondary, logoId: r.logoId,
-    })),
-    runners: rows.flatMap(r => course.segments.map(s => ({
-      id: `${r.userId}#p${s.index}`, srcId: `p${s.index}`, teamId: r.userId,
-      name: `${r.gmName}${s.index + 1}`, nationality: 'JPN',
-    }))),
-    segments: course.segments.map(s => ({
-      segmentIndex: s.index,
-      runners: rows.map((r, i) => ({
-        playerId: `${r.userId}#p${s.index}`, teamId: r.userId,
-        timeSec: Math.round(r.timeSec / course.segments.length) + i, rank: i + 1,
-      })),
-    })),
-    standings: rows.map(r => ({
-      teamId: r.userId, totalTimeSec: r.timeSec, rank: r.place,
-      segPts: 0, points: rows.length - r.place + 1,
-    })),
-    forfeits: [],
-  }
+  const d = await call<{
+    joined: boolean; rating?: number; overall?: number; entrants?: number
+    lineup?: unknown; hof?: number; played?: number; wins?: number
+  }>('rated_me')
+  const rating = d?.rating ?? 0
   return {
-    dateISO, course, group: 1, groups: 3,
-    race,
-    meUserId: rows.find(r => r.mine)?.userId ?? '',
-    delta: Object.fromEntries(rows.map(r => [r.userId, r.delta])),
+    joined: !!d?.joined,
+    rating,
+    rank: rankOf(rating),
+    overall: d?.overall ?? 0,
+    entrants: d?.entrants ?? 0,
+    lineup: toLineup(d?.lineup),
+    hof: d?.hof ?? 0,
+    played: d?.played ?? 0,
+    wins: d?.wins ?? 0,
+  }
+}
+
+/** 参加する。'ok' / 'hof' 殿堂入りが足りない / 'closed' 大会をやっていない / 'auth' */
+export async function joinRated(): Promise<'ok' | 'hof' | 'closed' | 'auth' | 'offline'> {
+  const r = await call<string>('rated_join')
+  return (r as 'ok' | 'hof' | 'closed' | 'auth') ?? 'offline'
+}
+
+/** いちばん新しい走り終わった日の、自分がいたグループの結果。無ければ null */
+export async function fetchResult(): Promise<RatedResult | null> {
+  const d = await call<{
+    dateISO: string; group: number; groups: number
+    race: MatchRacePayload | null; meUserId: string; delta: Record<string, number>
+  }>('rated_result')
+  if (!d?.dateISO || !d.race) return null
+  return {
+    dateISO: d.dateISO,
+    course: ratedCourse(d.dateISO),
+    group: d.group,
+    groups: d.groups ?? 1,
+    race: d.race,
+    meUserId: d.meUserId,
+    delta: d.delta ?? {},
   }
 }
 
@@ -199,23 +185,32 @@ export type RatedStandings = {
   entrants: number
 }
 
+type RawRow = Omit<RatedRow, 'mine'>
+
 export async function fetchStandings(): Promise<RatedStandings> {
-  const all = mockRows(11, 168).sort((a, b) => b.rating - a.rating)
-  const i = all.findIndex(r => r.mine)
+  const d = await call<{ top: RawRow[]; me: RawRow | null; meRank: number; entrants: number }>('rated_standings')
+  const meId = d?.me?.userId ?? ''
+  const mark = (r: RawRow): RatedRow => ({ ...r, mine: !!meId && r.userId === meId })
   return {
-    top: all.slice(0, STANDINGS_TOP),
-    me: i < 0 ? null : all[i],
-    meRank: i + 1,
-    entrants: 43,
+    top: (d?.top ?? []).map(mark),
+    me: d?.me ? mark(d.me) : null,
+    meRank: d?.meRank ?? 0,
+    entrants: d?.entrants ?? 0,
   }
 }
 
-/** 提出する。**タイムにも順位にも触れない。渡すのは区間ごとの選手IDだけ** */
-export async function submitLineup(_lineup: Record<number, string>): Promise<'ok' | 'closed' | 'bad'> {
-  return 'ok'
+/**
+ * 提出する。**タイムにも順位にも触れない。渡すのは区間ごとの選手IDだけ**。
+ *   'ok' / 'closed' 締め切り後 / 'bad' 区間数が合わない / 'join' 未参加
+ */
+export async function submitLineup(lineup: Record<number, string>): Promise<'ok' | 'closed' | 'bad' | 'join' | 'offline'> {
+  const body: Record<string, string> = {}
+  for (const [k, v] of Object.entries(lineup)) body[String(k)] = v
+  const r = await call<string>('rated_submit', { l: body })
+  return (r as 'ok' | 'closed' | 'bad' | 'join') ?? 'offline'
 }
 
-/** 参加資格。殿堂入りが30人埋まっていること */
+/** 参加資格。殿堂入りが埋まっていること（線は `utils/hofRoster` の HOF_MAX 1本） */
 export function canJoin(hof: readonly HofPlayer[] | undefined): boolean {
-  return (hof?.length ?? 0) >= 30
+  return (hof?.length ?? 0) >= HOF_MAX
 }
