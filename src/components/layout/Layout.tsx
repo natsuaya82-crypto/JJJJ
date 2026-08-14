@@ -171,13 +171,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       //   **ページの一番外側に `background: C.bg` を敷かないこと**（写真が消える）。
     }}>
 
-      {/* ── Header（実機で固定：viewport上端＋safe-area） ── */}
+      {/* ── Header（実機で固定：viewport上端＋safe-area） ──
+          面はスモークガラス（オーナー・2026-08-14「上タブもリキッドグラスに」）。
+          ★**丸めない・浮かせない。** 画面の上端に貼り付いた板のまま、材質だけガラスにする。
+            配合は下タブと同じ（`blur(14px) saturate(118%)` ＋ 上のふちの光 ＋ 下の屈折）。 */}
       <header style={{
-        position: 'fixed', top: 'env(safe-area-inset-top)', left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 40,
-        background: C.bg,
+        position: 'fixed', top: 'env(safe-area-inset-top)', left: 0, right: 0, margin: '0 auto',
+        width: '100%', maxWidth: '480px', zIndex: 40,
+        // 後ろが透けることが大事なので塗りを濃くしない（下タブと同じ配合）
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
+        backdropFilter: 'blur(14px) saturate(118%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(118%)',
+        border: 'none',
         padding: '2px 16px 2px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: `1px solid ${alpha(C.gold, 0.1)}`,
+        boxShadow: [
+          'inset 0 1px 0 rgba(255,255,255,0.26)',   // 上のふちの光
+          'inset 0 -1px 0 rgba(0,0,0,0.35)',        // 下の屈折
+        ].join(', '),
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {team && (

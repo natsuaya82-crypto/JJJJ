@@ -346,13 +346,13 @@ export default function TeamManagement() {
       )}
 
       {/* 一覧は箱に入れない。カードを縦に並べる */}
-      <PlayerList margin="0 18px 80px">
+      <PlayerList style={{ margin: '0 18px 80px' }}>
           {players.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>登録選手なし</div>
           ) : (
             players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? teams.find(t => t.id === p.loan!.ownerTeamId) : undefined}/>)
           )}
-      </PlayerList>
+        </PlayerList>
       </>}
 
       {(() => {

@@ -39,7 +39,9 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress, promo
   } : {}
   return (
     <div style={{ ...panelStyle(C.gold), margin: '0 12px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 44px 60px', gap: '4px', padding: '7px 12px', background: C.surface3, borderBottom: `1px solid ${C.border}` }}>
+      {/* 見出しの行。**塗り潰さない**（カードの面がそのまま見える）。
+          以前は C.surface3 のベタ塗りで、カードの上に古い板が1枚乗っている見え方だった */}
+      <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 44px 60px', gap: '4px', padding: '7px 12px', borderBottom: `1px solid ${C.border}` }}>
         <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700' }}>#</span>
         <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>
         <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', textAlign: 'center' }}>直近</span>
@@ -59,7 +61,9 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress, promo
         return (
           <div key={r.id} onClick={() => onRowClick?.(r.id)} {...lpHandlers(r.id)}
             style={{ display: 'grid', gridTemplateColumns: '28px 1fr 44px 60px', gap: '4px', padding: '9px 12px',
-              background: r.isMe ? alpha(r.primary, 0.1) : zoneTint ?? (i % 2 === 0 ? C.surface2 : C.surface),
+              // 交互の色はカードの面に薄く重ねるだけ（C.surface2 / C.surface のベタ塗りだと
+              // カードの上に古い表が乗っている見え方になる）
+              background: r.isMe ? alpha(r.primary, 0.1) : zoneTint ?? (i % 2 === 0 ? alpha(C.text, 0.03) : 'transparent'),
               borderTop: lineAbove ? `2px dashed ${alpha(C.red, 0.75)}` : 'none',
               borderBottom: lineBelow ? `2px dashed ${alpha(C.green, 0.75)}`
                 : i < rows.length - 1 ? `1px solid ${C.border}` : 'none',

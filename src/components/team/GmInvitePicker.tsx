@@ -55,7 +55,7 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
       </div>
 
       {/* ★並べ方はロスターと同じ（`margin: 0 18px`・箱に入れず gap 8） */}
-      <PlayerList margin="0 18px 32px">
+      <PlayerList style={{ margin: '0 18px 32px' }}>
         {roster.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>登録選手なし</div>
         ) : roster.map(p => (

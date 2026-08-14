@@ -51,7 +51,7 @@ export default function NoSalePage() {
         </div>
       </div>
 
-      <PlayerList>
+      <PlayerList style={{ margin: '0 12px' }}>
         {myPlayers.map(p => (
           <PlayerRow
             key={p.id}

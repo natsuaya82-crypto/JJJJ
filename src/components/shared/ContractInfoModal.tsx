@@ -70,7 +70,7 @@ export default function ContractInfoModal() {
 
         <button
           onClick={() => { closeContractInfo(); navigate(`/team/chat?player=${player.id}`) }}
-          style={{ width: '100%', padding: 13,border: 'none', cursor: 'pointer', background: C.gold, color: '#1a0d00', fontSize: F.sub, fontWeight: 900, fontFamily: SAIRA, marginBottom: 8 }}
+          style={{ width: '100%', padding: 13,cursor: 'pointer', background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.sub, fontWeight: 900, fontFamily: SAIRA, marginBottom: 8 }}
         >
           契約更新の交渉
         </button>

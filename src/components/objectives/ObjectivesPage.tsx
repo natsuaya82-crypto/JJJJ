@@ -1,6 +1,7 @@
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
+import { panelStyle } from '../ui/Panel'
 
 
 const PROGRESS_IDS = new Set(['segWins', 'winRace', 'rivalBeat'])
@@ -53,14 +54,11 @@ export default function ObjectivesPage() {
             const progress = hasProgress ? Math.min(1, obj.current / obj.target) : 0
             return (
               <div key={obj.id} style={{
-                background: obj.done
-                  ? `linear-gradient(135deg, ${alpha(C.green, 0.12)} 0%, ${alpha(C.green, 0.04)} 100%)`
-                  : `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                border: `2px solid ${obj.done ? alpha(C.green, 0.55) : alpha(C.gold, 0.4)}`,
-padding: '14px 16px',
-                boxShadow: obj.done
-                  ? `0 3px 0 #0d3d22, 0 5px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`
-                  : `0 3px 0 #5a3500, 0 5px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)`,
+                // カードは ui/Panel 1本。達成したものは左の帯が緑になる。
+                // **枠2px＋下に影の板を書かないこと**（他の画面と揃わなくなる）
+                ...panelStyle(obj.done ? C.green : C.gold),
+                padding: '14px 16px',
+                opacity: obj.done ? 0.75 : 1,
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{

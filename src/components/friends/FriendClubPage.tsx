@@ -47,7 +47,7 @@ const ovrLabel = (v: number) => (v <= OVR_MIN ? 'なし' : `${v} 以上`)
 
 /**
  * 選んだものが一目で分かるボタン。
- * 選択中＝金色で塗って黒字＋チェック、それ以外＝暗いまま。
+ * 選択中＝金の面を透かして金の字＋チェック、それ以外＝暗いまま（ベタ塗りにしないこと）。
  * 種類ごとに色を変えると「全部光って見える」ので、選択の色は金一色にそろえてある。
  */
 function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
@@ -55,9 +55,9 @@ function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onCl
     <button type="button" onClick={onClick} style={{
       flex: 1, padding: '9px 0',cursor: 'pointer', fontFamily: SAIRA,
       fontSize: F.label, fontWeight: 900, whiteSpace: 'nowrap',
-      color: on ? '#1a1200' : C.textGhost,
-      background: on ? C.gold : alpha('#000', 0.3),
-      border: `1px solid ${on ? C.gold : C.border3}`,
+      color: on ? C.gold : C.textGhost,
+      background: on ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})` : alpha('#000', 0.3),
+      border: `1px solid ${on ? alpha(C.gold, 0.65) : C.border3}`,
       boxShadow: on ? `0 0 0 2px ${alpha(C.gold, 0.28)}` : 'none',
       opacity: on ? 1 : 0.75,
     }}>{on ? `✓ ${label}` : label}</button>
@@ -979,7 +979,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               )}
               <button onClick={() => { void onSend() }} disabled={!draft.trim() || busy === 'msg'} style={{
                 flexShrink: 0, fontSize: F.body, fontWeight: 900, cursor: draft.trim() ? 'pointer' : 'default',
-                color: C.bg, background: draft.trim() ? C.gold : C.border3, border: 'none',
+                color: draft.trim() ? C.gold : C.textGhost, background: draft.trim() ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})` : C.border3, border: `1px solid ${draft.trim() ? alpha(C.gold, 0.65) : C.border3}`,
 padding: '6px 14px', fontFamily: 'inherit',
               }}>送る</button>
             </div>

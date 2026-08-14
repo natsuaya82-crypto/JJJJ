@@ -29,9 +29,16 @@ export default function PillTabs({ labels, value, onChange, fill = false, style 
             ...(fill ? { flex: 1, padding: '7px 0' } : { flexShrink: 0, padding: '7px 14px' }),
 cursor: 'pointer', fontFamily: SAIRA,
             fontSize: F.bodyLg, fontWeight: sel ? 900 : 700,
-            background: sel ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : C.surface2,
-            color: sel ? C.bg : C.textDim,
-            border: `1px solid ${sel ? C.gold : C.border2}`,
+            // ★選んでいる側を金でベタ塗りして黒い字、はやめる（オーナー・2026-08-14）。
+            //   ui/GlassButton と同じ配合（透かした面＋その色の字＋細い枠）にする
+            background: sel
+              ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`
+              : C.surface2,
+            backdropFilter: sel ? 'blur(10px) saturate(118%)' : undefined,
+            WebkitBackdropFilter: sel ? 'blur(10px) saturate(118%)' : undefined,
+            color: sel ? C.gold : C.textDim,
+            border: `1px solid ${sel ? alpha(C.gold, 0.65) : C.border2}`,
+            boxShadow: sel ? 'inset 0 1px 0 rgba(255,255,255,0.22)' : undefined,
           }}>
             {label}
           </button>

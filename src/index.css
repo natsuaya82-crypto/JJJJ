@@ -509,6 +509,12 @@ button { font-family: inherit; }
 .bottom-nav {
   border-radius: 999px;
 }
+/* 上タブ（ヘッダー）も同じ浮いているガラスの島。**下タブと同じ丸み**にすること
+   （オーナー・2026-08-14「上タブもリキッドグラスにすればそれでいいよ」）。
+   ガラスの配合・四方のあきは Layout.tsx が下タブと同じ値を使う。 */
+.top-bar {
+  border-radius: 999px;
+}
 .bottom-nav__pill {
   border-radius: 999px;
 }

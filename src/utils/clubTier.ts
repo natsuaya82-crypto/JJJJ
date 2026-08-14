@@ -377,11 +377,26 @@ export function allTieredClubs(
  * clubs には allTieredClubs で国内＋海外をまとめて渡すこと。渡さなかったクラブは
  * data/clubTiers.ts の初期値になる（＝毎年動いたぶんが反映されない）。
  */
+// クラブ232件を毎回なめないための索引。**渡された配列そのものを鍵にする**ので、
+// クラブの入れ替えで配列を作り直すかぎり古い索引は引かれない（rosterSync の clubIndexOf と同じ形）。
+// 長さも見るのは、同じ配列に足された場合に気づくため。
+const clubIndexCache = new WeakMap<readonly TieredTeam[], { len: number; index: Map<string, TieredTeam> }>()
+function clubById(clubs: readonly TieredTeam[]): Map<string, TieredTeam> {
+  const hit = clubIndexCache.get(clubs)
+  if (hit && hit.len === clubs.length) return hit.index
+  const index = new Map<string, TieredTeam>()
+  // find と同じく**最初に見つかったもの**を返す（同じIDが2つあっても答えを変えない）。
+  // id の無いクラブは find でも当たらないので入れない
+  for (const c of clubs) if (c.id != null && !index.has(c.id)) index.set(c.id, c)
+  clubIndexCache.set(clubs, { len: clubs.length, index })
+  return index
+}
+
 export function tierOfPlayerClub(
   teamId: string | undefined, clubs?: readonly TieredTeam[],
 ): ClubTier | undefined {
   if (!teamId) return undefined
-  const t = clubs?.find(x => x.id === teamId)
+  const t = clubs && clubById(clubs).get(teamId)
   if (t) return tierOf(t)
   return CLUB_TIER_BY_ID[teamId] as ClubTier | undefined
 }

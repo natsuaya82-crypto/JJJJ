@@ -157,7 +157,7 @@ export default function FriendRequestsPage() {
           {code.error ? (
             <button onClick={code.reload} style={{ flexShrink: 0, padding: '9px 12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>再取得</button>
           ) : (
-            <button onClick={shareCode} disabled={sharing || !code.data} style={{ flexShrink: 0, padding: '9px 14px',border: 'none', background: C.gold, color: '#1a0d00', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sharing || !code.data ? 0.6 : 1 }}>{sharing ? '作成中' : '共有'}</button>
+            <button onClick={shareCode} disabled={sharing || !code.data} style={{ flexShrink: 0, padding: '9px 14px',background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sharing || !code.data ? 0.6 : 1 }}>{sharing ? '作成中' : '共有'}</button>
           )}
         </div>
       </div>
@@ -179,7 +179,7 @@ export default function FriendRequestsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {received.map(r => (
               <RequestRow key={r.id} r={r} dim={busy === r.id} right={<>
-                <button onClick={() => onAccept(r)} disabled={!!busy} style={{ padding: '7px 12px',border: 'none', background: C.gold, color: '#1a0d00', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>承認</button>
+                <button onClick={() => onAccept(r)} disabled={!!busy} style={{ padding: '7px 12px',background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>承認</button>
                 <button onClick={() => onReject(r)} disabled={!!busy} style={{ padding: '7px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.body, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>拒否</button>
               </>} />
             ))}

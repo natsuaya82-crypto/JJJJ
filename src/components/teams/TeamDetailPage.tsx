@@ -586,7 +586,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             {mainPlayers.length === 0
               ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: F.body, backgroundColor: '#0E0D17',marginBottom: '12px' }}>登録なし</div>
               : (
-                <PlayerList margin="0 12px 80px">
+                <PlayerList style={{ marginBottom: 80 }}>
                   {mainPlayers.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} />)}
                 </PlayerList>
               )

@@ -694,7 +694,7 @@ export default function RoomLobbyPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {p?.teamName ?? '読み込み中'}
-                    {isRoomHost && <span style={{ marginLeft: 6, padding: '1px 6px',background: C.gold, color: '#1a0d00', fontSize: F.tiny, fontWeight: 900 }}>ホスト</span>}
+                    {isRoomHost && <span style={{ marginLeft: 6, padding: '1px 6px', background: alpha(C.gold, 0.16), border: `1px solid ${alpha(C.gold, 0.55)}`, color: C.gold, fontSize: F.tiny, fontWeight: 900 }}>ホスト</span>}
                   </div>
                   <div style={{ fontSize: F.caption, color: C.textDim }}>GM {p?.gmName ?? '—'}{!connected && '・接続待ち'}</div>
                 </div>

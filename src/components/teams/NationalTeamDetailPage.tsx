@@ -88,7 +88,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
             選手データなし
           </div>
         ) : (
-          <PlayerList margin="0 12px 80px">
+          <PlayerList style={{ marginBottom: 80 }}>
             {roster.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={rowExtra(p)} />)}
           </PlayerList>
         )}

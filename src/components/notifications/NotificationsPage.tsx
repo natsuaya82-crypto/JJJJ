@@ -238,7 +238,7 @@ export default function NotificationsPage() {
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, lineHeight: 1.6, marginBottom: '10px' }}>{gift.message}</div>
                       <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px',background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>{gift.jewels ? `ジュエル${gift.jewels}個` : `カード${gift.cards.length}枚`}</div>
-                      <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, color: '#111' }} onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }}>受け取る</Btn>
+                      <Btn variant="primary" style={{ width: '100%' }} onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }}>受け取る</Btn>
                     </div>
                   </div>
                 ))}
@@ -865,7 +865,7 @@ export default function NotificationsPage() {
             <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
             <div style={{ fontSize: F.bodyLg, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
             <div style={{ fontSize: F.body, color: C.textDim, marginBottom: 18 }}>{claimedGift.jewels ? `ジュエル${claimedGift.jewels}個を手に入れた` : `カード${claimedGift.cards.length}枚を手に入れた`}</div>
-            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13,background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, cursor: 'pointer' }}>OK</button>
+            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, cursor: 'pointer' }}>OK</button>
           </div>
         </div>
       ), document.body)}

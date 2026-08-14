@@ -211,7 +211,12 @@ console.log('\n⑥ 押すボタンを画面で手書きしていない（今日�
   // ★色は16進とは限らない（`${alpha(...)}` / `${C.goldDark}` / `${opt.shadow}`）。
   //   以前は `0 [2-6]px 0 #hex` しか見ておらず、**26か所が網の外**だった
   //   （財務の「今シーズンの予算」が `0 8px 0 #8b6914` で、px も色も外れていた）。
-  const SLAB = /box-?[Ss]hadow[^\n]*?\b0 \d+px 0 (?:#[0-9a-fA-F]{3,6}|\$\{)/g
+  // ★**行をまたぐものも見ること。** `[^\n]*` にしていたので
+  //     boxShadow: news.major
+  //       ? `0 4px 0 #5a3500, …`
+  //   のように値が次の行にある4件（ニュース・シーズン目標・新規作成・日程）が
+  //   丸ごと網の外にいた。**「0件です」と言う前に、その網が何を見ていないかを確かめること。**
+  const SLAB = /box-?[Ss]hadow[\s\S]{0,240}?\b0 \d+px 0 (?:#[0-9a-fA-F]{3,6}|\$\{)/g
   const counts: Record<string, number> = {}
   for (const f of screens) {
     // コメントで形を説明するのは構わない。落とすのは実際に書いているときだけ
@@ -302,29 +307,65 @@ console.log('\n⑧ 角を丸めていない（丸いのは顔・ロゴ・点だ�
     '\n      → 角丸はやめました。形は ui/Panel（右下だけ斜めに切る）で出すこと')
 }
 
-console.log('\n⑨ 選手カードの一覧は PlayerList を通している')
+console.log('\n⑨ 選手カードの一覧は PlayerList を通している（カード同士のあきは1本）')
 {
-  // カードとカードの間隔が画面によって「あったりなかったり」だった
-  // （空いている方＝gap 8 と、詰まっている方＝overflow:hidden の枠に隙間なく、の2通り）。
-  //   > ある方に統一して（オーナー・2026-08-14）
-  // 間隔を持つのは `player/PlayerList` 1本。**画面側で gap や枠を書かないこと。**
+  // 同じ「選手カードの一覧」が11画面にあり、並べ方が3通りに割れていた
+  //   （箱に入れず gap:8／枠の箱に詰める／ただ並べるだけ）。
+  // オーナー判断（2026-08-14「ある方に統一して」）であきのある形へ寄せた。
+  // **画面で並べ方を書き直せるようにしないこと**——また割れる。
   const OWNER = 'src/components/player/PlayerList.tsx'
-  const hits: string[] = []
-  for (const f of screens) {
-    if (f === OWNER) continue
-    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-    // `.map(...)` で並べているものだけが対象（1枚だけ出す画面は一覧ではない）
-    if (!/<PlayerRow/.test(code)) continue
-    if (!/map\(/.test(code)) continue
-    // ★import があるだけでは通していない。**JSX で囲っているか**を見る
-    //   （最初の版は `/PlayerList/` で見ていて、枠に戻しても import が残っていて落ちなかった）
-    if (!/<PlayerList\b/.test(code)) hits.push(`${f} が PlayerList で囲っていない`)
-  }
-  check('選手カードの並べ方が1本', hits.length === 0,
-    hits.join('\n      ') + '\n      → 一覧は player/PlayerList で囲むこと（間隔はそこが持つ）')
+  const users = files.filter(f =>
+    f.startsWith('src/components') && f.endsWith('.tsx') && f !== OWNER &&
+    /<PlayerRow[\s\n]/.test(read(f)))
+  const bare = users.filter(f => !/from '.*player\/PlayerList'/.test(read(f)))
+  check('選手カードを並べる画面は PlayerList を使っている', bare.length === 0,
+    bare.join('\n      ') + '\n      → 一覧は components/player/PlayerList.tsx で包むこと')
+
+  // あきの数字はトークン1本。画面にも PlayerList 以外にも現れない
+  const gapUsers = files.filter(f => /PLAYER_CARD_GAP/.test(read(f)))
+    .filter(f => f !== OWNER && f !== 'src/styles/tokens.ts')
+  check('あきの数字は PlayerList だけが読む', gapUsers.length === 0, gapUsers.join(' '))
 }
 
-console.log('\n⑩ 本文の文字サイズを数字で書いていない')
+console.log('\n⑩ 金でベタ塗りして黒い字、を書いていない')
+{
+  // 「大ニュース」の札や「1部」の切り替えが、金のベタ塗り＋黒い字だった。
+  // 他が全部ガラス（透かした面＋その色の字＋細い枠）になったので、そこだけ浮いていた。
+  // オーナー判断（2026-08-14「黄色ベタ塗りみたいなのを無くして欲しい」）。
+  // 配合は ui/GlassButton 1本（`alpha(色, 0.16)` の面 ＋ その色の字 ＋ `alpha(色, 0.65)` の枠）。
+  const FILL = /background(?:Color)?:\s*[^,;\n]*(?:C\.gold|C\.goldHi)/g
+  // ★三項演算子を挟む形も見ること（`color: sel ? C.bg : …`）。
+  //   `color:\s*` だけだと `sel ? ` に阻まれて、いちばん直したかった切り替えタブを見逃す。
+  // ★暗い字は**明るさで見る**こと。16進を並べて書くと必ず漏れる
+  //   （`#111` `#1a0d00` `#1a1a1a` を並べていたら、`#0a0818` の公式Xのボタンが素通りした）。
+  const DARK_TOKEN = /color:\s*(?:[^,;\n]*\?\s*)?(?:C\.bg|'(#[0-9a-fA-F]{3,6})')/g
+  const isDarkHex = (h: string): boolean => {
+    const v = h.length === 4 ? h.slice(1).split('').map(c => c + c).join('') : h.slice(1)
+    if (v.length !== 6) return false
+    const [r, g, bl] = [0, 2, 4].map(i => parseInt(v.slice(i, i + 2), 16))
+    return (0.299 * r + 0.587 * g + 0.114 * bl) / 255 < 0.35
+  }
+  const hasDarkText = (w: string): boolean => {
+    for (const m of w.matchAll(DARK_TOKEN)) {
+      if (!m[1]) return true          // C.bg
+      if (isDarkHex(m[1])) return true
+    }
+    return false
+  }
+  const hits: string[] = []
+  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    for (const m of code.matchAll(FILL)) {
+      if (m[0].includes('alpha(')) continue        // 透けているものは対象外
+      const w = code.slice(Math.max(0, m.index! - 300), m.index! + m[0].length + 300)
+      if (hasDarkText(w)) hits.push(`${f}:${code.slice(0, m.index).split('\n').length} ${m[0].slice(0, 60)}`)
+    }
+  }
+  check('金でベタ塗りして黒い字にしていない', hits.length === 0,
+    hits.slice(0, 8).join('\n      ') +
+    '\n      → 透かした面＋金の字＋細い枠にすること（配合は ui/GlassButton）')
+
+console.log('\n⑪ 本文の文字サイズを数字で書いていない')
 {
   // 実測で **1900件・31種類**（7px〜96px）に割れていた。8〜24px のあいだだけで
   // 11・13・15・17・19・21・22 と半端な 9.5・10.5・14.5 が混ざっていて、

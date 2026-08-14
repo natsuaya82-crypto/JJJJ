@@ -88,7 +88,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   )
   const primaryBtn = (label: string, onClick: () => void, enabled = true) => (
     <button onClick={() => enabled && onClick()} disabled={!enabled}
-      style={{ flex: 1, padding: '14px',border: 'none', cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4, background: C.gold, color: '#1a0d00', fontSize: F.subLg, fontWeight: 900, fontFamily: SAIRA }}>
+      style={{ flex: 1, padding: '14px',cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4, background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.subLg, fontWeight: 900, fontFamily: SAIRA }}>
       {label}
     </button>
   )

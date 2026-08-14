@@ -56,7 +56,7 @@ export default function HofList({
         <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
       </div>
 
-      <PlayerList>
+      <PlayerList style={{ margin: '0 12px' }}>
         {sorted.map(h => (
           <PlayerRow
             key={h.player.id}

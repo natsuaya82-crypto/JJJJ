@@ -34,6 +34,40 @@ export function belongsToClub(p: Pick<Player, 'teamId' | 'status'>, clubId: stri
   return p.teamId === clubId && p.status !== 'retired'
 }
 
+/**
+ * **クラブID → 在籍選手**の索引を1回で作る。
+ *
+ * ★「クラブごとに `players.filter(...)` する」を**繰り返さないこと**。
+ *   232クラブ × 5,800人 を毎回走査すると、1マッチデーで100万回の比較になる。
+ *   まとめて回すところ（海外リーグ・裏の部・移籍市場）は必ずこれを通す。
+ */
+export function playersByClub(players: readonly Player[]): Map<string, Player[]> {
+  const byClub = new Map<string, Player[]>()
+  for (const p of players) {
+    if (p.status === 'retired' || !p.teamId) continue
+    const list = byClub.get(p.teamId)
+    if (list) list.push(p); else byClub.set(p.teamId, [p])
+  }
+  return byClub
+}
+
+/**
+ * `playersByClub` を**同じ配列に対して1回だけ**作って覚えておく版。
+ *
+ * ★「1人ごとに全選手を走査してそのクラブの名簿を作る」を消すためのもの。
+ *   移籍の同意を1件見るたびに 5,800人を走査していました（CPUの4分の1）。
+ * ★覚え方は配列そのものを鍵にした WeakMap。**選手の配列を書き換えて使い回さないこと**
+ *   （このリポジトリでは選手が動いたら必ず新しい配列を作っている）。
+ */
+const clubIndexCache = new WeakMap<readonly Player[], { len: number; index: Map<string, Player[]> }>()
+export function clubIndexOf(players: readonly Player[]): Map<string, Player[]> {
+  const hit = clubIndexCache.get(players)
+  if (hit && hit.len === players.length) return hit.index
+  const index = playersByClub(players)
+  clubIndexCache.set(players, { len: players.length, index })
+  return index
+}
+
 // そのクラブに所属する選手ID。海外クラブの名簿(旧 playerIds)の代わりに使う
 export function clubMemberIds(players: Player[], clubId: string): string[] {
   const ids: string[] = []

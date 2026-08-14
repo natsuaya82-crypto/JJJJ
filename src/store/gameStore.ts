@@ -1,6 +1,6 @@
 ﻿import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
-import { saveStorage, flushSaveNow, deleteSaveForRecovery, setSaveFormatVersion } from './saveStorage'
+import { persist } from 'zustand/middleware'
+import { jsonSaveStorage, flushSaveNow, deleteSaveForRecovery, setSaveFormatVersion } from './saveStorage'
 import { SAVE_VERSION } from './persistence/saveVersion'
 import { createSeasonSlice } from './slices/seasonSlice'
 import { createMarketSlice } from './slices/marketSlice'
@@ -654,8 +654,11 @@ export const useGameStore = create<GameStore>()(
       // 今までの名前のままなので、既存のセーブはスロット1として読める
       name: `jpel-manager-save${saveSlotSuffix()}`,
       version: SAVE_VERSION,
-      // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage
-      storage: createJSONStorage(() => saveStorage),
+      // iOSはファイル保存（localStorageの5MB制限・同期書き込みを回避）。Webは従来のlocalStorage。
+      // createJSONStorage を使わないのは、あれが **set() のたびに** 数MBをJSON化するため。
+      // jsonSaveStorage は状態のまま受け取り、JSON化を書き込みと同じデバウンスの中でやる
+      // （セーブの中身は1バイトも変わらない。変わるのはいつ作るかだけ）
+      storage: jsonSaveStorage,
       // 保存する内容は「既定で全部。ephemeralState.ts に並べた物だけ書かない」。
       // 除外するのは画面を開いている状態（モーダル等）と、どこからも読まれない残骸だけ。
       // 何を除外するかは ephemeralState.ts の1箇所だけ見ればよい

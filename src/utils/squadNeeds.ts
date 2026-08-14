@@ -28,20 +28,71 @@ export type SpecialtyDepth = {
   bestOvr: number
 }
 
+// ── 名簿から出る値は**名簿1つにつき1回だけ**数える ────────────────────
+//
+// ★`needsPlayer(roster, p)` は「同じ名簿 × 何千人の候補」で呼ばれます
+//   （移籍市場は1回の買い物で5,800人ぶん回す）。名簿から出る値——タイプ別の層・
+//   在籍者・チーム平均・タイプ別平均・序列を引くための並び——を候補ごとに数え直すと、
+//   同じ計算を何千回も繰り返します（実測でCPUの3分の1がここでした）。
+//   **答えは名簿だけで決まる**ので、名簿の配列1つにつき1回数えて覚えておきます。
+//
+// ★覚え方は「配列そのもの」を鍵にした WeakMap（配列が捨てられれば一緒に消える）。
+//   **名簿の中身を書き換えて使い回さないこと**（`push` / `splice`）。人数が変われば
+//   気づけるように長さも一緒に持っていますが、入れ替え（同数の差し替え）は見抜けません。
+//   このリポジトリでは名簿が変わるときは必ず**新しい配列を作って**います（そのままにすること）。
+type RosterFacts = {
+  len: number
+  depth: Record<Specialty, SpecialtyDepth>
+  active: Player[]
+  teamAvg: number
+  /** 在籍者のOVRを大きい順に並べたもの（序列を数えるのに使う） */
+  ovrsDesc: number[]
+  /** タイプごとの在籍者の平均OVR（居なければ0） */
+  specAvg: Record<string, number>
+}
+const factsCache = new WeakMap<readonly Player[], RosterFacts>()
+
+function rosterFacts(roster: readonly Player[]): RosterFacts {
+  const hit = factsCache.get(roster)
+  if (hit && hit.len === roster.length) return hit
+
+  const depth = {} as Record<Specialty, SpecialtyDepth>
+  for (const s of SPECIALTIES) depth[s] = { count: 0, bestOvr: 0 }
+  const active: Player[] = []
+  const ovrsDesc: number[] = []
+  const sum: Record<string, { n: number; total: number }> = {}
+  let total = 0
+  for (const p of roster) {
+    const o = ovr(p)
+    const d = depth[p.specialty]
+    if (d) { d.count++; if (o > d.bestOvr) d.bestOvr = o }
+    if (p.status === 'active') {
+      active.push(p)
+      ovrsDesc.push(o)
+      total += o
+      const acc = sum[p.specialty] ?? (sum[p.specialty] = { n: 0, total: 0 })
+      acc.n++; acc.total += o
+    }
+  }
+  ovrsDesc.sort((a, b) => b - a)
+  const specAvg: Record<string, number> = {}
+  for (const [k, v] of Object.entries(sum)) specAvg[k] = v.total / v.n
+
+  const facts: RosterFacts = {
+    len: roster.length, depth, active,
+    teamAvg: active.length > 0 ? total / active.length : 0,
+    ovrsDesc, specAvg,
+  }
+  factsCache.set(roster, facts)
+  return facts
+}
+
 /**
  * タイプごとの層の厚さ。roster は呼ぶ側が絞り込んだ在籍者を渡す
  * （「出せる選手」の条件は入口ごとに違うので、ここでは絞らない）
  */
 export function squadDepth(roster: readonly Player[]): Record<Specialty, SpecialtyDepth> {
-  const depth = {} as Record<Specialty, SpecialtyDepth>
-  for (const s of SPECIALTIES) depth[s] = { count: 0, bestOvr: 0 }
-  for (const p of roster) {
-    const d = depth[p.specialty]
-    if (!d) continue
-    d.count++
-    d.bestOvr = Math.max(d.bestOvr, ovr(p))
-  }
-  return depth
+  return rosterFacts(roster).depth
 }
 
 /**
@@ -93,8 +144,8 @@ export function needsPlayer(
     requireLineup?: boolean
   } = {},
 ): boolean {
-  const depth = squadDepth(roster)
-  const d = depth[player.specialty]
+  const facts = rosterFacts(roster)
+  const d = facts.depth[player.specialty]
   if (!d) return false
   // ★どの穴でも、**そこで走れる選手でなければ獲らない**（走れるのは7区間）。
   //   「16番手になる選手をわざわざ獲るクラブはいない」（CLAUDE.md）を、
@@ -112,12 +163,9 @@ export function needsPlayer(
   //   タイプが0人でも、そこで20番手になる選手を入れて埋まるわけではない。
   if (d.count === 0) return true
   // ② そのポジションの平均がチーム平均を下回っているか（＝穴）
-  const active = roster.filter(p => p.status === 'active')
-  if (active.length === 0) return true
-  const teamAvg = active.reduce((s2, p) => s2 + ovr(p), 0) / active.length
-  const same = active.filter(p => p.specialty === player.specialty)
-  const specAvg = same.length > 0 ? same.reduce((s2, p) => s2 + ovr(p), 0) / same.length : 0
-  if (specAvg >= teamAvg) return false
+  if (facts.active.length === 0) return true
+  const specAvg = facts.specAvg[player.specialty] ?? 0
+  if (specAvg >= facts.teamAvg) return false
   // 穴でも、今いる最上位を上回らないなら意味がない（頭数合わせで弱い選手を取らない）
   return ovr(player) > d.bestOvr
 }
@@ -160,5 +208,12 @@ export function wouldMakeLineup(roster: readonly Player[], player: Player, slots
  */
 export function squadRankOf(roster: readonly Player[], player: Player): number {
   const my = ovr(player)
-  return roster.filter(p => p.status === 'active' && ovr(p) > my).length + 1
+  // 「自分より上の在籍者は何人か」。並べたものを二分探索するだけ（数え直さない）
+  const ovrs = rosterFacts(roster).ovrsDesc
+  let lo = 0, hi = ovrs.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (ovrs[mid] > my) lo = mid + 1; else hi = mid
+  }
+  return lo + 1
 }

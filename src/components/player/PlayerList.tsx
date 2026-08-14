@@ -1,40 +1,31 @@
-import { C, F } from '../../styles/tokens'
+import { PLAYER_CARD_GAP } from '../../styles/tokens'
 
-// ============================================================================
-// **選手カードを縦に並べる箱。カードとカードの間隔はここ1本。**
-//
-//   > ページによって選手カードとカードの間があったりなかったりだから
-//   > ある方に統一して（オーナー・2026-08-14）
-//
-// 並べ方が2通りに割れていた。
-//   ・空いている方 … `display:flex / flexDirection:column / gap:8`（ロスター・移籍市場）
-//   ・詰まっている方 … `overflow:hidden` の枠に隙間なく（代表・チーム詳細・非売・
-//     スカウト・殿堂入り・ドラフト会場）。**枠の中で1枚の板に見える**
-// 空いている方に揃える。
-//
-// ★`<PlayerRow>` を `.map` で並べるときは必ずこれを通すこと。画面側で
-//   `gap` や枠を書くと、また片方だけ変わって割れる。
-// ★左右の余白は画面ごとに違ってよい（`margin` で渡す）。**間隔だけ**をここが持つ。
-// ============================================================================
-
-/** カードとカードの間隔。ここだけ */
-export const PLAYER_GAP = 8
-
-export default function PlayerList({ children, margin = '0 12px', style }: {
+/**
+ * 選手カードを縦に並べる入れもの。**カード同士のあきを決める唯一の場所。**
+ *
+ * ■なぜ要るのか
+ *   同じ「選手カードの一覧」が11画面にあり、並べ方が3通りに割れていました。
+ *
+ *     箱に入れずに並べる（`gap: 8`）… ロスター・移籍市場                    … あきあり
+ *     枠の箱に詰める（`border` ＋ `overflow: hidden`）… 代表詳細・チーム詳細・
+ *       非売リスト・スカウト・殿堂入り                                      … あきなし
+ *     ただ並べるだけ（指定なし）… カード育成・区間ピッカー・フレンド詳細・代表選出 … あきなし
+ *
+ *   `PlayerRow` は**それ自体が1枚のカード**（自前の背景・右下の切り欠き・上の光）
+ *   なので、詰めて並べると切り欠きが隣のカードにぶつかります。オーナー判断
+ *   （2026-08-14「ある方に統一して」）であきのある形へ寄せました。
+ *
+ * ■使い方
+ *   一覧を `<PlayerList>` で包むだけ。外側の余白（margin / padding）は `style` で渡します。
+ *   **画面側で `gap` を書かないこと**（また3通りに割れます）。空のときの案内も中に入れて構いません。
+ */
+export default function PlayerList({ children, style }: {
   children: React.ReactNode
-  /** 左右（と下）の余白。画面ごとに違ってよい */
-  margin?: string
-  /** 並び以外の指定。**gap と枠は書かないこと** */
   style?: React.CSSProperties
 }) {
   return (
-    <div style={{ margin, display: 'flex', flexDirection: 'column', gap: PLAYER_GAP, ...style }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: PLAYER_CARD_GAP, ...style }}>
       {children}
     </div>
   )
-}
-
-/** 「登録選手なし」など、一覧が空のときの1行（見た目を揃える） */
-export function PlayerListEmpty({ label }: { label: string }) {
-  return <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>{label}</div>
 }

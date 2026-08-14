@@ -305,7 +305,7 @@ export function LineupPhase({
         </div>
 
         {/* 選手リスト */}
-        <PlayerList margin="0 12px" style={{ background: C.bg }}>
+        <PlayerList style={{ background: C.bg }}>
           {pickerPlayers.map(({ p, assignedSeg }) => {
             const isSelected = raceLineup[pickerSeg] === p.id
             const isAssignedElsewhere = assignedSeg !== null && assignedSeg !== pickerSeg

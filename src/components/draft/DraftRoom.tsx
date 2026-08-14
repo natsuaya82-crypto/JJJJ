@@ -896,6 +896,9 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
       // ★土台を塗らないこと（背景の写真が消える）
       position: 'fixed', inset: 0,
       maxWidth: '480px', margin: '0 auto',
+      // ★上端はダイナミックアイランドの下から（上のドラフト会場と同じ）。
+      //   ここだけ入れ忘れていて、見出しがノッチに食い込んでいた
+      paddingTop: 'env(safe-area-inset-top)',
       display: 'flex', flexDirection: 'column',
       fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
     }}>

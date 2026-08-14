@@ -246,7 +246,7 @@ export default function NationalSquadSelectPage() {
         </div>
 
         {/* 候補リスト（ロスターと同じ全数値付きの行）。選出済みの選手は出さない */}
-        <PlayerList margin="0 12px" style={{ background: C.bg }}>
+        <PlayerList style={{ background: C.bg }}>
           {pickerPlayers.filter(c => slotOf(c.player.id) === null).map(c => {
             const p = c.player
             return (

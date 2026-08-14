@@ -238,7 +238,6 @@ export default function SchedulePage() {
 
           const { race, kind, roundNum, isNext, isDone, myRank } = it.r
           const accentColor = kind === 'main' ? C.gold : kind === 'ecl' ? C.red : C.blue
-          const accentShadow = kind === 'main' ? '#5a3500' : kind === 'ecl' ? '#5a1010' : '#1a2050'
           const labelText = kind === 'ecl' ? 'ECL' : `第${roundNum}戦`
           const rColor = rankColor(myRank)
 
@@ -273,19 +272,10 @@ export default function SchedulePage() {
                   flex: 1, marginLeft: '12px',
                   marginBottom: notLast ? '6px' : '0',
                   padding: '12px 14px',
-                  border: isNext
-                    ? `2px solid ${alpha(accentColor, 0.45)}`
-                    : isDone
-                    ? `1px solid ${C.border}`
-                    : `1px solid ${alpha(accentColor, 0.2)}`,
-                  background: isNext
-                    ? `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`
-                    : isDone
-                    ? 'transparent'
-                    : C.surface,
-                  boxShadow: isNext
-                    ? `0 4px 0 ${accentShadow}, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`
-                    : 'none',
+                  // カードは ui/Panel 1本。次のレースは左の帯がその大会の色になる。
+                  // **枠2px＋下に影の板を書かないこと**（他の画面と揃わなくなる）
+                  ...panelStyle(isNext ? accentColor : isDone ? undefined : alpha(accentColor, 0.5)),
+                  opacity: isDone ? 0.6 : 1,
                   cursor: canEnter ? 'pointer' : 'default',
                   textAlign: 'left', fontFamily: 'inherit',
                   position: 'relative', overflow: isNext ? 'hidden' : 'visible',

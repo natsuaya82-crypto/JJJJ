@@ -1,4 +1,4 @@
-import { C, F } from '../../styles/tokens'
+import { C, alpha, F } from '../../styles/tokens'
 
 const X_URL = 'https://x.com/JPEL_MANAGER'
 
@@ -39,8 +39,9 @@ export default function TwitterModal({ onClose }: { onClose: () => void }) {
           onClick={onClose}
           style={{
             display: 'block',
-            background: C.gold,
-            color: '#0a0818',
+            background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`,
+            border: `1px solid ${alpha(C.gold, 0.65)}`,
+            color: C.gold,
             fontWeight: 800,
             fontSize: F.subLg,
             padding: '14px 0',

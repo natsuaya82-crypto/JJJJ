@@ -205,7 +205,7 @@ export default function CardTrainingPage() {
           <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text }}>練習する選手を選ぶ</div>
         </div>
 
-        <PlayerList margin="6px 12px">
+        <PlayerList style={{ padding: '6px 12px' }}>
           {mainPlayers.length === 0 && (
             <div style={{ padding: 30, textAlign: 'center', fontSize: F.bodyLg, color: C.textDim }}>選手がいません</div>
           )}

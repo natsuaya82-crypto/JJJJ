@@ -267,7 +267,7 @@ export default function FriendDetailPage() {
               {roster.length === 0 ? (
                 <div style={{ padding: '0 16px' }}><EmptyBox label="相手がまだロスターを共有していません" /></div>
               ) : (
-                <PlayerList margin="0 16px 24px">
+                <PlayerList>
                   {sorted.map(p => (
                     <PlayerRow key={p.id} player={p} handlers={{ ...longPress(p.id), onClick: () => {} }} />
                   ))}

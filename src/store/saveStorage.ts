@@ -124,6 +124,8 @@ async function collectSaveSources(suf = SUF): Promise<SaveSource[]> {
 }
 
 // 書き込みは末尾デバウンス（連続する set() のたびに数MBを書かない）。
+// **JSON化もこのデバウンスの中でやる**（下の jsonSaveStorage）。待ち時間は1本。
+const WRITE_DELAY_MS = 400
 let pending: string | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 // 世代バックアップの間隔。毎回コピーすると数MBのI/Oが重なるため。
@@ -343,12 +345,86 @@ async function flushWrite() {
   }
 }
 
+// ── JSON化も書き込みと同じタイミングまで遅らせる（persist に渡す入れ物）─────
+//
+// 【なぜ要るのか】
+//   zustand の persist は **set() のたびに** partialize + JSON.stringify を実行する。
+//   createJSONStorage を使うと、その文字列がそのまま下の setItem に渡ってくる。
+//   つまり下でいくらデバウンスしても、**数MBのJSON化はもう済んでいる**。
+//   選手6,927人のセーブ（10MB）で1回 145ms。実機はこれより遅い。
+//   ボタンを1回押すたびに毎回これが走るので、画面が引っかかる原因になっていた。
+//
+// 【どうするか】
+//   persist には「文字列」ではなく「状態そのもの」を受け取る入れ物を渡し、
+//   JSON化を書き込みの直前まで遅らせる。連続する set() は最後の1つだけが
+//   JSON化されるので、1操作＝1回になる（partialize は残るが数msで済む）。
+//
+// 【セーブの中身は1バイトも変わらない】
+//   JSON.stringify に渡す物も、下の setItem に渡す文字列も、今までとまったく同じ。
+//   変わるのは**いつ作るか**だけ。ガード（isInit / countPlayers / セーフモード）も
+//   今までどおり文字列に対して同じ順で通る。
+//
+// 【デバウンスは1つだけ】
+//   ここで待ってから下の setItem でもう一度待つと2倍かかるので、
+//   JSON化したあとは flushWrite() へ直行する（下の timer は使わない）。
+type SaveEnvelope = { state: unknown; version?: number }
+let pendingState: SaveEnvelope | null = null
+let pendingName = ''
+
+/** 溜めてある状態をJSONにして、ガードを通して書き込む。何も溜まっていなければ何もしない */
+function serializePending(): void {
+  if (pendingState == null) return
+  const state = pendingState
+  pendingState = null   // 失敗しても握り続けない（次のタイマーで同じ物を投げ直さない）
+  let value: string
+  try {
+    value = JSON.stringify(state)
+  } catch (e) {
+    // 【ここで黙ってはいけない】JSON化できない状態は、これ以降ずっと保存できない。
+    // そのまま遊ばせると、画面の中だけが進んでファイルは何時間も前のまま＝
+    // 次の起動でその時間ぶんが丸ごと消える。**気づける形で止める。**
+    //
+    // 以前は persist が set() の中でJSON化していたので、失敗すればその場で画面が落ちて
+    // 分かった。JSON化を遅らせた（＝タイマーの中でやる）ことで、落ちても誰も気づかない
+    // 形になったため、ここで saveHealth を failed にして復旧画面へ回す。
+    // ファイルには最後に書けた正常なセーブが残っているので、そこへ戻せる。
+    safeMode = true
+    setSaveHealth('failed', 'セーブを書き出せませんでした（データの形が壊れています）')
+    console.error('[save] BLOCKED: JSON.stringify failed; entering safe mode', e)
+    return
+  }
+  if (!stageWrite(pendingName, value)) return
+  if (!isNative) { localStorage.setItem(pendingName, value); return }
+  pending = value
+}
+
+export const jsonSaveStorage = {
+  getItem: async (name: string): Promise<SaveEnvelope | null> => {
+    const raw = await saveStorage.getItem(name)
+    // 壊れていたら例外を投げる（persist の onRehydrateStorage が拾って復旧画面へ回す）。
+    // ここで null を返すと「セーブが無い＝新規」に見えてしまう
+    return raw == null ? null : (JSON.parse(raw) as SaveEnvelope)
+  },
+  setItem: (name: string, value: SaveEnvelope): void => {
+    pendingName = name
+    pendingState = value
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => { timer = null; serializePending(); void flushWrite() }, WRITE_DELAY_MS)
+  },
+  // 溜めてある書きかけを捨てるのは saveStorage.removeItem 1本（写しを持たない）。
+  // データ削除は復旧画面からも呼ばれる（deleteSaveForRecovery）ので、そちらだけを通っても効く
+  removeItem: async (name: string): Promise<void> => {
+    await saveStorage.removeItem(name)
+  },
+}
+
 // バックグラウンド移行・タブ非表示・ページ破棄の瞬間に即時フラッシュ（アプリキルで直前の操作が消えるのを防ぐ）
 function flushImmediate() {
   if (timer) { clearTimeout(timer); timer = null }
+  serializePending()
   void flushWrite()
 }
-if (isNative && typeof document !== 'undefined') {
+if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushImmediate()
   })
@@ -356,10 +432,11 @@ if (isNative && typeof document !== 'undefined') {
 }
 
 // 重要操作（レース確定・シーズン更新・購入・リセット等）の直後に呼び、デバウンスを待たず即書き込む。
-// Webでは何もしない（同期localStorageのため不要）。
+// **溜めてあるJSON化を先に済ませること**（ここを飛ばすと直前の操作が書かれない）。
 export async function flushSaveNow(): Promise<void> {
-  if (!isNative) return
   if (timer) { clearTimeout(timer); timer = null }
+  serializePending()
+  if (!isNative) return   // Webは localStorage へ同期で書き終わっている
   await flushWrite()
 }
 
@@ -396,6 +473,43 @@ async function loadFromDisk(): Promise<{ raw: string | null; sawFile: boolean }>
     return { raw, sawFile }
   }
   return { raw: null, sawFile }
+}
+
+/**
+ * 書き込みの前に必ず通る関門（**ここ1本**）。文字列のセーブを受け取り、
+ * 書いてよければ true、止めたら false を返す。
+ * 入口は2つ（この下の saveStorage.setItem と、JSON化を遅らせる jsonSaveStorage）だが、
+ * ガードの写しを2つ持たないこと。
+ */
+function stageWrite(name: string, value: string): boolean {
+  void name
+  // セーフモード中は isInitialized:true（新規ゲーム）も含めて全ての書き込みを拒否する
+  if (isSaveSafeMode()) {
+    console.error('[save] BLOCKED: セーフモード中のため書き込みを行いません')
+    return false
+  }
+  // セーブ破壊ガード：進行中セーブがあるのに新規状態を書こうとしたら拒否
+  if (loadedInitialized && !isInit(value)) {
+    console.error('[save] BLOCKED: attempted to overwrite an initialized save with a fresh (uninitialized) state')
+    return false
+  }
+  // 中身が消し飛んだセーブを書かせないガード。
+  // isInitialized は true のまま選手だけ消えている、という壊れ方をここで止める。
+  // 止めたあとは**この起動中いっさい書かない**（セーフモード）。復旧画面へ回して、
+  // ファイル（本体・.tmp・.bak）が無事なうちに再起動してもらう。
+  if (loadedPlayerCount >= COLLAPSE_MIN) {
+    const now = countPlayers(value)
+    if (now < loadedPlayerCount * COLLAPSE_RATIO) {
+      safeMode = true
+      setSaveHealth('failed', `セーブの中身が急に減ったため保存を止めました（選手 ${loadedPlayerCount} → ${now}）`)
+      console.error(`[save] BLOCKED: player records collapsed ${loadedPlayerCount} -> ${now}; refusing to overwrite and entering safe mode`)
+      return false
+    }
+    // 正常に書けたぶんを新しい基準にする（増える方向はそのまま追随する）
+    if (now > loadedPlayerCount) loadedPlayerCount = now
+  }
+  if (isInit(value)) loadedInitialized = true
+  return true
 }
 
 export const saveStorage: StateStorage = {
@@ -446,38 +560,17 @@ export const saveStorage: StateStorage = {
     })()
   },
   setItem: (name, value) => {
-    // セーフモード中は isInitialized:true（新規ゲーム）も含めて全ての書き込みを拒否する
-    if (isSaveSafeMode()) {
-      console.error('[save] BLOCKED: セーフモード中のため書き込みを行いません')
-      return
-    }
-    // セーブ破壊ガード：進行中セーブがあるのに新規状態を書こうとしたら拒否
-    if (loadedInitialized && !isInit(value)) {
-      console.error('[save] BLOCKED: attempted to overwrite an initialized save with a fresh (uninitialized) state')
-      return
-    }
-    // 中身が消し飛んだセーブを書かせないガード。
-    // isInitialized は true のまま選手だけ消えている、という壊れ方をここで止める。
-    // 止めたあとは**この起動中いっさい書かない**（セーフモード）。復旧画面へ回して、
-    // ファイル（本体・.tmp・.bak）が無事なうちに再起動してもらう。
-    if (loadedPlayerCount >= COLLAPSE_MIN) {
-      const now = countPlayers(value)
-      if (now < loadedPlayerCount * COLLAPSE_RATIO) {
-        safeMode = true
-        setSaveHealth('failed', `セーブの中身が急に減ったため保存を止めました（選手 ${loadedPlayerCount} → ${now}）`)
-        console.error(`[save] BLOCKED: player records collapsed ${loadedPlayerCount} -> ${now}; refusing to overwrite and entering safe mode`)
-        return
-      }
-      // 正常に書けたぶんを新しい基準にする（増える方向はそのまま追随する）
-      if (now > loadedPlayerCount) loadedPlayerCount = now
-    }
-    if (isInit(value)) loadedInitialized = true
+    if (!stageWrite(name, value)) return
     if (!isNative) { localStorage.setItem(name, value); return }
     pending = value
     if (timer) clearTimeout(timer)
-    timer = setTimeout(() => { timer = null; void flushWrite() }, 400)
+    timer = setTimeout(() => { timer = null; void flushWrite() }, WRITE_DELAY_MS)
   },
   removeItem: (name) => {
+    // 溜めてある書きかけを必ず捨てる。**JSON化前のぶんも**（残すと削除した直後に書き戻る）
+    pendingState = null
+    pending = null
+    if (timer) { clearTimeout(timer); timer = null }
     loadedInitialized = false   // データ削除＝ガード解除（新規ゲームを保存できるように）
     loadedPlayerCount = 0       // 中身の基準も外す（明示的な削除のあとは何を書いてもよい）
     sawSave = false             // 削除したので「セーブがあった」も外す（新規ゲーム画面へ進んでよい）

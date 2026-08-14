@@ -336,7 +336,7 @@ export default function TransferPage() {
               <div style={{ padding: '40px', textAlign: 'center', color: C.textGhost, fontSize: F.bodyLg, fontFamily: SAIRA }}>条件に合う選手なし</div>
             )}
             {/* ロスターと同じカード：タップ＝メニュー / 長押し＝詳細。箱に入れず縦に並べる */}
-            <PlayerList margin="0">
+            <PlayerList>
             {marketPlayers.map(p => {
               const isListed = listedIds.has(p.id)
               const hasBid = activeBids.some(b => b.playerId === p.id)

@@ -66,10 +66,14 @@ export function Btn({ children, variant = 'primary', onClick, disabled, fullWidt
     switch (variant) {
       case 'primary':
         return {
-          background: `linear-gradient(135deg, ${C.gold}, ${C.goldHi})`,
-          color: C.bg,
-          border: 'none',
-          boxShadow: `0 0 20px ${alpha(C.gold, 0.3)}`,
+          // ★金でベタ塗りして黒い字、はやめる（オーナー・2026-08-14）。
+          //   配合は ui/GlassButton 1本に合わせる
+          background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`,
+          backdropFilter: 'blur(10px) saturate(118%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(118%)',
+          color: C.gold,
+          border: `1px solid ${alpha(C.gold, 0.65)}`,
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 20px rgba(0,0,0,0.4)`,
         }
       case 'secondary':
         return {
