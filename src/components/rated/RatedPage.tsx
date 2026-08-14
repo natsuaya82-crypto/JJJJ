@@ -6,6 +6,7 @@ import PressButton from '../ui/PressButton'
 import { courseDistanceKm } from '../../engine/ratedCourse'
 import { rankProgressOf } from '../../engine/rating'
 import { RANK_ART } from './rankArt'
+import { RatedHelpButton, RatedHelpSheet } from './ratedRules'
 import {
   canJoin, fetchMe, fetchResult, fetchToday, joinRated, SUBMIT_DEADLINE_HHMM,
   type RatedMe, type RatedResult, type RatedToday,
@@ -67,13 +68,13 @@ function SectionLabel({ text }: { text: string }) {
 export default function RatedPage() {
   const navigate = useNavigate()
   const hof = useGameStore(s => s.hofRoster)
-  const year = useGameStore(s => s.currentSeason?.year)
   const [me, setMe] = useState<RatedMe | null>(null)
   const [today, setToday] = useState<RatedToday | null>(null)
   const [result, setResult] = useState<RatedResult | null>(null)
   const [left, setLeft] = useState(0)
   // 参加の申し込みが通らなかったときの一言。**黙って何も起きない、にしない**
   const [notice, setNotice] = useState('')
+  const [help, setHelp] = useState(false)
 
   useEffect(() => {
     void fetchMe().then(setMe)
@@ -103,15 +104,19 @@ export default function RatedPage() {
 
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: 96 }}>
-      {/* ── 見出し ── */}
-      <PageHeader
-        eyebrow="RANKED MATCH"
-        title="ランクマッチ"
-        right={<div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>SEASON</div>
-          <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.textSub, lineHeight: 1 }}>{year ?? ''}</div>
-        </div>}
-      />
+      {/* ── 見出し ──
+          ★**スクロールしても上に残す**（オーナー・2026-08-14「このボタンは固定して」）。
+            下へ送ると戻る矢印が消えて、戻るのに一番上まで戻す必要があった。
+          ★**シーズンは出さない**（同「人によって違うんだから表記いらない」）。
+            空いたところに `?` を置いて、遊びかたはそこから見せる（画面に直書きしない）。 */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.bg }}>
+        <PageHeader
+          eyebrow="RANKED MATCH"
+          title="ランクマッチ"
+          right={<RatedHelpButton onClick={() => setHelp(true)} />}
+        />
+      </div>
+      <RatedHelpSheet open={help} onClose={() => setHelp(false)} />
 
       {/* ── レート ── */}
       <div style={{ padding: '4px 18px 18px', borderTop: `1px solid ${alpha(C.border3, 0.55)}` }}>
