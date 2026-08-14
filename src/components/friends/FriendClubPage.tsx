@@ -979,7 +979,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               )}
               <button onClick={() => { void onSend() }} disabled={!draft.trim() || busy === 'msg'} style={{
                 flexShrink: 0, fontSize: 12, fontWeight: 900, cursor: draft.trim() ? 'pointer' : 'default',
-                color: C.bg, background: draft.trim() ? C.gold : C.border3, border: 'none',
+                color: draft.trim() ? C.gold : C.textGhost, background: draft.trim() ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})` : C.border3, border: `1px solid ${draft.trim() ? alpha(C.gold, 0.65) : C.border3}`,
 padding: '6px 14px', fontFamily: 'inherit',
               }}>送る</button>
             </div>

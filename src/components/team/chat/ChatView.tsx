@@ -899,7 +899,7 @@ export function ChatView({
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={handleSubmitCounterFee}
-                style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.gold, color: '#1a1a1a', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 2, padding: '10px',background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
                 この金額で提示
               </button>
               <button onClick={() => setComposing(false)}

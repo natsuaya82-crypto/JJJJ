@@ -298,5 +298,29 @@ console.log('\n⑨ 選手カードの一覧は PlayerList を通している（�
   check('あきの数字は PlayerList だけが読む', gapUsers.length === 0, gapUsers.join(' '))
 }
 
+console.log('\n⑩ 金でベタ塗りして黒い字、を書いていない')
+{
+  // 「大ニュース」の札や「1部」の切り替えが、金のベタ塗り＋黒い字だった。
+  // 他が全部ガラス（透かした面＋その色の字＋細い枠）になったので、そこだけ浮いていた。
+  // オーナー判断（2026-08-14「黄色ベタ塗りみたいなのを無くして欲しい」）。
+  // 配合は ui/GlassButton 1本（`alpha(色, 0.16)` の面 ＋ その色の字 ＋ `alpha(色, 0.65)` の枠）。
+  const FILL = /background(?:Color)?:\s*[^,;\n]*(?:C\.gold|C\.goldHi)/g
+  // ★三項演算子を挟む形も見ること（`color: sel ? C.bg : …`）。
+  //   `color:\s*` だけだと `sel ? ` に阻まれて、いちばん直したかった切り替えタブを見逃す
+  const DARK = /color:\s*(?:[^,;\n]*\?\s*)?(?:'#1[0-9a-fA-F]{2}'|'#1a0d00'|'#1a1a1a'|C\.bg)\b/
+  const hits: string[] = []
+  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    for (const m of code.matchAll(FILL)) {
+      if (m[0].includes('alpha(')) continue        // 透けているものは対象外
+      const w = code.slice(Math.max(0, m.index! - 300), m.index! + m[0].length + 300)
+      if (DARK.test(w)) hits.push(`${f}:${code.slice(0, m.index).split('\n').length} ${m[0].slice(0, 60)}`)
+    }
+  }
+  check('金でベタ塗りして黒い字にしていない', hits.length === 0,
+    hits.slice(0, 8).join('\n      ') +
+    '\n      → 透かした面＋金の字＋細い枠にすること（配合は ui/GlassButton）')
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

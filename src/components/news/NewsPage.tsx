@@ -120,7 +120,8 @@ export default function NewsPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                      {news.major && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', color: '#111', background: `linear-gradient(180deg, ${C.goldHi ?? C.gold}, ${C.gold})`, padding: '1px 6px',}}>大ニュース</span>}
+                      {/* ★金でベタ塗りして黒い字、はやめる（オーナー・2026-08-14）。透かした面＋金の字＋細い枠 */}
+                      {news.major && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', color: C.gold, background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, border: `1px solid ${alpha(C.gold, 0.55)}`, padding: '1px 6px' }}>大ニュース</span>}
                       <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', color: col }}>
                         {CAT_LABEL[news.category]}
                       </div>
