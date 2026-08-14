@@ -306,15 +306,30 @@ console.log('\n⑩ 金でベタ塗りして黒い字、を書いていない')
   // 配合は ui/GlassButton 1本（`alpha(色, 0.16)` の面 ＋ その色の字 ＋ `alpha(色, 0.65)` の枠）。
   const FILL = /background(?:Color)?:\s*[^,;\n]*(?:C\.gold|C\.goldHi)/g
   // ★三項演算子を挟む形も見ること（`color: sel ? C.bg : …`）。
-  //   `color:\s*` だけだと `sel ? ` に阻まれて、いちばん直したかった切り替えタブを見逃す
-  const DARK = /color:\s*(?:[^,;\n]*\?\s*)?(?:'#1[0-9a-fA-F]{2}'|'#1a0d00'|'#1a1a1a'|C\.bg)\b/
+  //   `color:\s*` だけだと `sel ? ` に阻まれて、いちばん直したかった切り替えタブを見逃す。
+  // ★暗い字は**明るさで見る**こと。16進を並べて書くと必ず漏れる
+  //   （`#111` `#1a0d00` `#1a1a1a` を並べていたら、`#0a0818` の公式Xのボタンが素通りした）。
+  const DARK_TOKEN = /color:\s*(?:[^,;\n]*\?\s*)?(?:C\.bg|'(#[0-9a-fA-F]{3,6})')/g
+  const isDarkHex = (h: string): boolean => {
+    const v = h.length === 4 ? h.slice(1).split('').map(c => c + c).join('') : h.slice(1)
+    if (v.length !== 6) return false
+    const [r, g, bl] = [0, 2, 4].map(i => parseInt(v.slice(i, i + 2), 16))
+    return (0.299 * r + 0.587 * g + 0.114 * bl) / 255 < 0.35
+  }
+  const hasDarkText = (w: string): boolean => {
+    for (const m of w.matchAll(DARK_TOKEN)) {
+      if (!m[1]) return true          // C.bg
+      if (isDarkHex(m[1])) return true
+    }
+    return false
+  }
   const hits: string[] = []
   for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
     const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     for (const m of code.matchAll(FILL)) {
       if (m[0].includes('alpha(')) continue        // 透けているものは対象外
       const w = code.slice(Math.max(0, m.index! - 300), m.index! + m[0].length + 300)
-      if (DARK.test(w)) hits.push(`${f}:${code.slice(0, m.index).split('\n').length} ${m[0].slice(0, 60)}`)
+      if (hasDarkText(w)) hits.push(`${f}:${code.slice(0, m.index).split('\n').length} ${m[0].slice(0, 60)}`)
     }
   }
   check('金でベタ塗りして黒い字にしていない', hits.length === 0,

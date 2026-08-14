@@ -125,9 +125,9 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
             <div style={{
               width: '22px', height: '22px',flexShrink: 0,
               border: `1.5px solid ${checked ? C.gold : alpha(C.text, 0.35)}`,
-              background: checked ? C.gold : 'transparent',
+              background: checked ? alpha(C.gold, 0.2) : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#1a1200', fontSize: '14px', fontWeight: 900, lineHeight: 1,
+              color: C.gold, fontSize: '14px', fontWeight: 900, lineHeight: 1,
             }}>
               {checked ? '✓' : ''}
             </div>
