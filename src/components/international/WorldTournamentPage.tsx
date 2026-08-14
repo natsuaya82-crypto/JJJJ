@@ -98,6 +98,20 @@ export default function WorldTournamentPage() {
     setLineupState({})
   }
 
+  // 日本が出ていない大会（予選落ち・観戦のみ）を、代表発表・種目結果の1件ずつのクリックを
+  // 経由せず一気に最終結果へ。残りのレースも裏で最後まで進めてから結果ページへ飛ぶ
+  function skipToResults() {
+    runWithLoading('結果を計算中…', () => {
+      markWorldIndividualsSeen()
+      let cur = useGameStore.getState().worldTournament
+      while (cur && !cur.finished && cur.raceIndex < cur.races.length) {
+        advanceWorldRace()
+        cur = useGameStore.getState().worldTournament
+      }
+      navigate('/national/result')
+    }, 500)
+  }
+
   if (!t) {
     return (
       <div style={{ fontFamily: FONT, background: C.bg, minHeight: '100dvh', color: C.text, padding: 16 }}>
@@ -148,16 +162,20 @@ export default function WorldTournamentPage() {
             })}
           </div>
         </div>
-        {/* 次へは下部固定（タブバー＋広告の上）。スクロール不要 */}
+        {/* 次へは下部固定（タブバー＋広告の上）。スクロール不要。
+            日本が出ていない大会は代表発表を1件ずつ見せられ続けないよう、結果までスキップを並べる */}
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-          <button
-            onClick={() => {
-              if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1)
-              window.scrollTo(0, 0)
-            }}
-            className="btn-game btn-game--purple"
-            style={{ width: '100%' }}
-          ><span className="btn-game__inner">{last ? '駅伝へ →' : `次へ（${WA_EVENT_LABEL[inds[indStep + 1].event]}）→`}</span></button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+            {!t.japanIn && <SkipRaceButton onClick={skipToResults} label="結果までスキップ" />}
+            <button
+              onClick={() => {
+                if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1)
+                window.scrollTo(0, 0)
+              }}
+              className="btn-game btn-game--purple"
+              style={{ flex: 1 }}
+            ><span className="btn-game__inner">{last ? '駅伝へ →' : `次へ（${WA_EVENT_LABEL[inds[indStep + 1].event]}）→`}</span></button>
+          </div>
         </div>
       </div>
     )
@@ -196,18 +214,22 @@ export default function WorldTournamentPage() {
             })}
           </div>
         </div>
-        {/* 次へは下部固定・次に何が来るか明記（駅伝第N戦へ / 総合成績へ） */}
+        {/* 次へは下部固定・次に何が来るか明記（駅伝第N戦へ / 総合成績へ）。
+            日本が出ていない大会は種目結果を1件ずつ見せられ続けないよう、結果までスキップを並べる */}
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-          <button
-            onClick={() => {
-              markWorldIndividualRevealed()
-              setRevealOpen(false)
-              if (isFinal) navigate('/national/result')
-              else window.scrollTo(0, 0)
-            }}
-            className="btn-game btn-game--purple"
-            style={{ width: '100%' }}
-          ><span className="btn-game__inner">{nextLabel}</span></button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+            {!t.japanIn && <SkipRaceButton onClick={skipToResults} label="結果までスキップ" />}
+            <button
+              onClick={() => {
+                markWorldIndividualRevealed()
+                setRevealOpen(false)
+                if (isFinal) navigate('/national/result')
+                else window.scrollTo(0, 0)
+              }}
+              className="btn-game btn-game--purple"
+              style={{ flex: 1 }}
+            ><span className="btn-game__inner">{nextLabel}</span></button>
+          </div>
         </div>
       </div>
     )
@@ -231,8 +253,12 @@ export default function WorldTournamentPage() {
         <StandingsTable rows={standRows} onRowLongPress={id => { if (id.startsWith('nat_')) navigate(`/teams/national/${id.slice(4)}`) }} />
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           {pendingReveal ? (
-            // 種目結果が未発表なら、まず結果を見せる（何の結果かを明記）
-            <button onClick={() => { setRevealOpen(true); window.scrollTo(0, 0) }} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">{WA_EVENT_LABEL[t.individuals![revealIdx].event]}の結果を見る →</span></button>
+            // 種目結果が未発表なら、まず結果を見せる（何の結果かを明記）。
+            // 日本が出ていない大会は、見ずに結果まで飛ぶ選択肢も並べる
+            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+              {!t.japanIn && <SkipRaceButton onClick={skipToResults} label="結果までスキップ" />}
+              <button onClick={() => { setRevealOpen(true); window.scrollTo(0, 0) }} className="btn-game btn-game--purple" style={{ flex: 1 }}><span className="btn-game__inner">{WA_EVENT_LABEL[t.individuals![revealIdx].event]}の結果を見る →</span></button>
+            </div>
           ) : done ? (
             <button onClick={() => navigate('/national/result')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">最終結果へ →</span></button>
           ) : t.japanIn ? (
