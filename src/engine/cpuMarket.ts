@@ -248,9 +248,17 @@ export function generateLoanOffers(params: {
   //   「出場率3.5割未満＝干されている」で絞っているのに、こちら（自チームから借りたい）は
   //   年齢しか見ておらず、しかも `comparePlayers('ovr')` の既定が降順なので
   //   **U23で一番強い選手＝主力**を名指ししていた。
+  //
+  //   ★★出場率だけで判定しないこと。**シーズンの頭は全員が出場率0**なので、
+  //     そこだけを見ると**U23で一番強い選手（＝主力の90）に貸出の話が行きます。**
+  //     オーナー指摘（2026-08-14）「レンタルも、主力の90とかをレンタルしようとしてくるのなに？」。
+  //     レース結果に依らない**序列**（走れる7人に入っているか）を先に見ます。
+  const myRoster = [...myPlayers].sort(comparePlayers('ovr'))
   const myPlayFrac = (p: Player) => playRateOf(p.id, playerTeamId, season ?? { races }, teams).fraction
   const myYoung = myPlayers.filter(p =>
-    p.age <= 23 && canLoanOut(p, eligCtx) && myPlayFrac(p) < LOAN_BENCH_PLAY_RATE)
+    p.age <= 23 && canLoanOut(p, eligCtx)
+    && !wouldMakeLineup(myRoster, p)              // 走れる7人に入っている＝主力。貸さない
+    && myPlayFrac(p) < LOAN_BENCH_PLAY_RATE)
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
 
@@ -281,9 +289,14 @@ export function generateLoanOffers(params: {
     //   なり、1部・2部の選手が丸ごとレンタルの出し手候補になっていた
     const playFrac = (pid: string, clubId: string) =>
       playRateOf(pid, clubId, season ?? { races }, teams).fraction
+    // ★こちらも序列を先に見る（相手クラブの主力を借りられないように）。
+    //   出場率だけだとシーズンの頭に相手の主力が候補へ入る
+    const rosterOfClub = (cid: string) => [...(clubIndexOf(players).get(cid) ?? [])]
+      .filter(x => x.status === 'active').sort(comparePlayers('ovr'))
     const cands = players.filter(p =>
       p.teamId !== playerTeamId && p.teamId !== '' && aiTeams.some(t => t.id === p.teamId)
       && p.status === 'active' && !p.loan && p.age <= 26 && ovr(p) < 76 && !loanTargetIds.has(p.id)
+      && !wouldMakeLineup(rosterOfClub(p.teamId), p)
       && playFrac(p.id, p.teamId) < LOAN_BENCH_PLAY_RATE)   // 干されている選手だけが貸しに出される
     const fits = cands.filter(p => myNeedsLoan.includes(p.specialty))
     // 干され組の中では実力上位を提示（借りる価値のある選手にする）

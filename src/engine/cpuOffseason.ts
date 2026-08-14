@@ -16,7 +16,7 @@
 //   残り（解雇・レンタル）は golden が効いているので、切り出して差分ゼロを見れば足りる。
 import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
-import { isOwnedBy } from '../utils/transferEligibility'
+import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
 import { clubIndexOf } from '../utils/rosterSync'
 import { allForeignClubs, domesticCpuTeamIds } from '../utils/clubs'
@@ -199,6 +199,8 @@ export function runCpuLoans(
       if (sid === receiver || (givenLoan[sid] ?? 0) >= 1) continue
       const found = rosterOf(sid).find((p, i) =>
         hasNoPlayingTime(i + 1) && p.age <= LOAN_MAX_AGE
+        // ★レンタルは `TRANSFER_LOCK_YEARS` の対象外（オーナー・2026-08-14「レンタルのみ」）。
+        //   ここは今までどおり「同じ年に二度は動かさない」だけ
         && !loanedIds.has(p.id) && p.joinedYear !== ctx.year
         && needsPlayer(myRoster, p))
       if (found) { candidate = found; senderId = sid; break }
@@ -282,7 +284,7 @@ export function runCpuTrades(
     const buyerRanked = [...buyRoster].sort(comparePlayers('ovr'))
     const buyerSurplus = buyerRanked
       // レンタルで借りている選手は保有権が無いのでトレードに出せない
-      .filter((p, i) => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && p.joinedYear !== ctx.year && hasNoPlayingTime(i + 1))
+      .filter((p, i) => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && !isTransferLocked(p, ctx.year) && hasNoPlayingTime(i + 1))
       .sort((a, b) => calcTransferValue(b) - calcTransferValue(a))
     if (buyerSurplus.length === 0) continue
     const offered = buyerSurplus[0]
@@ -306,7 +308,7 @@ export function runCpuTrades(
       const target = sellRoster.slice(TRADE_SELLER_PROTECTED).find((p, i) =>
         isOwnedBy(p, sellerId) &&
         !tradedIds.has(p.id) &&
-        p.joinedYear !== ctx.year &&
+        !isTransferLocked(p, ctx.year) &&
         needsPlayer(buyRoster, p) && hasNoPlayingTime(i + TRADE_SELLER_PROTECTED + 1) &&
         tradeBalance({ outPlayers: [offered], inPlayers: [p] }, ctx.tradeValueCtx).ok
       )

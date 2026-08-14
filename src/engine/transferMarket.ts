@@ -44,7 +44,7 @@ import { allForeignClubs } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
 import { needsPlayer } from '../utils/squadNeeds'
-import { isOwnedBy } from '../utils/transferEligibility'
+import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { isSurplus, seeksPlayingTime, willRelease, type Destination } from '../utils/transferDecision'
 import {
   acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, perfOf, playerConsentToMove,
@@ -212,8 +212,10 @@ export function runTransferMarket(
       // 借りている選手は出せない（保有権が無い）。
       // ★契約が長く残っている選手は、出す側が渋る（`willRelease`）。壁ではなく坂で、
       //   残り5年でも0ではない。詳しくは utils/transferDecision の willRelease
+      // ★移籍したばかりの選手は出せない（`TRANSFER_LOCK_YEARS`＝2年。レンタルは別）。
+      //   ここが1年だったころ、2回目以降の移籍の**70.1%が「前の年に移ったばかり」**だった
       .filter(({ p }) => isOwnedBy(p, sellClub.id) && !ctx.excludeIds.has(p.id)
-        && p.joinedYear !== ctx.year && willRelease(p, ctx.date))
+        && !isTransferLocked(p, ctx.year) && willRelease(p, ctx.date))
   }
   const sellCandidateCache = new Map<string, SellCandidate[]>(clubs.map(c => [c.id, sellCandidatesOf(c)]))
 

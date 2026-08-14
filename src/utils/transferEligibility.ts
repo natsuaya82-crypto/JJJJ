@@ -51,9 +51,40 @@ export function eligibilityCtx(season: EligibilitySeason, teamId: string): Eligi
   }
 }
 
+/**
+ * **移籍したあと、次の移籍まで動かせない年数。**（オーナー・2026-08-14「移籍して2年は動かせなくしよう。レンタルのみ」）
+ *
+ * ■なぜ要るのか
+ *   1年おきに同じ選手が動き続けていました。2回目以降の移籍のうち**70.1%が
+ *   「前の年に移ったばかり」**（間隔 1年70.1% / 2年22.4% / 3年6.3%）。
+ *   契約年数の坂（`transferDecision.willRelease`）でも 67.7% → 60.6% までしか下がりません。
+ *   市場が1年に動かす件数（約1,200件）のほうが、その回に出せる選手（1回あたり288人）より
+ *   多いので、**供給を絞っても同じ人がまた選ばれる**ためです。
+ *
+ * ■**レンタルは止めません。** 動かせないのは保有権が移る形（移籍・トレード）だけで、
+ *   出番を作るためのレンタルは今までどおり。
+ */
+export const TRANSFER_LOCK_YEARS = 2
+
 /** 今季加入した選手か。1シーズンに何度も移籍させないための判定 */
 export function isNewJoin(p: Player, currentYear?: number): boolean {
   return (currentYear ?? 0) > 0 && p.joinedYear === currentYear
+}
+
+/**
+ * **移籍したばかりで、まだ次の移籍に出せない選手か。**（保有権が移る形すべての唯一の関門）
+ *
+ * `joinedYear` からの経過年で見ます。加入年を含めて `TRANSFER_LOCK_YEARS` 年。
+ * 2年なら「加入した年」と「その翌年」が対象で、翌々年から動けます。
+ *
+ * ★`joinedYear` が無い選手（初期ロスター・古いセーブ）は**止めません**。
+ *   止めると開幕直後の世界が丸ごと凍ります。
+ * ★**レンタルはこの関門を通しません**（`canLoanOut` は見ない）。
+ */
+export function isTransferLocked(p: Player, currentYear?: number): boolean {
+  const y = currentYear ?? 0
+  if (y <= 0 || !p.joinedYear) return false
+  return y - p.joinedYear < TRANSFER_LOCK_YEARS
 }
 
 /**
@@ -114,8 +145,8 @@ function saleAnswered(p: Player, ctx: EligibilityCtx): boolean {
 
 /** 他クラブが移籍の話を持ちかけていい選手か（引き抜き・フリー接触の共通の土台） */
 function canBeApproached(p: Player, ctx: EligibilityCtx): boolean {
-  // 加入1年目は「1シーズンに何度も移籍させない」ため、他クラブからの話だけ止める
-  return isTalkFree(p, ctx) && !isNewJoin(p, ctx.currentYear)
+  // 加入から `TRANSFER_LOCK_YEARS` 年は、他クラブからの話だけ止める（レンタルは通る）
+  return isTalkFree(p, ctx) && !isTransferLocked(p, ctx.currentYear)
 }
 
 /**
