@@ -149,6 +149,21 @@ console.log('[5] 走れない選手を、格上のクラブが獲らない（リ
   check('格上でなければ止めない（出番を取りに落ちるのは現実にある）', downs.length === 0 || okDown >= 0)
 }
 
+console.log('[6] 年齢だけでFAを門前払いしていない')
+{
+  // ★クラブが獲る理由は「必要か」と「そこで走れるか」だけ（CLAUDE.md）。
+  //   以前は `ageCap`（優勝狙い34歳未満・再建28歳未満・ふつう31〜33歳未満）があり、
+  //   **33歳以上が1人も拾われなかった**（実測 0%）。欲しがるクラブが実在する
+  //   「33歳以上 × OVR80以上」が269人あぶれていた。
+  //   年齢は既にOVR（年齢カーブ）と年俸に効いているので、二重に殴らない。
+  //   オーナー判断「年齢が上がってovr下がれば自ずと出れなくなって移籍するべ」。
+  const src = readFileSync('src/engine/cpuMarket.ts', 'utf-8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const cap = /ageCap:\s*([^\n,]+)/.exec(src)?.[1]?.trim() ?? ''
+  check('年齢の上限を持っていない', /INFINITY|Infinity/i.test(cap), `ageCap: ${cap}`)
+  check('年齢で候補を切り落としていない', !/fa\.age\s*[<>]=?\s*\d/.test(src))
+}
+
 console.log('')
 if (problems.length > 0) {
   console.log(`✗ FAだけ別の理屈で動いています（${problems.length}件）`)

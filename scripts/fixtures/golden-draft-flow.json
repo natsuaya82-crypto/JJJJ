@@ -26,7 +26,7 @@
  "pendingGifts": "4f53cda18c2baa0c (2B)",
  "pendingGmMove": "74234e98afe7498f (4B)",
  "playerTeamId": "6e7823b6e67138d4 (7B)",
- "players": "bd22ff12b49ceae0 (3742499B)",
+ "players": "dedc75c43cdaf973 (3742483B)",
  "raceDroppedCards": "4f53cda18c2baa0c (2B)",
  "raceLineup": "44136fa355b3678a (2B)",
  "raceStrategy": "61eb5aa337d3a2d3 (10B)",
@@ -40,11 +40,11 @@
  "teams": "aaacb794ec52d8aa (28104B)",
  "totalLoginDays": "eb045d78d2731073 (9B)",
  "trainingCards": "4f53cda18c2baa0c (2B)",
- "transferHistory": "cbc0f6a8c12ab0e4 (23564B)",
+ "transferHistory": "18c0169947cf88bf (23310B)",
  "twitterIntroSeen": "fcbcf165908dd18a (5B)",
  "version": "8e633b4f41f99d4c (7B)",
  "worldAthleticsResults": "4f53cda18c2baa0c (2B)",
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "4f53cda18c2baa0c (2B)",
- "$all": "eb82f461e2ded21d (3932592B)"
+ "$all": "cb3337bdd7fcbafe (3932322B)"
 }

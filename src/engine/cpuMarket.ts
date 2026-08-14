@@ -102,7 +102,6 @@ export function pickCpuFreeAgents(a: {
   const faCtxList = cpuTeamsSorted.map(team => {
     // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
     const currentRoster = (clubIndexOf(players).get(team.id) ?? []).filter(p => p.status === 'active')
-    const tier = tierOf(team)
     const totalNow = currentRoster.length
     // 運用方針と予算
     const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
@@ -124,9 +123,17 @@ export function pickCpuFreeAgents(a: {
       spent: 0, signed: 0,
       needs: cpuSpecialtyNeeds(team.id, players),
       specCounts: {} as Record<string, number>,
-      // 高齢FAとは契約しない：優勝狙いでも33歳まで、通常は32歳まで、エリートは若手志向、再建は27歳まで
-      // 格が高いクラブほど若手志向（格1で31歳まで、格20で33歳まで）。強さの物差しは格1本
-      ageCap: strat === 'contend' ? 34 : strat === 'rebuild' ? 28 : 31 + Math.round(2 * (1 - tierStrength(tier))),
+      // ★**年齢で門前払いしない。** クラブが獲る理由は「必要か」と「そこで走れるか」だけ
+      //   （CLAUDE.md。OVRの下限表を置かないのと同じ話で、物差しが年齢に変わっただけだった）。
+      //   以前は「優勝狙いは34歳未満・再建は28歳未満・ふつうは31〜33歳未満」という
+      //   関門があり、**33歳以上は1人も拾われなかった**（実測 0%）。
+      //   欲しがるクラブが実在する「33歳以上 × OVR80以上」が269人いて全員あぶれていた。
+      //
+      //   年齢は既に二重に効いている：OVRは年齢カーブで落ちるので `needsPlayer` /
+      //   `wouldMakeLineup` を通りにくくなるし、年俸（`faMarketSalary`）も下がる。
+      //   オーナー判断（2026-08-14）「年齢が上がってovr下がれば自ずと出れなくなって移籍するべ」。
+      //   ★再建中のクラブが若手を好むのは下の `pool`（27歳以下・伸びしろ順）で表す。
+      ageCap: Number.POSITIVE_INFINITY,
       // 若手再建はポテンシャル・若さ優先、それ以外はOVR優先（availableFAsは既にOVR降順）
       pool: strat === 'rebuild'
         ? [...availableFAs].filter(p => p.age <= 27).sort((a, b) => (b.potential - a.potential) || (a.age - b.age))
