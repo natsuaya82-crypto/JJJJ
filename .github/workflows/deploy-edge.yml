@@ -84,14 +84,17 @@ jobs:
 
       # 上げただけでは動いたか分からないので、頼まれたら1回叩いて中身を出す。
       # 何度叩いても同じ結果になる（締め済みの日は素通り・その日の回は作り直さない）
+      # ★キーが無いだけで**赤くしない**。デプロイは終わっているのに、任意の確認が
+      #   落ちたせいで全体が失敗に見えるのは嘘になる（実際にオーナーが混乱した）。
       - name: 1回叩いて確かめる
         if: ${{ inputs.verify }}
         env:
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ -z "$SERVICE_KEY" ]; then
-            echo "::error::SUPABASE_SERVICE_ROLE_KEY が登録されていません（確かめるときだけ要ります）"
-            exit 1
+            echo "::warning::SUPABASE_SERVICE_ROLE_KEY が登録されていないので、確認は飛ばしました（デプロイは終わっています）"
+            echo "確認を使いたいときは Settings → Secrets に SUPABASE_SERVICE_ROLE_KEY を登録してください" >> $GITHUB_STEP_SUMMARY
+            exit 0
           fi
           echo "--- rated-tick を叩きます"
           curl -sS -X POST "https://${PROJECT_REF}.supabase.co/functions/v1/rated-tick" \
