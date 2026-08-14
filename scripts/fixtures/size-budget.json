@@ -11,7 +11,7 @@
  "src/store/marketOps.ts": 204,
  "src/store/persistence/migrateSave.ts": 592,
  "src/store/persistence/normalizeSave.ts": 201,
- "src/store/saveStorage.ts": 637,
+ "src/store/saveStorage.ts": 654,
  "src/store/slices/competitionSlice.ts": 405,
  "src/store/slices/competitionSlice.ts::advanceEclRace": 173,
  "src/store/slices/competitionSlice.ts::advanceMarketOneRace": 74,

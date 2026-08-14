@@ -374,8 +374,25 @@ let pendingName = ''
 /** 溜めてある状態をJSONにして、ガードを通して書き込む。何も溜まっていなければ何もしない */
 function serializePending(): void {
   if (pendingState == null) return
-  const value = JSON.stringify(pendingState)
-  pendingState = null
+  const state = pendingState
+  pendingState = null   // 失敗しても握り続けない（次のタイマーで同じ物を投げ直さない）
+  let value: string
+  try {
+    value = JSON.stringify(state)
+  } catch (e) {
+    // 【ここで黙ってはいけない】JSON化できない状態は、これ以降ずっと保存できない。
+    // そのまま遊ばせると、画面の中だけが進んでファイルは何時間も前のまま＝
+    // 次の起動でその時間ぶんが丸ごと消える。**気づける形で止める。**
+    //
+    // 以前は persist が set() の中でJSON化していたので、失敗すればその場で画面が落ちて
+    // 分かった。JSON化を遅らせた（＝タイマーの中でやる）ことで、落ちても誰も気づかない
+    // 形になったため、ここで saveHealth を failed にして復旧画面へ回す。
+    // ファイルには最後に書けた正常なセーブが残っているので、そこへ戻せる。
+    safeMode = true
+    setSaveHealth('failed', 'セーブを書き出せませんでした（データの形が壊れています）')
+    console.error('[save] BLOCKED: JSON.stringify failed; entering safe mode', e)
+    return
+  }
   if (!stageWrite(pendingName, value)) return
   if (!isNative) { localStorage.setItem(pendingName, value); return }
   pending = value

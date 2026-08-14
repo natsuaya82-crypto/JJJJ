@@ -114,6 +114,18 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
 | `src/store/saveStorage.ts` の `stageWrite` | **セーブを書いてよいかの関門**。セーフモード・新規状態での上書き・中身が消し飛んだ判定。入口は2つ（文字列を渡す `saveStorage` と、状態を渡す `jsonSaveStorage`）だが判定は1本 |
 | `src/store/saveStorage.ts` の `jsonSaveStorage` | **セーブのJSON化のタイミング**。persist は set() のたびに数MBをJSON化するので、`createJSONStorage` を使わず状態のまま受け取り、**書き込みと同じデバウンスの中で1回だけ**JSON化する（10MBのセーブで set() 1回 73ms → 4ms）。待ち時間は `WRITE_DELAY_MS` 1本。**`flushSaveNow` は溜めたぶんのJSON化を必ず先に済ませること**（飛ばすと直前の操作が書かれない） |
+
+**JSON化を遅らせたので、`set()` に渡すものは必ず作り直すこと。** persist は状態の実体を
+最大 `WRITE_DELAY_MS` のあいだ握っています。その間に**中身を直に書き換える**場所があると、
+`set()` したときの姿ではなく「あとの姿」が書かれ、書き換えの途中で挟まれば半分だけ進んだ
+状態が保存されます。いまは28操作・36回の `set()` すべてで0件（`check-save-snapshot` が
+実際に流して突き合わせます）。
+
+**JSON化が失敗したら黙らずに止めること。** `set()` の中でJSON化していた頃は、失敗すれば
+その場で画面が落ちて分かりました。タイマーの中へ移したぶん、拾わないと**誰も気づかないまま
+保存だけが止まります**（画面の中だけが進んでファイルは何時間も前のまま＝次の起動でその
+時間ぶんが丸ごと消える）。`serializePending` は失敗を掴んで `saveHealth` を failed にし、
+復旧画面へ回します。
 | `supabase/all.sql` | **サーバー側（Supabase）の全部**。表・関数・ポリシー・権限。**流すのはこの1本だけ**（下の節） |
 | `supabase/all.sql` の `club_member_cap` | **走友会の人数の上限（30）**。以前は入るとき30・承認だけ50で、承認制の走友会だけ50人まで入れた |
 

@@ -19,6 +19,9 @@
  *   ④ flushSaveNow が、まだJSON化していないぶんも書くこと
  *      （ここを飛ばすと「レース確定の直後に落ちると1レース消える」）
  *   ⑤ データ削除のあとに、溜めていたぶんが書き戻らないこと
+ *   ⑥ JSON化そのものが失敗したとき、黙らずに止まること
+ *      （set() の中でやっていた頃は失敗すれば画面が落ちて分かった。タイマーへ移した
+ *        ぶん、拾わないと誰も気づかないまま保存だけが止まる）
  */
 import { readFileSync } from 'node:fs'
 
@@ -79,6 +82,7 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 async function runtimeChecks() {
   const { jsonSaveStorage, saveStorage, flushSaveNow, deleteSaveForRecovery } = await import('../src/store/saveStorage')
+  const { getSaveHealth } = await import('../src/store/saveHealth')
 
   // 進行中のセーブがある状態にしておく（ガードを本番と同じ向きに効かせる）
   localStorage.setItem(KEY, realStringify(mkState(300, 'loaded')))
@@ -115,6 +119,21 @@ async function runtimeChecks() {
   await wait(700)
   check('データ削除から消したセーブも復活しない', localStorage.getItem(KEY) === null,
     `${(localStorage.getItem(KEY) ?? '').slice(0, 60)}`)
+
+  console.log('[6] JSON化に失敗したら、黙らずに止まる')
+  // JSON化を set() の中でやっていた頃は、失敗すればその場で画面が落ちて分かった。
+  // タイマーの中へ移したので、拾わないと**誰も気づかないまま保存だけが止まる**。
+  // 画面の中だけが進んでファイルは何時間も前のまま＝次の起動でその時間ぶんが消える
+  const good = localStorage.getItem(KEY)
+  const bad = mkState(300, 'bad') as unknown as { state: Record<string, unknown> }
+  bad.state.self = bad                     // JSON化できない状態（循環参照）
+  jsonSaveStorage.setItem(KEY, bad as never)
+  await wait(700)
+  check('saveHealth が failed になる（復旧画面へ回る）', getSaveHealth() === 'failed', getSaveHealth())
+  check('最後に書けた正常なセーブは残る', localStorage.getItem(KEY) === good)
+  jsonSaveStorage.setItem(KEY, mkState(300, 'あと') as never)
+  await wait(700)
+  check('止まったあとは書き込みを一切通さない', localStorage.getItem(KEY) === good)
 }
 
 async function main() {
