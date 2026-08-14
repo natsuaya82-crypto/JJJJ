@@ -1,0 +1,82 @@
+name: ランクマッチの10:00
+
+# ============================================================================
+# **毎日 日本時間10:00 に `rated-tick` を叩く。**
+#
+# ■なぜ GitHub から叩くのか
+#   本来は Supabase 側のスケジュール（Edge Functions → Schedules、または
+#   Integrations → Cron）で回すのが筋。ただしあの画面はプランや版によって
+#   出ないことがあり、実際に見つからなかった。**探し回るより、こちらから
+#   毎日叩くほうが確実**なので、GitHub の cron を使う。
+#
+#   Supabase 側のスケジュールが使えるようになったら、そちらへ移して
+#   **このファイルを消すこと**（両方から叩いても壊れはしないが、二重は混乱のもと）。
+#
+# ■オーナーがやることは無い
+#   キーは `src/lib/supabase.ts` に入っている公開キー（アプリに焼き込まれている
+#   もの＝隠す必要が無いキー）をそのまま使う。**Secret の登録は要らない。**
+#
+# ■気をつけること
+#   ・GitHub の cron は**数分ずれることがある**（10:00ちょうどではなく10:05など）。
+#     結果の発表が数分遅れるだけで、締め切り（23:59）の判定はサーバー側なので影響しない。
+#   ・**リポジトリを60日さわらないと GitHub が自動で止める。** 大会は14日なので
+#     期間中は問題ないが、次の大会の前には Actions の画面で有効か見ること。
+#   ・`rated-tick` が service_role キーを要求する作りに変えたら、ここも直すこと
+#     （公開キーでは通らなくなる）。
+#
+# ■何度叩いても同じ結果になる
+#   締め済みの回は素通り、その日の回は作り直さない。だから失敗しても次の日に
+#   取り戻せるし、手で Run workflow を押しても害は無い。
+# ============================================================================
+
+on:
+  schedule:
+    # UTC 01:00 ＝ 日本時間 10:00。**日本時間で書かないこと**（GitHub は UTC）
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+env:
+  PROJECT_REF: yqwjmpbxkyunqjrjqtug
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: rated-tick を叩く
+        run: |
+          # ★キーをここに書かない。アプリと同じ1本（src/lib/supabase.ts）から取る。
+          #   書き写すと、キーを入れ替えたときにこちらだけ古いままになる
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' src/lib/supabase.ts | head -1)
+          if [ -z "$KEY" ]; then
+            echo "::error::src/lib/supabase.ts から公開キーを取れませんでした"
+            exit 1
+          fi
+
+          echo "--- POST /functions/v1/rated-tick"
+          CODE=$(curl -sS -o /tmp/tick.json -w '%{http_code}' --max-time 120 \
+            -X POST "https://${PROJECT_REF}.supabase.co/functions/v1/rated-tick" \
+            -H "Authorization: Bearer $KEY" \
+            -H "apikey: $KEY")
+
+          echo "HTTP $CODE"
+          cat /tmp/tick.json
+          echo
+
+          {
+            echo "## ランクマッチの10:00"
+            echo ""
+            echo "HTTP \`$CODE\`"
+            echo ""
+            echo '```json'
+            cat /tmp/tick.json
+            echo ""
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CODE" != "200" ] || ! grep -q '"ok":true' /tmp/tick.json; then
+            echo "::error::rated-tick が失敗しました（上の中身を見てください）"
+            exit 1
+          fi
