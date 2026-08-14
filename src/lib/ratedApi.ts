@@ -117,22 +117,57 @@ function toLineup(o: unknown): Record<number, string> {
 }
 
 /**
- * その日のコースと締め切り。**まだ 10:00 前**（か大会をやっていない）なら null。
- * コースそのものは日付から端末で作る——サーバーと同じ `ratedCourse` なので必ず一致する。
+ * **大会そのものの情報。** 始まる前でも返る（イベント一覧に「9月1日から」と出すため）。
+ * 大会をやっていない・通信できないときだけ null。
  */
-export async function fetchToday(): Promise<RatedToday | null> {
+export type RatedEventInfo = {
+  name: string
+  /** 開始日（`YYYY-MM-DD`） */
+  startsOn: string
+  totalDays: number
+  /** その日ぶんの受付が始まっているか（10:00 を過ぎたか） */
+  open: boolean
+  /** 開催中のみ。何日目か */
+  day: number
+  /** 開催中のみ。締め切りまでの残り（分） */
+  minutesLeft: number
+  /** 開催中のみ。その日の日付 */
+  dateISO: string
+}
+
+export async function fetchEvent(): Promise<RatedEventInfo | null> {
   const d = await call<{
-    open: boolean; name?: string; day?: number; totalDays?: number
+    open: boolean; name?: string; startsOn?: string; day?: number; totalDays?: number
     dateISO?: string; minutesLeft?: number
   }>('rated_today')
-  if (!d?.open || !d.dateISO) return null
+  if (!d || !d.name) return null
   return {
-    name: d.name ?? '',
-    day: d.day ?? 0,
+    name: d.name,
+    startsOn: d.startsOn ?? '',
     totalDays: d.totalDays ?? 0,
-    dateISO: d.dateISO,
-    course: ratedCourse(d.dateISO),
+    open: !!d.open,
+    day: d.day ?? 0,
     minutesLeft: d.minutesLeft ?? 0,
+    dateISO: d.dateISO ?? '',
+  }
+}
+
+/**
+ * その日のコースと締め切り。**まだ 10:00 前**（か大会をやっていない）なら null。
+ * コースそのものは日付から端末で作る——サーバーと同じ `ratedCourse` なので必ず一致する。
+ *
+ * ★`fetchEvent` と同じ rpc を1回呼ぶだけ。**大会の情報を2か所から引かないこと。**
+ */
+export async function fetchToday(): Promise<RatedToday | null> {
+  const e = await fetchEvent()
+  if (!e?.open || !e.dateISO) return null
+  return {
+    name: e.name,
+    day: e.day,
+    totalDays: e.totalDays,
+    dateISO: e.dateISO,
+    course: ratedCourse(e.dateISO),
+    minutesLeft: e.minutesLeft,
   }
 }
 

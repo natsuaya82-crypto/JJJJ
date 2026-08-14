@@ -70,9 +70,13 @@ export default function OnlinePage() {
       ),
     },
     {
-      // イベント → レート戦（docs/ONLINE_RATED_DESIGN.md）。
-      // いまはレート戦だけなので、そのままレート戦の画面へ入る
-      key: '/online/rated', label: 'イベント', en: 'EVENTS',
+      // イベント → **一覧の画面**（docs/ONLINE_RATED_DESIGN.md）。
+      // ★以前はここから直接レート戦の画面へ入っていたので、押した瞬間に見出しが
+      //   「イベント」から変わり、間に何も無かった。**ランクマッチ以外のイベントも
+      //   やるので、一覧を挟む**（オーナー・2026-08-14「別もやるから分けて」）。
+      // ★一覧に載せるのは**オンラインのイベントだけ**。カード強化の大成功アップの
+      //   ような、押して入る場所でないものを混ぜないこと（オーナーの指摘）。
+      key: '/online/events', label: 'イベント', en: 'EVENTS',
       badge: 0, color: C.green,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">

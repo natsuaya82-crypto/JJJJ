@@ -38,7 +38,7 @@ function ratedCourse(dateISO) {
   }
   return {
     id: `rated-${dateISO}`,
-    name: `\u30EC\u30FC\u30C8\u6226 ${dateISO}`,
+    name: `\u30E9\u30F3\u30AF\u30DE\u30C3\u30C1 ${dateISO}`,
     date: dateISO,
     location: "\u30AA\u30F3\u30E9\u30A4\u30F3",
     type: "league",
@@ -57,7 +57,7 @@ function ratedMatchCourse(dateISO) {
   const r = ratedCourse(dateISO);
   return {
     id: r.id,
-    name: `\u30EC\u30FC\u30C8\u6226 ${dateISO}`,
+    name: `\u30E9\u30F3\u30AF\u30DE\u30C3\u30C1 ${dateISO}`,
     category: "main",
     location: r.location,
     segments: r.segments,

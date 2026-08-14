@@ -1,5 +1,5 @@
 // ============================================================================
-// **レート戦のコース。日付から作る唯一の決まり。**
+// **ランクマッチのコース。日付から作る唯一の決まり。**
 //
 // オーナー判断（2026-08-13）
 //   「はちゃめちゃに毎回コース作ってやる」「8〜15区間、コースもランダム」
@@ -65,7 +65,7 @@ export function ratedCourse(dateISO: string): Race {
   }
   return {
     id: `rated-${dateISO}`,
-    name: `レート戦 ${dateISO}`,
+    name: `ランクマッチ ${dateISO}`,
     date: dateISO,
     location: 'オンライン',
     type: 'league',
@@ -87,19 +87,19 @@ export function courseDistanceKm(race: Race): number {
  * その日のコースを、**オンライン対戦の画面と計算が読める形**（`MatchCourse`）にする。
  *
  * ★`data/matchCourses` の一覧（`courseById`）では引けない。あれは固定の25本＋ECLで、
- *   レート戦のコースは日付から作るので載っていない。**画面もサーバーもここを呼ぶこと。**
+ *   ランクマッチのコースは日付から作るので載っていない。**画面もサーバーもここを呼ぶこと。**
  *   以前は `lib/ratedApi` の中にあったが、Edge Function（サーバー）からも要るので engine に置く
  *   （lib は Supabase を import するので、サーバー側から読ませたくない）。
  */
 export function ratedMatchCourse(dateISO: string): MatchCourse {
   const r = ratedCourse(dateISO)
   return {
-    id: r.id, name: `レート戦 ${dateISO}`, category: 'main', location: r.location,
+    id: r.id, name: `ランクマッチ ${dateISO}`, category: 'main', location: r.location,
     segments: r.segments, conditions: r.conditions, distanceKm: courseDistanceKm(r),
   }
 }
 
-/** レート戦のコースIDから日付を取り出す。`rated-YYYY-MM-DD` 以外なら undefined */
+/** ランクマッチのコースIDから日付を取り出す。`rated-YYYY-MM-DD` 以外なら undefined */
 export function ratedCourseOf(id: string): MatchCourse | undefined {
   const m = /^rated-(\d{4}-\d{2}-\d{2})$/.exec(id)
   return m ? ratedMatchCourse(m[1]) : undefined

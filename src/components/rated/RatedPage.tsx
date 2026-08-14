@@ -15,7 +15,7 @@ import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import type { Segment } from '../../types'
 
 // ============================================================================
-// レート戦のトップ。イベント → レート戦 → ここ。
+// ランクマッチのトップ。オンライン → イベント（一覧）→ ここ。
 //
 // ★見た目の方針（オーナー指示・2026-08-13）
 //   ・**カードを積まない。** 細い横線と余白で区切る
@@ -105,8 +105,8 @@ export default function RatedPage() {
     <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: 96 }}>
       {/* ── 見出し ── */}
       <PageHeader
-        eyebrow="RANKED SERIES"
-        title="レート戦"
+        eyebrow="RANKED MATCH"
+        title="ランクマッチ"
         right={<div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>SEASON</div>
           <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.textSub, lineHeight: 1 }}>{year ?? ''}</div>
@@ -272,11 +272,11 @@ export default function RatedPage() {
         </>
       )}
 
-      {/* ── 順位表・昨日の結果 ── */}
+      {/* ── 順位表・前日の結果 ── */}
       <div style={{ display: 'flex', padding: '14px 14px 0' }}>
         {([
           { label: '順位表', en: 'RANKING', to: '/online/rated/standings', on: true },
-          { label: '昨日の結果', en: 'YESTERDAY RESULT', to: '/online/rated/result', on: !!result },
+          { label: '前日の結果', en: 'LAST RESULT', to: '/online/rated/result', on: !!result },
         ] as const).map((b, i) => (
           <PressButton
             key={b.to}
