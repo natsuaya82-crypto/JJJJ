@@ -1,7 +1,7 @@
 import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
-import { titleRows } from '../../utils/teamHistory'
+import { topTitleCount } from '../../utils/teamHistory'
 import { C, alpha, SAIRA, F, PAGE_X } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 
@@ -23,7 +23,8 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
   //   部ごとの内訳（1部2 / 3部1）は、幅のある記録室とチーム画面で出す。
   //   ここは3つ並ぶ数字の1つなので、他の2つ（GM評判・モラール）と同じく数字1つにする。
   const titles = useTeamHistory(team.id).titles
-  const jpelTitles = titleRows(titles).reduce((n, r) => n + r.count, 0)
+  // ★**1部の優勝だけ**を数える（オーナー判断・2026-08-14）。utils/teamHistory の1本
+  const jpelTitles = topTitleCount(titles)
   const moraleColor = avgMorale >= 75 ? C.green : avgMorale >= 50 ? C.gold : C.red
 
   return (

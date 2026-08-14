@@ -1,5 +1,5 @@
 import type { SeasonStanding, Division } from '../types'
-import { DIVISIONS, divisionInSeason, rankedStandings, seasonDivisionStandings, rankOfTeam, standingsByDivision } from './league'
+import { DIVISIONS, TOP_DIVISION, divisionInSeason, rankedStandings, seasonDivisionStandings, rankOfTeam, standingsByDivision } from './league'
 import { makeTeamIdAt } from './gmTenure'
 import type { GmTenure } from '../types'
 
@@ -28,9 +28,11 @@ export type TeamHistory = {
    *   3部優勝も1部優勝も同じ1回として積まれるので、合計だけ見せると
    *   「3部で4回優勝」が「1部で1回優勝」より上に並ぶ。見せるときは必ず `titles` を使う。
    *   合計は「優勝経験があるか」の判定など、部を問わない場面だけに使う。
-   *   **例外はホームの数字3つだけ**（オーナー・2026-08-14「流石にjpelだけでいい」）。
-   *   GM評判・モラールと並ぶ1マスなので数字1つにし、ラベルを「JPEL優勝」にして
-   *   何の優勝かを出している。内訳を出すのは幅のある記録室とチーム画面。
+   *
+   *   ★**数字1つで出すところは、合計ではなく `topTitleCount`（1部だけ）を使う**
+   *     （オーナー・2026-08-14「3部の優勝と1部の優勝が並ぶ意味がわからない。
+   *     1部だけでいいって判断」）。ホームの「JPEL優勝」・フレンド詳細・GMカードの3か所。
+   *     内訳（`titleRows`）を出すのは幅のある記録室・チーム詳細・歴代優勝・記録のハブ。
    */
   championships: number
   /** **部ごとの優勝回数。**画面はこちらを出す（1部★2 2部★1 のように） */
@@ -164,4 +166,20 @@ export function compareTitles(a: TeamHistory['titles'], b: TeamHistory['titles']
 /** 部ごとの優勝を「上の部から」並べて返す（画面はこの順で出す） */
 export function titleRows(titles: TeamHistory['titles']): { division: Division; count: number }[] {
   return DIVISIONS.map(d => ({ division: d, count: titles[d] ?? 0 })).filter(r => r.count > 0)
+}
+
+/**
+ * **「◯回」と1つの数で出すときの優勝回数＝1部の優勝だけ。**
+ *
+ * ★オーナー判断（2026-08-14）「3部の優勝と1部の優勝が並ぶ意味がわからない。
+ *   1部だけでいいって判断」。**全部の部を足さないこと**——3部優勝2回と
+ *   1部優勝2回が同じ「2回」になるのが、そもそも部ごとに分けた理由だった。
+ *   足すのをやめて、下の部を数えないことで解決している。
+ *
+ * ★使うのは**ホームとフレンドから見えるところだけ**（ホームのJPEL優勝・
+ *   フレンド詳細・GMカード）。記録室・チーム詳細・歴代優勝・記録のハブは
+ *   部ごとのまま（`titleRows`）＝自分の歴史としては3部優勝も残す。
+ */
+export function topTitleCount(titles: TeamHistory['titles'] | undefined): number {
+  return titles?.[TOP_DIVISION] ?? 0
 }

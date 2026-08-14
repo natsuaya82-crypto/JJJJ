@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { TeamLogoSVG } from '../icons/Icons'
-import { DeltaText, MoveArrow, RankChip, RatedShell } from './ratedUi'
+import { DeltaText, MoveArrow, RankBadge, RatedShell } from './ratedUi'
 import { fetchStandings, STANDINGS_TOP, type RatedRow, type RatedStandings } from '../../lib/ratedApi'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
@@ -21,7 +21,8 @@ function Row({ r, rank }: { r: RatedRow; rank: number }) {
         <div style={{ fontSize: F.body, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
         <div style={{ fontSize: F.tiny, color: C.textDim }}>GM {r.gmName}</div>
       </div>
-      <RankChip rating={r.rating} size="sm" />
+      {/* 段位は**紋章**。カタカナで書かない（絵が7枚あるのだから絵を出す） */}
+      <RankBadge rating={r.rating} size={22} />
       <span style={{ width: 40, textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
         <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.text }}>{r.rating}</span>
         <DeltaText delta={r.delta} />

@@ -13,8 +13,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { getFriend, getFriendShare, removeFriend, listFriends, listSent, sendRequest, SEND_RESULT_TEXT, type SharedRoster } from '../../lib/friendsApi'
 import { clubsOfUsers, type UserClub } from '../../lib/clubsApi'
 import { clubLogoSrc } from '../../data/clubLogos'
-import { titleRows } from '../../utils/teamHistory'
-import { DIVISION_LABEL } from '../../utils/league'
+import { topTitleCount } from '../../utils/teamHistory'
 import type { Specialty } from '../../types'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
@@ -125,12 +124,11 @@ export default function FriendDetailPage() {
   }
 
   const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + ovr(p), 0) / roster.length) : 0
-  // 通算優勝は**部ごと**に出す（3部で3回と1部で3回を同じ「3回」にしない）。
-  // 内訳を送っていない古い版の相手だけ、今までどおり合計を出す
-  const rows = friend ? titleRows(friend.titles) : []
-  const champsText = rows.length > 0
-    ? rows.map(r => `${DIVISION_LABEL[r.division]}${r.count}`).join(' / ')
-    : `${friend?.champs ?? 0}回`
+  // ★通算優勝は**1部だけ**を「◯回」で出す（オーナー判断・2026-08-14
+  //   「3部の優勝と1部の優勝が並ぶ意味がわからない。1部だけでいいって判断」）。
+  //   数え方は utils/teamHistory の topTitleCount 1本。**合計を出さないこと**——
+  //   3部優勝と1部優勝が混ざるので、足すのではなく下の部を数えないことで解決している。
+  const champsText = `${topTitleCount(friend?.titles)}回`
 
   const sorted = [...roster].sort((a, b) => {
     if (sortKey === 'age') return a.age - b.age || ovr(b) - ovr(a)

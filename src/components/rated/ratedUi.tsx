@@ -4,18 +4,27 @@ import PageHeader from '../ui/PageHeader'
 
 import { RANK_ART } from './rankArt'
 
-// レート戦の3ページ（トップ・結果・順位表）で共通の見た目。
-// ★段位の名前は `engine/rating` の rankOf 1本。ここが持つのは色だけ。
+// ランクマッチの3ページ（トップ・結果・順位表）で共通の見た目。
+// ★段位の名前は `engine/rating` の rankOf 1本。ここが持つのは見た目だけ。
 
-export function RankChip({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' }) {
+/**
+ * **段位の紋章。名前の横に出すのはこれ1本。**
+ *
+ * ★**カタカナで「マスター」と書かないこと**（オーナー・2026-08-14
+ *   「マスターってなんでカタカナ表示なんだよw なんのためのパッチだよ」）。
+ *   絵が7枚あるのだから絵を出す。名前は読み上げ用の alt にだけ入れる。
+ * ★**ランクマッチに一度も出ていない人は何も出さない**（オーナー判断）。
+ *   `rating` に undefined を渡すと null を返すので、呼ぶ側で分岐しないこと。
+ */
+export function RankBadge({ rating, size = 20 }: { rating: number | undefined; size?: number }) {
+  if (rating == null) return null
   const name = rankOf(rating)
-  const col = RANK_ART[name].color
   return (
-    <span style={{
-      fontSize: size === 'sm' ? 9 : 11, fontWeight: 900, color: col,
-      background: alpha(col, 0.14), border: `1px solid ${alpha(col, 0.5)}`,
-padding: size === 'sm' ? '1px 5px' : '2px 8px', whiteSpace: 'nowrap',
-    }}>{name}</span>
+    <img
+      src={RANK_ART[name].img} alt={name} width={size} height={size}
+      draggable={false}
+      style={{ display: 'block', flexShrink: 0, objectFit: 'contain' }}
+    />
   )
 }
 
