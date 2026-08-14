@@ -26,10 +26,12 @@
 // ■ 新しい大会を足すとき
 //   simulateRace を直接呼ばず、ここを呼ぶこと。scripts/check-single-source.ts が見張っている。
 
-import type { Player, Race, Team } from '../types'
+import type { Facilities, Player, Race, Team } from '../types'
 import { simulateRace, bgLineup } from './raceEngine'
 export { bgLineup } from './raceEngine'
 import { segmentPrizeByTeam } from '../utils/league'
+import { withFacilityBoost } from './raceBoosts'
+import { type TieredTeam } from '../utils/clubTier'
 
 /** 1チーム分の出走者。roster は「出られる人」を呼ぶ側が絞ったもの */
 export type BgEntrant = {
@@ -74,6 +76,12 @@ export function runBackgroundRace(o: {
   players: Player[]
   /** 本拠地補正に使う。海外クラブ・代表は teams に居ないので渡さなくてよい（中立） */
   teams?: Team[]
+  /**
+   * **施設（戦術室）を効かせる相手**。渡さなければ `teams` を使う。
+   * 海外リーグ・ECL は `teams` に居ないクラブが走るので、そちらを渡すこと
+   * （渡さないと**自分の部だけが速くなり、区間記録が偏る**）。
+   */
+  clubs?: readonly (TieredTeam & { id?: string; facilities?: Facilities })[]
   seasonProgress: number
   /**
    * 保存するレースのID。同じコースを同じ日に複数の集まりが走るとき（海外9リーグ・
@@ -84,7 +92,10 @@ export function runBackgroundRace(o: {
   const lineups: Record<string, Record<number, string>> = {}
   for (const e of o.entrants) lineups[e.id] = bgLineup(e.roster, o.race, e.lineup, e.reserve)
 
-  const results = simulateRace(o.race, lineups, o.teams ?? [], o.players, o.seasonProgress)
+  // ★施設のぶんは `engine/raceBoosts` の `withFacilityBoost` 1本
+  //   （自分が走るレースとまったく同じ処理）。ここで別の式を書かないこと
+  const players = withFacilityBoost(o.players, o.clubs ?? o.teams ?? [])
+  const results = simulateRace(o.race, lineups, o.teams ?? [], players, o.seasonProgress)
 
   const points: Record<string, number> = {}
   const ranks: Record<string, number> = {}

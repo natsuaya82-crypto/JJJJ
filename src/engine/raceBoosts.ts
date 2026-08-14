@@ -1,20 +1,41 @@
 // レース勝利ボーナス等の一時ブースト適用（gameStore から移設）。RacePage と store の両方から使う。
 
-import { type Player, type Team } from '../types'
+import { type Facilities, type Player, type Team } from '../types'
 import { withMorale } from '../utils/condition'
+import { facilitiesOf } from '../utils/facilities'
+import { type TieredTeam } from '../utils/clubTier'
 
-export function applyRaceBoosts(
-  players: Player[], teams: Team[], playerTeamId: string, lineup: Record<number, string>,
+/**
+ * **戦術室のぶんを能力に乗せる。ここ1本。**
+ *
+ * ★自分が走るレース（`applyRaceBoosts`）も、裏で走るレース
+ *   （`engine/backgroundRace` の `runBackgroundRace`）も**同じここを通す**。
+ *   自分の部だけに乗せると、同じコースを分け合っている他の部との差が付き、
+ *   **区間記録が自分の部に偏る**（実測で優勝タイムが1〜2分ちがう）。
+ * ★施設のレベルは `utils/facilities` の `facilitiesOf` 1本
+ *   （格から出る土台＋自分で建てたぶん）。`facilities` を直接読まないこと。
+ * ★クラブが分からない走者（代表チームなど）は素通り。持っていないものは効かない。
+ */
+export function withFacilityBoost(
+  players: Player[],
+  clubs: readonly (TieredTeam & { id?: string; facilities?: Facilities })[],
 ): Player[] {
-  const tacticsLvByTeam = new Map(teams.map(t => [t.id, t.facilities?.tacticsRoom ?? 0]))
-  const boosted = players.map(p => {
-    const boost = tacticsLvByTeam.get(p.teamId) ?? 0
-    if (boost <= 0) return p
+  if (clubs.length === 0) return players
+  const lvById = new Map(clubs.filter(c => c.id).map(c => [c.id!, facilitiesOf(c).tacticsRoom]))
+  return players.map(p => {
+    const boost = lvById.get(p.teamId) ?? 0
+    if (boost <= 0 || !p.ratings) return p
     return { ...p, ratings: {
       ...p.ratings,
       pacing: Math.min(99, p.ratings.pacing + boost),
       mental: Math.min(99, p.ratings.mental + boost) }}
   })
+}
+
+export function applyRaceBoosts(
+  players: Player[], teams: Team[], playerTeamId: string, lineup: Record<number, string>,
+): Player[] {
+  const boosted = withFacilityBoost(players, teams)
 
   const lineupPlayerIds = Object.values(lineup).filter(Boolean)
   if (lineupPlayerIds.length === 0) return boosted

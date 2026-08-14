@@ -1,5 +1,6 @@
-import type { EclResult, EclStanding, Player, Race, Team } from '../types'
+import type { Facilities, EclResult, EclStanding, Player, Race, Team } from '../types'
 import { runBackgroundRace } from './backgroundRace'
+import { type TieredTeam } from '../utils/clubTier'
 
 // ECL出場チーム（日本チーム or 海外クラブ）。playerIds から各区間へ地形適性に応じて割り当てて走らせる。
 export type EclParticipant = Omit<EclStanding, 'points'> & { playerIds: string[] }
@@ -27,15 +28,21 @@ export function simulateEclEvent(params: {
   races: Race[]
   teams: Team[]
   players: Player[]
+  /**
+   * 施設（戦術室）を効かせる相手。**国内52＋海外180をまとめて渡すこと**
+   * （`allTieredClubs`）。ECLは海外クラブも走るので、`teams` だけだと
+   * 国内クラブにしか施設が効かない
+   */
+  clubs?: readonly (TieredTeam & { id?: string; facilities?: Facilities })[]
   playerLineup?: { teamId: string; lineup: Record<number, string> }
 }): EclResult {
-  const { year, participants, races, teams, players, playerLineup } = params
+  const { year, participants, races, teams, players, clubs, playerLineup } = params
   const race = races[0]
 
   // 走らせるのは engine/backgroundRace の1本（並べ方も穴埋めもそこ）。
   // 自チームが出るときだけ監督の配置を差し込む
   const out = runBackgroundRace({
-    race, teams, players, seasonProgress: 0.5,
+    race, teams, players, clubs, seasonProgress: 0.5,
     entrants: participants.map(p => ({
       id: p.id,
       ...eclRoster(p.playerIds, players),

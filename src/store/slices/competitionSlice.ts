@@ -17,6 +17,7 @@ import { keyPlayerStatus } from '../../utils/playerUtils'
 import { belongsToClub } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { resolveBid } from '../../utils/transferBid'
+import { allTieredClubs } from '../../utils/clubTier'
 
 
 type Slice = Pick<GameStore,
@@ -205,6 +206,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     const iAmIn = participants.some(p => p.isPlayerTeam)
     const result = simulateEclEvent({
       year, participants, races: [race], teams: state.teams, players: state.players,
+      // 施設は国内52＋海外180をまとめて渡す（ECLは海外クラブも走る）
+      clubs: allTieredClubs(state.teams, state.foreignLeagues ?? []),
       playerLineup: iAmIn && playerLineup ? { teamId: state.playerTeamId, lineup: playerLineup } : undefined })
 
     // ポイント累積（順位点＋区間点）

@@ -56,6 +56,8 @@ export function simulateForeignLeagueRound(
     const out = runBackgroundRace({
       race: localizeRace(race, courseRegionOfNation(league.country as Parameters<typeof courseRegionOfNation>[0])),
       players, seasonProgress,
+      // 施設（戦術室）を効かせる相手。海外クラブは teams に居ないので明示的に渡す
+      clubs: league.clubs,
       raceId: `${race.id}@${league.id}`,
       entrants: league.clubs.map(c => ({ id: c.id, roster: clubRoster(c.id, players) })),
     })

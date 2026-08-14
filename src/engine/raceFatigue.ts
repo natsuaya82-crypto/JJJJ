@@ -8,6 +8,7 @@
 // 乱数は使わない。
 import type { Player, Team } from '../types'
 import { withFatigue } from '../utils/condition'
+import { facilitiesOf } from '../utils/facilities'
 
 export type RaceStrategy = 'aggressive' | 'conservative' | 'balanced'
 
@@ -22,7 +23,8 @@ export function applyRaceFatigue(params: {
 }): Player[] {
   const { players, racingIds, teams, raceStrategy, segmentCount } = params
   const stratMult = raceStrategy === 'aggressive' ? 1.4 : raceStrategy === 'conservative' ? 0.65 : 1.0
-  const medLvByTeam = new Map(teams.map(t => [t.id, t.facilities?.medicalCenter ?? 0]))
+  // ★施設は `facilitiesOf` 1本（格から出る土台＋自分で建てたぶん）
+  const medLvByTeam = new Map(teams.map(t => [t.id, facilitiesOf(t).medicalCenter]))
   const baseFatigueGain = Math.min(14, 4 + segmentCount * 1.5) * stratMult
 
   return players.map(p => {
