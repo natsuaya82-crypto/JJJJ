@@ -39,6 +39,8 @@ export type RatedMe = {
   /** 走った日数・グループ1位の回数 */
   played: number
   wins: number
+  /** この大会に入ったときのレート（「第一回はここまで上がった」を出すため） */
+  startRating: number
 }
 
 export type RatedRow = {
@@ -52,11 +54,16 @@ export type RatedRow = {
   /** 前日のレースの順位（1が最速）。未走なら 0 */
   place: number
   timeSec: number
+  /** レートの増減（前日の結果ぶん） */
   delta: number
+  /** **前日からの順位の上下**（＋2＝2つ上がった／−1＝1つ下がった）。矢印はこれ1本 */
+  move: number
   mine: boolean
 }
 
 export type RatedToday = {
+  /** 大会の名前（第一回ベータ版ランクマッチ） */
+  name: string
   /** 大会の何日目か */
   day: number
   totalDays: number
@@ -115,10 +122,12 @@ function toLineup(o: unknown): Record<number, string> {
  */
 export async function fetchToday(): Promise<RatedToday | null> {
   const d = await call<{
-    open: boolean; day?: number; totalDays?: number; dateISO?: string; minutesLeft?: number
+    open: boolean; name?: string; day?: number; totalDays?: number
+    dateISO?: string; minutesLeft?: number
   }>('rated_today')
   if (!d?.open || !d.dateISO) return null
   return {
+    name: d.name ?? '',
     day: d.day ?? 0,
     totalDays: d.totalDays ?? 0,
     dateISO: d.dateISO,
@@ -130,7 +139,7 @@ export async function fetchToday(): Promise<RatedToday | null> {
 export async function fetchMe(): Promise<RatedMe> {
   const d = await call<{
     joined: boolean; rating?: number; overall?: number; entrants?: number
-    lineup?: unknown; hof?: number; played?: number; wins?: number
+    lineup?: unknown; hof?: number; played?: number; wins?: number; startRating?: number
   }>('rated_me')
   const rating = d?.rating ?? 0
   return {
@@ -143,6 +152,7 @@ export async function fetchMe(): Promise<RatedMe> {
     hof: d?.hof ?? 0,
     played: d?.played ?? 0,
     wins: d?.wins ?? 0,
+    startRating: d?.startRating ?? 0,
   }
 }
 
@@ -208,6 +218,22 @@ export async function submitLineup(lineup: Record<number, string>): Promise<'ok'
   for (const [k, v] of Object.entries(lineup)) body[String(k)] = v
   const r = await call<string>('rated_submit', { l: body })
   return (r as 'ok' | 'closed' | 'bad' | 'join') ?? 'offline'
+}
+
+/**
+ * **名前の横に出す段位のレートを、まとめて引く。**
+ *
+ * ★フレンド一覧のように何人も並ぶところがあるので、1人ずつ引かせない
+ *   （プロフィールをまとめて引く `profilesByIds` と同じ考え方）。
+ * ★**ランクマッチに一度も出ていない人は入っていません。** 呼ぶ側は
+ *   「無ければ何も出さない」こと（オーナー判断・2026-08-14「何も出さない」）。
+ * ★段位に直すのは `engine/rating` の `rankOf` 1本。ここはレートを渡すだけ。
+ * ★取れなくても例外を投げない（段位が出ないだけで、一覧そのものは出したい）。
+ */
+export async function ratingsByIds(ids: readonly string[]): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map()
+  const rows = await call<{ user_id: string; rating: number }[]>('rated_ranks', { ids: [...ids] })
+  return new Map((rows ?? []).map(r => [r.user_id, r.rating]))
 }
 
 /** 参加資格。殿堂入りが埋まっていること（線は `utils/hofRoster` の HOF_MAX 1本） */

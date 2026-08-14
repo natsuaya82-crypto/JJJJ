@@ -37,7 +37,7 @@ const db = createClient(
 /** 参加者を組み立てる（プロフィール＝見た目、殿堂入り＝走る選手） */
 async function loadEntrants(eventId: string) {
   const { data: entries, error } = await db
-    .from('rated_entries').select('user_id, rating, played, wins').eq('event_id', eventId)
+    .from('rated_entries').select('user_id, played, wins').eq('event_id', eventId)
   if (error) throw error
   const ids = (entries ?? []).map(e => e.user_id)
   if (ids.length === 0) return []
@@ -48,15 +48,18 @@ async function loadEntrants(eventId: string) {
     .select('user_id, team_name, short_name, gm_name, logo_id, color_primary, color_secondary')
     .in('user_id', ids)
   const { data: rosters } = await db.from('rosters').select('user_id, hof').in('user_id', ids)
+  // ★レートは rated_players（人に1本・大会をまたいで続く）から読む
+  const { data: players } = await db.from('rated_players').select('user_id, rating').in('user_id', ids)
 
   const byProfile = new Map((profiles ?? []).map(p => [p.user_id, p]))
   const byHof = new Map((rosters ?? []).map(r => [r.user_id, r.hof]))
+  const byRating = new Map((players ?? []).map(p => [p.user_id, p.rating]))
 
   return (entries ?? []).map(e => {
     const p = byProfile.get(e.user_id)
     return {
       userId: e.user_id,
-      rating: e.rating,
+      rating: byRating.get(e.user_id) ?? 0,
       team: {
         id: e.user_id,
         name: p?.team_name ?? '',
@@ -103,11 +106,17 @@ async function closeOverdue(today: string): Promise<string[]> {
     await db.from('rated_results').upsert(out.rows.map(x => ({
       round_id: r.id, user_id: x.userId, group_no: x.group, place: x.place,
       time_sec: x.timeSec, delta: x.delta, rating_after: x.ratingAfter, forfeit: x.forfeit,
+      // 順位表の矢印。**数え直さずそのまま入れる**（画面も engine と同じ並びを見る）
+      overall: x.overall, move: x.move,
     })))
     await db.from('rated_races').upsert(out.races.map(g => ({
       round_id: r.id, group_no: g.group, race: g.race,
     })))
-    // レートは**サーバーが出した rating_after をそのまま**入れる（足し算を2か所でしない）
+    // レートは**サーバーが出した rating_after をそのまま**入れる（足し算を2か所でしない）。
+    // ★生きた値は rated_players。rated_entries の rating は「この大会の記録」
+    await db.from('rated_players').upsert(out.rows.map(x => ({
+      user_id: x.userId, rating: x.ratingAfter, updated_at: new Date().toISOString(),
+    })))
     const tally = new Map(entrants.map(e => [e.userId, e.tally]))
     for (const x of out.rows) {
       const t = tally.get(x.userId) ?? { played: 0, wins: 0 }

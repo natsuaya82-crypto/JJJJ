@@ -52,6 +52,10 @@ export type RatedRoundRow = {
   ratingAfter: number
   /** 何も出さなかった人 */
   forfeit: boolean
+  /** **大会全体での順位**（その日が終わった時点。1が最上位） */
+  overall: number
+  /** **前日からの上下**（＋2＝2つ上がった／−1＝1つ下がった）。順位表の矢印はこれ1本 */
+  move: number
 }
 
 export type RatedGroupRace = {
@@ -139,10 +143,27 @@ export function runRatedRound(args: {
         delta: d,
         ratingAfter: m.rating + d,
         forfeit: forfeits.includes(m.userId),
+        overall: 0, move: 0,   // ↓ 全グループが出そろってから入れる
       })
     }
     races.push({ group: groupNo, race })
   })
+
+  // ★**大会全体の順位と前日からの上下。**
+  //   グループごとには出せない（全員のレートが出そろって初めて並べられる）ので、
+  //   ここでまとめて入れる。並べ方は `rated_standings` とまったく同じ
+  //   （レートの高い順、同点は user_id 順）にすること。**片方だけ変えると矢印が嘘になる。**
+  const rankOfBy = (get: (r: RatedRoundRow) => number): Map<string, number> => {
+    const sorted = [...rows].sort((a, b) => get(b) - get(a) || (a.userId < b.userId ? -1 : 1))
+    return new Map(sorted.map((r, i) => [r.userId, i + 1]))
+  }
+  const before = rankOfBy(r => byId.get(r.userId)?.rating ?? 0)
+  const after = rankOfBy(r => r.ratingAfter)
+  for (const r of rows) {
+    r.overall = after.get(r.userId) ?? 0
+    // 順位は小さいほど上。上がったら＋になるよう「前 − 今」で出す
+    r.move = (before.get(r.userId) ?? 0) - r.overall
+  }
 
   return { skipped: false, groups: groups.length, rows, races }
 }

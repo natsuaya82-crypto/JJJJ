@@ -1290,11 +1290,24 @@ function runRatedRound(args) {
         timeSec: st?.totalTimeSec ?? 0,
         delta: d,
         ratingAfter: m.rating + d,
-        forfeit: forfeits.includes(m.userId)
+        forfeit: forfeits.includes(m.userId),
+        overall: 0,
+        move: 0
+        // ↓ 全グループが出そろってから入れる
       });
     }
     races.push({ group: groupNo, race });
   });
+  const rankOfBy = (get) => {
+    const sorted = [...rows].sort((a, b) => get(b) - get(a) || (a.userId < b.userId ? -1 : 1));
+    return new Map(sorted.map((r, i) => [r.userId, i + 1]));
+  };
+  const before = rankOfBy((r) => byId.get(r.userId)?.rating ?? 0);
+  const after = rankOfBy((r) => r.ratingAfter);
+  for (const r of rows) {
+    r.overall = after.get(r.userId) ?? 0;
+    r.move = (before.get(r.userId) ?? 0) - r.overall;
+  }
   return { skipped: false, groups: groups.length, rows, races };
 }
 export {

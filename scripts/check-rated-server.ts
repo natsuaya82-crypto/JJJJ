@@ -159,6 +159,51 @@ console.log('[1] 提出したとおりに走る／出さなかった人も走る
     byPlace[byPlace.length - 1].delta === Math.min(...out.rows.map(x => x.delta)))
 }
 
+console.log('\n[1-b] 大会全体の順位と、前日からの上下（順位表の矢印）')
+{
+  // 20人・全員提出。**レートに差を付けてから**走らせて、順位が動くことを見る
+  const base = makeEntrants(20, 4)
+  const entrants = base.map((e, i) => ({ ...e, rating: (20 - i) * 10 }))   // u000 が最上位
+  const segCount = ratedMatchCourse(START).segments.length
+  const lineups = Object.fromEntries(entrants.map(e => [e.userId, pickLineup(e, segCount)]))
+  const out = runRatedRound({ dateISO: START, day: 1, entrants, lineups })
+
+  const overall = out.rows.map(r => r.overall).sort((a, b) => a - b)
+  check('大会全体の順位が 1〜20 で重複なし',
+    overall.join(',') === Array.from({ length: 20 }, (_, i) => i + 1).join(','), overall.join(','))
+
+  // 並べ方が rated_standings と同じか（レートの高い順・同点は userId 順）
+  const expect = [...out.rows]
+    .sort((a, b) => b.ratingAfter - a.ratingAfter || (a.userId < b.userId ? -1 : 1))
+    .map((r, i) => `${r.userId}:${i + 1}`).join(' ')
+  const got = [...out.rows].sort((a, b) => a.overall - b.overall)
+    .map(r => `${r.userId}:${r.overall}`).join(' ')
+  check('並べ方はレートの高い順・同点は userId 順', expect === got, `\n      期待 ${expect}\n      実際 ${got}`)
+
+  // ★**上下の合計は必ず0**（誰かが上がれば誰かが下がる）。数え直しの食い違いはここで出る
+  check(`上下の合計が0（${out.rows.reduce((a, b) => a + b.move, 0)}）`,
+    out.rows.reduce((a, b) => a + b.move, 0) === 0)
+  check('誰かは動いている（全員0ではない）', out.rows.some(r => r.move !== 0),
+    '実力差を付けたのに順位が1つも動いていない')
+  // ★上下を**この点検の中で独立に数え直して**突き合わせる。
+  //   「順位が上がった人はレートも増えているはず」は**嘘**なので判定に使わないこと
+  //   （自分より上の人が自分より大きく負ければ、レートを減らしたまま順位は上がる。
+  //    実測 u018 が move+1 / delta−5 で、最初はこれを NG と誤判定していた）。
+  const rankBy = (get: (id: string) => number) => {
+    const ids = out.rows.map(r => r.userId)
+      .sort((a, b) => get(b) - get(a) || (a < b ? -1 : 1))
+    return new Map(ids.map((id, i) => [id, i + 1]))
+  }
+  const rate0 = new Map(entrants.map(e => [e.userId, e.rating]))
+  const rate1 = new Map(out.rows.map(r => [r.userId, r.ratingAfter]))
+  const before = rankBy(id => rate0.get(id) ?? 0)
+  const after = rankBy(id => rate1.get(id) ?? 0)
+  const bad = out.rows.filter(r =>
+    r.overall !== after.get(r.userId) || r.move !== (before.get(r.userId)! - after.get(r.userId)!))
+  check('数え直した順位・上下と1つも食い違わない', bad.length === 0,
+    bad.map(r => `${r.userId} overall${r.overall}(=${after.get(r.userId)}) move${r.move}`).join(' '))
+}
+
 console.log('\n[2] 誰も落ちない・レートの合計は動かない')
 {
   for (const n of [10, 20, 21, 43, 100]) {
