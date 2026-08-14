@@ -115,6 +115,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/league.ts` の得点 | `positionPointsFor`（1位＝出走数…最下位1点）／`segmentAwardPoints`（出走数で3/2/1→2/1→1）。**本編もオンラインも同じ** |
 | `src/data/races.ts` | コースの実体と、`courseTypeOf`（種別）／`courseProfile`（起伏の平均） |
 | `src/components/player/PlayerChips.tsx` | **選手の名前の横に出る小さな札**。`SpecChip`（タイプ）／`ForeignChip`（外国籍）。大きさ（sm/md）だけ選べて、色・濃さ・枠線・丸みは1つに固定 |
+| `src/utils/teamHistory.ts` | **優勝回数の数え方**。**クラブの優勝（`teamHistoryOf`）と監督の優勝（`gmCareerTitles`）を混ぜないこと。**記録室の見出しの★・自チーム記録・クラブ詳細ページは**クラブ**、GMキャリアのページだけが**監督**（どのクラブで何年に、の内訳もそちら）。以前は自チーム記録が監督の通算を出していて、移籍すると前のクラブの優勝がいまのクラブの記録として並んでいた。数え直しを画面に書かないこと |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
 | `src/store/saveStorage.ts` の `stageWrite` | **セーブを書いてよいかの関門**。セーフモード・新規状態での上書き・中身が消し飛んだ判定。入口は2つ（文字列を渡す `saveStorage` と、状態を渡す `jsonSaveStorage`）だが判定は1本 |

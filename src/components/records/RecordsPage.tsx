@@ -169,14 +169,18 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   const myTeam = teams.find(t => t.id === playerTeamId)
   const longPress = usePlayerLongPress()
   // 優勝回数・連続上位はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  // ★ここは**記録室＝監督の記録**。優勝は「その年に指揮していたクラブ」で数える
-  //   （`gmCareerTitles` 1本）。`teamHistoryOf(pastSeasons, playerTeamId)` で数えると、
-  //   移籍した瞬間に前のクラブの優勝が消え、指揮していない年のいまのクラブの優勝が
-  //   自分のものになる。**クラブ詳細ページのほうはクラブで数える**（あちらが正しい）
-  const gmTenuresForTitles = useGameStore(s => s.gmTenures)
-  const gmTitles = gmCareerTitles(pastSeasons, gmTenuresForTitles, playerTeamId)
+  //
+  // ★ここは**自チーム記録（FRANCHISE）＝クラブの記録**なので `teamHistoryOf` 1本。
+  //   監督のキャリアとしての優勝（どのクラブで何年に、の内訳）は**GMキャリアのページ**
+  //   （`/records/gm` ＝ 下の `GmCareerPage`）の担当で、あちらが `gmCareerTitles` を使う。
+  //
+  //   以前ここが `gmCareerTitles` になっていて、**クラブの記録のはずのページに
+  //   監督の通算が出ていました**（オーナー・2026-08-14「歴代優勝がチームのじゃなくて
+  //   GMのがついてきてる」）。2026-08-12 の「記録室のGMのページならどのチームで
+  //   優勝したかを書く」は**GMキャリアのページの話**で、この画面のことではありません。
+  //   **この2つを混ぜないこと。**
   const myHistory = teamHistoryOf(pastSeasons, playerTeamId)
-  const championships = gmTitles.total
+  const championships = myHistory.championships
   const bestStreak = myHistory.bestStreak
   const currentStreak = myHistory.currentStreak
   const allSeasons = [
@@ -223,7 +227,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           {/* ★合計ではなく**部ごと**（オーナー・2026-08-12「全部部ごと」）。
               1部優勝と3部優勝を足すと、どちらの記録なのか分からなくなる */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-            {titleRows(gmTitles.titles).map(r => (
+            {titleRows(myHistory.titles).map(r => (
               <div key={r.division} style={{ display: 'flex', gap: 3, alignItems: 'baseline' }}>
                 <span style={{ fontSize: F.caption, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
                 <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{r.count}</span>
@@ -234,23 +238,6 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
               <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: C.textDim }}>0回</span>
             )}
           </div>
-          {/* ★**どのクラブで優勝したか**を書く（オーナー・2026-08-12）。
-              記録室は監督の記録なので、クラブが変われば優勝もクラブごとに分かれる。 */}
-          {gmTitles.byClub.length > 0 && (
-            <div style={{ fontSize: F.caption, color: C.textSub, lineHeight: 1.7 }}>
-              {gmTitles.byClub.map(c => (
-                <div key={c.teamId}>
-                  <span style={{ fontWeight: 800, color: C.text }}>{teams.find(t => t.id === c.teamId)?.shortName ?? '—'}</span>
-                  {/* ★**部ごとに出す**（オーナー・2026-08-12）。同じクラブでも
-                      1部優勝と3部優勝は別の話なので、年の横に部を付ける */}
-                  <span style={{ marginLeft: 6 }}>{c.wins.length}回</span>
-                  <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>
-                    {c.wins.map(w => `${DIVISION_LABEL[w.division]}${w.year}`).join(' / ')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
           {bestStreak > 0 && (
             <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.green }}>
               最長連続TOP3: {bestStreak}季
@@ -581,7 +568,10 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
     return r > 0 ? r : null
   }
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す
-  const championships = pastSeasons.filter(s => rankIn(s, teamIdAt(s.year)) === 1).length
+  // ★監督のキャリアとしての優勝は `gmCareerTitles` 1本（ここで数え直さないこと）。
+  //   自チーム記録（FRANCHISE）のほうは**クラブ**で数える（`teamHistoryOf`）。混ぜないこと
+  const gmTitles = gmCareerTitles(pastSeasons, gmTenures, playerTeamId)
+  const championships = gmTitles.total
   const totalSeasons = allSeasons.length
   const bestRank = allSeasons.length > 0
     ? Math.min(...allSeasons.map(s => rankIn(s, teamIdAt(s.year)) ?? 99))
@@ -621,6 +611,22 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
             </div>
           ))}
         </div>
+        {/* ★**どのクラブで優勝したか**（オーナー・2026-08-12「記録室のGMのページなら
+            どのチームで優勝したかを書く」）。**ここがその「GMのページ」**で、
+            自チーム記録のほうはクラブの記録なのでこの内訳を出さない */}
+        {gmTitles.byClub.length > 0 && (
+          <div style={{ fontSize: F.caption, color: C.textSub, lineHeight: 1.7, marginTop: 10 }}>
+            {gmTitles.byClub.map(c => (
+              <div key={c.teamId}>
+                <span style={{ fontWeight: 800, color: C.text }}>{teams.find(t => t.id === c.teamId)?.shortName ?? '—'}</span>
+                <span style={{ marginLeft: 6 }}>{c.wins.length}回</span>
+                <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>
+                  {c.wins.map(w => `${DIVISION_LABEL[w.division]}${w.year}`).join(' / ')}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </CardPanel>
   )
 

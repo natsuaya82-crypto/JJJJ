@@ -1,7 +1,7 @@
 import MenuButton from '../ui/MenuButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { gmCareerTitles, titleRows } from '../../utils/teamHistory'
+import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha, DIV_STAR, SAIRA, FONT, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
@@ -17,11 +17,12 @@ export default function RecordsHub() {
   // 今のチームで引くと、移った瞬間に自分の優勝が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
   const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  // ★記録室は**監督の記録**。数え方は utils/teamHistory の gmCareerTitles 1本
-  //   （ここに条件分岐で2通り書かないこと。RecordsPage と同じ答えを返す）
+  // ★見出しに出す★は**いま指揮しているクラブの優勝**（`teamHistoryOf` 1本）。
+  //   監督のキャリアとしての通算は「GMキャリア」のページ（`gmCareerTitles`）の担当で、
+  //   **この2つを混ぜないこと**（オーナー・2026-08-14「歴代優勝がチームのじゃなくて
+  //   GMのがついてきてる」）。
   // ★**部ごと**（オーナー・2026-08-12）。合計だと3部優勝と1部優勝が混ざる
-  const gmTitles = gmCareerTitles(pastSeasons, gmTenures, playerTeamId)
-  const championships = gmTitles.total
+  const clubTitles = teamHistoryOf(pastSeasons, playerTeamId)
   const completedRaces = currentSeason.races.filter(r => r.results).length
   // 自分の部の中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
   const myStanding = rankOfTeam(seasonDivisionStandings(currentSeason, playerTeamId), playerTeamId)
@@ -131,7 +132,7 @@ export default function RecordsHub() {
         title="記録室"
         right={<div style={{ display: 'flex', gap: '8px' }}>
           {/* ★**部ごとの札**にする。合計の★だけだと3部優勝も1部優勝も同じ見た目になる */}
-          {titleRows(gmTitles.titles).map(r => (
+          {titleRows(clubTitles.titles).map(r => (
             <div key={r.division} style={{ padding: '4px 10px', background: alpha(DIV_STAR[r.division], 0.12), border: `1px solid ${alpha(DIV_STAR[r.division], 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: F.tiny, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
               <span style={{ fontFamily: SAIRA, fontSize: F.body, color: DIV_STAR[r.division] }}>★</span>
