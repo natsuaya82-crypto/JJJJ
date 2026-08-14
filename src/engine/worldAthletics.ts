@@ -75,29 +75,20 @@ export function distanceScore(p: Player, currentYear: number): number {
   return best
 }
 
-// その選手の最速持ちタイムを「種目 時計」形式で（無ければnull）
-export function bestPBLabel(p: Player, currentYear: number): string | null {
-  let best: { ev: WAEvent; t: number } | null = null
-  for (const ev of WA_EVENTS) {
-    const t = recentBest(p, ev, currentYear)
-    if (t == null) continue
-    if (!best || t / WA_REF[ev] < best.t / WA_REF[best.ev]) best = { ev, t }
-  }
-  return best ? `${WA_EVENT_LABEL[best.ev]} ${formatRaceTime(best.t)}` : null
-}
-
 export type Candidate = { player: Player; score: number; bests: Partial<Record<WAEvent, number>> }
 
 /**
  * 代表候補の人数（唯一の決まり）。**OVRの上位からこの人数**。
  * 選考画面に並ぶのも、CPUの国が自動で20人を組むのも、国力を測るのも全部この1本。
  */
-// **代表候補として選考画面に出す人数**（2026-08-12・オーナー判断で 100 → 200）。
-// 100 のときの境目は OVR83 で、日本人1,212人の上位8.3%しか候補に出なかった。
-// 「100位以下の選手が最初から候補から消える」を無くすのが狙い。
-// 200 なら境目は OVR81（上位16.5%）。**選ばれる20人は変わらない**（代表は OVR87〜90 で決まる）ので、
-// 変わるのは「選考画面に誰が並ぶか」だけ。
-export const NATIONAL_POOL = 200
+// **代表候補として選考画面に出す人数**（2026-08-14・オーナー判断「100+代表経験者」）。
+//
+// 経緯：100 → 200 → **100 ＋ 代表経験者**。
+//   100 のときの問題は「人数」ではなく、**一度代表になった選手が翌年101位以下に
+//   落ちると、何も出ずに候補から消える**ことだった（1年ぶん歳を取るだけで起きる）。
+//   200 に広げても境目が下がるだけで、境目をまたいだ選手が黙って消えるのは同じ。
+//   人数は100に戻し、**代表経験者は順位に関係なく必ず候補に残す**。
+export const NATIONAL_POOL = 100
 
 /**
  * 駅伝代表の候補。**OVR上位100人。所属は問わない（国籍だけで集める）。**
@@ -115,7 +106,12 @@ export const NATIONAL_POOL = 200
  * ■持ちタイムは捨てない
  *   並べる基準に使わないだけで、画面に出すために bests には入れて返す。
  */
-export function ekidenCandidates(players: Player[], nat: Nationality, currentYear: number, limit = NATIONAL_POOL): Candidate[] {
+export function ekidenCandidates(
+  players: Player[], nat: Nationality, currentYear: number,
+  limit = NATIONAL_POOL,
+  /** 代表になったことがある選手のID。**順位に関係なく候補に残す**（store の worldRepresentatives） */
+  veteranIds?: Iterable<string>,
+): Candidate[] {
   const out: Candidate[] = []
   for (const p of players) {
     if (p.status === 'retired') continue
@@ -129,13 +125,21 @@ export function ekidenCandidates(players: Player[], nat: Nationality, currentYea
     out.push({ player: p, score: ovr(p), bests })
   }
   out.sort((a, b) => b.score - a.score)
-  return out.slice(0, limit)
+  const top = out.slice(0, limit)
+  // ★代表経験者は枠の外でも残す（オーナー判断・2026-08-14「100+代表経験者」）。
+  //   これが無いと、1年ぶん歳を取って101位以下になっただけで**何も出ずに候補から消える**。
+  //   並びはOVR順のまま（経験者を上に持ち上げない）
+  const vets = new Set(veteranIds ?? [])
+  if (vets.size === 0) return top
+  const inTop = new Set(top.map(c => c.player.id))
+  const extra = out.filter(c => vets.has(c.player.id) && !inTop.has(c.player.id))
+  return extra.length === 0 ? top : [...top, ...extra].sort((a, b) => b.score - a.score)
 }
 
 // ★`ekidenCandidatesWithFit`（持ちタイム40＋コース適性10）は廃止しました。**戻さないこと。**
 //   候補の出どころが2本あると「選考画面に出る顔ぶれ」と「CPUが組む20人」と「国力」がズレます。
 //   実際、選考画面は50人（適性混ぜ）、CPUは20人（適性6人）、国力は上位7人と3通りに割れていました。
-//   いまは ekidenCandidates 1本（OVR上位100人）。100人まで広げたので、
+//   いまは ekidenCandidates 1本（OVR上位100人＋代表経験者）。100人あるので、
 //   登り屋・下り屋が候補から漏れる心配も無くなっています（旧50人＋適性枠の目的はここで満たされる）。
 
 export type IndividualEntry = { player: Player; timeSec: number }
@@ -224,13 +228,6 @@ export function selectIndividualFields(players: Player[], nats: Nationality[], y
     out[ev] = field
   }
   return out
-}
-
-// フィールド全種目の出場選手ID（駅伝メンバーからの除外用）
-export function entrantIdSet(fields: Record<WAEvent, FieldEntry[]>): Set<string> {
-  const ids = new Set<string>()
-  for (const ev of WA_EVENTS) for (const e of fields[ev]) ids.add(e.player.id)
-  return ids
 }
 
 // ある国の「個人種目で選考圏内」の選手ID（標準突破・国別上位3・マラソン専任適用後）。
@@ -609,19 +606,6 @@ export function composeMainResult(
   const meet: WAMeetResult = { year, individuals, ekiden, totals: totalsArr }
   const japanRank = nations.includes('JPN') ? (totalsArr.find(t => t.nat === 'JPN')?.rank ?? null) : null
   return { year, kind: 'main', host, nations, meet, japanRank }
-}
-
-// 本番ミート全体（20カ国）。manual に国別の駅伝20人IDを渡すとその国はそれで走る（日本＝監督選抜）。
-export function simulateWorldMeet(players: Player[], nats: Nationality[], year: number, manual?: Partial<Record<Nationality, string[]>>): WAMeetResult {
-  const individuals = WA_EVENTS.map(ev => runIndividual(players, nats, ev, year))
-  const ekiden = runEkiden(players, nats, year, manual)
-  const totals = new Map<Nationality, WANationTotal>()
-  for (const nat of nats) totals.set(nat, { nat, points: 0, golds: 0, silvers: 0, bronzes: 0, rank: 0 })
-  for (const ir of individuals) for (const pl of ir.placings) addPoints(totals, pl.nat, pl.rank)
-  for (const ek of ekiden) addPoints(totals, ek.nat, ek.rank)
-  const totalsArr = [...totals.values()].sort((a, b) => b.points - a.points || b.golds - a.golds || b.silvers - a.silvers)
-  totalsArr.forEach((t, i) => { t.rank = i + 1 })
-  return { year, individuals, ekiden, totals: totalsArr }
 }
 
 // ───────────────────────────────────────────────────────────────

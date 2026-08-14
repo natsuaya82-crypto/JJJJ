@@ -61,5 +61,3 @@ export function buildNationalityBag(): Nationality[] {
   return bag
 }
 
-/** 袋の合計。海外クラブの総席数（クラブ数×22）とだいたい合っているかの確認用 */
-export const NATION_TALENT_TOTAL = Object.values(NATION_TALENT).reduce((s, n) => s + n, 0)

@@ -28,27 +28,6 @@ export function ageMultiplier(p: Player): number {
   return 1.0
 }
 
-/** 区間の地形情報 → 区間タイプ */
-export type SegType = 'flat' | 'mountain_up' | 'mountain_down' | 'long' | 'technical'
-export function segmentType(uphillPct: number, downhillPct: number, distanceKm: number): SegType {
-  if (uphillPct >= 40) return 'mountain_up'
-  if (downhillPct >= 40) return 'mountain_down'
-  if (distanceKm >= 15) return 'long'
-  if (uphillPct + downhillPct >= 15) return 'technical'
-  return 'flat'
-}
-
-/** 区間タイプ → 基本EXP配分（主400 / 副A200 / 副B150） */
-export function segTypeExpGain(type: SegType): Partial<Record<CardStatKey, number>> {
-  switch (type) {
-    case 'flat':          return { speed: 400, pacing: 200, stamina: 150 }
-    case 'mountain_up':   return { mountainUp: 400, stamina: 200, mental: 150 }
-    case 'mountain_down': return { mountainDown: 400, pacing: 200, speed: 150 }
-    case 'long':          return { stamina: 400, mental: 200, recovery: 150 }
-    case 'technical':     return { pacing: 400, mental: 200, stamina: 150 }
-  }
-}
-
 /** EXP付与 → レベルアップ処理（カードはageMult=1固定で呼ぶ） */
 export function processExpGains(
   ratings: Player['ratings'],

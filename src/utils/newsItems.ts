@@ -82,18 +82,6 @@ export function loanHeadline(a: {
   return `${a.ownerLabel}が${a.playerName}（${a.age}歳）を${a.borrowerLabel}へ${a.years}年のレンタル。出場機会を得る`
 }
 
-/** レース結果。どの部のレースかを必ず出す */
-export function raceResultHeadline(a: {
-  division: Division
-  raceName: string
-  location: string
-  winnerName: string
-  myRank?: number
-}): string {
-  const mine = a.myRank && a.myRank > 0 ? `。自チームは${a.myRank}位` : ''
-  return `${divisionTag(a.division)}${a.raceName}（${a.location}）：${a.winnerName}が制す${mine}`
-}
-
 /** 表彰（MVP・新人王）。部を書かないと1部と3部のMVPが同格に見える */
 export function awardHeadline(a: {
   kind: 'mvp' | 'rookie'

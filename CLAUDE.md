@@ -66,7 +66,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/transferDecision.ts` の `isSurplus` | **出す側にとって余剰か＝序列15番手以降**（走れる人数の2倍より下）。余剰＝通常の対価、主力＝割増＋本人同意。**形（現金・トレード・レンタル・FA）でも国内／海外でも変わらない**。以前は4通りに割れていて、海外がらみは見てすらいなかった。**人数や「干され」を足さないこと**（名簿が21人超なら余剰、を入れていたら全232クラブが23〜25人で恒真になり、割増が一度も発火しなかった） |
 | `src/utils/clubMoney.ts` の `settleForeignFee` | **移籍金の海外側の精算**。`movePlayer` は `teams`（国内52クラブ）しか知らないので、相手が海外クラブだと片側しかお金が動かない。**`movePlayer` のすぐ外で必ず呼ぶこと**（国内同士なら何も起きないので、呼ぶ側で分岐しない） |
 | `src/utils/playerUtils.ts` の `transferFeeFor` | **移籍金**（市場価値 × 余剰でなければ `POACH_PREMIUM`）。割増を掛けるのはここだけ。**今季の出場を必ず渡すこと**（`calcTransferValue` の第2引数。渡さないと出場0の選手もフル出場の選手も同じ額になる）。オフに回すときは**走り終わったシーズン**を見る（`beginSeasonDraft` の `currentSeason` は来季の空っぽの器） |
-| `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties` / `weakestSpecialty`。タイプの一覧 `SPECIALTIES` もここ。**「走れる7人に入るか」の関門を外せるのはドラフトだけ**（`needsPlayer(..., { requireLineup: false })`。移籍金を払う移籍で緩めると、1部のクラブが3部で1戦も走っていない選手を「必要」と言い出す） |
+| `src/utils/squadNeeds.ts` | **そのクラブに何が足りないか**。`needsPlayer` / `thinSpecialties`。タイプの一覧 `SPECIALTIES` もここ。**「走れる7人に入るか」の関門を外せるのはドラフトだけ**（`needsPlayer(..., { requireLineup: false })`。移籍金を払う移籍で緩めると、1部のクラブが3部で1戦も走っていない選手を「必要」と言い出す） |
 | `src/engine/draft.ts` | **ドラフト会場のAI**。欲しいタイプ（`draftTeamNeeds`）・注目度（`draftBuzz`）・新人の年俸の下限（`draftSalaryFloor`）。**穴の見方は `squadNeeds` と同じ**で、違うのは「走れる7人」を当てないことだけ |
 | `src/lib/roomMachine.ts` | **オンライン対戦の進行判断**。`allSubmitted`（進めてよいか）／`resolveOrders`（誰を埋めるか・誰が不戦敗か）／`autoOrder` / `isOrderComplete`。**通信も React も import しない**（点検から呼べなくなるため）。**不戦敗は「何も出さなかった人」だけ**——出したが区間が欠けている人は埋めるだけ |
 | `src/lib/matchSim.ts` の `seriesPointsBefore` | **オンライン対戦の通算得点**。配列から毎回数え直す（**持ち回らない**）。以前は「1つ前のレースぶんを足す」形が混ざっていて、再接続で1戦取りこぼすとその回の得点が永久に入らなかった |
@@ -560,7 +560,7 @@ px が 8 のもの（財務の予算カードの `0 8px 0 #8b6914`）が**26か�
 
 | 何 | どこ |
 |---|---|
-| 年齢→OVR | `src/engine/ageCurve.ts` の `curveOvr` / `ratingAt` |
+| 年齢→OVR | `src/engine/ageCurve.ts` の `curveOvr` |
 | 市場年俸 | `playerUtils.ts` の `faMarketSalary`（`SALARY_ANCHORS` × 実績倍率0.55〜1.45） |
 | 移籍金 | `playerUtils.ts` の `calcTransferValue`（市場年俸 × 年齢倍率 × 契約年数係数） |
 | 移籍金の年齢倍率 | `transferFeeAgeMultiplier`（〜22歳×5／23〜27×4／28〜31×3／32〜×2） |

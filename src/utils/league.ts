@@ -413,16 +413,6 @@ export function domesticThroughRankOfTeam(
   return at === 0 ? 0 : domesticThroughRank(div, at)
 }
 
-/** 年間王者の行。1戦もしていなければ全員0点なので、先頭のチームが返る */
-export function championRow<T extends RankableRow>(rows: readonly T[] | undefined): T | undefined {
-  return rankedStandings(rows)[0]
-}
-
-/** 上位n行。ECLの出場枠（各リーグ上位2）のように「上からいくつ」を取るとき用 */
-export function topRows<T extends RankableRow>(rows: readonly T[] | undefined, n: number): T[] {
-  return rankedStandings(rows).slice(0, n)
-}
-
 // ── 順位ポイント ─────────────────────────────────────────────
 //
 // 「1位=参加チーム数ぶん、以下1点ずつ減って最下位が1点」。

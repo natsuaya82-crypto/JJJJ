@@ -127,6 +127,3 @@ export function natFaceRegion(nat: Nationality): FaceRegion {
 export function natGeoRegion(nat: Nationality): GeoRegion {
   return NATIONALITY_META[nat]?.geo ?? 'その他'
 }
-export function natFlag(nat: Nationality): string {
-  return NATIONALITY_META[nat]?.flag ?? '🏳'
-}

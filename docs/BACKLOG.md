@@ -689,9 +689,10 @@ const initialSlots = useMemo(() => {
   リファクタで死んだのは2件だけで、どちらも `engine/foreignTransfers.ts` の削除に伴うもの:
   `utils/squadNeeds` の `weakestSpecialty` / `bestOvrInSpecialty`。
 
-  消すかどうかは**まだ判断していません**。`weakestSpecialty` は CLAUDE.md の
-  一本化モジュール表に載っているので、消すなら表からも消すことになります
-  （「弱いタイプ」を見る判定が将来また要るなら残す）。オーナー判断。
+  **消しました**（`済`・2026-08-14・オーナー判断「死んでるやつは消していい」）。
+  数え直したら20件（`src` だけでなく `scripts/` からの参照も consumer に数えた版）。
+  消したあとに新しく死んだ型2件（`SegType` / `TraitDef`）も続けて消し、**残り0件**。
+  `ratingAt` と `weakestSpecialty` は CLAUDE.md の表に載っていたので、表からも消した。
 
   ついでに見つかった小さいもの（どれも直していない）:
   - `data/cardShop.ts:31` … `RARITY_EXP` を `CARD_UNIT_EXP` という**別名で再export**している。
@@ -708,6 +709,10 @@ const initialSlots = useMemo(() => {
   「これから直すもの」として数えました。
 
   以下は当時の記録（**どちらも build 121 から同じ。仕様の判断が要る**）
+
+  **2つとも `済`（2026-08-14・確認したら main で解消済みでした）。**
+  チームトークは `raceTeamTalk` ごと消えており、`final_push` は
+  `interactiveRace.ts:667` に定義されて最終区で必ず出るようになっている（記録が古かった）。
 
   1. **チームトーク（士気の上げ下げ）が効いていない**
      `engine/raceProgress.ts:41`

@@ -56,20 +56,6 @@ export function thinSpecialties(roster: readonly Player[]): Specialty[] {
 }
 
 /**
- * 一番弱いタイプ（そのタイプの最高OVRが最小）。強さ基準の穴。
- * 旧 foreignTransfers.weakestSpec と同じ答えを返す（同値は SPECIALTIES の先頭側が勝つ）
- */
-export function weakestSpecialty(roster: readonly Player[]): Specialty {
-  const depth = squadDepth(roster)
-  return SPECIALTIES.reduce((w, s) => (depth[s].bestOvr < depth[w].bestOvr ? s : w), SPECIALTIES[0])
-}
-
-/** そのタイプの現有戦力（最高OVR）。不在なら0 */
-export function bestOvrInSpecialty(roster: readonly Player[], spec: Specialty): number {
-  return squadDepth(roster)[spec].bestOvr
-}
-
-/**
  * そのクラブはこの選手を必要としているか。**獲得に動く条件はこの1本。**
  *
  * 判断はひとつだけ：**その選手を入れたら、そのポジションが強くなるか。**

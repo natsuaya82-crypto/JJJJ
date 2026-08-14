@@ -116,11 +116,6 @@ export function isStatMaxed(p: Player, stat: CardStatKey): boolean {
   return cur >= (getStatPotentials(p) as Record<string, number>)[stat]
 }
 
-// 表示用の上限バンド（正確値は隠して幅で示す）。cap を中心に ±3、1..99 にクランプ。
-export function statCapBand(cap: number): { lo: number; hi: number } {
-  return { lo: Math.max(1, cap - 3), hi: Math.min(99, cap + 3) }
-}
-
 export const SPEC_COLOR: Record<Specialty, string> = {
   ace: '#C9A84C',
   mountain_up: '#4CAF50',
@@ -139,10 +134,6 @@ export function ovr(p: Player): number {
   // ratings が欠けたデータでも落とさない（欠損は0扱い＝OVRが下がるので気づける）
   const r = safeRatings(p.ratings)
   return Math.round((r.speed + r.stamina + r.mountainUp + r.mountainDown + r.pacing + r.mental + r.recovery) / 7)
-}
-
-export const FORM_LABELS: Record<number, string> = {
-  2: '絶好調', 1: '好調', 0: '普通', [-1]: '不調', [-2]: '絶不調',
 }
 
 export const FORM_COLORS: Record<number, string> = {
@@ -617,17 +608,9 @@ export function racesConsumed(season: ScoutSeasonLike): number {
     + ((season.individualEvents ?? []).filter(e => e.results).length)
 }
 
-// 視察中（依頼したがまだ1レース消化していない）か。
-export function isScoutPending(playerId: string, season: ScoutSeasonLike): boolean {
-  const entry = (season.scoutedOpponents ?? []).find(s => s.playerId === playerId)
-  if (!entry) return false
-  return entry.reqAt !== undefined && racesConsumed(season) <= entry.reqAt
-}
-
 export function formColor(form: number): string {
   return FORM_COLORS[Math.round(form)] ?? '#5C5870'
 }
-
 
 export function ratingColor(v: number, maxed = false): string {
   if (maxed) return '#E8462A'     // その選手のポテンシャル上限に到達＝MAX：赤

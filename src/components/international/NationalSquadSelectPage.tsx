@@ -41,6 +41,7 @@ export default function NationalSquadSelectPage() {
   const worldRacePlans = useGameStore(s => s.worldRacePlans)
   const ensureWorldRacePlans = useGameStore(s => s.ensureWorldRacePlans)
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   // コース（3戦の地形）を選考前に確定して見せる。地形を見て登り屋・下り屋を入れるか判断できる
   useEffect(() => { ensureWorldRacePlans() }, [ensureWorldRacePlans])
   const plans = worldRacePlans?.year === year ? worldRacePlans.plans : []
@@ -48,7 +49,15 @@ export default function NationalSquadSelectPage() {
   // 候補＝OVR上位 NATIONAL_POOL 人（engine/worldAthletics の ekidenCandidates 1本）。
   // 持ちタイム順ではない：記録会に出られる回数が所属で違うので、タイム順だと
   // 海外に出した主力が候補から丸ごと落ちる（engine 側のコメントに経緯あり）
-  const candidates = useMemo(() => ekidenCandidates(players, HOME_NATION, year), [players, year])
+  // ★代表になったことがある選手は、OVR順で100位の外へ落ちても候補に残す
+  //   （オーナー判断・2026-08-14「100+代表経験者」）。無いと、1年ぶん歳を取って
+  //   101位以下になっただけで**何も出ずに候補から消える**
+  const veteranIds = useMemo(
+    () => new Set((worldRepresentatives ?? []).filter(r => r.nat === HOME_NATION).map(r => r.playerId)),
+    [worldRepresentatives])
+  const candidates = useMemo(
+    () => ekidenCandidates(players, HOME_NATION, year, undefined, veteranIds),
+    [players, year, veteranIds])
   // 個人種目（5000m・10000m・マラソン）の代表。おまかせでは駅伝に入れない
   const stars = useMemo(() => individualStarIds(players, HOME_NATION, year), [players, year])
 

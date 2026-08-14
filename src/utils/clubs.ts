@@ -230,11 +230,6 @@ export function leagueOfClub(
   return (foreignLeagues ?? []).find(l => (l?.clubs ?? []).some(c => c.id === clubId))
 }
 
-/** クラブID → リーグID の索引。1件ずつ探すより速いので、まとめて引くときはこちら */
-export function leagueIdByClub(foreignLeagues: ForeignLeague[] | null | undefined): Map<string, string> {
-  return new Map((foreignLeagues ?? []).flatMap(l => (l?.clubs ?? []).map(c => [c.id, l.id] as [string, string])))
-}
-
 // ── 「4大リーグ」は廃止しました。戻さないこと ──────────────────
 //
 // ここには `ELITE_LEAGUE_IDS`（東アフリカ・北南アフリカ・欧州西南・北米の手書き）と
