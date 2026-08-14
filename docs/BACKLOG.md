@@ -729,6 +729,82 @@ const initialSlots = useMemo(() => {
 
 ---
 
+## U. 画面（UI）の一本化で残っているもの
+
+2026-08-14・`origin/main`（build 130 / `cf82cbd`）を実際に数えて洗い出したもの。
+「角丸を全部やめる」「GlassButton／Panel／PageHeader へ寄せる」の一掃が
+**どこまで届いていて、どこに届いていないか**の記録。
+
+**U-1〜U-2 は実機で見える不具合。U-3 以降は「一本化の取り残し」で、
+直すかどうかはオーナー判断。**
+
+- **U-1. 背景の写真が、ゲームを始める前の画面に出ない** … 実機で見える。
+  `assets/bg.png` を貼っているのは `components/layout/Layout.tsx` の中だけだが、
+  **`Layout` はゲームが始まってからしかマウントされない**（`App.tsx` が `content` を
+  出し分ける）。そのため次の6画面には写真が出ない：
+  `TitleScreen` / `TermsGate` / `Onboarding` / `DraftRoom` / `SaveRecoveryScreen` /
+  `DataUpdateScreen`。
+  実測（2026-08-14・実際にビルドして撮影）：タイトルは自前の radial-gradient、
+  オンボーディングは素の黒。**写真は1枚で全画面を回す前提**（オーナー・2026-08-13
+  「背景写真でgithubに入れてて、その一枚で回すつもり」）なので、
+  `content` を丸ごと包む位置へ移すのが直し方。
+  さらに `DraftRoom` は `background: C.bg` を2か所で自分で塗っていて、
+  写真を移しても隠す
+
+- **U-2. 始める前の画面が、共通の部品を1つも使っていない** …
+  タイトルの「TAP TO START」もオンボーディングの「GM就任」も `GlassButton` ではなく、
+  平べったい金の板のまま。`PageHeader` も `Panel` も通っていない。
+  一掃が `src/components` の**中でも一部の画面にしか当たっていない**
+
+- **U-3. 直書きの色 787件 / 66ファイル** …
+  上位は `PlayerSheet` 162 / `TeamDetailPage` 114 / `Onboarding` 63 /
+  `NotificationsPage` 52 / `Icons` 49（`Icons` はリーグの識別色なので触らない）。
+  点検⑤は「今日より増えたら落ちる」だけなので、**減らす作業は誰も始めていない**
+
+- **U-4. 押すボタン 284個のうち `GlassButton` は 57個** …
+  厚みの影（`0 Npx 0 …`）が51件残っている。しかも点検⑥の網は
+  **色が16進か `${}` のときだけ**見るので、`rgba(...)` で書かれた38件は網の外。
+  網を広げると fixture が合わなくなるので、広げるなら数え直しとセット
+
+- **U-5. 見出しは49画面が `PageHeader`、11画面が `BackButton` 直書き** …
+  `EclPage` / `PlayerSheet` / `TeamDetailPage` / `ChatView` / `TradeChatView` /
+  `LineupPhase` / `FriendDetailPage` / `NationalResultPage` / `WorldTournamentPage` /
+  `NationalSquadSelectPage` / `CreateMyPlayerPage`。
+  点検⑦は16件で焼いてあるので、**この11画面は「取り残し」として固定されている**
+
+- **U-6. 選手を出しているのに `PlayerRow` を通していない画面が27** …
+  ただし「あえて変えているものを無理に変えなくていい」（オーナー・2026-08-13）ので
+  全部を寄せる話ではない。問題は**どれが「あえて」でどれが「取り残し」かが
+  区別されていない**こと（一覧だけあって印が無い）
+
+- **U-7. カードは `Panel` が32ファイル。自前の `border: Npx solid` が382件** …
+  枠を線で描いているものは `Panel`（右下だけ斜めに切る）の形にならない
+
+- **U-8. 角丸：`.tsx` は0件だが、CSS に7件残っている** …
+  点検⑧は `src/components` の `.tsx` しか見ておらず、**`index.css` は無防備**。
+  中身は `border-radius: 2px` が4件（細い棒の端。意図どおり）と `999px` が2件
+  （ピル）と `0` が2件。いまは実害が無いが、見張りが無いので増えても気づけない
+
+- **U-9. ページの中に自前で `position: fixed` を書いているものが16ファイル** …
+  `createPortal` を通していないもの：`EclPage` / `ContractInfoModal` / `PlayerSheet` /
+  `ResultsPhase` / `LineupPhase` / `SimPhase` / `RacePage` / `FriendRequestsPage` /
+  `TermsGate` / `Onboarding` / `WorldTournamentPage` / `NationalSquadSelectPage` /
+  `CreateMyPlayerPage` / `DraftRoom` / `GmInvitePicker` / `GmInviteChat`。
+  **`<main>` の中に書いた fixed は実機（iOS）で下タブに食われる**（CLAUDE.md）。
+  `Layout` の外に出る画面（Onboarding・DraftRoom・TermsGate）と、
+  画面全体を差し替えるもの（PlayerSheet・GmInvitePicker）は `<main>` の外なので
+  問題にならないが、**`<main>` の中にいるものは実機で確認が要る**
+
+- **U-10. `env(safe-area-inset-bottom)` の手書きが17件**（`bottomStack` を通していない）
+
+- **U-11. `100dvh` の手書きが50件**（`contentHeight` を通していない）
+
+- **U-12. 文字サイズが33種類・1965件** …
+  8px 154件 / 9px 190 / 10px 325 / 11px 296 / 12px 281 / 13px 221 で、
+  この6種だけで1267件。**段が決まっていない**ので、「小さい字」を変えたいときに
+  どれを触ればいいか分からない。角丸と同じ手（トークン → 一括置換 → 点検）が使える
+
+
 ## S. サーバー（Supabase）
 
 ### S-0. SQL を流すたびに全ユーザーのデータが消えていた … `済`（2026-08-13）
