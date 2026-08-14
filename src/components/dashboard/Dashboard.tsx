@@ -17,6 +17,7 @@ import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
 import { ROSTER_MIN } from '../../data/rosterRules'
+import { canStartSeason, rosterShortFor, seasonStartBlockers } from '../../utils/seasonStart'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
@@ -66,9 +67,19 @@ function PreseasonHub({
   const campDone    = !!campBonus?.applied
   const draftDone   = isFirstSeason || (!!draftState && draftState.isComplete)
   const inauguralPlayerCreated = useGameStore(s => s.inauguralPlayerCreated)
-  // ロスターが下限(15人)未満だと開幕できない（契約切れ等で割った場合はドラフト・移籍で補強してから）
-  const rosterShort = rosterCount < ROSTER_MIN
-  const allReady    = campDone && draftDone && !rosterShort
+  // 開幕してよいかは utils/seasonStart の1本。**ここで条件を組み直さないこと。**
+  // ★以前ここに `allReady`（カード・ドラフト・人数）があったのに、**ボタンは
+  //   `rosterShort` しか見ていません**でした（allReady が効くのは文字が「開幕！」に
+  //   なるかどうかだけ）。ドラフトを終える前に開幕でき、`endSeason` が draftState を
+  //   null にしたあとなので**その年のドラフトが二度と開けなくなる**
+  //   （オーナー・2026-08-14「予定表見て戻ったらドラフト自体がスキップされた」
+  //   「スキップを可能にしたことは今までで一度もないが？」）
+  const preSeason   = { draftDone, rosterCount }
+  const rosterShort = rosterShortFor(rosterCount)
+  const blockers    = seasonStartBlockers(preSeason)
+  const canStart    = canStartSeason(preSeason)
+  // カードの受け取りは開幕を止めない（止めるかはオーナー判断）。金のボタンにはしない
+  const allReady    = canStart && campDone
 
   // 準備の行。中身は今までと同じで、見た目だけ細い線に寄せる
   const rowStyle: React.CSSProperties = {
@@ -163,39 +174,46 @@ function PreseasonHub({
         </div>
       )}
 
-      {/* 開幕 */}
-      {rosterShort && (
-        <div style={{ fontSize: F.label, color: C.red, margin: '14px 0 0', textAlign: 'center', fontWeight: 700 }}>
-          ロスターが下限（{ROSTER_MIN}人）未満のため開幕できません（現在{rosterCount}人）。<br/>ドラフト・移籍で人数を確保してください。
+      {/* 開幕。**押せない理由は全部並べる。**
+          以前は人数のときだけ理由を出し、ドラフトが残っていても金の「開幕」ボタンが
+          そのまま押せた（その年のドラフトが消える） */}
+      {blockers.length > 0 && (
+        <div style={{ fontSize: F.label, color: C.red, margin: '14px 0 0', textAlign: 'center', fontWeight: 700, lineHeight: 1.7 }}>
+          開幕できません
+          {blockers.map((b: string) => <span key={b} style={{ display: 'block', fontWeight: 400 }}>{b}</span>)}
         </div>
       )}
       <button
-        onClick={() => { if (!rosterShort) { onStart(); navigate('/schedule') } }}
-        disabled={rosterShort}
+        onClick={() => { if (canStart) { onStart(); navigate('/schedule') } }}
+        disabled={!canStart}
         className="btn-press"
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
           width: '100%', margin: '14px 0 0', padding: '15px 0',overflow: 'hidden',
-          fontFamily: 'inherit', cursor: rosterShort ? 'default' : 'pointer',
+          fontFamily: 'inherit', cursor: canStart ? 'pointer' : 'default',
           // ★もとが金のボタンなので、金のガラスにする（色は元のまま）
-          color: rosterShort ? C.textGhost : C.goldHi,
-          background: rosterShort
-            ? 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))'
-            : `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`,
+          color: allReady ? C.goldHi : canStart ? C.textDim : C.textGhost,
+          background: allReady
+            ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`
+            : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
           backdropFilter: 'blur(10px) saturate(118%)',
           WebkitBackdropFilter: 'blur(10px) saturate(118%)',
-          border: `1px solid ${rosterShort ? alpha(C.border3, 0.6) : alpha(C.gold, 0.7)}`,
-          boxShadow: rosterShort ? 'none'
-            : `inset 0 1px 0 rgba(255,255,255,0.24), 0 8px 22px rgba(0,0,0,0.45), 0 0 18px ${alpha(C.gold, 0.10)}`,
+          border: `1px solid ${allReady ? alpha(C.gold, 0.7) : alpha(C.border3, 0.6)}`,
+          boxShadow: allReady
+            ? `inset 0 1px 0 rgba(255,255,255,0.24), 0 8px 22px rgba(0,0,0,0.45), 0 0 18px ${alpha(C.gold, 0.10)}`
+            : 'none',
         }}
       >
         <span style={{ fontSize: F.title, fontWeight: 900, letterSpacing: '3px' }}>
-          {year}シーズン {allReady ? '開幕！' : rosterShort ? '開幕（補強が必要）' : '開幕'}
+          {year}シーズン {allReady ? '開幕！' : canStart ? '開幕' : rosterShort ? '開幕（補強が必要）' : '開幕（ドラフトが残っています）'}
         </span>
       </button>
-      {!allReady && !rosterShort && (
+      {/* ★開幕を飛ばせる案内文は消しました。ドラフトは飛ばせません（オーナー・2026-08-14
+          「スキップを可能にしたことは今までで一度もないが？」）。
+          残っているのはカードの受け取りだけなので、そう書く */}
+      {canStart && !campDone && (
         <div style={{ fontSize: F.caption, color: C.textGhost, margin: '9px 0 0' }}>
-          上記の準備を済ませると開幕できます。スキップも可能です。
+          プレシーズンのカードがまだ残っています。受け取ってから開幕できます。
         </div>
       )}
     </div>

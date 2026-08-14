@@ -107,6 +107,8 @@ const CHECKS = [
   // **いま進んでいる巨大アクション分解の唯一の安全網。** 絶対に外さないこと
   { name: 'action-golden', shim: true },
   'boot-repair', 'archive-season',
+  // ドラフトを終えるまで開幕できない（勝手に入っていた「スキップ」を塞いだ）
+  'season-start',
   // ドラフト会場のAI（engine/draft）。画面の中にあってどの点検からも見えていなかった
   'draft-ai',
   // オンライン対戦の通算得点。同じ数え方が3か所にあった（うち1つは受け取った順に依存）
