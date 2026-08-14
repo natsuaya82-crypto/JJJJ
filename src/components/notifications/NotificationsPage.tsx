@@ -169,6 +169,7 @@ export default function NotificationsPage() {
   // ※セレクタで `?? []` すると毎回新しい配列になり無限レンダリングするので、フィールドをそのまま取る
   const seenInjuryIdsRaw = useGameStore(s => s.seenInjuryIds)
   const {
+    incomingOfferPlayers,
     stayOrLeave, freeContacts, freeTransferNotices, departureNotices,
     retirementRequests, transferReqs, overseasReqs, counteredBids, feeAcceptedBids,
     sponsorOffers, tradeOffers, chatReplies, joinNotices,
@@ -324,6 +325,42 @@ export default function NotificationsPage() {
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, #4ab8ea, #1a8bbf)`, color: '#fff' }} onClick={() => navigate('/login-bonus')}>受け取る</Btn>
                   </div>
                 </div>
+              </div>
+            </section>
+          )}
+
+          {/* 他クラブからの買い取り打診。**返事は選手ごとに1回**なので、
+              5クラブが1人を取り合っていてもカードは1枚（数え方は utils/notifItems）。
+              返事そのものはチャットでするので、ここは「来ている」を知らせて連れて行くだけ */}
+          {incomingOfferPlayers.length > 0 && (
+            <section>
+              <SectionHead label="買い取り打診" color={C.cyan} count={incomingOfferPlayers.length}/>
+              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {incomingOfferPlayers.map(({ playerId, offers }) => {
+                  const p = players.find(x => x.id === playerId)
+                  if (!p) return null
+                  const best = offers.reduce((a, b) => (b.offeredPrice > a.offeredPrice ? b : a))
+                  const from = teams.find(t => t.id === best.fromTeamId)
+                  return (
+                    <div key={playerId} style={cardStyle(alpha(C.cyan, 0.45), '#0a2a3a')}>
+                      <div style={inset}/>
+                      <div style={{ padding: '14px 16px' }}>
+                        <div {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                          <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.cyan} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '700', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub }}>
+                              {from ? from.name : '他クラブ'} ほか{offers.length > 1 ? ` 計${offers.length}クラブ` : ''} / 最高 {fmtYen(best.offeredPrice)}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                          <Btn variant="primary" style={{ flex: 1 }} onClick={() => navigate('/team/chat')}>チャットで返事</Btn>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </section>
           )}

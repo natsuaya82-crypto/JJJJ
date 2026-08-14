@@ -208,6 +208,13 @@ export function cpuSpecialtyNeeds(teamId: string, players: Player[]): Specialty[
  *   いまは国内52＋海外180を `generateTransferActivity` の1つのループで回します。
  *   **ここに買い取りの枝を戻さないこと**（`scripts/check-offer-unified.ts` が見張ります）。
  */
+/**
+ * **レンタルの「試合に出ていない」の線。** 出場率がこれ未満なら干されている扱い。
+ * 借りる側（borrow_in）と貸す側（lend_out）で**同じ数字を使うこと**——
+ * 片方だけ緩めると「主力にレンタルの話が来る」が戻ります。
+ */
+export const LOAN_BENCH_PLAY_RATE = 0.35
+
 export function generateLoanOffers(params: {
   players: Player[]
   teams: Team[]
@@ -230,7 +237,14 @@ export function generateLoanOffers(params: {
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
   // 貸出歓迎（移籍方針）に設定した選手。年齢・立場の制限なしで打診対象になる。引退希望中は対象外
   const myLoanListed = myPlayers.filter(p => p.loanListed && !p.transferListed && canLoanOut(p, eligCtx))
-  const myYoung = myPlayers.filter(p => p.age <= 23 && canLoanOut(p, eligCtx))
+  // ★レンタルで借りられるのは「若手で、いま試合に出ていない選手」（オーナー・2026-08-14）。
+  //   下の borrow_in（相手が貸しに出す側）と**同じ物差し**にする——あちらは
+  //   「出場率3.5割未満＝干されている」で絞っているのに、こちら（自チームから借りたい）は
+  //   年齢しか見ておらず、しかも `comparePlayers('ovr')` の既定が降順なので
+  //   **U23で一番強い選手＝主力**を名指ししていた。
+  const myPlayFrac = (p: Player) => playRateOf(p.id, playerTeamId, season ?? { races }, teams).fraction
+  const myYoung = myPlayers.filter(p =>
+    p.age <= 23 && canLoanOut(p, eligCtx) && myPlayFrac(p) < LOAN_BENCH_PLAY_RATE)
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   const aiTeams = teams.filter(t => t.id !== playerTeamId)
 
@@ -241,7 +255,8 @@ export function generateLoanOffers(params: {
     const youngCands = myYoung.filter(p => !loanTargetIds.has(p.id)).sort(comparePlayers('ovr'))
     const target = listedCands.length > 0 && Math.random() < 0.70
       ? listedCands[(raceIndex + listedCands.length) % listedCands.length]
-      : (youngCands.length > 0 && Math.random() < 0.25 ? youngCands[0] : null)
+      // 若手は**出ていない人の中から**選ぶ（強い順に名指ししない）
+      : (youngCands.length > 0 && Math.random() < 0.25 ? youngCands[(raceIndex + youngCands.length) % youngCands.length] : null)
     if (target) {
       const pool: { id: string; fromForeign: boolean }[] = [...aiTeams.map(t => ({ id: t.id, fromForeign: false })), ...foreignClubs.map(c => ({ id: c.id, fromForeign: true }))]
       if (pool.length > 0) {
@@ -263,7 +278,7 @@ export function generateLoanOffers(params: {
     const cands = players.filter(p =>
       p.teamId !== playerTeamId && p.teamId !== '' && aiTeams.some(t => t.id === p.teamId)
       && p.status === 'active' && !p.loan && p.age <= 26 && ovr(p) < 76 && !loanTargetIds.has(p.id)
-      && playFrac(p.id, p.teamId) < 0.35)   // 出場率3.5割未満＝現所属で干されている選手だけが貸しに出される
+      && playFrac(p.id, p.teamId) < LOAN_BENCH_PLAY_RATE)   // 干されている選手だけが貸しに出される
     const fits = cands.filter(p => myNeedsLoan.includes(p.specialty))
     // 干され組の中では実力上位を提示（借りる価値のある選手にする）
     const cand = (fits.length > 0 ? fits : cands).sort(comparePlayers('ovr'))[0]

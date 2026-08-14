@@ -45,15 +45,16 @@ console.log('\n[1] 何も無ければ0件')
   check('通知は0件', r.total === 0, `${r.total}件`)
 }
 
-console.log('\n[1.5] 買い取りの打診は通知に出さない（2026-08-12・オーナー判断）')
+console.log('\n[1.5] 買い取りの打診も通知に出す（2026-08-14・オーナー判断）')
 {
-  // ★「受信箱はいいけど通知に来なければいい」。打診は5レース残るので、通知に出すと
-  //   常時8〜11件が並び続けていた。**来る量は変えていない。通知に出さないだけ。**
-  //   返事は移籍ページ（他クラブからのオファー N件 — 要確認）とチャットでできる。
+  // ★2026-08-12 に外し（常時8〜11件並び続けたため）、2026-08-14 に戻した
+  //   （「全部通知通して行くようにして」）。あいだに打診の生成を1本化して
+  //   1レース1件にしたので、受信箱は平均2.50件・最多5件まで減っている。
+  // ★数えるのは**選手の数**。1人に5クラブ来ても返事は1回なのでカードは1枚。
   const one = base(S({ incomingOffers: [{ id: 'o1', playerId: 'p1', fromTeamId: 'b', offeredPrice: 100, expiresAtRace: 5 }] }), [P('p1', 'a')])
   const five = base(S({ incomingOffers: Array.from({ length: 5 }, (_, i) => ({ id: `o${i}`, playerId: 'p1', fromTeamId: `b${i}`, offeredPrice: 100, expiresAtRace: 5 })) }), [P('p1', 'a')])
-  check('打診が1件でもベルは0', collectNotifications(one).total === 0, `${collectNotifications(one).total}件`)
-  check('5クラブが取り合っていてもベルは0', collectNotifications(five).total === 0, `${collectNotifications(five).total}件`)
+  check('打診が1件ならベルは1', collectNotifications(one).total === 1, `${collectNotifications(one).total}件`)
+  check('5クラブが1人を取り合ってもベルは1', collectNotifications(five).total === 1, `${collectNotifications(five).total}件`)
   // ★母数の確認。打診そのものは届いている（届いていない世界なら何も守っていない）
   check('打診そのものは届いている', collectNotifications(one).incomingOfferPlayers.length === 1)
 }
@@ -278,6 +279,7 @@ const expected = [
   'counteredBids.length', 'feeAcceptedBids.length', 'freeContacts.length', 'departureNotices.length',
   'freeTransferNotices.length', 'expiredNegotiations.length', 'loanResponses.length',
   // 買い取り打診は「選手ごと」に1件。1人に5クラブ来ても行は1つ＝ベルも1（notifItems.offersByPlayer）
+  'incomingOfferPlayers.length',
   // 行き先が決まらなかった退団予定の選手の去就（残ってくれ／契約を解除する）
   'stayOrLeave.length',
 ]

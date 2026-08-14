@@ -1,21 +1,24 @@
 /**
- * 【買い取りの打診は通知に出さない】ベルと通知ページから外れていること。
+ * 【買い取りの打診も通知に出す】ベルと通知ページの両方に、**選手ごとに1枚**出ること。
  *
  *   npx esbuild --bundle --platform=node --format=cjs scripts/check-offer-notif.ts \
  *     --outfile=node_modules/.cache/check-on.cjs --log-level=error && node node_modules/.cache/check-on.cjs
  *
- * ■なぜ外したのか（2026-08-12・オーナー判断「受信箱はいいけど通知に来なければいい」）
- *   打診は1レースに1〜2件しか来ないが、**5レース残る**（`expiresAtRace: raceIndex + 5`）。
- *   その結果ベルには**常時8〜11件**が並び続けていた。実測（1部10戦）：
+ * ■いったん外して、また戻した経緯（**両方ともオーナー判断**）
+ *   2026-08-12「受信箱はいいけど通知に来なければいい」で外した。当時は打診が
+ *   **常時8〜11件**ベルに並び続けていたため（1シーズンのべ16件・受信箱5.8件）。
  *
- *     1シーズンに来る打診 のべ16件 ／ 受信箱は常時 5.8件（最多11件）
+ *   2026-08-14「全部通知通して行くようにして」で戻した。あいだに打診の生成を
+ *   1本化して上限を**1レース1件**にしたので、量が桁で変わっている。実測（1部10戦）：
  *
- *   **来る量は変えていない。**通知に出さなくしただけ。返事は
- *   **移籍ページ**（「他クラブからのオファー N件 — 要確認」）と**チャット**でできる。
+ *     1シーズンに来る打診 7.00件 ／ 受信箱は常時 2.50件（最多5件）
+ *
+ *   つまり外した理由（並び続ける）はもう成り立たない。**量が戻ったらまた考えること。**
+ *   数えるのは**選手の数**（5クラブが1人を取り合っても返事は1回＝カード1枚）。
  *
  * ■この点検が守るもの
  *   ベルの数字と通知ページのカードの枚数は**必ず一致**させる（`utils/notifItems` の決まり）。
- *   片方だけ戻すと、また食い違いが生まれる。
+ *   片方だけ変えると、また食い違いが生まれる。
  */
 import { readFileSync } from 'node:fs'
 import { collectNotifications } from '../src/utils/notifItems'
@@ -63,13 +66,14 @@ const call = (offers: IncomingOffer[]) => collectNotifications({
   } as unknown as Season,
 } as never)
 
-console.log('[1] 打診が何件あってもベルの数字は増えない')
+console.log('[1] 打診はベルに出る（数えるのは選手の数）')
 {
   const none = call([]).total
   const three = call([offer(1, 'a'), offer(2, 'b'), offer(3, 'c')]).total
   const many = call(Array.from({ length: 11 }, (_, i) => offer(i, ['a', 'b', 'c'][i % 3]))).total
-  check('0件のときと3件のときで同じ', none === three, `${none} / ${three}`)
-  check('0件のときと11件のときで同じ', none === many, `${none} / ${many}`)
+  check('3人ぶんの打診でベルが3つ増える', three === none + 3, `${none} / ${three}`)
+  // 11件でも選手は3人なので、増えるのは3つ（クラブの数で増やさない）
+  check('同じ3人に11件でも増えるのは3つ', many === none + 3, `${none} / ${many}`)
   // ★母数の確認。そもそも打診が届いていない世界なら、この点検は何も守っていない
   check('打診そのものは届いている（空振りの緑ではない）',
     call([offer(1, 'a')]).incomingOfferPlayers.length === 1,
@@ -77,11 +81,15 @@ console.log('[1] 打診が何件あってもベルの数字は増えない')
 }
 
 console.log('')
-console.log('[2] 通知ページにも出さない（ベルと枚数を必ず揃える）')
+console.log('[2] 通知ページにも出す（ベルと枚数を必ず揃える）')
 {
   const page = readFileSync('src/components/notifications/NotificationsPage.tsx', 'utf-8')
-  check('通知ページに「移籍オファー」の節が無い', !/SectionHead label="移籍オファー"/.test(page))
-  check('通知ページが incomingOfferPlayers を読んでいない', !/incomingOfferPlayers/.test(page))
+  check('通知ページに「買い取り打診」の節がある', /SectionHead label="買い取り打診"/.test(page))
+  check('通知ページが incomingOfferPlayers を読んでいる', /incomingOfferPlayers/.test(page))
+  // ★カードは**選手ごとに1枚**。オファーの配列を直に map すると、
+  //   5クラブが1人を取り合ったときにベル1・カード5でズレる
+  check('カードは選手ごとに1枚（オファーごとに並べない）',
+    /incomingOfferPlayers\.map\(\(\{ playerId, offers \}\)/.test(page))
 }
 
 console.log('')
@@ -93,5 +101,5 @@ console.log('[3] 返事の導線は残っている（外しても詰まらない
 }
 
 console.log('')
-console.log(failed === 0 ? '\n✓ 買い取りの打診はベルにも通知ページにも出ない（返事は移籍ページで）\n' : `\n✗ ${failed}件\n`)
+console.log(failed === 0 ? '\n✓ 買い取りの打診はベルにも通知ページにも出る（選手ごとに1枚）\n' : `\n✗ ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)
