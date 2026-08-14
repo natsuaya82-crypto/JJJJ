@@ -360,6 +360,24 @@ export function buildCpuLineups(
   return out
 }
 
+/**
+ * **そのレースを走っているクラブ。**（自チーム＋`buildCpuLineups` が組んだ相手）
+ *
+ * ★画面に並べるクラブも「誰が走るか」と同じ1本から出すこと。
+ *   中継の順位表に**全52クラブ**を渡していたため、走っていない32クラブが
+ *   走者なし（「?」・名前なし）のまま並び、しかも区間タイムが無い＝自分と同じ扱いに
+ *   なるので**タイム差0で上位を占めて**いた（実際に走っている20クラブが下へ押し出される）。
+ *   部の判定をここで書き直さないこと——`buildCpuLineups` の結果をそのまま使う。
+ */
+export function racingTeams<T extends { id: string }>(
+  teams: readonly T[],
+  cpuLineups: Record<string, Record<number, string>>,
+  playerTeamId: string,
+): T[] {
+  const ids = new Set([playerTeamId, ...Object.keys(cpuLineups)])
+  return teams.filter(t => ids.has(t.id))
+}
+
 export function simulateRace(
   race: Race,
   lineups: Record<string, Record<number, string>>,

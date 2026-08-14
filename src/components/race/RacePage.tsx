@@ -16,7 +16,7 @@ import { LineupPhase } from './LineupPhase'
 import { SimPhase } from './SimPhase'
 import { ResultsPhase } from './ResultsPhase'
 import { useAdHeight } from '../layout/Layout'
-import { buildCpuLineups } from '../../engine/raceEngine'
+import { buildCpuLineups, racingTeams } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
 import { C, alpha, SAIRA, TT_COLOR, bottomStack } from '../../styles/tokens'
@@ -791,10 +791,13 @@ export default function RacePage() {
       ? calcFinalSegTime(iSim.segStamina, iSim.initialSegStamina, iSim.playerTimeMod, livePlayerObj, liveSeg, livePlayerTeam, race, liveSeasonProgress, raceStrategy, race.segments.length)
       : iSim.playerBaseTime
 
+    // 画面に並べるのは**そのレースを走っているクラブだけ**（engine/raceEngine の1本）
+    const raceTeams = racingTeams(teams, iSim.cpuLineups, playerTeamId)
+
     return (
       <SimPhase
         race={race}
-        teams={teams}
+        teams={raceTeams}
         players={players}
         playerTeamId={playerTeamId}
         pendingEvent={iSim.pendingEvents[0] ?? null}
