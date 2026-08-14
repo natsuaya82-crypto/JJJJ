@@ -38,7 +38,7 @@ import { managedTeamIds, startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, ovr, packForeignApps, perfOf, transferFeeFor } from '../../utils/playerUtils'
+import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf, transferFeeFor } from '../../utils/playerUtils'
 import { playRateOf } from '../../utils/playRate'
 import { movePlayer } from '../../utils/movePlayer'
 import { squadIdsOf } from '../../utils/rosterSync'
@@ -309,7 +309,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         const withHistory = snap == null ? grown : { ...grown, ovrHistory: [...(p.ovrHistory ?? []), { year: state.currentSeason.year, ovr: snap }].slice(-8) }
         if (cpuRenewIds.has(p.id)) {
           const newSalary = cpuRenewalSalary(withHistory)
-          return { ...withHistory, contract: { ...withHistory.contract, yearsLeft: 2, annualSalary: newSalary, faEligibleYear: newYear + 2 } }
+          const years = newContractYears(withHistory, newYear)
+          return { ...withHistory, contract: { ...withHistory.contract, yearsLeft: years, annualSalary: newSalary, faEligibleYear: newYear + years } }
         }
         return withHistory
       })

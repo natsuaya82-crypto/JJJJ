@@ -534,12 +534,40 @@ export function transferFeeAgeMultiplier(age: number): number {
  *   ポテンシャル係数は廃止した。伸びしろは「若さ」で表す（年齢倍率がその役割）。
  *
  * ■ 契約年数
- *   残り契約が長いほど高い（最大+18%）。切れかけの選手は安く買える。
+ *   残り契約が長いほど高い。**1年 1.1倍 → 4年以上 1.4倍**（1年につき +0.1）。
+ *   オーナー判断（2026-08-14）。切れかけの選手は安く買える。
+ *
+ *   ★これは**値段の話であって、移籍を止める力はありません。**実測で、
+ *     1.1〜1.4倍にしても移籍率は 16.41% / 16.48% / 15.52% / 15.31%（残り1〜4年）と
+ *     ほぼ動かず、**残り4年を3.0倍にしても14.90%**にしかなりませんでした。
+ *     買う側の上限（`transferCapOf` ＝ 格の年間予算の20%）が移籍金に対して大きく、
+ *     関門ごとの実測でも「金が足りない」で落ちる件数は**0件**です。
+ *     止めたいときは関門を作ること（`transferDecision` の格差の関門と同じ形）。
  */
 export function calcTransferValue(p: Player, perf?: PerfProfile): number {
-  const ctFactor = 1.0 + Math.min((p.contract.yearsLeft - 1) * 0.06, 0.18)
+  const ctFactor = 1.1 + Math.min(Math.max(0, p.contract.yearsLeft - 1) * 0.1, 0.3)
   const raw = faMarketSalary(p, perf) * transferFeeAgeMultiplier(p.age) * ctFactor
   return Math.round(raw / 1_000_000) * 1_000_000
+}
+
+/**
+ * **移籍・FA加入・契約更新で結ぶ契約の年数。ここ1本。**
+ *
+ * 以前は移籍・FA・更新の全部が `yearsLeft: 2` のベタ書きで、**動いた選手は全員が
+ * 残り2年に揃って**いました。そのせいで「長期契約の選手」という状態がそもそも生まれず、
+ * 契約年数を見る仕組み（移籍金の係数など）が何を掛けても差になりませんでした。
+ * オーナー判断（2026-08-14）「1〜5年でバラして」。
+ *
+ * 若いほど長く、ベテランほど短い（現実の契約と同じ向き）。
+ *   〜23歳 3〜5年 ／ 24〜28歳 2〜4年 ／ 29〜32歳 1〜3年 ／ 33歳〜 1〜2年
+ *
+ * ★乱数を使わず選手IDから決めます（`utils/hash` の `strHash` 1本）。
+ *   `Math.random` を使うと点検のゴールデンが毎回変わるため。
+ */
+export function newContractYears(p: Pick<Player, 'id' | 'age'>, year: number): number {
+  const base = p.age <= 23 ? 4 : p.age <= 28 ? 3 : p.age <= 32 ? 2 : 1
+  const jitter = (strHash(`${p.id}-${year}-contract`) % 3) - 1   // -1 / 0 / +1
+  return Math.min(5, Math.max(1, base + jitter))
 }
 
 /**

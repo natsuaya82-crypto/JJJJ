@@ -660,6 +660,21 @@ RULES.push({
   fix: 'store/saveStorage.ts の collectSaveSources / describeSave を通す（名前を自分で組み立てない）',
 })
 
+// 移籍・FA加入・契約更新で**結び直す**契約の年数。以前は全部 `yearsLeft: 2` のベタ書きで、
+// **動いた選手が全員 残り2年に揃って**いた（＝契約年数という状態がそもそも生まれない）。
+//
+// 許すのは「世界を作るとき」だけ——初期データ・選手の生成・ドラフトの新人契約
+// （`rookieDeal`）・開幕時の初期ロスター。ここは移籍ではないので別枠。
+RULES.push({
+  name: '結び直す契約の年数を手書きしている',
+  pattern: /yearsLeft:\s*\d/,
+  allow: [
+    'src/data/players.ts', 'src/engine/playerGenerator.ts', 'src/store/slices/metaSlice.ts',
+    'src/store/slices/draftSlice.ts', 'src/store/gameStore.ts',
+  ],
+  fix: 'utils/playerUtils.ts の newContractYears(player, year) を使う',
+})
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     if (SKIP_DIRS.has(e)) continue

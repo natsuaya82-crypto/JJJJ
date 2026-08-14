@@ -47,7 +47,8 @@ import { needsPlayer } from '../utils/squadNeeds'
 import { isOwnedBy } from '../utils/transferEligibility'
 import { isSurplus, seeksPlayingTime, type Destination } from '../utils/transferDecision'
 import {
-  acquisitionDesiredSalary, faMarketSalary, ovr, perfOf, playerConsentToMove, transferFeeFor,
+  acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, perfOf, playerConsentToMove,
+  transferFeeFor,
 } from '../utils/playerUtils'
 import {
   MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp, tierBudget, tierOf, tierOfPlayerClub, tierStrength,
@@ -259,7 +260,7 @@ export function runTransferMarket(
         date: ctx.date,
         fee, years: 2, money: false,
         toName: buyClub.domestic ? undefined : buyClub.name,
-        contract: { annualSalary: newSalary, yearsLeft: 2 },
+        contract: { annualSalary: newSalary, yearsLeft: newContractYears(target, ctx.year) },
       })
       if (!moved.ok) continue
 

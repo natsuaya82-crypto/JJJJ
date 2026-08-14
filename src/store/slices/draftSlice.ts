@@ -16,7 +16,7 @@ import { allForeignClubs, findClub } from '../../utils/clubs'
 import { draftRoundOf, joinsDraft } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } from '../../utils/newsItems'
-import { faMarketSalary, ovr, perfOf, playerConsentToMove } from '../../utils/playerUtils'
+import { faMarketSalary, ovr, perfOf, playerConsentToMove, newContractYears } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { teamHistoriesOf } from '../../utils/teamHistory'
 
@@ -614,7 +614,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
         date: `${newYear}-02-01`,
         kind: 'free',
         history: false,
-        contract: { yearsLeft: 2, annualSalary: faMarketSalary(before, perfOf(state.currentSeason, sg.playerId)), contractType: 'standard' } })
+        contract: { yearsLeft: newContractYears(before, state.currentSeason.year), annualSalary: faMarketSalary(before, perfOf(state.currentSeason, sg.playerId)), contractType: 'standard' } })
       if (!m.ok) continue
       playersWithCpuSigns = m.players.map(p =>
         p.id !== sg.playerId ? p : { ...p, contract: { ...p.contract, faEligibleYear: newYear + 2 } })
