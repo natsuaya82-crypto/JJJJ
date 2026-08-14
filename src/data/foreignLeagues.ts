@@ -259,3 +259,23 @@ export const FOREIGN_LEAGUES: ForeignLeague[] = [
     ],
   },
 ]
+
+/**
+ * リーグの英字名。**画面で作らないこと**（ここ1本）。
+ *
+ * ★リーグの型（セーブに入る側）には入れない。表示用の文字をセーブに持たせると、
+ *   名前を直すたびに古いセーブと食い違い、移行のスナップショットまで動く。
+ *   画面はIDからここを引く。
+ */
+const LEAGUE_NAME_EN: Record<string, string> = {
+  asia_league: 'ASIA',
+  africa_east: 'EAST AFRICA',
+  africa_ns: 'NORTH & SOUTH AFRICA',
+  europe_ws: 'WEST & SOUTH EUROPE',
+  europe_ne: 'NORTH & EAST EUROPE',
+  north_america: 'NORTH AMERICA',
+  central_america: 'CENTRAL AMERICA',
+  south_america: 'SOUTH AMERICA',
+  oceania: 'OCEANIA',
+}
+export const leagueNameEn = (leagueId: string): string => LEAGUE_NAME_EN[leagueId] ?? ''

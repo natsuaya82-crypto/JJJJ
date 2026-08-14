@@ -125,7 +125,7 @@ export function GmPassCard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
             <div style={{ width: 4, height: 34,background: `linear-gradient(180deg, ${G}, ${alpha(G, 0.25)})`, flexShrink: 0 }} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 9, color: alpha(G, 0.5), letterSpacing: '4px', marginBottom: 3 }}>GM PASS</div>
+              <div style={{ fontSize: 9, color: alpha(G, 0.85), letterSpacing: '4px', marginBottom: 3 }}>GM PASS</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>GMパス</div>
             </div>
           </div>

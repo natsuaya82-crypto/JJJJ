@@ -5,6 +5,7 @@ import { LeagueLogoSVG } from '../icons/Icons'
 import { C, SAIRA, FONT } from '../../styles/tokens'
 import { ovr } from '../../utils/playerUtils'
 import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
+import { leagueNameEn } from '../../data/foreignLeagues'
 import Flag from '../ui/Flag'
 import PageHeader from '../ui/PageHeader'
 import MenuButton from '../ui/MenuButton'
@@ -152,7 +153,7 @@ export default function TeamsHub() {
         <RowCard onClick={() => navigate('/standings')} icon={<LeagueLogoSVG leagueId="jpel" size={34} />} title="JPEL" en="JAPAN" color={C.gold} />
         <RowCard onClick={() => navigate('/standings/ecl')} icon={<LeagueLogoSVG leagueId="ecl" size={34} />} title="ECL" en="CHAMPIONS LEAGUE" color={C.red} />
         {leagues.map(l => (
-          <RowCard key={l.id} onClick={() => navigate(`/teams/foreign/${l.id}`)} icon={<LeagueLogoSVG leagueId={l.id} size={34} />} title={l.countryName} en="OVERSEAS" color={C.cyan} />
+          <RowCard key={l.id} onClick={() => navigate(`/teams/foreign/${l.id}`)} icon={<LeagueLogoSVG leagueId={l.id} size={34} />} title={l.countryName} en={leagueNameEn(l.id)} color={C.cyan} />
         ))}
       </>)}
     </>)

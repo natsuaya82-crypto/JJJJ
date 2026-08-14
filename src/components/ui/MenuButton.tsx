@@ -55,7 +55,7 @@ export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.
             }}>{badge}</span>
           )}
           {note && (
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', marginLeft: 8 }}>{note}</span>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.66)', marginLeft: 8 }}>{note}</span>
           )}
         </span>
       </span>

@@ -27,14 +27,14 @@ export default function ObjectivesPage() {
 
         {objectives.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', background: alpha('#a78bfa', 0.07), border: `1px solid ${alpha('#a78bfa', 0.2)}`,}}>
-            <span style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#a78bfa', 0.7) }}>
+            <span style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#a78bfa', 0.85) }}>
               全達成で最大
             </span>
             <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: '#a78bfa', textShadow: '0 0 10px rgba(167,139,250,0.5)' }}>
               +{totalJ}J
             </span>
             {earnedJ > 0 && (
-              <span style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#a78bfa', 0.6) }}>
+              <span style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#a78bfa', 0.85) }}>
                 獲得済 +{earnedJ}J
               </span>
             )}

@@ -245,7 +245,7 @@ export default function TeamHub() {
                   fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: item.color, lineHeight: 1,
                   textShadow: item.glow ? `0 0 10px ${alpha(item.glow, 0.55)}` : 'none',
                 }}>{item.value}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 9, color: 'rgba(140,154,175,0.75)', marginTop: 2, letterSpacing: '0.1em' }}>{item.label}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginTop: 2, letterSpacing: '0.1em' }}>{item.label}</div>
               </div>
             )
           })}

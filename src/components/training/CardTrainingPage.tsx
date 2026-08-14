@@ -389,7 +389,7 @@ border: `2px dashed ${C.border2}`,
             >
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
               <span style={{ fontSize: 11, fontWeight: 800, color: C.gold }}>大成功確定（GMパス・本日1回）</span>
-              <span style={{ fontSize: 10, color: alpha(C.gold, 0.55) }}>取消</span>
+              <span style={{ fontSize: 10, color: alpha(C.gold, 0.85) }}>取消</span>
             </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>

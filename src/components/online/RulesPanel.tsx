@@ -56,7 +56,7 @@ export default function RulesPanel({ rules, isHost, deadline, teams, maxTeams, o
     <div style={{ paddingBottom: 100 }}>
       {/* 残り時間 */}
       <div style={{ margin: '4px 12px 0', padding: '14px 16px',textAlign: 'center', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.gold, 0.4)}` }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 9, color: alpha(C.gold, 0.6), letterSpacing: '4px', fontWeight: 900 }}>RULES</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 9, color: alpha(C.gold, 0.85), letterSpacing: '4px', fontWeight: 900 }}>RULES</div>
         <div style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: left <= 10 ? C.red : C.gold, lineHeight: 1.2 }}>{left}</div>
         <div style={{ fontSize: 10, color: C.textDim }}>{isHost ? 'ルールを決めてください' : 'ホストが決めています'}</div>
       </div>
@@ -150,7 +150,7 @@ function resize(ids: string[], n: number): string[] {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ padding: '18px 16px 0' }}>
-      <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.55), letterSpacing: '2px', fontWeight: 900, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, marginBottom: 8 }}>{label}</div>
       {children}
     </div>
   )

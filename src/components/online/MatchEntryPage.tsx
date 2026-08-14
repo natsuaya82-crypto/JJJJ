@@ -81,7 +81,7 @@ export default function MatchEntryPage() {
 
       {/* 番号で入る */}
       <div style={{ padding: '20px 16px 0' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.55), letterSpacing: '2px', fontWeight: 900, marginBottom: 8 }}>番号で入る</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, marginBottom: 8 }}>番号で入る</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             value={code}

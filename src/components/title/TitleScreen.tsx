@@ -78,7 +78,7 @@ export default function TitleScreen({ onStart }: { onStart: () => void }) {
       }}>
         {/* League label */}
         <div style={{
-          fontSize: '9px', letterSpacing: '6px', color: alpha(C.gold, 0.65),
+          fontSize: '9px', letterSpacing: '6px', color: alpha(C.gold, 0.85),
           fontFamily: SAIRA, fontWeight: '700', marginBottom: '28px',
           animation: 'em-glow 3s ease infinite',
         }}>

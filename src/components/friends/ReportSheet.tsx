@@ -75,7 +75,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
           いただいた通報は24時間以内に確認し、必要な対応を行います。相手には通知されません。
         </div>
 
-        <div style={{ fontSize: 10, color: alpha(C.gold, 0.7), fontWeight: 900, letterSpacing: '1px', marginBottom: 6 }}>
+        <div style={{ fontSize: 10, color: alpha(C.gold, 0.85), fontWeight: 900, letterSpacing: '1px', marginBottom: 6 }}>
           理由をえらぶ
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>

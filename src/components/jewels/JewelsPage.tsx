@@ -98,7 +98,7 @@ export default function JewelsPage() {
 
       {/* 残高 */}
       <div style={{ margin: '16px 16px 8px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.35)}`,padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#6dd5fa', 0.6), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#6dd5fa', 0.85), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <JewelIcon size={28}detailed />
           <span style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: '#6dd5fa', textShadow: '0 0 20px rgba(109,213,250,0.6)', lineHeight: 1 }}>{jewels.toLocaleString()}</span>

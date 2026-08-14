@@ -653,7 +653,7 @@ export default function RoomLobbyPage() {
     <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>
       {/* ヘッダー：戻るではなく「退出」。黙って抜けると相手側に残ってしまうため。 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px 6px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.cyan, 0.7), letterSpacing: '3px', fontWeight: 900 }}>ROOM</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.cyan, 0.85), letterSpacing: '3px', fontWeight: 900 }}>ROOM</div>
         <div style={{ flex: 1 }} />
         {conn !== 'online' && (
           <div style={{ fontSize: 10, color: C.textDim }}>{conn === 'connecting' ? '接続中…' : 'オフライン'}</div>
@@ -664,7 +664,7 @@ export default function RoomLobbyPage() {
       {phase === 'lobby' && (<>
       {/* 部屋番号 */}
       <div style={{ margin: '4px 12px 0', padding: '16px',textAlign: 'center', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.cyan, 0.4)}` }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 9, color: alpha(C.cyan, 0.6), letterSpacing: '4px', fontWeight: 900 }}>ROOM CODE</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 9, color: alpha(C.cyan, 0.85), letterSpacing: '4px', fontWeight: 900 }}>ROOM CODE</div>
         <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: C.cyan, letterSpacing: '8px', lineHeight: 1.3 }}>
           {formatRoomCode(room?.code ?? '')}
         </div>
@@ -673,7 +673,7 @@ export default function RoomLobbyPage() {
       {/* 参加者 */}
       <div style={{ padding: '18px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.55), letterSpacing: '2px', fontWeight: 900 }}>参加チーム</div>
+          <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900 }}>参加チーム</div>
           <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.text }}>{active.length} / {room?.maxPlayers ?? 20}</div>
         </div>
 
@@ -812,7 +812,7 @@ export default function RoomLobbyPage() {
           <FinishPanel races={results} meId={me ?? ''} onLeave={() => setAskLeave(true)} />
         ) : (
           <div style={{ padding: '48px 16px 0', textAlign: 'center' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 12, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FINISH</div>
+            <div style={{ fontFamily: SAIRA, fontSize: 12, color: alpha(C.gold, 0.85), letterSpacing: '3px', fontWeight: 900 }}>FINISH</div>
             <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginTop: 8 }}>対戦終了</div>
             <div style={{ fontSize: 12, color: C.textDim, marginTop: 10, lineHeight: 1.7 }}>お疲れさまでした。</div>
             <button onClick={() => setAskLeave(true)} className="btn-press" style={{

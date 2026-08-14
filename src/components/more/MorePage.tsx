@@ -242,7 +242,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           }}
           style={{ cursor: 'default', userSelect: 'none' }}
         >
-          <div style={{ fontSize: 9, color: alpha(C.gold, 0.5), letterSpacing: '4px', marginBottom: 3 }}>SETTINGS</div>
+          <div style={{ fontSize: 9, color: alpha(C.gold, 0.85), letterSpacing: '4px', marginBottom: 3 }}>SETTINGS</div>
           <div style={{ fontSize: 26, fontWeight: 900, color: C.text, lineHeight: 1 }}>設定</div>
         </div>
       </div>
@@ -289,16 +289,16 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
             onClick={() => window.open(PRIVACY_URL, '_blank')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
           >
-            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.55) }}>プライバシーポリシー</span>
+            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.85) }}>プライバシーポリシー</span>
           </button>
-          <span style={{ fontSize: 10, color: alpha(C.textGhost, 0.3) }}>|</span>
+          <span style={{ fontSize: 10, color: alpha(C.textGhost, 0.85) }}>|</span>
           {/* 自前の利用規約。初回起動の同意画面で出しているものと同じ内容。
               アプリ内の本文は src/data/termsText.ts にあるので、直すときは両方そろえること */}
           <button
             onClick={() => window.open(TERMS_URL, '_blank')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
           >
-            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.55) }}>利用規約</span>
+            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.85) }}>利用規約</span>
           </button>
         </div>
       </div>

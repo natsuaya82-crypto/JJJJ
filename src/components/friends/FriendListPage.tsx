@@ -28,7 +28,7 @@ export default function FriendListPage() {
       <PageHeader title="フレンド一覧" />
 
       <div style={{ padding: '10px 12px 0' }}>
-        <div style={{ fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {loading || error ? '' : friends.length}</div>
+        <div style={{ fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {loading || error ? '' : friends.length}</div>
         {loading ? <LoadingBox /> : error ? <ErrorBox onRetry={reload} /> : friends.length === 0 ? (
           <EmptyBox label="まだフレンドがいません。「申請・承認」からコードで追加できます" />
         ) : (

@@ -241,7 +241,7 @@ padding: '7px 3px 6px',
                   }}
                 >
                   <span style={{ fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '0.5px' }}>GMパスで毎日×2</span>
-                  <span style={{ fontSize: 10, color: alpha(C.gold, 0.6) }}>›</span>
+                  <span style={{ fontSize: 10, color: alpha(C.gold, 0.85) }}>›</span>
                 </button>
               )
               : undefined}

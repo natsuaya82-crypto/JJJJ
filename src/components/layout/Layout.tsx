@@ -220,7 +220,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span style={{ fontSize: '12px', fontWeight: '700', color: '#6dd5fa', letterSpacing: '0.3px', minWidth: '24px', textAlign: 'right' }}>
               {jewels.toLocaleString()}
             </span>
-            <span style={{ fontSize: '14px', fontWeight: '900', color: alpha('#6dd5fa', 0.7), lineHeight: 1, paddingLeft: '2px' }}>+</span>
+            <span style={{ fontSize: '14px', fontWeight: '900', color: alpha('#6dd5fa', 0.85), lineHeight: 1, paddingLeft: '2px' }}>+</span>
           </button>
 
           {/* Notification bell */}

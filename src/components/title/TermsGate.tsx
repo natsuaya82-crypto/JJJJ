@@ -51,7 +51,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
           borderBottom: `1px solid ${alpha(C.gold, 0.18)}`, textAlign: 'center',
         }}>
           <div style={{
-            fontSize: '9px', letterSpacing: '5px', color: alpha(C.gold, 0.6),
+            fontSize: '9px', letterSpacing: '5px', color: alpha(C.gold, 0.85),
             fontFamily: SAIRA, fontWeight: 700, marginBottom: '8px',
           }}>
             JPEL MANAGER
@@ -94,7 +94,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
                 <div style={{ marginTop: sec.body ? '8px' : 0 }}>
                   {sec.items.map((it, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-                      <span style={{ color: alpha(C.gold, 0.7), fontSize: '12px', lineHeight: 1.9 }}>・</span>
+                      <span style={{ color: alpha(C.gold, 0.85), fontSize: '12px', lineHeight: 1.9 }}>・</span>
                       <span style={{ fontSize: '12px', lineHeight: 1.9, color: C.textSub, flex: 1 }}>{it}</span>
                     </div>
                   ))}

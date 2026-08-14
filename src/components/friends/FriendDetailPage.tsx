@@ -172,7 +172,7 @@ export default function FriendDetailPage() {
       {/* ヘッダー */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px 6px' }}>
         <BackButton />
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FRIEND</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '3px', fontWeight: 900 }}>FRIEND</div>
         <div style={{ flex: 1 }} />
         {isFriend === true && (
           <button onClick={() => setAskRemove(true)} style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>

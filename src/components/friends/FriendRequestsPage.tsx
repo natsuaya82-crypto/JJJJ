@@ -20,7 +20,7 @@ import { C, alpha, SAIRA } from '../../styles/tokens'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '2px', fontWeight: 900, margin: '20px 0 8px' }}>
+    <div style={{ fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, margin: '20px 0 8px' }}>
       {children}
     </div>
   )
@@ -151,7 +151,7 @@ export default function FriendRequestsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.gold, 0.4)}` }}>
           <TeamLogoSVG primary={myTeam?.colors.primary ?? '#333'} secondary={myTeam?.colors.secondary ?? '#777'} shortName={myTeam?.shortName ?? '—'} teamId={playerTeamId} size={40} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 9, color: alpha(C.gold, 0.7), letterSpacing: '1px', fontWeight: 900 }}>あなたのID</div>
+            <div style={{ fontSize: 9, color: alpha(C.gold, 0.85), letterSpacing: '1px', fontWeight: 900 }}>あなたのID</div>
             <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: code.data ? C.text : C.textGhost, letterSpacing: '3px' }}>{myCodeText}</div>
           </div>
           {code.error ? (

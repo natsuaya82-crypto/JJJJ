@@ -137,7 +137,7 @@ export default function FinishPanel({
   return (
     <div style={{ padding: '10px 12px 0' }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.7), letterSpacing: 3, fontWeight: 900 }}>FINAL RESULT</div>
+        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: 3, fontWeight: 900 }}>FINAL RESULT</div>
         <div style={{ fontSize: 19, fontWeight: 900, color: C.text, marginTop: 4 }}>総合結果</div>
         <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>
           {history ? `全${races.length}レース` : done ? `全${races.length}レース終了` : `下の順位から発表します（残り${shown === 0 ? total : nextRank + 1}チーム）`}
