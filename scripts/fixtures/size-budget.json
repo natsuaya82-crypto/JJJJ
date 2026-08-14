@@ -5,7 +5,7 @@
  "src/engine/interactiveRace.ts": 817,
  "src/engine/playerGenerator.ts": 1477,
  "src/engine/raceEngine.ts": 490,
- "src/engine/transferMarket.ts": 318,
+ "src/engine/transferMarket.ts": 330,
  "src/engine/worldAthletics.ts": 746,
  "src/store/gameStore.ts": 708,
  "src/store/marketOps.ts": 204,

@@ -17,6 +17,7 @@
 
 import type { Division, Player, Race, SeasonStanding, Team } from '../types'
 import { runBackgroundRace } from './backgroundRace'
+import { playersByClub } from '../utils/rosterSync'
 import { DIVISIONS, teamsInDivision } from '../utils/league'
 
 export type AwayDivisionRound = {
@@ -54,6 +55,8 @@ export function simulateAwayDivisions(
   // 走らせた結果そのもの。以前はここで捨てて出走数だけ残していたので、区間タイムも
   // 誰と競ったかも残らなかった（区間記録も移籍の判断材料も作れない）
   const raced: { division: Division; roundIndex: number; race: Race }[] = []
+  // クラブごとの名簿は1回だけ作る（部×クラブの数だけ全選手を走査しない・utils/rosterSync）
+  const byClub = playersByClub(players)
 
   for (const d of DIVISIONS) {
     if (d === myDivision) continue
@@ -69,7 +72,7 @@ export function simulateAwayDivisions(
     // 出られるのは active の選手だけ＝国内の決まり。ここが大会ごとに違うので呼ぶ側で絞る
     const out = runBackgroundRace({
       race: divRace, players, teams, seasonProgress,
-      entrants: divTeams.map(t => ({ id: t.id, roster: players.filter(p => p.teamId === t.id && p.status === 'active') })),
+      entrants: divTeams.map(t => ({ id: t.id, roster: (byClub.get(t.id) ?? []).filter(p => p.status === 'active') })),
     })
 
     Object.assign(points, out.points)

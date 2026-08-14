@@ -28,7 +28,7 @@
 
 import type { OverseasRegion, Player } from '../types'
 import { ovr } from './playerUtils'
-import { belongsToClub } from './rosterSync'
+import { clubIndexOf } from './rosterSync'
 import { isDeclining } from '../engine/ageCurve'
 import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
 import { RUNNING_SLOTS } from '../data/rosterRules'
@@ -308,7 +308,8 @@ export function buildDestination(
   players: readonly Player[],
   opts?: { inEcl?: boolean; leagueRank?: number; leagueSize?: number; isForeign?: boolean; region?: OverseasRegion; player?: Player },
 ): Destination {
-  const roster = players.filter(p => belongsToClub(p, clubId))
+  // クラブの名簿は索引から引く（1人見るたびに全選手を走査しない・utils/rosterSync）
+  const roster = clubIndexOf(players).get(clubId) ?? []
   const squadSize = roster.length
   // 何番手になるかの数え方は squadNeeds の squadRankOf 1本（FAを取るかの判断と同じ物差し）
   const squadRank = opts?.player ? squadRankOf(roster, opts.player) : Math.ceil(squadSize / 2)

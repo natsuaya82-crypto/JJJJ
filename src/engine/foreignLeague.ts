@@ -3,7 +3,7 @@ import { runBackgroundRace, applyCareerAdd } from './backgroundRace'
 // コースの呼び名は地域ごと（中身は同じ）。ケニアのクラブが「出雲開幕戦」を走らないようにする
 import { courseRegionOfNation, localizeRace } from '../data/courseNames'
 // 所属の判定は国内チームと同じものを使う（クラブ側に名簿は持たない）
-import { belongsToClub } from '../utils/rosterSync'
+import { playersByClub, belongsToClub } from '../utils/rosterSync'
 import { rankedStandings } from '../utils/league'
 
 // 海外リーグの順位表を初期化（全クラブ 0pt）。
@@ -19,8 +19,8 @@ export function initForeignStandings(foreignLeagues: ForeignLeague[]): Record<st
 // 海外選手も走れるようにする（status==='active'で絞ると、statusが付いていない海外選手が
 // 全員弾かれ空ラインナップ＝出走0になる）。
 // **区間への並べ方はここでは決めない**（engine/backgroundRace の bgLineup 1本）。
-function clubRoster(clubId: string, players: Player[]): Player[] {
-  return players.filter(p => belongsToClub(p, clubId) && p.status !== 'injured')
+function clubRoster(clubId: string, byClub: Map<string, Player[]>): Player[] {
+  return (byClub.get(clubId) ?? []).filter(p => p.status !== 'injured')
 }
 
 // 海外リーグを1マッチデー進める。全リーグの各クラブが race を走り、順位表と
@@ -42,6 +42,8 @@ export function simulateForeignLeagueRound(
    */
   raced: Record<string, Race>
 } {
+  // クラブごとの名簿は1回だけ作る（クラブの数だけ全選手を走査しない・utils/rosterSync）
+  const byClub = playersByClub(players)
   const careerAdd: Record<string, { races: number; segWins: number; rankSum: number }> = {}
   const clubOf: Record<string, string> = {}   // playerId → 今走ったクラブ
   const newStandings: Record<string, ForeignStanding[]> = { ...standingsByLeague }
@@ -57,7 +59,7 @@ export function simulateForeignLeagueRound(
       race: localizeRace(race, courseRegionOfNation(league.country as Parameters<typeof courseRegionOfNation>[0])),
       players, seasonProgress,
       raceId: `${race.id}@${league.id}`,
-      entrants: league.clubs.map(c => ({ id: c.id, roster: clubRoster(c.id, players) })),
+      entrants: league.clubs.map(c => ({ id: c.id, roster: clubRoster(c.id, byClub) })),
     })
     raced[league.id] = out.race
 

@@ -176,6 +176,28 @@ export function runTransferMarket(
   const thisRaces = ctx.season.races.filter(r => r.results).length
   const prevRaces = (lastSeason?.races ?? []).filter(r => r.results).length
 
+  // ── 出せる選手の一覧は**出す側だけで決まる**（買う側が誰かに関係しない）。
+  //    232クラブぶんを買うたびに組み直していたので、1回の市場で数百万個の
+  //    オブジェクトを作っては捨てていた。動いたクラブのぶんだけ作り直す。
+  type SellCandidate = { p: Player; sellClub: MarketClub; sellRoster: Player[]; rank: number; surplus: boolean }
+  const sellCandidatesOf = (sellClub: MarketClub): SellCandidate[] => {
+    if ((sellCounts[sellClub.id] ?? 0) >= SELL_PER_CLUB) return []
+    const sellRoster = rosters.get(sellClub.id)!
+    // ②薄いクラブからは1人も出さない（下限は data/rosterRules 1本）
+    if (sellRoster.length <= CPU_SELL_FLOOR) return []
+    // ②エース(1番手)だけ保護。それ以外は主力でも対象（割増と本人同意で守る）。
+    //   ★ここに「上位10人まで」のような蓋を付けないこと。格上クラブの15番手が
+    //     格下でスタメンになる、という当たり前の移籍が丸ごと消えます
+    //   ★序列は**絞り込む前**に付けること。あとから index を取ると、
+    //     借りている選手が1人混ざっただけで以降の序列が全部1つずつズレます
+    return sellRoster
+      .map((p, i) => ({ p, sellClub, sellRoster, rank: i + 1, surplus: isSurplus({ squadRank: i + 1 }) }))
+      .slice(1)
+      // 借りている選手は出せない（保有権が無い）
+      .filter(({ p }) => isOwnedBy(p, sellClub.id) && !ctx.excludeIds.has(p.id) && p.joinedYear !== ctx.year)
+  }
+  const sellCandidateCache = new Map<string, SellCandidate[]>(clubs.map(c => [c.id, sellCandidatesOf(c)]))
+
   let moves = 0
   const buyOnePlayer = (buyClub: MarketClub): boolean => {
     if (ctx.maxMoves != null && moves >= ctx.maxMoves) return false
@@ -189,22 +211,9 @@ export function runTransferMarket(
     if (buyRoster.length >= ctx.rosterCapFor(buyClub.id)) return false
     const needs = needsOf.get(buyClub.id)!
 
-    const candidates = clubs.filter(c => c.id !== buyClub.id).flatMap(sellClub => {
-      if ((sellCounts[sellClub.id] ?? 0) >= SELL_PER_CLUB) return []
-      const sellRoster = rosters.get(sellClub.id)!
-      // ②薄いクラブからは1人も出さない（下限は data/rosterRules 1本）
-      if (sellRoster.length <= CPU_SELL_FLOOR) return []
-      // ②エース(1番手)だけ保護。それ以外は主力でも対象（割増と本人同意で守る）。
-      //   ★ここに「上位10人まで」のような蓋を付けないこと。格上クラブの15番手が
-      //     格下でスタメンになる、という当たり前の移籍が丸ごと消えます
-      //   ★序列は**絞り込む前**に付けること。あとから index を取ると、
-      //     借りている選手が1人混ざっただけで以降の序列が全部1つずつズレます
-      return sellRoster
-        .map((p, i) => ({ p, sellClub, sellRoster, rank: i + 1, surplus: isSurplus({ squadRank: i + 1 }) }))
-        .slice(1)
-        // 借りている選手は出せない（保有権が無い）
-        .filter(({ p }) => isOwnedBy(p, sellClub.id) && !ctx.excludeIds.has(p.id) && p.joinedYear !== ctx.year)
-    })
+    const candidates = clubs
+      .filter(c => c.id !== buyClub.id)
+      .flatMap(sellClub => sellCandidateCache.get(sellClub.id) ?? [])
       // ①「必要だから動く」の関門（移籍金を払う移籍なので穴のときだけ）
       .filter(({ p }) => needsPlayer(buyRoster, p))
       // 欲しいタイプ・OVRの高い選手を優先
@@ -248,6 +257,9 @@ export function runTransferMarket(
       const movedPlayer = players.find(p => p.id === target.id)!
       rosters.set(sellClub.id, sellRoster.filter(p => p.id !== target.id))
       rosters.set(buyClub.id, [...buyRoster, movedPlayer].sort(comparePlayers('ovr')))
+      // 名簿が動いた2クラブだけ、出せる選手の一覧を作り直す
+      sellCandidateCache.set(sellClub.id, sellCandidatesOf(sellClub))
+      sellCandidateCache.set(buyClub.id, sellCandidatesOf(buyClub))
       if (moved.record) records.push(moved.record)
       moves++
       newsRows.push({
