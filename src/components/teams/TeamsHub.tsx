@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { LeagueLogoSVG } from '../icons/Icons'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT, F } from '../../styles/tokens'
 import { ovr } from '../../utils/playerUtils'
 import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
 import { leagueNameEn } from '../../data/foreignLeagues'
@@ -51,8 +51,8 @@ function Header({ eyebrow, title, onBack }: { eyebrow: string; title: string; on
   if (!onBack) {
     return (
       <div style={{ padding: '12px 16px 12px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 2 }}>{eyebrow}</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>{title}</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 2 }}>{eyebrow}</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: C.text }}>{title}</div>
       </div>
     )
   }
@@ -125,8 +125,8 @@ export default function TeamsHub() {
           en="NATIONAL TEAM"
           color={C.purple}
           right={<div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 8, color: C.textDim }}>最高</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{n.top}</div>
+            <div style={{ fontSize: F.micro, color: C.textDim }}>最高</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{n.top}</div>
           </div>}
         />
       )))}

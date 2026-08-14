@@ -6,7 +6,7 @@ import { useGameStore } from '../../store/gameStore'
 import { usePreviewStore } from '../../store/previewStore'
 import { HOF_MAX } from '../../utils/hofRoster'
 import type { HofPlayer } from '../../types'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT, F } from '../../styles/tokens'
 
 // 未登録セーブ用の空配列。ここで [] を書くと毎回別物になり、下の useEffect が回り続ける
 const EMPTY: HofPlayer[] = []
@@ -36,8 +36,8 @@ export default function HofTeamPage() {
       <PageHeader
         eyebrow="HALL OF FAME"
         title="殿堂入りチーム"
-        right={<div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: hof.length >= HOF_MAX ? C.gold : C.textSub }}>
-          {hof.length}<span style={{ fontSize: 11, color: C.textDim }}>/{HOF_MAX}</span>
+        right={<div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: hof.length >= HOF_MAX ? C.gold : C.textSub }}>
+          {hof.length}<span style={{ fontSize: F.label, color: C.textDim }}>/{HOF_MAX}</span>
         </div>}
       />
 

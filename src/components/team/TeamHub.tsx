@@ -4,7 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 
@@ -188,17 +188,17 @@ export default function TeamHub() {
             />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', marginBottom: 2, fontWeight: 700 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', marginBottom: 2, fontWeight: 700 }}>
               {currentSeason.year} TEAM
             </div>
             <div style={{
-              fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.1, letterSpacing: '-0.5px',
+              fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.1, letterSpacing: '-0.5px',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224`,
             }}>
               {myTeam?.name ?? '—'}
             </div>
-            <div style={{ fontSize: 11, color: C.textSub, marginTop: 2 }}>{myTeam?.city} · GM: {myTeam?.gmName}</div>
+            <div style={{ fontSize: F.label, color: C.textSub, marginTop: 2 }}>{myTeam?.city} · GM: {myTeam?.gmName}</div>
           </div>
 
           {/* Rank badge */}
@@ -208,8 +208,8 @@ export default function TeamHub() {
               flexShrink: 0, width: 52, height: 52,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, lineHeight: 1, color: rankText }}>{myRank}</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 700, color: rankText, opacity: 0.8 }}>位</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, lineHeight: 1, color: rankText }}>{myRank}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 700, color: rankText, opacity: 0.8 }}>位</div>
             </div>
           )}
         </div>
@@ -242,10 +242,10 @@ export default function TeamHub() {
             return (
               <div key={i} style={{ textAlign: 'center', padding: '9px 4px' }}>
                 <div style={{
-                  fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: item.color, lineHeight: 1,
+                  fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: item.color, lineHeight: 1,
                   textShadow: item.glow ? `0 0 10px ${alpha(item.glow, 0.55)}` : 'none',
                 }}>{item.value}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginTop: 2, letterSpacing: '0.1em' }}>{item.label}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim, marginTop: 2, letterSpacing: '0.1em' }}>{item.label}</div>
               </div>
             )
           })}

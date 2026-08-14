@@ -4,7 +4,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Player } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
-import { C, SAIRA } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
 import BidSheet from '../transfer/BidSheet'
@@ -16,12 +16,12 @@ function PlayerHead({ player }: { player: Player }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
       <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{player.name}</div>
-        <div style={{ fontSize: 10, color: C.textDim }}>
+        <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>{player.name}</div>
+        <div style={{ fontSize: F.caption, color: C.textDim }}>
           {SPECIALTY_LABELS[player.specialty]} · {player.age}歳 · 残{player.contract.yearsLeft}年
         </div>
       </div>
-      <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</div>
+      <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</div>
     </div>
   )
 }

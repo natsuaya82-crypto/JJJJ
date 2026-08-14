@@ -7,7 +7,7 @@ import type { Race, RaceResults, Team, Player, Nationality } from '../../types'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import PillTabs from '../ui/PillTabs'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -82,22 +82,22 @@ export function SegmentDetailCard({
           background: `linear-gradient(180deg, #2a4060 0%, #122440 100%)`,
           border: `2px solid ${C.bg}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 900, color: segCol, fontFamily: SAIRA,
+          fontSize: F.label, fontWeight: 900, color: segCol, fontFamily: SAIRA,
         }}>
           {sr.segmentIndex}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSub, fontFamily: SAIRA }}>
+          <div style={{ fontSize: F.label, fontWeight: 800, color: C.textSub, fontFamily: SAIRA }}>
             {sr.segmentIndex}区
-            {seg && <span style={{ fontSize: 9, color: C.textDim, marginLeft: 5 }}>{terrainLabel(seg.uphillPct, seg.downhillPct, seg.distanceKm)} · {seg.distanceKm}km</span>}
+            {seg && <span style={{ fontSize: F.tiny, color: C.textDim, marginLeft: 5 }}>{terrainLabel(seg.uphillPct, seg.downhillPct, seg.distanceKm)} · {seg.distanceKm}km</span>}
           </div>
         </div>
         {myRunner && (
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 900, fontFamily: SAIRA, color: myRunner.rank === 1 ? C.gold : myRunner.rank <= 3 ? C.green : C.textSub, textShadow: myRunner.rank === 1 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
+            <div style={{ fontSize: F.bodyLg, fontWeight: 900, fontFamily: SAIRA, color: myRunner.rank === 1 ? C.gold : myRunner.rank <= 3 ? C.green : C.textSub, textShadow: myRunner.rank === 1 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
               {myRunner.rank}位
             </div>
-            <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatRaceTime(myRunner.timeSec)}</div>
+            <div style={{ fontSize: F.micro, color: C.textGhost, fontFamily: SAIRA }}>{formatRaceTime(myRunner.timeSec)}</div>
           </div>
         )}
       </div>
@@ -125,7 +125,7 @@ export function SegmentDetailCard({
               borderLeft: isMe ? `3px solid ${C.cyan}` : '3px solid transparent',
               cursor: tappable ? 'pointer' : 'default',
             }}>
-              <div style={{ width: 18, textAlign: 'center', flexShrink: 0, fontSize: 11, fontWeight: 900, fontFamily: SAIRA, color: rankCol, textShadow: runner.rank === 1 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
+              <div style={{ width: 18, textAlign: 'center', flexShrink: 0, fontSize: F.label, fontWeight: 900, fontFamily: SAIRA, color: rankCol, textShadow: runner.rank === 1 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>
                 {runner.rank}
               </div>
               <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -138,19 +138,19 @@ export function SegmentDetailCard({
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                  {p && <div style={{ fontSize: 11, fontWeight: isMe ? 800 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>}
+                  {p && <div style={{ fontSize: F.label, fontWeight: isMe ? 800 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>}
                   {newSegRecords.some(m => m.segmentIndex === sr.segmentIndex && m.playerId === runner.playerId) && (
-                    <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
+                    <span style={{ fontSize: F.micro, padding: '1px 4px',backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
-                  <span style={{ fontSize: 9, color: C.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>{t?.name ?? '?'}</span>
-                  {highFatigue && <span style={{ fontSize: 8, color: C.red, fontWeight: 700, fontFamily: SAIRA, flexShrink: 0 }}>疲{myRunnerPlayer!.fatigue}</span>}
+                  <span style={{ fontSize: F.tiny, color: C.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>{t?.name ?? '?'}</span>
+                  {highFatigue && <span style={{ fontSize: F.micro, color: C.red, fontWeight: 700, fontFamily: SAIRA, flexShrink: 0 }}>疲{myRunnerPlayer!.fatigue}</span>}
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 10, fontFamily: SAIRA, color: isMe ? C.text : C.textDim }}>{formatRaceTime(runner.timeSec)}</div>
-                {diff > 0 && <div style={{ fontSize: 8, color: C.textGhost, fontFamily: SAIRA }}>{formatDiff(diff)}</div>}
+                <div style={{ fontSize: F.caption, fontFamily: SAIRA, color: isMe ? C.text : C.textDim }}>{formatRaceTime(runner.timeSec)}</div>
+                {diff > 0 && <div style={{ fontSize: F.micro, color: C.textGhost, fontFamily: SAIRA }}>{formatDiff(diff)}</div>}
               </div>
             </div>
           )

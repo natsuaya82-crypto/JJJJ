@@ -4,7 +4,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, SAIRA, SELECT_STYLE } from '../../styles/tokens'
+import { C, SAIRA, SELECT_STYLE, F } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 import GlassButton from '../ui/GlassButton'
 
@@ -61,10 +61,10 @@ export default function CardInventoryPage() {
           eyebrow={`${trainingCards.length}枚所持`}
           title="カード一覧"
           right={<span style={{ display: 'flex', gap: 8 }}>
-            <GlassButton color={C.blue} size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12 }} onClick={() => navigate('/cards')}>
+            <GlassButton color={C.blue} size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: F.body }} onClick={() => navigate('/cards')}>
               合成する
             </GlassButton>
-            <GlassButton color="#A855F7" size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: 12 }} onClick={() => navigate('/cards/convert')}>
+            <GlassButton color="#A855F7" size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: F.body }} onClick={() => navigate('/cards/convert')}>
               変換
             </GlassButton>
           </span>}
@@ -86,7 +86,7 @@ export default function CardInventoryPage() {
       {/* Card grid */}
       <div style={{ padding: '0 14px' }}>
         {cardGroups.length === 0 ? (
-          <div style={{ textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: 13, padding: '40px 0' }}>
+          <div style={{ textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: F.bodyLg, padding: '40px 0' }}>
             カードがありません
           </div>
         ) : (

@@ -1,7 +1,7 @@
 import PlayerFace from '../../player/PlayerFace'
 import { ovr, ratingColor } from '../../../utils/playerUtils'
 import type { Player } from '../../../types'
-import { C, alpha, SAIRA } from '../../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../../styles/tokens'
 
 // 相手から来た移籍オファーのカード（承諾／カウンター＝ダイアル／拒否）
 // 相手クラブから来た打診の1行。返事は会話（ChatView）でするので、ここはタップして開くだけ。
@@ -16,12 +16,12 @@ export function OfferChatRow({ player, accent, badge, title, sub, onOpen }: {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
-            {badge && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 800, padding: '1px 5px',background: alpha(accent, 0.18), color: accent, flexShrink: 0 }}>{badge}</span>}
+            <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+            {badge && <span style={{ fontFamily: SAIRA, fontSize: F.micro, fontWeight: 800, padding: '1px 5px',background: alpha(accent, 0.18), color: accent, flexShrink: 0 }}>{badge}</span>}
           </div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{sub}</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>{sub}</div>
         </div>
-        <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: ratingColor(ovr(player)) }}>{ovr(player)}</span>
       </div>
     </button>
   )

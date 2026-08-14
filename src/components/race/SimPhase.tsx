@@ -6,7 +6,7 @@ import { choiceSuccessProb } from '../../engine/interactiveRace'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha, rankColor, SAIRA, bottomStack } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
 import { useAdHeight } from '../layout/Layout'
@@ -183,12 +183,12 @@ export function RaceTrack({
             width: 36, height: 36,
             background: `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.45)})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 17, fontWeight: 900, color: C.bg, flexShrink: 0,
+            fontSize: F.title, fontWeight: 900, color: C.bg, flexShrink: 0,
           }}>{currentSegIdx}</div>
           {currentSeg && (
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: segCol }}>{currentSeg.distanceKm.toFixed(1)} km</div>
-              <div style={{ fontSize: 10, color: C.textDim }}>{terrainLabel(currentSeg.uphillPct, currentSeg.downhillPct, currentSeg.distanceKm)}</div>
+              <div style={{ fontSize: F.sub, fontWeight: 800, color: segCol }}>{currentSeg.distanceKm.toFixed(1)} km</div>
+              <div style={{ fontSize: F.caption, color: C.textDim }}>{terrainLabel(currentSeg.uphillPct, currentSeg.downhillPct, currentSeg.distanceKm)}</div>
             </div>
           )}
         </div>
@@ -196,14 +196,14 @@ export function RaceTrack({
           <div style={{ fontSize: 32, fontWeight: 900, color: C.text, fontFamily: SAIRA, lineHeight: 1 }}>
             {(kmRatio * distanceKm).toFixed(1)}
           </div>
-          <div style={{ fontSize: 10, color: C.textDim }}>/ {distanceKm.toFixed(1)} km</div>
+          <div style={{ fontSize: F.caption, color: C.textDim }}>/ {distanceKm.toFixed(1)} km</div>
         </div>
       </div>
 
       {/* 順位リスト（総合順位） */}
       {hasData && (
         <div style={{ padding: '4px 0' }}>
-          <div style={{ padding: '4px 12px 2px', fontSize: 9, color: C.textDim, letterSpacing: 2, fontWeight: 700 }}>総合順位</div>
+          <div style={{ padding: '4px 12px 2px', fontSize: F.tiny, color: C.textDim, letterSpacing: 2, fontWeight: 700 }}>総合順位</div>
           {positions.map((pos, rank) => {
             const t = teams.find(t => t.id === pos.teamId)
             if (!t) return null
@@ -243,7 +243,7 @@ export function RaceTrack({
                   {isMe && showOvertake && (
                     <div key={`arrow-${overtakeKey}`} style={{
                       position: 'absolute', bottom: '100%', left: '50%',
-                      fontSize: 11, fontWeight: 900, color: C.green, fontFamily: SAIRA,
+                      fontSize: F.label, fontWeight: 900, color: C.green, fontFamily: SAIRA,
                       animation: 'overtake-arrow 1.8s ease forwards',
                       whiteSpace: 'nowrap',
                     }}>↑{overtakeCount > 1 ? overtakeCount : ''}</div>
@@ -259,9 +259,9 @@ export function RaceTrack({
                 <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
                     <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} logoId={t.logoId} size={16} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: isMe ? segCol : t.colors.primary, flexShrink: 0 }}>{t.shortName}</span>
+                    <span style={{ fontSize: F.caption, fontWeight: 700, color: isMe ? segCol : t.colors.primary, flexShrink: 0 }}>{t.shortName}</span>
                     {player && (
-                      <span style={{ fontSize: 11, fontWeight: isMe ? 800 : 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: F.label, fontWeight: isMe ? 800 : 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {player.name}
                       </span>
                     )}
@@ -280,9 +280,9 @@ export function RaceTrack({
                 {/* 総合タイム差（折り返し禁止：折り返すと行高が変わり下位がガタつくため） */}
                 <div style={{ minWidth: 52, textAlign: 'right', flexShrink: 0, fontFamily: SAIRA, position: 'relative', zIndex: 1, whiteSpace: 'nowrap' }}>
                   {rank === 0 ? (
-                    <span style={{ fontSize: 11, color: C.gold, fontWeight: 900, whiteSpace: 'nowrap' }}>TOP</span>
+                    <span style={{ fontSize: F.label, color: C.gold, fontWeight: 900, whiteSpace: 'nowrap' }}>TOP</span>
                   ) : (
-                    <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.red : C.textDim, whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: F.body, fontWeight: 700, color: isMe ? C.red : C.textDim, whiteSpace: 'nowrap' }}>
                       {formatDiff(gapSec)}
                     </span>
                   )}
@@ -448,7 +448,7 @@ export function SimPhase({
             <div style={{ fontSize: 34, fontWeight: 900, color: C.text, letterSpacing: 4, animation: 'ev-pop 0.6s cubic-bezier(0.2,0.8,0.3,1.2) forwards', textShadow: `0 0 20px ${alpha(segCol, 0.6)}` }}>
               イベント発生
             </div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: segCol, letterSpacing: 3, animation: 'ev-in 0.5s ease 0.2s both' }}>
+            <div style={{ fontSize: F.body, fontWeight: 800, color: segCol, letterSpacing: 3, animation: 'ev-in 0.5s ease 0.2s both' }}>
               {pendingEvent.type}
             </div>
           </div>
@@ -458,17 +458,17 @@ export function SimPhase({
             {/* 状況 */}
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: 3, color: segCol, textShadow: `0 0 8px ${alpha(segCol, 0.5)}` }}>{pendingEvent.type}</span>
-                <span style={{ fontSize: 10, color: C.textDim }}>{currentSegIdx}区</span>
+                <span style={{ fontSize: F.caption, fontWeight: 900, letterSpacing: 3, color: segCol, textShadow: `0 0 8px ${alpha(segCol, 0.5)}` }}>{pendingEvent.type}</span>
+                <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSegIdx}区</span>
                 {lowStaminaHint && (
-                  <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.red }}>スタミナ低下</span>
+                  <span style={{ marginLeft: 'auto', fontSize: F.caption, fontWeight: 800, color: C.red }}>スタミナ低下</span>
                 )}
               </div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: C.text, lineHeight: 1.6, marginBottom: 10 }}>
+              <div style={{ fontSize: F.title, fontWeight: 700, color: C.text, lineHeight: 1.6, marginBottom: 10 }}>
                 {pendingEvent.situation}
               </div>
               {pendingEvent.battleContext && (
-                <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6 }}>{pendingEvent.battleContext}</div>
+                <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6 }}>{pendingEvent.battleContext}</div>
               )}
               {/* レース状況を別画面で確認 */}
               <button onClick={() => setPeekRace(true)} style={{
@@ -476,7 +476,7 @@ export function SimPhase({
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '8px 14px',cursor: 'pointer',
                 background: 'transparent', border: `1px solid ${alpha(segCol, 0.5)}`,
-                color: segCol, fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
+                color: segCol, fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" strokeWidth="1.8"/>
@@ -508,7 +508,7 @@ export function SimPhase({
                       background: sel ? alpha(segCol, 0.2) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                       boxShadow: sel ? `0 0 18px ${alpha(segCol, 0.4)}` : `0 4px 0 rgba(0,0,0,0.4)`,
                       color: sel ? C.text : C.textSub,
-                      fontFamily: SAIRA, fontSize: 15, fontWeight: 800,
+                      fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800,
                       opacity: selectedChoice !== null && !sel ? 0.4 : 1,
                       transition: 'all 0.15s ease',
                       display: 'flex', alignItems: 'center', gap: 10,
@@ -516,7 +516,7 @@ export function SimPhase({
                   >
                     <span style={{ flex: 1 }}>{label}</span>
                     <span style={{
-                      flexShrink: 0, fontSize: 11, fontWeight: 900, color: probCol,
+                      flexShrink: 0, fontSize: F.label, fontWeight: 900, color: probCol,
                       background: alpha(probCol, 0.13), border: `1px solid ${alpha(probCol, 0.4)}`,
 padding: '3px 8px', textAlign: 'center', minWidth: 52,
                     }}>
@@ -557,9 +557,9 @@ padding: '3px 8px', textAlign: 'center', minWidth: 52,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.red, boxShadow: `0 0 5px ${C.red}` }}/>
-          <span style={{ fontSize: 9, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
-          <span style={{ fontSize: 10, color: C.textDim }}>{currentSegIdx}/{totalSegs}区</span>
+          <span style={{ fontSize: F.tiny, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
+          <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
+          <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSegIdx}/{totalSegs}区</span>
         </div>
         <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}}/>
@@ -576,7 +576,7 @@ padding: '3px 8px', textAlign: 'center', minWidth: 52,
               padding: '8px 16px',cursor: 'pointer',
               background: manualPause ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `1px solid ${manualPause ? C.gold : C.border2}`, color: manualPause ? C.bg : C.textSub,
-              fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
+              fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
             }}
           >
             {manualPause ? '再生' : '一時停止'}
@@ -591,7 +591,7 @@ padding: '3px 8px', textAlign: 'center', minWidth: 52,
               padding: '8px 16px',cursor: 'pointer',
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `1px solid ${C.border2}`, color: C.textSub,
-              fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
+              fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
             }}
           >
             この区間をスキップ
@@ -638,7 +638,7 @@ padding: '3px 8px', textAlign: 'center', minWidth: 52,
       {showResult && sortedStandings.length > 0 && (
         <div style={{ margin: '12px 12px 0',overflow: 'hidden', border: `1px solid ${C.border}` }}>
           <div style={{ padding: '7px 12px', backgroundColor: C.surface2, borderBottom: `1px solid ${C.border}` }}>
-            <span style={{ fontSize: 9, color: C.textDim, letterSpacing: 2 }}>暫定順位</span>
+            <span style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: 2 }}>暫定順位</span>
           </div>
           {sortedStandings.map(([teamId, cumTime], i) => {
             const t = teamMap.get(teamId)
@@ -652,16 +652,16 @@ padding: '3px 8px', textAlign: 'center', minWidth: 52,
                 backgroundColor: isMe ? alpha(C.gold, 0.05) : 'transparent',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                <div style={{ width: 20, textAlign: 'center', fontSize: 14, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{i + 1}</div>
+                <div style={{ width: 20, textAlign: 'center', fontSize: F.sub, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{i + 1}</div>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={24}/>}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</div>
-                  {pts > 0 && <div style={{ fontSize: 9, color: C.gold }}>区間賞 {pts}pt</div>}
+                  <div style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</div>
+                  {pts > 0 && <div style={{ fontSize: F.tiny, color: C.gold }}>区間賞 {pts}pt</div>}
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {gap === 0
-                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(cumTime)}</span>
-                    : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>
+                    ? <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.gold }}>{formatRaceTime(cumTime)}</span>
+                    : <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>
                   }
                 </div>
               </div>
@@ -717,11 +717,11 @@ export function SegmentResultCard({
             width: 34, height: 34,flexShrink: 0,
             background: `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.5)})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 900, color: C.bg,
+            fontSize: F.title, fontWeight: 900, color: C.bg,
           }}>{seg.segmentIndex}</div>
           <div>
-            {raceSegData && <div style={{ fontSize: 13, fontWeight: 800, color: segCol }}>{raceSegData.distanceKm.toFixed(1)} km</div>}
-            <div style={{ fontSize: 9, color: isMyWin ? C.gold : C.textDim, letterSpacing: 2 }}>{isMyWin ? '★ 区間賞！' : '区間結果'}</div>
+            {raceSegData && <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: segCol }}>{raceSegData.distanceKm.toFixed(1)} km</div>}
+            <div style={{ fontSize: F.tiny, color: isMyWin ? C.gold : C.textDim, letterSpacing: 2 }}>{isMyWin ? '★ 区間賞！' : '区間結果'}</div>
           </div>
         </div>
         {/* 必ず5行：自チームが4位以内なら1〜5位、それ以外は1〜4位＋自チーム */}
@@ -750,16 +750,16 @@ export function SegmentResultCard({
                     <img src={`/flags/${r.teamId.slice(4)}.svg`} alt="" width={18} height={13} draggable={false}
                       style={{ width: 18, height: 13,objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)' }} />
                   )}
-                  <span style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.gold : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? r.teamId}</span>
+                  <span style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.gold : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? r.teamId}</span>
                   {isNewRecord && r.rank === 1 && (
-                    <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
+                    <span style={{ fontSize: F.micro, padding: '1px 4px',backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
                   )}
                 </div>
-                {p && <div style={{ fontSize: 9, color: C.textSub }}>{p.name}</div>}
+                {p && <div style={{ fontSize: F.tiny, color: C.textSub }}>{p.name}</div>}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: r.rank === 1 ? C.gold : isMe ? myRankCol : C.textDim, fontFamily: SAIRA }}>{formatRaceTime(r.timeSec)}</div>
-                {winner && r.rank > 1 && <div style={{ fontSize: 9, color: C.textGhost, fontFamily: 'monospace' }}>{formatDiff(r.timeSec - winner.timeSec)}</div>}
+                <div style={{ fontSize: F.body, fontWeight: 700, color: r.rank === 1 ? C.gold : isMe ? myRankCol : C.textDim, fontFamily: SAIRA }}>{formatRaceTime(r.timeSec)}</div>
+                {winner && r.rank > 1 && <div style={{ fontSize: F.tiny, color: C.textGhost, fontFamily: 'monospace' }}>{formatDiff(r.timeSec - winner.timeSec)}</div>}
               </div>
             </div>
           )

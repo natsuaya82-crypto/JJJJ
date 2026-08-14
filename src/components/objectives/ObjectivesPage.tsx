@@ -1,5 +1,5 @@
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
 
 
@@ -20,21 +20,21 @@ export default function ObjectivesPage() {
         <PageHeader
           eyebrow={`${currentSeason.year} SEASON`}
           title="シーズン目標"
-          right={<div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: allDone ? C.green : C.gold }}>
+          right={<div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: allDone ? C.green : C.gold }}>
             {done}/{objectives.length}
           </div>}
         />
 
         {objectives.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', background: alpha('#a78bfa', 0.07), border: `1px solid ${alpha('#a78bfa', 0.2)}`,}}>
-            <span style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#a78bfa', 0.85) }}>
+            <span style={{ fontFamily: SAIRA, fontSize: F.label, color: alpha('#a78bfa', 0.85) }}>
               全達成で最大
             </span>
-            <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: '#a78bfa', textShadow: '0 0 10px rgba(167,139,250,0.5)' }}>
+            <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: '#a78bfa', textShadow: '0 0 10px rgba(167,139,250,0.5)' }}>
               +{totalJ}J
             </span>
             {earnedJ > 0 && (
-              <span style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#a78bfa', 0.85) }}>
+              <span style={{ fontFamily: SAIRA, fontSize: F.label, color: alpha('#a78bfa', 0.85) }}>
                 獲得済 +{earnedJ}J
               </span>
             )}
@@ -43,7 +43,7 @@ export default function ObjectivesPage() {
       </div>
 
       {objectives.length === 0 ? (
-        <div style={{ padding: '80px 20px', textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: 14 }}>
+        <div style={{ padding: '80px 20px', textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: F.sub }}>
           シーズン開幕後に目標が設定されます
         </div>
       ) : (
@@ -75,7 +75,7 @@ padding: '14px 16px',
                     )}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: obj.done ? 400 : 700, color: obj.done ? C.textDim : C.text, marginBottom: 6 }}>{obj.desc}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: obj.done ? 400 : 700, color: obj.done ? C.textDim : C.text, marginBottom: 6 }}>{obj.desc}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {(obj.rewardJewels ?? 0) > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: alpha('#6dd5fa', obj.done ? 0.05 : 0.08), border: `1px solid ${alpha('#6dd5fa', obj.done ? 0.15 : 0.3)}`,padding: '3px 8px' }}>
@@ -88,11 +88,11 @@ padding: '14px 16px',
                               </linearGradient>
                             </defs>
                           </svg>
-                          <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: obj.done ? 'rgba(109,213,250,0.4)' : '#6dd5fa' }}>+{obj.rewardJewels}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: obj.done ? 'rgba(109,213,250,0.4)' : '#6dd5fa' }}>+{obj.rewardJewels}</span>
                         </div>
                       )}
                       {hasProgress && (
-                        <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, fontWeight: 700 }}>{obj.current}/{obj.target}</span>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.gold, fontWeight: 700 }}>{obj.current}/{obj.target}</span>
                       )}
                     </div>
                     {hasProgress && (

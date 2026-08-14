@@ -7,7 +7,7 @@ import PlayerFace from '../player/PlayerFace'
 import { SPECIALTY_LABELS } from '../../types'
 import { ovr } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import JewelGainPopup from '../ui/JewelGainPopup'
 import HeroCard from './HeroCard'
 import NextRaceCard from './NextRaceCard'
@@ -82,18 +82,18 @@ function PreseasonHub({
   )
   const linkBtn: React.CSSProperties = {
     background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-    fontFamily: 'inherit', fontSize: 12, fontWeight: 900, color: C.cyan,
+    fontFamily: 'inherit', fontSize: F.body, fontWeight: 900, color: C.cyan,
   }
 
   return (
     <div style={{ padding: '0 18px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '22px 0 8px' }}>
         <div style={{ width: 2, height: 12, background: C.cyan }}/>
-        <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>
+        <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>
           {year} PRE-SEASON
         </span>
         <div style={{ flex: 1, height: 1, background: alpha(C.border3, 0.6) }}/>
-        <span style={{ fontSize: 11, color: C.textDim }}>{isFirstSeason ? '開幕準備' : '新シーズン準備'}</span>
+        <span style={{ fontSize: F.label, color: C.textDim }}>{isFirstSeason ? '開幕準備' : '新シーズン準備'}</span>
       </div>
 
       {/* ① ドラフト — 2年目以降 */}
@@ -101,8 +101,8 @@ function PreseasonHub({
         <div style={{ ...rowStyle, borderTop: `1px solid ${alpha(C.border3, 0.6)}` }}>
           {dot(draftDone)}
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: draftDone ? C.textDim : C.text }}>新人ドラフト</div>
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
+            <div style={{ fontSize: F.sub, fontWeight: 700, color: draftDone ? C.textDim : C.text }}>新人ドラフト</div>
+            <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>
               {draftDone ? '指名完了' : '今年の新入団選手を指名する'}
             </div>
           </div>
@@ -115,8 +115,8 @@ function PreseasonHub({
         <div style={{ ...rowStyle, borderTop: `1px solid ${alpha(C.border3, 0.6)}` }}>
           {dot(false)}
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: C.text }}>選手を1人つくる</div>
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>名前・年齢・国籍・ポジション・能力・顔を決めて加入させる</div>
+            <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text }}>選手を1人つくる</div>
+            <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>名前・年齢・国籍・ポジション・能力・顔を決めて加入させる</div>
           </div>
           <button onClick={() => navigate('/create-player')} style={linkBtn}>つくる ›</button>
         </div>
@@ -126,8 +126,8 @@ function PreseasonHub({
       <div style={{ ...rowStyle, borderTop: (isFirstSeason && inauguralPlayerCreated) ? `1px solid ${alpha(C.border3, 0.6)}` : 'none' }}>
         {dot(true)}
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: C.text }}>今シーズンの目標</div>
-          <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
+          <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text }}>今シーズンの目標</div>
+          <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>
             {objectivesCount > 0 ? `${objectivesCount}件の目標を確認（達成で報酬）` : '目標を確認する'}
           </div>
         </div>
@@ -138,11 +138,11 @@ function PreseasonHub({
       <div style={rowStyle}>
         {dot(campDone)}
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: campDone ? C.textDim : C.text }}>
+          <div style={{ fontSize: F.sub, fontWeight: 700, color: campDone ? C.textDim : C.text }}>
             {campDone ? 'カード受取完了' : 'シーズン前カード'}
           </div>
           {!campDone && (
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
+            <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>
               {isFirstSeason ? '開幕記念カード配布（6枚）' : lastRank >= 15 ? `前年${lastRank}位 — 救済カード配布（7枚）` : `前年${lastRank}位 — カード配布（6枚）`}
             </div>
           )}
@@ -154,7 +154,7 @@ function PreseasonHub({
         <div style={{ display: 'flex', gap: 8, margin: '10px 0 0', flexWrap: 'wrap' }}>
           {preseasonCardDist(lastRank).map(({ rarity, count }) => (
             <span key={rarity} style={{
-              fontFamily: SAIRA, fontSize: 10, fontWeight: 900, letterSpacing: 1,
+              fontFamily: SAIRA, fontSize: F.caption, fontWeight: 900, letterSpacing: 1,
               padding: '3px 8px',
               color: RARITY_COLOR[rarity], background: `${RARITY_COLOR[rarity]}1f`,
             }}>{RARITY_LABEL[rarity]} ×{count}</span>
@@ -164,7 +164,7 @@ function PreseasonHub({
 
       {/* 開幕 */}
       {rosterShort && (
-        <div style={{ fontSize: 11, color: C.red, margin: '14px 0 0', textAlign: 'center', fontWeight: 700 }}>
+        <div style={{ fontSize: F.label, color: C.red, margin: '14px 0 0', textAlign: 'center', fontWeight: 700 }}>
           ロスターが下限（{ROSTER_MIN}人）未満のため開幕できません（現在{rosterCount}人）。<br/>ドラフト・移籍で人数を確保してください。
         </div>
       )}
@@ -188,12 +188,12 @@ function PreseasonHub({
             : `inset 0 1px 0 rgba(255,255,255,0.24), 0 8px 22px rgba(0,0,0,0.45), 0 0 18px ${alpha(C.gold, 0.10)}`,
         }}
       >
-        <span style={{ fontSize: 17, fontWeight: 900, letterSpacing: '3px' }}>
+        <span style={{ fontSize: F.title, fontWeight: 900, letterSpacing: '3px' }}>
           {year}シーズン {allReady ? '開幕！' : rosterShort ? '開幕（補強が必要）' : '開幕'}
         </span>
       </button>
       {!allReady && !rosterShort && (
-        <div style={{ fontSize: 10.5, color: C.textGhost, margin: '9px 0 0' }}>
+        <div style={{ fontSize: F.caption, color: C.textGhost, margin: '9px 0 0' }}>
           上記の準備を済ませると開幕できます。スキップも可能です。
         </div>
       )}
@@ -291,7 +291,7 @@ export default function Dashboard() {
     ].join(', '),
   }
   const sqTitleRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }
-  const sqTitle: React.CSSProperties = { fontSize: 13, fontWeight: 900, color: C.text }
+  const sqTitle: React.CSSProperties = { fontSize: F.bodyLg, fontWeight: 900, color: C.text }
 
   // 世界選手権：JPELファイナル後〜シーズン終了の間に挟むステップ。
   // 偶数年=本番 / 奇数年=アジア＋オセアニア予選。実行済み(waDone)になって初めてシーズン終了カードが出る
@@ -400,7 +400,7 @@ export default function Dashboard() {
             }}
           >
             <span style={{ color: C.textDim, display: 'flex' }}>{icon}</span>
-            <span style={{ fontSize: 10.5, color: C.textSub }}>{label}</span>
+            <span style={{ fontSize: F.caption, color: C.textSub }}>{label}</span>
           </button>
         ))}
       </div>
@@ -430,8 +430,8 @@ export default function Dashboard() {
               background: `linear-gradient(180deg, ${alpha(C.purple, 0.16)}, ${alpha(C.purple, 0.06)})`,
               border: `2px solid ${C.purpleDark}`, display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit',
             }}>
-              <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>{waSquadReady ? '代表選考済み ✓（変更する）' : '日本代表を選考する'}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.textDim }}>{waSquadReady ? 'ECL消化後に大会へ ›' : `${waTitle} ›`}</span>
+              <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.purple }}>{waSquadReady ? '代表選考済み ✓（変更する）' : '日本代表を選考する'}</span>
+              <span style={{ marginLeft: 'auto', fontSize: F.caption, fontWeight: 800, color: C.textDim }}>{waSquadReady ? 'ECL消化後に大会へ ›' : `${waTitle} ›`}</span>
             </button>
           )}
           {/* ★ECLの残り戦があるあいだも大会へ進めるようにする。
@@ -441,7 +441,7 @@ export default function Dashboard() {
               入口を隠すと、選考をしていない人からはその年の大会が消える） */}
           {!waDone && (
             <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%', marginTop: 8 }}>
-              <span className="btn-game__inner" style={{ fontSize: 13, padding: '10px 14px',}}>{waTitle}へ進む →</span>
+              <span className="btn-game__inner" style={{ fontSize: F.bodyLg, padding: '10px 14px',}}>{waTitle}へ進む →</span>
             </button>
           )}
         </div>
@@ -450,9 +450,9 @@ export default function Dashboard() {
         <div style={{ margin: '0 12px 16px' }}>
           <div style={panelStyle(C.purple)}>
             <div style={{ padding: '18px 18px 12px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.purple, 0.18)}`, position: 'relative' }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD LONG DISTANCE</div>
-              <div style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{waTitle}</div>
-              <div style={{ fontSize: 11, color: waJapanIn ? C.textSub : C.red, marginTop: 4 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.purple, letterSpacing: '3px', marginBottom: 4, fontWeight: 900 }}>WORLD LONG DISTANCE</div>
+              <div style={{ fontSize: F.head, fontWeight: 900, color: C.text }}>{waTitle}</div>
+              <div style={{ fontSize: F.label, color: waJapanIn ? C.textSub : C.red, marginTop: 4 }}>
                 {!waJapanIn
                   ? '前年の世界選手権アジア予選で敗退したため、日本は出場できません'
                   : waSquadReady ? '代表選考済み。大会に進みます' : '駅伝代表20人を選考してから大会に進みます'}
@@ -461,26 +461,26 @@ export default function Dashboard() {
             <div style={{ padding: '14px 18px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {waInProgress ? (
                 <button onClick={() => navigate('/national/tournament')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</span>
+                  <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</span>
                 </button>
               ) : !waJapanIn ? (
                 <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>大会を観戦する</span>
+                  <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>大会を観戦する</span>
                 </button>
               ) : (<>
               {waSquadReady ? (
                 <button onClick={() => navigate('/national/select')} className="btn-press" style={{
                   width: '100%', padding: '12px 14px',cursor: 'pointer', fontFamily: 'inherit',
-                  background: C.surface2, border: `2px solid ${C.border2}`, color: C.textSub, fontSize: 14, fontWeight: 900,
+                  background: C.surface2, border: `2px solid ${C.border2}`, color: C.textSub, fontSize: F.sub, fontWeight: 900,
                 }}>選考をやり直す</button>
               ) : (
                 <button onClick={() => navigate('/national/select')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>日本代表を選考する</span>
+                  <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>日本代表を選考する</span>
                 </button>
               )}
               {waSquadReady && (
                 <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>大会へ進む →</span>
+                  <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>大会へ進む →</span>
                 </button>
               )}
               </>)}
@@ -492,10 +492,10 @@ export default function Dashboard() {
         <div style={{ margin: '0 12px 16px' }}>
           <div style={panelStyle(C.gold)}>
             <div style={{ padding: '18px 18px 14px', textAlign: 'center', borderBottom: `1px solid ${alpha(C.gold, 0.15)}`, position: 'relative', zIndex: 1 }}>
-              {isChampion && <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: '3px', marginBottom: 4, fontWeight: 900, textShadow: `0 0 10px ${alpha(C.gold, 0.7)}` }}>★ CHAMPION ★</div>}
-              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', marginBottom: 4 }}>SEASON FINAL</div>
-              <div style={{ fontSize: 21, fontWeight: 900, color: C.text, marginBottom: 2 }}>{currentSeason.year} シーズン終了</div>
-              <div style={{ fontSize: 12, color: C.textSub }}>優勝：{teams.find(t => t.id === sorted[0]?.teamId)?.name ?? '―'}</div>
+              {isChampion && <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: '3px', marginBottom: 4, fontWeight: 900, textShadow: `0 0 10px ${alpha(C.gold, 0.7)}` }}>★ CHAMPION ★</div>}
+              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', marginBottom: 4 }}>SEASON FINAL</div>
+              <div style={{ fontSize: F.head, fontWeight: 900, color: C.text, marginBottom: 2 }}>{currentSeason.year} シーズン終了</div>
+              <div style={{ fontSize: F.body, color: C.textSub }}>優勝：{teams.find(t => t.id === sorted[0]?.teamId)?.name ?? '―'}</div>
             </div>
             {(mvp || rookie) && (
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
@@ -506,9 +506,9 @@ export default function Dashboard() {
                       <PlayerFace playerId={mvp.id} nationality={mvp.nationality} size={36}/>
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mvp.name}</div>
-                      <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === mvp.teamId)?.shortName ?? ''}</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
+                      <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mvp.name}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === mvp.teamId)?.shortName ?? ''}</div>
                     </div>
                   </div>
                 )}
@@ -518,9 +518,9 @@ export default function Dashboard() {
                       <PlayerFace playerId={rookie.id} nationality={rookie.nationality} size={36}/>
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontFamily: SAIRA, fontSize: 9, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rookie.name}</div>
-                      <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === rookie.teamId)?.shortName ?? ''}</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
+                      <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rookie.name}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{teams.find(t => t.id === rookie.teamId)?.shortName ?? ''}</div>
                     </div>
                   </div>
                 )}
@@ -528,17 +528,17 @@ export default function Dashboard() {
             )}
             {growthReport?.year === currentSeason.year && growthReport.entries.length > 0 && (
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, position: 'relative', zIndex: 1 }}>
-                <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, letterSpacing: '2px', marginBottom: 8 }}>選手成長レポート</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, letterSpacing: '2px', marginBottom: 8 }}>選手成長レポート</div>
                 {growthReport.entries.slice(0, 6).map(e => {
                   const delta = e.ovrAfter - e.ovrBefore
                   const col = delta > 0 ? C.green : delta < 0 ? C.red : C.textDim
                   return (
                     <div key={e.playerId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px',marginBottom: 3, background: delta !== 0 ? alpha(col, 0.06) : 'transparent', border: `1px solid ${delta !== 0 ? alpha(col, 0.15) : C.border}` }}>
-                      <span style={{ flex: 1, fontSize: 12, color: C.text }}>{e.name}</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{e.ovrBefore}</span>
-                      <span style={{ fontSize: 10, color: C.border3 }}>→</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.text }}>{e.ovrAfter}</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: col, minWidth: 30, textAlign: 'right' }}>
+                      <span style={{ flex: 1, fontSize: F.body, color: C.text }}>{e.name}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>{e.ovrBefore}</span>
+                      <span style={{ fontSize: F.caption, color: C.border3 }}>→</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.text }}>{e.ovrAfter}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: col, minWidth: 30, textAlign: 'right' }}>
                         {delta > 0 ? `+${delta}` : delta === 0 ? '±0' : `${delta}`}
                       </span>
                     </div>
@@ -549,12 +549,12 @@ export default function Dashboard() {
             <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1 }}>
               {waDone && (
                 <button onClick={() => navigate(`/national/result?y=${currentSeason.year}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10,border: `1px solid ${alpha(C.purple, 0.4)}`, background: alpha(C.purple, 0.08), cursor: 'pointer' }}>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>{waTitle} の結果</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: C.textDim }}>›</span>
+                  <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.purple }}>{waTitle} の結果</span>
+                  <span style={{ marginLeft: 'auto', fontSize: F.label, fontWeight: 800, color: C.textDim }}>›</span>
                 </button>
               )}
               {unresolvedMandatoryCount > 0 && (
-                <div style={{ fontSize: 11, color: C.orange, textAlign: 'center', marginBottom: 10 }}>
+                <div style={{ fontSize: F.label, color: C.orange, textAlign: 'center', marginBottom: 10 }}>
                   契約未解決の選手が{unresolvedMandatoryCount}人います — 契約管理で対応してください
                 </div>
               )}
@@ -585,30 +585,30 @@ export default function Dashboard() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                       <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, boxShadow: `0 0 8px ${C.green}` }}/>
-                      <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.green, letterSpacing: '0.22em', fontWeight: 900 }}>NEXT 記録会</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.green, letterSpacing: '0.22em', fontWeight: 900 }}>NEXT 記録会</span>
                     </div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224` }}>{dueTT.name}</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, marginTop: 3, letterSpacing: '0.06em' }}>{dueTT.date.replace(/-/g, '/')}</div>
+                    <div style={{ fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224` }}>{dueTT.name}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textSub, marginTop: 3, letterSpacing: '0.06em' }}>{dueTT.date.replace(/-/g, '/')}</div>
                   </div>
-                  <div style={{ ...panelStyle(C.green), padding: '5px 12px', flexShrink: 0, fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.green }}>TIME TRIAL</div>
+                  <div style={{ ...panelStyle(C.green), padding: '5px 12px', flexShrink: 0, fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.green }}>TIME TRIAL</div>
                 </div>
               </div>
               {/* Info tiles */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', padding: '10px 16px', gap: 0, background: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.2) 100%)`, borderBottom: `1px solid ${alpha(C.green, 0.15)}`, position: 'relative', zIndex: 2 }}>
                 <div style={{ textAlign: 'center', padding: '2px 0' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '1px', marginBottom: 2 }}>種目</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: SAIRA }}>{distLabel}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, letterSpacing: '1px', marginBottom: 2 }}>種目</div>
+                  <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, fontFamily: SAIRA }}>{distLabel}</div>
                 </div>
                 <div style={{ width: 1, alignSelf: 'center', height: 24, background: `linear-gradient(180deg, transparent, #0d5a30, transparent)` }}/>
                 <div style={{ textAlign: 'center', padding: '2px 0' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '1px', marginBottom: 2 }}>距離</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: SAIRA }}>{distKm}km</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, letterSpacing: '1px', marginBottom: 2 }}>距離</div>
+                  <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, fontFamily: SAIRA }}>{distKm}km</div>
                 </div>
               </div>
               {/* CTA */}
               <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2 }}>
                 <button className="btn-game btn-game--gold" style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>
+                  <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>
                     記録会を開催
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
                   </span>
@@ -626,7 +626,7 @@ export default function Dashboard() {
               onClick={() => navigate('/race')}
             />
           ) : (
-            <div style={{ padding: 16, textAlign: 'center', color: C.border3, fontSize: 13, background: C.surface2, border: `1px solid ${C.border2}`,}}>
+            <div style={{ padding: 16, textAlign: 'center', color: C.border3, fontSize: F.bodyLg, background: C.surface2, border: `1px solid ${C.border2}`,}}>
               レーススケジュール未設定
             </div>
           )}
@@ -637,7 +637,7 @@ export default function Dashboard() {
       <div style={{ margin: '0 18px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '22px 0 8px' }}>
           <div style={{ width: 2, height: 12, background: C.cyan }}/>
-          <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>CLUB</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>CLUB</span>
           <div style={{ flex: 1, height: 1, background: alpha(C.border3, 0.6) }}/>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -646,7 +646,7 @@ export default function Dashboard() {
             <div style={sqTitleRow}>
               <span style={sqTitle}>順位表</span>
               <div style={{ flex: 1, height: 1, background: alpha(C.border3, 0.6) }}/>
-              <span style={{ color: C.textGhost, fontSize: 14 }}>›</span>
+              <span style={{ color: C.textGhost, fontSize: F.sub }}>›</span>
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               {miniRows.map((s2, i2) => {
@@ -654,16 +654,16 @@ export default function Dashboard() {
                 const isMe = s2.teamId === playerTeamId
                 return (
                   <div key={s2.teamId} style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: 11.5,
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: F.label,
                     borderTop: i2 === 0 ? 'none' : `1px solid ${alpha(C.border3, 0.35)}`,
                     color: isMe ? C.cyan : C.textSub,
                   }}>
-                    <span style={{ width: 14, fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: isMe ? C.cyan : C.textDim }}>
+                    <span style={{ width: 14, fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: isMe ? C.cyan : C.textDim }}>
                       {s2.rank}
                     </span>
                     {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={16}/>}
                     <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{t?.shortName ?? s2.teamId}</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900 }}>{s2.totalPoints}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900 }}>{s2.totalPoints}</span>
                   </div>
                 )
               })}
@@ -675,21 +675,21 @@ export default function Dashboard() {
             <div style={sqTitleRow}>
               <span style={sqTitle}>選手</span>
               <div style={{ flex: 1, height: 1, background: alpha(C.border3, 0.6) }}/>
-              <span style={{ color: C.textGhost, fontSize: 14 }}>›</span>
+              <span style={{ color: C.textGhost, fontSize: F.sub }}>›</span>
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               {topPlayer && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <PlayerFace playerId={topPlayer.id} nationality={topPlayer.nationality} size={44}/>
                   <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: F.bodyLg, fontWeight: 700, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                       {topPlayer.name}
                     </div>
-                    <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
+                    <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>
                       {SPECIALTY_LABELS[topPlayer.specialty]} ・ {topPlayer.age}歳
                     </div>
                   </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, flexShrink: 0 }}>{ovr(topPlayer)}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, flexShrink: 0 }}>{ovr(topPlayer)}</div>
                 </div>
               )}
               <div style={{
@@ -702,8 +702,8 @@ export default function Dashboard() {
                   { v: `${expiring}`, k: 'FA間近', warn: expiring > 0 },
                 ].map(x => (
                   <div key={x.k} style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, lineHeight: 1, color: x.warn ? C.red : C.text }}>{x.v}</div>
-                    <div style={{ fontSize: 9, color: C.textDim, marginTop: 3 }}>{x.k}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, lineHeight: 1, color: x.warn ? C.red : C.text }}>{x.v}</div>
+                    <div style={{ fontSize: F.tiny, color: C.textDim, marginTop: 3 }}>{x.k}</div>
                   </div>
                 ))}
               </div>
@@ -730,13 +730,13 @@ export default function Dashboard() {
           <div style={{ margin: '0 18px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '22px 0 8px' }}>
               <div style={{ width: 2, height: 12, background: C.cyan }}/>
-              <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>NEWS</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, letterSpacing: '2.5px', color: C.cyan }}>NEWS</span>
               <div style={{ flex: 1, height: 1, background: alpha(C.border3, 0.6) }}/>
-              <button onClick={() => navigate('/news')} style={{ background: 'none', border: 'none', color: C.textDim, fontSize: 11, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>すべて ›</button>
+              <button onClick={() => navigate('/news')} style={{ background: 'none', border: 'none', color: C.textDim, fontSize: F.label, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>すべて ›</button>
             </div>
             {filtered.length === 0 ? (
               <div style={{
-                padding: '22px 0', textAlign: 'center', color: C.textGhost, fontSize: 12,
+                padding: '22px 0', textAlign: 'center', color: C.textGhost, fontSize: F.body,
                 borderTop: `1px solid ${alpha(C.border3, 0.6)}`, borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
               }}>ニュースなし</div>
             ) : filtered.map((news, i) => {
@@ -755,12 +755,12 @@ export default function Dashboard() {
                     {catIcon[news.category] ?? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: C.text, lineHeight: 1.45 }}>{news.headline}</div>
-                    <div style={{ fontSize: 10.5, color: C.textDim, marginTop: 3 }}>
+                    <div style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, lineHeight: 1.45 }}>{news.headline}</div>
+                    <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 3 }}>
                       {catLabel[news.category] ?? news.category.toUpperCase()} ・ {news.date.slice(5)}
                     </div>
                   </div>
-                  <span style={{ color: C.textGhost, fontSize: 15 }}>›</span>
+                  <span style={{ color: C.textGhost, fontSize: F.subLg }}>›</span>
                 </div>
               )
             })}
@@ -793,7 +793,7 @@ export default function Dashboard() {
               <rect x="2.5" y="14" width="19" height="6" rx="1.6" stroke={C.gold} strokeWidth="1.7"/>
               <path d="M4 21.5L20 4" stroke={C.gold} strokeWidth="1.9" strokeLinecap="round"/>
             </svg>
-            <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>GMパスで広告を消す（買い切り）</span>
+            <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.gold }}>GMパスで広告を消す（買い切り）</span>
           </button>
         </ConfirmDialog>
       )}

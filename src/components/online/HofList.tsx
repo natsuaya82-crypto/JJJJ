@@ -4,7 +4,7 @@ import SortSelect from '../ui/SortSelect'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import type { HofPlayer } from '../../types'
-import { C } from '../../styles/tokens'
+import { C, F } from '../../styles/tokens'
 import PlayerList from '../player/PlayerList'
 
 // 殿堂入りチームの一覧の見た目と並び替えはここ1本。
@@ -52,7 +52,7 @@ export default function HofList({
   return (
     <>
       <div style={{ padding: '0 12px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, fontSize: 11, color: C.textDim }}>{hint}</div>
+        <div style={{ flex: 1, fontSize: F.label, color: C.textDim }}>{hint}</div>
         <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
       </div>
 
@@ -66,9 +66,9 @@ export default function HofList({
           />
         ))}
         {sorted.length === 0 && (
-          <div style={{ padding: '40px 16px', textAlign: 'center', color: C.textGhost, fontSize: 13, lineHeight: 1.8 }}>
+          <div style={{ padding: '40px 16px', textAlign: 'center', color: C.textGhost, fontSize: F.bodyLg, lineHeight: 1.8 }}>
             {emptyLabel}
-            {emptySub && <><br /><span style={{ fontSize: 11 }}>{emptySub}</span></>}
+            {emptySub && <><br /><span style={{ fontSize: F.label }}>{emptySub}</span></>}
           </div>
         )}
       </PlayerList>

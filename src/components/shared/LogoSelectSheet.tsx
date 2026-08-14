@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom'
 import { LOGO_PRESETS, logoPresetSrc } from '../../data/logoPresets'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, SAIRA, HEADER_H, bottomStack } from '../../styles/tokens'
+import { C, alpha, SAIRA, HEADER_H, bottomStack, F } from '../../styles/tokens'
 
 
 // チームロゴの選択画面（フルスクリーンのオーバーレイ）。設定・オンボーディング両方から使う。
@@ -46,7 +46,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
             <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        <div style={{ fontSize: 18, fontWeight: 900, color: C.text }}>チームロゴ</div>
+        <div style={{ fontSize: F.titleLg, fontWeight: 900, color: C.text }}>チームロゴ</div>
       </div>
 
       {/* グリッド（下タブ・広告に最終行が隠れないよう、下に余白を確保してスクロールで抜けられるように） */}

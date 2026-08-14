@@ -3,7 +3,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Player } from '../../types'
 import { ovr, ratingColor } from '../../utils/playerUtils'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { SpecChip } from '../player/PlayerChips'
 
@@ -34,10 +34,10 @@ export default function RentalPage() {
         </div>
         <SpecChip specialty={p.specialty} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 1 }}>{sub}</div>
+          <div style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 1 }}>{sub}</div>
         </div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(ovr(p)), minWidth: 30, textAlign: 'right', flexShrink: 0 }}>{ovr(p)}</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: ratingColor(ovr(p)), minWidth: 30, textAlign: 'right', flexShrink: 0 }}>{ovr(p)}</div>
       </div>
     )
   }
@@ -48,14 +48,14 @@ export default function RentalPage() {
         eyebrow="LOAN"
         title="レンタル選手"
         right={<div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: '0.1em' }}>レンタル枠</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: borrowedIn.length >= MAX_SLOTS ? C.red : C.blue, lineHeight: 1 }}>
-            {borrowedIn.length}<span style={{ fontSize: 12, color: C.textDim }}>/{MAX_SLOTS}</span>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim, letterSpacing: '0.1em' }}>レンタル枠</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: borrowedIn.length >= MAX_SLOTS ? C.red : C.blue, lineHeight: 1 }}>
+            {borrowedIn.length}<span style={{ fontSize: F.body, color: C.textDim }}>/{MAX_SLOTS}</span>
           </div>
         </div>}
       />
 
-      <div style={{ padding: '6px 16px 12px', fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+      <div style={{ padding: '6px 16px 12px', fontSize: F.label, color: C.textDim, lineHeight: 1.6 }}>
         レンタルの要請は<b>移籍市場</b>から。相手からの打診は<b>チャット</b>に通知が来ます。
       </div>
 
@@ -63,11 +63,11 @@ export default function RentalPage() {
       <div style={{ padding: '0 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 2px 8px' }}>
           <div style={{ width: 3, height: 14, background: C.blue,}}/>
-          <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.text, letterSpacing: '0.08em' }}>借用中</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{borrowedIn.length}名</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.text, letterSpacing: '0.08em' }}>借用中</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>{borrowedIn.length}名</span>
         </div>
         {borrowedIn.length === 0
-          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: 12, color: C.textDim, border: `1px dashed ${C.border2}`,marginBottom: 12 }}>借りている選手はいません</div>
+          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: F.body, color: C.textDim, border: `1px dashed ${C.border2}`,marginBottom: 12 }}>借りている選手はいません</div>
           : borrowedIn.map(p => row(p, `保有元 ${clubName(p.loan!.ownerTeamId)} · 〜${p.loan!.untilYear}年で返却`))}
       </div>
 
@@ -75,11 +75,11 @@ export default function RentalPage() {
       <div style={{ padding: '10px 12px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 2px 8px' }}>
           <div style={{ width: 3, height: 14, background: C.textSub,}}/>
-          <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.textSub, letterSpacing: '0.08em' }}>貸出中</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{loanedOut.length}名</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.textSub, letterSpacing: '0.08em' }}>貸出中</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>{loanedOut.length}名</span>
         </div>
         {loanedOut.length === 0
-          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: 12, color: C.textDim, border: `1px dashed ${C.border2}`,}}>貸し出している選手はいません</div>
+          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: F.body, color: C.textDim, border: `1px dashed ${C.border2}`,}}>貸し出している選手はいません</div>
           : loanedOut.map(p => row(p, `貸出先 ${clubName(p.teamId)} · 〜${p.loan!.untilYear}年で復帰`))}
       </div>
     </div>

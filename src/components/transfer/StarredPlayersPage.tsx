@@ -4,7 +4,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useOpponentMenu } from '../teams/opponentMenu'
@@ -50,13 +50,13 @@ export default function StarredPlayersPage() {
         eyebrow="TRANSFER"
         title="WATCHLIST"
         right={starredPlayers.length > 0
-          ? <span style={{ fontSize: 14, color: C.textDim }}>{starredPlayers.length}名</span>
+          ? <span style={{ fontSize: F.sub, color: C.textDim }}>{starredPlayers.length}名</span>
           : undefined}
       />
 
       <div style={{ padding: '4px 16px 16px' }}>
         {starredPlayers.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textGhost, fontSize: 12, backgroundColor: C.surface,border: `1px solid ${C.border}` }}>
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textGhost, fontSize: F.body, backgroundColor: C.surface,border: `1px solid ${C.border}` }}>
             選手ページで ☆ を押すとここに表示されます
           </div>
         ) : starredPlayers.map(({ p, fromProspectList }) => {
@@ -80,26 +80,26 @@ export default function StarredPlayersPage() {
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
+                      <div style={{ fontSize: F.bodyLg, fontWeight: '700', color: C.text, fontFamily: SAIRA, marginBottom: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                        <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>
-                        <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{p.age}歳</span>
-                        <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{teamName}</span>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>{p.age}歳</span>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>{teamName}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>{valueLabel} <span style={{ color: C.gold }}>{fmtYen(value)}</span></span>
-                        <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{fmtYen(p.contract.annualSalary)}</span></span>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub }}>{valueLabel} <span style={{ color: C.gold }}>{fmtYen(value)}</span></span>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub }}>年俸 <span style={{ color: C.textSub }}>{fmtYen(p.contract.annualSalary)}</span></span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                       <button
                         onPointerDown={e => e.stopPropagation()}
                         onClick={e => { e.stopPropagation(); if (fromProspectList) toggleStarProspect(p.id); else toggleStarOpponent(p.id) }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: C.gold, fontSize: 18, lineHeight: 1 }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: C.gold, fontSize: F.titleLg, lineHeight: 1 }}
                       >
                         ★
                       </button>
-                      <span style={{ fontFamily: SAIRA, fontSize: 9, color: C.textGhost }}>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textGhost }}>
                         {SPECIALTY_LABELS[p.specialty]}
                       </span>
                     </div>

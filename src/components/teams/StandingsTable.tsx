@@ -1,6 +1,6 @@
 import { TeamLogoSVG } from '../icons/Icons'
 import Flag from '../ui/Flag'
-import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 import type { Nationality } from '../../types'
 import { panelStyle } from '../ui/Panel'
 
@@ -40,10 +40,10 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress, promo
   return (
     <div style={{ ...panelStyle(C.gold), margin: '0 12px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 44px 60px', gap: '4px', padding: '7px 12px', background: C.surface3, borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700' }}>#</span>
-        <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>
-        <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', textAlign: 'center' }}>直近</span>
-        <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', textAlign: 'right' }}>ポイント</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700' }}>#</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', textAlign: 'center' }}>直近</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', textAlign: 'right' }}>ポイント</span>
       </div>
 
       {rows.map((r, i) => {
@@ -69,14 +69,14 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress, promo
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* 順位表なので1位も数字で出す。以前は1位だけ★に置き換えていたが、
                   順位を見に来た画面で先頭の順位が読めないのは本末転倒 */}
-              <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor(i + 1), textShadow: i === 0 ? `0 0 6px ${alpha(C.gold, 0.5)}` : 'none' }}>{i + 1}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '900', color: rankColor(i + 1), textShadow: i === 0 ? `0 0 6px ${alpha(C.gold, 0.5)}` : 'none' }}>{i + 1}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
               {r.flagCode
                 ? <Flag code={r.flagCode} width={24} />
                 : <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} teamId={r.teamId} size={24} />}
-              <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: r.isMe ? '800' : '500', color: r.isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {r.name}{r.isMe && <span style={{ marginLeft: '4px', fontSize: '8px', color: r.primary }}>自</span>}
+              <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: r.isMe ? '800' : '500', color: r.isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r.name}{r.isMe && <span style={{ marginLeft: '4px', fontSize: F.micro, color: r.primary }}>自</span>}
               </span>
             </div>
             <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', alignItems: 'center' }}>
@@ -84,11 +84,11 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress, promo
                 const col = rank === 1 ? C.gold : rank <= 3 ? C.green : rank <= 6 ? C.textDim : C.border2
                 return <div key={fi} style={{ width: '6px', height: '6px', borderRadius: '50%', background: col, flexShrink: 0 }} />
               })}
-              {recentForm.length === 0 && <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.border2 }}>—</span>}
+              {recentForm.length === 0 && <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.border2 }}>—</span>}
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: i === 0 ? C.gold : r.isMe ? C.text : C.textSub, textShadow: i === 0 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>{r.points}</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, marginLeft: '2px' }}>pt</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '900', color: i === 0 ? C.gold : r.isMe ? C.text : C.textSub, textShadow: i === 0 ? `0 0 8px ${alpha(C.gold, 0.5)}` : 'none' }}>{r.points}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, marginLeft: '2px' }}>pt</span>
             </div>
           </div>
         )

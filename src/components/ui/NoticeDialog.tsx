@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { C, SAIRA } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
 
@@ -43,11 +43,11 @@ export default function NoticeDialog({
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ fontSize: 9, color: accent, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>お知らせ</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
+        <div style={{ fontSize: F.tiny, color: accent, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>お知らせ</div>
+        <div style={{ fontSize: F.title, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
         {children}
-        {message && <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6, marginTop: children ? 10 : 0, marginBottom: 18 }}>{message}</div>}
-        <GlassButton full color={accent} onClick={onClose} style={{ padding: '12px', marginTop: message ? 0 : 8, fontFamily: SAIRA, fontSize: 15 }}>
+        {message && <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6, marginTop: children ? 10 : 0, marginBottom: 18 }}>{message}</div>}
+        <GlassButton full color={accent} onClick={onClose} style={{ padding: '12px', marginTop: message ? 0 : 8, fontFamily: SAIRA, fontSize: F.subLg }}>
           {okLabel}
         </GlassButton>
       </div>

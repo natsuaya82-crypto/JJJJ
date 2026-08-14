@@ -5,7 +5,7 @@
 // 相手が利用者の場合は、ここから同時にブロックもできるようにしてある。
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { REPORT_REASONS, REPORT_DETAIL_MAX, sendReport, blockUser, invalidateBlocked, type ReportReason } from '../../lib/moderationApi'
 
 
@@ -67,15 +67,15 @@ export default function ReportSheet({ target, onClose, onDone }: {
           padding: '22px 20px 18px',
         }}
       >
-        <div style={{ fontSize: 9, color: C.red, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>通報</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 4, lineHeight: 1.4 }}>
+        <div style={{ fontSize: F.tiny, color: C.red, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>通報</div>
+        <div style={{ fontSize: F.title, fontWeight: 800, color: C.text, marginBottom: 4, lineHeight: 1.4 }}>
           {target.name}
         </div>
-        <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6, marginBottom: 14 }}>
+        <div style={{ fontSize: F.label, color: C.textSub, lineHeight: 1.6, marginBottom: 14 }}>
           いただいた通報は24時間以内に確認し、必要な対応を行います。相手には通知されません。
         </div>
 
-        <div style={{ fontSize: 10, color: alpha(C.gold, 0.85), fontWeight: 900, letterSpacing: '1px', marginBottom: 6 }}>
+        <div style={{ fontSize: F.caption, color: alpha(C.gold, 0.85), fontWeight: 900, letterSpacing: '1px', marginBottom: 6 }}>
           理由をえらぶ
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
@@ -99,7 +99,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
                   border: `1.5px solid ${on ? C.red : C.border3}`,
                   background: on ? C.red : 'transparent',
                 }} />
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{r.label}</span>
+                <span style={{ fontSize: F.bodyLg, fontWeight: 700 }}>{r.label}</span>
               </button>
             )
           })}
@@ -113,7 +113,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
           style={{
             width: '100%', boxSizing: 'border-box', padding: '9px 11px',
             border: `1px solid ${C.border3}`, background: alpha('#000', 0.25),
-            color: C.text, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'none',
+            color: C.text, fontSize: F.bodyLg, fontFamily: 'inherit', outline: 'none', resize: 'none',
           }}
         />
 
@@ -127,18 +127,18 @@ export default function ReportSheet({ target, onClose, onDone }: {
               border: `1.5px solid ${alsoBlock ? C.red : C.border3}`,
               background: alsoBlock ? C.red : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: 13, fontWeight: 900, lineHeight: 1,
+              color: '#fff', fontSize: F.bodyLg, fontWeight: 900, lineHeight: 1,
             }}>
               {alsoBlock ? '✓' : ''}
             </div>
-            <div style={{ fontSize: 12, color: C.textSub, fontWeight: 700 }}>あわせてブロックする</div>
+            <div style={{ fontSize: F.body, color: C.textSub, fontWeight: 700 }}>あわせてブロックする</div>
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button
             onClick={onClose}
-            style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontFamily: SAIRA, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+            style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontFamily: SAIRA, fontSize: F.sub, fontWeight: 700, cursor: 'pointer' }}
           >
             やめる
           </button>
@@ -150,7 +150,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
               border: `2px solid ${canSend ? C.red : C.border2}`,
               background: canSend ? `linear-gradient(180deg, ${alpha(C.red, 0.25)}, ${alpha(C.red, 0.1)})` : 'transparent',
               color: canSend ? C.red : C.textGhost,
-              fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
+              fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
               cursor: canSend ? 'pointer' : 'default',
             }}
           >

@@ -89,7 +89,7 @@ import LoginBonusPage from './components/login/LoginBonusPage'
 import NewsPage from './components/news/NewsPage'
 import JewelsPage from './components/jewels/JewelsPage'
 import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
-import { C, alpha, SAIRA } from './styles/tokens'
+import { C, alpha, SAIRA, F } from './styles/tokens'
 import GlassButton from './components/ui/GlassButton'
 import Panel, { panelStyle } from './components/ui/Panel'
 
@@ -125,10 +125,10 @@ function compareVersions(a: string, b: string): number {
 function Placeholder({ title }: { title: string }) {
   return (
     <div style={{ padding: '28px 20px' }}>
-      <div style={{ fontSize: '11px', color: C.textGhost, letterSpacing: '3px', marginBottom: '12px' }}>
+      <div style={{ fontSize: F.label, color: C.textGhost, letterSpacing: '3px', marginBottom: '12px' }}>
         {title.toUpperCase()}
       </div>
-      <Panel style={{ padding: '60px 20px', textAlign: 'center', color: C.textGhost, fontSize: '14px' }}>
+      <Panel style={{ padding: '60px 20px', textAlign: 'center', color: C.textGhost, fontSize: F.sub }}>
         Coming soon...
       </Panel>
     </div>
@@ -200,7 +200,7 @@ function GmOfferNotice() {
     <>
     <div style={MODAL_VEIL(1001)}>
       <div style={{ ...MODAL_CARD, maxWidth: 360 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>OFFER</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>OFFER</div>
         {/* 退任したときは複数届く。並べて見比べてから選ぶ（1件のときは出さない） */}
         {offers.length > 1 && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
@@ -214,24 +214,24 @@ function GmOfferNotice() {
             })}
           </div>
         )}
-        <div style={{ fontSize: 11, color: C.gold, fontWeight: 800, marginBottom: 8 }}>{OFFER_KIND_LABEL[offer.kind ?? 'promotion']}</div>
+        <div style={{ fontSize: F.label, color: C.gold, fontWeight: 800, marginBottom: 8 }}>{OFFER_KIND_LABEL[offer.kind ?? 'promotion']}</div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <TeamLogoSVG primary={dest.colors.primary} secondary={dest.colors.secondary} shortName={dest.shortName} teamId={dest.id} logoId={dest.logoId} size={56} />
         </div>
-        <div style={{ fontSize: 17, fontWeight: 900, color: C.text, marginBottom: 6 }}>{dest.name}</div>
-        <div style={{ fontSize: 13, color: C.textSub, lineHeight: 1.7, marginBottom: 16 }}>
+        <div style={{ fontSize: F.title, fontWeight: 900, color: C.text, marginBottom: 6 }}>{dest.name}</div>
+        <div style={{ fontSize: F.bodyLg, color: C.textSub, lineHeight: 1.7, marginBottom: 16 }}>
           {OFFER_KIND_TEXT[offer.kind ?? 'promotion']}<br />
           {offer.year}シーズンから指揮を執りますか？
         </div>
         <div style={{ ...MODAL_BOX, marginBottom: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.textSub, marginBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: F.bodyLg, color: C.textSub, marginBottom: 6 }}>
             <span>前季順位</span><span style={{ fontWeight: 800, color: C.text }}>{offer.prevRank}位</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.textSub }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: F.bodyLg, color: C.textSub }}>
             <span>来季予算</span><span style={{ fontWeight: 800, color: C.text }}>{fmtYen(offer.budget)}</span>
           </div>
         </div>
-        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.7, marginBottom: 12 }}>
+        <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.7, marginBottom: 12 }}>
           受けると選手・予算・施設はすべて{dest.shortName}のものを引き継ぎます。<br />
           今のチームの予算は持って行けません。
         </div>
@@ -239,7 +239,7 @@ function GmOfferNotice() {
         {/* 1人だけ声をかけられる。返事をするのは選手（移籍と同じ判断）。
             **相手はロスターと同じ行で別画面から選ぶ**（ここに一覧を畳んで入れないこと） */}
         <div style={{ ...MODAL_BOX, marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: C.textDim, marginBottom: 8, lineHeight: 1.6 }}>
+          <div style={{ fontSize: F.label, color: C.textDim, marginBottom: 8, lineHeight: 1.6 }}>
             1人だけ声をかけられます。<b style={{ color: C.textSub }}>行くかどうかは選手が決めます。</b><br />
             移籍金は{dest.shortName}が払います。
           </div>
@@ -248,7 +248,7 @@ function GmOfferNotice() {
             display: 'flex', alignItems: 'center', gap: 8,
             border: `1px solid ${alpha(invited ? C.gold : C.border3, 0.75)}`,
             background: invited ? alpha(C.gold, 0.12) : 'transparent',
-            color: invited ? C.gold : C.textDim, fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
+            color: invited ? C.gold : C.textDim, fontSize: F.body, fontWeight: 800, fontFamily: 'inherit',
           }}>
             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {invited ? `${invited.name}（OVR${ovr(invited)}）に声をかける` : '声をかける選手を選ぶ'}
@@ -285,8 +285,8 @@ function SeasonBudgetNotice() {
   return (
     <div onClick={dismiss} style={MODAL_VEIL(1000)}>
       <div onClick={e => e.stopPropagation()} style={{ ...MODAL_CARD, maxWidth: 360 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8 }}>SEASON BUDGET</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 16 }}>{notice.year}シーズンの予算が確定しました</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8 }}>SEASON BUDGET</div>
+        <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text, marginBottom: 16 }}>{notice.year}シーズンの予算が確定しました</div>
         <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: notice.budget >= 0 ? C.green : C.red, lineHeight: 1, marginBottom: 20 }}>{fmtYen(notice.budget)}</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <GlassButton size="lg" color={C.gold} onClick={() => { dismiss(); navigate('/') }} style={{ flex: 1, fontFamily: SAIRA }}>OK</GlassButton>

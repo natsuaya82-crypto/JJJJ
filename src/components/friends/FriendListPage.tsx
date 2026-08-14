@@ -6,7 +6,7 @@ import { listFriends } from '../../lib/friendsApi'
 import { clubsOfUsers } from '../../lib/clubsApi'
 import { clubLogoSrc } from '../../data/clubLogos'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
 export default function FriendListPage() {
@@ -28,7 +28,7 @@ export default function FriendListPage() {
       <PageHeader title="フレンド一覧" />
 
       <div style={{ padding: '10px 12px 0' }}>
-        <div style={{ fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {loading || error ? '' : friends.length}</div>
+        <div style={{ fontSize: F.caption, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, marginBottom: 8, paddingLeft: 4 }}>フレンド {loading || error ? '' : friends.length}</div>
         {loading ? <LoadingBox /> : error ? <ErrorBox onRetry={reload} /> : friends.length === 0 ? (
           <EmptyBox label="まだフレンドがいません。「申請・承認」からコードで追加できます" />
         ) : (
@@ -40,9 +40,9 @@ export default function FriendListPage() {
             }}>
               <TeamLogoSVG primary={f.primary} secondary={f.secondary} shortName={f.shortName} logoId={f.logoId} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.teamName}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: C.gold, marginTop: 3 }}>GM {f.gmName}</div>
-                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>最終ログイン {f.lastLogin}</div>
+                <div style={{ fontSize: F.sub, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.teamName}</div>
+                <div style={{ fontSize: F.sub, fontWeight: 800, color: C.gold, marginTop: 3 }}>GM {f.gmName}</div>
+                <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>最終ログイン {f.lastLogin}</div>
                 {clubs.data?.get(f.id) && (
                   // ここだけ押すと、走友会の画面がその走友会を探した状態で開く。
                   // 外側がボタンなので、中にボタンは置けない（入れ子は駄目）。
@@ -50,7 +50,7 @@ export default function FriendListPage() {
                     onClick={e => { e.stopPropagation(); navigate(`/friends/club?code=${clubs.data!.get(f.id)!.code}`) }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 3, maxWidth: '100%', padding: '2px 6px 2px 4px', marginLeft: -4,border: `1px solid ${C.border}`, background: alpha(C.bg, 0.35), cursor: 'pointer' }}>
                     <img src={clubLogoSrc(clubs.data.get(f.id)!.logoId)} alt="" width={14} height={14} draggable={false} style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }} />
-                    <div style={{ fontSize: 10, color: C.textSub, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clubs.data.get(f.id)!.name}</div>
+                    <div style={{ fontSize: F.caption, color: C.textSub, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clubs.data.get(f.id)!.name}</div>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ color: C.goldDark, flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
                   </div>
                 )}

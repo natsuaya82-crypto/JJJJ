@@ -10,7 +10,7 @@ import { courseById, courseToRace } from '../../data/matchCourses'
 import { asPlayer, asTeam, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { SegmentDetailCard, SegmentTabs } from '../race/SegmentDetailCard'
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 
 
 export default function FinishPanel({
@@ -87,8 +87,8 @@ export default function FinishPanel({
     return (
       <div style={{ paddingBottom: 4 }}>
         <div style={{ textAlign: 'center', padding: '10px 12px 2px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: 2, fontWeight: 800 }}>SEGMENTS</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold, letterSpacing: 2, fontWeight: 800 }}>SEGMENTS</div>
+          <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
         </div>
 
         {/* レース切り替え（R1 / R2 / R3） */}
@@ -117,7 +117,7 @@ export default function FinishPanel({
             />
           </div>
         </>) : (
-          <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: 12, color: C.textDim }}>
+          <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: F.body, color: C.textDim }}>
             区間記録を読み込めませんでした
           </div>
         )}
@@ -137,9 +137,9 @@ export default function FinishPanel({
   return (
     <div style={{ padding: '10px 12px 0' }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: 3, fontWeight: 900 }}>FINAL RESULT</div>
-        <div style={{ fontSize: 19, fontWeight: 900, color: C.text, marginTop: 4 }}>総合結果</div>
-        <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: alpha(C.gold, 0.85), letterSpacing: 3, fontWeight: 900 }}>FINAL RESULT</div>
+        <div style={{ fontSize: F.titleLg, fontWeight: 900, color: C.text, marginTop: 4 }}>総合結果</div>
+        <div style={{ fontSize: F.label, color: C.textDim, marginTop: 4 }}>
           {history ? `全${races.length}レース` : done ? `全${races.length}レース終了` : `下の順位から発表します（残り${shown === 0 ? total : nextRank + 1}チーム）`}
         </div>
       </div>
@@ -153,13 +153,13 @@ export default function FinishPanel({
             background: `linear-gradient(180deg, ${alpha(C.gold, 0.18)}, ${C.surface2})`,
             border: `2px solid ${C.gold}`, boxShadow: `0 0 24px ${alpha(C.gold, 0.25)}`,
           }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: 4, fontWeight: 900 }}>CHAMPION</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.gold, letterSpacing: 4, fontWeight: 900 }}>CHAMPION</div>
             <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 8px' }}>
               {t && <TeamLogoSVG primary={t.primary} secondary={t.secondary} shortName={t.shortName} logoId={t.logoId} size={56} />}
             </div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>{t?.name ?? champion.teamId}</div>
-            {t?.gmName && <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>GM {t.gmName}</div>}
-            <div style={{ fontSize: 12, color: C.gold, marginTop: 4, fontFamily: SAIRA, fontWeight: 900 }}>
+            <div style={{ fontSize: F.head, fontWeight: 900, color: C.text }}>{t?.name ?? champion.teamId}</div>
+            {t?.gmName && <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>GM {t.gmName}</div>}
+            <div style={{ fontSize: F.body, color: C.gold, marginTop: 4, fontFamily: SAIRA, fontWeight: 900 }}>
               通算 {champion.points}pt
             </div>
           </div>
@@ -181,36 +181,36 @@ export default function FinishPanel({
               background: !revealed ? C.surface : isMe ? alpha(C.gold, 0.07) : 'transparent',
               display: 'flex', alignItems: 'center', gap: 8, minHeight: 44,
             }}>
-              <div style={{ width: 22, textAlign: 'center', flexShrink: 0, fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: revealed ? rankCol : C.textGhost }}>
+              <div style={{ width: 22, textAlign: 'center', flexShrink: 0, fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: revealed ? rankCol : C.textGhost }}>
                 {s.rank}
               </div>
               {revealed ? (<>
                 {t && <TeamLogoSVG primary={t.primary} secondary={t.secondary} shortName={t.shortName} logoId={t.logoId} size={26} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: isMe ? 900 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: F.bodyLg, fontWeight: isMe ? 900 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {t?.name ?? s.teamId}
                     {/* 全部落ちたら「不戦」、一部だけなら「不戦1」のように回数で出す。
                         1回落ちただけの人を丸ごと不戦扱いにしない */}
                     {s.forfeits > 0 && (
-                      <span style={{ marginLeft: 6, fontSize: 9, color: C.red }}>
+                      <span style={{ marginLeft: 6, fontSize: F.tiny, color: C.red }}>
                         {s.forfeit ? '不戦' : `不戦${s.forfeits}`}
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 9, color: C.textDim, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: F.tiny, color: C.textDim, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {/* チーム名は自由に付けられて重複もするので、誰なのかはGM名で分かるようにする */}
                     {t?.gmName && <span style={{ color: C.textSub, marginRight: 6 }}>GM {t.gmName}</span>}
                     各レース {s.ranks.join('・')}位{s.segPts > 0 ? ` / 区間賞 ${s.segPts}pt` : ''}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.gold }}>{s.points}<span style={{ fontSize: 9, color: C.textDim }}>pt</span></div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.gold }}>{s.points}<span style={{ fontSize: F.tiny, color: C.textDim }}>pt</span></div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
                     {gap === 0 ? formatRaceTime(s.totalTimeSec) : `+${formatRaceTime(gap)}`}
                   </div>
                 </div>
               </>) : (
-                <div style={{ flex: 1, fontSize: 12, color: C.textGhost, letterSpacing: 4 }}>ーーーーー</div>
+                <div style={{ flex: 1, fontSize: F.body, color: C.textGhost, letterSpacing: 4 }}>ーーーーー</div>
               )}
             </div>
           )

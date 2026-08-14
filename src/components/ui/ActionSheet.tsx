@@ -1,4 +1,4 @@
-import { C } from '../../styles/tokens'
+import { C, F } from '../../styles/tokens'
 import BottomSheet from './BottomSheet'
 
 export type ActionSheetItem = {
@@ -31,7 +31,7 @@ export default function ActionSheet({ open, onClose, items, header }: { open: bo
             background: 'transparent', border: 'none',
             borderBottom: i < items.length - 1 ? `1px solid ${C.border}` : 'none',
             color: it.disabled ? C.textGhost : (it.color ?? C.text),
-            fontSize: 15, fontWeight: 700, fontFamily: 'inherit',
+            fontSize: F.subLg, fontWeight: 700, fontFamily: 'inherit',
             textAlign: 'center',
             cursor: it.disabled ? 'not-allowed' : 'pointer',
           }}
@@ -45,7 +45,7 @@ export default function ActionSheet({ open, onClose, items, header }: { open: bo
           display: 'block', width: '100%', minHeight: 52,
           marginTop: 8, padding: '14px 12px',
           background: C.surface2, border: `1px solid ${C.border}`,
-          color: C.textDim, fontSize: 15, fontWeight: 800, fontFamily: 'inherit',
+          color: C.textDim, fontSize: F.subLg, fontWeight: 800, fontFamily: 'inherit',
           cursor: 'pointer',
         }}
       >

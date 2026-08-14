@@ -1,4 +1,4 @@
-import { C, alpha } from '../../../styles/tokens'
+import { C, alpha, F } from '../../../styles/tokens'
 
 // ============================================================================
 // **チャットの吹き出しの見た目。ここ1本。**
@@ -15,7 +15,7 @@ export function bubbleStyle(from: 'player' | 'gm'): React.CSSProperties {
       ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})`
       : `linear-gradient(135deg, ${alpha(C.blue, 0.25)}, ${alpha(C.blue, 0.15)})`,
     border: `1px solid ${from === 'player' ? C.border : alpha(C.blue, 0.35)}`,
-    fontSize: 13,
+    fontSize: F.bodyLg,
     color: C.text,
     lineHeight: 1.6,
     whiteSpace: 'pre-wrap',
@@ -35,7 +35,7 @@ export default function ChatBubble({ from, name, avatar, children }: {
       {from === 'player' && avatar}
       <div style={{ maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: from === 'player' ? 'flex-start' : 'flex-end', gap: 3 }}>
         {from === 'player' && name && (
-          <span style={{ fontSize: 10, color: C.textDim, fontWeight: 700, padding: '0 2px' }}>{name}</span>
+          <span style={{ fontSize: F.caption, color: C.textDim, fontWeight: 700, padding: '0 2px' }}>{name}</span>
         )}
         <div style={bubbleStyle(from)}>{children}</div>
       </div>

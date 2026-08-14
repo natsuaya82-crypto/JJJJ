@@ -8,7 +8,7 @@ import LogoSelectSheet from '../shared/LogoSelectSheet'
 import GlassButton from '../ui/GlassButton'
 import PageHeader from '../ui/PageHeader'
 import { panelStyle } from '../ui/Panel'
-import { C, alpha, FONT, SAIRA } from '../../styles/tokens'
+import { C, alpha, FONT, SAIRA, F } from '../../styles/tokens'
 
 // ============================================================================
 // **最初のチーム選び。ゲームが始まる前なので `Layout` を通らない。**
@@ -25,13 +25,13 @@ type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 /** 入力欄。5か所で同じものを使う */
 const INPUT: React.CSSProperties = {
   width: '100%', padding: '14px 16px', border: 'none',
-  background: 'rgba(0,0,0,0.35)', color: C.text, fontSize: 16,
+  background: 'rgba(0,0,0,0.35)', color: C.text, fontSize: F.title,
   fontFamily: 'inherit', outline: 'none',
   boxShadow: `inset 0 0 0 1px ${C.border2}`,
   boxSizing: 'border-box',
 }
 const LABEL: React.CSSProperties = {
-  fontSize: 11, color: C.textSub, letterSpacing: '2px', display: 'block', marginBottom: 8,
+  fontSize: F.label, color: C.textSub, letterSpacing: '2px', display: 'block', marginBottom: 8,
 }
 
 export default function Onboarding() {
@@ -96,13 +96,13 @@ export default function Onboarding() {
             </svg>
           </div>
 
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, letterSpacing: '4px', marginBottom: 8 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, letterSpacing: '4px', marginBottom: 8 }}>
             JAPAN PRO EKIDEN LEAGUE
           </div>
           <div style={{ fontSize: 36, fontWeight: 900, color: C.text, letterSpacing: '-1px', marginBottom: 8, lineHeight: 1.1 }}>
             JPEL Manager
           </div>
-          <div style={{ fontSize: 13, color: C.textSub, marginBottom: 48, lineHeight: 1.6, maxWidth: 280 }}>
+          <div style={{ fontSize: F.bodyLg, color: C.textSub, marginBottom: 48, lineHeight: 1.6, maxWidth: 280 }}>
             日本初のプロ駅伝リーグ。52チームのひとつを率い、頂点を目指せ。
           </div>
 
@@ -128,10 +128,10 @@ export default function Onboarding() {
       {step === 'team_select' && (
         <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ padding: '24px 20px 12px', flexShrink: 0 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, letterSpacing: '3px', marginBottom: 6 }}>STEP 1 / 2</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: C.text }}>チームを選択</div>
-            <div style={{ fontSize: 12, color: C.textSub, marginTop: 4 }}>率いるチームを選んでください</div>
-            <div style={{ fontSize: 11, color: C.gold, marginTop: 6 }}>どのチームを選んでも JPEL 3部からのスタートです</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, letterSpacing: '3px', marginBottom: 6 }}>STEP 1 / 2</div>
+            <div style={{ fontSize: F.headLg, fontWeight: 900, color: C.text }}>チームを選択</div>
+            <div style={{ fontSize: F.body, color: C.textSub, marginTop: 4 }}>率いるチームを選んでください</div>
+            <div style={{ fontSize: F.label, color: C.gold, marginTop: 6 }}>どのチームを選んでも JPEL 3部からのスタートです</div>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, boxSizing: 'border-box', padding: `0 14px calc(${adH}px + env(safe-area-inset-bottom) + 120px)` }}>
@@ -146,7 +146,7 @@ export default function Onboarding() {
               })
               return (
                 <div key={region} style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: 10, color: C.textDim, letterSpacing: '2px', padding: '0 2px', marginBottom: 8 }}>
+                  <div style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px', padding: '0 2px', marginBottom: 8 }}>
                     {region}
                   </div>
                   {regionTeams.map(team => {
@@ -173,8 +173,8 @@ export default function Onboarding() {
                       >
                         <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={40}/>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{team.name}</div>
-                          <div style={{ fontSize: 10, color: C.textDim, marginTop: 1 }}>{team.city}</div>
+                          <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text }}>{team.name}</div>
+                          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 1 }}>{team.city}</div>
                         </div>
                         {selected && (
                           <div style={{
@@ -214,8 +214,8 @@ export default function Onboarding() {
           }}>
             <TeamLogoSVG primary={selectedTeam.colors.primary} secondary={selectedTeam.colors.secondary} shortName={selectedTeam.shortName} teamId={selectedTeam.id} logoId={selectedLogoId} size={56}/>
             <div>
-              <div style={{ fontSize: 12, color: selectedTeam.colors.secondary, opacity: 0.85 }}>{(city || selectedTeam.city)} / {(region || selectedTeam.region)}</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{teamName || selectedTeam.name}</div>
+              <div style={{ fontSize: F.body, color: selectedTeam.colors.secondary, opacity: 0.85 }}>{(city || selectedTeam.city)} / {(region || selectedTeam.region)}</div>
+              <div style={{ fontSize: F.title, fontWeight: 800, color: C.text }}>{teamName || selectedTeam.name}</div>
             </div>
           </div>
 
@@ -234,7 +234,7 @@ export default function Onboarding() {
               <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <TeamLogoSVG primary={selectedTeam.colors.primary} secondary={selectedTeam.colors.secondary} shortName={selectedTeam.shortName} teamId={selectedTeam.id} logoId={selectedLogoId} size={40}/>
               </div>
-              <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 700, color: C.text }}>変更する</span>
+              <span style={{ flex: 1, textAlign: 'left', fontSize: F.bodyLg, fontWeight: 700, color: C.text }}>変更する</span>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ color: C.textSub, flexShrink: 0 }}>
                 <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
@@ -277,12 +277,12 @@ export default function Onboarding() {
           </div>
 
           {nameError && (
-            <div style={{ fontSize: 12, color: C.red, marginBottom: 12, padding: '8px 12px', background: alpha(C.red, 0.12) }}>
+            <div style={{ fontSize: F.body, color: C.red, marginBottom: 12, padding: '8px 12px', background: alpha(C.red, 0.12) }}>
               {nameError}
             </div>
           )}
 
-          <div style={{ ...panelStyle(), fontSize: 11, color: C.textDim, marginBottom: 32, padding: '10px 12px', lineHeight: 1.7 }}>
+          <div style={{ ...panelStyle(), fontSize: F.label, color: C.textDim, marginBottom: 32, padding: '10px 12px', lineHeight: 1.7 }}>
             初年度のドラフトは<b style={{ color: C.gold }}>見学</b>です。<br/>
             代わりに、あとで選手を1人つくって加入させられます。<br/>
             指名に参加できるのは2年目からです。

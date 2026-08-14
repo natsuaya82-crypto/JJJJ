@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLoadingStore } from '../../store/loadingStore'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, SAIRA, FONT, bottomStack } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from './TipText'
 
@@ -56,8 +56,8 @@ export default function LoadingOverlay() {
 
       {/* ワードマーク（上部） */}
       <div style={{ position: 'absolute', top: 'calc(64px + env(safe-area-inset-top))', left: 0, right: 0, textAlign: 'center', zIndex: 2 }}>
-        <div style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: 13, letterSpacing: 9, color: C.gold, textShadow: `0 0 18px ${alpha(C.gold, 0.35)}` }}>JPEL MANAGER</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 8, letterSpacing: 5, color: C.textDim, marginTop: 5 }}>EKIDEN GM SIMULATION</div>
+        <div style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: F.bodyLg, letterSpacing: 9, color: C.gold, textShadow: `0 0 18px ${alpha(C.gold, 0.35)}` }}>JPEL MANAGER</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.micro, letterSpacing: 5, color: C.textDim, marginTop: 5 }}>EKIDEN GM SIMULATION</div>
       </div>
 
       {/* 中央TIPS */}
@@ -65,11 +65,11 @@ export default function LoadingOverlay() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
           <span style={{ height: 1, width: 44, background: `linear-gradient(90deg, transparent, ${alpha(C.gold, 0.5)})` }} />
           <span style={{ width: 5, height: 5, background: C.gold, transform: 'rotate(45deg)', boxShadow: `0 0 8px ${alpha(C.gold, 0.7)}` }} />
-          <span style={{ fontFamily: SAIRA, fontSize: 10, letterSpacing: 6, fontWeight: 900, color: C.gold }}>TIPS</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.caption, letterSpacing: 6, fontWeight: 900, color: C.gold }}>TIPS</span>
           <span style={{ width: 5, height: 5, background: C.gold, transform: 'rotate(45deg)', boxShadow: `0 0 8px ${alpha(C.gold, 0.7)}` }} />
           <span style={{ height: 1, width: 44, background: `linear-gradient(90deg, ${alpha(C.gold, 0.5)}, transparent)` }} />
         </div>
-        <div style={{ fontSize: 15, lineHeight: 1.85, color: C.text, fontWeight: 500, textWrap: 'balance' as const }}>
+        <div style={{ fontSize: F.subLg, lineHeight: 1.85, color: C.text, fontWeight: 500, textWrap: 'balance' as const }}>
           <TipText text={tip} />
         </div>
       </div>
@@ -77,7 +77,7 @@ export default function LoadingOverlay() {
       {/* 右下ローディングバー（広告バナーに隠れないよう広告分だけ上げる。広告なしなら従来位置） */}
       <div style={{ position: 'absolute', right: 16, bottom: bottomStack(adH, { extra: 20 }), zIndex: 4, textAlign: 'right' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: 11, letterSpacing: 4, color: C.textSub }}>
+          <span style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: F.label, letterSpacing: 4, color: C.textSub }}>
             <span style={{ color: C.gold }}>◆</span> {label || 'NOW LOADING'}
           </span>
         </div>

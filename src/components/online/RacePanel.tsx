@@ -12,7 +12,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { asPlayer, asTeam, type MatchRacePayload } from '../../lib/matchSim'
 import { serverNow } from '../../lib/serverTime'
-import { C, alpha, rankColor, SAIRA } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 
 
 type Stage = 'countdown' | 'track' | 'segresult' | 'final'
@@ -197,14 +197,14 @@ export default function RacePanel({
   if (stage === 'countdown') {
     return (
       <div style={{ padding: '48px 16px 0', textAlign: 'center' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>R{raceNo} / {totalRaces}</div>
-        <div style={{ fontSize: 17, fontWeight: 900, color: C.text, marginTop: 6 }}>{course.name}</div>
-        <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>{course.distanceKm.toFixed(1)}km / {course.segments.length}区間</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>R{raceNo} / {totalRaces}</div>
+        <div style={{ fontSize: F.title, fontWeight: 900, color: C.text, marginTop: 6 }}>{course.name}</div>
+        <div style={{ fontSize: F.label, color: C.textDim, marginTop: 4 }}>{course.distanceKm.toFixed(1)}km / {course.segments.length}区間</div>
         <div style={{
           fontFamily: SAIRA, fontSize: 96, fontWeight: 900, lineHeight: 1.1, marginTop: 24,
           color: left <= 3 ? C.red : C.gold, textShadow: `0 0 24px ${alpha(left <= 3 ? C.red : C.gold, 0.5)}`,
         }}>{left}</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 13, color: C.textDim, letterSpacing: 2 }}>まもなくスタート</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, color: C.textDim, letterSpacing: 2 }}>まもなくスタート</div>
       </div>
     )
   }
@@ -214,8 +214,8 @@ export default function RacePanel({
     return (
       <div style={{ padding: '10px 12px 0' }}>
         <div style={{ textAlign: 'center', marginBottom: 12 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>R{raceNo} / {totalRaces} — 結果</div>
-          <div style={{ fontSize: 15, fontWeight: 900, color: C.text, marginTop: 4 }}>{course.name}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>R{raceNo} / {totalRaces} — 結果</div>
+          <div style={{ fontSize: F.subLg, fontWeight: 900, color: C.text, marginTop: 4 }}>{course.name}</div>
         </div>
 
         <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
@@ -232,14 +232,14 @@ export default function RacePanel({
                 background: isMe ? alpha(C.gold, 0.06) : 'transparent',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                <div style={{ width: 20, textAlign: 'center', fontSize: 15, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{s.rank}</div>
+                <div style={{ width: 20, textAlign: 'center', fontSize: F.subLg, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{s.rank}</div>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} logoId={t.logoId} size={24} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {t?.name ?? s.teamId}
-                    {payload.forfeits.includes(s.teamId) && <span style={{ marginLeft: 6, fontSize: 9, color: C.red }}>不戦</span>}
+                    {payload.forfeits.includes(s.teamId) && <span style={{ marginLeft: 6, fontSize: F.tiny, color: C.red }}>不戦</span>}
                   </div>
-                  <div style={{ fontSize: 9, color: C.gold }}>
+                  <div style={{ fontSize: F.tiny, color: C.gold }}>
                     +{s.points}pt{s.segPts > 0 ? `（区間賞 ${s.segPts}）` : ''}
                     {totalRaces > 1 && <span style={{ color: C.textDim }}> / 通算 {total}pt</span>}
                   </div>
@@ -247,10 +247,10 @@ export default function RacePanel({
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {/* 区間を埋められなかったチームは合計が短くなる。マイナス差は出さない。 */}
                   {gap < 0
-                    ? <span style={{ fontSize: 12, fontWeight: 700, color: C.textGhost }}>記録なし</span>
+                    ? <span style={{ fontSize: F.body, fontWeight: 700, color: C.textGhost }}>記録なし</span>
                     : gap === 0
-                      ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(s.totalTimeSec)}</span>
-                      : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
+                      ? <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.gold }}>{formatRaceTime(s.totalTimeSec)}</span>
+                      : <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
                 </div>
               </div>
             )
@@ -279,9 +279,9 @@ export default function RacePanel({
       <div style={{ padding: '8px 16px 6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.red, boxShadow: `0 0 5px ${C.red}` }} />
-          <span style={{ fontFamily: SAIRA, fontSize: 9, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, flex: 1 }}>{course.name}</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>R{raceNo}/{totalRaces}・{segData?.segmentIndex}/{payload.segments.length}区</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
+          <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, flex: 1 }}>{course.name}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>R{raceNo}/{totalRaces}・{segData?.segmentIndex}/{payload.segments.length}区</span>
         </div>
         <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${(pos / payload.segments.length) * 100}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}} />
@@ -294,13 +294,13 @@ export default function RacePanel({
             padding: '8px 16px',cursor: 'pointer',
             background: paused ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${paused ? C.gold : C.border2}`, color: paused ? C.bg : C.textSub,
-            fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
+            fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
           }}>{paused ? '再生' : '一時停止'}</button>
           <button onClick={() => { cancelAnimationFrame(rafRef.current); setKmRatio(1); setStage('segresult') }} style={{
             padding: '8px 16px',cursor: 'pointer',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${C.border2}`, color: C.textSub,
-            fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
+            fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
           }}>この区間をスキップ</button>
         </div>
 
@@ -344,7 +344,7 @@ export default function RacePanel({
 
         <div style={{ margin: '12px 12px 0',overflow: 'hidden', border: `1px solid ${C.border}` }}>
           <div style={{ padding: '7px 12px', backgroundColor: C.surface2, borderBottom: `1px solid ${C.border}` }}>
-            <span style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: 2 }}>暫定順位</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim, letterSpacing: 2 }}>暫定順位</span>
           </div>
           {standingsNow.map(([teamId, cum], i) => {
             const t = teamMap.get(teamId)
@@ -357,15 +357,15 @@ export default function RacePanel({
                 backgroundColor: isMe ? alpha(C.gold, 0.05) : 'transparent',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                <div style={{ width: 20, textAlign: 'center', fontSize: 14, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{i + 1}</div>
+                <div style={{ width: 20, textAlign: 'center', fontSize: F.sub, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{i + 1}</div>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} logoId={t.logoId} size={24} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</div>
+                  <div style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</div>
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {gap === 0
-                    ? <span style={{ fontSize: 13, fontWeight: 900, color: C.gold }}>{formatRaceTime(cum)}</span>
-                    : <span style={{ fontSize: 13, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
+                    ? <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.gold }}>{formatRaceTime(cum)}</span>
+                    : <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>}
                 </div>
               </div>
             )

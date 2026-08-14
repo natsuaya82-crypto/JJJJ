@@ -13,7 +13,7 @@ import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../.
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 import { exportSaveToShare } from '../../store/exportSave'
 
-import { C, alpha, SAIRA, HEADER_H } from '../../styles/tokens'
+import { C, alpha, SAIRA, HEADER_H, F } from '../../styles/tokens'
 import { canResignAsGm } from '../../utils/gmOffer'
 
 import { APP_VERSION } from '../../data/appMeta'
@@ -71,8 +71,8 @@ function SettingRow({ icon, label, sub, onClick, danger }: {
         {icon}
       </div>
       <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: danger ? C.red : C.text }}>{label}</div>
-        {sub && <div style={{ fontSize: 10, color: C.textDim, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
+        <div style={{ fontSize: F.subLg, fontWeight: 800, color: danger ? C.red : C.text }}>{label}</div>
+        {sub && <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
       </div>
       <Chevron size={13} />
     </button>
@@ -101,7 +101,7 @@ function DetailScreen({ title, onClose, children }: { title: string; onClose: ()
             <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        <div style={{ fontSize: 18, fontWeight: 900, color: C.text }}>{title}</div>
+        <div style={{ fontSize: F.titleLg, fontWeight: 900, color: C.text }}>{title}</div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 16px 32px' }}>
         {children}
@@ -139,16 +139,16 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
 
   return (
     <DetailScreen title="ブロックした利用者" onClose={onClose}>
-      <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.7, marginBottom: 14 }}>
+      <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.7, marginBottom: 14 }}>
         ブロックした相手の名前と書き込みは表示されません。解除してもフレンドには戻らないので、必要ならもう一度申請してください。
       </div>
 
       {rows === null ? (
-        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '40px 0' }}>読み込み中…</div>
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '40px 0' }}>読み込み中…</div>
       ) : failed ? (
-        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '40px 0' }}>通信できませんでした</div>
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '40px 0' }}>通信できませんでした</div>
       ) : rows.length === 0 ? (
-        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '40px 0' }}>ブロックしている相手はいません</div>
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '40px 0' }}>ブロックしている相手はいません</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {rows.map(u => (
@@ -158,10 +158,10 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
             }}>
               <TeamLogoSVG primary={u.primary} secondary={u.secondary} shortName={u.shortName} logoId={u.logoId} size={38} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: F.sub, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {u.teamName}
                 </div>
-                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>GM {u.gmName}</div>
+                <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>GM {u.gmName}</div>
               </div>
               <button
                 onClick={() => { void onUnblock(u) }}
@@ -171,7 +171,7 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
                   padding: '8px 14px',flexShrink: 0, cursor: busy === u.id ? 'default' : 'pointer',
                   border: `2px solid ${alpha(C.cyan, busy === u.id ? 0.25 : 0.6)}`,
                   background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  color: busy === u.id ? C.textGhost : C.cyan, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
+                  color: busy === u.id ? C.textGhost : C.cyan, fontSize: F.body, fontWeight: 900, fontFamily: SAIRA,
                 }}
               >
                 解除
@@ -242,7 +242,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           }}
           style={{ cursor: 'default', userSelect: 'none' }}
         >
-          <div style={{ fontSize: 9, color: alpha(C.gold, 0.85), letterSpacing: '4px', marginBottom: 3 }}>SETTINGS</div>
+          <div style={{ fontSize: F.tiny, color: alpha(C.gold, 0.85), letterSpacing: '4px', marginBottom: 3 }}>SETTINGS</div>
           <div style={{ fontSize: 26, fontWeight: 900, color: C.text, lineHeight: 1 }}>設定</div>
         </div>
       </div>
@@ -280,7 +280,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
             const n = slotTaps + 1
             if (n >= 7) { setSlotTaps(0); setSlotSheet(true) } else setSlotTaps(n)
           }}
-          style={{ fontSize: 10, color: C.textGhost, letterSpacing: '1px', cursor: 'default', userSelect: 'none' }}
+          style={{ fontSize: F.caption, color: C.textGhost, letterSpacing: '1px', cursor: 'default', userSelect: 'none' }}
         >
           JPEL Manager {APP_VERSION}{currentSaveSlot() !== 1 && ` (スロット${currentSaveSlot()})`}
         </div>
@@ -289,16 +289,16 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
             onClick={() => window.open(PRIVACY_URL, '_blank')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
           >
-            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.85) }}>プライバシーポリシー</span>
+            <span style={{ fontSize: F.label, color: alpha(C.textGhost, 0.85) }}>プライバシーポリシー</span>
           </button>
-          <span style={{ fontSize: 10, color: alpha(C.textGhost, 0.85) }}>|</span>
+          <span style={{ fontSize: F.caption, color: alpha(C.textGhost, 0.85) }}>|</span>
           {/* 自前の利用規約。初回起動の同意画面で出しているものと同じ内容。
               アプリ内の本文は src/data/termsText.ts にあるので、直すときは両方そろえること */}
           <button
             onClick={() => window.open(TERMS_URL, '_blank')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: SAIRA, padding: '2px 0' }}
           >
-            <span style={{ fontSize: 11, color: alpha(C.textGhost, 0.85) }}>利用規約</span>
+            <span style={{ fontSize: F.label, color: alpha(C.textGhost, 0.85) }}>利用規約</span>
           </button>
         </div>
       </div>
@@ -312,7 +312,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
 
       {/* セーブスロット（運営用）。画面下から出すものは必ず BottomSheet を通すこと */}
       <BottomSheet open={slotSheet} onClose={() => setSlotSheet(false)} title="セーブスロット（運営用）">
-        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 10 }}>
+        <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6, marginBottom: 10 }}>
           データを分けて持てます。切り替えるとアプリを読み込み直します。<br />
           空きのスロットを選ぶと、そのスロットは最初から始まります。
         </div>
@@ -331,10 +331,10 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
                   border: `1px solid ${isCurrent ? alpha(C.gold, 0.5) : C.border}`,
                 }}
               >
-                <span style={{ fontSize: 13, fontWeight: 800, color: isCurrent ? C.gold : C.text }}>
-                  スロット{s}{s === 1 && <span style={{ fontSize: 10, color: C.textDim, fontWeight: 400 }}>（これまでのデータ）</span>}
+                <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: isCurrent ? C.gold : C.text }}>
+                  スロット{s}{s === 1 && <span style={{ fontSize: F.caption, color: C.textDim, fontWeight: 400 }}>（これまでのデータ）</span>}
                 </span>
-                <span style={{ fontSize: 11, color: isCurrent ? C.gold : C.textDim }}>
+                <span style={{ fontSize: F.label, color: isCurrent ? C.gold : C.textDim }}>
                   {isCurrent ? '使用中' : used === undefined ? '…' : used ? 'データあり' : '空き'}
                 </span>
               </button>
@@ -354,7 +354,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           ★消さないこと。消すと実機のセーブを取り出す手段がまた無くなる
             （`scripts/check-load-v39.ts` の注記を参照） */}
       <BottomSheet open={exportSheet} onClose={() => setExportSheet(false)} title="セーブの書き出し（運営用）">
-        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>
+        <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>
           不具合の調査用です。いまのセーブと走行記録をまとめて1つのファイルにして、共有から送れます。
         </div>
         <button
@@ -366,10 +366,10 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           }}
         >
           <span style={{ color: C.textDim, display: 'flex' }}>{IcShare}</span>
-          <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: C.text }}>セーブを書き出す</span>
+          <span style={{ flex: 1, fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>セーブを書き出す</span>
         </button>
         {exportMsg && (
-          <div style={{ padding: '10px 2px 0', fontSize: 11, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
+          <div style={{ padding: '10px 2px 0', fontSize: F.label, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
         )}
       </BottomSheet>
     </div>
@@ -406,11 +406,11 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '12px 14px',border: 'none',
-    backgroundColor: '#1E1B2E', color: C.text, fontSize: 15,
+    backgroundColor: '#1E1B2E', color: C.text, fontSize: F.subLg,
     fontFamily: SAIRA, outline: 'none', boxShadow: `inset 0 0 0 1px ${alpha(C.gold, 0.14)}`,
     boxSizing: 'border-box',
   }
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: C.textSub, letterSpacing: '1px', marginBottom: 8 }
+  const labelStyle: React.CSSProperties = { fontSize: F.label, color: C.textSub, letterSpacing: '1px', marginBottom: 8 }
 
   return (
     <DetailScreen title="チーム編集" onClose={onClose}>
@@ -428,7 +428,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
         <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} logoId={logoId} size={40}/>
         </div>
-        <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 700, color: C.text, fontFamily: SAIRA }}>変更する</span>
+        <span style={{ flex: 1, textAlign: 'left', fontSize: F.bodyLg, fontWeight: 700, color: C.text, fontFamily: SAIRA }}>変更する</span>
         <Chevron size={13} />
       </button>
 
@@ -463,7 +463,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
           width: '100%', padding: '14px',border: 'none',
           background: (dirty && valid) ? `linear-gradient(180deg, #E8C86A 0%, #C9A84C 100%)` : alpha(C.gold, 0.12),
           color: (dirty && valid) ? '#0A0912' : alpha(C.text, 0.4),
-          fontSize: 15, fontWeight: 900, fontFamily: SAIRA,
+          fontSize: F.subLg, fontWeight: 900, fontFamily: SAIRA,
           cursor: (dirty && valid) ? 'pointer' : 'default', letterSpacing: '1px',
         }}
       >
@@ -528,9 +528,9 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
                     <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="1.8"/>
                   </svg>
                 )}
-                <span style={{ fontSize: 12, fontWeight: 800, color: C.textSub, letterSpacing: '1px' }}>{label}</span>
+                <span style={{ fontSize: F.body, fontWeight: 800, color: C.textSub, letterSpacing: '1px' }}>{label}</span>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: Math.round(value * 100) === 0 ? C.textGhost : C.gold, minWidth: 28, textAlign: 'right' }}>
+              <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: Math.round(value * 100) === 0 ? C.textGhost : C.gold, minWidth: 28, textAlign: 'right' }}>
                 {Math.round(value * 100)}
               </span>
             </div>
@@ -545,15 +545,15 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
       </div>
 
       <div style={{ ...CARD, marginTop: 12, padding: '14px 16px' }}>
-        <div style={{ fontSize: 10, color: C.textSub, letterSpacing: '1.5px', marginBottom: 8, fontFamily: SAIRA }}>BGMのようす</div>
-        <div style={{ fontSize: 11, color: C.textGhost, lineHeight: 1.7, wordBreak: 'break-all' }}>{status}</div>
+        <div style={{ fontSize: F.caption, color: C.textSub, letterSpacing: '1.5px', marginBottom: 8, fontFamily: SAIRA }}>BGMのようす</div>
+        <div style={{ fontSize: F.label, color: C.textGhost, lineHeight: 1.7, wordBreak: 'break-all' }}>{status}</div>
       </div>
 
       {diag.length > 0 && (
         <div style={{ ...CARD, marginTop: 12, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: C.textSub, letterSpacing: '1.5px', marginBottom: 8, fontFamily: SAIRA }}>音が鳴らないとき</div>
+          <div style={{ fontSize: F.caption, color: C.textSub, letterSpacing: '1.5px', marginBottom: 8, fontFamily: SAIRA }}>音が鳴らないとき</div>
           {diag.map((d, i) => (
-            <div key={i} style={{ fontSize: 11, color: C.textGhost, lineHeight: 1.7, wordBreak: 'break-all' }}>{d}</div>
+            <div key={i} style={{ fontSize: F.label, color: C.textGhost, lineHeight: 1.7, wordBreak: 'break-all' }}>{d}</div>
           ))}
         </div>
       )}
@@ -582,23 +582,23 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
   const [done, setDone] = useState(false)
   return (
     <DetailScreen title="監督を退任する" onClose={onClose}>
-      <div style={{ fontSize: 12, color: C.textDim, lineHeight: 1.9, marginBottom: 16 }}>
+      <div style={{ fontSize: F.body, color: C.textDim, lineHeight: 1.9, marginBottom: 16 }}>
         {myTeam?.name ?? '現在のクラブ'}の監督を辞め、他クラブからの打診を待ちます。<br /><br />
         ・打診はすぐ届きますが、<strong style={{ color: C.text }}>就任は次のシーズンから</strong><br />
         ・<strong style={{ color: C.text }}>殿堂入りチームだけ</strong>は持っていきます（選手・予算・施設は移籍先のもの）<br />
         ・全部断ると無職のまま。次のシーズンにまた声がかかります
       </div>
       {booked ? (
-        <div style={{ padding: 14,background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center', lineHeight: 1.8 }}>
+        <div style={{ padding: 14,background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: F.body, fontWeight: 800, textAlign: 'center', lineHeight: 1.8 }}>
           {booked.year}シーズンから<strong style={{ color: C.text }}>{bookedTeam?.name ?? '新クラブ'}</strong>の監督に就任します。<br />
           今季は{myTeam?.shortName ?? '現在のクラブ'}の監督として最後まで指揮してください。
         </div>
       ) : done ? (
-        <div style={{ padding: 14,background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
+        <div style={{ padding: 14,background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: F.body, fontWeight: 800, textAlign: 'center' }}>
           打診が届きました。ホームで確認してください。
         </div>
       ) : !gate.ok ? (
-        <div style={{ padding: 14,background: alpha(C.textDim, 0.1), border: `1px solid ${alpha(C.textDim, 0.35)}`, color: C.textDim, fontSize: 12, fontWeight: 700, textAlign: 'center', lineHeight: 1.8 }}>
+        <div style={{ padding: 14,background: alpha(C.textDim, 0.1), border: `1px solid ${alpha(C.textDim, 0.35)}`, color: C.textDim, fontSize: F.body, fontWeight: 700, textAlign: 'center', lineHeight: 1.8 }}>
           就任してまだ日が浅いため、いまは退任できません。<br />
           <strong style={{ color: C.text }}>あと{gate.yearsLeft}シーズン</strong>指揮すると退任できます。
         </div>
@@ -622,8 +622,8 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
     <DetailScreen title="データリセット" onClose={onClose}>
       <div style={{ ...panelStyle(C.red), padding: '16px' }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: '10px', color: C.red, letterSpacing: '2px', opacity: 0.7, marginBottom: '10px', fontFamily: SAIRA }}>危険な操作</div>
-          <div style={{ fontSize: '13px', color: '#8a5a5a', marginBottom: '16px', lineHeight: 1.7, fontFamily: SAIRA }}>
+          <div style={{ fontSize: F.caption, color: C.red, letterSpacing: '2px', opacity: 0.7, marginBottom: '10px', fontFamily: SAIRA }}>危険な操作</div>
+          <div style={{ fontSize: F.bodyLg, color: '#8a5a5a', marginBottom: '16px', lineHeight: 1.7, fontFamily: SAIRA }}>
             セーブデータをすべて削除してゲームを最初からやり直します。この操作は取り消せません。
             {/* オンライン（フレンド）を公開している間は、サーバー側のアカウントも一緒に消える。
                 消えるものを書かずに削除させるのは審査ガイドライン 5.1.1(v) に触れるため、
@@ -642,7 +642,7 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
                 style={{
                   flex: 1, padding: '12px',
                   border: `1px solid ${C.border}`, background: 'transparent',
-                  color: C.textSub, fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
+                  color: C.textSub, fontSize: F.bodyLg, fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
                 }}
               >
                 キャンセル

@@ -3,7 +3,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { titleRows } from '../../utils/teamHistory'
 import { DIVISION_LABEL } from '../../utils/league'
-import { SAIRA } from '../../styles/tokens'
+import { SAIRA, F } from '../../styles/tokens'
 
 const GOLD = '#C9A84C'
 
@@ -30,8 +30,8 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
 
       {/* ブランド行 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, position: 'relative' }}>
-        <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: 3, color: GOLD }}>JPEL MANAGER</span>
-        <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: 3, color: '#8C93A5' }}>GM CARD</span>
+        <span style={{ fontSize: F.bodyLg, fontWeight: 900, letterSpacing: 3, color: GOLD }}>JPEL MANAGER</span>
+        <span style={{ fontSize: F.body, fontWeight: 900, letterSpacing: 3, color: '#8C93A5' }}>GM CARD</span>
       </div>
 
       {/* ロゴ＋チーム名＋GM名 */}
@@ -40,25 +40,25 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
           <TeamLogoSVG primary={primary} secondary={secondary} shortName={team?.shortName ?? '—'} teamId={team?.id} size={96} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#C9C6D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? '自チーム'}</div>
+          <div style={{ fontSize: F.subLg, fontWeight: 700, color: '#C9C6D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? '自チーム'}</div>
           <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 2 }}>GM {team?.gmName ?? '—'}</div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 8 }}>
-            <span style={{ fontSize: 13, color: '#8C93A5' }}>通算優勝 <b style={{ color: GOLD, fontSize: 18 }}>{champs}</b></span>
-            <span style={{ fontSize: 13, color: '#8C93A5' }}>監督歴 <b style={{ color: '#F0EDE8', fontSize: 18 }}>{seasons}</b>季</span>
+            <span style={{ fontSize: F.bodyLg, color: '#8C93A5' }}>通算優勝 <b style={{ color: GOLD, fontSize: F.titleLg }}>{champs}</b></span>
+            <span style={{ fontSize: F.bodyLg, color: '#8C93A5' }}>監督歴 <b style={{ color: '#F0EDE8', fontSize: F.titleLg }}>{seasons}</b>季</span>
           </div>
         </div>
       </div>
 
       {/* フレンドコード（主役） */}
       <div style={{ position: 'relative',padding: '16px 20px', background: 'linear-gradient(180deg, rgba(201,168,76,0.14), rgba(0,0,0,0.35))', border: `2px solid ${GOLD}88`, textAlign: 'center' }}>
-        <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 4, color: GOLD, marginBottom: 6 }}>FRIEND CODE</div>
+        <div style={{ fontSize: F.body, fontWeight: 900, letterSpacing: 4, color: GOLD, marginBottom: 6 }}>FRIEND CODE</div>
         <div style={{ fontSize: 46, fontWeight: 900, letterSpacing: 8, color: '#FFE9A8', lineHeight: 1, textShadow: `0 0 18px ${GOLD}66` }}>{code}</div>
       </div>
 
       {/* フッタ */}
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${GOLD}33`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: '#F0EDE8' }}>このコードで <span style={{ color: GOLD }}>フレンド申請</span> してね！</span>
-        <span style={{ fontSize: 11, color: '#6B7488', letterSpacing: 2 }}>#JPELManager</span>
+        <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: '#F0EDE8' }}>このコードで <span style={{ color: GOLD }}>フレンド申請</span> してね！</span>
+        <span style={{ fontSize: F.label, color: '#6B7488', letterSpacing: 2 }}>#JPELManager</span>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, calcTransferValue, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { collectNotifications, expiredNegText, chatReplyLine } from '../../utils/notifItems'
 import { audio } from '../../utils/audio'
 import { Btn } from '../ui'
@@ -30,8 +30,8 @@ function SectionHead({ label, color, count }: { label: string; color: string; co
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 20px 8px' }}>
       <div style={{ width: '3px', height: '16px',background: color, flexShrink: 0 }}/>
-      <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '800', color, letterSpacing: '3px' }}>{label}</span>
-      <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '800', padding: '1px 7px',background: alpha(color, 0.2), color }}>{count}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: '800', color, letterSpacing: '3px' }}>{label}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.caption, fontWeight: '800', padding: '1px 7px',background: alpha(color, 0.2), color }}>{count}</span>
     </div>
   )
 }
@@ -44,7 +44,7 @@ function FaceOvr({ playerId, nationality, pOvr, accentColor }: {
       <div style={{ width: '42px', height: '42px',overflow: 'hidden', border: `1px solid ${alpha(accentColor, 0.35)}` }}>
         <PlayerFace playerId={playerId} nationality={nationality as import('../../types').Nationality} size={42} />
       </div>
-      <div style={{ position: 'absolute', bottom: -1, right: -1, background: 'rgba(0,0,0,0.88)', padding: '0 3px',fontFamily: SAIRA, fontSize: '10px', fontWeight: '900', color: ratingColor(pOvr), lineHeight: '14px' }}>
+      <div style={{ position: 'absolute', bottom: -1, right: -1, background: 'rgba(0,0,0,0.88)', padding: '0 3px',fontFamily: SAIRA, fontSize: F.caption, fontWeight: '900', color: ratingColor(pOvr), lineHeight: '14px' }}>
         {pOvr}
       </div>
     </div>
@@ -81,25 +81,25 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
           <FaceOvr playerId={player.id} nationality={player.nationality} pOvr={pOvr} accentColor={C.green} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{player.name}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{player.name}</div>
             {/* 競り上げのときは「誰にいくらで抜かれたか」を出す。
                 クラブが値を吊り上げてきたのか、他クラブに抜かれたのかで打つ手が違う */}
-            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: bid.outbidBy ? C.orange : C.textSub, marginTop: '2px' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: bid.outbidBy ? C.orange : C.textSub, marginTop: '2px' }}>
               {bid.outbidBy ? `${bid.outbidBy}に競り上げられています` : `${targetTeamName} へ移籍打診中`}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '8px 12px',background: alpha(counterRating.color, 0.07), border: `1px solid ${alpha(counterRating.color, 0.2)}` }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>提示額</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.text }}>{fmtYen(bid.offeredFee)}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>提示額</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '900', color: C.text }}>{fmtYen(bid.offeredFee)}</div>
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke={C.textGhost} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           <div style={{ flex: 1, textAlign: 'right' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{bid.outbidBy ? '勝つのに必要' : '先方希望'}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: counterRating.color }}>{fmtYen(counterFee)}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>{bid.outbidBy ? '勝つのに必要' : '先方希望'}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '900', color: counterRating.color }}>{fmtYen(counterFee)}</div>
           </div>
-          <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: counterRating.color, padding: '2px 7px',background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: '700', color: counterRating.color, padding: '2px 7px',background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>
         </div>
 
         {!dialOpen ? (
@@ -107,19 +107,19 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
             <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={onAccept}>{fmtYen(counterFee)}で合意する</Btn>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { setDialFee(counterFee || bid.offeredFee); setDialOpen(true) }}
-                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.gold, 0.45)}`, backgroundColor: alpha(C.gold, 0.08), color: C.gold, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>金額を提示する</button>
+                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.gold, 0.45)}`, backgroundColor: alpha(C.gold, 0.08), color: C.gold, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>金額を提示する</button>
               <button onClick={onGiveUp}
-                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>あきらめる</button>
+                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>あきらめる</button>
             </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>提示する移籍金</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>提示する移籍金</div>
             <NumberDial value={dialFee} onChange={v => setDialFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.green} />
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => onReoffer(dialFee)}>この額で再提示</Btn>
               <button onClick={() => setDialOpen(false)}
-                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>戻る</button>
+                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>戻る</button>
             </div>
           </div>
         )}
@@ -210,12 +210,12 @@ export default function NotificationsPage() {
 
       <div style={{ borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 10 }}>
         <PageHeader title="通知" right={total > 0 ? (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '800', padding: '3px 10px', background: C.red, color: '#fff' }}>{total}件</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: '800', padding: '3px 10px', background: C.red, color: '#fff' }}>{total}件</div>
         ) : undefined} />
       </div>
 
       {total === 0 ? (
-        <div style={{ padding: '80px 20px', textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: '14px' }}>通知なし</div>
+        <div style={{ padding: '80px 20px', textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: F.sub }}>通知なし</div>
       ) : (
         <div style={{ paddingBottom: '24px' }}>
 
@@ -233,11 +233,11 @@ export default function NotificationsPage() {
                           <path d="M20 12v9H4v-9M2 7h20v5H2V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.gold }}>{gift.title}</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '900', color: C.gold }}>{gift.title}</div>
                         </div>
                       </div>
-                      <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, lineHeight: 1.6, marginBottom: '10px' }}>{gift.message}</div>
-                      <div style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px',background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>{gift.jewels ? `ジュエル${gift.jewels}個` : `カード${gift.cards.length}枚`}</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, lineHeight: 1.6, marginBottom: '10px' }}>{gift.message}</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px',background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>{gift.jewels ? `ジュエル${gift.jewels}個` : `カード${gift.cards.length}枚`}</div>
                       <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, color: '#111' }} onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }}>受け取る</Btn>
                     </div>
                   </div>
@@ -257,7 +257,7 @@ export default function NotificationsPage() {
                     <div style={{ padding: '14px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                         <TrainingCardSVG statKey={g.card.statKey} rarity={g.card.rarity} width={44}/>
-                        <div style={{ flex: 1, minWidth: 0, fontFamily: SAIRA, fontSize: '13px', fontWeight: '800', color: C.text, lineHeight: 1.6 }}>
+                        <div style={{ flex: 1, minWidth: 0, fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '800', color: C.text, lineHeight: 1.6 }}>
                           {g.fromName}から{RARITY_LABELS[g.card.rarity]}の{CARD_NAMES[g.card.statKey]}のカードが届きました！
                         </div>
                       </div>
@@ -291,16 +291,16 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.cyan} />
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '800', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.cyan, fontWeight: '700', marginTop: '2px' }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '800', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.cyan, fontWeight: '700', marginTop: '2px' }}>
                               {isLoan ? `レンタルで${yrs}シーズン加入しました` : 'チームに加入しました'}
                             </div>
                           </div>
                         </div>
-                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '12px' }}>ロスター画面で確認できます。</div>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginBottom: '12px' }}>ロスター画面で確認できます。</div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.cyan}, #4fc3f7)`, color: C.bg }} onClick={() => { dismissJoinNotice(key); navigate('/team/roster') }}>ロスターで確認</Btn>
-                          <button onClick={() => dismissJoinNotice(key)} style={{ flex: 'none', padding: '11px 16px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+                          <button onClick={() => dismissJoinNotice(key)} style={{ flex: 'none', padding: '11px 16px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
                         </div>
                       </div>
                     </div>
@@ -318,7 +318,7 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha('#6dd5fa', 0.45), '#0a2a3a')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '14px', fontWeight: '800', color: C.text, marginBottom: 6 }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '800', color: C.text, marginBottom: 6 }}>
                       本日のログインボーナスが未受取です
                     </div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, #4ab8ea, #1a8bbf)`, color: '#fff' }} onClick={() => navigate('/login-bonus')}>受け取る</Btn>
@@ -344,19 +344,19 @@ export default function NotificationsPage() {
                       <div style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                           <TeamLogoSVG primary={fromTeam.colors.primary} secondary={fromTeam.colors.secondary} shortName={fromTeam.shortName} teamId={fromTeam.id} size={20}/>
-                          <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '800', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fromTeam.name}</span>
-                          <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: '10px', fontWeight: '700', color: C.orange, flexShrink: 0 }}>1対1交換</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '800', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fromTeam.name}</span>
+                          <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.caption, fontWeight: '700', color: C.orange, flexShrink: 0 }}>1対1交換</span>
                         </div>
                         {[
                           { p: getP, tag: '獲得', col: C.green },
                           { p: giveP, tag: '放出', col: C.red },
                         ].map(({ p, tag, col }) => (
                           <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 8px',background: alpha(col, 0.06), border: `1px solid ${alpha(col, 0.2)}`, marginBottom: '6px', cursor: 'pointer' }}>
-                            <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '900', color: col, width: '26px', flexShrink: 0 }}>{tag}</span>
+                            <span style={{ fontFamily: SAIRA, fontSize: F.caption, fontWeight: '900', color: col, width: '26px', flexShrink: 0 }}>{tag}</span>
                             <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={col} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontFamily: SAIRA, fontSize: '14px', fontWeight: '700', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                              <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textSub }}>{p.age}歳 / 価値 {fmtYen(calcTransferValue(p))}</div>
+                              <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '700', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub }}>{p.age}歳 / 価値 {fmtYen(calcTransferValue(p))}</div>
                             </div>
                           </div>
                         ))}
@@ -389,12 +389,12 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={accent} />
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, marginTop: '2px' }}>{p.age}歳</div>
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: accent }}>{req ? '交渉中' : `残り${Math.max(0, months)}ヶ月`}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: req ? C.gold : C.red }}>{req ? 'あなたの返事待ちです' : '今季で満了・早急に更新を'}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: accent }}>{req ? '交渉中' : `残り${Math.max(0, months)}ヶ月`}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: req ? C.gold : C.red }}>{req ? 'あなたの返事待ちです' : '今季で満了・早急に更新を'}</div>
                           </div>
                         </div>
                         <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${req ? '#FFD54F' : '#FF6B6B'})`, color: req ? '#111' : C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
@@ -422,14 +422,14 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.red} />
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginTop: '2px' }}>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.red, marginTop: '2px' }}>
                               {p.injuryName ?? '負傷'}で離脱中
                             </div>
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.red }}>{left != null ? `あと${left}戦` : '離脱中'}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>で復帰</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: C.red }}>{left != null ? `あと${left}戦` : '離脱中'}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>で復帰</div>
                           </div>
                         </div>
                         <Btn variant="ghost" style={{ width: '100%', marginTop: '10px' }} onClick={() => dismissInjuryNotice(injuryKey(p))}>OK</Btn>
@@ -449,11 +449,11 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha(C.red, 0.45), '#5a1010')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>赤字が解消するまで補強できません</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginBottom: '8px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>赤字が解消するまで補強できません</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.red, marginBottom: '8px' }}>
                       理由: {(myTeamFinance?.budget ?? 0) < 0 ? '予算残高がマイナスです。' : `${myTeamFinance?.deficitStreak ?? 0}シーズン連続で期末残高がマイナスです。`}
                     </div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '10px', lineHeight: 1.7 }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginBottom: '10px', lineHeight: 1.7 }}>
                       <div>・禁止されるもの: FA・移籍金での獲得・引き抜き・レンタル・海外獲得</div>
                       <div>・引き続き可能: ドラフト指名・契約更新・選手の売却／放出</div>
                       <div style={{ color: C.orange }}>・3シーズン連続赤字が続く間は、<b>毎年ドラフトの最上位指名権が強制売却</b>されます</div>
@@ -477,8 +477,8 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha(C.red, 0.45), '#5a1010')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>ロスターが上限を超えています（{myRosterCount}/{ROSTER_MAX}）</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.red, marginBottom: '14px' }}>{rosterOver}名分オーバーしています。放出して{ROSTER_MAX}人以下に整理してください（超過中は新規補強ができません）</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>ロスターが上限を超えています（{myRosterCount}/{ROSTER_MAX}）</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.red, marginBottom: '14px' }}>{rosterOver}名分オーバーしています。放出して{ROSTER_MAX}人以下に整理してください（超過中は新規補強ができません）</div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.red}, #FF6B6B)`, color: C.bg }} onClick={() => navigate('/team/roster')}>ロスターを整理する</Btn>
                   </div>
                 </div>
@@ -502,8 +502,8 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={C.textSub} />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>{p.age}歳 · 通算{p.career.totalRaces}レース</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, marginTop: '2px' }}>{p.age}歳 · 通算{p.career.totalRaces}レース</div>
                           </div>
                         </div>
                         {/* 引退の承認/引き留めはチャットで行う（選手ページには承認ボタンが無い） */}
@@ -524,8 +524,8 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha(C.orange, 0.45), '#5a2800')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{transferReqs.length}人が移籍を希望</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.orange, marginBottom: '14px' }}>チャットで対応してください</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>{transferReqs.length}人が移籍を希望</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.orange, marginBottom: '14px' }}>チャットで対応してください</div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.orange}, #FFA726)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
                   </div>
                 </div>
@@ -541,8 +541,8 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha(C.blue, 0.45), '#0d2f5a')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{overseasReqs.length}人が海外挑戦を希望</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.blue, marginBottom: '14px' }}>チャットで対応してください</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>{overseasReqs.length}人が海外挑戦を希望</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.blue, marginBottom: '14px' }}>チャットで対応してください</div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #64B5F6)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
                   </div>
                 </div>
@@ -560,12 +560,12 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha(C.cyan, 0.45), '#0a3a4a')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{chatReplies.length}件があなたの返事待ち</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>{chatReplies.length}件があなたの返事待ち</div>
                     {/* カードは1枚にまとめて出すので、何が待っているかは**文で**伝える。
                         文面は utils/notifItems の chatReplyLine 1本（画面に直書きしないこと）。
                         「3件があなたの返事待ち」だけだと、それがレンタルの話なのか
                         獲得の話なのか分からなかった */}
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.cyan, marginBottom: '14px' }}>{chatReplyLine(chatReplies)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.cyan, marginBottom: '14px' }}>{chatReplyLine(chatReplies)}</div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.cyan}, #9ae4ff)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
                   </div>
                 </div>
@@ -618,11 +618,11 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                           <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.green} />
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.green, fontWeight: '700', marginTop: '2px' }}>{targetTeamName} が移籍金 {fmtYen(bid.offeredFee)} に合意</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{p.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.green, fontWeight: '700', marginTop: '2px' }}>{targetTeamName} が移籍金 {fmtYen(bid.offeredFee)} に合意</div>
                           </div>
                         </div>
-                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '12px' }}>次は選手本人と年俸・役割を交渉します。</div>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginBottom: '12px' }}>次は選手本人と年俸・役割を交渉します。</div>
                         <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${bid.playerId}`)}>選手と契約交渉へ</Btn>
                       </div>
                     </div>
@@ -649,8 +649,8 @@ export default function NotificationsPage() {
                       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={ovr(target)} accentColor={C.orange} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{clubName}が{target.name}と接触中</div>
-                          <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px', lineHeight: 1.6 }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '700', color: C.text }}>{clubName}が{target.name}と接触中</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: '2px', lineHeight: 1.6 }}>
                             契約満了に伴うフリー移籍の勧誘です。本人が約{decidesIn}戦後に決断します。タップして契約更新の交渉へ（本人が移籍に傾いていると断られます）
                           </div>
                         </div>
@@ -677,14 +677,14 @@ export default function NotificationsPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
                         <FaceOvr playerId={n.playerId} nationality={(players.find(p => p.id === n.playerId)?.nationality ?? 'JPN')} pOvr={(() => { const p = players.find(x => x.id === n.playerId); return p ? ovr(p) : 0 })()} accentColor={C.red} />
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '700', color: C.text }}>
                             {n.reason === 'loan'
                               ? `${n.playerName}が${n.toTeamName}へレンタルされました`
                               : n.reason === 'transfer'
                               ? `${n.playerName}が${n.toTeamName}へ移籍しました`
                               : `${n.playerName}が契約満了で退団しました`}
                           </div>
-                          <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: '2px' }}>
                             {n.reason === 'loan'
                               ? `${n.years ?? 1}シーズンのレンタルで貸出`
                               : n.reason === 'transfer'
@@ -693,7 +693,7 @@ export default function NotificationsPage() {
                           </div>
                         </div>
                       </div>
-                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissDepartureNotice(n.id)}>確認</Btn>
+                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: F.body }} onClick={() => dismissDepartureNotice(n.id)}>確認</Btn>
                     </div>
                   </div>
                 ))}
@@ -714,14 +714,14 @@ export default function NotificationsPage() {
                     <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                       {ftP && <FaceOvr playerId={ftP.id} nationality={ftP.nationality} pOvr={ovr(ftP)} accentColor={n.left ? C.red : C.green} />}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '700', color: C.text }}>
                           {n.left ? `${n.playerName}が${n.toTeamName}へのフリー移籍を決めました` : `${n.playerName}は残留を選びました`}
                         </div>
-                        <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: '2px' }}>
                           {n.left ? '契約満了に伴う本人の決断です（移籍金なし）' : `${n.toTeamName}の勧誘を断りました`}
                         </div>
                       </div>
-                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissFreeTransferNotice(n.id)}>確認</Btn>
+                      <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: F.body }} onClick={() => dismissFreeTransferNotice(n.id)}>確認</Btn>
                     </div>
                   </div>
                   )
@@ -747,16 +747,16 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                           {negP && <FaceOvr playerId={negP.id} nationality={negP.nationality} pOvr={ovr(negP)} accentColor={C.red} />}
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>{negText.title(neg.playerName)}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '700', color: C.text }}>{negText.title(neg.playerName)}</div>
                             {negTeam && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px', minWidth: 0 }}>
                                 <TeamLogoSVG primary={negTeam.colors.primary} secondary={negTeam.colors.secondary} shortName={negTeam.shortName} teamId={negTeam.id} size={14}/>
-                                <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{negTeam.name}</span>
+                                <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{negTeam.name}</span>
                               </div>
                             )}
-                            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginTop: '2px' }}>{neg.detail ?? negText.note}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: '2px' }}>{neg.detail ?? negText.note}</div>
                           </div>
-                          <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissExpiredNegotiation(neg.id)}>確認</Btn>
+                          <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: F.body }} onClick={() => dismissExpiredNegotiation(neg.id)}>確認</Btn>
                         </div>
                       </div>
                     </div>
@@ -781,16 +781,16 @@ export default function NotificationsPage() {
                       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                         {loanP && <FaceOvr playerId={loanP.id} nationality={loanP.nationality} pOvr={ovr(loanP)} accentColor={accent} />}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '700', color: C.text }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '700', color: C.text }}>
                             {resp.accepted
                               ? `${resp.ownerShort}が${resp.playerName}のレンタルを承諾`
                               : `${resp.ownerShort}が${resp.playerName}のレンタルを却下`}
                           </div>
-                          <div style={{ fontFamily: SAIRA, fontSize: '11px', color: accent, marginTop: '2px' }}>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.label, color: accent, marginTop: '2px' }}>
                             {resp.accepted ? `${resp.years}年で加入しました` : '要請は受け入れられませんでした'}
                           </div>
                         </div>
-                        <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: '12px' }} onClick={() => dismissLoanResponse(resp.id)}>確認</Btn>
+                        <Btn variant="ghost" style={{ flexShrink: 0, padding: '6px 14px', fontSize: F.body }} onClick={() => dismissLoanResponse(resp.id)}>確認</Btn>
                       </div>
                     </div>
                   )
@@ -807,8 +807,8 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha(C.green, 0.45), '#0d3d22')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '4px' }}>{sponsorOffers.length}社からスポンサーオファー</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.green, marginBottom: '14px' }}>契約内容を確認してください</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>{sponsorOffers.length}社からスポンサーオファー</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.green, marginBottom: '14px' }}>契約内容を確認してください</div>
                     <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate('/sponsors')}>スポンサーページへ</Btn>
                   </div>
                 </div>
@@ -832,11 +832,11 @@ export default function NotificationsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                           <FaceOvr playerId={target.id} nationality={target.nationality} pOvr={ovr(target)} accentColor={C.orange} />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '700', color: C.text }}>{target.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, marginTop: '2px' }}>移籍先が決まりませんでした</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{target.name}</div>
+                            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, marginTop: '2px' }}>移籍先が決まりませんでした</div>
                           </div>
                         </div>
-                        <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '12px', lineHeight: 1.6 }}>
+                        <div style={{ fontSize: F.label, color: C.textDim, marginBottom: '12px', lineHeight: 1.6 }}>
                           このまま残すか、契約を解除してFAにするかを決めてください。残しても移籍希望は続きます。
                         </div>
                         <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate(`/team/chat?player=${target.id}`)}>チャットで対応する</Btn>
@@ -861,11 +861,11 @@ export default function NotificationsPage() {
       {claimedGift && createPortal((
         <div onClick={() => setClaimedGift(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
           <div style={{ ...panelStyle(C.gold), padding: 28, maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 40px ${alpha(C.gold, 0.25)}` }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
-            <div style={{ fontSize: 13, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
-            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>{claimedGift.jewels ? `ジュエル${claimedGift.jewels}個を手に入れた` : `カード${claimedGift.cards.length}枚を手に入れた`}</div>
-            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13,background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
+            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
+            <div style={{ fontSize: F.bodyLg, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
+            <div style={{ fontSize: F.body, color: C.textDim, marginBottom: 18 }}>{claimedGift.jewels ? `ジュエル${claimedGift.jewels}個を手に入れた` : `カード${claimedGift.cards.length}枚を手に入れた`}</div>
+            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13,background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, cursor: 'pointer' }}>OK</button>
           </div>
         </div>
       ), document.body)}

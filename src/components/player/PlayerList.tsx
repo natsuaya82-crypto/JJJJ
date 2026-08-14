@@ -1,4 +1,4 @@
-import { C } from '../../styles/tokens'
+import { C, F } from '../../styles/tokens'
 
 // ============================================================================
 // **選手カードを縦に並べる箱。カードとカードの間隔はここ1本。**
@@ -36,5 +36,5 @@ export default function PlayerList({ children, margin = '0 12px', style }: {
 
 /** 「登録選手なし」など、一覧が空のときの1行（見た目を揃える） */
 export function PlayerListEmpty({ label }: { label: string }) {
-  return <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: 14 }}>{label}</div>
+  return <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>{label}</div>
 }

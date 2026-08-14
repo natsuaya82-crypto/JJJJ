@@ -2,7 +2,7 @@ import MenuButton from '../ui/MenuButton'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT, F } from '../../styles/tokens'
 
 
 export default function TransferHub() {
@@ -152,10 +152,10 @@ export default function TransferHub() {
   return (
     <div style={{ fontFamily: FONT, paddingBottom: '80px', minHeight: '100%' }}>
       <div style={{ padding: '12px 16px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '4px' }}>
           {currentSeason.year} TRANSFER
         </div>
-        <div style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: C.text }}>移籍</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: '900', color: C.text }}>移籍</div>
       </div>
 
       <div style={{ padding: '0 20px' }}>

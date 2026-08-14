@@ -15,7 +15,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { WA_EVENT_LABEL } from '../../engine/worldAthletics'
 import { formatRaceTime } from '../../utils/eventTime'
 import { runWithLoading } from '../../store/loadingStore'
-import { C, alpha, rankColor, SAIRA, FONT, bottomStack } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 
 
@@ -134,11 +134,11 @@ export default function WorldTournamentPage() {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <PageHeader title={`${title} 代表発表`} onBack={() => navigate('/')} />
-        <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>個人種目 {indStep + 1}/{inds.length} ・ 長押しで選手詳細</div>
+        <div style={{ padding: '2px 16px 8px', fontSize: F.label, color: C.textDim }}>個人種目 {indStep + 1}/{inds.length} ・ 長押しで選手詳細</div>
         <div style={{ margin: '4px 12px 0',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 出場選手</span>
-            <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textDim, marginLeft: 'auto' }}>{ir.placings.length}名</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 出場選手</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: C.textDim, marginLeft: 'auto' }}>{ir.placings.length}名</span>
           </div>
           <div style={{ padding: '8px 12px 12px' }}>
             {entrants.map(pl => {
@@ -147,7 +147,7 @@ export default function WorldTournamentPage() {
                 <div key={pl.playerId} {...(p ? longPress(p.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 6px', borderBottom: `1px solid ${C.border}`, cursor: p ? 'pointer' : 'default' }}>
                   <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
                   <Flag code={pl.nat} width={20} />
-                  <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>
+                  <span style={{ flex: 1, fontSize: F.body, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>
                 </div>
               )
             })}
@@ -180,9 +180,9 @@ export default function WorldTournamentPage() {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <PageHeader title={`${WA_EVENT_LABEL[ir.event]} 決勝`} onBack={() => navigate('/')} />
-        <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>{title} ・ 長押しで選手詳細</div>
+        <div style={{ padding: '2px 16px 8px', fontSize: F.label, color: C.textDim }}>{title} ・ 長押しで選手詳細</div>
         <div style={{ margin: '4px 12px 0',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 結果</div>
+          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 結果</div>
           <div style={{ padding: '8px 12px 12px' }}>
             {ir.placings.map(pl => {
               const p = players.find(x => x.id === pl.playerId)
@@ -191,8 +191,8 @@ export default function WorldTournamentPage() {
                   <span style={{ fontFamily: SAIRA, fontSize: pl.rank <= 3 ? 16 : 13, fontWeight: 900, color: rankColor(pl.rank), width: 24, textAlign: 'center', flexShrink: 0 }}>{pl.rank}</span>
                   <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
                   <Flag code={pl.nat} width={20} />
-                  <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>
-                  <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{formatRaceTime(pl.timeSec)}</span>
+                  <span style={{ flex: 1, fontSize: F.body, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: C.gold, flexShrink: 0 }}>{formatRaceTime(pl.timeSec)}</span>
                 </div>
               )
             })}
@@ -221,12 +221,12 @@ export default function WorldTournamentPage() {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: 200 }}>
         <PageHeader title={title} onBack={() => navigate('/')} />
-        <div style={{ padding: '4px 16px 8px', fontSize: 11, color: C.textDim }}>
+        <div style={{ padding: '4px 16px 8px', fontSize: F.label, color: C.textDim }}>
           {done
             ? '全3戦終了'
             : `駅伝 第${t.raceIndex + 1}戦／全${t.races.length}戦（${nextRace!.segments.length}区間）${t.japanIn ? '' : ' ・ 日本は予選敗退のため観戦'}`}
         </div>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>順位（{t.raceIndex}/{t.races.length}戦消化・合計ポイント）・国を長押しで代表詳細</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.purple, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>順位（{t.raceIndex}/{t.races.length}戦消化・合計ポイント）・国を長押しで代表詳細</div>
         <StandingsTable rows={standRows} onRowLongPress={id => { if (id.startsWith('nat_')) navigate(`/teams/national/${id.slice(4)}`) }} />
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           {pendingReveal ? (

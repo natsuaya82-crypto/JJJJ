@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { C } from '../../styles/tokens'
+import { C, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 
 // 画面下から出るシートの入れもの。中身だけを渡す。
@@ -58,7 +58,7 @@ export default function BottomSheet({ open, onClose, title, children }: {
       >
         <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 10px' }} />
         {title && (
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>{title}</div>
+          <div style={{ fontSize: F.body, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>{title}</div>
         )}
         {children}
       </div>

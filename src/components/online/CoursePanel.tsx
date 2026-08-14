@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { serverNow } from '../../lib/serverTime'
 import { CATEGORY_LABEL, type MatchCourse } from '../../data/matchCourses'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
 export default function CoursePanel({
@@ -27,9 +27,9 @@ export default function CoursePanel({
   return (
     <div style={{ padding: '10px 12px 0' }}>
       <div style={{ textAlign: 'center', marginBottom: 14 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.cyan, letterSpacing: 3, fontWeight: 900 }}>COURSE</div>
-        <div style={{ fontSize: 19, fontWeight: 900, color: C.text, marginTop: 4 }}>今回のコース</div>
-        <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.cyan, letterSpacing: 3, fontWeight: 900 }}>COURSE</div>
+        <div style={{ fontSize: F.titleLg, fontWeight: 900, color: C.text, marginTop: 4 }}>今回のコース</div>
+        <div style={{ fontSize: F.label, color: C.textDim, marginTop: 4 }}>
           全{courses.length}レース／このコースを順番に走ります
         </div>
       </div>
@@ -44,13 +44,13 @@ export default function CoursePanel({
           }}>
             <div style={{
               width: 40, textAlign: 'center', flexShrink: 0,
-              fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.gold,
+              fontFamily: SAIRA, fontSize: F.head, fontWeight: 900, color: C.gold,
             }}>R{i + 1}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: F.sub, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {c?.name ?? '—'}
               </div>
-              <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
+              <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>
                 {c ? `${c.location}・${c.distanceKm.toFixed(1)}km・${c.segments.length}区間` : ''}
               </div>
             </div>
@@ -58,7 +58,7 @@ export default function CoursePanel({
               <div style={{
                 flexShrink: 0, padding: '3px 8px',
                 background: alpha(C.cyan, 0.12), color: C.cyan,
-                fontSize: 9, fontWeight: 900, fontFamily: SAIRA, letterSpacing: 1,
+                fontSize: F.tiny, fontWeight: 900, fontFamily: SAIRA, letterSpacing: 1,
               }}>{CATEGORY_LABEL[c.category]}</div>
             )}
           </div>
@@ -71,7 +71,7 @@ export default function CoursePanel({
             <span className="btn-game__inner">オーダーを組む（{left}）</span>
           </button>
         ) : (
-          <div style={{ fontSize: 12, color: C.textDim }}>まもなくオーダー選びが始まります（{left}）</div>
+          <div style={{ fontSize: F.body, color: C.textDim }}>まもなくオーダー選びが始まります（{left}）</div>
         )}
       </div>
     </div>

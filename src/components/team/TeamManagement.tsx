@@ -11,7 +11,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
 import ActionSheet from '../ui/ActionSheet'
@@ -54,12 +54,12 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
         borderBottom: `1px solid ${alpha(C.border3, open ? 0.35 : 0.6)}`,
       }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 9.5, color: C.textDim, letterSpacing: 2, marginBottom: 3 }}>チーム分析</div>
+          <div style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: 2, marginBottom: 3 }}>チーム分析</div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: ratingColor(avgOvr), fontFamily: SAIRA, lineHeight: 1 }}>{avgOvr}</span>
-            <span style={{ fontSize: 9.5, color: C.textDim }}>平均OVR</span>
-            {injuredCount > 0 && <span style={{ fontSize: 9.5, color: C.red, fontWeight: 700 }}>{injuredCount}名負傷中</span>}
-            {weakSpec && <span style={{ fontSize: 9.5, color: C.textGhost }}>弱点: {weakSpec.label}</span>}
+            <span style={{ fontSize: F.headLg, fontWeight: 900, color: ratingColor(avgOvr), fontFamily: SAIRA, lineHeight: 1 }}>{avgOvr}</span>
+            <span style={{ fontSize: F.tiny, color: C.textDim }}>平均OVR</span>
+            {injuredCount > 0 && <span style={{ fontSize: F.tiny, color: C.red, fontWeight: 700 }}>{injuredCount}名負傷中</span>}
+            {weakSpec && <span style={{ fontSize: F.tiny, color: C.textGhost }}>弱点: {weakSpec.label}</span>}
           </div>
         </div>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', color: C.textGhost, flexShrink: 0 }}>
@@ -72,9 +72,9 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
             const col = specColors[spec]
             return (
               <div key={spec} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                <div style={{ width: '68px', fontSize: '9px', color: col, fontWeight: '700', flexShrink: 0 }}>{label}</div>
-                <div style={{ fontSize: '16px', fontWeight: '900', color: ratingColor(avg), fontFamily: SAIRA, minWidth: '28px' }}>{avg}</div>
-                <div style={{ fontSize: '9px', color: C.textGhost, flexShrink: 0 }}>{count}名</div>
+                <div style={{ width: '68px', fontSize: F.tiny, color: col, fontWeight: '700', flexShrink: 0 }}>{label}</div>
+                <div style={{ fontSize: F.title, fontWeight: '900', color: ratingColor(avg), fontFamily: SAIRA, minWidth: '28px' }}>{avg}</div>
+                <div style={{ fontSize: F.tiny, color: C.textGhost, flexShrink: 0 }}>{count}名</div>
               </div>
             )
           })}
@@ -133,8 +133,8 @@ export default function TeamManagement() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '0 18px 14px' }}>
         <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={40}/>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{team.name}</div>
-          <div style={{ fontSize: 10.5, color: C.textDim, marginTop: 2 }}>
+          <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>{team.name}</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>
             {team.city} ・ 設立{team.founded}年 ・ GM: {team.gmName}
           </div>
         </div>
@@ -142,7 +142,7 @@ export default function TeamManagement() {
 
       {section === 'tactics' && (
         <div style={{ padding: '0 12px', paddingBottom: '80px' }}>
-          <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '14px', padding: '0 2px' }}>レース戦略</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px', marginBottom: '14px', padding: '0 2px' }}>レース戦略</div>
           {([
             { key: 'aggressive' as const, label: '積極策', desc: '全区間で攻めの走り。順位を狙いに行くが疲労が大きく蓄積する。', stat: '疲労増加 +40% / 区間タイム向上', color: C.red, shadow: '#660e10' },
             { key: 'balanced' as const, label: 'バランス', desc: '攻守のバランスを取った標準戦略。安定した成績を目指す。', stat: '疲労標準 / 安定したパフォーマンス', color: C.gold, shadow: '#5a3500' },
@@ -161,11 +161,11 @@ export default function TeamManagement() {
                 </div>
                 <div style={{ flex: 1, textAlign: 'left' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: '800', color: active ? C.text : C.textSub }}>{opt.label}</span>
-                    {active && <span style={{ padding: '1px 7px',backgroundColor: alpha(opt.color, 0.25), color: opt.color, fontSize: '10px', fontWeight: '800', border: `1px solid ${alpha(opt.color, 0.4)}` }}>設定中</span>}
+                    <span style={{ fontSize: F.subLg, fontWeight: '800', color: active ? C.text : C.textSub }}>{opt.label}</span>
+                    {active && <span style={{ padding: '1px 7px',backgroundColor: alpha(opt.color, 0.25), color: opt.color, fontSize: F.caption, fontWeight: '800', border: `1px solid ${alpha(opt.color, 0.4)}` }}>設定中</span>}
                   </div>
-                  <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{opt.desc}</div>
-                  <div style={{ fontSize: '10px', color: active ? opt.color : C.textGhost, fontWeight: '600' }}>{opt.stat}</div>
+                  <div style={{ fontSize: F.label, color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{opt.desc}</div>
+                  <div style={{ fontSize: F.caption, color: active ? opt.color : C.textGhost, fontWeight: '600' }}>{opt.stat}</div>
                 </div>
               </GlassButton>
             )
@@ -191,19 +191,19 @@ export default function TeamManagement() {
           <div style={{ padding: '0 12px', paddingBottom: '80px' }}>
             <div style={{ padding: '10px 12px',backgroundColor: C.surface2, border: `1px solid ${C.border2}`, marginBottom: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                <span style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px' }}>チーム平均疲労度</span>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: avgFatigue >= 70 ? C.red : avgFatigue >= 50 ? C.gold : C.green, fontFamily: SAIRA }}>{avgFatigue}</span>
+                <span style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: '2px' }}>チーム平均疲労度</span>
+                <span style={{ fontSize: F.body, fontWeight: '700', color: avgFatigue >= 70 ? C.red : avgFatigue >= 50 ? C.gold : C.green, fontFamily: SAIRA }}>{avgFatigue}</span>
               </div>
               <div style={{ height: '5px',backgroundColor: C.border, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${avgFatigue}%`,backgroundColor: avgFatigue >= 70 ? C.red : avgFatigue >= 50 ? C.gold : C.green }} />
               </div>
-              {avgFatigue >= 60 && <div style={{ fontSize: '9px', color: C.red, marginTop: '4px' }}>疲労が高め。回復調整を検討してください。</div>}
+              {avgFatigue >= 60 && <div style={{ fontSize: F.tiny, color: C.red, marginTop: '4px' }}>疲労が高め。回復調整を検討してください。</div>}
             </div>
             <div style={{ padding: '8px 12px',backgroundColor: alpha(C.green, 0.06), border: `1px solid ${alpha(C.green, 0.15)}`, marginBottom: '12px' }}>
-              <div style={{ fontSize: '9px', color: C.green, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>適用タイミング</div>
-              <div style={{ fontSize: '10px', color: C.textDim, lineHeight: 1.5 }}>選んだプランは<span style={{ color: C.text }}>次のレース終了後</span>から自動適用される。</div>
+              <div style={{ fontSize: F.tiny, color: C.green, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>適用タイミング</div>
+              <div style={{ fontSize: F.caption, color: C.textDim, lineHeight: 1.5 }}>選んだプランは<span style={{ color: C.text }}>次のレース終了後</span>から自動適用される。</div>
             </div>
-            <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '10px', padding: '0 2px' }}>チームトレーニング計画</div>
+            <div style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px', marginBottom: '10px', padding: '0 2px' }}>チームトレーニング計画</div>
             {PLANS.map(plan => {
               const active = currentPlan === plan.key
               return (
@@ -218,18 +218,18 @@ export default function TeamManagement() {
                   </div>
                   <div style={{ flex: 1, textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: '800', color: active ? C.text : C.textSub }}>{plan.label}</span>
-                      {active && <span style={{ padding: '1px 6px',backgroundColor: alpha(plan.color, 0.25), color: plan.color, fontSize: '9px', fontWeight: '800', border: `1px solid ${alpha(plan.color, 0.4)}` }}>実施中</span>}
+                      <span style={{ fontSize: F.sub, fontWeight: '800', color: active ? C.text : C.textSub }}>{plan.label}</span>
+                      {active && <span style={{ padding: '1px 6px',backgroundColor: alpha(plan.color, 0.25), color: plan.color, fontSize: F.tiny, fontWeight: '800', border: `1px solid ${alpha(plan.color, 0.4)}` }}>実施中</span>}
                     </div>
-                    <div style={{ fontSize: '10px', color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{plan.desc}</div>
-                    <div style={{ fontSize: '10px', color: active ? plan.color : C.textGhost, fontWeight: '600' }}>効果: {plan.effect}</div>
+                    <div style={{ fontSize: F.caption, color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{plan.desc}</div>
+                    <div style={{ fontSize: F.caption, color: active ? plan.color : C.textGhost, fontWeight: '600' }}>効果: {plan.effect}</div>
                   </div>
                 </GlassButton>
               )
             })}
 
             <div style={{ marginTop: '18px', marginBottom: '12px' }}>
-              <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '10px', padding: '0 2px' }}>ローテーション管理</div>
+              <div style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px', marginBottom: '10px', padding: '0 2px' }}>ローテーション管理</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {[...myMainPlayers].sort((a, b) => (b.fatigue ?? 0) - (a.fatigue ?? 0)).map(p => {
                   const fat = p.fatigue ?? 0
@@ -240,15 +240,15 @@ export default function TeamManagement() {
                       <div style={{ width: '4px', height: '32px',background: `linear-gradient(180deg, ${fatColor}, ${alpha(fatColor, 0.6)})`, flexShrink: 0 }}/>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                          <span style={{ fontSize: F.body, fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                           <NewBadge joinedYear={p.joinedYear} currentYear={currentSeason.year} size={7} />
                         </div>
                         <div style={{ height: '4px',backgroundColor: C.border, marginTop: '4px', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${fat}%`, backgroundColor: fatColor,}}/>
                         </div>
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: fatColor, fontFamily: SAIRA, flexShrink: 0 }}>{fat}</span>
-                      <span style={{ fontSize: '9px', padding: '2px 6px',backgroundColor: alpha(fatColor, 0.15), color: fatColor, fontWeight: '700', border: `1px solid ${alpha(fatColor, 0.3)}`, flexShrink: 0, minWidth: '36px', textAlign: 'center' }}>{statusLabel}</span>
+                      <span style={{ fontSize: F.body, fontWeight: '700', color: fatColor, fontFamily: SAIRA, flexShrink: 0 }}>{fat}</span>
+                      <span style={{ fontSize: F.tiny, padding: '2px 6px',backgroundColor: alpha(fatColor, 0.15), color: fatColor, fontWeight: '700', border: `1px solid ${alpha(fatColor, 0.3)}`, flexShrink: 0, minWidth: '36px', textAlign: 'center' }}>{statusLabel}</span>
                     </div>
                   )
                 })}
@@ -256,7 +256,7 @@ export default function TeamManagement() {
             </div>
 
             <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px', marginBottom: '10px', padding: '0 2px' }}>個別トレーニング設定</div>
+              <div style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px', marginBottom: '10px', padding: '0 2px' }}>個別トレーニング設定</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {[...myMainPlayers].sort(comparePlayers('ovr')).map(p => {
                   const currentFocus = (currentSeason.trainingAssignments ?? {})[p.id] ?? ''
@@ -266,15 +266,15 @@ export default function TeamManagement() {
                       <div style={{ width: '3px', alignSelf: 'stretch',backgroundColor: specCol, flexShrink: 0 }}/>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                          <span style={{ fontSize: F.body, fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                           <NewBadge joinedYear={p.joinedYear} currentYear={currentSeason.year} size={7} />
                         </div>
-                        <div style={{ fontSize: '9px', color: C.textDim }}>{p.age}歳 · OVR {ovr(p)}</div>
+                        <div style={{ fontSize: F.tiny, color: C.textDim }}>{p.age}歳 · OVR {ovr(p)}</div>
                       </div>
                       <select
                         value={currentFocus}
                         onChange={e => setTrainingFocus(p.id, e.target.value || null)}
-                        style={{ padding: '5px 6px',border: `1px solid ${currentFocus ? alpha(C.gold, 0.4) : C.border2}`, backgroundColor: C.surface, color: currentFocus ? C.gold : C.textDim, fontSize: '10px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
+                        style={{ padding: '5px 6px',border: `1px solid ${currentFocus ? alpha(C.gold, 0.4) : C.border2}`, backgroundColor: C.surface, color: currentFocus ? C.gold : C.textDim, fontSize: F.caption, fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
                       >
                         <option value="">チーム計画</option>
                         <option value="speed">速力</option>
@@ -297,17 +297,17 @@ export default function TeamManagement() {
       {(section === 'roster' || !section) && <>
       {/* ロスター見出し：人数・総年俸・（あれば）レンタルトグルを1行に集約 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px 8px', flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.text }}>ロスター</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text }}>ロスター</span>
         {/* 20人未満は赤字で警告（下限15に近づいている） */}
-        <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 800, color: rosterCount < 20 ? C.red : C.text }}>
-          {rosterCount}<span style={{ fontSize: 11, color: C.textDim }}>/{ROSTER_MAX}</span>
-          {rosterCount < 20 && <span style={{ fontSize: 9, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
+        <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 800, color: rosterCount < 20 ? C.red : C.text }}>
+          {rosterCount}<span style={{ fontSize: F.label, color: C.textDim }}>/{ROSTER_MAX}</span>
+          {rosterCount < 20 && <span style={{ fontSize: F.tiny, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
         </span>
-        <span style={{ fontSize: 11, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
+        <span style={{ fontSize: F.label, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
         <div style={{ flex: 1 }} />
         {loanedIn.length > 0 && (
           <button onClick={() => setActiveTab(activeTab === 'loan' ? 'main' : 'loan')} style={{
-            padding: '5px 11px',cursor: 'pointer', fontFamily: SAIRA, fontSize: 11, fontWeight: 800,
+            padding: '5px 11px',cursor: 'pointer', fontFamily: SAIRA, fontSize: F.label, fontWeight: 800,
             border: `1px solid ${activeTab === 'loan' ? C.gold : C.border2}`,
             background: activeTab === 'loan' ? alpha(C.gold, 0.15) : 'transparent',
             color: activeTab === 'loan' ? C.gold : C.textDim,
@@ -325,14 +325,14 @@ export default function TeamManagement() {
               <path d="M21 21l-4-4" stroke={C.textGhost} strokeWidth="2" strokeLinecap="round"/>
             </svg>
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="選手名"
-              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: '12px', color: C.text, fontFamily: 'inherit', padding: '8px 0', minWidth: 0 }}
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: F.body, color: C.text, fontFamily: 'inherit', padding: '8px 0', minWidth: 0 }}
             />
             {searchQuery && <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textGhost, padding: 0, flexShrink: 0 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             </button>}
           </div>
           <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
-          <select value={specFilter} onChange={e => setSpecFilter(e.target.value)} style={{ padding: '0 8px',border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
+          <select value={specFilter} onChange={e => setSpecFilter(e.target.value)} style={{ padding: '0 8px',border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: F.label, fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
             <option value="all">全ポジ</option>
             {SPECIALTIES.map(sp => <option key={sp} value={sp}>{SPECIALTY_LABELS[sp]}</option>)}
           </select>
@@ -348,7 +348,7 @@ export default function TeamManagement() {
       {/* 一覧は箱に入れない。カードを縦に並べる */}
       <PlayerList margin="0 18px 80px">
           {players.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: '14px' }}>登録選手なし</div>
+            <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>登録選手なし</div>
           ) : (
             players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? teams.find(t => t.id === p.loan!.ownerTeamId) : undefined}/>)
           )}
@@ -369,10 +369,10 @@ export default function TeamManagement() {
                   <PlayerFace playerId={mp.id} nationality={mp.nationality} size={44} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{mp.name}</div>
-                  <div style={{ fontSize: 10, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · 残{mp.contract.yearsLeft}年</div>
+                  <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>{mp.name}</div>
+                  <div style={{ fontSize: F.caption, color: C.textDim }}>{SPECIALTY_LABELS[mp.specialty]} · {mp.age}歳 · 残{mp.contract.yearsLeft}年</div>
                 </div>
-                <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: ratingColor(ovr(mp)) }}>{ovr(mp)}</div>
               </div>
             ) : undefined}
             items={mp ? [
@@ -393,20 +393,20 @@ export default function TeamManagement() {
           <>
             <div onClick={() => setReleasePlayerId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 320 }} />
             <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 321, width: 'calc(100% - 48px)', maxWidth: 360, background: C.surface, border: `1.5px solid ${C.border2}`,padding: '20px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>{rp.name}を解雇しますか？</div>
-              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.7, marginBottom: 4 }}>
+              <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text, marginBottom: 8 }}>{rp.name}を解雇しますか？</div>
+              <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.7, marginBottom: 4 }}>
                 違約金：<span style={{ color: buyout > 0 ? C.red : C.textDim, fontWeight: 800 }}>{buyout > 0 ? fmtYen(buyout) : 'なし'}</span>
                 {buyout > 0 && <span style={{ color: C.textDim }}>（年俸×残り{rp.contract.yearsLeft - 1}年分を即時支払い）</span>}
               </div>
-              <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginBottom: 14 }}>解雇した選手はフリーになり、戻すことはできません。</div>
-              {releaseError && <div style={{ fontSize: 11, color: C.red, marginBottom: 10 }}>最低ロスター人数を下回るため解雇できません。</div>}
+              <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6, marginBottom: 14 }}>解雇した選手はフリーになり、戻すことはできません。</div>
+              {releaseError && <div style={{ fontSize: F.label, color: C.red, marginBottom: 10 }}>最低ロスター人数を下回るため解雇できません。</div>}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => { const ok = releasePlayerWithBuyout(rp.id); if (ok) setReleasePlayerId(null); else setReleaseError(true) }}
-                  style={{ flex: 1, padding: '12px',border: 'none', background: C.red, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex: 1, padding: '12px',border: 'none', background: C.red, color: '#fff', fontSize: F.bodyLg, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
                   解雇する
                 </button>
                 <button onClick={() => setReleasePlayerId(null)}
-                  style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                   やめる
                 </button>
               </div>

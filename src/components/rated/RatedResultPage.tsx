@@ -8,7 +8,7 @@ import { fetchMe, fetchResult, ratedCourseOf, ratedMatchCourse, type RatedMe, ty
 import { courseDistanceKm } from '../../engine/ratedCourse'
 import RankUpOverlay from './RankUpOverlay'
 import { rankChangeOf } from './rankArt'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import type { Player } from '../../types'
 
 // ============================================================================
@@ -70,19 +70,19 @@ export default function RatedResultPage() {
         <>
           <Card>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{result.dateISO}</span>
-              <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.cyan }}>
+              <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>{result.dateISO}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.cyan }}>
                 {course.segments.length}区間 / {courseDistanceKm(result.course)}km
               </span>
-              <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>
+              <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
                 グループ{result.group} / {result.groups}
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {course.segments.map(s => (
                 <div key={s.index} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <span style={{ width: 26, fontSize: 9, color: C.textDim, fontFamily: SAIRA, flexShrink: 0 }}>{s.index}区</span>
-                  <span style={{ width: 44, fontSize: 10, color: C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>{s.distanceKm}km</span>
+                  <span style={{ width: 26, fontSize: F.tiny, color: C.textDim, fontFamily: SAIRA, flexShrink: 0 }}>{s.index}区</span>
+                  <span style={{ width: 44, fontSize: F.caption, color: C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>{s.distanceKm}km</span>
                   <div style={{ flex: 1, height: 7,overflow: 'hidden', display: 'flex', background: C.surface }}>
                     <div style={{ width: `${s.uphillPct}%`, background: alpha(C.red, 0.75) }} />
                     <div style={{ width: `${100 - s.uphillPct - s.downhillPct}%`, background: alpha(C.textDim, 0.35) }} />
@@ -108,11 +108,11 @@ export default function RatedResultPage() {
         <>
           <Card>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 11, color: C.textSub }}>レート</span>
-              <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>
+              <span style={{ fontSize: F.label, color: C.textSub }}>レート</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.text }}>
                 {delta > 0 ? '+' : ''}{delta}
               </span>
-              <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>
+              <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>
                 グループ{result.group} / {result.groups}
               </span>
             </div>

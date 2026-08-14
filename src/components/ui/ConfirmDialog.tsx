@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { C, SAIRA } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
 
@@ -48,15 +48,15 @@ export default function ConfirmDialog({
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ fontSize: 9, color: accent, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>確認</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
+        <div style={{ fontSize: F.tiny, color: accent, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>確認</div>
+        <div style={{ fontSize: F.title, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
         {children && <div style={{ marginBottom: message ? 10 : 18 }}>{children}</div>}
-        {message && <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6, marginBottom: 18 }}>{message}</div>}
+        {message && <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6, marginBottom: 18 }}>{message}</div>}
         <div style={{ display: 'flex', gap: 10 }}>
-          <GlassButton color={C.textSub} onClick={onCancel} style={{ flex: 1, padding: '12px', fontFamily: SAIRA, fontSize: 14 }}>
+          <GlassButton color={C.textSub} onClick={onCancel} style={{ flex: 1, padding: '12px', fontFamily: SAIRA, fontSize: F.sub }}>
             {cancelLabel}
           </GlassButton>
-          <GlassButton color={accent} onClick={onConfirm} style={{ flex: 1.4, padding: '12px', fontFamily: SAIRA, fontSize: 15 }}>
+          <GlassButton color={accent} onClick={onConfirm} style={{ flex: 1.4, padding: '12px', fontFamily: SAIRA, fontSize: F.subLg }}>
             {confirmLabel}
           </GlassButton>
         </div>

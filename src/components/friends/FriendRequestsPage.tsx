@@ -15,12 +15,12 @@ import {
 } from '../../lib/friendsApi'
 import type { FriendRequest } from '../../lib/friendsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, margin: '20px 0 8px' }}>
+    <div style={{ fontSize: F.caption, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900, margin: '20px 0 8px' }}>
       {children}
     </div>
   )
@@ -32,8 +32,8 @@ function TargetCard({ r }: { r: FriendRequest }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px',background: alpha(C.bg, 0.5), border: `1px solid ${C.border2}` }}>
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} logoId={r.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
+        <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
+        <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
       </div>
     </div>
   )
@@ -45,8 +45,8 @@ function RequestRow({ r, dim, right }: { r: FriendRequest; dim?: boolean; right:
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, opacity: dim ? 0.5 : 1 }}>
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} logoId={r.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
+        <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
+        <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
       </div>
       <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'center' }}>{right}</div>
     </div>
@@ -151,13 +151,13 @@ export default function FriendRequestsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.gold, 0.4)}` }}>
           <TeamLogoSVG primary={myTeam?.colors.primary ?? '#333'} secondary={myTeam?.colors.secondary ?? '#777'} shortName={myTeam?.shortName ?? '—'} teamId={playerTeamId} size={40} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 9, color: alpha(C.gold, 0.85), letterSpacing: '1px', fontWeight: 900 }}>あなたのID</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: code.data ? C.text : C.textGhost, letterSpacing: '3px' }}>{myCodeText}</div>
+            <div style={{ fontSize: F.tiny, color: alpha(C.gold, 0.85), letterSpacing: '1px', fontWeight: 900 }}>あなたのID</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: 900, color: code.data ? C.text : C.textGhost, letterSpacing: '3px' }}>{myCodeText}</div>
           </div>
           {code.error ? (
-            <button onClick={code.reload} style={{ flexShrink: 0, padding: '9px 12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>再取得</button>
+            <button onClick={code.reload} style={{ flexShrink: 0, padding: '9px 12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>再取得</button>
           ) : (
-            <button onClick={shareCode} disabled={sharing || !code.data} style={{ flexShrink: 0, padding: '9px 14px',border: 'none', background: C.gold, color: '#1a0d00', fontSize: 12, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sharing || !code.data ? 0.6 : 1 }}>{sharing ? '作成中' : '共有'}</button>
+            <button onClick={shareCode} disabled={sharing || !code.data} style={{ flexShrink: 0, padding: '9px 14px',border: 'none', background: C.gold, color: '#1a0d00', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sharing || !code.data ? 0.6 : 1 }}>{sharing ? '作成中' : '共有'}</button>
           )}
         </div>
       </div>
@@ -166,9 +166,9 @@ export default function FriendRequestsPage() {
         <SectionLabel>コードで申請</SectionLabel>
         <div style={{ display: 'flex', gap: 8 }}>
           <input value={addCode} onChange={e => setAddCode(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="コード（数字10桁）"
-            style={{ flex: 1, padding: '11px 12px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 15, fontFamily: SAIRA, letterSpacing: '3px', outline: 'none' }} />
+            style={{ flex: 1, padding: '11px 12px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: F.subLg, fontFamily: SAIRA, letterSpacing: '3px', outline: 'none' }} />
           <button onClick={onCheck} disabled={sending || addCode.length !== 10}
-            style={{ padding: '0 18px',border: `2px solid ${C.cyan}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.cyan, fontSize: 13, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sending || addCode.length !== 10 ? 0.45 : 1 }}>{sending ? '確認中' : '申請'}</button>
+            style={{ padding: '0 18px',border: `2px solid ${C.cyan}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.cyan, fontSize: F.bodyLg, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sending || addCode.length !== 10 ? 0.45 : 1 }}>{sending ? '確認中' : '申請'}</button>
         </div>
 
         {/* 届いた申請（承認・拒否） */}
@@ -179,8 +179,8 @@ export default function FriendRequestsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {received.map(r => (
               <RequestRow key={r.id} r={r} dim={busy === r.id} right={<>
-                <button onClick={() => onAccept(r)} disabled={!!busy} style={{ padding: '7px 12px',border: 'none', background: C.gold, color: '#1a0d00', fontSize: 12, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>承認</button>
-                <button onClick={() => onReject(r)} disabled={!!busy} style={{ padding: '7px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>拒否</button>
+                <button onClick={() => onAccept(r)} disabled={!!busy} style={{ padding: '7px 12px',border: 'none', background: C.gold, color: '#1a0d00', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>承認</button>
+                <button onClick={() => onReject(r)} disabled={!!busy} style={{ padding: '7px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.body, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>拒否</button>
               </>} />
             ))}
           </div>
@@ -194,8 +194,8 @@ export default function FriendRequestsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {sent.map(r => (
               <RequestRow key={r.id} r={r} dim={busy === r.id} right={<>
-                <span style={{ fontSize: 10, color: C.textDim, fontWeight: 700 }}>承認待ち</span>
-                <button onClick={() => onCancel(r)} disabled={!!busy} style={{ padding: '6px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>取消</button>
+                <span style={{ fontSize: F.caption, color: C.textDim, fontWeight: 700 }}>承認待ち</span>
+                <button onClick={() => onCancel(r)} disabled={!!busy} style={{ padding: '6px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>取消</button>
               </>} />
             ))}
           </div>

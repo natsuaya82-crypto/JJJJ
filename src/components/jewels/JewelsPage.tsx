@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { showRewardAd, getAdDay, ADS_PER_DAY } from '../../utils/ads'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { JewelIcon } from '../icons/Icons'
@@ -12,7 +12,7 @@ function J({ n, dim }: { n: number; dim?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
       <JewelIcon size={12} opacity={dim ? 0.4 : 1}detailed />
-      <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: dim ? 'rgba(109,213,250,0.4)' : '#6dd5fa' }}>+{n}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: dim ? 'rgba(109,213,250,0.4)' : '#6dd5fa' }}>+{n}</span>
     </span>
   )
 }
@@ -21,7 +21,7 @@ function Section({ title }: { title: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 8px' }}>
       <div style={{ width: 3, height: 14,background: '#6dd5fa' }}/>
-      <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: '#6dd5fa', letterSpacing: '3px' }}>{title}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: '#6dd5fa', letterSpacing: '3px' }}>{title}</span>
     </div>
   )
 }
@@ -30,8 +30,8 @@ function Row({ label, right, sub }: { label: string; right: React.ReactNode; sub
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', borderBottom: `1px solid ${alpha(C.border, 0.5)}` }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 13, color: C.text }}>{label}</div>
-        {sub && <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginTop: 2 }}>{sub}</div>}
+        <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, color: C.text }}>{label}</div>
+        {sub && <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginTop: 2 }}>{sub}</div>}
       </div>
       <div>{right}</div>
     </div>
@@ -46,8 +46,8 @@ function LinkCard({ label, sub, path, onClick }: { label: string; sub: string; p
       style={{ width: '100%', background: alpha(C.surface3, 0.5), border: `1px solid ${C.border}`,padding: '12px 16px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
     >
       <div>
-        <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 700, color: C.text }}>{label}</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 2 }}>{sub}</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 700, color: C.text }}>{label}</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 2 }}>{sub}</div>
       </div>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke={C.textDim} strokeWidth="2" strokeLinecap="round"/></svg>
     </button>
@@ -98,7 +98,7 @@ export default function JewelsPage() {
 
       {/* 残高 */}
       <div style={{ margin: '16px 16px 8px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.35)}`,padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#6dd5fa', 0.85), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: alpha('#6dd5fa', 0.85), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <JewelIcon size={28}detailed />
           <span style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: '#6dd5fa', textShadow: '0 0 20px rgba(109,213,250,0.6)', lineHeight: 1 }}>{jewels.toLocaleString()}</span>
@@ -109,10 +109,10 @@ export default function JewelsPage() {
       <div style={{ margin: '12px 16px 0' }}>
         <div style={{ background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', adsLeft > 0 ? 0.4 : 0.15)}`,padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: adsLeft > 0 ? '#6dd5fa' : C.textDim }}>広告を見る</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / 3 回 · 1日3回まで</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: adsLeft > 0 ? '#6dd5fa' : C.textDim }}>広告を見る</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / 3 回 · 1日3回まで</div>
             {adResult !== null && (
-              <div style={{ fontFamily: SAIRA, fontSize: 12, color: '#6dd5fa', marginTop: 4, fontWeight: 700 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: F.body, color: '#6dd5fa', marginTop: 4, fontWeight: 700 }}>
                 {adResult.before.toLocaleString()} → {adResult.after.toLocaleString()} J（+{adResult.after - adResult.before}）
               </div>
             )}
@@ -125,7 +125,7 @@ export default function JewelsPage() {
               padding: '10px 18px',cursor: adsLeft > 0 ? 'pointer' : 'default',
               background: adsLeft > 0 ? 'linear-gradient(180deg, #1a4a7a 0%, #0f2a4a 100%)' : C.surface2,
               border: `1px solid ${adsLeft > 0 ? alpha('#6dd5fa', 0.5) : C.border}`,
-              fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
+              fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
               color: adsLeft > 0 ? '#6dd5fa' : C.textGhost, flexShrink: 0,
             }}
           >

@@ -1,7 +1,7 @@
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { FacilityKey } from '../../types'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
 import { panelStyle } from '../ui/Panel'
 import GlassButton from '../ui/GlassButton'
@@ -98,9 +98,9 @@ export default function FacilitiesPage() {
 
       <div style={{ padding: '4px 16px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ fontSize: '11px', color: C.textDim }}>所持ジュエル:</div>
+          <div style={{ fontSize: F.label, color: C.textDim }}>所持ジュエル:</div>
           <JewelIcon size={14} />
-          <div style={{ fontFamily: SAIRA, fontSize: '14px', fontWeight: '900', color: '#6dd5fa', textShadow: `0 0 8px rgba(74,184,234,0.5)` }}>{jewels}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '900', color: '#6dd5fa', textShadow: `0 0 8px rgba(74,184,234,0.5)` }}>{jewels}</div>
         </div>
       </div>
 
@@ -123,18 +123,18 @@ export default function FacilitiesPage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '800', color: C.text }}>{f.name}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '800', color: C.text }}>{f.name}</span>
                     {currentLv > 0 && (
                       <span style={{
-                        fontFamily: SAIRA, padding: '2px 8px', fontSize: '10px', fontWeight: '800',
+                        fontFamily: SAIRA, padding: '2px 8px', fontSize: F.caption, fontWeight: '800',
                         background: alpha(f.color, 0.2), color: f.color, border: `1px solid ${alpha(f.color, 0.35)}`,
                       }}>Lv{currentLv}</span>
                     )}
                     {currentLv === 0 && (
-                      <span style={{ fontFamily: SAIRA, padding: '2px 8px', fontSize: '9px', color: C.textGhost, background: C.surface, border: `1px solid ${C.border}` }}>未建設</span>
+                      <span style={{ fontFamily: SAIRA, padding: '2px 8px', fontSize: F.tiny, color: C.textGhost, background: C.surface, border: `1px solid ${C.border}` }}>未建設</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '11px', color: C.textDim, lineHeight: 1.4 }}>{f.desc}</div>
+                  <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.4 }}>{f.desc}</div>
                 </div>
               </div>
 
@@ -155,14 +155,14 @@ export default function FacilitiesPage() {
                     background: currentLv > i ? alpha(f.color, 0.12) : C.surface,
                     border: `1px solid ${currentLv > i ? alpha(f.color, 0.28) : C.border}`,
                   }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '7px', color: currentLv > i ? f.color : C.textGhost, fontWeight: '700', lineHeight: 1.35 }}>{eff}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: currentLv > i ? f.color : C.textGhost, fontWeight: '700', lineHeight: 1.35 }}>{eff}</div>
                   </div>
                 ))}
               </div>
 
               <div style={{ padding: '10px 14px 14px' }}>
                 {currentLv >= MAX_LV ? (
-                  <div style={{ textAlign: 'center', padding: '10px', fontFamily: SAIRA, fontSize: '11px', color: C.gold, fontWeight: '700', background: alpha(C.gold, 0.08), border: `1px solid ${alpha(C.gold, 0.22)}` }}>
+                  <div style={{ textAlign: 'center', padding: '10px', fontFamily: SAIRA, fontSize: F.label, color: C.gold, fontWeight: '700', background: alpha(C.gold, 0.08), border: `1px solid ${alpha(C.gold, 0.22)}` }}>
                     MAX レベル達成
                   </div>
                 ) : (
@@ -176,7 +176,7 @@ export default function FacilitiesPage() {
                     <span>Lv{currentLv + 1}に強化</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: SAIRA, fontWeight: '900', color: canUpgrade ? '#6dd5fa' : C.textGhost, textShadow: canUpgrade ? `0 0 6px rgba(74,184,234,0.5)` : 'none' }}>— <JewelIcon size={12}/>{nextCost!}</span>
                     {!canUpgrade && nextCost && jewels < nextCost && (
-                      <span style={{ fontSize: '10px', opacity: 0.6 }}>（ジュエル不足）</span>
+                      <span style={{ fontSize: F.caption, opacity: 0.6 }}>（ジュエル不足）</span>
                     )}
                   </GlassButton>
                 )}

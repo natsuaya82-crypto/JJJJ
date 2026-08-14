@@ -10,7 +10,7 @@ import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { SAIRA } from '../../styles/tokens'
+import { SAIRA, F } from '../../styles/tokens'
 
 
 const STATS: { key: keyof Player['ratings']; label: string }[] = [
@@ -54,11 +54,11 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
 
       {/* ブランド行 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, position: 'relative' }}>
-        <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: 3, color: GOLD }}>JPEL MANAGER</span>
+        <span style={{ fontSize: F.bodyLg, fontWeight: 900, letterSpacing: 3, color: GOLD }}>JPEL MANAGER</span>
         {team && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={20} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#C9C6D0' }}>{team.name}</span>
+            <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: '#C9C6D0' }}>{team.name}</span>
           </span>
         )}
       </div>
@@ -71,17 +71,17 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, marginBottom: 6 }}>{player.name}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 15, fontWeight: 900, color: specCol }}>{SPECIALTY_LABELS[player.specialty]}</span>
-            <span style={{ fontSize: 14, color: '#8C93A5' }}>{player.age}歳</span>
+            <span style={{ fontSize: F.subLg, fontWeight: 900, color: specCol }}>{SPECIALTY_LABELS[player.specialty]}</span>
+            <span style={{ fontSize: F.sub, color: '#8C93A5' }}>{player.age}歳</span>
             {shareBadge && (
-              <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px',background: `${badgeColor(shareBadge)}26`, border: `1px solid ${badgeColor(shareBadge)}88`, color: badgeColor(shareBadge) }}>
+              <span style={{ fontSize: F.label, fontWeight: 900, padding: '2px 8px',background: `${badgeColor(shareBadge)}26`, border: `1px solid ${badgeColor(shareBadge)}88`, color: badgeColor(shareBadge) }}>
                 <BadgeContent badge={shareBadge} iconSize={11} />
               </span>
             )}
           </div>
         </div>
         <div style={{ textAlign: 'center', flexShrink: 0 }}>
-          <div style={{ fontSize: 11, color: '#8C93A5', letterSpacing: 2 }}>OVR</div>
+          <div style={{ fontSize: F.label, color: '#8C93A5', letterSpacing: 2 }}>OVR</div>
           <div style={{ fontSize: 58, fontWeight: 900, lineHeight: 1, color: ratingColor(rating), fontFamily: 'monospace' }}>{rating}</div>
         </div>
       </div>
@@ -94,18 +94,18 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
           const col = ratingColor(v, maxed)
           return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, color: '#8C93A5', width: 40, flexShrink: 0 }}>{label}</span>
+              <span style={{ fontSize: F.body, color: '#8C93A5', width: 40, flexShrink: 0 }}>{label}</span>
               <div style={{ flex: 1, height: 8,background: '#1c2a3d', overflow: 'hidden' }}>
                 <div style={{ width: `${Math.min(100, v)}%`, height: '100%', background: col,}} />
               </div>
-              <span style={{ fontSize: 15, fontWeight: 900, color: col, width: 26, textAlign: 'right', fontFamily: 'monospace' }}>{v}</span>
+              <span style={{ fontSize: F.subLg, fontWeight: 900, color: col, width: 26, textAlign: 'right', fontFamily: 'monospace' }}>{v}</span>
             </div>
           )
         })}
       </div>
 
       {/* フッタ */}
-      <div style={{ marginTop: 18, paddingTop: 12, borderTop: `1px solid ${GOLD}33`, textAlign: 'center', fontSize: 11, color: '#6B7488', letterSpacing: 2, position: 'relative' }}>
+      <div style={{ marginTop: 18, paddingTop: 12, borderTop: `1px solid ${GOLD}33`, textAlign: 'center', fontSize: F.label, color: '#6B7488', letterSpacing: 2, position: 'relative' }}>
         #JPELManager ｜ 駅伝マネージャー
       </div>
     </div>

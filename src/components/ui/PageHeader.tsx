@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { audio } from '../../utils/audio'
-import { C, SAIRA } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 
 // ============================================================================
 // **画面の見出し。「‹ タイトル」を横一列で出す。**
@@ -42,12 +42,12 @@ export default function PageHeader({ title, eyebrow, icon, right, onBack }: {
       {icon && <span style={{ display: 'flex', flexShrink: 0, marginRight: 8 }}>{icon}</span>}
       <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
-          <div style={{ fontFamily: SAIRA, fontSize: 9.5, fontWeight: 800, color: C.textDim, letterSpacing: '3px' }}>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '3px' }}>
             {eyebrow}
           </div>
         )}
         <div style={{
-          fontSize: 21, fontWeight: 900, color: C.text, lineHeight: 1.15,
+          fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.15,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{title}</div>
       </div>

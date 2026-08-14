@@ -33,7 +33,7 @@ import { loadClubGifts, clearClubGifts } from '../../lib/useClubGifts'
 import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { useLongPress } from '../../lib/useLongPress'
-import { C, alpha, SAIRA, contentHeight } from '../../styles/tokens'
+import { C, alpha, SAIRA, contentHeight, F } from '../../styles/tokens'
 
 
 const JOIN_COLOR: Record<JoinType, string> = {
@@ -54,7 +54,7 @@ function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onCl
   return (
     <button type="button" onClick={onClick} style={{
       flex: 1, padding: '9px 0',cursor: 'pointer', fontFamily: SAIRA,
-      fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap',
+      fontSize: F.label, fontWeight: 900, whiteSpace: 'nowrap',
       color: on ? '#1a1200' : C.textGhost,
       background: on ? C.gold : alpha('#000', 0.3),
       border: `1px solid ${on ? C.gold : C.border3}`,
@@ -67,12 +67,12 @@ function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onCl
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px',boxSizing: 'border-box',
   border: `1px solid ${C.border3}`, background: alpha('#000', 0.25),
-  color: C.text, fontSize: 14, fontFamily: 'inherit', outline: 'none',
+  color: C.text, fontSize: F.sub, fontFamily: 'inherit', outline: 'none',
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '1px', margin: '16px 4px 6px' }}>
+    <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.gold, letterSpacing: '1px', margin: '16px 4px 6px' }}>
       {children}
     </div>
   )
@@ -95,7 +95,7 @@ function ClubLogo({ logoId, size = 44 }: { logoId: string; size?: number }) {
 function Pill({ color, children }: { color: string; children: React.ReactNode }) {
   return (
     <span style={{
-      padding: '1px 7px',fontSize: 9, fontWeight: 900, fontFamily: SAIRA,
+      padding: '1px 7px',fontSize: F.tiny, fontWeight: 900, fontFamily: SAIRA,
       color, border: `1px solid ${alpha(color, 0.5)}`, background: alpha(color, 0.12),
       whiteSpace: 'nowrap', flexShrink: 0,
     }}>{children}</span>
@@ -107,7 +107,7 @@ function actionButton(color: string, disabled = false): React.CSSProperties {
     padding: '8px 14px',flexShrink: 0, cursor: disabled ? 'default' : 'pointer',
     border: `2px solid ${alpha(color, disabled ? 0.25 : 0.6)}`,
     background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-    color: disabled ? C.textGhost : color, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
+    color: disabled ? C.textGhost : color, fontSize: F.body, fontWeight: 900, fontFamily: SAIRA,
   }
 }
 
@@ -121,16 +121,16 @@ function ClubCard({ club, right }: { club: ClubBrief; right?: React.ReactNode })
       <ClubLogo logoId={club.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {club.name}
           </span>
           <Pill color={JOIN_COLOR[club.joinType]}>{JOIN_TYPE_LABEL[club.joinType]}</Pill>
         </div>
-        <div style={{ fontSize: 10, color: C.textDim, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {club.note || 'ひとことなし'}
         </div>
         <div style={{
-          fontSize: 10, color: C.textGhost, marginTop: 3, fontFamily: SAIRA,
+          fontSize: F.caption, color: C.textGhost, marginTop: 3, fontFamily: SAIRA,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {club.members}/{CLUB_MAX}人 ・ 平均OVR {club.avgOvr}
@@ -156,19 +156,19 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
 
       <div style={{ padding: 12,background: C.surface2, border: `1px solid ${C.border2}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 4 }}>走友会名（16文字まで）</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginBottom: 4 }}>走友会名（16文字まで）</div>
           <input value={f.name} maxLength={16} placeholder="多摩川ランナーズ"
             onChange={e => set('name', e.target.value)} style={inputStyle} />
         </div>
 
         <div>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 4 }}>ひとこと（40文字まで）</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginBottom: 4 }}>ひとこと（40文字まで）</div>
           <input value={f.note} maxLength={40} placeholder="朝練メインのゆるい会です"
             onChange={e => set('note', e.target.value)} style={inputStyle} />
         </div>
 
         <div>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6 }}>ロゴ</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginBottom: 6 }}>ロゴ</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
             {CLUB_LOGOS.map(id => (
               <button key={id} type="button" onClick={() => set('logoId', id)} style={{
@@ -184,7 +184,7 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
         </div>
 
         <div>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6 }}>参加タイプ</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginBottom: 6 }}>参加タイプ</div>
           <div style={{ display: 'flex', gap: 6 }}>
             {(['open', 'approval', 'closed'] as JoinType[]).map(t => (
               <ChoiceButton key={t} label={JOIN_TYPE_LABEL[t]}
@@ -195,8 +195,8 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
 
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 10, color: C.textDim }}>入会条件（チーム平均OVR）</span>
-            <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: f.minOvr > 0 ? C.gold : C.textGhost }}>
+            <span style={{ fontSize: F.caption, color: C.textDim }}>入会条件（チーム平均OVR）</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: f.minOvr > 0 ? C.gold : C.textGhost }}>
               {ovrLabel(f.minOvr === 0 ? OVR_MIN : f.minOvr)}
             </span>
           </div>
@@ -212,7 +212,7 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
             }}
             style={{ width: '100%', accentColor: C.gold, height: 26, display: 'block' }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: SAIRA, fontSize: 9, color: C.textGhost }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: SAIRA, fontSize: F.tiny, color: C.textGhost }}>
             <span>なし</span>
             <span>{OVR_MAX}</span>
           </div>
@@ -343,7 +343,7 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
         <button onClick={() => setMaking(true)} className="btn-press" style={{
           width: '100%', padding: '14px',cursor: 'pointer',
           border: `2px solid ${C.goldDark}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          color: C.gold, fontSize: 14, fontWeight: 900, fontFamily: SAIRA,
+          color: C.gold, fontSize: F.sub, fontWeight: 900, fontFamily: SAIRA,
         }}>走友会を作る</button>
       </div>
 
@@ -391,13 +391,13 @@ function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAd
         <TeamLogoSVG primary={m.primary} secondary={m.secondary} shortName={m.shortName} logoId={m.logoId} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {m.blocked ? 'ブロック中の利用者' : m.teamName}
             </span>
             {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
             {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
           </div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>
             {m.blocked ? 'この相手は表示していません' : `GM ${m.gmName} ・ ${m.lastLogin}`}
           </div>
         </div>
@@ -492,11 +492,11 @@ function DonatePicker({ rarity, open, cards, busy, onGive, onCancel }: {
       onConfirm={() => { if (!busy && pickedCards.length > 0) onGive(pickedCards) }}
       onCancel={onCancel}
     >
-      <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6 }}>
+      <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6 }}>
         ほしがっているのは {wantText(open)}
       </div>
       {cards.length === 0 ? (
-        <div style={{ marginTop: 10, fontSize: 12, color: C.textDim, lineHeight: 1.6 }}>
+        <div style={{ marginTop: 10, fontSize: F.body, color: C.textDim, lineHeight: 1.6 }}>
           渡せる{RARITY_LABELS[rarity]}カードを持っていません。
         </div>
       ) : (
@@ -516,13 +516,13 @@ padding: '3px 0', cursor: busy || !ok ? 'default' : 'pointer',
                 opacity: ok ? 1 : 0.3,
               }}>
                 <TrainingCardSVG statKey={c.statKey} rarity={c.rarity} width={54} />
-                <span style={{ fontSize: 8, color: on ? C.green : C.textGhost }}>{CARD_NAMES[c.statKey]}</span>
+                <span style={{ fontSize: F.micro, color: on ? C.green : C.textGhost }}>{CARD_NAMES[c.statKey]}</span>
               </button>
             )
           })}
         </div>
       )}
-      <div style={{ fontSize: 9, color: C.textGhost, marginTop: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize: F.tiny, color: C.textGhost, marginTop: 8, lineHeight: 1.6 }}>
         あと{open.length}枚まで入ります。薄いカードは、いま空いている枠に合いません。
       </div>
     </ConfirmDialog>
@@ -559,7 +559,7 @@ function AskPicker({ rarity, busy, onPick, onCancel }: {
       onConfirm={() => { if (!busy) onPick(stats) }}
       onCancel={onCancel}
     >
-      <div style={{ marginTop: 10, fontSize: 11, color: C.textDim }}>1枚ずつ選べます</div>
+      <div style={{ marginTop: 10, fontSize: F.label, color: C.textDim }}>1枚ずつ選べます</div>
       <div style={{ marginTop: 6, display: 'flex', gap: 5 }}>
         {stats.map((v, i) => (
           <button key={i} type="button" onClick={() => setSlot(i)} style={{
@@ -575,17 +575,17 @@ padding: '5px 0', cursor: 'pointer',
                 width: slotW, height: Math.round(slotW * 1.4),
                 border: `1px dashed ${C.border3}`, background: alpha('#000', 0.25),
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.textGhost,
+                fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.textGhost,
               }}>?</div>
             )}
-            <span style={{ fontSize: 8, color: i === slot ? C.gold : C.textGhost }}>
+            <span style={{ fontSize: F.micro, color: i === slot ? C.gold : C.textGhost }}>
               {v ? CARD_NAMES[v] : 'おまかせ'}
             </span>
           </button>
         ))}
       </div>
 
-      <div style={{ marginTop: 10, fontSize: 11, color: C.textDim }}>
+      <div style={{ marginTop: 10, fontSize: F.label, color: C.textDim }}>
         {slot + 1}枚目はどの練習のカードが欲しい？
       </div>
       <div style={{ display: 'flex', marginTop: 6 }}>
@@ -603,7 +603,7 @@ padding: '4px 0', cursor: 'pointer',
             opacity: stats[slot] === s ? 1 : 0.6,
           }}>
             <TrainingCardSVG statKey={s} rarity={rarity} width={52} />
-            <span style={{ fontSize: 8, color: stats[slot] === s ? C.gold : C.textGhost }}>{CARD_NAMES[s]}</span>
+            <span style={{ fontSize: F.micro, color: stats[slot] === s ? C.gold : C.textGhost }}>{CARD_NAMES[s]}</span>
           </button>
         ))}
       </div>
@@ -612,7 +612,7 @@ padding: '4px 0', cursor: 'pointer',
           <ChoiceButton label={`${cap}枚ともこれにする`} on={false} onClick={() => all(stats[slot])} />
         </div>
       )}
-      <div style={{ fontSize: 9, color: C.textGhost, marginTop: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize: F.tiny, color: C.textGhost, marginTop: 8, lineHeight: 1.6 }}>
         種類を選ぶと、その練習のカードだけ集まります。おまかせなら何でも受け取れます。
       </div>
     </ConfirmDialog>
@@ -833,40 +833,40 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <TeamLogoSVG primary={p.primary} secondary={p.secondary} shortName={p.shortName} logoId={p.logoId} size={34} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: C.textGhost, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: F.caption, color: C.textGhost, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {p.teamName}<span style={{ marginLeft: 5 }}>GM {p.gmName}</span> ・ {relativeTime(p.createdAt)}
             </div>
             {p.kind === 'msg' ? (
               /* ★本文は必ず maskText を通す。保存は書かれたまま、伏せるのは表示のときだけ。
                  書いた本人の画面でも伏せる（自分だけ素で見えると通っていると誤解する）。
                  定型文しか無い古い投稿は body が空なので、そのときだけ番号から引く */
-              <div style={{ fontSize: 13, color: C.text, marginTop: 1, lineHeight: 1.5, wordBreak: 'break-word' }}>
+              <div style={{ fontSize: F.bodyLg, color: C.text, marginTop: 1, lineHeight: 1.5, wordBreak: 'break-word' }}>
                 {p.body ? maskText(p.body) : (CLUB_PHRASES[p.phrase] ?? '')}
               </div>
             ) : p.kind === 'room' ? (
               /* 対戦の募集。部屋が閉じていたら入るときに分かるので、ここでは確かめない */
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: C.text }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: F.bodyLg, color: C.text }}>
                   対戦を募集しています
-                  <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.cyan, marginLeft: 6, letterSpacing: '1px' }}>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.body, color: C.cyan, marginLeft: 6, letterSpacing: '1px' }}>
                     {p.roomCode}
                   </span>
                 </div>
                 <button onClick={() => { void onJoinRoom(p.roomCode) }} disabled={busy === 'join'} className="btn-press" style={{
                   flexShrink: 0, padding: '6px 14px',cursor: 'pointer',
                   border: `1px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.14),
-                  color: C.cyan, fontSize: 12, fontWeight: 900, fontFamily: 'inherit',
+                  color: C.cyan, fontSize: F.body, fontWeight: 900, fontFamily: 'inherit',
                 }}>参加する</button>
               </div>
             ) : (
-              <div style={{ fontSize: 13, color: C.text, marginTop: 1 }}>
+              <div style={{ fontSize: F.bodyLg, color: C.text, marginTop: 1 }}>
                 <span style={{ color: col, fontWeight: 900 }}>{RARITY_LABELS[p.rarity || 'normal']}</span>
                 カードください
-                <span style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, marginLeft: 6 }}>
+                <span style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textDim, marginLeft: 6 }}>
                   {p.filled}/{p.cap}
                 </span>
                 {p.openStats.length > 0 && (
-                  <div style={{ fontSize: 10, color: C.textGhost, marginTop: 1 }}>
+                  <div style={{ fontSize: F.caption, color: C.textGhost, marginTop: 1 }}>
                     のこり {wantText(p.openStats)}
                   </div>
                 )}
@@ -884,18 +884,18 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
             const isMine = rc?.mine === idx
             return (
               <button key={e} onClick={() => { void onReact(p, idx) }} className="btn-press" style={{
-                padding: '2px 8px',cursor: 'pointer', fontSize: 12,
+                padding: '2px 8px',cursor: 'pointer', fontSize: F.body,
                 border: `1px solid ${isMine ? C.gold : C.border3}`,
                 background: isMine ? alpha(C.gold, 0.14) : alpha('#000', 0.25),
                 color: C.textSub, fontFamily: 'inherit',
               }}>
                 {CLUB_REACTIONS[idx] ?? '?'}
-                <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, marginLeft: 4, color: isMine ? C.gold : C.textDim }}>{n}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, marginLeft: 4, color: isMine ? C.gold : C.textDim }}>{n}</span>
               </button>
             )
           })}
           <button onClick={() => setReactFor(p)} className="btn-press" aria-label="反応する" style={{
-            padding: '2px 9px',cursor: 'pointer', fontSize: 12,
+            padding: '2px 9px',cursor: 'pointer', fontSize: F.body,
             border: `1px dashed ${C.border3}`, background: 'transparent', color: C.textGhost, fontFamily: 'inherit',
           }}>＋</button>
 
@@ -954,7 +954,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
             <button onClick={() => { void onInvite() }} disabled={busy === 'room'} className="btn-press" style={{
               flexShrink: 0, width: 40, height: 40,cursor: 'pointer',
               border: `1px solid ${alpha(C.cyan, 0.5)}`, background: alpha(C.cyan, 0.12),
-              color: C.cyan, fontSize: 17, fontFamily: 'inherit', padding: 0,
+              color: C.cyan, fontSize: F.title, fontFamily: 'inherit', padding: 0,
             }} title="対戦を募集する">🏁</button>
             <div style={{
               flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6,
@@ -969,16 +969,16 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
                 maxLength={CLUB_TEXT_MAX}
                 style={{
                   flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none',
-                  color: C.text, fontSize: 13, fontFamily: 'inherit', padding: 0,
+                  color: C.text, fontSize: F.bodyLg, fontFamily: 'inherit', padding: 0,
                 }}
               />
               {draft.length > 0 && (
-                <span style={{ flexShrink: 0, fontSize: 10, color: draft.length >= CLUB_TEXT_MAX ? C.red : C.textDim, fontFamily: SAIRA }}>
+                <span style={{ flexShrink: 0, fontSize: F.caption, color: draft.length >= CLUB_TEXT_MAX ? C.red : C.textDim, fontFamily: SAIRA }}>
                   {draft.length}/{CLUB_TEXT_MAX}
                 </span>
               )}
               <button onClick={() => { void onSend() }} disabled={!draft.trim() || busy === 'msg'} style={{
-                flexShrink: 0, fontSize: 12, fontWeight: 900, cursor: draft.trim() ? 'pointer' : 'default',
+                flexShrink: 0, fontSize: F.body, fontWeight: 900, cursor: draft.trim() ? 'pointer' : 'default',
                 color: C.bg, background: draft.trim() ? C.gold : C.border3, border: 'none',
 padding: '6px 14px', fontFamily: 'inherit',
               }}>送る</button>
@@ -1015,7 +1015,7 @@ padding: '6px 14px', fontFamily: 'inherit',
         ))}
       </div>
       {askedToday && (
-        <div style={{ fontSize: 9, color: C.textGhost, marginTop: 5 }}>
+        <div style={{ fontSize: F.tiny, color: C.textGhost, marginTop: 5 }}>
           今日はもうお願いしています。日付が変わるとまた出せます。
         </div>
       )}
@@ -1036,7 +1036,7 @@ padding: '6px 14px', fontFamily: 'inherit',
         <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
           {CLUB_REACTIONS.map((e, i) => (
             <button key={e} onClick={() => { if (reactFor) void onReact(reactFor, i) }} className="btn-press" style={{
-              flex: 1, padding: '12px 0',cursor: 'pointer', fontSize: 22,
+              flex: 1, padding: '12px 0',cursor: 'pointer', fontSize: F.headLg,
               border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), fontFamily: 'inherit',
             }}>{e}</button>
           ))}
@@ -1239,10 +1239,10 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             <ClubLogo logoId={club.logoId} size={54} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.text }}>{club.name}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.text }}>{club.name}</span>
                 <Pill color={JOIN_COLOR[club.joinType]}>{JOIN_TYPE_LABEL[club.joinType]}</Pill>
               </div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 3 }}>{club.note || 'ひとことなし'}</div>
+              <div style={{ fontSize: F.label, color: C.textDim, marginTop: 3 }}>{club.note || 'ひとことなし'}</div>
             </div>
           </div>
 
@@ -1253,16 +1253,16 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
               { k: '入会条件', v: club.minOvr > 0 ? `OVR${club.minOvr}+` : 'なし' },
             ].map(s => (
               <div key={s.k} style={{ flex: 1, textAlign: 'center', padding: '7px 0',background: alpha('#000', 0.25) }}>
-                <div style={{ fontSize: 9, color: C.textGhost }}>{s.k}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.gold }}>{s.v}</div>
+                <div style={{ fontSize: F.tiny, color: C.textGhost }}>{s.k}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.gold }}>{s.v}</div>
               </div>
             ))}
           </div>
 
           <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 9, color: C.textGhost }}>走友会コード（友達に教えると探せます）</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text, letterSpacing: '2px' }}>
+              <div style={{ fontSize: F.tiny, color: C.textGhost }}>走友会コード（友達に教えると探せます）</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text, letterSpacing: '2px' }}>
                 {formatCode(club.code)}
               </div>
             </div>
@@ -1283,7 +1283,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             : [['members', 'メンバー'], ['cards', 'カード']] as const
           ).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className="btn-press" style={{
-              flex: 1, padding: '9px 0',fontFamily: SAIRA, fontSize: 12, cursor: 'pointer',
+              flex: 1, padding: '9px 0',fontFamily: SAIRA, fontSize: F.body, cursor: 'pointer',
               background: tab === k ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
               color: tab === k ? C.gold : C.textDim,
               fontWeight: tab === k ? 800 : 400,
@@ -1306,10 +1306,10 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                 }}>
                   <TeamLogoSVG primary={a.primary} secondary={a.secondary} shortName={a.shortName} logoId={a.logoId} size={40} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {a.teamName}
                     </div>
-                    <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>GM {a.gmName} ・ 平均OVR {a.avgOvr}</div>
+                    <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>GM {a.gmName} ・ 平均OVR {a.avgOvr}</div>
                   </div>
                   <button onClick={() => onApprove(a.id, false)} disabled={busy === a.id} className="btn-press" style={actionButton(C.textDim)}>断る</button>
                   <button onClick={() => onApprove(a.id, true)} disabled={busy === a.id} className="btn-press" style={actionButton(C.green)}>入れる</button>
@@ -1322,7 +1322,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
         {tab === 'members' && (
           <>
             <SectionLabel>メンバー {members.length}人</SectionLabel>
-            <div style={{ fontSize: 10, color: C.textDim, margin: '0 4px 6px' }}>長押しでその人のロスターを見られます</div>
+            <div style={{ fontSize: F.caption, color: C.textDim, margin: '0 4px 6px' }}>長押しでその人のロスターを見られます</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {members.map(m => (
                 <MemberRow
@@ -1448,7 +1448,7 @@ export default function FriendClubPage() {
           入ったあとも出し続けると、掲示板に着くまでの行数が増えるだけになる */}
       {!mine.data && (
         <div style={{ padding: '2px 16px 10px' }}>
-          <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+          <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6 }}>
             同じ走友会に入ると、仲間のチームが同じ名簿に並びます。1人1つまで。
           </div>
         </div>

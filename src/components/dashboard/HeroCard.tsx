@@ -2,7 +2,7 @@ import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { titleRows } from '../../utils/teamHistory'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 
 
@@ -48,21 +48,21 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
           shortName={team.shortName} teamId={team.id} size={54}
         />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9.5, fontWeight: 800, color: C.textDim, letterSpacing: '3px' }}>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '3px' }}>
             {seasonYear} SEASON
           </div>
           <div style={{
-            fontSize: 22, fontWeight: 900, color: C.text, lineHeight: 1.12,
+            fontSize: F.headLg, fontWeight: 900, color: C.text, lineHeight: 1.12,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{team.name}</div>
-          <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
+          <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>
             {team.city} ・ GM: {team.gmName}
           </div>
         </div>
         {!seasonDone && rank > 0 && (
           <div style={{ textAlign: 'right', lineHeight: 1 }}>
             <span style={{ fontFamily: SAIRA, fontSize: 32, fontWeight: 900, color: C.text }}>{rank}</span>
-            <span style={{ fontSize: 12, color: C.textDim, marginLeft: 1 }}>位</span>
+            <span style={{ fontSize: F.body, color: C.textDim, marginLeft: 1 }}>位</span>
           </div>
         )}
       </div>
@@ -71,8 +71,8 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
       {!seasonDone && totalRaces > 0 && (
         <div style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 6 }}>
-            <span style={{ fontFamily: SAIRA, fontSize: 9.5, fontWeight: 800, color: C.textDim, letterSpacing: '2.5px' }}>SEASON PROGRESS</span>
-            <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.textSub }}>
+            <span style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '2.5px' }}>SEASON PROGRESS</span>
+            <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.textSub }}>
               {completedRaces} / {totalRaces}戦
             </span>
           </div>
@@ -99,10 +99,10 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
             flex: 1, padding: '11px 0', textAlign: 'center',
             borderLeft: i === 0 ? 'none' : `1px solid ${alpha(C.border3, 0.6)}`,
           }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: item.color, lineHeight: 1 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: item.color, lineHeight: 1 }}>
               {item.value}
             </div>
-            <div style={{ fontSize: 9.5, color: C.textDim, marginTop: 4, letterSpacing: '1px' }}>{item.label}</div>
+            <div style={{ fontSize: F.tiny, color: C.textDim, marginTop: 4, letterSpacing: '1px' }}>{item.label}</div>
           </div>
         ))}
       </div>

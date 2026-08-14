@@ -4,7 +4,7 @@ import PlayerRow from '../player/PlayerRow'
 import PageHeader from '../ui/PageHeader'
 import GmInviteChat from './GmInviteChat'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, bottomStack } from '../../styles/tokens'
+import { C, alpha, bottomStack, F } from '../../styles/tokens'
 import PlayerList from '../player/PlayerList'
 
 // ============================================================================
@@ -40,7 +40,7 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
     }}>
       <PageHeader title="声をかける選手" eyebrow="INVITE" onBack={onClose} />
 
-      <div style={{ padding: '0 18px 12px', fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+      <div style={{ padding: '0 18px 12px', fontSize: F.label, color: C.textDim, lineHeight: 1.6 }}>
         1人だけ。<b style={{ color: C.textSub }}>行くかどうかは選手が決めます。</b>
       </div>
 
@@ -50,14 +50,14 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
           border: `1px solid ${alpha(invite === '' ? C.gold : C.border3, 0.75)}`,
           background: invite === '' ? alpha(C.gold, 0.12) : 'transparent',
           color: invite === '' ? C.gold : C.textDim,
-          fontSize: 13, fontWeight: 800, fontFamily: 'inherit',
+          fontSize: F.bodyLg, fontWeight: 800, fontFamily: 'inherit',
         }}>誰にも声をかけない</button>
       </div>
 
       {/* ★並べ方はロスターと同じ（`margin: 0 18px`・箱に入れず gap 8） */}
       <PlayerList margin="0 18px 32px">
         {roster.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: 14 }}>登録選手なし</div>
+          <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>登録選手なし</div>
         ) : roster.map(p => (
           <PlayerRow
             key={p.id}

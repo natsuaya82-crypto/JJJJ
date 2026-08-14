@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
-import { C, rankColor, SAIRA, FONT } from '../../styles/tokens'
+import { C, rankColor, SAIRA, FONT, F } from '../../styles/tokens'
 import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import { WA_EVENT_LABEL, formatMeetMedal } from '../../engine/worldAthletics'
@@ -46,15 +46,15 @@ export default function NationalResultPage() {
   )
   const card = (title: string, body: React.ReactNode) => (
     <div style={{ margin: '0 12px 12px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
-      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{title}</div>
+      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.purple }}>{title}</div>
       <div style={{ padding: '8px 12px 12px' }}>{body}</div>
     </div>
   )
   const natRow = (n: Nationality, right: React.ReactNode, rank?: number) => (
     <div key={n + String(rank)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 6px', borderBottom: `1px solid ${C.border}` }}>
-      {rank != null && <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: rankColor(rank), width: 22, textAlign: 'center' }}>{rank}</span>}
+      {rank != null && <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: rankColor(rank), width: 22, textAlign: 'center' }}>{rank}</span>}
       <Flag code={n} width={24} />
-      <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: n === 'JPN' ? C.gold : C.text }}>{natName(n)}</span>
+      <span style={{ flex: 1, fontSize: F.bodyLg, fontWeight: 700, color: n === 'JPN' ? C.gold : C.text }}>{natName(n)}</span>
       {right}
     </div>
   )
@@ -62,31 +62,31 @@ export default function NationalResultPage() {
   if (r.kind === 'qualifier') {
     return wrap('世界選手権アジア予選', <>
       <div style={{ padding: '2px 16px 12px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} ASIA QUALIFIER</div>
-        <div style={{ fontSize: 11, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} ASIA QUALIFIER</div>
+        <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {r.host && <>開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ </>}
           上位3カ国が翌年の世界選手権へ。{r.advanced.map(natName).join('・')} が通過。
         </div>
       </div>
       {card('予選順位', r.standings.map(s => natRow(s.nat,
-        <span style={{ fontSize: 10, fontWeight: 800, color: s.advanced ? C.green : C.textDim }}>{s.advanced ? '通過' : '—'}</span>, s.rank)))}
+        <span style={{ fontSize: F.caption, fontWeight: 800, color: s.advanced ? C.green : C.textDim }}>{s.advanced ? '通過' : '—'}</span>, s.rank)))}
       {/* 他地域の大陸予選（裏で同時開催）。通過国だけを国旗付きで見せる */}
       {r.continentals && r.continentals.length > 0 && card('他地域の予選結果', (
         <div>
           {r.continentals.map(c => (
             <div key={c.region} style={{ padding: '7px 6px', borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 900, color: C.textDim, letterSpacing: 1, marginBottom: 5 }}>{c.region.replace('アメリカ大陸', 'アメリカ')}予選</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.caption, fontWeight: 900, color: C.textDim, letterSpacing: 1, marginBottom: 5 }}>{c.region.replace('アメリカ大陸', 'アメリカ')}予選</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {c.advanced.map(n => (
                   <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <Flag code={n} width={20} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{natName(n)}</span>
+                    <span style={{ fontSize: F.label, fontWeight: 700, color: C.text }}>{natName(n)}</span>
                   </span>
                 ))}
               </div>
             </div>
           ))}
-          <div style={{ fontSize: 9, color: C.textGhost, padding: '7px 6px 0' }}>通過国が翌年の世界選手権へ（欧州6・アフリカ6・アメリカ4）</div>
+          <div style={{ fontSize: F.tiny, color: C.textGhost, padding: '7px 6px 0' }}>通過国が翌年の世界選手権へ（欧州6・アフリカ6・アメリカ4）</div>
         </div>
       ))}
       {/* 予選の結果はここで行き止まりだったので、ホームへ戻る動線を足す */}
@@ -105,26 +105,26 @@ export default function NationalResultPage() {
   // 得点の付き方の説明。小さすぎて読めなかったので、種目べつに分けて出す。
   const ptRow = (left: string, right: string) => (
     <div key={left} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '4px 0' }}>
-      <span style={{ width: 88, flexShrink: 0, fontSize: 11, color: C.textDim }}>{left}</span>
-      <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: C.text, lineHeight: 1.6 }}>{right}</span>
+      <span style={{ width: 88, flexShrink: 0, fontSize: F.label, color: C.textDim }}>{left}</span>
+      <span style={{ flex: 1, fontSize: F.label, fontWeight: 700, color: C.text, lineHeight: 1.6 }}>{right}</span>
     </div>
   )
   const pointsGuide = (
     <div style={{ margin: '0 12px 12px',background: C.surface2, border: `1px solid ${C.border}`, padding: '11px 13px' }}>
-      <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.purple, letterSpacing: 2, marginBottom: 6 }}>ポイントの付き方</div>
-      <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.7, marginBottom: 8 }}>
+      <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.purple, letterSpacing: 2, marginBottom: 6 }}>ポイントの付き方</div>
+      <div style={{ fontSize: F.label, color: C.textSub, lineHeight: 1.7, marginBottom: 8 }}>
         個人種目と駅伝でとった点を国ごとに全部足して、その合計で総合順位が決まります。
       </div>
 
-      <div style={{ fontSize: 11, fontWeight: 900, color: C.gold, marginBottom: 2 }}>個人種目（5000m・10000m・マラソン）</div>
+      <div style={{ fontSize: F.label, fontWeight: 900, color: C.gold, marginBottom: 2 }}>個人種目（5000m・10000m・マラソン）</div>
       {ptRow('順位', '金 5点 ／ 銀 3点 ／ 銅 2点 ／ 4〜8位 1点')}
 
       <div style={{ height: 1, background: C.border, margin: '8px 0' }} />
 
-      <div style={{ fontSize: 11, fontWeight: 900, color: C.gold, marginBottom: 2 }}>駅伝（3戦）</div>
+      <div style={{ fontSize: F.label, fontWeight: 900, color: C.gold, marginBottom: 2 }}>駅伝（3戦）</div>
       {ptRow('総合順位', '1位 10点 ／ 2位 6点 ／ 3位 4点 ／ 4〜8位 2点')}
       {ptRow('区間順位', '区間賞 3点 ／ 2位 2点 ／ 3位 1点')}
-      <div style={{ fontSize: 10, color: C.textGhost, lineHeight: 1.6, marginTop: 4 }}>
+      <div style={{ fontSize: F.caption, color: C.textGhost, lineHeight: 1.6, marginTop: 4 }}>
         区間順位は3戦すべての全区間ぶんが加算されます。駅伝は点の動く量が大きいので、ここが総合順位を決めます。
       </div>
     </div>
@@ -137,10 +137,10 @@ export default function NationalResultPage() {
       title: `${WA_EVENT_LABEL[ir.event]} 決勝`,
       body: card(`${WA_EVENT_LABEL[ir.event]} メダル`, ir.placings.slice(0, 8).map(pl => (
         <div key={pl.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px', borderBottom: `1px solid ${C.border}` }}>
-          <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: rankColor(pl.rank), width: 22, textAlign: 'center' }}>{pl.rank}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: rankColor(pl.rank), width: 22, textAlign: 'center' }}>{pl.rank}</span>
           <Flag code={pl.nat} width={22} />
-          <span style={{ flex: 1, fontSize: 12, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveName(pl)}</span>
-          <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: C.gold }}>{formatRaceTime(pl.timeSec)}</span>
+          <span style={{ flex: 1, fontSize: F.body, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveName(pl)}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: C.gold }}>{formatRaceTime(pl.timeSec)}</span>
         </div>
       ))),
     })),
@@ -153,8 +153,8 @@ export default function NationalResultPage() {
       body: <>
         {card('長距離部門 総合成績', totals.map(t => natRow(t.nat,
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 9, color: C.textDim }}>{formatMeetMedal(t)}</span>
-            <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, minWidth: 30, textAlign: 'right' }}>{t.points}<span style={{ fontSize: 9, color: C.textDim }}>p</span></span>
+            <span style={{ fontSize: F.tiny, color: C.textDim }}>{formatMeetMedal(t)}</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.purple, minWidth: 30, textAlign: 'right' }}>{t.points}<span style={{ fontSize: F.tiny, color: C.textDim }}>p</span></span>
           </span>, t.rank)))}
         {pointsGuide}
       </>,
@@ -168,8 +168,8 @@ export default function NationalResultPage() {
 
   return wrap(`世界選手権 ${r.year}`, <>
     <div style={{ padding: '2px 16px 12px' }}>
-      <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} WORLD LONG DISTANCE</div>
-      <div style={{ fontSize: 11, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.purple, letterSpacing: 3, fontWeight: 900 }}>{r.year} WORLD LONG DISTANCE</div>
+      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
         開催国 <Flag code={r.host} width={18} /> {natName(r.host)} ・ {r.nations.length}カ国
         {japanIn ? (isFinished ? <span> ・ 日本総合 {r.japanRank ?? '—'}位</span> : null) : <span style={{ color: C.red }}> ・ 日本は予選敗退（観戦）</span>}
       </div>
@@ -188,7 +188,7 @@ export default function NationalResultPage() {
       <div style={{ padding: '0 12px' }}>
         <button onClick={() => navigate('/')} className="btn-press" style={{
           width: '100%', padding: '14px 0',cursor: 'pointer', fontFamily: SAIRA,
-          background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900,
+          background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: F.sub, fontWeight: 900,
         }}>閉じる（シーズン終了へ）</button>
       </div>
     )}

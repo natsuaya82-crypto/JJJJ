@@ -1,4 +1,4 @@
-import { C } from '../../styles/tokens'
+import { C, F } from '../../styles/tokens'
 
 const X_URL = 'https://x.com/JPEL_MANAGER'
 
@@ -28,10 +28,10 @@ export default function TwitterModal({ onClose }: { onClose: () => void }) {
             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
           </svg>
         </div>
-        <div style={{ fontSize: '18px', fontWeight: 800, color: C.text, marginBottom: '10px' }}>
+        <div style={{ fontSize: F.titleLg, fontWeight: 800, color: C.text, marginBottom: '10px' }}>
           公式Xをフォロー
         </div>
-        <div style={{ fontSize: '13px', color: C.textDim, lineHeight: 1.7, marginBottom: '26px', whiteSpace: 'pre-line' }}>
+        <div style={{ fontSize: F.bodyLg, color: C.textDim, lineHeight: 1.7, marginBottom: '26px', whiteSpace: 'pre-line' }}>
           {'アップデート情報やお得なお知らせを\nいち早くお届けします。'}
         </div>
         <a
@@ -42,7 +42,7 @@ export default function TwitterModal({ onClose }: { onClose: () => void }) {
             background: C.gold,
             color: '#0a0818',
             fontWeight: 800,
-            fontSize: '15px',
+            fontSize: F.subLg,
             padding: '14px 0',
             textDecoration: 'none',
             letterSpacing: '0.05em',
@@ -56,7 +56,7 @@ export default function TwitterModal({ onClose }: { onClose: () => void }) {
           style={{
             display: 'block', width: '100%',
             background: 'transparent', border: 'none',
-            color: C.textDim, fontSize: '13px', padding: '8px 0',
+            color: C.textDim, fontSize: F.bodyLg, padding: '8px 0',
             cursor: 'pointer', fontFamily: 'inherit',
           }}
         >

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 const STEP = 1_000_000            // 100万円単位
 const MAXV = 9_999_000_000        // 99億9900万
@@ -109,8 +109,8 @@ export default function NumberDial({
       {digits.map((d, idx) => (
         <DigitWheel key={idx} digit={d} onChange={n => setDigit(idx, n)} accent={accent} />
       ))}
-      <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>00</span>
-      <span style={{ fontSize: 12, color: C.textDim, marginLeft: 2, flexShrink: 0 }}>万円</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>00</span>
+      <span style={{ fontSize: F.body, color: C.textDim, marginLeft: 2, flexShrink: 0 }}>万円</span>
     </div>
   )
 }

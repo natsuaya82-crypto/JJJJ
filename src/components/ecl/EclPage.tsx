@@ -16,7 +16,7 @@ import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
 import { useAdHeight } from '../layout/Layout'
 import { runWithLoading } from '../../store/loadingStore'
-import { C, alpha, rankColor, SAIRA, FONT, bottomStack } from '../../styles/tokens'
+import { C, alpha, rankColor, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
@@ -127,7 +127,7 @@ export default function EclPage() {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text }}>
         <PageHeader title="ECL" />
-        <div style={{ padding: '50px 24px', textAlign: 'center', fontSize: 13, color: C.textDim, lineHeight: 1.8 }}>
+        <div style={{ padding: '50px 24px', textAlign: 'center', fontSize: F.bodyLg, color: C.textDim, lineHeight: 1.8 }}>
           今シーズンのECLは開催されません。<br/>前年の各リーグ上位2チームに出場権が与えられます。
         </div>
       </div>
@@ -144,12 +144,12 @@ export default function EclPage() {
           eyebrow={`第${series.raceIndex + 1}戦／全${series.races.length}戦 — ${nextRace.date.replace(/-/g, '/')}`}
           title={nextRace.name}
         />
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
         <StandingsTable rows={standRows} onRowClick={goTeam} />
         {/* 下タブ(58px)＋広告の上に固定 */}
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--red" style={{ width: '100%' }}>
-            <span className="btn-game__inner" style={{ fontSize: 15, fontWeight: 900 }}>観戦する</span>
+            <span className="btn-game__inner" style={{ fontSize: F.subLg, fontWeight: 900 }}>観戦する</span>
           </button>
         </div>
       </div>
@@ -235,12 +235,12 @@ export default function EclPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
               {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={34} />}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t?.name ?? '—'}</div>
-                <div style={{ fontSize: 10, color: C.textDim }}>{lockedRace.name}（{lockedRace.location}）</div>
+                <div style={{ fontSize: F.sub, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t?.name ?? '—'}</div>
+                <div style={{ fontSize: F.caption, color: C.textDim }}>{lockedRace.name}（{lockedRace.location}）</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: myRanking?.rank === 1 ? C.gold : C.textSub, fontFamily: SAIRA }}>{myRanking?.rank ?? '—'}<span style={{ fontSize: 9, color: C.textGhost }}>位</span></div>
-                <div style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>{myRanking ? formatRaceTime(myRanking.totalTimeSec) : ''}</div>
+                <div style={{ fontSize: F.title, fontWeight: 900, color: myRanking?.rank === 1 ? C.gold : C.textSub, fontFamily: SAIRA }}>{myRanking?.rank ?? '—'}<span style={{ fontSize: F.tiny, color: C.textGhost }}>位</span></div>
+                <div style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA }}>{myRanking ? formatRaceTime(myRanking.totalTimeSec) : ''}</div>
               </div>
             </div>
             <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
@@ -258,8 +258,8 @@ export default function EclPage() {
                     cursor: pl && !pl.isRemoved ? 'pointer' : 'default',
                   }}>
                     <div style={{ width: 38, flexShrink: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 900, color: C.textSub, fontFamily: SAIRA }}>{seg.index}区</div>
-                      <div style={{ fontSize: 8, color: C.textGhost }}>{seg.distanceKm}km</div>
+                      <div style={{ fontSize: F.body, fontWeight: 900, color: C.textSub, fontFamily: SAIRA }}>{seg.index}区</div>
+                      <div style={{ fontSize: F.micro, color: C.textGhost }}>{seg.distanceKm}km</div>
                     </div>
                     {pl && (
                       <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
@@ -267,11 +267,11 @@ export default function EclPage() {
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name ?? '—'}</span>
-                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px',background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
+                      <span style={{ fontSize: F.body, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name ?? '—'}</span>
+                      {isSegWin && <span style={{ fontSize: F.micro, fontWeight: 800, color: C.gold, padding: '1px 5px',background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: isSegWin ? C.gold : C.textDim, flexShrink: 0, fontFamily: SAIRA }}>区間{runner?.rank ?? '—'}位</span>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: isSegWin ? C.gold : C.textSub, flexShrink: 0, fontFamily: SAIRA }}>{runner ? formatRaceTime(runner.timeSec) : '—'}</span>
+                    <span style={{ fontSize: F.caption, fontWeight: 800, color: isSegWin ? C.gold : C.textDim, flexShrink: 0, fontFamily: SAIRA }}>区間{runner?.rank ?? '—'}位</span>
+                    <span style={{ fontSize: F.body, fontWeight: 800, color: isSegWin ? C.gold : C.textSub, flexShrink: 0, fontFamily: SAIRA }}>{runner ? formatRaceTime(runner.timeSec) : '—'}</span>
                   </div>
                 )
               })}
@@ -290,10 +290,10 @@ export default function EclPage() {
         <div style={{ padding: '8px 12px 0' }}>
           <div style={panelStyle(C.gold)}>
             <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 40px 74px', gap: '4px', padding: '7px 12px', background: C.surface3, borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700' }}>#</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', textAlign: 'center' }}>獲得pt</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost, fontWeight: '700', textAlign: 'right' }}>タイム</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700' }}>#</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', letterSpacing: '1px' }}>チーム</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', textAlign: 'center' }}>獲得pt</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost, fontWeight: '700', textAlign: 'right' }}>タイム</span>
             </div>
             {[...results.teamRankings].sort((a, b) => a.rank - b.rank).map((tr, i, arr) => {
               const t = teamById2.get(tr.teamId)
@@ -309,22 +309,22 @@ export default function EclPage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {tr.rank === 1 ? (
-                      <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>★</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, textShadow: `0 0 6px ${alpha(C.gold, 0.5)}` }}>★</span>
                     ) : (
-                      <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankColor(i + 1) }}>{tr.rank}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '900', color: rankColor(i + 1) }}>{tr.rank}</span>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
                     {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={24} />}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t?.name ?? '—'}{isMe && <span style={{ marginLeft: '4px', fontSize: '8px', color: t?.colors.primary ?? C.blue }}>自</span>}
+                      <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t?.name ?? '—'}{isMe && <span style={{ marginLeft: '4px', fontSize: F.micro, color: t?.colors.primary ?? C.blue }}>自</span>}
                       </div>
-                      <div style={{ fontSize: '8px', color: C.textGhost }}>{t?.leagueName ?? ''}</div>
+                      <div style={{ fontSize: F.micro, color: C.textGhost }}>{t?.leagueName ?? ''}</div>
                     </div>
                   </div>
-                  <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: 800, color: C.green, textAlign: 'center' }}>+{tr.positionPoints + tr.segmentPoints}</span>
-                  <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: 800, color: tr.rank === 1 ? C.gold : C.textSub, textAlign: 'right' }}>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: C.green, textAlign: 'center' }}>+{tr.positionPoints + tr.segmentPoints}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: tr.rank === 1 ? C.gold : C.textSub, textAlign: 'right' }}>
                     {tr.rank === 1 ? formatRaceTime(tr.totalTimeSec) : `+${formatRaceTime(diff)}`}
                   </span>
                 </button>
@@ -334,7 +334,7 @@ export default function EclPage() {
         </div>
         <div style={{ margin: '14px 12px 0' }}>
           <button onClick={() => navigate('/')} className="btn-game btn-game--red" style={{ width: '100%' }}>
-            <span className="btn-game__inner" style={{ fontSize: 14, fontWeight: 800 }}>ホームに戻る</span>
+            <span className="btn-game__inner" style={{ fontSize: F.sub, fontWeight: 800 }}>ホームに戻る</span>
           </button>
         </div>
       </div>
@@ -353,14 +353,14 @@ export default function EclPage() {
       {/* 年間王者（確定後） */}
       {eclResult && (
         <div style={{ ...panelStyle(C.gold), margin: '8px 14px 14px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 4, fontWeight: 900 }}>WORLD CHAMPION</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 4, fontWeight: 900 }}>WORLD CHAMPION</div>
           <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 6px' }}>
             {standings[0] && <TeamLogoSVG primary={standings[0].colors.primary} secondary={standings[0].colors.secondary} shortName={standings[0].shortName} teamId={standings[0].id} size={54} />}
           </div>
-          <div style={{ fontSize: 17, fontWeight: 900 }}>{eclResult.standings[0]?.name}</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 2 }}>{eclResult.standings[0]?.points ?? 0}pt で年間王者</div>
+          <div style={{ fontSize: F.title, fontWeight: 900 }}>{eclResult.standings[0]?.name}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 2 }}>{eclResult.standings[0]?.points ?? 0}pt で年間王者</div>
           {eclResult.playerRank != null && (
-            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: eclResult.playerRank === 1 ? C.gold : C.textSub }}>
+            <div style={{ marginTop: 8, fontSize: F.body, fontWeight: 800, color: eclResult.playerRank === 1 ? C.gold : C.textSub }}>
               自チームは総合{eclResult.playerRank}位
             </div>
           )}
@@ -370,19 +370,19 @@ export default function EclPage() {
       {/* 次戦（出場権なしの観戦・開催ボタン） */}
       {nextRace && (
         <div style={{ ...panelStyle(C.gold), margin: '8px 14px 14px', padding: '14px 16px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>NEXT 第{series.raceIndex + 1}戦／全{series.races.length}戦 — {nextRace.date.replace(/-/g, '/')}</div>
-          <div style={{ fontSize: 15, fontWeight: 900 }}>{nextRace.name}</div>
-          <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 4 }}>NEXT 第{series.raceIndex + 1}戦／全{series.races.length}戦 — {nextRace.date.replace(/-/g, '/')}</div>
+          <div style={{ fontSize: F.subLg, fontWeight: 900 }}>{nextRace.name}</div>
+          <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>
             {nextRace.location}・{nextRace.segments.length}区間 {Math.round(nextRace.segments.reduce((s, x) => s + x.distanceKm, 0) * 10) / 10}km・{weatherLabel[nextRace.conditions.weather]}
           </div>
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {!eclDue ? (
-              <div style={{ textAlign: 'center', fontSize: 11, color: C.textDim, padding: '6px 0' }}>
+              <div style={{ textAlign: 'center', fontSize: F.label, color: C.textDim, padding: '6px 0' }}>
                 リーグ戦の進行に合わせて {nextRace.date.replace(/-/g, '/')} に開催
               </div>
             ) : playerQualified ? (
               <button onClick={() => setPhase('lineup')} className="btn-game btn-game--red" style={{ width: '100%' }}>
-                <span className="btn-game__inner" style={{ fontSize: 14, fontWeight: 800 }}>出走メンバーを組む</span>
+                <span className="btn-game__inner" style={{ fontSize: F.sub, fontWeight: 800 }}>出走メンバーを組む</span>
               </button>
             ) : null}
           </div>
@@ -391,13 +391,13 @@ export default function EclPage() {
 
       {/* シリーズ順位表（JPEL順位表と同じ共通コンポーネント） */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8, padding: '0 14px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8, padding: '0 14px' }}>シリーズ順位（{series.raceIndex}/{series.races.length}戦消化）</div>
         <StandingsTable rows={standRows} onRowClick={goTeam} />
       </div>
 
       {/* 開催スケジュール（消化済みの戦はタップで結果再生） */}
       <div style={{ margin: '0 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>開催スケジュール</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>開催スケジュール</div>
         <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
           {series.races.map((r, i) => {
             const done = !!r.results
@@ -411,21 +411,21 @@ export default function EclPage() {
                 cursor: done ? 'pointer' : 'default', opacity: done || i === series.raceIndex ? 1 : 0.6,
               }}>
                 <div style={{ width: 58, flexShrink: 0 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.textSub }}>第{i + 1}戦</div>
-                  <div style={{ fontSize: 8, color: C.textGhost }}>{r.date.slice(5).replace('-', '/')}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.textSub }}>第{i + 1}戦</div>
+                  <div style={{ fontSize: F.micro, color: C.textGhost }}>{r.date.slice(5).replace('-', '/')}</div>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
+                  <div style={{ fontSize: F.label, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
                   {done && wt ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
                       <TeamLogoSVG primary={wt.colors.primary} secondary={wt.colors.secondary} shortName={wt.shortName} teamId={wt.id} size={12} />
-                      <span style={{ fontSize: 8, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>優勝 {wt.name}</span>
+                      <span style={{ fontSize: F.micro, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>優勝 {wt.name}</span>
                     </div>
                   ) : (
-                    <div style={{ fontSize: 8, color: C.textGhost, marginTop: 1 }}>{r.location}</div>
+                    <div style={{ fontSize: F.micro, color: C.textGhost, marginTop: 1 }}>{r.location}</div>
                   )}
                 </div>
-                <span style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 800, color: done ? C.gold : i === series.raceIndex ? C.gold : C.textGhost }}>
+                <span style={{ fontFamily: SAIRA, fontSize: F.caption, fontWeight: 800, color: done ? C.gold : i === series.raceIndex ? C.gold : C.textGhost }}>
                   {done ? '結果 ›' : i === series.raceIndex ? 'NEXT' : '未開催'}
                 </span>
               </div>

@@ -3,7 +3,7 @@ import type { Nationality, Specialty } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { SPEC_COLOR } from '../../utils/playerUtils'
 import { isForeignNat } from '../../data/nationalities'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, F } from '../../styles/tokens'
 
 // ============================================================================
 // 選手の名前の横に出る小さな札。**同じ札はここ1本で描く。**
@@ -25,8 +25,8 @@ import { C, alpha } from '../../styles/tokens'
 type Size = 'sm' | 'md'
 
 const SIZES: Record<Size, { fontSize: number; padding: string }> = {
-  sm: { fontSize: 8, padding: '1px 4px' },
-  md: { fontSize: 9, padding: '1px 5px' },
+  sm: { fontSize: F.micro, padding: '1px 4px' },
+  md: { fontSize: F.tiny, padding: '1px 5px' },
 }
 
 /** 札の見た目（色だけ差し替える）。タイプ以外の札もこれに合わせる */

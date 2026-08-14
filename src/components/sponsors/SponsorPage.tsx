@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import type { SponsorTarget } from '../../types'
 import GlassButton from '../ui/GlassButton'
@@ -59,9 +59,9 @@ export default function SponsorPage() {
           eyebrow="SPONSORS"
           title="スポンサー管理"
           right={<div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginBottom: 2 }}>年間収入</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green }}>{fmtYen(totalAnnualIncome)}/年</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, marginTop: 2 }}>{activeSponsors.length}/{MAX_SPONSORS}社</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginBottom: 2 }}>年間収入</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.green }}>{fmtYen(totalAnnualIncome)}/年</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim, marginTop: 2 }}>{activeSponsors.length}/{MAX_SPONSORS}社</div>
           </div>}
         />
       </div>
@@ -69,7 +69,7 @@ export default function SponsorPage() {
       <div style={{ display: 'flex', padding: '10px 12px 0', gap: 6 }}>
         {(['active', 'offers'] as const).map(t => (
           <GlassButton key={t} color={tab === t ? C.gold : C.textDim} style={{
-            flex: 1, padding: '9px', fontFamily: SAIRA, fontSize: 12, fontWeight: tab === t ? 800 : 400,
+            flex: 1, padding: '9px', fontFamily: SAIRA, fontSize: F.body, fontWeight: tab === t ? 800 : 400,
           }} onClick={() => setTab(t)}>
             {t === 'active' ? `契約中 (${activeSponsors.length})` : `オファー (${offers.length})`}
           </GlassButton>
@@ -79,7 +79,7 @@ export default function SponsorPage() {
       {tab === 'active' && (
         <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {activeSponsors.length === 0 && (
-            <div style={{ padding: 32, textAlign: 'center', color: C.textGhost, fontSize: 13 }}>
+            <div style={{ padding: 32, textAlign: 'center', color: C.textGhost, fontSize: F.bodyLg }}>
               契約中のスポンサーはありません
             </div>
           )}
@@ -91,41 +91,41 @@ export default function SponsorPage() {
                   <LogoBox color={sp.logoColor} />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                      <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text }}>{sp.name}</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 8, padding: '1px 5px',background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[sp.tier]}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>{sp.name}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.micro, padding: '1px 5px',background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[sp.tier]}</span>
                     </div>
                     {sp.target && (
-                      <div style={{ fontSize: 10, color: C.textDim }}>
+                      <div style={{ fontSize: F.caption, color: C.textDim }}>
                         目標: <span style={{ color: C.textSub }}>{targetText(sp.target)}</span>
                       </div>
                     )}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.green }}>{fmtYen(sp.annualPayment)}/年</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 9, color: sp.yearsLeft <= 1 ? C.orange : C.textDim }}>残{sp.yearsLeft}年</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.green }}>{fmtYen(sp.annualPayment)}/年</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: sp.yearsLeft <= 1 ? C.orange : C.textDim }}>残{sp.yearsLeft}年</div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, padding: '8px 0 0', borderTop: `1px solid ${C.border}` }}>
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>契約期間</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text }}>{sp.contractYears ?? sp.yearsLeft}年契約</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>契約期間</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>{sp.contractYears ?? sp.yearsLeft}年契約</div>
                   </div>
                   <div style={{ width: 1, background: C.border }} />
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>残り</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: sp.yearsLeft <= 1 ? C.orange : C.text }}>{sp.yearsLeft}年</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>残り</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: sp.yearsLeft <= 1 ? C.orange : C.text }}>{sp.yearsLeft}年</div>
                   </div>
                   <div style={{ width: 1, background: C.border }} />
                   <div style={{ flex: 2, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>期間終了時目標</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: col }}>{sp.target ? targetText(sp.target) : '—'}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>期間終了時目標</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 700, color: col }}>{sp.target ? targetText(sp.target) : '—'}</div>
                   </div>
                 </div>
 
                 <button
                   onClick={() => terminateSponsor(sp.id, null)}
-                  style={{ marginTop: 8, padding: '5px 10px',border: `1px solid ${alpha(C.red, 0.28)}`, background: alpha(C.red, 0.08), color: C.red, fontSize: 9, cursor: 'pointer', fontFamily: SAIRA }}
+                  style={{ marginTop: 8, padding: '5px 10px',border: `1px solid ${alpha(C.red, 0.28)}`, background: alpha(C.red, 0.08), color: C.red, fontSize: F.tiny, cursor: 'pointer', fontFamily: SAIRA }}
                 >
                   契約解除
                 </button>
@@ -138,12 +138,12 @@ export default function SponsorPage() {
       {tab === 'offers' && (
         <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {slotsLeft === 0 && (
-            <div style={{ padding: '8px 12px',background: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.3)}`, fontSize: 11, color: C.orange, textAlign: 'center' }}>
+            <div style={{ padding: '8px 12px',background: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.3)}`, fontSize: F.label, color: C.orange, textAlign: 'center' }}>
               契約数が上限（3社）です。既存契約を解除してから受諾できます。
             </div>
           )}
           {offers.length === 0 && (
-            <div style={{ padding: 32, textAlign: 'center', color: C.textGhost, fontSize: 13 }}>
+            <div style={{ padding: 32, textAlign: 'center', color: C.textGhost, fontSize: F.bodyLg }}>
               オファーはありません（シーズン終了後に届きます）
             </div>
           )}
@@ -156,40 +156,40 @@ export default function SponsorPage() {
                   <LogoBox color={offer.logoColor} size={40} />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                      <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text }}>{offer.name}</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 8, padding: '1px 5px',background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[offer.tier]}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>{offer.name}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.micro, padding: '1px 5px',background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[offer.tier]}</span>
                     </div>
-                    <div style={{ fontSize: 10, color: C.textDim }}>
+                    <div style={{ fontSize: F.caption, color: C.textDim }}>
                       目標: <span style={{ color: C.textSub }}>{targetText(offer.target)}</span>
                       <span style={{ color: C.textGhost, marginLeft: 8 }}>{offer.contractYears}年契約</span>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.green }}>{fmtYen(offer.annualPayment)}</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim }}>/年</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.green }}>{fmtYen(offer.annualPayment)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim }}>/年</div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, padding: '8px 0 10px', borderTop: `1px solid ${C.border}`, marginBottom: 8 }}>
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>契約年数</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text }}>{offer.contractYears}年</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>契約年数</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>{offer.contractYears}年</div>
                   </div>
                   <div style={{ width: 1, background: C.border }} />
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>年間収入</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.green }}>{fmtYen(offer.annualPayment)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>年間収入</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.green }}>{fmtYen(offer.annualPayment)}</div>
                   </div>
                   <div style={{ width: 1, background: C.border }} />
                   <div style={{ flex: 2, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>期間終了時目標</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: col }}>{targetText(offer.target)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>期間終了時目標</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 700, color: col }}>{targetText(offer.target)}</div>
                   </div>
                 </div>
 
                 <GlassButton
                   full color={C.green} disabled={!canAccept}
-                  style={{ padding: '10px', fontFamily: SAIRA, fontSize: 12 }}
+                  style={{ padding: '10px', fontFamily: SAIRA, fontSize: F.body }}
                   onClick={() => canAccept && acceptSponsorOffer(offer.id)}
                 >
                   {canAccept ? '契約する' : '上限到達（3社）'}

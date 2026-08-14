@@ -3,7 +3,7 @@ import PageHeader from '../ui/PageHeader'
 import { myMatchHistory, myMatchStats, type MatchHistoryItem } from '../../lib/roomsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from '../friends/friendsUi'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 
 
 // オンライン対戦の履歴。
@@ -54,13 +54,13 @@ function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 12, color: C.text, fontWeight: 700,
+          fontSize: F.body, color: C.text, fontWeight: 700,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
-          {hostName}<span style={{ fontSize: 10, color: C.textGhost, fontWeight: 400, marginLeft: 4 }}>の部屋</span>
+          {hostName}<span style={{ fontSize: F.caption, color: C.textGhost, fontWeight: 400, marginLeft: 4 }}>の部屋</span>
         </div>
         <div style={{
-          fontSize: 10, color: C.textDim, marginTop: 2,
+          fontSize: F.caption, color: C.textDim, marginTop: 2,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {hostGm && <span style={{ color: C.textSub, marginRight: 6 }}>GM {hostGm}</span>}
@@ -70,11 +70,11 @@ function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
 
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
         <span style={{
-          fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textSub,
+          fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: C.textSub,
           padding: '3px 8px',background: alpha(C.textSub, 0.10),
         }}>{m.size}チーム</span>
         <span style={{
-          fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.cyan,
+          fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: C.cyan,
           padding: '3px 8px',background: alpha(C.cyan, 0.10),
         }}>{m.races > 0 ? `${m.races}レース` : '—'}</span>
       </div>
@@ -119,8 +119,8 @@ export default function MatchHistoryPage() {
                 flex: 1, textAlign: 'center', padding: '9px 0',
                 borderLeft: i === 0 ? 'none' : `1px solid ${C.border}`,
               }}>
-                <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: x.color, lineHeight: 1 }}>{x.value}</div>
-                <div style={{ fontSize: 9, color: C.textDim, marginTop: 3 }}>{x.label}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: x.color, lineHeight: 1 }}>{x.value}</div>
+                <div style={{ fontSize: F.tiny, color: C.textDim, marginTop: 3 }}>{x.label}</div>
               </div>
             ))}
           </div>

@@ -19,7 +19,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Division } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { belongsToClub } from '../../utils/rosterSync'
-import { C, rankColor, SAIRA } from '../../styles/tokens'
+import { C, rankColor, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
@@ -369,33 +369,33 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
           <TeamLogoSVG primary={colors.primary} secondary={colors.secondary} shortName={shortName} teamId={id} size={52} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-              <span style={{ fontSize: '18px', fontWeight: '900', color: '#F0EDE8' }}>{name}</span>
+              <span style={{ fontSize: F.titleLg, fontWeight: '900', color: '#F0EDE8' }}>{name}</span>
               {isMyTeam && (
-                <span style={{ fontSize: '8px', padding: '2px 6px',backgroundColor: `${colors.primary}30`, color: colors.primary, fontWeight: '700' }}>自チーム</span>
+                <span style={{ fontSize: F.micro, padding: '2px 6px',backgroundColor: `${colors.primary}30`, color: colors.primary, fontWeight: '700' }}>自チーム</span>
               )}
             </div>
-            <div style={{ fontSize: '11px', color: '#5C5870' }}>{infoLocation} • {mainPlayers.length}名</div>
+            <div style={{ fontSize: F.label, color: '#5C5870' }}>{infoLocation} • {mainPlayers.length}名</div>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '28px', fontWeight: '900', color: rankColor(rank), fontFamily: 'monospace', lineHeight: 1 }}>{rank > 0 ? rank : '—'}</div>
-            <div style={{ fontSize: '8px', color: '#3A3758' }}>{myDivision != null ? `${DIVISION_LABEL[myDivision]} 位` : '位'}</div>
+            <div style={{ fontSize: F.micro, color: '#3A3758' }}>{myDivision != null ? `${DIVISION_LABEL[myDivision]} 位` : '位'}</div>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
           <div style={{ flex: 1, textAlign: 'center', padding: '8px',backgroundColor: '#0E0D17' }}>
-            <div style={{ fontSize: '18px', fontWeight: '900', color: '#C9A84C', fontFamily: 'monospace' }}>{standingPoints}</div>
-            <div style={{ fontSize: '8px', color: '#3A3758' }}>ポイント</div>
+            <div style={{ fontSize: F.titleLg, fontWeight: '900', color: '#C9A84C', fontFamily: 'monospace' }}>{standingPoints}</div>
+            <div style={{ fontSize: F.micro, color: '#3A3758' }}>ポイント</div>
           </div>
           <div style={{ flex: 1, textAlign: 'center', padding: '8px',backgroundColor: '#0E0D17' }}>
-            <div style={{ fontSize: '18px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace' }}>{completedRaces}</div>
-            <div style={{ fontSize: '8px', color: '#3A3758' }}>消化試合</div>
+            <div style={{ fontSize: F.titleLg, fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace' }}>{completedRaces}</div>
+            <div style={{ fontSize: F.micro, color: '#3A3758' }}>消化試合</div>
           </div>
           <div style={{ flex: 1, textAlign: 'center', padding: '8px',backgroundColor: '#0E0D17' }}>
-            <div style={{ fontSize: '18px', fontWeight: '900', color: '#4CAF50', fontFamily: 'monospace' }}>
+            <div style={{ fontSize: F.titleLg, fontWeight: '900', color: '#4CAF50', fontFamily: 'monospace' }}>
               {mainPlayers.length > 0 ? Math.round(mainPlayers.reduce((s, p) => s + ovr(p), 0) / mainPlayers.length) : '—'}
             </div>
-            <div style={{ fontSize: '8px', color: '#3A3758' }}>平均OVR</div>
+            <div style={{ fontSize: F.micro, color: '#3A3758' }}>平均OVR</div>
           </div>
         </div>
       </div>
@@ -432,10 +432,10 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
           <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '10px', paddingBottom: '10px' }}>
 
             <div>
-              <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>RECENT FORM</div>
+              <div style={{ fontSize: F.caption, color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>RECENT FORM</div>
               <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                 {recentForm.length === 0 ? (
-                  <div style={{ textAlign: 'center', fontSize: '11px', color: '#3A3758' }}>データなし</div>
+                  <div style={{ textAlign: 'center', fontSize: F.label, color: '#3A3758' }}>データなし</div>
                 ) : (
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
                     {recentForm.map((r, i) => {
@@ -443,7 +443,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                       return (
                         <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                           <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: col }} />
-                          <span style={{ fontSize: '9px', fontFamily: SAIRA, fontWeight: '900', color: col }}>{r.rank}位</span>
+                          <span style={{ fontSize: F.tiny, fontFamily: SAIRA, fontWeight: '900', color: col }}>{r.rank}位</span>
                         </div>
                       )
                     })}
@@ -453,30 +453,30 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             </div>
 
             <div>
-              <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>TEAM INFO</div>
+              <div style={{ fontSize: F.caption, color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>TEAM INFO</div>
               <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
-                  <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>本拠地</span>
-                  <span style={{ fontSize: '14px', fontWeight: '800', color: '#F0EDE8' }}>{infoLocation}</span>
+                  <span style={{ fontSize: F.tiny, color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>本拠地</span>
+                  <span style={{ fontSize: F.sub, fontWeight: '800', color: '#F0EDE8' }}>{infoLocation}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
-                  <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>監督</span>
-                  <span style={{ fontSize: '14px', fontWeight: '800', color: '#F0EDE8' }}>{infoGm}</span>
+                  <span style={{ fontSize: F.tiny, color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>監督</span>
+                  <span style={{ fontSize: F.sub, fontWeight: '800', color: '#F0EDE8' }}>{infoGm}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#C9A84C' }}>{infoFounded}</div>
-                    <div style={{ fontSize: '8px', color: '#3A3758' }}>創設年</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: '900', color: '#C9A84C' }}>{infoFounded}</div>
+                    <div style={{ fontSize: F.micro, color: '#3A3758' }}>創設年</div>
                   </div>
                   <div style={{ width: '1px', background: '#1A1828' }} />
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#F0EDE8' }}>{infoChampions}</div>
-                    <div style={{ fontSize: '8px', color: '#3A3758' }}>優勝回数</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: '900', color: '#F0EDE8' }}>{infoChampions}</div>
+                    <div style={{ fontSize: F.micro, color: '#3A3758' }}>優勝回数</div>
                   </div>
                   <div style={{ width: '1px', background: '#1A1828' }} />
                   <div style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: '#9B97A8' }}>{infoBest ? <>{infoBest.division != null && <span style={{ fontSize: 10, color: '#5C5870' }}>{DIVISION_LABEL[infoBest.division]} </span>}{infoBest.rank}<span style={{ fontSize: 11, color: '#3A3758' }}>位</span></> : '—'}</div>
-                    <div style={{ fontSize: '8px', color: '#3A3758' }}>最高順位</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: '900', color: '#9B97A8' }}>{infoBest ? <>{infoBest.division != null && <span style={{ fontSize: F.caption, color: '#5C5870' }}>{DIVISION_LABEL[infoBest.division]} </span>}{infoBest.rank}<span style={{ fontSize: F.label, color: '#3A3758' }}>位</span></> : '—'}</div>
+                    <div style={{ fontSize: F.micro, color: '#3A3758' }}>最高順位</div>
                   </div>
                 </div>
               </div>
@@ -485,19 +485,19 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             {/* クラブ規模。**国内も海外も出す**（値はどちらも格1本・施設1本から出ている） */}
             {clubFac && (
               <div>
-                <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>クラブ規模</div>
+                <div style={{ fontSize: F.caption, color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>クラブ規模</div>
                 <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
-                    <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>年間予算</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmtYen(clubBudget)}</span>
+                    <span style={{ fontSize: F.tiny, color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>年間予算</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: '#C9A84C' }}>{fmtYen(clubBudget)}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {FAC_LABEL.map((f, i) => (
                       <div key={f.key} style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
                         {i > 0 && <div style={{ width: '1px', alignSelf: 'stretch', background: '#1A1828', marginRight: 8 }} />}
                         <div style={{ flex: 1, textAlign: 'center' }}>
-                          <div style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: f.color }}>Lv{clubFac[f.key] ?? 0}</div>
-                          <div style={{ fontSize: '8px', color: '#3A3758' }}>{f.label}</div>
+                          <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: f.color }}>Lv{clubFac[f.key] ?? 0}</div>
+                          <div style={{ fontSize: F.micro, color: '#3A3758' }}>{f.label}</div>
                         </div>
                       </div>
                     ))}
@@ -508,10 +508,10 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
             {/* 歴代成績（折れ線グラフ） */}
             <div>
-              <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>歴代成績</div>
+              <div style={{ fontSize: F.caption, color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>歴代成績</div>
               <div style={{ backgroundColor: '#0E0D17',padding: '10px 8px 4px', border: '1px solid #1A1828' }}>
                 {historyRanks.length === 0 ? (
-                  <div style={{ fontSize: '11px', color: '#3A3758', textAlign: 'center', padding: '12px 4px' }}>まだ過去シーズンの記録がありません</div>
+                  <div style={{ fontSize: F.label, color: '#3A3758', textAlign: 'center', padding: '12px 4px' }}>まだ過去シーズンの記録がありません</div>
                 ) : (
                   <RankHistoryChart history={historyRanks} color={colors.primary} />
                 )}
@@ -520,17 +520,17 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
             {/* トロフィー */}
             <div>
-              <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>トロフィー</div>
+              <div style={{ fontSize: F.caption, color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>トロフィー</div>
               <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                 {titles.length === 0 ? (
-                  <div style={{ fontSize: '11px', color: '#3A3758', textAlign: 'center', padding: '4px' }}>まだタイトル獲得なし</div>
+                  <div style={{ fontSize: F.label, color: '#3A3758', textAlign: 'center', padding: '4px' }}>まだタイトル獲得なし</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {titles.map(t => (
                       <div key={t.label} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <TrophyIcon color={t.color} />
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#F0EDE8' }}>{t.label}</span>
-                        <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: '16px', fontWeight: '900', color: t.color }}>×{t.count}</span>
+                        <span style={{ fontSize: F.bodyLg, fontWeight: '700', color: '#F0EDE8' }}>{t.label}</span>
+                        <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.title, fontWeight: '900', color: t.color }}>×{t.count}</span>
                       </div>
                     ))}
                   </div>
@@ -544,7 +544,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               const specCol = SPEC_COLOR[ace.specialty]
               return (
                 <div>
-                  <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>ACE</div>
+                  <div style={{ fontSize: F.caption, color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>ACE</div>
                   <div
                     {...rowHandlers(ace.id)}
                     style={{ backgroundColor: '#0E0D17',padding: '12px', border: '1px solid #1A1828', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
@@ -552,12 +552,12 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                     <PlayerFace playerId={ace.id} nationality={ace.nationality} size={44} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ace.name}</span>
-                        <span style={{ padding: '1px 5px',backgroundColor: `${specCol}15`, color: specCol, fontSize: '8px', fontWeight: '700', flexShrink: 0 }}>
+                        <span style={{ fontSize: F.sub, fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ace.name}</span>
+                        <span style={{ padding: '1px 5px',backgroundColor: `${specCol}15`, color: specCol, fontSize: F.micro, fontWeight: '700', flexShrink: 0 }}>
                           {SPECIALTY_LABELS[ace.specialty]}
                         </span>
                       </div>
-                      <div style={{ fontSize: '10px', color: '#5C5870' }}>
+                      <div style={{ fontSize: F.caption, color: '#5C5870' }}>
                         {ace.age}歳
                       </div>
                     </div>
@@ -576,15 +576,15 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         <div style={pageStyle(1)}>
           <div style={{ padding: '0 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8' }}>ロスター</span>
-              <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: '#C9A84C' }}>
-                {mainPlayers.length}<span style={{ fontSize: 10, color: '#5C5870' }}>{isForeign ? '名' : `/${ROSTER_MAX}`}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: '#F0EDE8' }}>ロスター</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800, color: '#C9A84C' }}>
+                {mainPlayers.length}<span style={{ fontSize: F.caption, color: '#5C5870' }}>{isForeign ? '名' : `/${ROSTER_MAX}`}</span>
               </span>
-              <span style={{ fontSize: 10, color: '#5C5870' }}>総年俸 <span style={{ color: '#9B97A8', fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(teamSalary)}</span></span>
-              {!isMyTeam && <span style={{ fontSize: 8, color: '#5C5870', marginLeft: 'auto' }}>タップ=交渉 / 長押し=詳細</span>}
+              <span style={{ fontSize: F.caption, color: '#5C5870' }}>総年俸 <span style={{ color: '#9B97A8', fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(teamSalary)}</span></span>
+              {!isMyTeam && <span style={{ fontSize: F.micro, color: '#5C5870', marginLeft: 'auto' }}>タップ=交渉 / 長押し=詳細</span>}
             </div>
             {mainPlayers.length === 0
-              ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17',marginBottom: '12px' }}>登録なし</div>
+              ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: F.body, backgroundColor: '#0E0D17',marginBottom: '12px' }}>登録なし</div>
               : (
                 <PlayerList margin="0 12px 80px">
                   {mainPlayers.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} />)}
@@ -597,7 +597,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         {/* Page 3: 移籍（入/出をスライド切替、カード表示） */}
         <div style={pageStyle(2)}>
           <div style={{ padding: '0 12px 80px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8', marginBottom: '10px', paddingLeft: '4px' }}>移籍</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: '#F0EDE8', marginBottom: '10px', paddingLeft: '4px' }}>移籍</div>
 
             {/* 入/出 スライド切替 */}
             <div style={{ position: 'relative', display: 'flex', background: '#0E0D17', border: '1px solid #1A1828',padding: '3px', marginBottom: '12px' }}>
@@ -618,7 +618,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                   onClick={() => setMoveTab(tb.key)}
                   style={{
                     flex: 1, zIndex: 1, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer',
-                    fontFamily: SAIRA, fontSize: '13px', fontWeight: 900,
+                    fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900,
                     color: moveTab === tb.key ? tb.color : '#5C5870',
                     transition: 'color 0.2s',
                   }}
@@ -632,7 +632,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               const rows = moveTab === 'in' ? movesIn : movesOut
               const otherLabel = moveTab === 'in' ? '移籍元' : '移籍先'
               if (rows.length === 0) return (
-                <div style={{ textAlign: 'center', padding: '28px', color: '#3A3758', fontSize: '11px', backgroundColor: '#0E0D17',border: '1px solid #1A1828' }}>記録なし</div>
+                <div style={{ textAlign: 'center', padding: '28px', color: '#3A3758', fontSize: F.label, backgroundColor: '#0E0D17',border: '1px solid #1A1828' }}>記録なし</div>
               )
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -656,31 +656,31 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                           <div style={{ position: 'relative' }}>
                             <PlayerFace playerId={pl.id} nationality={pl.nationality} size={52} />
-                            <div style={{ position: 'absolute', bottom: -2, right: -6, background: 'rgba(0,0,0,0.88)', padding: '0 4px',fontFamily: SAIRA, fontSize: '11px', fontWeight: 900, color: p ? ratingColor(ovr(p)) : C.textGhost, lineHeight: '15px', border: '1px solid #1A1828' }}>
+                            <div style={{ position: 'absolute', bottom: -2, right: -6, background: 'rgba(0,0,0,0.88)', padding: '0 4px',fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: p ? ratingColor(ovr(p)) : C.textGhost, lineHeight: '15px', border: '1px solid #1A1828' }}>
                               {p ? ovr(p) : '?'}
                             </div>
                           </div>
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#F0EDE8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '10px' }}>{pl.name}</div>
+                        <div style={{ fontSize: F.sub, fontWeight: '700', color: '#F0EDE8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '10px' }}>{pl.name}</div>
                         {/* 下に 移籍元 / 契約期間 / 移籍金 */}
                         <div style={{ borderTop: '1px solid #1A1828', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '10px', color: '#3A3758' }}>{otherLabel}</span>
+                            <span style={{ fontSize: F.caption, color: '#3A3758' }}>{otherLabel}</span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
                               {other && <TeamLogoSVG primary={other.colors.primary} secondary={other.colors.secondary} shortName={other.shortName} teamId={other.id} size={16} />}
-                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherName}</span>
+                              <span style={{ fontSize: F.body, fontWeight: 700, color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherName}</span>
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', color: '#3A3758' }}>契約期間</span>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: yearsLabel === '—' ? '#3A3758' : '#F0EDE8', fontFamily: SAIRA }}>{yearsLabel}</span>
+                            <span style={{ fontSize: F.caption, color: '#3A3758' }}>契約期間</span>
+                            <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: yearsLabel === '—' ? '#3A3758' : '#F0EDE8', fontFamily: SAIRA }}>{yearsLabel}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', color: '#3A3758' }}>移籍金</span>
-                            <span style={{ fontSize: '13px', fontWeight: 800, color: feeLabel === '—' ? '#3A3758' : '#C9A84C', fontFamily: SAIRA }}>{feeLabel}</span>
+                            <span style={{ fontSize: F.caption, color: '#3A3758' }}>移籍金</span>
+                            <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: feeLabel === '—' ? '#3A3758' : '#C9A84C', fontFamily: SAIRA }}>{feeLabel}</span>
                           </div>
                         </div>
-                        <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '10px', color: '#5C5870', fontFamily: 'monospace' }}>{dateLabel}</div>
+                        <div style={{ marginTop: '10px', textAlign: 'center', fontSize: F.caption, color: '#5C5870', fontFamily: 'monospace' }}>{dateLabel}</div>
                       </div>
                     )
                   })}

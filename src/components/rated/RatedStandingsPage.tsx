@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { TeamLogoSVG } from '../icons/Icons'
 import { RankChip, RatedShell } from './ratedUi'
 import { fetchStandings, STANDINGS_TOP, type RatedRow, type RatedStandings } from '../../lib/ratedApi'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 // 大会全体の順位表。**トップ100と自分だけ**（オーナー判断）。
 function Row({ r, rank }: { r: RatedRow; rank: number }) {
@@ -12,14 +12,14 @@ function Row({ r, rank }: { r: RatedRow; rank: number }) {
       background: r.mine ? alpha(C.gold, 0.14) : C.surface2,
       borderBottom: `1px solid ${C.border}`,
     }}>
-      <span style={{ width: 26, textAlign: 'center', fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>{rank}</span>
+      <span style={{ width: 26, textAlign: 'center', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>{rank}</span>
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.teamName} teamId={r.userId} size={24} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
-        <div style={{ fontSize: 9, color: C.textDim }}>GM {r.gmName}</div>
+        <div style={{ fontSize: F.body, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
+        <div style={{ fontSize: F.tiny, color: C.textDim }}>GM {r.gmName}</div>
       </div>
       <RankChip rating={r.rating} size="sm" />
-      <span style={{ width: 38, textAlign: 'right', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text, flexShrink: 0 }}>{r.rating}</span>
+      <span style={{ width: 38, textAlign: 'right', fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.text, flexShrink: 0 }}>{r.rating}</span>
     </div>
   )
 }
@@ -44,7 +44,7 @@ export default function RatedStandingsPage() {
         </div>
       )}
 
-      <div style={{ textAlign: 'right', marginTop: 8, fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>
+      <div style={{ textAlign: 'right', marginTop: 8, fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
         {st.entrants}人が参加中
       </div>
     </RatedShell>

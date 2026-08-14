@@ -10,7 +10,7 @@ import {
   canJoin, fetchMe, fetchResult, fetchToday, SUBMIT_DEADLINE_HHMM,
   type RatedMe, type RatedResult, type RatedToday,
 } from '../../lib/ratedApi'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import type { Segment } from '../../types'
 
 // ============================================================================
@@ -57,7 +57,7 @@ function SectionLabel({ text }: { text: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
       <div style={{ width: 2, height: 12, background: C.cyan }} />
-      <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.cyan, letterSpacing: '2.5px' }}>{text}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: C.cyan, letterSpacing: '2.5px' }}>{text}</span>
       <div style={{ flex: 1, height: 1, background: alpha(C.border3, 0.7) }} />
     </div>
   )
@@ -103,8 +103,8 @@ export default function RatedPage() {
         eyebrow="RANKED SERIES"
         title="レート戦"
         right={<div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>SEASON</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 17, fontWeight: 900, color: C.textSub, lineHeight: 1 }}>{year ?? ''}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>SEASON</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.textSub, lineHeight: 1 }}>{year ?? ''}</div>
         </div>}
       />
 
@@ -114,7 +114,7 @@ export default function RatedPage() {
           <img src={art.img} alt="" width={86} height={86} style={{ flexShrink: 0, display: 'block' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
-              fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: art.color,
+              fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: art.color,
               letterSpacing: '3px', lineHeight: 1,
             }}>{prog.en}</div>
             <div style={{
@@ -122,23 +122,23 @@ export default function RatedPage() {
               lineHeight: 0.92, letterSpacing: '-3px', marginTop: 2,
             }}>{me?.rating ?? '—'}</div>
             <div style={{
-              fontFamily: SAIRA, fontSize: 10, fontWeight: 800, color: C.textDim,
+              fontFamily: SAIRA, fontSize: F.caption, fontWeight: 800, color: C.textDim,
               letterSpacing: '4px', marginTop: 4,
             }}>RATING</div>
           </div>
           <div style={{ textAlign: 'right', alignSelf: 'flex-end' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.text, lineHeight: 1 }}>
-              {me?.overall ?? '—'}<span style={{ fontSize: 12, color: C.textDim, marginLeft: 1 }}>位</span>
+            <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: C.text, lineHeight: 1 }}>
+              {me?.overall ?? '—'}<span style={{ fontSize: F.body, color: C.textDim, marginLeft: 1 }}>位</span>
             </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 2 }}>/ {me?.entrants ?? 0}人</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 2 }}>/ {me?.entrants ?? 0}人</div>
           </div>
         </div>
 
         {/* 次の段位まで */}
         <div style={{ marginTop: 18 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 6 }}>
-            <span style={{ fontFamily: SAIRA, fontSize: 9.5, fontWeight: 800, color: C.textDim, letterSpacing: '2.5px' }}>NEXT RANK</span>
-            <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.textSub }}>
+            <span style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '2.5px' }}>NEXT RANK</span>
+            <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.textSub }}>
               {prog.to ?? 'MAX'}
             </span>
           </div>
@@ -156,16 +156,16 @@ export default function RatedPage() {
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 18 }}>
               <div style={{ fontFamily: SAIRA, fontSize: 38, fontWeight: 900, color: C.text, lineHeight: 0.95, letterSpacing: '-1px' }}>
                 {d ? `${d.getUTCMonth() + 1}.${d.getUTCDate()}` : ''}
-                <span style={{ fontSize: 14, color: C.cyan, marginLeft: 7, letterSpacing: '1px' }}>{d ? WEEK[d.getUTCDay()] : ''}</span>
+                <span style={{ fontSize: F.sub, color: C.cyan, marginLeft: 7, letterSpacing: '1px' }}>{d ? WEEK[d.getUTCDay()] : ''}</span>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 20, textAlign: 'right' }}>
                 <div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>{segs.length}</div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: '1.5px' }}>STAGES</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1 }}>{segs.length}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim, letterSpacing: '1.5px' }}>STAGES</div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>{courseDistanceKm(today.course)}</div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: '1.5px' }}>KM</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1 }}>{courseDistanceKm(today.course)}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim, letterSpacing: '1.5px' }}>KM</div>
                 </div>
               </div>
             </div>
@@ -179,25 +179,25 @@ export default function RatedPage() {
                 borderTop: i === 0 ? `1px solid ${alpha(C.border3, 0.55)}` : 'none',
                 borderBottom: `1px solid ${alpha(C.border3, 0.28)}`,
               }}>
-                <span style={{ width: 30, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: alpha(C.cyan, 0.85) }}>
+                <span style={{ width: 30, fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: alpha(C.cyan, 0.85) }}>
                   {String(s.index).padStart(2, '0')}
                 </span>
-                <span style={{ width: 68, textAlign: 'right', fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.text }}>
+                <span style={{ width: 68, textAlign: 'right', fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800, color: C.text }}>
                   {s.distanceKm.toFixed(1)}
-                  <span style={{ fontSize: 9, color: C.textDim, marginLeft: 3 }}>km</span>
+                  <span style={{ fontSize: F.tiny, color: C.textDim, marginLeft: 3 }}>km</span>
                 </span>
                 <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0, overflow: 'hidden' }}>
                   <ElevationLine seg={s} />
                 </div>
-                <span style={{ width: 38, textAlign: 'right', fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: alpha(C.red, 0.9) }}>
+                <span style={{ width: 38, textAlign: 'right', fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: alpha(C.red, 0.9) }}>
                   ↑{s.uphillPct}
                 </span>
-                <span style={{ width: 38, textAlign: 'right', fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: alpha(C.cyan, 0.85) }}>
+                <span style={{ width: 38, textAlign: 'right', fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: alpha(C.cyan, 0.85) }}>
                   ↓{s.downhillPct}
                 </span>
               </div>
             ))}
-            <div style={{ display: 'flex', gap: 26, padding: '11px 0 0', fontSize: 11, color: C.textDim }}>
+            <div style={{ display: 'flex', gap: 26, padding: '11px 0 0', fontSize: F.label, color: C.textDim }}>
               <span>天候{'\u3000'}<span style={{ color: C.textSub }}>{weatherJa}</span></span>
               <span>気温{'\u3000'}<span style={{ color: C.textSub }}>{today.course.conditions.temperature}°C</span></span>
             </div>
@@ -210,14 +210,14 @@ export default function RatedPage() {
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text, lineHeight: 1 }}>
-                {segs.length}<span style={{ fontSize: 11, color: C.textDim, letterSpacing: '1.5px', marginLeft: 5 }}>PLAYERS</span>
+              <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: C.text, lineHeight: 1 }}>
+                {segs.length}<span style={{ fontSize: F.label, color: C.textDim, letterSpacing: '1.5px', marginLeft: 5 }}>PLAYERS</span>
               </div>
-              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, letterSpacing: '1.5px', marginTop: 2 }}>YET TO ENTER</div>
-              <div style={{ fontSize: 10, color: C.textGhost, marginTop: 4 }}>締切 {SUBMIT_DEADLINE_HHMM}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, letterSpacing: '1.5px', marginTop: 2 }}>YET TO ENTER</div>
+              <div style={{ fontSize: F.caption, color: C.textGhost, marginTop: 4 }}>締切 {SUBMIT_DEADLINE_HHMM}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>ENTRY CLOSES IN</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>ENTRY CLOSES IN</div>
               <div style={{ fontFamily: SAIRA, fontSize: 30, fontWeight: 900, color: C.cyan, lineHeight: 1.05, letterSpacing: '1px' }}>
                 {hh}:{mm}:{ss}
               </div>
@@ -236,16 +236,16 @@ export default function RatedPage() {
                 clipPath: 'polygon(0 0, 100% 0, 100% 68%, calc(100% - 18px) 100%, 0 100%)',
               }}
             >
-              <div style={{ fontSize: 19, fontWeight: 900, color: eligible ? '#04202e' : C.textDim, letterSpacing: '8px' }}>
+              <div style={{ fontSize: F.titleLg, fontWeight: 900, color: eligible ? '#04202e' : C.textDim, letterSpacing: '8px' }}>
                 {submitted ? '組み直す' : '参加する'}
               </div>
               <div style={{
-                fontFamily: SAIRA, fontSize: 9, fontWeight: 800, letterSpacing: '4px', marginTop: 3,
+                fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, letterSpacing: '4px', marginTop: 3,
                 color: eligible ? alpha('#04202e', 0.6) : C.textGhost,
               }}>ENTER RANKED</div>
             </PressButton>
             {!eligible && (
-              <div style={{ fontSize: 11, color: C.orange, marginTop: 8, textAlign: 'center' }}>
+              <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>
                 殿堂入り {hof?.length ?? 0} / 30
               </div>
             )}
@@ -268,8 +268,8 @@ export default function RatedPage() {
               cursor: b.on ? 'pointer' : 'default', opacity: b.on ? 1 : 0.4,
             }}
           >
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: C.textSub }}>{b.label}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 8.5, fontWeight: 700, color: C.textGhost, letterSpacing: '2px', marginTop: 2 }}>{b.en}</div>
+            <div style={{ fontSize: F.body, fontWeight: 800, color: C.textSub }}>{b.label}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.micro, fontWeight: 700, color: C.textGhost, letterSpacing: '2px', marginTop: 2 }}>{b.en}</div>
           </PressButton>
         ))}
       </div>

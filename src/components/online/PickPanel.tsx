@@ -7,7 +7,7 @@ import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { autoOrder, usableRoster, type Order } from '../../lib/roomMachine'
 import { serverNow } from '../../lib/serverTime'
 import type { Player } from '../../types'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
 export default function PickPanel({
@@ -90,14 +90,14 @@ export default function PickPanel({
       headerNote={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            fontFamily: SAIRA, fontSize: 12, fontWeight: 900,
+            fontFamily: SAIRA, fontSize: F.body, fontWeight: 900,
             color: left <= 10 ? C.red : C.gold,
             padding: '2px 8px',
             background: alpha(left <= 10 ? C.red : C.gold, 0.12),
           }}>
             残り {left} 秒
           </div>
-          {submitted && <div style={{ fontSize: 10, color: C.textDim }}>他のチームの提出待ち</div>}
+          {submitted && <div style={{ fontSize: F.caption, color: C.textDim }}>他のチームの提出待ち</div>}
         </div>
       }
     />

@@ -19,7 +19,7 @@ import { useAdHeight } from '../layout/Layout'
 import { buildCpuLineups, racingTeams } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
-import { C, alpha, SAIRA, TT_COLOR, bottomStack } from '../../styles/tokens'
+import { C, alpha, SAIRA, TT_COLOR, bottomStack, F } from '../../styles/tokens'
 import {
   calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
   generateSegmentEvents, resolveChoice, finalizeSegment,
@@ -80,9 +80,9 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
       {!done ? (
         <>
           <div style={{ padding: '12px 14px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', flexShrink: 0 }}>自チームの出場選手</span>
+            <span style={{ fontSize: F.label, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', flexShrink: 0 }}>自チームの出場選手</span>
             <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)}
-              style={{ padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: F.label, fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="pb">自己ベスト順</option>
               <option value="fatigue">疲労少ない順</option>
               <option value="ovr">OVR順</option>
@@ -123,15 +123,15 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                        <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 700, color: pb ? C.textSub : C.textGhost, flexShrink: 0 }}>PB {pb ? formatRaceTime(pb.timeSec) : '--'}</span>
+                        <span style={{ fontSize: F.body, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 700, color: pb ? C.textSub : C.textGhost, flexShrink: 0 }}>PB {pb ? formatRaceTime(pb.timeSec) : '--'}</span>
                       </div>
-                      <span style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 700, color: fat < 40 ? C.green : fat < 70 ? C.gold : C.red }}>疲{fat}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 700, color: fat < 40 ? C.green : fat < 70 ? C.gold : C.red }}>疲{fat}</span>
                     </div>
                     {/* 表示は正規OVR（種目適性値は紛らわしいのでソート専用に） */}
-                    <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(p)), flexShrink: 0 }}>{ovr(p)}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: ratingColor(ovr(p)), flexShrink: 0 }}>{ovr(p)}</span>
                     <button onClick={(e) => { e.stopPropagation(); toggleResting(p.id) }}
-                      style={{ flexShrink: 0, padding: '5px 9px',cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, fontWeight: 800, background: isResting ? 'transparent' : alpha(TT_COLOR, 0.14), border: `1.5px solid ${isResting ? C.border2 : alpha(TT_COLOR, 0.5)}`, color: isResting ? C.textDim : TT_COLOR }}>
+                      style={{ flexShrink: 0, padding: '5px 9px',cursor: 'pointer', fontFamily: 'inherit', fontSize: F.caption, fontWeight: 800, background: isResting ? 'transparent' : alpha(TT_COLOR, 0.14), border: `1.5px solid ${isResting ? C.border2 : alpha(TT_COLOR, 0.5)}`, color: isResting ? C.textDim : TT_COLOR }}>
                       {isResting ? '休む' : '出走'}
                     </button>
                   </div>
@@ -149,7 +149,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
         <>
         <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位10名</div>
+            <div style={{ fontSize: F.label, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 6 }}>総合上位10名</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {topTen.map((r, i) => (
                 <button key={r.playerId} {...longPress(r.playerId)}
@@ -161,25 +161,25 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                     animation: 'race-result-in 0.35s ease both',
                     animationDelay: `${(topTen.length - 1 - i) * 0.15}s`,
                   }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.text : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.text : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
                   <div style={{overflow: 'hidden', flexShrink: 0 }}>
                     <PlayerFace playerId={r.playerId} nationality={findP(r.playerId)?.nationality ?? 'JPN'} size={30} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</span>
+                      <span style={{ fontSize: F.body, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</span>
                       {(() => {
                         const wr = worldRecords?.[bestKey]
                         const jr = japanRecords?.[bestKey]
                         // 保持者本人は「新！」、同タイムの共同保持者は「タイ！」
                         if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                          return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
                         if (wr && wr.timeSec === r.timeSec && (wr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
+                          return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
                         if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                          return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
                         if (jr && jr.timeSec === r.timeSec && (jr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
+                          return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
                         return null
                       })()}
                     </div>
@@ -188,18 +188,18 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                       if (t) return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                           <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={12} />
-                          <span style={{ fontSize: 9, color: r.teamId === playerTeamId ? TT_COLOR : C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                          <span style={{ fontSize: F.tiny, color: r.teamId === playerTeamId ? TT_COLOR : C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
                         </div>
                       )
                       // ドラフト候補は所属チームが無いので出身（高校/大学）を表示
                       const origin = scoutProspects.find(p => p.id === r.playerId)?.origin
                       if (origin) return (
-                        <div style={{ fontSize: 9, color: C.textDim, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{origin}</div>
+                        <div style={{ fontSize: F.tiny, color: C.textDim, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{origin}</div>
                       )
                       return null
                     })()}
                   </div>
-                  <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: r.rank === 1 ? C.gold : C.text }}>{formatRaceTime(r.timeSec)}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: r.rank === 1 ? C.gold : C.text }}>{formatRaceTime(r.timeSec)}</span>
                 </button>
               ))}
             </div>
@@ -207,7 +207,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
 
           {(event.rewardCards ?? []).length > 0 && (
             <div style={{padding: '10px 14px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}`, animation: 'race-result-in 0.4s ease both', animationDelay: `${topTen.length * 0.15 + 0.2}s` }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 8 }}>獲得した練習カード · {(event.rewardCards ?? []).length}枚</div>
+              <div style={{ fontSize: F.caption, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 8 }}>獲得した練習カード · {(event.rewardCards ?? []).length}枚</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {(event.rewardCards ?? []).map(c => (
                   <TrainingCardSVG key={c.id} statKey={c.statKey} rarity={c.rarity} width={62} />
@@ -217,7 +217,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
           )}
 
           <div style={{ animation: 'race-result-in 0.4s ease both', animationDelay: `${topTen.length * 0.15 + 0.35}s` }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', marginBottom: 6 }}>自チームの結果</div>
+            <div style={{ fontSize: F.label, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', marginBottom: 6 }}>自チームの結果</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {myResults.map(r => {
                 const p = players.find(pl => pl.id === r.playerId)
@@ -230,25 +230,25 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                       border: `1px solid ${isPB ? alpha(C.green, 0.45) : C.border}`,
                       boxShadow: isPB ? `0 0 8px ${alpha(C.green, 0.15)}` : 'none',
                     }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, minWidth: 30, flexShrink: 0, whiteSpace: 'nowrap' }}>{r.rank}位</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, minWidth: 30, flexShrink: 0, whiteSpace: 'nowrap' }}>{r.rank}位</span>
                     <div style={{overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={r.playerId} nationality={p?.nationality ?? 'JPN'} size={26} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: F.body, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
                     {(() => {
                       const wr = worldRecords?.[bestKey]
                       const jr = japanRecords?.[bestKey]
                       if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                        return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
                       if (wr && wr.timeSec === r.timeSec && (wr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
+                        return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
                       if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                        return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
                       if (jr && jr.timeSec === r.timeSec && (jr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
-                      return isPB ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px',background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span> : null
+                        return <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
+                      return isPB ? <span style={{ fontSize: F.micro, fontWeight: 900, padding: '1px 5px',background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span> : null
                     })()}
-                    <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub, flexShrink: 0 }}>{formatRaceTime(r.timeSec)}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.textSub, flexShrink: 0 }}>{formatRaceTime(r.timeSec)}</span>
                   </button>
                 )
               })}
@@ -376,7 +376,7 @@ export default function RacePage() {
       <div style={{
         padding: '48px 24px', textAlign: 'center',
         fontFamily: "'Noto Sans JP', system-ui, sans-serif",
-        color: '#5C5870', fontSize: '14px',
+        color: '#5C5870', fontSize: F.sub,
       }}>
         {raceIndex >= currentSeason.races.length
           ? 'シーズン終了。すべてのレースが完了しました。'

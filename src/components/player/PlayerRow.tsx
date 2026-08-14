@@ -8,7 +8,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { useEclHistory } from '../../lib/useEclHistory'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
 import { SpecChip } from './PlayerChips'
@@ -28,8 +28,8 @@ function StatNum({ label, value, maxed }: { label: string; value: number; maxed:
   const col = ratingColor(value, maxed)
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 3 }}>
-      <span style={{ fontSize: 9, color: C.textGhost }}>{label.slice(0, 1)}</span>
-      <span style={{ fontSize: 13, fontWeight: 800, color: col, fontFamily: SAIRA, lineHeight: 1 }}>{value}</span>
+      <span style={{ fontSize: F.tiny, color: C.textGhost }}>{label.slice(0, 1)}</span>
+      <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: col, fontFamily: SAIRA, lineHeight: 1 }}>{value}</span>
     </div>
   )
 }
@@ -106,13 +106,13 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
                   行そのものが広がって右端のOVRが画面の外へ出る（実機で実際に起きた） */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 3, minWidth: 0, overflow: 'hidden' }}>
               <span style={{
-                fontSize: 15, fontWeight: 700,
+                fontSize: F.subLg, fontWeight: 700,
                 color: player.status === 'injured' ? C.red : C.text,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {player.name}
               </span>
-              <span style={{ fontSize: 10, color: C.textDim, flexShrink: 0 }}>{player.age}歳</span>
+              <span style={{ fontSize: F.caption, color: C.textDim, flexShrink: 0 }}>{player.age}歳</span>
               {extra}
             </div>
             {/* 2行目に出す札は**この7つだけ**（オーナー・2026-08-13）。
@@ -121,16 +121,16 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
                   （契約の話は通知で来るし、FAは検索で絞れる）。増やさないこと */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
               <SpecChip specialty={player.specialty} size="sm" />
-              {pForm !== 0 && <span style={{ fontSize: 10, color: fColor, fontWeight: 800, flexShrink: 0 }}>{pForm > 0 ? '↑' : '↓'}</span>}
-              {!hideStatusBadges && fatigue > 0 && <span style={{ fontSize: 9, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>疲{fatigue}</span>}
+              {pForm !== 0 && <span style={{ fontSize: F.caption, color: fColor, fontWeight: 800, flexShrink: 0 }}>{pForm > 0 ? '↑' : '↓'}</span>}
+              {!hideStatusBadges && fatigue > 0 && <span style={{ fontSize: F.tiny, color: fatigue > 70 ? C.red : fatigue > 40 ? C.gold : C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>疲{fatigue}</span>}
               {player.status === 'injured' && (() => {
                 // 復帰までの残りレース数を明記（injuredUntilRace は「このレース消化後に復帰」のindex）
                 const left = player.injuredUntilRace != null ? Math.max(0, player.injuredUntilRace - raceIdx) : null
-                return <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(C.red, 0.09), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>負傷{left != null ? ` あと${left}戦` : ''}</span>
+                return <span style={{ fontSize: F.micro, padding: '1px 4px',backgroundColor: alpha(C.red, 0.09), border: `1px solid ${alpha(C.red, 0.25)}`, color: C.red, fontWeight: 700, flexShrink: 0 }}>負傷{left != null ? ` あと${left}戦` : ''}</span>
               })()}
-              {player.pendingRetirementYear != null && <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(C.textSub, 0.08), border: `1px solid ${alpha(C.textSub, 0.3)}`, color: C.textSub, fontWeight: 700, flexShrink: 0 }}>今季引退</span>}
-              {loanOwner && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px 1px 3px',backgroundColor: alpha('#AB8ED6', 0.14), border: `1px solid ${alpha('#AB8ED6', 0.45)}`, color: '#C4AEE8', fontWeight: 700, flexShrink: 0 }}><TeamLogoSVG primary={loanOwner.colors.primary} secondary={loanOwner.colors.secondary} shortName={loanOwner.shortName} teamId={loanOwner.id} size={11} />レンタル</span>}
-              {displayBadge && <span style={{ fontSize: 8, padding: '1px 5px',background: `linear-gradient(180deg, ${badgeColor(displayBadge)}2E, ${badgeColor(displayBadge)}14)`, border: `1px solid ${alpha(badgeColor(displayBadge), 0.5)}`, color: badgeColor(displayBadge), fontWeight: 900, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}><BadgeContent badge={displayBadge} iconSize={10} /></span>}
+              {player.pendingRetirementYear != null && <span style={{ fontSize: F.micro, padding: '1px 4px',backgroundColor: alpha(C.textSub, 0.08), border: `1px solid ${alpha(C.textSub, 0.3)}`, color: C.textSub, fontWeight: 700, flexShrink: 0 }}>今季引退</span>}
+              {loanOwner && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: F.micro, padding: '1px 5px 1px 3px',backgroundColor: alpha('#AB8ED6', 0.14), border: `1px solid ${alpha('#AB8ED6', 0.45)}`, color: '#C4AEE8', fontWeight: 700, flexShrink: 0 }}><TeamLogoSVG primary={loanOwner.colors.primary} secondary={loanOwner.colors.secondary} shortName={loanOwner.shortName} teamId={loanOwner.id} size={11} />レンタル</span>}
+              {displayBadge && <span style={{ fontSize: F.micro, padding: '1px 5px',background: `linear-gradient(180deg, ${badgeColor(displayBadge)}2E, ${badgeColor(displayBadge)}14)`, border: `1px solid ${alpha(badgeColor(displayBadge), 0.5)}`, color: badgeColor(displayBadge), fontWeight: 900, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}><BadgeContent badge={displayBadge} iconSize={10} /></span>}
             </div>
             </div>
             <div style={{

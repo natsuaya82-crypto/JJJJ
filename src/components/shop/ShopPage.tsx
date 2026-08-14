@@ -3,7 +3,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
 import { useState } from 'react'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { cardPackPrice } from '../../data/cardShop'
 import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import { JewelIcon } from '../icons/Icons'
@@ -76,9 +76,9 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
             <CardIcon size={44} color={col} />
           </div>
           <div>
-            <div style={{ fontSize: 9, color: col, letterSpacing: '2px', fontWeight: 900, marginBottom: 4 }}>購入確認</div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: C.text }}>{item.labelJP}</div>
-            <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{item.desc}</div>
+            <div style={{ fontSize: F.tiny, color: col, letterSpacing: '2px', fontWeight: 900, marginBottom: 4 }}>購入確認</div>
+            <div style={{ fontSize: F.titleLg, fontWeight: 900, color: C.text }}>{item.labelJP}</div>
+            <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>{item.desc}</div>
           </div>
         </div>
 
@@ -89,7 +89,7 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
             const selected = qty === q
             return (
               <GlassButton key={q} color={selected ? col : C.textDim} disabled={!affordable} style={{
-                flex: 1, padding: '7px 0', fontFamily: SAIRA, fontSize: 13, fontWeight: selected ? 900 : 600,
+                flex: 1, padding: '7px 0', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: selected ? 900 : 600,
               }} onClick={() => affordable && setQty(q)}>
                 {q}×
               </GlassButton>
@@ -104,25 +104,25 @@ padding: '10px 14px', marginBottom: 16,
           display: 'flex', flexDirection: 'column', gap: 6,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: C.textDim }}>費用（{qty}枚）</span>
+            <span style={{ fontSize: F.label, color: C.textDim }}>費用（{qty}枚）</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={12}/>
-              <span style={{ fontSize: 16, fontWeight: 900, color: '#6dd5fa' }}>{total.toLocaleString()}</span>
+              <span style={{ fontSize: F.title, fontWeight: 900, color: '#6dd5fa' }}>{total.toLocaleString()}</span>
             </div>
           </div>
           <div style={{ height: 1, background: C.border }}/>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: C.textDim }}>所持</span>
+            <span style={{ fontSize: F.label, color: C.textDim }}>所持</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={12}/>
-              <span style={{ fontSize: 13, color: C.textSub }}>{jewels.toLocaleString()}</span>
+              <span style={{ fontSize: F.bodyLg, color: C.textSub }}>{jewels.toLocaleString()}</span>
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: C.textDim }}>購入後</span>
+            <span style={{ fontSize: F.label, color: C.textDim }}>購入後</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={12}/>
-              <span style={{ fontSize: 13, color: canAfford ? C.textSub : C.red }}>{after.toLocaleString()}</span>
+              <span style={{ fontSize: F.bodyLg, color: canAfford ? C.textSub : C.red }}>{after.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -131,13 +131,13 @@ padding: '10px 14px', marginBottom: 16,
           <button onClick={onCancel} style={{
             flex: 1, padding: '11px',
             background: C.surface, border: `1px solid ${C.border}`,
-            color: C.textDim, fontSize: 13, fontWeight: 700,
+            color: C.textDim, fontSize: F.bodyLg, fontWeight: 700,
             cursor: 'pointer', fontFamily: SAIRA,
           }}>
             キャンセル
           </button>
           <GlassButton color={col} disabled={!canAfford} style={{
-            flex: 2, padding: '11px', fontSize: 13, fontFamily: SAIRA,
+            flex: 2, padding: '11px', fontSize: F.bodyLg, fontFamily: SAIRA,
           }} onClick={() => canAfford && onConfirm(qty)}>
             購入する
           </GlassButton>
@@ -164,8 +164,8 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
         padding: '20px 18px 16px',
       }} onClick={e => e.stopPropagation()}>
 
-        <div style={{ fontSize: 9, color: col, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>RESULT</div>
-        <div style={{ fontSize: 17, fontWeight: 900, color: C.text, marginBottom: 14 }}>
+        <div style={{ fontSize: F.tiny, color: col, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>RESULT</div>
+        <div style={{ fontSize: F.title, fontWeight: 900, color: C.text, marginBottom: 14 }}>
           {RARITY_LABELS[cards[0]?.rarity ?? 'normal']} × {cards.length}枚 獲得
         </div>
 
@@ -182,12 +182,12 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
                   <CardIcon size={24} color={c} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+                  <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>
                     {CARD_NAMES[card.statKey]}
                   </span>
                 </div>
                 <span style={{
-                  fontSize: 9, padding: '1px 6px',fontWeight: 800,
+                  fontSize: F.tiny, padding: '1px 6px',fontWeight: 800,
                   background: alpha(c, 0.18), color: c, border: `1px solid ${alpha(c, 0.35)}`,
                 }}>
                   {RARITY_LABELS[card.rarity]}
@@ -197,7 +197,7 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
           })}
         </div>
 
-        <GlassButton full color={col} style={{ padding: '11px', fontSize: 13, fontFamily: SAIRA }} onClick={onClose}>
+        <GlassButton full color={col} style={{ padding: '11px', fontSize: F.bodyLg, fontFamily: SAIRA }} onClick={onClose}>
           閉じる
         </GlassButton>
       </div>
@@ -242,7 +242,7 @@ export default function ShopPage() {
           title="ショップ"
           right={<div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: alpha('#6dd5fa', 0.08), border: `1px solid ${alpha('#6dd5fa', 0.25)}` }}>
             <JewelIcon size={16}/>
-            <span style={{ fontSize: 20, fontWeight: 900, color: jewelsColor, textShadow: `0 0 10px ${alpha(jewelsColor, 0.5)}` }}>
+            <span style={{ fontSize: F.head, fontWeight: 900, color: jewelsColor, textShadow: `0 0 10px ${alpha(jewelsColor, 0.5)}` }}>
               {jewels.toLocaleString()}
             </span>
           </div>}
@@ -251,7 +251,7 @@ export default function ShopPage() {
 
       {/* Training cards */}
       <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '3px', fontWeight: 900, marginBottom: 2 }}>
+        <div style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: '3px', fontWeight: 900, marginBottom: 2 }}>
           開封するとランダムなステータスカードが1枚獲得できます
         </div>
         {CARD_SHOP.map(item => {
@@ -265,19 +265,19 @@ export default function ShopPage() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-                    <span style={{ fontSize: 15, fontWeight: 900, color: C.text }}>{item.labelJP}</span>
-                    <span style={{ fontSize: 9, padding: '1px 6px',background: alpha(col, 0.18), color: col, fontWeight: 800, border: `1px solid ${alpha(col, 0.35)}` }}>
+                    <span style={{ fontSize: F.subLg, fontWeight: 900, color: C.text }}>{item.labelJP}</span>
+                    <span style={{ fontSize: F.tiny, padding: '1px 6px',background: alpha(col, 0.18), color: col, fontWeight: 800, border: `1px solid ${alpha(col, 0.35)}` }}>
                       {RARITY_LABELS[item.rarity]}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: C.textDim, marginBottom: 6 }}>{item.desc}</div>
-                  <div style={{ fontSize: 9, color: C.textGhost }}>
+                  <div style={{ fontSize: F.label, color: C.textDim, marginBottom: 6 }}>{item.desc}</div>
+                  <div style={{ fontSize: F.tiny, color: C.textGhost }}>
                     対象: {Object.values(CARD_NAMES).join(' / ')}
                   </div>
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <JewelIcon size={14}/>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: canAfford ? '#6dd5fa' : C.red, textShadow: canAfford ? `0 0 8px ${alpha('#6dd5fa', 0.5)}` : 'none' }}>
+                  <span style={{ fontSize: F.titleLg, fontWeight: 900, color: canAfford ? '#6dd5fa' : C.red, textShadow: canAfford ? `0 0 8px ${alpha('#6dd5fa', 0.5)}` : 'none' }}>
                     {item.price.toLocaleString()}
                   </span>
                 </div>
@@ -285,7 +285,7 @@ export default function ShopPage() {
               <div style={{ padding: '0 10px 10px' }}>
                 <GlassButton
                   full color={col} disabled={!canAfford}
-                  style={{ padding: '10px', fontSize: 13, fontFamily: SAIRA }}
+                  style={{ padding: '10px', fontSize: F.bodyLg, fontFamily: SAIRA }}
                   onClick={() => canAfford && setPendingItem(item)}
                 >
                   {canAfford ? '購入する' : 'ジュエル不足'}

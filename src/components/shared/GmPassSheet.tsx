@@ -4,7 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import NoticeDialog from '../ui/NoticeDialog'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
 
 
@@ -23,7 +23,7 @@ export const IAP_ENABLED = true
 const IcBannerOff = <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="14" width="19" height="6" rx="1.6" stroke="currentColor" strokeWidth="1.7"/><path d="M4 21.5L20 4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/></svg>
 const IcFullOff = <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="17" height="17" rx="2.4" stroke="currentColor" strokeWidth="1.7"/><path d="M4 20.5L20.5 3.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/></svg>
 const IcStarBadge = <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3.2l2.5 5.7 6.2.5-4.7 4 1.4 6-5.4-3.2-5.4 3.2 1.4-6-4.7-4 6.2-.5z" fill="currentColor"/></svg>
-const IcTwoX = <span style={{ fontSize: 13, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '-0.5px' }}>×2</span>
+const IcTwoX = <span style={{ fontSize: F.bodyLg, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '-0.5px' }}>×2</span>
 
 // 購入・復元が失敗したとき、App Store（StoreKit）が返した原文をそのまま添える。
 // 「購入に失敗しました」だけでは何が起きたのか分からず、原因を追いかけられないため。
@@ -125,8 +125,8 @@ export function GmPassCard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
             <div style={{ width: 4, height: 34,background: `linear-gradient(180deg, ${G}, ${alpha(G, 0.25)})`, flexShrink: 0 }} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 9, color: alpha(G, 0.85), letterSpacing: '4px', marginBottom: 3 }}>GM PASS</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>GMパス</div>
+              <div style={{ fontSize: F.tiny, color: alpha(G, 0.85), letterSpacing: '4px', marginBottom: 3 }}>GM PASS</div>
+              <div style={{ fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1 }}>GMパス</div>
             </div>
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -136,7 +136,7 @@ export function GmPassCard() {
               WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
               filter: `drop-shadow(0 2px 8px ${alpha(G, 0.28)})`,
             }}>{price}</div>
-            <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1px', marginTop: 3 }}>買い切り・月額なし</div>
+            <div style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: '1px', marginTop: 3 }}>買い切り・月額なし</div>
           </div>
         </div>
 
@@ -159,8 +159,8 @@ export function GmPassCard() {
                 {icon}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 10, color: C.textDim }}>{sub}</div>
+                <div style={{ fontSize: F.sub, fontWeight: 800, color: C.text, marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: F.caption, color: C.textDim }}>{sub}</div>
               </div>
             </div>
           ))}
@@ -178,7 +178,7 @@ export function GmPassCard() {
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
               <path d="M4 12.5l5 5L20 6.5" stroke={G} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span style={{ fontSize: 14, fontWeight: 900, color: G, letterSpacing: '1px' }}>購入済み — ありがとうございます</span>
+            <span style={{ fontSize: F.sub, fontWeight: 900, color: G, letterSpacing: '1px' }}>購入済み — ありがとうございます</span>
           </div>
         ) : (
           <>
@@ -186,7 +186,7 @@ export function GmPassCard() {
               <span>{busy ? '処理中…' : !buyable ? 'いま購入できません' : '購入する　' + price}</span>
             </GlassButton>
             {!buyable && (
-              <div style={{ fontSize: 10, color: C.textDim, textAlign: 'center', marginTop: 7, lineHeight: 1.6 }}>
+              <div style={{ fontSize: F.caption, color: C.textDim, textAlign: 'center', marginTop: 7, lineHeight: 1.6 }}>
                 App Storeから商品情報を取得できませんでした。通信環境をご確認のうえ、しばらくしてからアプリを開き直してください。
               </div>
             )}
@@ -201,13 +201,13 @@ export function GmPassCard() {
           style={{
             width: '100%', padding: '10px', marginTop: 9,cursor: busy ? 'default' : 'pointer',
             background: 'transparent', border: `1px solid ${alpha(G, 0.14)}`, color: C.textDim,
-            fontSize: 11, fontWeight: 700, fontFamily: SAIRA, opacity: busy ? 0.6 : 1,
+            fontSize: F.label, fontWeight: 700, fontFamily: SAIRA, opacity: busy ? 0.6 : 1,
           }}
         >
           購入を復元
         </button>
 
-        <div style={{ fontSize: 9.5, color: C.textGhost, lineHeight: 1.6, marginTop: 10, textAlign: 'center' }}>
+        <div style={{ fontSize: F.tiny, color: C.textGhost, lineHeight: 1.6, marginTop: 10, textAlign: 'center' }}>
           ※動画広告（ジュエル追加・2回目以降の大成功）は任意で見られます
         </div>
 
@@ -237,7 +237,7 @@ export function GmPassSheet({ onClose }: { onClose: () => void }) {
           style={{
             width: '100%', padding: '13px',cursor: 'pointer',
             background: 'transparent', border: `1px solid ${C.border2}`, color: C.textSub,
-            fontFamily: SAIRA, fontSize: 13, fontWeight: 700,
+            fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 700,
           }}
         >
           閉じる

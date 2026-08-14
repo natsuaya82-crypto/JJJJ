@@ -1,4 +1,4 @@
-import { C } from '../../styles/tokens'
+import { C, F } from '../../styles/tokens'
 
 // レースの再生を飛ばして結果だけ見るボタン。**見た目も文言もここ1本。**
 //
@@ -14,7 +14,7 @@ export function SkipRaceButton({ onClick, label = 'スキップ' }: { onClick: (
         flexShrink: 0, padding: '11px 14px',
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
         border: `2px solid ${C.border2}`, color: C.textSub,
-        fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        fontSize: F.body, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
         boxShadow: '0 4px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
         display: 'flex', alignItems: 'center', gap: 4,
       }}

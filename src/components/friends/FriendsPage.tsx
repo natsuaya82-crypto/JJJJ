@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { listFriends, listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from './friendsUi'
-import { C, FONT } from '../../styles/tokens'
+import { C, FONT, F } from '../../styles/tokens'
 
 
 // 記録室（RecordsHub）と同じカード意匠でフレンド各画面への入口をまとめる。
@@ -46,7 +46,7 @@ export default function FriendsPage() {
     <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
       <PageHeader eyebrow="FRIENDS" title="フレンド" />
       {offline && (
-        <div style={{ padding: '0 16px 14px', fontSize: 11, color: C.textDim }}>
+        <div style={{ padding: '0 16px 14px', fontSize: F.label, color: C.textDim }}>
           オフラインです。通信できる場所で開くとフレンド情報が読み込まれます。
         </div>
       )}

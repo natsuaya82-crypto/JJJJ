@@ -324,5 +324,30 @@ console.log('\n⑨ 選手カードの一覧は PlayerList を通している')
     hits.join('\n      ') + '\n      → 一覧は player/PlayerList で囲むこと（間隔はそこが持つ）')
 }
 
+console.log('\n⑩ 本文の文字サイズを数字で書いていない')
+{
+  // 実測で **1900件・31種類**（7px〜96px）に割れていた。8〜24px のあいだだけで
+  // 11・13・15・17・19・21・22 と半端な 9.5・10.5・14.5 が混ざっていて、
+  // 「小さい字を少し大きく」と決めてもどれを触ればいいか分からない形だった。
+  // 段は `tokens.ts` の `F` 1本。
+  //
+  // ★**25px 以上は見ない。** 予算の44px・タイムの96px のような「その画面の
+  //   見せ場の数字」で、揃える対象ではない（角丸で複数指定を段の話にしなかったのと同じ）。
+  const hits: string[] = []
+  for (const f of screens) {
+    if (f === 'src/styles/tokens.ts') continue
+    read(f).split('\n').forEach((l, i) => {
+      for (const m of l.matchAll(/fontSize: *(?:'([\d.]+)px'|([\d.]+))(?![\d.])/g)) {
+        const v = parseFloat(m[1] ?? m[2])
+        if (v > 24) continue
+        hits.push(`${f}:${i + 1} ${m[0]}`)
+      }
+    })
+  }
+  check('本文の文字サイズが数字で書かれていない', hits.length === 0,
+    hits.slice(0, 10).join('\n      ') + (hits.length > 10 ? `\n      …ほか${hits.length - 10}件` : '') +
+    '\n      → tokens の F（micro/tiny/caption/label/body/bodyLg/sub/subLg/title/titleLg/head/headLg/hero）を使うこと')
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

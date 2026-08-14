@@ -26,7 +26,7 @@ import StampBar from './StampBar'
 import type { StampPayload } from './stampKinds'
 import { buildRacePayload, seriesPointsBefore, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { defaultLogoIdFor } from '../../data/logoPresets'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
 
 
@@ -653,18 +653,18 @@ export default function RoomLobbyPage() {
     <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100dvh' }}>
       {/* ヘッダー：戻るではなく「退出」。黙って抜けると相手側に残ってしまうため。 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px 6px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.cyan, 0.85), letterSpacing: '3px', fontWeight: 900 }}>ROOM</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: alpha(C.cyan, 0.85), letterSpacing: '3px', fontWeight: 900 }}>ROOM</div>
         <div style={{ flex: 1 }} />
         {conn !== 'online' && (
-          <div style={{ fontSize: 10, color: C.textDim }}>{conn === 'connecting' ? '接続中…' : 'オフライン'}</div>
+          <div style={{ fontSize: F.caption, color: C.textDim }}>{conn === 'connecting' ? '接続中…' : 'オフライン'}</div>
         )}
-        <button onClick={() => setAskLeave(true)} disabled={busy} style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
+        <button onClick={() => setAskLeave(true)} disabled={busy} style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
       </div>
 
       {phase === 'lobby' && (<>
       {/* 部屋番号 */}
       <div style={{ margin: '4px 12px 0', padding: '16px',textAlign: 'center', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.cyan, 0.4)}` }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 9, color: alpha(C.cyan, 0.85), letterSpacing: '4px', fontWeight: 900 }}>ROOM CODE</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: alpha(C.cyan, 0.85), letterSpacing: '4px', fontWeight: 900 }}>ROOM CODE</div>
         <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: C.cyan, letterSpacing: '8px', lineHeight: 1.3 }}>
           {formatRoomCode(room?.code ?? '')}
         </div>
@@ -673,8 +673,8 @@ export default function RoomLobbyPage() {
       {/* 参加者 */}
       <div style={{ padding: '18px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900 }}>参加チーム</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.text }}>{active.length} / {room?.maxPlayers ?? 20}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: alpha(C.gold, 0.85), letterSpacing: '2px', fontWeight: 900 }}>参加チーム</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.text }}>{active.length} / {room?.maxPlayers ?? 20}</div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -689,20 +689,20 @@ export default function RoomLobbyPage() {
                 background: isMe ? alpha(C.gold, 0.08) : C.surface2,
                 border: `1px solid ${isMe ? alpha(C.gold, 0.35) : C.border}`,
               }}>
-                <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.textDim, width: 16, textAlign: 'center' }}>{m.seat}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.textDim, width: 16, textAlign: 'center' }}>{m.seat}</div>
                 <TeamLogoSVG primary={p?.primary ?? '#122440'} secondary={p?.secondary ?? '#f5c842'} shortName={p?.shortName ?? '—'} logoId={p?.logoId ?? 'logo_01'} size={32} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {p?.teamName ?? '読み込み中'}
-                    {isRoomHost && <span style={{ marginLeft: 6, padding: '1px 6px',background: C.gold, color: '#1a0d00', fontSize: 9, fontWeight: 900 }}>ホスト</span>}
+                    {isRoomHost && <span style={{ marginLeft: 6, padding: '1px 6px',background: C.gold, color: '#1a0d00', fontSize: F.tiny, fontWeight: 900 }}>ホスト</span>}
                   </div>
-                  <div style={{ fontSize: 10, color: C.textDim }}>GM {p?.gmName ?? '—'}{!connected && '・接続待ち'}</div>
+                  <div style={{ fontSize: F.caption, color: C.textDim }}>GM {p?.gmName ?? '—'}{!connected && '・接続待ち'}</div>
                 </div>
                 {m.ready && !isRoomHost && (
-                  <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.green }}>準備OK</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.green }}>準備OK</div>
                 )}
                 {isHost && !isMe && (
-                  <button onClick={() => setAskKick(m)} disabled={busy} style={{ padding: '4px 9px',border: `1px solid ${alpha(C.red, 0.5)}`, background: 'transparent', color: C.red, fontSize: 10, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
+                  <button onClick={() => setAskKick(m)} disabled={busy} style={{ padding: '4px 9px',border: `1px solid ${alpha(C.red, 0.5)}`, background: 'transparent', color: C.red, fontSize: F.caption, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
                 )}
               </div>
             )
@@ -711,7 +711,7 @@ export default function RoomLobbyPage() {
 
         {/* 開始できるのは2チームから（サーバー側も同じ） */}
         {active.length < MIN_TEAMS && (
-          <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textDim, marginTop: 12, textAlign: 'center', letterSpacing: '1px' }}>
+          <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: C.textDim, marginTop: 12, textAlign: 'center', letterSpacing: '1px' }}>
             あと {MIN_TEAMS - active.length} チーム
           </div>
         )}
@@ -724,7 +724,7 @@ export default function RoomLobbyPage() {
             width: '100%', padding: '15px 14px',
             border: `2px solid ${mine.ready ? C.green : C.goldDark}`,
             background: mine.ready ? alpha(C.green, 0.15) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            color: mine.ready ? C.green : C.gold, fontFamily: SAIRA, fontSize: 16, fontWeight: 900, cursor: 'pointer',
+            color: mine.ready ? C.green : C.gold, fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, cursor: 'pointer',
           }}>
             {mine.ready ? '準備完了（取り消す）' : '準備完了'}
           </button>
@@ -812,13 +812,13 @@ export default function RoomLobbyPage() {
           <FinishPanel races={results} meId={me ?? ''} onLeave={() => setAskLeave(true)} />
         ) : (
           <div style={{ padding: '48px 16px 0', textAlign: 'center' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 12, color: alpha(C.gold, 0.85), letterSpacing: '3px', fontWeight: 900 }}>FINISH</div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginTop: 8 }}>対戦終了</div>
-            <div style={{ fontSize: 12, color: C.textDim, marginTop: 10, lineHeight: 1.7 }}>お疲れさまでした。</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: alpha(C.gold, 0.85), letterSpacing: '3px', fontWeight: 900 }}>FINISH</div>
+            <div style={{ fontSize: F.titleLg, fontWeight: 900, color: C.text, marginTop: 8 }}>対戦終了</div>
+            <div style={{ fontSize: F.body, color: C.textDim, marginTop: 10, lineHeight: 1.7 }}>お疲れさまでした。</div>
             <button onClick={() => setAskLeave(true)} className="btn-press" style={{
               marginTop: 24, padding: '13px 28px',border: `2px solid ${C.goldDark}`,
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              color: C.gold, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer',
+              color: C.gold, fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, cursor: 'pointer',
             }}>部屋を出る</button>
           </div>
         )

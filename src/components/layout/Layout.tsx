@@ -4,7 +4,7 @@ import { audio } from '../../utils/audio'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
-import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack } from '../../styles/tokens'
+import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack, F } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
@@ -184,7 +184,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <>
               <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={32}/>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, lineHeight: 1.2 }}>{team.shortName}</div>
+                <div style={{ fontSize: F.bodyLg, fontWeight: '700', color: C.text, lineHeight: 1.2 }}>{team.shortName}</div>
                 <div className="season-tag" style={{ marginTop: 3 }}>
                   {currentSeason.year} SEASON
                 </div>
@@ -210,10 +210,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </linearGradient>
               </defs>
             </svg>
-            <span style={{ fontSize: '12px', fontWeight: '700', color: '#6dd5fa', letterSpacing: '0.3px', minWidth: '24px', textAlign: 'right' }}>
+            <span style={{ fontSize: F.body, fontWeight: '700', color: '#6dd5fa', letterSpacing: '0.3px', minWidth: '24px', textAlign: 'right' }}>
               {jewels.toLocaleString()}
             </span>
-            <span style={{ fontSize: '14px', fontWeight: '900', color: alpha('#6dd5fa', 0.85), lineHeight: 1, paddingLeft: '2px' }}>+</span>
+            <span style={{ fontSize: F.sub, fontWeight: '900', color: alpha('#6dd5fa', 0.85), lineHeight: 1, paddingLeft: '2px' }}>+</span>
           </button>
 
           {/* Notification bell */}
@@ -234,7 +234,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 width: '16px', height: '16px', borderRadius: '50%',
                 backgroundColor: C.red,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '9px', fontWeight: '800', color: '#fff',
+                fontSize: F.tiny, fontWeight: '800', color: '#fff',
                 border: `1.5px solid ${C.bg}`,
               }}>
                 {notifCount > 9 ? '9+' : notifCount}
@@ -275,7 +275,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <button key={i} onClick={() => { setMenuOpen(false); if (item.path) navigate(item.path); item.action?.() }} style={{
                 width: '100%', padding: '14px 16px', background: 'none', border: 'none',
                 borderBottom: i < MENU_ITEMS.length - 1 ? `1px solid ${C.border}` : 'none',
-                color: item.color ?? C.textSub, fontSize: '13px', fontWeight: '600',
+                color: item.color ?? C.textSub, fontSize: F.bodyLg, fontWeight: '600',
                 cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 minHeight: '48px',
@@ -365,7 +365,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Icon/>
               </div>
               <span style={{
-                fontSize: '10px',
+                fontSize: F.caption,
                 fontWeight: active ? 700 : 400,
                 letterSpacing: '0.3px',
                 color: active ? C.cyan : C.textDim,

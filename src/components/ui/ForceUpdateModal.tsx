@@ -1,3 +1,4 @@
+import { F } from '../../styles/tokens'
 const APP_STORE_URL = 'https://apps.apple.com/jp/app/jpel-manager/id6779638017'
 
 export default function ForceUpdateModal() {
@@ -27,14 +28,14 @@ export default function ForceUpdateModal() {
           </svg>
         </div>
         <div style={{
-          fontSize: '18px', fontWeight: 700,
+          fontSize: F.titleLg, fontWeight: 700,
           color: '#F5C842', letterSpacing: '0.05em',
           marginBottom: '12px',
         }}>
           アップデートが必要です
         </div>
         <div style={{
-          fontSize: '13px', color: '#8B879E', lineHeight: 1.7,
+          fontSize: F.bodyLg, color: '#8B879E', lineHeight: 1.7,
           marginBottom: '28px',
         }}>
           新しいバージョンが配信されました。{'\n'}
@@ -47,7 +48,7 @@ export default function ForceUpdateModal() {
             background: '#F5C842',
             color: '#0a0818',
             fontWeight: 700,
-            fontSize: '15px',
+            fontSize: F.subLg,
             padding: '14px 0',
             textDecoration: 'none',
             letterSpacing: '0.05em',

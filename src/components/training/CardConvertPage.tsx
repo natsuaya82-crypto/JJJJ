@@ -7,7 +7,7 @@ import {
   RARITY_LABELS, RARITY_COLORS, REST_CARD_NAME, STAT_KEYS, CARD_NAMES,
   CARD_EXCHANGES, canPickStat, exchangeSource, type CardExchange,
 } from '../../utils/cardCombo'
-import { C, alpha, SAIRA, REST_ACCENT } from '../../styles/tokens'
+import { C, alpha, SAIRA, REST_ACCENT, F } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { audio } from '../../utils/audio'
@@ -39,12 +39,12 @@ export default function CardConvertPage() {
   return (
     <div style={{ minHeight: '100dvh', fontFamily: SAIRA, color: C.text, paddingBottom: 80 }}>
       <PageHeader eyebrow="CARD CONVERT" title="カード変換" />
-      <div style={{ padding: '0 16px 14px', fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+      <div style={{ padding: '0 16px 14px', fontSize: F.label, color: C.textDim, lineHeight: 1.6 }}>
         余ったカードをEXP等価で上位レアにまとめて変換します（変換後の種類はランダム・完全休養は対象外）。
       </div>
 
       {lastResult && (
-        <div style={{ margin: '0 14px 12px', padding: '10px 14px',textAlign: 'center', background: alpha(RARITY_COLORS[lastResult.to], 0.12), border: `1px solid ${alpha(RARITY_COLORS[lastResult.to], 0.45)}`, fontSize: 12, fontWeight: 800, color: RARITY_COLORS[lastResult.to] }}>
+        <div style={{ margin: '0 14px 12px', padding: '10px 14px',textAlign: 'center', background: alpha(RARITY_COLORS[lastResult.to], 0.12), border: `1px solid ${alpha(RARITY_COLORS[lastResult.to], 0.45)}`, fontSize: F.body, fontWeight: 800, color: RARITY_COLORS[lastResult.to] }}>
           {RARITY_LABELS[lastResult.to]}カードを{lastResult.n}枚獲得しました
         </div>
       )}
@@ -58,24 +58,24 @@ export default function CardConvertPage() {
           return (
             <div key={ex.fromRarity} style={{ ...panelStyle(toCol), padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, position: 'relative' }}>
-                <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900 }}>
+                <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900 }}>
                   <span style={{ color: fromCol }}>{RARITY_LABELS[ex.fromRarity]}</span>
                   <span style={{ color: C.textGhost, margin: '0 6px' }}>→</span>
                   <span style={{ color: toCol }}>{RARITY_LABELS[ex.toRarity]}</span>
                 </div>
-                <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>所持 <span style={{ color: C.text, fontWeight: 800 }}>{count}</span>枚</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>所持 <span style={{ color: C.text, fontWeight: 800 }}>{count}</span>枚</div>
               </div>
 
               {/* 変換イメージ：元カード×need → 先カード×produce */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12, position: 'relative' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <TrainingCardSVG statKey="speed" rarity={ex.fromRarity} width={44} />
-                  <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: fromCol }}>×{ex.need}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: fromCol }}>×{ex.need}</span>
                 </div>
                 <svg width="22" height="14" viewBox="0 0 24 16" fill="none"><path d="M2 8h17M14 2l6 6-6 6" stroke={C.textDim} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <TrainingCardSVG statKey="speed" rarity={ex.toRarity} width={44} />
-                  <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: toCol }}>×{ex.produce}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: toCol }}>×{ex.produce}</span>
                 </div>
               </div>
 
@@ -84,8 +84,8 @@ export default function CardConvertPage() {
                 disabled={bundles === 0}
                 className={bundles > 0 ? 'btn-game btn-game--gold' : undefined}
                 style={bundles > 0
-                  ? { width: '100%', padding: '12px', fontFamily: SAIRA, fontSize: 13, fontWeight: 800 }
-                  : { width: '100%', padding: '12px',background: C.surface2, border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: 12, fontWeight: 700, cursor: 'not-allowed' }}
+                  ? { width: '100%', padding: '12px', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800 }
+                  : { width: '100%', padding: '12px',background: C.surface2, border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: F.body, fontWeight: 700, cursor: 'not-allowed' }}
               >
                 {bundles > 0
                   ? `まとめて変換（${bundles * ex.need}枚 → ${bundles * ex.produce}枚）`
@@ -98,8 +98,8 @@ export default function CardConvertPage() {
 
       {/* 完全休養は疲労回復にしか使えず余るので、同じレア度の好きなカードと引き換えられる */}
       <div style={{ padding: '20px 16px 8px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: REST_ACCENT }}>{REST_CARD_NAME}の引き換え</div>
-        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6, marginTop: 4 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: REST_ACCENT }}>{REST_CARD_NAME}の引き換え</div>
+        <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6, marginTop: 4 }}>
           {REST_CARD_NAME}カード{restTrades[0].need}枚で、同じレア度の好きな練習カード1枚と交換できます。
         </div>
       </div>
@@ -117,15 +117,15 @@ padding: '10px 12px',
             }}>
               <TrainingCardSVG statKey="recovery" rarity={ex.fromRarity} kind="rest" width={36} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: col }}>{RARITY_LABELS[ex.fromRarity]}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>所持 <span style={{ color: C.text, fontWeight: 800 }}>{count}</span>枚</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: col }}>{RARITY_LABELS[ex.fromRarity]}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>所持 <span style={{ color: C.text, fontWeight: 800 }}>{count}</span>枚</div>
               </div>
               <button
                 onClick={() => bundles > 0 && setConfirming({ ex, statKey: STAT_KEYS[0] })}
                 disabled={bundles === 0}
                 style={bundles > 0
-                  ? { padding: '9px 14px',background: alpha(col, 0.16), border: `2px solid ${alpha(col, 0.55)}`, color: col, fontFamily: SAIRA, fontSize: 12, fontWeight: 800, cursor: 'pointer' }
-                  : { padding: '9px 14px',background: 'transparent', border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: 11, fontWeight: 700, cursor: 'not-allowed' }}
+                  ? { padding: '9px 14px',background: alpha(col, 0.16), border: `2px solid ${alpha(col, 0.55)}`, color: col, fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, cursor: 'pointer' }
+                  : { padding: '9px 14px',background: 'transparent', border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: F.label, fontWeight: 700, cursor: 'not-allowed' }}
               >
                 {bundles > 0 ? `交換（${bundles}枚ぶん）` : `あと${ex.need - count % ex.need}枚`}
               </button>

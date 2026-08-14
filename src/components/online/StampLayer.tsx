@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import PlayerFace from '../player/PlayerFace'
 import type { Nationality } from '../../types'
 import { RACE_EMOJI, RACE_CHEERS, type StampPayload } from './stampKinds'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
 // 対戦中の応援スタンプ。
@@ -77,8 +77,8 @@ background: alpha('#0b1626', 0.92),
                 <PlayerFace playerId={s.p.id} nationality={s.p.nat as Nationality} size={26} />
               </div>
               <div style={{ lineHeight: 1.15 }}>
-                <div style={{ fontSize: 9, color: C.textGhost, whiteSpace: 'nowrap' }}>{s.p.name}</div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: C.gold, whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: F.tiny, color: C.textGhost, whiteSpace: 'nowrap' }}>{s.p.name}</div>
+                <div style={{ fontSize: F.body, fontWeight: 900, color: C.gold, whiteSpace: 'nowrap' }}>
                   {RACE_CHEERS[s.p.c] ?? RACE_CHEERS[0]}
                 </div>
               </div>
@@ -90,7 +90,7 @@ background: alpha('#0b1626', 0.92),
               </div>
               {s.from && (
                 <div style={{
-                  fontFamily: SAIRA, fontSize: 9, fontWeight: 800, color: C.textSub,
+                  fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textSub,
                   marginTop: 1, textShadow: '0 1px 3px rgba(0,0,0,0.9)', whiteSpace: 'nowrap',
                 }}>{s.from}</div>
               )}

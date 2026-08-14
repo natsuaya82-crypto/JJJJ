@@ -3,7 +3,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { loginTodayKey } from '../../utils/loginDate'
-import { C, alpha, SAIRA, FONT, contentHeight } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, contentHeight, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { JewelIcon } from '../icons/Icons'
@@ -32,7 +32,7 @@ overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
           <div style={{ width: 3, height: 14,background: accent, flexShrink: 0 }} />
-          <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: accent, letterSpacing: '3px' }}>{label}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: accent, letterSpacing: '3px' }}>{label}</div>
         </div>
         {right}
       </div>
@@ -96,13 +96,13 @@ export default function LoginBonusPage() {
             border: `1px solid ${alpha('#6dd5fa', 0.5)}`,
             textAlign: 'center',
           }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 13, color: '#6dd5fa', fontWeight: 900, letterSpacing: '1px', marginBottom: 4 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, color: '#6dd5fa', fontWeight: 900, letterSpacing: '1px', marginBottom: 4 }}>
               受け取り完了
             </div>
             <div style={{ fontFamily: SAIRA, fontSize: 36, fontWeight: 900, color: '#6dd5fa', lineHeight: 1 }}>
               +{claimResult.gained}
             </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, marginTop: 4 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginTop: 4 }}>
               ジュエル · {claimResult.streak}日連続
             </div>
           </div>
@@ -117,8 +117,8 @@ export default function LoginBonusPage() {
             boxShadow: `0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
             textAlign: 'center',
           }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.textDim, letterSpacing: '1px' }}>本日受取済み</div>
-            <div style={{ fontSize: 11, color: C.textGhost, marginTop: 4 }}>明日10時以降に再度受け取れます</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textDim, letterSpacing: '1px' }}>本日受取済み</div>
+            <div style={{ fontSize: F.label, color: C.textGhost, marginTop: 4 }}>明日10時以降に再度受け取れます</div>
           </div>
         )}
 
@@ -135,7 +135,7 @@ export default function LoginBonusPage() {
           label="WEEKLY STREAK"
           accent="#6dd5fa"
           grow={1}
-          right={<div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#6dd5fa' }}>{displayWeekPos} / 7</div>}
+          right={<div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: '#6dd5fa' }}>{displayWeekPos} / 7</div>}
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, flex: 1 }}>
             {days.map(({ day, reward, isBonus }) => {
@@ -166,12 +166,12 @@ padding: '7px 3px 6px',
                     <div style={{
                       position: 'absolute', top: -7, left: '50%', transform: 'translateX(-50%)',
                       background: '#6dd5fa',
-                      fontFamily: SAIRA, fontSize: 7, fontWeight: 900, color: C.bg,
+                      fontFamily: SAIRA, fontSize: F.micro, fontWeight: 900, color: C.bg,
                       padding: '1px 4px', letterSpacing: '0.5px', whiteSpace: 'nowrap',
                     }}>TODAY</div>
                   )}
 
-                  <div style={{ fontFamily: SAIRA, fontSize: 8, color: claimed ? accent : C.textGhost, letterSpacing: '0.5px', fontWeight: 700 }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: claimed ? accent : C.textGhost, letterSpacing: '0.5px', fontWeight: 700 }}>
                     DAY{day}
                   </div>
 
@@ -188,7 +188,7 @@ padding: '7px 3px 6px',
                     +{reward}
                   </div>
                   {isBonus && (
-                    <div style={{ fontFamily: SAIRA, fontSize: 7, color: claimed ? alpha(accent, 0.7) : C.textGhost, letterSpacing: '0.3px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: claimed ? alpha(accent, 0.7) : C.textGhost, letterSpacing: '0.3px' }}>
                       {100 * mult}+{1000 * mult}
                     </div>
                   )}
@@ -202,7 +202,7 @@ padding: '7px 3px 6px',
               marginTop: 12, padding: '8px 12px',
               background: alpha('#ffd700', 0.1), border: `1px solid ${alpha('#ffd700', 0.3)}`,
               textAlign: 'center',
-              fontFamily: SAIRA, fontSize: 12, color: '#ffd700', fontWeight: 700,
+              fontFamily: SAIRA, fontSize: F.body, color: '#ffd700', fontWeight: 700,
             }}>
               7日連続達成！明日からリセット
             </div>
@@ -214,7 +214,7 @@ padding: '7px 3px 6px',
               background: alpha('#6dd5fa', 0.07), border: `1px solid ${alpha('#6dd5fa', 0.2)}`,
               textAlign: 'center',
             }}>
-              <span style={{ fontSize: 11, color: alpha('#6dd5fa', 0.8) }}>毎日10時に更新されます</span>
+              <span style={{ fontSize: F.label, color: alpha('#6dd5fa', 0.8) }}>毎日10時に更新されます</span>
             </div>
           )}
         </Card>
@@ -226,7 +226,7 @@ padding: '7px 3px 6px',
           grow={1}
           bodyJustify="space-between"
           right={adsRemoved
-            ? <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '1px' }}>GM PASS ×2</div>
+            ? <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.gold, letterSpacing: '1px' }}>GM PASS ×2</div>
             : IAP_ENABLED
               ? (
                 <button
@@ -240,25 +240,25 @@ padding: '7px 3px 6px',
                     fontFamily: SAIRA,
                   }}
                 >
-                  <span style={{ fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '0.5px' }}>GMパスで毎日×2</span>
-                  <span style={{ fontSize: 10, color: alpha(C.gold, 0.85) }}>›</span>
+                  <span style={{ fontSize: F.label, fontWeight: 900, color: C.gold, letterSpacing: '0.5px' }}>GMパスで毎日×2</span>
+                  <span style={{ fontSize: F.caption, color: alpha(C.gold, 0.85) }}>›</span>
                 </button>
               )
               : undefined}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, color: C.textSub }}>毎日ログイン{adsRemoved ? '（2倍中）' : ''}</span>
+            <span style={{ fontSize: F.body, color: C.textSub }}>毎日ログイン{adsRemoved ? '（2倍中）' : ''}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={13} />
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: '#6dd5fa' }}>+{100 * mult}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: '#6dd5fa' }}>+{100 * mult}</span>
             </div>
           </div>
           <div style={{ height: 1, background: C.border }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, color: C.textSub }}>7日連続ボーナス</span>
+            <span style={{ fontSize: F.body, color: C.textSub }}>7日連続ボーナス</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={13} />
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: '#ffd700' }}>+{1000 * mult}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: '#ffd700' }}>+{1000 * mult}</span>
             </div>
           </div>
         </Card>
@@ -270,14 +270,14 @@ padding: '7px 3px 6px',
               <div style={{ fontFamily: SAIRA, fontSize: 30, fontWeight: 900, color: C.text, lineHeight: 1 }}>
                 {total}
               </div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 6, whiteSpace: 'nowrap' }}>累計ログイン日数</div>
+              <div style={{ fontSize: F.label, color: C.textDim, marginTop: 6, whiteSpace: 'nowrap' }}>累計ログイン日数</div>
             </div>
             <div style={{ width: 1, background: C.border }} />
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ fontFamily: SAIRA, fontSize: 30, fontWeight: 900, color: C.gold, lineHeight: 1 }}>
                 {streak}
               </div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 6, whiteSpace: 'nowrap' }}>連続ログイン日数</div>
+              <div style={{ fontSize: F.label, color: C.textDim, marginTop: 6, whiteSpace: 'nowrap' }}>連続ログイン日数</div>
             </div>
           </div>
         </Card>

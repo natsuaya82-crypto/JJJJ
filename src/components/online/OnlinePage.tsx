@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { listReceived } from '../../lib/friendsApi'
 import { useFriendsQuery } from '../friends/friendsUi'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT, F } from '../../styles/tokens'
 import MenuButton from '../ui/MenuButton'
 import { onlineAvailable } from '../../data/featureFlags'
 
@@ -103,8 +103,8 @@ export default function OnlinePage() {
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
       <div style={{ padding: '12px 16px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE</div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.text }}>オンライン</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 4 }}>ONLINE</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: C.text }}>オンライン</div>
       </div>
 
       <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -3,7 +3,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { reinforcementBanned } from '../../data/economy'
 import { useTeamHistory } from '../../lib/useTeamHistory'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -21,10 +21,10 @@ function Row({ label, value, color, sub }: { label: string; value: string; color
       borderBottom: `1px solid ${C.border}`,
     }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12, color: C.textSub }}>{label}</div>
-        {sub && <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>{sub}</div>}
+        <div style={{ fontSize: F.body, color: C.textSub }}>{label}</div>
+        {sub && <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>{sub}</div>}
       </div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: color ?? C.text, fontFamily: SAIRA }}>
+      <div style={{ fontSize: F.subLg, fontWeight: 800, color: color ?? C.text, fontFamily: SAIRA }}>
         {value}
       </div>
     </div>
@@ -99,13 +99,13 @@ export default function BudgetPage() {
             transform: 'rotate(45deg)', pointerEvents: 'none', zIndex: 0,
           }}/>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 6 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 6 }}>
               今シーズンの予算
             </div>
             <div style={{ fontFamily: SAIRA, fontSize: 42, fontWeight: 900, color: budgetColor, lineHeight: 1, textShadow: budgetColor === C.green ? '0 0 10px rgba(46,204,113,0.4)' : budgetColor === C.red ? '0 0 10px rgba(255,71,87,0.4)' : '0 0 10px rgba(255,152,0,0.4)' }}>
               {fmtYen(budget)}
             </div>
-            <div style={{ fontSize: 11, color: C.textDim, marginTop: 6 }}>
+            <div style={{ fontSize: F.label, color: C.textDim, marginTop: 6 }}>
               {budget >= 0 ? '移籍・補強に今使えるお金' : '予算不足 — 選手放出を検討してください'}
             </div>
           </div>
@@ -113,7 +113,7 @@ export default function BudgetPage() {
       </div>
 
       <div style={{ margin: '0 14px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           今シーズンの収支
         </div>
         <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>
@@ -121,7 +121,7 @@ export default function BudgetPage() {
             <Row label="初期予算" value={`+${fmtYen(initialBudget)}`} color={C.gold} />
             {bd && (
               <div style={{ padding: '4px 0 8px 12px', marginLeft: 4, marginBottom: 4, borderLeft: `2px solid ${alpha(C.gold, 0.25)}` }}>
-                <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 3, letterSpacing: 1 }}>初期予算の内訳</div>
+                <div style={{ fontSize: F.tiny, color: C.textGhost, marginBottom: 3, letterSpacing: 1 }}>初期予算の内訳</div>
                 {([
                   ['昨年繰越（最終収支）', bd.carryover],
                   ['クラブ予算', bd.grant],
@@ -130,8 +130,8 @@ export default function BudgetPage() {
                   ...(bd.objBonus > 0 ? [['目標達成ボーナス', bd.objBonus] as [string, number]] : []),
                 ] as [string, number][]).map(([label, v]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
-                    <span style={{ fontSize: 11, color: C.textDim }}>{label}</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: v >= 0 ? C.textSub : C.red }}>{v >= 0 ? '+' : '-'}{fmtYen(Math.abs(v))}</span>
+                    <span style={{ fontSize: F.label, color: C.textDim }}>{label}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 700, color: v >= 0 ? C.textSub : C.red }}>{v >= 0 ? '+' : '-'}{fmtYen(Math.abs(v))}</span>
                   </div>
                 ))}
               </div>
@@ -144,12 +144,12 @@ export default function BudgetPage() {
             <Row label="施設維持費" value={`-${fmtYen(facUpkeep)}`} color={C.red} sub="レベル1つにつき2500万／年 × 4施設" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px', borderTop: `1px solid ${C.border}` }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>期末残高</div>
-                <div style={{ fontSize: 9, color: C.textGhost }}>
+                <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>期末残高</div>
+                <div style={{ fontSize: F.tiny, color: C.textGhost }}>
                   来季へ繰り越せるのはクラブ予算の{Math.round(CARRYOVER_CAP_SHARE * 100)}%まで
                 </div>
               </div>
-              <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: seasonBalance >= 0 ? C.green : C.red, textShadow: seasonBalance >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
+              <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: seasonBalance >= 0 ? C.green : C.red, textShadow: seasonBalance >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
                 {fmtYen(seasonBalance, true)}
               </div>
             </div>
@@ -159,8 +159,8 @@ export default function BudgetPage() {
               const netThisSeason = seasonBalance - carryover
               return (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0 6px' }}>
-                  <div style={{ fontSize: 11, color: C.textSub }}>今季の純増<span style={{ fontSize: 9, color: C.textGhost }}>（繰越・移籍金を含む）</span></div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: netThisSeason >= 0 ? C.green : C.red }}>{fmtYen(netThisSeason, true)}</div>
+                  <div style={{ fontSize: F.label, color: C.textSub }}>今季の純増<span style={{ fontSize: F.tiny, color: C.textGhost }}>（繰越・移籍金を含む）</span></div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: netThisSeason >= 0 ? C.green : C.red }}>{fmtYen(netThisSeason, true)}</div>
                 </div>
               )
             })()}
@@ -168,8 +168,8 @@ export default function BudgetPage() {
             {/* 連続赤字＝補強禁止のカウント。判定はシーズン終了時の「期末残高がマイナスかどうか」だけ。
                 以前ここに置いていた「単年営業収支」の見込み表示は、確定値ではなく画面を開くたびに
                 今季の先を計算し直す予測だったため、上の期末残高と食い違って見えるだけの表示になっていた。撤去。 */}
-            <div style={{ marginTop: 6, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.textDim, lineHeight: 1.7 }}>
-              <div>連続赤字: <b style={{ color: deficitStreak > 0 ? C.red : C.textSub, fontFamily: SAIRA, fontSize: 12 }}>{deficitStreak}年</b>
+            <div style={{ marginTop: 6, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: F.caption, color: C.textDim, lineHeight: 1.7 }}>
+              <div>連続赤字: <b style={{ color: deficitStreak > 0 ? C.red : C.textSub, fontFamily: SAIRA, fontSize: F.body }}>{deficitStreak}年</b>
                 <span style={{ color: C.textGhost }}>（シーズン終了時に期末残高がマイナスなら+1年。3年で補強禁止＋ドラフト指名権の強制売却）</span>
               </div>
               {banned && (
@@ -179,7 +179,7 @@ export default function BudgetPage() {
               )}
             </div>
 
-            <div style={{ fontSize: 10, color: C.textDim, padding: '2px 0 6px', lineHeight: 1.6 }}>
+            <div style={{ fontSize: F.caption, color: C.textDim, padding: '2px 0 6px', lineHeight: 1.6 }}>
               クラブ予算とスポンサー収入は<b style={{ color: C.textSub }}>来期の予算に反映</b>（シーズン終了時に確定）。成績はクラブ予算そのものを動かします。
             </div>
           </div>
@@ -187,13 +187,13 @@ export default function BudgetPage() {
       </div>
 
       <div style={{ margin: '0 14px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           スポンサー契約 ({sponsorList.length}件)
         </div>
         <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>
           <div style={{ position: 'relative', zIndex: 1 }}>
             {sponsorList.length === 0 ? (
-              <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 12, color: C.textDim }}>
+              <div style={{ padding: '16px 0', textAlign: 'center', fontSize: F.body, color: C.textDim }}>
                 スポンサーなし
               </div>
             ) : (
@@ -219,13 +219,13 @@ export default function BudgetPage() {
         <div style={{ textAlign: 'right', marginTop: 6 }}>
           <button onClick={() => navigate('/sponsors')} style={{
             background: 'none', border: 'none', color: C.gold,
-            fontSize: 11, cursor: 'pointer', fontFamily: FONT, padding: '2px 0',
+            fontSize: F.label, cursor: 'pointer', fontFamily: FONT, padding: '2px 0',
           }}>スポンサー管理 →</button>
         </div>
       </div>
 
       <div style={{ margin: '0 14px 14px' }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
           高額給与 TOP5
         </div>
         <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>
@@ -245,24 +245,24 @@ export default function BudgetPage() {
                   <PlayerFace playerId={p.id} nationality={p.nationality} size={30} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</div>
-                  <div style={{ fontSize: 10, color: C.textDim }}>残{p.contract.yearsLeft}年</div>
+                  <div style={{ fontSize: F.bodyLg, fontWeight: 700 }}>{p.name}</div>
+                  <div style={{ fontSize: F.caption, color: C.textDim }}>残{p.contract.yearsLeft}年</div>
                 </div>
-                <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 800, color: C.textSub }}>
+                <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 800, color: C.textSub }}>
                   {fmtYen(p.contract.annualSalary)}
                 </div>
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 4px' }}>
-              <div style={{ fontSize: 11, color: C.textDim }}>総年俸（{rosterPlayers.length}名）</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>{fmtYen(squadSalaryTotal)}</div>
+              <div style={{ fontSize: F.label, color: C.textDim }}>総年俸（{rosterPlayers.length}名）</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.text }}>{fmtYen(squadSalaryTotal)}</div>
             </div>
           </div>
         </div>
         <div style={{ textAlign: 'right', marginTop: 6 }}>
           <button onClick={() => navigate('/team/roster')} style={{
             background: 'none', border: 'none', color: C.gold,
-            fontSize: 11, cursor: 'pointer', fontFamily: FONT, padding: '2px 0',
+            fontSize: F.label, cursor: 'pointer', fontFamily: FONT, padding: '2px 0',
           }}>ロスター →</button>
         </div>
       </div>
@@ -272,7 +272,7 @@ export default function BudgetPage() {
         if (pastBudgets.length === 0) return null
         return (
           <div style={{ margin: '0 14px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 8, paddingLeft: 2 }}>
               過去シーズン成績
             </div>
             <div style={{ ...panelStyle(C.gold), padding: '4px 16px' }}>

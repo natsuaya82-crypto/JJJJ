@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey, CardRarity } from '../../types'
 import { CARD_NAMES, MAX_FUSION_CARDS, REST_CARD_NAME, detectCombo } from '../../utils/cardCombo'
 import { isStatMaxed } from '../../utils/playerUtils'
-import { C, alpha, SAIRA, SELECT_STYLE, PURPLE } from '../../styles/tokens'
+import { C, alpha, SAIRA, SELECT_STYLE, PURPLE, F } from '../../styles/tokens'
 import TrainingCardSVG from './TrainingCardSVG'
 import GlassButton from '../ui/GlassButton'
 
@@ -82,31 +82,31 @@ export default function CardSelectPage() {
       <div style={{ flexShrink: 0, background: C.bg, borderBottom: `1px solid ${C.border}` }}>
         <PageHeader
           title="カードを選ぶ"
-          right={<div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>
+          right={<div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>
             合成中 <span style={{ color: PURPLE, fontWeight: 800 }}>{fusionCardIds.length}</span>/{MAX_FUSION_CARDS}
           </div>}
         />
 
         {/* 選択中（タップで外す）。常時表示：後から出現するとリストが押し下がり、連打時に違うカードを誤選択するため */}
         <div style={{ padding: '0 14px 10px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中 {selectedCards.length}/{MAX_FUSION_CARDS}{selectedCards.length > 0 ? '（タップで外す）' : ''}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中 {selectedCards.length}/{MAX_FUSION_CARDS}{selectedCards.length > 0 ? '（タップで外す）' : ''}</div>
           {combo && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px',background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
-              <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo.color }}>{combo.name}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: combo.color }}>{combo.name}</span>
               {isMenu && distinctCount >= 2 && (
-                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px',}}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px',}}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
               )}
               {fatigueDelta > 0 && (
-                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px',}}>疲労 -{fatigueDelta}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px',}}>疲労 -{fatigueDelta}</span>
               )}
               {combo.name === '通常合成' && (
-                <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
               )}
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 70, alignItems: 'center' }}>
             {selectedCards.length === 0 ? (
-              <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textGhost }}>下のカードをタップして選択</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textGhost }}>下のカードをタップして選択</span>
             ) : selectedCards.map(card => (
               <button key={card.id} onClick={() => removeFusionCard(card.id)}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
@@ -139,7 +139,7 @@ export default function CardSelectPage() {
       </div>
 
       {fusionFull && (
-        <div style={{ padding: '0 14px 12px', textAlign: 'center', fontSize: 11, color: C.gold }}>
+        <div style={{ padding: '0 14px 12px', textAlign: 'center', fontSize: F.label, color: C.gold }}>
           スロットが満杯です（{MAX_FUSION_CARDS}枚）
         </div>
       )}
@@ -147,7 +147,7 @@ export default function CardSelectPage() {
       {/* Card grid（ここだけスクロール） */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 12px' }}>
         {cardGroups.length === 0 ? (
-          <div style={{ textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: 13, padding: '40px 0' }}>
+          <div style={{ textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: F.bodyLg, padding: '40px 0' }}>
             カードがありません
           </div>
         ) : (
@@ -171,7 +171,7 @@ export default function CardSelectPage() {
                 >
                   <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={70} count={remaining} dimmed={disabled} kind={group.kind} value={group.value} />
                   {statMaxed && (
-                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-12deg)', fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#fff', background: alpha(C.red, 0.85), padding: '2px 8px',letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>上限</span>
+                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-12deg)', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: '#fff', background: alpha(C.red, 0.85), padding: '2px 8px',letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>上限</span>
                   )}
                 </button>
               )
@@ -186,7 +186,7 @@ export default function CardSelectPage() {
         padding: '10px 14px calc(10px + env(safe-area-inset-bottom))',
         background: C.bg, borderTop: `1px solid ${C.border}`,
       }}>
-        <GlassButton full color="#c084fc" style={{ padding: '15px', fontFamily: SAIRA, fontSize: 14, letterSpacing: '1px' }} onClick={() => navigate(-1)}>
+        <GlassButton full color="#c084fc" style={{ padding: '15px', fontFamily: SAIRA, fontSize: F.sub, letterSpacing: '1px' }} onClick={() => navigate(-1)}>
           決定（{fusionCardIds.length}枚）
         </GlassButton>
       </div>

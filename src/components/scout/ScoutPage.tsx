@@ -3,7 +3,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { Specialty } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
@@ -52,14 +52,14 @@ export default function ScoutPage() {
       <PageHeader title="スカウト" />
       <div style={{ padding: '0 16px 8px' }}>
         <div style={{ padding: '8px 12px',background: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.2)}`, marginBottom: '10px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>ドラフトの仕組み</div>
-          <div style={{ fontSize: '10px', color: C.textDim, lineHeight: 1.5 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.blue, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>ドラフトの仕組み</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, lineHeight: 1.5 }}>
             候補選手の能力はすべて公開。長押しで詳細を確認できる。シーズン終了後のドラフトで指名する。
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-          <span style={{ fontSize: '11px', color: C.textDim }}>
+          <span style={{ fontSize: F.label, color: C.textDim }}>
             {prospects.length}名の候補選手
           </span>
         </div>
@@ -69,7 +69,7 @@ export default function ScoutPage() {
           <select value={filterSpec ?? 'all'} onChange={e => setFilterSpec(e.target.value === 'all' ? null : e.target.value as Specialty)} style={{
             flex: 1, padding: '7px 10px',
             background: C.surface2, border: `1px solid ${C.border2}`,
-            color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none',
+            color: C.textSub, fontSize: F.label, fontFamily: SAIRA, outline: 'none',
           }}>
             <option value="all">全ポジション</option>
             {(Object.keys(SPECIALTY_LABELS) as Specialty[]).map(spec => (
@@ -81,7 +81,7 @@ export default function ScoutPage() {
 
       <PlayerList>
         {sorted.map(p => (
-          <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={starredProspects.includes(p.id) ? <span style={{ color: '#F5C842', fontSize: 13, flexShrink: 0 }}>★</span> : undefined} />
+          <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={starredProspects.includes(p.id) ? <span style={{ color: '#F5C842', fontSize: F.bodyLg, flexShrink: 0 }}>★</span> : undefined} />
         ))}
       </PlayerList>
     </div>

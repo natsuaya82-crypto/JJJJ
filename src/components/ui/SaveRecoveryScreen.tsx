@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getSaveHealthReason } from '../../store/saveHealth'
 import { deleteSaveForRecovery, listRecoverables, restoreFrom, type Recoverable } from '../../store/saveStorage'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { APP_VERSION } from '../../data/appMeta'
 import GlassButton from './GlassButton'
 
@@ -56,9 +56,9 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
         fontSize: 28, fontWeight: 900, color: C.gold, fontFamily: SAIRA,
       }}>!</div>
 
-      <div style={{ fontSize: 17, fontWeight: 900 }}>セーブデータを読み込めませんでした</div>
+      <div style={{ fontSize: F.title, fontWeight: 900 }}>セーブデータを読み込めませんでした</div>
 
-      <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, maxWidth: 330 }}>
+      <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.8, maxWidth: 330 }}>
         データは端末に残っています。消えていません。<br />
         この画面が出ている間はセーブへの書き込みを停止しているため、上書きされる心配はありません。<br />
         下のボタンから読み込みをやり直してください。
@@ -68,14 +68,14 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
         <div style={{
           maxWidth: 330, width: '100%', padding: '8px 10px',
           background: C.surface2, border: `1px solid ${C.border2}`,
-          fontFamily: SAIRA, fontSize: 10, color: C.textDim,
+          fontFamily: SAIRA, fontSize: F.caption, color: C.textDim,
           wordBreak: 'break-all', textAlign: 'left', maxHeight: 96, overflow: 'hidden',
         }}>
           {detail}
         </div>
       )}
 
-      <GlassButton color={C.gold} disabled={busy} style={{ marginTop: 4, padding: '13px 30px', fontSize: 15 }} onClick={reload}>
+      <GlassButton color={C.gold} disabled={busy} style={{ marginTop: 4, padding: '13px 30px', fontSize: F.subLg }} onClick={reload}>
         もう一度読み込む
       </GlassButton>
 
@@ -83,7 +83,7 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
           戻す前に、いまの本体も世代バックアップへ逃がすので、選び直しがきく */}
       {saves && saves.length > 0 && (
         <div style={{ width: '100%', maxWidth: 330, marginTop: 6, textAlign: 'left' }}>
-          <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6, fontFamily: SAIRA, letterSpacing: 1 }}>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginBottom: 6, fontFamily: SAIRA, letterSpacing: 1 }}>
             端末に残っているデータ（{saves.length}件）— 選んで戻せます
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
@@ -96,11 +96,11 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
                   padding: '9px 11px', cursor: busy ? 'default' : 'pointer',
                   background: C.surface2, border: `1px solid ${C.border2}`, color: C.text,
-                  fontSize: 11, fontWeight: 700, fontFamily: 'inherit', textAlign: 'left',
+                  fontSize: F.label, fontWeight: 700, fontFamily: 'inherit', textAlign: 'left',
                 }}
               >
                 <span>{s2.label}</span>
-                <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA, whiteSpace: 'nowrap' }}>
                   {fmtWhen(s2.mtime)} / {fmtSize(s2.size)}
                 </span>
               </button>
@@ -121,7 +121,7 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
         エラー内容をコピー
       </GlassButton>
 
-      <div style={{ fontSize: 10, color: C.textGhost, marginTop: 2, lineHeight: 1.7, maxWidth: 330 }}>
+      <div style={{ fontSize: F.caption, color: C.textGhost, marginTop: 2, lineHeight: 1.7, maxWidth: 330 }}>
         アプリを完全に終了してから開き直しても直らない場合は、
         エラー内容をコピーして公式X（@JPEL_MANAGER）までご連絡ください。
       </div>
@@ -129,12 +129,12 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
       {/* 最後の手段。データを捨てるので必ず2段階の確認を挟む */}
       <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${C.border2}`, width: '100%', maxWidth: 330 }}>
         {!confirmDelete ? (
-          <GlassButton color={C.textGhost} size="sm" style={{ padding: '8px 14px', fontSize: 10 }} onClick={() => setConfirmDelete(true)}>
+          <GlassButton color={C.textGhost} size="sm" style={{ padding: '8px 14px', fontSize: F.caption }} onClick={() => setConfirmDelete(true)}>
             どうしても直らない場合（データを削除して最初から）
           </GlassButton>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-            <div style={{ fontSize: 11, color: C.red, fontWeight: 700, lineHeight: 1.7 }}>
+            <div style={{ fontSize: F.label, color: C.red, fontWeight: 700, lineHeight: 1.7 }}>
               セーブデータを完全に削除して最初から始めます。<br />
               削除したデータは元に戻せません。
             </div>

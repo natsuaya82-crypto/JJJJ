@@ -11,7 +11,7 @@ import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
-import { C, alpha, SAIRA, FONT, PURPLE } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, PURPLE, F } from '../../styles/tokens'
 import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
@@ -170,8 +170,8 @@ export default function CardTrainingPage() {
           border: `1px solid ${alpha(C.gold, 0.5)}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
         }}>
-          <span style={{ fontSize: 11, fontWeight: 900, color: C.gold }}>{ev.title}</span>
-          <span style={{ fontSize: 9, color: C.textDim }}>{ev.to.slice(5).replace('-', '/')}まで</span>
+          <span style={{ fontSize: F.label, fontWeight: 900, color: C.gold }}>{ev.title}</span>
+          <span style={{ fontSize: F.tiny, color: C.textDim }}>{ev.to.slice(5).replace('-', '/')}まで</span>
         </div>
       ))}
       <PageHeader
@@ -185,8 +185,8 @@ export default function CardTrainingPage() {
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${alpha(PURPLE, 0.5)}`,
           }}>
-            <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: PURPLE }}>{trainingCards.length}</span>
-            <span style={{ fontFamily: SAIRA, fontSize: 9, color: C.textSub }}> 枚</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: PURPLE }}>{trainingCards.length}</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textSub }}> 枚</span>
           </div>
           <GlassButton size="sm" style={{ padding: '6px 12px' }} onClick={() => navigate('/cards/list')}>一覧</GlassButton>
         </div>}
@@ -201,13 +201,13 @@ export default function CardTrainingPage() {
         {sharedHeader(() => navigate(-1))}
 
         <div style={{ padding: '14px 14px 6px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '3px', fontWeight: 900, marginBottom: 2 }}>STEP 1</div>
-          <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>練習する選手を選ぶ</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: PURPLE, letterSpacing: '3px', fontWeight: 900, marginBottom: 2 }}>STEP 1</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text }}>練習する選手を選ぶ</div>
         </div>
 
         <PlayerList margin="6px 12px">
           {mainPlayers.length === 0 && (
-            <div style={{ padding: 30, textAlign: 'center', fontSize: 13, color: C.textDim }}>選手がいません</div>
+            <div style={{ padding: 30, textAlign: 'center', fontSize: F.bodyLg, color: C.textDim }}>選手がいません</div>
           )}
           {mainPlayers.map(p => (
             <PlayerRow
@@ -272,8 +272,8 @@ export default function CardTrainingPage() {
             <PlayerFace playerId={targetPlayer.id} nationality={targetPlayer.nationality} size={60} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{targetPlayer.name}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>{targetPlayer.age}歳 · OVR {ovr(targetPlayer)}</div>
+            <div style={{ fontSize: F.subLg, fontWeight: 700, color: C.text }}>{targetPlayer.name}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>{targetPlayer.age}歳 · OVR {ovr(targetPlayer)}</div>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
@@ -296,15 +296,15 @@ export default function CardTrainingPage() {
                 border: `1px solid ${maxed ? alpha(C.gold, 0.4) : delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
                 cursor: canBreak ? 'pointer' : 'default',
               }}>
-                <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, marginBottom: 2 }}>{CARD_STAT_LABELS[k]}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: maxed ? C.gold : delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
-                  {current}{maxed ? <span style={{ fontSize: 7, color: C.gold, marginLeft: 2 }}>MAX</span> : levelUp && <span style={{ fontSize: 8, color: '#9FE88D', marginLeft: 2 }}>↑</span>}
+                <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>{CARD_STAT_LABELS[k]}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 700, color: maxed ? C.gold : delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
+                  {current}{maxed ? <span style={{ fontSize: F.micro, color: C.gold, marginLeft: 2 }}>MAX</span> : levelUp && <span style={{ fontSize: F.micro, color: '#9FE88D', marginLeft: 2 }}>↑</span>}
                 </div>
                 <div style={{ height: 3,background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${maxed ? 100 : basePct * 100}%`, background: maxed ? alpha(C.gold, 0.6) : alpha(C.textSub, 0.5),transition: 'width 0.25s ease' }}/>
                   <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${maxed ? 0 : gainPct * 100}%`, background: '#9FE88D',transition: 'left 0.25s ease, width 0.25s ease' }}/>
                 </div>
-                {canBreak && <div style={{ fontFamily: SAIRA, fontSize: 7, color: C.gold, marginTop: 3 }}>タップで上限解放</div>}
+                {canBreak && <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.gold, marginTop: 3 }}>タップで上限解放</div>}
               </div>
             )
           })}
@@ -314,17 +314,17 @@ export default function CardTrainingPage() {
       {/* Fusion slots */}
       <div style={{ ...panelStyle(isMenu ? combo!.color : C.border3), margin: '12px 14px 0', padding: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>
+          <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: PURPLE, letterSpacing: '2px', fontWeight: 900 }}>
             合成スロット <span style={{ color: C.textSub }}>{selectedCards.length}/{MAX_FUSION_CARDS}</span>
           </div>
           {isMenu && (
-            <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo!.color, textShadow: `0 0 12px ${alpha(combo!.color, 0.5)}` }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: combo!.color, textShadow: `0 0 12px ${alpha(combo!.color, 0.5)}` }}>
               {combo!.name}
               {distinctCount >= 2 && (
-                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px',}}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+                <span style={{ marginLeft: 8, fontSize: F.body, background: `${combo!.color}33`, padding: '1px 7px',}}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
               )}
               {fatigueDelta > 0 && (
-                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px',}}>疲労 -{fatigueDelta}</span>
+                <span style={{ marginLeft: 8, fontSize: F.body, background: `${combo!.color}33`, padding: '1px 7px',}}>疲労 -{fatigueDelta}</span>
               )}
             </div>
           )}
@@ -348,13 +348,13 @@ export default function CardTrainingPage() {
 border: `2px dashed ${C.border2}`,
                   background: alpha(C.surface, 0.5),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: C.textGhost, fontSize: 20, fontFamily: SAIRA, cursor: 'pointer',
+                  color: C.textGhost, fontSize: F.head, fontFamily: SAIRA, cursor: 'pointer',
                 }}>+</button>
             )
           })}
         </div>
 
-        <div style={{ marginTop: 8, textAlign: 'center', fontSize: 10, color: C.textDim }}>
+        <div style={{ marginTop: 8, textAlign: 'center', fontSize: F.caption, color: C.textDim }}>
           {selectedCards.length === 0
             ? '空きスロットをタップしてカードを選ぶ'
             : distinctCount === 0 && fatigueDelta > 0
@@ -373,7 +373,7 @@ border: `2px dashed ${C.border2}`,
           {adWatched ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 4px' }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={{ fontSize: 11, color: C.gold }}>広告視聴済み — 大成功確定</span>
+              <span style={{ fontSize: F.label, color: C.gold }}>広告視聴済み — 大成功確定</span>
             </div>
           ) : useFreeGreat ? (
             // 買い切り版の無料確約をこの合成に使う（実行するまでは取り消せる）
@@ -389,8 +389,8 @@ border: `2px dashed ${C.border2}`,
               }}
             >
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={{ fontSize: 11, fontWeight: 800, color: C.gold }}>大成功確定（GMパス・本日1回）</span>
-              <span style={{ fontSize: 10, color: alpha(C.gold, 0.85) }}>取消</span>
+              <span style={{ fontSize: F.label, fontWeight: 800, color: C.gold }}>大成功確定（GMパス・本日1回）</span>
+              <span style={{ fontSize: F.caption, color: alpha(C.gold, 0.85) }}>取消</span>
             </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -399,7 +399,7 @@ border: `2px dashed ${C.border2}`,
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                     <path d="M12 3l2.4 5.6 6 .5-4.6 3.9 1.4 5.9L12 15.8 6.8 18.9l1.4-5.9L3.6 9.1l6-.5z" fill={C.gold} />
                   </svg>
-                  <span style={{ fontSize: 12, fontWeight: 900, color: C.gold }}>無料で大成功にする（本日1回）</span>
+                  <span style={{ fontSize: F.body, fontWeight: 900, color: C.gold }}>無料で大成功にする（本日1回）</span>
                 </GlassButton>
               )}
               {!adsRemoved && IAP_ENABLED && (
@@ -418,7 +418,7 @@ border: `2px dashed ${C.border2}`,
                     <rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke={C.gold} strokeWidth="1.8"/>
                     <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke={C.gold} strokeWidth="1.8"/>
                   </svg>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: C.gold }}>GMパスなら毎日1回、無料で大成功確定</span>
+                  <span style={{ fontSize: F.label, fontWeight: 800, color: C.gold }}>GMパスなら毎日1回、無料で大成功確定</span>
                 </button>
               )}
               <button
@@ -433,7 +433,7 @@ border: `2px dashed ${C.border2}`,
                   <rect x="2" y="4" width="20" height="16" rx="2.5" stroke={C.textDim} strokeWidth="1.8"/>
                   <path d="M10 9.5l5 2.5-5 2.5z" fill={C.textDim}/>
                 </svg>
-                <span style={{ fontSize: 11, color: C.textSub, textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                <span style={{ fontSize: F.label, color: C.textSub, textDecoration: 'underline', textUnderlineOffset: 2 }}>
                   広告を見て大成功（通常5%）
                 </span>
               </button>
@@ -456,7 +456,7 @@ border: `2px dashed ${C.border2}`,
           color={isMenu ? combo!.color : PURPLE}
           disabled={!canApply}
           onClick={handleApply}
-          style={{ padding: '15px', fontSize: 14, fontFamily: SAIRA, letterSpacing: '1px' }}
+          style={{ padding: '15px', fontSize: F.sub, fontFamily: SAIRA, letterSpacing: '1px' }}
         >
           {selectedCards.length === 0 ? 'カードを選んでください' : '練習実行'}
         </GlassButton>
@@ -478,7 +478,7 @@ border: `2px dashed ${C.border2}`,
             padding: 28, maxWidth: 340, width: '100%', textAlign: 'center',
             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 40px ${alpha(applied.combo.color, 0.25)}`,
           }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 10, color: applied.combo.color, letterSpacing: 3, marginBottom: 4, fontWeight: 900 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: applied.combo.color, letterSpacing: 3, marginBottom: 4, fontWeight: 900 }}>
               {applied.combo.isSpecial ? 'COMBO CLEAR' : '合成完了'}
             </div>
             {applied.greatSuccess && (
@@ -487,7 +487,7 @@ border: `2px dashed ${C.border2}`,
                 background: `linear-gradient(180deg, ${alpha('#F59E0B', 0.2)}, ${alpha('#F59E0B', 0.08)})`,
                 border: `1px solid #F59E0B`,
                 padding: '8px 16px',
-                fontFamily: SAIRA, fontSize: 22, fontWeight: 900,
+                fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900,
                 color: '#F59E0B', letterSpacing: 3,
                 textShadow: `0 0 20px ${alpha('#F59E0B', 0.6)}`,
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 6px 20px ${alpha('#F59E0B', 0.15)}`,
@@ -495,7 +495,7 @@ border: `2px dashed ${C.border2}`,
                 大成功！
               </div>
             )}
-            <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: applied.combo.color, marginBottom: 18, textShadow: `0 0 20px ${alpha(applied.combo.color, 0.6)}` }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: applied.combo.color, marginBottom: 18, textShadow: `0 0 20px ${alpha(applied.combo.color, 0.6)}` }}>
               {applied.combo.name}
             </div>
             {/* Animated exp bars */}
@@ -513,10 +513,10 @@ border: `2px dashed ${C.border2}`,
                 return (
                   <div key={k} style={{ marginBottom: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-                      <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textSub }}>{CARD_STAT_LABELS[k]}</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: levelUp ? '#9FE88D' : C.text }}>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub }}>{CARD_STAT_LABELS[k]}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, color: levelUp ? '#9FE88D' : C.text }}>
                         {levelUp ? `${preLevel} → ${postLevel}` : preLevel}
-                        {levelUp && <span style={{ fontFamily: SAIRA, fontSize: 8, color: '#9FE88D', marginLeft: 4, letterSpacing: 1 }}>LV UP</span>}
+                        {levelUp && <span style={{ fontFamily: SAIRA, fontSize: F.micro, color: '#9FE88D', marginLeft: 4, letterSpacing: 1 }}>LV UP</span>}
                       </span>
                     </div>
                     <div style={{ height: 6,background: alpha(C.border, 0.9), overflow: 'hidden', position: 'relative' }}>
@@ -540,8 +540,8 @@ border: `2px dashed ${C.border2}`,
                 border: `1.5px solid ${alpha(applied.combo.color, 0.5)}`,
 padding: '9px 16px',
               }}>
-                <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub }}>疲労回復</span>
-                <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: applied.combo.color, textShadow: `0 0 10px ${alpha(applied.combo.color, 0.5)}` }}>
+                <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textSub }}>疲労回復</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: applied.combo.color, textShadow: `0 0 10px ${alpha(applied.combo.color, 0.5)}` }}>
                   -{applied.greatSuccess ? Math.round((applied.combo.fatigueDelta ?? 0) * 1.5) : (applied.combo.fatigueDelta ?? 0)}
                 </span>
               </div>
@@ -554,7 +554,7 @@ padding: '9px 16px',
                 border: `2px solid ${C.border2}`,
 padding: '12px',
                 boxShadow: `0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
-                fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text, cursor: 'pointer',
+                fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.text, cursor: 'pointer',
                 letterSpacing: '2px',
               }}
             >閉じる</button>

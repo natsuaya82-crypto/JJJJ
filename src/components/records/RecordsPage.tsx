@@ -11,7 +11,7 @@ import { makeTeamIdAt, normalizeTenures } from '../../utils/gmTenure'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { SPECIALTY_LABELS } from '../../types'
 import type { SeasonAward, SeasonStanding } from '../../types'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -70,7 +70,7 @@ function CardPanel({ children, style }: { children: React.ReactNode; style?: Rea
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '8px' }}>{children}</div>
+    <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: '900', marginBottom: '8px' }}>{children}</div>
   )
 }
 
@@ -92,7 +92,7 @@ function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDis
       {EV_DIST_TABS.map(({ dist, label }) => (
         <button key={dist} onClick={() => onChange(dist)} style={{
           flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer',fontFamily: SAIRA,
-          fontSize: '11px', fontWeight: value === dist ? 700 : 400,
+          fontSize: F.label, fontWeight: value === dist ? 700 : 400,
           background: value === dist ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'none',
           color: value === dist ? '#5EC8B8' : C.textDim,
           boxShadow: value === dist ? `0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)` : 'none',
@@ -121,7 +121,7 @@ function SectionSwitcher({ sections }: { sections: Section[] }) {
         {sections.map((s, k) => (
           <button key={s.label} onClick={() => setIdx(k)} style={{
             flex: 1, padding: '8px 0', border: 'none', cursor: 'pointer',fontFamily: SAIRA,
-            fontSize: '10px', fontWeight: i === k ? 700 : 400, whiteSpace: 'nowrap',
+            fontSize: F.caption, fontWeight: i === k ? 700 : 400, whiteSpace: 'nowrap',
             background: i === k ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'none',
             color: i === k ? '#5EC8B8' : C.textDim,
             boxShadow: i === k ? `0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)` : 'none',
@@ -212,12 +212,12 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
                 width: '32px', height: '32px', borderRadius: '50%',
                 background: alpha(C.gold, 0.15), border: `1px solid ${alpha(C.gold, 0.45)}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: SAIRA, fontSize: '16px', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}`,
+                fontFamily: SAIRA, fontSize: F.title, color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}`,
               }}>★</div>
             ))}
           </div>
         ) : (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, marginBottom: '8px' }}>まだ優勝なし — 頂点を目指せ</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textGhost, marginBottom: '8px' }}>まだ優勝なし — 頂点を目指せ</div>
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px' }}>
           {/* ★合計ではなく**部ごと**（オーナー・2026-08-12「全部部ごと」）。
@@ -225,19 +225,19 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             {titleRows(gmTitles.titles).map(r => (
               <div key={r.division} style={{ display: 'flex', gap: 3, alignItems: 'baseline' }}>
-                <span style={{ fontSize: 10, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{r.count}</span>
-                <span style={{ fontSize: 10, color: C.textDim }}>回</span>
+                <span style={{ fontSize: F.caption, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{r.count}</span>
+                <span style={{ fontSize: F.caption, color: C.textDim }}>回</span>
               </div>
             ))}
             {championships === 0 && (
-              <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: C.textDim }}>0回</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: C.textDim }}>0回</span>
             )}
           </div>
           {/* ★**どのクラブで優勝したか**を書く（オーナー・2026-08-12）。
               記録室は監督の記録なので、クラブが変われば優勝もクラブごとに分かれる。 */}
           {gmTitles.byClub.length > 0 && (
-            <div style={{ fontSize: '10px', color: C.textSub, lineHeight: 1.7 }}>
+            <div style={{ fontSize: F.caption, color: C.textSub, lineHeight: 1.7 }}>
               {gmTitles.byClub.map(c => (
                 <div key={c.teamId}>
                   <span style={{ fontWeight: 800, color: C.text }}>{teams.find(t => t.id === c.teamId)?.shortName ?? '—'}</span>
@@ -252,7 +252,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
             </div>
           )}
           {bestStreak > 0 && (
-            <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.green }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.green }}>
               最長連続TOP3: {bestStreak}季
               {currentStreak >= 2 && (
                 <span style={{ marginLeft: '8px', color: C.gold, fontWeight: '700' }}>現在{currentStreak}連続</span>
@@ -267,7 +267,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       <CardPanel>
         <SectionLabel>シーズン成績</SectionLabel>
         {allSeasons.length === 0 ? (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>記録なし</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textGhost }}>記録なし</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
             {[...allSeasons].reverse().map(season => {
@@ -292,36 +292,36 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
                   padding: '10px 0', borderBottom: `1px solid ${C.border}`,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, width: '44px', flexShrink: 0, fontWeight: '700' }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, width: '44px', flexShrink: 0, fontWeight: '700' }}>
                       {season.year}
                     </span>
                     {isCurrent && (
                       <span style={{
-                        fontFamily: SAIRA, fontSize: '8px', padding: '1px 5px',
+                        fontFamily: SAIRA, fontSize: F.micro, padding: '1px 5px',
                         background: alpha(C.gold, 0.12), color: C.gold, fontWeight: '700',
                       }}>進行中</span>
                     )}
                     <div style={{ flex: 1 }} />
-                    <span style={{ fontFamily: SAIRA, fontSize: '11px', color: C.green, minWidth: '34px', textAlign: 'right' }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.label, color: C.green, minWidth: '34px', textAlign: 'right' }}>
                       {wins}勝
                     </span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '22px', fontWeight: '900', color: rankCol, lineHeight: 1, textShadow: myStanding <= 3 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: '900', color: rankCol, lineHeight: 1, textShadow: myStanding <= 3 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>
                       {myStanding > 0 ? myStanding : '—'}
                     </span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>位</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textDim, minWidth: '44px', textAlign: 'right' }}>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>位</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textDim, minWidth: '44px', textAlign: 'right' }}>
                       {myPoints}pt
                     </span>
                   </div>
                   {(mvpName || rookieName) && (
                     <div style={{ display: 'flex', gap: '10px', paddingLeft: '44px', flexWrap: 'wrap' }}>
                       {mvpName && (
-                        <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
                           <span style={{ color: C.gold, fontWeight: '900' }}>MVP</span> {mvpName}
                         </span>
                       )}
                       {rookieName && (
-                        <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>
+                        <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
                           <span style={{ color: C.blue, fontWeight: '900' }}>新人王</span> {rookieName}
                         </span>
                       )}
@@ -341,21 +341,21 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
         <EventDistTabs value={evDist} onChange={setEvDist} />
         {(() => {
           const group = myEventTops.find(g => g.dist === evDist)
-          if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>記録なし</div>
+          if (!group || group.rows.length === 0) return <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textGhost, padding: '10px 0' }}>記録なし</div>
           return group.rows.map((row, i) => {
             const rankCol = i === 0 ? C.gold : i <= 2 ? C.green : C.textSub
             return (
               <div key={row.id} {...(row.inRoster ? longPress(row.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: row.inRoster ? 'pointer' : 'default' }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center' }}>{i + 1}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center' }}>{i + 1}</span>
                 <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={row.id} nationality={row.nationality} size={28} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{row.name}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.text }}>{row.name}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                     {myTeam && <TeamLogoSVG primary={myTeam.colors.primary} secondary={myTeam.colors.secondary} shortName={myTeam.shortName} teamId={myTeam.id} size={12} />}
-                    <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''}{row.specialty ? ` / ${SPECIALTY_LABELS[row.specialty]}` : ''} / {row.year}年</span>
+                    <span style={{ fontSize: F.tiny, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''}{row.specialty ? ` / ${SPECIALTY_LABELS[row.specialty]}` : ''} / {row.year}年</span>
                   </div>
                 </div>
-                <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol }}>{formatRaceTime(row.t)}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '900', color: rankCol }}>{formatRaceTime(row.t)}</span>
               </div>
             )
           })
@@ -402,32 +402,32 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       <CardPanel>
         <SectionLabel>歴代の名選手（自チーム）</SectionLabel>
         {myLegends.length === 0 ? (
-          <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>まだ記録なし — 自チームで現役を終えた選手がここに並ぶ</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textGhost, padding: '10px 0' }}>まだ記録なし — 自チームで現役を終えた選手がここに並ぶ</div>
         ) : myLegends.map(p => (
           <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
             <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px',background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.body, color: C.text }}>{p.name}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.micro, padding: '1px 4px',background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                 {myTeam && <TeamLogoSVG primary={myTeam.colors.primary} secondary={myTeam.colors.secondary} shortName={myTeam.shortName} teamId={myTeam.id} size={12} />}
-                <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''}{p.specialty ? ` / ${SPECIALTY_LABELS[p.specialty]}` : ''} / 通算{p.yearsPro}年</span>
+                <span style={{ fontSize: F.tiny, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myTeam?.name ?? ''}{p.specialty ? ` / ${SPECIALTY_LABELS[p.specialty]}` : ''} / 通算{p.yearsPro}年</span>
               </div>
               {(p.career.segmentWins > 0 || p.career.championships > 0 || p.career.mvpAwards > 0) && (
                 <div style={{ display: 'flex', gap: '8px', marginTop: 2, flexWrap: 'wrap' }}>
-                  {p.career.segmentWins > 0 && <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.green }}>区間賞 {p.career.segmentWins}</span>}
-                  {p.career.championships > 0 && <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.gold }}>優勝 {p.career.championships}</span>}
-                  {p.career.mvpAwards > 0 && <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.gold }}>MVP {p.career.mvpAwards}</span>}
+                  {p.career.segmentWins > 0 && <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.green }}>区間賞 {p.career.segmentWins}</span>}
+                  {p.career.championships > 0 && <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold }}>優勝 {p.career.championships}</span>}
+                  {p.career.mvpAwards > 0 && <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold }}>MVP {p.career.mvpAwards}</span>}
                 </div>
               )}
             </div>
             <div style={{ flexShrink: 0, textAlign: 'right' }}>
               {p.finalOvr != null && (
-                <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.gold }}>{p.finalOvr}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: '900', color: C.gold }}>{p.finalOvr}</div>
               )}
-              <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>
+              <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim }}>
                 {p.retiredYear != null ? `${p.retiredYear}年` : ''}{p.age != null ? ` / ${p.age}歳` : ''}
               </div>
             </div>
@@ -508,20 +508,20 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
     const isRetired = p.status === 'retired'
     return (
       <div {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
-        <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
         <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</span>
-            {isRetired && <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px',background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>}
+            <span style={{ fontFamily: SAIRA, fontSize: F.body, color: C.text }}>{p.name}</span>
+            {isRetired && <span style={{ fontFamily: SAIRA, fontSize: F.micro, padding: '1px 4px',background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
             {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
-            <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? (isRetired ? '引退' : '—')} / {SPECIALTY_LABELS[p.specialty]}</span>
+            <span style={{ fontSize: F.tiny, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? (isRetired ? '引退' : '—')} / {SPECIALTY_LABELS[p.specialty]}</span>
           </div>
         </div>
-        <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: valCol, textShadow: i <= 2 ? `0 0 8px ${alpha(valCol, 0.5)}` : 'none' }}>{value}</span>
-        <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{unit}</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: valCol, textShadow: i <= 2 ? `0 0 8px ${alpha(valCol, 0.5)}` : 'none' }}>{value}</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>{unit}</span>
       </div>
     )
   }
@@ -530,7 +530,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
       <CardPanel>
         <SectionLabel>{currentSeason.year}シーズン 区間賞スタッツ</SectionLabel>
         {topSeasonSeg.length === 0
-          ? <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>レース未実施</div>
+          ? <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textGhost }}>レース未実施</div>
           : topSeasonSeg.map(({ p, wins }, i) => <RankRow key={p.id} p={p} i={i} value={wins} unit="回" />)
         }
       </CardPanel>
@@ -540,7 +540,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
       <CardPanel>
         <SectionLabel>通算JPEL区間賞ランキング</SectionLabel>
         {topSegWins.length === 0
-          ? <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost }}>記録なし</div>
+          ? <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textGhost }}>記録なし</div>
           : topSegWins.map((p, i) => <RankRow key={p.id} p={p} i={i} value={jpelSegWinMap[p.id] ?? 0} unit="回" />)
         }
       </CardPanel>
@@ -596,8 +596,8 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: '42px', fontWeight: '900', color: repColor, lineHeight: 1, textShadow: `0 0 12px ${alpha(repColor, 0.5)}` }}>{gmRep}</div>
           <div>
-            <div style={{ fontFamily: SAIRA, fontSize: '14px', fontWeight: '800', color: repColor }}>{repLabel}</div>
-            <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>/ 100点</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '800', color: repColor }}>{repLabel}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginTop: '2px' }}>/ 100点</div>
           </div>
         </div>
         <div style={{ height: '8px', background: C.surface,overflow: 'hidden' }}>
@@ -616,8 +616,8 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
             { label: '最高順位', value: bestRank <= 10 ? `${bestRank}位` : '—', color: bestRank === 1 ? C.gold : bestRank <= 3 ? C.green : C.textSub },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ padding: '10px 8px',background: C.surface, border: `1px solid ${C.border}`, textAlign: 'center' }}>
-              <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textDim, marginBottom: '4px' }}>{label}</div>
-              <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color, lineHeight: 1, textShadow: color !== C.textDim && color !== C.textSub ? `0 0 8px ${alpha(color, 0.4)}` : 'none' }}>{value}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: '4px' }}>{label}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: '900', color, lineHeight: 1, textShadow: color !== C.textDim && color !== C.textSub ? `0 0 8px ${alpha(color, 0.4)}` : 'none' }}>{value}</div>
             </div>
           ))}
         </div>
@@ -666,19 +666,19 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
               </svg>
               {pts.map((p, i) => p.rank != null ? (
                 <div key={p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: `${yFor(p.rank)}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none' }}>
-                  <div style={{ position: 'absolute', left: '50%', bottom: '9px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: '9px', fontWeight: 900, color: rankCol(p.rank), textShadow: p.rank <= 3 ? `0 0 5px ${alpha(rankCol(p.rank), 0.6)}` : 'none' }}>{p.rank}</div>
+                  <div style={{ position: 'absolute', left: '50%', bottom: '9px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 900, color: rankCol(p.rank), textShadow: p.rank <= 3 ? `0 0 5px ${alpha(rankCol(p.rank), 0.6)}` : 'none' }}>{p.rank}</div>
                   <div style={{ width: p.isCurrent ? '11px' : '9px', height: p.isCurrent ? '11px' : '9px', borderRadius: '50%', background: rankCol(p.rank), border: `2px solid ${C.bg}`, boxShadow: `0 0 0 1.5px ${rankCol(p.rank)}` }} />
                 </div>
               ) : null)}
               {pts.map((p, i) => (
-                <div key={'yr' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, bottom: '-4px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: '8px', color: p.isCurrent ? C.gold : C.textGhost, fontWeight: p.isCurrent ? 700 : 400 }}>'{String(p.year).slice(2)}</div>
+                <div key={'yr' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, bottom: '-4px', transform: 'translateX(-50%)', fontFamily: SAIRA, fontSize: F.micro, color: p.isCurrent ? C.gold : C.textGhost, fontWeight: p.isCurrent ? 700 : 400 }}>'{String(p.year).slice(2)}</div>
               ))}
               {/* ★**どのクラブの順位か**を必ず出す（オーナー・2026-08-12）。
                   これは監督のキャリアなので、年によって別のクラブの順位が並ぶ。
                   クラブ名が無いと「3部11位から1部1位」が同じクラブの昇格に見える。
                   クラブが変わった最初の年にだけ名前を置く（毎年出すと重なって読めない）。 */}
               {pts.map((p, i) => (i === 0 || p.teamId !== pts[i - 1].teamId) ? (
-                <div key={'cl' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: '-2px', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: '8px', fontWeight: 800, color: C.textSub }}>
+                <div key={'cl' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: '-2px', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: F.micro, fontWeight: 800, color: C.textSub }}>
                   {teams.find(t => t.id === p.teamId)?.shortName ?? '—'}
                 </div>
               ) : null)}
@@ -687,7 +687,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
               {([[C.gold, '1位'], [C.green, '2-3位'], [C.blue, '4-5位'], [C.textGhost, '6位以下']] as [string, string][]).map(([col, label]) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: col }}/>
-                  <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>{label}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim }}>{label}</span>
                 </div>
               ))}
             </div>
@@ -715,8 +715,8 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         return (
           <CardPanel>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>チーム平均OVR推移</span>
-              <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: teamPrimary, textShadow: `0 0 6px ${alpha(teamPrimary, 0.4)}` }}>
+              <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: '900' }}>チーム平均OVR推移</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: '900', color: teamPrimary, textShadow: `0 0 6px ${alpha(teamPrimary, 0.4)}` }}>
                 {yearEntries[yearEntries.length - 1]?.avg}
               </span>
             </div>
@@ -725,9 +725,9 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
                 const h = Math.max(8, Math.round(((e.avg - minOvr) / range) * 44) + 8)
                 return (
                   <div key={e.year} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textDim }}>{e.avg}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim }}>{e.avg}</div>
                     <div style={{ width: '100%', height: `${h}px`, background: alpha(teamPrimary, 0.22), border: `1px solid ${alpha(teamPrimary, 0.45)}`,}}/>
-                    <div style={{ fontFamily: SAIRA, fontSize: '7px', color: C.textGhost }}>{String(e.year).slice(2)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textGhost }}>{String(e.year).slice(2)}</div>
                   </div>
                 )
               })}
@@ -761,23 +761,23 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
               {tiles.map(t => (
                 <div key={t.label} style={{ padding: '10px 8px',background: C.surface, border: `1px solid ${C.border}`, textAlign: 'center' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textDim, marginBottom: '4px' }}>{t.label}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: '4px' }}>{t.label}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px' }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: t.color, lineHeight: 1, textShadow: t.color !== C.textDim && t.color !== C.textSub ? `0 0 8px ${alpha(t.color, 0.4)}` : 'none' }}>{t.value}</span>
-                    <span style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim }}>{t.sub}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: '900', color: t.color, lineHeight: 1, textShadow: t.color !== C.textDim && t.color !== C.textSub ? `0 0 8px ${alpha(t.color, 0.4)}` : 'none' }}>{t.value}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim }}>{t.sub}</span>
                   </div>
                 </div>
               ))}
             </div>
             <div style={{ marginTop: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '5px' }}>
-                <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>勝率</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: C.gold }}>{winRate}<span style={{ fontSize: '9px', color: C.textDim }}>%</span></span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>勝率</span>
+                <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '900', color: C.gold }}>{winRate}<span style={{ fontSize: F.tiny, color: C.textDim }}>%</span></span>
               </div>
               <div style={{ height: '7px', background: C.surface,overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${winRate}%`, background: `linear-gradient(90deg, ${alpha(C.gold, 0.55)}, ${C.gold})`,}}/>
               </div>
-              <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '8px', textAlign: 'right' }}>通算獲得ポイント {totalPts}pt</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginTop: '8px', textAlign: 'right' }}>通算獲得ポイント {totalPts}pt</div>
             </div>
           </CardPanel>
         )
@@ -802,18 +802,18 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
               }}>
                 {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={18} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '700', color: isNow ? C.gold : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '700', color: isNow ? C.gold : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {team?.name ?? '不明なチーム'}
                   </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginTop: '2px' }}>
                     {t.fromYear}〜{t.toYear ?? '現在'}（{inTenure.length}季）
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: SAIRA, fontSize: '11px', color: titles > 0 ? C.gold : C.textDim, fontWeight: titles > 0 ? '900' : '400' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.label, color: titles > 0 ? C.gold : C.textDim, fontWeight: titles > 0 ? '900' : '400' }}>
                     優勝{titles}回
                   </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginTop: '2px' }}>
                     最高{best != null ? `${best}位` : '—'}
                   </div>
                 </div>

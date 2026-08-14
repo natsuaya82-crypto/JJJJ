@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { audio } from '../../utils/audio'
 
 
@@ -78,7 +78,7 @@ export default function TitleScreen({ onStart }: { onStart: () => void }) {
       }}>
         {/* League label */}
         <div style={{
-          fontSize: '9px', letterSpacing: '6px', color: alpha(C.gold, 0.85),
+          fontSize: F.tiny, letterSpacing: '6px', color: alpha(C.gold, 0.85),
           fontFamily: SAIRA, fontWeight: '700', marginBottom: '28px',
           animation: 'em-glow 3s ease infinite',
         }}>
@@ -115,7 +115,7 @@ export default function TitleScreen({ onStart }: { onStart: () => void }) {
 
         {/* Tagline */}
         <div style={{
-          fontSize: '11px', color: C.textDim, letterSpacing: '2px',
+          fontSize: F.label, color: C.textDim, letterSpacing: '2px',
           marginBottom: '44px', lineHeight: 1.8,
         }}>
           プロ駅伝リーグの総監督になれ
@@ -123,7 +123,7 @@ export default function TitleScreen({ onStart }: { onStart: () => void }) {
 
         {/* TAP TO START */}
         <div style={{
-          fontSize: '13px', letterSpacing: '5px', color: alpha(C.gold, 0.85),
+          fontSize: F.bodyLg, letterSpacing: '5px', color: alpha(C.gold, 0.85),
           fontFamily: SAIRA, fontWeight: '900',
           animation: 'em-glow 1.8s ease infinite',
         }}>
@@ -136,7 +136,7 @@ export default function TitleScreen({ onStart }: { onStart: () => void }) {
         position: 'absolute', bottom: '20px',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
       }}>
-        <div style={{ fontSize: '8px', color: C.textGhost, letterSpacing: '3px', fontFamily: SAIRA }}>
+        <div style={{ fontSize: F.micro, color: C.textGhost, letterSpacing: '3px', fontFamily: SAIRA }}>
           EKIDEN MANAGER
         </div>
       </div>

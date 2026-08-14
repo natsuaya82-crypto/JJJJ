@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { C, SAIRA } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 import { ekidenCandidates } from '../../engine/worldAthletics'
@@ -53,7 +53,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
   // 自チームの選手は useOpponentMenu 側でメニューを出さず長押しのみになる。
   const rowExtra = (p: Player) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-      <span style={{ fontSize: 9, color: clubName(p.teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700 }}>{clubName(p.teamId)}</span>
+      <span style={{ fontSize: F.tiny, color: clubName(p.teamId) === '-' ? C.textGhost : C.textDim, fontWeight: 700 }}>{clubName(p.teamId)}</span>
     </span>
   )
 
@@ -66,10 +66,10 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
         background: `linear-gradient(135deg, ${C.gold}22, #14121F)`,
         border: `1px solid ${C.goldDark}55`, padding: '16px',
       }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>NATIONAL TEAM</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>NATIONAL TEAM</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Flag code={nat} width={40} />
-          <div style={{ fontSize: '20px', fontWeight: '900', color: C.text }}>{label} 代表</div>
+          <div style={{ fontSize: F.head, fontWeight: '900', color: C.text }}>{label} 代表</div>
         </div>
       </div>
 
@@ -77,14 +77,14 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
         {/* 選出済みなら「代表メンバー 20名」。未選出の国は見出しを出さずロスターだけ（「候補 上位30名」の謎表記は廃止） */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px' }}>
           {isSquad && <>
-            <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: C.text }}>代表メンバー</span>
-            <span style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 800, color: C.gold }}>{roster.length}<span style={{ fontSize: 10, color: C.textDim }}>名</span></span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text }}>代表メンバー</span>
+            <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800, color: C.gold }}>{roster.length}<span style={{ fontSize: F.caption, color: C.textDim }}>名</span></span>
           </>}
-          <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>タップでオファー / 長押しで詳細</span>
+          <span style={{ fontSize: F.micro, color: C.textDim, marginLeft: 'auto' }}>タップでオファー / 長押しで詳細</span>
         </div>
 
         {roster.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: C.textGhost, fontSize: '12px', backgroundColor: C.surface,}}>
+          <div style={{ textAlign: 'center', padding: '40px', color: C.textGhost, fontSize: F.body, backgroundColor: C.surface,}}>
             選手データなし
           </div>
         ) : (

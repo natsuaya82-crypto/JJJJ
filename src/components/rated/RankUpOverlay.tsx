@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { rankOf } from '../../engine/rating'
 import { rankChangeOf } from './rankArt'
 import { RANK_ART } from './rankArt'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 
 // ============================================================================
 // **段位が変わったときだけ出す全画面。**
@@ -40,7 +40,7 @@ export default function RankUpOverlay({ before, after, onClose }: {
       }}
     >
       <div style={{
-        fontFamily: SAIRA, fontSize: 13, fontWeight: 900, letterSpacing: '7px',
+        fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, letterSpacing: '7px',
         color: accent, opacity: shown ? 1 : 0, transition: 'opacity 0.5s ease 0.35s',
       }}>{up ? 'RANK UP' : 'RANK DOWN'}</div>
 
@@ -62,12 +62,12 @@ export default function RankUpOverlay({ before, after, onClose }: {
       }}>{RANK_ART[rankOf(after)] && rankOf(after)}</div>
 
       <div style={{
-        fontFamily: SAIRA, fontSize: 15, fontWeight: 900, letterSpacing: '3px', color: accent,
+        fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, letterSpacing: '3px', color: accent,
         opacity: shown ? 1 : 0, transition: 'opacity 0.5s ease 0.55s',
       }}>{before} → {after}</div>
 
       <div style={{
-        marginTop: 34, fontSize: 11, color: C.textGhost,
+        marginTop: 34, fontSize: F.label, color: C.textGhost,
         opacity: shown ? 1 : 0, transition: 'opacity 0.5s ease 0.8s',
       }}>タップで閉じる</div>
     </div>,

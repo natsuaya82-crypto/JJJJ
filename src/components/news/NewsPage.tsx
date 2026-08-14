@@ -6,7 +6,7 @@ import { ovr, faMarketSalary, SPEC_COLOR } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { ForeignChip } from '../player/PlayerChips'
 import { panelStyle } from '../ui/Panel'
 
@@ -60,7 +60,7 @@ export default function NewsPage() {
   const selStyle: React.CSSProperties = {
     background: C.surface2, border: `1px solid ${C.border2}`,
     color: filter === 'all' ? C.textDim : CAT_COLOR[filter] ?? C.textSub,
-    fontSize: 11, fontWeight: 700, fontFamily: SAIRA, padding: '4px 8px',
+    fontSize: F.label, fontWeight: 700, fontFamily: SAIRA, padding: '4px 8px',
     cursor: 'pointer', outline: 'none',
   }
 
@@ -69,10 +69,10 @@ export default function NewsPage() {
       {/* Header */}
       <div style={{ padding: '14px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textSub, fontSize: 13, padding: 0, fontFamily: SAIRA }}>
+          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textSub, fontSize: F.bodyLg, padding: 0, fontFamily: SAIRA }}>
             &larr;
           </button>
-          <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>ニュース</span>
+          <span style={{ fontSize: F.subLg, fontWeight: 700, color: C.text }}>ニュース</span>
         </div>
         <select value={filter} onChange={e => setFilter(e.target.value)} style={selStyle}>
           <option value="all">すべて</option>
@@ -85,7 +85,7 @@ export default function NewsPage() {
       {/* List */}
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: C.textGhost, fontSize: 13, background: C.surface2, border: `1px solid ${C.border2}`,}}>
+          <div style={{ padding: 24, textAlign: 'center', color: C.textGhost, fontSize: F.bodyLg, background: C.surface2, border: `1px solid ${C.border2}`,}}>
             ニュースなし
           </div>
         ) : filtered.map((news, i) => {
@@ -122,14 +122,14 @@ export default function NewsPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                      {news.major && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', color: '#111', background: `linear-gradient(180deg, ${C.goldHi ?? C.gold}, ${C.gold})`, padding: '1px 6px',}}>大ニュース</span>}
-                      <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', color: col }}>
+                      {news.major && <span style={{ fontFamily: SAIRA, fontSize: F.micro, fontWeight: 900, letterSpacing: '0.1em', color: '#111', background: `linear-gradient(180deg, ${C.goldHi ?? C.gold}, ${C.gold})`, padding: '1px 6px',}}>大ニュース</span>}
+                      <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 900, letterSpacing: '0.14em', color: col }}>
                         {CAT_LABEL[news.category]}
                       </div>
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.text, lineHeight: 1.4 }}>{news.headline}</div>
+                    <div style={{ fontSize: F.body, fontWeight: 600, color: C.text, lineHeight: 1.4 }}>{news.headline}</div>
                   </div>
-                  <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, flexShrink: 0 }}>{news.date.slice(5)}</div>
+                  <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, flexShrink: 0 }}>{news.date.slice(5)}</div>
                 </div>
 
                 {/* Player detail card */}
@@ -139,20 +139,20 @@ export default function NewsPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: SAIRA }}>{relPlayer.name}</span>
+                      <span style={{ fontSize: F.sub, fontWeight: 700, color: C.text, fontFamily: SAIRA }}>{relPlayer.name}</span>
                       <ForeignChip nationality={relPlayer.nationality} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: specCol, fontFamily: SAIRA }}>{SPECIALTY_LABELS[relPlayer.specialty]}</span>
-                      <span style={{ fontSize: 10, color: C.textDim }}>{relPlayer.age}歳</span>
+                      <span style={{ fontSize: F.caption, fontWeight: 700, color: specCol, fontFamily: SAIRA }}>{SPECIALTY_LABELS[relPlayer.specialty]}</span>
+                      <span style={{ fontSize: F.caption, color: C.textDim }}>{relPlayer.age}歳</span>
                       {(fromTeam || toTeam) ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.textSub, fontWeight: 700 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: F.caption, color: C.textSub, fontWeight: 700 }}>
                           <span>{fromTeam ? fromTeam.shortName : (isFA ? '未所属' : '—')}</span>
                           <span style={{ color: C.gold }}>→</span>
                           <span style={{ color: C.gold }}>{toTeam ? toTeam.shortName : '—'}</span>
                         </span>
                       ) : (
-                        <span style={{ fontSize: 10, color: C.textDim }}>
+                        <span style={{ fontSize: F.caption, color: C.textDim }}>
                           {isFA ? '未所属' : team ? team.shortName : '—'}
                         </span>
                       )}
@@ -166,11 +166,11 @@ export default function NewsPage() {
                         : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
                       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
                     }}>{relOvr}</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim, letterSpacing: '1px' }}>OVR</div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, fontWeight: 700, marginTop: 2 }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, letterSpacing: '1px' }}>OVR</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, fontWeight: 700, marginTop: 2 }}>
                       {news.category === 'fa' ? fmtYen(market) : fmtYen(salary)}
                     </div>
-                    <div style={{ fontFamily: SAIRA, fontSize: 8, color: C.textDim }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim }}>
                       {news.category === 'fa' ? '市場年俸' : '年俸'}
                     </div>
                   </div>
@@ -188,12 +188,12 @@ export default function NewsPage() {
                 {CAT_ICON[news.category] ?? DEFAULT_ICON}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', color: col, marginBottom: 2 }}>
+                <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 900, letterSpacing: '0.14em', color: col, marginBottom: 2 }}>
                   {CAT_LABEL[news.category] ?? news.category.toUpperCase()}
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.text, lineHeight: 1.45 }}>{news.headline}</div>
+                <div style={{ fontSize: F.body, fontWeight: 600, color: C.text, lineHeight: 1.45 }}>{news.headline}</div>
               </div>
-              <div style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 700, color: C.textDim, flexShrink: 0 }}>{news.date.slice(5)}</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.caption, fontWeight: 700, color: C.textDim, flexShrink: 0 }}>{news.date.slice(5)}</div>
             </div>
           )
         })}

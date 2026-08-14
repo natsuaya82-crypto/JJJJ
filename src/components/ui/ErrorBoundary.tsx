@@ -1,7 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { flushSaveNow } from '../../store/saveStorage'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { APP_VERSION } from '../../data/appMeta'
 import GlassButton from './GlassButton'
 
@@ -59,9 +59,9 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
           fontSize: 28, fontWeight: 900, color: C.gold, fontFamily: SAIRA,
         }}>!</div>
 
-        <div style={{ fontSize: 17, fontWeight: 900 }}>エラーが発生しました</div>
+        <div style={{ fontSize: F.title, fontWeight: 900 }}>エラーが発生しました</div>
 
-        <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.7, maxWidth: 320 }}>
+        <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.7, maxWidth: 320 }}>
           セーブデータはこの時点で保存済みです。<br />
           下のボタンから再読み込みすると、続きからプレイできます。
         </div>
@@ -69,7 +69,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
         <div style={{
           maxWidth: 320, width: '100%', padding: '8px 10px',
           background: C.surface2, border: `1px solid ${C.border2}`,
-          fontFamily: SAIRA, fontSize: 10, color: C.textDim,
+          fontFamily: SAIRA, fontSize: F.caption, color: C.textDim,
           wordBreak: 'break-all', textAlign: 'left', maxHeight: 96, overflow: 'hidden',
         }}>
           {detail}
@@ -77,7 +77,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
 
         <GlassButton
           color={C.gold}
-          style={{ marginTop: 4, padding: '13px 30px', fontSize: 15 }}
+          style={{ marginTop: 4, padding: '13px 30px', fontSize: F.subLg }}
           onClick={() => { void flushSaveNow().finally(() => window.location.reload()) }}
         >
           アプリを再読み込み
@@ -92,7 +92,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, Bo
           エラー内容をコピー
         </GlassButton>
 
-        <div style={{ fontSize: 10, color: C.textGhost, marginTop: 2 }}>
+        <div style={{ fontSize: F.caption, color: C.textGhost, marginTop: 2 }}>
           何度も発生する場合は公式X（@JPEL_MANAGER）までご連絡ください
         </div>
       </div>

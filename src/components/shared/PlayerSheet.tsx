@@ -17,7 +17,7 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { buildPlayerHistory, type HistComp, type HistoryRow } from '../../utils/careerStats'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { rankColor, FONT, SAIRA, bottomStack } from '../../styles/tokens'
+import { rankColor, FONT, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
 import { HOF_MAX, isHofEligible } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
@@ -109,7 +109,7 @@ function OVRSparkline({ history }: { history: { year: number; ovr: number }[] })
         <polyline points={pts} fill="none" stroke={col} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         <circle cx={last.x} cy={last.y} r="2.5" fill={col}/>
       </svg>
-      <span style={{ fontSize: '9px', fontWeight: '700', color: col, fontFamily: 'monospace' }}>
+      <span style={{ fontSize: F.tiny, fontWeight: '700', color: col, fontFamily: 'monospace' }}>
         {trend > 0 ? `+${trend}` : `${trend}`}
       </span>
     </div>
@@ -409,8 +409,8 @@ export default function PlayerSheet() {
         }}>
           <div style={{ padding: '10px 12px 2px' }}><BackButton onClick={() => setShowBadges(false)} /></div>
           <div style={{ padding: '0 20px 4px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: 20, fontWeight: 900, color: '#F0EDE8' }}>記録パッチ</div>
-            <div style={{ fontSize: 10, color: '#5C5870', marginTop: 2 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: 900, color: '#F0EDE8' }}>記録パッチ</div>
+            <div style={{ fontSize: F.caption, color: '#5C5870', marginTop: 2 }}>
               {player.name} · {badges.length}個{isMyPlayer ? ' · タップでロスターに表示するパッチを選択' : ''}
             </div>
           </div>
@@ -432,9 +432,9 @@ export default function PlayerSheet() {
                   }}
                 >
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: col }}><BadgeContent badge={b} iconSize={13} /></span>
+                  <span style={{ flex: 1, fontSize: F.bodyLg, fontWeight: 800, color: col }}><BadgeContent badge={b} iconSize={13} /></span>
                   {isMyPlayer && (
-                    <span style={{ fontSize: 10, fontWeight: 900, color: selected ? col : '#5C5870' }}>
+                    <span style={{ fontSize: F.caption, fontWeight: 900, color: selected ? col : '#5C5870' }}>
                       {selected ? '表示中 ✓' : '選択'}
                     </span>
                   )}
@@ -470,7 +470,7 @@ export default function PlayerSheet() {
           <BackButton onClick={() => page === 4 ? goToPage(2) : openPlayerSheet(null)}/>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
             {page === 4 ? (
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8' }}>
+              <span style={{ fontSize: F.body, fontWeight: '700', color: '#F0EDE8' }}>
                 {(() => { const { league, raceName } = splitRaceKey(selectedRaceName ?? ''); return league ? `${league} ${shortRaceName(league, raceName)}` : raceName })()}
               </span>
             ) : (
@@ -511,7 +511,7 @@ export default function PlayerSheet() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '18px', fontWeight: '900', color: '#F0EDE8' }}>{player.name}</span>
+                <span style={{ fontSize: F.titleLg, fontWeight: '900', color: '#F0EDE8' }}>{player.name}</span>
                 {/* 自チームの選手だけ、名前の横のペンから改名できる */}
                 {isMyPlayer && !isProspect && (
                   <button
@@ -528,15 +528,15 @@ export default function PlayerSheet() {
                 )}
                 <ForeignChip nationality={player.nationality} />
                 {player.status === 'injured' && (
-                  <span style={{ fontSize: '8px', padding: '1px 5px',backgroundColor: '#E8462A18', border: '1px solid #E8462A35', color: '#E8462A', fontWeight: '700' }}>負傷中</span>
+                  <span style={{ fontSize: F.micro, padding: '1px 5px',backgroundColor: '#E8462A18', border: '1px solid #E8462A35', color: '#E8462A', fontWeight: '700' }}>負傷中</span>
                 )}
               </div>
-              <div style={{ fontSize: '10px', color: '#5C5870', marginBottom: '6px' }}>{player.nameKana}</div>
+              <div style={{ fontSize: F.caption, color: '#5C5870', marginBottom: '6px' }}>{player.nameKana}</div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ padding: '2px 8px',backgroundColor: `${specCol}18`, color: specCol, fontSize: '10px', fontWeight: '700' }}>
+                <span style={{ padding: '2px 8px',backgroundColor: `${specCol}18`, color: specCol, fontSize: F.caption, fontWeight: '700' }}>
                   {SPECIALTY_LABELS[player.specialty]}
                 </span>
-                <span style={{ fontSize: '10px', color: '#5C5870' }}>{`${player.age}歳 / ${player.yearsPro + 1}年目`}</span>
+                <span style={{ fontSize: F.caption, color: '#5C5870' }}>{`${player.age}歳 / ${player.yearsPro + 1}年目`}</span>
               </div>
               {/* パッチは1ページ目のある選手だけヘッダーから。1ページ目が無い引退選手は2ページ目に同じボタンがある */}
               {pages.includes(1) && badges.length > 0 && (
@@ -545,7 +545,7 @@ export default function PlayerSheet() {
                   style={{
                     marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
                     padding: '4px 10px',background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
-                    border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: 10,
+                    border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: F.caption,
                   }}
                 >
                   パッチを確認する
@@ -556,7 +556,7 @@ export default function PlayerSheet() {
             </div>
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
               <div style={{ fontSize: '32px', fontWeight: '900', color: ratingColor(playerOvr), fontFamily: 'monospace', lineHeight: 1 }}>{playerOvr}</div>
-              <div style={{ fontSize: '8px', color: '#5C5870', letterSpacing: '1px' }}>OVR</div>
+              <div style={{ fontSize: F.micro, color: '#5C5870', letterSpacing: '1px' }}>OVR</div>
               {player.ovrHistory && player.ovrHistory.length >= 2 && (
                 <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'center' }}>
                   <OVRSparkline history={player.ovrHistory}/>
@@ -577,12 +577,12 @@ export default function PlayerSheet() {
               {isProspect ? (
                 <>
                   <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
-                    <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>所属</div>
-                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>{player.origin}</div>
+                    <div style={{ fontSize: F.micro, color: '#5C5870', marginBottom: '2px' }}>所属</div>
+                    <div style={{ fontSize: F.body, fontWeight: '600', color: '#9B97A8' }}>{player.origin}</div>
                   </div>
                   <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '8px', color: '#5C5870' }}>予想指名順位</div>
-                    <div style={{ fontSize: '12px', fontWeight: '700', color: (predictedPick && predictedPick <= 40) ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
+                    <div style={{ fontSize: F.micro, color: '#5C5870' }}>予想指名順位</div>
+                    <div style={{ fontSize: F.body, fontWeight: '700', color: (predictedPick && predictedPick <= 40) ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
                       {predictedPick && predictedPick <= 40 ? `${Math.ceil(predictedPick / 20)}巡目 全体${predictedPick}位` : '指名圏外'}
                     </div>
                   </div>
@@ -603,8 +603,8 @@ export default function PlayerSheet() {
                       ...(hofEntry ? [{ label: '殿堂入り', val: `${hofEntry.year}年 ${hofEntry.teamName}` }] : []),
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
-                        <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>{label}</div>
-                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>{val}</div>
+                        <div style={{ fontSize: F.micro, color: '#5C5870', marginBottom: '2px' }}>{label}</div>
+                        <div style={{ fontSize: F.body, fontWeight: '600', color: '#9B97A8' }}>{val}</div>
                       </div>
                     ))}
                   </div>
@@ -628,12 +628,12 @@ export default function PlayerSheet() {
                           width: '100%', padding: '11px 14px',cursor: 'pointer', fontFamily: 'inherit',
                           background: inHof ? 'transparent' : 'linear-gradient(180deg, #F0D264 0%, #C9A84C 60%, #8b6914 100%)',
                           border: `2px solid ${inHof ? '#C9A84C66' : '#8b6914'}`,
-                          color: inHof ? '#C9A84C' : '#1a0d00', fontSize: 13, fontWeight: 900,
+                          color: inHof ? '#C9A84C' : '#1a0d00', fontSize: F.bodyLg, fontWeight: 900,
                         }}
                       >
                         {inHof ? '殿堂入り更新' : '殿堂入り登録'}
                       </button>
-                      <div style={{ fontSize: 10, color: '#5C5870', marginTop: 6, lineHeight: 1.6 }}>
+                      <div style={{ fontSize: F.caption, color: '#5C5870', marginTop: 6, lineHeight: 1.6 }}>
                         {hofMsg || `${hofCount}/${HOF_MAX}人`}
                       </div>
                     </div>
@@ -656,7 +656,7 @@ export default function PlayerSheet() {
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
                       padding: '5px 12px',background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
-                      border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: 10,
+                      border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: F.caption,
                     }}
                   >
                     パッチを見る
@@ -677,21 +677,21 @@ export default function PlayerSheet() {
                 return (
                   <>
                     <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '8px', color: '#5C5870' }}>国籍</div>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: F.micro, color: '#5C5870' }}>国籍</div>
+                      <div style={{ fontSize: F.body, fontWeight: '600', color: '#9B97A8', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Flag code={player.nationality} width={18} />
                         {natLabel(player.nationality)}
                       </div>
                     </div>
                     <div style={{ padding: '8px 10px',backgroundColor: 'rgba(232,70,42,0.08)', border: '1px solid rgba(232,70,42,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '8px', color: '#5C5870' }}>引退</div>
-                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#E8462A' }}>
+                      <div style={{ fontSize: F.micro, color: '#5C5870' }}>引退</div>
+                      <div style={{ fontSize: F.body, fontWeight: '800', color: '#E8462A' }}>
                         {retYear != null ? `${retYear}年 引退` : '引退済み'}
                       </div>
                     </div>
                     <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>
+                      <div style={{ fontSize: F.micro, color: '#5C5870' }}>ドラフト</div>
+                      <div style={{ fontSize: F.body, fontWeight: '600', color: '#9B97A8' }}>
                         {player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外'}
                       </div>
                     </div>
@@ -701,20 +701,20 @@ export default function PlayerSheet() {
 
               {/* 自己ベスト（種目別・記録会で走った実タイムのみ）。種目を横に並べてタイムを下に置く */}
               <div>
-                <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>自己ベスト</div>
+                <div style={{ fontSize: F.tiny, fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>自己ベスト</div>
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(${EVENT_DISTANCES.length}, 1fr)`,overflow: 'hidden', border: '1px solid #1E1B2E', background: '#14121F' }}>
                   {EVENT_DISTANCES.map((d, i) => {
                     const best = player.eventBests?.[d]
                     return (
                       <div key={d} style={{ padding: '9px 4px', textAlign: 'center', borderLeft: i > 0 ? '1px solid #1A1828' : 'none' }}>
-                        <div style={{ fontSize: '10px', fontWeight: '700', color: '#8B87A0', marginBottom: '4px' }}>{EVENT_LABEL[d]}</div>
+                        <div style={{ fontSize: F.caption, fontWeight: '700', color: '#8B87A0', marginBottom: '4px' }}>{EVENT_LABEL[d]}</div>
                         {best ? (
                           <>
-                            <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '900', color: '#C9A84C' }}>{formatRaceTime(best.timeSec)}</div>
-                            <div style={{ fontSize: '8px', color: '#5C5870', marginTop: '1px' }}>{`'${String(best.year).slice(2)}`}</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: F.bodyLg, fontWeight: '900', color: '#C9A84C' }}>{formatRaceTime(best.timeSec)}</div>
+                            <div style={{ fontSize: F.micro, color: '#5C5870', marginTop: '1px' }}>{`'${String(best.year).slice(2)}`}</div>
                           </>
                         ) : (
-                          <div style={{ fontSize: '12px', color: '#3A3758' }}>—</div>
+                          <div style={{ fontSize: F.body, color: '#3A3758' }}>—</div>
                         )}
                       </div>
                     )
@@ -728,7 +728,7 @@ export default function PlayerSheet() {
                   同じ駅伝名でも部が違えば別の大会として並ぶ（1部の出雲開幕戦と3部の出雲開幕戦）。 */}
               {!isProspect && raceGroups.map(g => (
                 <div key={g.league}>
-                  <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>{g.league}</div>
+                  <div style={{ fontSize: F.tiny, fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>{g.league}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                     {g.names.map(name => (
                       <div key={name} onClick={() => openRaceDetail(raceKey(g.league, name))} style={{
@@ -736,7 +736,7 @@ export default function PlayerSheet() {
                         cursor: 'pointer', textAlign: 'center', minHeight: 44,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{shortRaceName(g.league, name)}</span>
+                        <span style={{ fontSize: F.caption, fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{shortRaceName(g.league, name)}</span>
                       </div>
                     ))}
                   </div>
@@ -753,7 +753,7 @@ export default function PlayerSheet() {
                 if (indLabels.length === 0) return null
                 return (
                   <div>
-                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界選手権 個人種目</div>
+                    <div style={{ fontSize: F.tiny, fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '6px' }}>世界選手権 個人種目</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                       {indLabels.map(label => (
                         <div key={label} onClick={() => openRaceDetail(`世界選手権 ${label}`)} style={{
@@ -761,7 +761,7 @@ export default function PlayerSheet() {
                           cursor: 'pointer', textAlign: 'center', minHeight: 44,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{label}</span>
+                          <span style={{ fontSize: F.caption, fontWeight: '700', lineHeight: 1.25, color: '#F0EDE8' }}>{label}</span>
                         </div>
                       ))}
                     </div>
@@ -774,16 +774,16 @@ export default function PlayerSheet() {
           {/* Page 3: 在籍履歴（移籍情報）。ドラフト候補・フレンドのロスターでは非表示 */}
           {page === 3 && pages.includes(3) && (
             <div style={{ padding: '12px 20px 28px' }}>
-              <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px' }}>在籍履歴</div>
+              <div style={{ fontSize: F.tiny, fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px' }}>在籍履歴</div>
               {historyRows.length > 0 ? (
                 <div style={{overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                   {/* header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
-                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
-                    <span style={{ flex: 1, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>チーム名</span>
-                    <span style={{ width: '28px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
-                    <span style={{ width: '32px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
-                    <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>平均</span>
+                    <span style={{ width: '36px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870' }}>年</span>
+                    <span style={{ flex: 1, fontSize: F.micro, fontWeight: '700', color: '#5C5870' }}>チーム名</span>
+                    <span style={{ width: '28px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
+                    <span style={{ width: '32px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
+                    <span style={{ width: '36px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>平均</span>
                     <span style={{ width: '10px', flexShrink: 0 }}/>
                   </div>
                   {historyRows.map((row, i) => {
@@ -808,22 +808,22 @@ export default function PlayerSheet() {
                           onClick={() => { if (!histLpFired.current) setOpenHist(prev => ({ ...prev, [histKey]: !prev[histKey] })) }}
                           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', borderBottom: i < historyRows.length - 1 || open ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent', cursor: 'pointer' }}
                         >
-                          <span style={{ width: '36px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
+                          <span style={{ width: '36px', flexShrink: 0, fontSize: F.body, color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                             {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={20} />}
-                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: F.body, fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {teamName}
-                              {isLoan && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>(L)</span>}
-                              {isRetired && i === 0 && <span style={{ fontSize: '9px', fontWeight: 800, color: '#E8462A', marginLeft: '5px', padding: '1px 5px',background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
+                              {isLoan && <span style={{ fontSize: F.caption, color: '#9B97A8', marginLeft: '3px' }}>(L)</span>}
+                              {isRetired && i === 0 && <span style={{ fontSize: F.tiny, fontWeight: 800, color: '#E8462A', marginLeft: '5px', padding: '1px 5px',background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
                             </span>
                           </div>
-                          <span style={{ width: '28px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
-                          <span style={{ width: '32px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
+                          <span style={{ width: '28px', flexShrink: 0, fontSize: F.bodyLg, fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
+                          <span style={{ width: '32px', flexShrink: 0, fontSize: F.bodyLg, fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
                           <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
                             {avg != null ? (
-                              <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px',background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
+                              <span style={{ fontSize: F.label, fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px',background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
                             ) : (
-                              <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                              <span style={{ fontSize: F.label, color: '#3A3758' }}>—</span>
                             )}
                           </span>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
@@ -838,15 +838,15 @@ export default function PlayerSheet() {
                               <span style={{ width: '36px', flexShrink: 0 }}/>
                               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
                                 {histCompLogoId(c) && <LeagueLogoSVG leagueId={histCompLogoId(c)!} size={16} />}
-                                <span style={{ fontSize: '11px', fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{histCompLabel(c)}</span>
+                                <span style={{ fontSize: F.label, fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{histCompLabel(c)}</span>
                               </div>
-                              <span style={{ width: '28px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{c.races}</span>
-                              <span style={{ width: '32px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.wins}</span>
+                              <span style={{ width: '28px', flexShrink: 0, fontSize: F.body, fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{c.races}</span>
+                              <span style={{ width: '32px', flexShrink: 0, fontSize: F.body, fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.wins}</span>
                               <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
                                 {cavg != null ? (
-                                  <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px',background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
+                                  <span style={{ fontSize: F.caption, fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px',background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
                                 ) : (
-                                  <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                                  <span style={{ fontSize: F.label, color: '#3A3758' }}>—</span>
                                 )}
                               </span>
                               <span style={{ width: '10px', flexShrink: 0 }}/>
@@ -858,7 +858,7 @@ export default function PlayerSheet() {
                   })}
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>記録なし</div>
+                <div style={{ textAlign: 'center', color: '#3A3758', fontSize: F.bodyLg, padding: '48px 0' }}>記録なし</div>
               )}
 
               {/* 代表チーム（世界選手権）。クラブの在籍履歴と同じテーブル形式で分けて下に置く */}
@@ -923,15 +923,15 @@ export default function PlayerSheet() {
                 const medalCol = (rank?: number) => rankColor(rank ?? 0)
                 return (
                   <div style={{ marginTop: '16px' }}>
-                    <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム</div>
+                    <div style={{ fontSize: F.tiny, fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム</div>
                     <div style={{overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                       {/* header（在籍履歴と同じ列構成） */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
-                        <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
-                        <span style={{ flex: 1, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>チーム名</span>
-                        <span style={{ width: '28px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
-                        <span style={{ width: '32px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
-                        <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>平均</span>
+                        <span style={{ width: '36px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870' }}>年</span>
+                        <span style={{ flex: 1, fontSize: F.micro, fontWeight: '700', color: '#5C5870' }}>チーム名</span>
+                        <span style={{ width: '28px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>出場</span>
+                        <span style={{ width: '32px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>区間賞</span>
+                        <span style={{ width: '36px', flexShrink: 0, fontSize: F.micro, fontWeight: '700', color: '#5C5870', textAlign: 'center' }}>平均</span>
                         <span style={{ width: '10px', flexShrink: 0 }}/>
                       </div>
                       {natRows.map((row, i) => {
@@ -945,18 +945,18 @@ export default function PlayerSheet() {
                               onClick={() => setOpenHist(prev => ({ ...prev, [histKey]: !prev[histKey] }))}
                               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', borderBottom: i < natRows.length - 1 || open ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent', cursor: 'pointer' }}
                             >
-                              <span style={{ width: '36px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
+                              <span style={{ width: '36px', flexShrink: 0, fontSize: F.body, color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
                               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                                 <Flag code={player.nationality} width={20} />
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{natLabel(player.nationality)}</span>
+                                <span style={{ fontSize: F.body, fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{natLabel(player.nationality)}</span>
                               </div>
-                              <span style={{ width: '28px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
-                              <span style={{ width: '32px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
+                              <span style={{ width: '28px', flexShrink: 0, fontSize: F.bodyLg, fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
+                              <span style={{ width: '32px', flexShrink: 0, fontSize: F.bodyLg, fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
                               <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
                                 {avg != null ? (
-                                  <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px',background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
+                                  <span style={{ fontSize: F.label, fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px',background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
                                 ) : (
-                                  <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                                  <span style={{ fontSize: F.label, color: '#3A3758' }}>—</span>
                                 )}
                               </span>
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ color: '#5C5870', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
@@ -969,16 +969,16 @@ export default function PlayerSheet() {
                               return (
                                 <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#0B0A12', borderBottom: ci < comps.length - 1 || i < natRows.length - 1 ? '1px solid #1A1828' : 'none' }}>
                                   <span style={{ width: '36px', flexShrink: 0 }}/>
-                                  <span style={{ flex: 1, fontSize: '11px', fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
-                                  <span style={{ width: '28px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{c.races}</span>
-                                  <span style={{ width: '32px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.ind ? '—' : c.wins}</span>
+                                  <span style={{ flex: 1, fontSize: F.label, fontWeight: '700', color: '#9B97A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
+                                  <span style={{ width: '28px', flexShrink: 0, fontSize: F.body, fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{c.races}</span>
+                                  <span style={{ width: '32px', flexShrink: 0, fontSize: F.body, fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.ind ? '—' : c.wins}</span>
                                   <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
                                     {c.ind ? (
-                                      <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', color: medalCol(c.indRank) }}>{c.indRank != null ? `${c.indRank}位` : '出場'}</span>
+                                      <span style={{ fontSize: F.label, fontWeight: '900', fontFamily: 'monospace', color: medalCol(c.indRank) }}>{c.indRank != null ? `${c.indRank}位` : '出場'}</span>
                                     ) : cavg != null ? (
-                                      <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px',background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
+                                      <span style={{ fontSize: F.caption, fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px',background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
                                     ) : (
-                                      <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
+                                      <span style={{ fontSize: F.label, color: '#3A3758' }}>—</span>
                                     )}
                                   </span>
                                   <span style={{ width: '10px', flexShrink: 0 }}/>
@@ -1017,22 +1017,22 @@ export default function PlayerSheet() {
                         const rankCol = rankColor(e.rank)
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < rows.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
-                            <span style={{ fontSize: '12px', color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
-                            <span style={{ fontSize: '12px', color: '#9B97A8', flexShrink: 0 }}>{e.city}</span>
-                            <span style={{ fontSize: '15px', fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '38px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
+                            <span style={{ fontSize: F.body, color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
+                            <span style={{ fontSize: F.body, color: '#9B97A8', flexShrink: 0 }}>{e.city}</span>
+                            <span style={{ fontSize: F.subLg, fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '38px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
                             {e.rank === 1 ? (
-                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>優勝</span>
+                              <span style={{ fontSize: F.micro, fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>優勝</span>
                             ) : e.rank <= 8 ? (
-                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#C583FA,#7E22CE)', color: '#fff', flexShrink: 0 }}>入賞</span>
+                              <span style={{ fontSize: F.micro, fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#C583FA,#7E22CE)', color: '#fff', flexShrink: 0 }}>入賞</span>
                             ) : null}
                             <span style={{ flex: 1 }} />
-                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
+                            <span style={{ fontSize: F.body, fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
                           </div>
                         )
                       })}
                     </div>
                   ) : (
-                    <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>記録なし</div>
+                    <div style={{ textAlign: 'center', color: '#3A3758', fontSize: F.bodyLg, padding: '48px 0' }}>記録なし</div>
                   )}
                 </div>
               )
@@ -1051,20 +1051,20 @@ export default function PlayerSheet() {
                       const isSegRecord = !!rec && rec.timeSec === e.timeSec
                       return (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: i < entries.length - 1 ? '1px solid #1A1828' : 'none', backgroundColor: i % 2 === 0 ? '#0E0D17' : 'transparent' }}>
-                          <span style={{ fontSize: '12px', color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
-                          <span style={{ fontSize: '12px', color: '#9B97A8', flexShrink: 0 }}>第{e.segIdx}区{e.distKm != null ? ` ${e.distKm}km` : ''}</span>
-                          <span style={{ fontSize: '15px', fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '32px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
+                          <span style={{ fontSize: F.body, color: '#5C5870', fontFamily: 'monospace', flexShrink: 0, width: '48px' }}>{e.year}年</span>
+                          <span style={{ fontSize: F.body, color: '#9B97A8', flexShrink: 0 }}>第{e.segIdx}区{e.distKm != null ? ` ${e.distKm}km` : ''}</span>
+                          <span style={{ fontSize: F.subLg, fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '32px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
                           {isSegRecord && (
-                            <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>区間記録</span>
+                            <span style={{ fontSize: F.micro, fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>区間記録</span>
                           )}
                           <span style={{ flex: 1 }} />
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
+                          <span style={{ fontSize: F.body, fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
                         </div>
                       )
                     })}
                   </div>
                 ) : (
-                  <div style={{ textAlign: 'center', color: '#3A3758', fontSize: '13px', padding: '48px 0' }}>未出走</div>
+                  <div style={{ textAlign: 'center', color: '#3A3758', fontSize: F.bodyLg, padding: '48px 0' }}>未出走</div>
                 )}
               </div>
             )
@@ -1091,8 +1091,8 @@ export default function PlayerSheet() {
               boxShadow: '0 0 40px rgba(201,168,76,0.2), 0 8px 32px rgba(0,0,0,0.6)',
             }}
           >
-            <div style={{ fontSize: 9, color: '#C9A84C', letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>名前を変更</div>
-            <div style={{ fontSize: 12, color: '#9B97A8', lineHeight: 1.6, marginBottom: 12 }}>
+            <div style={{ fontSize: F.tiny, color: '#C9A84C', letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>名前を変更</div>
+            <div style={{ fontSize: F.body, color: '#9B97A8', lineHeight: 1.6, marginBottom: 12 }}>
               変更した名前は移籍しても引退しても残ります（過去の記録に載っている名前は当時のままです）。
             </div>
             <input
@@ -1103,7 +1103,7 @@ export default function PlayerSheet() {
               maxLength={12}
               style={{
                 width: '100%', padding: '12px 14px',border: 'none', marginBottom: 16,
-                backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: 15, boxSizing: 'border-box',
+                backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: F.subLg, boxSizing: 'border-box',
                 fontFamily: SAIRA, outline: 'none',
                 boxShadow: 'inset 0 0 0 1px rgba(201,168,76,0.14)',
               }}
@@ -1114,7 +1114,7 @@ export default function PlayerSheet() {
                 style={{
                   flex: 1, padding: '12px',cursor: 'pointer',
                   border: '2px solid #3A3758', background: 'transparent', color: '#9B97A8',
-                  fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
+                  fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
                 }}
               >
                 キャンセル
@@ -1126,7 +1126,7 @@ export default function PlayerSheet() {
                   flex: 1, padding: '12px',cursor: renameDraft.trim() === '' ? 'default' : 'pointer',
                   border: '2px solid #C9A84C', opacity: renameDraft.trim() === '' ? 0.4 : 1,
                   background: 'linear-gradient(180deg, rgba(201,168,76,0.25), rgba(201,168,76,0.1))',
-                  color: '#C9A84C', fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
+                  color: '#C9A84C', fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
                   boxShadow: '0 4px 0 rgba(201,168,76,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
                 }}
               >

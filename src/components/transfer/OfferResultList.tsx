@@ -1,4 +1,4 @@
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, F } from '../../styles/tokens'
 import type { OfferResultRow } from './useOfferResults'
 
 // 「他クラブから来たオファーに返事をした結果」の見せ方。
@@ -14,8 +14,8 @@ export function OfferResultList({ results, dismiss, spacing = 8 }: {
 }) {
   return <>{results.map(r => (
     <div key={r.id} style={{background: alpha(r.ok ? C.green : C.red, 0.08), border: `1.5px solid ${alpha(r.ok ? C.green : C.red, 0.45)}`, padding: '10px 12px', marginBottom: spacing, display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ flex: 1, fontSize: 12, color: C.text, lineHeight: 1.6 }}>{r.text}</div>
-      <button onClick={() => dismiss(r.id)} style={{ flexShrink: 0, padding: '7px 14px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+      <div style={{ flex: 1, fontSize: F.body, color: C.text, lineHeight: 1.6 }}>{r.text}</div>
+      <button onClick={() => dismiss(r.id)} style={{ flexShrink: 0, padding: '7px 14px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.body, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
     </div>
   ))}</>
 }

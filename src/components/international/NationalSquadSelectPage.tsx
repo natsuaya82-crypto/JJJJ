@@ -5,7 +5,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Club } from '../../utils/clubs'
-import { C, alpha, SAIRA, FONT, bottomStack } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { SPECIALTY_LABELS, type Specialty, type Player } from '../../types'
 import { ovr, ratingColor, isStatMaxed } from '../../utils/playerUtils'
@@ -112,7 +112,7 @@ export default function NationalSquadSelectPage() {
   const clubBadge = (teamId: string) => {
     const c = clubOf(teamId)
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px',fontWeight: 700, flexShrink: 0, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: c.name === '未所属' ? C.textGhost : C.textSub }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: F.micro, padding: '1px 5px',fontWeight: 700, flexShrink: 0, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, color: c.name === '未所属' ? C.textGhost : C.textSub }}>
         {c.team && <TeamLogoSVG primary={c.team.colors.primary} secondary={c.team.colors.secondary} shortName={c.team.shortName} teamId={c.team.id} size={11} />}
         {c.name}
       </span>
@@ -200,29 +200,29 @@ export default function NationalSquadSelectPage() {
               width: 40, height: 40,flexShrink: 0,
               background: `linear-gradient(135deg, ${C.purple}, ${alpha(C.purple, 0.55)})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, fontWeight: 900, color: C.bg, fontFamily: SAIRA,
+              fontSize: F.titleLg, fontWeight: 900, color: C.bg, fontFamily: SAIRA,
             }}>
               {emptySlots.length}
             </div>
             <div>
-              <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.purple, lineHeight: 1.2 }}>代表メンバー選出</div>
-              <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>タップで選択（残り{emptySlots.length}枠）／長押しで詳細</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.purple, lineHeight: 1.2 }}>代表メンバー選出</div>
+              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>タップで選択（残り{emptySlots.length}枠）／長押しで詳細</div>
             </div>
-            <div style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: pickerPicked.size > 0 ? C.purple : C.textDim }}>
-              {pickerPicked.size}<span style={{ fontSize: 10, color: C.textDim }}>/{emptySlots.length}</span>
+            <div style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: pickerPicked.size > 0 ? C.purple : C.textDim }}>
+              {pickerPicked.size}<span style={{ fontSize: F.caption, color: C.textDim }}>/{emptySlots.length}</span>
             </div>
           </div>
         </div>
 
         {/* ソート・絞り込みバー */}
         <div style={{ display: 'flex', gap: 6, padding: '6px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg }}>
-          <select value={spec} onChange={e => setSpec(e.target.value as Specialty | 'all')} style={{ flex: 1, padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
+          <select value={spec} onChange={e => setSpec(e.target.value as Specialty | 'all')} style={{ flex: 1, padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: F.label, fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="all">全特性</option>
             {(Object.keys(SPECIALTY_LABELS) as Specialty[]).map(s => (
               <option key={s} value={s}>{SPECIALTY_LABELS[s]}</option>
             ))}
           </select>
-          <select value={pickerSort} onChange={e => setPickerSort(e.target.value as typeof pickerSort)} style={{ flex: 1, padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
+          <select value={pickerSort} onChange={e => setPickerSort(e.target.value as typeof pickerSort)} style={{ flex: 1, padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: F.label, fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="fit">大会適性順</option>
             <option value="ovr">OVR順</option>
             <option value="age">年齢順</option>
@@ -252,7 +252,7 @@ export default function NationalSquadSelectPage() {
             )
           })}
           {pickerPlayers.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 40, color: C.textGhost, fontSize: 12 }}>条件に合う候補なし</div>
+            <div style={{ textAlign: 'center', padding: 40, color: C.textGhost, fontSize: F.body }}>条件に合う候補なし</div>
           )}
         </PlayerList>
 
@@ -267,7 +267,7 @@ export default function NationalSquadSelectPage() {
             <button disabled style={{
               flex: 1, padding: '13px 0',cursor: 'default',
               background: C.surface2, border: `2px solid ${C.border2}`, color: C.textDim,
-              fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
+              fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
             }}>候補をタップで選択</button>
           ) : (
             <button onClick={confirmPick} className="btn-game btn-game--purple" style={{ flex: 1 }}>
@@ -284,13 +284,13 @@ export default function NationalSquadSelectPage() {
     <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: bottomStack(adH, { aboveNav: true, extra: 96 }) }}>
       <PageHeader title="日本代表 選考" />
       <div style={{ padding: '0 16px 10px' }}>
-        <div style={{ fontSize: 11, color: C.textDim }}>空き枠タップ＝選出／埋まった枠タップ＝外す（ピッカー内は長押しで選手詳細）</div>
+        <div style={{ fontSize: F.label, color: C.textDim }}>空き枠タップ＝選出／埋まった枠タップ＝外す（ピッカー内は長押しで選手詳細）</div>
       </div>
 
       {/* 大会コース（3戦の地形）。区間ごとの距離・登り・下りを見て編成を決める */}
       {plans.length > 0 && (
         <div style={{ padding: '0 16px 14px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.purple, marginBottom: 6 }}>大会コース（全{plans.length}戦）</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.purple, marginBottom: 6 }}>大会コース（全{plans.length}戦）</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {plans.map((plan, i) => {
               const total = Math.round(plan.segments.reduce((s, x) => s + x.distanceKm, 0) * 10) / 10
@@ -300,13 +300,13 @@ export default function NationalSquadSelectPage() {
               return (
                 <div key={i} style={{ padding: '9px 12px',background: C.surface2, border: `1px solid ${C.border2}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                    <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.text }}>第{i + 1}戦</span>
-                    <span style={{ fontSize: 10, color: C.textDim }}>{plan.segments.length}区間・{total}km</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, padding: '2px 7px',color: C.purple, background: `${C.purple}18`, border: `1px solid ${C.purple}44` }}>{chara}</span>
+                    <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.text }}>第{i + 1}戦</span>
+                    <span style={{ fontSize: F.caption, color: C.textDim }}>{plan.segments.length}区間・{total}km</span>
+                    <span style={{ marginLeft: 'auto', fontSize: F.tiny, fontWeight: 800, padding: '2px 7px',color: C.purple, background: `${C.purple}18`, border: `1px solid ${C.purple}44` }}>{chara}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {plan.segments.map((s, j) => (
-                      <span key={j} style={{ fontSize: 8.5, fontFamily: SAIRA, fontWeight: 700, color: s.uphillPct >= 20 ? C.orange : s.downhillPct >= 15 ? C.cyan : C.textSub, padding: '2px 5px',background: C.surface, border: `1px solid ${C.border}` }}>
+                      <span key={j} style={{ fontSize: F.micro, fontFamily: SAIRA, fontWeight: 700, color: s.uphillPct >= 20 ? C.orange : s.downhillPct >= 15 ? C.cyan : C.textSub, padding: '2px 5px',background: C.surface, border: `1px solid ${C.border}` }}>
                         {j + 1}区 {s.distanceKm}k{s.uphillPct >= 20 ? ' 登' : s.downhillPct >= 15 ? ' 下' : ''}
                       </span>
                     ))}
@@ -320,11 +320,11 @@ export default function NationalSquadSelectPage() {
 
       {/* 選出バー */}
       <div style={{ padding: '0 16px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.purple }}>代表メンバー</span>
-        <span style={{ fontSize: 10, color: C.textDim }}>
+        <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.purple }}>代表メンバー</span>
+        <span style={{ fontSize: F.caption, color: C.textDim }}>
           選出 <span style={{ color: full ? C.green : C.gold, fontWeight: 700, fontFamily: SAIRA }}>{filledCount}/{SQUAD}</span>
         </span>
-        <button onClick={autoSelect} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '5px 12px',border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動選出</button>
+        <button onClick={autoSelect} style={{ marginLeft: 'auto', fontSize: F.label, fontWeight: 700, padding: '5px 12px',border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動選出</button>
       </div>
 
       {/* 20枠リスト：空き枠タップ＝選出ピッカー、埋まった枠タップ＝外す（入れ替えはしない） */}
@@ -353,7 +353,7 @@ export default function NationalSquadSelectPage() {
                     : alpha(C.purple, 0.12),
                   border: player ? 'none' : `1px solid ${alpha(C.purple, 0.3)}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 18, fontWeight: 900, color: player ? C.bg : alpha(C.purple, 0.6), fontFamily: SAIRA,
+                  fontSize: F.titleLg, fontWeight: 900, color: player ? C.bg : alpha(C.purple, 0.6), fontFamily: SAIRA,
                 }}>
                   {idx}
                 </div>
@@ -362,28 +362,28 @@ export default function NationalSquadSelectPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {player ? (
                     <>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</div>
-                      <div style={{ fontSize: 10, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: F.body, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</div>
+                      <div style={{ fontSize: F.caption, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <span style={{ fontFamily: SAIRA }}>{player.age}歳</span>・{clubOf(player.teamId).name}
                       </div>
                     </>
                   ) : (
-                    <div style={{ fontSize: 11, color: C.textGhost }}>空き枠</div>
+                    <div style={{ fontSize: F.label, color: C.textGhost }}>空き枠</div>
                   )}
                 </div>
 
                 {/* OVR＋顔＋外す or 未設定 */}
                 {player ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.purple, lineHeight: 1 }}>{ovr(player)}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.purple, lineHeight: 1 }}>{ovr(player)}</div>
                     <div style={{overflow: 'hidden' }}>
                       <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
                     </div>
-                    <span style={{ padding: '4px 10px',background: C.purple, color: '#fff', fontSize: 11, fontWeight: 900 }}>外す</span>
+                    <span style={{ padding: '4px 10px',background: C.purple, color: '#fff', fontSize: F.label, fontWeight: 900 }}>外す</span>
                   </div>
                 ) : (
                   <>
-                    <div style={{ fontSize: 11, color: C.textGhost, flexShrink: 0 }}>未設定</div>
+                    <div style={{ fontSize: F.label, color: C.textGhost, flexShrink: 0 }}>未設定</div>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color: C.textGhost, flexShrink: 0 }}>
                       <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                     </svg>
@@ -399,8 +399,8 @@ export default function NationalSquadSelectPage() {
                     const val = player.ratings[key] as number
                     return (
                       <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ fontSize: 7, color: C.textGhost }}>{label}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: SAIRA, lineHeight: 1.1, color: ratingColor(val, isStatMaxed(player, key)) }}>{val}</div>
+                        <div style={{ fontSize: F.micro, color: C.textGhost }}>{label}</div>
+                        <div style={{ fontSize: F.label, fontWeight: 600, fontFamily: SAIRA, lineHeight: 1.1, color: ratingColor(val, isStatMaxed(player, key)) }}>{val}</div>
                       </div>
                     )
                   })}
@@ -420,13 +420,13 @@ export default function NationalSquadSelectPage() {
         display: 'flex', alignItems: 'center', gap: 6,
         zIndex: 35,
       }}>
-        <button onClick={() => setSlots({})} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
+        <button onClick={() => setSlots({})} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
         {full ? (
           <button onClick={save} className="btn-game btn-game--purple" style={{ flex: 1 }}>
             <span className="btn-game__inner">この{filledCount}人で確定</span>
           </button>
         ) : (
-          <button style={{ flex: 1, padding: 12,border: 'none', background: C.surface2, color: C.textGhost, fontSize: 14, fontWeight: 700, cursor: 'default', fontFamily: 'inherit' }}>
+          <button style={{ flex: 1, padding: 12,border: 'none', background: C.surface2, color: C.textGhost, fontSize: F.sub, fontWeight: 700, cursor: 'default', fontFamily: 'inherit' }}>
             残り{SQUAD - filledCount}枠 未選出
           </button>
         )}

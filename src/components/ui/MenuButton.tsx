@@ -1,4 +1,4 @@
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, F } from '../../styles/tokens'
 
 // ============================================================================
 // **画面から画面へ渡る一覧の行（ガラスのボタン）。**
@@ -50,12 +50,12 @@ export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.
           {badge > 0 && (
             <span style={{
               marginLeft: 7, padding: '1px 7px',
-              background: badgeColor, color: C.bg, fontSize: 10, fontWeight: 900,
+              background: badgeColor, color: C.bg, fontSize: F.caption, fontWeight: 900,
               verticalAlign: 'middle',
             }}>{badge}</span>
           )}
           {note && (
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.66)', marginLeft: 8 }}>{note}</span>
+            <span style={{ fontSize: F.caption, color: 'rgba(255,255,255,0.66)', marginLeft: 8 }}>{note}</span>
           )}
         </span>
       </span>

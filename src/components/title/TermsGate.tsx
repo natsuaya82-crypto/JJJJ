@@ -7,7 +7,7 @@
 // 同意するまで先へ進めない（枠の外を押しても閉じない）。
 
 import { useState } from 'react'
-import { C, alpha, SAIRA, JP } from '../../styles/tokens'
+import { C, alpha, SAIRA, JP, F } from '../../styles/tokens'
 import { TERMS_UPDATED, TERMS_INTRO, TERMS_HIGHLIGHT, TERMS_SECTIONS } from '../../data/termsText'
 
 
@@ -51,13 +51,13 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
           borderBottom: `1px solid ${alpha(C.gold, 0.18)}`, textAlign: 'center',
         }}>
           <div style={{
-            fontSize: '9px', letterSpacing: '5px', color: alpha(C.gold, 0.85),
+            fontSize: F.tiny, letterSpacing: '5px', color: alpha(C.gold, 0.85),
             fontFamily: SAIRA, fontWeight: 700, marginBottom: '8px',
           }}>
             JPEL MANAGER
           </div>
-          <div style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '1px' }}>利用規約</div>
-          <div style={{ fontSize: '10px', color: C.textGhost, marginTop: '4px' }}>
+          <div style={{ fontSize: F.title, fontWeight: 700, letterSpacing: '1px' }}>利用規約</div>
+          <div style={{ fontSize: F.caption, color: C.textGhost, marginTop: '4px' }}>
             最終更新日：{TERMS_UPDATED}
           </div>
         </div>
@@ -68,25 +68,25 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
           onScroll={onScroll}
           style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 24px', WebkitOverflowScrolling: 'touch' }}>
 
-          <div style={{ fontSize: '12px', lineHeight: 1.9, color: C.textSub, marginBottom: '16px' }}>
+          <div style={{ fontSize: F.body, lineHeight: 1.9, color: C.textSub, marginBottom: '16px' }}>
             {TERMS_INTRO}
           </div>
 
           <div style={{
             border: `1px solid ${alpha(C.gold, 0.3)}`,            background: alpha(C.gold, 0.05), padding: '13px 15px', marginBottom: '8px',
           }}>
-            <div style={{ fontSize: '12px', lineHeight: 1.9, color: C.text, fontWeight: 700 }}>
+            <div style={{ fontSize: F.body, lineHeight: 1.9, color: C.text, fontWeight: 700 }}>
               {TERMS_HIGHLIGHT}
             </div>
           </div>
 
           {TERMS_SECTIONS.map(sec => (
             <div key={sec.title} style={{ marginTop: '22px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: C.gold, marginBottom: '7px' }}>
+              <div style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.gold, marginBottom: '7px' }}>
                 {sec.title}
               </div>
               {sec.body && (
-                <div style={{ fontSize: '12px', lineHeight: 1.9, color: C.textSub, whiteSpace: 'pre-line' }}>
+                <div style={{ fontSize: F.body, lineHeight: 1.9, color: C.textSub, whiteSpace: 'pre-line' }}>
                   {sec.body}
                 </div>
               )}
@@ -94,8 +94,8 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
                 <div style={{ marginTop: sec.body ? '8px' : 0 }}>
                   {sec.items.map((it, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-                      <span style={{ color: alpha(C.gold, 0.85), fontSize: '12px', lineHeight: 1.9 }}>・</span>
-                      <span style={{ fontSize: '12px', lineHeight: 1.9, color: C.textSub, flex: 1 }}>{it}</span>
+                      <span style={{ color: alpha(C.gold, 0.85), fontSize: F.body, lineHeight: 1.9 }}>・</span>
+                      <span style={{ fontSize: F.body, lineHeight: 1.9, color: C.textSub, flex: 1 }}>{it}</span>
                     </div>
                   ))}
                 </div>
@@ -104,7 +104,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
           ))}
 
           <div style={{
-            marginTop: '28px', textAlign: 'center', fontSize: '10px',
+            marginTop: '28px', textAlign: 'center', fontSize: F.caption,
             color: C.textGhost, letterSpacing: '2px', fontFamily: SAIRA,
           }}>
             — END OF TERMS —
@@ -127,17 +127,17 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
               border: `1.5px solid ${checked ? C.gold : alpha(C.text, 0.35)}`,
               background: checked ? C.gold : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#1a1200', fontSize: '14px', fontWeight: 900, lineHeight: 1,
+              color: '#1a1200', fontSize: F.sub, fontWeight: 900, lineHeight: 1,
             }}>
               {checked ? '✓' : ''}
             </div>
-            <div style={{ fontSize: '13px', color: C.textSub, fontWeight: 700 }}>
+            <div style={{ fontSize: F.bodyLg, color: C.textSub, fontWeight: 700 }}>
               利用規約に同意します
             </div>
           </div>
 
           {!reachedEnd && (
-            <div style={{ fontSize: '10px', color: C.textGhost, marginBottom: '10px' }}>
+            <div style={{ fontSize: F.caption, color: C.textGhost, marginBottom: '10px' }}>
               最後まで読むとチェックできます
             </div>
           )}
@@ -151,7 +151,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
                 ? `linear-gradient(135deg, ${C.goldDark}, ${C.gold} 55%, ${C.goldHi})`
                 : alpha(C.text, 0.08),
               color: canAgree ? '#1a1200' : C.textGhost,
-              fontSize: '15px', fontWeight: 900, letterSpacing: '1px',
+              fontSize: F.subLg, fontWeight: 900, letterSpacing: '1px',
               fontFamily: JP, cursor: canAgree ? 'pointer' : 'default',
             }}>
             同意して始める

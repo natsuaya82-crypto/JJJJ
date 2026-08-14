@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { useGameStore } from '../../store/gameStore'
 import { flushSaveNow } from '../../store/saveStorage'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
@@ -127,13 +127,13 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', boxShadow: 'inset 0 0 140px 40px rgba(0,0,0,0.75)' }} />
 
       <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 320, textAlign: 'center' }}>
-        <div style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: 13, letterSpacing: 9, color: C.gold, textShadow: `0 0 18px ${alpha(C.gold, 0.35)}` }}>
+        <div style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: F.bodyLg, letterSpacing: 9, color: C.gold, textShadow: `0 0 18px ${alpha(C.gold, 0.35)}` }}>
           JPEL MANAGER
         </div>
-        <div style={{ fontSize: 19, fontWeight: 800, color: C.text, marginTop: 26, letterSpacing: 1 }}>
+        <div style={{ fontSize: F.titleLg, fontWeight: 800, color: C.text, marginTop: 26, letterSpacing: 1 }}>
           {finished ? 'データの更新が完了しました' : 'データ更新中'}
         </div>
-        <div style={{ fontSize: 12.5, lineHeight: 1.85, color: C.textDim, marginTop: 12, whiteSpace: 'pre-line' }}>
+        <div style={{ fontSize: F.body, lineHeight: 1.85, color: C.textDim, marginTop: 12, whiteSpace: 'pre-line' }}>
           {finished
             ? 'お待たせしました。そのまま続きから遊べます'
             : 'アップデートに合わせてセーブデータを整えています。\nそのままお待ちください（数秒で終わります）'}
@@ -142,15 +142,15 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
         <div style={{ marginTop: 34 }}>
           <div style={{
             display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-            marginBottom: 9, fontSize: 12, color: C.textSub,
+            marginBottom: 9, fontSize: F.body, color: C.textSub,
           }}>
             <span style={{ fontWeight: 600 }}>{finished ? '完了' : label}</span>
-            <span style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: 14, letterSpacing: 1, color: C.gold }}>{pct}%</span>
+            <span style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: F.sub, letterSpacing: 1, color: C.gold }}>{pct}%</span>
           </div>
           <div style={{ position: 'relative', height: 6,background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
             <div className="jpel-du-fill" style={{ width: `${pct}%` }} />
           </div>
-          <div style={{ marginTop: 9, fontFamily: SAIRA, fontSize: 11, letterSpacing: 3, color: C.textGhost }}>
+          <div style={{ marginTop: 9, fontFamily: SAIRA, fontSize: F.label, letterSpacing: 3, color: C.textGhost }}>
             {done} / {STEPS.length}
           </div>
         </div>

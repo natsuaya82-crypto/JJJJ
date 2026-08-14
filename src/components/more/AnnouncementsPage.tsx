@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CHANGELOG } from '../../data/appMeta'
-import { C, SAIRA, alpha } from '../../styles/tokens'
+import { C, SAIRA, alpha, F } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 
 
@@ -19,7 +19,7 @@ function NewsBody({ body }: { body: string }) {
           return (
             <div
               key={i}
-              style={{ fontSize: '12px', fontWeight: 700, color: C.gold, fontFamily: SAIRA, letterSpacing: '0.5px', marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}
+              style={{ fontSize: F.body, fontWeight: 700, color: C.gold, fontFamily: SAIRA, letterSpacing: '0.5px', marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}
             >
               {t.replace(/[【】]/g, '')}
             </div>
@@ -27,14 +27,14 @@ function NewsBody({ body }: { body: string }) {
         }
         if (t.startsWith('・')) {
           return (
-            <div key={i} style={{ display: 'flex', gap: 5, fontSize: '12px', color: C.textSub, lineHeight: 1.7, fontFamily: SAIRA }}>
+            <div key={i} style={{ display: 'flex', gap: 5, fontSize: F.body, color: C.textSub, lineHeight: 1.7, fontFamily: SAIRA }}>
               <span style={{ flexShrink: 0, color: C.textDim }}>・</span>
               <span style={{ flex: 1, minWidth: 0 }}>{t.slice(1)}</span>
             </div>
           )
         }
         return (
-          <div key={i} style={{ fontSize: '12px', color: C.textSub, lineHeight: 1.7, fontFamily: SAIRA, marginTop: i === 0 ? 0 : 4 }}>
+          <div key={i} style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.7, fontFamily: SAIRA, marginTop: i === 0 ? 0 : 4 }}>
             {t}
           </div>
         )
@@ -88,11 +88,11 @@ function PageHeader({ title, onBack }: { title: string; onBack: () => void }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
       <button
         onClick={onBack}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textSub, fontSize: 20, padding: 0, fontFamily: SAIRA, lineHeight: 1 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textSub, fontSize: F.head, padding: 0, fontFamily: SAIRA, lineHeight: 1 }}
       >
         &larr;
       </button>
-      <div style={{ fontSize: '10px', color: C.gold, letterSpacing: '3px', fontFamily: SAIRA }}>{title}</div>
+      <div style={{ fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontFamily: SAIRA }}>{title}</div>
     </div>
   )
 }
@@ -124,10 +124,10 @@ export default function AnnouncementsPage() {
                   style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '1px', marginBottom: '4px', fontFamily: SAIRA }}>{item.date}</div>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: C.text, fontFamily: SAIRA, lineHeight: 1.5 }}>{item.title}</div>
+                    <div style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: '1px', marginBottom: '4px', fontFamily: SAIRA }}>{item.date}</div>
+                    <div style={{ fontSize: F.bodyLg, fontWeight: '700', color: C.text, fontFamily: SAIRA, lineHeight: 1.5 }}>{item.title}</div>
                   </div>
-                  <span style={{ color: C.textDim, fontSize: 14, flexShrink: 0 }}>›</span>
+                  <span style={{ color: C.textDim, fontSize: F.sub, flexShrink: 0 }}>›</span>
                 </button>
               </div>
             ))}
@@ -153,15 +153,15 @@ export function AnnouncementDetailPage() {
       <PageHeader title="お知らせ" onBack={() => navigate('/announcements')} />
 
       {!item ? (
-        <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '48px 0' }}>
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '48px 0' }}>
           このお知らせは見つかりませんでした
         </div>
       ) : (
         <div style={cardStyle}>
           <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)',pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '1px', marginBottom: 6, fontFamily: SAIRA }}>{item.date}</div>
-            <div style={{ fontSize: '15px', fontWeight: 800, color: C.text, fontFamily: SAIRA, lineHeight: 1.5, marginBottom: 12 }}>
+            <div style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: '1px', marginBottom: 6, fontFamily: SAIRA }}>{item.date}</div>
+            <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text, fontFamily: SAIRA, lineHeight: 1.5, marginBottom: 12 }}>
               {item.title}
             </div>
             <div style={{ height: 1, background: alpha(C.gold, 0.2), marginBottom: 12 }} />

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import PlayerFace from '../player/PlayerFace'
 import type { Player } from '../../types'
 import { RACE_EMOJI, RACE_CHEERS, type StampPayload } from './stampKinds'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, F } from '../../styles/tokens'
 
 // 応援スタンプを送るボタン。対戦中の画面の右下に出す。
 //
@@ -41,7 +41,7 @@ export default function StampBar({ myPlayers, onSend, defaultOpen = false }: {
           border: `2px solid ${alpha(C.gold, 0.6)}`,
           background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-          fontSize: 20, lineHeight: 1, fontFamily: 'inherit',
+          fontSize: F.head, lineHeight: 1, fontFamily: 'inherit',
           opacity: cool ? 0.45 : 1,
         }}
       >📣</button>
@@ -63,7 +63,7 @@ export default function StampBar({ myPlayers, onSend, defaultOpen = false }: {
             <div style={{ display: 'flex', gap: 6, marginBottom: myPlayers.length > 0 ? 9 : 0 }}>
               {RACE_EMOJI.map((e, i) => (
                 <button key={e} onClick={() => fire({ e: i })} className="btn-press" style={{
-                  flex: 1, padding: '9px 0',cursor: 'pointer', fontSize: 20,
+                  flex: 1, padding: '9px 0',cursor: 'pointer', fontSize: F.head,
                   border: `1px solid ${C.border3}`, background: alpha('#000', 0.3), fontFamily: 'inherit',
                 }}>{e}</button>
               ))}
@@ -72,7 +72,7 @@ export default function StampBar({ myPlayers, onSend, defaultOpen = false }: {
             {/* 選手を指しての応援。顔は PlayerFace が作るので画像素材は要らない */}
             {myPlayers.length > 0 && (
               <>
-                <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 5 }}>選手を応援する</div>
+                <div style={{ fontSize: F.tiny, color: C.textGhost, marginBottom: 5 }}>選手を応援する</div>
                 <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
                   {myPlayers.slice(0, 8).map(p => (
                     <button
@@ -93,7 +93,7 @@ export default function StampBar({ myPlayers, onSend, defaultOpen = false }: {
                         <PlayerFace playerId={p.id} nationality={p.nationality} size={30} />
                       </div>
                       <div style={{
-                        fontSize: 8, color: C.textSub, marginTop: 2,
+                        fontSize: F.micro, color: C.textSub, marginTop: 2,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 2px',
                       }}>{p.name.split(' ').at(-1) ?? p.name}</div>
                     </button>

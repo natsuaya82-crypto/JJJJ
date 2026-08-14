@@ -9,7 +9,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha, COMPETITION_BTN, rankColor, SAIRA, bottomStack } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
@@ -169,8 +169,8 @@ export function ResultsPhase({
             </svg>
           </button>
           <div>
-            <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, fontWeight: 800 }}>SEGMENTS</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
+            <div style={{ fontSize: F.tiny, color: C.gold, letterSpacing: 2, fontWeight: 800 }}>SEGMENTS</div>
+            <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
           </div>
         </div>
         {/* 区間タブ（上部・横スクロール） */}
@@ -201,8 +201,8 @@ export function ResultsPhase({
             </svg>
           </button>
           <div>
-            <div style={{ fontSize: 9, color: '#7986CB', letterSpacing: 2, fontWeight: 800 }}>EXP GAIN</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>経験値獲得</div>
+            <div style={{ fontSize: F.tiny, color: '#7986CB', letterSpacing: 2, fontWeight: 800 }}>EXP GAIN</div>
+            <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>経験値獲得</div>
           </div>
         </div>
         <div style={{ padding: '14px 12px' }}>
@@ -215,8 +215,8 @@ export function ResultsPhase({
                   <div key={p.id}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <FaceOrDot playerId={p.id} nationality={p.nationality} size={32} />
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{p.name}</div>
-                      <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</span>
+                      <div style={{ fontSize: F.body, fontWeight: 700, color: C.text }}>{p.name}</div>
+                      <span style={{ marginLeft: 'auto', fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: ratingColor(ovr(p)) }}>{ovr(p)}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {gainedKeys.map(k => {
@@ -229,10 +229,10 @@ export function ResultsPhase({
                         const gainPct = req > 0 ? Math.min(gained / req, 1 - basePct) : 0
                         return (
                           <div key={k} style={{ minWidth: 66 }}>
-                            <div style={{ fontSize: 8, color: C.textDim, marginBottom: 3 }}>{CARD_STAT_LABELS[k]}</div>
+                            <div style={{ fontSize: F.micro, color: C.textDim, marginBottom: 3 }}>{CARD_STAT_LABELS[k]}</div>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 3 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: '#7986CB', fontFamily: SAIRA }}>{cur}</span>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: C.green, fontFamily: SAIRA }}>+{gained}</span>
+                              <span style={{ fontSize: F.body, fontWeight: 700, color: '#7986CB', fontFamily: SAIRA }}>{cur}</span>
+                              <span style={{ fontSize: F.tiny, fontWeight: 700, color: C.green, fontFamily: SAIRA }}>+{gained}</span>
                             </div>
                             <div style={{ height: 4,background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
                               <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${basePct * 100}%`, background: alpha(C.textSub, 0.4),}}/>
@@ -278,13 +278,13 @@ export function ResultsPhase({
         ...panelStyle(C.gold),
         padding: '12px 16px 11px', textAlign: 'center', margin: '12px 12px 0',
       }}>
-        <div style={{ fontSize: '9px', color: C.gold, letterSpacing: '3px', marginBottom: '3px', textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
+        <div style={{ fontSize: F.tiny, color: C.gold, letterSpacing: '3px', marginBottom: '3px', textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
           RACE COMPLETE
         </div>
-        <div style={{ fontSize: '17px', fontWeight: '900', color: C.text, marginBottom: '2px' }}>
+        <div style={{ fontSize: F.title, fontWeight: '900', color: C.text, marginBottom: '2px' }}>
           {race.name}
         </div>
-        <div style={{ fontSize: '11px', color: C.textSub }}>
+        <div style={{ fontSize: F.label, color: C.textSub }}>
           優勝：{teamMap.get(leader?.teamId ?? '')?.name ?? '―'}
         </div>
       </div>
@@ -325,7 +325,7 @@ export function ResultsPhase({
         return (
           <>
             <div style={{ ...panelStyle(C.gold), margin: '12px 12px 0', padding: '11px 14px' }}>
-              <div style={{ fontSize: '9px', color: C.gold, letterSpacing: '2px', marginBottom: '6px', textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
+              <div style={{ fontSize: F.tiny, color: C.gold, letterSpacing: '2px', marginBottom: '6px', textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
                 YOUR RESULT
               </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -336,23 +336,23 @@ export function ResultsPhase({
             }}>
               {playerResult.rank}
             </div>
-            <div style={{ fontSize: '9px', color: C.textSub, marginTop: '3px' }}>位</div>
+            <div style={{ fontSize: F.tiny, color: C.textSub, marginTop: '3px' }}>位</div>
             <div style={{ flex: 1, marginLeft: '6px' }}>
-              <div style={{ fontSize: '10px', color: C.textDim }}>獲得リーグポイント</div>
-              <div style={{ fontSize: '16px', fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
+              <div style={{ fontSize: F.caption, color: C.textDim }}>獲得リーグポイント</div>
+              <div style={{ fontSize: F.title, fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
                 +{playerResult.positionPoints + playerResult.segmentPoints}pt
               </div>
-              <div style={{ fontSize: '9px', color: C.textDim }}>
+              <div style={{ fontSize: F.tiny, color: C.textDim }}>
                 順位 {playerResult.positionPoints} ／ 区間賞 {playerResult.segmentPoints}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '11px', color: C.textDim }}>タイム</div>
-              <div style={{ fontSize: '15px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>
+              <div style={{ fontSize: F.label, color: C.textDim }}>タイム</div>
+              <div style={{ fontSize: F.subLg, fontWeight: '700', color: C.text, fontFamily: SAIRA }}>
                 {formatRaceTime(playerResult.totalTimeSec)}
               </div>
               {leader && playerResult.rank > 1 && (
-                <div style={{ fontSize: '10px', color: C.textDim }}>
+                <div style={{ fontSize: F.caption, color: C.textDim }}>
                   {formatDiff(playerResult.totalTimeSec - leader.totalTimeSec)}
                 </div>
               )}
@@ -371,10 +371,10 @@ export function ResultsPhase({
               }}>
                 <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(moment.color, 0.15)}`,pointerEvents: 'none' }} />
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  <div style={{ fontSize: '9px', fontWeight: '800', color: moment.color, letterSpacing: '3px', marginBottom: '5px', textShadow: `0 0 10px ${alpha(moment.color, 0.5)}` }}>
+                  <div style={{ fontSize: F.tiny, fontWeight: '800', color: moment.color, letterSpacing: '3px', marginBottom: '5px', textShadow: `0 0 10px ${alpha(moment.color, 0.5)}` }}>
                     {moment.label}
                   </div>
-                  <div style={{ fontSize: '12px', color: C.textSub, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.5 }}>
                     {moment.text}
                   </div>
                 </div>
@@ -386,8 +386,8 @@ export function ResultsPhase({
 
       <div style={{ padding: '0 12px', marginTop: '16px', marginBottom: '18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <div style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px' }}>最終順位</div>
-          <div style={{ display: 'flex', gap: '10px', fontSize: '9px', fontFamily: SAIRA }}>
+          <div style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px' }}>最終順位</div>
+          <div style={{ display: 'flex', gap: '10px', fontSize: F.tiny, fontFamily: SAIRA }}>
             <span style={{ color: C.gold }}>● 順位</span>
             <span style={{ color: C.cyan }}>● 区間賞</span>
           </div>
@@ -404,22 +404,22 @@ export function ResultsPhase({
                 borderBottom: i < results.teamRankings.length - 1 ? `1px solid ${C.surface2}` : 'none',
                 ...rowStyle,
               }}>
-                <div style={{ width: '20px', textAlign: 'center', flexShrink: 0, fontSize: '12px', fontWeight: '800', fontFamily: SAIRA, color: rankColor(tr.rank), textShadow: tr.rank === 1 ? `0 0 10px ${alpha(C.gold, 0.5)}` : 'none' }}>
+                <div style={{ width: '20px', textAlign: 'center', flexShrink: 0, fontSize: F.body, fontWeight: '800', fontFamily: SAIRA, color: rankColor(tr.rank), textShadow: tr.rank === 1 ? `0 0 10px ${alpha(C.gold, 0.5)}` : 'none' }}>
                   {tr.rank}
                 </div>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={18} />}
-                <div style={{ flex: 1, minWidth: 0, fontSize: '12px', color: isPlayer ? C.text : C.textSub, fontWeight: isPlayer ? '700' : '400', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: F.body, color: isPlayer ? C.text : C.textSub, fontWeight: isPlayer ? '700' : '400', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {t?.name ?? tr.teamId}
                 </div>
-                <div style={{ fontSize: '12px', color: C.textSub, fontFamily: SAIRA, minWidth: '50px', textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: F.body, color: C.textSub, fontFamily: SAIRA, minWidth: '50px', textAlign: 'right', flexShrink: 0 }}>
                   {formatRaceTime(tr.totalTimeSec)}
                 </div>
                 <div style={{ flexShrink: 0, minWidth: 66, textAlign: 'right', fontFamily: SAIRA, whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.gold }}>{tr.positionPoints}</span>
-                  <span style={{ fontSize: 9, color: C.textGhost, margin: '0 1px' }}>/</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.cyan }}>{tr.segmentPoints}</span>
-                  <span style={{ fontSize: 9, color: C.textGhost, margin: '0 2px' }}>=</span>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: C.text }}>{tr.positionPoints + tr.segmentPoints}</span>
+                  <span style={{ fontSize: F.label, fontWeight: 700, color: C.gold }}>{tr.positionPoints}</span>
+                  <span style={{ fontSize: F.tiny, color: C.textGhost, margin: '0 1px' }}>/</span>
+                  <span style={{ fontSize: F.label, fontWeight: 700, color: C.cyan }}>{tr.segmentPoints}</span>
+                  <span style={{ fontSize: F.tiny, color: C.textGhost, margin: '0 2px' }}>=</span>
+                  <span style={{ fontSize: F.sub, fontWeight: 900, color: C.text }}>{tr.positionPoints + tr.segmentPoints}</span>
                 </div>
               </div>
             )
@@ -442,8 +442,8 @@ export function ResultsPhase({
             </svg>
           </div>
           <div style={{ flex: 1, textAlign: 'left' }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
-            <div style={{ fontSize: 10, color: C.textDim }}>全{results.segmentResults.length}区間のタイム・順位を見る</div>
+            <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>区間タイム詳細</div>
+            <div style={{ fontSize: F.caption, color: C.textDim }}>全{results.segmentResults.length}区間のタイム・順位を見る</div>
           </div>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ color: C.textSub, flexShrink: 0 }}>
             <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -467,12 +467,12 @@ export function ResultsPhase({
               background: alpha(C.gold, 0.08), border: `1px solid ${alpha(C.gold, 0.3)}`,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1 }}>区間賞</span>
-              <span style={{ fontSize: 14, fontWeight: 900, color: C.gold, fontFamily: SAIRA, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{segWins.length}</span>
+              <span style={{ fontSize: F.caption, color: C.textDim, letterSpacing: 1 }}>区間賞</span>
+              <span style={{ fontSize: F.sub, fontWeight: 900, color: C.gold, fontFamily: SAIRA, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{segWins.length}</span>
               <div style={{ flex: 1 }} />
               <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {segWins.map(w => (
-                  <span key={w.segmentIndex} style={{ fontSize: 9, fontWeight: 700, color: C.gold, fontFamily: SAIRA, padding: '1px 5px',background: alpha(C.gold, 0.12) }}>{w.segmentIndex}区</span>
+                  <span key={w.segmentIndex} style={{ fontSize: F.tiny, fontWeight: 700, color: C.gold, fontFamily: SAIRA, padding: '1px 5px',background: alpha(C.gold, 0.12) }}>{w.segmentIndex}区</span>
                 ))}
               </div>
             </div>
@@ -482,13 +482,13 @@ export function ResultsPhase({
 
       <div style={{ padding: '0 12px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{ fontSize: '10px', color: C.textDim, letterSpacing: '2px' }}>
+          <span style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px' }}>
             {standingsLabel ?? (altStandings ? '順位（暫定）' : 'シーズン順位（暫定）')}
           </span>
           {!altStandings && playerSeasonRank > 0 && (
-            <span style={{ fontSize: '10px', color: C.textDim }}>
+            <span style={{ fontSize: F.caption, color: C.textDim }}>
               自チーム
-              <span style={{ fontSize: '14px', fontWeight: '900', color: playerSeasonRank === 1 ? C.gold : playerSeasonRank <= 3 ? C.green : C.textSub, fontFamily: SAIRA, margin: '0 3px', textShadow: playerSeasonRank <= 3 ? `0 0 8px ${alpha(C.gold, 0.4)}` : 'none' }}>{playerSeasonRank}</span>
+              <span style={{ fontSize: F.sub, fontWeight: '900', color: playerSeasonRank === 1 ? C.gold : playerSeasonRank <= 3 ? C.green : C.textSub, fontFamily: SAIRA, margin: '0 3px', textShadow: playerSeasonRank <= 3 ? `0 0 8px ${alpha(C.gold, 0.4)}` : 'none' }}>{playerSeasonRank}</span>
               位 / {fullSorted.length}
             </span>
           )}
@@ -513,8 +513,8 @@ export function ResultsPhase({
           <div style={{ ...panelStyle(C.green), padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 10, color: C.green, letterSpacing: 2, fontWeight: 700, textShadow: `0 0 10px ${alpha(C.green, 0.5)}` }}>CARD DROP</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>
+                <div style={{ fontSize: F.caption, color: C.green, letterSpacing: 2, fontWeight: 700, textShadow: `0 0 10px ${alpha(C.green, 0.5)}` }}>CARD DROP</div>
+                <div style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, marginTop: 2 }}>
                   {raceDroppedCards.length}枚のカードを獲得
                 </div>
               </div>
@@ -531,10 +531,10 @@ export function ResultsPhase({
 padding: '8px 10px',
                   textAlign: 'center', minWidth: 68,
                 }}>
-                  <div style={{ fontSize: 8, color: RARITY_COLORS[card.rarity], fontWeight: 700, marginBottom: 4 }}>
+                  <div style={{ fontSize: F.micro, color: RARITY_COLORS[card.rarity], fontWeight: 700, marginBottom: 4 }}>
                     {RARITY_LABELS[card.rarity]}
                   </div>
-                  <div style={{ fontSize: 10, color: C.textSub, marginBottom: 4 }}>
+                  <div style={{ fontSize: F.caption, color: C.textSub, marginBottom: 4 }}>
                     {card.kind === 'rest' ? REST_CARD_NAME : CARD_NAMES[card.statKey]}
                   </div>
                 </div>

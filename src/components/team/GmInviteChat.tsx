@@ -9,7 +9,7 @@ import { useAdHeight } from '../layout/Layout'
 import { appraiseGmInvite } from '../../utils/gmInvite'
 import { gmInviteAskLine, gmInviteYesLine, gmInviteNoLine, gmInviteFeeLine } from '../../utils/chatLines'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
-import { C, alpha, SAIRA, bottomStack } from '../../styles/tokens'
+import { C, alpha, SAIRA, bottomStack, F } from '../../styles/tokens'
 
 // ============================================================================
 // **声をかけた相手との1往復。ここで返事が出る。**
@@ -54,7 +54,7 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
       background: C.bg, overflowY: 'auto', paddingTop: 'env(safe-area-inset-top)',
     }}>
       <PageHeader title={player.name} eyebrow="INVITE" onBack={onClose}
-        right={<span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>} />
+        right={<span style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: ratingColor(rating) }}>{rating}</span>} />
 
       <div style={{ padding: '4px 14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <ChatBubble from="gm">{gmInviteAskLine(dest.shortName).text}</ChatBubble>

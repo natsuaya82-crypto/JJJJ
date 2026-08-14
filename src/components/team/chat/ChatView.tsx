@@ -22,7 +22,7 @@ import type { TeamRole, IncomingOffer, ChatMessage } from '../../../types'
 import { TeamLogoSVG } from '../../icons/Icons'
 import NumberDial from '../../ui/NumberDial'
 import { SALARY_DIAL_STEP, SALARY_DIAL_MIN, NEGOTIATION_SALARY_MAX } from '../../../data/economy'
-import { C, alpha, SAIRA } from '../../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../../styles/tokens'
 import { tierOfPlayerClub, allTieredClubs } from '../../../utils/clubTier'
 import { fmtYen } from '../../../utils/money'
 import { buildMessages, buildAcqMessages, buildTransferMessages, buildIncomingOfferMessages, buildIncomingLoanMessages, buildStayOrLeaveMessages } from '../../../utils/chatTalk'
@@ -813,7 +813,7 @@ export function ChatView({
       <ActionSheet
         open={pickingDest}
         onClose={() => setPickingDest(false)}
-        header={<div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{player.name}の移籍先を選ぶ</div>}
+        header={<div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>{player.name}の移籍先を選ぶ</div>}
         items={rankedOffers.map((r, i) => ({
           label: `${i === 0 ? '★ ' : ''}${nameOfClub(r.offer.fromTeamId)}  ${fmtYen(r.offer.offeredPrice)}  ${r.appraisal.reason}`,
           color: r.appraisal.ok ? C.green : C.textDim,
@@ -826,17 +826,17 @@ export function ChatView({
           <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{player.name}</div>
+          <div style={{ fontSize: F.sub, fontWeight: 800, color: C.text }}>{player.name}</div>
           {/* 無所属の選手に契約の残りを出さない。誰とも結んでいない契約の残り月数が
               「残1年2ヶ月」と出ていた（前のクラブとの契約が消えずに残っているだけ）。
               年俸は交渉の目安として要るので、前のクラブでの額だと分かる形で出す */}
-          <div style={{ fontSize: 10, color: C.textDim }}>
+          <div style={{ fontSize: F.caption, color: C.textDim }}>
             {player.teamId === ''
               ? `${player.age}歳 · 無所属 · 前年俸${fmtYen(player.contract.annualSalary)}`
               : `${player.age}歳 · ${fmtYen(player.contract.annualSalary)} · 残${fmtDuration(months)}`}
           </div>
         </div>
-        <div style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: ratingColor(playerOvr) }}>{playerOvr}</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: ratingColor(playerOvr) }}>{playerOvr}</div>
       </div>
 
       <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -860,7 +860,7 @@ export function ChatView({
               {msg.from === 'player' && sp.name && (
                 <span
                   onClick={sp.club ? () => goClubPage(sp.club) : undefined}
-                  style={{ fontSize: 10, color: sp.club ? C.blue : C.textDim, fontWeight: 700, padding: '0 2px', cursor: sp.club ? 'pointer' : 'default' }}
+                  style={{ fontSize: F.caption, color: sp.club ? C.blue : C.textDim, fontWeight: 700, padding: '0 2px', cursor: sp.club ? 'pointer' : 'default' }}
                 >
                   {sp.name}{sp.club ? ' ▸' : ''}
                 </span>
@@ -873,7 +873,7 @@ export function ChatView({
         )})}
 
         {chatMessages.length === 0 && (
-          <div style={{ textAlign: 'center', color: C.textGhost, fontSize: 12, marginTop: 40 }}>
+          <div style={{ textAlign: 'center', color: C.textGhost, fontSize: F.body, marginTop: 40 }}>
             特に連絡はありません
           </div>
         )}
@@ -884,32 +884,32 @@ export function ChatView({
         {composing && composeMode === 'counterFee' ? (
           // 買い取り打診への逆提示は「移籍金」だけを決める（年俸・年数は相手クラブが決めること）
           <div style={{ padding: '12px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 10, color: C.textDim }}>{rankedOffers.length > 1 ? `提示する移籍金（${rankedOffers.length}クラブ一斉）` : '提示する移籍金'}</div>
+            <div style={{ fontSize: F.caption, color: C.textDim }}>{rankedOffers.length > 1 ? `提示する移籍金（${rankedOffers.length}クラブ一斉）` : '提示する移籍金'}</div>
             <div style={{ padding: '4px 0 8px' }}>
               <NumberDial value={offerFee} onChange={v => setOfferFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.gold} />
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={handleSubmitCounterFee}
-                style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.gold, color: '#1a1a1a', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.gold, color: '#1a1a1a', fontSize: F.bodyLg, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
                 この金額で提示
               </button>
               <button onClick={() => setComposing(false)}
-                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>
                 キャンセル
               </button>
             </div>
           </div>
         ) : composing ? (
           <div style={{ padding: '12px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 10, color: C.textDim }}>提示年俸</div>
+            <div style={{ fontSize: F.caption, color: C.textDim }}>提示年俸</div>
             <div style={{ padding: '4px 0 8px' }}>
               <NumberDial value={offerSalary} onChange={v => setOfferSalary(Math.max(SALARY_DIAL_MIN, Math.min(NEGOTIATION_SALARY_MAX, v)))} min={SALARY_DIAL_MIN} max={NEGOTIATION_SALARY_MAX} accent={C.blue} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 10, color: C.textDim, flexShrink: 0 }}>年数</span>
+              <span style={{ fontSize: F.caption, color: C.textDim, flexShrink: 0 }}>年数</span>
               {[1, 2, 3, 4].map(y => (
                 <button key={y} onClick={() => setOfferYears(y)}
-                  style={{ flex: 1, padding: '5px',border: 'none', cursor: 'pointer', backgroundColor: offerYears === y ? C.blue : C.surface, color: offerYears === y ? '#fff' : C.textDim, fontSize: 11, fontWeight: 800, fontFamily: 'inherit' }}>
+                  style={{ flex: 1, padding: '5px',border: 'none', cursor: 'pointer', backgroundColor: offerYears === y ? C.blue : C.surface, color: offerYears === y ? '#fff' : C.textDim, fontSize: F.label, fontWeight: 800, fontFamily: 'inherit' }}>
                   {y}年
                 </button>
               ))}
@@ -918,11 +918,11 @@ export function ChatView({
             {/* 役割選択UIは非表示（役割は裏で自動保持）。offerTeamRole は未指定のまま提示される */}
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={composeMode === 'transfer' ? handleSubmitTransferOffer : composeMode === 'acq' ? handleSubmitAcqOffer : handleSubmitOffer}
-                style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.blue, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.blue, color: '#fff', fontSize: F.bodyLg, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
                 提示する
               </button>
               <button onClick={() => setComposing(false)}
-                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>
                 キャンセル
               </button>
             </div>
@@ -931,7 +931,7 @@ export function ChatView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 16px 16px' }}>
             {replyButtons.map((btn, i) => (
               <button key={i} onClick={btn.action} disabled={btn.disabled}
-                style={{ width: '100%', padding: '10px 12px',border: `1.5px solid ${alpha(btn.color, btn.disabled ? 0.2 : 0.5)}`, backgroundColor: alpha(btn.color, btn.disabled ? 0.04 : 0.1), color: btn.disabled ? C.textGhost : btn.color, fontSize: 13, fontWeight: 700, cursor: btn.disabled ? 'default' : 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+                style={{ width: '100%', padding: '10px 12px',border: `1.5px solid ${alpha(btn.color, btn.disabled ? 0.2 : 0.5)}`, backgroundColor: alpha(btn.color, btn.disabled ? 0.04 : 0.1), color: btn.disabled ? C.textGhost : btn.color, fontSize: F.bodyLg, fontWeight: 700, cursor: btn.disabled ? 'default' : 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
                 {btn.label}{btn.disabled ? '（枠が満杯）' : ''}
               </button>
             ))}

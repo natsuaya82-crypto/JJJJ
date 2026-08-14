@@ -1,5 +1,5 @@
 import type { Race } from '../../types'
-import { C, alpha, COMPETITION_BTN, SAIRA } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, SAIRA, F } from '../../styles/tokens'
 import { InfoTile } from '../ui'
 import { courseTypeOf } from '../../data/races'
 import { panelStyle } from '../ui/Panel'
@@ -80,18 +80,18 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: AC.nextColor, boxShadow: `0 0 8px ${AC.nextColor}` }}/>
-              <span style={{ fontFamily: SAIRA, fontSize: 10, color: AC.nextColor, letterSpacing: '0.22em', fontWeight: 900 }}>
+              <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: AC.nextColor, letterSpacing: '0.22em', fontWeight: 900 }}>
                 NEXT RACE — {raceNumber}/{totalRaces}
               </span>
             </div>
             <div style={{
-              fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.1,
+              fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.1,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224`,
             }}>
               {race.name}
             </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub, marginTop: 3, letterSpacing: '0.06em' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textSub, marginTop: 3, letterSpacing: '0.06em' }}>
               {race.date.replace(/-/g, '/')} · {race.location}
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
             padding: '5px 12px', flexShrink: 0,
             background: AC.badgeGrad,
             border: `1px solid ${AC.badgeBorder}`,
-            fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.bg,
+            fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.bg,
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
             textShadow: 'none',
           }}>
@@ -144,7 +144,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
       {/* CTA：白文字＋共通の縁取り（金・青とも btn-game のCSSに準拠） */}
       <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2, display: 'flex', gap: 8 }}>
         <button className={`btn-game ${AC.btnClass}`} style={{ flex: 1, minWidth: 0, border: 'none', cursor: 'pointer' }}>
-          <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',fontWeight: 900 }}>
+          <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',fontWeight: 900 }}>
             {ctaLabel ?? '出走メンバーを組む'}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
@@ -159,7 +159,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
             style={{ flexShrink: 0, border: 'none', cursor: 'pointer' }}
             onClick={e => { e.stopPropagation(); onSecondaryClick() }}
           >
-            <span className="btn-game__inner" style={{ fontSize: 13, padding: '11px 14px', fontWeight: 900, gap: 4 }}>
+            <span className="btn-game__inner" style={{ fontSize: F.bodyLg, padding: '11px 14px', fontWeight: 900, gap: 4 }}>
               {secondaryCtaLabel}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                 <path d="M5 18l6-6-6-6M13 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>

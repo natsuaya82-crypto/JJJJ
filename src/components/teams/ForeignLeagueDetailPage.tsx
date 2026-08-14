@@ -5,7 +5,7 @@ import { ovr } from '../../utils/playerUtils'
 import { belongsToClub } from '../../utils/rosterSync'
 import { LeagueLogoSVG } from '../icons/Icons'
 import StandingsTable, { type StandRow } from './StandingsTable'
-import { C, SAIRA, FONT } from '../../styles/tokens'
+import { C, SAIRA, FONT, F } from '../../styles/tokens'
 
 
 export default function ForeignLeagueDetailPage() {
@@ -45,7 +45,7 @@ export default function ForeignLeagueDetailPage() {
         eyebrow={league.countryName.toUpperCase()}
         title={league.name}
         right={<div style={{ padding: '4px 10px', background: C.surface2, border: `1px solid ${C.border2}`, flexShrink: 0 }}>
-          <span style={{ fontSize: '9px', color: C.textDim }}>{hasResults ? '勝点順' : 'OVR順'}</span>
+          <span style={{ fontSize: F.tiny, color: C.textDim }}>{hasResults ? '勝点順' : 'OVR順'}</span>
         </div>}
       />
 

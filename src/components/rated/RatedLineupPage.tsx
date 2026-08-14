@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LineupPhase } from '../race/LineupPhase'
 import { useGameStore } from '../../store/gameStore'
 import { fetchToday, submitLineup, SUBMIT_DEADLINE_HHMM, type RatedToday } from '../../lib/ratedApi'
-import { C, SAIRA } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 import type { Player } from '../../types'
 
 // ============================================================================
@@ -63,7 +63,7 @@ export default function RatedLineupPage() {
       startLabel={sent ? '提出しました' : 'このオーダーで提出'}
       headerNote={
         <span style={{
-          fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold,
+          fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.gold,
           padding: '2px 8px',background: 'rgba(245,200,66,0.12)',
         }}>締め切り {SUBMIT_DEADLINE_HHMM}</span>
       }

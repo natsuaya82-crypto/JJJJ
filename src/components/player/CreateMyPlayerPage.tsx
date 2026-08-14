@@ -11,7 +11,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
-import { C, alpha, SAIRA, FONT, bottomStack } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 
 
 const STATS: { key: keyof Ratings; label: string }[] = [
@@ -102,21 +102,21 @@ export default function CreateMyPlayerPage() {
   if (done) {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 12, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>MY PLAYER CREATED</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>MY PLAYER CREATED</div>
         <div style={{overflow: 'hidden', border: `3px solid ${C.gold}`, boxShadow: `0 0 24px ${alpha(C.gold, 0.5)}` }}>
           <PlayerFace playerId="preview" nationality={nationality} size={120} customFace={face} />
         </div>
-        <div style={{ fontSize: 22, fontWeight: 900 }}>{name}</div>
-        <div style={{ fontSize: 13, color: C.textSub }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]} ・ マイチームに加入</div>
+        <div style={{ fontSize: F.headLg, fontWeight: 900 }}>{name}</div>
+        <div style={{ fontSize: F.bodyLg, color: C.textSub }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]} ・ マイチームに加入</div>
         <button onClick={() => navigate('/team/roster')} className="btn-game btn-game--gold" style={{ width: '80%', marginTop: 8 }}><span className="btn-game__inner">ロスターで確認 →</span></button>
-        <button onClick={() => navigate('/')} className="btn-press" style={{ width: '80%', padding: '12px 0',background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>ホームへ</button>
+        <button onClick={() => navigate('/')} className="btn-press" style={{ width: '80%', padding: '12px 0',background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: F.sub, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>ホームへ</button>
       </div>
     )
   }
 
   const card = (title: string, children: React.ReactNode) => (
     <div style={{ margin: '0 12px 12px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.goldDark}`, overflow: 'hidden' }}>
-      <div style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.gold, letterSpacing: 1 }}>{title}</div>
+      <div style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.gold, letterSpacing: 1 }}>{title}</div>
       <div style={{ padding: '10px 12px 12px' }}>{children}</div>
     </div>
   )
@@ -124,7 +124,7 @@ export default function CreateMyPlayerPage() {
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 84 }) }}>
       <PageHeader title="マイプレイヤー作成" onBack={() => navigate('/')} />
-      <div style={{ padding: '0 16px 10px', fontSize: 11, color: C.textDim }}>初年度はドラフトに参加しない代わりに、選手を1人つくれます。</div>
+      <div style={{ padding: '0 16px 10px', fontSize: F.label, color: C.textDim }}>初年度はドラフトに参加しない代わりに、選手を1人つくれます。</div>
 
       {/* プレビュー */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 12px 12px', padding: 12,background: `linear-gradient(135deg, ${alpha(C.gold, 0.14)}, ${C.surface2})`, border: `2px solid ${C.goldDark}` }}>
@@ -132,31 +132,31 @@ export default function CreateMyPlayerPage() {
           <PlayerFace playerId="preview" nationality={nationality} size={72} customFace={face} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: name ? C.text : C.textGhost }}>{name || '（名前未入力）'}</div>
-          <div style={{ fontSize: 11, color: C.textSub, marginTop: 2 }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]}</div>
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 3 }}>現OVR {Math.round(used / 7)} → 育成上限 平均{Math.round(Object.values(grownCaps).reduce((a, b) => a + b, 0) / 7)}</div>
+          <div style={{ fontSize: F.title, fontWeight: 900, color: name ? C.text : C.textGhost }}>{name || '（名前未入力）'}</div>
+          <div style={{ fontSize: F.label, color: C.textSub, marginTop: 2 }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]}</div>
+          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 3 }}>現OVR {Math.round(used / 7)} → 育成上限 平均{Math.round(Object.values(grownCaps).reduce((a, b) => a + b, 0) / 7)}</div>
         </div>
       </div>
 
       {card('名前・年齢', (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input value={name} onChange={e => setName(e.target.value.slice(0, 8))} placeholder="選手名（8文字まで）" maxLength={8}
-            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px',background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: 15, fontFamily: FONT }} />
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px',background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: F.subLg, fontFamily: FONT }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: C.textDim, width: 40 }}>国籍</span>
+            <span style={{ fontSize: F.body, color: C.textDim, width: 40 }}>国籍</span>
             <button onClick={() => setNatSheet(true)} style={{
               flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
-              background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: 13, cursor: 'pointer', fontFamily: FONT,
+              background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: F.bodyLg, cursor: 'pointer', fontFamily: FONT,
             }}>
               <Flag code={nationality} width={22} />
               <span style={{ flex: 1, textAlign: 'left' }}>{natLabel(nationality)}</span>
-              <span style={{ color: C.textDim, fontSize: 11 }}>変更</span>
+              <span style={{ color: C.textDim, fontSize: F.label }}>変更</span>
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: C.textDim, width: 40 }}>年齢</span>
+            <span style={{ fontSize: F.body, color: C.textDim, width: 40 }}>年齢</span>
             {[18, 19, 20, 21, 22].map(a => (
-              <button key={a} onClick={() => setAge(a)} style={{ flex: 1, padding: '7px 0',cursor: 'pointer', fontFamily: SAIRA, fontSize: 14, fontWeight: 800, border: 'none', background: age === a ? C.gold : C.surface, color: age === a ? '#fff' : C.textDim }}>{a}</button>
+              <button key={a} onClick={() => setAge(a)} style={{ flex: 1, padding: '7px 0',cursor: 'pointer', fontFamily: SAIRA, fontSize: F.sub, fontWeight: 800, border: 'none', background: age === a ? C.gold : C.surface, color: age === a ? '#fff' : C.textDim }}>{a}</button>
             ))}
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function CreateMyPlayerPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
           {SPECIALTIES.map(sp => (
             <button key={sp} onClick={() => setSpecialty(sp)} style={{ textAlign: 'left', padding: '8px 10px',cursor: 'pointer', background: specialty === sp ? alpha(C.gold, 0.18) : C.surface, border: `1.5px solid ${specialty === sp ? C.gold : C.border}`, fontFamily: FONT }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: specialty === sp ? C.gold : C.text }}>{SPECIALTY_LABELS[sp]}</div>
+              <div style={{ fontSize: F.body, fontWeight: 800, color: specialty === sp ? C.gold : C.text }}>{SPECIALTY_LABELS[sp]}</div>
             </button>
           ))}
         </div>
@@ -174,20 +174,20 @@ export default function CreateMyPlayerPage() {
 
       {card(`能力を振り分け（残り ${remaining}）`, (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          <div style={{ fontSize: 9, color: C.textGhost, marginBottom: 2 }}>合計{TOTAL}を振り分け。育て切ると全体平均が92（合計644）になるよう、低い能力から自動で伸びます。尖らせるほど残りの伸びしろが減ります。</div>
+          <div style={{ fontSize: F.tiny, color: C.textGhost, marginBottom: 2 }}>合計{TOTAL}を振り分け。育て切ると全体平均が92（合計644）になるよう、低い能力から自動で伸びます。尖らせるほど残りの伸びしろが減ります。</div>
           {STATS.map(st => {
             const v = ratings[st.key]
             const cap = grownCaps[st.key]
             return (
               <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, color: C.textSub, width: 36, flexShrink: 0 }}>{st.label}</span>
-                <button onClick={() => setStat(st.key, v - 1)} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}>−</button>
+                <span style={{ fontSize: F.label, color: C.textSub, width: 36, flexShrink: 0 }}>{st.label}</span>
+                <button onClick={() => setStat(st.key, v - 1)} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: F.title, cursor: 'pointer', flexShrink: 0 }}>−</button>
                 <div style={{ flex: 1, position: 'relative', height: 8,background: C.border2, overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${cap}%`, background: alpha(C.green, 0.35) }} />
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${v}%`, background: C.gold }} />
                 </div>
-                <button onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: remaining <= 0 ? C.surface2 : C.surface, color: remaining <= 0 ? C.textGhost : C.text, fontSize: 16, cursor: remaining <= 0 ? 'default' : 'pointer', flexShrink: 0 }}>＋</button>
-                <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.text, width: 46, textAlign: 'right', flexShrink: 0 }}>{v}<span style={{ fontSize: 9, color: C.green }}>→{cap}</span></span>
+                <button onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: remaining <= 0 ? C.surface2 : C.surface, color: remaining <= 0 ? C.textGhost : C.text, fontSize: F.title, cursor: remaining <= 0 ? 'default' : 'pointer', flexShrink: 0 }}>＋</button>
+                <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.text, width: 46, textAlign: 'right', flexShrink: 0 }}>{v}<span style={{ fontSize: F.tiny, color: C.green }}>→{cap}</span></span>
               </div>
             )
           })}
@@ -203,14 +203,14 @@ export default function CreateMyPlayerPage() {
             <FaceRow label="髪型" onPrev={() => setFace(f => ({ ...f, style: (f.style + 23) % 24 }))} onNext={() => setFace(f => ({ ...f, style: (f.style + 1) % 24 }))} value={`${face.style + 1}/24`} />
             <FaceRow label="目" onPrev={() => setFace(f => ({ ...f, eye: (f.eye + 26) % 27 }))} onNext={() => setFace(f => ({ ...f, eye: (f.eye + 1) % 27 }))} value={`${face.eye + 1}/27`} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 10, color: C.textDim, width: 30 }}>髪色</span>
+              <span style={{ fontSize: F.caption, color: C.textDim, width: 30 }}>髪色</span>
               {HAIRS.map(h => (
-                <button key={h} onClick={() => setFace(f => ({ ...f, hair: h }))} style={{ flex: 1, padding: '5px 0',cursor: 'pointer', fontSize: 10, fontWeight: 700, border: `1px solid ${face.hair === h ? C.gold : C.border}`, background: face.hair === h ? alpha(C.gold, 0.18) : C.surface, color: face.hair === h ? C.gold : C.textDim }}>{HAIR_LABEL[h]}</button>
+                <button key={h} onClick={() => setFace(f => ({ ...f, hair: h }))} style={{ flex: 1, padding: '5px 0',cursor: 'pointer', fontSize: F.caption, fontWeight: 700, border: `1px solid ${face.hair === h ? C.gold : C.border}`, background: face.hair === h ? alpha(C.gold, 0.18) : C.surface, color: face.hair === h ? C.gold : C.textDim }}>{HAIR_LABEL[h]}</button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setFace(f => ({ ...f, flip: !f.flip }))} style={{ flex: 1, padding: '6px 0',cursor: 'pointer', fontSize: 11, fontWeight: 700, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub }}>左右反転</button>
-              <button onClick={() => setFace({ style: Math.floor(Math.random() * 24), eye: Math.floor(Math.random() * 27), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0',cursor: 'pointer', fontSize: 11, fontWeight: 800, border: `1px solid ${C.goldDark}`, background: alpha(C.gold, 0.12), color: C.gold }}>ランダム</button>
+              <button onClick={() => setFace(f => ({ ...f, flip: !f.flip }))} style={{ flex: 1, padding: '6px 0',cursor: 'pointer', fontSize: F.label, fontWeight: 700, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub }}>左右反転</button>
+              <button onClick={() => setFace({ style: Math.floor(Math.random() * 24), eye: Math.floor(Math.random() * 27), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0',cursor: 'pointer', fontSize: F.label, fontWeight: 800, border: `1px solid ${C.goldDark}`, background: alpha(C.gold, 0.12), color: C.gold }}>ランダム</button>
             </div>
           </div>
         </div>
@@ -220,14 +220,14 @@ export default function CreateMyPlayerPage() {
         <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
           {NATS_BY_REGION.map(({ geo, list }) => (
             <div key={geo} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, letterSpacing: 1, margin: '4px 2px 6px' }}>{geo}</div>
+              <div style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA, letterSpacing: 1, margin: '4px 2px 6px' }}>{geo}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
                 {list.map(n => (
                   <button key={n} onClick={() => { setNationality(n); setNatSheet(false) }} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',cursor: 'pointer',
                     background: nationality === n ? alpha(C.gold, 0.18) : C.surface,
                     border: `1.5px solid ${nationality === n ? C.gold : C.border}`,
-                    color: nationality === n ? C.gold : C.text, fontSize: 12, fontFamily: FONT, textAlign: 'left',
+                    color: nationality === n ? C.gold : C.text, fontSize: F.body, fontFamily: FONT, textAlign: 'left',
                   }}>
                     <Flag code={n} width={20} />
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{natLabel(n)}</span>
@@ -252,10 +252,10 @@ export default function CreateMyPlayerPage() {
 function FaceRow({ label, value, onPrev, onNext }: { label: string; value: string; onPrev: () => void; onNext: () => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ fontSize: 10, color: C.textDim, width: 30 }}>{label}</span>
-      <button onClick={onPrev} style={{ width: 30, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: 13, cursor: 'pointer' }}>◀</button>
-      <span style={{ flex: 1, textAlign: 'center', fontFamily: SAIRA, fontSize: 12, color: C.textSub }}>{value}</span>
-      <button onClick={onNext} style={{ width: 30, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: 13, cursor: 'pointer' }}>▶</button>
+      <span style={{ fontSize: F.caption, color: C.textDim, width: 30 }}>{label}</span>
+      <button onClick={onPrev} style={{ width: 30, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: F.bodyLg, cursor: 'pointer' }}>◀</button>
+      <span style={{ flex: 1, textAlign: 'center', fontFamily: SAIRA, fontSize: F.body, color: C.textSub }}>{value}</span>
+      <button onClick={onNext} style={{ width: 30, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: F.bodyLg, cursor: 'pointer' }}>▶</button>
     </div>
   )
 }

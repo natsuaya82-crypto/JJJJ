@@ -5,7 +5,7 @@ import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear, qualHostForYear, WA_HOST_CITY, waRaceDate } from '../../engine/worldAthletics'
 import { NAT_LABEL } from '../../data/nationalities'
 import Flag from '../ui/Flag'
-import { C, alpha, SAIRA, TT_COLOR } from '../../styles/tokens'
+import { C, alpha, SAIRA, TT_COLOR, F } from '../../styles/tokens'
 import { courseTypeOf } from '../../data/races'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
@@ -114,10 +114,10 @@ export default function SchedulePage() {
           eyebrow={`${currentSeason.year} SEASON`}
           title="年間予定表"
           right={<div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '13px', fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: '0 0 10px rgba(245,200,66,0.5)' }}>
+            <div style={{ fontSize: F.bodyLg, fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: '0 0 10px rgba(245,200,66,0.5)' }}>
               {totalDone}<span style={{ color: C.textDim, fontWeight: '400' }}>/{totalRaces}</span>
             </div>
-            <div style={{ fontSize: '10px', color: C.textDim }}>試合消化</div>
+            <div style={{ fontSize: F.caption, color: C.textDim }}>試合消化</div>
           </div>}
         />
       </div>
@@ -128,10 +128,10 @@ export default function SchedulePage() {
           display: 'flex', alignItems: 'center', gap: '12px',
         }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '11px', color: C.gold, fontWeight: '800', letterSpacing: '2px', marginBottom: '2px' }}>
+            <div style={{ fontSize: F.label, color: C.gold, fontWeight: '800', letterSpacing: '2px', marginBottom: '2px' }}>
               {currentSeason.year} シーズン開幕
             </div>
-            <div style={{ fontSize: '12px', color: C.textSub }}>
+            <div style={{ fontSize: F.body, color: C.textSub }}>
               全{currentSeason.races.length}戦のスケジュール（日程の確認）。
             </div>
           </div>
@@ -141,17 +141,17 @@ export default function SchedulePage() {
       <div style={{ display: 'flex', gap: '16px', padding: '10px 20px', borderBottom: `1px solid ${C.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: 3, height: 14,backgroundColor: C.gold }}/>
-          <span style={{ fontSize: '11px', color: C.textSub }}>リーグ戦</span>
+          <span style={{ fontSize: F.label, color: C.textSub }}>リーグ戦</span>
         </div>
         {eclS && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: 3, height: 14,backgroundColor: C.red }}/>
-            <span style={{ fontSize: '11px', color: C.textSub }}>ECL</span>
+            <span style={{ fontSize: F.label, color: C.textSub }}>ECL</span>
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: 3, height: 14,backgroundColor: waMainYear ? '#A855F7' : '#EC407A' }}/>
-          <span style={{ fontSize: '11px', color: C.textSub }}>{waMainYear ? '世界選手権' : 'アジア予選'}</span>
+          <span style={{ fontSize: F.label, color: C.textSub }}>{waMainYear ? '世界選手権' : 'アジア予選'}</span>
         </div>
       </div>
 
@@ -184,14 +184,14 @@ export default function SchedulePage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px',backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
+                      <span style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px',backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
                       {isNextTT && (
-                        <span style={{ fontSize: '10px', fontWeight: '800', color: C.bg, padding: '1px 7px',backgroundColor: TT_COLOR, fontFamily: SAIRA, marginLeft: 6 }}>NEXT</span>
+                        <span style={{ fontSize: F.caption, fontWeight: '800', color: C.bg, padding: '1px 7px',backgroundColor: TT_COLOR, fontFamily: SAIRA, marginLeft: 6 }}>NEXT</span>
                       )}
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{ev.name}</div>
-                      <div style={{ fontSize: '11px', color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {TT_LABEL[ev.distance]}</div>
+                      <div style={{ fontSize: F.sub, fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{ev.name}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {TT_LABEL[ev.distance]}</div>
                       {it.isDone && winnerPlayer && (
-                        <div style={{ fontSize: '10px', color: C.textDim, marginTop: '4px', lineHeight: 1.6 }}>
+                        <div style={{ fontSize: F.caption, color: C.textDim, marginTop: '4px', lineHeight: 1.6 }}>
                           <span style={{ color: C.gold, fontWeight: 700 }}>優勝</span> {winnerPlayer.name} <span style={{ fontFamily: SAIRA }}>{formatRaceTime(winner!.timeSec)}</span>
                           {myTopPlayer && myTop && (
                             <><br/><span style={{ color: TT_COLOR, fontWeight: 700 }}>自チーム</span> {myTopPlayer.name} {myTop.rank}位 <span style={{ fontFamily: SAIRA }}>{formatRaceTime(myTop.timeSec)}</span></>
@@ -199,7 +199,7 @@ export default function SchedulePage() {
                         </div>
                       )}
                     </div>
-                    {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
+                    {it.isDone && <div style={{ fontSize: F.label, color: C.textDim, flexShrink: 0 }}>済</div>}
                   </div>
                 </TTCard>
               </div>
@@ -223,13 +223,13 @@ export default function SchedulePage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: waColor, padding: '1px 7px',backgroundColor: alpha(waColor, 0.14), border: `1px solid ${alpha(waColor, 0.3)}`, fontFamily: SAIRA }}>{it.waMainYear ? '世界選手権' : 'アジア予選'}</span>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{it.name}</div>
-                      <div style={{ fontSize: '11px', color: C.textDim, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: '1px', color: waColor, padding: '1px 7px',backgroundColor: alpha(waColor, 0.14), border: `1px solid ${alpha(waColor, 0.3)}`, fontFamily: SAIRA }}>{it.waMainYear ? '世界選手権' : 'アジア予選'}</span>
+                      <div style={{ fontSize: F.sub, fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{it.name}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim, display: 'flex', alignItems: 'center', gap: 5 }}>
                         {it.date.replace(/-/g, '/')} · 開催国 <Flag code={it.waHost} width={16} /> {NAT_LABEL[it.waHost] ?? ''}
                       </div>
                     </div>
-                    {it.isDone && <div style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>済</div>}
+                    {it.isDone && <div style={{ fontSize: F.label, color: C.textDim, flexShrink: 0 }}>済</div>}
                   </div>
                 </div>
               </div>
@@ -296,7 +296,7 @@ export default function SchedulePage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <span style={{
-                        fontSize: '10px', fontWeight: '800', letterSpacing: '1px',
+                        fontSize: F.caption, fontWeight: '800', letterSpacing: '1px',
                         color: accentColor, padding: '1px 7px',
                         backgroundColor: alpha(accentColor, 0.12),
                         border: `1px solid ${alpha(accentColor, 0.25)}`,
@@ -306,17 +306,17 @@ export default function SchedulePage() {
                       </span>
                       {isNext && (
                         <span style={{
-                          fontSize: '10px', fontWeight: '800', color: C.bg,
+                          fontSize: F.caption, fontWeight: '800', color: C.bg,
                           padding: '1px 7px',
                           backgroundColor: accentColor,
                           fontFamily: SAIRA,
                         }}>NEXT</span>
                       )}
                     </div>
-                    <div style={{ fontSize: '15px', fontWeight: '800', color: isDone ? C.textSub : C.text, lineHeight: 1.2, marginBottom: '3px' }}>
+                    <div style={{ fontSize: F.subLg, fontWeight: '800', color: isDone ? C.textSub : C.text, lineHeight: 1.2, marginBottom: '3px' }}>
                       {race.name}
                     </div>
-                    <div style={{ fontSize: '11px', color: C.textDim }}>
+                    <div style={{ fontSize: F.label, color: C.textDim }}>
                       {race.date.replace(/-/g, '/')} · {race.location}
                     </div>
                     {!isDone && (() => {
@@ -324,10 +324,10 @@ export default function SchedulePage() {
                       const courseCol = getCourseColor(courseType)
                       return (
                         <div style={{ display: 'flex', gap: '5px', marginTop: '5px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '9px', padding: '1px 6px',backgroundColor: alpha(courseCol, 0.12), color: courseCol, fontWeight: '700', border: `1px solid ${alpha(courseCol, 0.25)}`, fontFamily: SAIRA }}>
+                          <span style={{ fontSize: F.tiny, padding: '1px 6px',backgroundColor: alpha(courseCol, 0.12), color: courseCol, fontWeight: '700', border: `1px solid ${alpha(courseCol, 0.25)}`, fontFamily: SAIRA }}>
                             {courseType}
                           </span>
-                          <span style={{ fontSize: '9px', padding: '1px 6px',backgroundColor: alpha(C.textGhost, 0.08), color: C.textGhost, fontFamily: SAIRA }}>
+                          <span style={{ fontSize: F.tiny, padding: '1px 6px',backgroundColor: alpha(C.textGhost, 0.08), color: C.textGhost, fontFamily: SAIRA }}>
                             {race.segments.length}区間 · {race.segments.reduce((s, sg) => s + sg.distanceKm, 0).toFixed(1)}km
                           </span>
                         </div>
@@ -338,13 +338,13 @@ export default function SchedulePage() {
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     {isDone && myRank !== null ? (
                       <>
-                        <div style={{ fontSize: '20px', fontWeight: '900', color: rColor, lineHeight: 1, fontFamily: SAIRA }}>{rankLabel(myRank)}</div>
-                        <div style={{ fontSize: '10px', color: C.textDim, marginTop: '2px' }}>結果</div>
+                        <div style={{ fontSize: F.head, fontWeight: '900', color: rColor, lineHeight: 1, fontFamily: SAIRA }}>{rankLabel(myRank)}</div>
+                        <div style={{ fontSize: F.caption, color: C.textDim, marginTop: '2px' }}>結果</div>
                       </>
                     ) : canEnter ? (
                       <div style={{ position: 'relative', overflow: 'hidden',marginBottom: 8 }}>
                         <GlassButton size="sm" style={{ gap: 4, padding: '11px 18px' }} onClick={() => navigate('/race')}>
-                          <span style={{ fontSize: '11px', fontWeight: '800' }}>出走準備</span>
+                          <span style={{ fontSize: F.label, fontWeight: '800' }}>出走準備</span>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                             <path d="M9 18l6-6-6-6" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round"/>
                           </svg>

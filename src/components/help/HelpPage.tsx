@@ -1,5 +1,5 @@
 import PageHeader from '../ui/PageHeader'
-import { C, alpha, SAIRA, FONT } from '../../styles/tokens'
+import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from '../ui/TipText'
 
@@ -205,7 +205,7 @@ export default function HelpPage() {
     <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100dvh' }}>
       <PageHeader eyebrow="HOW TO PLAY" title="操作方法・遊び方" />
       <div style={{ padding: '2px 16px 16px' }}>
-        <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.7, marginBottom: 16 }}>
+        <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.7, marginBottom: 16 }}>
           駅伝チームのGMとして、選手を育て、契約を結び、シーズン優勝を目指します。基本の流れは以下の通りです。
         </div>
 
@@ -224,16 +224,16 @@ position: 'relative', overflow: 'hidden',
                 background: `linear-gradient(90deg, ${alpha(sec.color, 0.1)}, transparent)`,
               }}>
                 <div style={{
-                  fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: sec.color,
+                  fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: sec.color,
                   minWidth: 30, textShadow: `0 0 10px ${alpha(sec.color, 0.4)}`,
                 }}>{sec.no}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text }}>{sec.title}</div>
+                <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.text }}>{sec.title}</div>
               </div>
               <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {sec.lines.map((line, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     <div style={{ width: 4, height: 4, borderRadius: '50%', background: sec.color, marginTop: 7, flexShrink: 0 }} />
-                    <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.6 }}><TipText text={line} /></div>
+                    <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6 }}><TipText text={line} /></div>
                   </div>
                 ))}
               </div>

@@ -7,7 +7,7 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { useClubIndex } from '../../lib/useClubIndex'
 import GlassButton from '../ui/GlassButton'
 
@@ -73,7 +73,7 @@ export default function PlayersStatsPage() {
       {/* ヘッダー（戻る＋タイトルを横並び・上部固定） */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.bg }}>
         <PageHeader eyebrow="RECORDS" title="区間記録" onBack={goBack} />
-        <div style={{ fontSize: '11px', color: C.textDim, padding: '4px 16px 10px' }}>
+        <div style={{ fontSize: F.label, color: C.textDim, padding: '4px 16px 10px' }}>
           {selectedRace ?? (cat != null ? `${CAT_LABEL[cat]} — 大会を選択` : 'カテゴリを選択')}
         </div>
       </div>
@@ -86,8 +86,8 @@ export default function PlayersStatsPage() {
               justifyContent: 'flex-start', gap: 12, textAlign: 'left',
               padding: '14px 16px', color: C.text, fontFamily: SAIRA,
             }} onClick={() => setCat(c)}>
-              <span style={{ fontSize: 16, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{CAT_LABEL[c]}</span>
-              <span style={{ color: C.textGhost, fontSize: 18 }}>›</span>
+              <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{CAT_LABEL[c]}</span>
+              <span style={{ color: C.textGhost, fontSize: F.titleLg }}>›</span>
             </GlassButton>
           ))}
         </div>
@@ -97,7 +97,7 @@ export default function PlayersStatsPage() {
       {cat != null && selectedRace == null && (
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {raceNames.length === 0 ? (
-            <div style={{ textAlign: 'center', color: C.textDim, fontSize: 13, padding: '30px 0' }}>まだ記録がありません</div>
+            <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.bodyLg, padding: '30px 0' }}>まだ記録がありません</div>
           ) : raceNames.map(name => {
             const segCount = Object.keys(records).filter(key => nameOfKey(key) === name).length
             return (
@@ -105,9 +105,9 @@ export default function PlayersStatsPage() {
                 justifyContent: 'flex-start', gap: 12, textAlign: 'left',
                 padding: '14px 16px', color: C.text, fontFamily: SAIRA,
               }} onClick={() => { setSelectedRace(name); setSegIdx(null) }}>
-                <span style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>{name}</span>
-                <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px',background: alpha(accent, 0.12) }}>{segCount}区間</span>
-                <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
+                <span style={{ fontSize: F.sub, fontWeight: 800, flex: 1 }}>{name}</span>
+                <span style={{ fontSize: F.caption, color: C.textDim, padding: '2px 8px',background: alpha(accent, 0.12) }}>{segCount}区間</span>
+                <span style={{ color: C.textGhost, fontSize: F.title }}>›</span>
               </GlassButton>
             )
           })}
@@ -122,7 +122,7 @@ export default function PlayersStatsPage() {
               const active = idx === activeSeg
               return (
                 <GlassButton key={idx} color={active ? accent : C.textDim} onClick={() => setSegIdx(idx)}
-                  style={{ flexShrink: 0, padding: '8px 16px', fontFamily: SAIRA, fontSize: 13 }}>
+                  style={{ flexShrink: 0, padding: '8px 16px', fontFamily: SAIRA, fontSize: F.bodyLg }}>
                   {idx}区
                 </GlassButton>
               )
@@ -146,25 +146,25 @@ export default function PlayersStatsPage() {
                         borderBottom: i < top.length - 1 ? `1px solid ${C.border}` : 'none',
                         cursor: player && !player.isRemoved ? 'pointer' : 'default',
                       }}>
-                      <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '20px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '900', color: rankCol, width: '20px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
                       {player && (
                         <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}>
                           <PlayerFace playerId={player.id} nationality={player.nationality} size={28} />
                         </div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: 700, color: C.text }}>{player?.name ?? '—'}</div>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 700, color: C.text }}>{player?.name ?? '—'}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                           {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
-                          <span style={{ fontSize: '9px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? ''}{entry.year ? ` / ${entry.year}` : ''}</span>
+                          <span style={{ fontSize: F.tiny, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? ''}{entry.year ? ` / ${entry.year}` : ''}</span>
                         </div>
                       </div>
-                      <span style={{ fontFamily: SAIRA, fontSize: '16px', fontWeight: '900', color: rankCol, textShadow: i <= 2 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>{formatRaceTime(entry.timeSec)}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '900', color: rankCol, textShadow: i <= 2 ? `0 0 8px ${alpha(rankCol, 0.5)}` : 'none' }}>{formatRaceTime(entry.timeSec)}</span>
                     </div>
                   )
                 })}
                 {top.length === 0 && (
-                  <div style={{ textAlign: 'center', color: C.textDim, fontSize: 12, padding: '24px 0' }}>まだ記録がありません</div>
+                  <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '24px 0' }}>まだ記録がありません</div>
                 )}
               </div>
             )

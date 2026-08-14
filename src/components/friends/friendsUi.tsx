@@ -1,7 +1,7 @@
 // フレンド系画面で共通の「読み込み中／通信失敗」表示と、取得用の小さなフック。
 // 見た目は既存の空状態（薄い箱＋中央テキスト）に合わせてある。
 import { useCallback, useEffect, useState } from 'react'
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
 export type QueryState<T> = {
@@ -68,7 +68,7 @@ export function useFriendsQuery<T>(fn: () => Promise<T>, deps: unknown[] = [], c
 }
 
 const boxStyle: React.CSSProperties = {
-  textAlign: 'center', color: C.textGhost, fontSize: 12, padding: '28px 16px',
+  textAlign: 'center', color: C.textGhost, fontSize: F.body, padding: '28px 16px',
   background: C.surface2,border: `1px solid ${C.border2}`,
   fontFamily: SAIRA,
 }
@@ -81,12 +81,12 @@ export function ErrorBox({ onRetry }: { onRetry?: () => void }) {
   return (
     <div style={boxStyle}>
       <div>通信できませんでした</div>
-      <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>電波の良い場所で、もう一度お試しください</div>
+      <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 4 }}>電波の良い場所で、もう一度お試しください</div>
       {onRetry && (
         <button onClick={onRetry} className="btn-press" style={{
           marginTop: 12, padding: '8px 18px',cursor: 'pointer',
           border: `2px solid ${alpha(C.gold, 0.5)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          color: C.gold, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
+          color: C.gold, fontSize: F.body, fontWeight: 900, fontFamily: SAIRA,
         }}>再読み込み</button>
       )}
     </div>

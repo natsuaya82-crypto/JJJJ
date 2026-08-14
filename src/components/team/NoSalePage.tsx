@@ -7,7 +7,7 @@ import PlayerRow from '../player/PlayerRow'
 import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
 import PageHeader from '../ui/PageHeader'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, F } from '../../styles/tokens'
 import PlayerList from '../player/PlayerList'
 
 
@@ -32,7 +32,7 @@ export default function NoSalePage() {
   const rowHandlers = (pid: string) => longPress(pid, () => setSheetPlayerId(pid))
 
   const badge = (label: string, color: string) => (
-    <span key={label} style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.45)}`, color, fontWeight: 800, flexShrink: 0 }}>{label}</span>
+    <span key={label} style={{ fontSize: F.micro, padding: '1px 5px',backgroundColor: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.45)}`, color, fontWeight: 800, flexShrink: 0 }}>{label}</span>
   )
 
   const sheetPlayer = sheetPlayerId ? myPlayers.find(p => p.id === sheetPlayerId) ?? null : null
@@ -41,12 +41,12 @@ export default function NoSalePage() {
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 80, minHeight: '100%' }}>
       <PageHeader title="移籍方針" />
       <div style={{ padding: '0 16px 14px' }}>
-        <div style={{ fontSize: 11, color: C.textDim, lineHeight: 1.6 }}>
+        <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6 }}>
           タップで方針を設定（長押しで詳細）。
           非売＝買い取りオファーを止める／貸出＝レンタル打診が来やすくなる／売出＝市場価値で売りに出し、成立すると入金と退団通知だけが届きます。
           契約切れ間近のフリー移籍の勧誘（本人の意思）は止められません。
         </div>
-        <div style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: setCount > 0 ? C.gold : C.textDim }}>
+        <div style={{ marginTop: 8, fontSize: F.label, fontWeight: 800, color: setCount > 0 ? C.gold : C.textDim }}>
           方針設定中 {setCount}名
         </div>
       </div>
@@ -66,7 +66,7 @@ export default function NoSalePage() {
           />
         ))}
         {myPlayers.length === 0 && (
-          <div style={{ padding: '40px 0', textAlign: 'center', color: C.textGhost, fontSize: 13 }}>対象の選手がいません</div>
+          <div style={{ padding: '40px 0', textAlign: 'center', color: C.textGhost, fontSize: F.bodyLg }}>対象の選手がいません</div>
         )}
       </PlayerList>
 
@@ -80,8 +80,8 @@ export default function NoSalePage() {
                 <PlayerFace playerId={sheetPlayer.id} nationality={sheetPlayer.nationality} size={44} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{sheetPlayer.name}</div>
-                <div style={{ fontSize: 10, color: C.textDim }}>
+                <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>{sheetPlayer.name}</div>
+                <div style={{ fontSize: F.caption, color: C.textDim }}>
                   {sheetPlayer.noSale ? '非売 ' : ''}{sheetPlayer.loanListed ? '貸出歓迎 ' : ''}{sheetPlayer.transferListed ? '売出中' : ''}
                   {!sheetPlayer.noSale && !sheetPlayer.loanListed && !sheetPlayer.transferListed ? '方針未設定' : ''}
                 </div>

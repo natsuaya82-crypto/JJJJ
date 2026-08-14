@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { C, alpha } from '../../styles/tokens'
+import { C, alpha, F } from '../../styles/tokens'
 
 /* ── SectionLabel ─────────────────────────── */
 export function SectionLabel({ children, className, style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
@@ -134,7 +134,7 @@ export function Badge({ children, color = C.gold, style }: BadgeProps) {
       padding: '2px 8px',
       backgroundColor: alpha(color, 0.15),
       border: `1px solid ${alpha(color, 0.35)}`,
-      fontSize: '10px',
+      fontSize: F.caption,
       fontWeight: '700',
       color,
       letterSpacing: '0.3px',
@@ -164,8 +164,8 @@ export function InfoTile({ label, value, color }: { label: string; value: string
       border: '1px solid rgba(255,255,255,0.04)',
       textAlign: 'center',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: '700', color: color ?? C.text }}>{value}</div>
-      <div style={{ fontSize: '10px', color: C.textDim, marginTop: '2px' }}>{label}</div>
+      <div style={{ fontSize: F.bodyLg, fontWeight: '700', color: color ?? C.text }}>{value}</div>
+      <div style={{ fontSize: F.caption, color: C.textDim, marginTop: '2px' }}>{label}</div>
     </div>
   )
 }

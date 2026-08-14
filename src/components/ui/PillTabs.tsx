@@ -4,7 +4,7 @@
 // 手書きされていた。「同じ操作なのに画面ごとに見た目が違う」を無くすため、ここ1本にする。
 //
 // ★横並びで何かを切り替えたくなったら、必ずこれを使うこと。button を新しく書かないこと。
-import { C, alpha, SAIRA } from '../../styles/tokens'
+import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 
 export default function PillTabs({ labels, value, onChange, fill = false, style }: {
@@ -28,7 +28,7 @@ export default function PillTabs({ labels, value, onChange, fill = false, style 
           <button key={i} onClick={() => onChange(i)} style={{
             ...(fill ? { flex: 1, padding: '7px 0' } : { flexShrink: 0, padding: '7px 14px' }),
 cursor: 'pointer', fontFamily: SAIRA,
-            fontSize: 13, fontWeight: sel ? 900 : 700,
+            fontSize: F.bodyLg, fontWeight: sel ? 900 : 700,
             background: sel ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : C.surface2,
             color: sel ? C.bg : C.textDim,
             border: `1px solid ${sel ? C.gold : C.border2}`,
